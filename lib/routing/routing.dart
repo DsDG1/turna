@@ -13,7 +13,7 @@ class AppRouter extends RootStackRouter {
   List<AutoRoute> get routes => [
         AutoRoute(page: SplashRoute.page, initial: true),
         AutoRoute(page: HomeRoute.page),
-        AutoRoute(page: LessonRoute.page),
+        AutoRoute(page: NewLessonRoute.page),
         AutoRoute(page: VowelAndConsonantLearningRoute.page),
         AutoRoute(page: MatchWordsRoute.page),
       ];

@@ -6,7 +6,6 @@ import 'package:words625/domain/course/reading_question.dart';
 import 'package:words625/domain/course/section.dart';
 import 'package:words625/domain/course/stage.dart';
 import 'package:words625/domain/course/unit.dart';
-import 'package:words625/gen/assets.gen.dart';
 
 /// Top-level Kannada course structure: 3 sections → units → lessons → stages.
 ///
@@ -398,52 +397,3 @@ final List<Section> _kannadaSections = [
     ],
   ),
 ];
-
-// ─────────────────────── Legacy 2-layer data ───────────────────────
-// Kept temporarily so old entry points (course_provider.dart, lesson_screen.dart)
-// continue to compile. Will be removed in Phase 8.
-
-/// Returns the legacy list of [Course] maps for backward compatibility.
-List<List<dynamic>> getKannadaData(String firstName) {
-  return [
-    [
-      {
-        "courseName": "basics",
-        "image": Assets.images.egg.path,
-        "color": 0xff2b70c9,
-        "levels": [
-          {
-            "level": 1,
-            "questions": [
-              {
-                "type": "multiple_choice",
-                "prompt": "Choose an appropriate response",
-                "sentence": "Ninna hesaru enu?",
-                "sentenceIsTargetLanguage": true,
-                "options": [
-                  "Nanna hesaru $firstName.",
-                  "Naanu kalithini.",
-                  "Nange gothilla."
-                ],
-                "correctAnswer": "Nanna hesaru $firstName.",
-                "translatedSentence": "My name is $firstName"
-              },
-              {
-                "type": "translate",
-                "prompt": "Translate the sentence",
-                "sentence": "Naanu vidyaarthi.",
-                "sentenceIsTargetLanguage": true,
-                "options": [
-                  "I am a student.",
-                  "You are a student.",
-                  "They are students."
-                ],
-                "correctAnswer": "I am a student."
-              },
-            ]
-          }
-        ]
-      }
-    ]
-  ];
-}

@@ -2,16 +2,15 @@
 import 'package:flutter/material.dart';
 
 // Package imports:
+import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:words625/application/course_provider.dart';
-import 'package:words625/application/language_provider.dart';
-import 'package:words625/domain/course/course.dart';
+import 'package:words625/domain/course/lesson.dart';
+import 'package:words625/domain/course/unit.dart';
+import 'package:words625/routing/routing.gr.dart';
 import 'package:words625/views/theme.dart';
-import 'components/course_node.dart';
-import 'components/double_course_node.dart';
-import 'components/triple_course_node.dart';
 import 'components/section_switcher.dart';
 
 class CourseTree extends StatefulWidget {
@@ -26,8 +25,7 @@ class _CourseTreeState extends State<CourseTree> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final language = context.read<LanguageProvider>().selectedLanguage;
-      context.read<CourseProvider>().getCourses(language);
+      context.read<CourseProvider>().getCourses();
     });
   }
 
@@ -39,10 +37,9 @@ class _CourseTreeState extends State<CourseTree> {
       ),
       child: Consumer<CourseProvider>(
         builder: (context, courseState, _) {
-          final courses = courseState.courses;
-          final sectionIndex = courseState.currentSectionIndex;
+          final sections = courseState.sections;
 
-          if (courses == null) {
+          if (sections.isEmpty) {
             return const Center(child: _LoadingIndicator());
           }
 
@@ -56,7 +53,7 @@ class _CourseTreeState extends State<CourseTree> {
 
               // Section content
               Expanded(
-                child: _buildSectionContent(courseState, sectionIndex),
+                child: _buildUnitTree(courseState),
               ),
             ],
           );
@@ -65,19 +62,13 @@ class _CourseTreeState extends State<CourseTree> {
     );
   }
 
-  /// Renders the content for the selected section.
-  Widget _buildSectionContent(CourseProvider courseState, int sectionIndex) {
-    if (sectionIndex == 0) {
-      // Section 1 — existing course tree
-      return _buildExistingCourseTree(courseState.courses!);
-    } else {
-      // Section 2+ — empty placeholder
-      return _buildEmptySection(sectionIndex);
+  /// Renders the units and lessons for the currently selected section.
+  Widget _buildUnitTree(CourseProvider courseState) {
+    final section = courseState.currentSection;
+    if (section == null || section.units.isEmpty) {
+      return _buildEmptyMessage();
     }
-  }
 
-  /// The existing course tree rendering (unchanged from original).
-  Widget _buildExistingCourseTree(List<List<Course>> courses) {
     return CustomScrollView(
       physics: const BouncingScrollPhysics(),
       slivers: [
@@ -86,38 +77,17 @@ class _CourseTreeState extends State<CourseTree> {
           sliver: SliverList(
             delegate: SliverChildBuilderDelegate(
               (context, index) {
-                final courseIndex = index ~/ 2;
-                final isConnector = index.isOdd;
-
-                if (isConnector) {
-                  if (courseIndex >= courses.length) {
-                    return const SizedBox.shrink();
-                  }
-                  return _buildPathConnector();
-                }
-
-                if (courseIndex >= courses.length) {
-                  return const SizedBox.shrink();
-                }
-
-                final courseGroup = courses[courseIndex];
-                if (courseGroup.length == 1) {
-                  return CourseNode(courseGroup[0], crown: 1);
-                } else if (courseGroup.length == 2) {
-                  return DoubleCourseNode(
-                    CourseNode(courseGroup[0], crown: 1),
-                    CourseNode(courseGroup[1], crown: 1),
-                  );
-                } else if (courseGroup.length == 3) {
-                  return TripleCourseNode(
-                    CourseNode(courseGroup[0]),
-                    CourseNode(courseGroup[1]),
-                    CourseNode(courseGroup[2]),
-                  );
-                }
-                return const SizedBox.shrink();
+                final unit = section.units[index];
+                return _UnitCard(
+                  unit: unit,
+                  onLessonTap: (lesson) {
+                    // Navigate to new lesson screen via lesson ID.
+                    // Route import is added after Step 4–5.
+                    _navigateToLesson(context, lesson);
+                  },
+                );
               },
-              childCount: courses.isEmpty ? 0 : courses.length * 2 - 1,
+              childCount: section.units.length,
             ),
           ),
         ),
@@ -125,58 +95,281 @@ class _CourseTreeState extends State<CourseTree> {
     );
   }
 
-  /// Empty placeholder for sections with no content.
-  Widget _buildEmptySection(int sectionIndex) {
+  void _navigateToLesson(BuildContext context, Lesson lesson) {
+    context.router.push(NewLessonRoute(lessonId: lesson.id));
+  }
+
+  Widget _buildEmptyMessage() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            Icons.construction_rounded,
+            Icons.menu_book_rounded,
             size: 64,
-            color: VarnamalaTheme.textHint.withValues(alpha: 0.4),
+            color: VarnamalaTheme.textHint.withValues(alpha: 0.3),
           ),
           const SizedBox(height: 16),
-          Text(
-            'Section $sectionIndex',
-            style: const TextStyle(
+          const Text(
+            'No units available',
+            style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
               color: VarnamalaTheme.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Coming soon',
-            style: TextStyle(
-              fontSize: 14,
-              color: VarnamalaTheme.textHint.withValues(alpha: 0.7),
             ),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildPathConnector() {
-    return Center(
-      child: Container(
-        width: 3,
-        height: 28,
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              VarnamalaTheme.peacockTeal.withValues(alpha: 0.3),
-              VarnamalaTheme.peacockTeal.withValues(alpha: 0.1),
+/// A card displaying a Unit with its Lessons listed below.
+class _UnitCard extends StatefulWidget {
+  final Unit unit;
+  final void Function(Lesson lesson) onLessonTap;
+
+  const _UnitCard({
+    required this.unit,
+    required this.onLessonTap,
+  });
+
+  @override
+  State<_UnitCard> createState() => _UnitCardState();
+}
+
+class _UnitCardState extends State<_UnitCard> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final unit = widget.unit;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+        elevation: 0,
+        shadowColor: VarnamalaTheme.peacockTeal.withValues(alpha: 0.08),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Unit header — tappable to expand/collapse
+            InkWell(
+              borderRadius: BorderRadius.vertical(
+                top: const Radius.circular(VarnamalaTheme.radiusMedium),
+                bottom: _expanded
+                    ? Radius.zero
+                    : const Radius.circular(VarnamalaTheme.radiusMedium),
+              ),
+              onTap: () => setState(() => _expanded = !_expanded),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color:
+                            VarnamalaTheme.peacockTeal.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(
+                            VarnamalaTheme.radiusSmall),
+                      ),
+                      child: Icon(
+                        _expanded
+                            ? Icons.expand_less_rounded
+                            : Icons.expand_more_rounded,
+                        color: VarnamalaTheme.peacockTeal,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            unit.name,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: VarnamalaTheme.textPrimary,
+                            ),
+                          ),
+                          if (unit.description.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              unit.description,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: VarnamalaTheme.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color:
+                            VarnamalaTheme.peacockTeal.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(
+                            VarnamalaTheme.radiusRound),
+                      ),
+                      child: Text(
+                        '${unit.lessons.length} lessons',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: VarnamalaTheme.peacockTeal,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Lesson list — shown when expanded
+            if (_expanded) ...[
+              const Divider(height: 1),
+              ...unit.lessons.map(
+                (lesson) => _LessonTile(
+                  lesson: lesson,
+                  onTap: () => widget.onLessonTap(lesson),
+                ),
+              ),
             ],
-          ),
-          borderRadius: BorderRadius.circular(2),
+          ],
         ),
       ),
     );
+  }
+}
+
+/// A tappable tile for a single Lesson.
+class _LessonTile extends StatelessWidget {
+  final Lesson lesson;
+  final VoidCallback onTap;
+
+  const _LessonTile({
+    required this.lesson,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            // Type icon
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: _lessonTypeColor(lesson.type).withValues(alpha: 0.1),
+                borderRadius:
+                    BorderRadius.circular(VarnamalaTheme.radiusSmall),
+              ),
+              child: Icon(
+                _lessonTypeIcon(lesson.type),
+                size: 16,
+                color: _lessonTypeColor(lesson.type),
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Lesson name
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    lesson.name,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: VarnamalaTheme.textPrimary,
+                    ),
+                  ),
+                  if (lesson.description.isNotEmpty)
+                    Text(
+                      lesson.description,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: VarnamalaTheme.textSecondary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
+              ),
+            ),
+            // Type badge
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: _lessonTypeColor(lesson.type).withValues(alpha: 0.1),
+                borderRadius:
+                    BorderRadius.circular(VarnamalaTheme.radiusRound),
+              ),
+              child: Text(
+                _lessonTypeLabel(lesson.type),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: _lessonTypeColor(lesson.type),
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 18,
+              color: VarnamalaTheme.textHint.withValues(alpha: 0.5),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static IconData _lessonTypeIcon(LessonType type) {
+    return switch (type) {
+      LessonType.normal => Icons.menu_book_rounded,
+      LessonType.listening => Icons.headphones_rounded,
+      LessonType.reading => Icons.chrome_reader_mode_rounded,
+      LessonType.review => Icons.replay_rounded,
+      LessonType.challenge => Icons.emoji_events_rounded,
+    };
+  }
+
+  static Color _lessonTypeColor(LessonType type) {
+    return switch (type) {
+      LessonType.normal => VarnamalaTheme.peacockTeal,
+      LessonType.listening => VarnamalaTheme.peacockCyan,
+      LessonType.reading => VarnamalaTheme.leagueAmethyst,
+      LessonType.review => VarnamalaTheme.warning,
+      LessonType.challenge => VarnamalaTheme.leagueRuby,
+    };
+  }
+
+  static String _lessonTypeLabel(LessonType type) {
+    return switch (type) {
+      LessonType.normal => 'Lesson',
+      LessonType.listening => 'Listening',
+      LessonType.reading => 'Reading',
+      LessonType.review => 'Review',
+      LessonType.challenge => 'Challenge',
+    };
   }
 }
 

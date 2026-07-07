@@ -9,7 +9,7 @@ import 'package:words625/application/game_provider.dart';
 import 'package:words625/application/gems_provider.dart';
 import 'package:words625/application/hearts_provider.dart';
 import 'package:words625/application/language_provider.dart';
-import 'package:words625/application/level_provider.dart';
+import 'package:words625/application/lesson_viewmodel.dart';
 import 'package:words625/application/match_provider.dart';
 import 'package:words625/application/srs_provider.dart';
 import 'package:words625/application/theme_provider.dart';
@@ -19,9 +19,6 @@ final providers = [
   ChangeNotifierProvider<ThemeProvider>(
     create: (_) => ThemeProvider(),
   ),
-  ChangeNotifierProvider<LessonProvider>(
-    create: (_) => getIt<LessonProvider>(),
-  ),
   ChangeNotifierProvider<CharacterProvider>(
     create: (_) => getIt<CharacterProvider>(),
   ),
@@ -30,6 +27,9 @@ final providers = [
   ),
   ChangeNotifierProvider<CourseProvider>(
     create: (_) => getIt<CourseProvider>(),
+  ),
+  ChangeNotifierProvider<LessonViewModel>(
+    create: (_) => getIt<LessonViewModel>(),
   ),
   ChangeNotifierProvider<GameProvider>(
     create: (_) => getIt<GameProvider>(),
