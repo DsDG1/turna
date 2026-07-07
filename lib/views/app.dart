@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 
 // Package imports:
-import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
@@ -17,10 +16,6 @@ final router = getIt<AppRouter>();
 class Words625App extends StatelessWidget {
   const Words625App({Key? key}) : super(key: key);
 
-  static FirebaseAnalytics analytics = FirebaseAnalytics.instance;
-  static FirebaseAnalyticsObserver observer =
-      FirebaseAnalyticsObserver(analytics: analytics);
-
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
@@ -32,7 +27,7 @@ class Words625App extends StatelessWidget {
             title: 'Varnamala',
             theme: VarnamalaTheme.lightTheme,
             themeMode: themeProvider.themeMode,
-            routerConfig: router.config(navigatorObservers: () => [observer]),
+            routerConfig: router.config(),
           );
         },
       ),

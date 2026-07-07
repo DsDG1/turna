@@ -1,6 +1,6 @@
 name: words625
 version: 1.0.0+1
-publish_to: none
+publish_to: 'none'
 environment:
   sdk: ">=3.2.3 <4.0.0"
 description: Varnamala - A Duolingo Alternative for Learning Indian Languages
@@ -9,17 +9,9 @@ dependencies:
   audioplayers: any
   auto_route: 9.2.2
   chiclet: any
-  cloud_firestore: any
-  contained_tab_bar_view: ^0.8.0
   countup: any
   cupertino_icons: ^1.0.2
   equatable: any
-  firebase_analytics: any
-  firebase_auth: any
-  firebase_core: any
-  firebase_crashlytics: any
-  firebase_messaging: any
-  firebase_storage: any
   flutter:
     sdk: flutter
   flutter_animate: any
@@ -30,8 +22,9 @@ dependencies:
   freezed: any
   get_it: any
   google_fonts: ^6.2.0
-  google_sign_in: any
+  http: any
   injectable: any
+  intl: any
   json_annotation: any
   json_serializable: any
   logger: any

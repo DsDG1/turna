@@ -1,18 +1,21 @@
 // Flutter imports:
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 // Package imports:
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:words625/domain/achievement.dart';
+import 'package:words625/service/locator.dart';
 
 @injectable
 class AchievementsProvider extends ChangeNotifier {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final AppPrefs appPrefs;
+
+  final StreamController<List<String>> _achievementsController =
+      StreamController<List<String>>.broadcast();
 
   static const List<Achievement> allAchievements = [
     Achievement(
@@ -25,13 +28,14 @@ class AchievementsProvider extends ChangeNotifier {
       targets: [50, 100, 250, 500, 1000],
     ),
     Achievement(
-        id: 'sage',
-        type: AchievementType.sage,
-        title: 'Sage',
-        description: 'Earn XP in a single day',
-        icon: Icons.psychology_rounded,
-        color: Color(0xFF66BB6A),
-        targets: [100, 250, 500, 1000, 2000]),
+      id: 'sage',
+      type: AchievementType.sage,
+      title: 'Sage',
+      description: 'Earn XP in a single day',
+      icon: Icons.psychology_rounded,
+      color: Color(0xFF66BB6A),
+      targets: [100, 250, 500, 1000, 2000],
+    ),
     Achievement(
       id: 'wildfire',
       type: AchievementType.wildfire,
@@ -61,18 +65,18 @@ class AchievementsProvider extends ChangeNotifier {
     ),
     Achievement(
       id: 'friendly',
-      type: AchievementType.streak, // Using streak as placeholder for friends if no friends type
+      type: AchievementType.streak,
       title: 'Friendly',
-      description: 'Follow friends',
+      description: 'Track shared progress',
       icon: Icons.people_rounded,
       color: Color(0xFF26C6DA),
       targets: [1, 5, 10, 20],
     ),
     Achievement(
       id: 'winner',
-      type: AchievementType.xp, // Using xp as placeholder for league
+      type: AchievementType.xp,
       title: 'Winner',
-      description: 'Finish #1 in your leaderboard',
+      description: 'Reach XP milestones',
       icon: Icons.emoji_events_rounded,
       color: Color(0xFFFFA726),
       targets: [1, 5, 10, 25],
@@ -83,73 +87,62 @@ class AchievementsProvider extends ChangeNotifier {
     for (final achievement in allAchievements) achievement.id: achievement,
   };
 
-  Stream<List<String>> getUnlockedAchievements() {
-    final userId = _auth.currentUser?.uid;
-    if (userId == null) return Stream.value(const <String>[]);
+  AchievementsProvider(this.appPrefs);
 
-    return _firestore.collection('users').doc(userId).snapshots().map((doc) {
-      final data = doc.data() ?? <String, dynamic>{};
-      return (data['achievements'] as List<dynamic>? ?? const <dynamic>[])
-          .whereType<String>()
-          .toList(growable: false);
-    });
+  Stream<List<String>> getUnlockedAchievements() async* {
+    yield _readList();
+    yield* _achievementsController.stream;
   }
 
   Future<bool> checkAndUnlock(String achievementId) async {
     final achievement = _achievementById[achievementId];
     if (achievement == null) return false;
 
-    final userId = _auth.currentUser?.uid;
-    if (userId == null) return false;
+    final unlocked = _readList().toSet();
+    if (!unlocked.add(achievementId)) return false;
 
-    final docRef = _firestore.collection('users').doc(userId);
+    final currentGems = _readInt(LocalStateKeys.gems, 0);
+    await Future.wait([
+      appPrefs.preferences.setStringList(
+        LocalStateKeys.achievements,
+        unlocked.toList(growable: false),
+      ),
+      appPrefs.preferences.setInt(LocalStateKeys.gems, currentGems + 50),
+    ]);
 
-    final unlocked = await _firestore.runTransaction<bool>((transaction) async {
-      final doc = await transaction.get(docRef);
-      if (!doc.exists) return false;
-
-      final data = doc.data() ?? <String, dynamic>{};
-      final unlocked = (data['achievements'] as List<dynamic>? ?? const <dynamic>[])
-          .whereType<String>()
-          .toSet();
-
-      if (!unlocked.add(achievementId)) {
-        return false;
-      }
-
-      // TODO: Logic for gem rewards based on achievement tier
-      // For now using simplified flat rate or calculating based on previous logic
-      final gems = (data['gems'] as num? ?? 0).toInt() + 50; // Placeholder 50 gems
-      transaction.update(docRef, {
-        'achievements': unlocked.toList(growable: false),
-        'gems': gems,
-      });
-
-      return true;
-    });
-
-    if (unlocked) notifyListeners();
-    return unlocked;
+    _achievementsController.add(unlocked.toList(growable: false));
+    notifyListeners();
+    return true;
   }
 
   Future<void> checkLessonMilestones({
     required int lessonsCompleted,
     required int perfectLessons,
   }) async {
-    // Check Champion (lessons)
-    final champion = _achievementById['champion'];
-    if (champion != null) {
-      if (lessonsCompleted >= 10) await checkAndUnlock('champion'); // Simplified for now
+    if (lessonsCompleted >= 10) {
+      await checkAndUnlock('champion');
     }
-    
-    // Check Sharpshooter (perfect lessons)
-     final sharpshooter = _achievementById['sharpshooter'];
-    if (sharpshooter != null) {
-       if (perfectLessons >= 1) await checkAndUnlock('sharpshooter');
+    if (perfectLessons >= 1) {
+      await checkAndUnlock('sharpshooter');
     }
   }
 
   Future<void> checkLeagueAchievement(String league) async {
-    // Implement league checking when league achievements are fully defined
+    // No-op in local mode.
+  }
+
+  List<String> _readList() =>
+      appPrefs.preferences.getStringList(
+        LocalStateKeys.achievements,
+        defaultValue: const [],
+      ).getValue();
+
+  int _readInt(String key, int fallback) =>
+      appPrefs.preferences.getInt(key, defaultValue: fallback).getValue();
+
+  @override
+  void dispose() {
+    _achievementsController.close();
+    super.dispose();
   }
 }

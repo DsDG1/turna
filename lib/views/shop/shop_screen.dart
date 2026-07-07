@@ -9,7 +9,6 @@ import 'package:provider/provider.dart';
 import 'package:words625/application/game_provider.dart';
 import 'package:words625/application/gems_provider.dart';
 import 'package:words625/routing/routing.gr.dart';
-import 'package:words625/views/auth/components/logout_button.dart';
 import 'package:words625/views/theme.dart';
 
 class ShopPage extends StatelessWidget {
@@ -154,12 +153,6 @@ class ShopPage extends StatelessWidget {
                 description: 'Turn Mala into a fearless feathered Guru.',
                 buttonLabel: 'COMING SOON',
                 enabled: false,
-              ),
-            ),
-            const SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.all(16.0),
-                child: LogoutButton(),
               ),
             ),
             const SliverPadding(padding: EdgeInsets.only(bottom: 24)),

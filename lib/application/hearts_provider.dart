@@ -1,10 +1,13 @@
 // Flutter imports:
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 // Package imports:
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:injectable/injectable.dart';
+
+// Project imports:
+import 'package:words625/service/locator.dart';
 
 class HeartsState {
   final int hearts;
@@ -24,37 +27,28 @@ class HeartsProvider extends ChangeNotifier {
   static const Duration refillInterval = Duration(minutes: 30);
   static const int refillCostInGems = 350;
 
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final AppPrefs appPrefs;
 
-  Stream<HeartsState> getHeartsStream() {
-    final userId = _auth.currentUser?.uid;
-    if (userId == null) {
-      return Stream.value(const HeartsState(hearts: maxHearts, heartsRefillAt: null));
-    }
+  final StreamController<HeartsState> _heartsController =
+      StreamController<HeartsState>.broadcast();
 
-    return _firestore.collection('users').doc(userId).snapshots().map((doc) {
-      final data = doc.data() ?? <String, dynamic>{};
-      return HeartsState(
-        hearts: _readInt(data['hearts'], maxHearts),
-        heartsRefillAt: _parseDate(data['heartsRefillAt']),
-      );
-    });
+  HeartsProvider(this.appPrefs);
+
+  Stream<HeartsState> getHeartsStream() async* {
+    yield _readState();
+    yield* _heartsController.stream;
   }
 
+  HeartsState _readState() => HeartsState(
+        hearts: _readInt(LocalStateKeys.hearts, maxHearts),
+        heartsRefillAt: _readRefillAt(),
+      );
+
   Future<void> ensureHeartsInitialized() async {
-    final userId = _auth.currentUser?.uid;
-    if (userId == null) return;
-
-    final docRef = _firestore.collection('users').doc(userId);
-    final doc = await docRef.get();
-    if (!doc.exists) return;
-
-    await docRef.set({
-      'hearts': maxHearts,
-      'heartsRefillAt': null,
-    }, SetOptions(merge: true));
-
+    await Future.wait([
+      appPrefs.preferences.setInt(LocalStateKeys.hearts, maxHearts),
+      appPrefs.preferences.setString(LocalStateKeys.heartsRefillAt, ''),
+    ]);
     await refillHeart();
   }
 
@@ -64,63 +58,44 @@ class HeartsProvider extends ChangeNotifier {
   }
 
   Future<void> refillHeart() async {
-    final userId = _auth.currentUser?.uid;
-    if (userId == null) return;
-
-    final docRef = _firestore.collection('users').doc(userId);
-
-    await _firestore.runTransaction((transaction) async {
-      final doc = await transaction.get(docRef);
-      if (!doc.exists) return;
-
-      transaction.update(docRef, {
-        'hearts': maxHearts,
-        'heartsRefillAt': null,
-      });
-    });
-
+    await Future.wait([
+      appPrefs.preferences.setInt(LocalStateKeys.hearts, maxHearts),
+      appPrefs.preferences.setString(LocalStateKeys.heartsRefillAt, ''),
+    ]);
+    _heartsController.add(_readState());
     notifyListeners();
   }
 
   Future<bool> useGemsForHearts() async {
-    final userId = _auth.currentUser?.uid;
-    if (userId == null) return false;
+    final gems = _readInt(LocalStateKeys.gems, 0);
+    if (gems < refillCostInGems) return false;
 
-    final docRef = _firestore.collection('users').doc(userId);
+    await Future.wait([
+      appPrefs.preferences.setInt(LocalStateKeys.gems, gems - refillCostInGems),
+      appPrefs.preferences.setInt(LocalStateKeys.hearts, maxHearts),
+      appPrefs.preferences.setString(LocalStateKeys.heartsRefillAt, ''),
+    ]);
 
-    final success = await _firestore.runTransaction<bool>((transaction) async {
-      final doc = await transaction.get(docRef);
-      if (!doc.exists) return false;
-
-      final data = doc.data() ?? <String, dynamic>{};
-      final gems = _readInt(data['gems'], 0);
-      if (gems < refillCostInGems) {
-        return false;
-      }
-
-      transaction.update(docRef, {
-        'gems': gems - refillCostInGems,
-        'hearts': maxHearts,
-        'heartsRefillAt': null,
-      });
-      return true;
-    });
-
-    if (success) notifyListeners();
-    return success;
+    _heartsController.add(_readState());
+    notifyListeners();
+    return true;
   }
 
-  int _readInt(dynamic value, int fallback) {
-    if (value is int) return value;
-    if (value is num) return value.toInt();
-    return fallback;
+  int _readInt(String key, int fallback) =>
+      appPrefs.preferences.getInt(key, defaultValue: fallback).getValue();
+
+  DateTime? _readRefillAt() {
+    final value = _readString(LocalStateKeys.heartsRefillAt, '');
+    if (value.isEmpty) return null;
+    return DateTime.tryParse(value);
   }
 
-  DateTime? _parseDate(dynamic value) {
-    if (value == null) return null;
-    if (value is Timestamp) return value.toDate();
-    if (value is DateTime) return value;
-    if (value is String) return DateTime.tryParse(value);
-    return null;
+  String _readString(String key, String fallback) =>
+      appPrefs.preferences.getString(key, defaultValue: fallback).getValue();
+
+  @override
+  void dispose() {
+    _heartsController.close();
+    super.dispose();
   }
 }

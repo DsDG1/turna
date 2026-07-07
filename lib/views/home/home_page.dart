@@ -15,7 +15,6 @@ import 'package:words625/views/characters/character_drawing.dart';
 import 'package:words625/views/characters/characters_app_bar.dart';
 import 'package:words625/views/courses/course_tree.dart';
 import 'package:words625/views/home/components/components.dart';
-import 'package:words625/views/leaderboard/leaderboard_page.dart';
 import 'package:words625/views/profile/profile_screen.dart';
 import 'package:words625/views/shop/shop_screen.dart';
 import 'package:words625/views/theme.dart';
@@ -38,7 +37,6 @@ class _HomePageState extends State<HomePage> {
     const CourseTree(),
     const CharacterPracticeScreen(),
     const ProfilePage(),
-    const LeaderboardPage(),
     const ShopPage(),
   ];
 
@@ -83,7 +81,6 @@ class _HomePageState extends State<HomePage> {
     const StatAppBar(),
     const CharactersAppBar(),
     const ProfileAppBar(),
-    const LeaderboardAppBar(),
     const ShopAppBar(),
   ];
 

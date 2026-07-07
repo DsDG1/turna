@@ -1,25 +1,11 @@
 // Project imports:
-import 'package:words625/core/enums.dart';
-import 'package:words625/core/extensions.dart';
 import 'package:words625/core/logger.dart';
-import 'package:words625/di/injection.dart';
-import 'package:words625/service/locator.dart';
-import 'languages.dart';
+import 'kannada_vocab.dart';
 
-Map<TargetLanguage, Map<String, String>> dictionary = {
-  TargetLanguage.kannada: kannadaDictionary,
-  TargetLanguage.malayalam: malayalamDictionary,
-  TargetLanguage.tamil: tamilDictionary,
-  TargetLanguage.telugu: teluguDictionary,
-  TargetLanguage.hindi: hindiDictionary,
-  TargetLanguage.bengali: bengaliDictionary,
-  TargetLanguage.odia: odiaDictionary,
-  TargetLanguage.nepali: nepaliDictionary,
-};
-
+/// Look up the meaning of [word] in the Kannada vocabulary.
+/// Single-language build: returns "--" if not found.
 String getWordMeaning(String word) {
-  final targetLanguage =
-      getIt<AppPrefs>().currentLanguage.getValue().getEnumValue();
-  logger.i("Dictionary for Line 18 : $targetLanguage");
-  return dictionary[targetLanguage]?[word.trim().toLowerCase()] ?? "--";
+  logger.i("Dictionary lookup: $word");
+  return kannadaVocabByTranslation[word.trim().toLowerCase()]?.translation ??
+      "--";
 }

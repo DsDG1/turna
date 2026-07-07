@@ -2,61 +2,18 @@
 import 'package:flutter/material.dart';
 
 // Package imports:
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
 
 // Project imports:
+import 'package:words625/application/game_provider.dart';
+import 'package:words625/application/gems_provider.dart';
 import 'package:words625/core/extensions.dart';
+import 'package:words625/di/injection.dart';
+import 'package:words625/service/locator.dart';
 import 'package:words625/views/theme.dart';
 
-class Statistics extends StatefulWidget {
+class Statistics extends StatelessWidget {
   const Statistics({Key? key}) : super(key: key);
-
-  @override
-  State<Statistics> createState() => _StatisticsState();
-}
-
-class _StatisticsState extends State<Statistics> {
-  String streak = '0';
-  String totalXp = '0';
-  String gems = '0';
-  String league = 'Bronze';
-  bool isLoading = true;
-  List<String> languages = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchUserData();
-  }
-
-  Future<void> _fetchUserData() async {
-    try {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser == null) return;
-
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUser.uid)
-          .get();
-
-      if (userDoc.exists) {
-        final userData = userDoc.data() as Map<String, dynamic>;
-        setState(() {
-          streak = userData['streak']?.toString() ?? '0';
-          totalXp = userData['score']?.toString() ?? '0';
-          gems = userData['gems']?.toString() ?? '0';
-          league = (userData['league'] as String? ?? 'bronze').toTitleCase;
-          isLoading = false;
-          languages = userData['languages']?.cast<String>() ?? [];
-        });
-      } else {
-        setState(() => isLoading = false);
-      }
-    } catch (e) {
-      setState(() => isLoading = false);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -66,67 +23,71 @@ class _StatisticsState extends State<Statistics> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _sectionTitle(context, 'Statistics', Icons.bar_chart_rounded),
-          if (languages.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              children: languages
-                  .map((lang) => Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: VarnamalaTheme.peacockTeal
-                              .withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(
-                              VarnamalaTheme.radiusRound),
-                        ),
-                        child: Text(
-                          lang.toTitleCase,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: VarnamalaTheme.peacockTeal,
+          Consumer<GameProvider>(
+            builder: (context, gameProvider, _) {
+              return StreamBuilder<Map<String, dynamic>>(
+                stream: gameProvider.getUserGameStateStream(),
+                builder: (context, snapshot) {
+                  final data = snapshot.data ?? const <String, dynamic>{};
+                  final streak = (data['streak'] as num?)?.toInt() ?? 0;
+                  final totalXp = (data['score'] as num?)?.toInt() ?? 0;
+                  final currentLanguage =
+                      getIt<AppPrefs>().currentLanguage.getValue();
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 8),
+                      _LanguageChip(language: currentLanguage.toTitleCase),
+                      const SizedBox(height: 12),
+                      GridView.count(
+                        primary: false,
+                        shrinkWrap: true,
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                        childAspectRatio: 2.2,
+                        children: [
+                          _StatCard(
+                            icon: Icons.local_fire_department_rounded,
+                            iconColor: const Color(0xFFFF9500),
+                            value: streak.toString(),
+                            label: 'Day Streak',
                           ),
-                        ),
-                      ))
-                  .toList(),
-            ),
-          ],
-          const SizedBox(height: 12),
-          GridView.count(
-            primary: false,
-            shrinkWrap: true,
-            crossAxisCount: 2,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-            childAspectRatio: 2.2,
-            children: [
-              _StatCard(
-                icon: Icons.local_fire_department_rounded,
-                iconColor: const Color(0xFFFF9500),
-                value: streak,
-                label: 'Day Streak',
-              ),
-              _StatCard(
-                icon: Icons.bolt_rounded,
-                iconColor: VarnamalaTheme.peacockTurquoise,
-                value: totalXp,
-                label: 'Total XP',
-              ),
-              _StatCard(
-                icon: Icons.shield_rounded,
-                iconColor: VarnamalaTheme.leagueAmethyst,
-                value: league,
-                label: 'Current League',
-              ),
-              _StatCard(
-                icon: Icons.diamond_rounded,
-                iconColor: VarnamalaTheme.error,
-                value: gems,
-                label: 'Gems',
-              ),
-            ],
+                          _StatCard(
+                            icon: Icons.bolt_rounded,
+                            iconColor: VarnamalaTheme.peacockTurquoise,
+                            value: totalXp.toString(),
+                            label: 'Total XP',
+                          ),
+                          _StatCard(
+                            icon: Icons.shield_rounded,
+                            iconColor: VarnamalaTheme.leagueAmethyst,
+                            value: GameProvider.bronzeLeague.toTitleCase,
+                            label: 'Current League',
+                          ),
+                          Consumer<GemsProvider>(
+                            builder: (context, _, __) {
+                              return StreamBuilder<int>(
+                                stream: _.getGemsStream(),
+                                builder: (context, snap) {
+                                  final gems = snap.data ?? 0;
+                                  return _StatCard(
+                                    icon: Icons.diamond_rounded,
+                                    iconColor: VarnamalaTheme.error,
+                                    value: gems.toString(),
+                                    label: 'Gems',
+                                  );
+                                },
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
           ),
         ],
       ),
@@ -148,6 +109,37 @@ class _StatisticsState extends State<Statistics> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _LanguageChip extends StatelessWidget {
+  final String language;
+  const _LanguageChip({required this.language});
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 6,
+      children: [
+        Container(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(VarnamalaTheme.radiusRound),
+          ),
+          child: Text(
+            language,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: VarnamalaTheme.peacockTeal,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

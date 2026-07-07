@@ -54,16 +54,10 @@ class BottomNavigator extends StatelessWidget {
               onTap: () => onPress(2),
             ),
             _NavItem(
-              icon: Icons.emoji_events_rounded,
-              label: 'Leagues',
-              isSelected: currentIndex == 3,
-              onTap: () => onPress(3),
-            ),
-            _NavItem(
               icon: Icons.storefront_rounded,
               label: 'Shop',
-              isSelected: currentIndex == 4,
-              onTap: () => onPress(4),
+              isSelected: currentIndex == 3,
+              onTap: () => onPress(3),
             ),
           ],
         ),
@@ -71,8 +65,6 @@ class BottomNavigator extends StatelessWidget {
     );
   }
 }
-
-
 
 class _NavItem extends StatelessWidget {
   final IconData icon;

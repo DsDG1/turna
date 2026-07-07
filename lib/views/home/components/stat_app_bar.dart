@@ -2,17 +2,11 @@
 import 'package:flutter/material.dart';
 
 // Package imports:
-import 'package:auto_route/auto_route.dart';
 import 'package:countup/countup.dart';
 import 'package:provider/provider.dart';
-import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 
 // Project imports:
 import 'package:words625/application/game_provider.dart';
-import 'package:words625/di/injection.dart';
-import 'package:words625/gen/assets.gen.dart';
-import 'package:words625/routing/routing.gr.dart';
-import 'package:words625/service/locator.dart';
 import 'package:words625/views/theme.dart';
 import 'package:words625/views/widgets/gems_display.dart';
 import 'package:words625/views/widgets/hearts_display.dart';
@@ -29,13 +23,12 @@ class StatAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     return AppBar(
       toolbarHeight: 60,
-      leading: const LanguageSelector(),
       title: const SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ScoreCard(), // Removed initial padding
+            ScoreCard(),
             Padding(padding: EdgeInsets.symmetric(horizontal: 4)),
             Streak(),
             Padding(padding: EdgeInsets.symmetric(horizontal: 4)),
@@ -97,7 +90,7 @@ class Streak extends StatelessWidget {
 }
 
 class ScoreCard extends StatelessWidget {
-  const ScoreCard({super.key});
+  const ScoreCard({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -137,56 +130,5 @@ class ScoreCard extends StatelessWidget {
         ],
       ),
     );
-  }
-}
-
-class LanguageSelector extends StatelessWidget {
-  const LanguageSelector({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return PreferenceBuilder<String>(
-      preference: getIt<AppPrefs>().currentLanguage,
-      builder: (context, currentLanguage) {
-        return GestureDetector(
-          onTap: () {
-            context.router.push(const LangChoiceRoute());
-          },
-          child: Center(
-            child: Container(
-              margin: const EdgeInsets.only(left: 12),
-              width: 42,
-              height: 32,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  width: 2,
-                  color: VarnamalaTheme.peacockTeal.withOpacity(0.2),
-                ),
-                image: DecorationImage(
-                  fit: BoxFit.cover,
-                  image: AssetImage(_getFlagPath(currentLanguage)),
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  String _getFlagPath(String language) {
-    switch (language.toLowerCase()) {
-      case 'kannada':
-        return Assets.images.karnatakaFlag.path;
-      case 'tamil':
-        return Assets.images.tamilNaduFlag.path;
-      case 'telugu':
-        return Assets.images.telenganaFlag.path;
-      case 'malayalam':
-        return Assets.images.malayalamFlag.path;
-      default:
-        return Assets.images.karnatakaFlag.path;
-    }
   }
 }

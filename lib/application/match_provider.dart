@@ -46,7 +46,10 @@ class MatchProvider extends ChangeNotifier {
   void initializeGame() {
     final targetLanguage =
         getIt<AppPrefs>().currentLanguage.getValue().getEnumValue();
-    _dictionaryEntries = wordsMap[targetLanguage]!.entries.toList(growable: false);
+    // Single-language build: always use Kannada dictionary regardless of
+    // the stored preference value (which only ever resolves to kannada now).
+    _dictionaryEntries = allLevel1Words.entries.toList(growable: false);
+    logger.i("Match game starting for $targetLanguage");
 
     _setupRound();
     matchedPairs = {};

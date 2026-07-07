@@ -95,7 +95,7 @@ class LessonProvider with ChangeNotifier {
   void shuffleOptions() {
     for (var level in currentCourse!.levels!) {
       for (var question in level.questions!) {
-        question.options!.shuffle();
+        question.options?.shuffle();
       }
     }
   }

@@ -22,7 +22,7 @@ class _AchievementsState extends State<Achievements> {
 
   @override
   Widget build(BuildContext context) {
-    final achievements = AchievementsProvider.allAchievements;
+    const achievements = AchievementsProvider.allAchievements;
     final gameProvider = Provider.of<GameProvider>(context, listen: false);
 
     return StreamBuilder<Map<String, dynamic>>(

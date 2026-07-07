@@ -1,10 +1,13 @@
 // Flutter imports:
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 // Package imports:
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:injectable/injectable.dart';
+
+// Project imports:
+import 'package:words625/service/locator.dart';
 
 enum GemEvent {
   lessonComplete(5),
@@ -29,82 +32,78 @@ enum CommunityAction {
 
 @injectable
 class GemsProvider extends ChangeNotifier {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final AppPrefs appPrefs;
 
-  Stream<int> getGemsStream() {
-    final userId = _auth.currentUser?.uid;
-    if (userId == null) {
-      return Stream.value(0);
-    }
+  final StreamController<int> _gemsController =
+      StreamController<int>.broadcast();
 
-    return _firestore
-        .collection('users')
-        .doc(userId)
-        .snapshots()
-        .map((snapshot) => _readInt(snapshot.data()?['gems'], 0));
+  GemsProvider(this.appPrefs);
+
+  Stream<int> getGemsStream() async* {
+    yield _readInt(LocalStateKeys.gems, 0);
+    yield* _gemsController.stream;
   }
 
   Future<void> ensureGemsInitialized() async {
-    final userId = _auth.currentUser?.uid;
-    if (userId == null) return;
-
-    await _firestore.collection('users').doc(userId).set(
-      {'gems': 0},
-      SetOptions(merge: true),
-    );
+    // ensureUserGameFields already initializes `gems = 0`. Nothing to do.
   }
 
   Future<void> earnGems(GemEvent event) async {
-    final userId = _auth.currentUser?.uid;
-    if (userId == null) return;
-
-    await _firestore.collection('users').doc(userId).update({
-      'gems': FieldValue.increment(event.amount),
-    });
+    final current = _readInt(LocalStateKeys.gems, 0);
+    await appPrefs.preferences.setInt(LocalStateKeys.gems, current + event.amount);
+    _emit(current + event.amount);
     notifyListeners();
   }
 
   Future<bool> claimCommunityReward(CommunityAction action) async {
-    final userId = _auth.currentUser?.uid;
-    if (userId == null) return false;
+    final gems = _readInt(LocalStateKeys.gems, 0);
+    final updates = <String, Object?>{};
 
-    final docRef = _firestore.collection('users').doc(userId);
+    switch (action) {
+      case CommunityAction.follow:
+        final alreadyClaimed =
+            _readBool(LocalStateKeys.followRewardClaimed, false);
+        if (alreadyClaimed) return false;
+        updates[LocalStateKeys.followRewardClaimed] = true;
+        break;
+      case CommunityAction.validatedShare:
+        final validated = _readInt(LocalStateKeys.validatedShareCount, 0);
+        final claimed = _readInt(LocalStateKeys.claimedShareCount, 0);
+        if (validated <= claimed) return false;
+        updates[LocalStateKeys.claimedShareCount] = claimed + 1;
+        break;
+    }
 
-    final success = await _firestore.runTransaction<bool>((transaction) async {
-      final doc = await transaction.get(docRef);
-      if (!doc.exists) return false;
+    updates[LocalStateKeys.gems] = gems + action.reward;
 
-      final data = doc.data() ?? <String, dynamic>{};
-      final gems = _readInt(data['gems'], 0);
-      final updates = <String, dynamic>{};
-
-      switch (action) {
-        case CommunityAction.follow:
-          final followRewardClaimed = data['followRewardClaimed'] as bool? ?? false;
-          if (followRewardClaimed) return false;
-          updates['followRewardClaimed'] = true;
-          break;
-        case CommunityAction.validatedShare:
-          final validatedShareCount = _readInt(data['validatedShareCount'], 0);
-          final claimedShareCount = _readInt(data['claimedShareCount'], 0);
-          if (validatedShareCount <= claimedShareCount) return false;
-          updates['claimedShareCount'] = claimedShareCount + 1;
-          break;
+    for (final entry in updates.entries) {
+      final key = entry.key;
+      final value = entry.value;
+      if (value is int) {
+        await appPrefs.preferences.setInt(key, value);
+      } else if (value is bool) {
+        await appPrefs.preferences.setBool(key, value);
       }
+    }
 
-      updates['gems'] = gems + action.reward;
-      transaction.update(docRef, updates);
-      return true;
-    });
-
-    if (success) notifyListeners();
-    return success;
+    _emit(gems + action.reward);
+    notifyListeners();
+    return true;
   }
 
-  int _readInt(dynamic value, int fallback) {
-    if (value is int) return value;
-    if (value is num) return value.toInt();
-    return fallback;
+  int _readInt(String key, int fallback) =>
+      appPrefs.preferences.getInt(key, defaultValue: fallback).getValue();
+
+  bool _readBool(String key, bool fallback) =>
+      appPrefs.preferences.getBool(key, defaultValue: fallback).getValue();
+
+  void _emit(int newValue) {
+    _gemsController.add(newValue);
+  }
+
+  @override
+  void dispose() {
+    _gemsController.close();
+    super.dispose();
   }
 }

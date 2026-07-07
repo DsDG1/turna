@@ -16,11 +16,14 @@ import 'package:words625/service/locator.dart';
 class CourseProvider extends ChangeNotifier {
   List<List<Course>>? courses;
 
-  getCourses(TargetLanguage language) async {
+  Future<void> getCourses(TargetLanguage language) async {
     logger.w("Getting Courses for $language");
+    final displayName = getIt<AppPrefs>().authUser.getValue().displayName;
+    final firstName = (displayName == null || displayName.isEmpty)
+        ? 'Friend'
+        : displayName.split(" ").first;
     courses = await parseCourses(
-      firstName:
-          getIt<AppPrefs>().authUser.getValue()!.displayName!.split(" ").first,
+      firstName: firstName,
       targetLanguage: language,
     );
     notifyListeners();

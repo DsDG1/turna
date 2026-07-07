@@ -6,7 +6,7 @@ import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 
 // Project imports:
 import 'package:words625/di/injection.dart';
-import 'package:words625/domain/auth/firebase_user.dart';
+import 'package:words625/domain/auth/local_user.dart';
 import 'package:words625/service/locator.dart';
 import 'package:words625/views/theme.dart';
 
@@ -27,13 +27,11 @@ class AccountWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PreferenceBuilder<SerializableFirebaseUser?>(
+    return PreferenceBuilder<SerializableFirebaseUser>(
       preference: getIt<AppPrefs>().authUser,
-      builder: (BuildContext context, SerializableFirebaseUser? user) {
-        final displayName = user?.displayName ?? 'Guest';
-        final email = user?.email ?? 'No email';
-        final profileImage =
-            user?.photoUrl ?? 'https://example.com/default_avatar.png';
+      builder: (BuildContext context, SerializableFirebaseUser user) {
+        final displayName = user.displayName ?? 'Learner';
+        final email = user.email ?? '';
 
         return Container(
           padding: const EdgeInsets.all(16),
@@ -48,12 +46,11 @@ class AccountWidget extends StatelessWidget {
                 radius: 28,
                 backgroundColor:
                     VarnamalaTheme.peacockTeal.withValues(alpha: 0.1),
-                backgroundImage: NetworkImage(profileImage),
-                onBackgroundImageError: (_, __) {},
-                child: user?.photoUrl == null
-                    ? const Icon(Icons.person_rounded,
-                        size: 28, color: VarnamalaTheme.peacockTeal)
-                    : null,
+                child: const Icon(
+                  Icons.person_rounded,
+                  size: 28,
+                  color: VarnamalaTheme.peacockTeal,
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -68,12 +65,13 @@ class AccountWidget extends StatelessWidget {
                               ),
                     ),
                     const SizedBox(height: 2),
-                    Text(
-                      email,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: VarnamalaTheme.textHint,
-                          ),
-                    ),
+                    if (email.isNotEmpty)
+                      Text(
+                        email,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: VarnamalaTheme.textHint,
+                            ),
+                      ),
                   ],
                 ),
               ),

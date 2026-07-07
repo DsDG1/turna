@@ -1,10 +1,13 @@
 // Flutter imports:
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 // Package imports:
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:injectable/injectable.dart';
+
+// Project imports:
+import 'package:words625/service/locator.dart';
 
 enum XPEvent {
   lessonComplete(base: 10),
@@ -30,110 +33,83 @@ class GameProvider extends ChangeNotifier {
   static const int defaultDailyXpGoal = 50;
   static const int defaultStreakRepairTarget = 100;
 
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final AppPrefs appPrefs;
+
+  final StreamController<Map<String, dynamic>> _stateController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  final StreamController<int> _streakController =
+      StreamController<int>.broadcast();
+  final StreamController<int> _scoreController =
+      StreamController<int>.broadcast();
 
   StreakCheckResult _lastStreakCheckResult = StreakCheckResult.none;
-
   StreakCheckResult get lastStreakCheckResult => _lastStreakCheckResult;
 
-  Stream<int> getUserStreakStream() {
-    final userId = _auth.currentUser?.uid;
-    if (userId == null) {
-      return Stream.value(0);
-    }
+  GameProvider(this.appPrefs);
 
-    return _firestore
-        .collection('users')
-        .doc(userId)
-        .snapshots()
-        .map((snapshot) => _readInt(snapshot.data(), 'streak', 0));
+  Stream<int> getUserStreakStream() async* {
+    yield _readInt(LocalStateKeys.streak, 0);
+    yield* _streakController.stream;
   }
 
-  Stream<int> getUserScoreStream() {
-    final userId = _auth.currentUser?.uid;
-    if (userId == null) {
-      return Stream.value(0);
-    }
-
-    return _firestore
-        .collection('users')
-        .doc(userId)
-        .snapshots()
-        .map((snapshot) => _readInt(snapshot.data(), 'score', 0));
+  Stream<int> getUserScoreStream() async* {
+    yield _readInt(LocalStateKeys.score, 0);
+    yield* _scoreController.stream;
   }
 
-  Stream<Map<String, dynamic>> getUserGameStateStream() {
-    final userId = _auth.currentUser?.uid;
-    if (userId == null) {
-      return Stream.value(<String, dynamic>{});
-    }
-
-    return _firestore
-        .collection('users')
-        .doc(userId)
-        .snapshots()
-        .map((snapshot) => snapshot.data() ?? <String, dynamic>{});
+  Stream<Map<String, dynamic>> getUserGameStateStream() async* {
+    yield _readState();
+    yield* _stateController.stream;
   }
 
-  Future<Map<String, dynamic>> getUserGameStateOnce() async {
-    final userId = _auth.currentUser?.uid;
-    if (userId == null) return <String, dynamic>{};
-
-    final snapshot = await _firestore.collection('users').doc(userId).get();
-    return snapshot.data() ?? <String, dynamic>{};
-  }
+  Future<Map<String, dynamic>> getUserGameStateOnce() async => _readState();
 
   Future<void> ensureUserGameFields() async {
-    final userId = _auth.currentUser?.uid;
-    if (userId == null) return;
+    // Seed defaults only once. We use a dedicated boolean to mark completion.
+    if (_readBool(LocalStateKeys.initialized, false)) {
+      return;
+    }
 
-    final docRef = _firestore.collection('users').doc(userId);
-    final snapshot = await docRef.get();
-    if (!snapshot.exists) return;
-
-    final data = snapshot.data() ?? <String, dynamic>{};
     final now = DateTime.now();
-    final score = _readInt(data, 'score', 0);
-    final leagueXp = _readInt(data, 'leagueXp', 0);
-    final leagueXpMigrated = data['leagueXpMigratedFromScore'] as bool? ?? false;
-    final leagueXpSeeded = data['leagueXpSeededFromScore'] as bool? ?? false;
-    final shouldSeedLeagueXp =
-        score > 0 && leagueXp == 0 && (!leagueXpMigrated || !leagueXpSeeded);
-    final initialLeagueXp = shouldSeedLeagueXp ? score : leagueXp;
+    final today = DateTime(now.year, now.month, now.day);
 
-    final defaults = <String, dynamic>{
-      'gems': _readInt(data, 'gems', 0),
-      'hearts': _readInt(data, 'hearts', 5),
-      'heartsRefillAt': data['heartsRefillAt'],
-      'streakFreezes': _readInt(data, 'streakFreezes', 0),
-      'streakFreezeActive': data['streakFreezeActive'] as bool? ?? false,
-      'league': data['league'] as String? ?? bronzeLeague,
-      'leagueXp': initialLeagueXp,
-      'leagueXpMigratedFromScore': true,
-      'leagueXpSeededFromScore': shouldSeedLeagueXp || leagueXpSeeded,
-      'leagueJoinedAt': data['leagueJoinedAt'] ?? FieldValue.serverTimestamp(),
-      'achievements':
-          (data['achievements'] as List<dynamic>?)?.whereType<String>().toList() ??
-              <String>[],
-      'dailyXpGoal': _readInt(data, 'dailyXpGoal', defaultDailyXpGoal),
-      'dailyXpEarned': _readInt(data, 'dailyXpEarned', 0),
-      'lastDailyReset':
-          data['lastDailyReset'] ?? DateTime(now.year, now.month, now.day).toIso8601String(),
-      'lessonsCompleted': _readInt(data, 'lessonsCompleted', 0),
-      'perfectLessons': _readInt(data, 'perfectLessons', 0),
-      'streakWasBroken': data['streakWasBroken'] as bool? ?? false,
-      'streakRepairRequired': data['streakRepairRequired'] as bool? ?? false,
-      'streakRepairProgress': _readInt(data, 'streakRepairProgress', 0),
-      'streakRepairTarget': _readInt(data, 'streakRepairTarget', defaultStreakRepairTarget),
-      'streakBeforeBreak': _readInt(data, 'streakBeforeBreak', 0),
-      'doubleXpUntil': data['doubleXpUntil'],
-      'followRewardClaimed': data['followRewardClaimed'] as bool? ?? false,
-      'validatedShareCount': _readInt(data, 'validatedShareCount', 0),
-      'claimedShareCount': _readInt(data, 'claimedShareCount', 0),
-    };
+    await Future.wait([
+      appPrefs.preferences.setInt(LocalStateKeys.score, 0),
+      appPrefs.preferences.setInt(LocalStateKeys.streak, 0),
+      appPrefs.preferences.setString(
+        LocalStateKeys.lastStreakDate,
+        today.toIso8601String(),
+      ),
+      appPrefs.preferences.setInt(LocalStateKeys.leagueXp, 0),
+      appPrefs.preferences.setInt(LocalStateKeys.dailyXpGoal, defaultDailyXpGoal),
+      appPrefs.preferences.setInt(LocalStateKeys.dailyXpEarned, 0),
+      appPrefs.preferences.setString(
+        LocalStateKeys.lastDailyReset,
+        today.toIso8601String(),
+      ),
+      appPrefs.preferences.setInt(LocalStateKeys.lessonsCompleted, 0),
+      appPrefs.preferences.setInt(LocalStateKeys.perfectLessons, 0),
+      appPrefs.preferences.setInt(LocalStateKeys.streakFreezes, 0),
+      appPrefs.preferences.setBool(LocalStateKeys.streakFreezeActive, false),
+      appPrefs.preferences.setBool(LocalStateKeys.streakWasBroken, false),
+      appPrefs.preferences.setBool(LocalStateKeys.streakRepairRequired, false),
+      appPrefs.preferences.setInt(LocalStateKeys.streakRepairProgress, 0),
+      appPrefs.preferences.setInt(
+        LocalStateKeys.streakRepairTarget,
+        defaultStreakRepairTarget,
+      ),
+      appPrefs.preferences.setInt(LocalStateKeys.streakBeforeBreak, 0),
+      appPrefs.preferences.setInt(LocalStateKeys.wordsLearned, 0),
+      appPrefs.preferences.setInt(LocalStateKeys.friendsCount, 0),
+      appPrefs.preferences.setBool(LocalStateKeys.followRewardClaimed, false),
+      appPrefs.preferences.setInt(LocalStateKeys.validatedShareCount, 0),
+      appPrefs.preferences.setInt(LocalStateKeys.claimedShareCount, 0),
+      appPrefs.preferences.setStringList(LocalStateKeys.achievements, const []),
+      appPrefs.preferences.setBool(LocalStateKeys.initialized, true),
+    ]);
 
-    await docRef.set(defaults, SetOptions(merge: true));
+    notifyListeners();
+    _emitState();
   }
 
   Future<int> awardXP(
@@ -153,201 +129,270 @@ class GameProvider extends ChangeNotifier {
   Future<void> incrementScore(int xp, {bool notify = true}) async {
     if (xp <= 0) return;
 
-    final userId = _auth.currentUser?.uid;
-    if (userId == null) return;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
 
-    final userDocRef = _firestore.collection('users').doc(userId);
+    final score = _readInt(LocalStateKeys.score, 0);
+    final streak = _readInt(LocalStateKeys.streak, 0);
+    final leagueXp = _readInt(LocalStateKeys.leagueXp, 0);
+    final streakFreezeActive =
+        _readBool(LocalStateKeys.streakFreezeActive, false);
+    final streakFreezes = _readInt(LocalStateKeys.streakFreezes, 0);
+    final lastDate = _parseDate(_readString(LocalStateKeys.lastStreakDate, ''));
 
-    try {
-      await _firestore.runTransaction((transaction) async {
-        final doc = await transaction.get(userDocRef);
-        if (!doc.exists) return;
+    final streakResolution = _resolveStreakOnPractice(
+      oldStreak: streak,
+      oldDate: lastDate,
+      today: today,
+      streakFreezeActive: streakFreezeActive,
+      streakFreezes: streakFreezes,
+    );
 
-        final data = doc.data() ?? <String, dynamic>{};
-        final now = DateTime.now();
-        final today = DateTime(now.year, now.month, now.day);
+    final newScore = score + xp;
+    var newGems = _readInt(LocalStateKeys.gems, 0);
 
-        final score = _readInt(data, 'score', 0);
-        final streak = _readInt(data, 'streak', 0);
-        final leagueXp = _readInt(data, 'leagueXp', 0);
+    final achievements = _readStringList(LocalStateKeys.achievements, const [])
+        .toSet();
 
-        final streakResolution = _resolveStreakOnPractice(
-          oldStreak: streak,
-          oldDate: _parseDate(data['lastStreakDate']),
-          today: today,
-          streakFreezeActive: data['streakFreezeActive'] as bool? ?? false,
-          streakFreezes: _readInt(data, 'streakFreezes', 0),
-        );
+    newGems += _unlockXpAchievements(achievements, newScore);
+    newGems += _unlockStreakAchievements(
+      achievements,
+      streakResolution.newStreak,
+    );
 
-        var newScore = score + xp;
-        var newGems = _readInt(data, 'gems', 0);
-
-        final achievements =
-            (data['achievements'] as List<dynamic>? ?? const <dynamic>[])
-                .whereType<String>()
-                .toSet();
-
-        newGems += _unlockXpAchievements(achievements, newScore);
-        newGems += _unlockStreakAchievements(
-          achievements,
-          streakResolution.newStreak,
-        );
-
-        final dailyResetDate = _parseDate(data['lastDailyReset']);
-        var dailyXpEarned = _readInt(data, 'dailyXpEarned', 0);
-        if (dailyResetDate == null || !_isSameDay(dailyResetDate, today)) {
-          dailyXpEarned = 0;
-        }
-
-        final dailyGoal = _readInt(data, 'dailyXpGoal', defaultDailyXpGoal);
-        final previousDailyXp = dailyXpEarned;
-        dailyXpEarned += xp;
-        final streakRepairRequired =
-            data['streakRepairRequired'] as bool? ?? false;
-        final streakWasBroken = data['streakWasBroken'] as bool? ?? false;
-        final streakRepairTarget =
-            _readInt(data, 'streakRepairTarget', defaultStreakRepairTarget);
-        final previousRepairProgress =
-            _readInt(data, 'streakRepairProgress', 0);
-
-        var streakRepairProgress = previousRepairProgress;
-        var repairedThisUpdate = false;
-        var repairedStreak = streakResolution.newStreak;
-
-        if (streakRepairRequired && streakWasBroken) {
-          streakRepairProgress = previousRepairProgress + xp;
-          if (streakRepairProgress >= streakRepairTarget) {
-            repairedThisUpdate = true;
-            final streakBeforeBreak = _readInt(data, 'streakBeforeBreak', 1);
-            repairedStreak = streakBeforeBreak <= 0 ? 1 : streakBeforeBreak;
-          }
-        }
-
-        if (previousDailyXp < dailyGoal && dailyXpEarned >= dailyGoal) {
-          newScore += XPEvent.dailyGoalComplete.base;
-        }
-
-        final updates = <String, dynamic>{
-          'score': newScore,
-          'streak': repairedThisUpdate ? repairedStreak : streakResolution.newStreak,
-          'lastStreakDate': today.toIso8601String(),
-          'streakFreezes': streakResolution.remainingFreezes,
-          'streakFreezeActive': streakResolution.freezeActive,
-          'streakWasBroken': repairedThisUpdate ? false : streakResolution.broken,
-          'streakRepairRequired': repairedThisUpdate
-              ? false
-              : (streakRepairRequired && streakWasBroken),
-          'streakRepairProgress': repairedThisUpdate ? 0 : streakRepairProgress,
-          'streakRepairTarget': streakRepairTarget,
-          'leagueXp': leagueXp + xp,
-          'dailyXpEarned': dailyXpEarned,
-          'dailyXpGoal': dailyGoal,
-          'lastDailyReset': today.toIso8601String(),
-          'gems': newGems,
-          'achievements': achievements.toList(growable: false),
-        };
-
-        if (streakResolution.broken) {
-          updates['lastStreakBreakDate'] = FieldValue.serverTimestamp();
-        }
-
-        transaction.update(userDocRef, updates);
-      });
-
-      if (notify) notifyListeners();
-    } catch (e) {
-      debugPrint('Error updating score and streak: $e');
+    final dailyResetDate = _parseDate(
+      _readString(LocalStateKeys.lastDailyReset, ''),
+    );
+    var dailyXpEarned = _readInt(LocalStateKeys.dailyXpEarned, 0);
+    if (dailyResetDate == null || !_isSameDay(dailyResetDate, today)) {
+      dailyXpEarned = 0;
     }
+
+    final dailyGoal = _readInt(LocalStateKeys.dailyXpGoal, defaultDailyXpGoal);
+    final previousDailyXp = dailyXpEarned;
+    dailyXpEarned += xp;
+
+    final streakRepairRequired =
+        _readBool(LocalStateKeys.streakRepairRequired, false);
+    final streakWasBroken = _readBool(LocalStateKeys.streakWasBroken, false);
+    final streakRepairTarget =
+        _readInt(LocalStateKeys.streakRepairTarget, defaultStreakRepairTarget);
+    final previousRepairProgress =
+        _readInt(LocalStateKeys.streakRepairProgress, 0);
+
+    var streakRepairProgress = previousRepairProgress;
+    var repairedThisUpdate = false;
+    var repairedStreak = streakResolution.newStreak;
+
+    if (streakRepairRequired && streakWasBroken) {
+      streakRepairProgress = previousRepairProgress + xp;
+      if (streakRepairProgress >= streakRepairTarget) {
+        repairedThisUpdate = true;
+        final streakBeforeBreak =
+            _readInt(LocalStateKeys.streakBeforeBreak, 1);
+        repairedStreak = streakBeforeBreak <= 0 ? 1 : streakBeforeBreak;
+      }
+    }
+
+    var finalScore = newScore;
+    if (previousDailyXp < dailyGoal && dailyXpEarned >= dailyGoal) {
+      finalScore += XPEvent.dailyGoalComplete.base;
+    }
+
+    await Future.wait([
+      appPrefs.preferences.setInt(LocalStateKeys.score, finalScore),
+      appPrefs.preferences.setInt(
+        LocalStateKeys.streak,
+        repairedThisUpdate ? repairedStreak : streakResolution.newStreak,
+      ),
+      appPrefs.preferences.setString(
+        LocalStateKeys.lastStreakDate,
+        today.toIso8601String(),
+      ),
+      appPrefs.preferences.setInt(
+        LocalStateKeys.streakFreezes,
+        streakResolution.remainingFreezes,
+      ),
+      appPrefs.preferences.setBool(
+        LocalStateKeys.streakFreezeActive,
+        streakResolution.freezeActive,
+      ),
+      appPrefs.preferences.setBool(
+        LocalStateKeys.streakWasBroken,
+        repairedThisUpdate ? false : streakResolution.broken,
+      ),
+      appPrefs.preferences.setBool(
+        LocalStateKeys.streakRepairRequired,
+        repairedThisUpdate
+            ? false
+            : (streakRepairRequired && streakWasBroken),
+      ),
+      appPrefs.preferences.setInt(
+        LocalStateKeys.streakRepairProgress,
+        repairedThisUpdate ? 0 : streakRepairProgress,
+      ),
+      appPrefs.preferences.setInt(
+        LocalStateKeys.streakRepairTarget,
+        streakRepairTarget,
+      ),
+      appPrefs.preferences.setInt(LocalStateKeys.leagueXp, leagueXp + xp),
+      appPrefs.preferences.setInt(LocalStateKeys.dailyXpEarned, dailyXpEarned),
+      appPrefs.preferences.setInt(LocalStateKeys.dailyXpGoal, dailyGoal),
+      appPrefs.preferences.setString(
+        LocalStateKeys.lastDailyReset,
+        today.toIso8601String(),
+      ),
+      appPrefs.preferences.setInt(LocalStateKeys.gems, newGems),
+      appPrefs.preferences.setStringList(
+        LocalStateKeys.achievements,
+        achievements.toList(growable: false),
+      ),
+    ]);
+
+    if (notify) notifyListeners();
+    _emitState();
   }
 
   Future<void> recordLessonCompletion({
     required bool wasPerfect,
   }) async {
-    final userId = _auth.currentUser?.uid;
-    if (userId == null) return;
+    final lessonsCompleted =
+        _readInt(LocalStateKeys.lessonsCompleted, 0) + 1;
+    final perfectLessons =
+        _readInt(LocalStateKeys.perfectLessons, 0) + (wasPerfect ? 1 : 0);
 
-    final docRef = _firestore.collection('users').doc(userId);
-    await _firestore.runTransaction((transaction) async {
-      final doc = await transaction.get(docRef);
-      if (!doc.exists) return;
+    await Future.wait([
+      appPrefs.preferences.setInt(LocalStateKeys.lessonsCompleted, lessonsCompleted),
+      appPrefs.preferences.setInt(LocalStateKeys.perfectLessons, perfectLessons),
+    ]);
 
-      final data = doc.data() ?? <String, dynamic>{};
-      final lessonsCompleted = _readInt(data, 'lessonsCompleted', 0) + 1;
-      final perfectLessons = _readInt(data, 'perfectLessons', 0) +
-          (wasPerfect ? 1 : 0);
-      transaction.update(docRef, {
-        'lessonsCompleted': lessonsCompleted,
-        'perfectLessons': perfectLessons,
-      });
-    });
+    notifyListeners();
+    _emitState();
   }
 
   Future<StreakCheckResult> checkStreakOnAppOpen() async {
-    final userId = _auth.currentUser?.uid;
-    if (userId == null) {
+    final lastDateStr = _readString(LocalStateKeys.lastStreakDate, '');
+    final lastDate = _parseDate(lastDateStr);
+
+    if (lastDate == null) {
       _lastStreakCheckResult = StreakCheckResult.none;
-      return _lastStreakCheckResult;
-    }
-
-    final docRef = _firestore.collection('users').doc(userId);
-
-    try {
-      final result = await _firestore.runTransaction<StreakCheckResult>(
-        (transaction) async {
-          final doc = await transaction.get(docRef);
-          if (!doc.exists) return StreakCheckResult.none;
-
-          final data = doc.data() ?? <String, dynamic>{};
-          final now = DateTime.now();
-          final today = DateTime(now.year, now.month, now.day);
-          final lastDate = _parseDate(data['lastStreakDate']);
-
-          if (lastDate == null) {
-            return StreakCheckResult.none;
-          }
-
-          final last = DateTime(lastDate.year, lastDate.month, lastDate.day);
-          final gap = today.difference(last).inDays;
-
-          if (gap <= 1) {
-            transaction.update(docRef, {'streakWasBroken': false});
-            return StreakCheckResult.maintained;
-          }
-
-          final streakFreezes = _readInt(data, 'streakFreezes', 0);
-          final freezeActive = data['streakFreezeActive'] as bool? ?? false;
-
-          if (gap == 2 && (freezeActive || streakFreezes > 0)) {
-            transaction.update(docRef, {
-              'streakFreezes': freezeActive ? streakFreezes : streakFreezes - 1,
-              'streakFreezeActive': false,
-              'lastStreakDate': today.toIso8601String(),
-              'streakWasBroken': false,
-            });
-            return StreakCheckResult.freezeConsumed;
-          }
-
-          transaction.update(docRef, {
-            'streak': 0,
-            'streakWasBroken': true,
-            'streakBeforeBreak': _readInt(data, 'streak', 0),
-            'streakRepairRequired': true,
-            'streakRepairProgress': 0,
-            'streakRepairTarget': defaultStreakRepairTarget,
-            'lastStreakBreakDate': FieldValue.serverTimestamp(),
-          });
-          return StreakCheckResult.broken;
-        },
-      );
-
-      _lastStreakCheckResult = result;
       notifyListeners();
-      return result;
-    } catch (e) {
-      debugPrint('Error checking streak on app open: $e');
-      _lastStreakCheckResult = StreakCheckResult.none;
       return _lastStreakCheckResult;
     }
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final last = DateTime(lastDate.year, lastDate.month, lastDate.day);
+    final gap = today.difference(last).inDays;
+
+    if (gap <= 1) {
+      await appPrefs.preferences.setBool(LocalStateKeys.streakWasBroken, false);
+      _lastStreakCheckResult = StreakCheckResult.maintained;
+      notifyListeners();
+      _emitState();
+      return _lastStreakCheckResult;
+    }
+
+    final streakFreezes = _readInt(LocalStateKeys.streakFreezes, 0);
+    final freezeActive = _readBool(LocalStateKeys.streakFreezeActive, false);
+
+    if (gap == 2 && (freezeActive || streakFreezes > 0)) {
+      await Future.wait([
+        appPrefs.preferences.setInt(
+          LocalStateKeys.streakFreezes,
+          freezeActive ? streakFreezes : streakFreezes - 1,
+        ),
+        appPrefs.preferences.setBool(LocalStateKeys.streakFreezeActive, false),
+        appPrefs.preferences.setString(
+          LocalStateKeys.lastStreakDate,
+          today.toIso8601String(),
+        ),
+        appPrefs.preferences.setBool(LocalStateKeys.streakWasBroken, false),
+      ]);
+      _lastStreakCheckResult = StreakCheckResult.freezeConsumed;
+      notifyListeners();
+      _emitState();
+      return _lastStreakCheckResult;
+    }
+
+    await Future.wait([
+      appPrefs.preferences.setInt(LocalStateKeys.streak, 0),
+      appPrefs.preferences.setBool(LocalStateKeys.streakWasBroken, true),
+      appPrefs.preferences.setInt(
+        LocalStateKeys.streakBeforeBreak,
+        _readInt(LocalStateKeys.streak, 0),
+      ),
+      appPrefs.preferences.setBool(LocalStateKeys.streakRepairRequired, true),
+      appPrefs.preferences.setInt(LocalStateKeys.streakRepairProgress, 0),
+      appPrefs.preferences.setInt(
+        LocalStateKeys.streakRepairTarget,
+        defaultStreakRepairTarget,
+      ),
+    ]);
+
+    _lastStreakCheckResult = StreakCheckResult.broken;
+    notifyListeners();
+    _emitState();
+    return _lastStreakCheckResult;
+  }
+
+  // --- Internal helpers ---
+
+  int _readInt(String key, int fallback) =>
+      appPrefs.preferences.getInt(key, defaultValue: fallback).getValue();
+
+  bool _readBool(String key, bool fallback) =>
+      appPrefs.preferences.getBool(key, defaultValue: fallback).getValue();
+
+  String _readString(String key, String fallback) =>
+      appPrefs.preferences.getString(key, defaultValue: fallback).getValue();
+
+  List<String> _readStringList(String key, List<String> fallback) =>
+      appPrefs.preferences.getStringList(key, defaultValue: fallback).getValue();
+
+  Map<String, dynamic> _readState() => {
+        'score': _readInt(LocalStateKeys.score, 0),
+        'streak': _readInt(LocalStateKeys.streak, 0),
+        'lastStreakDate': _readString(LocalStateKeys.lastStreakDate, ''),
+        'leagueXp': _readInt(LocalStateKeys.leagueXp, 0),
+        'league': bronzeLeague,
+        'gems': _readInt(LocalStateKeys.gems, 0),
+        'hearts': _readInt(LocalStateKeys.hearts, 5),
+        'heartsRefillAt': null,
+        'streakFreezes': _readInt(LocalStateKeys.streakFreezes, 0),
+        'streakFreezeActive':
+            _readBool(LocalStateKeys.streakFreezeActive, false),
+        'achievements':
+            _readStringList(LocalStateKeys.achievements, const []),
+        'dailyXpGoal': _readInt(LocalStateKeys.dailyXpGoal, defaultDailyXpGoal),
+        'dailyXpEarned': _readInt(LocalStateKeys.dailyXpEarned, 0),
+        'lastDailyReset': _readString(LocalStateKeys.lastDailyReset, ''),
+        'lessonsCompleted':
+            _readInt(LocalStateKeys.lessonsCompleted, 0),
+        'perfectLessons': _readInt(LocalStateKeys.perfectLessons, 0),
+        'streakWasBroken': _readBool(LocalStateKeys.streakWasBroken, false),
+        'streakRepairRequired':
+            _readBool(LocalStateKeys.streakRepairRequired, false),
+        'streakRepairProgress':
+            _readInt(LocalStateKeys.streakRepairProgress, 0),
+        'streakRepairTarget':
+            _readInt(LocalStateKeys.streakRepairTarget, defaultStreakRepairTarget),
+        'streakBeforeBreak': _readInt(LocalStateKeys.streakBeforeBreak, 0),
+        'followRewardClaimed':
+            _readBool(LocalStateKeys.followRewardClaimed, false),
+        'validatedShareCount':
+            _readInt(LocalStateKeys.validatedShareCount, 0),
+        'claimedShareCount': _readInt(LocalStateKeys.claimedShareCount, 0),
+        'wordsLearned': _readInt(LocalStateKeys.wordsLearned, 0),
+        'friendsCount': _readInt(LocalStateKeys.friendsCount, 0),
+        'languages': <String>[],
+      };
+
+  void _emitState() {
+    final state = _readState();
+    _stateController.add(state);
+    _streakController.add(state['streak'] as int);
+    _scoreController.add(state['score'] as int);
   }
 
   int _unlockXpAchievements(Set<String> achievements, int score) {
@@ -374,18 +419,10 @@ class GameProvider extends ChangeNotifier {
         first.day == second.day;
   }
 
-  int _readInt(Map<String, dynamic>? data, String key, int fallback) {
-    final value = data?[key];
-    if (value is int) return value;
-    if (value is num) return value.toInt();
-    return fallback;
-  }
-
   DateTime? _parseDate(dynamic value) {
     if (value == null) return null;
-    if (value is Timestamp) return value.toDate();
     if (value is DateTime) return value;
-    if (value is String) return DateTime.tryParse(value);
+    if (value is String && value.isNotEmpty) return DateTime.tryParse(value);
     return null;
   }
 
@@ -441,6 +478,14 @@ class GameProvider extends ChangeNotifier {
       freezeActive: streakFreezeActive,
       broken: true,
     );
+  }
+
+  @override
+  void dispose() {
+    _stateController.close();
+    _streakController.close();
+    _scoreController.close();
+    super.dispose();
   }
 }
 
