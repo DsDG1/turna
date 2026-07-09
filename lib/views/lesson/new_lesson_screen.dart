@@ -66,6 +66,11 @@ class _NewLessonPageState extends State<NewLessonPage> {
       _showCompletionDialog(context, vm);
       return;
     }
+    // Mastery lesson failed — show retry dialog
+    if (vm.isMastery && !vm.masteryPassed && vm.lesson != null) {
+      _showMasteryRetryDialog(context, vm);
+      return;
+    }
     _handleAutoAdvance(vm);
   }
 
@@ -371,7 +376,103 @@ class _NewLessonPageState extends State<NewLessonPage> {
       Navigator.of(context).maybePop();
     }
   }
+
+  // --- Mastery retry dialog ---
+
+  Future<void> _showMasteryRetryDialog(BuildContext context, LessonViewModel vm) async {
+    if (!mounted || _dialogShown) return;
+    _dialogShown = true;
+
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;
+
+    final total = vm.lesson!.flattenedStages.fold<int>(
+      0, (sum, s) => sum + s.items.length,
+    );
+    final accuracy = total == 0 ? 0 : ((vm.lesson!.isMastery ? vm.lesson!.flattenedStages.fold<int>(0, (sum, s) => sum + s.items.length) : 0) * 100).toInt(); // placeholder
+    // Use actual correct count from VM if exposed; fallback to estimate
+    final correct = vm.lesson!.flattenedStages.fold<int>(0, (sum, s) => sum + s.items.length); // will be replaced with actual
+
+    final result = await showDialog<MasteryDialogResult>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusXLarge),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: VarnamalaTheme.error.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.refresh_rounded, color: VarnamalaTheme.error, size: 40),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Not Yet',
+                style: Theme.of(context)
+                    .textTheme
+                    .headlineSmall
+                    ?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'You need 80% accuracy to pass. Try again!',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 28),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.of(ctx).pop(MasteryDialogResult.retry),
+                  child: const Text(
+                    'Try Again',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(MasteryDialogResult.back),
+                child: Text(
+                  'Back to Courses',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: VarnamalaTheme.textHint,
+                        fontWeight: FontWeight.w500,
+                      ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    _dialogShown = false;
+
+    if (!mounted) return;
+
+    switch (result) {
+      case MasteryDialogResult.retry:
+        vm.retryMastery();
+        break;
+      case MasteryDialogResult.back:
+        Navigator.of(context).maybePop();
+        break;
+      case null:
+        break;
+    }
+  }
 }
+
+enum MasteryDialogResult { retry, back }
 
 // ──────────────────────────────────────────────────────────────
 // Reading passage — rendered above the stage content on reading lessons

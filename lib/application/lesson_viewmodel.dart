@@ -83,6 +83,10 @@ class LessonViewModel extends ChangeNotifier {
   int _correctAnswers = 0;
   int _incorrectAnswers = 0;
 
+  // Mastery-specific state
+  int _masteryAttempts = 0;
+  bool _masteryPassed = false;
+
   /// Per-item submission state, keyed by [interactionItemId] — uses the
   /// item's stable `id` field when present, falling back to `legacy-$idx`.
   final Map<String, InteractionState> _interactionStates = {};
@@ -92,6 +96,9 @@ class LessonViewModel extends ChangeNotifier {
   Lesson? get lesson => _lesson;
   LessonType get lessonType => _lesson?.type ?? LessonType.normal;
   bool get isComplete => _isComplete;
+  bool get isMastery => _lesson?.isMastery ?? false;
+  bool get masteryPassed => _masteryPassed;
+  int get masteryAttempts => _masteryAttempts;
 
   /// The stages of the current lesson (empty before [loadLesson] completes).
   List<Stage> get _stages => _cachedStages;
@@ -196,6 +203,8 @@ class LessonViewModel extends ChangeNotifier {
     _correctAnswers = 0;
     _incorrectAnswers = 0;
     _interactionStates.clear();
+    _masteryAttempts = 0;
+    _masteryPassed = !lesson.isMastery; // default true for non-mastery lessons
 
     // Register SRS words referenced by ShowWord interactions.
     _registerSrsWords();
@@ -243,6 +252,23 @@ class LessonViewModel extends ChangeNotifier {
 
       // Check if all stages are done.
       if (_currentStageIndex >= _stageCount) {
+        // Mastery lesson: require 80% accuracy
+        if (_lesson!.isMastery) {
+          final accuracy = _totalItemCount == 0
+              ? 0.0
+              : _correctAnswers / _totalItemCount;
+          if (accuracy >= 0.8) {
+            _masteryPassed = true;
+            _isComplete = true;
+            _onLessonCompleted();
+          } else {
+            _masteryPassed = false;
+            // Don't mark complete; UI will show "Try Again" dialog
+          }
+          notifyListeners();
+          return;
+        }
+
         _isComplete = true;
         _onLessonCompleted();
         notifyListeners();
@@ -250,6 +276,22 @@ class LessonViewModel extends ChangeNotifier {
       }
     }
 
+    notifyListeners();
+  }
+
+  /// Retry a mastery lesson after failing.
+  void retryMastery() {
+    if (_lesson == null || !_lesson!.isMastery) return;
+    _masteryAttempts++;
+    _currentStageIndex = 0;
+    _currentInteractionIndex = 0;
+    _totalMistakes = 0;
+    _isComplete = false;
+    _masteryPassed = false;
+    _lessonStartTime = DateTime.now();
+    _correctAnswers = 0;
+    _incorrectAnswers = 0;
+    _interactionStates.clear();
     notifyListeners();
   }
 

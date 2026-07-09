@@ -71,6 +71,9 @@ class Lesson with _$Lesson {
 
   factory Lesson.fromJson(Map<String, dynamic> json) => _$LessonFromJson(json);
 
+  /// True if this is a mastery-check lesson.
+  bool get isMastery => template == LessonTemplate.mastery;
+
   /// A single flat list of [Stage]s that the lesson renderer can walk.
   ///
   /// The shape is derived from [template]:
