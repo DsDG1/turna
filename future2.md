@@ -378,13 +378,13 @@ Shop 路由保留（不删），但页面内容**仅保留**：
   - 场景 B：6 题对 4 题 → not passed，可重试，重试后对 5 题 → passed。
   - 验证：测试通过。
 
-#### Step 14：LessonViewModel 不污染非 Mastery lesson（半天）
+#### ✅ Step 14：LessonViewModel 不污染非 Mastery lesson（半天）
 
 - **14.1** 确认 `loadLesson` 时若 `lesson.isMastery == false`，`_masteryPassed = true`（默认通过，普通 lesson 不受影响）。
 - **14.2** 跑 `flutter test` 全量。
   - 验证：所有现有 lesson 行为不变。
 
-#### Step 15：手工 UI 验证（半天）
+#### ✅ Step 15：手工 UI 验证（半天）
 
 - **15.1** `flutter run` 启动 App。
 - **15.2** 打开 `l-tpl-intro-smoke` → 看到 4 个 SubLesson 标题 / 进度正确 / flatten 行为正确。
@@ -396,7 +396,7 @@ Shop 路由保留（不删），但页面内容**仅保留**：
 
 ### Phase 9 施工步骤（Expression 实体端到端贯通，预计 1–2 周）
 
-#### Step 16：Drift schema 升级到 v5（半天）
+#### ✅ Step 16：Drift schema 升级到 v5（半天）
 
 - **16.1** `lib/data/course_database.dart`：
   - 加新表 `Expressions extends Table { id text PK; term text; translation text; pronunciation text nullable; audioAsset text nullable; tags text default '[]'; }`。
@@ -406,7 +406,7 @@ Shop 路由保留（不删），但页面内容**仅保留**：
 - **16.2** 跑 `dart run build_runner build --delete-conflicting-outputs`。
   - 验证：`course_database.g.dart` 中出现 `Expressions` 类。
 
-#### Step 17：Seeder 写 expressions 表（半天）
+#### ✅ Step 17：Seeder 写 expressions 表（半天）
 
 - **17.1** 新建 `assets/courses/swahili/expressions.json`（**空数组**或仅有 schema 示例，**不写新表达**）：
   ```json
@@ -420,7 +420,7 @@ Shop 路由保留（不删），但页面内容**仅保留**：
 - **17.4** 跑一次 seeder 验证空表写入无错。
   - 验证：DB 中 `expressions` 表存在，行数 = 0。
 
-#### Step 18：CourseRepository 读 expressions（半天）
+#### ✅ Step 18：CourseRepository 读 expressions（半天）
 
 - **18.1** `lib/data/course_repository.dart`：
   - 加 `Future<List<Expression>> expressions()` 与 `Future<Expression?> expressionById(String id)`。
@@ -429,7 +429,7 @@ Shop 路由保留（不删），但页面内容**仅保留**：
 - **18.2** `lib/service/locator.dart::setupLocator` 中加 `await loadSwahiliExpressions();`。
   - 验证：编译通过，App 启动正常。
 
-#### Step 19：SrsProvider 支持 expression（半天）
+#### ✅ Step 19：SrsProvider 支持 expression（半天）
 
 - **19.1** `lib/domain/course/srs_word.dart`：加 `enum SrsItemType { word, expression }` 与 `SrsWord` 新字段 `@Default(SrsItemType.word) SrsItemType type;`。
 - **19.2** `lib/application/srs_provider.dart`：
@@ -439,7 +439,7 @@ Shop 路由保留（不删），但页面内容**仅保留**：
 - **19.3** 跑测试：现有 SRS 测试不应破坏。
   - 验证：基线用例数偏差 = 0。
 
-#### Step 20：LessonViewModel 注册 expression（半天）
+#### ✅ Step 20：LessonViewModel 注册 expression（半天）
 
 - **20.1** `lib/domain/course/interaction.dart`：
   - `ShowWord` 加可选字段 `String? expressionId;`（**默认 null**，与现有数据兼容）。
@@ -449,7 +449,7 @@ Shop 路由保留（不删），但页面内容**仅保留**：
 - **20.3** `lib/data/course_repository.dart` / seeder：现有 `ShowWord` JSON 都不带 `expressionId`，**不**强制字段 → 无破坏。
   - 验证：现有 s-test / s-foundations / s-daily / s-world lesson 仍能正常 load。
 
-#### Step 21：SrsReviewPage 双类型支持（半天）
+#### ✅ Step 21：SrsReviewPage 双类型支持（半天）
 
 - **21.1** `lib/views/review/srs_review_screen.dart`：
   - `_FlashCard` 改为根据 `word.type` 查 `swahiliVocabById` 或 `swahiliExpressionsById`。
@@ -457,7 +457,7 @@ Shop 路由保留（不删），但页面内容**仅保留**：
 - **21.2** 跑通：当前没有 expression 词条，UI 应不显示任何 expression 卡片（word 卡片照常工作）。
   - 验证：现有 SRS 复习行为不变。
 
-#### Step 22：Phase 9 收尾验证（半天）
+#### ✅ Step 22：Phase 9 收尾验证（半天）
 
 - **22.1** `flutter test` 全量。
 - **22.2** `flutter analyze` 0 error。
@@ -468,7 +468,7 @@ Shop 路由保留（不删），但页面内容**仅保留**：
 
 ### Phase 10 施工步骤（TL 语言码与离线音频，预计 1 周）
 
-#### Step 23：选定 TL 方案（半天）
+#### ✅ Step 23：选定 TL 方案（半天）
 
 - **23.1** 在 TTS 语言码方案中二选一（**A 切 sw / B 保留 kn**），写入决策记录：
   - 文件：`lib/core/enums.dart` 或新建 `docs/decisions/0001-tts-language-code.md`。
@@ -484,7 +484,7 @@ Shop 路由保留（不删），但页面内容**仅保留**：
 - **23.4** **禁止**两个语言码同时出现在 `ttsLanguageCode` 任何分支。
   - 验证：`grep -n "case TargetLanguage" lib/application/language_provider.dart` 仅 1 个 case。
 
-#### Step 24：离线音频 fallback 验证（半天）
+#### ✅ Step 24：离线音频 fallback 验证（半天）
 
 - **24.1** 写 `test/application/audio_controller_fallback_test.dart`：
   - mock `WordEntry.audioAsset == null` → 走 TTS。
@@ -492,7 +492,7 @@ Shop 路由保留（不删），但页面内容**仅保留**：
 - **24.2** `lib/application/audio_controller.dart` 不改逻辑，只跑通既有 `speakWord` 路径。
   - 验证：测试通过。
 
-#### Step 25：Phase 10 收尾（半天）
+#### ✅ Step 25：Phase 10 收尾（半天）
 
 - **25.1** `flutter test` + `flutter analyze`。
 - **25.2** `git commit`：`[phase-10] tts language + audio fallback verified`。
@@ -501,7 +501,7 @@ Shop 路由保留（不删），但页面内容**仅保留**：
 
 ### Phase 11 施工步骤（测试覆盖，预计 1–2 周）
 
-#### Step 26：LessonViewModel 流程测（1 天）
+#### ✅ Step 26：LessonViewModel 流程测（1 天）
 
 - **26.1** `test/application/lesson_viewmodel_flow_test.dart`：
   - 场景 A：加载 legacy lesson → 答对 1 题 → advance → 答错 1 题 → 错题进入 `MistakeProvider` → 完成 lesson → XPEvent.lessonComplete 发放。
@@ -511,7 +511,7 @@ Shop 路由保留（不删），但页面内容**仅保留**：
 - **26.2** 用 `in_memory_course_db.dart` helper 注入 mock DB。
   - 验证：测试 4 个全过。
 
-#### Step 27：Renderer 端到端 widget 测（1–2 天）
+#### ✅ Step 27：Renderer 端到端 widget 测（1–2 天）
 
 - **27.1** 每个 Renderer 1 个 happy-path widget test：
   - `test/views/lesson/renderers/show_word_test.dart`
@@ -528,7 +528,7 @@ Shop 路由保留（不删），但页面内容**仅保留**：
 - **27.2** 每个测试只验 3 件事：① build 不抛错 ② 点击正确答案触发 `onSubmit(true)` ③ 点击错误答案触发 `onSubmit(false)`。
   - 验证：11 个 renderer test 全过。
 
-#### Step 28：Lesson.flattenedStages 单元测（半天）
+#### ✅ Step 28：Lesson.flattenedStages 单元测（半天）
 
 - **28.1** `test/domain/lesson_flatten_test.dart`：
   - legacy → 直接返回 content.stages。
@@ -540,7 +540,7 @@ Shop 路由保留（不删），但页面内容**仅保留**：
   - reading → content.stages（passage 单独走 UI）。
 - **28.2** 验证：5 种 template 行为与 `Lesson.flattenedStages` switch 一致。
 
-#### Step 29：Seeder round-trip 测（半天）
+#### ✅ Step 29：Seeder round-trip 测（半天）
 
 - **29.1** `test/courses/seeder_round_trip_test.dart`：
   - 取 `assets/courses/swahili/sections/s-test.json` 原始字符串。
@@ -548,19 +548,21 @@ Shop 路由保留（不删），但页面内容**仅保留**：
   - 比对关键字段（id / name / lessonId / contentJson 结构）一致。
 - **29.2** 验证：JSON → DB → JSON 无字段丢失。
 
-#### Step 30：drift schema 迁移测（半天）
+#### ✅ Step 30：drift schema 迁移测（半天）
 
 - **30.1** `test/data/schema_migration_test.dart`：
   - 准备 v1 → v4 各阶段 schema 的 in-memory DB。
   - 从 v1 DB 启动 app，触发 `onUpgrade`，验证 v2 (grammarPoints 表) / v3 (practiceItems 列) / v4 (courseMeta 表) 顺利升级。
 - **30.2** 验证：迁移无错，旧数据不丢。
 
-#### Step 31：Phase 11 收尾（半天）
+#### ✅ Step 31：Phase 11 收尾（半天）
 
 - **31.1** `flutter test --coverage` → 覆盖率报告。
   - 目标：lib/application 覆盖率 ≥ 70%，lib/views/lesson 覆盖率 ≥ 50%。
   - 验证：报告数字。
 - **31.2** `git commit`：`[phase-11] test coverage milestone done`。
+
+> **施工状态（按 git 记录）**：Phase 7–11 已全部完成（2026-07-09）。当前只剩 Phase 12 文档与代码卫生工作。
 
 ---
 
@@ -673,5 +675,6 @@ Shop 路由保留（不删），但页面内容**仅保留**：
 ---
 
 *文档创建日期：2026-07-09*
+*Phase 7–11 施工完成日期：2026-07-09*
 *替代：dreamplan.md（v1）*
 *核心原则：单人 / 本地 / 纯净 / 不生产内容 / 不做社交*
