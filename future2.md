@@ -230,7 +230,7 @@ Shop 路由保留（不删），但页面内容**仅保留**：
 
 ### Phase 7 施工步骤（去社交化清理，预计 1–2 周）
 
-#### Step 1：删除 League 残留（半天）
+#### ✅ Step 1：删除 League 残留（半天）
 
 - **1.1** 删除 `lib/application/game_provider.dart` 中：
   - `static const String bronzeLeague` 常量。
@@ -245,7 +245,7 @@ Shop 路由保留（不删），但页面内容**仅保留**：
 - **1.4** `flutter test` 跑 SRS / 错题 / 复习 / 统计四套 → 全绿。
   - 验证：基线用例数 ±0。
 
-#### Step 2：删除 Friends / Leaderboard / 社交（半天）
+#### ✅ Step 2：删除 Friends / Leaderboard / 社交（半天）
 
 - **2.1** `grep -rn "friendsCount\|leaderboard\|Leaderboard" lib/` 列出所有引用。
 - **2.2** 删除 `lib/application/achievements_provider.dart` 中的 `Achievement(id: 'friendly', ...)` 整条。
@@ -254,7 +254,7 @@ Shop 路由保留（不删），但页面内容**仅保留**：
 - **2.5** 确认 `lib/application/achievements_provider.dart::checkLeagueAchievement` 是 no-op，**直接删除**整个方法。
   - 验证：grep 返回 0 行涉及 friends / leaderboard。
 
-#### Step 3：删除 Hearts 整条线（半天）
+#### ✅ Step 3：删除 Hearts 整条线（半天）
 
 - **3.1** 删除 `lib/application/hearts_provider.dart` 整个文件。
 - **3.2** 删除 `lib/views/widgets/hearts_display.dart` 整个文件。
@@ -264,7 +264,7 @@ Shop 路由保留（不删），但页面内容**仅保留**：
 - **3.6** `LocalStateKeys.hearts` / `heartsRefillAt` 字段**保留**（以防数据迁移），但 Provider 已无消费者。
   - 验证：`grep -rn "HeartsProvider\|heartsProvider" lib/` 返回 0 行。
 
-#### Step 4：删除 XP 乘数 / Streak Repair（半天）
+#### ✅ Step 4：删除 XP 乘数 / Streak Repair（半天）
 
 - **4.1** `lib/application/game_provider.dart` 中删除：
   - `LocalStateKeys.dailyXpGoal` / `dailyXpEarned` / `lastDailyReset` 的读写。
@@ -275,7 +275,7 @@ Shop 路由保留（不删），但页面内容**仅保留**：
 - **4.3** `lib/views/shop/shop_screen.dart` 删除 "Streak Repair" 卡片（`_SectionTitle(title: 'Learn To Repair')` 整段）。
   - 验证：`grep -rn "streakRepair\|dailyGoalComplete" lib/` 返回 0 行。
 
-#### Step 5：清理 Gems 购买语义（半天）
+#### ✅ Step 5：清理 Gems 购买语义（半天）
 
 - **5.1** 保留 `GemsProvider` 的 `earnGems`（SRS / 语法奖励来源）。
 - **5.2** `lib/views/shop/shop_screen.dart` 删除：
@@ -287,7 +287,7 @@ Shop 路由保留（不删），但页面内容**仅保留**：
 - **5.4** Shop 页只保留："Try Match Madness" 按钮（`MatchWordsRoute`） + 学习统计简表（如决定保留 Shop 入口）。
   - 验证：Shop 页面只有 ≤2 张卡片。
 
-#### Step 6：清理 Patreon / Follow / Share（半天）
+#### ✅ Step 6：清理 Patreon / Follow / Share（半天）
 
 - **6.1** 删除 `lib/views/widgets/patreon_button.dart` 整个文件。
 - **6.2** `lib/views/home/components/stat_app_bar.dart` 移除 `PatreonButton` 引用。
@@ -297,7 +297,7 @@ Shop 路由保留（不删），但页面内容**仅保留**：
 - **6.6** 评估 `lib/views/profile/widgets/account_app_bar.dart` 中的分享按钮（若有），删除。
   - 验证：`grep -rn "url_launcher\|PatreonButton\|followReward\|validatedShare" lib/` 返回 0 行。
 
-#### Step 7：Shop 路由去留决定（半天）
+#### ✅ Step 7：Shop 路由去留决定（半天）
 
 - **7.1** 若 Shop 页 ≤1 张卡片有意义 → **下线 Shop tab**：
   - `lib/views/home/home_page.dart` 移除 `const ShopPage()`，screens 数组长度变 3。
@@ -308,7 +308,7 @@ Shop 路由保留（不删），但页面内容**仅保留**：
 - **7.3** 选定后只走 7.1 或 7.2 其中一条。
   - 验证：Bottom tab 数量 = 3（Learn / Play / Profile）或 4（…/ Shop 仅剩 Match Madness 按钮）。
 
-#### Step 8：Onboarding 简化（半天）
+#### ✅ Step 8：Onboarding 简化（半天）
 
 - **8.1** `lib/views/onboarding/onboarding_screen.dart` 简化为单页："Tap to start" + 跳 Home。
   - 保留 1 个 `PageController`、1 页 `_OnboardingPageData`、1 个 `GetStartedButton`。
@@ -316,14 +316,14 @@ Shop 路由保留（不删），但页面内容**仅保留**：
 - **8.2** 不动 Splash 页。
   - 验证：Onboarding 仅 1 页可滑动 / 跳过。
 
-#### Step 9：CLAUDE.md 同步（半天）
+#### ✅ Step 9：CLAUDE.md 同步（半天）
 
 - **9.1** `CLAUDE.md` 的 "🔴 Features Needed (Firebase-Based)" 整节删除或改为 "Removed by future2.md"。
 - **9.2** Features 表格中将 League / Friends / Leaderboard / Hearts / Streak Repair / Patreon / Share Reward / Speaking 标 ❌ Removed / Will Not Do。
 - **9.3** 在 `CLAUDE.md` 顶部加一行：> 后续开发以 [`future2.md`](./future2.md) 为准。
   - 验证：`grep -n "future2.md" CLAUDE.md` 有 1 行。
 
-#### Step 10：Phase 7 收尾验证（半天）
+#### ✅ Step 10：Phase 7 收尾验证（半天）
 
 - **10.1** `flutter test` 全量。
   - 验证：与 Step 0.3 基线数字偏差 ≤ 5 个（允许因 Provider 删除连带调整测试）。
@@ -339,7 +339,7 @@ Shop 路由保留（不删），但页面内容**仅保留**：
 
 > **绝对不写新 lesson**。仅在 `s-test.json` **追加** 5 个最小 smoke lesson（或新建 `s-template-smoke.json`），不替代既有 lesson。
 
-#### Step 11：设计 smoke lesson 清单（半天）
+#### ✅ Step 11：设计 smoke lesson 清单（半天）
 
 - **11.1** 在纸上（或本文件注释里）列出 5 个 smoke lesson 的 `id / template / subLessons / 题型组合`：
   - `l-tpl-intro-smoke`：`template: intro`，4 个 SubLesson，每 SubLesson 1 ShowWord + 1 MCQ。
@@ -350,7 +350,7 @@ Shop 路由保留（不删），但页面内容**仅保留**：
 - **11.2** 复用 `s-test.json` 已有的 35 个 vocab id，不引入新 wordId。
   - 验证：smoke lesson 引用的 `wordId` 全部在 `vocab.json` 中存在（用 grep 确认）。
 
-#### Step 12：写入 smoke lesson JSON（半天）
+#### ✅ Step 12：写入 smoke lesson JSON（半天）
 
 - **12.1** 编辑 `assets/courses/swahili/sections/s-test.json` 追加 5 个 lesson（用现有 unit `u-test-1` 或新增 `u-test-templates`）。
 - **12.2** `content` 字段严格遵循 `LessonContent` freezed 形状：`subLessons` / `readingPassage` / `linkedGrammarPointIds`。
@@ -359,7 +359,7 @@ Shop 路由保留（不删），但页面内容**仅保留**：
 - **12.4** 在 `assets/courses/swahili/sections/index.json` 中 `version` 字段 +1（**只是版本号变更**，不增 section）。
   - 验证：`index.json` 中 sections 数量不变，version 从 2 升到 3。
 
-#### Step 13：Mastery 80% 判定实现（1–2 天）
+#### ✅ Step 13：Mastery 80% 判定实现（1–2 天）
 
 - **13.1** `lib/domain/course/lesson.dart` 中 `Lesson` 加一个派生 `bool get isMastery => template == LessonTemplate.mastery;`。
 - **13.2** `lib/application/lesson_viewmodel.dart`：

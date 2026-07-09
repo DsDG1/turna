@@ -1,0 +1,402 @@
+// Flow tests for [LessonViewModel]: loading, answering, mistake recording,
+// completion, XP/gem awards, mastery threshold, and grammar registration.
+
+import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_tts/flutter_tts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
+import 'package:words625/application/achievements_provider.dart';
+import 'package:words625/application/audio_controller.dart';
+import 'package:words625/application/course_provider.dart';
+import 'package:words625/application/game_provider.dart';
+import 'package:words625/application/gems_provider.dart';
+import 'package:words625/application/grammar_review_provider.dart';
+import 'package:words625/application/language_provider.dart';
+import 'package:words625/application/lesson_link_store.dart';
+import 'package:words625/application/lesson_viewmodel.dart';
+import 'package:words625/application/mistake_provider.dart';
+import 'package:words625/application/srs_provider.dart';
+import 'package:words625/application/study_stats_provider.dart';
+import 'package:words625/data/study_log_repository.dart';
+import 'package:words625/domain/course/interaction.dart';
+import 'package:words625/domain/course/lesson.dart';
+import 'package:words625/domain/course/lesson_content.dart';
+import 'package:words625/domain/course/stage.dart';
+import 'package:words625/domain/study/study_log.dart';
+import 'package:words625/service/locator.dart';
+
+class _FakeFlutterTts implements FlutterTts {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _FakeLanguageProvider implements LanguageProvider {
+  @override
+  String get ttsLanguageCode => 'sw';
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _FakeAudioPlayer implements AudioPlayer {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _FakeAudioController extends AudioController {
+  _FakeAudioController()
+      : super(
+          _FakeFlutterTts(),
+          _FakeLanguageProvider(),
+          audioPlayer: _FakeAudioPlayer(),
+          speechPlayer: _FakeAudioPlayer(),
+        );
+
+  @override
+  Future<void> speak(String text, {double? speed}) async {}
+
+  @override
+  Future<void> speakFromAsset(String assetPath) async {}
+
+  @override
+  Future<void> playRandomErrorSound() async {}
+
+  @override
+  Future<void> playRandomLevelUpSound() async {}
+}
+
+class _FakeCourseProvider extends CourseProvider {
+  final Lesson? _lesson;
+
+  _FakeCourseProvider(this._lesson);
+
+  @override
+  Lesson? findLessonById(String id) => _lesson;
+}
+
+class _RecordedMilestone {
+  final int lessonsCompleted;
+  final int perfectLessons;
+
+  _RecordedMilestone(this.lessonsCompleted, this.perfectLessons);
+}
+
+class _FakeAchievementsProvider extends AchievementsProvider {
+  final List<_RecordedMilestone> milestones = [];
+
+  _FakeAchievementsProvider() : super(_FakeAppPrefs());
+
+  @override
+  Future<void> checkLessonMilestones({
+    required int lessonsCompleted,
+    required int perfectLessons,
+  }) async {
+    milestones.add(_RecordedMilestone(lessonsCompleted, perfectLessons));
+  }
+}
+
+class _RecordedActivity {
+  final StudyActivityType type;
+  final String? lessonId;
+  final int xpEarned;
+
+  _RecordedActivity(this.type, this.lessonId, this.xpEarned);
+}
+
+class _FakeStudyStatsProvider extends StudyStatsProvider {
+  final List<_RecordedActivity> activities = [];
+
+  _FakeStudyStatsProvider(AppPrefs appPrefs)
+      : super(StudyLogRepository(appPrefs), appPrefs);
+
+  @override
+  Future<void> recordActivity({
+    required StudyActivityType type,
+    String? lessonId,
+    int xpEarned = 0,
+    int durationSeconds = 0,
+    int correctCount = 0,
+    int incorrectCount = 0,
+    List<String> wordIds = const [],
+  }) async {
+    activities.add(_RecordedActivity(type, lessonId, xpEarned));
+  }
+}
+
+class _FakeAppPrefs implements AppPrefs {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _ViewModelHarness {
+  final LessonViewModel vm;
+  final GameProvider gameProvider;
+  final GemsProvider gemsProvider;
+  final _FakeAchievementsProvider achievementsProvider;
+  final _FakeStudyStatsProvider studyStatsProvider;
+  final GrammarReviewProvider grammarProvider;
+  final MistakeProvider mistakeProvider;
+  final SrsProvider srsProvider;
+
+  _ViewModelHarness({
+    required this.vm,
+    required this.gameProvider,
+    required this.gemsProvider,
+    required this.achievementsProvider,
+    required this.studyStatsProvider,
+    required this.grammarProvider,
+    required this.mistakeProvider,
+    required this.srsProvider,
+  });
+}
+
+Lesson _buildLegacyLesson({required List<Interaction> items}) {
+  return Lesson(
+    id: 'l-flow-legacy',
+    name: 'Flow Legacy',
+    template: LessonTemplate.legacy,
+    content: LessonContent(
+      stages: [
+        Stage(
+          id: 'stage-1',
+          name: 'Stage 1',
+          items: items,
+        ),
+      ],
+    ),
+  );
+}
+
+Lesson _buildMasteryLesson() {
+  final items = <Interaction>[];
+  for (var i = 0; i < 6; i++) {
+    items.add(
+      Interaction.multipleChoice(
+        id: 'mcq-$i',
+        prompt: 'Question $i',
+        options: const ['Correct', 'Wrong'],
+        correctIndex: 0,
+      ),
+    );
+  }
+  return Lesson(
+    id: 'l-flow-mastery',
+    name: 'Flow Mastery',
+    template: LessonTemplate.mastery,
+    content: LessonContent(
+      stages: [
+        Stage(
+          id: 'stage-1',
+          name: 'Stage 1',
+          items: items,
+        ),
+      ],
+    ),
+  );
+}
+
+_ViewModelHarness _buildHarness({
+  required Lesson lesson,
+  required AppPrefs appPrefs,
+}) {
+  final courseProvider = _FakeCourseProvider(lesson);
+  final gameProvider = GameProvider(appPrefs);
+  final gemsProvider = GemsProvider(appPrefs);
+  final achievementsProvider = _FakeAchievementsProvider();
+  final audioController = _FakeAudioController();
+  final linkStore = LessonLinkStore(appPrefs);
+  final srsProvider = SrsProvider(appPrefs, linkStore);
+  final mistakeProvider = MistakeProvider(appPrefs);
+  final grammarProvider = GrammarReviewProvider(appPrefs, linkStore);
+  final studyStatsProvider = _FakeStudyStatsProvider(appPrefs);
+
+  final vm = LessonViewModel(
+    courseProvider,
+    gameProvider,
+    gemsProvider,
+    achievementsProvider,
+    audioController,
+    srsProvider,
+    mistakeProvider,
+    grammarProvider,
+    studyStatsProvider,
+  );
+
+  return _ViewModelHarness(
+    vm: vm,
+    gameProvider: gameProvider,
+    gemsProvider: gemsProvider,
+    achievementsProvider: achievementsProvider,
+    studyStatsProvider: studyStatsProvider,
+    grammarProvider: grammarProvider,
+    mistakeProvider: mistakeProvider,
+    srsProvider: srsProvider,
+  );
+}
+
+void _answerMultipleChoice(
+  LessonViewModel vm, {
+  required bool correct,
+  required String userAnswer,
+}) {
+  vm.submitInteraction(correct, userAnswerText: userAnswer);
+}
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  late StreamingSharedPreferences prefs;
+  late AppPrefs appPrefs;
+
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    prefs = await StreamingSharedPreferences.instance;
+    appPrefs = AppPrefs(prefs);
+  });
+
+  group('LessonViewModel flow', () {
+    test('legacy lesson: correct then wrong records mistake and completes',
+        () async {
+      final lesson = _buildLegacyLesson(
+        items: [
+          Interaction.multipleChoice(
+            id: 'mcq-1',
+            prompt: 'Choose A',
+            options: const ['A', 'B'],
+            correctIndex: 0,
+          ),
+          Interaction.multipleChoice(
+            id: 'mcq-2',
+            prompt: 'Choose X',
+            options: const ['X', 'Y'],
+            correctIndex: 0,
+          ),
+        ],
+      );
+      final harness = _buildHarness(lesson: lesson, appPrefs: appPrefs);
+      final vm = harness.vm;
+
+      final loaded = await vm.loadLesson(lesson.id);
+      expect(loaded, isTrue);
+      expect(vm.isComplete, isFalse);
+
+      // First item: correct.
+      _answerMultipleChoice(vm, correct: true, userAnswer: 'A');
+      expect(vm.isAnswerCorrect, isTrue);
+      vm.advance();
+
+      // Second item: wrong.
+      _answerMultipleChoice(vm, correct: false, userAnswer: 'Y');
+      expect(vm.isAnswerCorrect, isFalse);
+      vm.advance();
+
+      // Completion is async.
+      await pumpEventQueue();
+
+      expect(vm.isComplete, isTrue);
+      expect(vm.masteryPassed, isTrue); // non-mastery defaults to true
+
+      final score = harness.gameProvider.getUserScoreStream().first;
+      expect(await score, 10); // lessonComplete XP only (one mistake)
+
+      final gems = harness.gemsProvider.getGemsStream().first;
+      expect(await gems, 5); // lessonComplete gems only
+
+      expect(harness.mistakeProvider.count, 1);
+      expect(harness.mistakeProvider.entries.first.lessonId, lesson.id);
+
+      expect(harness.achievementsProvider.milestones, isNotEmpty);
+      expect(harness.achievementsProvider.milestones.first.lessonsCompleted, 1);
+
+      expect(harness.studyStatsProvider.activities, isNotEmpty);
+      expect(harness.studyStatsProvider.activities.first.type,
+          StudyActivityType.lessonComplete);
+      expect(harness.studyStatsProvider.activities.first.lessonId, lesson.id);
+    });
+
+    test('mastery lesson with accuracy < 80% does not complete', () async {
+      final lesson = _buildMasteryLesson();
+      final harness = _buildHarness(lesson: lesson, appPrefs: appPrefs);
+      final vm = harness.vm;
+
+      await vm.loadLesson(lesson.id);
+
+      for (var i = 0; i < 6; i++) {
+        final correct = i < 4; // 4 correct, 2 wrong
+        _answerMultipleChoice(
+          vm,
+          correct: correct,
+          userAnswer: correct ? 'Correct' : 'Wrong',
+        );
+        vm.advance();
+      }
+
+      await pumpEventQueue();
+
+      expect(vm.isMastery, isTrue);
+      expect(vm.masteryPassed, isFalse);
+      expect(vm.isComplete, isFalse);
+      expect(vm.masteryAttempts, 0);
+
+      // Verify retry resets state.
+      vm.retryMastery();
+      expect(vm.masteryAttempts, 1);
+      expect(vm.isComplete, isFalse);
+      expect(vm.progress, 0.0);
+    });
+
+    test('mastery lesson with accuracy >= 80% completes', () async {
+      final lesson = _buildMasteryLesson();
+      final harness = _buildHarness(lesson: lesson, appPrefs: appPrefs);
+      final vm = harness.vm;
+
+      await vm.loadLesson(lesson.id);
+
+      for (var i = 0; i < 6; i++) {
+        final correct = i < 5; // 5 correct, 1 wrong
+        _answerMultipleChoice(
+          vm,
+          correct: correct,
+          userAnswer: correct ? 'Correct' : 'Wrong',
+        );
+        vm.advance();
+      }
+
+      await pumpEventQueue();
+
+      expect(vm.isMastery, isTrue);
+      expect(vm.masteryPassed, isTrue);
+      expect(vm.isComplete, isTrue);
+    });
+
+    test('linked grammar points are registered on load', () async {
+      final lesson = Lesson(
+        id: 'l-flow-grammar',
+        name: 'Flow Grammar',
+        template: LessonTemplate.legacy,
+        content: LessonContent(
+          stages: [
+            Stage(
+              id: 'stage-1',
+              name: 'Stage 1',
+              items: [
+                Interaction.showWord(
+                  id: 'sw-1',
+                  wordId: 'w-test',
+                ),
+              ],
+            ),
+          ],
+          linkedGrammarPointIds: const ['gp.present-a'],
+        ),
+      );
+      final harness = _buildHarness(lesson: lesson, appPrefs: appPrefs);
+
+      await harness.vm.loadLesson(lesson.id);
+
+      expect(harness.grammarProvider.dueCount, 1);
+      expect(harness.grammarProvider.state.containsKey('gp.present-a'), isTrue);
+    });
+  });
+}

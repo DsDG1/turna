@@ -51,7 +51,7 @@ class MistakeProvider extends ChangeNotifier {
   /// Add a new mistake. If the log exceeds [maxEntries], the oldest entry is
   /// removed.
   Future<void> record(MistakeEntry entry) async {
-    final current = entries;
+    final current = entries.toList();
     current.add(entry);
     if (current.length > maxEntries) {
       current.removeAt(0);
@@ -62,7 +62,7 @@ class MistakeProvider extends ChangeNotifier {
   /// Mark a mistake as rewritten correctly. If [rewriteCount] reaches 2, the
   /// entry is removed from the log.
   Future<void> recordRewrite(String entryId) async {
-    final current = entries;
+    final current = entries.toList();
     final index = current.indexWhere((e) => e.id == entryId);
     if (index == -1) return;
 
