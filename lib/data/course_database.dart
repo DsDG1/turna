@@ -111,6 +111,20 @@ class CourseMeta extends Table {
   Set<Column> get primaryKey => {key};
 }
 
+/// Expressions — one row per [Expression].
+@DataClassName('ExpressionEntry')
+class Expressions extends Table {
+  TextColumn get id => text()();
+  TextColumn get term => text()();
+  TextColumn get translation => text()();
+  TextColumn get pronunciation => text().nullable()();
+  TextColumn get audioAsset => text().nullable()();
+  TextColumn get tags => text().withDefault(const Constant('[]'))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 @DriftDatabase(
   tables: [
     Sections,
@@ -120,13 +134,14 @@ class CourseMeta extends Table {
     Vocabulary,
     GrammarPoints,
     CourseMeta,
+    Expressions,
   ],
 )
 class CourseDatabase extends _$CourseDatabase {
   CourseDatabase(QueryExecutor e) : super(e);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -144,6 +159,10 @@ class CourseDatabase extends _$CourseDatabase {
           if (from < 4) {
             // v4: content-version meta for reseed invalidation.
             await m.createTable(courseMeta);
+          }
+          if (from < 5) {
+            // v5: expression table for phrase-level SRS.
+            await m.createTable(expressions);
           }
         },
       );
