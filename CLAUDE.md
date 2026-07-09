@@ -82,12 +82,14 @@ lib/
 - [ ] ~~Speaking exercises~~ — Removed (TTS route sufficient)
 - [ ] ~~External GUI editor~~ — Removed (JSON-first approach)
 
-### 🔧 Planned (future2.md)
-- [ ] **Lesson Templates** — intro / practice / review / mastery / reading (smoke testing in progress)
-- [ ] **Expression-level SRS** — end-to-end data pipeline
-- [ ] **TTS language code** — finalize `sw` vs `kn` decision
-- [ ] **Test coverage** — core ViewModel / Provider / Renderer tests
-- [ ] **Content** — Swahili vocabulary replacement (post-framework)
+### ✅ Completed via future2.md
+- [x] **Lesson Templates** — intro / practice / review / mastery / reading smoke lessons implemented and verified
+- [x] **Expression-level SRS** — end-to-end data pipeline (schema v5, seeder, repository, provider, review UI)
+- [x] **TTS language code** — switched to `sw` with ADR at `docs/decisions/0001-tts-language-code.md`
+- [x] **Test coverage** — core ViewModel / Provider / Renderer / seeder / schema migration tests
+
+### 📋 Post-Framework (not in future2.md scope)
+- [ ] **Content** — Swahili vocabulary replacement (real Swahili word list, post-framework)
 ---
 
 ## UI Theming Guidelines

@@ -1,5 +1,7 @@
 # Varnamala Dream Plan：大规模语言学习 App 可行性分析
 
+> ⚠️ **本文件已被 [`future2.md`](./future2.md) 取代**（2026-07-09）。本文保留作为历史参考，不再更新。
+
 > 目标：承载 8,000 常规课 + 1,500 阅读课 + 1,500 听力课 ≈ 11,000 课，支持 Language → Section → Unit → Lesson → Sub-lesson 五级结构，完整 SRS、错题、TTS、本地外部 GUI 编辑器。本项目本地优先、无云。
 
 ---

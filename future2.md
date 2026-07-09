@@ -568,7 +568,7 @@ Shop 路由保留（不删），但页面内容**仅保留**：
 
 ### Phase 12 施工步骤（文档与代码卫生，持续）
 
-#### Step 32：CLAUDE.md 同步（1 天）
+#### ✅ Step 32：CLAUDE.md 同步（1 天）
 
 - **32.1** 删 "🔴 Features Needed (Firebase-Based)" 整节。
 - **32.2** "Duolingo Features - Implementation Status" 表中：
@@ -577,13 +577,13 @@ Shop 路由保留（不删），但页面内容**仅保留**：
 - **32.3** 顶部加 "> 后续开发以 [`future2.md`](./future2.md) 为准，本文件仅作架构总览"。
   - 验证：CLAUDE.md 中无 Firebase 字样在 Features 章节。
 
-#### Step 33：dreamplan.md 标注过期（半天）
+#### ✅ Step 33：dreamplan.md 标注过期（半天）
 
 - **33.1** `dreamplan.md` 第 1 行下方加：
   > ⚠️ **本文件已被 [`future2.md`](./future2.md) 取代**（2026-07-09）。本文保留作为历史参考，不再更新。
   - 验证：`head -3 dreamplan.md` 包含 "future2.md"。
 
-#### Step 34：清理 git 遗留（半天）
+#### ✅ Step 34：清理 git 遗留（半天）
 
 - **34.1** `git status` 检查 `D assets/screens/*.jpg`、`M assets/course_data.json`、`M assets/courses/...` 等。
 - **34.2** 决策每项：
@@ -593,7 +593,7 @@ Shop 路由保留（不删），但页面内容**仅保留**：
 - **34.3** `git add -p` 选择性提交。
   - 验证：`git status` 干净（除 future2.md 本身）。
 
-#### Step 35：归档过期文档（半天）
+#### ✅ Step 35：归档过期文档（半天）
 
 - **35.1** `IMPLEMENTATION.md` / `NEXT_VERSION.md` / `plan.md`：
   - 若内容已被 future2 覆盖 → 移动到 `docs/archive/`。
@@ -601,13 +601,13 @@ Shop 路由保留（不删），但页面内容**仅保留**：
 - **35.2** 创建 `docs/decisions/` 目录存放 ADR（如 Step 23 的 TTS 语言码决策）。
   - 验证：docs/ 目录结构清晰。
 
-#### Step 36：README.md 简化（半天）
+#### ✅ Step 36：README.md 简化（半天）
 
 - **36.1** `README.md` 顶部加 "Roadmap: see `future2.md`"。
 - **36.2** 删 Firebase 相关的快速开始指引（既然已无 Firebase）。
   - 验证：README.md 中无 cloud / firestore / firebase 启动说明。
 
-#### Step 37：Phase 12 收尾（半天）
+#### ✅ Step 37：Phase 12 收尾（半天）
 
 - **37.1** `flutter test` + `flutter analyze` + `flutter build` 三连全绿。
 - **37.2** `git tag` 当前 commit 为 `future2-phase-12-done`。
@@ -676,5 +676,6 @@ Shop 路由保留（不删），但页面内容**仅保留**：
 
 *文档创建日期：2026-07-09*
 *Phase 7–11 施工完成日期：2026-07-09*
+*Phase 12 施工完成日期：2026-07-09*
 *替代：dreamplan.md（v1）*
 *核心原则：单人 / 本地 / 纯净 / 不生产内容 / 不做社交*

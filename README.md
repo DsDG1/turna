@@ -79,7 +79,8 @@ flutter test
 - [`future2.md`](./future2.md) — **唯一路线图**，38 个施工步骤（Phase 7–12），明确边界与不做项。
 - [`dreamplan.md`](./dreamplan.md) — 旧版 v1 计划，仅作历史参考。
 - [`CLAUDE.md`](./CLAUDE.md) — 面向 AI Agent 的架构说明。
-- [`IMPLEMENTATION.md`](./IMPLEMENTATION.md) / [`NEXT_VERSION.md`](./NEXT_VERSION.md) / [`plan.md`](./plan.md) — 历史，部分已被 `future2.md` 取代。
+- [`plan.md`](./plan.md) — 5-layer 架构设计历史，prereq/unlock 未在当前路线图中。
+- `docs/decisions/` — 工程决策记录（如 TTS 语言码 ADR）。
 
 ## 致谢
 
@@ -90,12 +91,8 @@ flutter test
 
 ## 截图
 
-| Home | Lesson | Profile | Alphabets |
-|:---:|:---:|:---:|:---:|
-| ![Home](screenshots/screenshot0.png) | ![Lesson](screenshots/screenshot1.png) | ![Profile](screenshots/screenshot2.png) | ![Alphabets](screenshots/screenshot3.png) |
+| Home | Lesson | Profile | Alphabets | Writing | Games |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| ![Home](screenshots/screenshot0.png) | ![Lesson](screenshots/screenshot1.png) | ![Profile](screenshots/screenshot2.png) | ![Alphabets](screenshots/screenshot3.png) | ![Writing](screenshots/screenshot4.png) | ![Games](screenshots/screenshot7.png) |
 
-| Writing | Socials | Leagues and Leaderboard | Games |
-|:---:|:---:|:---:|:---:|
-| ![Writing](screenshots/screenshot4.png) | ![Socials](screenshots/screenshot5.png) | ![Leagues and Leaderboard](screenshots/screenshot6.png) | ![Games](screenshots/screenshot7.png) |
-
-> 截图后两列（`Socials`、`Leagues and Leaderboard`）展示的是上游原版功能，**本仓库已按 `future2.md` 移除**，仅作历史视觉对比。
+> 截图展示当前仓库实际功能：课程树、学习页、个人统计、字母页、书写练习、Match Madness 小游戏。Social / Leaderboard / League 等功能已按 `future2.md` 移除。

@@ -1,5 +1,7 @@
 # Varnamala — Flutter 5-Layer Course Architecture Plan
 
+> ⚠️ **部分实现已被 [`future2.md`](./future2.md) 取代**。本文件保留 5-layer 架构设计历史；prerequisite / derived-unlock 机制不在当前路线图中。
+
 > Status: **in progress** — Phases 1–3 complete, Phases 4–8 pending
 > Owner: languagepart
 > Last updated: 2026-07
