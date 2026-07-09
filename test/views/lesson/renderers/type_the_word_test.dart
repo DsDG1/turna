@@ -1,0 +1,45 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:words625/domain/course/interaction.dart';
+import 'package:words625/views/lesson/components/interactions/type_the_word_renderer.dart';
+
+import 'renderer_test_helper.dart';
+
+void main() {
+  final harness = RendererTestHarness();
+
+  setUp(() {
+    harness.submissions.clear();
+  });
+
+  testWidgets('TypeTheWord submits true for correct answer', (tester) async {
+    final renderer = TypeTheWordRenderer();
+    final interaction = Interaction.typeTheWord(
+      id: 'ttw-1',
+      audioAsset: 'w-test-audio',
+      prompt: 'Type what you hear',
+      expected: 'Habari',
+    );
+
+    await tester.pumpWidget(harness.build(renderer, interaction));
+    await enterText(tester, 'Habari');
+    await tapCheck(tester);
+
+    expect(harness.submissions, [(true, 'Habari')]);
+  });
+
+  testWidgets('TypeTheWord submits false for wrong answer', (tester) async {
+    final renderer = TypeTheWordRenderer();
+    final interaction = Interaction.typeTheWord(
+      id: 'ttw-2',
+      audioAsset: 'w-test-audio',
+      prompt: 'Type what you hear',
+      expected: 'Habari',
+    );
+
+    await tester.pumpWidget(harness.build(renderer, interaction));
+    await enterText(tester, 'Asante');
+    await tapCheck(tester);
+
+    expect(harness.submissions, [(false, 'Asante')]);
+  });
+}
