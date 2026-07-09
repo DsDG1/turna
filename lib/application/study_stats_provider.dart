@@ -11,7 +11,7 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:words625/courses/languages/grammar_points.dart';
-import 'package:words625/courses/languages/kannada_vocab.dart';
+import 'package:words625/courses/languages/swahili_vocab.dart';
 import 'package:words625/data/study_log_repository.dart';
 import 'package:words625/domain/course/mistake_entry.dart';
 import 'package:words625/domain/study/daily_stats.dart';

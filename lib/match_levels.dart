@@ -1,8 +1,5 @@
 /// Swahili Level 1 vocabulary used by the match-words game.
 /// Single-language build: the lookup map has been removed.
-///
-/// NOTE: The entries below are still Kannada words while the Swahili
-/// vocabulary is being prepared.
 final allLevel1Words = <String, String>{
   "I": "Naanu",
   "You": "Neenu",

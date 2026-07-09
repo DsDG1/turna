@@ -201,7 +201,7 @@
                   {
                     "runtimeType": "multipleChoice",
                     "id": "mc-five",
-                    "prompt": "\"Five\" in Kannada",
+                    "prompt": "\"Five\" in Swahili",
                     "options": [
                       "Naaku",
                       "Aidhu",

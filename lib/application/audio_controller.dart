@@ -11,8 +11,10 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:words625/application/language_provider.dart';
-import 'package:words625/courses/languages/kannada_vocab.dart';
+import 'package:words625/core/enums.dart';
+import 'package:words625/courses/languages/swahili_vocab.dart';
 import 'package:words625/gen/assets.gen.dart';
+import 'package:words625/service/piper_swahili_tts.dart';
 
 @lazySingleton
 class AudioController {
@@ -20,6 +22,7 @@ class AudioController {
   final AudioPlayer _speechPlayer;
   final FlutterTts _tts;
   final LanguageProvider _languageProvider;
+  final PiperSwahiliTts? _piperTts;
   final Random _random = Random();
 
   double _ttsSpeed = 1.0;
@@ -31,8 +34,10 @@ class AudioController {
     this._languageProvider, {
     AudioPlayer? audioPlayer,
     AudioPlayer? speechPlayer,
+    PiperSwahiliTts? piperTts,
   })  : _audioPlayer = audioPlayer ?? AudioPlayer(),
-        _speechPlayer = speechPlayer ?? AudioPlayer();
+        _speechPlayer = speechPlayer ?? AudioPlayer(),
+        _piperTts = piperTts;
 
   // List of error sound assets
   final List<String> _errorSounds = [
@@ -89,8 +94,23 @@ class AudioController {
 
   /// Speak arbitrary [text] using TTS in the current target language.
   /// [speed] overrides the current global speed for this utterance.
+  ///
+  /// For Swahili, prefer the bundled Piper model if it initialized
+  /// successfully; otherwise fall back to the system TTS engine.
   Future<void> speak(String text, {double? speed}) async {
     if (text.isEmpty) return;
+
+    final piper = _piperTts;
+    if (piper != null &&
+        _languageProvider.selectedLanguage == TargetLanguage.swahili) {
+      try {
+        await piper.speak(text, speed: speed ?? _ttsSpeed);
+        return;
+      } catch (e) {
+        debugPrint('Piper Swahili TTS failed, falling back to flutter_tts: $e');
+      }
+    }
+
     await _ensureTtsLanguage();
     await _tts.setSpeechRate(speed ?? _ttsSpeed);
     await _tts.stop();

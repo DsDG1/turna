@@ -14,7 +14,7 @@ import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:words625/core/logger.dart';
 import 'package:words625/courses/languages/expressions.dart';
 import 'package:words625/courses/languages/grammar_points.dart';
-import 'package:words625/courses/languages/kannada_vocab.dart';
+import 'package:words625/courses/languages/swahili_vocab.dart';
 import 'package:words625/data/course_database.dart';
 import 'package:words625/data/course_database_seeder.dart';
 import 'package:words625/di/injection.dart';
@@ -146,9 +146,9 @@ Future<void> setupLocator() async {
     getIt.registerLazySingleton<FlutterTts>(() => FlutterTts());
   }
 
-  // Open + seed the course database before any course read. Seeding is a
-  // one-shot on first launch (the DB is then cached); subsequent starts skip
-  // the JSON assets entirely. Registered as a singleton so [SwahiliCourse]
+  // Open + seed the course database before any course read. First install /
+  // content-version bump reseeds; subsequent cold starts skip when version
+  // matches and sections exist. Registered as a singleton so [SwahiliCourse]
   // can resolve it synchronously.
   final db = await _openAndSeedCourseDatabase();
   getIt.registerSingleton<CourseDatabase>(db);
@@ -168,8 +168,9 @@ Future<void> setupLocator() async {
 }
 
 /// Opens the on-device course database and seeds it from the bundled JSON
-/// assets if empty. Not supported on web (`NativeDatabase` needs native
-/// `sqlite3`); a future revision can swap in a WASM database for web.
+/// assets when needed (version / empty-tree gate). Not supported on web
+/// (`NativeDatabase` needs native `sqlite3`); a future revision can swap in
+/// a WASM database for web.
 Future<CourseDatabase> _openAndSeedCourseDatabase() async {
   if (kIsWeb) {
     throw UnsupportedError(
@@ -180,7 +181,12 @@ Future<CourseDatabase> _openAndSeedCourseDatabase() async {
   final dir = await getApplicationDocumentsDirectory();
   final file = File(p.join(dir.path, 'course.swahili.db'));
   final db = CourseDatabase(NativeDatabase(file));
-  await DatabaseSeeder(db).seedIfEmpty();
+  try {
+    await DatabaseSeeder(db).seedIfNeeded();
+  } catch (e, st) {
+    logger.e('Course database seed failed', error: e, stackTrace: st);
+    rethrow;
+  }
   return db;
 }
 

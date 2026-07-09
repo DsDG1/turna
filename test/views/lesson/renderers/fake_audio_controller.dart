@@ -1,0 +1,36 @@
+import 'package:words625/application/audio_controller.dart';
+
+/// A no-op [AudioController] for renderer/widget tests.
+///
+/// Records calls to [speak] and [speakWord] so tests can verify that tapping
+/// a word or sentence triggered the right utterance.
+class FakeAudioController implements AudioController {
+  final List<String> spoken = [];
+
+  String? get lastSpoken => spoken.isEmpty ? null : spoken.last;
+
+  @override
+  double get ttsSpeed => 1.0;
+
+  @override
+  Future<void> playRandomErrorSound() async {}
+
+  @override
+  Future<void> playRandomLevelUpSound() async {}
+
+  @override
+  Future<void> speak(String text, {double? speed}) async {
+    spoken.add(text);
+  }
+
+  @override
+  Future<void> speakFromAsset(String assetPath) async {}
+
+  @override
+  Future<void> speakWord(String wordId) async {
+    spoken.add(wordId);
+  }
+
+  @override
+  void setTtsSpeed(double speed) {}
+}

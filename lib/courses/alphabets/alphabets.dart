@@ -1,3 +1,3 @@
 //GENERATED BARREL FILE
-export 'kannada.dart';
 export 'resource.dart';
+export 'swahili.dart';

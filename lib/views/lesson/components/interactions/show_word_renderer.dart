@@ -5,7 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:words625/courses/languages/kannada_vocab.dart';
+import 'package:words625/application/audio_controller.dart';
+import 'package:words625/courses/languages/swahili_vocab.dart';
 import 'package:words625/domain/course/interaction.dart';
 import 'package:words625/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:words625/views/theme.dart';
@@ -17,6 +18,10 @@ import 'package:words625/views/theme.dart';
 /// auto-advances.
 @injectable
 class ShowWordRenderer extends InteractionRenderer {
+  final AudioController _audioController;
+
+  ShowWordRenderer(this._audioController);
+
   @override
   Type get handlesType => ShowWord;
 
@@ -40,6 +45,7 @@ class ShowWordRenderer extends InteractionRenderer {
       term: term,
       translation: translation,
       contextSentence: i.context,
+      audioController: _audioController,
       onTap: () => onSubmit(true),
     );
   }
@@ -49,12 +55,14 @@ class _ShowWordCard extends StatelessWidget {
   final String term;
   final String translation;
   final String? contextSentence;
+  final AudioController audioController;
   final VoidCallback onTap;
 
   const _ShowWordCard({
     required this.term,
     required this.translation,
     required this.contextSentence,
+    required this.audioController,
     required this.onTap,
   });
 
@@ -77,12 +85,27 @@ class _ShowWordCard extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    term,
-                    style: const TextStyle(
-                      fontSize: 44,
-                      fontWeight: FontWeight.w700,
-                      color: VarnamalaTheme.textPrimary,
+                  // Tappable word: speak the term, don't advance.
+                  GestureDetector(
+                    onTap: () => audioController.speak(term),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          term,
+                          style: const TextStyle(
+                            fontSize: 44,
+                            fontWeight: FontWeight.w700,
+                            color: VarnamalaTheme.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Icon(
+                          Icons.volume_up_rounded,
+                          color: VarnamalaTheme.peacockTeal,
+                          size: 28,
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -97,22 +120,40 @@ class _ShowWordCard extends StatelessWidget {
                     ),
                   if (contextSentence != null && contextSentence!.isNotEmpty) ...[
                     const SizedBox(height: 20),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: VarnamalaTheme.peacockTeal
-                            .withValues(alpha: 0.06),
-                        borderRadius:
-                            BorderRadius.circular(VarnamalaTheme.radiusMedium),
+                    GestureDetector(
+                      onTap: () => audioController.speak(
+                        _swahiliPart(contextSentence!),
                       ),
-                      child: Text(
-                        contextSentence!,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          color: VarnamalaTheme.textSecondary,
-                          fontStyle: FontStyle.italic,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: VarnamalaTheme.peacockTeal
+                              .withValues(alpha: 0.06),
+                          borderRadius:
+                              BorderRadius.circular(VarnamalaTheme.radiusMedium),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.volume_up_rounded,
+                              color: VarnamalaTheme.peacockTeal,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                contextSentence!,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  color: VarnamalaTheme.textSecondary,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -134,5 +175,15 @@ class _ShowWordCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// If the context sentence includes a translation separator, speak only the
+  /// first (Swahili) part; otherwise speak the whole sentence.
+  static String _swahiliPart(String sentence) {
+    final match = RegExp(r'\s*[—–-]\s*|\s*\|\s*').firstMatch(sentence);
+    if (match != null) {
+      return sentence.substring(0, match.start).trim();
+    }
+    return sentence.trim();
   }
 }

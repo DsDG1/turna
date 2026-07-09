@@ -14,9 +14,6 @@ import 'package:words625/views/lesson/components/interactions/interaction_render
 /// Play audio (TTS) and pick the matching option. The [Interaction.audioAsset]
 /// field is a wordId in current data; we look up the Swahili term from the
 /// vocab table and speak it via [FlutterTts].
-///
-/// NOTE: The vocab table currently holds Kannada words while the Swahili
-/// content is being prepared.
 @injectable
 class ListenAndPickRenderer extends InteractionRenderer {
   @override

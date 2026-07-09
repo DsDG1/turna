@@ -35,10 +35,6 @@ import 'package:words625/domain/course/word_entry.dart';
 /// `units`; they carry enough (id/name/description/prerequisiteSectionIds)
 /// for the section switcher and selection logic. [loadSection] rebuilds a
 /// fully-populated [Section] from the DB.
-///
-/// NOTE: The bundled JSON files still contain Kannada lesson data; only the
-/// public identifiers have been switched to Swahili while the actual content
-/// is being prepared.
 class SwahiliCourse {
   /// Lightweight section shells built from the DB index — id/name/description/
   /// prerequisiteSectionIds only, `units` empty until [loadSection] is called.

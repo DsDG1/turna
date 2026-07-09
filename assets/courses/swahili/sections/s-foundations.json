@@ -68,7 +68,7 @@
                   {
                     "runtimeType": "fillBlank",
                     "id": "fb-no",
-                    "sentence": "_____ = \"No\" in Kannada",
+                    "sentence": "_____ = \"No\" in Swahili",
                     "answer": "Illa",
                     "hint": "Starts with \"I\""
                   },
@@ -157,7 +157,7 @@
               {
                 "id": "q-flat-1",
                 "runtimeType": "multipleChoice",
-                "prompt": "Demo question 1: pick Yes in Kannada",
+                "prompt": "Demo question 1: pick Yes in Swahili",
                 "options": [
                   "Howdu",
                   "Illa",
@@ -169,7 +169,7 @@
               {
                 "id": "q-flat-2",
                 "runtimeType": "multipleChoice",
-                "prompt": "Demo question 2: pick Yes in Kannada",
+                "prompt": "Demo question 2: pick Yes in Swahili",
                 "options": [
                   "Howdu",
                   "Illa",
@@ -181,7 +181,7 @@
               {
                 "id": "q-flat-3",
                 "runtimeType": "multipleChoice",
-                "prompt": "Demo question 3: pick Yes in Kannada",
+                "prompt": "Demo question 3: pick Yes in Swahili",
                 "options": [
                   "Howdu",
                   "Illa",
@@ -193,7 +193,7 @@
               {
                 "id": "q-flat-4",
                 "runtimeType": "multipleChoice",
-                "prompt": "Demo question 4: pick Yes in Kannada",
+                "prompt": "Demo question 4: pick Yes in Swahili",
                 "options": [
                   "Howdu",
                   "Illa",
@@ -205,7 +205,7 @@
               {
                 "id": "q-flat-5",
                 "runtimeType": "multipleChoice",
-                "prompt": "Demo question 5: pick Yes in Kannada",
+                "prompt": "Demo question 5: pick Yes in Swahili",
                 "options": [
                   "Howdu",
                   "Illa",
@@ -217,7 +217,7 @@
               {
                 "id": "q-flat-6",
                 "runtimeType": "multipleChoice",
-                "prompt": "Demo question 6: pick Yes in Kannada",
+                "prompt": "Demo question 6: pick Yes in Swahili",
                 "options": [
                   "Howdu",
                   "Illa",
@@ -229,7 +229,7 @@
               {
                 "id": "q-flat-7",
                 "runtimeType": "multipleChoice",
-                "prompt": "Demo question 7: pick Yes in Kannada",
+                "prompt": "Demo question 7: pick Yes in Swahili",
                 "options": [
                   "Howdu",
                   "Illa",
@@ -241,7 +241,7 @@
               {
                 "id": "q-flat-8",
                 "runtimeType": "multipleChoice",
-                "prompt": "Demo question 8: pick Yes in Kannada",
+                "prompt": "Demo question 8: pick Yes in Swahili",
                 "options": [
                   "Howdu",
                   "Illa",
@@ -253,7 +253,7 @@
               {
                 "id": "q-flat-9",
                 "runtimeType": "multipleChoice",
-                "prompt": "Demo question 9: pick Yes in Kannada",
+                "prompt": "Demo question 9: pick Yes in Swahili",
                 "options": [
                   "Howdu",
                   "Illa",
@@ -265,7 +265,7 @@
               {
                 "id": "q-flat-10",
                 "runtimeType": "multipleChoice",
-                "prompt": "Demo question 10: pick Yes in Kannada",
+                "prompt": "Demo question 10: pick Yes in Swahili",
                 "options": [
                   "Howdu",
                   "Illa",
@@ -277,7 +277,7 @@
               {
                 "id": "q-flat-11",
                 "runtimeType": "multipleChoice",
-                "prompt": "Demo question 11: pick Yes in Kannada",
+                "prompt": "Demo question 11: pick Yes in Swahili",
                 "options": [
                   "Howdu",
                   "Illa",
@@ -289,7 +289,7 @@
               {
                 "id": "q-flat-12",
                 "runtimeType": "multipleChoice",
-                "prompt": "Demo question 12: pick Yes in Kannada",
+                "prompt": "Demo question 12: pick Yes in Swahili",
                 "options": [
                   "Howdu",
                   "Illa",
@@ -301,7 +301,7 @@
               {
                 "id": "q-flat-13",
                 "runtimeType": "multipleChoice",
-                "prompt": "Demo question 13: pick Yes in Kannada",
+                "prompt": "Demo question 13: pick Yes in Swahili",
                 "options": [
                   "Howdu",
                   "Illa",
@@ -313,7 +313,7 @@
               {
                 "id": "q-flat-14",
                 "runtimeType": "multipleChoice",
-                "prompt": "Demo question 14: pick Yes in Kannada",
+                "prompt": "Demo question 14: pick Yes in Swahili",
                 "options": [
                   "Howdu",
                   "Illa",
@@ -325,7 +325,7 @@
               {
                 "id": "q-flat-15",
                 "runtimeType": "multipleChoice",
-                "prompt": "Demo question 15: pick Yes in Kannada",
+                "prompt": "Demo question 15: pick Yes in Swahili",
                 "options": [
                   "Howdu",
                   "Illa",
@@ -386,7 +386,7 @@
                   {
                     "runtimeType": "multipleChoice",
                     "id": "mc-my-name-is",
-                    "prompt": "\"My name is ___\" in Kannada",
+                    "prompt": "\"My name is ___\" in Swahili",
                     "options": [
                       "Nanna hesaru ___",
                       "Naanu ___",

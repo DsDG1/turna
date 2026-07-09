@@ -15,9 +15,11 @@ import 'package:words625/views/lesson/components/interactions/show_word_renderer
 import 'package:words625/views/lesson/components/interactions/translate_sentence_renderer.dart';
 import 'package:words625/views/lesson/components/interactions/type_the_word_renderer.dart';
 
+import 'renderers/fake_audio_controller.dart';
+
 void main() {
   final renderers = <InteractionRenderer>{
-    ShowWordRenderer(),
+    ShowWordRenderer(FakeAudioController()),
     MultipleChoiceRenderer(),
     FillBlankRenderer(),
     TranslateSentenceRenderer(),

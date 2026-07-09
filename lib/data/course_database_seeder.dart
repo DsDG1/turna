@@ -17,16 +17,24 @@ import 'package:words625/data/course_database.dart';
 /// **normalized** — the seeder runs `parseSwahiliSection` before writing the
 /// `LessonContent` blob.
 ///
-/// Reseed is driven by `index.json` `version` stored in [CourseMeta]. When the
-/// asset version differs from the DB, course tables are wiped and re-imported.
+/// **Invariant:** skip only when `contentVersion` meta equals the asset
+/// `index.json` version **and** at least one section row exists. Any other
+/// state triggers a full reseed. Recovery for content changes is: bump
+/// `index.json` version (or wipe the course tree). Empty optional tables
+/// (e.g. expressions when the asset list is `[]`) never force a reseed.
+///
+/// Every write path **clears course tables before INSERT** so residue cannot
+/// cause primary-key conflicts on cold start.
 class DatabaseSeeder {
   final CourseDatabase db;
   DatabaseSeeder(this.db);
 
   static const String metaContentVersion = 'contentVersion';
 
-  /// Seed or reseed from assets when empty or when [index.json] version
-  /// changes. Returns `true` if the DB was written.
+  /// Seed or reseed from assets when needed. Returns `true` if the DB was
+  /// written.
+  ///
+  /// Skip iff version matches and sections exist; otherwise clear + full seed.
   Future<bool> seedIfNeeded() async {
     final indexRaw = await rootBundle.loadString(SwahiliCourse.indexAsset);
     final index = jsonDecode(indexRaw) as Map<String, dynamic>;
@@ -34,27 +42,28 @@ class DatabaseSeeder {
 
     final storedVersion = await _readMeta(metaContentVersion);
     final existingSections = await (db.select(db.sections)..limit(1)).get();
-    final existingGrammar =
-        await (db.select(db.grammarPoints)..limit(1)).get();
-    final existingExpressions = await (db.select(db.expressions)..limit(1)).get();
+    final hasSections = existingSections.isNotEmpty;
 
-    final empty = existingSections.isEmpty ||
-        existingGrammar.isEmpty ||
-        existingExpressions.isEmpty;
-    final versionMismatch =
-        storedVersion == null || storedVersion != assetVersion;
-
-    if (!empty && !versionMismatch) {
+    if (storedVersion == assetVersion && hasSections) {
       return false;
     }
 
-    if (versionMismatch && !empty) {
+    if (storedVersion != null && storedVersion != assetVersion) {
       logger.i(
         'Course content version $storedVersion → $assetVersion; reseeding',
       );
-      await _clearCourseTables();
-      SwahiliCourse.invalidateCaches();
+    } else if (storedVersion == assetVersion && !hasSections) {
+      logger.i(
+        'Course content version $assetVersion matches but sections missing; '
+        'reseeding',
+      );
+    } else {
+      logger.i('Course database empty or unversioned; seeding $assetVersion');
     }
+
+    // Always wipe before plain INSERT — empty clear is cheap; residue is not.
+    await _clearCourseTables();
+    SwahiliCourse.invalidateCaches();
 
     await _seed(
       seedSections: true,
@@ -66,7 +75,9 @@ class DatabaseSeeder {
     return true;
   }
 
-  /// Back-compat alias for older call sites / tests.
+  /// Deprecated name: seeding is version-driven, not "if empty". Prefer
+  /// [seedIfNeeded].
+  @Deprecated('Use seedIfNeeded — policy is version + sections, not emptiness')
   Future<bool> seedIfEmpty() => seedIfNeeded();
 
   Future<String?> _readMeta(String key) async {

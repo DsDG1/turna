@@ -1,9 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:words625/courses/languages/kannada_vocab.dart';
+import 'package:words625/courses/languages/swahili_vocab.dart';
 import 'package:words625/domain/course/interaction.dart';
 import 'package:words625/domain/course/word_entry.dart';
 import 'package:words625/views/lesson/components/interactions/show_word_renderer.dart';
 
+import 'fake_audio_controller.dart';
 import 'renderer_test_helper.dart';
 
 void main() {
@@ -23,7 +24,7 @@ void main() {
   });
 
   testWidgets('ShowWord builds and submits correct on tap', (tester) async {
-    final renderer = ShowWordRenderer();
+    final renderer = ShowWordRenderer(FakeAudioController());
     const interaction = Interaction.showWord(
       id: 'sw-1',
       wordId: 'w-test-show',
@@ -36,5 +37,31 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(harness.submissions, [(true, null)]);
+  });
+
+  testWidgets('ShowWord speaks term and context sentence on tap', (tester) async {
+    final audio = FakeAudioController();
+    final renderer = ShowWordRenderer(audio);
+    const interaction = Interaction.showWord(
+      id: 'sw-1',
+      wordId: 'w-test-show',
+      context: 'Habari asubuhi. — Good morning.',
+    );
+
+    await tester.pumpWidget(harness.build(renderer, interaction));
+    expect(find.text('Habari'), findsOneWidget);
+    expect(find.text('Habari asubuhi. — Good morning.'), findsOneWidget);
+
+    // Tapping the word speaks the term and does not submit.
+    await tester.tap(find.text('Habari'));
+    await tester.pumpAndSettle();
+    expect(audio.lastSpoken, 'Habari');
+    expect(harness.submissions, isEmpty);
+
+    // Tapping the context sentence speaks only the Swahili part.
+    await tester.tap(find.text('Habari asubuhi. — Good morning.'));
+    await tester.pumpAndSettle();
+    expect(audio.lastSpoken, 'Habari asubuhi.');
+    expect(harness.submissions, isEmpty);
   });
 }

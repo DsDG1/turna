@@ -9,7 +9,7 @@ import 'package:provider/provider.dart';
 import 'package:words625/application/grammar_review_provider.dart';
 import 'package:words625/application/mistake_provider.dart';
 import 'package:words625/courses/languages/grammar_points.dart';
-import 'package:words625/courses/languages/kannada_vocab.dart';
+import 'package:words625/courses/languages/swahili_vocab.dart';
 import 'package:words625/routing/routing.gr.dart';
 import 'package:words625/views/theme.dart';
 

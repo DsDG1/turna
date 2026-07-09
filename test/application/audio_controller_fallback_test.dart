@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:words625/application/audio_controller.dart';
 import 'package:words625/application/language_provider.dart';
-import 'package:words625/courses/languages/kannada_vocab.dart';
+import 'package:words625/courses/languages/swahili_vocab.dart';
 import 'package:words625/domain/course/word_entry.dart';
 
 class _FakeFlutterTts implements FlutterTts {

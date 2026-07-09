@@ -13,7 +13,7 @@ import 'package:words625/application/srs_provider.dart';
 import 'package:words625/application/study_stats_provider.dart';
 import 'package:words625/core/sm2.dart';
 import 'package:words625/courses/languages/expressions.dart';
-import 'package:words625/courses/languages/kannada_vocab.dart';
+import 'package:words625/courses/languages/swahili_vocab.dart';
 import 'package:words625/di/injection.dart';
 import 'package:words625/domain/course/expression.dart';
 import 'package:words625/domain/course/srs_word.dart';

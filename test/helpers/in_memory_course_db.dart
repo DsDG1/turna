@@ -47,7 +47,7 @@ Future<CourseDatabase> seedInMemoryCourseDb() async {
   TestWidgetsFlutterBinding.ensureInitialized();
   ensureSqliteLibForTestHost();
   final db = CourseDatabase(NativeDatabase.memory());
-  await DatabaseSeeder(db).seedIfEmpty();
+  await DatabaseSeeder(db).seedIfNeeded();
   SwahiliCourse.overrideDatabase(() => db);
   return db;
 }

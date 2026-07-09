@@ -6,6 +6,9 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:words625/application/game_provider.dart';
+import 'package:words625/application/language_provider.dart';
+import 'package:words625/core/enums.dart';
+import 'package:words625/core/extensions.dart';
 import 'package:words625/views/theme.dart';
 import 'package:words625/views/widgets/gems_display.dart';
 import 'package:words625/views/widgets/loader.dart';
@@ -20,6 +23,11 @@ class StatAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     return AppBar(
       toolbarHeight: 60,
+      leading: const Padding(
+        padding: EdgeInsets.only(left: 8),
+        child: LanguageSwitch(),
+      ),
+      leadingWidth: 64,
       title: const SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
@@ -34,6 +42,64 @@ class StatAppBar extends StatelessWidget implements PreferredSizeWidget {
         ),
       ),
       actions: const [],
+    );
+  }
+}
+
+class LanguageSwitch extends StatelessWidget {
+  const LanguageSwitch({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final languageProvider = context.watch<LanguageProvider>();
+    final current = languageProvider.selectedLanguage;
+
+    return PopupMenuButton<TargetLanguage>(
+      initialValue: current,
+      onSelected: (value) {
+        languageProvider.setLanguage(value);
+        languageProvider.cacheLanguage();
+      },
+      itemBuilder: (context) => TargetLanguage.values
+          .map(
+            (lang) => PopupMenuItem(
+              value: lang,
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.language_rounded,
+                    size: 18,
+                    color: lang == current
+                        ? VarnamalaTheme.peacockTeal
+                        : VarnamalaTheme.textHint,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    lang.name.toTitleCase,
+                    style: TextStyle(
+                      fontWeight: lang == current
+                          ? FontWeight.w700
+                          : FontWeight.w400,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+          .toList(),
+      child: Container(
+        width: 48,
+        height: 36,
+        decoration: BoxDecoration(
+          color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusRound),
+        ),
+        child: const Icon(
+          Icons.language_rounded,
+          size: 20,
+          color: VarnamalaTheme.peacockTeal,
+        ),
+      ),
     );
   }
 }

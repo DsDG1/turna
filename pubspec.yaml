@@ -27,6 +27,8 @@ dependencies:
   path: ^1.9.0
   path_provider: ^2.1.4
   provider: ^6.1.2
+  share_plus: ^10.0.0
+  sherpa_onnx: ^1.13.4
   sqlite3_flutter_libs: ^0.5.24
   streaming_shared_preferences: ^2.0.0
   url_launcher: ^6.3.2
@@ -55,6 +57,7 @@ flutter:
     - assets/courses/
     - assets/courses/swahili/
     - assets/courses/swahili/sections/
+    - assets/voices/
 flutter_launcher_icons:
   android: launcher_icon
   ios: true

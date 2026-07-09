@@ -8,7 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:words625/application/study_stats_provider.dart';
-import 'package:words625/courses/languages/kannada_vocab.dart';
+import 'package:words625/courses/languages/swahili_vocab.dart';
 import 'package:words625/data/study_log_repository.dart';
 import 'package:words625/domain/course/interaction.dart';
 import 'package:words625/domain/course/mistake_entry.dart';
