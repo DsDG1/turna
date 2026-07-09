@@ -1,6 +1,6 @@
 # Varnamala Plus
 
-> 🚧 **正在施工中** — 框架重整 + 唯一目标语 Swahili，AI 协作（vibecoding）迭代中。
+> ✅ 框架核心闭环已完成（最近 tag：`future2-phase-12-bugfix-done`，commit `5c1641e`）；当前为 bug-fix polish 阶段。AI 协作（vibecoding）持续迭代。
 
 ## 起源
 
@@ -20,7 +20,7 @@
 - **课程引擎**：`Section → Unit → Lesson → SubLesson / ListeningPhase / ReadingPassage → Stage → Interaction`（freezed 模型 + JSON 序列化）。
 - **11 种 Interaction 题型**：`showWord` / `multipleChoice` / `fillBlank` / `translateSentence` / `listenAndPick` / `typeTheWord` / `listenOnly` / `reorderSentence` / `readingMcq` / `readingTrueFalse` / `readingShortAnswer`，每个作为 `@injectable` 插件注册到 GetIt。
 - **6 种 Lesson Template**：`intro` / `practice` / `listening` / `reading` / `review` / `mastery`（+ `legacy` 兜底），`Lesson.flattenedStages` 把所有形态展平为渲染器可遍历的 `List<Stage>`。
-- **按需加载**：`index.json` + per-section JSON + drift SQLite 缓存（schemaVersion 4），按内容版本号自动 reseed。
+- **按需加载**：`index.json` + per-section JSON + drift SQLite 缓存（schemaVersion 5，含 expressions 表），按内容版本号自动 reseed。
 - **SRS 复习**：基于 SM-2 算法的单词 SRS + 独立语法点 SRS 队列；闪卡显示"Learned in: <lesson>"。
 - **错题本**：30 条 FIFO，错题含原始 interaction 快照，支持重做清除 + 跨路由到语法复习。
 - **语法复习**：Explain → Practice → Rate 三段流，练习题直接复用 Interaction 渲染器。
@@ -72,7 +72,7 @@ flutter run                                                # 设备或模拟器
 flutter test
 ```
 
-`future2.md` Phase 11 的覆盖率目标：**`lib/application` ≥ 70 %，`lib/views/lesson` ≥ 50 %**。
+当前 **115 / 115** 单元测试通过，覆盖率与详情见 [`test/BASELINE.md`](./test/BASELINE.md)。
 
 ## 文档
 
