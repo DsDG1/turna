@@ -19,7 +19,6 @@ import 'package:words625/data/course_database.dart';
 import 'package:words625/data/course_database_seeder.dart';
 import 'package:words625/di/injection.dart';
 import 'package:words625/domain/auth/local_user.dart';
-import 'package:words625/routing/routing.dart';
 
 class AppPrefs {
   final StreamingSharedPreferences preferences;
@@ -141,7 +140,6 @@ class LocalStateKeys {
 /// Making AppPrefs injectable
 Future<void> setupLocator() async {
   final preferences = await StreamingSharedPreferences.instance;
-  getIt.registerLazySingleton<AppRouter>(() => AppRouter());
   getIt.registerLazySingleton<AppPrefs>(() => AppPrefs(preferences));
 
   if (!kIsWeb) {

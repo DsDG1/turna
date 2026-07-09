@@ -11,18 +11,20 @@ import 'package:words625/routing/routing.dart';
 import 'package:words625/service/locator.dart';
 import 'package:words625/views/app.dart';
 
-Future main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   configureDependencies();
   getIt.registerLazySingleton<AppRouter>(() => AppRouter());
 
+  // AppPrefs (and other async-native services) must be registered before the
+  // first frame because MultiProvider creates ThemeProvider immediately.
+  await setupLocator();
+
   runApp(const Words625App());
 
-  WidgetsBinding.instance.addPostFrameCallback((_) async {
-    await setupLocator();
-
-    if (!kIsWeb) {
+  if (!kIsWeb) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       await getIt<FlutterTts>().isLanguageAvailable("sw");
-    }
-  });
+    });
+  }
 }
