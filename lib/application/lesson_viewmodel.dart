@@ -17,6 +17,7 @@ import 'package:words625/application/study_stats_provider.dart';
 import 'package:words625/courses/course_loader.dart';
 import 'package:words625/domain/course/interaction.dart';
 import 'package:words625/domain/course/lesson.dart';
+import 'package:words625/domain/course/lesson_word_link.dart';
 import 'package:words625/domain/course/mistake_entry.dart';
 import 'package:words625/domain/course/stage.dart';
 import 'package:words625/domain/study/study_log.dart';
@@ -330,9 +331,15 @@ class LessonViewModel extends ChangeNotifier {
   void _registerSrsWords() {
     if (_lesson == null) return;
     final wordIds = <String>{};
+    final expressionIds = <String>{};
     for (final stage in _stages) {
       for (final item in stage.items) {
-        if (item is ShowWord) wordIds.add(item.wordId);
+        if (item is ShowWord) {
+          if (item.wordId.isNotEmpty) wordIds.add(item.wordId);
+          if (item.expressionId != null && item.expressionId!.isNotEmpty) {
+            expressionIds.add(item.expressionId!);
+          }
+        }
       }
     }
     if (wordIds.isNotEmpty) {
@@ -341,6 +348,16 @@ class LessonViewModel extends ChangeNotifier {
         wordIds: wordIds,
         lessonId: _lesson!.id,
         lessonName: _lesson!.name,
+        type: LinkType.word,
+      );
+    }
+    if (expressionIds.isNotEmpty) {
+      _srsProvider.registerAllExpressions(expressionIds);
+      _srsProvider.recordLessonLinks(
+        wordIds: expressionIds,
+        lessonId: _lesson!.id,
+        lessonName: _lesson!.name,
+        type: LinkType.expression,
       );
     }
   }

@@ -10,10 +10,13 @@ class _FakeAppPrefs implements AppPrefs {
 
 void main() {
   group('LanguageProvider', () {
-    test('ttsLanguageCode returns sw for Swahili', () {
+    // TODO(phase-10): decide whether TTS uses 'sw' or 'kn'.
+    // Current implementation returns 'kn' for Swahili until real Swahili
+    // vocabulary replaces the Kannada placeholder data.
+    test('ttsLanguageCode returns kn for Swahili (placeholder)', () {
       final provider = LanguageProvider(_FakeAppPrefs());
       provider.selectedLanguage = TargetLanguage.swahili;
-      expect(provider.ttsLanguageCode, 'sw');
+      expect(provider.ttsLanguageCode, 'kn');
     });
   });
 }

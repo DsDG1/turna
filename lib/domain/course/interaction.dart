@@ -25,6 +25,7 @@ sealed class Interaction with _$Interaction {
     required String wordId,
     String? context,
     String? grammarPointId,
+    String? expressionId,
   }) = ShowWord;
 
   /// Choose one option out of N.
