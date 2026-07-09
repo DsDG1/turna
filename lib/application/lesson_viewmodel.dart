@@ -100,6 +100,8 @@ class LessonViewModel extends ChangeNotifier {
   bool get isMastery => _lesson?.isMastery ?? false;
   bool get masteryPassed => _masteryPassed;
   int get masteryAttempts => _masteryAttempts;
+  int get correctAnswers => _correctAnswers;
+  int get totalInteractionCount => _totalItemCount;
 
   /// The stages of the current lesson (empty before [loadLesson] completes).
   List<Stage> get _stages => _cachedStages;

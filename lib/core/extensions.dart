@@ -51,20 +51,7 @@ extension ContextExtentions on BuildContext {
 
   double get width => MediaQuery.of(this).size.width;
 
-  // TODO: Need to be removed/replaced when AutoRoute is introduced
-  Future<dynamic> push(
-    Widget screen, {
-    RouteSettings? settings,
-    bool maintainState = true,
-    bool fullscreenDialog = false,
-  }) async =>
-      await Navigator.of(this).push(MaterialPageRoute(
-        builder: (_) => screen,
-        settings: settings,
-        maintainState: maintainState,
-        fullscreenDialog: fullscreenDialog,
-      ));
-
+  // Convenience push: routes via AutoRouter (see [package:words625/routing]).
   Future<dynamic> route(PageRouteInfo route) async {
     AutoRouter.of(this).push(route);
   }

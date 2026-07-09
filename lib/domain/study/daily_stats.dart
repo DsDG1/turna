@@ -66,12 +66,14 @@ class DailyStudyStats {
 class WeakWord {
   final String wordId;
   final String displayText;
+  final String? translation;
   final int mistakeCount;
   final DateTime lastMistakeAt;
 
   WeakWord({
     required this.wordId,
     required this.displayText,
+    this.translation,
     required this.mistakeCount,
     required this.lastMistakeAt,
   });

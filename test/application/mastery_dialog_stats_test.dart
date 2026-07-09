@@ -1,0 +1,191 @@
+// Regression: the mastery-retry dialog used to display the placeholder
+// `accuracy = total` so users saw no feedback. After the fix, the dialog
+// uses `correctAnswers` / `totalInteractionCount` from LessonViewModel.
+
+import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_tts/flutter_tts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
+import 'package:words625/application/achievements_provider.dart';
+import 'package:words625/application/audio_controller.dart';
+import 'package:words625/application/course_provider.dart';
+import 'package:words625/application/game_provider.dart';
+import 'package:words625/application/gems_provider.dart';
+import 'package:words625/application/grammar_review_provider.dart';
+import 'package:words625/application/language_provider.dart';
+import 'package:words625/application/lesson_link_store.dart';
+import 'package:words625/application/lesson_viewmodel.dart';
+import 'package:words625/application/mistake_provider.dart';
+import 'package:words625/application/srs_provider.dart';
+import 'package:words625/application/study_stats_provider.dart';
+import 'package:words625/data/study_log_repository.dart';
+import 'package:words625/domain/course/interaction.dart';
+import 'package:words625/domain/course/lesson.dart';
+import 'package:words625/domain/course/lesson_content.dart';
+import 'package:words625/domain/course/stage.dart';
+import 'package:words625/domain/study/study_log.dart';
+import 'package:words625/service/locator.dart';
+
+class _FakeFlutterTts implements FlutterTts {
+  @override
+  dynamic noSuchMethod(Invocation i) => super.noSuchMethod(i);
+}
+
+class _FakeLanguageProvider implements LanguageProvider {
+  @override
+  String get ttsLanguageCode => 'sw';
+  @override
+  dynamic noSuchMethod(Invocation i) => super.noSuchMethod(i);
+}
+
+class _FakeAudioPlayer implements AudioPlayer {
+  @override
+  dynamic noSuchMethod(Invocation i) => super.noSuchMethod(i);
+}
+
+class _FakeAudioController extends AudioController {
+  _FakeAudioController()
+      : super(
+          _FakeFlutterTts(),
+          _FakeLanguageProvider(),
+          audioPlayer: _FakeAudioPlayer(),
+          speechPlayer: _FakeAudioPlayer(),
+        );
+  @override
+  Future<void> speak(String text, {double? speed}) async {}
+  @override
+  Future<void> speakFromAsset(String assetPath) async {}
+  @override
+  Future<void> playRandomErrorSound() async {}
+  @override
+  Future<void> playRandomLevelUpSound() async {}
+}
+
+class _FakeCourseProvider extends CourseProvider {
+  final Lesson? lesson;
+  _FakeCourseProvider(this.lesson);
+  @override
+  Lesson? findLessonById(String id) => lesson;
+}
+
+class _FakeAchievementsProvider extends AchievementsProvider {
+  _FakeAchievementsProvider() : super(_FakeAppPrefs());
+  @override
+  Future<void> checkLessonMilestones({
+    required int lessonsCompleted,
+    required int perfectLessons,
+  }) async {}
+}
+
+class _FakeStudyStatsProvider extends StudyStatsProvider {
+  _FakeStudyStatsProvider(AppPrefs appPrefs)
+      : super(StudyLogRepository(appPrefs), appPrefs);
+  @override
+  Future<void> recordActivity({
+    required StudyActivityType type,
+    String? lessonId,
+    int xpEarned = 0,
+    int durationSeconds = 0,
+    int correctCount = 0,
+    int incorrectCount = 0,
+    List<String> wordIds = const [],
+  }) async {}
+}
+
+class _FakeAppPrefs implements AppPrefs {
+  @override
+  dynamic noSuchMethod(Invocation i) => super.noSuchMethod(i);
+}
+
+Lesson _masteryLesson() {
+  final items = <Interaction>[];
+  for (var i = 0; i < 6; i++) {
+    items.add(
+      Interaction.multipleChoice(
+        id: 'mcq-$i',
+        prompt: 'Q$i',
+        options: const ['Correct', 'Wrong'],
+        correctIndex: 0,
+      ),
+    );
+  }
+  return Lesson(
+    id: 'l-mastery-stats',
+    name: 'Mastery',
+    template: LessonTemplate.mastery,
+    content: LessonContent(
+      stages: [
+        Stage(id: 's1', name: 'Stage', items: items),
+      ],
+    ),
+  );
+}
+
+LessonViewModel _harness(AppPrefs prefs, Lesson lesson) {
+  final linkStore = LessonLinkStore(prefs);
+  return LessonViewModel(
+    _FakeCourseProvider(lesson),
+    GameProvider(prefs),
+    GemsProvider(prefs),
+    _FakeAchievementsProvider(),
+    _FakeAudioController(),
+    SrsProvider(prefs, linkStore),
+    MistakeProvider(prefs),
+    GrammarReviewProvider(prefs, linkStore),
+    _FakeStudyStatsProvider(prefs),
+  );
+}
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  late StreamingSharedPreferences sp;
+  late AppPrefs prefs;
+
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    sp = await StreamingSharedPreferences.instance;
+    prefs = AppPrefs(sp);
+  });
+
+  test('mastery 4/6 surfaces real stats, not placeholder', () async {
+    final lesson = _masteryLesson();
+    final vm = _harness(prefs, lesson);
+
+    await vm.loadLesson(lesson.id);
+    for (var i = 0; i < 6; i++) {
+      final correct = i < 4;
+      vm.submitInteraction(correct, userAnswerText: correct ? 'Correct' : 'Wrong');
+      vm.advance();
+    }
+    await pumpEventQueue();
+
+    expect(vm.isMastery, isTrue);
+    expect(vm.masteryPassed, isFalse);
+    // The dialog now consumes these:
+    expect(vm.correctAnswers, 4);
+    expect(vm.totalInteractionCount, 6);
+    // 4/6 = 67% rounded.
+    final expectedPct = ((4 / 6) * 100).round();
+    expect(expectedPct, 67);
+  });
+
+  test('mastery 5/6: correctAnswers reflects the actual wins', () async {
+    final lesson = _masteryLesson();
+    final vm = _harness(prefs, lesson);
+
+    await vm.loadLesson(lesson.id);
+    for (var i = 0; i < 6; i++) {
+      final correct = i < 5;
+      vm.submitInteraction(correct, userAnswerText: correct ? 'Correct' : 'Wrong');
+      vm.advance();
+    }
+    await pumpEventQueue();
+
+    expect(vm.isMastery, isTrue);
+    expect(vm.masteryPassed, isTrue);
+    expect(vm.correctAnswers, 5);
+    expect(vm.totalInteractionCount, 6);
+  });
+}

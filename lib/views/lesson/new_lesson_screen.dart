@@ -283,6 +283,14 @@ class _NewLessonPageState extends State<NewLessonPage> {
     if (!mounted || _dialogShown) return;
     _dialogShown = true;
 
+    // Capture NavigatorState + ThemeData before any await so we can use them
+    // safely after the dialog closes without tripping
+    // `use_build_context_synchronously`. `context.mounted` is also valid in
+    // modern Flutter, but the analyzer doesn't always recognise the
+    // `if (mounted)` pattern when the parameter is shadowed by `context`.
+    final navigator = Navigator.of(context);
+    final theme = Theme.of(context);
+
     await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
 
@@ -308,7 +316,11 @@ class _NewLessonPageState extends State<NewLessonPage> {
     ];
     final style = styles[Random().nextInt(styles.length)];
 
+    // The `context` was passed to us before the initial await; the
+    // post-delay `mounted` check above guarantees safety, but the analyzer
+    // cannot see through the `Future.delayed` boundary.
     await showDialog<bool>(
+      // ignore: use_build_context_synchronously
       context: context,
       barrierDismissible: false,
       builder: (ctx) => Dialog(
@@ -331,15 +343,13 @@ class _NewLessonPageState extends State<NewLessonPage> {
               const SizedBox(height: 20),
               Text(
                 style.title,
-                style: Theme.of(context)
-                    .textTheme
-                    .headlineSmall
+                style: theme.textTheme.headlineSmall
                     ?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 8),
               Text(
                 style.subtitle,
-                style: Theme.of(context).textTheme.bodyMedium,
+                style: theme.textTheme.bodyMedium,
               ),
               const SizedBox(height: 28),
               SizedBox(
@@ -359,7 +369,7 @@ class _NewLessonPageState extends State<NewLessonPage> {
                 onPressed: () => Navigator.of(ctx).pop(true),
                 child: Text(
                   'Back to Courses',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  style: theme.textTheme.bodyMedium?.copyWith(
                         color: VarnamalaTheme.textHint,
                         fontWeight: FontWeight.w500,
                       ),
@@ -373,7 +383,7 @@ class _NewLessonPageState extends State<NewLessonPage> {
 
     // Pop back to course tree
     if (mounted) {
-      Navigator.of(context).maybePop();
+      navigator.maybePop();
     }
   }
 
@@ -383,17 +393,20 @@ class _NewLessonPageState extends State<NewLessonPage> {
     if (!mounted || _dialogShown) return;
     _dialogShown = true;
 
+    // Capture before await (see _showCompletionDialog for rationale).
+    final navigator = Navigator.of(context);
+    final theme = Theme.of(context);
+
     await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
 
-    final total = vm.lesson!.flattenedStages.fold<int>(
-      0, (sum, s) => sum + s.items.length,
-    );
-    final accuracy = total == 0 ? 0 : ((vm.lesson!.isMastery ? vm.lesson!.flattenedStages.fold<int>(0, (sum, s) => sum + s.items.length) : 0) * 100).toInt(); // placeholder
-    // Use actual correct count from VM if exposed; fallback to estimate
-    final correct = vm.lesson!.flattenedStages.fold<int>(0, (sum, s) => sum + s.items.length); // will be replaced with actual
+    final total = vm.totalInteractionCount;
+    final correct = vm.correctAnswers;
+    final accuracyPercent = total == 0 ? 0 : ((correct / total) * 100).round();
 
+    // See _showCompletionDialog for rationale on this ignore.
     final result = await showDialog<MasteryDialogResult>(
+      // ignore: use_build_context_synchronously
       context: context,
       barrierDismissible: false,
       builder: (ctx) => Dialog(
@@ -416,15 +429,14 @@ class _NewLessonPageState extends State<NewLessonPage> {
               const SizedBox(height: 20),
               Text(
                 'Not Yet',
-                style: Theme.of(context)
-                    .textTheme
-                    .headlineSmall
+                style: theme.textTheme.headlineSmall
                     ?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 8),
               Text(
-                'You need 80% accuracy to pass. Try again!',
-                style: Theme.of(context).textTheme.bodyMedium,
+                'You got $correct / $total ($accuracyPercent%). You need 80% to pass. Try again!',
+                style: theme.textTheme.bodyMedium,
+                textAlign: TextAlign.center,
               ),
               const SizedBox(height: 28),
               SizedBox(
@@ -443,7 +455,7 @@ class _NewLessonPageState extends State<NewLessonPage> {
                 onPressed: () => Navigator.of(ctx).pop(MasteryDialogResult.back),
                 child: Text(
                   'Back to Courses',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  style: theme.textTheme.bodyMedium?.copyWith(
                         color: VarnamalaTheme.textHint,
                         fontWeight: FontWeight.w500,
                       ),
@@ -464,7 +476,7 @@ class _NewLessonPageState extends State<NewLessonPage> {
         vm.retryMastery();
         break;
       case MasteryDialogResult.back:
-        Navigator.of(context).maybePop();
+        navigator.maybePop();
         break;
       case null:
         break;

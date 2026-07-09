@@ -92,6 +92,15 @@ void main() {
 
   test('interactionCorrectAnswerLabel covers all variants', () {
     for (final interaction in samples) {
+      // ListenOnly has no correctness verdict (listen-and-continue), so
+      // its label is intentionally null. Every other variant must produce
+      // a usable label so the mistake log has something to display.
+      final isListenOnly = interaction.runtimeType.toString() ==
+          const Interaction.listenOnly().runtimeType.toString();
+      if (isListenOnly) {
+        expect(interactionCorrectAnswerLabel(interaction), isNull);
+        continue;
+      }
       expect(interactionCorrectAnswerLabel(interaction), isNotNull);
     }
   });

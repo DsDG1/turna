@@ -150,8 +150,7 @@ String? interactionCorrectAnswerLabel(Interaction interaction) {
     TranslateSentence(:final expected) => expected,
     ListenAndPick(:final options, :final correctIndex) => options[correctIndex],
     TypeTheWord(:final expected) => expected,
-    ListenOnly(:final transcript, :final audioAsset, :final id) =>
-      transcript.isNotEmpty ? transcript : (audioAsset ?? id),
+    ListenOnly() => null,
     ReorderSentence(:final correct) => correct.join(' '),
     ReadingMcq(:final options, :final correctIndex) => options[correctIndex],
     ReadingTrueFalse(:final answer) => answer.toString(),

@@ -1,5 +1,7 @@
 // Dart imports:
 import 'dart:async';
+import 'dart:convert';
+import 'dart:math';
 
 // Flutter imports:
 import 'package:flutter/material.dart';
@@ -8,7 +10,10 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
+import 'package:words625/courses/languages/grammar_points.dart';
+import 'package:words625/courses/languages/kannada_vocab.dart';
 import 'package:words625/data/study_log_repository.dart';
+import 'package:words625/domain/course/mistake_entry.dart';
 import 'package:words625/domain/study/daily_stats.dart';
 import 'package:words625/domain/study/study_log.dart';
 import 'package:words625/service/locator.dart';
@@ -110,17 +115,101 @@ class StudyStatsProvider extends ChangeNotifier {
     return all.values.fold<int>(0, (sum, d) => sum + d.reviewCount);
   }
 
-  /// Get weak words based on mistake log entries.
-  /// This reads from the MistakeProvider's persisted data.
+  /// Get weak words based on the persisted mistake log. Aggregates by
+  /// wordId (or grammarPointId when no word is available), looking up the
+  /// display term/translation from the in-memory vocab tables. Sorted by
+  /// mistake count descending; truncated to [limit].
   Future<List<WeakWord>> getWeakWords({int limit = 10}) async {
-    // Read mistake log from prefs
     final raw = _appPrefs.preferences
         .getString(LocalStateKeys.mistakeLog, defaultValue: '[]')
         .getValue();
-    // The mistake log is a JSON list; we can't fully parse it here without
-    // importing MistakeEntry, so we return an empty list for now.
-    // A future iteration can cross-reference with vocab maps.
-    return [];
+
+    final List<MistakeEntry> entries;
+    try {
+      final decoded = jsonDecode(raw) as List<dynamic>;
+      entries = decoded
+          .map((e) => MistakeEntry.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      return const <WeakWord>[];
+    }
+
+    // Aggregate by primary key (wordId, falling back to grammarPointId).
+    final aggregates = <String, _WeakAggregate>{};
+    for (final entry in entries) {
+      final key = entry.wordId;
+      if (key == null || key.isEmpty) {
+        if (entry.grammarPointId == null) continue;
+        // Grammar-only entries — skip word slot but still tracked via wordId
+        // replacement. We keep them under their grammarPointId so the UI can
+        // show grammar-targeted weak points.
+        final gKey = 'grammar:${entry.grammarPointId}';
+        final existing = aggregates[gKey];
+        if (existing == null) {
+          aggregates[gKey] = _WeakAggregate(
+            key: gKey,
+            mistakeCount: 1,
+            lastMistakeAt: entry.timestamp,
+          );
+        } else {
+          existing
+            ..mistakeCount += 1
+            ..lastMistakeAt = entry.timestamp.isAfter(existing.lastMistakeAt)
+                ? entry.timestamp
+                : existing.lastMistakeAt;
+        }
+        continue;
+      }
+      final existing = aggregates[key];
+      if (existing == null) {
+        aggregates[key] = _WeakAggregate(
+          key: key,
+          mistakeCount: 1,
+          lastMistakeAt: entry.timestamp,
+        );
+      } else {
+        existing
+          ..mistakeCount += 1
+          ..lastMistakeAt = entry.timestamp.isAfter(existing.lastMistakeAt)
+              ? entry.timestamp
+              : existing.lastMistakeAt;
+      }
+    }
+
+    final sorted = aggregates.values.toList()
+      ..sort((a, b) {
+        final byCount = b.mistakeCount.compareTo(a.mistakeCount);
+        if (byCount != 0) return byCount;
+        return b.lastMistakeAt.compareTo(a.lastMistakeAt);
+      });
+
+    final result = <WeakWord>[];
+    for (final agg in sorted) {
+      if (result.length >= limit) break;
+      WeakWord? word;
+      if (agg.key.startsWith('grammar:')) {
+        final gpId = agg.key.substring('grammar:'.length);
+        final gp = swahiliGrammarPointById[gpId];
+        word = WeakWord(
+          wordId: gpId,
+          displayText: gp?.title ?? gpId,
+          translation: gp?.explanation,
+          mistakeCount: agg.mistakeCount,
+          lastMistakeAt: agg.lastMistakeAt,
+        );
+      } else {
+        final entry = swahiliVocabById[agg.key];
+        word = WeakWord(
+          wordId: agg.key,
+          displayText: entry?.term ?? agg.key,
+          translation: entry?.translation,
+          mistakeCount: agg.mistakeCount,
+          lastMistakeAt: agg.lastMistakeAt,
+        );
+      }
+      result.add(word);
+    }
+    return result;
   }
 
   void _emitDailyStats() async {
@@ -128,9 +217,11 @@ class StudyStatsProvider extends ChangeNotifier {
     _dailyStatsController.add(stats);
   }
 
+  final Random _rand = Random();
+
   String _randomSuffix() {
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-    return List.generate(6, (_) => chars[DateTime.now().millisecond % chars.length]).join();
+    return List.generate(6, (_) => chars[_rand.nextInt(chars.length)]).join();
   }
 
   @override
@@ -138,4 +229,17 @@ class StudyStatsProvider extends ChangeNotifier {
     _dailyStatsController.close();
     super.dispose();
   }
+}
+
+/// Internal aggregation record for [getWeakWords].
+class _WeakAggregate {
+  final String key;
+  int mistakeCount;
+  DateTime lastMistakeAt;
+
+  _WeakAggregate({
+    required this.key,
+    required this.mistakeCount,
+    required this.lastMistakeAt,
+  });
 }

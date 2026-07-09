@@ -9,6 +9,18 @@
 # packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
+analyzer:
+  errors:
+    # `@JsonKey` is legal on freezed constructor parameters — the analyzer
+    # flags it as `invalid_annotation_target` because it sees the parameter
+    # as a getter. Suppress so the generated *.g.dart roundtrips cleanly.
+    invalid_annotation_target: ignore
+    # Generated `if (foo != null) ... foo!.bar` snippets in
+    # course_database.g.dart emit these warnings because drift's nullable
+    # inference is conservative; safe to ignore for generated code.
+    unnecessary_null_comparison: ignore
+    unnecessary_non_null_assertion: ignore
+
 linter:
   # The lint rules applied to this project can be customized in the
   # section below to disable rules from the `package:flutter_lints/flutter.yaml`

@@ -260,7 +260,8 @@ class _OverallStatsGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final totalMinutes = (data['totalMinutes'] as num?)?.toInt() ?? 0;
-    final accuracy = ((data['accuracy'] as num?) ?? 0.0 * 100).toStringAsFixed(0);
+    final accuracy = (((data['accuracy'] as num?) ?? 0.0).toDouble() * 100)
+        .toStringAsFixed(0);
     final totalLessons = (data['totalLessons'] as num?)?.toInt() ?? 0;
     final totalReviews = (data['totalReviews'] as num?)?.toInt() ?? 0;
 

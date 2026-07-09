@@ -182,7 +182,7 @@ class _StatCard extends StatelessWidget {
             child: Text(
               label,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: VarnamalaTheme.textHint,
+                    color: VarnamalaTheme.textHintColor(context),
                     fontWeight: FontWeight.w500,
                   ),
             ),
