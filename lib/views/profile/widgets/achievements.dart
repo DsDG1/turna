@@ -178,8 +178,6 @@ class _AchievementsState extends State<Achievements> {
       case AchievementType.sharpshooter:
         // Perfect lessons
         return (data['perfectLessons'] as num?)?.toInt() ?? 0;
-      case AchievementType.streak: // Friendly map
-         return (data['friendsCount'] as num?)?.toInt() ?? 0;
       default:
         return 0;
     }

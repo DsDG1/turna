@@ -8,9 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:words625/application/game_provider.dart';
 import 'package:words625/views/theme.dart';
 import 'package:words625/views/widgets/gems_display.dart';
-import 'package:words625/views/widgets/hearts_display.dart';
 import 'package:words625/views/widgets/loader.dart';
-import 'package:words625/views/widgets/patreon_button.dart';
 
 class StatAppBar extends StatelessWidget implements PreferredSizeWidget {
   const StatAppBar({Key? key}) : super(key: key);
@@ -35,10 +33,7 @@ class StatAppBar extends StatelessWidget implements PreferredSizeWidget {
           ],
         ),
       ),
-      actions: const [
-        PatreonButton(),
-        HeartsDisplay(),
-      ],
+      actions: const [],
     );
   }
 }

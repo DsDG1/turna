@@ -98,10 +98,6 @@ class LocalStateKeys {
   static const String score = 'game.score';
   static const String streak = 'game.streak';
   static const String lastStreakDate = 'game.lastStreakDate';
-  static const String leagueXp = 'game.leagueXp';
-  static const String dailyXpGoal = 'game.dailyXpGoal';
-  static const String dailyXpEarned = 'game.dailyXpEarned';
-  static const String lastDailyReset = 'game.lastDailyReset';
   // Legacy aggregate counters — kept for back-compat with any consumer that
   // still reads them, but new code should use [completedLessonIds] and
   // [perfectLessonIds] (which are now the source of truth).
@@ -112,23 +108,13 @@ class LocalStateKeys {
   // authoritative record. New code must read from these.
   static const String completedLessonIds = 'progress.completedLessonIds';
   static const String perfectLessonIds = 'progress.perfectLessonIds';
-  static const String streakFreezes = 'game.streakFreezes';
-  static const String streakFreezeActive = 'game.streakFreezeActive';
   static const String streakWasBroken = 'game.streakWasBroken';
-  static const String streakRepairRequired = 'game.streakRepairRequired';
-  static const String streakRepairProgress = 'game.streakRepairProgress';
-  static const String streakRepairTarget = 'game.streakRepairTarget';
-  static const String streakBeforeBreak = 'game.streakBeforeBreak';
   static const String wordsLearned = 'game.wordsLearned';
-  static const String friendsCount = 'game.friendsCount';
 
   // Currency
   static const String gems = 'currency.gems';
   static const String hearts = 'currency.hearts';
   static const String heartsRefillAt = 'currency.heartsRefillAt';
-  static const String followRewardClaimed = 'currency.followRewardClaimed';
-  static const String validatedShareCount = 'currency.validatedShareCount';
-  static const String claimedShareCount = 'currency.claimedShareCount';
 
   // Achievements
   static const String achievements = 'achievements.unlocked';

@@ -1,10 +1,10 @@
-# Varnamala - Duolingo-Style Language Learning App
+# Varnamala - Language Learning App
+
+> 后续开发以 [`future2.md`](./future2.md) 为准。本文件仅作架构总览。
 
 ## Project Overview
 
-**Varnamala** is a Flutter-based language learning app inspired by Duolingo. Originally focused on Indian languages (Kannada, Tamil, Telugu, Malayalam), the app is currently repositioning around **Swahili** as the primary target language while keeping the existing Kannada course data as a temporary placeholder. The app uses Firebase for backend services and follows a clean architecture pattern.
-
-For the long-term scaling vision (11,000 lessons, sub-lessons, listening phases, SRS, mistake tracking, external CMS), see [`dreamplan.md`](./dreamplan.md).
+**Varnamala** is a Flutter-based, local-first language learning framework. Currently focused on **Swahili** as the primary target language (with Kannada course data as a temporary placeholder). The app follows a clean architecture pattern and is entirely offline — no Firebase backend, no social features, no pay-to-win mechanics.
 
 ---
 
@@ -48,130 +48,46 @@ lib/
 
 ---
 
-## Firebase Services
-
-| Service | Purpose | Status |
-|---------|---------|--------|
-| **Authentication** | Google Sign-In, user management | ✅ Implemented |
-| **Firestore** | User data, scores, leaderboards | ✅ Implemented |
-| **Analytics** | User behavior tracking | ✅ Implemented |
-| **Crashlytics** | Error reporting | ✅ Implemented |
-| **Messaging** | Push notifications | 🔧 Setup Done |
-| **Storage** | Asset storage | 🔧 Setup Done |
-
-### Firestore Collections
-```
-users/
-├── {userId}/
-│   ├── name: string
-│   ├── email: string
-│   ├── profileImage: string
-│   ├── score: number (XP)
-│   ├── streak: number
-│   ├── lastStreakDate: timestamp
-│   └── languages: array<string>
-```
-
----
-
 ## Duolingo Features - Implementation Status
 
 ### ✅ Currently Implemented
-- [x] Google Authentication
 - [x] Course tree with progressive levels
 - [x] Multiple choice questions
-- [x] Translation exercises  
+- [x] Translation exercises
 - [x] Fill-in-the-blank
 - [x] Listening exercises (ListenAndPick / TypeTheWord using TTS)
 - [x] Reading exercises (ReadingMCQ / ReadingTrueFalse / ReadingShortAnswer)
 - [x] XP scoring system
 - [x] Basic streak tracking
-- [x] Leaderboard (top 30 users)
 - [x] SRS engine (SM-2) + review UI
 - [x] Mistake tracking with FIFO log + review list
 - [x] Match Madness word-matching mini-game
-- [x] Shop UI (streak freeze, power-ups, outfits)
 - [x] Multi-language support (Kannada content presented as Swahili for now)
 - [x] Content model extended for sub-lessons, listening phases, expressions, grammar points, reading passages
 - [x] **Dark Mode** — full light/dark/system theme support with persistent preference, semantic color helpers, and theme-aware widget backgrounds
 - [x] **Learning Statistics Dashboard** — daily/weekly XP trends, study time tracking, accuracy metrics, weak-word analysis (Profile page)
 
-### 🔴 Features Needed (Firebase-Based)
+### ❌ Removed / Will Not Do
+- [ ] ~~Google Authentication~~ — Removed (local-only user)
+- [ ] ~~Leaderboard (top 30 users)~~ — Removed (no social features)
+- [ ] ~~Shop UI (streak freeze, power-ups, outfits)~~ — Removed (no monetization)
+- [ ] ~~Leagues/Tiers~~ — Removed (no social gamification)
+- [ ] ~~XP boost multipliers / Daily XP goals~~ — Removed
+- [ ] ~~Streak freeze / Weekend amulet / Streak repair with gems~~ — Removed
+- [ ] ~~Hearts/Lives System~~ — Removed (no friction on learning)
+- [ ] ~~Gems purchase / Power-ups~~ — Removed
+- [ ] ~~Friends System~~ — Removed (no social features)
+- [ ] ~~Social achievements~~ — Removed
+- [ ] ~~Push notifications~~ — Removed (no backend)
+- [ ] ~~Speaking exercises~~ — Removed (TTS route sufficient)
+- [ ] ~~External GUI editor~~ — Removed (JSON-first approach)
 
-#### Gamification System
-- [ ] **Leagues/Tiers** - Amethyst, Pearl, Ruby, Emerald, Diamond, etc.
-  - Weekly league progression
-  - Top 10 promotion, bottom 5 demotion
-  - League-specific leaderboards
-  
-- [ ] **XP System Enhancement**
-  - XP boost multipliers
-  - Daily XP goals
-  - XP for completing lessons, streaks, challenges
-
-- [ ] **Streak System**
-  - Streak freeze purchase/activation
-  - Weekend amulet
-  - Streak repair with gems
-  - Streak milestone rewards (7, 30, 100, 365 days)
-
-- [ ] **Hearts/Lives System**
-  - Limited hearts for mistakes
-  - Heart refill timers
-  - Unlimited hearts (premium)
-
-- [ ] **Gems/Lingots Currency**
-  - Earn from achievements
-  - Purchase power-ups
-  - Streak freezes
-
-#### Notifications & Reminders
-- [ ] **Daily Practice Reminders**
-  - Customizable reminder times
-  - Smart notifications based on user patterns
-  - Streak-at-risk warnings
-
-- [ ] **Push Notification Types**
-  - Lesson reminders
-  - Streak maintenance
-  - Friend activity
-  - Achievement unlocks
-  - League updates
-
-#### Social Features
-- [ ] **Friends System**
-  - Add friends by username/email
-  - Friend activity feed
-  - Challenge friends
-
-- [ ] **Achievements/Badges**
-  - Lesson milestones
-  - Streak achievements
-  - Social achievements
-  - Language-specific badges
-
-#### Course Features
-- [ ] **Skill Levels**
-  - Crown levels (0-5 per skill)
-  - Legendary skill unlock
-  - Skill degradation over time
-
-- [ ] **Learning Modes**
-  - Stories mode
-  - Speaking exercises (using flutter_tts)
-  - Listening exercises (model done, dedicated phase renderer pending)
-  - Fill-in-the-blank
-  - Word matching (Match Madness implemented)
-
-- [ ] **Content Management**
-  - External GUI editor for non-technical authors
-  - Per-section JSON or SQLite backend
-  - Cloud sync and content versioning
-
-- [ ] **Grammar & Expressions**
-  - Grammar-point review queue
-  - Expression-level SRS
-  - Word/expression origin tracking (LessonWordLink)
+### 🔧 Planned (future2.md)
+- [ ] **Lesson Templates** — intro / practice / review / mastery / reading (smoke testing in progress)
+- [ ] **Expression-level SRS** — end-to-end data pipeline
+- [ ] **TTS language code** — finalize `sw` vs `kn` decision
+- [ ] **Test coverage** — core ViewModel / Provider / Renderer tests
+- [ ] **Content** — Swahili vocabulary replacement (post-framework)
 ---
 
 ## UI Theming Guidelines
@@ -318,33 +234,6 @@ flutter clean && flutter pub get && flutter pub run build_runner build --delete-
 | `lib/data/study_log_repository.dart` | Study log persistence (prefs-backed, 90-day retention) |
 | `lib/views/profile/widgets/learning_stats.dart` | Profile page learning statistics dashboard UI |
 | `dreamplan.md` | Long-term scaling vision and feasibility analysis |
-
----
-
-## Firebase Security Rules (Recommended)
-
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    // Users can only read/write their own data
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-    
-    // Leaderboard - all authenticated users can read
-    match /users/{userId} {
-      allow read: if request.auth != null;
-    }
-    
-    // Leagues collection
-    match /leagues/{leagueId} {
-      allow read: if request.auth != null;
-      allow write: if false; // Only cloud functions
-    }
-  }
-}
-```
 
 ---
 

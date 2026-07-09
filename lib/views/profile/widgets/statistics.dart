@@ -8,8 +8,6 @@ import 'package:provider/provider.dart';
 import 'package:words625/application/game_provider.dart';
 import 'package:words625/application/gems_provider.dart';
 import 'package:words625/core/extensions.dart';
-import 'package:words625/di/injection.dart';
-import 'package:words625/service/locator.dart';
 import 'package:words625/views/theme.dart';
 
 class Statistics extends StatelessWidget {
@@ -31,8 +29,7 @@ class Statistics extends StatelessWidget {
                   final data = snapshot.data ?? const <String, dynamic>{};
                   final streak = (data['streak'] as num?)?.toInt() ?? 0;
                   final totalXp = (data['score'] as num?)?.toInt() ?? 0;
-                  final currentLanguage =
-                      getIt<AppPrefs>().currentLanguage.getValue();
+                  const currentLanguage = 'Swahili';
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -58,12 +55,6 @@ class Statistics extends StatelessWidget {
                             iconColor: VarnamalaTheme.peacockTurquoise,
                             value: totalXp.toString(),
                             label: 'Total XP',
-                          ),
-                          _StatCard(
-                            icon: Icons.shield_rounded,
-                            iconColor: VarnamalaTheme.leagueAmethyst,
-                            value: GameProvider.bronzeLeague.toTitleCase,
-                            label: 'Current League',
                           ),
                           Consumer<GemsProvider>(
                             builder: (context, _, __) {

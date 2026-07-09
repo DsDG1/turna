@@ -8,7 +8,6 @@ import 'package:words625/application/course_provider.dart';
 import 'package:words625/application/game_provider.dart';
 import 'package:words625/application/gems_provider.dart';
 import 'package:words625/application/grammar_review_provider.dart';
-import 'package:words625/application/hearts_provider.dart';
 import 'package:words625/application/language_provider.dart';
 import 'package:words625/application/lesson_viewmodel.dart';
 import 'package:words625/application/match_provider.dart';
@@ -45,9 +44,6 @@ final providers = [
   ),
   ChangeNotifierProvider<GemsProvider>(
     create: (_) => getIt<GemsProvider>(),
-  ),
-  ChangeNotifierProvider<HeartsProvider>(
-    create: (_) => getIt<HeartsProvider>(),
   ),
   ChangeNotifierProvider<AchievementsProvider>(
     create: (_) => getIt<AchievementsProvider>(),

@@ -9,16 +9,13 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:words625/application/game_provider.dart';
 import 'package:words625/application/gems_provider.dart';
-import 'package:words625/application/hearts_provider.dart';
 import 'package:words625/application/language_provider.dart';
 import 'package:words625/views/courses/course_tree.dart';
 import 'package:words625/views/home/components/components.dart';
 import 'package:words625/views/play/play_app_bar.dart';
 import 'package:words625/views/play/play_hub_screen.dart';
 import 'package:words625/views/profile/profile_screen.dart';
-import 'package:words625/views/shop/shop_screen.dart';
 import 'package:words625/views/theme.dart';
-import 'package:words625/views/onboarding/onboarding_screen.dart';
 
 @RoutePage()
 class HomePage extends StatefulWidget {
@@ -37,7 +34,6 @@ class _HomePageState extends State<HomePage> {
     const CourseTree(),
     const PlayHubScreen(),
     const ProfilePage(),
-    const ShopPage(),
   ];
 
   @override
@@ -51,15 +47,12 @@ class _HomePageState extends State<HomePage> {
   initSession() async {
     context.read<LanguageProvider>().initLanguage();
     final gameProvider = context.read<GameProvider>();
-    final heartsProvider = context.read<HeartsProvider>();
     final gemsProvider = context.read<GemsProvider>();
 
     await Future.wait([
       gameProvider.ensureUserGameFields(),
       gemsProvider.ensureGemsInitialized(),
-      heartsProvider.ensureHeartsInitialized(),
     ]);
-    await heartsProvider.refillHeart();
     final streakResult = await gameProvider.checkStreakOnAppOpen();
 
     if (!mounted) return;
@@ -83,7 +76,6 @@ class _HomePageState extends State<HomePage> {
     const StatAppBar(),
     const PlayAppBar(),
     const ProfileAppBar(),
-    const ShopAppBar(),
   ];
 
   @override
@@ -101,19 +93,6 @@ class _HomePageState extends State<HomePage> {
         duration: const Duration(milliseconds: 200),
         child: screens[currentIndex],
       ),
-      floatingActionButton: currentIndex == 0 && kDebugMode
-          ? FloatingActionButton.extended(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                      builder: (context) => const OnboardingScreen()),
-                );
-              },
-              label: const Text("Test Onboarding"),
-              icon: const Icon(Icons.start),
-              backgroundColor: VarnamalaTheme.peacockTeal,
-            )
-          : null,
     );
   }
 

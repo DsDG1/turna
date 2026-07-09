@@ -64,15 +64,6 @@ class AchievementsProvider extends ChangeNotifier {
       targets: [1, 5, 20, 50, 100],
     ),
     Achievement(
-      id: 'friendly',
-      type: AchievementType.streak,
-      title: 'Friendly',
-      description: 'Track shared progress',
-      icon: Icons.people_rounded,
-      color: Color(0xFF26C6DA),
-      targets: [1, 5, 10, 20],
-    ),
-    Achievement(
       id: 'winner',
       type: AchievementType.xp,
       title: 'Winner',
@@ -125,10 +116,6 @@ class AchievementsProvider extends ChangeNotifier {
     if (perfectLessons >= 1) {
       await checkAndUnlock('sharpshooter');
     }
-  }
-
-  Future<void> checkLeagueAchievement(String league) async {
-    // No-op in local mode.
   }
 
   List<String> _readList() =>

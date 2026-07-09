@@ -14,9 +14,6 @@ import 'package:words625/service/locator.dart';
 enum XPEvent {
   lessonComplete(base: 10),
   perfectLesson(base: 15),
-  dailyGoalComplete(base: 20),
-  streakBonus(base: 5),
-  challengeWin(base: 25),
   /// Base XP per reviewed word/card; multiply by session count.
   srsReviewSession(base: 5),
   /// Base XP per reviewed grammar point; multiply by session count.
@@ -35,10 +32,6 @@ enum StreakCheckResult {
 
 @lazySingleton
 class GameProvider extends ChangeNotifier {
-  static const String bronzeLeague = 'bronze';
-  static const int defaultDailyXpGoal = 50;
-  static const int defaultStreakRepairTarget = 100;
-
   final AppPrefs appPrefs;
 
   final StreamController<Map<String, dynamic>> _stateController =
@@ -123,13 +116,6 @@ class GameProvider extends ChangeNotifier {
         LocalStateKeys.lastStreakDate,
         today.toIso8601String(),
       ),
-      appPrefs.preferences.setInt(LocalStateKeys.leagueXp, 0),
-      appPrefs.preferences.setInt(LocalStateKeys.dailyXpGoal, defaultDailyXpGoal),
-      appPrefs.preferences.setInt(LocalStateKeys.dailyXpEarned, 0),
-      appPrefs.preferences.setString(
-        LocalStateKeys.lastDailyReset,
-        today.toIso8601String(),
-      ),
       appPrefs.preferences.setInt(LocalStateKeys.lessonsCompleted, 0),
       appPrefs.preferences.setInt(LocalStateKeys.perfectLessons, 0),
       // Per-lesson progress — start empty. [recordLessonCompletion] will
@@ -144,26 +130,13 @@ class GameProvider extends ChangeNotifier {
         LocalStateKeys.perfectLessonIds,
         const <String>[],
       ),
-      appPrefs.preferences.setInt(LocalStateKeys.streakFreezes, 0),
-      appPrefs.preferences.setBool(LocalStateKeys.streakFreezeActive, false),
       appPrefs.preferences.setBool(LocalStateKeys.streakWasBroken, false),
-      appPrefs.preferences.setBool(LocalStateKeys.streakRepairRequired, false),
-      appPrefs.preferences.setInt(LocalStateKeys.streakRepairProgress, 0),
-      appPrefs.preferences.setInt(
-        LocalStateKeys.streakRepairTarget,
-        defaultStreakRepairTarget,
-      ),
-      appPrefs.preferences.setInt(LocalStateKeys.streakBeforeBreak, 0),
       appPrefs.preferences.setInt(LocalStateKeys.wordsLearned, 0),
-      appPrefs.preferences.setInt(LocalStateKeys.friendsCount, 0),
-      appPrefs.preferences.setBool(LocalStateKeys.followRewardClaimed, false),
-      appPrefs.preferences.setInt(LocalStateKeys.validatedShareCount, 0),
-      appPrefs.preferences.setInt(LocalStateKeys.claimedShareCount, 0),
       appPrefs.preferences.setStringList(LocalStateKeys.achievements, const []),
       appPrefs.preferences.setBool(LocalStateKeys.initialized, true),
     ]);
 
-notifyListeners();
+    notifyListeners();
     _emitState();
   }
 
@@ -175,10 +148,10 @@ notifyListeners();
     final xp = (event.base * multiplier).round();
     if (xp <= 0) return 0;
 
-    final dailyBonus = await incrementScore(xp, notify: false);
+    await incrementScore(xp, notify: false);
 
     if (notify) notifyListeners();
-    return xp + dailyBonus;
+    return xp;
   }
 
   Future<int> incrementScore(int xp, {bool notify = true}) async {
@@ -189,18 +162,12 @@ notifyListeners();
 
     final score = _readInt(LocalStateKeys.score, 0);
     final streak = _readInt(LocalStateKeys.streak, 0);
-    final leagueXp = _readInt(LocalStateKeys.leagueXp, 0);
-    final streakFreezeActive =
-        _readBool(LocalStateKeys.streakFreezeActive, false);
-    final streakFreezes = _readInt(LocalStateKeys.streakFreezes, 0);
     final lastDate = _parseDate(_readString(LocalStateKeys.lastStreakDate, ''));
 
     final streakResolution = _resolveStreakOnPractice(
       oldStreak: streak,
       oldDate: lastDate,
       today: today,
-      streakFreezeActive: streakFreezeActive,
-      streakFreezes: streakFreezes,
     );
 
     final newScore = score + xp;
@@ -216,89 +183,19 @@ notifyListeners();
           streakResolution.newStreak,
         );
 
-    final dailyResetDate = _parseDate(
-      _readString(LocalStateKeys.lastDailyReset, ''),
-    );
-    var dailyXpEarned = _readInt(LocalStateKeys.dailyXpEarned, 0);
-    if (dailyResetDate == null || !_isSameDay(dailyResetDate, today)) {
-      dailyXpEarned = 0;
-    }
-
-    final dailyGoal = _readInt(LocalStateKeys.dailyXpGoal, defaultDailyXpGoal);
-    final previousDailyXp = dailyXpEarned;
-    dailyXpEarned += xp;
-
-    final streakRepairRequired =
-        _readBool(LocalStateKeys.streakRepairRequired, false);
-    final streakWasBroken = _readBool(LocalStateKeys.streakWasBroken, false);
-    final streakRepairTarget =
-        _readInt(LocalStateKeys.streakRepairTarget, defaultStreakRepairTarget);
-    final previousRepairProgress =
-        _readInt(LocalStateKeys.streakRepairProgress, 0);
-
-    var streakRepairProgress = previousRepairProgress;
-    var repairedThisUpdate = false;
-    var repairedStreak = streakResolution.newStreak;
-
-    if (streakRepairRequired && streakWasBroken) {
-      streakRepairProgress = previousRepairProgress + xp;
-      if (streakRepairProgress >= streakRepairTarget) {
-        repairedThisUpdate = true;
-        final streakBeforeBreak =
-            _readInt(LocalStateKeys.streakBeforeBreak, 1);
-        repairedStreak = streakBeforeBreak <= 0 ? 1 : streakBeforeBreak;
-      }
-    }
-
-    var finalScore = newScore;
-    var dailyBonus = 0;
-    if (previousDailyXp < dailyGoal && dailyXpEarned >= dailyGoal) {
-      dailyBonus = XPEvent.dailyGoalComplete.base;
-      finalScore += dailyBonus;
-    }
-
     await Future.wait([
-      appPrefs.preferences.setInt(LocalStateKeys.score, finalScore),
+      appPrefs.preferences.setInt(LocalStateKeys.score, newScore),
       appPrefs.preferences.setInt(
         LocalStateKeys.streak,
-        repairedThisUpdate ? repairedStreak : streakResolution.newStreak,
+        streakResolution.newStreak,
       ),
       appPrefs.preferences.setString(
         LocalStateKeys.lastStreakDate,
         today.toIso8601String(),
       ),
-      appPrefs.preferences.setInt(
-        LocalStateKeys.streakFreezes,
-        streakResolution.remainingFreezes,
-      ),
-      appPrefs.preferences.setBool(
-        LocalStateKeys.streakFreezeActive,
-        streakResolution.freezeActive,
-      ),
       appPrefs.preferences.setBool(
         LocalStateKeys.streakWasBroken,
-        repairedThisUpdate ? false : streakResolution.broken,
-      ),
-      appPrefs.preferences.setBool(
-        LocalStateKeys.streakRepairRequired,
-        repairedThisUpdate
-            ? false
-            : (streakRepairRequired && streakWasBroken),
-      ),
-      appPrefs.preferences.setInt(
-        LocalStateKeys.streakRepairProgress,
-        repairedThisUpdate ? 0 : streakRepairProgress,
-      ),
-      appPrefs.preferences.setInt(
-        LocalStateKeys.streakRepairTarget,
-        streakRepairTarget,
-      ),
-      appPrefs.preferences.setInt(LocalStateKeys.leagueXp, leagueXp + xp + dailyBonus),
-      appPrefs.preferences.setInt(LocalStateKeys.dailyXpEarned, dailyXpEarned),
-      appPrefs.preferences.setInt(LocalStateKeys.dailyXpGoal, dailyGoal),
-      appPrefs.preferences.setString(
-        LocalStateKeys.lastDailyReset,
-        today.toIso8601String(),
+        streakResolution.broken,
       ),
       appPrefs.preferences.setStringList(
         LocalStateKeys.achievements,
@@ -310,9 +207,9 @@ notifyListeners();
       await _applyGemBonus(gemBonus);
     }
 
-if (notify) notifyListeners();
+    if (notify) notifyListeners();
     _emitState();
-    return dailyBonus;
+    return 0;
   }
 
   /// Route gem deltas through [GemsProvider] (single writer for gems key).
@@ -357,7 +254,7 @@ if (notify) notifyListeners();
       appPrefs.preferences.setInt(LocalStateKeys.perfectLessons, perfectLessons),
     ]);
 
-notifyListeners();
+    notifyListeners();
     _emitState();
     // Always emit on the progress stream so subscribers (ProgressProvider →
     // course tree) rebuild on every completion, including replays that
@@ -389,47 +286,13 @@ notifyListeners();
       return _lastStreakCheckResult;
     }
 
-    final streakFreezes = _readInt(LocalStateKeys.streakFreezes, 0);
-    final freezeActive = _readBool(LocalStateKeys.streakFreezeActive, false);
-
-    if (gap == 2 && (freezeActive || streakFreezes > 0)) {
-      await Future.wait([
-        appPrefs.preferences.setInt(
-          LocalStateKeys.streakFreezes,
-          freezeActive ? streakFreezes : streakFreezes - 1,
-        ),
-        appPrefs.preferences.setBool(LocalStateKeys.streakFreezeActive, false),
-        appPrefs.preferences.setString(
-          LocalStateKeys.lastStreakDate,
-          today.toIso8601String(),
-        ),
-        appPrefs.preferences.setBool(LocalStateKeys.streakWasBroken, false),
-      ]);
-      _lastStreakCheckResult = StreakCheckResult.freezeConsumed;
-      notifyListeners();
-      _emitState();
-      return _lastStreakCheckResult;
-    }
-
-    // Capture streak **before** zeroing — parallel writes previously read 0.
-    final streakBeforeBreak = _readInt(LocalStateKeys.streak, 0);
     await Future.wait([
       appPrefs.preferences.setInt(LocalStateKeys.streak, 0),
       appPrefs.preferences.setBool(LocalStateKeys.streakWasBroken, true),
-      appPrefs.preferences.setInt(
-        LocalStateKeys.streakBeforeBreak,
-        streakBeforeBreak,
-      ),
-      appPrefs.preferences.setBool(LocalStateKeys.streakRepairRequired, true),
-      appPrefs.preferences.setInt(LocalStateKeys.streakRepairProgress, 0),
-      appPrefs.preferences.setInt(
-        LocalStateKeys.streakRepairTarget,
-        defaultStreakRepairTarget,
-      ),
     ]);
 
     _lastStreakCheckResult = StreakCheckResult.broken;
-notifyListeners();
+    notifyListeners();
     _emitState();
     return _lastStreakCheckResult;
   }
@@ -452,39 +315,18 @@ notifyListeners();
         'score': _readInt(LocalStateKeys.score, 0),
         'streak': _readInt(LocalStateKeys.streak, 0),
         'lastStreakDate': _readString(LocalStateKeys.lastStreakDate, ''),
-        'leagueXp': _readInt(LocalStateKeys.leagueXp, 0),
-        'league': bronzeLeague,
         'gems': _readInt(LocalStateKeys.gems, 0),
         'hearts': _readInt(LocalStateKeys.hearts, 5),
         'heartsRefillAt': null,
-        'streakFreezes': _readInt(LocalStateKeys.streakFreezes, 0),
-        'streakFreezeActive':
-            _readBool(LocalStateKeys.streakFreezeActive, false),
         'achievements':
             _readStringList(LocalStateKeys.achievements, const []),
-        'dailyXpGoal': _readInt(LocalStateKeys.dailyXpGoal, defaultDailyXpGoal),
-        'dailyXpEarned': _readInt(LocalStateKeys.dailyXpEarned, 0),
-        'lastDailyReset': _readString(LocalStateKeys.lastDailyReset, ''),
         'lessonsCompleted':
             _readInt(LocalStateKeys.lessonsCompleted, 0),
         'perfectLessons': _readInt(LocalStateKeys.perfectLessons, 0),
         'completedLessonIds': _completedLessonIds.toList(growable: false),
         'perfectLessonIds': _perfectLessonIds.toList(growable: false),
         'streakWasBroken': _readBool(LocalStateKeys.streakWasBroken, false),
-        'streakRepairRequired':
-            _readBool(LocalStateKeys.streakRepairRequired, false),
-        'streakRepairProgress':
-            _readInt(LocalStateKeys.streakRepairProgress, 0),
-        'streakRepairTarget':
-            _readInt(LocalStateKeys.streakRepairTarget, defaultStreakRepairTarget),
-        'streakBeforeBreak': _readInt(LocalStateKeys.streakBeforeBreak, 0),
-        'followRewardClaimed':
-            _readBool(LocalStateKeys.followRewardClaimed, false),
-        'validatedShareCount':
-            _readInt(LocalStateKeys.validatedShareCount, 0),
-        'claimedShareCount': _readInt(LocalStateKeys.claimedShareCount, 0),
         'wordsLearned': _readInt(LocalStateKeys.wordsLearned, 0),
-        'friendsCount': _readInt(LocalStateKeys.friendsCount, 0),
         'languages': <String>[],
       };
 
@@ -513,12 +355,6 @@ notifyListeners();
     return gemsReward;
   }
 
-  bool _isSameDay(DateTime first, DateTime second) {
-    return first.year == second.year &&
-        first.month == second.month &&
-        first.day == second.day;
-  }
-
   DateTime? _parseDate(dynamic value) {
     if (value == null) return null;
     if (value is DateTime) return value;
@@ -530,14 +366,10 @@ notifyListeners();
     required int oldStreak,
     required DateTime? oldDate,
     required DateTime today,
-    required bool streakFreezeActive,
-    required int streakFreezes,
   }) {
     if (oldDate == null) {
       return _StreakResolution(
         newStreak: oldStreak == 0 ? 1 : oldStreak,
-        remainingFreezes: streakFreezes,
-        freezeActive: streakFreezeActive,
         broken: false,
       );
     }
@@ -548,8 +380,6 @@ notifyListeners();
     if (gap <= 0) {
       return _StreakResolution(
         newStreak: oldStreak,
-        remainingFreezes: streakFreezes,
-        freezeActive: streakFreezeActive,
         broken: false,
       );
     }
@@ -557,25 +387,12 @@ notifyListeners();
     if (gap == 1) {
       return _StreakResolution(
         newStreak: oldStreak + 1,
-        remainingFreezes: streakFreezes,
-        freezeActive: streakFreezeActive,
-        broken: false,
-      );
-    }
-
-    if (gap == 2 && (streakFreezeActive || streakFreezes > 0)) {
-      return _StreakResolution(
-        newStreak: oldStreak + 1,
-        remainingFreezes: streakFreezeActive ? streakFreezes : streakFreezes - 1,
-        freezeActive: false,
         broken: false,
       );
     }
 
     return _StreakResolution(
       newStreak: 1,
-      remainingFreezes: streakFreezes,
-      freezeActive: streakFreezeActive,
       broken: true,
     );
   }
@@ -592,14 +409,10 @@ notifyListeners();
 
 class _StreakResolution {
   final int newStreak;
-  final int remainingFreezes;
-  final bool freezeActive;
   final bool broken;
 
   _StreakResolution({
     required this.newStreak,
-    required this.remainingFreezes,
-    required this.freezeActive,
     required this.broken,
   });
 }
