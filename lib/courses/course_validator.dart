@@ -1,4 +1,5 @@
 // Project imports:
+import 'package:words625/domain/course/expression.dart';
 import 'package:words625/domain/course/interaction.dart';
 import 'package:words625/domain/course/lesson.dart';
 import 'package:words625/domain/course/listening_phase.dart';
@@ -44,12 +45,16 @@ class CourseValidationException implements Exception {
 ///  - Every stage has at least one item; every lesson has at least one content
 ///    structure (stages, subLessons, or listeningPhases).
 ///  - Every [ShowWord.wordId] resolves to a [WordEntry] in [vocabulary].
+///  - Every [ShowWord.expressionId] (when present) resolves to an [Expression]
+///    in [expressions].
 void validateSwahiliCourse(
   List<Section> sections,
-  List<WordEntry> vocabulary,
-) {
+  List<WordEntry> vocabulary, [
+  List<Expression> expressions = const [],
+]) {
   final errors = <String>[];
   final vocabIds = <String>{for (final w in vocabulary) w.id};
+  final expressionIds = <String>{for (final e in expressions) e.id};
 
   // Sections.
   final sectionIds = <String>{};
@@ -86,7 +91,7 @@ void validateSwahiliCourse(
           errors.add('Duplicate lesson id: ${lesson.id}.');
         }
 
-        _validateLessonContent(lesson, vocabIds, errors);
+        _validateLessonContent(lesson, vocabIds, expressionIds, errors);
       }
     }
   }
@@ -105,11 +110,17 @@ void validateSwahiliCourse(
 ///  - Stage / sub-lesson / listening-phase / item id rules (via
 ///    [_validateLessonContent]).
 ///  - Every [ShowWord.wordId] resolves to a [WordEntry] in [vocabIds].
+///  - Every [ShowWord.expressionId] (when present) resolves to an [Expression]
+///    in [expressionIds].
 ///
 /// Cross-course invariants (unit/lesson ids unique across the whole course)
 /// are NOT checked here — those need every section assembled together and are
 /// enforced offline/CI by [validateSwahiliCourse].
-void validateSection(Section section, Set<String> vocabIds) {
+void validateSection(
+  Section section,
+  Set<String> vocabIds, [
+  Set<String> expressionIds = const {},
+]) {
   final errors = <String>[];
 
   if (section.id.isEmpty) {
@@ -140,7 +151,7 @@ void validateSection(Section section, Set<String> vocabIds) {
             '${section.id}).');
       }
 
-      _validateLessonContent(lesson, vocabIds, errors);
+      _validateLessonContent(lesson, vocabIds, expressionIds, errors);
     }
   }
 
@@ -152,6 +163,7 @@ void validateSection(Section section, Set<String> vocabIds) {
 void _validateLessonContent(
   Lesson lesson,
   Set<String> vocabIds,
+  Set<String> expressionIds,
   List<String> errors,
 ) {
   final content = lesson.content;
@@ -212,15 +224,15 @@ void _validateLessonContent(
   }
 
   if (hasStages) {
-    _validateStages(lesson, stages, vocabIds, errors);
+    _validateStages(lesson, stages, vocabIds, expressionIds, errors);
   }
 
   if (hasSubLessons) {
-    _validateSubLessons(lesson, subLessons, vocabIds, errors);
+    _validateSubLessons(lesson, subLessons, vocabIds, expressionIds, errors);
   }
 
   if (hasListeningPhases) {
-    _validateListeningPhases(lesson, listeningPhases, vocabIds, errors);
+    _validateListeningPhases(lesson, listeningPhases, vocabIds, expressionIds, errors);
   }
 }
 
@@ -228,6 +240,7 @@ void _validateStages(
   Lesson lesson,
   List<Stage> stages,
   Set<String> vocabIds,
+  Set<String> expressionIds,
   List<String> errors, {
   String contextPrefix = '',
 }) {
@@ -259,10 +272,18 @@ void _validateStages(
         errors.add('${prefix}Duplicate item id "${item.id}" in stage '
             '${stage.id} (lesson ${lesson.id}).');
       }
-      if (item is ShowWord && !vocabIds.contains(item.wordId)) {
-        errors.add('${prefix}ShowWord "${item.id}" in stage ${stage.id} (lesson '
-            '${lesson.id}) references missing wordId '
-            '${item.wordId}.');
+      if (item is ShowWord) {
+        if (!vocabIds.contains(item.wordId)) {
+          errors.add('${prefix}ShowWord "${item.id}" in stage ${stage.id} (lesson '
+              '${lesson.id}) references missing wordId '
+              '${item.wordId}.');
+        }
+        if (item.expressionId != null &&
+            !expressionIds.contains(item.expressionId!)) {
+          errors.add('${prefix}ShowWord "${item.id}" in stage ${stage.id} (lesson '
+              '${lesson.id}) references missing expressionId '
+              '${item.expressionId}.');
+        }
       }
     }
   }
@@ -272,6 +293,7 @@ void _validateSubLessons(
   Lesson lesson,
   List<SubLesson> subLessons,
   Set<String> vocabIds,
+  Set<String> expressionIds,
   List<String> errors,
 ) {
   final subLessonIds = <String>{};
@@ -294,6 +316,7 @@ void _validateSubLessons(
       lesson,
       subLesson.stages,
       vocabIds,
+      expressionIds,
       errors,
       contextPrefix: subLesson.id,
     );
@@ -304,6 +327,7 @@ void _validateListeningPhases(
   Lesson lesson,
   List<ListeningPhase> phases,
   Set<String> vocabIds,
+  Set<String> expressionIds,
   List<String> errors,
 ) {
   final phaseIds = <String>{};
@@ -333,9 +357,17 @@ void _validateListeningPhases(
         errors.add('Duplicate item id "${item.id}" in listeningPhase '
             '${phase.id} (lesson ${lesson.id}).');
       }
-      if (item is ShowWord && !vocabIds.contains(item.wordId)) {
-        errors.add('ShowWord "${item.id}" in listeningPhase ${phase.id} (lesson '
-            '${lesson.id}) references missing wordId ${item.wordId}.');
+      if (item is ShowWord) {
+        if (!vocabIds.contains(item.wordId)) {
+          errors.add('ShowWord "${item.id}" in listeningPhase ${phase.id} (lesson '
+              '${lesson.id}) references missing wordId ${item.wordId}.');
+        }
+        if (item.expressionId != null &&
+            !expressionIds.contains(item.expressionId!)) {
+          errors.add('ShowWord "${item.id}" in listeningPhase ${phase.id} (lesson '
+              '${lesson.id}) references missing expressionId '
+              '${item.expressionId}.');
+        }
       }
     }
   }
