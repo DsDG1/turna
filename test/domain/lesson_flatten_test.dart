@@ -22,11 +22,11 @@ void main() {
 
   group('Lesson.flattenedStages', () {
     test('legacy returns content.stages unchanged', () {
-      final lesson = Lesson(
+      const lesson = Lesson(
         id: 'l-legacy',
         name: 'Legacy',
         template: LessonTemplate.legacy,
-        content: const LessonContent(stages: [stageA, stageB]),
+        content: LessonContent(stages: [stageA, stageB]),
       );
 
       final flat = lesson.flattenedStages;
@@ -36,11 +36,11 @@ void main() {
     });
 
     test('review returns content.stages unchanged', () {
-      final lesson = Lesson(
+      const lesson = Lesson(
         id: 'l-review',
         name: 'Review',
         template: LessonTemplate.review,
-        content: const LessonContent(stages: [stageA, stageB]),
+        content: LessonContent(stages: [stageA, stageB]),
       );
 
       final flat = lesson.flattenedStages;
@@ -49,11 +49,11 @@ void main() {
     });
 
     test('mastery returns content.stages unchanged', () {
-      final lesson = Lesson(
+      const lesson = Lesson(
         id: 'l-mastery',
         name: 'Mastery',
         template: LessonTemplate.mastery,
-        content: const LessonContent(stages: [stageA, stageB]),
+        content: LessonContent(stages: [stageA, stageB]),
       );
 
       final flat = lesson.flattenedStages;
@@ -62,11 +62,11 @@ void main() {
     });
 
     test('reading returns content.stages unchanged', () {
-      final lesson = Lesson(
+      const lesson = Lesson(
         id: 'l-reading',
         name: 'Reading',
         template: LessonTemplate.reading,
-        content: const LessonContent(stages: [stageA, stageB]),
+        content: LessonContent(stages: [stageA, stageB]),
       );
 
       final flat = lesson.flattenedStages;
@@ -75,18 +75,18 @@ void main() {
     });
 
     test('intro flattens sub-lessons with prefixed stage ids', () {
-      final lesson = Lesson(
+      const lesson = Lesson(
         id: 'l-intro',
         name: 'Intro',
         template: LessonTemplate.intro,
         content: LessonContent(
           subLessons: [
-            const SubLesson(
+            SubLesson(
               id: 'sub-1',
               name: 'Sub 1',
               stages: [stageA],
             ),
-            const SubLesson(
+            SubLesson(
               id: 'sub-2',
               name: 'Sub 2',
               stages: [stageB],
@@ -104,13 +104,13 @@ void main() {
     });
 
     test('practice flattens sub-lessons with prefixed stage ids', () {
-      final lesson = Lesson(
+      const lesson = Lesson(
         id: 'l-practice',
         name: 'Practice',
         template: LessonTemplate.practice,
         content: LessonContent(
           subLessons: [
-            const SubLesson(
+            SubLesson(
               id: 'sub-1',
               name: 'Sub 1',
               stages: [stageA],
@@ -125,13 +125,13 @@ void main() {
     });
 
     test('listening flattens phases into stages', () {
-      final lesson = Lesson(
+      const lesson = Lesson(
         id: 'l-listening',
         name: 'Listening',
         template: LessonTemplate.listening,
         content: LessonContent(
           listeningPhases: [
-            const ListeningPhase(
+            ListeningPhase(
               id: 'lp-1',
               name: 'Word Pairing',
               type: ListeningPhaseType.wordPairing,
@@ -144,7 +144,7 @@ void main() {
                 ),
               ],
             ),
-            const ListeningPhase(
+            ListeningPhase(
               id: 'lp-2',
               name: 'Summary',
               type: ListeningPhaseType.summary,

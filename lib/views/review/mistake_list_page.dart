@@ -28,7 +28,7 @@ class MistakeListPage extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.check_circle_rounded,
                     size: 64,
                     color: VarnamalaTheme.success,
@@ -179,7 +179,7 @@ class _Row extends StatelessWidget {
             ),
             TextSpan(
               text: value.isEmpty ? '—' : value,
-              style: TextStyle(color: VarnamalaTheme.textSecondary),
+              style: const TextStyle(color: VarnamalaTheme.textSecondary),
             ),
           ],
         ),

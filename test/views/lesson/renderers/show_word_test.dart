@@ -24,7 +24,7 @@ void main() {
 
   testWidgets('ShowWord builds and submits correct on tap', (tester) async {
     final renderer = ShowWordRenderer();
-    final interaction = Interaction.showWord(
+    const interaction = Interaction.showWord(
       id: 'sw-1',
       wordId: 'w-test-show',
     );

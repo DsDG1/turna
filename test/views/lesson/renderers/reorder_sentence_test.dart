@@ -13,10 +13,10 @@ void main() {
 
   testWidgets('ReorderSentence submits true for correct order', (tester) async {
     final renderer = ReorderSentenceRenderer();
-    final interaction = Interaction.reorderSentence(
+    const interaction = Interaction.reorderSentence(
       id: 'rs-1',
-      scrambled: const ['world', 'hello'],
-      correct: const ['hello', 'world'],
+      scrambled: ['world', 'hello'],
+      correct: ['hello', 'world'],
     );
 
     await tester.pumpWidget(harness.build(renderer, interaction));
@@ -29,10 +29,10 @@ void main() {
 
   testWidgets('ReorderSentence submits false for wrong order', (tester) async {
     final renderer = ReorderSentenceRenderer();
-    final interaction = Interaction.reorderSentence(
+    const interaction = Interaction.reorderSentence(
       id: 'rs-2',
-      scrambled: const ['world', 'hello'],
-      correct: const ['hello', 'world'],
+      scrambled: ['world', 'hello'],
+      correct: ['hello', 'world'],
     );
 
     await tester.pumpWidget(harness.build(renderer, interaction));

@@ -10,21 +10,21 @@ class ProfilePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CustomScrollView(
-      physics: const BouncingScrollPhysics(),
+    return const CustomScrollView(
+      physics: BouncingScrollPhysics(),
       slivers: [
-        const SliverToBoxAdapter(
+        SliverToBoxAdapter(
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: AccountWidget(),
           ),
         ),
-        const SliverToBoxAdapter(child: SizedBox(height: 8)),
-        const SliverToBoxAdapter(child: Statistics()),
-        const SliverToBoxAdapter(child: SizedBox(height: 8)),
-        const SliverToBoxAdapter(child: LearningStats()),
-        const SliverToBoxAdapter(child: Achievements()),
-        const SliverPadding(padding: EdgeInsets.only(bottom: 24)),
+        SliverToBoxAdapter(child: SizedBox(height: 8)),
+        SliverToBoxAdapter(child: Statistics()),
+        SliverToBoxAdapter(child: SizedBox(height: 8)),
+        SliverToBoxAdapter(child: LearningStats()),
+        SliverToBoxAdapter(child: Achievements()),
+        SliverPadding(padding: EdgeInsets.only(bottom: 24)),
       ],
     );
   }

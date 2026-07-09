@@ -260,16 +260,16 @@ void main() {
         () async {
       final lesson = _buildLegacyLesson(
         items: [
-          Interaction.multipleChoice(
+          const Interaction.multipleChoice(
             id: 'mcq-1',
             prompt: 'Choose A',
-            options: const ['A', 'B'],
+            options: ['A', 'B'],
             correctIndex: 0,
           ),
-          Interaction.multipleChoice(
+          const Interaction.multipleChoice(
             id: 'mcq-2',
             prompt: 'Choose X',
-            options: const ['X', 'Y'],
+            options: ['X', 'Y'],
             correctIndex: 0,
           ),
         ],
@@ -371,7 +371,7 @@ void main() {
     });
 
     test('linked grammar points are registered on load', () async {
-      final lesson = Lesson(
+      const lesson = Lesson(
         id: 'l-flow-grammar',
         name: 'Flow Grammar',
         template: LessonTemplate.legacy,
@@ -388,7 +388,7 @@ void main() {
               ],
             ),
           ],
-          linkedGrammarPointIds: const ['gp.present-a'],
+          linkedGrammarPointIds: ['gp.present-a'],
         ),
       );
       final harness = _buildHarness(lesson: lesson, appPrefs: appPrefs);

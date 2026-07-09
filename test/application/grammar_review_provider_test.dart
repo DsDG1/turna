@@ -118,10 +118,10 @@ void main() {
       expect(grammar.state.containsKey('w.apple'), isFalse);
 
       // The persisted keys are distinct.
-      final grammarRaw = await prefs
+      final grammarRaw = prefs
           .getString(LocalStateKeys.grammarReviewState, defaultValue: '{}');
       final srsRaw =
-          await prefs.getString(LocalStateKeys.srsState, defaultValue: '{}');
+          prefs.getString(LocalStateKeys.srsState, defaultValue: '{}');
       expect((jsonDecode(grammarRaw.getValue()) as Map).containsKey('gp.a'),
           isTrue);
       expect((jsonDecode(srsRaw.getValue()) as Map).containsKey('w.apple'),

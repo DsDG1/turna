@@ -14,7 +14,7 @@ void main() {
   testWidgets('ListenOnly builds and submits correct on continue',
       (tester) async {
     final renderer = ListenOnlyRenderer();
-    final interaction = Interaction.listenOnly(
+    const interaction = Interaction.listenOnly(
       id: 'lo-1',
       transcript: 'Habari, jambo.',
       prompt: 'Listen to the summary',

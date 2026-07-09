@@ -15,6 +15,7 @@ dependencies:
   flutter_svg: ^2.0.10
   flutter_tts: ^4.0.2
   freezed: ^2.5.2
+  freezed_annotation: ^2.4.1
   get_it: ^7.7.0
   google_fonts: ^6.2.0
   http: ^1.2.2
@@ -42,6 +43,8 @@ dev_dependencies:
   import_sorter: ^4.6.0
   injectable_generator: ^2.6.1
   pubspec_dependency_sorter: ^1.0.5
+  shared_preferences: ^2.2.3
+  sqlite3: ^2.4.0
 flutter:
   uses-material-design: true
   assets:

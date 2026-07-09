@@ -13,7 +13,7 @@ void main() {
 
   testWidgets('TypeTheWord submits true for correct answer', (tester) async {
     final renderer = TypeTheWordRenderer();
-    final interaction = Interaction.typeTheWord(
+    const interaction = Interaction.typeTheWord(
       id: 'ttw-1',
       audioAsset: 'w-test-audio',
       prompt: 'Type what you hear',
@@ -29,7 +29,7 @@ void main() {
 
   testWidgets('TypeTheWord submits false for wrong answer', (tester) async {
     final renderer = TypeTheWordRenderer();
-    final interaction = Interaction.typeTheWord(
+    const interaction = Interaction.typeTheWord(
       id: 'ttw-2',
       audioAsset: 'w-test-audio',
       prompt: 'Type what you hear',

@@ -14,7 +14,7 @@ void main() {
   testWidgets('ReadingShortAnswer submits true for correct answer',
       (tester) async {
     final renderer = ReadingShortAnswerRenderer();
-    final interaction = Interaction.readingShortAnswer(
+    const interaction = Interaction.readingShortAnswer(
       id: 'rsa-1',
       prompt: 'What color is the sky?',
       expectedAnswer: 'Blue',
@@ -30,7 +30,7 @@ void main() {
   testWidgets('ReadingShortAnswer submits false for wrong answer',
       (tester) async {
     final renderer = ReadingShortAnswerRenderer();
-    final interaction = Interaction.readingShortAnswer(
+    const interaction = Interaction.readingShortAnswer(
       id: 'rsa-2',
       prompt: 'What color is the sky?',
       expectedAnswer: 'Blue',

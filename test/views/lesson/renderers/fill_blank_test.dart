@@ -13,7 +13,7 @@ void main() {
 
   testWidgets('FillBlank submits true for correct answer', (tester) async {
     final renderer = FillBlankRenderer();
-    final interaction = Interaction.fillBlank(
+    const interaction = Interaction.fillBlank(
       id: 'fb-1',
       sentence: 'My name _____ John.',
       answer: 'is',
@@ -28,7 +28,7 @@ void main() {
 
   testWidgets('FillBlank submits false for wrong answer', (tester) async {
     final renderer = FillBlankRenderer();
-    final interaction = Interaction.fillBlank(
+    const interaction = Interaction.fillBlank(
       id: 'fb-2',
       sentence: 'My name _____ John.',
       answer: 'is',

@@ -14,7 +14,7 @@ void main() {
   testWidgets('TranslateSentence submits true for correct translation',
       (tester) async {
     final renderer = TranslateSentenceRenderer();
-    final interaction = Interaction.translateSentence(
+    const interaction = Interaction.translateSentence(
       id: 'ts-1',
       source: 'Habari',
       expected: 'Hello',
@@ -30,7 +30,7 @@ void main() {
   testWidgets('TranslateSentence submits false for wrong translation',
       (tester) async {
     final renderer = TranslateSentenceRenderer();
-    final interaction = Interaction.translateSentence(
+    const interaction = Interaction.translateSentence(
       id: 'ts-2',
       source: 'Habari',
       expected: 'Hello',

@@ -13,10 +13,10 @@ void main() {
 
   testWidgets('MultipleChoice submits true for correct option', (tester) async {
     final renderer = MultipleChoiceRenderer();
-    final interaction = Interaction.multipleChoice(
+    const interaction = Interaction.multipleChoice(
       id: 'mcq-1',
       prompt: 'Choose A',
-      options: const ['A', 'B'],
+      options: ['A', 'B'],
       correctIndex: 0,
     );
 
@@ -29,10 +29,10 @@ void main() {
 
   testWidgets('MultipleChoice submits false for wrong option', (tester) async {
     final renderer = MultipleChoiceRenderer();
-    final interaction = Interaction.multipleChoice(
+    const interaction = Interaction.multipleChoice(
       id: 'mcq-2',
       prompt: 'Choose A',
-      options: const ['A', 'B'],
+      options: ['A', 'B'],
       correctIndex: 0,
     );
 

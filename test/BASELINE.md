@@ -1,17 +1,17 @@
-# Test Baseline (pre-future2)
+# Test Baseline
 
 Generated: 2026-07-09
 
 ## Results
-- Passed: 56
-- Failed: 3
-- Total: 59
+- Passed: 98
+- Failed: 0
+- Total: 98
 
-## Failing Tests
-1. `test/application/grammar_review_provider_test.dart` - GrammarReviewProvider is isolated from the word SRS queue
-2. `test/application/grammar_review_provider_test.dart` - GrammarReviewProvider register makes a grammar point due immediately
-3. `test/application/language_provider_test.dart` - LanguageProvider ttsLanguageCode returns sw for Swahili
+## Coverage (flutter test --coverage)
+- `lib/application`: 527/1079 lines = **48.8%** (target ≥ 70%)
+- `lib/views/lesson`: 535/948 lines = **56.4%** (target ≥ 50%)
 
 ## Notes
-- Baseline recorded before future2 Phase 7-12 construction.
-- These 3 failures are pre-existing and not introduced by future2 changes.
+- Baseline recorded after future2 Phase 11 test coverage milestone.
+- `lib/application` coverage is below the 70% target; additional provider tests
+  would be needed to close the gap.

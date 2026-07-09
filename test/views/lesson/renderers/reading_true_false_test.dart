@@ -14,7 +14,7 @@ void main() {
   testWidgets('ReadingTrueFalse submits true for correct answer',
       (tester) async {
     final renderer = ReadingTrueFalseRenderer();
-    final interaction = Interaction.readingTrueFalse(
+    const interaction = Interaction.readingTrueFalse(
       id: 'rtf-1',
       statement: 'The sky is blue.',
       answer: true,
@@ -30,7 +30,7 @@ void main() {
   testWidgets('ReadingTrueFalse submits false for wrong answer',
       (tester) async {
     final renderer = ReadingTrueFalseRenderer();
-    final interaction = Interaction.readingTrueFalse(
+    const interaction = Interaction.readingTrueFalse(
       id: 'rtf-2',
       statement: 'The sky is blue.',
       answer: true,

@@ -13,10 +13,10 @@ void main() {
 
   testWidgets('ReadingMcq submits true for correct option', (tester) async {
     final renderer = ReadingMcqRenderer();
-    final interaction = Interaction.readingMcq(
+    const interaction = Interaction.readingMcq(
       id: 'rmcq-1',
       prompt: 'What is the answer?',
-      options: const ['A', 'B'],
+      options: ['A', 'B'],
       correctIndex: 0,
     );
 
@@ -29,10 +29,10 @@ void main() {
 
   testWidgets('ReadingMcq submits false for wrong option', (tester) async {
     final renderer = ReadingMcqRenderer();
-    final interaction = Interaction.readingMcq(
+    const interaction = Interaction.readingMcq(
       id: 'rmcq-2',
       prompt: 'What is the answer?',
-      options: const ['A', 'B'],
+      options: ['A', 'B'],
       correctIndex: 0,
     );
 
