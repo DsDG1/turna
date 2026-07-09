@@ -2,10 +2,11 @@
 import 'dart:convert';
 
 // Package imports:
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' hide Expression;
 
 // Project imports:
 import 'package:words625/data/course_database.dart' as db;
+import 'package:words625/domain/course/expression.dart';
 import 'package:words625/domain/course/grammar_point.dart';
 import 'package:words625/domain/course/interaction.dart';
 import 'package:words625/domain/course/lesson.dart';
@@ -76,6 +77,20 @@ class CourseRepository {
     return row == null ? null : _toGrammarPoint(row);
   }
 
+  /// All expressions / phrases.
+  Future<List<Expression>> expressions() async {
+    final rows = await database.select(database.expressions).get();
+    return [for (final r in rows) _toExpression(r)];
+  }
+
+  /// A single expression by id, or `null` if unknown.
+  Future<Expression?> expressionById(String id) async {
+    final row = await (database.select(database.expressions)
+          ..where((t) => t.id.equals(id)))
+        .getSingleOrNull();
+    return row == null ? null : _toExpression(row);
+  }
+
   GrammarPoint _toGrammarPoint(db.GrammarPoint row) {
     return GrammarPoint(
       id: row.id,
@@ -84,6 +99,17 @@ class CourseRepository {
       exampleExpressionIds: _decodeStringList(row.exampleExpressionIds),
       exampleSentenceIds: _decodeStringList(row.exampleSentenceIds),
       practiceItems: _decodePracticeItems(row.practiceItems),
+    );
+  }
+
+  Expression _toExpression(db.ExpressionEntry row) {
+    return Expression(
+      id: row.id,
+      term: row.term,
+      translation: row.translation,
+      pronunciation: row.pronunciation,
+      audioAsset: row.audioAsset,
+      tags: _decodeStringList(row.tags),
     );
   }
 

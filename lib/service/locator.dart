@@ -12,6 +12,7 @@ import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 
 // Project imports:
 import 'package:words625/core/logger.dart';
+import 'package:words625/courses/languages/expressions.dart';
 import 'package:words625/courses/languages/grammar_points.dart';
 import 'package:words625/courses/languages/kannada_vocab.dart';
 import 'package:words625/data/course_database.dart';
@@ -162,6 +163,10 @@ Future<void> setupLocator() async {
   // Pre-load grammar points so [swahiliGrammarPointById] is populated before
   // the grammar review screen renders.
   await loadSwahiliGrammarPoints();
+
+  // Pre-load expressions so [swahiliExpressionsById] is populated before any
+  // expression review cards are rendered.
+  await loadSwahiliExpressions();
 }
 
 /// Opens the on-device course database and seeds it from the bundled JSON
