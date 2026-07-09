@@ -36,8 +36,11 @@ class DatabaseSeeder {
     final existingSections = await (db.select(db.sections)..limit(1)).get();
     final existingGrammar =
         await (db.select(db.grammarPoints)..limit(1)).get();
+    final existingExpressions = await (db.select(db.expressions)..limit(1)).get();
 
-    final empty = existingSections.isEmpty || existingGrammar.isEmpty;
+    final empty = existingSections.isEmpty ||
+        existingGrammar.isEmpty ||
+        existingExpressions.isEmpty;
     final versionMismatch =
         storedVersion == null || storedVersion != assetVersion;
 
@@ -56,6 +59,7 @@ class DatabaseSeeder {
     await _seed(
       seedSections: true,
       seedGrammar: true,
+      seedExpressions: true,
     );
     await _writeMeta(metaContentVersion, assetVersion);
     SwahiliCourse.invalidateCaches();
@@ -89,6 +93,7 @@ class DatabaseSeeder {
       await db.delete(db.sections).go();
       await db.delete(db.vocabulary).go();
       await db.delete(db.grammarPoints).go();
+      await db.delete(db.expressions).go();
       // Keep courseMeta until we rewrite version after seed.
     });
   }
@@ -96,12 +101,16 @@ class DatabaseSeeder {
   Future<void> _seed({
     required bool seedSections,
     required bool seedGrammar,
+    required bool seedExpressions,
   }) async {
     if (seedSections) {
       await _seedSections();
     }
     if (seedGrammar) {
       await _seedGrammarPoints();
+    }
+    if (seedExpressions) {
+      await _seedExpressions();
     }
   }
 
@@ -218,5 +227,28 @@ class DatabaseSeeder {
     });
 
     logger.i('Seeded grammar points: ${points.length}');
+  }
+
+  Future<void> _seedExpressions() async {
+    final raw = await rootBundle.loadString(SwahiliCourse.expressionsAsset);
+    final expressions = parseSwahiliExpressions(raw);
+
+    await db.batch((b) {
+      for (final e in expressions) {
+        b.insert(
+          db.expressions,
+          ExpressionsCompanion(
+            id: Value(e.id),
+            term: Value(e.term),
+            translation: Value(e.translation),
+            pronunciation: Value(e.pronunciation),
+            audioAsset: Value(e.audioAsset),
+            tags: Value(jsonEncode(e.tags)),
+          ),
+        );
+      }
+    });
+
+    logger.i('Seeded expressions: ${expressions.length}');
   }
 }

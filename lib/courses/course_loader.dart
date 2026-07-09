@@ -6,9 +6,16 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 // Project imports:
 import 'package:words625/courses/course_validator.dart';
 import 'package:words625/data/course_database.dart'
-    hide Section, Unit, Lesson, LessonContent, Vocabulary, GrammarPoint;
+    hide
+        Section,
+        Unit,
+        Lesson,
+        LessonContent,
+        Vocabulary,
+        GrammarPoint;
 import 'package:words625/data/course_repository.dart';
 import 'package:words625/di/injection.dart';
+import 'package:words625/domain/course/expression.dart';
 import 'package:words625/domain/course/grammar_point.dart';
 import 'package:words625/domain/course/lesson.dart';
 import 'package:words625/domain/course/section.dart';
@@ -45,6 +52,10 @@ class SwahiliCourse {
   final List<GrammarPoint> grammarPoints;
   final Map<String, GrammarPoint> grammarPointsById;
 
+  /// Expressions / phrases loaded at startup for the expression SRS queue.
+  final List<Expression> expressions;
+  final Map<String, Expression> expressionsById;
+
   const SwahiliCourse({
     required this.sectionShells,
     required this.vocabulary,
@@ -52,6 +63,8 @@ class SwahiliCourse {
     required this.vocabularyByTranslation,
     required this.grammarPoints,
     required this.grammarPointsById,
+    required this.expressions,
+    required this.expressionsById,
   });
 
   /// Directory holding the seed JSON assets (index + per-section files +
@@ -68,6 +81,9 @@ class SwahiliCourse {
 
   /// Grammar points (seed source).
   static const String grammarPointsAsset = '$baseDir/grammar_points.json';
+
+  /// Expressions / phrases (seed source).
+  static const String expressionsAsset = '$baseDir/expressions.json';
 
   /// Cached in-flight / completed load of the index + vocabulary so they are
   /// read once per process even though both [loadSwahiliVocabulary] (startup)
@@ -128,6 +144,7 @@ class SwahiliCourse {
     final shells = await repo.sectionShells();
     final vocab = await repo.vocabulary();
     final grammar = await repo.grammarPoints();
+    final expressions = await repo.expressions();
     _vocabIdSet = {for (final w in vocab) w.id};
     return SwahiliCourse(
       sectionShells: shells,
@@ -138,6 +155,8 @@ class SwahiliCourse {
       },
       grammarPoints: grammar,
       grammarPointsById: {for (final g in grammar) g.id: g},
+      expressions: expressions,
+      expressionsById: {for (final e in expressions) e.id: e},
     );
   }
 
@@ -264,5 +283,15 @@ List<GrammarPoint> parseSwahiliGrammarPoints(String raw) {
   final points = json['grammarPoints'] as List<dynamic>;
   return points
       .map((e) => GrammarPoint.fromJson(e as Map<String, dynamic>))
+      .toList(growable: false);
+}
+
+/// Parse a list of [Expression]s from a JSON string. Used by
+/// [DatabaseSeeder] and tests. Visible for testing.
+List<Expression> parseSwahiliExpressions(String raw) {
+  final json = jsonDecode(raw) as Map<String, dynamic>;
+  final expressions = (json['expressions'] as List<dynamic>?) ?? [];
+  return expressions
+      .map((e) => Expression.fromJson(e as Map<String, dynamic>))
       .toList(growable: false);
 }
