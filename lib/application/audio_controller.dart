@@ -16,8 +16,8 @@ import 'package:words625/gen/assets.gen.dart';
 
 @lazySingleton
 class AudioController {
-  final AudioPlayer _audioPlayer = AudioPlayer();
-  final AudioPlayer _speechPlayer = AudioPlayer();
+  final AudioPlayer _audioPlayer;
+  final AudioPlayer _speechPlayer;
   final FlutterTts _tts;
   final LanguageProvider _languageProvider;
   final Random _random = Random();
@@ -26,7 +26,13 @@ class AudioController {
   double get ttsSpeed => _ttsSpeed;
   String? _lastTtsLanguage;
 
-  AudioController(this._tts, this._languageProvider);
+  AudioController(
+    this._tts,
+    this._languageProvider, {
+    AudioPlayer? audioPlayer,
+    AudioPlayer? speechPlayer,
+  })  : _audioPlayer = audioPlayer ?? AudioPlayer(),
+        _speechPlayer = speechPlayer ?? AudioPlayer();
 
   // List of error sound assets
   final List<String> _errorSounds = [
