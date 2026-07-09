@@ -27,6 +27,7 @@
 - **TTS 引擎**：`AudioController` 统一接管 TTS 调用，按 `TargetLanguage.ttsLanguageCode` 切语言；离线音频 fallback 接口已就位。
 - **暗色 / 亮色主题**：`VarnamalaTheme` 语义化颜色 + `ThemeProvider` 持久化。
 - **学习统计仪表盘**：90 天 `StudyLog` 滚动 + 7 日 XP 趋势 + 总时长 / 准确率 / 课数 / 复习数。
+- **课程树加载状态**：显式 `SectionLoadState` + 错误重试 UI，避免 section body 加载失败时显示灰色空白页。
 - **Match Madness 单词配对小游戏**。
 
 ## 已明确**不**做的事（防 scope creep）
