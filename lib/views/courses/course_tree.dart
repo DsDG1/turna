@@ -67,12 +67,23 @@ class _CourseTreeState extends State<CourseTree> {
     if (section == null) {
       return _buildEmptyMessage();
     }
+
+    final loadState = courseState.sectionLoadState(section.id);
+
+    if (loadState == SectionLoadState.loading ||
+        loadState == SectionLoadState.initial) {
+      return const Center(child: _LoadingIndicator());
+    }
+
+    if (loadState == SectionLoadState.error) {
+      return _buildErrorMessage(
+        context,
+        error: courseState.sectionLoadError(section.id),
+        onRetry: () => courseState.reloadSection(section.id),
+      );
+    }
+
     if (section.units.isEmpty) {
-      // Shell not yet loaded: show a spinner while the body is fetching, or
-      // the empty state if the load finished with no units.
-      if (courseState.isCurrentSectionLoading) {
-        return const Center(child: _LoadingIndicator());
-      }
       return _buildEmptyMessage();
     }
 
@@ -128,6 +139,68 @@ class _CourseTreeState extends State<CourseTree> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildErrorMessage(
+    BuildContext context, {
+    required Object? error,
+    required VoidCallback onRetry,
+  }) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline_rounded,
+              size: 56,
+              color: VarnamalaTheme.error.withValues(alpha: 0.8),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Could not load section',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: VarnamalaTheme.textPrimary,
+                  ),
+            ),
+            if (error != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                error.toString(),
+                textAlign: TextAlign.center,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: VarnamalaTheme.textSecondary,
+                    ),
+              ),
+            ],
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Retry'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: VarnamalaTheme.peacockTeal,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(
+                    VarnamalaTheme.radiusMedium,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

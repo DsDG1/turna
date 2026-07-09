@@ -7,10 +7,17 @@ import 'package:injectable/injectable.dart';
 // Project imports:
 import 'package:words625/core/logger.dart';
 import 'package:words625/courses/course_loader.dart';
-import 'package:words625/courses/languages/kannada.dart';
+import 'package:words625/courses/languages/swahili.dart';
 import 'package:words625/domain/course/section.dart';
 import 'package:words625/domain/course/unit.dart';
 import 'package:words625/domain/course/lesson.dart';
+
+/// Explicit state for per-section body loading.
+///
+/// Used by [CourseProvider] and consumed by [CourseTree] to decide whether
+/// to show a spinner, the loaded content, an error retry button, or the empty
+/// state.
+enum SectionLoadState { initial, loading, loaded, error }
 
 /// State holder for the loaded course tree and the user's current
 /// selection within it. All selection is keyed by stable `String` ids so
@@ -40,12 +47,20 @@ class CourseProvider extends ChangeNotifier {
   final Map<String, Lesson> _lessonCache = {};
 
   /// In-flight body loads keyed by section id (coalesces concurrent callers).
+  /// The presence of a future only means a load was started; the authoritative
+  /// state is tracked in [_sectionLoadStates].
   final Map<String, Future<void>> _sectionLoadFutures = {};
+
+  /// Authoritative load state for each section body.
+  final Map<String, SectionLoadState> _sectionLoadStates = {};
+
+  /// Last error for each section body load, keyed by section id.
+  final Map<String, Object> _sectionLoadErrors = {};
 
   /// True while the current section's body is being fetched on demand.
   bool get _currentSectionLoading =>
       _currentSectionId != null &&
-      _sectionLoadFutures.containsKey(_currentSectionId);
+      _sectionLoadStates[_currentSectionId] == SectionLoadState.loading;
 
   /// Immutable view of the section shells (and any loaded bodies). Order is
   /// the on-disk order. Shells have empty `units` until loaded.
@@ -65,7 +80,15 @@ class CourseProvider extends ChangeNotifier {
   bool get isCurrentSectionLoading => _currentSectionLoading;
 
   /// Whether [id] is currently loading.
-  bool isSectionLoading(String id) => _sectionLoadFutures.containsKey(id);
+  bool isSectionLoading(String id) =>
+      _sectionLoadStates[id] == SectionLoadState.loading;
+
+  /// The load state for [id]. Defaults to [SectionLoadState.initial].
+  SectionLoadState sectionLoadState(String id) =>
+      _sectionLoadStates[id] ?? SectionLoadState.initial;
+
+  /// The last error encountered while loading [id], or `null` if none.
+  Object? sectionLoadError(String id) => _sectionLoadErrors[id];
 
   Section? get currentSection {
     if (_currentSectionId == null) return null;
@@ -148,6 +171,12 @@ class CourseProvider extends ChangeNotifier {
     _selectedUnitId = null;
     _selectedLessonId = null;
     _isLoaded = true;
+    for (final section in _sections) {
+      _sectionLoadStates.putIfAbsent(
+        section.id,
+        () => SectionLoadState.initial,
+      );
+    }
     notifyListeners();
     if (_currentSectionId != null) {
       await ensureSectionLoaded(_currentSectionId!);
@@ -156,18 +185,21 @@ class CourseProvider extends ChangeNotifier {
 
   /// Ensure the section's full body (units/lessons) is loaded and replace
   /// its shell with the populated [Section]. Cached per id via
-  /// [SwahiliCourse.loadSection]; concurrent calls coalesce. Sets
-  /// [isCurrentSectionLoading] while fetching (the caller is responsible for
-  /// the section being the current one when relying on that flag).
+  /// [SwahiliCourse.loadSection]; concurrent calls coalesce.
+  ///
+  /// The load outcome is reflected in [sectionLoadState] and
+  /// [sectionLoadError] so the UI can show loading / error / content states
+  /// instead of falling back to a blank or gray empty state.
   Future<void> ensureSectionLoaded(String id) async {
     if (_loadedSectionIds.contains(id)) {
-      logger.i('CourseProvider.ensureSectionLoaded($id): already loaded');
+      _sectionLoadStates[id] = SectionLoadState.loaded;
       return;
     }
     if (findSectionById(id) == null) {
-      logger.w(
-        'CourseProvider.ensureSectionLoaded($id): section not in index',
-      );
+      logger.w('CourseProvider.ensureSectionLoaded($id): section not in index');
+      _sectionLoadStates[id] = SectionLoadState.error;
+      _sectionLoadErrors[id] = StateError('Section $id not found in index');
+      notifyListeners();
       return;
     }
     final inFlight = _sectionLoadFutures[id];
@@ -175,6 +207,8 @@ class CourseProvider extends ChangeNotifier {
 
     final future = () async {
       logger.i('CourseProvider.ensureSectionLoaded($id): starting fetch');
+      _sectionLoadStates[id] = SectionLoadState.loading;
+      _sectionLoadErrors.remove(id);
       notifyListeners();
       try {
         final full = await SwahiliCourse.loadSection(id);
@@ -184,10 +218,19 @@ class CourseProvider extends ChangeNotifier {
         );
         _replaceSection(full);
         _loadedSectionIds.add(id);
+        _sectionLoadStates[id] = SectionLoadState.loaded;
+      } catch (e, st) {
+        logger.e(
+          'CourseProvider.ensureSectionLoaded($id) failed',
+          error: e,
+          stackTrace: st,
+        );
+        _sectionLoadStates[id] = SectionLoadState.error;
+        _sectionLoadErrors[id] = e;
       } finally {
         _sectionLoadFutures.remove(id);
-        notifyListeners();
       }
+      notifyListeners();
     }();
     _sectionLoadFutures[id] = future;
     return future;
@@ -207,6 +250,16 @@ class CourseProvider extends ChangeNotifier {
         return;
       }
     }
+  }
+
+  /// Clear any cached error/state for [id] and reload its body from scratch.
+  Future<void> reloadSection(String id) async {
+    _loadedSectionIds.remove(id);
+    _sectionLoadFutures.remove(id);
+    _sectionLoadErrors.remove(id);
+    _sectionLoadStates[id] = SectionLoadState.initial;
+    notifyListeners();
+    await ensureSectionLoaded(id);
   }
 
   // --- Selection (all id-based, so middle-of-tree inserts are safe) ---

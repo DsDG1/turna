@@ -139,5 +139,29 @@ void main() {
           reason: 'third load() must not reset the body for the switched-to '
               'section');
     });
+
+    test('ensureSectionLoaded reports error for unknown section id', () async {
+      await provider.load();
+      const unknownId = 's-does-not-exist';
+
+      await provider.ensureSectionLoaded(unknownId);
+
+      expect(provider.sectionLoadState(unknownId), SectionLoadState.error);
+      expect(provider.sectionLoadError(unknownId), isNotNull);
+      expect(provider.findSectionById(unknownId), isNull);
+    });
+
+    test('reloadSection resets state and retries loading', () async {
+      await provider.load();
+      final sectionId = provider.currentSectionId!;
+      final unitsBefore = provider.currentSection!.units.length;
+      expect(unitsBefore, greaterThan(0));
+      expect(provider.sectionLoadState(sectionId), SectionLoadState.loaded);
+
+      await provider.reloadSection(sectionId);
+
+      expect(provider.sectionLoadState(sectionId), SectionLoadState.loaded);
+      expect(provider.currentSection!.units.length, unitsBefore);
+    });
   });
 }
