@@ -20,10 +20,8 @@ class LanguageProvider extends ChangeNotifier {
   String get ttsLanguageCode {
     switch (selectedLanguage) {
       case TargetLanguage.swahili:
-        // Current vocab.json still holds Kannada words; use 'kn' so TTS can
-        // actually pronounce them. Switch back to 'sw' once real Swahili
-        // vocabulary replaces the Kannada placeholder data.
-        return 'kn';
+        // See docs/decisions/0001-tts-language-code.md
+        return 'sw';
     }
   }
 
