@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
+import 'package:words625/application/gems_provider.dart';
+import 'package:words625/di/injection.dart';
 import 'package:words625/domain/achievement.dart';
 import 'package:words625/service/locator.dart';
 
@@ -92,14 +94,21 @@ class AchievementsProvider extends ChangeNotifier {
     final unlocked = _readList().toSet();
     if (!unlocked.add(achievementId)) return false;
 
-    final currentGems = _readInt(LocalStateKeys.gems, 0);
-    await Future.wait([
-      appPrefs.preferences.setStringList(
-        LocalStateKeys.achievements,
-        unlocked.toList(growable: false),
-      ),
-      appPrefs.preferences.setInt(LocalStateKeys.gems, currentGems + 50),
-    ]);
+    await appPrefs.preferences.setStringList(
+      LocalStateKeys.achievements,
+      unlocked.toList(growable: false),
+    );
+
+    // Route gem bonus through [GemsProvider] so there is a single writer for
+    // [LocalStateKeys.gems] (avoids clobber races with earnGems / addGems).
+    if (getIt.isRegistered<GemsProvider>()) {
+      await getIt<GemsProvider>().addGems(50);
+    } else {
+      // Fallback (e.g. unit tests that don't register GemsProvider) — direct
+      // write so the test path still records the unlock value.
+      final currentGems = _readInt(LocalStateKeys.gems, 0);
+      await appPrefs.preferences.setInt(LocalStateKeys.gems, currentGems + 50);
+    }
 
     _achievementsController.add(unlocked.toList(growable: false));
     notifyListeners();

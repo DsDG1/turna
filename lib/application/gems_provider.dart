@@ -32,6 +32,12 @@ class GemsProvider extends ChangeNotifier {
   final StreamController<int> _gemsController =
       StreamController<int>.broadcast();
 
+  /// Serializes mutating gem writes so concurrent callers don't race on the
+  /// read-modify-write cycle for [LocalStateKeys.gems]. Achievement unlocks,
+  /// lesson-complete rewards, and review-session rewards all funnel through
+  /// here.
+  Future<void> _writeChain = Future.value();
+
   GemsProvider(this.appPrefs);
 
   Stream<int> getGemsStream() async* {
@@ -48,13 +54,28 @@ class GemsProvider extends ChangeNotifier {
   }
 
   /// Single writer entry for gem balance (achievement unlocks, spends, etc.).
+  /// Concurrent [addGems] calls chain via [_writeChain] so two simultaneous
+  /// `+10` writes cannot lose a delta to a clobbering last-write-wins race.
   Future<void> addGems(int amount) async {
     if (amount == 0) return;
-    final current = _readInt(LocalStateKeys.gems, 0);
-    final next = current + amount;
-    await appPrefs.preferences.setInt(LocalStateKeys.gems, next);
-    _emit(next);
-    notifyListeners();
+    await _enqueueWrite(() async {
+      final current = _readInt(LocalStateKeys.gems, 0);
+      final next = current + amount;
+      await appPrefs.preferences.setInt(LocalStateKeys.gems, next);
+      _emit(next);
+      notifyListeners();
+    });
+  }
+
+  Future<void> _enqueueWrite(Future<void> Function() op) {
+    _writeChain = _writeChain.then((_) => op()).catchError((Object e) {
+      assert(() {
+        // ignore: avoid_print
+        print('GemsProvider write failed: $e');
+        return true;
+      }());
+    });
+    return _writeChain;
   }
 
   int _readInt(String key, int fallback) =>

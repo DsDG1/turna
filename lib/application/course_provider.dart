@@ -199,16 +199,53 @@ class CourseProvider extends ChangeNotifier {
     ensureSectionLoaded(id);
   }
 
-  void selectUnit(String id) {
-    if (findUnitById(id) == null) return;
+  /// Select a unit by id. If the unit lives in a not-yet-loaded section,
+  /// we eagerly load that section first so deep links / router restores
+  /// work without a manual [switchToSection] call. Returns a [Future] that
+  /// completes when both the section body and selection are applied; for
+  /// already-loaded sections it completes on the next microtask.
+  Future<void> selectUnit(String id) async {
+    if (findUnitById(id) != null) {
+      _selectUnitInternal(id);
+      return;
+    }
+    // Try to find the owning section by loading bodies lazily. We don't
+    // know which section the id belongs to without scanning — so we issue
+    // `ensureSectionLoaded` on every section whose body we don't yet have
+    // and then re-check. This is one-shot per section per session.
+    final unfetched = _sections
+        .map((s) => s.id)
+        .where((sid) => !_loadedSectionIds.contains(sid))
+        .toList();
+    if (unfetched.isEmpty) return; // not present at all.
+    await Future.wait(unfetched.map(ensureSectionLoaded));
+    if (findUnitById(id) != null) {
+      _selectUnitInternal(id);
+    }
+  }
+
+  void _selectUnitInternal(String id) {
     _selectedUnitId = id;
     _selectedLessonId = null;
     notifyListeners();
   }
 
-  void selectLesson(String id) {
-    if (findLessonById(id) == null) return;
-    _selectedLessonId = id;
-    notifyListeners();
+  /// Select a lesson by id with the same eager-load behavior as [selectUnit].
+  Future<void> selectLesson(String id) async {
+    if (findLessonById(id) != null) {
+      _selectedLessonId = id;
+      notifyListeners();
+      return;
+    }
+    final unfetched = _sections
+        .map((s) => s.id)
+        .where((sid) => !_loadedSectionIds.contains(sid))
+        .toList();
+    if (unfetched.isEmpty) return;
+    await Future.wait(unfetched.map(ensureSectionLoaded));
+    if (findLessonById(id) != null) {
+      _selectedLessonId = id;
+      notifyListeners();
+    }
   }
 }

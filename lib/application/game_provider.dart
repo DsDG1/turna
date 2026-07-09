@@ -171,6 +171,7 @@ class GameProvider extends ChangeNotifier {
     );
 
     final newScore = score + xp;
+    final deltaXp = newScore - score;
 
     final achievements = _readStringList(LocalStateKeys.achievements, const [])
         .toSet();
@@ -209,7 +210,7 @@ class GameProvider extends ChangeNotifier {
 
     if (notify) notifyListeners();
     _emitState();
-    return 0;
+    return deltaXp;
   }
 
   /// Route gem deltas through [GemsProvider] (single writer for gems key).

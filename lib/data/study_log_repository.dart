@@ -19,14 +19,21 @@ class StudyLogRepository {
   static const String _dailyStatsKey = 'study.dailyStats';
   static const int _maxLogDays = 90;
 
+  /// Serializes mutating writes (appendLog / clearAll) so concurrent callers
+  /// don't race on the read-modify-write cycle for [_dailyStatsKey]. Inspired
+  /// by [LessonLinkStore._writeChain].
+  Future<void> _writeChain = Future.value();
+
   StudyLogRepository(this.appPrefs);
 
   Future<void> appendLog(StudyLog log) async {
-    final logs = await _readLogs();
-    logs.add(log);
-    _purgeOldLogs(logs);
-    await _writeLogs(logs);
-    await _updateDailyStats(log);
+    await _enqueueWrite(() async {
+      final logs = await _readLogs();
+      logs.add(log);
+      _purgeOldLogs(logs);
+      await _writeLogs(logs);
+      await _updateDailyStats(log);
+    });
   }
 
   Future<List<StudyLog>> readLogs({
@@ -75,11 +82,28 @@ class StudyLogRepository {
   }
 
   Future<void> clearAll() async {
-    await appPrefs.preferences.setString(_logsKey, '[]');
-    await appPrefs.preferences.setString(_dailyStatsKey, '{}');
+    await _enqueueWrite(() async {
+      await appPrefs.preferences.setString(_logsKey, '[]');
+      await appPrefs.preferences.setString(_dailyStatsKey, '{}');
+    });
   }
 
   // --- internal ---
+
+  /// Chain a mutating write so they execute in submission order. Errors in
+  /// one op don't break subsequent writes — they just get logged.
+  Future<void> _enqueueWrite(Future<void> Function() op) {
+    _writeChain = _writeChain.then((_) => op()).catchError((Object e) {
+      // Ignore: error here means a subsequent read will see stale stats,
+      // but the next appendLog will repaint from the latest prefs read.
+      assert(() {
+        // ignore: avoid_print
+        print('StudyLogRepository write failed: $e');
+        return true;
+      }());
+    });
+    return _writeChain;
+  }
 
   Future<List<StudyLog>> _readLogs() async {
     final raw = appPrefs.preferences
