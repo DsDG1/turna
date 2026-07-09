@@ -142,15 +142,18 @@ class GrammarReviewProvider extends ChangeNotifier {
   int get totalRegistered => state.length;
 
   Future<void> _persist(Map<String, SrsWord> map) async {
+    // Update in-memory cache immediately so synchronous callers (and tests)
+    // see the new state before the async write finishes.
+    _cachedState = map;
+    _cachedDueWords = null;
+    _cachedDueAt = null;
+    notifyListeners();
+
     final encoded = jsonEncode(
       map.map((k, v) => MapEntry(k, v.toJson())),
     );
     await appPrefs.preferences
         .setString(LocalStateKeys.grammarReviewState, encoded);
-    _cachedState = map;
-    _cachedDueWords = null;
-    _cachedDueAt = null;
-    notifyListeners();
   }
 
 }
