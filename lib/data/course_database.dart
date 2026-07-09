@@ -148,9 +148,17 @@ class CourseDatabase extends _$CourseDatabase {
         onCreate: (m) async => await m.createAll(),
         onUpgrade: (m, from, to) async {
           if (from < 2) {
-            // v2: grammar points table. Rows are seeded by [DatabaseSeeder]
-            // (seedIfEmpty checks grammar_points independently of sections).
-            await m.createTable(grammarPoints);
+            // v2: grammar points table without practiceItems (added in v3).
+            // Use raw SQL so the v3 addColumn step is always meaningful.
+            await m.database.customStatement('''
+              CREATE TABLE IF NOT EXISTS grammar_points (
+                id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                explanation TEXT NOT NULL DEFAULT '',
+                example_expression_ids TEXT NOT NULL DEFAULT '[]',
+                example_sentence_ids TEXT NOT NULL DEFAULT '[]'
+              )
+            ''');
           }
           if (from < 3) {
             // v3: practice drills on grammar points (JSON Interaction list).

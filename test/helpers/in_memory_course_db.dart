@@ -21,7 +21,9 @@ import 'package:words625/data/course_database_seeder.dart';
 
 bool _sqliteOverrideApplied = false;
 
-void _ensureSqliteLibForTestHost() {
+/// Ensures sqlite3 loads on Linux test hosts where the unversioned
+/// `libsqlite3.so` is missing. Safe to call multiple times.
+void ensureSqliteLibForTestHost() {
   if (_sqliteOverrideApplied) return;
   if (!Platform.isLinux) {
     _sqliteOverrideApplied = true;
@@ -43,7 +45,7 @@ void _ensureSqliteLibForTestHost() {
 /// the static loader resolves to this DB. Returns the DB for direct queries.
 Future<CourseDatabase> seedInMemoryCourseDb() async {
   TestWidgetsFlutterBinding.ensureInitialized();
-  _ensureSqliteLibForTestHost();
+  ensureSqliteLibForTestHost();
   final db = CourseDatabase(NativeDatabase.memory());
   await DatabaseSeeder(db).seedIfEmpty();
   SwahiliCourse.overrideDatabase(() => db);
