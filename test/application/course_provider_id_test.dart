@@ -93,5 +93,51 @@ void main() {
       provider.selectLesson('l-does-not-exist');
       expect(provider.selectedLessonId, isNull);
     });
+
+    // Regression: CourseProvider.load() was previously unconditional, so a
+    // tab round-trip (AnimatedSwitcher rebuilt CourseTree from a new State,
+    // which fired its initState load() call) would re-assign `_sections`
+    // back to shells while `_loadedSectionIds` still claimed the section
+    // was loaded. The user saw a blank Course Tree. After the fix load()
+    // is idempotent (early-returns when `_isLoaded` is true), so the
+    // cached full bodies survive any number of re-entries.
+    test('load() called a second time leaves bodies intact (regression: tab-blank)',
+        () async {
+      await provider.load();
+      final firstSectionId = provider.currentSectionId;
+      final firstUnitsCount = provider.currentSection?.units.length ?? 0;
+      expect(firstUnitsCount, greaterThan(0),
+          reason: 'first load() should populate the current section body');
+
+      // Simulate what used to happen on a tab round-trip: a second load().
+      await provider.load();
+
+      expect(provider.isLoaded, isTrue);
+      expect(provider.currentSectionId, firstSectionId);
+      expect(provider.currentSection?.units.length ?? 0, firstUnitsCount,
+          reason: 'second load() must not reset the body to shells');
+    });
+
+    test('load() after switching sections still no-ops on second entry',
+        () async {
+      await provider.load();
+      // Move to a different section so the provider's currentSectionId
+      // changes — this exercises ensureSectionLoaded on a different id.
+      final other = provider.sections.last.id;
+      provider.switchToSection(other);
+      await provider.ensureSectionLoaded(other);
+
+      final otherUnitsCount = provider.findSectionById(other)?.units.length ?? 0;
+      expect(otherUnitsCount, greaterThan(0));
+
+      // Now a stray load() (e.g. from a tab round-trip firing the old
+      // initState code path before the fix lands in production) must be
+      // a no-op; the body for `other` must stay populated.
+      await provider.load();
+      expect(provider.findSectionById(other)?.units.length ?? 0,
+          otherUnitsCount,
+          reason: 'third load() must not reset the body for the switched-to '
+              'section');
+    });
   });
 }

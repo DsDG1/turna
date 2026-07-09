@@ -22,13 +22,11 @@ class CourseTree extends StatefulWidget {
 }
 
 class _CourseTreeState extends State<CourseTree> {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<CourseProvider>().load();
-    });
-  }
+  // CourseProvider.load() is called once at app startup (see main.dart).
+  // This widget is intentionally a pure consumer: it never triggers a data
+  // load on its own. If it did, a tab round-trip (AnimatedSwitcher swap)
+  // would rebuild this widget, re-fire initState, and reset the provider's
+  // cached bodies back to shells — the user would see a blank Course Tree.
 
   @override
   Widget build(BuildContext context) {

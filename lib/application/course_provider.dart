@@ -131,8 +131,18 @@ class CourseProvider extends ChangeNotifier {
 
   /// Load the Swahili course shells from the index and pre-load the first
   /// section's body so the course tree has something to show immediately.
+  ///
+  /// Idempotent: a second invocation while [_isLoaded] is already true is a
+  /// no-op. This was previously unconditional, which let widget rebuilds
+  /// (e.g. switching away from the Learn tab and back via [AnimatedSwitcher])
+  /// reset [_sections] back to shells while [_loadedSectionIds] still
+  /// claimed they were populated — the user saw a blank Course Tree.
   Future<void> load() async {
-    logger.w("Loading Swahili sections");
+    if (_isLoaded) {
+      logger.i('CourseProvider.load: already loaded, skipping re-entry');
+      return;
+    }
+    logger.w('CourseProvider.load: first load, fetching from DB');
     _sections = await loadSwahiliSectionShells();
     _currentSectionId = _sections.isNotEmpty ? _sections.first.id : null;
     _selectedUnitId = null;
@@ -150,15 +160,28 @@ class CourseProvider extends ChangeNotifier {
   /// [isCurrentSectionLoading] while fetching (the caller is responsible for
   /// the section being the current one when relying on that flag).
   Future<void> ensureSectionLoaded(String id) async {
-    if (_loadedSectionIds.contains(id)) return;
-    if (findSectionById(id) == null) return;
+    if (_loadedSectionIds.contains(id)) {
+      logger.i('CourseProvider.ensureSectionLoaded($id): already loaded');
+      return;
+    }
+    if (findSectionById(id) == null) {
+      logger.w(
+        'CourseProvider.ensureSectionLoaded($id): section not in index',
+      );
+      return;
+    }
     final inFlight = _sectionLoadFutures[id];
     if (inFlight != null) return inFlight;
 
     final future = () async {
+      logger.i('CourseProvider.ensureSectionLoaded($id): starting fetch');
       notifyListeners();
       try {
         final full = await SwahiliCourse.loadSection(id);
+        logger.i(
+          'CourseProvider.ensureSectionLoaded($id): body received, '
+          'replacing shell',
+        );
         _replaceSection(full);
         _loadedSectionIds.add(id);
       } finally {
