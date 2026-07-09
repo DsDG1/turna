@@ -12,8 +12,10 @@ import 'package:words625/application/gems_provider.dart';
 import 'package:words625/application/srs_provider.dart';
 import 'package:words625/application/study_stats_provider.dart';
 import 'package:words625/core/sm2.dart';
+import 'package:words625/courses/languages/expressions.dart';
 import 'package:words625/courses/languages/kannada_vocab.dart';
 import 'package:words625/di/injection.dart';
+import 'package:words625/domain/course/expression.dart';
 import 'package:words625/domain/course/srs_word.dart';
 import 'package:words625/domain/course/word_entry.dart';
 import 'package:words625/domain/study/study_log.dart';
@@ -47,7 +49,10 @@ class _SrsReviewPageState extends State<SrsReviewPage> {
   void _loadQueue() {
     final srs = context.read<SrsProvider>();
     setState(() {
-      _queue = srs.getDueWords();
+      final words = srs.getDueWords();
+      final expressions = srs.getDueExpressions();
+      _queue = [...words, ...expressions]
+        ..sort((a, b) => a.dueAt.compareTo(b.dueAt));
       _currentIndex = 0;
       _showAnswer = false;
       _sessionCount = 0;
@@ -109,7 +114,12 @@ class _SrsReviewPageState extends State<SrsReviewPage> {
     if (_queue.isEmpty || _currentIndex >= _queue.length) return;
 
     final word = _queue[_currentIndex];
-    await context.read<SrsProvider>().reviewWithQuality(word.wordId, quality);
+    final srs = context.read<SrsProvider>();
+    if (word.type == SrsItemType.expression) {
+      await srs.reviewExpression(word.wordId, quality.sm2);
+    } else {
+      await srs.reviewWithQuality(word.wordId, quality);
+    }
 
     final nextIndex = _currentIndex + 1;
     final nextCount = _sessionCount + 1;
@@ -155,12 +165,17 @@ class _SrsReviewPageState extends State<SrsReviewPage> {
         onDone: () => Navigator.of(context).pop(),
         onReviewMore: _loadQueue,
         title: 'Session Complete!',
-        completionMessage: 'You reviewed $_sessionCount words.',
+        completionMessage: 'You reviewed $_sessionCount items.',
       );
     }
 
     final word = _queue[_currentIndex];
-    final entry = swahiliVocabById[word.wordId];
+    final wordEntry = word.type == SrsItemType.word
+        ? swahiliVocabById[word.wordId]
+        : null;
+    final expression = word.type == SrsItemType.expression
+        ? swahiliExpressionsById[word.wordId]
+        : null;
 
     return Scaffold(
       backgroundColor: VarnamalaTheme.scaffoldBg(context),
@@ -197,10 +212,11 @@ class _SrsReviewPageState extends State<SrsReviewPage> {
               Expanded(
                 child: _FlashCard(
                   word: word,
-                  entry: entry,
+                  wordEntry: wordEntry,
+                  expression: expression,
                   showAnswer: _showAnswer,
                   onFlip: () => setState(() => _showAnswer = true),
-                  onSpeak: () => _speak(entry?.term ?? word.wordId),
+                  onSpeak: () => _speak(wordEntry?.term ?? expression?.term ?? word.wordId),
                 ),
               ),
               const SizedBox(height: 24),
@@ -243,18 +259,26 @@ class _SrsReviewPageState extends State<SrsReviewPage> {
 
 class _FlashCard extends StatelessWidget {
   final SrsWord word;
-  final WordEntry? entry;
+  final WordEntry? wordEntry;
+  final Expression? expression;
   final bool showAnswer;
   final VoidCallback onFlip;
   final VoidCallback onSpeak;
 
   const _FlashCard({
     required this.word,
-    required this.entry,
+    this.wordEntry,
+    this.expression,
     required this.showAnswer,
     required this.onFlip,
     required this.onSpeak,
   });
+
+  String get _term => wordEntry?.term ?? expression?.term ?? word.wordId;
+  String get _translation =>
+      wordEntry?.translation ?? expression?.translation ?? '';
+  String? get _pronunciation =>
+      wordEntry?.pronunciation ?? expression?.pronunciation;
 
   @override
   Widget build(BuildContext context) {
@@ -277,9 +301,9 @@ class _FlashCard extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            if (entry != null) ...[
+            if (wordEntry != null || expression != null) ...[
               Text(
-                entry!.term,
+                _term,
                 style: Theme.of(context).textTheme.displaySmall?.copyWith(
                       fontWeight: FontWeight.w800,
                       color: VarnamalaTheme.textPrimary,
@@ -298,17 +322,17 @@ class _FlashCard extends StatelessWidget {
                 const Divider(),
                 const SizedBox(height: 16),
                 Text(
-                  entry!.translation,
+                  _translation,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                         color: VarnamalaTheme.peacockTeal,
                       ),
                   textAlign: TextAlign.center,
                 ),
-                if (entry!.pronunciation?.isNotEmpty == true) ...[
+                if (_pronunciation?.isNotEmpty == true) ...[
                   const SizedBox(height: 8),
                   Text(
-                    '/${entry!.pronunciation}/',
+                    '/$_pronunciation/',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: VarnamalaTheme.textSecondary,
                         ),
@@ -317,7 +341,9 @@ class _FlashCard extends StatelessWidget {
                 const SizedBox(height: 16),
                 Consumer<SrsProvider>(
                   builder: (context, srs, _) {
-                    final lessonName = srs.getLessonNameForWord(word.wordId);
+                    final lessonName = word.type == SrsItemType.expression
+                        ? srs.getLessonNameForExpression(word.wordId)
+                        : srs.getLessonNameForWord(word.wordId);
                     return Text(
                       lessonName != null
                           ? 'Learned in: $lessonName'
@@ -345,7 +371,7 @@ class _FlashCard extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                'Vocabulary entry not found',
+                'Entry not found',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: VarnamalaTheme.textHint,
                     ),
