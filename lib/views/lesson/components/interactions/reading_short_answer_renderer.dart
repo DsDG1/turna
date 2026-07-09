@@ -1,0 +1,140 @@
+// Flutter imports:
+import 'package:flutter/material.dart';
+
+// Package imports:
+import 'package:injectable/injectable.dart';
+
+// Project imports:
+import 'package:words625/core/text_styles.dart';
+import 'package:words625/domain/course/interaction.dart';
+import 'package:words625/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:words625/views/theme.dart';
+
+/// Renderer for [Interaction.readingShortAnswer].
+///
+/// Renders a free-text answer field. The lesson screen renders the reading
+/// passage above and owns the post-submit Continue button.
+@injectable
+class ReadingShortAnswerRenderer extends InteractionRenderer {
+  @override
+  Type get handlesType => ReadingShortAnswer;
+
+  @override
+  Widget build(
+    Interaction interaction,
+    InteractionState state,
+    OnInteractionSubmit onSubmit,
+  ) {
+    final i = interaction as ReadingShortAnswer;
+    return _ReadingShortAnswerBody(
+      prompt: i.prompt,
+      expectedAnswer: i.expectedAnswer,
+      state: state,
+      onSubmit: onSubmit,
+    );
+  }
+}
+
+class _ReadingShortAnswerBody extends StatefulWidget {
+  final String prompt;
+  final String expectedAnswer;
+  final InteractionState state;
+  final OnInteractionSubmit onSubmit;
+
+  const _ReadingShortAnswerBody({
+    required this.prompt,
+    required this.expectedAnswer,
+    required this.state,
+    required this.onSubmit,
+  });
+
+  @override
+  State<_ReadingShortAnswerBody> createState() =>
+      _ReadingShortAnswerBodyState();
+}
+
+class _ReadingShortAnswerBodyState extends State<_ReadingShortAnswerBody> {
+  final TextEditingController _controller = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.state.submitted && widget.state.userAnswerText != null) {
+      _controller.text = widget.state.userAnswerText!;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  bool _matches(String input) =>
+      input.trim().toLowerCase() ==
+      widget.expectedAnswer.trim().toLowerCase();
+
+  @override
+  Widget build(BuildContext context) {
+    final submitted = widget.state.submitted;
+    final correct = widget.state.correct;
+    final canSubmit = !submitted && _controller.text.trim().isNotEmpty;
+
+    return InteractionBody(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SectionCaption('Short answer'),
+          Text(widget.prompt, style: AppTextStyles.promptMd),
+          const SizedBox(height: 24),
+          TextField(
+            controller: _controller,
+            enabled: !submitted,
+            autofocus: !submitted,
+            style: const TextStyle(
+              fontSize: 18,
+              color: VarnamalaTheme.textPrimary,
+            ),
+            decoration: InputDecoration(
+              hintText: 'Type your answer...',
+              filled: true,
+              fillColor: submitted
+                  ? (correct == true
+                      ? VarnamalaTheme.success.withValues(alpha: 0.10)
+                      : VarnamalaTheme.error.withValues(alpha: 0.08))
+                  : Colors.white,
+            ),
+            onChanged: (_) => setState(() {}),
+            onSubmitted: (_) {
+              if (canSubmit) {
+                widget.onSubmit(
+                  _matches(_controller.text),
+                  userAnswerText: _controller.text,
+                );
+              }
+            },
+          ),
+          if (submitted && correct == false) ...[
+            const SizedBox(height: 16),
+            LessonCorrectAnswerBanner(
+              label: 'Correct answer',
+              answer: widget.expectedAnswer,
+            ),
+          ],
+          const SizedBox(height: 24),
+          if (!submitted)
+            LessonCheckButton(
+              label: 'CHECK',
+              enabled: canSubmit,
+              onPressed: canSubmit
+                  ? () => widget.onSubmit(
+                        _matches(_controller.text),
+                        userAnswerText: _controller.text,
+                      )
+                  : null,
+            ),
+        ],
+      ),
+    );
+  }
+}

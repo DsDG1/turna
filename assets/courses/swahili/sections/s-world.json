@@ -1,0 +1,212 @@
+{
+  "id": "s-world",
+  "name": "World Around",
+  "description": "Emotions, nature, and getting around.",
+  "prerequisiteSectionIds": [],
+  "units": [
+    {
+      "id": "s-world-u-emotions",
+      "name": "Emotions",
+      "description": "How are you feeling?",
+      "prerequisiteUnitIds": [],
+      "lessons": [
+        {
+          "id": "l-emotions-1",
+          "name": "Basic feelings",
+          "description": "",
+          "type": "reading",
+          "prerequisiteLessonIds": [],
+          "content": {
+            "stages": [
+              {
+                "id": "stage-vocab",
+                "name": "Vocabulary",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "readingMcq",
+                    "id": "rm-naanu-santosa",
+                    "prompt": "What does \"Naanu santosha\" mean?",
+                    "options": [
+                      "I am happy",
+                      "I am sad",
+                      "I am angry"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              },
+              {
+                "id": "stage-comprehension",
+                "name": "Comprehension",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "readingTrueFalse",
+                    "id": "rt-naavu-santosa",
+                    "statement": "Naavu santosha means \"We are happy\".",
+                    "answer": true
+                  }
+                ]
+              }
+            ],
+            "passage": "Naanu santosha. Neenu santosha. Naavu santosha. Avaru dukha. Yaavaru santosha? Yaavaru dukha?"
+          }
+        }
+      ]
+    },
+    {
+      "id": "s-world-u-nature",
+      "name": "Nature",
+      "description": "Trees, flowers, water.",
+      "prerequisiteUnitIds": [],
+      "lessons": [
+        {
+          "id": "l-nature-1",
+          "name": "Outdoors",
+          "description": "",
+          "type": "normal",
+          "prerequisiteLessonIds": [],
+          "content": {
+            "stages": [
+              {
+                "id": "stage-vocab",
+                "name": "Vocabulary",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-mara",
+                    "wordId": "w-mara"
+                  },
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-huvu",
+                    "wordId": "w-huvu"
+                  },
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-neeru",
+                    "wordId": "w-neeru"
+                  },
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-bhoomi",
+                    "wordId": "w-bhoomi"
+                  }
+                ]
+              },
+              {
+                "id": "stage-practice",
+                "name": "Practice",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "fillBlank",
+                    "id": "fb-mara",
+                    "sentence": "Mara = ____",
+                    "answer": "Tree"
+                  },
+                  {
+                    "runtimeType": "listenAndPick",
+                    "id": "lp-neeru",
+                    "audioAsset": "w-neeru",
+                    "prompt": "What do you hear?",
+                    "options": [
+                      "Water",
+                      "Earth",
+                      "Tree",
+                      "Flower"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "s-world-u-travel",
+      "name": "Travel",
+      "description": "Getting from A to B.",
+      "prerequisiteUnitIds": [],
+      "lessons": [
+        {
+          "id": "l-travel-1",
+          "name": "Transportation",
+          "description": "",
+          "type": "review",
+          "prerequisiteLessonIds": [],
+          "content": {
+            "stages": [
+              {
+                "id": "stage-vocab",
+                "name": "Vocabulary",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-prayan",
+                    "wordId": "w-prayan"
+                  },
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-rail",
+                    "wordId": "w-rail"
+                  },
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-bus",
+                    "wordId": "w-bus"
+                  },
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-hotel",
+                    "wordId": "w-hotel"
+                  }
+                ]
+              },
+              {
+                "id": "stage-recall",
+                "name": "Recall drill",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "translateSentence",
+                    "id": "ts-bus-hoduthene",
+                    "source": "Naanu bus alli hoduthene.",
+                    "expected": "I am going in a bus.",
+                    "hints": [
+                      "bus",
+                      "go"
+                    ]
+                  },
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-where-sleep",
+                    "prompt": "Where do you sleep on a trip?",
+                    "options": [
+                      "Hotel",
+                      "Train",
+                      "Bus",
+                      "Earth"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

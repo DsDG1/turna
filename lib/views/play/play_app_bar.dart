@@ -1,0 +1,36 @@
+// Flutter imports:
+import 'package:flutter/material.dart';
+
+// Project imports:
+import 'package:words625/views/theme.dart';
+
+class PlayAppBar extends StatelessWidget implements PreferredSizeWidget {
+  const PlayAppBar({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return AppBar(
+      centerTitle: true,
+      title: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.extension_rounded,
+            color: VarnamalaTheme.peacockTeal,
+            size: 22,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Play',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Size get preferredSize => const Size.fromHeight(56);
+}

@@ -1,0 +1,20 @@
+targets:
+  $default:
+    builders:
+      freezed:
+        options:
+          explicit_to_json: false
+      json_serializable:
+        options:
+          explicit_to_json: false
+          create_factory: true
+          create_to_json: true
+      auto_route_generator:autoRouteGenerator:
+        generate_for:
+          - lib/routing/**.dart
+      drift_dev:
+        generate_for:
+          - lib/data/**.dart
+      flutter_gen:
+        generate_for:
+          - pubspec.yaml

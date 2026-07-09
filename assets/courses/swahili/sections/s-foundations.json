@@ -1,0 +1,405 @@
+{
+  "id": "s-foundations",
+  "name": "Foundations",
+  "description": "Greetings, pronouns, and the basics of being polite.",
+  "prerequisiteSectionIds": [],
+  "units": [
+    {
+      "id": "s-foundations-u-greetings",
+      "name": "Greetings",
+      "description": "How to say hello and introduce yourself.",
+      "prerequisiteUnitIds": [],
+      "lessons": [
+        {
+          "id": "l-greetings-1",
+          "name": "Hello & Yes/No",
+          "description": "",
+          "type": "normal",
+          "prerequisiteLessonIds": [],
+          "content": {
+            "stages": [
+              {
+                "id": "stage-vocab",
+                "name": "Vocabulary",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-naanu",
+                    "wordId": "w-naanu",
+                    "context": "Naanu vidyaarthi. — I am a student."
+                  },
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-neenu",
+                    "wordId": "w-neenu"
+                  },
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-howdu",
+                    "wordId": "w-howdu"
+                  },
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-illa",
+                    "wordId": "w-illa"
+                  }
+                ]
+              },
+              {
+                "id": "stage-practice",
+                "name": "Practice",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-yes-no",
+                    "prompt": "Which word means \"Yes\"?",
+                    "options": [
+                      "Howdu",
+                      "Illa",
+                      "Baa",
+                      "Hogu"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "fillBlank",
+                    "id": "fb-no",
+                    "sentence": "_____ = \"No\" in Kannada",
+                    "answer": "Illa",
+                    "hint": "Starts with \"I\""
+                  },
+                  {
+                    "runtimeType": "listenAndPick",
+                    "id": "lp-howdu",
+                    "audioAsset": "w-howdu",
+                    "prompt": "What did you hear?",
+                    "options": [
+                      "Yes",
+                      "No",
+                      "Come",
+                      "Go"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "l-greetings-2",
+          "name": "Pronouns",
+          "description": "",
+          "type": "listening",
+          "prerequisiteLessonIds": [],
+          "content": {
+            "audioAsset": "section:foundations",
+            "stages": [
+              {
+                "id": "stage-vocab",
+                "name": "Vocabulary",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-naavu",
+                    "wordId": "w-naavu"
+                  },
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-neenu-2",
+                    "wordId": "w-neenu"
+                  }
+                ]
+              },
+              {
+                "id": "stage-listen",
+                "name": "Listening drill",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "typeTheWord",
+                    "id": "tw-naavu",
+                    "audioAsset": "w-naavu",
+                    "prompt": "Type the word you hear",
+                    "expected": "Naavu"
+                  },
+                  {
+                    "runtimeType": "reorderSentence",
+                    "id": "rs-naavu-vidyaarthi",
+                    "scrambled": [
+                      "Naavu",
+                      "vidyaarthi"
+                    ],
+                    "correct": [
+                      "Naavu",
+                      "vidyaarthi"
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "l-flat-demo",
+          "name": "Flat 15-question demo",
+          "description": "A lesson authored as a bare list of questions (no stages). Verifies the loader's flat-lesson normalization.",
+          "type": "normal",
+          "content": {
+            "questions": [
+              {
+                "id": "q-flat-1",
+                "runtimeType": "multipleChoice",
+                "prompt": "Demo question 1: pick Yes in Kannada",
+                "options": [
+                  "Howdu",
+                  "Illa",
+                  "Baa",
+                  "Hogu"
+                ],
+                "correctIndex": 0
+              },
+              {
+                "id": "q-flat-2",
+                "runtimeType": "multipleChoice",
+                "prompt": "Demo question 2: pick Yes in Kannada",
+                "options": [
+                  "Howdu",
+                  "Illa",
+                  "Baa",
+                  "Hogu"
+                ],
+                "correctIndex": 0
+              },
+              {
+                "id": "q-flat-3",
+                "runtimeType": "multipleChoice",
+                "prompt": "Demo question 3: pick Yes in Kannada",
+                "options": [
+                  "Howdu",
+                  "Illa",
+                  "Baa",
+                  "Hogu"
+                ],
+                "correctIndex": 0
+              },
+              {
+                "id": "q-flat-4",
+                "runtimeType": "multipleChoice",
+                "prompt": "Demo question 4: pick Yes in Kannada",
+                "options": [
+                  "Howdu",
+                  "Illa",
+                  "Baa",
+                  "Hogu"
+                ],
+                "correctIndex": 0
+              },
+              {
+                "id": "q-flat-5",
+                "runtimeType": "multipleChoice",
+                "prompt": "Demo question 5: pick Yes in Kannada",
+                "options": [
+                  "Howdu",
+                  "Illa",
+                  "Baa",
+                  "Hogu"
+                ],
+                "correctIndex": 0
+              },
+              {
+                "id": "q-flat-6",
+                "runtimeType": "multipleChoice",
+                "prompt": "Demo question 6: pick Yes in Kannada",
+                "options": [
+                  "Howdu",
+                  "Illa",
+                  "Baa",
+                  "Hogu"
+                ],
+                "correctIndex": 0
+              },
+              {
+                "id": "q-flat-7",
+                "runtimeType": "multipleChoice",
+                "prompt": "Demo question 7: pick Yes in Kannada",
+                "options": [
+                  "Howdu",
+                  "Illa",
+                  "Baa",
+                  "Hogu"
+                ],
+                "correctIndex": 0
+              },
+              {
+                "id": "q-flat-8",
+                "runtimeType": "multipleChoice",
+                "prompt": "Demo question 8: pick Yes in Kannada",
+                "options": [
+                  "Howdu",
+                  "Illa",
+                  "Baa",
+                  "Hogu"
+                ],
+                "correctIndex": 0
+              },
+              {
+                "id": "q-flat-9",
+                "runtimeType": "multipleChoice",
+                "prompt": "Demo question 9: pick Yes in Kannada",
+                "options": [
+                  "Howdu",
+                  "Illa",
+                  "Baa",
+                  "Hogu"
+                ],
+                "correctIndex": 0
+              },
+              {
+                "id": "q-flat-10",
+                "runtimeType": "multipleChoice",
+                "prompt": "Demo question 10: pick Yes in Kannada",
+                "options": [
+                  "Howdu",
+                  "Illa",
+                  "Baa",
+                  "Hogu"
+                ],
+                "correctIndex": 0
+              },
+              {
+                "id": "q-flat-11",
+                "runtimeType": "multipleChoice",
+                "prompt": "Demo question 11: pick Yes in Kannada",
+                "options": [
+                  "Howdu",
+                  "Illa",
+                  "Baa",
+                  "Hogu"
+                ],
+                "correctIndex": 0
+              },
+              {
+                "id": "q-flat-12",
+                "runtimeType": "multipleChoice",
+                "prompt": "Demo question 12: pick Yes in Kannada",
+                "options": [
+                  "Howdu",
+                  "Illa",
+                  "Baa",
+                  "Hogu"
+                ],
+                "correctIndex": 0
+              },
+              {
+                "id": "q-flat-13",
+                "runtimeType": "multipleChoice",
+                "prompt": "Demo question 13: pick Yes in Kannada",
+                "options": [
+                  "Howdu",
+                  "Illa",
+                  "Baa",
+                  "Hogu"
+                ],
+                "correctIndex": 0
+              },
+              {
+                "id": "q-flat-14",
+                "runtimeType": "multipleChoice",
+                "prompt": "Demo question 14: pick Yes in Kannada",
+                "options": [
+                  "Howdu",
+                  "Illa",
+                  "Baa",
+                  "Hogu"
+                ],
+                "correctIndex": 0
+              },
+              {
+                "id": "q-flat-15",
+                "runtimeType": "multipleChoice",
+                "prompt": "Demo question 15: pick Yes in Kannada",
+                "options": [
+                  "Howdu",
+                  "Illa",
+                  "Baa",
+                  "Hogu"
+                ],
+                "correctIndex": 0
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "s-foundations-u-intro",
+      "name": "Introductions",
+      "description": "Saying who you are.",
+      "prerequisiteUnitIds": [],
+      "lessons": [
+        {
+          "id": "l-intro-1",
+          "name": "What is your name?",
+          "description": "",
+          "type": "normal",
+          "prerequisiteLessonIds": [],
+          "content": {
+            "stages": [
+              {
+                "id": "stage-vocab",
+                "name": "Vocabulary",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-hesaru",
+                    "wordId": "w-hesaru"
+                  },
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-vidyaarthi",
+                    "wordId": "w-vidyaarthi"
+                  }
+                ]
+              },
+              {
+                "id": "stage-translate",
+                "name": "Translate",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "translateSentence",
+                    "id": "ts-naanu-vidyaarthi",
+                    "source": "Naanu vidyaarthi.",
+                    "expected": "I am a student."
+                  },
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-my-name-is",
+                    "prompt": "\"My name is ___\" in Kannada",
+                    "options": [
+                      "Nanna hesaru ___",
+                      "Naanu ___",
+                      "Neenu ___"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

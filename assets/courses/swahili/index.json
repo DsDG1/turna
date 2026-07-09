@@ -1,0 +1,35 @@
+{
+  "version": 2,
+  "language": "sw",
+  "displayName": "Swahili",
+  "sections": [
+    {
+      "id": "s-test",
+      "name": "Test Course",
+      "description": "Minimal SRS + grammar smoke test. Clear app data / course.swahili.db after content changes so seeder reloads.",
+      "prerequisiteSectionIds": [],
+      "file": "sections/s-test.json"
+    },
+    {
+      "id": "s-foundations",
+      "name": "Foundations",
+      "description": "Greetings, pronouns, and the basics of being polite.",
+      "prerequisiteSectionIds": [],
+      "file": "sections/s-foundations.json"
+    },
+    {
+      "id": "s-daily",
+      "name": "Daily Life",
+      "description": "The world immediately around you — colors, animals, numbers.",
+      "prerequisiteSectionIds": [],
+      "file": "sections/s-daily.json"
+    },
+    {
+      "id": "s-world",
+      "name": "World Around",
+      "description": "Emotions, nature, and getting around.",
+      "prerequisiteSectionIds": [],
+      "file": "sections/s-world.json"
+    }
+  ]
+}

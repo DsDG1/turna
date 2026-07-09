@@ -1,0 +1,235 @@
+{
+  "id": "s-daily",
+  "name": "Daily Life",
+  "description": "The world immediately around you — colors, animals, numbers.",
+  "prerequisiteSectionIds": [],
+  "units": [
+    {
+      "id": "s-daily-u-animals",
+      "name": "Animals",
+      "description": "Pets and wildlife of Karnataka.",
+      "prerequisiteUnitIds": [],
+      "lessons": [
+        {
+          "id": "l-animals-1",
+          "name": "Common animals",
+          "description": "",
+          "type": "normal",
+          "prerequisiteLessonIds": [],
+          "content": {
+            "stages": [
+              {
+                "id": "stage-vocab",
+                "name": "Vocabulary",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-naayi",
+                    "wordId": "w-naayi"
+                  },
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-koli",
+                    "wordId": "w-koli"
+                  },
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-aane",
+                    "wordId": "w-aane"
+                  },
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-bekku",
+                    "wordId": "w-bekku"
+                  }
+                ]
+              },
+              {
+                "id": "stage-practice",
+                "name": "Practice",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-elephant",
+                    "prompt": "Which is \"Elephant\"?",
+                    "options": [
+                      "Naayi",
+                      "Koli",
+                      "Aane",
+                      "Bekku"
+                    ],
+                    "correctIndex": 2
+                  },
+                  {
+                    "runtimeType": "fillBlank",
+                    "id": "fb-cat",
+                    "sentence": "_____ = Cat (colloquial)",
+                    "answer": "Bekku"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "s-daily-u-colors",
+      "name": "Colors",
+      "description": "Describe what you see.",
+      "prerequisiteUnitIds": [],
+      "lessons": [
+        {
+          "id": "l-colors-1",
+          "name": "Primary colors",
+          "description": "",
+          "type": "normal",
+          "prerequisiteLessonIds": [],
+          "content": {
+            "stages": [
+              {
+                "id": "stage-vocab",
+                "name": "Vocabulary",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-kempu",
+                    "wordId": "w-kempu"
+                  },
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-bili",
+                    "wordId": "w-bili"
+                  },
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-kappu",
+                    "wordId": "w-kappu"
+                  },
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-hasiru",
+                    "wordId": "w-hasiru"
+                  }
+                ]
+              },
+              {
+                "id": "stage-listen",
+                "name": "Listening",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "listenAndPick",
+                    "id": "lp-kempu",
+                    "audioAsset": "w-kempu",
+                    "prompt": "Pick the color you hear",
+                    "options": [
+                      "Red",
+                      "White",
+                      "Black",
+                      "Green"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "s-daily-u-numbers",
+      "name": "Numbers",
+      "description": "Count from 1 to 5.",
+      "prerequisiteUnitIds": [],
+      "lessons": [
+        {
+          "id": "l-numbers-1",
+          "name": "One to five",
+          "description": "",
+          "type": "challenge",
+          "prerequisiteLessonIds": [],
+          "content": {
+            "stages": [
+              {
+                "id": "stage-vocab",
+                "name": "Vocabulary",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-ondu",
+                    "wordId": "w-ondu"
+                  },
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-eradu",
+                    "wordId": "w-eradu"
+                  },
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-mooru",
+                    "wordId": "w-mooru"
+                  },
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-naaku",
+                    "wordId": "w-naaku"
+                  },
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-aidhu",
+                    "wordId": "w-aidhu"
+                  }
+                ]
+              },
+              {
+                "id": "stage-quiz",
+                "name": "Quick quiz",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-five",
+                    "prompt": "\"Five\" in Kannada",
+                    "options": [
+                      "Naaku",
+                      "Aidhu",
+                      "Mooru",
+                      "Eradu"
+                    ],
+                    "correctIndex": 1
+                  },
+                  {
+                    "runtimeType": "reorderSentence",
+                    "id": "rs-mooru-ondu-aidhu",
+                    "scrambled": [
+                      "Mooru",
+                      "ondu",
+                      "aidhu"
+                    ],
+                    "correct": [
+                      "Ondu",
+                      "eradu",
+                      "mooru"
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

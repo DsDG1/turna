@@ -1,0 +1,161 @@
+{
+  "id": "s-test",
+  "name": "Test Course",
+  "description": "Minimal smoke path for SRS rewards, grammar practice, mistake → grammar routing, and listening summary.",
+  "prerequisiteSectionIds": [],
+  "units": [
+    {
+      "id": "u-test-1",
+      "name": "Smoke Unit",
+      "description": "Short lessons covering vocab, grammar links, and listening summary.",
+      "prerequisiteUnitIds": [],
+      "lessons": [
+        {
+          "id": "l-test-vocab-1",
+          "name": "Words + Greetings grammar",
+          "type": "normal",
+          "template": "legacy",
+          "prerequisiteLessonIds": [],
+          "content": {
+            "linkedGrammarPointIds": ["gp.greetings"],
+            "stages": [
+              {
+                "id": "stage-vocab",
+                "name": "Vocabulary",
+                "items": [
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-test-naanu",
+                    "wordId": "w-naanu",
+                    "context": "Naanu = I"
+                  },
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-test-howdu",
+                    "wordId": "w-howdu",
+                    "context": "Howdu = Yes"
+                  }
+                ]
+              },
+              {
+                "id": "stage-check",
+                "name": "Check",
+                "items": [
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-test-yes",
+                    "prompt": "Which word means \"Yes\"?",
+                    "options": ["Howdu", "Illa", "Baa", "Hogu"],
+                    "correctIndex": 0,
+                    "grammarPointId": "gp.greetings"
+                  },
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-test-casual-hello",
+                    "prompt": "Which is a casual hello often used with visitors?",
+                    "options": ["Jambo", "Howdu", "Illa", "Neenu"],
+                    "correctIndex": 0,
+                    "grammarPointId": "gp.greetings"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "l-test-grammar-1",
+          "name": "Pronouns drill",
+          "type": "normal",
+          "template": "legacy",
+          "prerequisiteLessonIds": ["l-test-vocab-1"],
+          "content": {
+            "linkedGrammarPointIds": ["gp.pronouns"],
+            "stages": [
+              {
+                "id": "stage-pronouns",
+                "name": "Pronouns",
+                "items": [
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-test-neenu",
+                    "wordId": "w-neenu",
+                    "context": "Neenu = You",
+                    "grammarPointId": "gp.pronouns"
+                  },
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-test-you",
+                    "prompt": "Which word means \"You\"?",
+                    "options": ["Neenu", "Naanu", "Howdu", "Illa"],
+                    "correctIndex": 0,
+                    "grammarPointId": "gp.pronouns"
+                  },
+                  {
+                    "runtimeType": "fillBlank",
+                    "id": "fb-test-pronoun",
+                    "sentence": "___ vidyaarthi. (You are a student.)",
+                    "answer": "Neenu",
+                    "hint": "2nd person singular",
+                    "grammarPointId": "gp.pronouns"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "l-test-listening-1",
+          "name": "Listening smoke",
+          "type": "listening",
+          "template": "listening",
+          "prerequisiteLessonIds": ["l-test-vocab-1"],
+          "content": {
+            "listeningPhases": [
+              {
+                "id": "lp-test-words",
+                "name": "Word pairing",
+                "type": "wordPairing",
+                "items": [
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-listen-howdu",
+                    "wordId": "w-howdu",
+                    "context": "Howdu — Yes"
+                  },
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-listen-yes",
+                    "prompt": "You hear a polite affirmation. Which word is it?",
+                    "options": ["Howdu", "Illa"],
+                    "correctIndex": 0
+                  }
+                ]
+              },
+              {
+                "id": "lp-test-dialogue",
+                "name": "Dialogue",
+                "type": "dialogue",
+                "items": [
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-listen-hello",
+                    "prompt": "What is a casual hello for visitors?",
+                    "options": ["Jambo", "Neenu", "Illa"],
+                    "correctIndex": 0
+                  }
+                ]
+              },
+              {
+                "id": "lp-test-summary",
+                "name": "Summary",
+                "type": "summary",
+                "transcript": "Jambo! Habari? Nzuri. Howdu.",
+                "items": []
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
