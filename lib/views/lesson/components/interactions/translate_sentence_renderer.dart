@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
+import 'package:words625/core/text_styles.dart';
 import 'package:words625/domain/course/interaction.dart';
 import 'package:words625/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:words625/views/theme.dart';
@@ -71,18 +72,19 @@ class _TranslateBodyState extends State<_TranslateBody> {
   }
 
   static final _punctuation = RegExp(r'[.,!?;:"]');
+  static final _whitespace = RegExp(r'\s+');
 
   bool _matches(String input) {
     final norm = input
         .replaceAll(_punctuation, '')
         .trim()
         .toLowerCase()
-        .replaceAll(RegExp(r'\s+'), ' ');
+        .replaceAll(_whitespace, ' ');
     final target = widget.expected
         .replaceAll(_punctuation, '')
         .trim()
         .toLowerCase()
-        .replaceAll(RegExp(r'\s+'), ' ');
+        .replaceAll(_whitespace, ' ');
     return norm == target;
   }
 
@@ -107,28 +109,17 @@ class _TranslateBodyState extends State<_TranslateBody> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
-            'Translate this sentence',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: VarnamalaTheme.textHint,
-              letterSpacing: 0.4,
-            ),
-          ),
-          const SizedBox(height: 12),
+          const SectionCaption('Translate this sentence'),
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.06),
+              color: VarnamalaTheme.tintLight,
               borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
             ),
             child: Text(
               widget.source,
-              style: const TextStyle(
-                fontSize: 22,
+              style: AppTextStyles.promptLg.copyWith(
                 fontWeight: FontWeight.w600,
-                color: VarnamalaTheme.textPrimary,
               ),
             ),
           ),
@@ -177,7 +168,8 @@ class _TranslateBodyState extends State<_TranslateBody> {
           ],
           if (submitted && correct == false) ...[
             const SizedBox(height: 16),
-            _CorrectTranslationBanner(answer: widget.expected),
+            LessonCorrectAnswerBanner(
+                label: 'Correct translation', answer: widget.expected),
           ],
           const SizedBox(height: 24),
           LessonCheckButton(
@@ -189,45 +181,6 @@ class _TranslateBodyState extends State<_TranslateBody> {
                       userAnswerText: _controller.text,
                     )
                 : null,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CorrectTranslationBanner extends StatelessWidget {
-  final String answer;
-  const _CorrectTranslationBanner({required this.answer});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: VarnamalaTheme.success.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.check_circle, color: VarnamalaTheme.successDark),
-          const SizedBox(width: 8),
-          Expanded(
-            child: RichText(
-              text: TextSpan(
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: VarnamalaTheme.textPrimary,
-                ),
-                children: [
-                  const TextSpan(text: 'Correct translation: '),
-                  TextSpan(
-                    text: answer,
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                ],
-              ),
-            ),
           ),
         ],
       ),

@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:words625/application/course_provider.dart';
+import 'package:words625/domain/course/section.dart';
 import 'package:words625/views/theme.dart';
 
 /// A section switcher chip displayed at the top-left of the course tree.
@@ -23,47 +24,18 @@ class SectionSwitcher extends StatelessWidget {
 
         return Padding(
           padding: const EdgeInsets.only(left: 16, top: 12, bottom: 4),
-          child: PopupMenuButton<int>(
+          child: PopupMenuButton<String>(
             offset: const Offset(0, 40),
             color: VarnamalaTheme.surface,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
             ),
-            onSelected: (index) => provider.switchToSection(index),
+            onSelected: (id) => provider.switchToSection(id),
             itemBuilder: (context) {
-              return List.generate(provider.sections.length, (index) {
-                final section = provider.sections[index];
-                final isSelected = index == provider.currentSectionIndex;
-                return PopupMenuItem<int>(
-                  value: index,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        isSelected
-                            ? Icons.radio_button_checked_rounded
-                            : Icons.radio_button_unchecked_rounded,
-                        size: 18,
-                        color: isSelected
-                            ? VarnamalaTheme.peacockTeal
-                            : VarnamalaTheme.textHint,
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        section.name,
-                        style: TextStyle(
-                          fontWeight:
-                              isSelected ? FontWeight.w700 : FontWeight.w500,
-                          fontSize: 14,
-                          color: isSelected
-                              ? VarnamalaTheme.peacockTeal
-                              : VarnamalaTheme.textPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              });
+              return [
+                for (final section in provider.sections)
+                  _buildItem(section, section.id == provider.currentSectionId),
+              ];
             },
             child: Container(
               padding:
@@ -105,6 +77,37 @@ class SectionSwitcher extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  PopupMenuItem<String> _buildItem(Section section, bool isSelected) {
+    return PopupMenuItem<String>(
+      value: section.id,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isSelected
+                ? Icons.radio_button_checked_rounded
+                : Icons.radio_button_unchecked_rounded,
+            size: 18,
+            color: isSelected
+                ? VarnamalaTheme.peacockTeal
+                : VarnamalaTheme.textHint,
+          ),
+          const SizedBox(width: 10),
+          Text(
+            section.name,
+            style: TextStyle(
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              fontSize: 14,
+              color: isSelected
+                  ? VarnamalaTheme.peacockTeal
+                  : VarnamalaTheme.textPrimary,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

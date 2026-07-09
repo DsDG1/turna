@@ -162,9 +162,9 @@ class _StatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: VarnamalaTheme.cardBg(context),
         borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
-        border: Border.all(color: const Color(0xFFEEF2F1)),
+        border: Border.all(color: VarnamalaTheme.statCardBorder(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

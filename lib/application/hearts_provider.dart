@@ -21,7 +21,7 @@ class HeartsState {
   bool get hasHearts => hearts > 0;
 }
 
-@injectable
+@lazySingleton
 class HeartsProvider extends ChangeNotifier {
   static const int maxHearts = 5;
   static const Duration refillInterval = Duration(minutes: 30);

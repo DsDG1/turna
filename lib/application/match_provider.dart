@@ -18,7 +18,7 @@ import 'package:words625/di/injection.dart';
 import 'package:words625/match_levels.dart';
 import 'package:words625/service/locator.dart';
 
-@injectable
+@lazySingleton
 class MatchProvider extends ChangeNotifier {
   final AudioController _audioController;
   final Random _random = Random();
@@ -46,8 +46,8 @@ class MatchProvider extends ChangeNotifier {
   void initializeGame() {
     final targetLanguage =
         getIt<AppPrefs>().currentLanguage.getValue().getEnumValue();
-    // Single-language build: always use Kannada dictionary regardless of
-    // the stored preference value (which only ever resolves to kannada now).
+    // Single-language build: always use Swahili dictionary regardless of
+    // the stored preference value (which only ever resolves to swahili now).
     _dictionaryEntries = allLevel1Words.entries.toList(growable: false);
     logger.i("Match game starting for $targetLanguage");
 

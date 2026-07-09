@@ -1,17 +1,32 @@
 // Dart imports:
 import 'dart:math';
 
+// Flutter imports:
+import 'package:flutter/foundation.dart';
+
 // Package imports:
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
+import 'package:words625/application/language_provider.dart';
+import 'package:words625/courses/languages/kannada_vocab.dart';
 import 'package:words625/gen/assets.gen.dart';
 
-@injectable
+@lazySingleton
 class AudioController {
   final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _speechPlayer = AudioPlayer();
+  final FlutterTts _tts;
+  final LanguageProvider _languageProvider;
   final Random _random = Random();
+
+  double _ttsSpeed = 1.0;
+  double get ttsSpeed => _ttsSpeed;
+  String? _lastTtsLanguage;
+
+  AudioController(this._tts, this._languageProvider);
 
   // List of error sound assets
   final List<String> _errorSounds = [
@@ -50,7 +65,57 @@ class AudioController {
         mode: PlayerMode.lowLatency,
       );
     } catch (e) {
-      print('Error playing sound: $e');
+      debugPrint('Error playing sound: $e');
     }
+  }
+
+  // ──────────────────────────────────────────────────────────────
+  // TTS / speech
+  // ──────────────────────────────────────────────────────────────
+
+  /// Ensures the TTS engine is configured for the current target language.
+  Future<void> _ensureTtsLanguage() async {
+    final lang = _languageProvider.ttsLanguageCode;
+    if (_lastTtsLanguage == lang) return;
+    await _tts.setLanguage(lang);
+    _lastTtsLanguage = lang;
+  }
+
+  /// Speak arbitrary [text] using TTS in the current target language.
+  /// [speed] overrides the current global speed for this utterance.
+  Future<void> speak(String text, {double? speed}) async {
+    if (text.isEmpty) return;
+    await _ensureTtsLanguage();
+    await _tts.setSpeechRate(speed ?? _ttsSpeed);
+    await _tts.stop();
+    await _tts.speak(text);
+  }
+
+  /// Play a pre-recorded audio asset. [assetPath] is expected to start with
+  /// `assets/`; the prefix is stripped before passing to [AudioPlayer].
+  Future<void> speakFromAsset(String assetPath) async {
+    try {
+      final String path = assetPath.replaceFirst('assets/', '');
+      await _speechPlayer.stop();
+      await _speechPlayer.play(AssetSource(path));
+    } catch (e) {
+      debugPrint('Error playing asset audio: $e');
+    }
+  }
+
+  /// Speak a vocabulary word. Prefers the offline [audioAsset] if present,
+  /// otherwise falls back to TTS of the word term.
+  Future<void> speakWord(String wordId) async {
+    final entry = swahiliVocabById[wordId];
+    if (entry?.audioAsset?.isNotEmpty == true) {
+      await speakFromAsset(entry!.audioAsset!);
+      return;
+    }
+    await speak(entry?.term ?? wordId);
+  }
+
+  /// Set the global TTS speed. Clamped to [0.5, 2.0].
+  void setTtsSpeed(double speed) {
+    _ttsSpeed = speed.clamp(0.5, 2.0);
   }
 }

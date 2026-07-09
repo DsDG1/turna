@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
+import 'package:words625/views/profile/widgets/learning_stats.dart';
 import 'package:words625/views/profile/widgets/widgets.dart';
 
 class ProfilePage extends StatelessWidget {
@@ -20,6 +21,8 @@ class ProfilePage extends StatelessWidget {
         ),
         const SliverToBoxAdapter(child: SizedBox(height: 8)),
         const SliverToBoxAdapter(child: Statistics()),
+        const SliverToBoxAdapter(child: SizedBox(height: 8)),
+        const SliverToBoxAdapter(child: LearningStats()),
         const SliverToBoxAdapter(child: Achievements()),
         const SliverPadding(padding: EdgeInsets.only(bottom: 24)),
       ],

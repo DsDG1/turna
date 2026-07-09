@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
+import 'package:words625/application/gems_provider.dart';
+import 'package:words625/di/injection.dart';
 import 'package:words625/service/locator.dart';
 
 enum XPEvent {
@@ -14,7 +16,11 @@ enum XPEvent {
   perfectLesson(base: 15),
   dailyGoalComplete(base: 20),
   streakBonus(base: 5),
-  challengeWin(base: 25);
+  challengeWin(base: 25),
+  /// Base XP per reviewed word/card; multiply by session count.
+  srsReviewSession(base: 5),
+  /// Base XP per reviewed grammar point; multiply by session count.
+  grammarReviewSession(base: 5);
 
   final int base;
   const XPEvent({required this.base});
@@ -27,7 +33,7 @@ enum StreakCheckResult {
   broken,
 }
 
-@injectable
+@lazySingleton
 class GameProvider extends ChangeNotifier {
   static const String bronzeLeague = 'bronze';
   static const int defaultDailyXpGoal = 50;
@@ -41,11 +47,48 @@ class GameProvider extends ChangeNotifier {
       StreamController<int>.broadcast();
   final StreamController<int> _scoreController =
       StreamController<int>.broadcast();
+  final StreamController<Set<String>> _completedLessonsController =
+      StreamController<Set<String>>.broadcast();
+
+  /// Set of lesson ids the user has completed at least once. Loaded
+  /// eagerly from prefs in the constructor; treated as the source of
+  /// truth for "have I done this lesson?" checks.
+  late Set<String> _completedLessonIds;
+  late Set<String> _perfectLessonIds;
+
+  /// Read-only snapshot of the completed lessons set. UI bindings should
+  /// use [completedLessonsStream] for live updates.
+  Set<String> get completedLessonIds => Set.unmodifiable(_completedLessonIds);
+  Set<String> get perfectLessonIds => Set.unmodifiable(_perfectLessonIds);
+
+  /// True if the user has finished the given lesson at least once.
+  bool isLessonCompleted(String lessonId) =>
+      _completedLessonIds.contains(lessonId);
+
+  /// True if the user has finished the given lesson without any mistakes.
+  bool isLessonPerfect(String lessonId) =>
+      _perfectLessonIds.contains(lessonId);
+
+  /// Broadcasts the current [completedLessonIds] set, then any future
+  /// updates. Use this from `StreamBuilder` to react to lesson finishes.
+  Stream<Set<String>> get completedLessonsStream async* {
+    yield Set.unmodifiable(_completedLessonIds);
+    yield* _completedLessonsController.stream;
+  }
 
   StreakCheckResult _lastStreakCheckResult = StreakCheckResult.none;
   StreakCheckResult get lastStreakCheckResult => _lastStreakCheckResult;
 
-  GameProvider(this.appPrefs);
+  GameProvider(this.appPrefs) {
+    _completedLessonIds = _readStringList(
+      LocalStateKeys.completedLessonIds,
+      const <String>[],
+    ).toSet();
+    _perfectLessonIds = _readStringList(
+      LocalStateKeys.perfectLessonIds,
+      const <String>[],
+    ).toSet();
+  }
 
   Stream<int> getUserStreakStream() async* {
     yield _readInt(LocalStateKeys.streak, 0);
@@ -89,6 +132,18 @@ class GameProvider extends ChangeNotifier {
       ),
       appPrefs.preferences.setInt(LocalStateKeys.lessonsCompleted, 0),
       appPrefs.preferences.setInt(LocalStateKeys.perfectLessons, 0),
+      // Per-lesson progress — start empty. [recordLessonCompletion] will
+      // populate these on first lesson finish. Reading them with the
+      // streaming prefs API yields `null` for first-run, so the seeder
+      // passes an empty list as the default.
+      appPrefs.preferences.setStringList(
+        LocalStateKeys.completedLessonIds,
+        const <String>[],
+      ),
+      appPrefs.preferences.setStringList(
+        LocalStateKeys.perfectLessonIds,
+        const <String>[],
+      ),
       appPrefs.preferences.setInt(LocalStateKeys.streakFreezes, 0),
       appPrefs.preferences.setBool(LocalStateKeys.streakFreezeActive, false),
       appPrefs.preferences.setBool(LocalStateKeys.streakWasBroken, false),
@@ -108,7 +163,7 @@ class GameProvider extends ChangeNotifier {
       appPrefs.preferences.setBool(LocalStateKeys.initialized, true),
     ]);
 
-    notifyListeners();
+notifyListeners();
     _emitState();
   }
 
@@ -120,14 +175,14 @@ class GameProvider extends ChangeNotifier {
     final xp = (event.base * multiplier).round();
     if (xp <= 0) return 0;
 
-    await incrementScore(xp, notify: false);
+    final dailyBonus = await incrementScore(xp, notify: false);
 
     if (notify) notifyListeners();
-    return xp;
+    return xp + dailyBonus;
   }
 
-  Future<void> incrementScore(int xp, {bool notify = true}) async {
-    if (xp <= 0) return;
+  Future<int> incrementScore(int xp, {bool notify = true}) async {
+    if (xp <= 0) return 0;
 
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -149,16 +204,17 @@ class GameProvider extends ChangeNotifier {
     );
 
     final newScore = score + xp;
-    var newGems = _readInt(LocalStateKeys.gems, 0);
 
     final achievements = _readStringList(LocalStateKeys.achievements, const [])
         .toSet();
 
-    newGems += _unlockXpAchievements(achievements, newScore);
-    newGems += _unlockStreakAchievements(
-      achievements,
-      streakResolution.newStreak,
-    );
+    // Gem unlocks are applied via [GemsProvider] after score writes so there
+    // is a single writer for [LocalStateKeys.gems].
+    final gemBonus = _unlockXpAchievements(achievements, newScore) +
+        _unlockStreakAchievements(
+          achievements,
+          streakResolution.newStreak,
+        );
 
     final dailyResetDate = _parseDate(
       _readString(LocalStateKeys.lastDailyReset, ''),
@@ -195,8 +251,10 @@ class GameProvider extends ChangeNotifier {
     }
 
     var finalScore = newScore;
+    var dailyBonus = 0;
     if (previousDailyXp < dailyGoal && dailyXpEarned >= dailyGoal) {
-      finalScore += XPEvent.dailyGoalComplete.base;
+      dailyBonus = XPEvent.dailyGoalComplete.base;
+      finalScore += dailyBonus;
     }
 
     await Future.wait([
@@ -235,39 +293,77 @@ class GameProvider extends ChangeNotifier {
         LocalStateKeys.streakRepairTarget,
         streakRepairTarget,
       ),
-      appPrefs.preferences.setInt(LocalStateKeys.leagueXp, leagueXp + xp),
+      appPrefs.preferences.setInt(LocalStateKeys.leagueXp, leagueXp + xp + dailyBonus),
       appPrefs.preferences.setInt(LocalStateKeys.dailyXpEarned, dailyXpEarned),
       appPrefs.preferences.setInt(LocalStateKeys.dailyXpGoal, dailyGoal),
       appPrefs.preferences.setString(
         LocalStateKeys.lastDailyReset,
         today.toIso8601String(),
       ),
-      appPrefs.preferences.setInt(LocalStateKeys.gems, newGems),
       appPrefs.preferences.setStringList(
         LocalStateKeys.achievements,
         achievements.toList(growable: false),
       ),
     ]);
 
-    if (notify) notifyListeners();
+    if (gemBonus != 0) {
+      await _applyGemBonus(gemBonus);
+    }
+
+if (notify) notifyListeners();
     _emitState();
+    return dailyBonus;
+  }
+
+  /// Route gem deltas through [GemsProvider] (single writer for gems key).
+  Future<void> _applyGemBonus(int amount) async {
+    if (amount == 0) return;
+    if (getIt.isRegistered<GemsProvider>()) {
+      await getIt<GemsProvider>().addGems(amount);
+      return;
+    }
+    // Unit tests that construct GameProvider without GetIt.
+    final current = _readInt(LocalStateKeys.gems, 0);
+    await appPrefs.preferences.setInt(LocalStateKeys.gems, current + amount);
   }
 
   Future<void> recordLessonCompletion({
+    required String lessonId,
     required bool wasPerfect,
   }) async {
-    final lessonsCompleted =
-        _readInt(LocalStateKeys.lessonsCompleted, 0) + 1;
-    final perfectLessons =
-        _readInt(LocalStateKeys.perfectLessons, 0) + (wasPerfect ? 1 : 0);
+    _completedLessonIds.add(lessonId);
+    if (wasPerfect) {
+      _perfectLessonIds.add(lessonId);
+    }
+
+    // The legacy int counters are now derived from the set lengths so
+    // they stay in lock-step with the per-lesson records.
+    final lessonsCompleted = _completedLessonIds.length;
+    final perfectLessons = _perfectLessonIds.length;
 
     await Future.wait([
-      appPrefs.preferences.setInt(LocalStateKeys.lessonsCompleted, lessonsCompleted),
+      appPrefs.preferences.setStringList(
+        LocalStateKeys.completedLessonIds,
+        _completedLessonIds.toList(growable: false),
+      ),
+      appPrefs.preferences.setStringList(
+        LocalStateKeys.perfectLessonIds,
+        _perfectLessonIds.toList(growable: false),
+      ),
+      appPrefs.preferences.setInt(
+        LocalStateKeys.lessonsCompleted,
+        lessonsCompleted,
+      ),
       appPrefs.preferences.setInt(LocalStateKeys.perfectLessons, perfectLessons),
     ]);
 
-    notifyListeners();
+notifyListeners();
     _emitState();
+    // Always emit on the progress stream so subscribers (ProgressProvider →
+    // course tree) rebuild on every completion, including replays that
+    // upgrade a lesson to perfect. Gating on `addedToCompleted` would miss
+    // replay events and leave the Perfect badge stale.
+    _completedLessonsController.add(Set.unmodifiable(_completedLessonIds));
   }
 
   Future<StreakCheckResult> checkStreakOnAppOpen() async {
@@ -315,12 +411,14 @@ class GameProvider extends ChangeNotifier {
       return _lastStreakCheckResult;
     }
 
+    // Capture streak **before** zeroing — parallel writes previously read 0.
+    final streakBeforeBreak = _readInt(LocalStateKeys.streak, 0);
     await Future.wait([
       appPrefs.preferences.setInt(LocalStateKeys.streak, 0),
       appPrefs.preferences.setBool(LocalStateKeys.streakWasBroken, true),
       appPrefs.preferences.setInt(
         LocalStateKeys.streakBeforeBreak,
-        _readInt(LocalStateKeys.streak, 0),
+        streakBeforeBreak,
       ),
       appPrefs.preferences.setBool(LocalStateKeys.streakRepairRequired, true),
       appPrefs.preferences.setInt(LocalStateKeys.streakRepairProgress, 0),
@@ -331,7 +429,7 @@ class GameProvider extends ChangeNotifier {
     ]);
 
     _lastStreakCheckResult = StreakCheckResult.broken;
-    notifyListeners();
+notifyListeners();
     _emitState();
     return _lastStreakCheckResult;
   }
@@ -370,6 +468,8 @@ class GameProvider extends ChangeNotifier {
         'lessonsCompleted':
             _readInt(LocalStateKeys.lessonsCompleted, 0),
         'perfectLessons': _readInt(LocalStateKeys.perfectLessons, 0),
+        'completedLessonIds': _completedLessonIds.toList(growable: false),
+        'perfectLessonIds': _perfectLessonIds.toList(growable: false),
         'streakWasBroken': _readBool(LocalStateKeys.streakWasBroken, false),
         'streakRepairRequired':
             _readBool(LocalStateKeys.streakRepairRequired, false),
@@ -485,6 +585,7 @@ class GameProvider extends ChangeNotifier {
     _stateController.close();
     _streakController.close();
     _scoreController.close();
+    _completedLessonsController.close();
     super.dispose();
   }
 }

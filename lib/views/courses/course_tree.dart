@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:words625/application/course_provider.dart';
+import 'package:words625/application/progress_provider.dart';
 import 'package:words625/domain/course/lesson.dart';
 import 'package:words625/domain/course/unit.dart';
 import 'package:words625/routing/routing.gr.dart';
@@ -25,15 +26,15 @@ class _CourseTreeState extends State<CourseTree> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<CourseProvider>().getCourses();
+      context.read<CourseProvider>().load();
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        gradient: VarnamalaTheme.courseTreeGradient,
+      decoration: BoxDecoration(
+        gradient: VarnamalaTheme.courseTreeGradientFor(context),
       ),
       child: Consumer<CourseProvider>(
         builder: (context, courseState, _) {
@@ -51,7 +52,7 @@ class _CourseTreeState extends State<CourseTree> {
                 child: SectionSwitcher(),
               ),
 
-              // Section content
+              // Section content — _UnitCard handles its own progress consumption.
               Expanded(
                 child: _buildUnitTree(courseState),
               ),
@@ -65,9 +66,19 @@ class _CourseTreeState extends State<CourseTree> {
   /// Renders the units and lessons for the currently selected section.
   Widget _buildUnitTree(CourseProvider courseState) {
     final section = courseState.currentSection;
-    if (section == null || section.units.isEmpty) {
+    if (section == null) {
       return _buildEmptyMessage();
     }
+    if (section.units.isEmpty) {
+      // Shell not yet loaded: show a spinner while the body is fetching, or
+      // the empty state if the load finished with no units.
+      if (courseState.isCurrentSectionLoading) {
+        return const Center(child: _LoadingIndicator());
+      }
+      return _buildEmptyMessage();
+    }
+
+    final progress = context.read<ProgressProvider>();
 
     return CustomScrollView(
       physics: const BouncingScrollPhysics(),
@@ -78,13 +89,13 @@ class _CourseTreeState extends State<CourseTree> {
             delegate: SliverChildBuilderDelegate(
               (context, index) {
                 final unit = section.units[index];
+                final completedCount = unit.lessons
+                    .where((l) => progress.isLessonCompleted(l.id))
+                    .length;
                 return _UnitCard(
                   unit: unit,
-                  onLessonTap: (lesson) {
-                    // Navigate to new lesson screen via lesson ID.
-                    // Route import is added after Step 4–5.
-                    _navigateToLesson(context, lesson);
-                  },
+                  completedCount: completedCount,
+                  onLessonTap: (lesson) => _navigateToLesson(context, lesson),
                 );
               },
               childCount: section.units.length,
@@ -127,10 +138,12 @@ class _CourseTreeState extends State<CourseTree> {
 /// A card displaying a Unit with its Lessons listed below.
 class _UnitCard extends StatefulWidget {
   final Unit unit;
+  final int completedCount;
   final void Function(Lesson lesson) onLessonTap;
 
   const _UnitCard({
     required this.unit,
+    required this.completedCount,
     required this.onLessonTap,
   });
 
@@ -144,6 +157,8 @@ class _UnitCardState extends State<_UnitCard> {
   @override
   Widget build(BuildContext context) {
     final unit = widget.unit;
+    final isFullyComplete = widget.completedCount == unit.lessons.length &&
+        unit.lessons.isNotEmpty;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -173,16 +188,22 @@ class _UnitCardState extends State<_UnitCard> {
                       width: 38,
                       height: 38,
                       decoration: BoxDecoration(
-                        color:
-                            VarnamalaTheme.peacockTeal.withValues(alpha: 0.1),
+                        color: isFullyComplete
+                            ? VarnamalaTheme.success.withValues(alpha: 0.18)
+                            : VarnamalaTheme.peacockTeal
+                                .withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(
                             VarnamalaTheme.radiusSmall),
                       ),
                       child: Icon(
-                        _expanded
-                            ? Icons.expand_less_rounded
-                            : Icons.expand_more_rounded,
-                        color: VarnamalaTheme.peacockTeal,
+                        isFullyComplete
+                            ? Icons.check_circle_rounded
+                            : (_expanded
+                                ? Icons.expand_less_rounded
+                                : Icons.expand_more_rounded),
+                        color: isFullyComplete
+                            ? VarnamalaTheme.successDark
+                            : VarnamalaTheme.peacockTeal,
                         size: 22,
                       ),
                     ),
@@ -216,17 +237,21 @@ class _UnitCardState extends State<_UnitCard> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color:
-                            VarnamalaTheme.peacockTeal.withValues(alpha: 0.08),
+                        color: isFullyComplete
+                            ? VarnamalaTheme.success.withValues(alpha: 0.12)
+                            : VarnamalaTheme.peacockTeal
+                                .withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(
                             VarnamalaTheme.radiusRound),
                       ),
                       child: Text(
-                        '${unit.lessons.length} lessons',
-                        style: const TextStyle(
+                        '${widget.completedCount}/${unit.lessons.length}',
+                        style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: VarnamalaTheme.peacockTeal,
+                          color: isFullyComplete
+                              ? VarnamalaTheme.successDark
+                              : VarnamalaTheme.peacockTeal,
                         ),
                       ),
                     ),
@@ -239,9 +264,13 @@ class _UnitCardState extends State<_UnitCard> {
             if (_expanded) ...[
               const Divider(height: 1),
               ...unit.lessons.map(
-                (lesson) => _LessonTile(
-                  lesson: lesson,
-                  onTap: () => widget.onLessonTap(lesson),
+                (lesson) => Consumer<ProgressProvider>(
+                  builder: (context, progress, _) => _LessonTile(
+                    lesson: lesson,
+                    isCompleted: progress.isLessonCompleted(lesson.id),
+                    isPerfect: progress.isLessonPerfect(lesson.id),
+                    onTap: () => widget.onLessonTap(lesson),
+                  ),
                 ),
               ),
             ],
@@ -255,34 +284,45 @@ class _UnitCardState extends State<_UnitCard> {
 /// A tappable tile for a single Lesson.
 class _LessonTile extends StatelessWidget {
   final Lesson lesson;
+  final bool isCompleted;
+  final bool isPerfect;
   final VoidCallback onTap;
 
   const _LessonTile({
     required this.lesson,
+    required this.isCompleted,
+    required this.isPerfect,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final typeColor = _lessonTypeColor(lesson.type);
     return InkWell(
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           children: [
-            // Type icon
+            // Type icon (or check_circle if completed)
             Container(
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: _lessonTypeColor(lesson.type).withValues(alpha: 0.1),
+                color: isCompleted
+                    ? VarnamalaTheme.success.withValues(alpha: 0.18)
+                    : typeColor.withValues(alpha: 0.1),
                 borderRadius:
                     BorderRadius.circular(VarnamalaTheme.radiusSmall),
               ),
               child: Icon(
-                _lessonTypeIcon(lesson.type),
+                isCompleted
+                    ? Icons.check_circle_rounded
+                    : _lessonTypeIcon(lesson.type),
                 size: 16,
-                color: _lessonTypeColor(lesson.type),
+                color: isCompleted
+                    ? VarnamalaTheme.successDark
+                    : typeColor,
               ),
             ),
             const SizedBox(width: 12),
@@ -293,10 +333,12 @@ class _LessonTile extends StatelessWidget {
                 children: [
                   Text(
                     lesson.name,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: VarnamalaTheme.textPrimary,
+                      color: isCompleted
+                          ? VarnamalaTheme.textSecondary
+                          : VarnamalaTheme.textPrimary,
                     ),
                   ),
                   if (lesson.description.isNotEmpty)
@@ -312,21 +354,25 @@ class _LessonTile extends StatelessWidget {
                 ],
               ),
             ),
-            // Type badge
+            // Type badge (or perfect crown if perfect)
             Container(
               padding:
                   const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: _lessonTypeColor(lesson.type).withValues(alpha: 0.1),
+                color: isCompleted
+                    ? VarnamalaTheme.success.withValues(alpha: 0.1)
+                    : typeColor.withValues(alpha: 0.1),
                 borderRadius:
                     BorderRadius.circular(VarnamalaTheme.radiusRound),
               ),
               child: Text(
-                _lessonTypeLabel(lesson.type),
+                isPerfect ? 'Perfect' : _lessonTypeLabel(lesson.type),
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  color: _lessonTypeColor(lesson.type),
+                  color: isCompleted
+                      ? VarnamalaTheme.successDark
+                      : typeColor,
                 ),
               ),
             ),

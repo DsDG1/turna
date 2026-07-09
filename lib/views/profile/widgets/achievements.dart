@@ -44,10 +44,10 @@ class _AchievementsState extends State<Achievements> {
               const SizedBox(height: 8),
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: VarnamalaTheme.cardBg(context),
                   borderRadius:
                       BorderRadius.circular(VarnamalaTheme.radiusLarge),
-                  border: Border.all(color: const Color(0xFFEEF2F1)),
+                  border: Border.all(color: VarnamalaTheme.statCardBorder(context)),
                 ),
                 child: Column(
                   children: [
@@ -70,8 +70,8 @@ class _AchievementsState extends State<Achievements> {
                           ),
                           if (achievement != displayedAchievements.last ||
                               (!_expanded && remainingCount > 0))
-                            const Divider(
-                                height: 1, indent: 16, endIndent: 16),
+                            Divider(
+                                height: 1, indent: 16, endIndent: 16, color: VarnamalaTheme.dividerBg(context)),
                         ],
                       );
                     }),
@@ -288,7 +288,7 @@ class _AchievementTile extends StatelessWidget {
                         child: LinearProgressIndicator(
                           value: displayTarget > 0 ? (current / displayTarget).clamp(0.0, 1.0) : 0,
                           minHeight: 8,
-                          backgroundColor: const Color(0xFFEEF2F1),
+                          backgroundColor: VarnamalaTheme.dividerBg(context),
                           valueColor: const AlwaysStoppedAnimation<Color>(
                               VarnamalaTheme.success),
                         ),

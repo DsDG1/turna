@@ -11,9 +11,7 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:words625/application/lesson_viewmodel.dart';
 import 'package:words625/di/injection.dart';
-import 'package:words625/domain/course/interaction.dart';
-import 'package:words625/domain/course/lesson_content.dart';
-import 'package:words625/domain/course/reading_question.dart';
+import 'package:words625/domain/course/reading_passage.dart';
 import 'package:words625/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:words625/views/theme.dart';
 
@@ -32,14 +30,43 @@ class _NewLessonPageState extends State<NewLessonPage> {
   final Set<InteractionRenderer> _renderers =
       getIt<Set<InteractionRenderer>>();
   bool _autoAdvanceScheduled = false;
+  bool _dialogShown = false;
+  bool _loadFailed = false;
 
   @override
   void initState() {
     super.initState();
     _vm = context.read<LessonViewModel>();
+    _vm.addListener(_onVmChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _vm.loadLesson(widget.lessonId);
+      _openLesson();
     });
+  }
+
+  @override
+  void dispose() {
+    _vm.removeListener(_onVmChanged);
+    super.dispose();
+  }
+
+  Future<void> _openLesson() async {
+    final ok = await _vm.loadLesson(widget.lessonId);
+    if (!mounted) return;
+    if (!ok) {
+      setState(() => _loadFailed = true);
+    }
+  }
+
+  /// Side effects (auto-advance, completion dialog) run only on VM notify —
+  /// never from [build], to avoid multi-rebuild races.
+  void _onVmChanged() {
+    if (!mounted) return;
+    final vm = _vm;
+    if (vm.isComplete) {
+      _showCompletionDialog(context, vm);
+      return;
+    }
+    _handleAutoAdvance(vm);
   }
 
   @override
@@ -51,7 +78,38 @@ class _NewLessonPageState extends State<NewLessonPage> {
         appBar: _buildAppBar(),
         body: Consumer<LessonViewModel>(
           builder: (context, vm, _) {
-            // Loading
+            if (_loadFailed) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error_outline_rounded, size: 48),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Could not load lesson',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        widget.lessonId,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      const SizedBox(height: 16),
+                      TextButton(
+                        onPressed: () {
+                          setState(() => _loadFailed = false);
+                          _openLesson();
+                        },
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+
             if (vm.lesson == null) {
               return const Center(
                 child: CircularProgressIndicator(
@@ -60,14 +118,6 @@ class _NewLessonPageState extends State<NewLessonPage> {
                 ),
               );
             }
-
-            // Complete — show dialog
-            if (vm.isComplete) {
-              _showCompletionDialog(context, vm);
-            }
-
-            // Check for ShowWord auto-advance
-            _handleAutoAdvance(vm);
 
             return _buildLessonBody(vm);
           },
@@ -123,41 +173,34 @@ class _NewLessonPageState extends State<NewLessonPage> {
     );
   }
 
+  /// Single rendering path for every lesson type. The optional reading
+  /// passage renders above the stage content; the interaction body is
+  /// dispatched by the renderer registry; the Continue/Got-It button shows
+  /// after submission unless the renderer opts into auto-advance.
   Widget _buildLessonBody(LessonViewModel vm) {
-    if (vm.isReadingLesson) {
-      return _buildReadingBody(vm);
-    }
-    return _buildInteractionBody(vm);
-  }
-
-  // --- Interaction (normal/listening/review/challenge) ---
-
-  Widget _buildInteractionBody(LessonViewModel vm) {
     final interaction = vm.currentInteraction;
     if (interaction == null) {
       return _buildEmptyContent();
     }
 
     final renderer = lookupRenderer(_renderers, interaction);
+    final readingPassage = vm.lesson?.content.readingPassage;
+    final legacyPassage = vm.lesson?.content.passage ?? '';
 
     return Column(
       children: [
         // Stage name banner
         if (vm.currentStageName != null)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.04),
-            child: Text(
-              vm.currentStageName!,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: VarnamalaTheme.peacockTeal,
-                letterSpacing: 0.5,
-              ),
-            ),
+          _StageBanner(
+            name: vm.currentStageName!,
+            accent: VarnamalaTheme.peacockTeal,
           ),
+
+        // Reading passage (structured model first, legacy string fallback)
+        if (readingPassage != null)
+          _ReadingPassage(passage: readingPassage)
+        else if (legacyPassage.isNotEmpty)
+          _LegacyReadingPassage(text: legacyPassage),
 
         // Renderer content
         Expanded(
@@ -170,8 +213,8 @@ class _NewLessonPageState extends State<NewLessonPage> {
           ),
         ),
 
-        // Advance button (shown after submission for non-ShowWord)
-        if (vm.hasSubmitted && interaction is! ShowWord)
+        // Advance button (shown after submission for non-auto-advance types)
+        if (vm.hasSubmitted && !renderer.autoAdvance)
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
@@ -182,83 +225,6 @@ class _NewLessonPageState extends State<NewLessonPage> {
               ),
             ),
           ),
-      ],
-    );
-  }
-
-  // --- Reading lesson ---
-
-  Widget _buildReadingBody(LessonViewModel vm) {
-    final question = vm.currentReadingQuestion;
-    if (question == null) {
-      return _buildEmptyContent();
-    }
-
-    final readingStage = vm.currentReadingStage;
-
-    return Column(
-      children: [
-        // Stage header
-        if (readingStage != null)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            color: VarnamalaTheme.leagueAmethyst.withValues(alpha: 0.04),
-            child: Text(
-              readingStage.name,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: VarnamalaTheme.leagueAmethyst,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ),
-
-        // Reading passage (shown on stage start)
-        if (vm.currentReadingStage != null &&
-            (vm.lesson?.content is ReadingContent))
-          Builder(builder: (context) {
-            final content = vm.lesson!.content as ReadingContent;
-            if (content.text.isNotEmpty) {
-              return Container(
-                width: double.infinity,
-                margin: const EdgeInsets.all(16),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color:
-                      VarnamalaTheme.leagueAmethyst.withValues(alpha: 0.05),
-                  borderRadius:
-                      BorderRadius.circular(VarnamalaTheme.radiusMedium),
-                  border: Border.all(
-                    color: VarnamalaTheme.leagueAmethyst
-                        .withValues(alpha: 0.15),
-                  ),
-                ),
-                child: Text(
-                  content.text,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    height: 1.6,
-                    color: VarnamalaTheme.textPrimary,
-                  ),
-                ),
-              );
-            }
-            return const SizedBox.shrink();
-          }),
-
-        // Reading question
-        Expanded(
-          child: _ReadingQuestionWidget(
-            question: question,
-            state: vm.currentInteractionState,
-            onSubmit: (correct, {userAnswerText}) {
-              vm.submitInteraction(correct, userAnswerText: userAnswerText);
-            },
-            onAdvance: vm.hasSubmitted ? () => vm.advance() : null,
-          ),
-        ),
       ],
     );
   }
@@ -286,12 +252,15 @@ class _NewLessonPageState extends State<NewLessonPage> {
     );
   }
 
-  // --- Auto-advance for ShowWord ---
+  // --- Auto-advance for renderers that opt in (e.g. ShowWord) ---
 
   void _handleAutoAdvance(LessonViewModel vm) {
     if (_autoAdvanceScheduled) return;
     if (!vm.hasSubmitted) return;
-    if (vm.currentInteraction is! ShowWord) return;
+    final interaction = vm.currentInteraction;
+    if (interaction == null) return;
+    final renderer = lookupRenderer(_renderers, interaction);
+    if (!renderer.autoAdvance) return;
 
     _autoAdvanceScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -306,7 +275,8 @@ class _NewLessonPageState extends State<NewLessonPage> {
 
   Future<void> _showCompletionDialog(BuildContext context, LessonViewModel vm) async {
     // Prevent multiple dialogs
-    if (!mounted) return;
+    if (!mounted || _dialogShown) return;
+    _dialogShown = true;
 
     await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
@@ -404,472 +374,108 @@ class _NewLessonPageState extends State<NewLessonPage> {
 }
 
 // ──────────────────────────────────────────────────────────────
-// Reading question widgets
+// Reading passage — rendered above the stage content on reading lessons
 // ──────────────────────────────────────────────────────────────
 
-class _ReadingQuestionWidget extends StatefulWidget {
-  final ReadingQuestion question;
-  final InteractionState state;
-  final void Function(bool correct, {String? userAnswerText}) onSubmit;
-  final VoidCallback? onAdvance;
+class _ReadingPassage extends StatelessWidget {
+  final ReadingPassage passage;
 
-  const _ReadingQuestionWidget({
-    required this.question,
-    required this.state,
-    required this.onSubmit,
-    required this.onAdvance,
-  });
-
-  @override
-  State<_ReadingQuestionWidget> createState() =>
-      _ReadingQuestionWidgetState();
-}
-
-class _ReadingQuestionWidgetState extends State<_ReadingQuestionWidget> {
-  // MCQ state
-  int? _selectedIndex;
-
-  // True/False state
-  bool? _selectedBool;
-
-  // Short answer state
-  final TextEditingController _controller = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.state.submitted && widget.state.userAnswerText != null) {
-      _controller.text = widget.state.userAnswerText!;
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  const _ReadingPassage({required this.passage});
 
   @override
   Widget build(BuildContext context) {
-    return widget.question.when(
-      mcq: (prompt, options, correctIndex) =>
-          _buildMcq(prompt, options, correctIndex),
-      trueFalse: (statement, answer) =>
-          _buildTrueFalse(statement, answer),
-      shortAnswer: (prompt, expectedAnswer) =>
-          _buildShortAnswer(prompt, expectedAnswer),
-    );
-  }
-
-  Widget _buildMcq(String prompt, List<String> options, int correctIndex) {
-    final submitted = widget.state.submitted;
-    final correct = widget.state.correct;
-
-    return InteractionBody(
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: VarnamalaTheme.leagueAmethyst.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+        border: Border.all(
+          color: VarnamalaTheme.leagueAmethyst.withValues(alpha: 0.15),
+        ),
+      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Reading comprehension',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: VarnamalaTheme.textHint,
-              letterSpacing: 0.4,
-            ),
+          Text(
+            passage.title,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: VarnamalaTheme.textPrimary,
+                ),
           ),
           const SizedBox(height: 12),
-          Text(
-            prompt,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              color: VarnamalaTheme.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 20),
-          for (var idx = 0; idx < options.length; idx++) ...[
-            _OptionTile(
-              label: options[idx],
-              isSelected: _selectedIndex == idx,
-              isCorrect: submitted && idx == correctIndex,
-              isWrong: submitted && correct == false && _selectedIndex == idx,
-              onTap: submitted
-                  ? null
-                  : () => setState(() => _selectedIndex = idx),
-            ),
-            if (idx < options.length - 1) const SizedBox(height: 10),
-          ],
-          const SizedBox(height: 24),
-          if (!submitted)
-            LessonCheckButton(
-              label: 'CHECK',
-              enabled: _selectedIndex != null,
-              onPressed: _selectedIndex != null
-                  ? () => widget.onSubmit(
-                        _selectedIndex == correctIndex,
-                        userAnswerText: options[_selectedIndex!],
-                      )
-                  : null,
-            )
-          else
-            LessonCheckButton(
-              label: correct == true ? 'CONTINUE' : 'GOT IT',
-              enabled: true,
-              onPressed: widget.onAdvance,
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTrueFalse(String statement, bool answer) {
-    final submitted = widget.state.submitted;
-    final correct = widget.state.correct;
-
-    return InteractionBody(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-            'True or False',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: VarnamalaTheme.textHint,
-              letterSpacing: 0.4,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.06),
-              borderRadius:
-                  BorderRadius.circular(VarnamalaTheme.radiusLarge),
-            ),
-            child: Text(
-              statement,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-                color: VarnamalaTheme.textPrimary,
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              Expanded(
-                child: _BoolOption(
-                  label: 'True',
-                  value: true,
-                  isSelected: _selectedBool == true,
-                  isCorrect: submitted && answer == true,
-                  isWrong: submitted &&
-                      correct == false &&
-                      _selectedBool == true,
-                  onTap: submitted
-                      ? null
-                      : () => setState(() => _selectedBool = true),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _BoolOption(
-                  label: 'False',
-                  value: false,
-                  isSelected: _selectedBool == false,
-                  isCorrect: submitted && answer == false,
-                  isWrong: submitted &&
-                      correct == false &&
-                      _selectedBool == false,
-                  onTap: submitted
-                      ? null
-                      : () => setState(() => _selectedBool = false),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          if (!submitted)
-            LessonCheckButton(
-              label: 'CHECK',
-              enabled: _selectedBool != null,
-              onPressed: _selectedBool != null
-                  ? () => widget.onSubmit(_selectedBool == answer,
-                      userAnswerText: _selectedBool! ? 'True' : 'False')
-                  : null,
-            )
-          else
-            LessonCheckButton(
-              label: correct == true ? 'CONTINUE' : 'GOT IT',
-              enabled: true,
-              onPressed: widget.onAdvance,
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildShortAnswer(String prompt, String expectedAnswer) {
-    final submitted = widget.state.submitted;
-    final correct = widget.state.correct;
-    final canSubmit = !submitted && _controller.text.trim().isNotEmpty;
-
-    bool matches(String input) =>
-        input.trim().toLowerCase() == expectedAnswer.trim().toLowerCase();
-
-    return InteractionBody(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-            'Short answer',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: VarnamalaTheme.textHint,
-              letterSpacing: 0.4,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            prompt,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              color: VarnamalaTheme.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 24),
-          TextField(
-            controller: _controller,
-            enabled: !submitted,
-            autofocus: !submitted,
-            style: const TextStyle(
-              fontSize: 18,
-              color: VarnamalaTheme.textPrimary,
-            ),
-            decoration: InputDecoration(
-              hintText: 'Type your answer...',
-              filled: true,
-              fillColor: submitted
-                  ? (correct == true
-                      ? VarnamalaTheme.success.withValues(alpha: 0.10)
-                      : VarnamalaTheme.error.withValues(alpha: 0.08))
-                  : Colors.white,
-            ),
-            onChanged: (_) => setState(() {}),
-            onSubmitted: (_) {
-              if (canSubmit) {
-                widget.onSubmit(
-                  matches(_controller.text),
-                  userAnswerText: _controller.text,
-                );
-              }
-            },
-          ),
-          if (submitted && correct == false) ...[
-            const SizedBox(height: 16),
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: VarnamalaTheme.success.withValues(alpha: 0.10),
-                borderRadius:
-                    BorderRadius.circular(VarnamalaTheme.radiusMedium),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.check_circle,
-                      color: VarnamalaTheme.successDark),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: RichText(
-                      text: TextSpan(
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: VarnamalaTheme.textPrimary,
-                        ),
-                        children: [
-                          const TextSpan(text: 'Correct answer: '),
-                          TextSpan(
-                            text: expectedAnswer,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w700),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-          const SizedBox(height: 24),
-          if (!submitted)
-            LessonCheckButton(
-              label: 'CHECK',
-              enabled: canSubmit,
-              onPressed: canSubmit
-                  ? () => widget.onSubmit(
-                        matches(_controller.text),
-                        userAnswerText: _controller.text,
-                      )
-                  : null,
-            )
-          else
-            LessonCheckButton(
-              label: correct == true ? 'CONTINUE' : 'GOT IT',
-              enabled: true,
-              onPressed: widget.onAdvance,
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-// ──────────────────────────────────────────────────────────────
-// Shared reading option tile
-// ──────────────────────────────────────────────────────────────
-
-class _OptionTile extends StatelessWidget {
-  final String label;
-  final bool isSelected;
-  final bool isCorrect;
-  final bool isWrong;
-  final VoidCallback? onTap;
-
-  const _OptionTile({
-    required this.label,
-    required this.isSelected,
-    required this.isCorrect,
-    required this.isWrong,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    Color border = VarnamalaTheme.textHint.withValues(alpha: 0.25);
-    Color background = Colors.white;
-    Color textColor = VarnamalaTheme.textPrimary;
-    Widget? trailing;
-
-    if (isCorrect) {
-      border = VarnamalaTheme.success;
-      background = VarnamalaTheme.success.withValues(alpha: 0.10);
-      trailing = const Icon(Icons.check_circle, color: VarnamalaTheme.success);
-    } else if (isWrong) {
-      border = VarnamalaTheme.error;
-      background = VarnamalaTheme.error.withValues(alpha: 0.08);
-      trailing = const Icon(Icons.cancel, color: VarnamalaTheme.error);
-    } else if (isSelected) {
-      border = VarnamalaTheme.peacockTeal;
-      background = VarnamalaTheme.peacockTeal.withValues(alpha: 0.06);
-    }
-
-    return Material(
-      color: background,
-      shape: RoundedRectangleBorder(
-        side: BorderSide(color: border, width: 2),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  label,
-                  style: TextStyle(
+          ...passage.paragraphs.expand((paragraph) => [
+                Text(
+                  paragraph,
+                  style: const TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: textColor,
+                    height: 1.6,
+                    color: VarnamalaTheme.textPrimary,
                   ),
                 ),
-              ),
-              if (trailing != null) trailing,
-            ],
-          ),
+                const SizedBox(height: 12),
+              ]),
+        ],
+      ),
+    );
+  }
+}
+
+class _LegacyReadingPassage extends StatelessWidget {
+  final String text;
+
+  const _LegacyReadingPassage({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: VarnamalaTheme.leagueAmethyst.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+        border: Border.all(
+          color: VarnamalaTheme.leagueAmethyst.withValues(alpha: 0.15),
+        ),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 16,
+          height: 1.6,
+          color: VarnamalaTheme.textPrimary,
         ),
       ),
     );
   }
 }
 
-class _BoolOption extends StatelessWidget {
-  final String label;
-  final bool value;
-  final bool isSelected;
-  final bool isCorrect;
-  final bool isWrong;
-  final VoidCallback? onTap;
+// ──────────────────────────────────────────────────────────────
+// Stage banner
+// ──────────────────────────────────────────────────────────────
 
-  const _BoolOption({
-    required this.label,
-    required this.value,
-    required this.isSelected,
-    required this.isCorrect,
-    required this.isWrong,
-    required this.onTap,
-  });
+class _StageBanner extends StatelessWidget {
+  final String name;
+  final Color accent;
+
+  const _StageBanner({required this.name, required this.accent});
 
   @override
   Widget build(BuildContext context) {
-    Color border = VarnamalaTheme.textHint.withValues(alpha: 0.25);
-    Color background = Colors.white;
-    Color textColor = VarnamalaTheme.textPrimary;
-    Widget? trailing;
-
-    if (isCorrect) {
-      border = VarnamalaTheme.success;
-      background = VarnamalaTheme.success.withValues(alpha: 0.10);
-      trailing = const Icon(Icons.check_circle, color: VarnamalaTheme.success);
-    } else if (isWrong) {
-      border = VarnamalaTheme.error;
-      background = VarnamalaTheme.error.withValues(alpha: 0.08);
-      trailing = const Icon(Icons.cancel, color: VarnamalaTheme.error);
-    } else if (isSelected) {
-      border = VarnamalaTheme.peacockTeal;
-      background = VarnamalaTheme.peacockTeal.withValues(alpha: 0.06);
-    }
-
-    return Material(
-      color: background,
-      shape: RoundedRectangleBorder(
-        side: BorderSide(color: border, width: 2),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: Center(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: textColor,
-                  ),
-                ),
-                if (trailing != null) ...[
-                  const SizedBox(width: 8),
-                  trailing,
-                ],
-              ],
-            ),
-          ),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      color: accent.withValues(alpha: 0.04),
+      child: Text(
+        name,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: accent,
+          letterSpacing: 0.5,
         ),
       ),
     );

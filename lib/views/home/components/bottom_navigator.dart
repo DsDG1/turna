@@ -21,7 +21,7 @@ class BottomNavigator extends StatelessWidget {
       height: 64 + bottomPadding,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: VarnamalaTheme.bottomNavBg(context),
           boxShadow: [
             BoxShadow(
               color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.08),
@@ -42,8 +42,8 @@ class BottomNavigator extends StatelessWidget {
               onTap: () => onPress(0),
             ),
             _NavItem(
-              icon: Icons.translate_rounded,
-              label: 'Script',
+              icon: Icons.extension_rounded,
+              label: 'Play',
               isSelected: currentIndex == 1,
               onTap: () => onPress(1),
             ),

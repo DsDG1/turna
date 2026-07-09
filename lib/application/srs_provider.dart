@@ -8,25 +8,30 @@ import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
+import 'package:words625/application/lesson_link_store.dart';
 import 'package:words625/core/sm2.dart';
+import 'package:words625/domain/course/lesson_word_link.dart';
 import 'package:words625/domain/course/srs_word.dart';
 import 'package:words625/service/locator.dart';
 
 /// Manages the per-word spaced-repetition state, persisted to
 /// [LocalStateKeys.srsState] via [StreamingSharedPreferences].
-@injectable
+@lazySingleton
 class SrsProvider extends ChangeNotifier {
   final AppPrefs appPrefs;
+  final LessonLinkStore linkStore;
   final Sm2Engine _engine = const Sm2Engine();
 
-  SrsProvider(this.appPrefs);
+  SrsProvider(this.appPrefs, this.linkStore);
 
   Map<String, SrsWord>? _cachedState;
+  List<SrsWord>? _cachedDueWords;
+  DateTime? _cachedDueAt;
 
   /// wordId → current [SrsWord] state. Words never seen are absent.
   Map<String, SrsWord> get state {
     if (_cachedState != null) return _cachedState!;
-    
+
     final raw = appPrefs.preferences
         .getString(LocalStateKeys.srsState, defaultValue: '{}')
         .getValue();
@@ -34,7 +39,8 @@ class SrsProvider extends ChangeNotifier {
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
       _cachedState = decoded.map((k, v) => MapEntry(k, _parse(v as Map<String, dynamic>)));
       return _cachedState!;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('SrsProvider state decode failed: $e');
       _cachedState = <String, SrsWord>{};
       return _cachedState!;
     }
@@ -61,6 +67,28 @@ class SrsProvider extends ChangeNotifier {
     if (changed) _persist(current);
   }
 
+  /// Persist the lesson(s) where a set of word/expression/grammar ids were
+  /// first encountered. Only the first recorded link for each id is kept.
+  Future<void> recordLessonLinks({
+    required Iterable<String> wordIds,
+    required String lessonId,
+    required String lessonName,
+    LinkType type = LinkType.word,
+  }) async {
+    await linkStore.upsertFirstSeen(
+      ids: wordIds,
+      lessonId: lessonId,
+      lessonName: lessonName,
+      type: type,
+    );
+    notifyListeners();
+  }
+
+  /// The lesson name where [wordId] was first encountered, or `null` if
+  /// unknown.
+  String? getLessonNameForWord(String wordId) =>
+      linkStore.lessonNameFor(wordId);
+
   /// Apply a SM-2 review for [wordId] with the given [quality].
   /// Returns the updated [SrsWord] (or null if [wordId] is unknown).
   Future<SrsWord?> reviewWord(String wordId, int quality) async {
@@ -80,8 +108,16 @@ class SrsProvider extends ChangeNotifier {
   /// Words whose `dueAt` is in the past or now.
   List<SrsWord> getDueWords([DateTime? now]) {
     final cutoff = now ?? DateTime.now();
-    return state.values.where((w) => !w.dueAt.isAfter(cutoff)).toList()
+    if (_cachedDueWords != null &&
+        _cachedDueAt != null &&
+        !_cachedDueAt!.isAfter(cutoff)) {
+      return _cachedDueWords!;
+    }
+    final result = state.values.where((w) => !w.dueAt.isAfter(cutoff)).toList()
       ..sort((a, b) => a.dueAt.compareTo(b.dueAt));
+    _cachedDueWords = result;
+    _cachedDueAt = cutoff;
+    return result;
   }
 
   /// Up to [n] random words that have been seen at least once.
@@ -107,6 +143,8 @@ class SrsProvider extends ChangeNotifier {
     );
     await appPrefs.preferences.setString(LocalStateKeys.srsState, encoded);
     _cachedState = map;
+    _cachedDueWords = null;
+    _cachedDueAt = null;
     notifyListeners();
   }
 

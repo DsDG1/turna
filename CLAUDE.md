@@ -2,7 +2,9 @@
 
 ## Project Overview
 
-**Varnamala** is a Flutter-based language learning app for Indian languages (Kannada, Tamil, Telugu, Malayalam) inspired by Duolingo. The app uses Firebase for backend services and follows a clean architecture pattern.
+**Varnamala** is a Flutter-based language learning app inspired by Duolingo. Originally focused on Indian languages (Kannada, Tamil, Telugu, Malayalam), the app is currently repositioning around **Swahili** as the primary target language while keeping the existing Kannada course data as a temporary placeholder. The app uses Firebase for backend services and follows a clean architecture pattern.
+
+For the long-term scaling vision (11,000 lessons, sub-lessons, listening phases, SRS, mistake tracking, external CMS), see [`dreamplan.md`](./dreamplan.md).
 
 ---
 
@@ -12,15 +14,30 @@
 ```
 lib/
 ├── application/       # State management (Providers)
+│   ├── srs_provider.dart        # SM-2 spaced repetition
+│   ├── mistake_provider.dart    # FIFO mistake log
+│   └── ...
 ├── core/              # Enums, extensions, utilities
 ├── courses/           # Language course data
 │   ├── alphabets/     # Alphabet learning content
+│   ├── course_loader.dart
+│   ├── course_validator.dart
 │   └── languages/     # Language-specific course files
 ├── di/                # Dependency injection (GetIt + Injectable)
 ├── domain/            # Domain models (Course, User, etc.)
+│   └── course/        # section, unit, lesson, stage, interaction,
+│                      # sub_lesson, listening_phase, expression,
+│                      # grammar_point, reading_passage, srs_word, mistake_entry
 ├── routing/           # Auto Route configuration
 ├── service/           # App services (Preferences, locator)
 └── views/             # UI layer organized by feature
+    ├── courses/       # Course tree
+    ├── home/          # Bottom navigation / home shell
+    ├── lesson/        # Lesson player + interaction renderers
+    ├── play/          # Play hub (Match Madness, SRS Review, Mistakes)
+    ├── profile/       # User profile
+    ├── review/        # SRS review + mistake list
+    ├── theme.dart       # VarnamalaTheme: light/dark ThemeData + semantic color helpers
 ```
 
 ### Key Patterns
@@ -64,12 +81,20 @@ users/
 - [x] Course tree with progressive levels
 - [x] Multiple choice questions
 - [x] Translation exercises  
+- [x] Fill-in-the-blank
+- [x] Listening exercises (ListenAndPick / TypeTheWord using TTS)
+- [x] Reading exercises (ReadingMCQ / ReadingTrueFalse / ReadingShortAnswer)
 - [x] XP scoring system
 - [x] Basic streak tracking
 - [x] Leaderboard (top 30 users)
-- [x] Character/alphabet practice
+- [x] SRS engine (SM-2) + review UI
+- [x] Mistake tracking with FIFO log + review list
+- [x] Match Madness word-matching mini-game
 - [x] Shop UI (streak freeze, power-ups, outfits)
-- [x] Multi-language support (Kannada, Tamil, Telugu, Malayalam)
+- [x] Multi-language support (Kannada content presented as Swahili for now)
+- [x] Content model extended for sub-lessons, listening phases, expressions, grammar points, reading passages
+- [x] **Dark Mode** — full light/dark/system theme support with persistent preference, semantic color helpers, and theme-aware widget backgrounds
+- [x] **Learning Statistics Dashboard** — daily/weekly XP trends, study time tracking, accuracy metrics, weak-word analysis (Profile page)
 
 ### 🔴 Features Needed (Firebase-Based)
 
@@ -134,40 +159,73 @@ users/
 - [ ] **Learning Modes**
   - Stories mode
   - Speaking exercises (using flutter_tts)
-  - Listening exercises
+  - Listening exercises (model done, dedicated phase renderer pending)
   - Fill-in-the-blank
-  - Word matching (partially done)
+  - Word matching (Match Madness implemented)
 
+- [ ] **Content Management**
+  - External GUI editor for non-technical authors
+  - Per-section JSON or SQLite backend
+  - Cloud sync and content versioning
+
+- [ ] **Grammar & Expressions**
+  - Grammar-point review queue
+  - Expression-level SRS
+  - Word/expression origin tracking (LessonWordLink)
 ---
 
 ## UI Theming Guidelines
 
-### Color Palette (Differentiate from Duolingo)
+### VarnamalaTheme (lib/views/theme.dart)
+
+The app uses a single `VarnamalaTheme` class that provides both `lightTheme` and `darkTheme` `ThemeData` getters, plus a suite of **semantic color helpers** that adapt to the current `Brightness` via `BuildContext`:
+
 ```dart
-// Primary: Teal/Cyan instead of Duolingo's green
-const primaryColor = Color(0xff25D5C8);     // Current - Keep this
-const primaryDark = Color(0xff1AB3A8);
-const primaryLight = Color(0xff5DE8DC);
-
-// Accent: Coral/Salmon for actions
-const accentColor = Color(0xffFF6B6B);
-
-// Success: Gold/Amber instead of green checkmarks
-const successColor = Color(0xffFFD93D);
-
-// League Colors - Use jewel tones
-const amethystLeague = Color(0xff9B59B6);
-const pearlLeague = Color(0xffF5F5F5);
-const rubyLeague = Color(0xffE74C3C);
-const emeraldLeague = Color(0xff27AE60);
-const diamondLeague = Color(0xff3498DB);
+// Theme-aware helpers — use these instead of hard-coded Colors.white
+static Color cardBg(BuildContext context)
+static Color scaffoldBg(BuildContext context)
+static Color dividerBg(BuildContext context)
+static Color textHintColor(BuildContext context)
+static Color inputFillColor(BuildContext context)
+static Color statCardBorder(BuildContext context)
+static Color bottomNavBg(BuildContext context)
+static Color streakChipBg(BuildContext context)
+static Color scoreChipBg(BuildContext context)
+// ... and more
 ```
 
-### Design Principles
-- Use rounded corners (16-24dp radius)
-- Subtle shadows instead of heavy borders
-- Gradient backgrounds for league cards
-- Custom mascot "Mala" (peacock) as guide character
+### Color Palette (Peacock-inspired, distinct from Duolingo)
+
+```dart
+// Primary: Teal/Cyan
+const primaryColor = Color(0xFF1F727E);
+const primaryLight = Color(0xFF359CBB);
+const primaryDark = Color(0xFF145A64);
+
+// Accent / Secondary
+const secondary = Color(0xFF46D1BF);
+const secondaryLight = Color(0xFF00FFC6);
+
+// Semantic
+const error = Color(0xFFE74C3C);
+const success = Color(0xFFFFD93D);
+const warning = Color(0xFFFF9F43);
+
+// League Colors (Jewel Tones)
+const amethystLeague = Color(0xFF9B59B6);
+const pearlLeague = Color(0xFFF5F5F5);
+const rubyLeague = Color(0xFFE74C3C);
+const emeraldLeague = Color(0xFF27AE60);
+const diamondLeague = Color(0xFF3498DB);
+```
+
+### Theme Switching
+
+- `ThemeProvider` (ChangeNotifier) manages `ThemeMode.light / dark / system`
+- Preference persisted to `StreamingSharedPreferences` (`settings.themeMode`)
+- `PlatformDispatcher.platformBrightness` used when `system` mode is active
+- Toggle available in Profile page (AccountWidget popup menu)
+- `MaterialApp.router` receives both `theme` and `darkTheme`
 
 ---
 
@@ -243,10 +301,23 @@ flutter clean && flutter pub get && flutter pub run build_runner build --delete-
 | `lib/views/app.dart` | Root widget with providers |
 | `lib/routing/routing.dart` | Auto Route configuration |
 | `lib/di/injection.dart` | GetIt DI setup |
-| `lib/service/locator.dart` | AppPrefs, preferences |
+| `lib/service/locator.dart` | AppPrefs, preferences, TTS setup |
 | `lib/application/game_provider.dart` | Score/streak logic |
-| `lib/domain/course/course.dart` | Course/Level/Question models |
-| `lib/courses/languages/*.dart` | Language course data |
+| `lib/application/srs_provider.dart` | SM-2 spaced repetition |
+| `lib/application/mistake_provider.dart` | FIFO mistake log |
+| `lib/application/lesson_viewmodel.dart` | Lesson flow + SRS/mistake registration |
+| `lib/domain/course/lesson.dart` | Lesson model + LessonTemplate |
+| `lib/domain/course/lesson_content.dart` | Lesson content (stages/subLessons/listeningPhases/readingPassage) |
+| `lib/views/play/play_hub_screen.dart` | Play hub (Match Madness, SRS Review, Mistakes) |
+| `lib/views/review/srs_review_screen.dart` | SRS flashcard review |
+| `lib/views/review/mistake_list_page.dart` | Mistake list |
+| `lib/views/theme.dart` | VarnamalaTheme: light/dark ThemeData + semantic color helpers |
+| `lib/application/study_stats_provider.dart` | Learning statistics aggregation and recording |
+| `lib/domain/study/study_log.dart` | Study activity event model |
+| `lib/domain/study/daily_stats.dart` | Daily/weekly aggregated study statistics |
+| `lib/data/study_log_repository.dart` | Study log persistence (prefs-backed, 90-day retention) |
+| `lib/views/profile/widgets/learning_stats.dart` | Profile page learning statistics dashboard UI |
+| `dreamplan.md` | Long-term scaling vision and feasibility analysis |
 
 ---
 

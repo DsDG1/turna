@@ -20,13 +20,15 @@ class Words625App extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: providers,
-      child: Consumer<ThemeProvider>(
-        builder: (context, themeProvider, _) {
+      child: Selector<ThemeProvider, ThemeMode>(
+        selector: (_, themeProvider) => themeProvider.themeMode,
+        builder: (context, themeMode, _) {
           return MaterialApp.router(
             debugShowCheckedModeBanner: false,
             title: 'Varnamala',
             theme: VarnamalaTheme.lightTheme,
-            themeMode: themeProvider.themeMode,
+            darkTheme: VarnamalaTheme.darkTheme,
+            themeMode: themeMode,
             routerConfig: router.config(),
           );
         },

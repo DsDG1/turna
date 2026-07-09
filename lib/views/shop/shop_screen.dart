@@ -239,9 +239,9 @@ class ShopItem extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: VarnamalaTheme.cardBg(context),
         borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-        border: Border.all(color: const Color(0xFFEEF2F1)),
+        border: Border.all(color: VarnamalaTheme.statCardBorder(context)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),

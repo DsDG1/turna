@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 
 // Package imports:
 import 'package:auto_route/auto_route.dart';
-import 'package:flutter_tts/flutter_tts.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
+import 'package:words625/application/audio_controller.dart';
 import 'package:words625/application/character_provider.dart';
 import 'package:words625/application/language_provider.dart';
 import 'package:words625/core/enums.dart';
@@ -208,7 +208,7 @@ class _CharacterTile extends StatelessWidget {
       color: Colors.white,
       borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
       child: InkWell(
-        onTap: () => getIt<FlutterTts>().speak(pronunciation),
+        onTap: () => getIt<AudioController>().speak(pronunciation),
         borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
         child: Container(
           decoration: BoxDecoration(
@@ -525,7 +525,7 @@ class _VowelAndConsonantLearningPageState
                       borderRadius:
                           BorderRadius.circular(VarnamalaTheme.radiusSmall),
                       onTap: () =>
-                          getIt<FlutterTts>().speak(currentCharacter.value),
+                          getIt<AudioController>().speak(currentCharacter.value),
                       child: const Padding(
                         padding: EdgeInsets.all(8),
                         child: Icon(Icons.volume_up_rounded,
@@ -635,6 +635,15 @@ class CharacterPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(CharacterPainter oldDelegate) {
-    return true;
+    if (oldDelegate.strokes.length != strokes.length) return true;
+    for (int i = 0; i < strokes.length; i++) {
+      final oldStroke = oldDelegate.strokes[i];
+      final newStroke = strokes[i];
+      if (oldStroke.length != newStroke.length) return true;
+      for (int j = 0; j < oldStroke.length; j++) {
+        if (oldStroke[j] != newStroke[j]) return true;
+      }
+    }
+    return false;
   }
 }

@@ -1,5 +1,8 @@
-/// Kannada Level 1 vocabulary used by the match-words game.
+/// Swahili Level 1 vocabulary used by the match-words game.
 /// Single-language build: the lookup map has been removed.
+///
+/// NOTE: The entries below are still Kannada words while the Swahili
+/// vocabulary is being prepared.
 final allLevel1Words = <String, String>{
   "I": "Naanu",
   "You": "Neenu",
@@ -32,6 +35,3 @@ final allLevel1Words = <String, String>{
   "Speak": "Maatanadu",
   "Listen": "Keliri",
 };
-
-/// Backwards-compatible alias for callers that imported the old name.
-final allLevel1WordsKannada = allLevel1Words;

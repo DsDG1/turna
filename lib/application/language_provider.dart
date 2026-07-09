@@ -8,18 +8,29 @@ import 'package:injectable/injectable.dart';
 import 'package:words625/core/enums.dart';
 import 'package:words625/service/locator.dart';
 
-@injectable
+@lazySingleton
 class LanguageProvider extends ChangeNotifier {
   final AppPrefs appPrefs;
 
-  TargetLanguage selectedLanguage = TargetLanguage.kannada;
+  TargetLanguage selectedLanguage = TargetLanguage.swahili;
 
   LanguageProvider(this.appPrefs);
+
+  /// TTS language code for the currently selected target language.
+  String get ttsLanguageCode {
+    switch (selectedLanguage) {
+      case TargetLanguage.swahili:
+        // Current vocab.json still holds Kannada words; use 'kn' so TTS can
+        // actually pronounce them. Switch back to 'sw' once real Swahili
+        // vocabulary replaces the Kannada placeholder data.
+        return 'kn';
+    }
+  }
 
   initLanguage() {
     selectedLanguage = TargetLanguage.values.firstWhere(
       (element) => element.name == appPrefs.currentLanguage.getValue(),
-      orElse: () => TargetLanguage.kannada,
+      orElse: () => TargetLanguage.swahili,
     );
 
     notifyListeners();

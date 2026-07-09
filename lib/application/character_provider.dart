@@ -4,7 +4,7 @@ import 'package:flutter/cupertino.dart';
 // Package imports:
 import 'package:injectable/injectable.dart';
 
-@injectable
+@lazySingleton
 class CharacterProvider extends ChangeNotifier {
   List<Offset> points = [];
 

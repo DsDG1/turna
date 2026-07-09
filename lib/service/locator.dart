@@ -1,12 +1,21 @@
 // Flutter imports:
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 
 // Package imports:
+import 'package:drift/native.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 
 // Project imports:
 import 'package:words625/core/logger.dart';
+import 'package:words625/courses/languages/grammar_points.dart';
+import 'package:words625/courses/languages/kannada_vocab.dart';
+import 'package:words625/data/course_database.dart';
+import 'package:words625/data/course_database_seeder.dart';
 import 'package:words625/di/injection.dart';
 import 'package:words625/domain/auth/local_user.dart';
 import 'package:words625/routing/routing.dart';
@@ -18,7 +27,7 @@ class AppPrefs {
     this.preferences,
   )   : currentLanguage = preferences.getString(
           PrefsConstants.currentLanguage,
-          defaultValue: "kannada",
+          defaultValue: "swahili",
         ),
         authUser = preferences.getCustomValue(
           PrefsConstants.authUser,
@@ -93,8 +102,16 @@ class LocalStateKeys {
   static const String dailyXpGoal = 'game.dailyXpGoal';
   static const String dailyXpEarned = 'game.dailyXpEarned';
   static const String lastDailyReset = 'game.lastDailyReset';
+  // Legacy aggregate counters — kept for back-compat with any consumer that
+  // still reads them, but new code should use [completedLessonIds] and
+  // [perfectLessonIds] (which are now the source of truth).
   static const String lessonsCompleted = 'game.lessonsCompleted';
   static const String perfectLessons = 'game.perfectLessons';
+
+  // Per-lesson progress — set of completed / perfect lesson ids. The
+  // authoritative record. New code must read from these.
+  static const String completedLessonIds = 'progress.completedLessonIds';
+  static const String perfectLessonIds = 'progress.perfectLessonIds';
   static const String streakFreezes = 'game.streakFreezes';
   static const String streakFreezeActive = 'game.streakFreezeActive';
   static const String streakWasBroken = 'game.streakWasBroken';
@@ -118,6 +135,20 @@ class LocalStateKeys {
 
   // SRS — JSON-serialized Map<String, SrsWord> keyed by wordId.
   static const String srsState = 'srs.state';
+
+  // Lesson word links — JSON-serialized Map<String, LessonWordLink> keyed by
+  // wordId / grammarPointId (disambiguated by LinkType).
+  static const String lessonWordLinks = 'srs.lessonWordLinks';
+
+  // Grammar review SRS — JSON-serialized Map<String, SrsWord> keyed by
+  // grammarPointId. Separate queue from [srsState].
+  static const String grammarReviewState = 'grammarReview.state';
+
+  // Mistake log — JSON-serialized List<MistakeEntry>.
+  static const String mistakeLog = 'mistake.log';
+
+  // Settings
+  static const String themeMode = 'settings.themeMode'; // 'light' | 'dark' | 'system'
 }
 
 /// Making AppPrefs injectable
@@ -127,9 +158,41 @@ Future<void> setupLocator() async {
   getIt.registerLazySingleton<AppPrefs>(() => AppPrefs(preferences));
 
   if (!kIsWeb) {
-    getIt.registerLazySingleton<FlutterTts>(
-        () => FlutterTts()..setLanguage("en-US"));
+    getIt.registerLazySingleton<FlutterTts>(() => FlutterTts());
   }
+
+  // Open + seed the course database before any course read. Seeding is a
+  // one-shot on first launch (the DB is then cached); subsequent starts skip
+  // the JSON assets entirely. Registered as a singleton so [SwahiliCourse]
+  // can resolve it synchronously.
+  final db = await _openAndSeedCourseDatabase();
+  getIt.registerSingleton<CourseDatabase>(db);
+
+  // Pre-load Swahili vocabulary so the synchronous [swahiliVocabById]
+  // and [swahiliVocabByTranslation] lookups are populated before any
+  // lesson is rendered. This is a one-shot cost at app start.
+  await loadSwahiliVocabulary();
+
+  // Pre-load grammar points so [swahiliGrammarPointById] is populated before
+  // the grammar review screen renders.
+  await loadSwahiliGrammarPoints();
+}
+
+/// Opens the on-device course database and seeds it from the bundled JSON
+/// assets if empty. Not supported on web (`NativeDatabase` needs native
+/// `sqlite3`); a future revision can swap in a WASM database for web.
+Future<CourseDatabase> _openAndSeedCourseDatabase() async {
+  if (kIsWeb) {
+    throw UnsupportedError(
+      'CourseDatabase is not supported on web yet (NativeDatabase requires '
+      'native sqlite3).',
+    );
+  }
+  final dir = await getApplicationDocumentsDirectory();
+  final file = File(p.join(dir.path, 'course.swahili.db'));
+  final db = CourseDatabase(NativeDatabase(file));
+  await DatabaseSeeder(db).seedIfEmpty();
+  return db;
 }
 
 Map<String, dynamic> _serializeUser(SerializableFirebaseUser user) =>

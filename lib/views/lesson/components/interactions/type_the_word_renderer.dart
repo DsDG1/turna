@@ -1,12 +1,12 @@
 // Flutter imports:
 import 'package:flutter/material.dart';
-import 'package:flutter_tts/flutter_tts.dart';
 
 // Package imports:
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:words625/courses/languages/kannada_vocab.dart';
+import 'package:words625/application/audio_controller.dart';
+import 'package:words625/core/text_styles.dart';
 import 'package:words625/di/injection.dart';
 import 'package:words625/domain/course/interaction.dart';
 import 'package:words625/views/lesson/components/interactions/interaction_renderer.dart';
@@ -72,15 +72,8 @@ class _TypeTheWordBodyState extends State<_TypeTheWordBody> {
     super.dispose();
   }
 
-  String _resolveSpeakText() {
-    final v = kannadaVocabById[widget.audioAsset];
-    return v?.term ?? widget.audioAsset;
-  }
-
   Future<void> _speak() async {
-    final tts = getIt<FlutterTts>();
-    await tts.stop();
-    await tts.speak(_resolveSpeakText());
+    await getIt<AudioController>().speakWord(widget.audioAsset);
   }
 
   bool _matches(String input) =>
@@ -96,28 +89,15 @@ class _TypeTheWordBodyState extends State<_TypeTheWordBody> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
-            'Type what you hear',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: VarnamalaTheme.textHint,
-              letterSpacing: 0.4,
-            ),
-          ),
-          const SizedBox(height: 16),
+          const SectionCaption('Type what you hear'),
           Center(
-            child: _SpeakerButton(onPressed: _speak),
+            child: SpeakerButton(onPressed: _speak),
           ),
           const SizedBox(height: 24),
           Text(
             widget.prompt,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              color: VarnamalaTheme.textPrimary,
-            ),
+            style: AppTextStyles.promptMd,
           ),
           const SizedBox(height: 24),
           TextField(
@@ -152,7 +132,8 @@ class _TypeTheWordBodyState extends State<_TypeTheWordBody> {
           ),
           if (submitted && correct == false) ...[
             const SizedBox(height: 16),
-            _CorrectAnswerBanner(answer: widget.expected),
+            LessonCorrectAnswerBanner(
+                label: 'Correct answer', answer: widget.expected),
           ],
           const SizedBox(height: 24),
           LessonCheckButton(
@@ -164,68 +145,6 @@ class _TypeTheWordBodyState extends State<_TypeTheWordBody> {
                       userAnswerText: _controller.text,
                     )
                 : null,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SpeakerButton extends StatelessWidget {
-  final VoidCallback onPressed;
-  const _SpeakerButton({required this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: VarnamalaTheme.peacockTeal,
-      shape: const CircleBorder(),
-      elevation: 4,
-      shadowColor: VarnamalaTheme.peacockTeal.withValues(alpha: 0.4),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onPressed,
-        child: const Padding(
-          padding: EdgeInsets.all(24),
-          child: Icon(Icons.volume_up_rounded, color: Colors.white, size: 36),
-        ),
-      ),
-    );
-  }
-}
-
-class _CorrectAnswerBanner extends StatelessWidget {
-  final String answer;
-  const _CorrectAnswerBanner({required this.answer});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: VarnamalaTheme.success.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.check_circle, color: VarnamalaTheme.successDark),
-          const SizedBox(width: 8),
-          Expanded(
-            child: RichText(
-              text: TextSpan(
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: VarnamalaTheme.textPrimary,
-                ),
-                children: [
-                  const TextSpan(text: 'Correct answer: '),
-                  TextSpan(
-                    text: answer,
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                ],
-              ),
-            ),
           ),
         ],
       ),

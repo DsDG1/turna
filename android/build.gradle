@@ -33,6 +33,10 @@ subprojects {
                 if (namespace == null || namespace.isEmpty()) {
                     namespace project.group.toString()
                 }
+                compileSdkVersion 36
+                defaultConfig {
+                    targetSdkVersion 36
+                }
             }
         }
 

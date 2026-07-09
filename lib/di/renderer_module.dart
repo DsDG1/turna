@@ -5,7 +5,11 @@ import 'package:injectable/injectable.dart';
 import 'package:words625/views/lesson/components/interactions/fill_blank_renderer.dart';
 import 'package:words625/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:words625/views/lesson/components/interactions/listen_and_pick_renderer.dart';
+import 'package:words625/views/lesson/components/interactions/listen_only_renderer.dart';
 import 'package:words625/views/lesson/components/interactions/multiple_choice_renderer.dart';
+import 'package:words625/views/lesson/components/interactions/reading_mcq_renderer.dart';
+import 'package:words625/views/lesson/components/interactions/reading_short_answer_renderer.dart';
+import 'package:words625/views/lesson/components/interactions/reading_true_false_renderer.dart';
 import 'package:words625/views/lesson/components/interactions/reorder_sentence_renderer.dart';
 import 'package:words625/views/lesson/components/interactions/show_word_renderer.dart';
 import 'package:words625/views/lesson/components/interactions/translate_sentence_renderer.dart';
@@ -16,13 +20,15 @@ import 'package:words625/views/lesson/components/interactions/type_the_word_rend
 /// This is the Dart / GetIt analogue of a Hilt `@IntoSet` multibinding. Each
 /// concrete renderer is registered as an `@injectable` factory; this module
 /// collects them all into a single `Set<InteractionRenderer>` that the
-/// [LessonContentScreen] dispatcher uses to look up a renderer by
+/// lesson screen dispatcher uses to look up a renderer by
 /// `interaction.runtimeType`.
 ///
 /// Adding a new [Interaction] type:
 ///   1. Create `FooBarRenderer extends InteractionRenderer` with `@injectable`.
-///   2. Add a parameter for it here.
-///   3. Add it to the returned set.
+///   2. (If the type auto-advances on submit, override `bool get autoAdvance
+///      => true;` — the screen reads this instead of special-casing the
+///      type.)
+///   3. Add a parameter for it here and add it to the returned set.
 ///   4. Re-run `dart run build_runner build`.
 @module
 abstract class RendererModule {
@@ -34,7 +40,11 @@ abstract class RendererModule {
     TranslateSentenceRenderer translateSentence,
     ListenAndPickRenderer listenAndPick,
     TypeTheWordRenderer typeTheWord,
+    ListenOnlyRenderer listenOnly,
     ReorderSentenceRenderer reorderSentence,
+    ReadingMcqRenderer readingMcq,
+    ReadingTrueFalseRenderer readingTrueFalse,
+    ReadingShortAnswerRenderer readingShortAnswer,
   ) =>
       {
         showWord,
@@ -43,6 +53,10 @@ abstract class RendererModule {
         translateSentence,
         listenAndPick,
         typeTheWord,
+        listenOnly,
         reorderSentence,
+        readingMcq,
+        readingTrueFalse,
+        readingShortAnswer,
       };
 }

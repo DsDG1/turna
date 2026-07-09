@@ -5,49 +5,43 @@ environment:
   sdk: ">=3.2.3 <4.0.0"
 description: Varnamala - A Duolingo Alternative for Learning Indian Languages
 dependencies:
-  animated_text_kit: ^4.2.2
-  audioplayers: any
+  audioplayers: ^6.0.0
   auto_route: 9.2.2
-  chiclet: any
-  countup: any
   cupertino_icons: ^1.0.2
-  equatable: any
+  drift: ^2.16.0
+  equatable: ^2.0.5
   flutter:
     sdk: flutter
-  flutter_animate: any
-  flutter_custom_dialog: ^1.2.0
-  flutter_svg: any
-  flutter_tts: any
-  font_awesome_flutter: any
-  freezed: any
-  get_it: any
+  flutter_svg: ^2.0.10
+  flutter_tts: ^4.0.2
+  freezed: ^2.5.2
+  get_it: ^7.7.0
   google_fonts: ^6.2.0
-  http: any
-  injectable: any
-  intl: any
-  json_annotation: any
-  json_serializable: any
-  logger: any
-  percent_indicator: ^4.0.0
-  provider: any
-  pulsator: any
-  shimmer: any
-  streaming_shared_preferences: any
+  http: ^1.2.2
+  injectable: ^2.4.2
+  intl: ^0.19.0
+  json_annotation: ^4.9.0
+  json_serializable: ^6.8.0
+  logger: ^2.4.0
+  path: ^1.9.0
+  path_provider: ^2.1.4
+  provider: ^6.1.2
+  sqlite3_flutter_libs: ^0.5.24
+  streaming_shared_preferences: ^2.0.0
   url_launcher: ^6.3.2
 dev_dependencies:
-  auto_route_generator: any
-  build_runner: any
-  flutter_animate: any
+  auto_route_generator: ^9.0.0
+  build_runner: ^2.4.12
+  drift_dev: ^2.16.0
   flutter_gen: 5.8.0
   flutter_gen_runner: 5.8.0
-  flutter_launcher_icons: any
+  flutter_launcher_icons: ^0.14.1
   flutter_lints: ^2.0.0
   flutter_test:
     sdk: flutter
-  import_sorter: any
-  injectable_generator: any
-  pubspec_dependency_sorter: any
-  string_extension: any
+  import_sorter: ^4.6.0
+  injectable_generator: ^2.6.1
+  pubspec_dependency_sorter: ^1.0.5
 flutter:
   uses-material-design: true
   assets:
@@ -55,7 +49,9 @@ flutter:
     - assets/icons/
     - assets/images/
     - assets/images/mala/
-    - assets/screens/
+    - assets/courses/
+    - assets/courses/swahili/
+    - assets/courses/swahili/sections/
 flutter_launcher_icons:
   android: launcher_icon
   ios: true

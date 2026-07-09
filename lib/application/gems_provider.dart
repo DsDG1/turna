@@ -16,7 +16,11 @@ enum GemEvent {
   streakMilestone30(200),
   streakMilestone100(500),
   achievementUnlock(25),
-  leaguePromotion(100);
+  leaguePromotion(100),
+  /// Flat gems for finishing one SRS word-review session.
+  srsReviewSession(2),
+  /// Flat gems for finishing one grammar-review session.
+  grammarReviewSession(2);
 
   final int amount;
   const GemEvent(this.amount);
@@ -30,7 +34,7 @@ enum CommunityAction {
   const CommunityAction(this.reward);
 }
 
-@injectable
+@lazySingleton
 class GemsProvider extends ChangeNotifier {
   final AppPrefs appPrefs;
 
@@ -49,9 +53,16 @@ class GemsProvider extends ChangeNotifier {
   }
 
   Future<void> earnGems(GemEvent event) async {
+    await addGems(event.amount);
+  }
+
+  /// Single writer entry for gem balance (achievement unlocks, spends, etc.).
+  Future<void> addGems(int amount) async {
+    if (amount == 0) return;
     final current = _readInt(LocalStateKeys.gems, 0);
-    await appPrefs.preferences.setInt(LocalStateKeys.gems, current + event.amount);
-    _emit(current + event.amount);
+    final next = current + amount;
+    await appPrefs.preferences.setInt(LocalStateKeys.gems, next);
+    _emit(next);
     notifyListeners();
   }
 

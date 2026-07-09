@@ -10,12 +10,16 @@ import 'package:words625/application/audio_controller.dart';
 import 'package:words625/application/course_provider.dart';
 import 'package:words625/application/game_provider.dart';
 import 'package:words625/application/gems_provider.dart';
+import 'package:words625/application/grammar_review_provider.dart';
+import 'package:words625/application/mistake_provider.dart';
 import 'package:words625/application/srs_provider.dart';
+import 'package:words625/application/study_stats_provider.dart';
+import 'package:words625/courses/course_loader.dart';
 import 'package:words625/domain/course/interaction.dart';
 import 'package:words625/domain/course/lesson.dart';
-import 'package:words625/domain/course/lesson_content.dart';
-import 'package:words625/domain/course/reading_question.dart';
+import 'package:words625/domain/course/mistake_entry.dart';
 import 'package:words625/domain/course/stage.dart';
+import 'package:words625/domain/study/study_log.dart';
 import 'package:words625/views/lesson/components/interactions/interaction_renderer.dart';
 
 /// Describes the UI state after an answer is submitted.
@@ -33,12 +37,18 @@ extension AnswerStateX on AnswerState {
   bool get isIncorrect => this == AnswerState.incorrect;
 }
 
-/// ViewModel for the new 5-layer lesson flow.
+/// ViewModel for the lesson flow.
 ///
-/// Owns progression through [Stage]s / [ReadingStage]s inside a [Lesson].
-/// Renderers report correctness via `submitInteraction()`; the ViewModel
+/// Owns progression through [Stage]s inside a [Lesson]. Every lesson —
+/// normal, listening, reading, review, challenge, or a flat list of
+/// questions — is modelled as `lesson.content.stages`, each holding a
+/// `List<Interaction>`. The viewmodel walks that single list; it never
+/// branches on content type, so adding a new [LessonType] or a new
+/// [Interaction] variant needs no changes here.
+///
+/// Renderers report correctness via [submitInteraction]; the ViewModel
 /// decides when to advance and when the lesson is complete.
-@injectable
+@lazySingleton
 class LessonViewModel extends ChangeNotifier {
   final CourseProvider _courseProvider;
   final GameProvider _gameProvider;
@@ -46,6 +56,9 @@ class LessonViewModel extends ChangeNotifier {
   final AchievementsProvider _achievementsProvider;
   final AudioController _audioController;
   final SrsProvider _srsProvider;
+  final MistakeProvider _mistakeProvider;
+  final GrammarReviewProvider _grammarReviewProvider;
+  final StudyStatsProvider _studyStatsProvider;
 
   LessonViewModel(
     this._courseProvider,
@@ -54,16 +67,24 @@ class LessonViewModel extends ChangeNotifier {
     this._achievementsProvider,
     this._audioController,
     this._srsProvider,
+    this._mistakeProvider,
+    this._grammarReviewProvider,
+    this._studyStatsProvider,
   );
 
   // --- Lesson state ---
   Lesson? _lesson;
+  List<Stage> _cachedStages = const [];
   int _currentStageIndex = 0;
   int _currentInteractionIndex = 0;
-  int _mistakesInCurrentStage = 0;
+  int _totalMistakes = 0;
   bool _isComplete = false;
+  DateTime? _lessonStartTime;
+  int _correctAnswers = 0;
+  int _incorrectAnswers = 0;
 
-  /// Per-item submission state, keyed by `interactionItemId(stageId, idx)`.
+  /// Per-item submission state, keyed by [interactionItemId] — uses the
+  /// item's stable `id` field when present, falling back to `legacy-$idx`.
   final Map<String, InteractionState> _interactionStates = {};
 
   // --- Getters ---
@@ -72,57 +93,37 @@ class LessonViewModel extends ChangeNotifier {
   LessonType get lessonType => _lesson?.type ?? LessonType.normal;
   bool get isComplete => _isComplete;
 
-  bool get isReadingLesson =>
-      _lesson?.content is ReadingContent;
+  /// The stages of the current lesson (empty before [loadLesson] completes).
+  List<Stage> get _stages => _cachedStages;
 
-  /// Current stage (for normal/listening/review/challenge).
+  /// Current stage, or `null` if out of range.
   Stage? get currentStage {
     if (_lesson == null) return null;
-    final content = _lesson!.content;
-    if (content is NormalContent ||
-        content is ListeningContent ||
-        content is ReviewContent ||
-        content is ChallengeContent) {
-      final stages = _stagesFromContent(content);
-      if (stages.isEmpty || _currentStageIndex >= stages.length) return null;
-      return stages[_currentStageIndex] as Stage;
-    }
-    return null;
-  }
-
-  /// Current reading stage (for reading lessons).
-  ReadingStage? get currentReadingStage {
-    if (!isReadingLesson) return null;
-    final content = _lesson!.content as ReadingContent;
-    if (content.stages.isEmpty ||
-        _currentStageIndex >= content.stages.length) {
+    if (_currentStageIndex < 0 || _currentStageIndex >= _stages.length) {
       return null;
     }
-    return content.stages[_currentStageIndex];
+    return _stages[_currentStageIndex];
   }
 
-  /// The current [Interaction] if this lesson uses normal stages.
+  /// The current [Interaction] if there is one at the current index.
   Interaction? get currentInteraction {
     final stage = currentStage;
     if (stage == null) return null;
-    if (_currentInteractionIndex >= stage.items.length) return null;
+    if (_currentInteractionIndex < 0 ||
+        _currentInteractionIndex >= stage.items.length) {
+      return null;
+    }
     return stage.items[_currentInteractionIndex];
   }
 
-  /// The current [ReadingQuestion] if this is a reading lesson.
-  ReadingQuestion? get currentReadingQuestion {
-    final stage = currentReadingStage;
-    if (stage == null) return null;
-    if (_currentInteractionIndex >= stage.items.length) return null;
-    return stage.items[_currentInteractionIndex];
-  }
-
-  /// The ID for the current interaction item.
+  /// The ID for the current interaction item. Composed from the parent
+  /// stage's id and the interaction's own [id] field; items without an
+  /// explicit id get a `legacy-$index` key so the synthetic id remains
+  /// stable across reorderings of the parent stage.
   String get currentInteractionId {
-    final stageId = isReadingLesson
-        ? currentReadingStage?.id
-        : currentStage?.id;
-    return interactionItemId(stageId ?? 'unknown', _currentInteractionIndex);
+    final stageId = currentStage?.id ?? 'unknown';
+    final itemId = currentInteraction?.id ?? '';
+    return interactionItemId(stageId, itemId, _currentInteractionIndex);
   }
 
   /// The [InteractionState] for the current item.
@@ -130,17 +131,14 @@ class LessonViewModel extends ChangeNotifier {
       _interactionStates[currentInteractionId] ?? InteractionState.idle;
 
   /// Name of the current stage (e.g. "Vocabulary", "Practice").
-  String? get currentStageName {
-    if (isReadingLesson) return currentReadingStage?.name;
-    return currentStage?.name;
-  }
+  String? get currentStageName => currentStage?.name;
 
   /// 0.0 → 1.0 progress through the entire lesson.
   double get progress {
     if (_lesson == null) return 0.0;
     final total = _totalItemCount;
     if (total == 0) return 0.0;
-    return (_completedItemCount) / total;
+    return _completedItemCount / total;
   }
 
   /// Progress within the current stage.
@@ -152,11 +150,8 @@ class LessonViewModel extends ChangeNotifier {
 
   bool get isLastInteraction {
     if (_lesson == null) return true;
-    final totalStages = _stageCount;
-    if (_currentStageIndex >= totalStages - 1) {
-      return _currentInteractionIndex >= _stageItemCount - 1;
-    }
-    return false;
+    if (_currentStageIndex < _stageCount - 1) return false;
+    return _currentInteractionIndex >= _stageItemCount - 1;
   }
 
   bool get isLastStageItem =>
@@ -168,20 +163,47 @@ class LessonViewModel extends ChangeNotifier {
   // --- Methods ---
 
   /// Load a lesson by ID and reset all progress state.
-  void loadLesson(String lessonId) {
-    _lesson = _courseProvider.findLessonById(lessonId);
-    if (_lesson == null) return;
+  ///
+  /// Prefers [CourseProvider] when the section body is already in memory;
+  /// otherwise falls back to [SwahiliCourse.loadLessonById] so deep links /
+  /// tests work without pre-loading the whole section tree.
+  ///
+  /// Returns `true` if the lesson was found and loaded.
+  Future<bool> loadLesson(String lessonId) async {
+    Lesson? lesson = _courseProvider.findLessonById(lessonId);
+    if (lesson == null) {
+      try {
+        lesson = await SwahiliCourse.loadLessonById(lessonId);
+      } catch (e) {
+        debugPrint('loadLesson($lessonId) failed: $e');
+        lesson = null;
+      }
+    }
+    if (lesson == null) {
+      _lesson = null;
+      _cachedStages = const [];
+      notifyListeners();
+      return false;
+    }
 
+    _lesson = lesson;
+    _cachedStages = lesson.flattenedStages;
     _currentStageIndex = 0;
     _currentInteractionIndex = 0;
-    _mistakesInCurrentStage = 0;
+    _totalMistakes = 0;
     _isComplete = false;
+    _lessonStartTime = DateTime.now();
+    _correctAnswers = 0;
+    _incorrectAnswers = 0;
     _interactionStates.clear();
 
     // Register SRS words referenced by ShowWord interactions.
     _registerSrsWords();
+    // Register grammar points this lesson teaches.
+    _registerGrammarPoints();
 
     notifyListeners();
+    return true;
   }
 
   /// Submit the current interaction with a correctness verdict.
@@ -189,9 +211,12 @@ class LessonViewModel extends ChangeNotifier {
     if (_lesson == null) return;
 
     if (!correct) {
-      _mistakesInCurrentStage++;
+      _totalMistakes++;
+      _incorrectAnswers++;
       _audioController.playRandomErrorSound();
+      _recordMistake(userAnswerText);
     } else {
+      _correctAnswers++;
       _audioController.playRandomLevelUpSound();
     }
 
@@ -215,7 +240,6 @@ class LessonViewModel extends ChangeNotifier {
     if (_currentInteractionIndex >= _stageItemCount) {
       _currentInteractionIndex = 0;
       _currentStageIndex++;
-      _mistakesInCurrentStage = 0;
 
       // Check if all stages are done.
       if (_currentStageIndex >= _stageCount) {
@@ -233,127 +257,176 @@ class LessonViewModel extends ChangeNotifier {
   void reset() {
     _currentStageIndex = 0;
     _currentInteractionIndex = 0;
-    _mistakesInCurrentStage = 0;
+    _totalMistakes = 0;
     _isComplete = false;
+    _lessonStartTime = DateTime.now();
+    _correctAnswers = 0;
+    _incorrectAnswers = 0;
     _interactionStates.clear();
     notifyListeners();
   }
 
   // --- Private helpers ---
 
-  int get _stageCount {
-    if (_lesson == null) return 0;
-    final content = _lesson!.content;
-    return switch (content) {
-      NormalContent(stages: final s) => s.length,
-      ListeningContent(stages: final s) => s.length,
-      ReviewContent(stages: final s) => s.length,
-      ChallengeContent(stages: final s) => s.length,
-      ReadingContent(stages: final s) => s.length,
-    };
-  }
+  int get _stageCount => _stages.length;
 
   int get _stageItemCount {
-    if (_lesson == null) return 0;
-    final content = _lesson!.content;
-    if (_currentStageIndex < 0) return 0;
-    return switch (content) {
-      NormalContent(stages: final s) =>
-        _currentStageIndex < s.length
-            ? s[_currentStageIndex].items.length
-            : 0,
-      ListeningContent(stages: final s) =>
-        _currentStageIndex < s.length
-            ? s[_currentStageIndex].items.length
-            : 0,
-      ReviewContent(stages: final s) =>
-        _currentStageIndex < s.length
-            ? s[_currentStageIndex].items.length
-            : 0,
-      ChallengeContent(stages: final s) =>
-        _currentStageIndex < s.length
-            ? s[_currentStageIndex].items.length
-            : 0,
-      ReadingContent(stages: final s) =>
-        _currentStageIndex < s.length
-            ? s[_currentStageIndex].items.length
-            : 0,
-    };
+    if (_currentStageIndex < 0 || _currentStageIndex >= _stages.length) {
+      return 0;
+    }
+    return _stages[_currentStageIndex].items.length;
   }
 
-  int get _totalItemCount {
-    if (_lesson == null) return 0;
-    final content = _lesson!.content;
-    return switch (content) {
-      NormalContent(stages: final s) =>
-        s.fold<int>(0, (sum, st) => sum + st.items.length),
-      ListeningContent(stages: final s) =>
-        s.fold<int>(0, (sum, st) => sum + st.items.length),
-      ReviewContent(stages: final s) =>
-        s.fold<int>(0, (sum, st) => sum + st.items.length),
-      ChallengeContent(stages: final s) =>
-        s.fold<int>(0, (sum, st) => sum + st.items.length),
-      ReadingContent(stages: final s) =>
-        s.fold<int>(0, (sum, st) => sum + st.items.length),
-    };
-  }
+  int get _totalItemCount =>
+      _stages.fold<int>(0, (sum, stage) => sum + stage.items.length);
 
   /// Count of items already submitted (completed).
   int get _completedItemCount =>
       _interactionStates.values.where((s) => s.submitted).length;
 
-  List _stagesFromContent(LessonContent content) {
-    return switch (content) {
-      NormalContent(stages: final s) => s,
-      ListeningContent(stages: final s) => s,
-      ReviewContent(stages: final s) => s,
-      ChallengeContent(stages: final s) => s,
-      ReadingContent() => <Stage>[],
-    };
-  }
-
-  /// Find all ShowWord interactions and register their wordIds in SRS.
+  /// Register all ShowWord interactions and register their wordIds in SRS.
   void _registerSrsWords() {
     if (_lesson == null) return;
     final wordIds = <String>{};
-    final content = _lesson!.content;
-    if (content is! ReadingContent) {
-      for (final stage in _stagesFromContent(content)) {
-        if (stage is Stage) {
-          for (final item in stage.items) {
-            if (item is ShowWord) wordIds.add(item.wordId);
-          }
-        }
+    for (final stage in _stages) {
+      for (final item in stage.items) {
+        if (item is ShowWord) wordIds.add(item.wordId);
       }
     }
     if (wordIds.isNotEmpty) {
       _srsProvider.registerAll(wordIds);
+      _srsProvider.recordLessonLinks(
+        wordIds: wordIds,
+        lessonId: _lesson!.id,
+        lessonName: _lesson!.name,
+      );
+    }
+  }
+
+  /// Register grammar points this lesson teaches into the grammar-review SRS
+  /// queue (keyed by grammarPointId).
+  void _registerGrammarPoints() {
+    if (_lesson == null) return;
+    final ids = _lesson!.content.linkedGrammarPointIds;
+    if (ids.isEmpty) return;
+    _grammarReviewProvider.registerAll(ids);
+    _grammarReviewProvider.recordLessonLinks(
+      ids: ids,
+      lessonId: _lesson!.id,
+      lessonName: _lesson!.name,
+    );
+  }
+
+  /// Record a wrong answer in the mistake log.
+  void _recordMistake(String? userAnswerText) {
+    final lesson = _lesson;
+    final stage = currentStage;
+    final interaction = currentInteraction;
+    if (lesson == null || stage == null || interaction == null) return;
+
+    final correctAnswer = interactionCorrectAnswerLabel(interaction);
+
+    String? wordId;
+    if (interaction is ShowWord) wordId = interaction.wordId;
+
+    // Prefer an explicit link on the interaction; fall back to a single
+    // lesson-level linked grammar point when unambiguous.
+    String? grammarPointId = interactionGrammarPointId(interaction);
+    if (grammarPointId == null || grammarPointId.isEmpty) {
+      final linked = lesson.content.linkedGrammarPointIds;
+      if (linked.length == 1) grammarPointId = linked.first;
+    }
+
+    final entry = MistakeEntry(
+      id: '${lesson.id}#${stage.id}#${interaction.id}#${DateTime.now().millisecondsSinceEpoch}',
+      lessonId: lesson.id,
+      stageId: stage.id,
+      interactionId: interaction.id,
+      wordId: wordId,
+      grammarPointId: grammarPointId,
+      interactionSnapshot: interaction,
+      userAnswer: userAnswerText ?? '',
+      correctAnswer: correctAnswer ?? '',
+      timestamp: DateTime.now(),
+    );
+
+    _mistakeProvider.record(entry);
+
+    if (grammarPointId != null && grammarPointId.isNotEmpty) {
+      _grammarReviewProvider.markDueNow(grammarPointId);
     }
   }
 
   // --- Completion hooks (ported from old LessonProvider) ---
 
   Future<void> _onLessonCompleted() async {
-    final wasPerfect = _mistakesInCurrentStage == 0;
+    final wasPerfect = _totalMistakes == 0;
 
-    await _gameProvider.awardXP(XPEvent.lessonComplete);
-    await _gemsProvider.earnGems(GemEvent.lessonComplete);
+    await Future.wait([
+      _gameProvider.awardXP(XPEvent.lessonComplete).catchError((e) {
+        debugPrint('Error awarding lesson-complete XP: $e');
+        return Future<int>.value(0);
+      }),
+      _gemsProvider.earnGems(GemEvent.lessonComplete).catchError((e) {
+        debugPrint('Error earning lesson-complete gems: $e');
+        return null;
+      }),
+    ]);
 
     if (wasPerfect) {
-      await _gameProvider.awardXP(XPEvent.perfectLesson);
-      await _gemsProvider.earnGems(GemEvent.perfectLesson);
+      await Future.wait([
+        _gameProvider.awardXP(XPEvent.perfectLesson).catchError((e) {
+          debugPrint('Error awarding perfect-lesson XP: $e');
+          return Future<int>.value(0);
+        }),
+        _gemsProvider.earnGems(GemEvent.perfectLesson).catchError((e) {
+          debugPrint('Error earning perfect-lesson gems: $e');
+          return null;
+        }),
+      ]);
     }
 
-    await _gameProvider.recordLessonCompletion(wasPerfect: wasPerfect);
+    try {
+      await _gameProvider.recordLessonCompletion(
+        lessonId: _lesson!.id,
+        wasPerfect: wasPerfect,
+      );
+    } catch (e) {
+      debugPrint('Error recording lesson completion: $e');
+    }
 
-    final userData = await _gameProvider.getUserGameStateOnce();
-    final lessonsCompleted =
-        (userData['lessonsCompleted'] as num? ?? 0).toInt();
-    final perfectLessons =
-        (userData['perfectLessons'] as num? ?? 0).toInt();
-    await _achievementsProvider.checkLessonMilestones(
-      lessonsCompleted: lessonsCompleted,
-      perfectLessons: perfectLessons,
-    );
+    try {
+      final userData = await _gameProvider.getUserGameStateOnce();
+      final lessonsCompleted =
+          (userData['lessonsCompleted'] as num? ?? 0).toInt();
+      final perfectLessons =
+          (userData['perfectLessons'] as num? ?? 0).toInt();
+      await _achievementsProvider.checkLessonMilestones(
+        lessonsCompleted: lessonsCompleted,
+        perfectLessons: perfectLessons,
+      );
+    } catch (e) {
+      debugPrint('Error checking lesson milestones: $e');
+    }
+
+    // Record study activity for statistics dashboard
+    try {
+      final duration = _lessonStartTime != null
+          ? DateTime.now().difference(_lessonStartTime!).inSeconds
+          : 0;
+      final xpEarned = wasPerfect
+          ? XPEvent.lessonComplete.base + XPEvent.perfectLesson.base
+          : XPEvent.lessonComplete.base;
+      await _studyStatsProvider.recordActivity(
+        type: StudyActivityType.lessonComplete,
+        lessonId: _lesson?.id,
+        xpEarned: xpEarned,
+        durationSeconds: duration,
+        correctCount: _correctAnswers,
+        incorrectCount: _incorrectAnswers,
+      );
+    } catch (e) {
+      debugPrint('Error recording study stats: $e');
+    }
   }
 }

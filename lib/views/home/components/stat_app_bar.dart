@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 
 // Package imports:
-import 'package:countup/countup.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
@@ -52,14 +51,14 @@ class Streak extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF3E0),
+        color: VarnamalaTheme.streakChipBg(context),
         borderRadius: BorderRadius.circular(VarnamalaTheme.radiusRound),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.local_fire_department_rounded,
-              color: Color(0xFFFF9500), size: 20),
+          Icon(Icons.local_fire_department_rounded,
+              color: VarnamalaTheme.streakChipText(context), size: 20),
           const SizedBox(width: 4),
           StreamBuilder<int>(
             stream: context.read<GameProvider>().getUserStreakStream(),
@@ -70,15 +69,12 @@ class Streak extends StatelessWidget {
               if (snapshot.hasError) {
                 return const Text('0');
               }
-              return Countup(
-                begin: 0,
-                end: snapshot.data?.toDouble() ?? 0,
-                duration: const Duration(milliseconds: 1000),
-                separator: ',',
-                style: const TextStyle(
+              return AnimatedCounter(
+                target: snapshot.data ?? 0,
+                style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 14,
-                  color: Color(0xFFFF9500),
+                  color: VarnamalaTheme.streakChipText(context),
                 ),
               );
             },
@@ -97,13 +93,13 @@ class ScoreCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF8E1),
+        color: VarnamalaTheme.scoreChipBg(context),
         borderRadius: BorderRadius.circular(VarnamalaTheme.radiusRound),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.stars_rounded, color: Color(0xFFFFD700), size: 20),
+          Icon(Icons.stars_rounded, color: VarnamalaTheme.scoreChipText(context), size: 20),
           const SizedBox(width: 4),
           StreamBuilder<int>(
             stream: context.read<GameProvider>().getUserScoreStream(),
@@ -114,21 +110,43 @@ class ScoreCard extends StatelessWidget {
               if (snapshot.hasError) {
                 return const Text('0');
               }
-              return Countup(
-                begin: 0,
-                end: snapshot.data?.toDouble() ?? 0,
-                duration: const Duration(milliseconds: 1000),
-                separator: ',',
-                style: const TextStyle(
+              return AnimatedCounter(
+                target: snapshot.data ?? 0,
+                style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 14,
-                  color: Color(0xFFE5A800),
+                  color: VarnamalaTheme.scoreChipText(context),
                 ),
               );
             },
           ),
         ],
       ),
+    );
+  }
+}
+
+class AnimatedCounter extends StatelessWidget {
+  final int target;
+  final TextStyle style;
+
+  const AnimatedCounter({
+    Key? key,
+    required this.target,
+    required this.style,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<int>(
+      tween: IntTween(begin: 0, end: target),
+      duration: const Duration(milliseconds: 1000),
+      builder: (context, value, child) {
+        return Text(
+          value.toString(),
+          style: style,
+        );
+      },
     );
   }
 }

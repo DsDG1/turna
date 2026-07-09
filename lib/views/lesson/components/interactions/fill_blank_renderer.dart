@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
+import 'package:words625/core/text_styles.dart';
 import 'package:words625/domain/course/interaction.dart';
 import 'package:words625/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:words625/views/theme.dart';
@@ -56,12 +57,22 @@ class _FillBlankBody extends StatefulWidget {
 class _FillBlankBodyState extends State<_FillBlankBody> {
   final TextEditingController _controller = TextEditingController();
   final FocusNode _focus = FocusNode();
+  late (String, String) _split;
 
   @override
   void initState() {
     super.initState();
+    _split = _splitOnBlank(widget.sentence);
     if (widget.state.submitted && widget.state.userAnswerText != null) {
       _controller.text = widget.state.userAnswerText!;
+    }
+  }
+
+  @override
+  void didUpdateWidget(_FillBlankBody oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.sentence != widget.sentence) {
+      _split = _splitOnBlank(widget.sentence);
     }
   }
 
@@ -81,7 +92,7 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
     final correct = widget.state.correct;
     final canSubmit = !submitted && _controller.text.trim().isNotEmpty;
 
-    final (before, after) = _splitOnBlank(widget.sentence);
+    final (before, after) = _split;
     final inputBoxColor = submitted
         ? (correct == true
             ? VarnamalaTheme.success.withValues(alpha: 0.10)
@@ -93,25 +104,11 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SizedBox(height: 8),
-          const Text(
-            'Fill in the blank',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: VarnamalaTheme.textHint,
-              letterSpacing: 0.4,
-            ),
-          ),
-          const SizedBox(height: 12),
+          const SectionCaption('Fill in the blank'),
           RichText(
             textAlign: TextAlign.center,
             text: TextSpan(
-              style: const TextStyle(
-                fontSize: 22,
-                height: 1.4,
-                color: VarnamalaTheme.textPrimary,
-                fontWeight: FontWeight.w500,
-              ),
+              style: AppTextStyles.promptLg.copyWith(height: 1.4),
               children: [
                 TextSpan(text: before),
                 WidgetSpan(
@@ -140,11 +137,7 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
                         focusNode: _focus,
                         enabled: !submitted,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: VarnamalaTheme.textPrimary,
-                        ),
+                        style: AppTextStyles.promptMd.copyWith(fontSize: 18),
                         decoration: const InputDecoration(
                           border: InputBorder.none,
                           isDense: true,
@@ -175,7 +168,8 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
           ],
           if (submitted && correct == false) ...[
             const SizedBox(height: 16),
-            _CorrectAnswerBanner(answer: widget.answer),
+            LessonCorrectAnswerBanner(
+                label: 'Correct answer', answer: widget.answer, showBorder: true),
           ],
           const SizedBox(height: 24),
           LessonCheckButton(
@@ -230,47 +224,6 @@ class _HintChip extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _CorrectAnswerBanner extends StatelessWidget {
-  final String answer;
-  const _CorrectAnswerBanner({required this.answer});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: VarnamalaTheme.success.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
-        border: Border.all(
-            color: VarnamalaTheme.success.withValues(alpha: 0.4)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.check_circle, color: VarnamalaTheme.successDark),
-          const SizedBox(width: 8),
-          Expanded(
-            child: RichText(
-              text: TextSpan(
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: VarnamalaTheme.textPrimary,
-                ),
-                children: [
-                  const TextSpan(text: 'Correct answer: '),
-                  TextSpan(
-                    text: answer,
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

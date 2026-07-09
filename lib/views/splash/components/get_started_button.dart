@@ -1,6 +1,5 @@
 // Flutter imports:
 import 'package:auto_route/auto_route.dart';
-import 'package:chiclet/chiclet.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -21,25 +20,34 @@ class GetStartedButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChicletAnimatedButton(
+    return SizedBox(
       width: MediaQuery.of(context).size.width * 0.9,
-      onPressed: () => _handleGetStarted(context),
-      buttonType: ChicletButtonTypes.roundedRectangle,
-      backgroundColor: primaryColor,
-      child: const Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            'GET STARTED',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+      child: ElevatedButton(
+        onPressed: () => _handleGetStarted(context),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryColor,
+          foregroundColor: Colors.white,
+          elevation: 4,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
-          SizedBox(width: 16),
-          Icon(Icons.arrow_forward, color: Colors.white, size: 18),
-        ],
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'GET STARTED',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(width: 16),
+            Icon(Icons.arrow_forward, color: Colors.white, size: 18),
+          ],
+        ),
       ),
     );
   }

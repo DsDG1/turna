@@ -20,6 +20,11 @@ class ShowWordRenderer extends InteractionRenderer {
   @override
   Type get handlesType => ShowWord;
 
+  /// ShowWord has no correctness check — it auto-advances on card tap, so
+  /// the lesson screen must not render a Continue button for it.
+  @override
+  bool get autoAdvance => true;
+
   @override
   Widget build(
     Interaction interaction,
@@ -27,7 +32,7 @@ class ShowWordRenderer extends InteractionRenderer {
     OnInteractionSubmit onSubmit,
   ) {
     final i = interaction as ShowWord;
-    final vocab = kannadaVocabById[i.wordId];
+    final vocab = swahiliVocabById[i.wordId];
     final term = vocab?.term ?? i.wordId;
     final translation = vocab?.translation ?? '';
 

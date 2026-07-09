@@ -104,16 +104,7 @@ class _ReorderBodyState extends State<_ReorderBody> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
-            'Arrange the words',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: VarnamalaTheme.textHint,
-              letterSpacing: 0.4,
-            ),
-          ),
-          const SizedBox(height: 12),
+          const SectionCaption('Arrange the words'),
           const Text(
             'Tap the words in the right order',
             style: TextStyle(
@@ -148,8 +139,8 @@ class _ReorderBodyState extends State<_ReorderBody> {
           ),
           if (submitted && correct == false) ...[
             const SizedBox(height: 16),
-            _CorrectAnswerBanner(
-                answer: widget.correct.join(' ')),
+            LessonCorrectAnswerBanner(
+                label: 'Correct order', answer: widget.correct.join(' ')),
           ],
           const SizedBox(height: 24),
           LessonCheckButton(
@@ -301,45 +292,6 @@ class _TokenChip extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _CorrectAnswerBanner extends StatelessWidget {
-  final String answer;
-  const _CorrectAnswerBanner({required this.answer});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: VarnamalaTheme.success.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.check_circle, color: VarnamalaTheme.successDark),
-          const SizedBox(width: 8),
-          Expanded(
-            child: RichText(
-              text: TextSpan(
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: VarnamalaTheme.textPrimary,
-                ),
-                children: [
-                  const TextSpan(text: 'Correct order: '),
-                  TextSpan(
-                    text: answer,
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -10,7 +10,7 @@ import 'package:injectable/injectable.dart';
 import 'package:words625/domain/achievement.dart';
 import 'package:words625/service/locator.dart';
 
-@injectable
+@lazySingleton
 class AchievementsProvider extends ChangeNotifier {
   final AppPrefs appPrefs;
 

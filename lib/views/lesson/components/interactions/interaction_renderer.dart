@@ -2,7 +2,10 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
+import 'package:words625/core/spacing.dart';
+import 'package:words625/core/text_styles.dart';
 import 'package:words625/domain/course/interaction.dart';
+import 'package:words625/views/theme.dart';
 
 /// Snapshot of how the parent ([LessonViewModel]) wants the renderer to look.
 ///
@@ -45,9 +48,17 @@ class InteractionState {
 /// Stable identifier for an interaction within a lesson.
 ///
 /// The viewmodel tracks completion by id, so we synthesise a stable id from
-/// the parent stage's id and the item's index in `Stage.items`. If the lesson
-/// data ever carries a real item id, swap this for that.
-String interactionItemId(String stageId, int index) => '$stageId#$index';
+/// the parent stage's id and the item's own [id] field. When the item
+/// carries no explicit id (legacy data), we fall back to `legacy-$index`
+/// so legacy and modernised data never collide.
+String interactionItemId(
+  String stageId,
+  String itemId,
+  int fallbackIndex,
+) {
+  if (itemId.isNotEmpty) return '$stageId#$itemId';
+  return '$stageId#legacy-$fallbackIndex';
+}
 
 /// Result of a renderer's submit. The renderer computes correctness locally
 /// (it has the answer) and reports back; the viewmodel records completion and
@@ -63,6 +74,13 @@ abstract class InteractionRenderer {
   /// dispatcher: `renderers.firstWhere((r) => r.handlesType == i.runtimeType)`.
   Type get handlesType;
 
+  /// Whether this interaction auto-advances immediately on submit (no
+  /// "Continue"/"Got It" button shown by the lesson screen). Types like
+  /// [ShowWord] — which has no correctness check — override this to `true`.
+  /// New auto-advancing types only override this getter; the screen never
+  /// branches on a concrete interaction type.
+  bool get autoAdvance => false;
+
   /// Build the widget for [interaction]. [state] drives feedback display;
   /// [onSubmit] is invoked once per submit with the correctness verdict.
   Widget build(
@@ -73,17 +91,39 @@ abstract class InteractionRenderer {
 }
 
 /// Convenience: get the renderer for a specific interaction, or throw.
+///
+/// Matches on freezed **interface** types via `is` / sealed switch, not
+/// `runtimeType` (which is the private `_$FooImpl` and never equals
+/// `handlesType => Foo`).
 InteractionRenderer lookupRenderer(
   Iterable<InteractionRenderer> renderers,
   Interaction interaction,
 ) {
+  final target = _handlesTypeFor(interaction);
   return renderers.firstWhere(
-    (r) => r.handlesType == interaction.runtimeType,
+    (r) => r.handlesType == target,
     orElse: () => throw StateError(
-      'No InteractionRenderer registered for '
-      '${interaction.runtimeType}. Did you forget to @injectable it?',
+      'No InteractionRenderer registered for $target '
+      '(${interaction.runtimeType}). Did you forget to @injectable it?',
     ),
   );
+}
+
+/// Public freezed interface type corresponding to [interaction].
+Type _handlesTypeFor(Interaction interaction) {
+  return switch (interaction) {
+    ShowWord() => ShowWord,
+    MultipleChoice() => MultipleChoice,
+    FillBlank() => FillBlank,
+    TranslateSentence() => TranslateSentence,
+    ListenAndPick() => ListenAndPick,
+    TypeTheWord() => TypeTheWord,
+    ListenOnly() => ListenOnly,
+    ReorderSentence() => ReorderSentence,
+    ReadingMcq() => ReadingMcq,
+    ReadingTrueFalse() => ReadingTrueFalse,
+    ReadingShortAnswer() => ReadingShortAnswer,
+  };
 }
 
 /// Bottom action button shared by all graders (MCQ, FillBlank, Translate,
@@ -108,21 +148,17 @@ class LessonCheckButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: enabled
-              ? const Color(0xFF1F727E)
-              : const Color(0xFFEEF2F1),
-          foregroundColor: enabled ? Colors.white : const Color(0xFF9CA3AF),
+          backgroundColor:
+              enabled ? VarnamalaTheme.peacockTeal : VarnamalaTheme.divider,
+          foregroundColor:
+              enabled ? Colors.white : VarnamalaTheme.textHint,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
         ),
         child: Text(
           label,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.6,
-          ),
+          style: AppTextStyles.buttonLabel,
         ),
       ),
     );
@@ -139,16 +175,188 @@ class InteractionBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minHeight: MediaQuery.of(context).size.height -
-                MediaQuery.of(context).padding.vertical -
-                120,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: constraints.maxHeight - 120,
+              ),
+              child: child,
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────
+// Shared widgets used by interaction renderers
+// ──────────────────────────────────────────────────────────────
+
+/// Selectable option tile for MCQ / pick-from-list interactions.
+class InteractionOptionTile extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final bool isCorrect;
+  final bool isWrong;
+  final VoidCallback? onTap;
+
+  const InteractionOptionTile({
+    super.key,
+    required this.label,
+    required this.isSelected,
+    required this.isCorrect,
+    required this.isWrong,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    Color border = VarnamalaTheme.borderMuted;
+    Color background = Colors.white;
+    Widget? trailing;
+
+    if (isCorrect) {
+      border = VarnamalaTheme.success;
+      background = VarnamalaTheme.success.withValues(alpha: 0.10);
+      trailing =
+          const Icon(Icons.check_circle, color: VarnamalaTheme.success);
+    } else if (isWrong) {
+      border = VarnamalaTheme.error;
+      background = VarnamalaTheme.error.withValues(alpha: 0.08);
+      trailing = const Icon(Icons.cancel, color: VarnamalaTheme.error);
+    } else if (isSelected) {
+      border = VarnamalaTheme.peacockTeal;
+      background = VarnamalaTheme.peacockTeal.withValues(alpha: 0.06);
+    }
+
+    return Material(
+      color: background,
+      shape: RoundedRectangleBorder(
+        side: BorderSide(color: border, width: 2),
+        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: VarnamalaTheme.textPrimary,
+                  ),
+                ),
+              ),
+              if (trailing != null) trailing,
+            ],
           ),
-          child: child,
         ),
+      ),
+    );
+  }
+}
+
+/// Correct-answer feedback banner shown after a wrong submission.
+class LessonCorrectAnswerBanner extends StatelessWidget {
+  final String label;
+  final String answer;
+  final bool showBorder;
+
+  const LessonCorrectAnswerBanner({
+    super.key,
+    required this.label,
+    required this.answer,
+    this.showBorder = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: VarnamalaTheme.success.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+        border: showBorder
+            ? Border.all(color: VarnamalaTheme.success.withValues(alpha: 0.4))
+            : null,
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.check_circle, color: VarnamalaTheme.successDark),
+          const SizedBox(width: 8),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: VarnamalaTheme.textPrimary,
+                ),
+                children: [
+                  TextSpan(text: '$label: '),
+                  TextSpan(
+                    text: answer,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Circular speaker button that plays audio via TTS.
+class SpeakerButton extends StatelessWidget {
+  final VoidCallback onPressed;
+
+  const SpeakerButton({super.key, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: VarnamalaTheme.peacockTeal,
+      shape: const CircleBorder(),
+      elevation: 4,
+      shadowColor: VarnamalaTheme.peacockTeal.withValues(alpha: 0.4),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onPressed,
+        child: const Padding(
+          padding: EdgeInsets.all(24),
+          child:
+              Icon(Icons.volume_up_rounded, color: Colors.white, size: 36),
+        ),
+      ),
+    );
+  }
+}
+
+/// Small uppercase caption rendered above the prompt in each interaction
+/// body ("Fill in the blank", "Listen and pick", etc.). Centralises the
+/// caption style + the bottom padding so renderers stay visually aligned.
+class SectionCaption extends StatelessWidget {
+  final String text;
+
+  const SectionCaption(this.text, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+      child: Text(
+        text.toUpperCase(),
+        style: AppTextStyles.caption,
       ),
     );
   }
