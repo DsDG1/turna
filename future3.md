@@ -160,9 +160,15 @@
 
 ---
 
-### Phase 14：内容生产 CLI（2 周）
+### Phase 14：内容生产 CLI（2 周） ✅ 已完成
 
 **目标**：在动大规模内容之前，先把"怎么生产内容"的工具链做出来。
+
+**完成摘要**：
+- 实现 `tool/course_cli.py`（Python 3 标准库），子命令：`validate`、`import-csv`、`export-csv`、`lint`、`audio-manifest`、`diff`。
+- 实现 `test/course_cli_test.py` 共 7 个单元测试，覆盖正常路径与异常路径。
+- 新增 `.github/workflows/course_validation.yml`，PR / push 到 `master` 时自动校验课程内容。
+- `python tool/course_cli.py validate` 对当前课程 0 error；`flutter test` 132/132 通过。
 
 1. **`tool/course_cli.py` 骨架**
    - 子命令：`validate`、`import-csv`、`export-csv`、`lint`、`audio-manifest`、`diff`。
@@ -480,7 +486,7 @@ future3 期间需要补充的 ADR：
 
 ## 11. 成功标准（future3 完成时）
 
-- [ ] `tool/course_cli.py` 可用：validate / import-csv / export-csv / lint / audio-manifest / diff。
+- [x] `tool/course_cli.py` 可用：validate / import-csv / export-csv / lint / audio-manifest / diff。
 - [ ] 音频生成管道可批量产出 Swahili 音频，并有 fallback TTS。
 - [ ] 试点 lesson（10–15 真实 Swahili 词 + 5–10 表达）能端到端跑通所有 template。
 - [ ] 词典页、弱词复习、本地提醒可用。
