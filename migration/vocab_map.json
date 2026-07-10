@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "description": "Kannada placeholder wordId -> real Swahili wordId migration map for future3 content replacement.",
+  "policy": "Keep old wordId references in lessons intact during Phase 13; replace the actual term/translation/audio in vocab.json and later rewrite lesson text/audio/options in Phase 21.",
+  "mappings": [
+    {"from": "w-naanu", "to": "w-mimi", "action": "replace", "note": "I -> mimi"},
+    {"from": "w-neenu", "to": "w-wewe", "action": "replace", "note": "You -> wewe"},
+    {"from": "w-naavu", "to": "w-sisi", "action": "replace", "note": "We -> sisi"},
+    {"from": "w-howdu", "to": "w-ndiyo", "action": "replace", "note": "Yes -> ndiyo"},
+    {"from": "w-illa", "to": "w-hapana", "action": "replace", "note": "No -> hapana"},
+    {"from": "w-baa", "to": "w-kuja", "action": "replace", "note": "Come -> kuja (currently unused in lessons)"},
+    {"from": "w-hogu", "to": "w-kwenda", "action": "replace", "note": "Go -> kwenda (currently unused in lessons)"},
+    {"from": "w-hesaru", "to": "w-jina", "action": "replace", "note": "Name -> jina"},
+    {"from": "w-vidyaarthi", "to": "w-mwanafunzi", "action": "replace", "note": "Student -> mwanafunzi"},
+    {"from": "w-oota", "to": "w-kula", "action": "replace", "note": "Food/Eating -> kula (currently unused in lessons; consider chakula for noun usage)"},
+    {"from": "w-naayi", "to": "w-mbwa", "action": "replace", "note": "Dog -> mbwa"},
+    {"from": "w-koli", "to": "w-paka", "action": "replace", "note": "Cat -> paka"},
+    {"from": "w-aane", "to": "w-tembo", "action": "replace", "note": "Elephant -> tembo"},
+    {"from": "w-bekku", "to": "w-paka", "action": "replace", "note": "Cat (colloquial) -> paka; merge with w-koli mapping"},
+    {"from": "w-kempu", "to": "w-nyekundu", "action": "replace", "note": "Red -> nyekundu"},
+    {"from": "w-bili", "to": "w-nyeupe", "action": "replace", "note": "White -> nyeupe"},
+    {"from": "w-kappu", "to": "w-nyeusi", "action": "replace", "note": "Black -> nyeusi"},
+    {"from": "w-hasiru", "to": "w-kijani", "action": "replace", "note": "Green -> kijani"},
+    {"from": "w-ondu", "to": "w-moja", "action": "replace", "note": "One -> moja"},
+    {"from": "w-eradu", "to": "w-mbili", "action": "replace", "note": "Two -> mbili"},
+    {"from": "w-mooru", "to": "w-tatu", "action": "replace", "note": "Three -> tatu"},
+    {"from": "w-naaku", "to": "w-nne", "action": "replace", "note": "Four -> nne"},
+    {"from": "w-aidhu", "to": "w-tano", "action": "replace", "note": "Five -> tano"},
+    {"from": "w-santosha", "to": "w-furaha", "action": "replace", "note": "Happy -> furaha (currently unused as a wordId; appears only in reading passage text)"},
+    {"from": "w-dukha", "to": "w-huzuni", "action": "replace", "note": "Sad -> huzuni (currently unused in lessons)"},
+    {"from": "w-kopam", "to": "w-hasira", "action": "replace", "note": "Anger -> hasira (currently unused in lessons)"},
+    {"from": "w-bhayav", "to": "w-woga", "action": "replace", "note": "Fear -> woga (currently unused in lessons)"},
+    {"from": "w-mara", "to": "w-mti", "action": "replace", "note": "Tree -> mti"},
+    {"from": "w-huvu", "to": "w-ua", "action": "replace", "note": "Flower -> ua"},
+    {"from": "w-neeru", "to": "w-maji", "action": "replace", "note": "Water -> maji"},
+    {"from": "w-bhoomi", "to": "w-ardhi", "action": "replace", "note": "Earth/Land -> ardhi"},
+    {"from": "w-prayan", "to": "w-safari", "action": "replace", "note": "Travel -> safari"},
+    {"from": "w-rail", "to": "w-treni", "action": "replace", "note": "Train -> treni"},
+    {"from": "w-bus", "to": "w-basi", "action": "replace", "note": "Bus -> basi"},
+    {"from": "w-hotel", "to": "w-hotel", "action": "replace", "note": "Hotel -> hoteli"}
+  ],
+  "audio_asset_updates": [
+    {"old": "w-howdu", "new": "w-ndiyo"},
+    {"old": "w-kempu", "new": "w-nyekundu"},
+    {"old": "w-naavu", "new": "w-sisi"},
+    {"old": "w-neeru", "new": "w-maji"}
+  ],
+  "lesson_text_rewrites": [
+    {"location": "s-foundations/s-foundations-u-greetings/l-greetings-1", "note": "Naanu vidyaarthi -> Mimi ni mwanafunzi"},
+    {"location": "s-foundations/s-foundations-u-intro/l-intro-1", "note": "Naanu vidyaarthi / Nanna hesaru -> Mimi ni mwanafunzi / Jina langu"},
+    {"location": "s-world/s-world-u-emotions/l-emotions-1", "note": "Naanu santosha -> Nina furaha; replace Kannada sentence examples with Swahili"}
+  ],
+  "coverage_check": {
+    "total_kannada_word_ids": 35,
+    "mapped": 35,
+    "unused_source_ids": ["w-baa", "w-hogu", "w-oota", "w-santosha", "w-dukha", "w-kopam", "w-bhayav"]
+  }
+}
