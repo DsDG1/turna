@@ -3,9 +3,9 @@
 Generated: 2026-07-09 (post-bug-fix regression suite)
 
 ## Results
-- Passed: 115
+- Passed: 132
 - Failed: 0
-- Total: 115
+- Total: 132
 
 ## Coverage (flutter test --coverage)
 - `lib/application`: TBD
@@ -14,6 +14,9 @@ Generated: 2026-07-09 (post-bug-fix regression suite)
 ## Notes
 - Pre-bug-fix baseline was 98/98. This run adds 17 new regression tests
   for the bugs fixed during the Phase 12 polish + bug-fix sweep.
+- Updated after bug-fix sweep: fixed race-condition test date mismatch,
+  MalaWelcomes setState-after-dispose guard, completion-dialog guard reset,
+  and three analyzer info issues.
 - New regression tests:
   - `application/learning_stats_accuracy_test.dart` — B1 (Overall Accuracy
     formatting). Asserts 0.75 → "75%".
