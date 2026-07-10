@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:words625/domain/course/lesson_word_link.dart';
+import 'package:varnamala/domain/course/lesson_word_link.dart';
 
 void main() {
   group('LessonWordLink', () {

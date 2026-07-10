@@ -5,12 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:words625/application/audio_controller.dart';
-import 'package:words625/core/text_styles.dart';
-import 'package:words625/di/injection.dart';
-import 'package:words625/domain/course/interaction.dart';
-import 'package:words625/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:words625/views/theme.dart';
+import 'package:varnamala/application/audio_controller.dart';
+import 'package:varnamala/core/text_styles.dart';
+import 'package:varnamala/di/injection.dart';
+import 'package:varnamala/domain/course/interaction.dart';
+import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:varnamala/views/theme.dart';
 
 /// Listen-only summary (or similar) card: play audio / TTS, then continue.
 ///

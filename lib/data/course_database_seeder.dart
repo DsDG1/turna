@@ -7,9 +7,9 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:drift/drift.dart';
 
 // Project imports:
-import 'package:words625/core/logger.dart';
-import 'package:words625/courses/course_loader.dart';
-import 'package:words625/data/course_database.dart';
+import 'package:varnamala/core/logger.dart';
+import 'package:varnamala/courses/course_loader.dart';
+import 'package:varnamala/data/course_database.dart';
 
 /// Seeds [CourseDatabase] from the bundled JSON assets.
 ///

@@ -2,9 +2,9 @@
 // the methods they need; defaults return empty / zero.
 
 import 'package:flutter/foundation.dart';
-import 'package:words625/application/study_stats_provider.dart';
-import 'package:words625/domain/study/daily_stats.dart';
-import 'package:words625/domain/study/study_log.dart';
+import 'package:varnamala/application/study_stats_provider.dart';
+import 'package:varnamala/domain/study/daily_stats.dart';
+import 'package:varnamala/domain/study/study_log.dart';
 
 class FakeStudyStatsProvider extends ChangeNotifier
     implements StudyStatsProvider {

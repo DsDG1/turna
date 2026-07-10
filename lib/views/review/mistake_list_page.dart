@@ -6,13 +6,13 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:words625/application/grammar_review_provider.dart';
-import 'package:words625/application/mistake_provider.dart';
-import 'package:words625/courses/languages/grammar_points.dart';
-import 'package:words625/courses/languages/swahili_vocab.dart';
-import 'package:words625/domain/course/mistake_entry.dart';
-import 'package:words625/routing/routing.gr.dart';
-import 'package:words625/views/theme.dart';
+import 'package:varnamala/application/grammar_review_provider.dart';
+import 'package:varnamala/application/mistake_provider.dart';
+import 'package:varnamala/courses/languages/grammar_points.dart';
+import 'package:varnamala/courses/languages/swahili_vocab.dart';
+import 'package:varnamala/domain/course/mistake_entry.dart';
+import 'package:varnamala/routing/routing.gr.dart';
+import 'package:varnamala/views/theme.dart';
 
 @RoutePage()
 class MistakeListPage extends StatelessWidget {

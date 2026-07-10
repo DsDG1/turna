@@ -7,27 +7,28 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
-import 'package:words625/application/achievements_provider.dart';
-import 'package:words625/application/audio_controller.dart';
-import 'package:words625/application/course_provider.dart';
-import 'package:words625/application/game_provider.dart';
-import 'package:words625/application/gems_provider.dart';
-import 'package:words625/application/grammar_review_provider.dart';
-import 'package:words625/application/language_provider.dart';
-import 'package:words625/application/lesson_link_store.dart';
-import 'package:words625/application/lesson_viewmodel.dart';
-import 'package:words625/application/mistake_provider.dart';
-import 'package:words625/application/srs_provider.dart';
-import 'package:words625/application/settings_provider.dart';
-import 'package:words625/application/study_stats_provider.dart';
-import 'package:words625/data/study_log_repository.dart';
-import 'package:words625/di/injection.dart';
-import 'package:words625/domain/course/interaction.dart';
-import 'package:words625/domain/course/lesson.dart';
-import 'package:words625/domain/course/lesson_content.dart';
-import 'package:words625/domain/course/stage.dart';
-import 'package:words625/domain/study/study_log.dart';
-import 'package:words625/service/locator.dart';
+import 'package:varnamala/application/achievements_provider.dart';
+import 'package:varnamala/application/audio_controller.dart';
+import 'package:varnamala/application/course_provider.dart';
+import 'package:varnamala/application/game_provider.dart';
+import 'package:varnamala/application/gems_provider.dart';
+import 'package:varnamala/application/grammar_review_provider.dart';
+import 'package:varnamala/application/language_provider.dart';
+import 'package:varnamala/application/lesson_completion_coordinator.dart';
+import 'package:varnamala/application/lesson_link_store.dart';
+import 'package:varnamala/application/lesson_viewmodel.dart';
+import 'package:varnamala/application/mistake_provider.dart';
+import 'package:varnamala/application/srs_provider.dart';
+import 'package:varnamala/application/settings_provider.dart';
+import 'package:varnamala/application/study_stats_provider.dart';
+import 'package:varnamala/data/study_log_repository.dart';
+import 'package:varnamala/di/injection.dart';
+import 'package:varnamala/domain/course/interaction.dart';
+import 'package:varnamala/domain/course/lesson.dart';
+import 'package:varnamala/domain/course/lesson_content.dart';
+import 'package:varnamala/domain/course/stage.dart';
+import 'package:varnamala/domain/study/study_log.dart';
+import 'package:varnamala/service/locator.dart';
 
 class _FakeFlutterTts implements FlutterTts {
   @override
@@ -51,6 +52,7 @@ class _FakeAudioController extends AudioController {
       : super(
           _FakeFlutterTts(),
           _FakeLanguageProvider(),
+          getIt<SettingsProvider>(),
           audioPlayer: _FakeAudioPlayer(),
           speechPlayer: _FakeAudioPlayer(),
         );
@@ -126,16 +128,22 @@ Lesson _masteryLesson() {
 
 LessonViewModel _harness(AppPrefs prefs, Lesson lesson) {
   final linkStore = LessonLinkStore(prefs);
+  final gameProvider = GameProvider(prefs);
+  final gemsProvider = GemsProvider(prefs);
+  final achievementsProvider = _FakeAchievementsProvider();
+  final studyStatsProvider = _FakeStudyStatsProvider(prefs);
   return LessonViewModel(
     _FakeCourseProvider(lesson),
-    GameProvider(prefs),
-    GemsProvider(prefs),
-    _FakeAchievementsProvider(),
     _FakeAudioController(),
     SrsProvider(prefs, linkStore),
     MistakeProvider(prefs),
     GrammarReviewProvider(prefs, linkStore),
-    _FakeStudyStatsProvider(prefs),
+    LessonCompletionCoordinator(
+      gameProvider,
+      gemsProvider,
+      achievementsProvider,
+      studyStatsProvider,
+    ),
   );
 }
 

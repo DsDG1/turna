@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 // Project imports:
-import 'package:words625/views/home/mala_welcomes.dart';
-import 'package:words625/views/theme.dart';
+import 'package:varnamala/views/home/mala_welcomes.dart';
+import 'package:varnamala/views/theme.dart';
 
 class CenterDisplay extends StatefulWidget {
   const CenterDisplay({Key? key}) : super(key: key);

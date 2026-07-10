@@ -1,6 +1,6 @@
 // Project imports:
-import 'package:words625/courses/course_loader.dart';
-import 'package:words625/domain/course/expression.dart';
+import 'package:varnamala/courses/course_loader.dart';
+import 'package:varnamala/domain/course/expression.dart';
 
 /// Loads the full expression list into memory and exposes a synchronous
 /// id lookup map used by renderers / review UI.

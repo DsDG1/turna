@@ -9,14 +9,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:words625/application/course_provider.dart';
-import 'package:words625/application/game_provider.dart';
-import 'package:words625/application/progress_provider.dart';
-import 'package:words625/domain/course/lesson.dart';
-import 'package:words625/domain/course/lesson_content.dart';
-import 'package:words625/domain/course/section.dart';
-import 'package:words625/domain/course/unit.dart';
-import 'package:words625/views/courses/course_tree.dart';
+import 'package:varnamala/application/course_provider.dart';
+import 'package:varnamala/application/game_provider.dart';
+import 'package:varnamala/application/progress_provider.dart';
+import 'package:varnamala/domain/course/lesson.dart';
+import 'package:varnamala/domain/course/lesson_content.dart';
+import 'package:varnamala/domain/course/section.dart';
+import 'package:varnamala/domain/course/unit.dart';
+import 'package:varnamala/views/courses/course_tree.dart';
 
 /// Minimal fake [GameProvider] for widget tests that only need the
 /// completed-lessons stream.
@@ -45,8 +45,7 @@ class _FakeGameProvider extends ChangeNotifier implements GameProvider {
   }
 
   // Stubs for the remaining GameProvider interface; not used by CourseTree.
-  Stream<Map<String, dynamic>> get stateStream =>
-      StreamController<Map<String, dynamic>>.broadcast().stream;
+  Stream get stateStream => StreamController.broadcast().stream;
 
   Stream<int> get streakStream => StreamController<int>.broadcast().stream;
 
@@ -101,8 +100,10 @@ class _FakeCourseProvider extends CourseProvider {
 
   @override
   List<Section> get sections {
-    if (_sectionsOverride != null) return _sectionsOverride!;
-    if (_currentSection != null) return [_currentSection!];
+    final override = _sectionsOverride;
+    if (override != null) return override;
+    final current = _currentSection;
+    if (current != null) return [current];
     return const [];
   }
 

@@ -1,7 +1,7 @@
 {
-  "id": "s-daily",
-  "name": "Daily Life",
-  "description": "The world immediately around you — colors, animals, numbers.",
+  "id": "section2",
+  "name": "Section 2",
+  "description": "Ninataka kujifunza Kiswahili",
   "prerequisiteSectionIds": [],
   "units": [
     {

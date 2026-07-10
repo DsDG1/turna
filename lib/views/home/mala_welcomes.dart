@@ -5,7 +5,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:words625/gen/assets.gen.dart';
+import 'package:varnamala/gen/assets.gen.dart';
 
 class MalaWelcomes extends StatefulWidget {
   const MalaWelcomes({super.key});

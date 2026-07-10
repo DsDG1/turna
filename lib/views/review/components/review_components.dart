@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'package:words625/core/sm2.dart';
-import 'package:words625/views/theme.dart';
+import 'package:varnamala/core/sm2.dart';
+import 'package:varnamala/views/theme.dart';
 
 class ReviewRatingBar extends StatelessWidget {
   final ValueChanged<ReviewQuality> onRate;

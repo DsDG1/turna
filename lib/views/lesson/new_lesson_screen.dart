@@ -1,4 +1,5 @@
 // Dart imports:
+import 'dart:async';
 import 'dart:math';
 
 // Flutter imports:
@@ -9,11 +10,12 @@ import 'package:auto_route/annotations.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:words625/application/lesson_viewmodel.dart';
-import 'package:words625/di/injection.dart';
-import 'package:words625/domain/course/reading_passage.dart';
-import 'package:words625/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:words625/views/theme.dart';
+import 'package:varnamala/application/lesson_viewmodel.dart';
+import 'package:varnamala/di/injection.dart';
+import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:varnamala/views/lesson/components/lesson_dialogs.dart';
+import 'package:varnamala/views/lesson/components/lesson_stage_widgets.dart';
+import 'package:varnamala/views/theme.dart';
 
 @RoutePage()
 class NewLessonPage extends StatefulWidget {
@@ -29,6 +31,7 @@ class _NewLessonPageState extends State<NewLessonPage> {
   late final LessonViewModel _vm;
   final Set<InteractionRenderer> _renderers =
       getIt<Set<InteractionRenderer>>();
+  final Random _random = Random();
   bool _autoAdvanceScheduled = false;
   bool _dialogShown = false;
   bool _loadFailed = false;
@@ -63,12 +66,11 @@ class _NewLessonPageState extends State<NewLessonPage> {
     if (!mounted) return;
     final vm = _vm;
     if (vm.isComplete) {
-      _showCompletionDialog(context, vm);
+      _showCompletionDialog();
       return;
     }
-    // Mastery lesson failed — show retry dialog
     if (vm.isMastery && !vm.masteryPassed && vm.lesson != null) {
-      _showMasteryRetryDialog(context, vm);
+      _showMasteryRetryDialog();
       return;
     }
     _handleAutoAdvance(vm);
@@ -79,8 +81,8 @@ class _NewLessonPageState extends State<NewLessonPage> {
     return ChangeNotifierProvider.value(
       value: _vm,
       child: Scaffold(
-        backgroundColor: Colors.white,
-        appBar: _buildAppBar(),
+        backgroundColor: VarnamalaTheme.scaffoldBg(context),
+        appBar: _buildAppBar(context),
         body: Consumer<LessonViewModel>(
           builder: (context, vm, _) {
             if (_loadFailed) {
@@ -131,12 +133,15 @@ class _NewLessonPageState extends State<NewLessonPage> {
     );
   }
 
-  PreferredSizeWidget _buildAppBar() {
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
     return AppBar(
-      backgroundColor: Colors.white,
+      backgroundColor: VarnamalaTheme.surfaceColor(context),
       elevation: 0,
       leading: IconButton(
-        icon: const Icon(Icons.close_rounded, color: VarnamalaTheme.textPrimary),
+        icon: Icon(
+          Icons.close_rounded,
+          color: VarnamalaTheme.textPrimaryColor(context),
+        ),
         onPressed: () => _vm.isComplete
             ? null
             : Navigator.of(context).maybePop(),
@@ -145,20 +150,20 @@ class _NewLessonPageState extends State<NewLessonPage> {
         children: [
           Text(
             _vm.lesson?.name ?? 'Lesson',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,
-              color: VarnamalaTheme.textPrimary,
+              color: VarnamalaTheme.textPrimaryColor(context),
             ),
           ),
           if (_vm.currentStageName != null) ...[
             const SizedBox(height: 2),
             Text(
               _vm.currentStageName!,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
-                color: VarnamalaTheme.textSecondary,
+                color: VarnamalaTheme.textSecondaryColor(context),
               ),
             ),
           ],
@@ -178,10 +183,6 @@ class _NewLessonPageState extends State<NewLessonPage> {
     );
   }
 
-  /// Single rendering path for every lesson type. The optional reading
-  /// passage renders above the stage content; the interaction body is
-  /// dispatched by the renderer registry; the Continue/Got-It button shows
-  /// after submission unless the renderer opts into auto-advance.
   Widget _buildLessonBody(LessonViewModel vm) {
     final interaction = vm.currentInteraction;
     if (interaction == null) {
@@ -194,20 +195,15 @@ class _NewLessonPageState extends State<NewLessonPage> {
 
     return Column(
       children: [
-        // Stage name banner
         if (vm.currentStageName != null)
-          _StageBanner(
+          LessonStageBanner(
             name: vm.currentStageName!,
             accent: VarnamalaTheme.peacockTeal,
           ),
-
-        // Reading passage (structured model first, legacy string fallback)
         if (readingPassage != null)
-          _ReadingPassage(passage: readingPassage)
+          LessonReadingPassageCard(passage: readingPassage)
         else if (legacyPassage.isNotEmpty)
-          _LegacyReadingPassage(text: legacyPassage),
-
-        // Renderer content
+          LessonLegacyReadingPassage(text: legacyPassage),
         Expanded(
           child: renderer.build(
             interaction,
@@ -217,8 +213,6 @@ class _NewLessonPageState extends State<NewLessonPage> {
             },
           ),
         ),
-
-        // Advance button (shown after submission for non-auto-advance types)
         if (vm.hasSubmitted && !renderer.autoAdvance)
           SafeArea(
             child: Padding(
@@ -257,8 +251,6 @@ class _NewLessonPageState extends State<NewLessonPage> {
     );
   }
 
-  // --- Auto-advance for renderers that opt in (e.g. ShowWord) ---
-
   void _handleAutoAdvance(LessonViewModel vm) {
     if (_autoAdvanceScheduled) return;
     if (!vm.hasSubmitted) return;
@@ -276,341 +268,40 @@ class _NewLessonPageState extends State<NewLessonPage> {
     });
   }
 
-  // --- Completion dialog ---
-
-  Future<void> _showCompletionDialog(BuildContext context, LessonViewModel vm) async {
-    // Prevent multiple dialogs
+  Future<void> _showCompletionDialog() async {
     if (!mounted || _dialogShown) return;
     _dialogShown = true;
-
-    // Capture NavigatorState + ThemeData before any await so we can use them
-    // safely after the dialog closes without tripping
-    // `use_build_context_synchronously`. `context.mounted` is also valid in
-    // modern Flutter, but the analyzer doesn't always recognise the
-    // `if (mounted)` pattern when the parameter is shadowed by `context`.
-    final navigator = Navigator.of(context);
-    final theme = Theme.of(context);
-
-    await Future.delayed(const Duration(milliseconds: 300));
-    if (!mounted) return;
-
-    const styles = [
-      _CelebrationStyle(
-        icon: Icons.celebration_rounded,
-        accent: VarnamalaTheme.peacockTurquoise,
-        title: 'Lesson Complete!',
-        subtitle: 'Brilliant focus. You cleared this lesson.',
-      ),
-      _CelebrationStyle(
-        icon: Icons.flash_on_rounded,
-        accent: VarnamalaTheme.warning,
-        title: 'That Was Fast!',
-        subtitle: 'You are climbing fast. Keep the streak alive.',
-      ),
-      _CelebrationStyle(
-        icon: Icons.auto_awesome_rounded,
-        accent: VarnamalaTheme.leagueAmethyst,
-        title: 'Excellent Work!',
-        subtitle: 'Every lesson gets you closer to mastery.',
-      ),
-    ];
-    final style = styles[Random().nextInt(styles.length)];
-
-    // The `context` was passed to us before the initial await; the
-    // post-delay `mounted` check above guarantees safety, but the analyzer
-    // cannot see through the `Future.delayed` boundary.
-    await showDialog<bool>(
-      // ignore: use_build_context_synchronously
+    await showLessonCompletionDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusXLarge),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: style.accent.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(style.icon, color: style.accent, size: 40),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                style.title,
-                style: theme.textTheme.headlineSmall
-                    ?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                style.subtitle,
-                style: theme.textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 28),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.of(ctx).pop(true),
-                  child: const Text(
-                    'Continue',
-                    style:
-                        TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(true),
-                child: Text(
-                  'Back to Courses',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                        color: VarnamalaTheme.textHint,
-                        fontWeight: FontWeight.w500,
-                      ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      isMounted: () => mounted,
+      random: _random,
     );
-
     _dialogShown = false;
-
-    // Pop back to course tree
-    if (mounted) {
-      navigator.maybePop();
-    }
   }
 
-  // --- Mastery retry dialog ---
-
-  Future<void> _showMasteryRetryDialog(BuildContext context, LessonViewModel vm) async {
+  Future<void> _showMasteryRetryDialog() async {
     if (!mounted || _dialogShown) return;
     _dialogShown = true;
 
-    // Capture before await (see _showCompletionDialog for rationale).
     final navigator = Navigator.of(context);
-    final theme = Theme.of(context);
-
-    await Future.delayed(const Duration(milliseconds: 300));
-    if (!mounted) return;
-
-    final total = vm.totalInteractionCount;
-    final correct = vm.correctAnswers;
-    final accuracyPercent = total == 0 ? 0 : ((correct / total) * 100).round();
-
-    // See _showCompletionDialog for rationale on this ignore.
-    final result = await showDialog<MasteryDialogResult>(
-      // ignore: use_build_context_synchronously
+    final result = await showMasteryRetryDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusXLarge),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: VarnamalaTheme.error.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.refresh_rounded, color: VarnamalaTheme.error, size: 40),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                'Not Yet',
-                style: theme.textTheme.headlineSmall
-                    ?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'You got $correct / $total ($accuracyPercent%). You need 80% to pass. Try again!',
-                style: theme.textTheme.bodyMedium,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 28),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.of(ctx).pop(MasteryDialogResult.retry),
-                  child: const Text(
-                    'Try Again',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(MasteryDialogResult.back),
-                child: Text(
-                  'Back to Courses',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                        color: VarnamalaTheme.textHint,
-                        fontWeight: FontWeight.w500,
-                      ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      isMounted: () => mounted,
+      vm: _vm,
     );
 
     _dialogShown = false;
-
     if (!mounted) return;
 
     switch (result) {
       case MasteryDialogResult.retry:
-        vm.retryMastery();
+        _vm.retryMastery();
         break;
       case MasteryDialogResult.back:
-        navigator.maybePop();
+        unawaited(navigator.maybePop());
         break;
       case null:
         break;
     }
   }
-}
-
-enum MasteryDialogResult { retry, back }
-
-// ──────────────────────────────────────────────────────────────
-// Reading passage — rendered above the stage content on reading lessons
-// ──────────────────────────────────────────────────────────────
-
-class _ReadingPassage extends StatelessWidget {
-  final ReadingPassage passage;
-
-  const _ReadingPassage({required this.passage});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: VarnamalaTheme.leagueAmethyst.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
-        border: Border.all(
-          color: VarnamalaTheme.leagueAmethyst.withValues(alpha: 0.15),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            passage.title,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: VarnamalaTheme.textPrimary,
-                ),
-          ),
-          const SizedBox(height: 12),
-          ...passage.paragraphs.expand((paragraph) => [
-                Text(
-                  paragraph,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    height: 1.6,
-                    color: VarnamalaTheme.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ]),
-        ],
-      ),
-    );
-  }
-}
-
-class _LegacyReadingPassage extends StatelessWidget {
-  final String text;
-
-  const _LegacyReadingPassage({required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: VarnamalaTheme.leagueAmethyst.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
-        border: Border.all(
-          color: VarnamalaTheme.leagueAmethyst.withValues(alpha: 0.15),
-        ),
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 16,
-          height: 1.6,
-          color: VarnamalaTheme.textPrimary,
-        ),
-      ),
-    );
-  }
-}
-
-// ──────────────────────────────────────────────────────────────
-// Stage banner
-// ──────────────────────────────────────────────────────────────
-
-class _StageBanner extends StatelessWidget {
-  final String name;
-  final Color accent;
-
-  const _StageBanner({required this.name, required this.accent});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      color: accent.withValues(alpha: 0.04),
-      child: Text(
-        name,
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          color: accent,
-          letterSpacing: 0.5,
-        ),
-      ),
-    );
-  }
-}
-
-// ──────────────────────────────────────────────────────────────
-// Celebration styles
-// ──────────────────────────────────────────────────────────────
-
-class _CelebrationStyle {
-  final IconData icon;
-  final Color accent;
-  final String title;
-  final String subtitle;
-
-  const _CelebrationStyle({
-    required this.icon,
-    required this.accent,
-    required this.title,
-    required this.subtitle,
-  });
 }

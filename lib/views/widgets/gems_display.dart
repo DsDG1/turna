@@ -5,9 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:words625/application/gems_provider.dart';
-import 'package:words625/views/theme.dart';
-import 'package:words625/views/widgets/loader.dart';
+import 'package:varnamala/application/gems_provider.dart';
+import 'package:varnamala/views/theme.dart';
+import 'package:varnamala/views/widgets/loader.dart';
 
 class GemsDisplay extends StatelessWidget {
   const GemsDisplay({super.key});

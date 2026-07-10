@@ -12,9 +12,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 // Project imports:
-import 'package:words625/core/enums.dart';
-import 'package:words625/domain/auth/local_user.dart';
-import 'package:words625/views/profile/widgets/share_progress_card.dart';
+import 'package:varnamala/core/enums.dart';
+import 'package:varnamala/domain/auth/local_user.dart';
+import 'package:varnamala/views/profile/widgets/share_progress_card.dart';
 
 /// Captures a [ShareProgressCard] to a PNG and shares it via the platform sheet.
 class ShareProgressImageGenerator {
@@ -25,7 +25,7 @@ class ShareProgressImageGenerator {
   /// Place this widget in the widget tree before calling [captureAndShare].
   /// It is sized to zero so it does not affect layout.
   Widget captureTarget({
-    required SerializableFirebaseUser user,
+    required LocalUser user,
     required int streak,
     required int totalXp,
     required int gems,

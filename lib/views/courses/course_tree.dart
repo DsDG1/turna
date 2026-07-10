@@ -6,12 +6,12 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:words625/application/course_provider.dart';
-import 'package:words625/application/progress_provider.dart';
-import 'package:words625/domain/course/lesson.dart';
-import 'package:words625/domain/course/unit.dart';
-import 'package:words625/routing/routing.gr.dart';
-import 'package:words625/views/theme.dart';
+import 'package:varnamala/application/course_provider.dart';
+import 'package:varnamala/application/progress_provider.dart';
+import 'package:varnamala/domain/course/lesson.dart';
+import 'package:varnamala/domain/course/unit.dart';
+import 'package:varnamala/routing/routing.gr.dart';
+import 'package:varnamala/views/theme.dart';
 import 'components/section_switcher.dart';
 
 class CourseTree extends StatefulWidget {

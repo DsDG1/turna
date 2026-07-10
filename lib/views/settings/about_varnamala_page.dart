@@ -7,7 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 // Project imports:
-import 'package:words625/views/theme.dart';
+import 'package:varnamala/views/theme.dart';
 
 /// Dedicated About page for Varnamala.
 ///

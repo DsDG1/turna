@@ -87,7 +87,7 @@ lib/
 - [x] **Expression-level SRS** — end-to-end data pipeline (schema v5, seeder, repository, provider, review UI)
 - [x] **TTS language code** — switched to `sw` with ADR at `docs/decisions/0001-tts-language-code.md`
 - [x] **Test coverage** — core ViewModel / Provider / Renderer / seeder / schema migration tests
-- [x] **Built-in Swahili TTS** — bundled Piper `sw_CD-lanfrica-medium-int8` model via `sherpa_onnx` for runtime synthesis; pre-recorded `audioAsset` reserved for listening exercises; fallback to `flutter_tts` on unsupported platforms
+- [x] **Built-in Swahili TTS** — default **system/Google TTS** via `flutter_tts` (Android prefers `com.google.android.tts`); bundled Piper `sw_CD-lanfrica-medium-int8` via `sherpa_onnx` as offline mode / system-failure fallback; pre-recorded `audioAsset` reserved for listening exercises
 
 ### 📋 Post-Framework (not in future2.md scope)
 - [ ] **Content** — Swahili vocabulary replacement (real Swahili word list, post-framework)

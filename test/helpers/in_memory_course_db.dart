@@ -15,9 +15,9 @@ import 'dart:io';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqlite3/src/ffi/load_library.dart' show OperatingSystem, open;
-import 'package:words625/courses/course_loader.dart';
-import 'package:words625/data/course_database.dart';
-import 'package:words625/data/course_database_seeder.dart';
+import 'package:varnamala/courses/course_loader.dart';
+import 'package:varnamala/data/course_database.dart';
+import 'package:varnamala/data/course_database_seeder.dart';
 
 bool _sqliteOverrideApplied = false;
 

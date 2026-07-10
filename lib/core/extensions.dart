@@ -6,13 +6,10 @@ import 'package:flutter/material.dart';
 
 // Package imports:
 import 'package:auto_route/auto_route.dart';
-import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 
 // Project imports:
-import 'package:words625/core/enums.dart';
-
-// Project imports:
+import 'package:varnamala/core/enums.dart';
 
 extension BreakpointUtils on BoxConstraints {
   bool get isTablet => maxWidth > 730;
@@ -41,17 +38,12 @@ extension NullableStringExtensions<E> on String? {
   }
 }
 
-/// To Check if request is success [HTTP]
-extension HttpRequestStatus on http.Response {
-  bool get ok => statusCode == 200 || statusCode == 204 || statusCode == 201;
-}
-
 extension ContextExtentions on BuildContext {
   double get height => MediaQuery.of(this).size.height;
 
   double get width => MediaQuery.of(this).size.width;
 
-  // Convenience push: routes via AutoRouter (see [package:words625/routing]).
+  // Convenience push: routes via AutoRouter (see [package:varnamala/routing]).
   Future<dynamic> route(PageRouteInfo route) async {
     AutoRouter.of(this).push(route);
   }

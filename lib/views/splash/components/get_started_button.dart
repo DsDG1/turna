@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:words625/application/game_provider.dart';
-import 'package:words625/di/injection.dart';
-import 'package:words625/routing/routing.gr.dart';
-import 'package:words625/views/theme.dart';
+import 'package:varnamala/application/game_provider.dart';
+import 'package:varnamala/di/injection.dart';
+import 'package:varnamala/routing/routing.gr.dart';
+import 'package:varnamala/views/theme.dart';
 
 /// Splash screen "Get Started" button.
 ///

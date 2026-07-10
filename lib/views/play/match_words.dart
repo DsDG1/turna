@@ -8,10 +8,10 @@ import 'package:auto_route/annotations.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:words625/application/game_provider.dart';
-import 'package:words625/application/match_provider.dart';
-import 'package:words625/core/utils.dart';
-import 'package:words625/views/theme.dart';
+import 'package:varnamala/application/game_provider.dart';
+import 'package:varnamala/application/match_provider.dart';
+import 'package:varnamala/core/utils.dart';
+import 'package:varnamala/views/theme.dart';
 
 @RoutePage()
 class MatchWordsPage extends StatefulWidget {

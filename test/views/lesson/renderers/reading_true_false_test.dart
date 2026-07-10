@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:words625/domain/course/interaction.dart';
-import 'package:words625/views/lesson/components/interactions/reading_true_false_renderer.dart';
+import 'package:varnamala/domain/course/interaction.dart';
+import 'package:varnamala/views/lesson/components/interactions/reading_true_false_renderer.dart';
 
 import 'renderer_test_helper.dart';
 

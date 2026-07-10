@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 
 // Project imports:
-import 'package:words625/core/extensions.dart';
-import 'package:words625/di/injection.dart';
-import 'package:words625/service/locator.dart';
-import 'package:words625/views/theme.dart';
+import 'package:varnamala/core/extensions.dart';
+import 'package:varnamala/di/injection.dart';
+import 'package:varnamala/service/locator.dart';
+import 'package:varnamala/views/theme.dart';
 
 class CharactersAppBar extends StatelessWidget implements PreferredSizeWidget {
   const CharactersAppBar({super.key});

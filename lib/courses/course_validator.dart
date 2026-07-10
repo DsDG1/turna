@@ -1,12 +1,12 @@
 // Project imports:
-import 'package:words625/domain/course/expression.dart';
-import 'package:words625/domain/course/interaction.dart';
-import 'package:words625/domain/course/lesson.dart';
-import 'package:words625/domain/course/listening_phase.dart';
-import 'package:words625/domain/course/section.dart';
-import 'package:words625/domain/course/stage.dart';
-import 'package:words625/domain/course/sub_lesson.dart';
-import 'package:words625/domain/course/word_entry.dart';
+import 'package:varnamala/domain/course/expression.dart';
+import 'package:varnamala/domain/course/interaction.dart';
+import 'package:varnamala/domain/course/lesson.dart';
+import 'package:varnamala/domain/course/listening_phase.dart';
+import 'package:varnamala/domain/course/section.dart';
+import 'package:varnamala/domain/course/stage.dart';
+import 'package:varnamala/domain/course/sub_lesson.dart';
+import 'package:varnamala/domain/course/word_entry.dart';
 
 /// Thrown by [validateSwahiliCourse] when the bundled course JSON violates a
 /// structural invariant. Carries every problem found in one pass so an

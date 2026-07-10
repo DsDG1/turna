@@ -5,16 +5,16 @@ import 'dart:convert';
 import 'package:drift/drift.dart' hide Expression;
 
 // Project imports:
-import 'package:words625/core/logger.dart';
-import 'package:words625/data/course_database.dart' as db;
-import 'package:words625/domain/course/expression.dart';
-import 'package:words625/domain/course/grammar_point.dart';
-import 'package:words625/domain/course/interaction.dart';
-import 'package:words625/domain/course/lesson.dart';
-import 'package:words625/domain/course/lesson_content.dart';
-import 'package:words625/domain/course/section.dart';
-import 'package:words625/domain/course/unit.dart';
-import 'package:words625/domain/course/word_entry.dart';
+import 'package:varnamala/core/logger.dart';
+import 'package:varnamala/data/course_database.dart' as db;
+import 'package:varnamala/domain/course/expression.dart';
+import 'package:varnamala/domain/course/grammar_point.dart';
+import 'package:varnamala/domain/course/interaction.dart';
+import 'package:varnamala/domain/course/lesson.dart';
+import 'package:varnamala/domain/course/lesson_content.dart';
+import 'package:varnamala/domain/course/section.dart';
+import 'package:varnamala/domain/course/unit.dart';
+import 'package:varnamala/domain/course/word_entry.dart';
 
 /// Reads course content from [CourseDatabase] and reconstructs the existing
 /// freezed domain models ([Section]/[Unit]/[Lesson]/[LessonContent]/

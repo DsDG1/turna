@@ -5,8 +5,8 @@ import 'dart:convert';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:words625/domain/course/lesson_word_link.dart';
-import 'package:words625/service/locator.dart';
+import 'package:varnamala/domain/course/lesson_word_link.dart';
+import 'package:varnamala/service/locator.dart';
 
 /// Single writer for [LocalStateKeys.lessonWordLinks].
 ///

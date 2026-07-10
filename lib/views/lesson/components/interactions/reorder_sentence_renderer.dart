@@ -5,9 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:words625/domain/course/interaction.dart';
-import 'package:words625/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:words625/views/theme.dart';
+import 'package:varnamala/domain/course/interaction.dart';
+import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:varnamala/views/theme.dart';
 
 /// Arrange scrambled tokens into the canonical sentence. Tap a token in the
 /// pool to move it to the answer row; tap a token in the answer row to send
@@ -173,7 +173,7 @@ class _AnswerRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Color border = VarnamalaTheme.textHint.withValues(alpha: 0.30);
-    Color background = Colors.white;
+    Color background = VarnamalaTheme.cardBg(context);
     if (submitted) {
       border = correct == true
           ? VarnamalaTheme.success
@@ -265,8 +265,10 @@ class _TokenChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final bg = selected
         ? VarnamalaTheme.peacockTeal
-        : Colors.white;
-    final fg = selected ? Colors.white : VarnamalaTheme.textPrimary;
+        : VarnamalaTheme.cardBg(context);
+    final fg = selected
+        ? VarnamalaTheme.textOnPrimary
+        : VarnamalaTheme.textPrimaryColor(context);
     final border = selected
         ? VarnamalaTheme.peacockTeal
         : VarnamalaTheme.textHint.withValues(alpha: 0.3);

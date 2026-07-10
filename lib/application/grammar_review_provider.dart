@@ -7,11 +7,11 @@ import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:words625/application/lesson_link_store.dart';
-import 'package:words625/core/sm2.dart';
-import 'package:words625/domain/course/lesson_word_link.dart';
-import 'package:words625/domain/course/srs_word.dart';
-import 'package:words625/service/locator.dart';
+import 'package:varnamala/application/lesson_link_store.dart';
+import 'package:varnamala/core/sm2.dart';
+import 'package:varnamala/domain/course/lesson_word_link.dart';
+import 'package:varnamala/domain/course/srs_word.dart';
+import 'package:varnamala/service/locator.dart';
 
 /// Manages the per-grammar-point spaced-repetition state, persisted to
 /// [LocalStateKeys.grammarReviewState] via [StreamingSharedPreferences].

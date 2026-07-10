@@ -1,4 +1,4 @@
-package com.example.words625
+package com.example.varnamala
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -6,15 +6,15 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:words625/application/audio_controller.dart';
-import 'package:words625/application/character_provider.dart';
-import 'package:words625/application/language_provider.dart';
-import 'package:words625/core/enums.dart';
-import 'package:words625/core/utils.dart';
-import 'package:words625/courses/alphabets/alphabets.dart';
-import 'package:words625/di/injection.dart';
-import 'package:words625/routing/routing.gr.dart';
-import 'package:words625/views/theme.dart';
+import 'package:varnamala/application/audio_controller.dart';
+import 'package:varnamala/application/character_provider.dart';
+import 'package:varnamala/application/language_provider.dart';
+import 'package:varnamala/core/enums.dart';
+import 'package:varnamala/core/utils.dart';
+import 'package:varnamala/courses/alphabets/alphabets.dart';
+import 'package:varnamala/di/injection.dart';
+import 'package:varnamala/routing/routing.gr.dart';
+import 'package:varnamala/views/theme.dart';
 
 enum CharacterLearningMode {
   vowels,

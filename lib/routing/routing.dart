@@ -2,7 +2,7 @@
 import 'package:auto_route/auto_route.dart';
 
 // Project imports:
-import 'package:words625/routing/routing.gr.dart';
+import 'package:varnamala/routing/routing.gr.dart';
 
 @AutoRouterConfig(replaceInRouteName: 'Page,Route')
 class AppRouter extends RootStackRouter {
@@ -14,6 +14,7 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: SplashRoute.page, initial: true),
         AutoRoute(page: HomeRoute.page),
         AutoRoute(page: NewLessonRoute.page),
+        AutoRoute(page: SectionPickerRoute.page),
         AutoRoute(page: VowelAndConsonantLearningRoute.page),
         AutoRoute(page: MatchWordsRoute.page),
         AutoRoute(page: SrsReviewRoute.page),

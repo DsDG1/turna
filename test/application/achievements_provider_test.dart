@@ -6,10 +6,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
-import 'package:words625/application/achievements_provider.dart';
-import 'package:words625/application/gems_provider.dart';
-import 'package:words625/di/injection.dart';
-import 'package:words625/service/locator.dart';
+import 'package:varnamala/application/achievements_provider.dart';
+import 'package:varnamala/application/gems_provider.dart';
+import 'package:varnamala/di/injection.dart';
+import 'package:varnamala/service/locator.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

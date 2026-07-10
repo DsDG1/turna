@@ -5,25 +5,19 @@ import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:words625/application/achievements_provider.dart';
-import 'package:words625/application/audio_controller.dart';
-import 'package:words625/application/course_provider.dart';
-import 'package:words625/application/game_provider.dart';
-import 'package:words625/application/gems_provider.dart';
-import 'package:words625/application/grammar_review_provider.dart';
-import 'package:words625/application/mistake_provider.dart';
-import 'package:words625/application/srs_provider.dart';
-import 'package:words625/application/study_stats_provider.dart';
-import 'package:words625/core/logger.dart';
-import 'package:words625/core/result.dart';
-import 'package:words625/courses/course_loader.dart';
-import 'package:words625/domain/course/interaction.dart';
-import 'package:words625/domain/course/lesson.dart';
-import 'package:words625/domain/course/lesson_word_link.dart';
-import 'package:words625/domain/course/mistake_entry.dart';
-import 'package:words625/domain/course/stage.dart';
-import 'package:words625/domain/study/study_log.dart';
-import 'package:words625/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:varnamala/application/audio_controller.dart';
+import 'package:varnamala/application/course_provider.dart';
+import 'package:varnamala/application/grammar_review_provider.dart';
+import 'package:varnamala/application/lesson_completion_coordinator.dart';
+import 'package:varnamala/application/mistake_provider.dart';
+import 'package:varnamala/application/srs_provider.dart';
+import 'package:varnamala/courses/course_loader.dart';
+import 'package:varnamala/domain/course/interaction.dart';
+import 'package:varnamala/domain/course/lesson.dart';
+import 'package:varnamala/domain/course/lesson_word_link.dart';
+import 'package:varnamala/domain/course/mistake_entry.dart';
+import 'package:varnamala/domain/course/stage.dart';
+import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
 
 /// Describes the UI state after an answer is submitted.
 enum AnswerState {
@@ -54,25 +48,19 @@ extension AnswerStateX on AnswerState {
 @lazySingleton
 class LessonViewModel extends ChangeNotifier {
   final CourseProvider _courseProvider;
-  final GameProvider _gameProvider;
-  final GemsProvider _gemsProvider;
-  final AchievementsProvider _achievementsProvider;
   final AudioController _audioController;
   final SrsProvider _srsProvider;
   final MistakeProvider _mistakeProvider;
   final GrammarReviewProvider _grammarReviewProvider;
-  final StudyStatsProvider _studyStatsProvider;
+  final LessonCompletionCoordinator _completionCoordinator;
 
   LessonViewModel(
     this._courseProvider,
-    this._gameProvider,
-    this._gemsProvider,
-    this._achievementsProvider,
     this._audioController,
     this._srsProvider,
     this._mistakeProvider,
     this._grammarReviewProvider,
-    this._studyStatsProvider,
+    this._completionCoordinator,
   );
 
   // --- Lesson state ---
@@ -420,87 +408,15 @@ class LessonViewModel extends ChangeNotifier {
     }
   }
 
-  // --- Completion hooks (ported from old LessonProvider) ---
-
-  /// Run a completion side-effect, routing any failure through the logger
-  /// tagged with [label]. Each side-effect is independent: one failing does
-  /// not abort the others (matching the previous per-block try/catch
-  /// semantics), but the boilerplate is collapsed into one place and errors
-  /// are observable instead of `debugPrint`-only.
-  Future<void> _runSideEffect(
-    String label,
-    Future<void> Function() action,
-  ) async {
-    final result = await Result.guard(action);
-    if (result.isFailure) {
-      logger.w('Lesson completion: $label failed', error: result.error);
-    }
-  }
-
   Future<void> _onLessonCompleted() async {
-    final wasPerfect = _totalMistakes == 0;
-
-    // XP and gems: awarded in parallel, each resilient to the other failing.
-    await Future.wait([
-      _runSideEffect(
-        'award lesson-complete XP',
-        () => _gameProvider.awardXP(XPEvent.lessonComplete),
-      ),
-      _runSideEffect(
-        'earn lesson-complete gems',
-        () => _gemsProvider.earnGems(GemEvent.lessonComplete),
-      ),
-    ]);
-
-    if (wasPerfect) {
-      await Future.wait([
-        _runSideEffect(
-          'award perfect-lesson XP',
-          () => _gameProvider.awardXP(XPEvent.perfectLesson),
-        ),
-        _runSideEffect(
-          'earn perfect-lesson gems',
-          () => _gemsProvider.earnGems(GemEvent.perfectLesson),
-        ),
-      ]);
-    }
-
-    await _runSideEffect(
-      'record lesson completion',
-      () => _gameProvider.recordLessonCompletion(
-        lessonId: _lesson!.id,
-        wasPerfect: wasPerfect,
-      ),
+    final lesson = _lesson;
+    if (lesson == null) return;
+    await _completionCoordinator.complete(
+      lessonId: lesson.id,
+      wasPerfect: _totalMistakes == 0,
+      correctAnswers: _correctAnswers,
+      incorrectAnswers: _incorrectAnswers,
+      lessonStartTime: _lessonStartTime,
     );
-
-    await _runSideEffect('check lesson milestones', () async {
-      final userData = await _gameProvider.getUserGameStateOnce();
-      final lessonsCompleted =
-          (userData['lessonsCompleted'] as num? ?? 0).toInt();
-      final perfectLessons =
-          (userData['perfectLessons'] as num? ?? 0).toInt();
-      await _achievementsProvider.checkLessonMilestones(
-        lessonsCompleted: lessonsCompleted,
-        perfectLessons: perfectLessons,
-      );
-    });
-
-    // Record study activity for statistics dashboard.
-    await _runSideEffect('record study stats', () async {
-      final duration = _lessonStartTime != null
-          ? DateTime.now().difference(_lessonStartTime!).inSeconds
-          : 0;
-      final xpEarned = wasPerfect
-          ? XPEvent.lessonComplete.base + XPEvent.perfectLesson.base
-          : XPEvent.lessonComplete.base;
-      await _studyStatsProvider.recordActivity(
-        type: StudyActivityType.lessonComplete,
-        lessonId: _lesson?.id,
-        xpEarned: xpEarned,
-        durationSeconds: duration,
-        correctCount: _correctAnswers,
-        incorrectCount: _incorrectAnswers,
-      );
-    });
   }
 }

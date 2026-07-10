@@ -8,7 +8,7 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
-import 'package:words625/data/course_database.dart' as db;
+import 'package:varnamala/data/course_database.dart' as db;
 
 import '../helpers/in_memory_course_db.dart';
 

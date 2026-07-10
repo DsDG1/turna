@@ -5,10 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:words625/application/achievements_provider.dart';
-import 'package:words625/application/game_provider.dart';
-import 'package:words625/domain/achievement.dart';
-import 'package:words625/views/theme.dart';
+import 'package:varnamala/application/achievements_provider.dart';
+import 'package:varnamala/application/game_provider.dart';
+import 'package:varnamala/domain/achievement.dart';
+import 'package:varnamala/domain/game/user_game_state.dart';
+import 'package:varnamala/views/theme.dart';
 
 class Achievements extends StatefulWidget {
   const Achievements({Key? key}) : super(key: key);
@@ -25,10 +26,10 @@ class _AchievementsState extends State<Achievements> {
     const achievements = AchievementsProvider.allAchievements;
     final gameProvider = Provider.of<GameProvider>(context, listen: false);
 
-    return StreamBuilder<Map<String, dynamic>>(
+    return StreamBuilder(
       stream: gameProvider.getUserGameStateStream(),
       builder: (context, snapshot) {
-        final userData = snapshot.data ?? {};
+        final userData = snapshot.data ?? UserGameState.empty;
 
         final displayedAchievements =
             _expanded ? achievements : achievements.take(3).toList();
@@ -161,23 +162,18 @@ class _AchievementsState extends State<Achievements> {
     );
   }
 
-  int _getProgress(Achievement achievement, Map<String, dynamic> data) {
+  int _getProgress(Achievement achievement, UserGameState data) {
     switch (achievement.type) {
       case AchievementType.scholar:
-        // Words learned
-        return (data['wordsLearned'] as num?)?.toInt() ?? 0;
+        return data.wordsLearned;
       case AchievementType.sage:
-        // XP
-        return (data['score'] as num?)?.toInt() ?? 0;
+        return data.score;
       case AchievementType.wildfire:
-        // Streak
-        return (data['streak'] as num?)?.toInt() ?? 0;
+        return data.streak;
       case AchievementType.champion:
-        // Lessons
-        return (data['lessonsCompleted'] as num?)?.toInt() ?? 0;
+        return data.lessonsCompleted;
       case AchievementType.sharpshooter:
-        // Perfect lessons
-        return (data['perfectLessons'] as num?)?.toInt() ?? 0;
+        return data.perfectLessons;
       default:
         return 0;
     }

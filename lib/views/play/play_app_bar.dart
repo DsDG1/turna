@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:words625/views/theme.dart';
+import 'package:varnamala/views/theme.dart';
 
 class PlayAppBar extends StatelessWidget implements PreferredSizeWidget {
   const PlayAppBar({super.key});

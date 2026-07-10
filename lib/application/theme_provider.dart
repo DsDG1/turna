@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:words625/service/locator.dart';
-import 'package:words625/views/theme.dart';
+import 'package:varnamala/service/locator.dart';
+import 'package:varnamala/views/theme.dart';
 
-@injectable
+@lazySingleton
 class ThemeProvider extends ChangeNotifier {
   final AppPrefs appPrefs;
 

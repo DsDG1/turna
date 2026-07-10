@@ -7,11 +7,11 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
-import 'package:words625/application/grammar_review_provider.dart';
-import 'package:words625/application/lesson_link_store.dart';
-import 'package:words625/application/srs_provider.dart';
-import 'package:words625/core/sm2.dart';
-import 'package:words625/service/locator.dart';
+import 'package:varnamala/application/grammar_review_provider.dart';
+import 'package:varnamala/application/lesson_link_store.dart';
+import 'package:varnamala/application/srs_provider.dart';
+import 'package:varnamala/core/sm2.dart';
+import 'package:varnamala/service/locator.dart';
 
 AppPrefs _newPrefs(StreamingSharedPreferences p) => AppPrefs(p);
 

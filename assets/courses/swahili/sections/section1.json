@@ -1,7 +1,7 @@
 {
-  "id": "s-foundations",
-  "name": "Foundations",
-  "description": "Greetings, pronouns, and the basics of being polite.",
+  "id": "section1",
+  "name": "Section 1",
+  "description": "Habari",
   "prerequisiteSectionIds": [],
   "units": [
     {

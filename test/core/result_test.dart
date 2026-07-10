@@ -1,7 +1,7 @@
 // Unit tests for the Result discriminated-result type.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:words625/core/result.dart';
+import 'package:varnamala/core/result.dart';
 
 void main() {
   group('guard', () {

@@ -6,11 +6,11 @@ import 'package:provider/provider.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 
 // Project imports:
-import 'package:words625/application/theme_provider.dart';
-import 'package:words625/di/injection.dart';
-import 'package:words625/domain/auth/local_user.dart';
-import 'package:words625/service/locator.dart';
-import 'package:words625/views/theme.dart';
+import 'package:varnamala/application/theme_provider.dart';
+import 'package:varnamala/di/injection.dart';
+import 'package:varnamala/domain/auth/local_user.dart';
+import 'package:varnamala/service/locator.dart';
+import 'package:varnamala/views/theme.dart';
 
 class AccountAppBar extends StatelessWidget implements PreferredSizeWidget {
   const AccountAppBar({Key? key}) : super(key: key);
@@ -29,9 +29,9 @@ class AccountWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PreferenceBuilder<SerializableFirebaseUser>(
+    return PreferenceBuilder<LocalUser>(
       preference: getIt<AppPrefs>().authUser,
-      builder: (BuildContext context, SerializableFirebaseUser user) {
+      builder: (BuildContext context, LocalUser user) {
         final displayName = user.displayName ?? 'Learner';
         final email = user.email ?? '';
 

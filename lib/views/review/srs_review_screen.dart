@@ -6,21 +6,21 @@ import 'package:auto_route/annotations.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:words625/application/audio_controller.dart';
-import 'package:words625/application/game_provider.dart';
-import 'package:words625/application/gems_provider.dart';
-import 'package:words625/application/srs_provider.dart';
-import 'package:words625/application/study_stats_provider.dart';
-import 'package:words625/core/sm2.dart';
-import 'package:words625/courses/languages/expressions.dart';
-import 'package:words625/courses/languages/swahili_vocab.dart';
-import 'package:words625/di/injection.dart';
-import 'package:words625/domain/course/expression.dart';
-import 'package:words625/domain/course/srs_word.dart';
-import 'package:words625/domain/course/word_entry.dart';
-import 'package:words625/domain/study/study_log.dart';
-import 'package:words625/views/review/components/review_components.dart';
-import 'package:words625/views/theme.dart';
+import 'package:varnamala/application/audio_controller.dart';
+import 'package:varnamala/application/game_provider.dart';
+import 'package:varnamala/application/gems_provider.dart';
+import 'package:varnamala/application/srs_provider.dart';
+import 'package:varnamala/application/study_stats_provider.dart';
+import 'package:varnamala/core/sm2.dart';
+import 'package:varnamala/courses/languages/expressions.dart';
+import 'package:varnamala/courses/languages/swahili_vocab.dart';
+import 'package:varnamala/di/injection.dart';
+import 'package:varnamala/domain/course/expression.dart';
+import 'package:varnamala/domain/course/srs_word.dart';
+import 'package:varnamala/domain/course/word_entry.dart';
+import 'package:varnamala/domain/study/study_log.dart';
+import 'package:varnamala/views/review/components/review_components.dart';
+import 'package:varnamala/views/theme.dart';
 
 @RoutePage()
 class SrsReviewPage extends StatefulWidget {
@@ -98,7 +98,7 @@ class _SrsReviewPageState extends State<SrsReviewPage> {
 
     // Record study activity for statistics dashboard
     try {
-      context.read<StudyStatsProvider>().recordActivity(
+      await context.read<StudyStatsProvider>().recordActivity(
         type: StudyActivityType.srsReview,
         xpEarned: xp,
         durationSeconds: 0, // SRS sessions are quick; could add timer later
@@ -288,7 +288,7 @@ class _FlashCard extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: VarnamalaTheme.cardBg(context),
           borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
           boxShadow: [
             BoxShadow(

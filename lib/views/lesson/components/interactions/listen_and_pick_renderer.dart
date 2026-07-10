@@ -5,11 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:words625/application/audio_controller.dart';
-import 'package:words625/core/text_styles.dart';
-import 'package:words625/di/injection.dart';
-import 'package:words625/domain/course/interaction.dart';
-import 'package:words625/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:varnamala/application/audio_controller.dart';
+import 'package:varnamala/core/text_styles.dart';
+import 'package:varnamala/di/injection.dart';
+import 'package:varnamala/domain/course/interaction.dart';
+import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
 
 /// Play audio (TTS) and pick the matching option. The [Interaction.audioAsset]
 /// field is a wordId in current data; we look up the Swahili term from the

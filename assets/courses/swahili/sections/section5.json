@@ -1,0 +1,138 @@
+{
+  "id": "section5",
+  "name": "Section 5",
+  "description": "Ninaweza kufanya mazungumzo ya kila siku kwa Kiswahili.",
+  "prerequisiteSectionIds": [],
+  "units": [
+    {
+      "id": "s5-u1",
+      "name": "Daily conversations",
+      "description": "",
+      "prerequisiteUnitIds": [],
+      "lessons": [
+        {
+          "id": "s5-l1",
+          "name": "Food and eating",
+          "description": "",
+          "type": "normal",
+          "prerequisiteLessonIds": [],
+          "content": {
+            "stages": [
+              {
+                "id": "stage-vocab",
+                "name": "Vocabulary",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-w-oota",
+                    "wordId": "w-oota"
+                  },
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-w-neeru",
+                    "wordId": "w-neeru"
+                  }
+                ]
+              },
+              {
+                "id": "stage-practice",
+                "name": "Practice",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-w-oota-0",
+                    "prompt": "Which word matches 'w-oota'?",
+                    "options": [
+                      "Yes",
+                      "No",
+                      "Come",
+                      "Go"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-w-neeru-1",
+                    "prompt": "Which word matches 'w-neeru'?",
+                    "options": [
+                      "Yes",
+                      "No",
+                      "Come",
+                      "Go"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "s5-l2",
+          "name": "Getting around",
+          "description": "",
+          "type": "normal",
+          "prerequisiteLessonIds": [],
+          "content": {
+            "stages": [
+              {
+                "id": "stage-vocab",
+                "name": "Vocabulary",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-w-prayan",
+                    "wordId": "w-prayan"
+                  },
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-w-bus",
+                    "wordId": "w-bus"
+                  }
+                ]
+              },
+              {
+                "id": "stage-practice",
+                "name": "Practice",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-w-prayan-0",
+                    "prompt": "Which word matches 'w-prayan'?",
+                    "options": [
+                      "Yes",
+                      "No",
+                      "Come",
+                      "Go"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-w-bus-1",
+                    "prompt": "Which word matches 'w-bus'?",
+                    "options": [
+                      "Yes",
+                      "No",
+                      "Come",
+                      "Go"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

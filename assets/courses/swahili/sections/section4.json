@@ -1,0 +1,557 @@
+{
+  "id": "section4",
+  "name": "Section 4",
+  "description": "Ninaweza kuzungumza Kiswahili kwa urahisi.",
+  "prerequisiteSectionIds": [],
+  "units": [
+    {
+      "id": "u-test-1",
+      "name": "Smoke Unit",
+      "description": "Short lessons covering vocab, grammar links, and listening summary.",
+      "prerequisiteUnitIds": [],
+      "lessons": [
+        {
+          "id": "l-test-vocab-1",
+          "name": "Words + Greetings grammar",
+          "type": "normal",
+          "template": "legacy",
+          "prerequisiteLessonIds": [],
+          "content": {
+            "linkedGrammarPointIds": [
+              "gp.greetings"
+            ],
+            "stages": [
+              {
+                "id": "stage-vocab",
+                "name": "Vocabulary",
+                "items": [
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-test-naanu",
+                    "wordId": "w-naanu",
+                    "context": "Naanu = I"
+                  },
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-test-howdu",
+                    "wordId": "w-howdu",
+                    "context": "Howdu = Yes"
+                  }
+                ]
+              },
+              {
+                "id": "stage-check",
+                "name": "Check",
+                "items": [
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-test-yes",
+                    "prompt": "Which word means \"Yes\"?",
+                    "options": [
+                      "Howdu",
+                      "Illa",
+                      "Baa",
+                      "Hogu"
+                    ],
+                    "correctIndex": 0,
+                    "grammarPointId": "gp.greetings"
+                  },
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-test-casual-hello",
+                    "prompt": "Which is a casual hello often used with visitors?",
+                    "options": [
+                      "Jambo",
+                      "Howdu",
+                      "Illa",
+                      "Neenu"
+                    ],
+                    "correctIndex": 0,
+                    "grammarPointId": "gp.greetings"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "l-test-grammar-1",
+          "name": "Pronouns drill",
+          "type": "normal",
+          "template": "legacy",
+          "prerequisiteLessonIds": [
+            "l-test-vocab-1"
+          ],
+          "content": {
+            "linkedGrammarPointIds": [
+              "gp.pronouns"
+            ],
+            "stages": [
+              {
+                "id": "stage-pronouns",
+                "name": "Pronouns",
+                "items": [
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-test-neenu",
+                    "wordId": "w-neenu",
+                    "context": "Neenu = You",
+                    "grammarPointId": "gp.pronouns"
+                  },
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-test-you",
+                    "prompt": "Which word means \"You\"?",
+                    "options": [
+                      "Neenu",
+                      "Naanu",
+                      "Howdu",
+                      "Illa"
+                    ],
+                    "correctIndex": 0,
+                    "grammarPointId": "gp.pronouns"
+                  },
+                  {
+                    "runtimeType": "fillBlank",
+                    "id": "fb-test-pronoun",
+                    "sentence": "___ vidyaarthi. (You are a student.)",
+                    "answer": "Neenu",
+                    "hint": "2nd person singular",
+                    "grammarPointId": "gp.pronouns"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "l-tpl-intro-smoke",
+          "name": "Intro Template Smoke",
+          "type": "normal",
+          "template": "intro",
+          "prerequisiteLessonIds": [],
+          "content": {
+            "subLessons": [
+              {
+                "id": "sub-intro-1",
+                "name": "Greetings",
+                "stages": [
+                  {
+                    "id": "stage-1",
+                    "name": "Show",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-1",
+                        "wordId": "w-naanu",
+                        "context": "I"
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-1",
+                        "prompt": "Which means I?",
+                        "options": [
+                          "Naanu",
+                          "Neenu",
+                          "Howdu"
+                        ],
+                        "correctIndex": 0
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sub-intro-2",
+                "name": "Yes/No",
+                "stages": [
+                  {
+                    "id": "stage-2",
+                    "name": "Show",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-2",
+                        "wordId": "w-howdu",
+                        "context": "Yes"
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-2",
+                        "prompt": "Which means Yes?",
+                        "options": [
+                          "Howdu",
+                          "Illa",
+                          "Baa"
+                        ],
+                        "correctIndex": 0
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sub-intro-3",
+                "name": "You",
+                "stages": [
+                  {
+                    "id": "stage-3",
+                    "name": "Show",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-3",
+                        "wordId": "w-neenu",
+                        "context": "You"
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-3",
+                        "prompt": "Which means You?",
+                        "options": [
+                          "Neenu",
+                          "Naanu",
+                          "Naavu"
+                        ],
+                        "correctIndex": 0
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sub-intro-4",
+                "name": "No",
+                "stages": [
+                  {
+                    "id": "stage-4",
+                    "name": "Show",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-4",
+                        "wordId": "w-illa",
+                        "context": "No"
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-4",
+                        "prompt": "Which means No?",
+                        "options": [
+                          "Illa",
+                          "Howdu",
+                          "Baa"
+                        ],
+                        "correctIndex": 0
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "l-tpl-practice-smoke",
+          "name": "Practice Template Smoke",
+          "type": "normal",
+          "template": "practice",
+          "prerequisiteLessonIds": [
+            "l-tpl-intro-smoke"
+          ],
+          "content": {
+            "subLessons": [
+              {
+                "id": "sub-prac-1",
+                "name": "Pronouns",
+                "stages": [
+                  {
+                    "id": "stage-1",
+                    "name": "Drill",
+                    "items": [
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-1",
+                        "prompt": "Which means I?",
+                        "options": [
+                          "Naanu",
+                          "Neenu",
+                          "Howdu"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-1",
+                        "sentence": "___ student.",
+                        "answer": "Naanu",
+                        "hint": "I"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sub-prac-2",
+                "name": "Affirmation",
+                "stages": [
+                  {
+                    "id": "stage-2",
+                    "name": "Drill",
+                    "items": [
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-2",
+                        "prompt": "Which means Yes?",
+                        "options": [
+                          "Howdu",
+                          "Illa",
+                          "Baa"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-2",
+                        "sentence": "___ (yes).",
+                        "answer": "Howdu",
+                        "hint": "Yes"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sub-prac-3",
+                "name": "Negation",
+                "stages": [
+                  {
+                    "id": "stage-3",
+                    "name": "Drill",
+                    "items": [
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-3",
+                        "prompt": "Which means No?",
+                        "options": [
+                          "Illa",
+                          "Howdu",
+                          "Baa"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-3",
+                        "sentence": "___ (no).",
+                        "answer": "Illa",
+                        "hint": "No"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sub-prac-4",
+                "name": "Mixed",
+                "stages": [
+                  {
+                    "id": "stage-4",
+                    "name": "Drill",
+                    "items": [
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-4",
+                        "prompt": "Which means You?",
+                        "options": [
+                          "Neenu",
+                          "Naanu",
+                          "Naavu"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-4",
+                        "sentence": "___ are a student.",
+                        "answer": "Neenu",
+                        "hint": "You"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "l-tpl-review-smoke",
+          "name": "Review Template Smoke",
+          "type": "review",
+          "template": "review",
+          "prerequisiteLessonIds": [
+            "l-tpl-practice-smoke"
+          ],
+          "content": {
+            "stages": [
+              {
+                "id": "stage-review",
+                "name": "Review Mix",
+                "items": [
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-r1",
+                    "wordId": "w-naanu",
+                    "context": "I"
+                  },
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-r1",
+                    "prompt": "Which means Yes?",
+                    "options": [
+                      "Howdu",
+                      "Illa",
+                      "Baa"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "fillBlank",
+                    "id": "fb-r1",
+                    "sentence": "___ (you).",
+                    "answer": "Neenu",
+                    "hint": "You"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "l-tpl-mastery-smoke",
+          "name": "Mastery Template Smoke",
+          "type": "challenge",
+          "template": "mastery",
+          "prerequisiteLessonIds": [
+            "l-tpl-review-smoke"
+          ],
+          "content": {
+            "stages": [
+              {
+                "id": "stage-mastery",
+                "name": "Mastery Check",
+                "items": [
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-m1",
+                    "prompt": "Which means I?",
+                    "options": [
+                      "Naanu",
+                      "Neenu",
+                      "Howdu"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-m2",
+                    "prompt": "Which means Yes?",
+                    "options": [
+                      "Howdu",
+                      "Illa",
+                      "Baa"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-m3",
+                    "prompt": "Which means No?",
+                    "options": [
+                      "Illa",
+                      "Howdu",
+                      "Baa"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-m4",
+                    "prompt": "Which means You?",
+                    "options": [
+                      "Neenu",
+                      "Naanu",
+                      "Naavu"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-m5",
+                    "prompt": "Which means Go?",
+                    "options": [
+                      "Hogu",
+                      "Baa",
+                      "Illa"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "l-tpl-reading-smoke",
+          "name": "Reading Template Smoke",
+          "type": "reading",
+          "template": "reading",
+          "prerequisiteLessonIds": [
+            "l-tpl-intro-smoke"
+          ],
+          "content": {
+            "readingPassage": {
+              "title": "A Simple Greeting",
+              "paragraphs": [
+                "Naanu vidyaarthi. Neenu hegiddiya?",
+                "Howdu, naanu chennagiddini. Illa, naanu dukhavagiddini."
+              ],
+              "difficulty": 1,
+              "linkedWordIds": [
+                "w-naanu",
+                "w-neenu",
+                "w-howdu",
+                "w-illa"
+              ]
+            },
+            "stages": [
+              {
+                "id": "stage-reading",
+                "name": "Comprehension",
+                "items": [
+                  {
+                    "runtimeType": "readingMcq",
+                    "id": "rmcq-1",
+                    "prompt": "What does 'Naanu' mean?",
+                    "options": [
+                      "I",
+                      "You",
+                      "Yes"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "readingTrueFalse",
+                    "id": "rtf-1",
+                    "statement": "'Howdu' means No.",
+                    "answer": false
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

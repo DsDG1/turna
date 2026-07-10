@@ -1,4 +1,4 @@
-import 'package:words625/domain/course/srs_word.dart';
+import 'package:varnamala/domain/course/srs_word.dart';
 
 /// SM-2 spaced-repetition algorithm.
 ///

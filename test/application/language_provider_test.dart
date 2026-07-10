@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:words625/application/language_provider.dart';
-import 'package:words625/core/enums.dart';
-import 'package:words625/service/locator.dart';
+import 'package:varnamala/application/language_provider.dart';
+import 'package:varnamala/core/enums.dart';
+import 'package:varnamala/service/locator.dart';
 
 class _FakeAppPrefs implements AppPrefs {
   @override

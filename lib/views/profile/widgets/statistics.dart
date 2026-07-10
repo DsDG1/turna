@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:words625/application/game_provider.dart';
-import 'package:words625/application/gems_provider.dart';
-import 'package:words625/core/extensions.dart';
-import 'package:words625/views/theme.dart';
+import 'package:varnamala/application/game_provider.dart';
+import 'package:varnamala/application/gems_provider.dart';
+import 'package:varnamala/core/extensions.dart';
+import 'package:varnamala/views/theme.dart';
 
 class Statistics extends StatelessWidget {
   const Statistics({Key? key}) : super(key: key);
@@ -23,12 +23,12 @@ class Statistics extends StatelessWidget {
           _sectionTitle(context, 'Statistics', Icons.bar_chart_rounded),
           Consumer<GameProvider>(
             builder: (context, gameProvider, _) {
-              return StreamBuilder<Map<String, dynamic>>(
+              return StreamBuilder(
                 stream: gameProvider.getUserGameStateStream(),
                 builder: (context, snapshot) {
-                  final data = snapshot.data ?? const <String, dynamic>{};
-                  final streak = (data['streak'] as num?)?.toInt() ?? 0;
-                  final totalXp = (data['score'] as num?)?.toInt() ?? 0;
+                  final data = snapshot.data;
+                  final streak = data?.streak ?? 0;
+                  final totalXp = data?.score ?? 0;
                   const currentLanguage = 'Swahili';
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,

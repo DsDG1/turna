@@ -6,16 +6,16 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:words625/application/game_provider.dart';
-import 'package:words625/application/gems_provider.dart';
-import 'package:words625/application/language_provider.dart';
-import 'package:words625/di/injection.dart';
-import 'package:words625/domain/auth/local_user.dart';
-import 'package:words625/routing/routing.gr.dart';
-import 'package:words625/service/locator.dart';
-import 'package:words625/views/profile/utils/share_image_generator.dart';
-import 'package:words625/views/profile/widgets/share_progress_card.dart';
-import 'package:words625/views/theme.dart';
+import 'package:varnamala/application/game_provider.dart';
+import 'package:varnamala/application/gems_provider.dart';
+import 'package:varnamala/application/language_provider.dart';
+import 'package:varnamala/di/injection.dart';
+import 'package:varnamala/domain/auth/local_user.dart';
+import 'package:varnamala/routing/routing.gr.dart';
+import 'package:varnamala/service/locator.dart';
+import 'package:varnamala/views/profile/utils/share_image_generator.dart';
+import 'package:varnamala/views/profile/widgets/share_progress_card.dart';
+import 'package:varnamala/views/theme.dart';
 
 class ProfileAppBar extends StatelessWidget implements PreferredSizeWidget {
   const ProfileAppBar({Key? key}) : super(key: key);
@@ -73,22 +73,20 @@ class _ShareProgressSheetState extends State<_ShareProgressSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final SerializableFirebaseUser user =
+    final LocalUser user =
         getIt<AppPrefs>().authUser.getValue();
     final languageProvider = context.read<LanguageProvider>();
     final gameProvider = context.read<GameProvider>();
     final gemsProvider = context.read<GemsProvider>();
 
-    return FutureBuilder<Map<String, dynamic>>(
+    return FutureBuilder(
       future: gameProvider.getUserGameStateOnce(),
       builder: (context, stateSnapshot) {
-        final gameState = stateSnapshot.data ?? const <String, dynamic>{};
-        final streak = (gameState['streak'] as num?)?.toInt() ?? 0;
-        final totalXp = (gameState['score'] as num?)?.toInt() ?? 0;
-        final completedLessons =
-            (gameState['lessonsCompleted'] as num?)?.toInt() ?? 0;
-        final perfectLessons =
-            (gameState['perfectLessons'] as num?)?.toInt() ?? 0;
+        final gameState = stateSnapshot.data;
+        final streak = gameState?.streak ?? 0;
+        final totalXp = gameState?.score ?? 0;
+        final completedLessons = gameState?.lessonsCompleted ?? 0;
+        final perfectLessons = gameState?.perfectLessons ?? 0;
 
         return FutureBuilder<int>(
           future: _initialGems(gemsProvider),

@@ -4,8 +4,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 
 // Project imports:
-import 'package:words625/courses/course_validator.dart';
-import 'package:words625/data/course_database.dart'
+import 'package:varnamala/courses/course_validator.dart';
+import 'package:varnamala/data/course_database.dart'
     hide
         Section,
         Unit,
@@ -13,13 +13,13 @@ import 'package:words625/data/course_database.dart'
         LessonContent,
         Vocabulary,
         GrammarPoint;
-import 'package:words625/data/course_repository.dart';
-import 'package:words625/di/injection.dart';
-import 'package:words625/domain/course/expression.dart';
-import 'package:words625/domain/course/grammar_point.dart';
-import 'package:words625/domain/course/lesson.dart';
-import 'package:words625/domain/course/section.dart';
-import 'package:words625/domain/course/word_entry.dart';
+import 'package:varnamala/data/course_repository.dart';
+import 'package:varnamala/di/injection.dart';
+import 'package:varnamala/domain/course/expression.dart';
+import 'package:varnamala/domain/course/grammar_point.dart';
+import 'package:varnamala/domain/course/lesson.dart';
+import 'package:varnamala/domain/course/section.dart';
+import 'package:varnamala/domain/course/word_entry.dart';
 
 /// Loads a language course from a SQLite database ([CourseDatabase]) that is
 /// seeded from the bundled JSON assets under `assets/courses/swahili/` on

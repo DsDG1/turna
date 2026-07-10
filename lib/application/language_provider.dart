@@ -5,8 +5,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:words625/core/enums.dart';
-import 'package:words625/service/locator.dart';
+import 'package:varnamala/core/enums.dart';
+import 'package:varnamala/service/locator.dart';
 
 @lazySingleton
 class LanguageProvider extends ChangeNotifier {

@@ -1,12 +1,12 @@
 // Unit tests for [Lesson.flattenedStages] across all lesson templates.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:words625/domain/course/interaction.dart';
-import 'package:words625/domain/course/lesson.dart';
-import 'package:words625/domain/course/lesson_content.dart';
-import 'package:words625/domain/course/listening_phase.dart';
-import 'package:words625/domain/course/stage.dart';
-import 'package:words625/domain/course/sub_lesson.dart';
+import 'package:varnamala/domain/course/interaction.dart';
+import 'package:varnamala/domain/course/lesson.dart';
+import 'package:varnamala/domain/course/lesson_content.dart';
+import 'package:varnamala/domain/course/listening_phase.dart';
+import 'package:varnamala/domain/course/stage.dart';
+import 'package:varnamala/domain/course/sub_lesson.dart';
 
 void main() {
   const stageA = Stage(

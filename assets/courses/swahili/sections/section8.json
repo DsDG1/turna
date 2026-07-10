@@ -1,0 +1,138 @@
+{
+  "id": "section8",
+  "name": "Section 8",
+  "description": "Ninaweza kuzungumza kwa ustadi na ufasaha kuhusu mada mbalimbali kwa Kiswahili.",
+  "prerequisiteSectionIds": [],
+  "units": [
+    {
+      "id": "s8-u1",
+      "name": "Fluency practice",
+      "description": "",
+      "prerequisiteUnitIds": [],
+      "lessons": [
+        {
+          "id": "s8-l1",
+          "name": "Travel advanced",
+          "description": "",
+          "type": "normal",
+          "prerequisiteLessonIds": [],
+          "content": {
+            "stages": [
+              {
+                "id": "stage-vocab",
+                "name": "Vocabulary",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-w-rail",
+                    "wordId": "w-rail"
+                  },
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-w-hotel",
+                    "wordId": "w-hotel"
+                  }
+                ]
+              },
+              {
+                "id": "stage-practice",
+                "name": "Practice",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-w-rail-0",
+                    "prompt": "Which word matches 'w-rail'?",
+                    "options": [
+                      "Yes",
+                      "No",
+                      "Come",
+                      "Go"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-w-hotel-1",
+                    "prompt": "Which word matches 'w-hotel'?",
+                    "options": [
+                      "Yes",
+                      "No",
+                      "Come",
+                      "Go"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "s8-l2",
+          "name": "Animals review",
+          "description": "",
+          "type": "normal",
+          "prerequisiteLessonIds": [],
+          "content": {
+            "stages": [
+              {
+                "id": "stage-vocab",
+                "name": "Vocabulary",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-w-aane",
+                    "wordId": "w-aane"
+                  },
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-w-naayi",
+                    "wordId": "w-naayi"
+                  }
+                ]
+              },
+              {
+                "id": "stage-practice",
+                "name": "Practice",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-w-aane-0",
+                    "prompt": "Which word matches 'w-aane'?",
+                    "options": [
+                      "Yes",
+                      "No",
+                      "Come",
+                      "Go"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-w-naayi-1",
+                    "prompt": "Which word matches 'w-naayi'?",
+                    "options": [
+                      "Yes",
+                      "No",
+                      "Come",
+                      "Go"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

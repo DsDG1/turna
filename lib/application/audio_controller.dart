@@ -10,13 +10,14 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:words625/application/language_provider.dart';
-import 'package:words625/application/settings_provider.dart';
-import 'package:words625/core/enums.dart';
-import 'package:words625/courses/languages/swahili_vocab.dart';
-import 'package:words625/di/injection.dart';
-import 'package:words625/gen/assets.gen.dart';
-import 'package:words625/service/piper_swahili_tts.dart';
+import 'package:varnamala/application/language_provider.dart';
+import 'package:varnamala/application/settings_provider.dart';
+import 'package:varnamala/core/enums.dart';
+import 'package:varnamala/courses/languages/swahili_vocab.dart';
+import 'package:varnamala/di/injection.dart';
+import 'package:varnamala/gen/assets.gen.dart';
+import 'package:varnamala/service/piper_swahili_tts.dart';
+import 'package:varnamala/service/tts_availability_checker.dart';
 
 @lazySingleton
 class AudioController {
@@ -24,7 +25,9 @@ class AudioController {
   final AudioPlayer _speechPlayer;
   final FlutterTts _tts;
   final LanguageProvider _languageProvider;
+  final SettingsProvider _settingsProvider;
   final PiperSwahiliTts? _piperTts;
+  final TtsAvailabilityChecker? _ttsChecker;
   final Random _random = Random();
 
   double _ttsSpeed = 1.0;
@@ -33,14 +36,17 @@ class AudioController {
 
   AudioController(
     this._tts,
-    this._languageProvider, {
+    this._languageProvider,
+    this._settingsProvider, {
     @Named('audioPlayer') required AudioPlayer audioPlayer,
     @Named('speechPlayer') required AudioPlayer speechPlayer,
     PiperSwahiliTts? piperTts,
+    TtsAvailabilityChecker? ttsChecker,
   })  : _audioPlayer = audioPlayer,
         _speechPlayer = speechPlayer,
-        _piperTts = piperTts {
-    _ttsSpeed = getIt<SettingsProvider>().ttsSpeed;
+        _piperTts = piperTts,
+        _ttsChecker = ttsChecker {
+    _ttsSpeed = _settingsProvider.ttsSpeed;
   }
 
   // List of error sound assets
@@ -61,15 +67,15 @@ class AudioController {
 
   Future<void> playRandomErrorSound() async {
     _triggerHaptic(HapticFeedbackType.heavy);
-    int index = _random.nextInt(_errorSounds.length);
-    String selectedErrorSound = _errorSounds[index];
+    final index = _random.nextInt(_errorSounds.length);
+    final selectedErrorSound = _errorSounds[index];
     await _playSound(selectedErrorSound);
   }
 
   Future<void> playRandomLevelUpSound() async {
     _triggerHaptic(HapticFeedbackType.medium);
-    int index = _random.nextInt(_levelUpSounds.length);
-    String selectedLevelUpSound = _levelUpSounds[index];
+    final index = _random.nextInt(_levelUpSounds.length);
+    final selectedLevelUpSound = _levelUpSounds[index];
     await _playSound(selectedLevelUpSound);
   }
 
@@ -95,37 +101,89 @@ class AudioController {
   // TTS / speech
   // ──────────────────────────────────────────────────────────────
 
-  /// Ensures the TTS engine is configured for the current target language.
-  Future<void> _ensureTtsLanguage() async {
-    final lang = _languageProvider.ttsLanguageCode;
+  /// Prefers Google TTS on Android, then sets language for the current target.
+  ///
+  /// [setEngine] can reset the TTS service, so language is re-applied whenever
+  /// the resolved locale differs from the last one used.
+  Future<void> _ensureSystemTtsReady() async {
+    final baseLang = _languageProvider.ttsLanguageCode;
+    final checker = _ttsChecker;
+    final wasConfigured = checker?.isEngineConfigured ?? true;
+
+    String lang = baseLang;
+    if (checker != null) {
+      // resolveLanguageCode configures Google TTS first, then picks a locale
+      // the engine actually reports as available (e.g. sw-KE).
+      final resolved = await checker.resolveLanguageCode(baseLang);
+      if (!wasConfigured) {
+        // Engine may have been selected for the first time → force setLanguage.
+        _lastTtsLanguage = null;
+      }
+      if (resolved != null) lang = resolved;
+    }
+
     if (_lastTtsLanguage == lang) return;
     await _tts.setLanguage(lang);
     _lastTtsLanguage = lang;
   }
 
+  /// Re-select Google TTS (if present) and clear the cached language so the
+  /// next [speak] re-binds locale. Used when the user switches back to system
+  /// TTS in settings.
+  Future<void> rebindSystemTts() async {
+    _lastTtsLanguage = null;
+    await _ttsChecker?.configureSystemEngine(force: true);
+  }
+
   /// Speak arbitrary [text] using TTS in the current target language.
   /// [speed] overrides the current global speed for this utterance.
   ///
-  /// For Swahili, prefer the bundled Piper model if it initialized
-  /// successfully; otherwise fall back to the system TTS engine.
+  /// The source is chosen from [SettingsProvider.ttsEngine]:
+  /// - [TtsEngine.system]: use the device's local TTS engine first (Google TTS
+  ///   on Android when installed), then fall back to the bundled Piper model
+  ///   for Swahili.
+  /// - [TtsEngine.offline]: use the bundled Piper model first, then fall back
+  ///   to the system TTS engine.
   Future<void> speak(String text, {double? speed}) async {
     if (text.isEmpty) return;
+
+    final effectiveSpeed = speed ?? _ttsSpeed;
+
+    if (_settingsProvider.ttsEngine == TtsEngine.system) {
+      try {
+        await _ensureSystemTtsReady();
+        await _tts.setSpeechRate(effectiveSpeed);
+        await _tts.stop();
+        await _tts.speak(text);
+        return;
+      } catch (e) {
+        debugPrint('System TTS failed, trying offline fallback: $e');
+      }
+    }
 
     final piper = _piperTts;
     if (piper != null &&
         _languageProvider.selectedLanguage == TargetLanguage.swahili) {
       try {
-        await piper.speak(text, speed: speed ?? _ttsSpeed);
+        await piper.speak(text, speed: effectiveSpeed);
         return;
       } catch (e) {
-        debugPrint('Piper Swahili TTS failed, falling back to flutter_tts: $e');
+        debugPrint('Piper Swahili TTS failed: $e');
       }
     }
 
-    await _ensureTtsLanguage();
-    await _tts.setSpeechRate(speed ?? _ttsSpeed);
-    await _tts.stop();
-    await _tts.speak(text);
+    // If the user explicitly chose offline but Piper is unavailable, still
+    // try the system TTS so the user gets some feedback instead of silence.
+    if (_settingsProvider.ttsEngine == TtsEngine.offline) {
+      try {
+        await _ensureSystemTtsReady();
+        await _tts.setSpeechRate(effectiveSpeed);
+        await _tts.stop();
+        await _tts.speak(text);
+      } catch (e) {
+        debugPrint('Offline fallback also failed: $e');
+      }
+    }
   }
 
   /// Play a pre-recorded audio asset. [assetPath] is expected to start with

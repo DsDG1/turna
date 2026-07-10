@@ -2,7 +2,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 // Project imports:
-import 'package:words625/domain/course/interaction.dart';
+import 'package:varnamala/domain/course/interaction.dart';
 
 part 'grammar_point.freezed.dart';
 part 'grammar_point.g.dart';

@@ -1,34 +1,29 @@
 # Test Baseline
 
-Generated: 2026-07-09 (post-bug-fix regression suite)
+Generated: 2026-07-10 (Wave D package rename + LocalUser + lint/deps)
 
 ## Results
-- Passed: 132
+- Passed: 221
 - Failed: 0
-- Total: 132
+- Total: 221
+- `flutter analyze`: No issues found
 
 ## Coverage (flutter test --coverage)
 - `lib/application`: TBD
 - `lib/views/lesson`: TBD
 
 ## Notes
-- Pre-bug-fix baseline was 98/98. This run adds 17 new regression tests
-  for the bugs fixed during the Phase 12 polish + bug-fix sweep.
-- Updated after bug-fix sweep: fixed race-condition test date mismatch,
-  MalaWelcomes setState-after-dispose guard, completion-dialog guard reset,
-  and three analyzer info issues.
-- New regression tests:
-  - `application/learning_stats_accuracy_test.dart` — B1 (Overall Accuracy
-    formatting). Asserts 0.75 → "75%".
-  - `application/study_stats_random_suffix_test.dart` — B4 (random suffix).
-    Asserts 1000 ids are unique and conform to `[a-z0-9]{6}`.
-  - `application/study_stats_weak_words_test.dart` — B5 (weak-words parses
-    MistakeEntry log and aggregates by wordId).
-  - `application/mastery_dialog_stats_test.dart` — B2 (mastery dialog uses
-    real `correctAnswers` / `totalInteractionCount`).
-  - `domain/interaction_listen_only_label_test.dart` — B7 (ListenOnly returns
-    null instead of leaking audioAsset path).
-  - `application/race_condition_test.dart` — C2, C3 (write-queue serialization
-    on GemsProvider + StudyLogRepository).
-  - `application/achievements_provider_test.dart` — C4 (achievement gem bonus
-    routes through GemsProvider; falls back gracefully otherwise).
+- Wave D:
+  - Pub package renamed `words625` → `varnamala` (all Dart imports).
+  - App widget `VarnamalaApp`; Android id `com.example.varnamala`;
+    display names Varnamala on Android/iOS/web.
+  - `SerializableFirebaseUser` → `LocalUser` (class rename, JSON shape
+    unchanged for prefs compatibility).
+  - Deps: dropped unused `http` / `equatable` / `flutter_svg`; moved
+    `freezed` + `json_serializable` to `dev_dependencies`.
+  - Lint: exclude generated sources; enable `avoid_print`,
+    `cancel_subscriptions`, `close_sinks`, `unnecessary_late`,
+    `prefer_const_declarations`.
+- Wave C: typed `UserGameState`, `LessonCompletionCoordinator`, settings/lesson
+  splits, dark-mode audit.
+- Wave A: ThemeProvider singleton, FakeAudioController, dead Explore/Shop.

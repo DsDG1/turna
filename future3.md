@@ -22,25 +22,33 @@
 
 ---
 
-## 2. 当前真实状态（future2 之后）
+## 2. 当前真实状态（future2 + 工程质量波次之后）
+
+> 最近一次基线（2026-07-10）：`flutter test` **221/221**，`flutter analyze` **0 issue**；Dart 包名 **`varnamala`**（原 `words625`）。
 
 ### 2.1 已验证完成的资产
 
 - 11 种 Interaction Renderer、6 种 Lesson Template 的渲染/进度/复习链路已跑通。
-- SRS（SM-2）、错题本、语法复习、学习统计、暗色模式、TTS 语速等核心闭环稳定。
-- `flutter test` 205/205 通过，`flutter analyze` 0 error。
-- 社交/排行榜/联赛/红心/宝石商店/Patreon 等代码已清理。
-- **稳固性加固已完成**（独立于 future3 阶段）：新增 Flutter CI（`flutter test` + `analyze` 现在在 PR 上自动跑，见 ADR 0004）、统一错误处理（`Result` 类型 + 全局错误边界，见 ADR 0006）、DI 收敛（SettingsProvider 并入 Injectable，见 ADR 0007）、补齐核心 provider 测试与修复 `Achievement.getCurrentLevel` off-by-one（见 ADR 0005）。多语言抽象、领域模型 Freezed 迁移留作未来。
+- SRS（SM-2）、错题本、语法复习、学习统计、暗色模式、TTS 语速 / 引擎切换（system 优先 + Piper offline）等核心闭环稳定。
+- 社交/排行榜/联赛/红心/宝石商店/Patreon / Explore 假新闻 / Shop 壳页等入口与死代码已清理。
+- **稳固性加固（ADR 0004–0007）**：Flutter CI、`Result` + 全局错误边界、SettingsProvider DI、核心 provider 测试与成就 off-by-one 修复。
+- **工程质量波次 Wave A–D（2026-07-10，future3 旁路工程债，不替代内容主线）**：
+  | Wave | 内容 | 状态 |
+  |---|---|---|
+  | A | `FakeAudioController` 接口对齐；`ThemeProvider` 改为 `@lazySingleton` + `getIt` 单例；删 `freezeConsumed` 死分支 | ✅ |
+  | B | 删 hearts keys / Explore·Shop 死 UI / 无用营销 assets；prefs 日志降级；pubspec 描述对齐 Swahili | ✅ |
+  | C | `UserGameState` 类型化；`LessonCompletionCoordinator` 抽出完成副作用；Settings / Lesson 页面拆分；Lesson+Review 暗色硬编码白底清理 | ✅ |
+  | D | 包名 `words625` → `varnamala`；`SerializableFirebaseUser` → `LocalUser`；去掉未用 `http`/`equatable`/`flutter_svg`；`freezed`/`json_serializable` 迁 dev；lint 收紧（生成文件 exclude + 安全规则） | ✅ |
 
 ### 2.2 当前最突出的矛盾
 
 | 矛盾 | 现象 | 影响 |
 |---|---|---|
-| **内容与品牌严重不符** | `assets/courses/swahili/vocab.json` 仍是 Kannada 占位词（Naanu / Neenu / Howdu），但 `index.json` 标为 Swahili、`grammar_points.json` 已是真正 Swahili 语法、TTS 语言码已切到 `sw` | 用户学习的是"标为 Swahili 的 Kannada 词汇"，体验不可接受 |
+| **内容与品牌严重不符** | `assets/courses/swahili/vocab.json` 仍是 Kannada 占位词（Naanu / Neenu / Howdu），但 `index.json` 标为 Swahili、`grammar_points.json` 已是真正 Swahili 语法、TTS 语言码已切到 `sw` | 用户学习的是"标为 Swahili 的 Kannada 词汇"，体验不可接受 — **future3 主线下一步** |
 | **Expression 管道空转** | schema v5 已支持 `Expressions` 表，`expressions.json` 存在但为空数组 | 花了工程成本，没有学习内容产出 |
-| **内容生产方式原始** | 所有课程数据是手写 JSON + `course_validator.dart` 离线校验 | 生产 100 课尚可，生产 1,000+ 课效率极低、易出错 |
-| **音频策略未闭环** | `audioAsset` 字段仅存在于听力课（listening lesson）中，但无任何真实离线音频；TTS 已切 `sw` 但词汇是 `kn` | 听力题无法真实验证 |
-| **学习辅助功能缺失** | 无词典/搜索、无本地复习提醒、无内容更新机制 | 学完即走，难以形成长期学习习惯 |
+| **内容生产方式已有 CLI，但真实内容尚未导入** | `tool/course_cli.py` + 校验 CI 已就绪；词表/课仍多为占位或结构迁移中 | Phase 16 试点应优先跑通「CLI → 真词 → 真课」 |
+| **音频策略工程已落地，内容侧未验证** | 运行时 system/Google TTS + Piper fallback 已通；`audioAsset` 管道与清单工具已有；听力课编排仍暂缓 | 单词/表达可发声；听力课真题仍缺内容 |
+| **学习辅助功能缺失** | 无词典/搜索、无本地复习提醒、无内容更新对话框（ADR 0002 已决策未实现 UI） | 学完即走，难以形成长期学习习惯 |
 
 ### 2.3 一个基本判断
 
@@ -75,10 +83,13 @@
 | 外部 GUI 编辑器（重型） | 先做轻量 CLI/网页生成器，再评估是否需要 GUI |
 | 多语言课程（除 Swahili 外） | 先把单一目标语做深，再考虑复用 |
 | AI 自动生成完整课程（无人工校验） | 生成内容必须经过校验和审核流程 |
+| 听力课的具体编排与听力材料内容设计 | 本阶段先建设通用音频/TTS 基础设施，听力课在课程树中的具体安排暂不考虑 |
 
 ---
 
 ## 5. 明确要做
+
+> **范围说明**：本阶段重点建设真实内容替换、内容生产工具链、通用音频基础设施与学习辅助功能；听力课（listening lesson）在课程中的具体编排、听力材料内容与离线音频资产规划暂不考虑，待后续阶段再补充。
 
 ### 5.1 内容替换（最高优先级，但放在最后做"大爆炸"）
 
@@ -101,11 +112,11 @@
 
 ### 5.3 音频策略落地
 
-- **运行时 TTS**：单词与表达的发音完全由运行时 TTS（Piper 优先，flutter_tts fallback）提供，不预生成离线音频。
-- **听力课离线音频**：仅 `listening` template 的 `listeningPhases` 中使用 `audioAsset` 引用预生成的 `.mp3`，放入 `assets/sounds/swahili/listening/`。
-- **批量 TTS 预生成**：使用 Piper / Coqui TTS / 其他本地 Swahili 语音模型，仅为听力课条目批量生成 `.mp3`。
-- **真人录音接口**：定义志愿者录音提交格式（ID 匹配、采样率、命名规范），仅用于听力课/longer phrases，为后续社区贡献留口子。
-- **听力题真实化**：所有 `listenAndPick` / `listenOnly` / `TypeTheWord` 的音频引用必须指向真实音频或生成清单中的条目。
+- **运行时 TTS**：单词与表达的发音由运行时 TTS（Piper 优先，flutter_tts fallback）提供，不预生成离线音频。这是本阶段音频工作的核心，确保词汇、表达、例句都能发声。
+- **TTS 方案评估与基础设施**：评估 Piper / Coqui TTS / 其他本地 Swahili 语音模型的质量，确定主用模型与 fallback 策略；建立可复用的 TTS 调用脚本与音频输出目录结构。
+- **听力课离线音频（暂缓）**：`listening` template 的 `listeningPhases` 中使用的 `audioAsset` 预生成 `.mp3` 机制保留，但本阶段不编排具体听力课内容，也不批量生成听力音频；待课程 lesson 重写阶段再补充。
+- **通用 audioAsset 支持**：`tool/course_cli.py` 的 `audio-manifest` 仍扫描所有 `audioAsset` 引用，但主要用于发现缺失与生成清单，不强求当前全部覆盖。
+- **真人录音接口（框架预留）**：定义志愿者录音提交格式（ID 匹配、采样率、命名规范），为后续社区贡献留口子，暂不限定仅用于听力课。
 
 ### 5.4 学习体验深化
 
@@ -175,7 +186,7 @@
 - 实现 `tool/course_cli.py`（Python 3 标准库），子命令：`validate`、`import-csv`、`export-csv`、`lint`、`audio-manifest`、`diff`。
 - 实现 `test/course_cli_test.py` 共 7 个单元测试，覆盖正常路径与异常路径。
 - 新增 `.github/workflows/course_validation.yml`，PR / push 到 `master` 时自动校验课程内容。
-- `python tool/course_cli.py validate` 对当前课程 0 error；`flutter test` 205/205 通过。
+- `python tool/course_cli.py validate` 对当前课程 0 error；测试基线见 `test/BASELINE.md`（现 221/221）。
 
 1. **`tool/course_cli.py` 骨架**
    - 子命令：`validate`、`import-csv`、`export-csv`、`lint`、`audio-manifest`、`diff`。
@@ -209,40 +220,54 @@
 **目标**：确定音频生成方案并建立可批量执行的管道。
 
 **完成摘要**：
-- 写入 ADR：`docs/decisions/0003-audio-generation-strategy.md`，明确听力课离线 MP3 + 运行时 Piper TTS fallback 的混合策略。
+- 写入 ADR：`docs/decisions/0003-audio-generation-strategy.md`，明确运行时 TTS 为主、离线 `audioAsset` 为扩展的混合策略；听力课具体编排暂不考虑。
 - 创建音频资源目录：`assets/sounds/swahili/listening/`（单词与表达发音由运行时 TTS 覆盖，不预生成）。
 - 更新 `pubspec.yaml` 让 Flutter 打包 listening 音频目录。
-- 实现 `tool/generate_audio.py`：支持 `all` / `list` / `speak` 子命令，仅扫描/生成 listening lesson 的 `audioAsset`；优先 `sherpa-onnx` Python API，备选 `piper` CLI。
-- 更新 `tool/course_cli.py audio-manifest`：仅统计 listening 相关 `audioAsset` 的覆盖率。
-- 新增 `docs/audio-recording-guidelines.md` 真人录音提交指南，限定为听力课/长句。
+- 实现 `tool/generate_audio.py`：支持 `all` / `list` / `speak` 子命令，可扫描/生成课程中显式引用的 `audioAsset`；优先 `sherpa-onnx` Python API，备选 `piper` CLI。
+- 更新 `tool/course_cli.py audio-manifest`：统计所有 `audioAsset` 引用的覆盖率，输出待生成清单。
+- 新增 `docs/audio-recording-guidelines.md` 真人录音提交指南，为后续社区贡献留口子。
 - 新增 `test/generate_audio_test.py` 8 个单元测试（按新策略调整）。
-- 未在当前环境实际生成音频（无 TTS 后端），脚本在无后端时输出待生成清单并退出；Phase 16 安装后端后批量生成试点听力音频。
+- 未在当前环境实际生成音频（无 TTS 后端），脚本在无后端时输出待生成清单并退出；听力课音频待课程 lesson 编排确定后再批量生成。
 
 1. **确定音频生成方案**
    - 评估 Piper Swahili 模型质量、Coqui TTS、Mozilla TTS 等。
    - 写入 ADR：`docs/decisions/0003-audio-generation-strategy.md`。
-   - 选择方案：本地批量生成 + 运行时 fallback TTS。
+   - 选择方案：运行时 TTS 覆盖词汇/表达/例句；离线 `audioAsset` 作为扩展，本阶段不指定具体听力课内容。
 
 2. **建立音频资源目录**
-   - `assets/sounds/swahili/listening/`：按 lesson 或 listening phase 命名，如 `section:foundations.mp3`。
+   - `assets/sounds/swahili/listening/`：为后续听力课离线音频预留。
    - 单词与表达的发音由运行时 TTS 提供，不再设立 `words/` 和 `expressions/` 目录。
 
 3. **批量生成脚本**
-   - `tool/generate_audio.py`：扫描 section JSON 中 listening lesson 显式引用的 `audioAsset`，批量调用 TTS 引擎生成 mp3。
-   - 输出缺失清单，便于人工补录。
+   - `tool/generate_audio.py`：扫描 section JSON 中显式引用的 `audioAsset`，批量调用 TTS 引擎生成 mp3；当前仅用于验证管道可用，不强求覆盖所有 listening lesson。
+   - 输出缺失清单，便于后续人工补录。
 
 4. **真人录音接口**
    - 定义提交格式：文件命名、采样率 44.1kHz、单声道/立体声、ID 与课程条目对应规则。
    - `tool/audio_manifest.py` 输出"需要录音的条目清单"。
 
 **验收**：
-- `tool/generate_audio.py` 可为 listening lesson 的 `audioAsset` 清单批量生成音频。
+- `tool/generate_audio.py` 可为课程中任意 `audioAsset` 引用批量生成音频（包括但不局限于听力课）。
 - 生成后的音频可被 `AudioController.speakFromAsset` 正确播放。
 - 单词/表达仍能 fallback 到运行时 TTS。
 
 ---
 
-### Phase 16：试点内容种子（1 周）
+### Phase 15.5：工程债清理（质量 Wave A–D） ✅ 已完成
+
+**目标**：在启动大规模内容试点前，把包名、遗留 Duolingo 壳、状态类型与暗色一致性等问题清掉，避免内容 PR 与工程 rename 缠在一起。
+
+**完成摘要**（详见 §2.1）：
+- 分析红灯与 Theme 双实例修复；遗留 Explore/Shop/hearts/freeze 清理。
+- `UserGameState`、`LessonCompletionCoordinator`、Settings/Lesson 结构瘦身、暗色 scaffold/chip。
+- 包名与品牌 `varnamala`；`LocalUser`；依赖与 lint 卫生。
+- 基线：`test/BASELINE.md` → 221 tests，analyze clean。
+
+**验收**：`flutter analyze` 0 issue；`flutter test` 全绿；无 `package:words625` / `SerializableFirebaseUser` 生产代码引用。
+
+---
+
+### Phase 16：试点内容种子（1 周） ⬅️ **下一步**
 
 **目标**：用一小批真实 Swahili 内容验证 CLI、音频管道和模板渲染，不碰全量课程。
 
@@ -255,23 +280,23 @@
    - 用 `tool/course_cli.py import-csv` 导入 vocab 和 expressions。
    - 运行 `validate` 和 `lint`，确保工具链能发现/修复问题。
 
-3. **生成试点音频**
-   - 用 `tool/generate_audio.py` 为试点 listening lesson 生成音频。
-   - 更新 listening lesson 中的 `audioAsset` 字段。
+3. **生成试点音频（仅验证 TTS 与 audioAsset 管道）**
+   - 用 `tool/generate_audio.py` 为试点内容中的少量 `audioAsset` 引用（如有）或单个示例文本生成音频，验证脚本可用。
+   - 不强制要求生成听力课音频；听力课编排暂不考虑。
 
 4. **写一个试点 lesson**
    - 在 `s-test.json`（或新建 `s-pilot.json`）中写一个仅含试点内容的 mini lesson。
-   - 覆盖 intro / practice / listening / review / mastery 链路。
-   - 使用真实 Swahili 词，验证所有 template 和 renderer 在真实内容下工作正常。
+   - 覆盖 intro / practice / review / mastery 链路；暂不包含 listening 专用阶段。
+   - 使用真实 Swahili 词，验证 template 和 renderer 在真实内容下工作正常。
 
 5. **运行端到端测试**
    - `flutter test` 全量。
-   - 手工走一遍试点 lesson：ShowWord → MCQ → FillBlank → ListenAndPick → Mastery。
+   - 手工走一遍试点 lesson：ShowWord → MCQ → FillBlank → TypeTheWord → Mastery（可包含使用运行时 TTS 的听力交互，但不依赖听力课编排）。
 
 **验收**：
 - 试点词表/表达全部为真实 Swahili，无 Kannada。
 - 试点 lesson 能在模拟器/真机上正常完成。
-- 音频播放、TTS fallback、判分、复习均正常。
+- TTS fallback、判分、复习均正常；audioAsset 管道可运行（不强制覆盖）。
 - 试点内容被明确标记为 `pilot`，不面向最终用户（或只在测试渠道出现）。
 
 ---
@@ -387,9 +412,9 @@
    - 根据 Phase 13 的映射，批量替换 lesson JSON 中的 `wordId`。
    - 运行 `validateSection` 全量校验，确保无 dangling wordId。
 
-5. **生成全量音频**
-   - 用 `tool/generate_audio.py` 为全部 listening lesson 条目生成音频。
-   - 输出缺失清单，人工补录。
+5. **生成全量音频（词汇/表达由 TTS 覆盖，听力课音频暂缓）**
+   - 运行时 TTS 已覆盖词汇、表达、例句发音，无需预生成。
+   - 用 `tool/generate_audio.py` 扫描并输出当前所有 `audioAsset` 缺失清单，为后续听力课编排完成后批量生成做准备；本阶段不生成听力课专用音频。
 
 6. **版本号升级**
    - `vocab.json` version → 2。
@@ -411,7 +436,7 @@
 **目标**：让真实 Swahili 内容与 6 种 Lesson Template 配合，形成有教学逻辑的课程，并做最终发布。
 
 1. **重写 s-foundations**
-   - Greetings 单元：intro + practice + listening + review + mastery 完整链路。
+   - Greetings 单元：intro + practice + review + mastery 完整链路（本阶段不含 listening 专用阶段）。
    - Pronouns 单元：intro + practice + reading + mastery。
    - 每个 lesson 的 stage/item 必须覆盖教学目标。
 
@@ -427,8 +452,8 @@
 
 4. **模板使用规范**
    - intro：新词汇初次出现，以 ShowWord + MCQ 为主。
-   - practice：同词汇多角度练习（FillBlank + ListenAndPick + TypeTheWord）。
-   - listening：真实音频 + 听后选择/听写。
+   - practice：同词汇多角度练习（FillBlank + ListenAndPick + TypeTheWord）；ListenAndPick 等可依赖运行时 TTS，不依赖听力课编排。
+   - listening：真实音频 + 听后选择/听写 —— **本阶段不编排具体听力 lesson，模板规范仅作预留**。
    - reading：ReadingPassage + 3 种阅读题。
    - review：混合前面学过的词汇和语法。
    - mastery：单 stage，6–10 题，80% 通过。
@@ -440,7 +465,7 @@
 
 **验收**：
 - 每个 section 有 ≥2 units，每个 unit 有 ≥3 lessons。
-- 11 种 Interaction 在真实内容中都被用到至少一次。
+- 11 种 Interaction 在真实内容中都被用到至少一次（听力相关 interaction 可通过运行时 TTS 验证，不依赖听力课编排）。
 - 跑一次完整 lesson（从 intro 到 mastery）教学逻辑通顺。
 - tag 存在，文档反映最新状态。
 
@@ -505,14 +530,13 @@ future3 期间需要补充的 ADR：
 ## 11. 成功标准（future3 完成时）
 
 - [x] `tool/course_cli.py` 可用：validate / import-csv / export-csv / lint / audio-manifest / diff。
-- [x] 音频生成管道可批量产出 Swahili 听力课音频；单词/表达由 fallback TTS 覆盖。
-- [ ] 试点 lesson（10–15 真实 Swahili 词 + 5–10 表达）能端到端跑通所有 template。
+- [x] 运行时 TTS 可覆盖单词/表达发音；音频生成管道可扫描并输出 `audioAsset` 生成清单。
+- [ ] 试点 lesson（10–15 真实 Swahili 词 + 5–10 表达）能端到端跑通主要 template（intro / practice / review / mastery）。
 - [ ] 词典页、弱词复习、本地提醒可用。
 - [ ] `vocab.json` 全部为真实 Swahili 词，无 Kannada 占位。
 - [ ] `expressions.json` 有 ≥50 条真实 Swahili 表达。
 - [ ] 所有面向用户的 section/lesson 都有真实、通顺的教学内容。
-- [ ] 所有面向用户的 listening lesson 都有离线音频。
-- [ ] 听力 lesson 能正常播放并判分。
+- [ ] 听力课编排暂不考虑，但听力相关 interaction（如 ListenAndPick）可通过运行时 TTS 正常播放并判分。
 - [ ] `flutter test` 全量通过，`flutter analyze` 0 error。
 - [ ] 应用有可用版本的 tag 和发布说明。
 

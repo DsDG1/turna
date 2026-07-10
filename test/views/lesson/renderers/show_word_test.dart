@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:words625/courses/languages/swahili_vocab.dart';
-import 'package:words625/domain/course/interaction.dart';
-import 'package:words625/domain/course/word_entry.dart';
-import 'package:words625/views/lesson/components/interactions/show_word_renderer.dart';
+import 'package:varnamala/courses/languages/swahili_vocab.dart';
+import 'package:varnamala/domain/course/interaction.dart';
+import 'package:varnamala/domain/course/word_entry.dart';
+import 'package:varnamala/views/lesson/components/interactions/show_word_renderer.dart';
 
 import 'fake_audio_controller.dart';
 import 'renderer_test_helper.dart';

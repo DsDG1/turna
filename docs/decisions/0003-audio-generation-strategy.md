@@ -29,7 +29,7 @@ We will use a **hybrid strategy: listening-lesson MP3 assets + runtime Piper TTS
 
 ### 1. Offline assets only for listening lessons
 
-Only `audioAsset` references inside `listeningPhases` of `listening` template lessons point to bundled `.mp3` files. Individual `WordEntry` and `Expression` items do **not** have offline audio assets; their pronunciation is synthesized at runtime by Piper (or `flutter_tts` as a fallback).
+Only `audioAsset` references inside `listeningPhases` of `listening` template lessons point to bundled `.mp3` files. Individual `WordEntry` and `Expression` items do **not** have offline audio assets; their pronunciation is synthesized at runtime (system/Google TTS by default, or the bundled Piper model when offline mode is selected).
 
 ### 2. Bulk generation with the bundled Piper model
 
@@ -60,16 +60,19 @@ Contributors may submit human recordings for listening-lesson prompts. The submi
 When an interaction needs audio:
 
 1. If the interaction is a listening lesson item with an `audioAsset` and the file exists in the bundle, play it.
-2. For individual words, expressions, or any interaction without a usable offline asset: if the current target language is Swahili and the bundled Piper model initialized successfully, synthesize with Piper.
-3. Otherwise, fall back to `flutter_tts` with the device's Swahili voice.
+2. For individual words, expressions, or any interaction without a usable offline asset, follow the user-selected TTS engine (`SettingsProvider.ttsEngine`):
+   - **`system` (default):** use the device local TTS via `flutter_tts` first. On Android, prefer the Google TTS engine (`com.google.android.tts`) when installed, then resolve a usable Swahili locale (`sw` / `sw-KE` / `sw-TZ`). If system TTS throws, fall back to the bundled Piper Swahili model.
+   - **`offline`:** use the bundled Piper Swahili model first; if Piper fails or is unavailable, fall back to system TTS.
+3. Listening-lesson **pre-generated** assets remain Piper-generated offline files (or human recordings). That path is independent of the runtime system-vs-Piper preference above.
 
 ## Consequences
 
 ### Pros
 
-- **Consistency**: Pre-generated and fallback audio use the same Piper voice.
-- **Offline-first**: No network required for audio playback.
-- **Contributor-friendly**: A CSV/word list can be turned into audio with one CLI command.
+- **System voice first**: Default runtime speech uses the device/Google TTS, which is usually already installed and higher quality than a small offline model.
+- **Offline fallback**: Piper remains available when the user chooses offline mode or system TTS fails.
+- **Offline-first listening**: Pre-generated listening assets need no network.
+- **Contributor-friendly**: A CSV/word list can be turned into listening audio with one CLI command.
 - **Future-proof**: Human recordings can replace TTS files one-by-one without changing the data model.
 
 ### Cons

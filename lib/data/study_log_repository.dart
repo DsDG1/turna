@@ -5,9 +5,9 @@ import 'dart:convert';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:words625/domain/study/daily_stats.dart';
-import 'package:words625/domain/study/study_log.dart';
-import 'package:words625/service/locator.dart';
+import 'package:varnamala/domain/study/daily_stats.dart';
+import 'package:varnamala/domain/study/study_log.dart';
+import 'package:varnamala/service/locator.dart';
 
 /// Stores study logs and daily aggregates in [StreamingSharedPreferences].
 /// Keeps the last 90 days of raw logs; older logs are purged during write.

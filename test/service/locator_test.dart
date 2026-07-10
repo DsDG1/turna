@@ -11,9 +11,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
-import 'package:words625/application/settings_provider.dart';
-import 'package:words625/di/injection.dart';
-import 'package:words625/service/locator.dart';
+import 'package:varnamala/application/settings_provider.dart';
+import 'package:varnamala/di/injection.dart';
+import 'package:varnamala/service/locator.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

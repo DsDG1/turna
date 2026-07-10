@@ -5,7 +5,7 @@
 // shift if a new section is inserted in the middle of the list.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:words625/application/course_provider.dart';
+import 'package:varnamala/application/course_provider.dart';
 
 import '../helpers/in_memory_course_db.dart';
 

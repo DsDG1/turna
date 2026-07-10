@@ -5,36 +5,27 @@
 # IDEs (https://dart.dev/tools#ides-and-editors). The analyzer can also be
 # invoked from the command line by running `flutter analyze`.
 
-# The following line activates a set of recommended lints for Flutter apps,
-# packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
 analyzer:
+  exclude:
+    - '**/*.g.dart'
+    - '**/*.freezed.dart'
+    - '**/*.gr.dart'
+    - 'lib/gen/**'
   errors:
     # `@JsonKey` is legal on freezed constructor parameters — the analyzer
     # flags it as `invalid_annotation_target` because it sees the parameter
-    # as a getter. Suppress so the generated *.g.dart roundtrips cleanly.
+    # as a getter. Suppress so hand-written freezed sources stay clean.
     invalid_annotation_target: ignore
-    # Generated `if (foo != null) ... foo!.bar` snippets in
-    # course_database.g.dart emit these warnings because drift's nullable
-    # inference is conservative; safe to ignore for generated code.
-    unnecessary_null_comparison: ignore
-    unnecessary_non_null_assertion: ignore
 
 linter:
-  # The lint rules applied to this project can be customized in the
-  # section below to disable rules from the `package:flutter_lints/flutter.yaml`
-  # included above or to enable additional rules. A list of all available lints
-  # and their documentation is published at https://dart.dev/lints.
-  #
-  # Instead of disabling a lint rule for the entire project in the
-  # section below, it can also be suppressed for a single line of code
-  # or a specific dart file by using the `// ignore: name_of_lint` and
-  # `// ignore_for_file: name_of_lint` syntax on the line or in the file
-  # producing the lint.
   rules:
-    # avoid_print: false  # Uncomment to disable the `avoid_print` rule
-    # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
-
-# Additional information about this file can be found at
-# https://dart.dev/guides/language/analysis-options
+    # Hygiene / safety (low noise, high value)
+    avoid_print: true
+    cancel_subscriptions: true
+    close_sinks: true
+    unnecessary_late: true
+    # Prefer const where the analyzer is confident; noisy const-everywhere
+    # rules left off until a dedicated cleanup pass.
+    prefer_const_declarations: true

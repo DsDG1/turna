@@ -2,10 +2,10 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:words625/core/spacing.dart';
-import 'package:words625/core/text_styles.dart';
-import 'package:words625/domain/course/interaction.dart';
-import 'package:words625/views/theme.dart';
+import 'package:varnamala/core/spacing.dart';
+import 'package:varnamala/core/text_styles.dart';
+import 'package:varnamala/domain/course/interaction.dart';
+import 'package:varnamala/views/theme.dart';
 
 /// Snapshot of how the parent ([LessonViewModel]) wants the renderer to look.
 ///
@@ -151,7 +151,7 @@ class LessonCheckButton extends StatelessWidget {
           backgroundColor:
               enabled ? VarnamalaTheme.peacockTeal : VarnamalaTheme.divider,
           foregroundColor:
-              enabled ? Colors.white : VarnamalaTheme.textHint,
+              enabled ? VarnamalaTheme.textOnPrimary : VarnamalaTheme.textHint,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -216,7 +216,7 @@ class InteractionOptionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Color border = VarnamalaTheme.borderMuted;
-    Color background = Colors.white;
+    Color background = VarnamalaTheme.cardBg(context);
     Widget? trailing;
 
     if (isCorrect) {
@@ -335,7 +335,8 @@ class SpeakerButton extends StatelessWidget {
         child: const Padding(
           padding: EdgeInsets.all(24),
           child:
-              Icon(Icons.volume_up_rounded, color: Colors.white, size: 36),
+              Icon(Icons.volume_up_rounded,
+                  color: VarnamalaTheme.textOnPrimary, size: 36),
         ),
       ),
     );

@@ -2,7 +2,7 @@
 // and that the milestone tables match the historical GameProvider ladder.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:words625/core/achievement_config.dart';
+import 'package:varnamala/core/achievement_config.dart';
 
 void main() {
   group('xp milestones', () {

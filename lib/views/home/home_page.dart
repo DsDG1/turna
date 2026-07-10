@@ -6,15 +6,15 @@ import 'package:auto_route/annotations.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:words625/application/game_provider.dart';
-import 'package:words625/application/gems_provider.dart';
-import 'package:words625/application/language_provider.dart';
-import 'package:words625/views/courses/course_tree.dart';
-import 'package:words625/views/home/components/components.dart';
-import 'package:words625/views/play/play_app_bar.dart';
-import 'package:words625/views/play/play_hub_screen.dart';
-import 'package:words625/views/profile/profile_screen.dart';
-import 'package:words625/views/theme.dart';
+import 'package:varnamala/application/game_provider.dart';
+import 'package:varnamala/application/gems_provider.dart';
+import 'package:varnamala/application/language_provider.dart';
+import 'package:varnamala/views/courses/course_tree.dart';
+import 'package:varnamala/views/home/components/components.dart';
+import 'package:varnamala/views/play/play_app_bar.dart';
+import 'package:varnamala/views/play/play_hub_screen.dart';
+import 'package:varnamala/views/profile/profile_screen.dart';
+import 'package:varnamala/views/theme.dart';
 
 @RoutePage()
 class HomePage extends StatefulWidget {
@@ -60,12 +60,6 @@ class _HomePageState extends State<HomePage> {
         const SnackBar(
           content: Text('Your streak was broken. Start again today.'),
           backgroundColor: VarnamalaTheme.error,
-        ),
-      );
-    } else if (streakResult == StreakCheckResult.freezeConsumed) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Streak Freeze protected your streak.'),
         ),
       );
     }

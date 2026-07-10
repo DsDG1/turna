@@ -1,6 +1,6 @@
 // Project imports:
-import 'package:words625/courses/course_loader.dart';
-import 'package:words625/domain/course/word_entry.dart';
+import 'package:varnamala/courses/course_loader.dart';
+import 'package:varnamala/domain/course/word_entry.dart';
 
 /// Curated Swahili vocabulary for the SRS word pool.
 ///

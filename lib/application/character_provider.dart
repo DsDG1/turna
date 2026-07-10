@@ -9,7 +9,7 @@ class CharacterProvider extends ChangeNotifier {
   List<Offset> points = [];
 
   addPoints(BuildContext context, DragUpdateDetails details) {
-    RenderBox renderBox = context.findRenderObject() as RenderBox;
+    final renderBox = context.findRenderObject() as RenderBox;
     points.add(renderBox.globalToLocal(details.globalPosition));
   }
 

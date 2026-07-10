@@ -13,6 +13,7 @@ class Section with _$Section {
     required String id,
     required String name,
     @Default('') String description,
+    String? level,
     @Default(<String>[]) List<String> prerequisiteSectionIds,
     required List<Unit> units,
   }) = _Section;

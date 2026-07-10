@@ -1,6 +1,6 @@
 // Project imports:
-import 'package:words625/core/enums.dart';
-import 'package:words625/courses/alphabets/alphabets.dart';
+import 'package:varnamala/core/enums.dart';
+import 'package:varnamala/courses/alphabets/alphabets.dart';
 
 /// Swahili-only: helpers return the Swahili alphabet map. The [TargetLanguage]
 /// parameter is retained as a no-op so existing call sites continue to compile.

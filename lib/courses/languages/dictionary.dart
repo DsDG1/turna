@@ -1,5 +1,5 @@
 // Project imports:
-import 'package:words625/core/logger.dart';
+import 'package:varnamala/core/logger.dart';
 import 'swahili_vocab.dart';
 
 /// Look up the meaning of [word] in the Swahili vocabulary.

@@ -1,0 +1,138 @@
+{
+  "id": "section6",
+  "name": "Section 6",
+  "description": "Ninaweza kutoa maoni tofauti kwa Kiswahili kulingana na muktadha.",
+  "prerequisiteSectionIds": [],
+  "units": [
+    {
+      "id": "s6-u1",
+      "name": "Sharing opinions",
+      "description": "",
+      "prerequisiteUnitIds": [],
+      "lessons": [
+        {
+          "id": "s6-l1",
+          "name": "Feelings",
+          "description": "",
+          "type": "normal",
+          "prerequisiteLessonIds": [],
+          "content": {
+            "stages": [
+              {
+                "id": "stage-vocab",
+                "name": "Vocabulary",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-w-santosha",
+                    "wordId": "w-santosha"
+                  },
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-w-dukha",
+                    "wordId": "w-dukha"
+                  }
+                ]
+              },
+              {
+                "id": "stage-practice",
+                "name": "Practice",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-w-santosha-0",
+                    "prompt": "Which word matches 'w-santosha'?",
+                    "options": [
+                      "Yes",
+                      "No",
+                      "Come",
+                      "Go"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-w-dukha-1",
+                    "prompt": "Which word matches 'w-dukha'?",
+                    "options": [
+                      "Yes",
+                      "No",
+                      "Come",
+                      "Go"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "s6-l2",
+          "name": "Reactions",
+          "description": "",
+          "type": "normal",
+          "prerequisiteLessonIds": [],
+          "content": {
+            "stages": [
+              {
+                "id": "stage-vocab",
+                "name": "Vocabulary",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-w-kopam",
+                    "wordId": "w-kopam"
+                  },
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-w-bhayav",
+                    "wordId": "w-bhayav"
+                  }
+                ]
+              },
+              {
+                "id": "stage-practice",
+                "name": "Practice",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-w-kopam-0",
+                    "prompt": "Which word matches 'w-kopam'?",
+                    "options": [
+                      "Yes",
+                      "No",
+                      "Come",
+                      "Go"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-w-bhayav-1",
+                    "prompt": "Which word matches 'w-bhayav'?",
+                    "options": [
+                      "Yes",
+                      "No",
+                      "Come",
+                      "Go"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:words625/service/locator.dart';
+import 'package:varnamala/service/locator.dart';
 
 /// App-wide user settings that need to persist across launches.
 ///
@@ -19,6 +19,7 @@ class SettingsProvider extends ChangeNotifier {
   bool _soundEffectsEnabled = true;
   bool _hapticFeedbackEnabled = true;
   double _ttsSpeed = 1.0;
+  TtsEngine _ttsEngine = TtsEngine.system;
 
   SettingsProvider(this._appPrefs) {
     _load();
@@ -27,6 +28,7 @@ class SettingsProvider extends ChangeNotifier {
   bool get soundEffectsEnabled => _soundEffectsEnabled;
   bool get hapticFeedbackEnabled => _hapticFeedbackEnabled;
   double get ttsSpeed => _ttsSpeed;
+  TtsEngine get ttsEngine => _ttsEngine;
 
   void _load() {
     _soundEffectsEnabled = _appPrefs.preferences
@@ -38,6 +40,18 @@ class SettingsProvider extends ChangeNotifier {
     _ttsSpeed = _appPrefs.preferences
         .getDouble(LocalStateKeys.ttsSpeed, defaultValue: 1.0)
         .getValue();
+    _ttsEngine = _parseTtsEngine(
+      _appPrefs.preferences
+          .getString(LocalStateKeys.ttsEngine, defaultValue: TtsEngine.system.name)
+          .getValue(),
+    );
+  }
+
+  static TtsEngine _parseTtsEngine(String value) {
+    return TtsEngine.values.firstWhere(
+      (e) => e.name == value,
+      orElse: () => TtsEngine.system,
+    );
   }
 
   Future<void> setSoundEffects(bool value) async {
@@ -59,6 +73,12 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> setTtsEngine(TtsEngine value) async {
+    _ttsEngine = value;
+    await _appPrefs.setString(LocalStateKeys.ttsEngine, value.name);
+    notifyListeners();
+  }
+
   /// Lightweight helper so other controllers don't have to import
   /// [HapticFeedback] directly or repeat the enabled-check.
   void triggerHaptic(HapticFeedbackType type) {
@@ -75,3 +95,10 @@ class SettingsProvider extends ChangeNotifier {
 }
 
 enum HapticFeedbackType { light, medium, heavy }
+
+/// Available TTS sources.
+///
+/// - [system]: use the device's built-in TTS engine (Google TTS on Android,
+///   Apple system TTS on iOS).
+/// - [offline]: use the bundled Piper Swahili model.
+enum TtsEngine { system, offline }

@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:words625/core/text_styles.dart';
-import 'package:words625/domain/course/interaction.dart';
-import 'package:words625/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:words625/views/theme.dart';
+import 'package:varnamala/core/text_styles.dart';
+import 'package:varnamala/domain/course/interaction.dart';
+import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:varnamala/views/theme.dart';
 
 /// Free-text translation. User types the translation of a source sentence.
 /// Match is case-insensitive, whitespace-trimmed, and ignores trailing
@@ -137,7 +137,7 @@ class _TranslateBodyState extends State<_TranslateBody> {
                   ? (correct == true
                       ? VarnamalaTheme.success.withValues(alpha: 0.10)
                       : VarnamalaTheme.error.withValues(alpha: 0.08))
-                  : Colors.white,
+                  : VarnamalaTheme.inputFillColor(context),
             ),
             onChanged: (_) => setState(() {}),
           ),

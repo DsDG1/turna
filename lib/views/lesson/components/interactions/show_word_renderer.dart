@@ -5,11 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:words625/application/audio_controller.dart';
-import 'package:words625/courses/languages/swahili_vocab.dart';
-import 'package:words625/domain/course/interaction.dart';
-import 'package:words625/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:words625/views/theme.dart';
+import 'package:varnamala/application/audio_controller.dart';
+import 'package:varnamala/courses/languages/swahili_vocab.dart';
+import 'package:varnamala/domain/course/interaction.dart';
+import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:varnamala/views/theme.dart';
 
 /// Flashcard introducing a vocabulary word.
 ///
@@ -72,7 +72,7 @@ class _ShowWordCard extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         child: Material(
-          color: Colors.white,
+          color: VarnamalaTheme.cardBg(context),
           elevation: 2,
           shadowColor: VarnamalaTheme.peacockTeal.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),

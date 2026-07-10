@@ -4,17 +4,17 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:words625/courses/course_loader.dart';
-import 'package:words625/courses/course_validator.dart';
-import 'package:words625/domain/course/interaction.dart';
-import 'package:words625/domain/course/lesson.dart';
-import 'package:words625/domain/course/lesson_content.dart';
-import 'package:words625/domain/course/listening_phase.dart';
-import 'package:words625/domain/course/section.dart';
-import 'package:words625/domain/course/stage.dart';
-import 'package:words625/domain/course/sub_lesson.dart';
-import 'package:words625/domain/course/unit.dart';
-import 'package:words625/domain/course/word_entry.dart';
+import 'package:varnamala/courses/course_loader.dart';
+import 'package:varnamala/courses/course_validator.dart';
+import 'package:varnamala/domain/course/interaction.dart';
+import 'package:varnamala/domain/course/lesson.dart';
+import 'package:varnamala/domain/course/lesson_content.dart';
+import 'package:varnamala/domain/course/listening_phase.dart';
+import 'package:varnamala/domain/course/section.dart';
+import 'package:varnamala/domain/course/stage.dart';
+import 'package:varnamala/domain/course/sub_lesson.dart';
+import 'package:varnamala/domain/course/unit.dart';
+import 'package:varnamala/domain/course/word_entry.dart';
 
 import '../helpers/in_memory_course_db.dart';
 
@@ -178,8 +178,8 @@ void main() {
       }
 
       // A section's body loads lazily and is cached (same instance).
-      final world1 = await SwahiliCourse.loadSection('s-world');
-      final world2 = await SwahiliCourse.loadSection('s-world');
+      final world1 = await SwahiliCourse.loadSection('section3');
+      final world2 = await SwahiliCourse.loadSection('section3');
       expect(identical(world1, world2), isTrue,
           reason: 'loadSection should cache the resolved section');
       expect(world1.units, isNotEmpty);
@@ -228,9 +228,9 @@ void main() {
 
     test('DB reconstruction is lossless vs. the seed source', () async {
       await SwahiliCourse.load();
-      final fromDb = await SwahiliCourse.loadSection('s-world');
+      final fromDb = await SwahiliCourse.loadSection('section3');
       final fromFile = parseSwahiliSection(
-          File('assets/courses/swahili/sections/s-world.json')
+          File('assets/courses/swahili/sections/section3.json')
               .readAsStringSync());
       expect(fromDb, fromFile,
           reason: 'DB-rebuilt section must equal the parsed asset');

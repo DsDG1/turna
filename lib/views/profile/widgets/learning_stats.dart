@@ -5,9 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:words625/application/study_stats_provider.dart';
-import 'package:words625/domain/study/daily_stats.dart';
-import 'package:words625/views/theme.dart';
+import 'package:varnamala/application/study_stats_provider.dart';
+import 'package:varnamala/domain/study/daily_stats.dart';
+import 'package:varnamala/views/theme.dart';
 
 /// Displays today's learning summary and recent activity trends.
 class LearningStats extends StatelessWidget {

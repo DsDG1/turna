@@ -8,8 +8,8 @@
 // when other items are inserted or removed before them.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:words625/domain/course/interaction.dart';
-import 'package:words625/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:varnamala/domain/course/interaction.dart';
+import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
 
 void main() {
   group('interactionItemId stability', () {

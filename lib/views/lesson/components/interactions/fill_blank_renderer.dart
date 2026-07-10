@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:words625/core/text_styles.dart';
-import 'package:words625/domain/course/interaction.dart';
-import 'package:words625/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:words625/views/theme.dart';
+import 'package:varnamala/core/text_styles.dart';
+import 'package:varnamala/domain/course/interaction.dart';
+import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:varnamala/views/theme.dart';
 
 /// Fill in a blanked word in a sentence. The data uses `_____` to mark the
 /// gap; we replace the first occurrence with a tappable [TextField]. Matching
@@ -97,7 +97,7 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
         ? (correct == true
             ? VarnamalaTheme.success.withValues(alpha: 0.10)
             : VarnamalaTheme.error.withValues(alpha: 0.08))
-        : Colors.white;
+        : VarnamalaTheme.inputFillColor(context);
 
     return InteractionBody(
       child: Column(

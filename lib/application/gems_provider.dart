@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:words625/service/locator.dart';
+import 'package:varnamala/service/locator.dart';
 
 enum GemEvent {
   lessonComplete(5),

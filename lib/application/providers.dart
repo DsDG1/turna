@@ -2,31 +2,29 @@
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:words625/application/achievements_provider.dart';
-import 'package:words625/application/character_provider.dart';
-import 'package:words625/application/course_provider.dart';
-import 'package:words625/application/game_provider.dart';
-import 'package:words625/application/gems_provider.dart';
-import 'package:words625/application/grammar_review_provider.dart';
-import 'package:words625/application/language_provider.dart';
-import 'package:words625/application/lesson_viewmodel.dart';
-import 'package:words625/application/match_provider.dart';
-import 'package:words625/application/mistake_provider.dart';
-import 'package:words625/application/progress_provider.dart';
-import 'package:words625/application/settings_provider.dart';
-import 'package:words625/application/srs_provider.dart';
-import 'package:words625/application/study_stats_provider.dart';
-import 'package:words625/application/theme_provider.dart';
-import 'package:words625/di/injection.dart';
-
-import 'package:words625/service/locator.dart';
+import 'package:varnamala/application/achievements_provider.dart';
+import 'package:varnamala/application/character_provider.dart';
+import 'package:varnamala/application/course_provider.dart';
+import 'package:varnamala/application/game_provider.dart';
+import 'package:varnamala/application/gems_provider.dart';
+import 'package:varnamala/application/grammar_review_provider.dart';
+import 'package:varnamala/application/language_provider.dart';
+import 'package:varnamala/application/lesson_viewmodel.dart';
+import 'package:varnamala/application/match_provider.dart';
+import 'package:varnamala/application/mistake_provider.dart';
+import 'package:varnamala/application/progress_provider.dart';
+import 'package:varnamala/application/settings_provider.dart';
+import 'package:varnamala/application/srs_provider.dart';
+import 'package:varnamala/application/study_stats_provider.dart';
+import 'package:varnamala/application/theme_provider.dart';
+import 'package:varnamala/di/injection.dart';
 
 /// App-wide [ChangeNotifier] graph. Every `getIt<T>()` here must resolve the
 /// **same** instance that constructor-injected collaborators receive
 /// (stateful services are `@lazySingleton` — see Wave A).
 final providers = [
   ChangeNotifierProvider<ThemeProvider>(
-    create: (_) => ThemeProvider(getIt<AppPrefs>()),
+    create: (_) => getIt<ThemeProvider>(),
   ),
   ChangeNotifierProvider<SettingsProvider>(
     create: (_) => getIt<SettingsProvider>(),

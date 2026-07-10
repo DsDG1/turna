@@ -5,16 +5,16 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:words625/application/providers.dart';
-import 'package:words625/application/theme_provider.dart';
-import 'package:words625/di/injection.dart';
-import 'package:words625/routing/routing.dart';
-import 'package:words625/views/theme.dart';
+import 'package:varnamala/application/providers.dart';
+import 'package:varnamala/application/theme_provider.dart';
+import 'package:varnamala/di/injection.dart';
+import 'package:varnamala/routing/routing.dart';
+import 'package:varnamala/views/theme.dart';
 
 final router = getIt<AppRouter>();
 
-class Words625App extends StatelessWidget {
-  const Words625App({Key? key}) : super(key: key);
+class VarnamalaApp extends StatelessWidget {
+  const VarnamalaApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {

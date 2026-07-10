@@ -2,10 +2,10 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:words625/core/enums.dart';
-import 'package:words625/core/extensions.dart';
-import 'package:words625/domain/auth/local_user.dart';
-import 'package:words625/views/theme.dart';
+import 'package:varnamala/core/enums.dart';
+import 'package:varnamala/core/extensions.dart';
+import 'package:varnamala/domain/auth/local_user.dart';
+import 'package:varnamala/views/theme.dart';
 
 /// A brand-styled progress card designed to be captured and shared.
 ///
@@ -13,7 +13,7 @@ import 'package:words625/views/theme.dart';
 /// surrounding theme) so it renders consistently when captured from an
 /// offstage [RepaintBoundary].
 class ShareProgressCard extends StatelessWidget {
-  final SerializableFirebaseUser user;
+  final LocalUser user;
   final int streak;
   final int totalXp;
   final int gems;

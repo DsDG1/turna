@@ -11,12 +11,12 @@ import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:words625/application/audio_controller.dart';
-import 'package:words625/core/extensions.dart';
-import 'package:words625/core/logger.dart';
-import 'package:words625/di/injection.dart';
-import 'package:words625/views/play/match_levels.dart';
-import 'package:words625/service/locator.dart';
+import 'package:varnamala/application/audio_controller.dart';
+import 'package:varnamala/core/extensions.dart';
+import 'package:varnamala/core/logger.dart';
+import 'package:varnamala/di/injection.dart';
+import 'package:varnamala/views/play/match_levels.dart';
+import 'package:varnamala/service/locator.dart';
 
 @lazySingleton
 class MatchProvider extends ChangeNotifier {
@@ -112,7 +112,7 @@ class MatchProvider extends ChangeNotifier {
       if (wordPairs![selectedEnglishWord!] == selectedTargetWord) {
         sessionScore += 2;
         currentRoundMatches += 1;
-        _audioController.playRandomLevelUpSound();
+        await _audioController.playRandomLevelUpSound();
         matchedPairs[selectedEnglishWord!] = selectedTargetWord!;
         notifyListeners();
 
@@ -132,7 +132,7 @@ class MatchProvider extends ChangeNotifier {
 
         notifyListeners();
       } else {
-        _audioController.playRandomErrorSound();
+        await _audioController.playRandomErrorSound();
         selectedEnglishWord = null;
         selectedTargetWord = null;
         notifyListeners();

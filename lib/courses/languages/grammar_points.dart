@@ -1,6 +1,6 @@
 // Project imports:
-import 'package:words625/courses/course_loader.dart';
-import 'package:words625/domain/course/grammar_point.dart';
+import 'package:varnamala/courses/course_loader.dart';
+import 'package:varnamala/domain/course/grammar_point.dart';
 
 /// Swahili grammar points for the grammar-review SRS queue.
 ///

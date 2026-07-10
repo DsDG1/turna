@@ -4,16 +4,14 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-// Package imports:
-import 'package:flutter_tts/flutter_tts.dart';
-
 // Project imports:
-import 'package:words625/application/course_provider.dart';
-import 'package:words625/core/logger.dart';
-import 'package:words625/di/injection.dart';
-import 'package:words625/routing/routing.dart';
-import 'package:words625/service/locator.dart';
-import 'package:words625/views/app.dart';
+import 'package:varnamala/application/course_provider.dart';
+import 'package:varnamala/core/logger.dart';
+import 'package:varnamala/di/injection.dart';
+import 'package:varnamala/routing/routing.dart';
+import 'package:varnamala/service/locator.dart';
+import 'package:varnamala/service/tts_availability_checker.dart';
+import 'package:varnamala/views/app.dart';
 
 /// Install global error handlers so uncaught framework and platform errors
 /// are observable in the app log instead of disappearing. This is an offline
@@ -53,11 +51,13 @@ Future<void> main() async {
   // did exactly that and produced a blank Course Tree after switching tabs).
   await getIt<CourseProvider>().load();
 
-  runApp(const Words625App());
+  runApp(const VarnamalaApp());
 
   if (!kIsWeb) {
+    // Prefer Google TTS on Android before any speak/availability checks so
+    // OEM default engines without Swahili do not shadow the real system voice.
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await getIt<FlutterTts>().isLanguageAvailable("sw");
+      await getIt<TtsAvailabilityChecker>().configureSystemEngine();
     });
   }
 }

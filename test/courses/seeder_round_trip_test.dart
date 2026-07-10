@@ -4,9 +4,9 @@ import 'dart:convert';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:words625/courses/course_loader.dart';
-import 'package:words625/data/course_repository.dart';
-import 'package:words625/domain/course/lesson.dart';
+import 'package:varnamala/courses/course_loader.dart';
+import 'package:varnamala/data/course_repository.dart';
+import 'package:varnamala/domain/course/lesson.dart';
 
 import '../helpers/in_memory_course_db.dart';
 
@@ -14,9 +14,9 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('DatabaseSeeder round-trip', () {
-    test('s-test.json survives parse -> seed -> read -> serialize', () async {
+    test('section4.json survives parse -> seed -> read -> serialize', () async {
       final raw = await rootBundle.loadString(
-        '${SwahiliCourse.baseDir}/sections/s-test.json',
+        '${SwahiliCourse.baseDir}/sections/section4.json',
       );
       final originalSection = parseSwahiliSection(raw);
 

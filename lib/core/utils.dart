@@ -3,7 +3,7 @@ import 'dart:math';
 
 Map<String, String> flattenLanguage(
     Map<String, Map<String, String>> nestedMap) {
-  Map<String, String> flatMap = {};
+  final flatMap = <String, String>{};
 
   nestedMap.forEach((category, items) {
     flatMap.addAll(items);
@@ -13,9 +13,9 @@ Map<String, String> flattenLanguage(
 }
 
 Map<K, V> shuffleMap<K, V>(Map<K, V> inputMap) {
-  List<MapEntry<K, V>> entries = inputMap.entries.toList();
+  final entries = inputMap.entries.toList();
 
-  var random = Random();
+  final random = Random();
   entries.shuffle(random);
 
   return Map.fromEntries(entries);

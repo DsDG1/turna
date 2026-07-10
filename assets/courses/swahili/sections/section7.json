@@ -1,0 +1,138 @@
+{
+  "id": "section7",
+  "name": "Section 7",
+  "description": "Ninaweza kuzungumzia mada dhahania, kama vile ndoto zangu, kwa Kiswahili.",
+  "prerequisiteSectionIds": [],
+  "units": [
+    {
+      "id": "s7-u1",
+      "name": "Abstract topics",
+      "description": "",
+      "prerequisiteUnitIds": [],
+      "lessons": [
+        {
+          "id": "s7-l1",
+          "name": "Nature and life",
+          "description": "",
+          "type": "normal",
+          "prerequisiteLessonIds": [],
+          "content": {
+            "stages": [
+              {
+                "id": "stage-vocab",
+                "name": "Vocabulary",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-w-mara",
+                    "wordId": "w-mara"
+                  },
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-w-bhoomi",
+                    "wordId": "w-bhoomi"
+                  }
+                ]
+              },
+              {
+                "id": "stage-practice",
+                "name": "Practice",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-w-mara-0",
+                    "prompt": "Which word matches 'w-mara'?",
+                    "options": [
+                      "Yes",
+                      "No",
+                      "Come",
+                      "Go"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-w-bhoomi-1",
+                    "prompt": "Which word matches 'w-bhoomi'?",
+                    "options": [
+                      "Yes",
+                      "No",
+                      "Come",
+                      "Go"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "s7-l2",
+          "name": "Colors and shapes",
+          "description": "",
+          "type": "normal",
+          "prerequisiteLessonIds": [],
+          "content": {
+            "stages": [
+              {
+                "id": "stage-vocab",
+                "name": "Vocabulary",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-w-kempu",
+                    "wordId": "w-kempu"
+                  },
+                  {
+                    "runtimeType": "showWord",
+                    "id": "sw-w-hasiru",
+                    "wordId": "w-hasiru"
+                  }
+                ]
+              },
+              {
+                "id": "stage-practice",
+                "name": "Practice",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-w-kempu-0",
+                    "prompt": "Which word matches 'w-kempu'?",
+                    "options": [
+                      "Yes",
+                      "No",
+                      "Come",
+                      "Go"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-w-hasiru-1",
+                    "prompt": "Which word matches 'w-hasiru'?",
+                    "options": [
+                      "Yes",
+                      "No",
+                      "Come",
+                      "Go"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-import 'package:words625/application/audio_controller.dart';
+import 'package:varnamala/application/audio_controller.dart';
 
 /// A no-op [AudioController] for renderer/widget tests.
 ///
@@ -33,4 +33,7 @@ class FakeAudioController implements AudioController {
 
   @override
   void setTtsSpeed(double speed) {}
+
+  @override
+  Future<void> rebindSystemTts() async {}
 }

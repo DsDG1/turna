@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:words625/views/theme.dart';
+import 'package:varnamala/views/theme.dart';
 
 /// A header label for a Unit grouping in the course tree.
 ///

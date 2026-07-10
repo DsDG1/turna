@@ -1,7 +1,7 @@
 {
-  "id": "s-world",
-  "name": "World Around",
-  "description": "Emotions, nature, and getting around.",
+  "id": "section3",
+  "name": "Section 3",
+  "description": "Ninajua baadhi ya herufi za Kiswahili.",
   "prerequisiteSectionIds": [],
   "units": [
     {

@@ -1,6 +1,6 @@
 // Project imports:
-import 'package:words625/courses/course_loader.dart';
-import 'package:words625/domain/course/section.dart';
+import 'package:varnamala/courses/course_loader.dart';
+import 'package:varnamala/domain/course/section.dart';
 
 /// Top-level Swahili course structure: sections → units → lessons → stages.
 ///

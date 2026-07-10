@@ -51,7 +51,7 @@ class TestCourseCli(unittest.TestCase):
             tmp_course = Path(tmp) / "swahili"
             shutil.copytree(self.course_dir, tmp_course)
 
-            section_path = tmp_course / "sections" / "s-test.json"
+            section_path = tmp_course / "sections" / "section4.json"
             section = load_json(section_path)
             # Replace the first ShowWord with a dangling word id.
             first_item = section["units"][0]["lessons"][0]["content"]["stages"][0][
@@ -69,7 +69,7 @@ class TestCourseCli(unittest.TestCase):
             tmp_course = Path(tmp) / "swahili"
             shutil.copytree(self.course_dir, tmp_course)
 
-            section_path = tmp_course / "sections" / "s-test.json"
+            section_path = tmp_course / "sections" / "section4.json"
             section = load_json(section_path)
             lessons = section["units"][0]["lessons"]
             lessons[1]["id"] = lessons[0]["id"]

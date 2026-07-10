@@ -5,13 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:words625/application/game_provider.dart';
-import 'package:words625/application/language_provider.dart';
-import 'package:words625/core/enums.dart';
-import 'package:words625/core/extensions.dart';
-import 'package:words625/views/theme.dart';
-import 'package:words625/views/widgets/gems_display.dart';
-import 'package:words625/views/widgets/loader.dart';
+import 'package:varnamala/application/game_provider.dart';
+import 'package:varnamala/application/language_provider.dart';
+import 'package:varnamala/core/enums.dart';
+import 'package:varnamala/core/extensions.dart';
+import 'package:varnamala/views/theme.dart';
+import 'package:varnamala/views/widgets/gems_display.dart';
+import 'package:varnamala/views/widgets/loader.dart';
 
 class StatAppBar extends StatelessWidget implements PreferredSizeWidget {
   const StatAppBar({Key? key}) : super(key: key);

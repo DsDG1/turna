@@ -6,12 +6,12 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:words625/application/game_provider.dart';
-import 'package:words625/application/grammar_review_provider.dart';
-import 'package:words625/application/mistake_provider.dart';
-import 'package:words625/application/srs_provider.dart';
-import 'package:words625/routing/routing.gr.dart';
-import 'package:words625/views/theme.dart';
+import 'package:varnamala/application/game_provider.dart';
+import 'package:varnamala/application/grammar_review_provider.dart';
+import 'package:varnamala/application/mistake_provider.dart';
+import 'package:varnamala/application/srs_provider.dart';
+import 'package:varnamala/routing/routing.gr.dart';
+import 'package:varnamala/views/theme.dart';
 
 class PlayHubScreen extends StatelessWidget {
   const PlayHubScreen({super.key});
@@ -492,16 +492,16 @@ class _SectionTitle extends StatelessWidget {
 class _StatsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<Map<String, dynamic>>(
+    return StreamBuilder(
       stream: context.read<GameProvider>().getUserGameStateStream(),
       builder: (context, snapshot) {
-        final gameState = snapshot.data ?? const <String, dynamic>{};
-        final score = (gameState['score'] as num? ?? 0).toInt();
+        final gameState = snapshot.data;
+        final score = gameState?.score ?? 0;
 
         return Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: VarnamalaTheme.cardBg(context),
             borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
             border: Border.all(
               color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.12),

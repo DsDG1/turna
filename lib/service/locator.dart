@@ -11,14 +11,14 @@ import 'package:path_provider/path_provider.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 
 // Project imports:
-import 'package:words625/core/logger.dart';
-import 'package:words625/courses/languages/expressions.dart';
-import 'package:words625/courses/languages/grammar_points.dart';
-import 'package:words625/courses/languages/swahili_vocab.dart';
-import 'package:words625/data/course_database.dart';
-import 'package:words625/data/course_database_seeder.dart';
-import 'package:words625/di/injection.dart';
-import 'package:words625/domain/auth/local_user.dart';
+import 'package:varnamala/core/logger.dart';
+import 'package:varnamala/courses/languages/expressions.dart';
+import 'package:varnamala/courses/languages/grammar_points.dart';
+import 'package:varnamala/courses/languages/swahili_vocab.dart';
+import 'package:varnamala/data/course_database.dart';
+import 'package:varnamala/data/course_database_seeder.dart';
+import 'package:varnamala/di/injection.dart';
+import 'package:varnamala/domain/auth/local_user.dart';
 
 class AppPrefs {
   final StreamingSharedPreferences preferences;
@@ -31,14 +31,14 @@ class AppPrefs {
         ),
         authUser = preferences.getCustomValue(
           PrefsConstants.authUser,
-          defaultValue: SerializableFirebaseUser.local,
+          defaultValue: LocalUser.local,
           adapter: const JsonAdapter(
             serializer: _serializeUser,
             deserializer: _deserializeUser,
           ),
         );
 
-  final Preference<SerializableFirebaseUser> authUser;
+  final Preference<LocalUser> authUser;
   final Preference<String> currentLanguage;
 
   Future<bool> setBool(String key, {required bool value}) async {
@@ -72,7 +72,7 @@ class AppPrefs {
     return preferences.setCustomValue(key, value, adapter: adapter);
   }
 
-  Future<bool> setLocalUser(SerializableFirebaseUser user) async {
+  Future<bool> setLocalUser(LocalUser user) async {
     return preferences.setCustomValue(
       PrefsConstants.authUser,
       user.toJson(),
@@ -80,8 +80,11 @@ class AppPrefs {
     );
   }
 
-  void printBefore({String? key, value}) =>
-      logger.w('Saving Key: $key &  value: $value');
+  void printBefore({String? key, value}) {
+    if (kDebugMode) {
+      logger.d('Saving Key: $key &  value: $value');
+    }
+  }
 }
 
 class PrefsConstants {
@@ -113,8 +116,6 @@ class LocalStateKeys {
 
   // Currency
   static const String gems = 'currency.gems';
-  static const String hearts = 'currency.hearts';
-  static const String heartsRefillAt = 'currency.heartsRefillAt';
 
   // Achievements
   static const String achievements = 'achievements.unlocked';
@@ -138,6 +139,9 @@ class LocalStateKeys {
   static const String soundEffects = 'settings.soundEffects';
   static const String haptic = 'settings.haptic';
   static const String ttsSpeed = 'settings.ttsSpeed';
+  static const String ttsEngine = 'settings.ttsEngine'; // 'system' | 'offline'
+  static const String ttsAvailabilityPromptShown =
+      'settings.ttsAvailabilityPromptShown';
 }
 
 /// Making AppPrefs injectable
@@ -193,8 +197,8 @@ Future<CourseDatabase> _openAndSeedCourseDatabase() async {
   return db;
 }
 
-Map<String, dynamic> _serializeUser(SerializableFirebaseUser user) =>
+Map<String, dynamic> _serializeUser(LocalUser user) =>
     user.toJson();
 
-SerializableFirebaseUser _deserializeUser(dynamic value) =>
-    SerializableFirebaseUser.fromJson(value as Map<String, dynamic>);
+LocalUser _deserializeUser(dynamic value) =>
+    LocalUser.fromJson(value as Map<String, dynamic>);

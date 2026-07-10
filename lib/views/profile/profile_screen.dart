@@ -2,8 +2,8 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:words625/views/profile/widgets/learning_stats.dart';
-import 'package:words625/views/profile/widgets/widgets.dart';
+import 'package:varnamala/views/profile/widgets/learning_stats.dart';
+import 'package:varnamala/views/profile/widgets/widgets.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({Key? key}) : super(key: key);

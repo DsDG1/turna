@@ -7,10 +7,11 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:words625/application/gems_provider.dart';
-import 'package:words625/core/achievement_config.dart';
-import 'package:words625/di/injection.dart';
-import 'package:words625/service/locator.dart';
+import 'package:varnamala/application/gems_provider.dart';
+import 'package:varnamala/core/achievement_config.dart';
+import 'package:varnamala/di/injection.dart';
+import 'package:varnamala/domain/game/user_game_state.dart';
+import 'package:varnamala/service/locator.dart';
 
 enum XPEvent {
   lessonComplete(base: 10),
@@ -27,7 +28,6 @@ enum XPEvent {
 enum StreakCheckResult {
   none,
   maintained,
-  freezeConsumed,
   broken,
 }
 
@@ -35,8 +35,8 @@ enum StreakCheckResult {
 class GameProvider extends ChangeNotifier {
   final AppPrefs appPrefs;
 
-  final StreamController<Map<String, dynamic>> _stateController =
-      StreamController<Map<String, dynamic>>.broadcast();
+  final StreamController<UserGameState> _stateController =
+      StreamController<UserGameState>.broadcast();
   final StreamController<int> _streakController =
       StreamController<int>.broadcast();
   final StreamController<int> _scoreController =
@@ -94,12 +94,12 @@ class GameProvider extends ChangeNotifier {
     yield* _scoreController.stream;
   }
 
-  Stream<Map<String, dynamic>> getUserGameStateStream() async* {
+  Stream<UserGameState> getUserGameStateStream() async* {
     yield _readState();
     yield* _stateController.stream;
   }
 
-  Future<Map<String, dynamic>> getUserGameStateOnce() async => _readState();
+  Future<UserGameState> getUserGameStateOnce() async => _readState();
 
   Future<void> ensureUserGameFields() async {
     // Seed defaults only once. We use a dedicated boolean to mark completion.
@@ -337,30 +337,25 @@ class GameProvider extends ChangeNotifier {
   List<String> _readStringList(String key, List<String> fallback) =>
       appPrefs.preferences.getStringList(key, defaultValue: fallback).getValue();
 
-  Map<String, dynamic> _readState() => {
-        'score': _readInt(LocalStateKeys.score, 0),
-        'streak': _readInt(LocalStateKeys.streak, 0),
-        'lastStreakDate': _readString(LocalStateKeys.lastStreakDate, ''),
-        'gems': _readInt(LocalStateKeys.gems, 0),
-        'hearts': _readInt(LocalStateKeys.hearts, 5),
-        'heartsRefillAt': null,
-        'achievements':
-            _readStringList(LocalStateKeys.achievements, const []),
-        'lessonsCompleted':
-            _readInt(LocalStateKeys.lessonsCompleted, 0),
-        'perfectLessons': _readInt(LocalStateKeys.perfectLessons, 0),
-        'completedLessonIds': _completedLessonIds.toList(growable: false),
-        'perfectLessonIds': _perfectLessonIds.toList(growable: false),
-        'streakWasBroken': _readBool(LocalStateKeys.streakWasBroken, false),
-        'wordsLearned': _readInt(LocalStateKeys.wordsLearned, 0),
-        'languages': <String>[],
-      };
+  UserGameState _readState() => UserGameState(
+        score: _readInt(LocalStateKeys.score, 0),
+        streak: _readInt(LocalStateKeys.streak, 0),
+        lastStreakDate: _readString(LocalStateKeys.lastStreakDate, ''),
+        gems: _readInt(LocalStateKeys.gems, 0),
+        achievements: _readStringList(LocalStateKeys.achievements, const []),
+        lessonsCompleted: _readInt(LocalStateKeys.lessonsCompleted, 0),
+        perfectLessons: _readInt(LocalStateKeys.perfectLessons, 0),
+        completedLessonIds: _completedLessonIds.toList(growable: false),
+        perfectLessonIds: _perfectLessonIds.toList(growable: false),
+        streakWasBroken: _readBool(LocalStateKeys.streakWasBroken, false),
+        wordsLearned: _readInt(LocalStateKeys.wordsLearned, 0),
+      );
 
   void _emitState() {
     final state = _readState();
     _stateController.add(state);
-    _streakController.add(state['streak'] as int);
-    _scoreController.add(state['score'] as int);
+    _streakController.add(state.streak);
+    _scoreController.add(state.score);
   }
 
   int _unlockXpAchievements(Set<String> achievements, int score) =>

@@ -7,14 +7,15 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
-import 'package:words625/application/course_provider.dart';
-import 'package:words625/application/game_provider.dart';
-import 'package:words625/application/grammar_review_provider.dart';
-import 'package:words625/application/mistake_provider.dart';
-import 'package:words625/application/providers.dart';
-import 'package:words625/application/srs_provider.dart';
-import 'package:words625/di/injection.dart';
-import 'package:words625/service/locator.dart';
+import 'package:varnamala/application/course_provider.dart';
+import 'package:varnamala/application/game_provider.dart';
+import 'package:varnamala/application/grammar_review_provider.dart';
+import 'package:varnamala/application/mistake_provider.dart';
+import 'package:varnamala/application/providers.dart';
+import 'package:varnamala/application/srs_provider.dart';
+import 'package:varnamala/application/theme_provider.dart';
+import 'package:varnamala/di/injection.dart';
+import 'package:varnamala/service/locator.dart';
 
 Future<void> _bootstrapDi() async {
   await getIt.reset();
@@ -58,6 +59,10 @@ void main() {
       identical(getIt<MistakeProvider>(), getIt<MistakeProvider>()),
       isTrue,
     );
+    expect(
+      identical(getIt<ThemeProvider>(), getIt<ThemeProvider>()),
+      isTrue,
+    );
   });
 
   testWidgets(
@@ -94,6 +99,10 @@ void main() {
       );
       expect(
         identical(ctx.read<MistakeProvider>(), getIt<MistakeProvider>()),
+        isTrue,
+      );
+      expect(
+        identical(ctx.read<ThemeProvider>(), getIt<ThemeProvider>()),
         isTrue,
       );
     },

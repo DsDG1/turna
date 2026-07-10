@@ -10,13 +10,13 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:words625/courses/languages/grammar_points.dart';
-import 'package:words625/courses/languages/swahili_vocab.dart';
-import 'package:words625/data/study_log_repository.dart';
-import 'package:words625/domain/course/mistake_entry.dart';
-import 'package:words625/domain/study/daily_stats.dart';
-import 'package:words625/domain/study/study_log.dart';
-import 'package:words625/service/locator.dart';
+import 'package:varnamala/courses/languages/grammar_points.dart';
+import 'package:varnamala/courses/languages/swahili_vocab.dart';
+import 'package:varnamala/data/study_log_repository.dart';
+import 'package:varnamala/domain/course/mistake_entry.dart';
+import 'package:varnamala/domain/study/daily_stats.dart';
+import 'package:varnamala/domain/study/study_log.dart';
+import 'package:varnamala/service/locator.dart';
 
 /// Provides aggregated learning statistics and records study activity.
 @lazySingleton

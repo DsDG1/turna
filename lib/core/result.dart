@@ -1,5 +1,5 @@
 // Project imports:
-import 'package:words625/core/logger.dart';
+import 'package:varnamala/core/logger.dart';
 
 /// A lightweight discriminated result type for operations that can fail.
 ///

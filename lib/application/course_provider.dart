@@ -5,12 +5,12 @@ import 'package:flutter/cupertino.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:words625/core/logger.dart';
-import 'package:words625/courses/course_loader.dart';
-import 'package:words625/courses/languages/swahili.dart';
-import 'package:words625/domain/course/section.dart';
-import 'package:words625/domain/course/unit.dart';
-import 'package:words625/domain/course/lesson.dart';
+import 'package:varnamala/core/logger.dart';
+import 'package:varnamala/courses/course_loader.dart';
+import 'package:varnamala/courses/languages/swahili.dart';
+import 'package:varnamala/domain/course/section.dart';
+import 'package:varnamala/domain/course/unit.dart';
+import 'package:varnamala/domain/course/lesson.dart';
 
 /// Explicit state for per-section body loading.
 ///

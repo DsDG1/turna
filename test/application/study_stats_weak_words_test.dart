@@ -7,13 +7,13 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
-import 'package:words625/application/study_stats_provider.dart';
-import 'package:words625/courses/languages/swahili_vocab.dart';
-import 'package:words625/data/study_log_repository.dart';
-import 'package:words625/domain/course/interaction.dart';
-import 'package:words625/domain/course/mistake_entry.dart';
-import 'package:words625/domain/course/word_entry.dart';
-import 'package:words625/service/locator.dart';
+import 'package:varnamala/application/study_stats_provider.dart';
+import 'package:varnamala/courses/languages/swahili_vocab.dart';
+import 'package:varnamala/data/study_log_repository.dart';
+import 'package:varnamala/domain/course/interaction.dart';
+import 'package:varnamala/domain/course/mistake_entry.dart';
+import 'package:varnamala/domain/course/word_entry.dart';
+import 'package:varnamala/service/locator.dart';
 
 class _TestVocab {
   static WordEntry of(String id) => WordEntry(

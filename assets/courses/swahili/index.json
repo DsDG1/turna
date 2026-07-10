@@ -1,35 +1,71 @@
 {
-  "version": 3,
+  "version": 4,
   "language": "sw",
   "displayName": "Swahili",
   "sections": [
     {
-      "id": "s-test",
-      "name": "Test Course",
-      "description": "Minimal SRS + grammar smoke test. Clear app data / course.swahili.db after content changes so seeder reloads.",
+      "id": "section1",
+      "name": "Section 1",
+      "description": "Habari",
+      "level": "A1",
       "prerequisiteSectionIds": [],
-      "file": "sections/s-test.json"
+      "file": "sections/section1.json"
     },
     {
-      "id": "s-foundations",
-      "name": "Foundations",
-      "description": "Greetings, pronouns, and the basics of being polite.",
+      "id": "section2",
+      "name": "Section 2",
+      "description": "Ninataka kujifunza Kiswahili",
+      "level": "A1",
       "prerequisiteSectionIds": [],
-      "file": "sections/s-foundations.json"
+      "file": "sections/section2.json"
     },
     {
-      "id": "s-daily",
-      "name": "Daily Life",
-      "description": "The world immediately around you — colors, animals, numbers.",
+      "id": "section3",
+      "name": "Section 3",
+      "description": "Ninajua baadhi ya herufi za Kiswahili.",
+      "level": "A1",
       "prerequisiteSectionIds": [],
-      "file": "sections/s-daily.json"
+      "file": "sections/section3.json"
     },
     {
-      "id": "s-world",
-      "name": "World Around",
-      "description": "Emotions, nature, and getting around.",
+      "id": "section4",
+      "name": "Section 4",
+      "description": "Ninaweza kuzungumza Kiswahili kwa urahisi.",
+      "level": "A2",
       "prerequisiteSectionIds": [],
-      "file": "sections/s-world.json"
+      "file": "sections/section4.json"
+    },
+    {
+      "id": "section5",
+      "name": "Section 5",
+      "description": "Ninaweza kufanya mazungumzo ya kila siku kwa Kiswahili.",
+      "level": "B1",
+      "prerequisiteSectionIds": [],
+      "file": "sections/section5.json"
+    },
+    {
+      "id": "section6",
+      "name": "Section 6",
+      "description": "Ninaweza kutoa maoni tofauti kwa Kiswahili kulingana na muktadha.",
+      "level": "B1",
+      "prerequisiteSectionIds": [],
+      "file": "sections/section6.json"
+    },
+    {
+      "id": "section7",
+      "name": "Section 7",
+      "description": "Ninaweza kuzungumzia mada dhahania, kama vile ndoto zangu, kwa Kiswahili.",
+      "level": "B2",
+      "prerequisiteSectionIds": [],
+      "file": "sections/section7.json"
+    },
+    {
+      "id": "section8",
+      "name": "Section 8",
+      "description": "Ninaweza kuzungumza kwa ustadi na ufasaha kuhusu mada mbalimbali kwa Kiswahili.",
+      "level": "B2",
+      "prerequisiteSectionIds": [],
+      "file": "sections/section8.json"
     }
   ]
 }
