@@ -39,14 +39,16 @@ class Achievement {
     required this.targets,
   });
 
-  // Helper to get current level (1-based) based on current progress value
+  // Helper to get current level (1-based) based on current progress value.
+  // Capped at [maxLevel] (= targets.length): once progress meets or exceeds
+  // the final target, the achievement is at its maximum level.
   int getCurrentLevel(int progress) {
     for (int i = 0; i < targets.length; i++) {
         if (progress < targets[i]) {
             return i + 1;
         }
     }
-    return targets.length + 1;
+    return targets.length;
   }
 
   int getTargetForLevel(int level) {

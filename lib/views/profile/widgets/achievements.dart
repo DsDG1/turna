@@ -225,7 +225,9 @@ class _AchievementTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    bool isCompleted = level > maxLevel;
+    // An achievement is complete once it reaches its maximum level, which
+    // happens exactly when progress meets or exceeds the final target.
+    bool isCompleted = level >= maxLevel;
     int displayTarget = isCompleted ? current : target; 
     
     return Padding(
