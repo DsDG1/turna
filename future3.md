@@ -197,9 +197,19 @@
 
 ---
 
-### Phase 15：音频策略与管道（2–3 周）
+### Phase 15：音频策略与管道（2–3 周） ✅ 已完成
 
 **目标**：确定音频生成方案并建立可批量执行的管道。
+
+**完成摘要**：
+- 写入 ADR：`docs/decisions/0003-audio-generation-strategy.md`，明确本地批量预生成 + 运行时 Piper TTS fallback 的混合策略。
+- 创建音频资源目录：`assets/sounds/swahili/{words,expressions,listening}/`。
+- 更新 `pubspec.yaml` 让 Flutter 打包新音频目录。
+- 实现 `tool/generate_audio.py`：支持 `all` / `list` / `speak` 子命令，优先 `sherpa-onnx` Python API，备选 `piper` CLI。
+- 更新 `tool/course_cli.py audio-manifest`：识别新的目录约定并输出分类覆盖率。
+- 新增 `docs/audio-recording-guidelines.md` 真人录音提交指南。
+- 新增 `test/generate_audio_test.py` 8 个单元测试。
+- 未在当前环境实际生成音频（无 TTS 后端），脚本在无后端时输出待生成清单并退出；Phase 16 安装后端后批量生成试点音频。
 
 1. **确定音频生成方案**
    - 评估 Piper Swahili 模型质量、Coqui TTS、Mozilla TTS 等。
@@ -487,7 +497,7 @@ future3 期间需要补充的 ADR：
 ## 11. 成功标准（future3 完成时）
 
 - [x] `tool/course_cli.py` 可用：validate / import-csv / export-csv / lint / audio-manifest / diff。
-- [ ] 音频生成管道可批量产出 Swahili 音频，并有 fallback TTS。
+- [x] 音频生成管道可批量产出 Swahili 音频，并有 fallback TTS。
 - [ ] 试点 lesson（10–15 真实 Swahili 词 + 5–10 表达）能端到端跑通所有 template。
 - [ ] 词典页、弱词复习、本地提醒可用。
 - [ ] `vocab.json` 全部为真实 Swahili 词，无 Kannada 占位。

@@ -1079,32 +1079,34 @@ def cmd_lint(args: argparse.Namespace) -> int:
 # --------------------------------------------------------------------------- #
 
 
+def _audio_asset_path(asset: str, kind: str) -> Path:
+    """Return the canonical filesystem path for an audio asset id."""
+    if kind == "word":
+        return (SOUNDS_DIR / "words" / f"{asset}.mp3").resolve()
+    if kind == "expression":
+        return (SOUNDS_DIR / "expressions" / f"{asset}.mp3").resolve()
+    return (SOUNDS_DIR / "listening" / f"{asset}.mp3").resolve()
+
+
 def cmd_audio_manifest(args: argparse.Namespace) -> int:
     course_dir = args.course_dir
     out_path = Path(args.output)
 
-    rows: list[dict[str, str]] = []
+    vocab = {w["id"]: w for w in load_vocab(course_dir)}
+    expressions = {e["id"]: e for e in load_expressions(course_dir)}
+
+    # asset_id -> (kind, set of reference locations)
     referenced: dict[str, tuple[str, set[str]]] = {}
 
-    # From vocab.
-    for entry in load_vocab(course_dir):
-        eid = entry.get("id", "")
-        audio = entry.get("audioAsset")
-        if audio:
-            referenced.setdefault(
-                audio, ("word", set())
-            )[1].add(f"vocab/{eid}")
+    # All vocab entries are potential word audio.
+    for eid in vocab:
+        referenced.setdefault(eid, ("word", set()))[1].add("vocab")
 
-    # From expressions.
-    for entry in load_expressions(course_dir):
-        eid = entry.get("id", "")
-        audio = entry.get("audioAsset")
-        if audio:
-            referenced.setdefault(
-                audio, ("expression", set())
-            )[1].add(f"expressions/{eid}")
+    # All expression entries are potential expression audio.
+    for eid in expressions:
+        referenced.setdefault(eid, ("expression", set()))[1].add("expressions")
 
-    # From sections.
+    # Section-level audio asset references.
     for section_id, section in load_sections(course_dir):
         normalize_section(section)
         for unit in section.get("units", []):
@@ -1112,16 +1114,28 @@ def cmd_audio_manifest(args: argparse.Namespace) -> int:
                 lid = lesson.get("id", "")
                 loc = f"{section_id}/{unit.get('id', '')}/{lid}"
                 content = lesson.get("content", {})
+                has_listening = bool(content.get("listeningPhases"))
                 for asset in collect_audio_assets(content):
-                    kind = "lesson"
-                    if content.get("listeningPhases"):
-                        kind = "phase"
-                    referenced.setdefault(
-                        asset, (kind, set())
-                    )[1].add(loc)
+                    # If the asset matches a word/expression id, keep that kind;
+                    # otherwise treat it as a listening/lesson asset.
+                    if asset in vocab:
+                        kind = "word"
+                    elif asset in expressions:
+                        kind = "expression"
+                    else:
+                        kind = "phase" if has_listening else "lesson"
+                    referenced.setdefault(asset, (kind, set()))[1].add(loc)
+
+    rows: list[dict[str, str]] = []
+    kind_counts: dict[str, dict[str, int]] = {
+        "word": {"total": 0, "present": 0},
+        "expression": {"total": 0, "present": 0},
+        "lesson": {"total": 0, "present": 0},
+        "phase": {"total": 0, "present": 0},
+    }
 
     for asset, (kind, locations) in sorted(referenced.items()):
-        asset_path = (SOUNDS_DIR / f"{asset}.mp3").resolve()
+        asset_path = _audio_asset_path(asset, kind)
         status = "present" if asset_path.exists() else "missing"
         rows.append(
             {
@@ -1131,10 +1145,22 @@ def cmd_audio_manifest(args: argparse.Namespace) -> int:
                 "status": status,
             }
         )
+        kind_counts.setdefault(kind, {"total": 0, "present": 0})
+        kind_counts[kind]["total"] += 1
+        if status == "present":
+            kind_counts[kind]["present"] += 1
 
     headers = ["asset_id", "type", "referenced_by", "status"]
     _write_csv(out_path, headers, rows)
+
     print(f"Wrote audio manifest ({len(rows)} assets) to {out_path}")
+    print("\nCoverage:")
+    for kind in ["word", "expression", "lesson", "phase"]:
+        counts = kind_counts.get(kind, {"total": 0, "present": 0})
+        total = counts["total"]
+        present = counts["present"]
+        pct = f"{present / total * 100:.1f}%" if total else "n/a"
+        print(f"  {kind:12} {present}/{total} ({pct})")
     return 0
 
 
