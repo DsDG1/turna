@@ -142,9 +142,9 @@ void main() {
 
       // Force a stale content version while leaving rows in place.
       await db.into(db.courseMeta).insertOnConflictUpdate(
-            CourseMetaCompanion(
-              key: const Value(DatabaseSeeder.metaContentVersion),
-              value: const Value('__stale_for_test__'),
+            const CourseMetaCompanion(
+              key: Value(DatabaseSeeder.metaContentVersion),
+              value: Value('__stale_for_test__'),
             ),
           );
 

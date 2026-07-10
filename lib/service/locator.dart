@@ -135,6 +135,9 @@ class LocalStateKeys {
 
   // Settings
   static const String themeMode = 'settings.themeMode'; // 'light' | 'dark' | 'system'
+  static const String soundEffects = 'settings.soundEffects';
+  static const String haptic = 'settings.haptic';
+  static const String ttsSpeed = 'settings.ttsSpeed';
 }
 
 /// Making AppPrefs injectable

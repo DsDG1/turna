@@ -7,6 +7,7 @@ import 'package:flutter_tts/flutter_tts.dart';
 
 // Project imports:
 import 'package:words625/application/course_provider.dart';
+import 'package:words625/application/settings_provider.dart';
 import 'package:words625/di/injection.dart';
 import 'package:words625/routing/routing.dart';
 import 'package:words625/service/locator.dart';
@@ -20,6 +21,12 @@ Future<void> main() async {
   // AppPrefs (and other async-native services) must be registered before the
   // first frame because MultiProvider creates ThemeProvider immediately.
   await setupLocator();
+
+  // Register settings manually so the AudioController and UI can read the same
+  // persisted values without relying on injectable code generation.
+  getIt.registerLazySingleton<SettingsProvider>(
+    () => SettingsProvider(getIt<AppPrefs>()),
+  );
 
   // Eagerly kick off the course load so CourseTree (and any other consumer)
   // never has to trigger the load itself from a widget lifecycle method.

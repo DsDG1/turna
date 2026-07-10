@@ -11,8 +11,10 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:words625/application/language_provider.dart';
+import 'package:words625/application/settings_provider.dart';
 import 'package:words625/core/enums.dart';
 import 'package:words625/courses/languages/swahili_vocab.dart';
+import 'package:words625/di/injection.dart';
 import 'package:words625/gen/assets.gen.dart';
 import 'package:words625/service/piper_swahili_tts.dart';
 
@@ -32,12 +34,16 @@ class AudioController {
   AudioController(
     this._tts,
     this._languageProvider, {
-    AudioPlayer? audioPlayer,
-    AudioPlayer? speechPlayer,
+    @Named('audioPlayer') required AudioPlayer audioPlayer,
+    @Named('speechPlayer') required AudioPlayer speechPlayer,
     PiperSwahiliTts? piperTts,
-  })  : _audioPlayer = audioPlayer ?? AudioPlayer(),
-        _speechPlayer = speechPlayer ?? AudioPlayer(),
-        _piperTts = piperTts;
+  })  : _audioPlayer = audioPlayer,
+        _speechPlayer = speechPlayer,
+        _piperTts = piperTts {
+    if (getIt.isRegistered<SettingsProvider>()) {
+      _ttsSpeed = getIt<SettingsProvider>().ttsSpeed;
+    }
+  }
 
   // List of error sound assets
   final List<String> _errorSounds = [
@@ -56,18 +62,30 @@ class AudioController {
   ];
 
   Future<void> playRandomErrorSound() async {
+    _triggerHaptic(HapticFeedbackType.heavy);
     int index = _random.nextInt(_errorSounds.length);
     String selectedErrorSound = _errorSounds[index];
     await _playSound(selectedErrorSound);
   }
 
   Future<void> playRandomLevelUpSound() async {
+    _triggerHaptic(HapticFeedbackType.medium);
     int index = _random.nextInt(_levelUpSounds.length);
     String selectedLevelUpSound = _levelUpSounds[index];
     await _playSound(selectedLevelUpSound);
   }
 
+  void _triggerHaptic(HapticFeedbackType type) {
+    if (getIt.isRegistered<SettingsProvider>()) {
+      getIt<SettingsProvider>().triggerHaptic(type);
+    }
+  }
+
   Future<void> _playSound(String assetPath) async {
+    final settings = getIt.isRegistered<SettingsProvider>()
+        ? getIt<SettingsProvider>()
+        : null;
+    if (!(settings?.soundEffectsEnabled ?? true)) return;
     try {
       // need to remove the assets/ prefix from the asset path
       final String path = assetPath.replaceFirst('assets/', '');

@@ -13,6 +13,7 @@ import 'package:words625/application/lesson_viewmodel.dart';
 import 'package:words625/application/match_provider.dart';
 import 'package:words625/application/mistake_provider.dart';
 import 'package:words625/application/progress_provider.dart';
+import 'package:words625/application/settings_provider.dart';
 import 'package:words625/application/srs_provider.dart';
 import 'package:words625/application/study_stats_provider.dart';
 import 'package:words625/application/theme_provider.dart';
@@ -26,6 +27,9 @@ import 'package:words625/service/locator.dart';
 final providers = [
   ChangeNotifierProvider<ThemeProvider>(
     create: (_) => ThemeProvider(getIt<AppPrefs>()),
+  ),
+  ChangeNotifierProvider<SettingsProvider>(
+    create: (_) => getIt<SettingsProvider>(),
   ),
   ChangeNotifierProvider<CharacterProvider>(
     create: (_) => getIt<CharacterProvider>(),

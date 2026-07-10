@@ -51,13 +51,15 @@ void main() {
       () async {
     final repo = StudyLogRepository(prefs);
     // Fire 5 simultaneous logs of the same day; lessonCount must equal 5.
+    // Use today's date so readLastNDays(1) reads the bucket the logs land in.
+    final now = DateTime.now();
     await Future.wait(
       List.generate(
         5,
         (i) => repo.appendLog(
           StudyLog(
             id: 'log-$i',
-            timestamp: DateTime(2026, 7, 9, 10, i),
+            timestamp: DateTime(now.year, now.month, now.day, 10, i),
             type: StudyActivityType.lessonComplete,
             lessonId: 'l-$i',
             xpEarned: 10,

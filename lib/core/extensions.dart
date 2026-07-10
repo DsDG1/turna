@@ -66,7 +66,7 @@ extension ColorExtensions on BuildContext {
 
   Color get secondaryHeaderColor => Theme.of(this).secondaryHeaderColor;
 
-  Color get indicatorColor => Theme.of(this).indicatorColor;
+  Color? get indicatorColor => Theme.of(this).tabBarTheme.indicatorColor;
 }
 
 const _chars = 'AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890';
