@@ -1,0 +1,42 @@
+name: Course Content Validation
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - "assets/courses/**"
+      - "tool/course_cli.py"
+      - "test/course_cli_test.py"
+      - ".github/workflows/course_validation.yml"
+  pull_request:
+    branches:
+      - master
+    paths:
+      - "assets/courses/**"
+      - "tool/course_cli.py"
+      - "test/course_cli_test.py"
+      - ".github/workflows/course_validation.yml"
+
+jobs:
+  validate-course:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate course JSON
+        run: python tool/course_cli.py validate
+
+      - name: Lint course content
+        # Not --strict yet: Phase 15/16 will clear audioAsset warnings first.
+        run: python tool/course_cli.py lint
+
+      - name: Run Python CLI tests
+        run: python -m unittest discover -s test -p "*_cli_test.py"

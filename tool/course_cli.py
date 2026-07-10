@@ -1,0 +1,1307 @@
+#!/usr/bin/env python3
+"""Command-line toolchain for producing and validating Varnamala course content.
+
+Subcommands:
+  validate        Run the Python equivalent of Dart's course_validator.
+  export-csv      Export vocab / expressions / grammar_points to CSV.
+  import-csv      Import vocab / expressions / grammar_points from CSV.
+  lint            Find content quality problems (empty fields, missing audio,
+                  dangling references, unknown tags).
+  audio-manifest  Emit a CSV of all referenced audio assets and their status.
+  diff            Compare two course directories and list changed IDs.
+
+All commands default to `assets/courses/swahili` as the course directory and
+can be overridden with `--course-dir`.
+"""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import json
+import sys
+from collections import defaultdict
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+DEFAULT_COURSE_DIR = Path("assets/courses/swahili")
+SOUNDS_DIR = Path("assets/sounds")
+
+ALLOWED_TAGS = {
+    "pronoun",
+    "greeting",
+    "verb",
+    "noun",
+    "animal",
+    "color",
+    "number",
+    "emotion",
+    "nature",
+    "travel",
+    "food",
+    "family",
+    "question",
+    "particle",
+    "adjective",
+    "adverb",
+}
+
+
+# --------------------------------------------------------------------------- #
+# Loading and normalisation helpers
+# --------------------------------------------------------------------------- #
+
+
+def load_json(path: Path) -> Any:
+    with path.open("r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def save_json(path: Path, data: Any) -> None:
+    with path.open("w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+
+
+def load_vocab(course_dir: Path) -> list[dict[str, Any]]:
+    data = load_json(course_dir / "vocab.json")
+    return list(data.get("words", []))
+
+
+def load_expressions(course_dir: Path) -> list[dict[str, Any]]:
+    data = load_json(course_dir / "expressions.json")
+    return list(data.get("expressions", []) or [])
+
+
+def load_grammar_points(course_dir: Path) -> list[dict[str, Any]]:
+    data = load_json(course_dir / "grammar_points.json")
+    return list(data.get("grammarPoints", []))
+
+
+def load_index(course_dir: Path) -> dict[str, Any]:
+    return load_json(course_dir / "index.json")
+
+
+def load_sections(course_dir: Path) -> list[tuple[str, dict[str, Any]]]:
+    """Return list of (section_id, section_data) for every section in index."""
+    index = load_index(course_dir)
+    sections: list[tuple[str, dict[str, Any]]] = []
+    for entry in index.get("sections", []):
+        section_file = course_dir / entry["file"]
+        sections.append((entry["id"], load_json(section_file)))
+    return sections
+
+
+def normalize_flat_lesson(lesson: dict[str, Any]) -> None:
+    """Match Dart _normalizeLesson: questions -> single default stage."""
+    content = lesson.get("content")
+    if not isinstance(content, dict):
+        return
+    has_stages = "stages" in content
+    has_questions = "questions" in content
+    if not has_questions:
+        return
+    if has_stages:
+        raise ValueError(
+            f'Lesson {lesson.get("id")} declares both "stages" and "questions"'
+        )
+    questions = content.pop("questions")
+    lesson_name = lesson.get("name", "Practice")
+    content["stages"] = [
+        {
+            "id": "stage-default",
+            "name": lesson_name,
+            "items": questions,
+        }
+    ]
+
+
+def normalize_section(section: dict[str, Any]) -> None:
+    """Apply flat-lesson normalization to every lesson in the section."""
+    for unit in section.get("units", []):
+        for lesson in unit.get("lessons", []):
+            normalize_flat_lesson(lesson)
+
+
+# --------------------------------------------------------------------------- #
+# Reference collection
+# --------------------------------------------------------------------------- #
+
+
+def collect_word_ids(obj: Any) -> set[str]:
+    ids: set[str] = set()
+    if isinstance(obj, dict):
+        if obj.get("runtimeType") == "showWord" and "wordId" in obj:
+            ids.add(obj["wordId"])
+        if "linkedWordIds" in obj:
+            ids.update(obj["linkedWordIds"])
+        for value in obj.values():
+            ids.update(collect_word_ids(value))
+    elif isinstance(obj, list):
+        for item in obj:
+            ids.update(collect_word_ids(item))
+    return ids
+
+
+def collect_expression_ids(obj: Any) -> set[str]:
+    ids: set[str] = set()
+    if isinstance(obj, dict):
+        if obj.get("runtimeType") == "showExpression" and "expressionId" in obj:
+            ids.add(obj["expressionId"])
+        if "exampleExpressionIds" in obj:
+            ids.update(obj["exampleExpressionIds"])
+        for value in obj.values():
+            ids.update(collect_expression_ids(value))
+    elif isinstance(obj, list):
+        for item in obj:
+            ids.update(collect_expression_ids(item))
+    return ids
+
+
+def collect_grammar_point_ids(obj: Any) -> set[str]:
+    ids: set[str] = set()
+    if isinstance(obj, dict):
+        if "grammarPointId" in obj and isinstance(obj["grammarPointId"], str):
+            ids.add(obj["grammarPointId"])
+        if "linkedGrammarPointIds" in obj:
+            ids.update(obj["linkedGrammarPointIds"])
+        for value in obj.values():
+            ids.update(collect_grammar_point_ids(value))
+    elif isinstance(obj, list):
+        for item in obj:
+            ids.update(collect_grammar_point_ids(item))
+    return ids
+
+
+def collect_audio_assets(obj: Any) -> set[str]:
+    assets: set[str] = set()
+    if isinstance(obj, dict):
+        if "audioAsset" in obj and isinstance(obj["audioAsset"], str):
+            assets.add(obj["audioAsset"])
+        for value in obj.values():
+            assets.update(collect_audio_assets(value))
+    elif isinstance(obj, list):
+        for item in obj:
+            assets.update(collect_audio_assets(item))
+    return assets
+
+
+# --------------------------------------------------------------------------- #
+# Problem dataclass for lint / validate
+# --------------------------------------------------------------------------- #
+
+
+@dataclass(frozen=True)
+class Problem:
+    level: str  # 'error' | 'warning'
+    message: str
+
+
+class CourseValidationError(Exception):
+    def __init__(self, problems: list[Problem]) -> None:
+        self.problems = problems
+
+
+# --------------------------------------------------------------------------- #
+# Validation
+# --------------------------------------------------------------------------- #
+
+
+def _validate_course(course_dir: Path) -> list[Problem]:
+    """Run the Python equivalent of Dart's validateSwahiliCourse."""
+    problems: list[Problem] = []
+
+    vocab = load_vocab(course_dir)
+    expressions = load_expressions(course_dir)
+    grammar_points = load_grammar_points(course_dir)
+    vocab_ids = {w["id"] for w in vocab}
+    expression_ids = {e["id"] for e in expressions}
+    grammar_ids = {g["id"] for g in grammar_points}
+
+    # Validate vocab/expressions/grammar id uniqueness up front.
+    for name, entries in [
+        ("vocab", vocab),
+        ("expressions", expressions),
+        ("grammar_points", grammar_points),
+    ]:
+        seen: set[str] = set()
+        for entry in entries:
+            eid = entry.get("id", "")
+            if not eid:
+                problems.append(Problem("error", f"{name} entry has empty id"))
+            elif eid in seen:
+                problems.append(Problem("error", f"Duplicate {name} id: {eid}"))
+            else:
+                seen.add(eid)
+
+    # Grammar point exampleExpressionIds must resolve.
+    for gp in grammar_points:
+        for eid in gp.get("exampleExpressionIds", []):
+            if eid and eid not in expression_ids:
+                problems.append(
+                    Problem(
+                        "error",
+                        f"Grammar point {gp.get('id')} references missing "
+                        f"expressionId {eid}",
+                    )
+                )
+
+    sections = load_sections(course_dir)
+    section_ids: set[str] = set()
+    unit_ids: set[str] = set()
+    lesson_ids: set[str] = set()
+
+    for section_id, section in sections:
+        try:
+            normalize_section(section)
+        except ValueError as exc:
+            problems.append(Problem("error", str(exc)))
+            continue
+
+        sid = section.get("id", "")
+        if not sid:
+            problems.append(Problem("error", "Section has empty id"))
+        elif sid in section_ids:
+            problems.append(Problem("error", f"Duplicate section id: {sid}"))
+        else:
+            section_ids.add(sid)
+
+        if sid != section_id:
+            problems.append(
+                Problem(
+                    "error",
+                    f"Section file id mismatch: index says {section_id}, "
+                    f"file says {sid}",
+                )
+            )
+
+        local_unit_ids: set[str] = set()
+        for unit in section.get("units", []):
+            uid = unit.get("id", "")
+            if not uid:
+                problems.append(
+                    Problem("error", f"Unit in section {sid} has empty id")
+                )
+            elif uid in unit_ids:
+                problems.append(Problem("error", f"Duplicate unit id: {uid}"))
+            elif uid in local_unit_ids:
+                problems.append(
+                    Problem(
+                        "error",
+                        f"Duplicate unit id: {uid} (within section {sid})",
+                    )
+                )
+            else:
+                unit_ids.add(uid)
+                local_unit_ids.add(uid)
+
+            local_lesson_ids: set[str] = set()
+            for lesson in unit.get("lessons", []):
+                lid = lesson.get("id", "")
+                if not lid:
+                    problems.append(
+                        Problem(
+                            "error",
+                            f"Lesson in unit {uid} has empty id",
+                        )
+                    )
+                elif lid in lesson_ids:
+                    problems.append(
+                        Problem("error", f"Duplicate lesson id: {lid}")
+                    )
+                elif lid in local_lesson_ids:
+                    problems.append(
+                        Problem(
+                            "error",
+                            f"Duplicate lesson id: {lid} (within unit {uid})",
+                        )
+                    )
+                else:
+                    lesson_ids.add(lid)
+                    local_lesson_ids.add(lid)
+
+                _validate_lesson(
+                    lesson, vocab_ids, expression_ids, grammar_ids, problems
+                )
+
+    return problems
+
+
+def _validate_lesson(
+    lesson: dict[str, Any],
+    vocab_ids: set[str],
+    expression_ids: set[str],
+    grammar_ids: set[str],
+    problems: list[Problem],
+) -> None:
+    lid = lesson.get("id", "<unknown>")
+    content = lesson.get("content", {})
+    template = lesson.get("template", "legacy")
+
+    stages = content.get("stages", [])
+    sub_lessons = content.get("subLessons", [])
+    listening_phases = content.get("listeningPhases", [])
+    reading_passage = content.get("readingPassage") or content.get("passage")
+    has_reading = bool(reading_passage) or bool(
+        isinstance(reading_passage, list) and reading_passage
+    )
+
+    has_stages = bool(stages)
+    has_sub_lessons = bool(sub_lessons)
+    has_listening = bool(listening_phases)
+
+    # Template / content shape consistency.
+    if template in ("intro", "practice"):
+        if not has_sub_lessons:
+            problems.append(
+                Problem(
+                    "error",
+                    f"Lesson {lid} uses template {template} but has no subLessons",
+                )
+            )
+            return
+    elif template == "listening":
+        if not has_listening:
+            problems.append(
+                Problem(
+                    "error",
+                    f"Lesson {lid} uses template listening but has no listeningPhases",
+                )
+            )
+            return
+    elif template == "reading":
+        if not has_reading:
+            problems.append(
+                Problem(
+                    "error",
+                    f"Lesson {lid} uses template reading but has no readingPassage",
+                )
+            )
+            return
+    elif template == "mastery":
+        if not has_stages:
+            problems.append(
+                Problem(
+                    "error",
+                    f"Lesson {lid} uses template mastery but has no stages",
+                )
+            )
+            return
+        if len(stages) > 1:
+            problems.append(
+                Problem(
+                    "error",
+                    f"Lesson {lid} uses template mastery and should have a "
+                    f"single stage, but has {len(stages)}",
+                )
+            )
+    elif template in ("legacy", "review"):
+        if not has_stages and not has_sub_lessons and not has_listening:
+            problems.append(
+                Problem(
+                    "error",
+                    f"Lesson {lid} has no stages, subLessons, or listeningPhases",
+                )
+            )
+            return
+
+    if has_stages:
+        _validate_stages(lid, stages, vocab_ids, expression_ids, problems)
+    if has_sub_lessons:
+        _validate_sub_lessons(
+            lid, sub_lessons, vocab_ids, expression_ids, problems
+        )
+    if has_listening:
+        _validate_listening_phases(
+            lid, listening_phases, vocab_ids, expression_ids, problems
+        )
+
+    # Check grammar point links on interactions anywhere in the lesson.
+    for gp_id in collect_grammar_point_ids(content):
+        if gp_id and gp_id not in grammar_ids:
+            problems.append(
+                Problem(
+                    "error",
+                    f"Lesson {lid} references missing grammarPointId {gp_id}",
+                )
+            )
+
+
+def _validate_stages(
+    lesson_id: str,
+    stages: list[Any],
+    vocab_ids: set[str],
+    expression_ids: set[str],
+    problems: list[Problem],
+    context_prefix: str = "",
+) -> None:
+    prefix = f"{context_prefix} / " if context_prefix else ""
+    stage_ids: set[str] = set()
+    for stage in stages:
+        sid = stage.get("id", "")
+        if not sid:
+            problems.append(
+                Problem(
+                    "error",
+                    f"{prefix}Stage in lesson {lesson_id} has empty id",
+                )
+            )
+        elif sid in stage_ids:
+            problems.append(
+                Problem(
+                    "error",
+                    f"{prefix}Duplicate stage id {sid} in lesson {lesson_id}",
+                )
+            )
+        else:
+            stage_ids.add(sid)
+
+        items = stage.get("items", [])
+        if not items:
+            problems.append(
+                Problem(
+                    "error",
+                    f"{prefix}Stage {sid} in lesson {lesson_id} has no items",
+                )
+            )
+            continue
+
+        item_ids: set[str] = set()
+        for i, item in enumerate(items):
+            item_id = item.get("id", "")
+            if not item_id:
+                problems.append(
+                    Problem(
+                        "error",
+                        f"{prefix}Item #{i} in stage {sid} (lesson {lesson_id}) "
+                        f"has empty id",
+                    )
+                )
+            elif item_id in item_ids:
+                problems.append(
+                    Problem(
+                        "error",
+                        f"{prefix}Duplicate item id {item_id} in stage {sid} "
+                        f"(lesson {lesson_id})",
+                    )
+                )
+            else:
+                item_ids.add(item_id)
+
+            if item.get("runtimeType") == "showWord":
+                word_id = item.get("wordId")
+                if word_id and word_id not in vocab_ids:
+                    problems.append(
+                        Problem(
+                            "error",
+                            f"{prefix}ShowWord {item_id} in stage {sid} "
+                            f"(lesson {lesson_id}) references missing wordId "
+                            f"{word_id}",
+                        )
+                    )
+                expr_id = item.get("expressionId")
+                if expr_id and expr_id not in expression_ids:
+                    problems.append(
+                        Problem(
+                            "error",
+                            f"{prefix}ShowWord {item_id} in stage {sid} "
+                            f"(lesson {lesson_id}) references missing "
+                            f"expressionId {expr_id}",
+                        )
+                    )
+
+
+def _validate_sub_lessons(
+    lesson_id: str,
+    sub_lessons: list[Any],
+    vocab_ids: set[str],
+    expression_ids: set[str],
+    problems: list[Problem],
+) -> None:
+    sub_ids: set[str] = set()
+    for sub in sub_lessons:
+        sid = sub.get("id", "")
+        if not sid:
+            problems.append(
+                Problem(
+                    "error",
+                    f"SubLesson in lesson {lesson_id} has empty id",
+                )
+            )
+        elif sid in sub_ids:
+            problems.append(
+                Problem(
+                    "error",
+                    f"Duplicate subLesson id {sid} in lesson {lesson_id}",
+                )
+            )
+        else:
+            sub_ids.add(sid)
+
+        stages = sub.get("stages", [])
+        if not stages:
+            problems.append(
+                Problem(
+                    "error",
+                    f"SubLesson {sid} in lesson {lesson_id} has no stages",
+                )
+            )
+            continue
+
+        _validate_stages(
+            lesson_id,
+            stages,
+            vocab_ids,
+            expression_ids,
+            problems,
+            context_prefix=sid,
+        )
+
+
+def _validate_listening_phases(
+    lesson_id: str,
+    phases: list[Any],
+    vocab_ids: set[str],
+    expression_ids: set[str],
+    problems: list[Problem],
+) -> None:
+    phase_ids: set[str] = set()
+    for phase in phases:
+        pid = phase.get("id", "")
+        if not pid:
+            problems.append(
+                Problem(
+                    "error",
+                    f"ListeningPhase in lesson {lesson_id} has empty id",
+                )
+            )
+        elif pid in phase_ids:
+            problems.append(
+                Problem(
+                    "error",
+                    f"Duplicate listeningPhase id {pid} in lesson {lesson_id}",
+                )
+            )
+        else:
+            phase_ids.add(pid)
+
+        phase_type = phase.get("type", "dialogue")
+        items = phase.get("items", [])
+        if phase_type != "summary" and not items:
+            problems.append(
+                Problem(
+                    "error",
+                    f"ListeningPhase {pid} in lesson {lesson_id} has no items",
+                )
+            )
+            continue
+
+        item_ids: set[str] = set()
+        for i, item in enumerate(items):
+            item_id = item.get("id", "")
+            if not item_id:
+                problems.append(
+                    Problem(
+                        "error",
+                        f"Item #{i} in listeningPhase {pid} (lesson {lesson_id}) "
+                        f"has empty id",
+                    )
+                )
+            elif item_id in item_ids:
+                problems.append(
+                    Problem(
+                        "error",
+                        f"Duplicate item id {item_id} in listeningPhase {pid} "
+                        f"(lesson {lesson_id})",
+                    )
+                )
+            else:
+                item_ids.add(item_id)
+
+            if item.get("runtimeType") == "showWord":
+                word_id = item.get("wordId")
+                if word_id and word_id not in vocab_ids:
+                    problems.append(
+                        Problem(
+                            "error",
+                            f"ShowWord {item_id} in listeningPhase {pid} "
+                            f"(lesson {lesson_id}) references missing wordId "
+                            f"{word_id}",
+                        )
+                    )
+                expr_id = item.get("expressionId")
+                if expr_id and expr_id not in expression_ids:
+                    problems.append(
+                        Problem(
+                            "error",
+                            f"ShowWord {item_id} in listeningPhase {pid} "
+                            f"(lesson {lesson_id}) references missing "
+                            f"expressionId {expr_id}",
+                        )
+                    )
+
+
+def cmd_validate(args: argparse.Namespace) -> int:
+    problems = _validate_course(args.course_dir)
+    errors = [p for p in problems if p.level == "error"]
+    for p in problems:
+        print(f"{p.level.upper()}: {p.message}")
+    if errors:
+        print(f"\nValidation failed with {len(errors)} error(s).")
+        return 1
+    print("Validation passed.")
+    return 0
+
+
+# --------------------------------------------------------------------------- #
+# CSV import / export
+# --------------------------------------------------------------------------- #
+
+
+def _join_list(value: Any) -> str:
+    if isinstance(value, list):
+        return ", ".join(str(v) for v in value)
+    return str(value) if value is not None else ""
+
+
+def _split_list(value: str) -> list[str]:
+    if not value or not value.strip():
+        return []
+    return [part.strip() for part in value.split(",") if part.strip()]
+
+
+def _write_csv(path: Path, headers: list[str], rows: list[dict[str, str]]) -> None:
+    with path.open("w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=headers)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({h: row.get(h, "") for h in headers})
+
+
+def _read_csv(path: Path) -> list[dict[str, str]]:
+    with path.open("r", encoding="utf-8", newline="") as f:
+        reader = csv.DictReader(f)
+        return list(reader)
+
+
+def cmd_export_csv(args: argparse.Namespace) -> int:
+    course_dir = args.course_dir
+    out_path = Path(args.output)
+
+    if args.type == "vocab":
+        entries = load_vocab(course_dir)
+        headers = ["id", "term", "translation", "pronunciation", "audioAsset", "tags"]
+        rows = [
+            {
+                "id": e.get("id", ""),
+                "term": e.get("term", ""),
+                "translation": e.get("translation", ""),
+                "pronunciation": e.get("pronunciation", ""),
+                "audioAsset": e.get("audioAsset", ""),
+                "tags": _join_list(e.get("tags", [])),
+            }
+            for e in sorted(entries, key=lambda x: x.get("id", ""))
+        ]
+    elif args.type == "expressions":
+        entries = load_expressions(course_dir)
+        headers = ["id", "term", "translation", "pronunciation", "audioAsset", "tags"]
+        rows = [
+            {
+                "id": e.get("id", ""),
+                "term": e.get("term", ""),
+                "translation": e.get("translation", ""),
+                "pronunciation": e.get("pronunciation", ""),
+                "audioAsset": e.get("audioAsset", ""),
+                "tags": _join_list(e.get("tags", [])),
+            }
+            for e in sorted(entries, key=lambda x: x.get("id", ""))
+        ]
+    elif args.type == "grammar_points":
+        entries = load_grammar_points(course_dir)
+        headers = [
+            "id",
+            "title",
+            "explanation",
+            "exampleExpressionIds",
+            "exampleSentenceIds",
+        ]
+        rows = [
+            {
+                "id": e.get("id", ""),
+                "title": e.get("title", ""),
+                "explanation": e.get("explanation", ""),
+                "exampleExpressionIds": _join_list(e.get("exampleExpressionIds", [])),
+                "exampleSentenceIds": _join_list(e.get("exampleSentenceIds", [])),
+            }
+            for e in sorted(entries, key=lambda x: x.get("id", ""))
+        ]
+    else:
+        print(f"Unknown export type: {args.type}", file=sys.stderr)
+        return 1
+
+    _write_csv(out_path, headers, rows)
+    print(f"Exported {len(rows)} {args.type} row(s) to {out_path}")
+    return 0
+
+
+def _validate_import_row(
+    row: dict[str, str],
+    row_type: str,
+    existing_by_id: dict[str, dict[str, Any]],
+    expression_ids: set[str],
+) -> list[Problem]:
+    problems: list[Problem] = []
+    eid = row.get("id", "").strip()
+    term = row.get("term", "").strip()
+    translation = row.get("translation", "").strip()
+
+    if not eid:
+        problems.append(Problem("error", "Row has empty id"))
+    if not term:
+        problems.append(Problem("error", f"Row {eid or '?'} has empty term"))
+    if not translation:
+        problems.append(Problem("error", f"Row {eid or '?'} has empty translation"))
+
+    if row_type == "vocab" and eid and not eid.startswith("w-"):
+        problems.append(
+            Problem("warning", f"Vocab id {eid} does not start with 'w-'")
+        )
+
+    if row_type == "grammar_points":
+        for expr_id in _split_list(row.get("exampleExpressionIds", "")):
+            if expr_id and expr_id not in expression_ids:
+                problems.append(
+                    Problem(
+                        "error",
+                        f"Grammar point {eid} references missing expressionId "
+                        f"{expr_id}",
+                    )
+                )
+
+    return problems
+
+
+def cmd_import_csv(args: argparse.Namespace) -> int:
+    course_dir = args.course_dir
+    in_path = Path(args.input)
+    dry_run = args.dry_run
+
+    if args.type == "vocab":
+        json_path = course_dir / "vocab.json"
+        data = load_json(json_path)
+        existing = {e["id"]: e for e in data.get("words", [])}
+        key = "words"
+        row_type = "vocab"
+        build_entry = lambda row: {
+            "id": row["id"].strip(),
+            "term": row["term"].strip(),
+            "translation": row["translation"].strip(),
+            "pronunciation": row.get("pronunciation", "").strip() or None,
+            "audioAsset": row.get("audioAsset", "").strip() or None,
+            "tags": _split_list(row.get("tags", "")),
+        }
+    elif args.type == "expressions":
+        json_path = course_dir / "expressions.json"
+        data = load_json(json_path)
+        existing = {e["id"]: e for e in (data.get("expressions", []) or [])}
+        key = "expressions"
+        row_type = "expressions"
+        build_entry = lambda row: {
+            "id": row["id"].strip(),
+            "term": row["term"].strip(),
+            "translation": row["translation"].strip(),
+            "pronunciation": row.get("pronunciation", "").strip() or None,
+            "audioAsset": row.get("audioAsset", "").strip() or None,
+            "tags": _split_list(row.get("tags", "")),
+        }
+    elif args.type == "grammar_points":
+        json_path = course_dir / "grammar_points.json"
+        data = load_json(json_path)
+        existing = {e["id"]: e for e in data.get("grammarPoints", [])}
+        key = "grammarPoints"
+        row_type = "grammar_points"
+        expression_ids = {e["id"] for e in load_expressions(course_dir)}
+        build_entry = lambda row: {
+            "id": row["id"].strip(),
+            "title": row["title"].strip(),
+            "explanation": row.get("explanation", "").strip(),
+            "exampleExpressionIds": _split_list(
+                row.get("exampleExpressionIds", "")
+            ),
+            "exampleSentenceIds": _split_list(
+                row.get("exampleSentenceIds", "")
+            ),
+            "practiceItems": existing.get(row["id"].strip(), {}).get(
+                "practiceItems", []
+            ),
+        }
+    else:
+        print(f"Unknown import type: {args.type}", file=sys.stderr)
+        return 1
+
+    rows = _read_csv(in_path)
+    expression_ids = {e["id"] for e in load_expressions(course_dir)}
+
+    problems: list[Problem] = []
+    for row in rows:
+        problems.extend(
+            _validate_import_row(row, row_type, existing, expression_ids)
+        )
+
+    errors = [p for p in problems if p.level == "error"]
+    for p in problems:
+        print(f"{p.level.upper()}: {p.message}")
+
+    if errors:
+        print(f"\nImport aborted: {len(errors)} error(s).", file=sys.stderr)
+        return 1
+
+    merged = dict(existing)
+    for row in rows:
+        entry = build_entry(row)
+        merged[entry["id"]] = entry
+
+    new_entries = sorted(merged.values(), key=lambda e: e["id"])
+    data[key] = new_entries
+
+    if dry_run:
+        print(
+            f"Dry run: would write {len(rows)} imported row(s), "
+            f"resulting in {len(new_entries)} total {args.type} entry(ies)."
+        )
+        return 0
+
+    save_json(json_path, data)
+    print(
+        f"Imported {len(rows)} row(s) into {json_path}; "
+        f"total {args.type} entries: {len(new_entries)}"
+    )
+    return 0
+
+
+# --------------------------------------------------------------------------- #
+# Lint
+# --------------------------------------------------------------------------- #
+
+
+def _lint_entries(
+    entries: list[dict[str, Any]],
+    kind: str,
+    referenced_ids: set[str],
+    problems: list[Problem],
+) -> None:
+    terms: dict[str, list[str]] = defaultdict(list)
+    translations: dict[str, list[str]] = defaultdict(list)
+
+    for entry in entries:
+        eid = entry.get("id", "")
+        term = entry.get("term", "")
+        translation = entry.get("translation", "")
+        tags = entry.get("tags", []) or []
+        audio = entry.get("audioAsset")
+
+        if not term:
+            problems.append(
+                Problem("error", f"{kind} {eid} has empty term")
+            )
+        if not translation:
+            problems.append(
+                Problem("error", f"{kind} {eid} has empty translation")
+            )
+
+        if term:
+            terms[term].append(eid)
+        if translation:
+            translations[translation].append(eid)
+
+        if not audio:
+            problems.append(
+                Problem(
+                    "warning",
+                    f"{kind} {eid} has no audioAsset",
+                )
+            )
+
+        if not tags:
+            problems.append(
+                Problem("warning", f"{kind} {eid} has no tags")
+            )
+        for tag in tags:
+            if tag not in ALLOWED_TAGS:
+                problems.append(
+                    Problem(
+                        "warning",
+                        f"{kind} {eid} has unknown tag '{tag}'",
+                    )
+                )
+
+        if eid and eid not in referenced_ids:
+            problems.append(
+                Problem("warning", f"{kind} {eid} is not referenced by any lesson")
+            )
+
+    for term, ids in terms.items():
+        if len(ids) > 1:
+            problems.append(
+                Problem(
+                    "warning",
+                    f"Duplicate {kind} term '{term}' across ids: {', '.join(ids)}",
+                )
+            )
+    for translation, ids in translations.items():
+        if len(ids) > 1:
+            problems.append(
+                Problem(
+                    "warning",
+                    f"Duplicate {kind} translation '{translation}' across ids: "
+                    f"{', '.join(ids)}",
+                )
+            )
+
+
+def cmd_lint(args: argparse.Namespace) -> int:
+    course_dir = args.course_dir
+    strict = args.strict
+
+    vocab = load_vocab(course_dir)
+    expressions = load_expressions(course_dir)
+    grammar_points = load_grammar_points(course_dir)
+
+    vocab_ids = {w["id"] for w in vocab}
+    expression_ids = {e["id"] for e in expressions}
+    grammar_ids = {g["id"] for g in grammar_points}
+
+    # Collect references from sections.
+    referenced_word_ids: set[str] = set()
+    referenced_expression_ids: set[str] = set()
+    referenced_grammar_ids: set[str] = set()
+    referenced_audio: dict[str, set[str]] = defaultdict(set)
+
+    for section_id, section in load_sections(course_dir):
+        normalize_section(section)
+        for unit in section.get("units", []):
+            for lesson in unit.get("lessons", []):
+                lid = lesson.get("id", "")
+                loc = f"{section_id}/{unit.get('id', '')}/{lid}"
+                content = lesson.get("content", {})
+                referenced_word_ids.update(collect_word_ids(content))
+                referenced_expression_ids.update(collect_expression_ids(content))
+                referenced_grammar_ids.update(collect_grammar_point_ids(content))
+                for asset in collect_audio_assets(content):
+                    referenced_audio[asset].add(loc)
+
+    problems: list[Problem] = []
+
+    _lint_entries(vocab, "word", referenced_word_ids, problems)
+    _lint_entries(expressions, "expression", referenced_expression_ids, problems)
+
+    # Grammar points lint.
+    for gp in grammar_points:
+        gid = gp.get("id", "")
+        title = gp.get("title", "")
+        if not title:
+            problems.append(Problem("error", f"grammar point {gid} has empty title"))
+        if gid not in referenced_grammar_ids:
+            problems.append(
+                Problem("warning", f"grammar point {gid} is not referenced by any lesson")
+            )
+        for eid in gp.get("exampleExpressionIds", []):
+            if eid and eid not in expression_ids:
+                problems.append(
+                    Problem(
+                        "error",
+                        f"grammar point {gid} references missing expressionId {eid}",
+                    )
+                )
+
+    # Dangling references in sections.
+    for section_id, section in load_sections(course_dir):
+        normalize_section(section)
+        for unit in section.get("units", []):
+            for lesson in unit.get("lessons", []):
+                lid = lesson.get("id", "")
+                loc = f"{section_id}/{unit.get('id', '')}/{lid}"
+                content = lesson.get("content", {})
+                for wid in collect_word_ids(content):
+                    if wid and wid not in vocab_ids:
+                        problems.append(
+                            Problem(
+                                "error",
+                                f"Dangling wordId {wid} in {loc}",
+                            )
+                        )
+                for eid in collect_expression_ids(content):
+                    if eid and eid not in expression_ids:
+                        problems.append(
+                            Problem(
+                                "error",
+                                f"Dangling expressionId {eid} in {loc}",
+                            )
+                        )
+                for gid in collect_grammar_point_ids(content):
+                    if gid and gid not in grammar_ids:
+                        problems.append(
+                            Problem(
+                                "error",
+                                f"Dangling grammarPointId {gid} in {loc}",
+                            )
+                        )
+
+    # Missing audio files.
+    for asset, locations in sorted(referenced_audio.items()):
+        asset_path = (SOUNDS_DIR / f"{asset}.mp3").resolve()
+        if not asset_path.exists():
+            problems.append(
+                Problem(
+                    "warning",
+                    f"Missing audio file for asset '{asset}' "
+                    f"(referenced in {', '.join(sorted(locations))})",
+                )
+            )
+
+    for p in problems:
+        print(f"{p.level.upper()}: {p.message}")
+
+    errors = [p for p in problems if p.level == "error"]
+    if errors:
+        print(f"\nLint found {len(errors)} error(s).")
+        return 1
+    if strict and any(p.level == "warning" for p in problems):
+        print("\nLint failed in strict mode due to warnings.")
+        return 1
+    print("Lint passed.")
+    return 0
+
+
+# --------------------------------------------------------------------------- #
+# Audio manifest
+# --------------------------------------------------------------------------- #
+
+
+def cmd_audio_manifest(args: argparse.Namespace) -> int:
+    course_dir = args.course_dir
+    out_path = Path(args.output)
+
+    rows: list[dict[str, str]] = []
+    referenced: dict[str, tuple[str, set[str]]] = {}
+
+    # From vocab.
+    for entry in load_vocab(course_dir):
+        eid = entry.get("id", "")
+        audio = entry.get("audioAsset")
+        if audio:
+            referenced.setdefault(
+                audio, ("word", set())
+            )[1].add(f"vocab/{eid}")
+
+    # From expressions.
+    for entry in load_expressions(course_dir):
+        eid = entry.get("id", "")
+        audio = entry.get("audioAsset")
+        if audio:
+            referenced.setdefault(
+                audio, ("expression", set())
+            )[1].add(f"expressions/{eid}")
+
+    # From sections.
+    for section_id, section in load_sections(course_dir):
+        normalize_section(section)
+        for unit in section.get("units", []):
+            for lesson in unit.get("lessons", []):
+                lid = lesson.get("id", "")
+                loc = f"{section_id}/{unit.get('id', '')}/{lid}"
+                content = lesson.get("content", {})
+                for asset in collect_audio_assets(content):
+                    kind = "lesson"
+                    if content.get("listeningPhases"):
+                        kind = "phase"
+                    referenced.setdefault(
+                        asset, (kind, set())
+                    )[1].add(loc)
+
+    for asset, (kind, locations) in sorted(referenced.items()):
+        asset_path = (SOUNDS_DIR / f"{asset}.mp3").resolve()
+        status = "present" if asset_path.exists() else "missing"
+        rows.append(
+            {
+                "asset_id": asset,
+                "type": kind,
+                "referenced_by": "; ".join(sorted(locations)),
+                "status": status,
+            }
+        )
+
+    headers = ["asset_id", "type", "referenced_by", "status"]
+    _write_csv(out_path, headers, rows)
+    print(f"Wrote audio manifest ({len(rows)} assets) to {out_path}")
+    return 0
+
+
+# --------------------------------------------------------------------------- #
+# Diff
+# --------------------------------------------------------------------------- #
+
+
+def _id_set(course_dir: Path, loader: Any, key: str) -> set[str]:
+    data = load_json(course_dir / f"{key}.json")
+    if key == "vocab":
+        entries = data.get("words", [])
+    elif key == "expressions":
+        entries = data.get("expressions", []) or []
+    elif key == "grammar_points":
+        entries = data.get("grammarPoints", [])
+    else:
+        entries = []
+    return {e.get("id", "") for e in entries if e.get("id")}
+
+
+def _section_ids(course_dir: Path) -> set[str]:
+    index = load_index(course_dir)
+    return {s.get("id", "") for s in index.get("sections", []) if s.get("id")}
+
+
+def _diff_sets(
+    before: set[str],
+    after: set[str],
+    label: str,
+) -> list[str]:
+    added = after - before
+    removed = before - after
+    changed = before & after
+    lines: list[str] = []
+    if added:
+        lines.append(f"  added ({label}): {', '.join(sorted(added))}")
+    if removed:
+        lines.append(f"  removed ({label}): {', '.join(sorted(removed))}")
+    if changed:
+        lines.append(f"  unchanged ({label}): {len(changed)} id(s)")
+    return lines
+
+
+def cmd_diff(args: argparse.Namespace) -> int:
+    before_dir = Path(args.before)
+    after_dir = Path(args.after)
+
+    print(f"Diff: {before_dir} -> {after_dir}")
+    for label, key in [
+        ("vocab", "vocab"),
+        ("expressions", "expressions"),
+        ("grammar_points", "grammar_points"),
+    ]:
+        before_ids = _id_set(before_dir, load_json, key)
+        after_ids = _id_set(after_dir, load_json, key)
+        lines = _diff_sets(before_ids, after_ids, label)
+        if lines:
+            print(f"\n{label}:")
+            for line in lines:
+                print(line)
+
+    before_sections = _section_ids(before_dir)
+    after_sections = _section_ids(after_dir)
+    lines = _diff_sets(before_sections, after_sections, "sections")
+    if lines:
+        print("\nsections:")
+        for line in lines:
+            print(line)
+
+    return 0
+
+
+# --------------------------------------------------------------------------- #
+# CLI entry point
+# --------------------------------------------------------------------------- #
+
+
+def _course_dir(value: str) -> Path:
+    path = Path(value)
+    if not path.is_dir():
+        raise argparse.ArgumentTypeError(f"Not a directory: {value}")
+    return path
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Varnamala course content toolchain",
+    )
+    parser.add_argument(
+        "--course-dir",
+        type=_course_dir,
+        default=DEFAULT_COURSE_DIR,
+        help="Course directory to operate on (default: assets/courses/swahili)",
+    )
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    # validate
+    p_validate = subparsers.add_parser(
+        "validate", help="Validate course JSON against invariants"
+    )
+    p_validate.set_defaults(func=cmd_validate)
+
+    # export-csv
+    p_export = subparsers.add_parser(
+        "export-csv", help="Export vocab/expressions/grammar_points to CSV"
+    )
+    p_export.add_argument(
+        "--type",
+        required=True,
+        choices=["vocab", "expressions", "grammar_points"],
+        help="Which table to export",
+    )
+    p_export.add_argument(
+        "--output", required=True, help="Output CSV file path"
+    )
+    p_export.set_defaults(func=cmd_export_csv)
+
+    # import-csv
+    p_import = subparsers.add_parser(
+        "import-csv", help="Import vocab/expressions/grammar_points from CSV"
+    )
+    p_import.add_argument(
+        "--type",
+        required=True,
+        choices=["vocab", "expressions", "grammar_points"],
+        help="Which table to import",
+    )
+    p_import.add_argument("--input", required=True, help="Input CSV file path")
+    p_import.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Validate without writing files",
+    )
+    p_import.set_defaults(func=cmd_import_csv)
+
+    # lint
+    p_lint = subparsers.add_parser(
+        "lint", help="Check content quality (warnings and errors)"
+    )
+    p_lint.add_argument(
+        "--strict",
+        action="store_true",
+        help="Treat warnings as errors",
+    )
+    p_lint.set_defaults(func=cmd_lint)
+
+    # audio-manifest
+    p_audio = subparsers.add_parser(
+        "audio-manifest", help="Generate CSV of referenced audio assets"
+    )
+    p_audio.add_argument(
+        "--output", required=True, help="Output CSV file path"
+    )
+    p_audio.set_defaults(func=cmd_audio_manifest)
+
+    # diff
+    p_diff = subparsers.add_parser(
+        "diff", help="Compare two course directories by id sets"
+    )
+    p_diff.add_argument("--before", required=True, help="Before course directory")
+    p_diff.add_argument("--after", required=True, help="After course directory")
+    p_diff.set_defaults(func=cmd_diff)
+
+    args = parser.parse_args(argv)
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

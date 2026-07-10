@@ -59,3 +59,8 @@ ios/Runner/GoogleService-Info.plist
 lib/firebase_options.dart
 node_modules/
 serviceAccountKey.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
