@@ -225,6 +225,30 @@ class GameProvider extends ChangeNotifier {
     await appPrefs.preferences.setInt(LocalStateKeys.gems, current + amount);
   }
 
+  /// Clears all per-lesson completion / perfect records. Used from Settings.
+  Future<void> resetLessonProgress() async {
+    _completedLessonIds.clear();
+    _perfectLessonIds.clear();
+
+    await Future.wait([
+      appPrefs.preferences.setStringList(
+        LocalStateKeys.completedLessonIds,
+        const <String>[],
+      ),
+      appPrefs.preferences.setStringList(
+        LocalStateKeys.perfectLessonIds,
+        const <String>[],
+      ),
+      appPrefs.preferences.setInt(LocalStateKeys.lessonsCompleted, 0),
+      appPrefs.preferences.setInt(LocalStateKeys.perfectLessons, 0),
+      appPrefs.preferences.setInt(LocalStateKeys.wordsLearned, 0),
+    ]);
+
+    notifyListeners();
+    _emitState();
+    _completedLessonsController.add(const <String>{});
+  }
+
   Future<void> recordLessonCompletion({
     required String lessonId,
     required bool wasPerfect,

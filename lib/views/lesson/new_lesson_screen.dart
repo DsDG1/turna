@@ -381,6 +381,8 @@ class _NewLessonPageState extends State<NewLessonPage> {
       ),
     );
 
+    _dialogShown = false;
+
     // Pop back to course tree
     if (mounted) {
       navigator.maybePop();
