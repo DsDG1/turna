@@ -14,6 +14,8 @@ import 'package:words625/application/grammar_review_provider.dart';
 import 'package:words625/application/mistake_provider.dart';
 import 'package:words625/application/srs_provider.dart';
 import 'package:words625/application/study_stats_provider.dart';
+import 'package:words625/core/logger.dart';
+import 'package:words625/core/result.dart';
 import 'package:words625/courses/course_loader.dart';
 import 'package:words625/domain/course/interaction.dart';
 import 'package:words625/domain/course/lesson.dart';
@@ -420,43 +422,58 @@ class LessonViewModel extends ChangeNotifier {
 
   // --- Completion hooks (ported from old LessonProvider) ---
 
+  /// Run a completion side-effect, routing any failure through the logger
+  /// tagged with [label]. Each side-effect is independent: one failing does
+  /// not abort the others (matching the previous per-block try/catch
+  /// semantics), but the boilerplate is collapsed into one place and errors
+  /// are observable instead of `debugPrint`-only.
+  Future<void> _runSideEffect(
+    String label,
+    Future<void> Function() action,
+  ) async {
+    final result = await Result.guard(action);
+    if (result.isFailure) {
+      logger.w('Lesson completion: $label failed', error: result.error);
+    }
+  }
+
   Future<void> _onLessonCompleted() async {
     final wasPerfect = _totalMistakes == 0;
 
+    // XP and gems: awarded in parallel, each resilient to the other failing.
     await Future.wait([
-      _gameProvider.awardXP(XPEvent.lessonComplete).catchError((e) {
-        debugPrint('Error awarding lesson-complete XP: $e');
-        return Future<int>.value(0);
-      }),
-      _gemsProvider.earnGems(GemEvent.lessonComplete).catchError((e) {
-        debugPrint('Error earning lesson-complete gems: $e');
-        return null;
-      }),
+      _runSideEffect(
+        'award lesson-complete XP',
+        () => _gameProvider.awardXP(XPEvent.lessonComplete),
+      ),
+      _runSideEffect(
+        'earn lesson-complete gems',
+        () => _gemsProvider.earnGems(GemEvent.lessonComplete),
+      ),
     ]);
 
     if (wasPerfect) {
       await Future.wait([
-        _gameProvider.awardXP(XPEvent.perfectLesson).catchError((e) {
-          debugPrint('Error awarding perfect-lesson XP: $e');
-          return Future<int>.value(0);
-        }),
-        _gemsProvider.earnGems(GemEvent.perfectLesson).catchError((e) {
-          debugPrint('Error earning perfect-lesson gems: $e');
-          return null;
-        }),
+        _runSideEffect(
+          'award perfect-lesson XP',
+          () => _gameProvider.awardXP(XPEvent.perfectLesson),
+        ),
+        _runSideEffect(
+          'earn perfect-lesson gems',
+          () => _gemsProvider.earnGems(GemEvent.perfectLesson),
+        ),
       ]);
     }
 
-    try {
-      await _gameProvider.recordLessonCompletion(
+    await _runSideEffect(
+      'record lesson completion',
+      () => _gameProvider.recordLessonCompletion(
         lessonId: _lesson!.id,
         wasPerfect: wasPerfect,
-      );
-    } catch (e) {
-      debugPrint('Error recording lesson completion: $e');
-    }
+      ),
+    );
 
-    try {
+    await _runSideEffect('check lesson milestones', () async {
       final userData = await _gameProvider.getUserGameStateOnce();
       final lessonsCompleted =
           (userData['lessonsCompleted'] as num? ?? 0).toInt();
@@ -466,12 +483,10 @@ class LessonViewModel extends ChangeNotifier {
         lessonsCompleted: lessonsCompleted,
         perfectLessons: perfectLessons,
       );
-    } catch (e) {
-      debugPrint('Error checking lesson milestones: $e');
-    }
+    });
 
-    // Record study activity for statistics dashboard
-    try {
+    // Record study activity for statistics dashboard.
+    await _runSideEffect('record study stats', () async {
       final duration = _lessonStartTime != null
           ? DateTime.now().difference(_lessonStartTime!).inSeconds
           : 0;
@@ -486,8 +501,6 @@ class LessonViewModel extends ChangeNotifier {
         correctCount: _correctAnswers,
         incorrectCount: _incorrectAnswers,
       );
-    } catch (e) {
-      debugPrint('Error recording study stats: $e');
-    }
+    });
   }
 }

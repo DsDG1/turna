@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart' hide Expression;
 
 // Project imports:
+import 'package:words625/core/logger.dart';
 import 'package:words625/data/course_database.dart' as db;
 import 'package:words625/domain/course/expression.dart';
 import 'package:words625/domain/course/grammar_point.dart';
@@ -98,7 +99,8 @@ class CourseRepository {
       explanation: row.explanation,
       exampleExpressionIds: _decodeStringList(row.exampleExpressionIds),
       exampleSentenceIds: _decodeStringList(row.exampleSentenceIds),
-      practiceItems: _decodePracticeItems(row.practiceItems),
+      practiceItems:
+          _decodePracticeItems(row.practiceItems, owner: 'grammar point ${row.id}'),
     );
   }
 
@@ -113,13 +115,18 @@ class CourseRepository {
     );
   }
 
-  List<Interaction> _decodePracticeItems(String raw) {
+  /// Decode the stored practice-item JSON for a grammar point. A corrupted
+  /// column degrades to an empty practice list but is logged with [owner]
+  /// (e.g. the grammar point id) so the corruption is observable instead of
+  /// silently swallowed.
+  List<Interaction> _decodePracticeItems(String raw, {required String owner}) {
     try {
       final list = jsonDecode(raw) as List<dynamic>;
       return list
           .map((e) => Interaction.fromJson(e as Map<String, dynamic>))
           .toList();
-    } catch (_) {
+    } catch (e) {
+      logger.w('Corrupted practiceItems for $owner, treating as empty: $e');
       return const <Interaction>[];
     }
   }
