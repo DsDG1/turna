@@ -148,16 +148,20 @@ class AudioController {
     if (text.isEmpty) return;
 
     final effectiveSpeed = speed ?? _ttsSpeed;
+    final engine = _settingsProvider.ttsEngine;
 
-    if (_settingsProvider.ttsEngine == TtsEngine.system) {
+    if (engine == TtsEngine.system) {
       try {
         await _ensureSystemTtsReady();
         await _tts.setSpeechRate(effectiveSpeed);
         await _tts.stop();
+        debugPrint(
+          'TTS route: system primary (lang=$_lastTtsLanguage, rate=$effectiveSpeed)',
+        );
         await _tts.speak(text);
         return;
       } catch (e) {
-        debugPrint('System TTS failed, trying offline fallback: $e');
+        debugPrint('TTS route: system failed → piper fallback: $e');
       }
     }
 
@@ -165,6 +169,11 @@ class AudioController {
     if (piper != null &&
         _languageProvider.selectedLanguage == TargetLanguage.swahili) {
       try {
+        debugPrint(
+          engine == TtsEngine.offline
+              ? 'TTS route: offline primary (piper, rate=$effectiveSpeed)'
+              : 'TTS route: piper fallback (rate=$effectiveSpeed)',
+        );
         await piper.speak(text, speed: effectiveSpeed);
         return;
       } catch (e) {
@@ -174,11 +183,14 @@ class AudioController {
 
     // If the user explicitly chose offline but Piper is unavailable, still
     // try the system TTS so the user gets some feedback instead of silence.
-    if (_settingsProvider.ttsEngine == TtsEngine.offline) {
+    if (engine == TtsEngine.offline) {
       try {
         await _ensureSystemTtsReady();
         await _tts.setSpeechRate(effectiveSpeed);
         await _tts.stop();
+        debugPrint(
+          'TTS route: offline failed → system fallback (lang=$_lastTtsLanguage)',
+        );
         await _tts.speak(text);
       } catch (e) {
         debugPrint('Offline fallback also failed: $e');

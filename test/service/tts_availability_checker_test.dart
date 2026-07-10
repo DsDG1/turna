@@ -184,6 +184,52 @@ void main() {
         await checker.configureSystemEngine(force: true);
         expect(tts.lastEngine, 'com.google.android.tts');
       });
+
+      test(
+        'vivo-only engine: any system may be available but preferred is not',
+        () async {
+          final tts = _FakeFlutterTts(
+            engines: const ['com.vivo.aiservice'],
+            availableLanguages: const {'sw'},
+          );
+          final checker = TtsAvailabilityChecker(tts);
+
+          expect(await checker.hasGoogleTtsEngine(), isFalse);
+          expect(await checker.listEngineNames(), ['com.vivo.aiservice']);
+          // OEM can still claim Swahili — not learning-quality preferred path.
+          expect(await checker.isSystemTtsAvailable('sw'), isTrue);
+          expect(await checker.isPreferredSystemTtsAvailable('sw'), isFalse);
+        },
+      );
+
+      test(
+        'preferred system TTS requires Google engine and locale',
+        () async {
+          final tts = _FakeFlutterTts(
+            engines: const ['com.google.android.tts'],
+            availableLanguages: const {'sw-KE'},
+          );
+          final checker = TtsAvailabilityChecker(tts);
+
+          expect(await checker.hasGoogleTtsEngine(), isTrue);
+          expect(await checker.isPreferredSystemTtsAvailable('sw'), isTrue);
+          expect(tts.lastEngine, 'com.google.android.tts');
+        },
+      );
+
+      test(
+        'Google installed but no Swahili pack -> preferred unavailable',
+        () async {
+          final tts = _FakeFlutterTts(
+            engines: const ['com.google.android.tts'],
+            availableLanguages: const {},
+          );
+          final checker = TtsAvailabilityChecker(tts);
+
+          expect(await checker.hasGoogleTtsEngine(), isTrue);
+          expect(await checker.isPreferredSystemTtsAvailable('sw'), isFalse);
+        },
+      );
     });
   });
 }

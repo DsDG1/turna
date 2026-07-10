@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:varnamala/application/course_provider.dart';
 import 'package:varnamala/domain/course/section.dart';
+import 'package:varnamala/views/courses/components/section_visuals.dart';
 import 'package:varnamala/views/theme.dart';
 
 @RoutePage()
@@ -67,8 +68,7 @@ class _SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final level = section.level ?? '';
-    final levelColors = _levelColors(level);
+    final colors = SectionVisuals.colorsFor(section.id);
 
     return Material(
       color: VarnamalaTheme.cardBg(context),
@@ -92,25 +92,20 @@ class _SectionCard extends StatelessWidget {
           ),
           child: Row(
             children: [
-              // Level badge
+              // Thematic section icon
               Container(
                 width: 56,
                 height: 56,
                 decoration: BoxDecoration(
-                  color: levelColors.background,
+                  color: colors.background,
                   borderRadius: BorderRadius.circular(
                     VarnamalaTheme.radiusMedium,
                   ),
                 ),
-                child: Center(
-                  child: Text(
-                    level,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: levelColors.foreground,
-                    ),
-                  ),
+                child: Icon(
+                  SectionVisuals.iconFor(section.id),
+                  size: 28,
+                  color: colors.foreground,
                 ),
               ),
               const SizedBox(width: 14),
@@ -160,35 +155,5 @@ class _SectionCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  ({Color background, Color foreground}) _levelColors(String level) {
-    switch (level) {
-      case 'A1':
-        return (
-          background: VarnamalaTheme.success.withValues(alpha: 0.18),
-          foreground: VarnamalaTheme.successDark,
-        );
-      case 'A2':
-        return (
-          background: VarnamalaTheme.peacockCyan.withValues(alpha: 0.18),
-          foreground: VarnamalaTheme.peacockTeal,
-        );
-      case 'B1':
-        return (
-          background: VarnamalaTheme.warning.withValues(alpha: 0.18),
-          foreground: VarnamalaTheme.warning,
-        );
-      case 'B2':
-        return (
-          background: VarnamalaTheme.leagueAmethyst.withValues(alpha: 0.18),
-          foreground: VarnamalaTheme.leagueAmethyst,
-        );
-      default:
-        return (
-          background: VarnamalaTheme.tintSoft,
-          foreground: VarnamalaTheme.textSecondary,
-        );
-    }
   }
 }
