@@ -18,8 +18,10 @@ import 'package:words625/application/lesson_link_store.dart';
 import 'package:words625/application/lesson_viewmodel.dart';
 import 'package:words625/application/mistake_provider.dart';
 import 'package:words625/application/srs_provider.dart';
+import 'package:words625/application/settings_provider.dart';
 import 'package:words625/application/study_stats_provider.dart';
 import 'package:words625/data/study_log_repository.dart';
+import 'package:words625/di/injection.dart';
 import 'package:words625/domain/course/interaction.dart';
 import 'package:words625/domain/course/lesson.dart';
 import 'package:words625/domain/course/lesson_content.dart';
@@ -147,6 +149,16 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     sp = await StreamingSharedPreferences.instance;
     prefs = AppPrefs(sp);
+    // _FakeAudioController extends AudioController, whose constructor reads
+    // ttsSpeed from SettingsProvider via getIt. Register both before building
+    // the harness (which constructs the audio controller).
+    await getIt.reset();
+    getIt.registerLazySingleton<AppPrefs>(() => prefs);
+    getIt.registerLazySingleton<SettingsProvider>(() => SettingsProvider(prefs));
+  });
+
+  tearDown(() async {
+    await getIt.reset();
   });
 
   test('mastery 4/6 surfaces real stats, not placeholder', () async {

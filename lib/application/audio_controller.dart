@@ -40,9 +40,7 @@ class AudioController {
   })  : _audioPlayer = audioPlayer,
         _speechPlayer = speechPlayer,
         _piperTts = piperTts {
-    if (getIt.isRegistered<SettingsProvider>()) {
-      _ttsSpeed = getIt<SettingsProvider>().ttsSpeed;
-    }
+    _ttsSpeed = getIt<SettingsProvider>().ttsSpeed;
   }
 
   // List of error sound assets
@@ -76,16 +74,11 @@ class AudioController {
   }
 
   void _triggerHaptic(HapticFeedbackType type) {
-    if (getIt.isRegistered<SettingsProvider>()) {
-      getIt<SettingsProvider>().triggerHaptic(type);
-    }
+    getIt<SettingsProvider>().triggerHaptic(type);
   }
 
   Future<void> _playSound(String assetPath) async {
-    final settings = getIt.isRegistered<SettingsProvider>()
-        ? getIt<SettingsProvider>()
-        : null;
-    if (!(settings?.soundEffectsEnabled ?? true)) return;
+    if (!getIt<SettingsProvider>().soundEffectsEnabled) return;
     try {
       // need to remove the assets/ prefix from the asset path
       final String path = assetPath.replaceFirst('assets/', '');

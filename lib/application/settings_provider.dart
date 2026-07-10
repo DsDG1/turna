@@ -2,6 +2,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+// Package imports:
+import 'package:injectable/injectable.dart';
+
 // Project imports:
 import 'package:words625/service/locator.dart';
 
@@ -9,6 +12,7 @@ import 'package:words625/service/locator.dart';
 ///
 /// Uses [AppPrefs] / StreamingSharedPreferences under the hood and exposes
 /// a [ChangeNotifier] API so the UI can react instantly.
+@lazySingleton
 class SettingsProvider extends ChangeNotifier {
   final AppPrefs _appPrefs;
 

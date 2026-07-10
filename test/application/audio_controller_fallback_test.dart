@@ -5,10 +5,15 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:words625/application/audio_controller.dart';
 import 'package:words625/application/language_provider.dart';
+import 'package:words625/application/settings_provider.dart';
 import 'package:words625/courses/languages/swahili_vocab.dart';
+import 'package:words625/di/injection.dart';
 import 'package:words625/domain/course/word_entry.dart';
+import 'package:words625/service/locator.dart';
 
 class _FakeFlutterTts implements FlutterTts {
   @override
@@ -55,11 +60,22 @@ void main() {
   group('AudioController.speakWord fallback', () {
     late _TestAudioController controller;
 
-    setUp(() {
+    setUp(() async {
+      // AudioController reads ttsSpeed from SettingsProvider on construction,
+      // so register a real one backed by mock prefs before building it.
+      await getIt.reset();
+      SharedPreferences.setMockInitialValues({});
+      final sp = await StreamingSharedPreferences.instance;
+      final prefs = AppPrefs(sp);
+      getIt.registerLazySingleton<AppPrefs>(() => prefs);
+      getIt.registerLazySingleton<SettingsProvider>(
+        () => SettingsProvider(prefs),
+      );
       controller = _TestAudioController();
     });
 
-    tearDown(() {
+    tearDown(() async {
+      await getIt.reset();
       swahiliVocabById.remove('w-test-audio');
       swahiliVocabById.remove('w-test-no-audio');
       swahiliVocabById.remove('w-test-empty-audio');

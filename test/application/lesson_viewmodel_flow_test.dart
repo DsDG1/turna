@@ -17,8 +17,10 @@ import 'package:words625/application/lesson_link_store.dart';
 import 'package:words625/application/lesson_viewmodel.dart';
 import 'package:words625/application/mistake_provider.dart';
 import 'package:words625/application/srs_provider.dart';
+import 'package:words625/application/settings_provider.dart';
 import 'package:words625/application/study_stats_provider.dart';
 import 'package:words625/data/study_log_repository.dart';
+import 'package:words625/di/injection.dart';
 import 'package:words625/domain/course/interaction.dart';
 import 'package:words625/domain/course/lesson.dart';
 import 'package:words625/domain/course/lesson_content.dart';
@@ -253,6 +255,18 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     prefs = await StreamingSharedPreferences.instance;
     appPrefs = AppPrefs(prefs);
+    // _FakeAudioController extends AudioController, whose constructor reads
+    // ttsSpeed from SettingsProvider via getIt. Register both before building
+    // the harness (which constructs the audio controller).
+    await getIt.reset();
+    getIt.registerLazySingleton<AppPrefs>(() => appPrefs);
+    getIt.registerLazySingleton<SettingsProvider>(
+      () => SettingsProvider(appPrefs),
+    );
+  });
+
+  tearDown(() async {
+    await getIt.reset();
   });
 
   group('LessonViewModel flow', () {

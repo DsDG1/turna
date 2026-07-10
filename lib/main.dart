@@ -1,4 +1,6 @@
 // Flutter imports:
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -7,13 +9,35 @@ import 'package:flutter_tts/flutter_tts.dart';
 
 // Project imports:
 import 'package:words625/application/course_provider.dart';
-import 'package:words625/application/settings_provider.dart';
+import 'package:words625/core/logger.dart';
 import 'package:words625/di/injection.dart';
 import 'package:words625/routing/routing.dart';
 import 'package:words625/service/locator.dart';
 import 'package:words625/views/app.dart';
 
+/// Install global error handlers so uncaught framework and platform errors
+/// are observable in the app log instead of disappearing. This is an offline
+/// app, so errors are logged locally only — never sent to a remote backend.
+void _installGlobalErrorHandlers() {
+  // Framework errors that the Flutter framework would otherwise print to
+  // the console in debug and swallow in release.
+  FlutterError.onError = (FlutterErrorDetails details) {
+    logger.e('Uncaught framework error', error: details.exception,
+        stackTrace: details.stack);
+    FlutterError.presentError(details);
+  };
+
+  // Errors thrown outside the Flutter framework (isolates, async gaps).
+  PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
+    logger.e('Uncaught platform error', error: error, stackTrace: stack);
+    return true; // handled: suppress the default crash print.
+  };
+}
+
 Future<void> main() async {
+  // Capture errors as early as possible, before any binding work runs.
+  _installGlobalErrorHandlers();
+
   WidgetsFlutterBinding.ensureInitialized();
   configureDependencies();
   getIt.registerLazySingleton<AppRouter>(() => AppRouter());
@@ -21,12 +45,6 @@ Future<void> main() async {
   // AppPrefs (and other async-native services) must be registered before the
   // first frame because MultiProvider creates ThemeProvider immediately.
   await setupLocator();
-
-  // Register settings manually so the AudioController and UI can read the same
-  // persisted values without relying on injectable code generation.
-  getIt.registerLazySingleton<SettingsProvider>(
-    () => SettingsProvider(getIt<AppPrefs>()),
-  );
 
   // Eagerly kick off the course load so CourseTree (and any other consumer)
   // never has to trigger the load itself from a widget lifecycle method.

@@ -15,7 +15,7 @@ import 'package:words625/application/audio_controller.dart';
 import 'package:words625/core/extensions.dart';
 import 'package:words625/core/logger.dart';
 import 'package:words625/di/injection.dart';
-import 'package:words625/match_levels.dart';
+import 'package:words625/views/play/match_levels.dart';
 import 'package:words625/service/locator.dart';
 
 @lazySingleton

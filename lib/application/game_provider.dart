@@ -8,6 +8,7 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:words625/application/gems_provider.dart';
+import 'package:words625/core/achievement_config.dart';
 import 'package:words625/di/injection.dart';
 import 'package:words625/service/locator.dart';
 
@@ -362,23 +363,12 @@ class GameProvider extends ChangeNotifier {
     _scoreController.add(state['score'] as int);
   }
 
-  int _unlockXpAchievements(Set<String> achievements, int score) {
-    var gemsReward = 0;
-    if (score >= 1000 && achievements.add('xp_1000')) gemsReward += 25;
-    if (score >= 10000 && achievements.add('xp_10000')) gemsReward += 100;
-    if (score >= 50000 && achievements.add('xp_50000')) gemsReward += 250;
-    return gemsReward;
-  }
+  int _unlockXpAchievements(Set<String> achievements, int score) =>
+      AchievementConfig.gemsForThreshold(AchievementConfig.xp, score, achievements);
 
-  int _unlockStreakAchievements(Set<String> achievements, int streak) {
-    var gemsReward = 0;
-    if (streak >= 3 && achievements.add('streak_3')) gemsReward += 15;
-    if (streak >= 7 && achievements.add('streak_7')) gemsReward += 50;
-    if (streak >= 30 && achievements.add('streak_30')) gemsReward += 200;
-    if (streak >= 100 && achievements.add('streak_100')) gemsReward += 500;
-    if (streak >= 365 && achievements.add('streak_365')) gemsReward += 1000;
-    return gemsReward;
-  }
+  int _unlockStreakAchievements(Set<String> achievements, int streak) =>
+      AchievementConfig.gemsForThreshold(
+          AchievementConfig.streak, streak, achievements);
 
   DateTime? _parseDate(dynamic value) {
     if (value == null) return null;
