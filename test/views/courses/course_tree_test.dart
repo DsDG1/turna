@@ -73,22 +73,41 @@ class _FakeGameProvider extends ChangeNotifier implements GameProvider {
 /// its load state without touching the real database.
 class _FakeCourseProvider extends CourseProvider {
   _FakeCourseProvider({
-    required Section currentSection,
+    Section? currentSection,
+    List<Section>? sections,
     required SectionLoadState loadState,
     Object? loadError,
+    bool isLoaded = true,
   })  : _currentSection = currentSection,
+        _sectionsOverride = sections,
         _loadState = loadState,
-        _loadError = loadError;
+        _loadError = loadError,
+        _isLoadedFlag = isLoaded;
 
-  final Section _currentSection;
+  final Section? _currentSection;
+  final List<Section>? _sectionsOverride;
   final SectionLoadState _loadState;
   final Object? _loadError;
+  final bool _isLoadedFlag;
+
+  /// Ids passed to [ensureSectionLoaded] (defensive CourseTree schedule).
+  final List<String> ensureCalledFor = [];
+
+  /// How many times [reloadCourse] was invoked (empty-shell Retry).
+  int reloadCourseCalls = 0;
 
   @override
-  List<Section> get sections => [_currentSection];
+  bool get isLoaded => _isLoadedFlag;
 
   @override
-  String? get currentSectionId => _currentSection.id;
+  List<Section> get sections {
+    if (_sectionsOverride != null) return _sectionsOverride!;
+    if (_currentSection != null) return [_currentSection!];
+    return const [];
+  }
+
+  @override
+  String? get currentSectionId => _currentSection?.id;
 
   @override
   Section? get currentSection => _currentSection;
@@ -106,9 +125,20 @@ class _FakeCourseProvider extends CourseProvider {
   bool isSectionLoading(String id) => _loadState == SectionLoadState.loading;
 
   @override
+  Future<void> ensureSectionLoaded(String id) async {
+    ensureCalledFor.add(id);
+  }
+
+  @override
   Future<void> reloadSection(String id) async {
     // No-op for the error-state UI test; a real retry test would pump a new
     // provider with a loaded state.
+    notifyListeners();
+  }
+
+  @override
+  Future<void> reloadCourse() async {
+    reloadCourseCalls++;
     notifyListeners();
   }
 }
@@ -141,6 +171,9 @@ void main() {
       expect(find.text('Loading courses...'), findsOneWidget);
       expect(find.text('No units available'), findsNothing);
       expect(find.text('Retry'), findsNothing);
+      // loading is not initial — defensive ensure must not fire
+      await tester.pump();
+      expect(provider.ensureCalledFor, isEmpty);
     });
 
     testWidgets('shows the empty state when the section has no units',
@@ -171,6 +204,58 @@ void main() {
       expect(find.text('Retry'), findsOneWidget);
       expect(find.text('No units available'), findsNothing);
       expect(find.text('Loading courses...'), findsNothing);
+    });
+
+    testWidgets(
+        'shows course-empty error (not infinite spinner) when loaded with no sections',
+        (tester) async {
+      final provider = _FakeCourseProvider(
+        sections: const [],
+        loadState: SectionLoadState.initial,
+        isLoaded: true,
+      );
+
+      await tester.pumpWidget(pumpTree(provider));
+
+      expect(find.text('Could not load course'), findsOneWidget);
+      expect(find.text('No course sections found.'), findsOneWidget);
+      expect(find.text('Retry'), findsOneWidget);
+      expect(find.text('Loading courses...'), findsNothing);
+
+      await tester.tap(find.text('Retry'));
+      await tester.pump();
+      expect(provider.reloadCourseCalls, 1);
+    });
+
+    testWidgets(
+        'still shows spinner when sections are empty but load not finished',
+        (tester) async {
+      final provider = _FakeCourseProvider(
+        sections: const [],
+        loadState: SectionLoadState.initial,
+        isLoaded: false,
+      );
+
+      await tester.pumpWidget(pumpTree(provider));
+
+      expect(find.text('Loading courses...'), findsOneWidget);
+      expect(find.text('Could not load course'), findsNothing);
+    });
+
+    testWidgets(
+        'defensively ensures section body when load state is initial',
+        (tester) async {
+      final provider = _FakeCourseProvider(
+        currentSection: _shellSection('s-init'),
+        loadState: SectionLoadState.initial,
+      );
+
+      await tester.pumpWidget(pumpTree(provider));
+      expect(find.text('Loading courses...'), findsOneWidget);
+      // pumpWidget completes a frame, so the post-frame ensure may already
+      // have run; an extra pump covers bindings that defer it.
+      await tester.pump();
+      expect(provider.ensureCalledFor, contains('s-init'));
     });
 
     testWidgets('renders unit cards when the section is loaded',

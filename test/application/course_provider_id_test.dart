@@ -163,5 +163,21 @@ void main() {
       expect(provider.sectionLoadState(sectionId), SectionLoadState.loaded);
       expect(provider.currentSection!.units.length, unitsBefore);
     });
+
+    test('reloadCourse resets shells and reloads first section body', () async {
+      await provider.load();
+      final firstSectionId = provider.currentSectionId;
+      final unitsBefore = provider.currentSection?.units.length ?? 0;
+      expect(firstSectionId, isNotNull);
+      expect(unitsBefore, greaterThan(0));
+
+      await provider.reloadCourse();
+
+      expect(provider.isLoaded, isTrue);
+      expect(provider.sections, isNotEmpty);
+      expect(provider.currentSectionId, firstSectionId);
+      expect(provider.sectionLoadState(firstSectionId!), SectionLoadState.loaded);
+      expect(provider.currentSection?.units.length ?? 0, unitsBefore);
+    });
   });
 }

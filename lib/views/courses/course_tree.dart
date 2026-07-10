@@ -23,10 +23,16 @@ class CourseTree extends StatefulWidget {
 
 class _CourseTreeState extends State<CourseTree> {
   // CourseProvider.load() is called once at app startup (see main.dart).
-  // This widget is intentionally a pure consumer: it never triggers a data
-  // load on its own. If it did, a tab round-trip (AnimatedSwitcher swap)
-  // would rebuild this widget, re-fire initState, and reset the provider's
-  // cached bodies back to shells — the user would see a blank Course Tree.
+  // This widget must NOT call load() from initState: a tab round-trip
+  // (AnimatedSwitcher swap) would rebuild, re-fire initState, and historically
+  // reset cached bodies back to shells — a blank Course Tree.
+  //
+  // Defensive body loads for SectionLoadState.initial are scheduled via
+  // [addPostFrameCallback] only (see [_scheduleEnsureSection]) so they stay
+  // idempotent and never re-enter [CourseProvider.load].
+
+  /// Section ids already scheduled for a defensive [ensureSectionLoaded] call.
+  final Set<String> _scheduledEnsure = {};
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +45,27 @@ class _CourseTreeState extends State<CourseTree> {
           final sections = courseState.sections;
 
           if (sections.isEmpty) {
+            // After load completes with zero shells, never spin forever —
+            // that looked like a gray hang with no recovery path.
+            if (courseState.isLoaded) {
+              return _buildErrorMessage(
+                context,
+                title: 'Could not load course',
+                error: 'No course sections found.',
+                onRetry: () => courseState.reloadCourse(),
+              );
+            }
             return const Center(child: _LoadingIndicator());
+          }
+
+          // Defensive: if the current section is still initial (e.g. a non-main
+          // entry path forgot to call ensureSectionLoaded), kick off a body
+          // load. Coalesced + cached inside the provider; safe to re-enter.
+          final currentId = courseState.currentSectionId;
+          if (currentId != null &&
+              courseState.sectionLoadState(currentId) ==
+                  SectionLoadState.initial) {
+            _scheduleEnsureSection(courseState, currentId);
           }
 
           return Column(
@@ -59,6 +85,19 @@ class _CourseTreeState extends State<CourseTree> {
         },
       ),
     );
+  }
+
+  /// Schedules a one-shot body load after this frame so we never call
+  /// provider methods synchronously during [build].
+  void _scheduleEnsureSection(CourseProvider courseState, String id) {
+    if (_scheduledEnsure.contains(id)) return;
+    _scheduledEnsure.add(id);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      courseState.ensureSectionLoaded(id).whenComplete(() {
+        _scheduledEnsure.remove(id);
+      });
+    });
   }
 
   /// Renders the units and lessons for the currently selected section.
@@ -145,6 +184,7 @@ class _CourseTreeState extends State<CourseTree> {
 
   Widget _buildErrorMessage(
     BuildContext context, {
+    String title = 'Could not load section',
     required Object? error,
     required VoidCallback onRetry,
   }) {
@@ -161,7 +201,7 @@ class _CourseTreeState extends State<CourseTree> {
             ),
             const SizedBox(height: 16),
             Text(
-              'Could not load section',
+              title,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,

@@ -89,6 +89,9 @@ class SwahiliCourse {
   /// Cached vocabulary id set for runtime per-section validation.
   static Set<String> _vocabIdSet = const {};
 
+  /// Cached expression id set for runtime per-section validation.
+  static Set<String> _expressionIdSet = const {};
+
   /// In-flight / completed per-section loads, keyed by section id. Coalesces
   /// concurrent requests for the same section and caches the result.
   static final Map<String, Future<Section>> _sectionLoads = {};
@@ -116,6 +119,7 @@ class SwahiliCourse {
     _sectionLoads.clear();
     _lessonLoads.clear();
     _vocabIdSet = const {};
+    _expressionIdSet = const {};
   }
 
   static CourseDatabase get _db {
@@ -142,6 +146,7 @@ class SwahiliCourse {
     final grammar = await repo.grammarPoints();
     final expressions = await repo.expressions();
     _vocabIdSet = {for (final w in vocab) w.id};
+    _expressionIdSet = {for (final e in expressions) e.id};
     return SwahiliCourse(
       sectionShells: shells,
       vocabulary: vocab,
@@ -169,7 +174,7 @@ class SwahiliCourse {
     final future = () async {
       try {
         final section = await CourseRepository(_db).section(id);
-        validateSection(section, _vocabIdSet);
+        validateSection(section, _vocabIdSet, _expressionIdSet);
         return section;
       } catch (e) {
         _sectionLoads.remove(id);

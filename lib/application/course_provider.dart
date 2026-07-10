@@ -262,6 +262,27 @@ class CourseProvider extends ChangeNotifier {
     await ensureSectionLoaded(id);
   }
 
+  /// Drop all shell/body state and re-run [load] from the database.
+  ///
+  /// Used by the course-tree empty-shell error UI so "Retry" can recover
+  /// after a transient DB failure. Does not reseed assets — that still
+  /// requires a content-version bump or clearing app data.
+  Future<void> reloadCourse() async {
+    logger.w('CourseProvider.reloadCourse: resetting and reloading shells');
+    _isLoaded = false;
+    _sections = const [];
+    _currentSectionId = null;
+    _selectedUnitId = null;
+    _selectedLessonId = null;
+    _loadedSectionIds.clear();
+    _lessonCache.clear();
+    _sectionLoadFutures.clear();
+    _sectionLoadStates.clear();
+    _sectionLoadErrors.clear();
+    notifyListeners();
+    await load();
+  }
+
   // --- Selection (all id-based, so middle-of-tree inserts are safe) ---
 
   void switchToSection(String id) {

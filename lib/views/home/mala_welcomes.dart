@@ -11,7 +11,7 @@ class MalaWelcomes extends StatefulWidget {
   const MalaWelcomes({super.key});
 
   @override
-  _MalaWelcomesState createState() => _MalaWelcomesState();
+  State<MalaWelcomes> createState() => _MalaWelcomesState();
 }
 
 class _MalaWelcomesState extends State<MalaWelcomes> {
@@ -27,6 +27,7 @@ class _MalaWelcomesState extends State<MalaWelcomes> {
   void initState() {
     super.initState();
     _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      if (!mounted) return;
       setState(() {
         _currentIndex = (_currentIndex + 1) % images.length;
       });
