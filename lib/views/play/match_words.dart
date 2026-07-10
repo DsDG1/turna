@@ -98,7 +98,7 @@ class _MatchWordsPageState extends State<MatchWordsPage> {
               ],
             ),
             toolbarHeight: 60,
-            backgroundColor: Colors.white,
+            backgroundColor: VarnamalaTheme.cardBg(context),
             elevation: 1.2,
           ),
           body: Stack(
@@ -151,7 +151,7 @@ class _MatchWordsPageState extends State<MatchWordsPage> {
                     Text(
                       'Infinite rounds. New words appear after each perfect board.',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: VarnamalaTheme.textHint,
+                            color: VarnamalaTheme.textHintColor(context),
                           ),
                     ),
                     const SizedBox(height: 8),
@@ -164,7 +164,8 @@ class _MatchWordsPageState extends State<MatchWordsPage> {
               ),
               if (matchProvider.isRoundTransitioning)
                 Container(
-                  color: Colors.white.withValues(alpha: 0.85),
+                  color: VarnamalaTheme.scaffoldBg(context)
+                      .withValues(alpha: 0.85),
                   alignment: Alignment.center,
                   child: const _RoundCompleteOverlay(),
                 ),
@@ -204,26 +205,29 @@ class _RoundCompleteOverlayState extends State<_RoundCompleteOverlay>
 
   @override
   Widget build(BuildContext context) {
-    return ScaleTransition(
-      scale: CurvedAnimation(parent: _controller, curve: Curves.elasticOut),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-          border: Border.all(color: const Color(0xFFDEE7E6)),
-          boxShadow: VarnamalaTheme.cardShadow,
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.celebration_rounded, color: VarnamalaTheme.peacockTeal),
-            SizedBox(width: 8),
-            Text(
-              'Round complete! Loading new words...',
-              style: TextStyle(fontWeight: FontWeight.w700),
-            ),
-          ],
+    return RepaintBoundary(
+      child: ScaleTransition(
+        scale: CurvedAnimation(parent: _controller, curve: Curves.elasticOut),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          decoration: BoxDecoration(
+            color: VarnamalaTheme.cardBg(context),
+            borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+            border: Border.all(color: const Color(0xFFDEE7E6)),
+            boxShadow: VarnamalaTheme.cardShadow,
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.celebration_rounded,
+                  color: VarnamalaTheme.peacockTeal),
+              SizedBox(width: 8),
+              Text(
+                'Round complete! Loading new words...',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -269,7 +273,7 @@ class WordListWidget extends StatelessWidget {
                   isMatched ? const EdgeInsets.all(4.0) : const EdgeInsets.all(14.0),
               height: isMatched ? 0 : 58,
               decoration: BoxDecoration(
-                color: isSelected ? selectedColor : Colors.white,
+                color: isSelected ? selectedColor : VarnamalaTheme.cardBg(context),
                 borderRadius: BorderRadius.circular(12.0),
                 border: Border.all(
                   color: isSelected ? selectedColor : borderColor,
@@ -285,7 +289,9 @@ class WordListWidget extends StatelessWidget {
                           fontSize: 17,
                         )
                       : TextStyle(
-                          color: isMatched ? Colors.grey : VarnamalaTheme.textPrimary,
+                          color: isMatched
+                              ? Colors.grey
+                              : VarnamalaTheme.textPrimaryColor(context),
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
                         ),
@@ -311,18 +317,20 @@ class MatchCounter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 260),
-      transitionBuilder: (child, animation) {
-        return ScaleTransition(scale: animation, child: child);
-      },
-      child: Text(
-        '$matchedCount / $totalCount',
-        key: ValueKey<int>(matchedCount),
-        style: const TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.w700,
-          color: VarnamalaTheme.textPrimary,
+    return RepaintBoundary(
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 260),
+        transitionBuilder: (child, animation) {
+          return ScaleTransition(scale: animation, child: child);
+        },
+        child: Text(
+          '$matchedCount / $totalCount',
+          key: ValueKey<int>(matchedCount),
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: VarnamalaTheme.textPrimaryColor(context),
+          ),
         ),
       ),
     );
@@ -416,12 +424,14 @@ class _MatchGameOverDialogState extends State<_MatchGameOverDialog>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ScaleTransition(
-              scale: CurvedAnimation(
-                parent: _controller,
-                curve: Curves.elasticOut,
+            RepaintBoundary(
+              child: ScaleTransition(
+                scale: CurvedAnimation(
+                  parent: _controller,
+                  curve: Curves.elasticOut,
+                ),
+                child: Icon(style.$1, color: style.$2, size: 54),
               ),
-              child: Icon(style.$1, color: style.$2, size: 54),
             ),
             const SizedBox(height: 14),
             Text(

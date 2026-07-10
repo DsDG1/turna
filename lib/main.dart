@@ -10,6 +10,7 @@ import 'package:varnamala/core/logger.dart';
 import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/routing/routing.dart';
 import 'package:varnamala/service/locator.dart';
+import 'package:varnamala/service/piper_swahili_tts.dart';
 import 'package:varnamala/service/tts_availability_checker.dart';
 import 'package:varnamala/views/app.dart';
 
@@ -44,20 +45,28 @@ Future<void> main() async {
   // first frame because MultiProvider creates ThemeProvider immediately.
   await setupLocator();
 
-  // Eagerly kick off the course load so CourseTree (and any other consumer)
-  // never has to trigger the load itself from a widget lifecycle method.
-  // Doing it here means a tab round-trip can't reset the provider's cached
-  // bodies back to shells (the previous incarnation of `CourseTree.initState`
-  // did exactly that and produced a blank Course Tree after switching tabs).
-  await getIt<CourseProvider>().load();
-
+  // Kick off the course load on the first frame instead of blocking before
+  // runApp. CourseTree renders its own loading indicator until the shells
+  // arrive, so the app paints immediately rather than showing a blank screen
+  // during the (cold) DB read. CourseProvider.load() is idempotent, so the
+  // CourseTree's defensive ensureSectionLoaded can never double-load or reset
+  // shells back to their initial state.
   runApp(const VarnamalaApp());
 
-  if (!kIsWeb) {
-    // Prefer Google TTS on Android before any speak/availability checks so
-    // OEM default engines without Swahili do not shadow the real system voice.
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
+  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    await getIt<CourseProvider>().load();
+
+    if (!kIsWeb) {
+      // Prefer Google TTS on Android before any speak/availability checks so
+      // OEM default engines without Swahili do not shadow the real system
+      // voice.
       await getIt<TtsAvailabilityChecker>().configureSystemEngine();
-    });
-  }
+
+      // Warm the Piper offline worker in the background so the first
+      // tap-to-speak (when falling back to / preferring the bundled model)
+      // does not stall on model load. Fire-and-forget: it runs in its own
+      // isolate and never blocks the UI.
+      getIt<PiperSwahiliTts>().prewarm().catchError((_) {/* best-effort */});
+    }
+  });
 }

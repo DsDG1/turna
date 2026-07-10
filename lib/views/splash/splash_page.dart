@@ -9,6 +9,7 @@ import 'package:varnamala/application/settings_provider.dart';
 import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/service/locator.dart';
 import 'package:varnamala/service/tts_availability_checker.dart';
+import 'package:varnamala/views/theme.dart';
 
 import 'components/center_display.dart';
 import 'components/get_started_button.dart';
@@ -35,8 +36,7 @@ class _SplashPageState extends State<SplashPage> {
     if (!mounted) return;
 
     final settings = getIt<SettingsProvider>();
-    // Respect the user's explicit choice: if they already chose offline, do
-    // not ask again.
+    // Respect explicit offline choice — do not nag about Google TTS.
     if (settings.ttsEngine == TtsEngine.offline) return;
 
     final prefs = getIt<AppPrefs>();
@@ -46,51 +46,87 @@ class _SplashPageState extends State<SplashPage> {
 
     final checker = getIt<TtsAvailabilityChecker>();
     final languageCode = getIt<LanguageProvider>().ttsLanguageCode;
-    final available = await checker.isSystemTtsAvailable(languageCode);
 
-    if (available) {
+    // Preferred = Google TTS (Android) with a usable locale — not OEM-only.
+    final preferred = await checker.isPreferredSystemTtsAvailable(languageCode);
+    if (preferred) {
       await checker.configureSystemEngine();
       return;
     }
 
     if (!mounted || alreadyPrompted) return;
 
-    final shouldSwitch = await showDialog<bool>(
+    final action = await showDialog<_GoogleTtsPromptAction>(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('Local voice not available'),
+        title: const Text('Google TTS not available'),
         content: const Text(
-          'Your device does not have a local Swahili text-to-speech voice. '
-          'Would you like to switch to the offline Piper voice?',
+          'This device does not have Google Text-to-speech installed '
+          '(or it is not enabled). For best Swahili pronunciation, install '
+          '"Speech Recognition & Synthesis from Google", then set it as the '
+          'preferred engine and download the Swahili voice if offered.\n\n'
+          'Offline Piper is a temporary alternative only.',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Keep system'),
+            onPressed: () =>
+                Navigator.of(context).pop(_GoogleTtsPromptAction.keepSystem),
+            child: const Text('Keep current voice'),
           ),
           TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Switch'),
+            onPressed: () =>
+                Navigator.of(context).pop(_GoogleTtsPromptAction.useOffline),
+            child: const Text('Use offline Piper'),
+          ),
+          TextButton(
+            onPressed: () =>
+                Navigator.of(context).pop(_GoogleTtsPromptAction.openSettings),
+            child: const Text('TTS settings'),
+          ),
+          TextButton(
+            onPressed: () =>
+                Navigator.of(context).pop(_GoogleTtsPromptAction.installGoogle),
+            child: const Text('Install Google TTS'),
           ),
         ],
       ),
     );
 
-    if (shouldSwitch == true) {
-      await settings.setTtsEngine(TtsEngine.offline);
-    }
-
     await prefs.setBool(
       LocalStateKeys.ttsAvailabilityPromptShown,
       value: true,
     );
+
+    if (!mounted || action == null) return;
+
+    switch (action) {
+      case _GoogleTtsPromptAction.installGoogle:
+        final opened = await checker.openGoogleTtsInstallPage();
+        if (!opened && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Could not open the store. Install Google TTS manually, '
+                'or use Offline Piper for now.',
+              ),
+            ),
+          );
+        }
+      case _GoogleTtsPromptAction.openSettings:
+        await checker.openSystemTtsSettings();
+      case _GoogleTtsPromptAction.useOffline:
+        await settings.setTtsEngine(TtsEngine.offline);
+      case _GoogleTtsPromptAction.keepSystem:
+        // Leave TtsEngine.system; OEM engine may still speak.
+        break;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: VarnamalaTheme.scaffoldBg(context),
       body: Stack(
         children: [
           CustomPaint(
@@ -117,4 +153,11 @@ class _SplashPageState extends State<SplashPage> {
       ),
     );
   }
+}
+
+enum _GoogleTtsPromptAction {
+  installGoogle,
+  openSettings,
+  useOffline,
+  keepSystem,
 }

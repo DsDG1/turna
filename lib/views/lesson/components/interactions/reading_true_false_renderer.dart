@@ -98,7 +98,7 @@ class _ReadingTrueFalseBodyState extends State<_ReadingTrueFalseBody> {
               borderRadius:
                   BorderRadius.circular(VarnamalaTheme.radiusLarge),
             ),
-            child: Text(widget.statement, style: AppTextStyles.promptMd),
+            child: Text(widget.statement, style: AppTextStyles.promptMd(context)),
           ),
           const SizedBox(height: 24),
           Row(

@@ -44,14 +44,17 @@ class _MalaWelcomesState extends State<MalaWelcomes> {
   Widget build(BuildContext context) {
     return SizedBox(
       height: 250,
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 500),
-        //
-        child: Image.asset(
-          images[_currentIndex],
-          key: ValueKey<String>(images[_currentIndex]),
-          height: 250,
-          fit: BoxFit.contain,
+      child: RepaintBoundary(
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 500),
+          //
+          child: Image.asset(
+            images[_currentIndex],
+            key: ValueKey<String>(images[_currentIndex]),
+            height: 250,
+            fit: BoxFit.contain,
+            cacheHeight: (250 * MediaQuery.devicePixelRatioOf(context)).round(),
+          ),
         ),
       ),
     );

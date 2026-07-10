@@ -1,4 +1,5 @@
 // Dart imports:
+import 'dart:async';
 import 'dart:io';
 
 // Flutter imports:
@@ -10,14 +11,18 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:injectable/injectable.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa_onnx;
+
+// Project imports:
+import 'package:varnamala/service/piper_tts_worker.dart';
 
 /// Offline Piper TTS for Swahili.
 ///
 /// Bundles the int8-quantized `sw_CD-lanfrica-medium` Piper model under
 /// `assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/` and copies
-/// it to app storage on first use. Models are synthesized at runtime, so no
-/// per-word/per-sentence MP3 assets are needed.
+/// it to app storage on first use. The ONNX model lives in a long-lived
+/// background isolate ([PiperTtsWorker]) so neural synthesis never blocks the
+/// UI thread; only the WAV playback (a platform channel) runs on the main
+/// isolate.
 @lazySingleton
 class PiperSwahiliTts {
   static const String _assetDir =
@@ -26,80 +31,87 @@ class PiperSwahiliTts {
   static const String _tokensFile = 'tokens.txt';
   static const String _dataDir = 'espeak-ng-data';
 
-  sherpa_onnx.OfflineTts? _tts;
+  PiperTtsWorker? _worker;
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _initializing = false;
   bool _initFailed = false;
 
+  // Serializes synthesize requests: only one inference runs at a time so the
+  // single worker isolate isn't asked to overlap generations.
+  Future<void> _inflight = Future<void>.value();
+
   /// True if the model is ready to synthesize.
-  bool get isReady => _tts != null;
+  bool get isReady => _worker != null;
 
   /// Synthesize [text] with Piper and play it.
   ///
-  /// Initializes the model on the first call. If initialization fails or the
-  /// platform is unsupported, throws so the caller can fall back to another
-  /// TTS engine (e.g. flutter_tts).
+  /// Initializes the worker isolate on the first call. If initialization fails
+  /// or the platform is unsupported, throws so the caller can fall back to
+  /// another TTS engine (e.g. flutter_tts).
   Future<void> speak(String text, {double speed = 1.0}) async {
     if (text.isEmpty) return;
 
-    if (_tts == null) {
+    if (_worker == null) {
       if (_initFailed) {
         throw StateError('Piper Swahili TTS initialization previously failed');
       }
       await _init();
     }
 
-    final tts = _tts;
-    if (tts == null) {
+    final worker = _worker;
+    if (worker == null) {
       throw StateError('Piper Swahili TTS is not available');
     }
 
-    final genConfig = sherpa_onnx.OfflineTtsGenerationConfig(
-      sid: 0,
-      speed: speed,
-      silenceScale: 0.2,
-    );
+    // Queue: chain each request after the previous one completes so the
+    // worker handles them in order.
+    _inflight = _inflight.then((_) => _synthesizeAndPlay(worker, text, speed));
+    await _inflight;
+  }
 
-    final audio = tts.generateWithConfig(text: text, config: genConfig);
+  /// Eagerly start the worker isolate + model load without synthesizing, so
+  /// the first [speak] does not pay the init latency. Safe to call from a
+  /// post-frame callback on the splash screen.
+  Future<void> prewarm() async {
+    if (_worker != null || _initializing || _initFailed) return;
+    await _init();
+  }
 
+  Future<void> _synthesizeAndPlay(
+    PiperTtsWorker worker,
+    String text,
+    double speed,
+  ) async {
     final tempDir = await getTemporaryDirectory();
-    final filename = p.join(
+    final outPath = p.join(
       tempDir.path,
       'piper_swahili_${DateTime.now().millisecondsSinceEpoch}.wav',
     );
 
-    final ok = sherpa_onnx.writeWave(
-      filename: filename,
-      samples: audio.samples,
-      sampleRate: audio.sampleRate,
-    );
-
-    if (!ok) {
-      throw StateError('Piper failed to write wave file');
-    }
+    await worker.synthesize(text, speed, outPath);
 
     await _audioPlayer.stop();
-    await _audioPlayer.play(DeviceFileSource(filename));
+    await _audioPlayer.play(DeviceFileSource(outPath));
   }
 
-  /// Dispose native resources.
+  /// Dispose native resources (worker isolate + model + audio player).
   void dispose() {
-    _tts?.free();
-    _tts = null;
+    _worker?.dispose();
+    _worker = null;
     _audioPlayer.dispose();
   }
 
   Future<void> _init() async {
-    if (_initializing || _tts != null) return;
+    if (_initializing || _worker != null) return;
     _initializing = true;
 
     try {
-      sherpa_onnx.initBindings();
-
       final docDir = await getApplicationDocumentsDirectory();
       final modelDir = p.join(docDir.path, 'voices', 'swahili',
           'vits-piper-sw_CD-lanfrica-medium-int8');
 
+      // Asset copying stays on the main isolate — rootBundle / path_provider
+      // are main-isolate services. The worker only needs the resulting paths.
       final modelPath =
           await _copyAssetFile(p.join(_assetDir, _modelFile), modelDir);
       final tokensPath =
@@ -107,26 +119,14 @@ class PiperSwahiliTts {
       final dataDirPath =
           await _copyAssetDir(p.join(_assetDir, _dataDir), modelDir);
 
-      final vits = sherpa_onnx.OfflineTtsVitsModelConfig(
-        model: modelPath,
-        tokens: tokensPath,
-        dataDir: dataDirPath,
-      );
-
-      final modelConfig = sherpa_onnx.OfflineTtsModelConfig(
-        vits: vits,
-        kokoro: const sherpa_onnx.OfflineTtsKokoroModelConfig(),
+      _worker = await PiperTtsWorker.spawn(
+        modelPath: modelPath,
+        tokensPath: tokensPath,
+        dataDirPath: dataDirPath,
         numThreads: 2,
         debug: kDebugMode,
-        provider: 'cpu',
       );
-
-      final config = sherpa_onnx.OfflineTtsConfig(
-        model: modelConfig,
-        maxNumSenetences: 1,
-      );
-
-      _tts = sherpa_onnx.OfflineTts(config);
+      debugPrint('PiperSwahiliTts: worker initialized from $_assetDir');
     } catch (e, st) {
       _initFailed = true;
       debugPrint('PiperSwahiliTts init failed: $e\n$st');

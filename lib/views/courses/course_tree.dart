@@ -169,12 +169,12 @@ class _CourseTreeState extends State<CourseTree> {
             color: VarnamalaTheme.textHint.withValues(alpha: 0.3),
           ),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'No units available',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
-              color: VarnamalaTheme.textSecondary,
+              color: VarnamalaTheme.textSecondaryColor(context),
             ),
           ),
         ],
@@ -205,7 +205,7 @@ class _CourseTreeState extends State<CourseTree> {
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: VarnamalaTheme.textPrimary,
+                    color: VarnamalaTheme.textPrimaryColor(context),
                   ),
             ),
             if (error != null) ...[
@@ -216,7 +216,7 @@ class _CourseTreeState extends State<CourseTree> {
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: VarnamalaTheme.textSecondary,
+                      color: VarnamalaTheme.textSecondaryColor(context),
                     ),
               ),
             ],
@@ -274,7 +274,7 @@ class _UnitCardState extends State<_UnitCard> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       child: Material(
-        color: Colors.white,
+        color: VarnamalaTheme.cardBg(context),
         borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
         elevation: 0,
         shadowColor: VarnamalaTheme.peacockTeal.withValues(alpha: 0.08),
@@ -325,19 +325,20 @@ class _UnitCardState extends State<_UnitCard> {
                         children: [
                           Text(
                             unit.name,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
-                              color: VarnamalaTheme.textPrimary,
+                              color: VarnamalaTheme.textPrimaryColor(context),
                             ),
                           ),
                           if (unit.description.isNotEmpty) ...[
                             const SizedBox(height: 2),
                             Text(
                               unit.description,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 13,
-                                color: VarnamalaTheme.textSecondary,
+                                color: VarnamalaTheme.textSecondaryColor(
+                                    context),
                               ),
                             ),
                           ],
@@ -375,11 +376,16 @@ class _UnitCardState extends State<_UnitCard> {
             if (_expanded) ...[
               const Divider(height: 1),
               ...unit.lessons.map(
-                (lesson) => Consumer<ProgressProvider>(
-                  builder: (context, progress, _) => _LessonTile(
+                (lesson) => Selector<ProgressProvider,
+                    ({bool completed, bool perfect})>(
+                  selector: (_, progress) => (
+                    completed: progress.isLessonCompleted(lesson.id),
+                    perfect: progress.isLessonPerfect(lesson.id),
+                  ),
+                  builder: (context, value, _) => _LessonTile(
                     lesson: lesson,
-                    isCompleted: progress.isLessonCompleted(lesson.id),
-                    isPerfect: progress.isLessonPerfect(lesson.id),
+                    isCompleted: value.completed,
+                    isPerfect: value.perfect,
                     onTap: () => widget.onLessonTap(lesson),
                   ),
                 ),
@@ -448,16 +454,16 @@ class _LessonTile extends StatelessWidget {
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: isCompleted
-                          ? VarnamalaTheme.textSecondary
-                          : VarnamalaTheme.textPrimary,
+                          ? VarnamalaTheme.textSecondaryColor(context)
+                          : VarnamalaTheme.textPrimaryColor(context),
                     ),
                   ),
                   if (lesson.description.isNotEmpty)
                     Text(
                       lesson.description,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: VarnamalaTheme.textSecondary,
+                        color: VarnamalaTheme.textSecondaryColor(context),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -552,7 +558,7 @@ class _LoadingIndicator extends StatelessWidget {
         Text(
           'Loading courses...',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: VarnamalaTheme.textHint,
+                color: VarnamalaTheme.textHintColor(context),
                 fontWeight: FontWeight.w500,
               ),
         ),

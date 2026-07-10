@@ -56,7 +56,7 @@ class ReviewRatingBar extends StatelessWidget {
         Text(
           prompt,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: VarnamalaTheme.textHint,
+                color: VarnamalaTheme.textHintColor(context),
               ),
         ),
       ],
@@ -142,7 +142,7 @@ class ReviewEmptyState extends StatelessWidget {
                   ? '$dueCount $dueMessage'
                   : emptyMessage,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: VarnamalaTheme.textSecondary,
+                    color: VarnamalaTheme.textSecondaryColor(context),
                   ),
             ),
             const SizedBox(height: 24),
@@ -204,7 +204,7 @@ class ReviewCompletionState extends StatelessWidget {
             Text(
               completionMessage,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: VarnamalaTheme.textSecondary,
+                    color: VarnamalaTheme.textSecondaryColor(context),
                   ),
             ),
             if (xpEarned > 0 || gemsEarned > 0) ...[

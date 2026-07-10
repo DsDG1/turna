@@ -1,6 +1,6 @@
 # Varnamala Plus
 
-> ✅ 框架核心闭环已完成（最近 tag：`future2-phase-12-bugfix-done`，commit `5c1641e`）；当前为 bug-fix polish 阶段。AI 协作（vibecoding）持续迭代。
+> ✅ 框架核心闭环已完成；当前为性能 / 暗黑模式 polish 阶段（暗黑模式文字自适应、TTS 后台 isolate、启动首帧优化、动画卡顿修复）。AI 协作（vibecoding）持续迭代。
 
 ## 起源
 
@@ -24,8 +24,8 @@
 - **SRS 复习**：基于 SM-2 算法的单词 SRS + 独立语法点 SRS 队列；闪卡显示"Learned in: <lesson>"。
 - **错题本**：30 条 FIFO，错题含原始 interaction 快照，支持重做清除 + 跨路由到语法复习。
 - **语法复习**：Explain → Practice → Rate 三段流，练习题直接复用 Interaction 渲染器。
-- **TTS 引擎**：`AudioController` 统一接管 TTS 调用，按 `TargetLanguage.ttsLanguageCode` 切语言；离线音频 fallback 接口已就位。
-- **暗色 / 亮色主题**：`VarnamalaTheme` 语义化颜色 + `ThemeProvider` 持久化。
+- **TTS 引擎**：`AudioController` 统一接管 TTS 调用，按 `TargetLanguage.ttsLanguageCode` 切语言。内建 Piper `sw_CD-lanfrica-medium-int8`（经 `sherpa_onnx`）作为离线引擎，运行在**长驻后台 isolate** 中——ONNX 推理不阻塞 UI 线程；首帧后 `prewarm()` 预热，首次点词发音不再卡顿。系统/Google TTS 为主，Piper 为离线/失败回退。
+- **暗色 / 亮色主题**：`VarnamalaTheme` 语义化颜色 + `ThemeProvider` 持久化；所有前景文字经 `textXxxColor(context)` 自适应，切换主题顺滑无闪烁。
 - **学习统计仪表盘**：90 天 `StudyLog` 滚动 + 7 日 XP 趋势 + 总时长 / 准确率 / 课数 / 复习数。
 - **课程树加载状态**：显式 `SectionLoadState` + 错误重试 UI，避免 section body 加载失败时显示灰色空白页。
 - **Match Madness 单词配对小游戏**。
@@ -39,6 +39,15 @@
 - 任何**新内容**（新词 / 新语法 / 新 lesson / 新阅读 / 新音频）—— **暂时不加**，是因为我们仍在优化框架本身；后续计划开发一个 GUI 项目管理工具，并结合 AI 自动生成课程内容。**未来再见**。
 
 详细列表见 `future2.md` §6 / §7。
+
+## 性能与流畅度
+
+- **TTS 后台 isolate**：Piper ONNX 推理在长驻后台 isolate（`lib/service/piper_tts_worker.dart`），主线程只负责 WAV 播放；`prewarm()` 在 splash 后台预热。
+- **启动不阻塞**：`main.dart` 先 `runApp`，课程 DB 加载移到 post-frame，首帧立即可见（CourseTree 自带 loading 指示）。
+- **动画隔离**：`AnimatedCounter` 从上一值平滑过渡（不再每次从 0 跳数），关键动画用 `RepaintBoundary` 隔离重绘。
+- **课程树细粒度订阅**：每个 lesson tile 用 `Selector` 只在自己完成/完美状态变化时重建。
+- **图片解码**：`Image.asset` 按设备像素比设 `cacheWidth/cacheHeight`，避免全分辨率解码。
+- **暗黑模式**：前景文字 `textXxxColor(context)` 全自适应；硬编码白底改为 `cardBg/scaffoldBg(context)`，切换主题无白块闪烁。
 
 ## 项目结构
 
@@ -73,7 +82,7 @@ flutter run                                                # 设备或模拟器
 flutter test
 ```
 
-当前 **115 / 115** 单元测试通过，覆盖率与详情见 [`test/BASELINE.md`](./test/BASELINE.md)。
+当前 **235 / 235** 单元 + 组件测试通过，覆盖率与详情见 [`test/BASELINE.md`](./test/BASELINE.md)。新增暗黑模式文字对比度 smoke test、`AppTextStyles` 自适应解析 test、`AnimatedCounter` 从旧值过渡 test。
 
 ## 文档
 

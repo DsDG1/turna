@@ -33,7 +33,7 @@ class SettingsSectionTitle extends StatelessWidget {
             title,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
-                  color: VarnamalaTheme.textSecondary,
+                  color: VarnamalaTheme.textSecondaryColor(context),
                 ),
           ),
         ],

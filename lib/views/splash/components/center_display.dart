@@ -23,19 +23,19 @@ class _CenterDisplayState extends State<CenterDisplay>
     _TextItem(
       'Reclaiming Language Learning',
       FontWeight.w600,
-      VarnamalaTheme.textSecondary,
+      (context) => VarnamalaTheme.textSecondaryColor(context),
       const Duration(milliseconds: 1000),
     ),
     _TextItem(
       'Learn Swahili \u2022 Jifunze',
       FontWeight.w600,
-      VarnamalaTheme.textSecondary,
+      (context) => VarnamalaTheme.textSecondaryColor(context),
       const Duration(milliseconds: 1000),
     ),
     _TextItem(
       'Free. Forever.',
       FontWeight.w700,
-      VarnamalaTheme.error,
+      (_) => VarnamalaTheme.error,
       const Duration(milliseconds: 2500),
     ),
   ];
@@ -76,7 +76,7 @@ class _CenterDisplayState extends State<CenterDisplay>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const MalaWelcomes(),
+          const RepaintBoundary(child: MalaWelcomes()),
           const SizedBox(height: 24),
           Text(
             'Varnamala',
@@ -90,14 +90,16 @@ class _CenterDisplayState extends State<CenterDisplay>
           const SizedBox(height: 12),
           SizedBox(
             height: 40,
-            child: FadeTransition(
-              opacity: _controller,
-              child: Text(
-                item.text,
-                style: GoogleFonts.nunito(
-                  fontSize: 18,
-                  fontWeight: item.weight,
-                  color: item.color,
+            child: RepaintBoundary(
+              child: FadeTransition(
+                opacity: _controller,
+                child: Text(
+                  item.text,
+                  style: GoogleFonts.nunito(
+                    fontSize: 18,
+                    fontWeight: item.weight,
+                    color: item.color(context),
+                  ),
                 ),
               ),
             ),
@@ -110,7 +112,7 @@ class _CenterDisplayState extends State<CenterDisplay>
               textAlign: TextAlign.center,
               style: GoogleFonts.nunito(
                 fontSize: 16,
-                color: VarnamalaTheme.textHint,
+                color: VarnamalaTheme.textHintColor(context),
                 height: 1.5,
               ),
             ),
@@ -124,7 +126,7 @@ class _CenterDisplayState extends State<CenterDisplay>
 class _TextItem {
   final String text;
   final FontWeight weight;
-  final Color color;
+  final Color Function(BuildContext) color;
   final Duration duration;
 
   _TextItem(this.text, this.weight, this.color, this.duration);

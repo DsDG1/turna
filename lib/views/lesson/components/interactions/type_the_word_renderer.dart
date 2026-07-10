@@ -97,7 +97,7 @@ class _TypeTheWordBodyState extends State<_TypeTheWordBody> {
           Text(
             widget.prompt,
             textAlign: TextAlign.center,
-            style: AppTextStyles.promptMd,
+            style: AppTextStyles.promptMd(context),
           ),
           const SizedBox(height: 24),
           TextField(

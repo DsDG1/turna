@@ -118,7 +118,7 @@ class _TranslateBodyState extends State<_TranslateBody> {
             ),
             child: Text(
               widget.source,
-              style: AppTextStyles.promptLg.copyWith(
+              style: AppTextStyles.promptLg(context).copyWith(
                 fontWeight: FontWeight.w600,
               ),
             ),

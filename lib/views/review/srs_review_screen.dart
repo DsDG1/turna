@@ -306,7 +306,7 @@ class _FlashCard extends StatelessWidget {
                 _term,
                 style: Theme.of(context).textTheme.displaySmall?.copyWith(
                       fontWeight: FontWeight.w800,
-                      color: VarnamalaTheme.textPrimary,
+                      color: VarnamalaTheme.textPrimaryColor(context),
                     ),
                 textAlign: TextAlign.center,
               ),
@@ -334,7 +334,7 @@ class _FlashCard extends StatelessWidget {
                   Text(
                     '/$_pronunciation/',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: VarnamalaTheme.textSecondary,
+                          color: VarnamalaTheme.textSecondaryColor(context),
                         ),
                   ),
                 ],
@@ -349,7 +349,7 @@ class _FlashCard extends StatelessWidget {
                           ? 'Learned in: $lessonName'
                           : 'First seen: ${word.wordId}',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: VarnamalaTheme.textHint,
+                            color: VarnamalaTheme.textHintColor(context),
                           ),
                     );
                   },
@@ -358,7 +358,7 @@ class _FlashCard extends StatelessWidget {
                 Text(
                   'Tap to reveal meaning',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: VarnamalaTheme.textHint,
+                        color: VarnamalaTheme.textHintColor(context),
                       ),
                 ),
               ],
@@ -373,7 +373,7 @@ class _FlashCard extends StatelessWidget {
               Text(
                 'Entry not found',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: VarnamalaTheme.textHint,
+                      color: VarnamalaTheme.textHintColor(context),
                     ),
               ),
             ],

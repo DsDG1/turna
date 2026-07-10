@@ -108,7 +108,7 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
           RichText(
             textAlign: TextAlign.center,
             text: TextSpan(
-              style: AppTextStyles.promptLg.copyWith(height: 1.4),
+              style: AppTextStyles.promptLg(context).copyWith(height: 1.4),
               children: [
                 TextSpan(text: before),
                 WidgetSpan(
@@ -137,7 +137,7 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
                         focusNode: _focus,
                         enabled: !submitted,
                         textAlign: TextAlign.center,
-                        style: AppTextStyles.promptMd.copyWith(fontSize: 18),
+                        style: AppTextStyles.promptMd(context).copyWith(fontSize: 18),
                         decoration: const InputDecoration(
                           border: InputBorder.none,
                           isDense: true,

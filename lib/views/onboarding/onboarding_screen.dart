@@ -44,7 +44,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: VarnamalaTheme.scaffoldBg(context),
       body: SafeArea(
         child: Column(
           children: [
@@ -93,7 +93,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           style: GoogleFonts.nunito(
                             fontSize: 28,
                             fontWeight: FontWeight.bold,
-                            color: VarnamalaTheme.textPrimary,
+                            color: VarnamalaTheme.textPrimaryColor(context),
                           ),
                         ),
                       ),
@@ -120,7 +120,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           textAlign: TextAlign.center,
                           style: GoogleFonts.nunito(
                             fontSize: 18,
-                            color: VarnamalaTheme.textSecondary,
+                            color: VarnamalaTheme.textSecondaryColor(context),
                             height: 1.5,
                           ),
                         ),

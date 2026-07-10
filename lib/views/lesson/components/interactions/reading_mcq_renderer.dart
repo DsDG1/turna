@@ -92,7 +92,7 @@ class _ReadingMcqBodyState extends State<_ReadingMcqBody> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SectionCaption('Reading comprehension'),
-          Text(widget.prompt, style: AppTextStyles.promptMd),
+          Text(widget.prompt, style: AppTextStyles.promptMd(context)),
           const SizedBox(height: 20),
           for (var idx = 0; idx < widget.options.length; idx++) ...[
             InteractionOptionTile(

@@ -99,7 +99,7 @@ class _MultipleChoiceBodyState extends State<_MultipleChoiceBody> {
           const SectionCaption('Multiple choice'),
           Text(
             widget.prompt,
-            style: AppTextStyles.promptLg.copyWith(
+            style: AppTextStyles.promptLg(context).copyWith(
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -108,7 +108,22 @@ class _MultipleChoiceBodyState extends State<_MultipleChoiceBody> {
             ClipRRect(
               borderRadius:
                   BorderRadius.circular(VarnamalaTheme.radiusMedium),
-              child: Image.asset(widget.imageAsset!, fit: BoxFit.cover),
+              child: Builder(
+                builder: (context) {
+                  // Cap the decoded image to the display width so we never
+                  // decode a multi-megapixel asset for a column-width slot.
+                  final dpr = MediaQuery.devicePixelRatioOf(context);
+                  final cacheWidth =
+                      (MediaQuery.sizeOf(context).width.clamp(0, 600) * dpr)
+                          .round();
+                  return Image.asset(
+                    widget.imageAsset!,
+                    fit: BoxFit.cover,
+                    cacheWidth: cacheWidth,
+                    cacheHeight: (300 * dpr).round(),
+                  );
+                },
+              ),
             ),
           ],
           const SizedBox(height: 24),

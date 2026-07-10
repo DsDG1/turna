@@ -85,7 +85,7 @@ class _ReadingShortAnswerBodyState extends State<_ReadingShortAnswerBody> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SectionCaption('Short answer'),
-          Text(widget.prompt, style: AppTextStyles.promptMd),
+          Text(widget.prompt, style: AppTextStyles.promptMd(context)),
           const SizedBox(height: 24),
           TextField(
             controller: _controller,

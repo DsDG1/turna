@@ -198,7 +198,7 @@ class _MistakesCard extends StatelessWidget {
                           ? '$count mistakes to review (max 30)'
                           : 'No mistakes recorded',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: VarnamalaTheme.textSecondary,
+                            color: VarnamalaTheme.textSecondaryColor(context),
                           ),
                     ),
                   ],
@@ -283,7 +283,7 @@ class _ReviewCard extends StatelessWidget {
                           ? '$dueCount words due for review'
                           : 'No words due right now',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: VarnamalaTheme.textSecondary,
+                            color: VarnamalaTheme.textSecondaryColor(context),
                           ),
                     ),
                   ],
@@ -368,7 +368,7 @@ class _GrammarReviewCard extends StatelessWidget {
                           ? '$dueCount grammar points due for review'
                           : 'No grammar due right now',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: VarnamalaTheme.textSecondary,
+                            color: VarnamalaTheme.textSecondaryColor(context),
                           ),
                     ),
                   ],
@@ -450,7 +450,7 @@ class _DailyChallengeCard extends StatelessWidget {
                     Text(
                       'Coming soon — play today\'s fixed word set',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: VarnamalaTheme.textSecondary,
+                            color: VarnamalaTheme.textSecondaryColor(context),
                           ),
                     ),
                   ],
@@ -482,7 +482,7 @@ class _SectionTitle extends StatelessWidget {
         title,
         style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w800,
-              color: VarnamalaTheme.textPrimary,
+              color: VarnamalaTheme.textPrimaryColor(context),
             ),
       ),
     );
@@ -529,7 +529,7 @@ class _StatsCard extends StatelessWidget {
                     Text(
                       'Total XP',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: VarnamalaTheme.textSecondary,
+                            color: VarnamalaTheme.textSecondaryColor(context),
                           ),
                     ),
                     const SizedBox(height: 2),
@@ -537,7 +537,7 @@ class _StatsCard extends StatelessWidget {
                       score.toString(),
                       style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                             fontWeight: FontWeight.w800,
-                            color: VarnamalaTheme.textPrimary,
+                            color: VarnamalaTheme.textPrimaryColor(context),
                           ),
                     ),
                   ],

@@ -93,10 +93,10 @@ class _ShowWordCard extends StatelessWidget {
                       children: [
                         Text(
                           term,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 44,
                             fontWeight: FontWeight.w700,
-                            color: VarnamalaTheme.textPrimary,
+                            color: VarnamalaTheme.textPrimaryColor(context),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -112,9 +112,9 @@ class _ShowWordCard extends StatelessWidget {
                   if (translation.isNotEmpty)
                     Text(
                       translation,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 20,
-                        color: VarnamalaTheme.textSecondary,
+                        color: VarnamalaTheme.textSecondaryColor(context),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -146,9 +146,10 @@ class _ShowWordCard extends StatelessWidget {
                               child: Text(
                                 contextSentence!,
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 15,
-                                  color: VarnamalaTheme.textSecondary,
+                                  color: VarnamalaTheme.textSecondaryColor(
+                                      context),
                                   fontStyle: FontStyle.italic,
                                 ),
                               ),
@@ -163,7 +164,7 @@ class _ShowWordCard extends StatelessWidget {
                     'Tap to continue',
                     style: TextStyle(
                       fontSize: 13,
-                      color: VarnamalaTheme.textHint
+                      color: VarnamalaTheme.textHintColor(context)
                           .withValues(alpha: 0.8),
                       letterSpacing: 0.4,
                     ),

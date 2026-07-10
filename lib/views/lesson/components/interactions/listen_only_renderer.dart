@@ -99,7 +99,7 @@ class _ListenOnlyBodyState extends State<_ListenOnlyBody> {
           const SizedBox(height: 8),
           Text(
             widget.prompt,
-            style: AppTextStyles.promptMd,
+            style: AppTextStyles.promptMd(context),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 28),

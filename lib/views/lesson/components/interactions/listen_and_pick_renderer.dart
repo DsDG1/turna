@@ -106,7 +106,7 @@ class _ListenAndPickBodyState extends State<_ListenAndPickBody> {
           const SizedBox(height: 24),
           Text(
             widget.prompt,
-            style: AppTextStyles.promptMd,
+            style: AppTextStyles.promptMd(context),
           ),
           const SizedBox(height: 20),
           for (var idx = 0; idx < widget.options.length; idx++) ...[

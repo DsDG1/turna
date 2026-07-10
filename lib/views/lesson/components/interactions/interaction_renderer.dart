@@ -249,10 +249,10 @@ class InteractionOptionTile extends StatelessWidget {
               Expanded(
                 child: Text(
                   label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
-                    color: VarnamalaTheme.textPrimary,
+                    color: VarnamalaTheme.textPrimaryColor(context),
                   ),
                 ),
               ),
@@ -296,9 +296,9 @@ class LessonCorrectAnswerBanner extends StatelessWidget {
           Expanded(
             child: RichText(
               text: TextSpan(
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
-                  color: VarnamalaTheme.textPrimary,
+                  color: VarnamalaTheme.textPrimaryColor(context),
                 ),
                 children: [
                   TextSpan(text: '$label: '),
@@ -357,7 +357,7 @@ class SectionCaption extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: AppSpacing.lg),
       child: Text(
         text.toUpperCase(),
-        style: AppTextStyles.caption,
+        style: AppTextStyles.caption(context),
       ),
     );
   }
