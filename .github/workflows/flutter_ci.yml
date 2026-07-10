@@ -1,0 +1,56 @@
+name: Flutter CI
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - "lib/**"
+      - "test/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - "analysis_options.yaml"
+      - "build.yaml"
+      - ".github/workflows/flutter_ci.yml"
+  pull_request:
+    branches:
+      - master
+    paths:
+      - "lib/**"
+      - "test/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - "analysis_options.yaml"
+      - "build.yaml"
+      - ".github/workflows/flutter_ci.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          # Pubspec pins Dart SDK >=3.2.3 <4.0.0; pin a stable Flutter
+          # channel so CI does not drift between runs.
+          channel: stable
+          cache: true
+
+      - name: Read Flutter version
+        run: flutter --version
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Verify project config
+        run: flutter config --no-analytics
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Run tests
+        run: flutter test
