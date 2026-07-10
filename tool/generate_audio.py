@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
-"""Bulk audio generation for the Swahili course.
+"""Bulk audio generation for Swahili listening lessons.
 
 Uses the same Piper VITS model that the Flutter runtime bundles, so
-pre-generated assets and fallback TTS sound identical.
+pre-generated listening assets and fallback TTS sound identical.
+
+Word and expression pronunciation is handled at runtime by Piper (or
+flutter_tts); this script only generates MP3 for `audioAsset` references
+inside listening lessons.
 
 Backends (tried in order):
   1. sherpa-onnx Python API  (matches the Flutter runtime)
@@ -13,9 +17,8 @@ audio and exits with a non-zero code. It does not modify course JSON.
 
 Examples:
   python tool/generate_audio.py all
-  python tool/generate_audio.py all --only-referenced
-  python tool/generate_audio.py list w-mimi w-wewe e-habari
-  python tool/generate_audio.py speak "Habari" assets/sounds/swahili/words/w-habari.mp3
+  python tool/generate_audio.py list section:foundations
+  python tool/generate_audio.py speak "Habari za asubuhi" assets/sounds/swahili/listening/l-greetings.mp3
 """
 
 from __future__ import annotations
@@ -29,6 +32,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+from course_cli import is_listening_lesson  # type: ignore
 
 COURSE_DIR = Path("assets/courses/swahili")
 SOUNDS_DIR = Path("assets/sounds/swahili")
@@ -47,11 +52,10 @@ DATA_DIR = VOICE_DIR / "espeak-ng-data"
 
 @dataclass(frozen=True)
 class AudioEntry:
-    """A single piece of text that needs to become an audio file."""
+    """A single listening-lesson audio asset that needs to become an MP3."""
 
     audio_asset: str
-    text: str
-    category: str  # 'word', 'expression', 'listening'
+    text: str  # the transcript to synthesize
 
 
 # --------------------------------------------------------------------------- #
@@ -204,22 +208,18 @@ def _wav_to_mp3(wav_path: Path, mp3_path: Path) -> None:
     )
 
 
-def _audio_asset_path(
-    asset: str,
-    kind: str,
-    base_dir: Path = SOUNDS_DIR,
-) -> Path:
-    """Return the canonical filesystem path for an audio asset id."""
-    if kind == "word":
-        return base_dir / "words" / f"{asset}.mp3"
-    if kind == "expression":
-        return base_dir / "expressions" / f"{asset}.mp3"
+def listening_asset_path(asset: str, base_dir: Path = SOUNDS_DIR) -> Path:
+    """Return the canonical filesystem path for a listening audio asset id."""
     return base_dir / "listening" / f"{asset}.mp3"
 
 
-def target_path_for(asset: str, category: str) -> Path:
-    """Return the canonical output path for an audio asset id."""
-    return _audio_asset_path(asset, category, SOUNDS_DIR)
+def target_path_for(asset: str, category: str | None = None) -> Path:
+    """Return the canonical output path for an audio asset id.
+
+    ``category`` is retained for call-site compatibility; all bundled assets
+    are listening assets now, so it is ignored.
+    """
+    return listening_asset_path(asset, SOUNDS_DIR)
 
 
 def generate_entry(
@@ -229,7 +229,7 @@ def generate_entry(
     base_dir: Path = SOUNDS_DIR,
 ) -> Path:
     """Generate the audio file for a single entry. Returns the output path."""
-    output = _audio_asset_path(entry.audio_asset, entry.category, base_dir)
+    output = listening_asset_path(entry.audio_asset, base_dir)
     if output.exists() and not force:
         return output
 
@@ -250,114 +250,48 @@ def _load_json(path: Path) -> Any:
         return json.load(f)
 
 
-def _collect_word_ids(obj: Any) -> set[str]:
-    ids: set[str] = set()
-    if isinstance(obj, dict):
-        if obj.get("runtimeType") == "showWord" and "wordId" in obj:
-            ids.add(obj["wordId"])
-        if "linkedWordIds" in obj:
-            ids.update(obj["linkedWordIds"])
-        for value in obj.values():
-            ids.update(_collect_word_ids(value))
-    elif isinstance(obj, list):
-        for item in obj:
-            ids.update(_collect_word_ids(item))
-    return ids
+def collect_entries(course_dir: Path) -> list[AudioEntry]:
+    """Return listening-lesson AudioEntries that should have MP3 files.
 
-
-def _collect_expression_ids(obj: Any) -> set[str]:
-    ids: set[str] = set()
-    if isinstance(obj, dict):
-        if obj.get("runtimeType") == "showExpression" and "expressionId" in obj:
-            ids.add(obj["expressionId"])
-        if "exampleExpressionIds" in obj:
-            ids.update(obj["exampleExpressionIds"])
-        for value in obj.values():
-            ids.update(_collect_expression_ids(value))
-    elif isinstance(obj, list):
-        for item in obj:
-            ids.update(_collect_expression_ids(item))
-    return ids
-
-
-def _collect_audio_assets(obj: Any) -> set[str]:
-    assets: set[str] = set()
-    if isinstance(obj, dict):
-        if "audioAsset" in obj and isinstance(obj["audioAsset"], str):
-            assets.add(obj["audioAsset"])
-        for value in obj.values():
-            assets.update(_collect_audio_assets(value))
-    elif isinstance(obj, list):
-        for item in obj:
-            assets.update(_collect_audio_assets(item))
-    return assets
-
-
-def collect_entries(
-    course_dir: Path,
-    only_referenced: bool = False,
-) -> list[AudioEntry]:
-    """Return all AudioEntries that should have audio files."""
+    Only `ListeningPhase.audioAsset` references with a non-empty `transcript`
+    are bundled: the transcript is the text Piper synthesizes, mirroring the
+    runtime listen-only fallback (speak the transcript). Word/expression
+    pronunciation is synthesized at runtime, so those ids are excluded. Assets
+    that lack a transcript (e.g. legacy `content.audioAsset`) are intentionally
+    skipped — they need a human recording or a transcript, not synthesized
+    id-string speech.
+    """
     vocab = _load_json(course_dir / "vocab.json")
     expressions = _load_json(course_dir / "expressions.json")
     index = _load_json(course_dir / "index.json")
 
-    vocab_by_id = {w["id"]: w for w in vocab.get("words", [])}
-    expr_by_id = {e["id"]: e for e in (expressions.get("expressions", []) or [])}
+    word_ids = {w["id"] for w in vocab.get("words", [])}
+    expr_ids = {e["id"] for e in (expressions.get("expressions", []) or [])}
+    word_and_expr_ids = word_ids | expr_ids
 
-    referenced_word_ids: set[str] = set()
-    referenced_expression_ids: set[str] = set()
-    referenced_assets: set[str] = set()
+    # asset_id -> transcript (first non-empty wins; dedup across phases)
+    listening_assets: dict[str, str] = {}
 
     for section_meta in index.get("sections", []):
         section = _load_json(course_dir / section_meta["file"])
         for unit in section.get("units", []):
             for lesson in unit.get("lessons", []):
                 content = lesson.get("content", {})
-                referenced_word_ids.update(_collect_word_ids(content))
-                referenced_expression_ids.update(_collect_expression_ids(content))
-                referenced_assets.update(_collect_audio_assets(content))
+                if not is_listening_lesson(lesson, content):
+                    continue
+                for phase in content.get("listeningPhases", []) or []:
+                    asset = phase.get("audioAsset")
+                    transcript = (phase.get("transcript") or "").strip()
+                    if not (isinstance(asset, str) and asset and transcript):
+                        continue
+                    if asset in word_and_expr_ids:
+                        continue
+                    listening_assets.setdefault(asset, transcript)
 
-    entries: list[AudioEntry] = []
-
-    # Words.
-    word_ids = referenced_word_ids if only_referenced else set(vocab_by_id.keys())
-    for wid in sorted(word_ids):
-        word = vocab_by_id.get(wid)
-        if not word:
-            continue
-        entries.append(
-            AudioEntry(audio_asset=wid, text=word.get("term", ""), category="word")
-        )
-
-    # Expressions.
-    expr_ids = (
-        referenced_expression_ids if only_referenced else set(expr_by_id.keys())
-    )
-    for eid in sorted(expr_ids):
-        expr = expr_by_id.get(eid)
-        if not expr:
-            continue
-        entries.append(
-            AudioEntry(
-                audio_asset=eid,
-                text=expr.get("term", ""),
-                category="expression",
-            )
-        )
-
-    # Listening / lesson-level assets that are not word/expression ids.
-    word_and_expr_ids = set(vocab_by_id.keys()) | set(expr_by_id.keys())
-    for asset in sorted(referenced_assets):
-        if asset in word_and_expr_ids:
-            continue
-        # For lesson-level assets the text is the asset id itself; the caller
-        # can supply a transcript in future iterations.
-        entries.append(
-            AudioEntry(audio_asset=asset, text=asset, category="listening")
-        )
-
-    return entries
+    return [
+        AudioEntry(audio_asset=asset, text=listening_assets[asset])
+        for asset in sorted(listening_assets)
+    ]
 
 
 # --------------------------------------------------------------------------- #
@@ -373,18 +307,18 @@ def cmd_all(args: argparse.Namespace) -> int:
             "(`pip install sherpa-onnx`) or put `piper` on PATH.",
             file=sys.stderr,
         )
-        entries = collect_entries(args.course_dir, only_referenced=args.only_referenced)
+        entries = collect_entries(args.course_dir)
         print(f"\nWould generate {len(entries)} audio file(s):", file=sys.stderr)
         for e in entries:
-            print(f"  {e.category:12} {e.audio_asset:30} -> {e.text}", file=sys.stderr)
+            print(f"  {e.audio_asset:30} -> {e.text}", file=sys.stderr)
         return 1
 
     print(f"Using backend: {backend.name()}")
-    entries = collect_entries(args.course_dir, only_referenced=args.only_referenced)
+    entries = collect_entries(args.course_dir)
     generated = 0
     skipped = 0
     for entry in entries:
-        target = target_path_for(entry.audio_asset, entry.category)
+        target = listening_asset_path(entry.audio_asset)
         if target.exists() and not args.force:
             skipped += 1
             continue
@@ -406,32 +340,14 @@ def cmd_list(args: argparse.Namespace) -> int:
         )
         return 1
 
-    vocab = _load_json(args.course_dir / "vocab.json")
-    expressions = _load_json(args.course_dir / "expressions.json")
-    vocab_by_id = {w["id"]: w for w in vocab.get("words", [])}
-    expr_by_id = {e["id"]: e for e in (expressions.get("expressions", []) or [])}
-
-    entries: list[AudioEntry] = []
-    for asset in args.ids:
-        if asset in vocab_by_id:
-            entries.append(
-                AudioEntry(
-                    audio_asset=asset,
-                    text=vocab_by_id[asset].get("term", ""),
-                    category="word",
-                )
-            )
-        elif asset in expr_by_id:
-            entries.append(
-                AudioEntry(
-                    audio_asset=asset,
-                    text=expr_by_id[asset].get("term", ""),
-                    category="expression",
-                )
-            )
-        else:
-            print(f"Warning: unknown id {asset}, treating as listening asset")
-            entries.append(AudioEntry(audio_asset=asset, text=asset, category="listening"))
+    # `list` is a manual-override entry point: the caller supplies the asset
+    # ids to synthesize. There is no transcript lookup here — if the caller
+    # wants specific spoken text they use `speak`. We synthesize the asset id
+    # itself only when explicitly asked.
+    entries = [
+        AudioEntry(audio_asset=asset, text=asset)
+        for asset in args.ids
+    ]
 
     for entry in entries:
         target = generate_entry(entry, backend, force=args.force)
@@ -465,7 +381,7 @@ def cmd_speak(args: argparse.Namespace) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Bulk audio generation for the Swahili course"
+        description="Bulk audio generation for Swahili listening lessons"
     )
     parser.add_argument(
         "--course-dir",
@@ -487,18 +403,15 @@ def main(argv: list[str] | None = None) -> int:
 
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    p_all = subparsers.add_parser("all", help="Generate audio for all entries")
-    p_all.add_argument(
-        "--only-referenced",
-        action="store_true",
-        help="Only generate audio for ids referenced by lessons",
+    p_all = subparsers.add_parser(
+        "all", help="Generate audio for all listening-lesson assets"
     )
     p_all.set_defaults(func=cmd_all)
 
     p_list = subparsers.add_parser(
-        "list", help="Generate audio for a list of ids"
+        "list", help="Generate audio for a list of listening asset ids"
     )
-    p_list.add_argument("ids", nargs="+", help="Word/expression/asset ids")
+    p_list.add_argument("ids", nargs="+", help="Listening asset ids")
     p_list.set_defaults(func=cmd_list)
 
     p_speak = subparsers.add_parser(

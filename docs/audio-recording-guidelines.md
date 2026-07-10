@@ -2,11 +2,13 @@
 
 This document describes how to submit human-recorded audio for the Swahili course. Human recordings can replace or supplement TTS-generated files produced by `tool/generate_audio.py`.
 
+Varnamala uses runtime TTS (Piper, with `flutter_tts` as a fallback) for individual words and expressions. We only bundle offline MP3 files for **listening-lesson prompts**. Therefore, human recordings are only accepted for listening-lesson/longer-phrase content.
+
 ## When to contribute recordings
 
 - You are a native or fluent Swahili speaker.
-- The TTS output for a specific word, expression, or listening phrase sounds unnatural.
-- You want to provide a more natural alternative for a high-frequency phrase.
+- The TTS output for a specific listening-lesson phrase or dialogue sounds unnatural.
+- You want to provide a more natural alternative for a high-frequency listening phrase.
 
 ## File format
 
@@ -18,12 +20,10 @@ This document describes how to submit human-recorded audio for the Swahili cours
 
 ## Naming and directory layout
 
-The filename must exactly match the `audioAsset` value used in the course JSON, plus the `.mp3` extension.
+The filename must exactly match the `audioAsset` value used in the listening lesson JSON, plus the `.mp3` extension.
 
 | Content type | JSON field | Output directory | Example asset id | Example file |
 |---|---|---|---|---|
-| Word | `WordEntry.audioAsset` | `assets/sounds/swahili/words/` | `w-habari` | `assets/sounds/swahili/words/w-habari.mp3` |
-| Expression | `Expression.audioAsset` | `assets/sounds/swahili/expressions/` | `e-habari-za-asubuhi` | `assets/sounds/swahili/expressions/e-habari-za-asubuhi.mp3` |
 | Listening / lesson | `audioAsset` on interaction or phase | `assets/sounds/swahili/listening/` | `section:foundations` | `assets/sounds/swahili/listening/section:foundations.mp3` |
 
 Use the same id that already appears in the course JSON. Do not invent new ids unless you also update the JSON.
@@ -40,8 +40,8 @@ Use the same id that already appears in the course JSON. Do not invent new ids u
 
 ## How to submit
 
-1. Place the MP3 file in the correct subdirectory under `assets/sounds/swahili/`.
-2. Make sure the corresponding `audioAsset` field in `vocab.json`, `expressions.json`, or the section JSON is set to the same id.
+1. Place the MP3 file in `assets/sounds/swahili/listening/`.
+2. Make sure the corresponding `audioAsset` field in the listening lesson JSON is set to the same id.
 3. Run the validation tools:
    ```bash
    python tool/course_cli.py validate
@@ -51,17 +51,16 @@ Use the same id that already appears in the course JSON. Do not invent new ids u
 
 ## Replacing TTS-generated files
 
-If a TTS-generated MP3 already exists for the same asset id, your human recording should overwrite it. Commit the replacement and mention in the PR description that it replaces a TTS file.
+If a TTS-generated MP3 already exists for the same listening asset id, your human recording should overwrite it. Commit the replacement and mention in the PR description that it replaces a TTS file.
 
 ## Batch submissions
 
 For more than a few files, organize them by directory and include a summary in the PR:
 
 ```
-Contributed human recordings for Unit 1 Greetings:
-- assets/sounds/swahili/words/w-habari.mp3
-- assets/sounds/swahili/words/w-nzuri.mp3
-- assets/sounds/swahili/expressions/e-habari-za-asubuhi.mp3
+Contributed human recordings for Unit 1 Listening:
+- assets/sounds/swahili/listening/section:foundations.mp3
+- assets/sounds/swahili/listening/u-greetings-dialogue.mp3
 ```
 
 ## Legal / licensing

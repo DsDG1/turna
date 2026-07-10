@@ -52,8 +52,6 @@ flutter:
   uses-material-design: true
   assets:
     - assets/sounds/
-    - assets/sounds/swahili/words/
-    - assets/sounds/swahili/expressions/
     - assets/sounds/swahili/listening/
     - assets/icons/
     - assets/images/

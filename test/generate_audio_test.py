@@ -7,6 +7,8 @@ Run with:
 
 from __future__ import annotations
 
+import json
+import shutil
 import sys
 import tempfile
 import unittest
@@ -22,8 +24,41 @@ from generate_audio import (  # type: ignore
     collect_entries,
     detect_backend,
     generate_entry,
+    listening_asset_path,
     target_path_for,
 )
+
+
+def _write_listening_course(tmp_course: Path, phases: list[dict]) -> None:
+    """Write a minimal course with one listening lesson containing `phases`."""
+    src_course = PROJECT_ROOT / "assets" / "courses" / "swahili"
+    shutil.copytree(src_course, tmp_course)
+    section = {
+        "id": "s-test",
+        "name": "Test",
+        "units": [
+            {
+                "id": "u-test",
+                "name": "Test",
+                "lessons": [
+                    {
+                        "id": "l-test",
+                        "name": "Test",
+                        "type": "listening",
+                        "prerequisiteLessonIds": [],
+                        "content": {"listeningPhases": phases},
+                    }
+                ],
+            }
+        ],
+    }
+    (tmp_course / "sections" / "s-test.json").write_text(
+        json.dumps(section, indent=2), encoding="utf-8"
+    )
+    (tmp_course / "index.json").write_text(
+        json.dumps({"sections": [{"id": "s-test", "file": "sections/s-test.json"}]}),
+        encoding="utf-8",
+    )
 
 
 class _FakeTtsBackend:
@@ -50,43 +85,116 @@ class TestGenerateAudio(unittest.TestCase):
         backend = detect_backend()
         self.assertIsNone(backend)
 
-    def test_target_path_for_word(self) -> None:
-        path = target_path_for("w-habari", "word")
-        self.assertEqual(path, SOUNDS_DIR / "words" / "w-habari.mp3")
-
-    def test_target_path_for_expression(self) -> None:
-        path = target_path_for("e-habari", "expression")
-        self.assertEqual(path, SOUNDS_DIR / "expressions" / "e-habari.mp3")
-
     def test_target_path_for_listening(self) -> None:
-        path = target_path_for("section:foundations", "lesson")
+        # category is now ignored; all bundled assets live under listening/.
         self.assertEqual(
-            path, SOUNDS_DIR / "listening" / "section:foundations.mp3"
+            target_path_for("l-habari", "word"),
+            SOUNDS_DIR / "listening" / "l-habari.mp3",
+        )
+        self.assertEqual(
+            target_path_for("l-habari"),
+            SOUNDS_DIR / "listening" / "l-habari.mp3",
+        )
+        self.assertEqual(
+            listening_asset_path("section:foundations"),
+            SOUNDS_DIR / "listening" / "section:foundations.mp3",
         )
 
-    def test_collect_entries_includes_all_vocab(self) -> None:
-        entries = collect_entries(COURSE_DIR, only_referenced=False)
-        word_entries = [e for e in entries if e.category == "word"]
-        self.assertGreaterEqual(len(word_entries), 35)
-        ids = {e.audio_asset for e in word_entries}
-        self.assertIn("w-naanu", ids)
-        self.assertIn("w-howdu", ids)
+    def test_collect_entries_uses_phase_transcripts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_course = Path(tmp) / "swahili"
+            _write_listening_course(
+                tmp_course,
+                phases=[
+                    {
+                        "id": "p-dialogue",
+                        "name": "Dialogue",
+                        "type": "dialogue",
+                        "audioAsset": "l-habari",
+                        "transcript": "Habari za asubuhi",
+                    },
+                    {
+                        "id": "p-summary",
+                        "name": "Summary",
+                        "type": "summary",
+                        # No transcript -> skipped (needs recording).
+                        "audioAsset": "l-needs-recording",
+                    },
+                    {
+                        "id": "p-word",
+                        "name": "Word",
+                        # audioAsset collides with a vocab word id -> excluded
+                        # (word pronunciation is runtime TTS, not bundled MP3).
+                        "audioAsset": "w-naanu",
+                        "transcript": "Naanu",
+                    },
+                ],
+            )
+            entries = collect_entries(tmp_course)
+            self.assertEqual(len(entries), 1)
+            entry = entries[0]
+            self.assertEqual(entry.audio_asset, "l-habari")
+            self.assertEqual(entry.text, "Habari za asubuhi")
 
-    def test_collect_entries_only_referenced(self) -> None:
-        entries = collect_entries(COURSE_DIR, only_referenced=True)
-        ids = {e.audio_asset for e in entries}
-        # w-baa is not referenced by any lesson in the current content inventory.
-        self.assertNotIn("w-baa", ids)
-        # w-howdu is referenced by a listenAndPick interaction.
-        self.assertIn("w-howdu", ids)
+    def test_collect_entries_skips_non_listening_lessons(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_course = Path(tmp) / "swahili"
+            src_course = PROJECT_ROOT / "assets" / "courses" / "swahili"
+            shutil.copytree(src_course, tmp_course)
+            # A non-listening lesson carrying an audioAsset must not yield a
+            # bundled-asset entry.
+            section = {
+                "id": "s-test",
+                "name": "Test",
+                "units": [
+                    {
+                        "id": "u-test",
+                        "name": "Test",
+                        "lessons": [
+                            {
+                                "id": "l-normal",
+                                "name": "Normal",
+                                "type": "normal",
+                                "prerequisiteLessonIds": [],
+                                "content": {
+                                    "stages": [
+                                        {
+                                            "id": "stage",
+                                            "name": "S",
+                                            "prerequisiteStageIds": [],
+                                            "items": [
+                                                {
+                                                    "runtimeType": "listenOnly",
+                                                    "id": "lo",
+                                                    "audioAsset": "l-normal-asset",
+                                                    "transcript": "Habari",
+                                                }
+                                            ],
+                                        }
+                                    ]
+                                },
+                            }
+                        ],
+                    }
+                ],
+            }
+            (tmp_course / "sections" / "s-test.json").write_text(
+                json.dumps(section, indent=2), encoding="utf-8"
+            )
+            (tmp_course / "index.json").write_text(
+                json.dumps(
+                    {"sections": [{"id": "s-test", "file": "sections/s-test.json"}]}
+                ),
+                encoding="utf-8",
+            )
+            entries = collect_entries(tmp_course)
+            self.assertEqual(entries, [])
 
     def test_generate_entry_skips_existing_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             tmp_sounds = Path(tmp)
-            entry = AudioEntry(
-                audio_asset="w-test", text="test", category="word"
-            )
-            target = tmp_sounds / "words" / "w-test.mp3"
+            entry = AudioEntry(audio_asset="l-test", text="Habari")
+            target = tmp_sounds / "listening" / "l-test.mp3"
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text("already exists")
 
@@ -101,10 +209,8 @@ class TestGenerateAudio(unittest.TestCase):
     def test_generate_entry_creates_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             tmp_sounds = Path(tmp)
-            entry = AudioEntry(
-                audio_asset="w-test", text="test", category="word"
-            )
-            target = tmp_sounds / "words" / "w-test.mp3"
+            entry = AudioEntry(audio_asset="l-test", text="Habari")
+            target = tmp_sounds / "listening" / "l-test.mp3"
 
             backend = _FakeTtsBackend()
             result = generate_entry(
@@ -112,6 +218,7 @@ class TestGenerateAudio(unittest.TestCase):
             )
             self.assertEqual(result, target)
             self.assertEqual(len(backend.calls), 1)
+            self.assertEqual(backend.calls[0][0], "Habari")
             self.assertTrue(target.exists())
 
 

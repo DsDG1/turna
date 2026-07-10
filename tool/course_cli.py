@@ -187,6 +187,22 @@ def collect_audio_assets(obj: Any) -> set[str]:
     return assets
 
 
+def is_listening_lesson(lesson: dict[str, Any], content: dict[str, Any]) -> bool:
+    """True if this lesson is a listening lesson.
+
+    Listening lessons bundle MP3 assets for their prompts; other lessons rely
+    on runtime TTS for word/expression pronunciation. A lesson is listening if
+    it is tagged ``template``/``type == "listening"`` or carries
+    ``listeningPhases`` (the canonical structural discriminator is ``template``,
+    but hand-authored JSON in the wild may set only ``type``).
+    """
+    return (
+        lesson.get("template") == "listening"
+        or lesson.get("type") == "listening"
+        or bool(content.get("listeningPhases"))
+    )
+
+
 # --------------------------------------------------------------------------- #
 # Problem dataclass for lint / validate
 # --------------------------------------------------------------------------- #
@@ -899,7 +915,6 @@ def _lint_entries(
         term = entry.get("term", "")
         translation = entry.get("translation", "")
         tags = entry.get("tags", []) or []
-        audio = entry.get("audioAsset")
 
         if not term:
             problems.append(
@@ -914,14 +929,6 @@ def _lint_entries(
             terms[term].append(eid)
         if translation:
             translations[translation].append(eid)
-
-        if not audio:
-            problems.append(
-                Problem(
-                    "warning",
-                    f"{kind} {eid} has no audioAsset",
-                )
-            )
 
         if not tags:
             problems.append(
@@ -976,7 +983,7 @@ def cmd_lint(args: argparse.Namespace) -> int:
     referenced_word_ids: set[str] = set()
     referenced_expression_ids: set[str] = set()
     referenced_grammar_ids: set[str] = set()
-    referenced_audio: dict[str, set[str]] = defaultdict(set)
+    referenced_audio: dict[str, set[tuple[str, bool]]] = defaultdict(set)
 
     for section_id, section in load_sections(course_dir):
         normalize_section(section)
@@ -988,8 +995,9 @@ def cmd_lint(args: argparse.Namespace) -> int:
                 referenced_word_ids.update(collect_word_ids(content))
                 referenced_expression_ids.update(collect_expression_ids(content))
                 referenced_grammar_ids.update(collect_grammar_point_ids(content))
+                is_listening = is_listening_lesson(lesson, content)
                 for asset in collect_audio_assets(content):
-                    referenced_audio[asset].add(loc)
+                    referenced_audio[asset].add((loc, is_listening))
 
     problems: list[Problem] = []
 
@@ -1048,15 +1056,37 @@ def cmd_lint(args: argparse.Namespace) -> int:
                             )
                         )
 
-    # Missing audio files.
+    # Missing audio files (only required for listening-lesson assets that
+    # are not word/expression ids; word/expression audio is TTS at runtime).
     for asset, locations in sorted(referenced_audio.items()):
-        asset_path = (SOUNDS_DIR / f"{asset}.mp3").resolve()
+        if asset in vocab_ids or asset in expression_ids:
+            continue
+
+        listening_locs = {loc for loc, is_listening in locations if is_listening}
+        non_listening_locs = {
+            loc for loc, is_listening in locations if not is_listening
+        }
+
+        if non_listening_locs:
+            problems.append(
+                Problem(
+                    "error",
+                    f"audioAsset '{asset}' referenced outside a listening "
+                    f"lesson: {', '.join(sorted(non_listening_locs))}",
+                )
+            )
+            continue
+
+        if not listening_locs:
+            continue
+
+        asset_path = _audio_asset_path(asset, "listening")
         if not asset_path.exists():
             problems.append(
                 Problem(
                     "warning",
-                    f"Missing audio file for asset '{asset}' "
-                    f"(referenced in {', '.join(sorted(locations))})",
+                    f"Missing audio file for listening asset '{asset}' "
+                    f"(referenced in {', '.join(sorted(listening_locs))})",
                 )
             )
 
@@ -1080,11 +1110,11 @@ def cmd_lint(args: argparse.Namespace) -> int:
 
 
 def _audio_asset_path(asset: str, kind: str) -> Path:
-    """Return the canonical filesystem path for an audio asset id."""
-    if kind == "word":
-        return (SOUNDS_DIR / "words" / f"{asset}.mp3").resolve()
-    if kind == "expression":
-        return (SOUNDS_DIR / "expressions" / f"{asset}.mp3").resolve()
+    """Return the canonical filesystem path for a listening audio asset id.
+
+    ``kind`` is retained for call-site compatibility but only listening
+    assets are bundled now; word/expression pronunciation is runtime TTS.
+    """
     return (SOUNDS_DIR / "listening" / f"{asset}.mp3").resolve()
 
 
@@ -1094,19 +1124,11 @@ def cmd_audio_manifest(args: argparse.Namespace) -> int:
 
     vocab = {w["id"]: w for w in load_vocab(course_dir)}
     expressions = {e["id"]: e for e in load_expressions(course_dir)}
+    word_and_expr_ids = set(vocab.keys()) | set(expressions.keys())
 
-    # asset_id -> (kind, set of reference locations)
-    referenced: dict[str, tuple[str, set[str]]] = {}
+    # asset_id -> set of reference locations (only listening lessons)
+    referenced: dict[str, set[str]] = {}
 
-    # All vocab entries are potential word audio.
-    for eid in vocab:
-        referenced.setdefault(eid, ("word", set()))[1].add("vocab")
-
-    # All expression entries are potential expression audio.
-    for eid in expressions:
-        referenced.setdefault(eid, ("expression", set()))[1].add("expressions")
-
-    # Section-level audio asset references.
     for section_id, section in load_sections(course_dir):
         normalize_section(section)
         for unit in section.get("units", []):
@@ -1114,53 +1136,38 @@ def cmd_audio_manifest(args: argparse.Namespace) -> int:
                 lid = lesson.get("id", "")
                 loc = f"{section_id}/{unit.get('id', '')}/{lid}"
                 content = lesson.get("content", {})
-                has_listening = bool(content.get("listeningPhases"))
+                if not is_listening_lesson(lesson, content):
+                    continue
                 for asset in collect_audio_assets(content):
-                    # If the asset matches a word/expression id, keep that kind;
-                    # otherwise treat it as a listening/lesson asset.
-                    if asset in vocab:
-                        kind = "word"
-                    elif asset in expressions:
-                        kind = "expression"
-                    else:
-                        kind = "phase" if has_listening else "lesson"
-                    referenced.setdefault(asset, (kind, set()))[1].add(loc)
+                    if asset in word_and_expr_ids:
+                        continue
+                    referenced.setdefault(asset, set()).add(loc)
 
     rows: list[dict[str, str]] = []
-    kind_counts: dict[str, dict[str, int]] = {
-        "word": {"total": 0, "present": 0},
-        "expression": {"total": 0, "present": 0},
-        "lesson": {"total": 0, "present": 0},
-        "phase": {"total": 0, "present": 0},
-    }
+    total = 0
+    present = 0
 
-    for asset, (kind, locations) in sorted(referenced.items()):
-        asset_path = _audio_asset_path(asset, kind)
+    for asset, locations in sorted(referenced.items()):
+        asset_path = _audio_asset_path(asset, "listening")
         status = "present" if asset_path.exists() else "missing"
         rows.append(
             {
                 "asset_id": asset,
-                "type": kind,
+                "type": "listening",
                 "referenced_by": "; ".join(sorted(locations)),
                 "status": status,
             }
         )
-        kind_counts.setdefault(kind, {"total": 0, "present": 0})
-        kind_counts[kind]["total"] += 1
+        total += 1
         if status == "present":
-            kind_counts[kind]["present"] += 1
+            present += 1
 
     headers = ["asset_id", "type", "referenced_by", "status"]
     _write_csv(out_path, headers, rows)
 
-    print(f"Wrote audio manifest ({len(rows)} assets) to {out_path}")
-    print("\nCoverage:")
-    for kind in ["word", "expression", "lesson", "phase"]:
-        counts = kind_counts.get(kind, {"total": 0, "present": 0})
-        total = counts["total"]
-        present = counts["present"]
-        pct = f"{present / total * 100:.1f}%" if total else "n/a"
-        print(f"  {kind:12} {present}/{total} ({pct})")
+    print(f"Wrote audio manifest ({len(rows)} listening assets) to {out_path}")
+    pct = f"{present / total * 100:.1f}%" if total else "n/a"
+    print(f"\nCoverage: {present}/{total} ({pct})")
     return 0
 
 

@@ -134,13 +134,65 @@ class TestCourseCli(unittest.TestCase):
 
     def test_audio_manifest_lists_referenced_assets(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
+            tmp_course = Path(tmp) / "swahili"
+            shutil.copytree(self.course_dir, tmp_course)
+
+            # Add a listening lesson referencing a listening asset that is not
+            # a word/expression id (word/expression audio is runtime TTS and
+            # excluded from the manifest).
+            section = {
+                "id": "s-manifest",
+                "name": "Manifest",
+                "units": [
+                    {
+                        "id": "u-m",
+                        "name": "M",
+                        "lessons": [
+                            {
+                                "id": "l-listen",
+                                "name": "Listen",
+                                "type": "listening",
+                                "prerequisiteLessonIds": [],
+                                "content": {
+                                    "listeningPhases": [
+                                        {
+                                            "id": "p-1",
+                                            "name": "P1",
+                                            "audioAsset": "l-pilot-dialogue",
+                                            "transcript": "Habari za asubuhi",
+                                        }
+                                    ]
+                                },
+                            }
+                        ],
+                    }
+                ],
+            }
+            (tmp_course / "sections" / "s-manifest.json").write_text(
+                json.dumps(section, indent=2), encoding="utf-8"
+            )
+            (tmp_course / "index.json").write_text(
+                json.dumps(
+                    {"sections": [{"id": "s-manifest", "file": "sections/s-manifest.json"}]}
+                ),
+                encoding="utf-8",
+            )
+
             out_path = Path(tmp) / "audio.csv"
-            args = Args(course_dir=self.course_dir, output=str(out_path))
+            args = Args(course_dir=tmp_course, output=str(out_path))
             self.assertEqual(cmd_audio_manifest(args), 0)
             text = out_path.read_text(encoding="utf-8")
             self.assertIn("asset_id,type,referenced_by,status", text)
-            # At least one audio asset is referenced from a lesson.
-            self.assertIn("w-howdu,lesson,", text)
+            # The listening asset is listed with type 'listening' and is
+            # missing on disk (no MP3 generated yet).
+            self.assertIn("l-pilot-dialogue,listening,", text)
+            self.assertIn(",missing", text)
+            # Word/expression ids are NOT listed (runtime TTS handles them).
+            self.assertNotIn("w-howdu", text)
+            self.assertNotIn(",word,", text)
+            self.assertNotIn(",expression,", text)
+            self.assertNotIn(",lesson,", text)
+            self.assertNotIn(",phase,", text)
 
 
 if __name__ == "__main__":
