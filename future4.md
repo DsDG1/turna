@@ -32,6 +32,22 @@
 > 基线（2026-07-10）：`flutter test` **221/221**，`flutter analyze` **0 issue**；包名 `varnamala`。8 个 ADR（0001–0008）在册。
 >
 > Phase 16 后（2026-07-11）：`flutter test` **296/296**，`flutter analyze` **0 issue**。新增 `sm2_test`、`lesson_link_store_test`、`study_log_repository_test`、`course_repository_test`，扩展 `schema_migration_test`、`srs_provider_test`。
+>
+> Phase 17 后（2026-07-11）：`flutter test` **314/314**，`flutter analyze` **0 issue**。新增 `verbose_test`、`seeder_cross_course_validation_test`、`content_update_dialog_test`；扩展 `course_repository_test`（损坏 content 降级）、`study_log_repository_test`（`_readLogs` 降级）、`schema_migration_test`（v6→v5 降级）、`seeder_idempotent_test`（复合版本）。ADR 0009 新增，ADR 0006/0002 更新。`com.example.varnamala` → `com.varnamala.app` + 签名骨架；`CourseDatabase` 加降级处理；内容版本复合 `index+expressions` + 跨 course id 门禁；内容更新提示（ADR 0002）落地。
+>
+> Phase 18 后（2026-07-11）：`flutter test` **326/326**，`flutter analyze` **0 issue**。`AudioController` 用注入 `_settingsProvider` + `VocabAudioResolver`（不再 import `swahili_vocab`）；`MatchProvider` 构造注入 `AppPrefs` + 字段封装；`AppRouter` 注解化 + `CourseReadyGuard`；`speakListenContent` 下沉路径判断。ADR 0010 新增，ADR 0007 更新。
+>
+> Phase 19 后（2026-07-11）：`flutter test` **332/332**，`flutter analyze` **0 issue**。4 输入 renderer 去按键 `setState`（VLB）；`LearningStats` future 缓存；`getWeakWords` 走 `MistakeProvider`；课程树展开惰性 ListView + section Selector。
+>
+> Phase 20 后（2026-07-11）：`flutter test` **340/340**，`flutter analyze` **0 issue**。`expressionDueCount` 缓存；SRS encode 基线 + ADR 0011 推迟分片；StudyLog recent 队列 (cap 200) + ADR 0012；play hub `_PlayHubCard`；views 外 `Colors.white` → 0。
+>
+> Phase 21 后（2026-07-11）：`flutter test` **342/342**，`flutter analyze` **0 issue**。`SrsQueueProvider` 基类 + 薄子类（ADR 0013）；`ICourseRepository`/`IStudyLogRepository`；Piper init Completer 化。
+>
+> Phase 22 后（2026-07-11）：`flutter test` **350/350**，`flutter analyze` **0 issue**。词典页 + 弱词小测（30d/≥2）+ 本地每日提醒 + 课程树 due/weak 状态 + MCQ Semantics；ADR 0014。
+>
+> Phase 23 后（2026-07-11）：`flutter test` **358/358**，`flutter analyze` **0 issue**。GameProvider 拆为 Score/Streak/LessonProgress/GameMilestone + 薄外观；`streak_resolver` 纯函数；ADR 0015。
+>
+> Phase 24 后（2026-07-11）：`flutter test` **372/372**，`flutter analyze` **0 issue**。`test/integration/` 三流 + `test/golden/` 亮暗 8 图；ADR 0016。
 
 ### 2.1 已稳固保留的好模式（本轮必须保持）
 
@@ -160,7 +176,10 @@
 
 ---
 
-### Phase 17：工程卫生波次 E + 构建健壮性 + 内容更新提示（1.5 周） ⬅️ **下一步**
+### Phase 17：工程卫生波次 E + 构建健壮性 + 内容更新提示（1.5 周） ✅ 已完成
+
+**完成时间**：2026-07-11  
+**状态**：`flutter test` 314/314，`flutter analyze` 0 issue。详见 `test/BASELINE.md`。ADR 0009 新增，ADR 0006/0002 更新。
 
 **目标**：把"明显不对但没人改"的卫生问题批量清掉，补迁移/内容完整性健壮性，并落地 future3 遗留的"内容更新提示"。可单独 ship，为后续功能开发铺干净地基。
 
@@ -197,7 +216,10 @@
 
 ---
 
-### Phase 18：DI 收敛 + 音频/内容解耦（1.5 周）
+### Phase 18：DI 收敛 + 音频/内容解耦（1.5 周） ✅ 已完成
+
+**完成时间**：2026-07-11  
+**状态**：`flutter test` 326/326，`flutter analyze` 0 issue。详见 `test/BASELINE.md`。ADR 0010 新增，ADR 0007 更新。
 
 **目标**：消除"已注入又直取 getIt"的反模式，把音频从 Swahili 内容解耦（为未来多语种铺路，本轮不引入新语种）。前置 Phase 16。
 
@@ -227,7 +249,10 @@
 
 ---
 
-### Phase 19：性能波次 I — 输入重建 + 统计缓存 + rebuild 审计（1 周）
+### Phase 19：性能波次 I — 输入重建 + 统计缓存 + rebuild 审计（1 周） ✅ 已完成
+
+**完成时间**：2026-07-11  
+**状态**：`flutter test` 332/332，`flutter analyze` 0 issue。详见 `test/BASELINE.md`。
 
 **目标**：消灭最高频的无谓重建——按键级全子树重建、统计页 FutureBuilder 重复触发——并补 future3 Phase 18 的 Provider rebuild 审计。前置 Phase 16。
 
@@ -254,7 +279,10 @@
 
 ---
 
-### Phase 20：性能波次 II — SRS/日志增量持久化 + 组件参数化 + 硬编码色收敛（2 周）
+### Phase 20：性能波次 II — SRS/日志增量持久化 + 组件参数化 + 硬编码色收敛（2 周） ✅ 已完成
+
+**完成时间**：2026-07-11  
+**状态**：`flutter test` 340/340，`flutter analyze` 0 issue。ADR 0011/0012 新增。详见 `test/BASELINE.md`。
 
 **目标**：去掉两个 O(n) 持久化热点，参数化重复 UI，收敛硬编码色，为规模化（大词表/长学习历史）扫清天花板。前置 Phase 16。
 
@@ -285,7 +313,10 @@
 
 ---
 
-### Phase 21：SRS 基类抽取 + repository 接口化 + Piper Completer（1.5 周）
+### Phase 21：SRS 基类抽取 + repository 接口化 + Piper Completer（1.5 周） ✅ 已完成
+
+**完成时间**：2026-07-11  
+**状态**：`flutter test` 342/342，`flutter analyze` 0 issue。ADR 0013 新增，ADR 0007 更新。详见 `test/BASELINE.md`。
 
 **目标**：在性能波次与测试地基到位后，做中等风险的结构收敛——消除 `SrsProvider`/`GrammarReviewProvider` 重复，引入 repository 接口，修 Piper 忙等。前置 Phase 16, 18。
 
@@ -311,7 +342,10 @@
 
 ---
 
-### Phase 22：学习体验功能 + 可访问性（2.5 周）
+### Phase 22：学习体验功能 + 可访问性（2.5 周） ✅ 已完成
+
+**完成时间**：2026-07-11  
+**状态**：`flutter test` 350/350，`flutter analyze` 0 issue。ADR 0014 新增。详见 `test/BASELINE.md`。
 
 **目标**：把 future3 Phase 17/18 遗留的非内容功能补齐——词典、弱词复习、本地提醒、课程树状态、可访问性。框架地基（测试、DI、性能、参数化卡片、干净弱词数据源）就位后做功能。前置 Phase 17, 18, 20。
 
@@ -339,7 +373,10 @@
 
 ---
 
-### Phase 23：GameProvider 拆分（2 周，高风险，最后做）
+### Phase 23：GameProvider 拆分（2 周，高风险，最后做） ✅ 已完成
+
+**完成时间**：2026-07-11  
+**状态**：`flutter test` 358/358，`flutter analyze` 0 issue。ADR 0015 新增。详见 `test/BASELINE.md`。
 
 **目标**：把 428 行 god-class 按职责拆分，但**只在 Phase 16 测试地基 + Phase 18 DI 收敛完成后**进行，且用"外观保留"策略降低风险。前置 Phase 16, 18。
 
@@ -372,7 +409,10 @@
 
 ---
 
-### Phase 24：集成测试 + golden 基线（1.5 周）
+### Phase 24：集成测试 + golden 基线（1.5 周） ✅ 已完成
+
+**完成时间**：2026-07-11  
+**状态**：`flutter test` 372/372，`flutter analyze` 0 issue。ADR 0016 新增。详见 `test/BASELINE.md`。
 
 **目标**：在结构收敛与功能完成后，建立端到端与视觉回归基线，防止后续内容轮/重构破坏用户路径。前置 Phase 22, 23。
 
@@ -396,7 +436,7 @@
 
 ---
 
-### Phase 25：发布流水线与版本策略（1 周）
+### Phase 25：发布流水线与版本策略（1 周） ⬅️ **下一步**
 
 **目标**：把 future3 Phase 19 遗留的发布工程补齐，把框架+功能成果固定为可持续发布节奏。前置 Phase 24。
 
