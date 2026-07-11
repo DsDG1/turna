@@ -30,6 +30,8 @@
 ## 2. 当前真实状态（future3 Phase 15.5 之后）
 
 > 基线（2026-07-10）：`flutter test` **221/221**，`flutter analyze` **0 issue**；包名 `varnamala`。8 个 ADR（0001–0008）在册。
+>
+> Phase 16 后（2026-07-11）：`flutter test` **296/296**，`flutter analyze` **0 issue**。新增 `sm2_test`、`lesson_link_store_test`、`study_log_repository_test`、`course_repository_test`，扩展 `schema_migration_test`、`srs_provider_test`。
 
 ### 2.1 已稳固保留的好模式（本轮必须保持）
 
@@ -83,6 +85,15 @@
 | 功能（future3 遗留） | 可访问性：icon button tooltip、MCQ 屏幕阅读器、对比度、输入框语义标签 | — |
 | 功能（future3 遗留） | 发布流水线：版本策略、构建脚本、内容清单 | — |
 
+**注**：Phase 16 已补齐 `sm2_test`、`lesson_link_store_test`、`study_log_repository_test`、`course_repository_test`，并扩展 `schema_migration_test` 覆盖 `v3 → v5`。上表中对应的三个"测试"行已解决，保留作为历史追踪。
+
+**Phase 16 跑出来的两个待修缺口**（已纳入 Phase 17）：
+
+| 位置 | 现象 | 计划修复 |
+|---|---|---|
+| `lib/data/study_log_repository.dart:_readLogs()` | 遇到损坏 JSON 直接抛 `FormatException`，无降级 | Phase 17 统一错误处理时包 try-catch，降级为空列表并 `logger.w` |
+| `lib/data/course_repository.dart:_toLesson()` | 遇到损坏 `contentJson` 直接抛异常，无降级 | Phase 17 加 try-catch，降级为 `const LessonContent()` 并 `logger.w` |
+
 ---
 
 ## 3. 总目标
@@ -123,7 +134,10 @@
 
 ---
 
-### Phase 16：测试地基（1 周） ⬅️ **第一步**
+### Phase 16：测试地基（1 周） ✅ 已完成
+
+**完成时间**：2026-07-11  
+**提交**：`112ea20` on `future4/phase-16-test-foundation`
 
 **目标**：在做任何架构重构前，先把"会被重构波及"的核心模块用直接测试钉住，避免重构时静默回归。
 
@@ -136,16 +150,17 @@
 - 扩展 `test/application/srs_provider_test.dart`：`registerWord`/`registerAll`、`getDueWords` 缓存命中/失效、`dueCount` 缓存回退、`reviewWord` 演进。为 Phase 19/20 改动建网。
 
 **验收**：
-- `flutter test` 数量 ≥ 221 + 新增（估 +25~35），全绿。
-- `sm2_test.dart` 覆盖 SM-2 四档质量全路径。
-- `schema_migration_test.dart` 含 `v3 -> v5` 用例并断言 `practiceItems` 保留。
-- `test/BASELINE.md` 更新。
+- `flutter test` 数量从 221 提升到 **296**，全绿。
+- `sm2_test.dart` 覆盖 SM-2 四档质量全路径 + leech 判定。
+- `schema_migration_test.dart` 含 `v1/v2/v3/v4 -> v5` 用例，并断言 `v3` 的 `practiceItems` 保留。
+- `test/BASELINE.md` 已更新。
+- 不改动任何生产代码。
 
 **ADR**：无新增（测试策略沿用 ADR 0005）。
 
 ---
 
-### Phase 17：工程卫生波次 E + 构建健壮性 + 内容更新提示（1.5 周）
+### Phase 17：工程卫生波次 E + 构建健壮性 + 内容更新提示（1.5 周） ⬅️ **下一步**
 
 **目标**：把"明显不对但没人改"的卫生问题批量清掉，补迁移/内容完整性健壮性，并落地 future3 遗留的"内容更新提示"。可单独 ship，为后续功能开发铺干净地基。
 
@@ -153,6 +168,7 @@
 - **`AppPrefs.printBefore` 降噪**（`locator.dart:80-84`）：debug 下对每次 prefs 写 `logger.d` 全量打印值——噪声 + debug 日志潜在数据泄漏。改为：默认只打 key，值仅在 `kDebugMode && Very.verbose` 二级开关下打印；确认 release 完全无输出。
 - **错误处理统一**（落实 ADR 0006 到持久化层）：把 `StudyLogRepository` 的 `assert(() { print() })`（release 静默）、`LessonLinkStore` 的裸 `print()`、`SrsProvider` 的 `debugPrint` 统一为 `logger.w`，确保 release 可观测。逐文件改，不改语义。
 - **`CourseRepository._toLesson` 加 try-catch**（`course_repository.dart:209-221`）：与同文件 `_decodePracticeItems`/`_decodeStringList` 已有的腐化降级对齐——`jsonDecode(contentJson) + LessonContent.fromJson` 包 try-catch，腐化时降级为 `const LessonContent()` 并 `logger.w`，避免损坏的内容 JSON 未捕获传播。
+- **`StudyLogRepository._readLogs` 加 try-catch**（`study_log_repository.dart:128-136`）：与 `readAllDailyStats` 已有的腐化降级对齐——`jsonDecode(raw)` 包 try-catch，腐化时降级为空列表并 `logger.w`。Phase 16 的测试已暴露此缺口。
 - **`CourseDatabase.migration` 加 `onDowngrade`**（`course_database.dart:147`）：当前降级直接崩溃。加 `onDowngrade`（createAll 或显式 throw 带可读信息，决策见 ADR）。
 - **跨 course lesson id 运行时门禁**（`course_validator.dart:110-111`）：runtime `validateSection` 不检跨 section 重复 id。在 `DatabaseSeeder` seed 阶段（已有全量 sections）加一次跨 course id 唯一性断言，重复时 `logger.e` + 抛 `CourseValidationException`，把 CI-only 检查变成运行时也守得住。
 - **`expressions.json` version 纳入 seed 校验**（`course_database_seeder.dart:41`）：当前只查 `index['version']`。`expressions.json` 有自己的 version 字段但变化不触发 reseed → 静默 seed miss。把 expressions version 纳入 reseed 触发条件。
@@ -163,6 +179,7 @@
 - `flutter analyze` 0 issue；`flutter test` 全绿。
 - grep 确认持久化层无裸 `print()`、无 `assert(()=>print())`、无 `debugPrint` 用于错误（统一 `logger.w`）。
 - 故意注入损坏 lesson content JSON 的测试 → `lessonById` 返回空 content 且不抛。
+- 故意注入损坏 study logs JSON 的测试 → `readLogs` 返回空列表且不抛。
 - 故意降级 schema 的测试 → 不崩溃（`onDowngrade` 路径）。
 - 跨 section 重复 lesson id 的 fixture → seeder 抛错而非静默通过。
 - `build.gradle` 无 `com.example`、无 `TODO: Add your own signing`。
@@ -173,7 +190,7 @@
 - 更新 `docs/decisions/0006-unified-error-handling.md`：补"持久化层错误统一 `logger.w`"小节。
 
 **测试**：
-- `course_repository_test.dart` 加损坏 content 降级用例。
+- `course_repository_test.dart` 加损坏 content 降级用例；`study_log_repository_test.dart` 加损坏 logs 降级用例。
 - `schema_migration_test.dart` 加降级用例。
 - `seeder` 测试加跨 section 重复 id 抛错 + expressions version 触发 reseed 用例。
 - 内容更新提示 widget 测试。
