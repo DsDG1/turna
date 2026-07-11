@@ -33,3 +33,62 @@ Several low-level robustness issues remained after Phases 0–2:
 - All 205 tests pass; `flutter analyze` clean; `make ci` green.
 - Three existing tests (`audio_controller_fallback_test`, `lesson_viewmodel_flow_test`, `mastery_dialog_stats_test`) were updated to register a `SettingsProvider` in their setUp, since they construct `AudioController` subclasses that now resolve SettingsProvider eagerly instead of via the removed guard.
 - The domain-model Freezed migration is explicitly deferred with rationale; the roadmap's Phase 3 note "评估迁移" is now resolved as "do not migrate — data-compat risk."
+
+
+## Phase 18 update (2026-07-11)
+
+### Injected fields over `getIt` direct lookup
+
+When a dependency is already constructor-injected, call sites **must** use the
+injected field — never `getIt<T>()` again inside the same class. Phase 18 fixed:
+
+- `AudioController._triggerHaptic` / `_playSound` → `_settingsProvider`
+- `MatchProvider.initializeGame` → constructor-injected `AppPrefs` (was
+  `getIt<AppPrefs>()`)
+
+`GameProvider._applyGemBonus` / `AchievementsProvider` still keep optional
+`getIt.isRegistered` test hooks (see decision #2 above).
+
+### `MatchProvider` encapsulation
+
+Public mutable game fields became private with read-only getters. UI continues
+to read the same names; only the provider mutates state. `secondsRemaining` is
+private; the app bar already listens to `countdownNotifier`.
+
+### `AppRouter` annotation + route guard skeleton
+
+- `AppRouter` is `@lazySingleton`; the manual
+  `getIt.registerLazySingleton<AppRouter>` in `main.dart` is removed.
+- `CourseReadyGuard` (`@lazySingleton`) redirects to `SplashRoute` when
+  `CourseProvider.isLoaded` is false. Currently attached only to `HomeRoute`
+  so splash/settings stay reachable; Phase 22 dictionary routes can reuse it.
+
+### Audio content decoupling
+
+See ADR 0010 (`VocabAudioResolver`).
+
+## Phase 21 update (2026-07-11)
+
+### Repository interfaces (transition)
+
+- `ICourseRepository` / `IStudyLogRepository` live under `lib/domain/repositories/`.
+- Concrete `CourseRepository` / `StudyLogRepository` implement them.
+- **DI still registers concrete classes** — no `getIt.registerLazySingleton<ICourseRepository>`.
+  Call sites and Injectable graph stay on concrete types until a later phase
+  needs mockable interface injection.
+- Rationale: avoid a wide getIt type churn for zero runtime benefit this phase.
+
+### SRS queue base
+
+See ADR 0013 (`SrsQueueProvider`).
+
+## Phase 23 update (2026-07-11)
+
+### GameProvider split
+
+See ADR 0015. Injectable now wires:
+
+`ScoreProvider` / `StreakProvider` / `LessonProgressProvider` /
+`GameMilestoneProvider` → `GameProvider(appPrefs, …)`.
+
+UI still only exposes `GameProvider` via `providers.dart`.

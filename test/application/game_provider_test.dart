@@ -26,7 +26,7 @@ void main() {
     await prefs.preferences.setInt(LocalStateKeys.streak, 0);
     await prefs.preferences.setString(LocalStateKeys.lastStreakDate, '');
     await prefs.preferences.setStringList(LocalStateKeys.achievements, const []);
-    game = GameProvider(prefs);
+    game = GameProvider.forTesting(prefs);
   });
 
   int readScore() =>
