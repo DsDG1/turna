@@ -17,6 +17,7 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: SectionPickerRoute.page),
         AutoRoute(page: VowelAndConsonantLearningRoute.page),
         AutoRoute(page: MatchWordsRoute.page),
+        AutoRoute(page: DailyChallengeRoute.page),
         AutoRoute(page: SrsReviewRoute.page),
         AutoRoute(page: GrammarReviewRoute.page),
         AutoRoute(page: MistakeListRoute.page),

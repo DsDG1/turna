@@ -6,6 +6,9 @@ import 'package:flutter/material.dart';
 
 // Project imports:
 import 'package:varnamala/application/course_provider.dart';
+import 'package:varnamala/courses/languages/expressions.dart';
+import 'package:varnamala/courses/languages/grammar_points.dart';
+import 'package:varnamala/courses/languages/swahili_vocab.dart';
 import 'package:varnamala/core/logger.dart';
 import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/routing/routing.dart';
@@ -54,6 +57,14 @@ Future<void> main() async {
   runApp(const VarnamalaApp());
 
   WidgetsBinding.instance.addPostFrameCallback((_) async {
+    // Populate the synchronous Swahili lookup maps (vocab / grammar /
+    // expressions) before the course tree shows lessons. Deferred from
+    // setupLocator so runApp paints the splash without waiting on the full
+    // table read. Idempotent one-shot loads.
+    await loadSwahiliVocabulary();
+    await loadSwahiliGrammarPoints();
+    await loadSwahiliExpressions();
+
     await getIt<CourseProvider>().load();
 
     if (!kIsWeb) {

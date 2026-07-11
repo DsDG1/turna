@@ -62,7 +62,7 @@ class PlayHubScreen extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: _DailyChallengeCard(
-              onTap: () => context.router.push(const MatchWordsRoute()),
+              onTap: () => context.router.push(const DailyChallengeRoute()),
             ),
           ),
         ),
@@ -448,7 +448,7 @@ class _DailyChallengeCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Coming soon — play today\'s fixed word set',
+                      'Random 15 questions — test your Swahili',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: VarnamalaTheme.textSecondaryColor(context),
                           ),

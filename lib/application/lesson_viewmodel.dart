@@ -74,6 +74,14 @@ class LessonViewModel extends ChangeNotifier {
   int _correctAnswers = 0;
   int _incorrectAnswers = 0;
 
+  /// Idempotency guard for [_onLessonCompleted]. `advance()` calls it
+  /// fire-and-forget (the Future keeps running after the widget unmounts —
+  /// Flutter doesn't tear down pending Futures on dispose — so the XP/gems/
+  /// progress/study-stats side effects are not lost on fast back-out). This
+  /// guard prevents a double completion if `advance()` is invoked twice or a
+  /// mastery retry re-passes after a prior completion already started.
+  bool _completionStarted = false;
+
   // Mastery-specific state
   int _masteryAttempts = 0;
   bool _masteryPassed = false;
@@ -92,6 +100,16 @@ class LessonViewModel extends ChangeNotifier {
   int get masteryAttempts => _masteryAttempts;
   int get correctAnswers => _correctAnswers;
   int get totalInteractionCount => _totalItemCount;
+
+  /// 1-based index of the question the user is currently answering, clamped
+  /// to [totalInteractionCount] when the lesson is complete. Returns 0 when
+  /// there is no lesson.
+  int get currentQuestionNumber {
+    if (_lesson == null || _totalItemCount == 0) return 0;
+    if (_isComplete) return _totalItemCount;
+    final flat = _flatItemIndex();
+    return flat < _totalItemCount ? flat + 1 : _totalItemCount;
+  }
 
   /// The stages of the current lesson (empty before [loadLesson] completes).
   List<Stage> get _stages => _cachedStages;
@@ -186,12 +204,34 @@ class LessonViewModel extends ChangeNotifier {
       return false;
     }
 
+    final fresh = lesson;
+    _lesson = fresh;
+    _resetToLesson(fresh);
+
+    notifyListeners();
+    return true;
+  }
+
+  /// Load an in-memory [Lesson] directly, bypassing the by-id lookup. Used
+  /// for synthesized lessons that are not registered in the course tree
+  /// (e.g. the Daily Challenge deck assembled at runtime). Resets all
+  /// progress state exactly like [loadLesson].
+  void loadLessonInstance(Lesson lesson) {
     _lesson = lesson;
+    _resetToLesson(lesson);
+    notifyListeners();
+  }
+
+  /// Apply [lesson] as the current lesson and reset all progression state.
+  /// Shared by [loadLesson] and [loadLessonInstance] so the two entry points
+  /// can never drift apart.
+  void _resetToLesson(Lesson lesson) {
     _cachedStages = lesson.flattenedStages;
     _currentStageIndex = 0;
     _currentInteractionIndex = 0;
     _totalMistakes = 0;
     _isComplete = false;
+    _completionStarted = false;
     _lessonStartTime = DateTime.now();
     _correctAnswers = 0;
     _incorrectAnswers = 0;
@@ -203,9 +243,6 @@ class LessonViewModel extends ChangeNotifier {
     _registerSrsWords();
     // Register grammar points this lesson teaches.
     _registerGrammarPoints();
-
-    notifyListeners();
-    return true;
   }
 
   /// Submit the current interaction with a correctness verdict.
@@ -280,6 +317,7 @@ class LessonViewModel extends ChangeNotifier {
     _currentInteractionIndex = 0;
     _totalMistakes = 0;
     _isComplete = false;
+    _completionStarted = false;
     _masteryPassed = false;
     _lessonStartTime = DateTime.now();
     _correctAnswers = 0;
@@ -294,6 +332,7 @@ class LessonViewModel extends ChangeNotifier {
     _currentInteractionIndex = 0;
     _totalMistakes = 0;
     _isComplete = false;
+    _completionStarted = false;
     _lessonStartTime = DateTime.now();
     _correctAnswers = 0;
     _incorrectAnswers = 0;
@@ -314,6 +353,15 @@ class LessonViewModel extends ChangeNotifier {
 
   int get _totalItemCount =>
       _stages.fold<int>(0, (sum, stage) => sum + stage.items.length);
+
+  /// Flat (across all stages) 0-based index of the current item.
+  int _flatItemIndex() {
+    var index = 0;
+    for (var s = 0; s < _currentStageIndex && s < _stages.length; s++) {
+      index += _stages[s].items.length;
+    }
+    return index + _currentInteractionIndex;
+  }
 
   /// Count of items already submitted (completed).
   int get _completedItemCount =>
@@ -409,6 +457,8 @@ class LessonViewModel extends ChangeNotifier {
   }
 
   Future<void> _onLessonCompleted() async {
+    if (_completionStarted) return;
+    _completionStarted = true;
     final lesson = _lesson;
     if (lesson == null) return;
     await _completionCoordinator.complete(
