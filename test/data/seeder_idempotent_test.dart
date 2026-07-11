@@ -159,5 +159,30 @@ void main() {
           .getSingle();
       expect(meta.value, isNot(equals('__stale_for_test__')));
     });
+
+    test('composite version triggers reseed from old single-component meta',
+        () async {
+      final db = CourseDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+
+      expect(await DatabaseSeeder(db).seedIfNeeded(), isTrue);
+
+      // Simulate an upgrade from the old index-only version format ("5").
+      await db.into(db.courseMeta).insertOnConflictUpdate(
+            const CourseMetaCompanion(
+              key: Value(DatabaseSeeder.metaContentVersion),
+              value: Value('5'),
+            ),
+          );
+
+      expect(await DatabaseSeeder(db).seedIfNeeded(), isTrue,
+          reason: 'old single-component meta must trigger reseed');
+
+      final meta = await (db.select(db.courseMeta)
+            ..where((t) => t.key.equals(DatabaseSeeder.metaContentVersion)))
+          .getSingle();
+      // New composite format joins index + expressions versions with '+'.
+      expect(meta.value, contains('+'));
+    });
   });
 }

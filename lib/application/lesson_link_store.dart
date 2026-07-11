@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
+import 'package:varnamala/core/logger.dart';
 import 'package:varnamala/domain/course/lesson_word_link.dart';
 import 'package:varnamala/service/locator.dart';
 
@@ -37,9 +38,8 @@ class LessonLinkStore {
             MapEntry(k, LessonWordLink.fromJson(v as Map<String, dynamic>)),
       );
     } catch (e) {
-      // Prefer empty over silent wipe without observability.
-      // ignore: avoid_print
-      print('LessonLinkStore decode failed: $e');
+      // Prefer empty over silent wipe; observable in release via logger.
+      logger.w('LessonLinkStore decode failed: $e');
       _cache = <String, LessonWordLink>{};
     }
     return Map.of(_cache!);
@@ -98,8 +98,7 @@ class LessonLinkStore {
 
   Future<void> _enqueue(Future<void> Function() op) {
     _writeChain = _writeChain.then((_) => op()).catchError((Object e) {
-      // ignore: avoid_print
-      print('LessonLinkStore write failed: $e');
+      logger.w('LessonLinkStore write failed: $e');
     });
     return _writeChain;
   }

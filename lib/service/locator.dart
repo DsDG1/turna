@@ -12,6 +12,7 @@ import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 
 // Project imports:
 import 'package:varnamala/core/logger.dart';
+import 'package:varnamala/core/verbose.dart';
 import 'package:varnamala/data/course_database.dart';
 import 'package:varnamala/data/course_database_seeder.dart';
 import 'package:varnamala/di/injection.dart';
@@ -78,8 +79,14 @@ class AppPrefs {
   }
 
   void printBefore({String? key, value}) {
-    if (kDebugMode) {
+    if (!kDebugMode) return;
+    // Default: log only the key to cut noise and avoid dumping values into
+    // debug logs (potential data leakage). The full value is emitted only
+    // under the second-level [Very.verbose] debug switch.
+    if (veryVerbose) {
       logger.d('Saving Key: $key &  value: $value');
+    } else {
+      logger.d('Saving Key: $key');
     }
   }
 }
@@ -139,6 +146,17 @@ class LocalStateKeys {
   static const String ttsEngine = 'settings.ttsEngine'; // 'system' | 'offline'
   static const String ttsAvailabilityPromptShown =
       'settings.ttsAvailabilityPromptShown';
+
+  // Daily local reminder (Phase 22)
+  static const String dailyReminderEnabled = 'settings.dailyReminderEnabled';
+  static const String dailyReminderHour = 'settings.dailyReminderHour';
+  static const String dailyReminderMinute = 'settings.dailyReminderMinute';
+
+  /// Last content version the user acknowledged via the content-update dialog
+  /// (ADR 0002). When the bundled course content version changes and the user
+  /// has existing progress, the dialog is shown; on dismissal (keep or reset)
+  /// this is set to the current content version so it does not reappear.
+  static const String contentVersionAcknowledged = 'contentUpdate.acknowledged';
 }
 
 /// Making AppPrefs injectable

@@ -57,3 +57,29 @@ The dialog will include a brief explanation: "The Swahili course has been update
 - `lib/application/course_provider.dart` — content version detection
 - `lib/views/settings/settings_page.dart` — manual reset action
 - `migration/vocab_map.json` — mapping table driving the replacement
+
+## Phase 17 implementation notes
+
+The prompt was wired up in future4 Phase 17 (does not require new content —
+the version format change itself is the trigger):
+
+- **Detection**: `CourseRepository.contentVersion()` reads the stored
+  `contentVersion` meta (the composite `index+expressions` version written by
+  `DatabaseSeeder`, see ADR 0009). The trigger compares it to
+  `LocalStateKeys.contentVersionAcknowledged`.
+- **Trigger point**: `HomePage._maybePromptContentUpdate`, run post-frame in
+  `initSession` after the streak check. The dialog is shown only when the user
+  has existing progress (`GameProvider.completedLessonIds` non-empty); fresh
+  installs silently acknowledge and never see the dialog.
+- **Dialog**: `ContentUpdateDialog` (`lib/views/content_update/`), `barrierDismissible: false`, returns a typed `ContentUpdateChoice` — "Keep progress" (default) / "Reset progress".
+- **Reset action** (the "Reset progress" choice) clears:
+  `GameProvider.resetLessonProgress()`, `MistakeProvider.clear()`,
+  `StudyLogRepository.clearAll()`, and the new `SrsProvider.clear()` /
+  `GrammarReviewProvider.clear()` (the SRS queues had no reset method before
+  Phase 17).
+- **Persistence**: on either choice, `contentVersionAcknowledged` is set to
+  the current stored version so the dialog does not recur for the same
+  version.
+- Existing installs upgrading past Phase 17 see a one-time reseed (their meta
+  is the old single-component `"5"`, which differs from the new `"5+1"`),
+  which is exactly what makes the prompt fire for users with progress.

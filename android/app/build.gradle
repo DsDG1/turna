@@ -12,6 +12,19 @@ if (localPropertiesFile.exists()) {
     }
 }
 
+// Release signing config (optional). Drop a `key.properties` file in
+// `android/` (gitignored) with storeFile/storePassword/keyAlias/keyPassword to
+// sign release builds with a real keystore. When absent, release builds fall
+// back to the debug signing config so `flutter build` works without a
+// keystore. See docs/decisions/0009-android-application-id-and-signing.md.
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('key.properties')
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.withReader('UTF-8') { reader ->
+        keystoreProperties.load(reader)
+    }
+}
+
 def flutterVersionCode = localProperties.getProperty('flutter.versionCode')
 if (flutterVersionCode == null) {
     flutterVersionCode = '1'
@@ -23,11 +36,13 @@ if (flutterVersionName == null) {
 }
 
 android {
-    namespace "com.example.varnamala"
+    namespace "com.varnamala.app"
     compileSdkVersion 36
     ndkVersion flutter.ndkVersion
 
     compileOptions {
+        // Required by flutter_local_notifications (scheduled notifications / java.time APIs)
+        coreLibraryDesugaringEnabled true
         sourceCompatibility JavaVersion.VERSION_11
         targetCompatibility JavaVersion.VERSION_11
     }
@@ -40,15 +55,25 @@ android {
         main.java.srcDirs += 'src/main/kotlin'
     }
 
+    signingConfigs {
+        release {
+            if (keystorePropertiesFile.exists()) {
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+                storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
+                storePassword keystoreProperties['storePassword']
+            }
+        }
+    }
+
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId "com.example.varnamala"
-        // You can update the following values to match your application needs.
+        applicationId "com.varnamala.app"
         // For more information, see: https://docs.flutter.dev/deployment/android#reviewing-the-gradle-build-configuration.
         minSdkVersion flutter.minSdkVersion
         targetSdkVersion flutter.targetSdkVersion
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
+        multiDexEnabled true
 
         // NOTE: single-arch (arm64-v8a) packaging is driven by the build
         // command `flutter build apk --release --split-per-abi
@@ -59,9 +84,13 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig signingConfigs.debug
+            // Sign with the release keystore when `key.properties` is present;
+            // otherwise fall back to the debug signing config so local/CI
+            // `flutter build` works without a keystore. A real release keystore
+            // is wired by dropping `key.properties` in `android/`.
+            signingConfig keystorePropertiesFile.exists()
+                ? signingConfigs.release
+                : signingConfigs.debug
 
             // R8 code shrinking + resource shrinking. ProGuard rules in
             // proguard-rules.pro keep the FFI/reflection entry points that R8
@@ -77,4 +106,6 @@ flutter {
     source '../..'
 }
 
-dependencies {}
+dependencies {
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
+}

@@ -28,6 +28,23 @@ There was no shared `Result`/`Either` type to make the failure channel explicit 
 
 `onUnknownRoute` was investigated for `MaterialApp.router` but `auto_route` 9.2.2's `config()` does not expose it; the global handlers cover framework-level route errors, so this was left to auto_route's default placeholder.
 
+## Phase 17 update — persistence-layer error unification
+
+The persistence layer still had ad-hoc output that was either release-silent or bypassed the `logger`:
+
+- `StudyLogRepository` used `assert(() { print(...); }())` in `readAllDailyStats` / `_enqueueWrite` — assertions are stripped in release, so the degradations were **invisible in production**.
+- `LessonLinkStore` used bare `print()` (fires in all modes, but not through the logger and not level-filtered).
+- `SrsProvider` / `GrammarReviewProvider` used `debugPrint` for decode failures and had **no** error handling on `_persist` at all — a prefs write failure would propagate to callers like `reviewWord`.
+
+These were unified to `logger.w` (observable in release via the `warning+` filter):
+
+- `StudyLogRepository`: `readAllDailyStats`, `_enqueueWrite`, and a new `_readLogs` try-catch (corrupted logs degrade to an empty list instead of throwing).
+- `LessonLinkStore`: `readAll` and `_enqueue`.
+- `SrsProvider` / `GrammarReviewProvider`: `state` decode + a new `_persist` try-catch (in-memory cache is updated before the write, so synchronous callers still see the new state; a write failure is logged and retried on the next mutation).
+- `CourseRepository._toLesson`: a new try-catch degrades corrupted `contentJson` to `const LessonContent()` (mirroring the existing `_decodePracticeItems` / `_decodeStringList` pattern) instead of crashing `section()` / `lessonById()`.
+
+`AppPrefs.printBefore` was also tightened: it now logs only the key by default, and emits the value only under a second-level `Very.verbose` debug switch (`lib/core/verbose.dart`). Release builds reach none of this because callers gate on `kDebugMode` first (and the `_ReleaseAwareFilter` suppresses `.d` in release), so production logs emit zero prefs values.
+
 ## Consequences
 
 - Lesson-completion side-effect failures are now tagged and logged at `warning` rather than printed as debug strings.
@@ -35,4 +52,7 @@ There was no shared `Result`/`Either` type to make the failure channel explicit 
 - Uncaught framework and platform errors are logged in release builds instead of vanishing.
 - Release builds log at `warning+`; debug/test builds keep full verbosity.
 - `Result` is available as a shared type for future call sites that want explicit success/failure without adding a dependency.
+- Persistence-layer degradations (corrupted prefs/DB content, write failures) are now observable in release logs; `print` / `debugPrint` / `assert(()=>print())` are removed from the persistence layer.
+- `AppPrefs` no longer dumps values into debug logs by default.
 - All 197 tests pass (184 from Phase 1 + 13 new `Result` tests), and the existing `lesson_viewmodel_flow_test` confirms the `_onLessonCompleted` refactor preserves behavior.
+- Phase 17 extends coverage with corruption-degradation tests for `CourseRepository._toLesson` and `StudyLogRepository._readLogs`; total suite is 314 (see `test/BASELINE.md`).

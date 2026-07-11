@@ -1,6 +1,7 @@
 // Flutter imports:
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart' show rootBundle;
 
 // Package imports:
@@ -9,7 +10,9 @@ import 'package:drift/drift.dart';
 // Project imports:
 import 'package:varnamala/core/logger.dart';
 import 'package:varnamala/courses/course_loader.dart';
-import 'package:varnamala/data/course_database.dart';
+import 'package:varnamala/courses/course_validator.dart';
+import 'package:varnamala/data/course_database.dart' hide Section;
+import 'package:varnamala/domain/course/section.dart';
 
 /// Seeds [CourseDatabase] from the bundled JSON assets.
 ///
@@ -35,10 +38,20 @@ class DatabaseSeeder {
   /// written.
   ///
   /// Skip iff version matches and sections exist; otherwise clear + full seed.
+  /// The content version is the composite of `index.json` and
+  /// `expressions.json` versions (`"$indexVersion+$expressionsVersion"`), so
+  /// bumping either triggers a reseed.
   Future<bool> seedIfNeeded() async {
     final indexRaw = await rootBundle.loadString(SwahiliCourse.indexAsset);
     final index = jsonDecode(indexRaw) as Map<String, dynamic>;
-    final assetVersion = '${index['version'] ?? 0}';
+    final indexVersion = '${index['version'] ?? 0}';
+
+    final expressionsRaw = await rootBundle.loadString(
+      SwahiliCourse.expressionsAsset,
+    );
+    final expressionsJson = jsonDecode(expressionsRaw) as Map<String, dynamic>;
+    final expressionsVersion = '${expressionsJson['version'] ?? 0}';
+    final assetVersion = '$indexVersion+$expressionsVersion';
 
     final storedVersion = await _readMeta(metaContentVersion);
     final existingSections = await (db.select(db.sections)..limit(1)).get();
@@ -133,6 +146,24 @@ class DatabaseSeeder {
     final vocabRaw = await rootBundle.loadString(SwahiliCourse.vocabAsset);
     final vocab = parseSwahiliVocabulary(vocabRaw);
 
+    // Parse every section once so we can assert cross-course lesson/unit id
+    // uniqueness before writing anything (runtime mirror of the CI-only
+    // validateSwahiliCourse check — see course_validator.dart).
+    final sections = <Section>[];
+    for (final entry in entries) {
+      final file = entry['file'] as String;
+      final raw = await rootBundle.loadString('${SwahiliCourse.baseDir}/$file');
+      // parseSwahiliSection runs _normalizeSection -> stored normalized.
+      sections.add(parseSwahiliSection(raw));
+    }
+    final crossErrors = collectCrossCourseIdErrors(sections);
+    if (crossErrors.isNotEmpty) {
+      for (final err in crossErrors) {
+        logger.e(err);
+      }
+      throw CourseValidationException(crossErrors);
+    }
+
     // Vocabulary first (independent of the section tree).
     await db.batch((b) {
       for (final w in vocab) {
@@ -150,14 +181,8 @@ class DatabaseSeeder {
       }
     });
 
-    for (var sOrder = 0; sOrder < entries.length; sOrder++) {
-      final entry = entries[sOrder];
-      final file = entry['file'] as String;
-      final raw = await rootBundle.loadString(
-        '${SwahiliCourse.baseDir}/$file',
-      );
-      // parseSwahiliSection runs _normalizeSection -> stored normalized.
-      final section = parseSwahiliSection(raw);
+    for (var sOrder = 0; sOrder < sections.length; sOrder++) {
+      final section = sections[sOrder];
 
       await db.transaction(() async {
         await db.into(db.sections).insert(
@@ -210,8 +235,36 @@ class DatabaseSeeder {
       });
     }
 
-    logger.i('Seeded course database: ${entries.length} sections, '
+    logger.i('Seeded course database: ${sections.length} sections, '
         '${vocab.length} vocab words');
+  }
+
+  /// Collects cross-course unit/lesson id uniqueness errors from the assembled
+  /// [sections]. Runtime mirror of the CI-only `validateSwahiliCourse`
+  /// check — runtime `validateSection` only checks within a single section.
+  ///
+  /// Vocab / expression ids are not checked here (expressions asset is
+  /// currently empty; vocab ids are validated per-section already).
+  @visibleForTesting
+  static List<String> collectCrossCourseIdErrors(Iterable<Section> sections) {
+    final unitIds = <String>{};
+    final lessonIds = <String>{};
+    final errors = <String>[];
+    for (final section in sections) {
+      for (final u in section.units) {
+        if (u.id.isEmpty) continue;
+        if (!unitIds.add(u.id)) {
+          errors.add('Duplicate unit id across course: ${u.id}');
+        }
+        for (final l in u.lessons) {
+          if (l.id.isEmpty) continue;
+          if (!lessonIds.add(l.id)) {
+            errors.add('Duplicate lesson id across course: ${l.id}');
+          }
+        }
+      }
+    }
+    return errors;
   }
 
   Future<void> _seedGrammarPoints() async {

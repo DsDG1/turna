@@ -1,4 +1,4 @@
-package com.example.varnamala
+package com.varnamala.app
 
 import android.content.Intent
 import android.provider.Settings

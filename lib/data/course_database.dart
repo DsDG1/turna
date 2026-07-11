@@ -1,6 +1,9 @@
 // Package imports:
 import 'package:drift/drift.dart';
 
+// Project imports:
+import 'package:varnamala/core/logger.dart';
+
 part 'course_database.g.dart';
 
 /// Course index + content, stored as a normalized tree with lesson bodies
@@ -147,6 +150,31 @@ class CourseDatabase extends _$CourseDatabase {
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (m) async => await m.createAll(),
         onUpgrade: (m, from, to) async {
+          if (from > to) {
+            // App downgrade: the on-disk schema is newer than this code
+            // expects. The course DB is a derived cache reseedable from the
+            // bundled JSON assets, so the safe policy is to wipe all course
+            // tables and let `createAll` rebuild the current schema.
+            // `setupLocator` runs `DatabaseSeeder.seedIfNeeded` right after
+            // open, which will reseed (the `contentVersion` meta is also
+            // wiped, forcing a reseed). This avoids crashing an
+            // already-downgraded app for a reseedable cache.
+            logger.w('Course DB downgrade $from -> $to; recreating schema fresh');
+            for (final tableName in [
+              'lesson_contents',
+              'lessons',
+              'units',
+              'sections',
+              'vocabulary',
+              'grammar_points',
+              'expressions',
+              'course_meta',
+            ]) {
+              await m.deleteTable(tableName);
+            }
+            await m.createAll();
+            return;
+          }
           if (from < 2) {
             // v2: grammar points table without practiceItems (added in v3).
             // Use raw SQL so the v3 addColumn step is always meaningful.

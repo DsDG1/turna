@@ -97,6 +97,21 @@ class _CourseDatabaseV4 extends db.CourseDatabase {
       );
 }
 
+/// A hypothetical newer schema (v6) used to verify downgrade behavior: opening
+/// a v6 DB with the current v5 code must not crash — it wipes + recreates the
+/// schema (the course DB is a reseedable derived cache).
+class _CourseDatabaseV6 extends db.CourseDatabase {
+  _CourseDatabaseV6(super.e);
+
+  @override
+  int get schemaVersion => 6;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (m) async => await m.createAll(),
+      );
+}
+
 Future<void> _forceOpen(db.CourseDatabase database) async {
   // Trigger the database open (and therefore migration) by running a query.
   await database.customSelect('SELECT 1').get();
@@ -260,6 +275,41 @@ void main() {
       expect(expressions, isEmpty);
 
       await migrated.close();
+      await File(path).parent.delete(recursive: true);
+    });
+
+    test('v6 -> v5 downgrade wipes and recreates instead of crashing', () async {
+      final path = await _tempDbPath();
+      final newer = _CourseDatabaseV6(NativeDatabase(File(path)));
+      await _forceOpen(newer);
+      await newer.into(newer.sections).insert(
+            const db.SectionsCompanion(
+              id: Value('s-v6'),
+              name: Value('Section V6'),
+            ),
+          );
+      await newer.close();
+
+      // Opening a v6 DB with the current v5 code must downgrade gracefully
+      // (wipe + recreate) rather than throw.
+      final downgraded = db.CourseDatabase(NativeDatabase(File(path)));
+      await _forceOpen(downgraded);
+
+      // Schema recreated and prior data wiped.
+      final sections = await downgraded.select(downgraded.sections).get();
+      expect(sections, isEmpty);
+
+      // Schema is functional: a fresh insert works.
+      await downgraded.into(downgraded.sections).insert(
+            const db.SectionsCompanion(
+              id: Value('s-fresh'),
+              name: Value('Fresh'),
+            ),
+          );
+      final after = await downgraded.select(downgraded.sections).get();
+      expect(after.map((r) => r.id), ['s-fresh']);
+
+      await downgraded.close();
       await File(path).parent.delete(recursive: true);
     });
   });
