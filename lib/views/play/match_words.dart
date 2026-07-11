@@ -148,7 +148,7 @@ class _MatchWordsPageState extends State<MatchWordsPage> {
                             selectedWord: matchProvider.selectedEnglishWord,
                             onWordSelected: matchProvider.selectEnglishWord,
                             selectedColor: VarnamalaTheme.peacockCyan,
-                            borderColor: const Color(0xFFDEE7E6),
+                            borderColor: VarnamalaTheme.statCardBorder(context),
                             matchedWords: matchProvider.matchedWords,
                           ),
                           const SizedBox(width: 16),
@@ -157,7 +157,7 @@ class _MatchWordsPageState extends State<MatchWordsPage> {
                             selectedWord: matchProvider.selectedTargetWord,
                             onWordSelected: matchProvider.selectTargetWord,
                             selectedColor: VarnamalaTheme.successDark,
-                            borderColor: const Color(0xFFDEE7E6),
+                            borderColor: VarnamalaTheme.statCardBorder(context),
                             matchedWords: matchProvider.matchedWords,
                           ),
                         ],
@@ -229,7 +229,7 @@ class _RoundCompleteOverlayState extends State<_RoundCompleteOverlay>
           decoration: BoxDecoration(
             color: VarnamalaTheme.cardBg(context),
             borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-            border: Border.all(color: const Color(0xFFDEE7E6)),
+            border: Border.all(color: VarnamalaTheme.statCardBorder(context)),
             boxShadow: VarnamalaTheme.cardShadow,
           ),
           child: const Row(
@@ -301,12 +301,12 @@ class WordListWidget extends StatelessWidget {
                   style: isSelected
                       ? const TextStyle(
                           fontWeight: FontWeight.w700,
-                          color: Colors.white,
+                          color: VarnamalaTheme.textOnPrimary,
                           fontSize: 17,
                         )
                       : TextStyle(
                           color: isMatched
-                              ? Colors.grey
+                              ? VarnamalaTheme.textHint
                               : VarnamalaTheme.textPrimaryColor(context),
                           fontSize: 15,
                           fontWeight: FontWeight.w600,

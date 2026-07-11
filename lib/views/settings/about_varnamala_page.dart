@@ -233,13 +233,13 @@ class _BrandHeader extends StatelessWidget {
                 width: 72,
                 height: 72,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15),
+                  color: VarnamalaTheme.textOnPrimary.withValues(alpha: 0.15),
                   borderRadius:
                       BorderRadius.circular(VarnamalaTheme.radiusMedium),
                 ),
                 child: const Icon(
                   Icons.school_rounded,
-                  color: Colors.white,
+                  color: VarnamalaTheme.textOnPrimary,
                   size: 40,
                 ),
               ),
@@ -247,7 +247,7 @@ class _BrandHeader extends StatelessWidget {
               const Text(
                 'Varnamala',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: VarnamalaTheme.textOnPrimary,
                   fontSize: 28,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.5,
@@ -257,7 +257,7 @@ class _BrandHeader extends StatelessWidget {
               Text(
                 'Learn languages, one step at a time.',
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.85),
+                  color: VarnamalaTheme.textOnPrimary.withValues(alpha: 0.85),
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
@@ -266,14 +266,14 @@ class _BrandHeader extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15),
+                  color: VarnamalaTheme.textOnPrimary.withValues(alpha: 0.15),
                   borderRadius:
                       BorderRadius.circular(VarnamalaTheme.radiusRound),
                 ),
                 child: Text(
                   displayVersion,
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: VarnamalaTheme.textOnPrimary,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),

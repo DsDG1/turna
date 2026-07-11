@@ -205,7 +205,7 @@ class _CharacterTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: VarnamalaTheme.textOnPrimary,
       borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
       child: InkWell(
         onTap: () => getIt<AudioController>().speak(pronunciation),
@@ -260,7 +260,7 @@ class _PracticeButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: VarnamalaTheme.textOnPrimary,
       borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
       child: InkWell(
         onTap: onTap,
@@ -337,7 +337,7 @@ class RenderCharacterState extends State<RenderCharacter> {
         aspectRatio: 0.75,
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: VarnamalaTheme.textOnPrimary,
             border: Border.all(
                 color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.15)),
             borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
@@ -503,7 +503,7 @@ class _VowelAndConsonantLearningPageState
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               margin: const EdgeInsets.symmetric(horizontal: 32),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: VarnamalaTheme.textOnPrimary,
                 borderRadius:
                     BorderRadius.circular(VarnamalaTheme.radiusMedium),
                 border: Border.all(color: const Color(0xFFEEF2F1)),
@@ -572,7 +572,7 @@ class _VowelAndConsonantLearningPageState
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: VarnamalaTheme.peacockTeal,
-                    foregroundColor: Colors.white,
+                    foregroundColor: VarnamalaTheme.textOnPrimary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(
                           VarnamalaTheme.radiusMedium),

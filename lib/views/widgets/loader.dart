@@ -1,6 +1,9 @@
 // Flutter imports:
 import 'package:flutter/material.dart';
 
+// Project imports:
+import 'package:varnamala/views/theme.dart';
+
 class Loader extends StatelessWidget {
   const Loader({super.key});
 
@@ -11,7 +14,7 @@ class Loader extends StatelessWidget {
       width: 12,
       child: CircularProgressIndicator(
         strokeWidth: 3,
-        color: Colors.orange,
+        color: VarnamalaTheme.warning,
       ),
     );
   }

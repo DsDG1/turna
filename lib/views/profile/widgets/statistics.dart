@@ -47,7 +47,7 @@ class Statistics extends StatelessWidget {
                     children: [
                       _StatCard(
                         icon: Icons.local_fire_department_rounded,
-                        iconColor: const Color(0xFFFF9500),
+                        iconColor: VarnamalaTheme.warning,
                         value: streak.toString(),
                         label: 'Day Streak',
                       ),

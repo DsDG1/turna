@@ -56,7 +56,7 @@ class ShareProgressCard extends StatelessWidget {
                 height: 180,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.08),
+                  color: VarnamalaTheme.textOnPrimary.withValues(alpha: 0.08),
                 ),
               ),
             ),
@@ -68,7 +68,7 @@ class ShareProgressCard extends StatelessWidget {
                 height: 240,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.06),
+                  color: VarnamalaTheme.textOnPrimary.withValues(alpha: 0.06),
                 ),
               ),
             ),
@@ -84,13 +84,13 @@ class ShareProgressCard extends StatelessWidget {
                         width: 44,
                         height: 44,
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.15),
+                          color: VarnamalaTheme.textOnPrimary.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(
                               VarnamalaTheme.radiusMedium),
                         ),
                         child: const Icon(
                           Icons.school_rounded,
-                          color: Colors.white,
+                          color: VarnamalaTheme.textOnPrimary,
                           size: 24,
                         ),
                       ),
@@ -98,7 +98,7 @@ class ShareProgressCard extends StatelessWidget {
                       const Text(
                         'Varnamala',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: VarnamalaTheme.textOnPrimary,
                           fontSize: 24,
                           fontWeight: FontWeight.w800,
                           letterSpacing: -0.5,
@@ -111,7 +111,7 @@ class ShareProgressCard extends StatelessWidget {
                   Text(
                     '${user.displayName ?? 'Learner'} is learning',
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.85),
+                      color: VarnamalaTheme.textOnPrimary.withValues(alpha: 0.85),
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
                     ),
@@ -120,7 +120,7 @@ class ShareProgressCard extends StatelessWidget {
                   Text(
                     targetLanguage.name.toTitleCase,
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: VarnamalaTheme.textOnPrimary,
                       fontSize: 32,
                       fontWeight: FontWeight.w800,
                     ),
@@ -172,7 +172,7 @@ class ShareProgressCard extends StatelessWidget {
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.12),
+                      color: VarnamalaTheme.textOnPrimary.withValues(alpha: 0.12),
                       borderRadius:
                           BorderRadius.circular(VarnamalaTheme.radiusMedium),
                     ),
@@ -180,7 +180,7 @@ class ShareProgressCard extends StatelessWidget {
                       'Join me on Varnamala!',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: Colors.white,
+                        color: VarnamalaTheme.textOnPrimary,
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                       ),
@@ -212,17 +212,17 @@ class _StatBox extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.12),
+        color: VarnamalaTheme.textOnPrimary.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
       ),
       child: Column(
         children: [
-          Icon(icon, color: Colors.white, size: 24),
+          Icon(icon, color: VarnamalaTheme.textOnPrimary, size: 24),
           const SizedBox(height: 8),
           Text(
             value,
             style: const TextStyle(
-              color: Colors.white,
+              color: VarnamalaTheme.textOnPrimary,
               fontSize: 22,
               fontWeight: FontWeight.w800,
             ),
@@ -231,7 +231,7 @@ class _StatBox extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.85),
+              color: VarnamalaTheme.textOnPrimary.withValues(alpha: 0.85),
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
