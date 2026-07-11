@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:varnamala/domain/course/interaction.dart';
 import 'package:varnamala/views/lesson/components/interactions/translate_sentence_renderer.dart';
@@ -41,5 +42,22 @@ void main() {
     await tapCheck(tester);
 
     expect(harness.submissions, [(false, 'Goodbye')]);
+  });
+
+  testWidgets('typing enables CHECK via ValueListenableBuilder', (tester) async {
+    final renderer = TranslateSentenceRenderer();
+    const interaction = Interaction.translateSentence(
+      id: 'ts-vlb',
+      source: 'Habari',
+      expected: 'Hello',
+    );
+
+    await tester.pumpWidget(harness.build(renderer, interaction));
+    ElevatedButton checkButton() =>
+        tester.widget(find.widgetWithText(ElevatedButton, 'CHECK'));
+    expect(checkButton().onPressed, isNull);
+    await tester.enterText(find.byType(TextField), 'Hello');
+    await tester.pump();
+    expect(checkButton().onPressed, isNotNull);
   });
 }

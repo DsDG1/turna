@@ -1,6 +1,5 @@
 // Dart imports:
 import 'dart:async';
-import 'dart:convert';
 import 'dart:math';
 
 // Flutter imports:
@@ -10,24 +9,23 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
+import 'package:varnamala/application/mistake_provider.dart';
 import 'package:varnamala/courses/languages/grammar_points.dart';
 import 'package:varnamala/courses/languages/swahili_vocab.dart';
 import 'package:varnamala/data/study_log_repository.dart';
-import 'package:varnamala/domain/course/mistake_entry.dart';
 import 'package:varnamala/domain/study/daily_stats.dart';
 import 'package:varnamala/domain/study/study_log.dart';
-import 'package:varnamala/service/locator.dart';
 
 /// Provides aggregated learning statistics and records study activity.
 @lazySingleton
 class StudyStatsProvider extends ChangeNotifier {
   final StudyLogRepository _repository;
-  final AppPrefs _appPrefs;
+  final MistakeProvider _mistakeProvider;
 
   final StreamController<List<DailyStudyStats>> _dailyStatsController =
       StreamController<List<DailyStudyStats>>.broadcast();
 
-  StudyStatsProvider(this._repository, this._appPrefs);
+  StudyStatsProvider(this._repository, this._mistakeProvider);
 
   /// Record a completed study activity. Call this from lesson, review, and game screens.
   Future<void> recordActivity({
@@ -53,6 +51,8 @@ class StudyStatsProvider extends ChangeNotifier {
 
     await _repository.appendLog(log);
     unawaited(_emitDailyStats());
+    // Let LearningStats (and any other listeners) invalidate cached futures.
+    notifyListeners();
   }
 
   /// Get today's statistics snapshot.
@@ -115,24 +115,15 @@ class StudyStatsProvider extends ChangeNotifier {
     return all.values.fold<int>(0, (sum, d) => sum + d.reviewCount);
   }
 
-  /// Get weak words based on the persisted mistake log. Aggregates by
-  /// wordId (or grammarPointId when no word is available), looking up the
-  /// display term/translation from the in-memory vocab tables. Sorted by
-  /// mistake count descending; truncated to [limit].
+  /// Get weak words based on the mistake log. Aggregates by wordId (or
+  /// grammarPointId when no word is available), looking up the display
+  /// term/translation from the in-memory vocab tables. Sorted by mistake
+  /// count descending; truncated to [limit].
+  ///
+  /// Reads via [MistakeProvider.entries] so decoding is shared (single cache)
+  /// rather than re-parsing prefs JSON here.
   Future<List<WeakWord>> getWeakWords({int limit = 10}) async {
-    final raw = _appPrefs.preferences
-        .getString(LocalStateKeys.mistakeLog, defaultValue: '[]')
-        .getValue();
-
-    final List<MistakeEntry> entries;
-    try {
-      final decoded = jsonDecode(raw) as List<dynamic>;
-      entries = decoded
-          .map((e) => MistakeEntry.fromJson(e as Map<String, dynamic>))
-          .toList();
-    } catch (_) {
-      return const <WeakWord>[];
-    }
+    final entries = _mistakeProvider.entries;
 
     // Aggregate by primary key (wordId, falling back to grammarPointId).
     final aggregates = <String, _WeakAggregate>{};

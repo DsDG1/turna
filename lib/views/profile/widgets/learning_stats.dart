@@ -10,13 +10,73 @@ import 'package:varnamala/domain/study/daily_stats.dart';
 import 'package:varnamala/views/theme.dart';
 
 /// Displays today's learning summary and recent activity trends.
-class LearningStats extends StatelessWidget {
+///
+/// Futures are cached on the [State] so rebuilding this widget (e.g. tab
+/// switches) does not re-issue prefs/repository reads. When
+/// [StudyStatsProvider] notifies, futures are refreshed once.
+class LearningStats extends StatefulWidget {
   const LearningStats({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final studyStats = context.read<StudyStatsProvider>();
+  State<LearningStats> createState() => _LearningStatsState();
+}
 
+class _LearningStatsState extends State<LearningStats> {
+  StudyStatsProvider? _provider;
+  Future<DailyStudyStats>? _todayFuture;
+  Future<List<DailyStudyStats>>? _weekFuture;
+  Future<Map<String, dynamic>>? _overallFuture;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // read (not watch): tab rebuilds must not re-create futures. Refresh only
+    // when StudyStatsProvider notifies via the listener below.
+    final provider = context.read<StudyStatsProvider>();
+    if (!identical(_provider, provider)) {
+      _provider?.removeListener(_onStatsChanged);
+      _provider = provider;
+      _provider!.addListener(_onStatsChanged);
+      _refreshFutures();
+    }
+  }
+
+  @override
+  void dispose() {
+    _provider?.removeListener(_onStatsChanged);
+    super.dispose();
+  }
+
+  void _onStatsChanged() {
+    if (!mounted) return;
+    setState(_refreshFutures);
+  }
+
+  void _refreshFutures() {
+    final studyStats = _provider!;
+    _todayFuture = studyStats.getTodayStats();
+    _weekFuture = studyStats.getLastNDays(7);
+    _overallFuture = _loadOverallStats(studyStats);
+  }
+
+  Future<Map<String, dynamic>> _loadOverallStats(
+    StudyStatsProvider provider,
+  ) async {
+    final totalMinutes = await provider.getTotalStudyMinutes();
+    final accuracy = await provider.getOverallAccuracy();
+    final totalLessons = await provider.getTotalRecordedLessons();
+    final totalReviews = await provider.getTotalRecordedReviews();
+
+    return {
+      'totalMinutes': totalMinutes,
+      'accuracy': accuracy,
+      'totalLessons': totalLessons,
+      'totalReviews': totalReviews,
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
@@ -24,27 +84,23 @@ class LearningStats extends StatelessWidget {
         children: [
           _sectionTitle(context, 'Learning Stats', Icons.insights_rounded),
           const SizedBox(height: 8),
-          // Today's summary
           FutureBuilder<DailyStudyStats>(
-            future: studyStats.getTodayStats(),
+            future: _todayFuture,
             builder: (context, snapshot) {
-              final today = snapshot.data;
-              return _TodaySummary(stats: today);
+              return _TodaySummary(stats: snapshot.data);
             },
           ),
           const SizedBox(height: 16),
-          // Weekly XP trend (simple bar visualization without fl_chart for now)
           FutureBuilder<List<DailyStudyStats>>(
-            future: studyStats.getLastNDays(7),
+            future: _weekFuture,
             builder: (context, snapshot) {
               final days = snapshot.data ?? [];
               return _WeeklyXpBars(days: days);
             },
           ),
           const SizedBox(height: 16),
-          // Overall stats
           FutureBuilder<Map<String, dynamic>>(
-            future: _loadOverallStats(studyStats),
+            future: _overallFuture,
             builder: (context, snapshot) {
               final data = snapshot.data ?? {};
               return _OverallStatsGrid(data: data);
@@ -71,21 +127,6 @@ class LearningStats extends StatelessWidget {
         ],
       ),
     );
-
-}
-
-  Future<Map<String, dynamic>> _loadOverallStats(StudyStatsProvider provider) async {
-    final totalMinutes = await provider.getTotalStudyMinutes();
-    final accuracy = await provider.getOverallAccuracy();
-    final totalLessons = await provider.getTotalRecordedLessons();
-    final totalReviews = await provider.getTotalRecordedReviews();
-
-    return {
-      'totalMinutes': totalMinutes,
-      'accuracy': accuracy,
-      'totalLessons': totalLessons,
-      'totalReviews': totalReviews,
-    };
   }
 }
 

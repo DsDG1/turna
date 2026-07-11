@@ -79,11 +79,16 @@ class _TypeTheWordBodyState extends State<_TypeTheWordBody> {
   bool _matches(String input) =>
       input.trim().toLowerCase() == widget.expected.trim().toLowerCase();
 
+  void _trySubmit() {
+    final text = _controller.text;
+    if (widget.state.submitted || text.trim().isEmpty) return;
+    widget.onSubmit(_matches(text), userAnswerText: text);
+  }
+
   @override
   Widget build(BuildContext context) {
     final submitted = widget.state.submitted;
     final correct = widget.state.correct;
-    final canSubmit = !submitted && _controller.text.trim().isNotEmpty;
 
     return InteractionBody(
       child: Column(
@@ -120,15 +125,7 @@ class _TypeTheWordBodyState extends State<_TypeTheWordBody> {
                       : VarnamalaTheme.error.withValues(alpha: 0.08))
                   : VarnamalaTheme.inputFillColor(context),
             ),
-            onChanged: (_) => setState(() {}),
-            onSubmitted: (_) {
-              if (canSubmit) {
-                widget.onSubmit(
-                  _matches(_controller.text),
-                  userAnswerText: _controller.text,
-                );
-              }
-            },
+            onSubmitted: (_) => _trySubmit(),
           ),
           if (submitted && correct == false) ...[
             const SizedBox(height: 16),
@@ -136,15 +133,17 @@ class _TypeTheWordBodyState extends State<_TypeTheWordBody> {
                 label: 'Correct answer', answer: widget.expected),
           ],
           const SizedBox(height: 24),
-          LessonCheckButton(
-            label: submitted ? 'CHECKED' : 'CHECK',
-            enabled: canSubmit,
-            onPressed: canSubmit
-                ? () => widget.onSubmit(
-                      _matches(_controller.text),
-                      userAnswerText: _controller.text,
-                    )
-                : null,
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: _controller,
+            builder: (context, value, _) {
+              final canSubmit =
+                  !submitted && value.text.trim().isNotEmpty;
+              return LessonCheckButton(
+                label: submitted ? 'CHECKED' : 'CHECK',
+                enabled: canSubmit,
+                onPressed: canSubmit ? _trySubmit : null,
+              );
+            },
           ),
         ],
       ),

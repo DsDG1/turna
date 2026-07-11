@@ -6,6 +6,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
+import 'package:varnamala/application/mistake_provider.dart';
 import 'package:varnamala/application/study_stats_provider.dart';
 import 'package:varnamala/data/study_log_repository.dart';
 import 'package:varnamala/domain/study/study_log.dart';
@@ -23,7 +24,7 @@ void main() {
     final prefs = await StreamingSharedPreferences.instance;
     appPrefs = AppPrefs(prefs);
     repo = StudyLogRepository(appPrefs);
-    provider = StudyStatsProvider(repo, appPrefs);
+    provider = StudyStatsProvider(repo, MistakeProvider(appPrefs));
   });
 
   tearDown(() async {

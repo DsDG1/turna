@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:varnamala/domain/course/interaction.dart';
 import 'package:varnamala/views/lesson/components/interactions/reading_short_answer_renderer.dart';
@@ -41,5 +42,22 @@ void main() {
     await tapCheck(tester);
 
     expect(harness.submissions, [(false, 'Green')]);
+  });
+
+  testWidgets('typing enables CHECK via ValueListenableBuilder', (tester) async {
+    final renderer = ReadingShortAnswerRenderer();
+    const interaction = Interaction.readingShortAnswer(
+      id: 'rsa-vlb',
+      prompt: 'What color is the sky?',
+      expectedAnswer: 'Blue',
+    );
+
+    await tester.pumpWidget(harness.build(renderer, interaction));
+    ElevatedButton checkButton() =>
+        tester.widget(find.widgetWithText(ElevatedButton, 'CHECK'));
+    expect(checkButton().onPressed, isNull);
+    await tester.enterText(find.byType(TextField), 'Blue');
+    await tester.pump();
+    expect(checkButton().onPressed, isNotNull);
   });
 }

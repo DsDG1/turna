@@ -86,11 +86,16 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
   bool _matches(String input) =>
       input.trim().toLowerCase() == widget.answer.trim().toLowerCase();
 
+  void _trySubmit() {
+    final text = _controller.text;
+    if (widget.state.submitted || text.trim().isEmpty) return;
+    widget.onSubmit(_matches(text), userAnswerText: text);
+  }
+
   @override
   Widget build(BuildContext context) {
     final submitted = widget.state.submitted;
     final correct = widget.state.correct;
-    final canSubmit = !submitted && _controller.text.trim().isNotEmpty;
 
     final (before, after) = _split;
     final inputBoxColor = submitted
@@ -145,15 +150,9 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
                           filled: false,
                           hintText: '___',
                         ),
-                        onChanged: (_) => setState(() {}),
-                        onSubmitted: (_) {
-                          if (canSubmit) {
-                            widget.onSubmit(
-                              _matches(_controller.text),
-                              userAnswerText: _controller.text,
-                            );
-                          }
-                        },
+                        // No setState on keystroke — CHECK enabled-state is
+                        // driven by ValueListenableBuilder below.
+                        onSubmitted: (_) => _trySubmit(),
                       ),
                     ),
                   ),
@@ -172,15 +171,17 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
                 label: 'Correct answer', answer: widget.answer, showBorder: true),
           ],
           const SizedBox(height: 24),
-          LessonCheckButton(
-            label: submitted ? 'CHECKED' : 'CHECK',
-            enabled: canSubmit,
-            onPressed: canSubmit
-                ? () => widget.onSubmit(
-                      _matches(_controller.text),
-                      userAnswerText: _controller.text,
-                    )
-                : null,
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: _controller,
+            builder: (context, value, _) {
+              final canSubmit =
+                  !submitted && value.text.trim().isNotEmpty;
+              return LessonCheckButton(
+                label: submitted ? 'CHECKED' : 'CHECK',
+                enabled: canSubmit,
+                onPressed: canSubmit ? _trySubmit : null,
+              );
+            },
           ),
         ],
       ),

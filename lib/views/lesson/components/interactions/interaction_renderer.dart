@@ -233,31 +233,36 @@ class InteractionOptionTile extends StatelessWidget {
       background = VarnamalaTheme.peacockTeal.withValues(alpha: 0.06);
     }
 
-    return Material(
-      color: background,
-      shape: RoundedRectangleBorder(
-        side: BorderSide(color: border, width: 2),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: VarnamalaTheme.textPrimaryColor(context),
+    return Semantics(
+      button: true,
+      label: label,
+      selected: isSelected,
+      child: Material(
+        color: background,
+        shape: RoundedRectangleBorder(
+          side: BorderSide(color: border, width: 2),
+          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: VarnamalaTheme.textPrimaryColor(context),
+                    ),
                   ),
                 ),
-              ),
-              if (trailing != null) trailing,
-            ],
+                if (trailing != null) trailing,
+              ],
+            ),
           ),
         ),
       ),

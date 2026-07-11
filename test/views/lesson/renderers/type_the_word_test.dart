@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:varnamala/domain/course/interaction.dart';
 import 'package:varnamala/views/lesson/components/interactions/type_the_word_renderer.dart';
@@ -41,5 +42,23 @@ void main() {
     await tapCheck(tester);
 
     expect(harness.submissions, [(false, 'Asante')]);
+  });
+
+  testWidgets('typing enables CHECK via ValueListenableBuilder', (tester) async {
+    final renderer = TypeTheWordRenderer();
+    const interaction = Interaction.typeTheWord(
+      id: 'ttw-vlb',
+      audioAsset: 'w-test-audio',
+      prompt: 'Type what you hear',
+      expected: 'Habari',
+    );
+
+    await tester.pumpWidget(harness.build(renderer, interaction));
+    ElevatedButton checkButton() =>
+        tester.widget(find.widgetWithText(ElevatedButton, 'CHECK'));
+    expect(checkButton().onPressed, isNull);
+    await tester.enterText(find.byType(TextField), 'Habari');
+    await tester.pump();
+    expect(checkButton().onPressed, isNotNull);
   });
 }

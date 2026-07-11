@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
+import 'package:varnamala/application/mistake_provider.dart';
 import 'package:varnamala/application/study_stats_provider.dart';
 import 'package:varnamala/courses/languages/swahili_vocab.dart';
 import 'package:varnamala/data/study_log_repository.dart';
@@ -27,6 +28,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late AppPrefs prefs;
+  late MistakeProvider mistakeProvider;
   late StudyStatsProvider provider;
 
   setUp(() async {
@@ -34,13 +36,47 @@ void main() {
     final sp = await StreamingSharedPreferences.instance;
     prefs = AppPrefs(sp);
     final repo = StudyLogRepository(prefs);
-    provider = StudyStatsProvider(repo, prefs);
+    mistakeProvider = MistakeProvider(prefs);
+    provider = StudyStatsProvider(repo, mistakeProvider);
   });
 
   Future<void> seedMistakes(List<MistakeEntry> entries) async {
     final body = jsonEncode(entries.map((e) => e.toJson()).toList());
     await prefs.setString(LocalStateKeys.mistakeLog, body);
+    // Force MistakeProvider to re-read on next entries access.
+    // Prefer going through the public API when possible; for bulk seed we
+    // write prefs then reconstruct the provider cache by creating a fresh one.
+    mistakeProvider = MistakeProvider(prefs);
+    provider = StudyStatsProvider(StudyLogRepository(prefs), mistakeProvider);
   }
+
+  test('getWeakWords reads MistakeProvider.entries (shared cache)', () async {
+    final now = DateTime(2026, 7, 9, 12);
+    await seedMistakes([
+      MistakeEntry(
+        id: '1',
+        lessonId: 'l-a',
+        stageId: 's',
+        interactionId: 'i',
+        wordId: 'w-cache',
+        interactionSnapshot:
+            const Interaction.showWord(id: 'i', wordId: 'w-cache'),
+        userAnswer: 'x',
+        correctAnswer: 'hello',
+        timestamp: now,
+      ),
+    ]);
+    swahiliVocabById['w-cache'] = _TestVocab.of('w-cache');
+
+    final first = await provider.getWeakWords();
+    expect(first, hasLength(1));
+
+    final second = await provider.getWeakWords();
+    expect(second.single.mistakeCount, first.single.mistakeCount);
+    expect(second.single.wordId, 'w-cache');
+
+    swahiliVocabById.remove('w-cache');
+  });
 
   test('aggregates mistakes by wordId and sorts by count desc', () async {
     final now = DateTime(2026, 7, 9, 12);

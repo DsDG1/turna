@@ -93,17 +93,22 @@ class _TranslateBodyState extends State<_TranslateBody> {
     final needsSpace = current.isNotEmpty &&
         !current.endsWith(' ') &&
         !hint.startsWith(' ');
+    // Updating the controller notifies ValueListenableBuilder — no setState.
     _controller.text = current + (needsSpace ? ' ' : '') + hint;
     _controller.selection = TextSelection.collapsed(
         offset: _controller.text.length);
-    setState(() {});
+  }
+
+  void _trySubmit() {
+    final text = _controller.text;
+    if (widget.state.submitted || text.trim().isEmpty) return;
+    widget.onSubmit(_matches(text), userAnswerText: text);
   }
 
   @override
   Widget build(BuildContext context) {
     final submitted = widget.state.submitted;
     final correct = widget.state.correct;
-    final canSubmit = !submitted && _controller.text.trim().isNotEmpty;
 
     return InteractionBody(
       child: Column(
@@ -139,7 +144,6 @@ class _TranslateBodyState extends State<_TranslateBody> {
                       : VarnamalaTheme.error.withValues(alpha: 0.08))
                   : VarnamalaTheme.inputFillColor(context),
             ),
-            onChanged: (_) => setState(() {}),
           ),
           if (widget.hints.isNotEmpty) ...[
             const SizedBox(height: 16),
@@ -172,15 +176,17 @@ class _TranslateBodyState extends State<_TranslateBody> {
                 label: 'Correct translation', answer: widget.expected),
           ],
           const SizedBox(height: 24),
-          LessonCheckButton(
-            label: submitted ? 'CHECKED' : 'CHECK',
-            enabled: canSubmit,
-            onPressed: canSubmit
-                ? () => widget.onSubmit(
-                      _matches(_controller.text),
-                      userAnswerText: _controller.text,
-                    )
-                : null,
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: _controller,
+            builder: (context, value, _) {
+              final canSubmit =
+                  !submitted && value.text.trim().isNotEmpty;
+              return LessonCheckButton(
+                label: submitted ? 'CHECKED' : 'CHECK',
+                enabled: canSubmit,
+                onPressed: canSubmit ? _trySubmit : null,
+              );
+            },
           ),
         ],
       ),
