@@ -1,0 +1,212 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
+import 'package:varnamala/data/study_log_repository.dart';
+import 'package:varnamala/domain/study/study_log.dart';
+import 'package:varnamala/service/locator.dart';
+
+// StudyLogRepository uses private key constants; mirror them here for tests.
+const _logsKey = 'study.logs';
+const _dailyStatsKey = 'study.dailyStats';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  late AppPrefs prefs;
+  late StudyLogRepository repo;
+
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    final sp = await StreamingSharedPreferences.instance;
+    prefs = AppPrefs(sp);
+    // Reset the keys touched by StudyLogRepository to avoid cross-test leakage
+    // from the cached StreamingSharedPreferences instance.
+    await prefs.preferences.setString(_logsKey, '[]');
+    await prefs.preferences.setString(_dailyStatsKey, '{}');
+    repo = StudyLogRepository(prefs);
+  });
+
+  StudyLog makeLog({
+    required String id,
+    required DateTime timestamp,
+    StudyActivityType type = StudyActivityType.lessonComplete,
+    String? lessonId,
+    int xpEarned = 10,
+    int durationSeconds = 60,
+    int correctCount = 5,
+    int incorrectCount = 0,
+  }) =>
+      StudyLog(
+        id: id,
+        timestamp: timestamp,
+        type: type,
+        lessonId: lessonId,
+        xpEarned: xpEarned,
+        durationSeconds: durationSeconds,
+        correctCount: correctCount,
+        incorrectCount: incorrectCount,
+      );
+
+  group('appendLog and readLogs', () {
+    test('stores and retrieves a single log', () async {
+      final now = DateTime.now();
+      await repo.appendLog(
+        makeLog(id: 'log-1', timestamp: now, lessonId: 'l-1'),
+      );
+
+      final logs = await repo.readLogs();
+      expect(logs, hasLength(1));
+      expect(logs.first.id, 'log-1');
+    });
+
+    test('filters logs by date range', () async {
+      final today = DateTime.now();
+      final yesterday = today.subtract(const Duration(days: 1));
+      final lastWeek = today.subtract(const Duration(days: 7));
+
+      await repo.appendLog(makeLog(id: 'today', timestamp: today));
+      await repo.appendLog(makeLog(id: 'yesterday', timestamp: yesterday));
+      await repo.appendLog(makeLog(id: 'last-week', timestamp: lastWeek));
+
+      final sinceYesterday = await repo.readLogs(since: yesterday.subtract(const Duration(hours: 1)));
+      expect(sinceYesterday.map((l) => l.id).toSet(),
+          {'today', 'yesterday'});
+
+      final untilYesterday = await repo.readLogs(until: yesterday.subtract(const Duration(hours: 1)));
+      expect(untilYesterday.map((l) => l.id).toSet(),
+          {'yesterday', 'last-week'});
+    });
+
+    test('filters logs by activity type', () async {
+      final now = DateTime.now();
+      await repo.appendLog(
+        makeLog(id: 'lesson', timestamp: now, type: StudyActivityType.lessonComplete),
+      );
+      await repo.appendLog(
+        makeLog(id: 'review', timestamp: now, type: StudyActivityType.srsReview),
+      );
+
+      final reviews = await repo.readLogs(type: StudyActivityType.srsReview);
+      expect(reviews.map((l) => l.id), ['review']);
+    });
+  });
+
+  group('90-day purge', () {
+    test('drops logs older than 90 days while keeping recent ones', () async {
+      final today = DateTime.now();
+      final old = today.subtract(const Duration(days: 100));
+
+      await repo.appendLog(makeLog(id: 'old', timestamp: old));
+      await repo.appendLog(makeLog(id: 'recent', timestamp: today));
+
+      final logs = await repo.readLogs();
+      expect(logs.map((l) => l.id).toSet(), {'recent'});
+    });
+  });
+
+  group('dailyStats aggregation', () {
+    test('aggregates xp, duration, correct/incorrect, lesson count', () async {
+      final today = DateTime.now();
+      await repo.appendLog(
+        makeLog(
+          id: 'log-1',
+          timestamp: today,
+          xpEarned: 15,
+          durationSeconds: 120,
+          correctCount: 8,
+          incorrectCount: 2,
+        ),
+      );
+      await repo.appendLog(
+        makeLog(
+          id: 'log-2',
+          timestamp: today,
+          xpEarned: 10,
+          durationSeconds: 60,
+          correctCount: 5,
+          incorrectCount: 0,
+        ),
+      );
+      await repo.appendLog(
+        makeLog(
+          id: 'review-1',
+          timestamp: today,
+          type: StudyActivityType.srsReview,
+          xpEarned: 5,
+          durationSeconds: 30,
+          correctCount: 3,
+          incorrectCount: 1,
+        ),
+      );
+
+      final stats = await repo.readLastNDays(1);
+      expect(stats, hasLength(1));
+      expect(stats.first.totalXp, 30);
+      expect(stats.first.totalDurationSeconds, 210);
+      expect(stats.first.correctCount, 16);
+      expect(stats.first.incorrectCount, 3);
+      expect(stats.first.lessonCount, 2);
+      expect(stats.first.reviewCount, 1);
+      expect(stats.first.accuracy, closeTo(16 / 19, 0.001));
+    });
+
+    test('readLastNDays returns default stats for days with no logs', () async {
+      final stats = await repo.readLastNDays(3);
+      expect(stats, hasLength(3));
+      expect(stats.every((s) => s.totalXp == 0), isTrue);
+    });
+  });
+
+  group('clearAll', () {
+    test('removes all logs and daily stats', () async {
+      final now = DateTime.now();
+      await repo.appendLog(makeLog(id: 'log-1', timestamp: now));
+      await repo.clearAll();
+
+      expect(await repo.readLogs(), isEmpty);
+      expect((await repo.readAllDailyStats()).entries, isEmpty);
+    });
+  });
+
+  group('write-chain serialization', () {
+    test('serializes concurrent appends so daily stats accumulate correctly',
+        () async {
+      final today = DateTime.now();
+      await Future.wait(
+        List.generate(
+          10,
+          (i) => repo.appendLog(
+            makeLog(
+              id: 'log-$i',
+              timestamp: today,
+              xpEarned: 1,
+              durationSeconds: 1,
+              correctCount: 1,
+              incorrectCount: 0,
+            ),
+          ),
+        ),
+      );
+
+      final logs = await repo.readLogs();
+      expect(logs.length, 10);
+
+      final stats = await repo.readLastNDays(1);
+      expect(stats.first.totalXp, 10);
+      expect(stats.first.lessonCount, 10);
+    });
+  });
+
+  group('corruption handling', () {
+    test('returns empty dailyStats when JSON is corrupted', () async {
+      await prefs.preferences.setString(_dailyStatsKey, 'not-json');
+      final stats = await repo.readAllDailyStats();
+      expect(stats, isEmpty);
+    });
+
+    // NOTE: _readLogs currently does not catch jsonDecode errors. This is a
+    // known gap tracked in future4 Phase 17 (CourseRepository._toLesson-style
+    // degradation for study logs). Re-enable once fixed.
+    // test('returns empty logs when JSON is corrupted', () async { ... });
+  });
+}

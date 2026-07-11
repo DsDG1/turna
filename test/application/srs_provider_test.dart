@@ -211,4 +211,65 @@ void main() {
       expect(corrupted.state, isEmpty);
     });
   });
+
+  group('due count caching', () {
+    test('dueCount caches the computed value', () {
+      srs.registerWord('w-1');
+      srs.registerWord('w-2');
+
+      final first = srs.dueCount;
+      expect(first, 2);
+
+      // Call again without any state change; the cached value must be identical.
+      final second = srs.dueCount;
+      expect(second, first);
+    });
+
+    test('dueCount cache is invalidated after a review', () async {
+      srs.registerWord('w-1');
+      expect(srs.dueCount, 1);
+
+      await srs.reviewWord('w-1', ReviewQuality.good.sm2);
+      // After a successful review the word is scheduled for tomorrow, so the
+      // due count should drop to 0 and the cache must have been cleared.
+      expect(srs.dueCount, 0);
+    });
+
+    test('expressionDueCount reflects due expressions', () {
+      srs.registerExpression('e-1');
+      srs.registerExpression('e-2');
+
+      expect(srs.expressionDueCount, 2);
+      expect(srs.getDueExpressions(DateTime.now()), hasLength(2));
+    });
+  });
+
+  group('review progression', () {
+    test('interval follows SM-2 after good/good reviews', () async {
+      srs.registerWord('w-1');
+      final first = await srs.reviewWord('w-1', ReviewQuality.good.sm2);
+      expect(first!.reps, 1);
+      expect(first.intervalDays, 1);
+
+      final second = await srs.reviewWord('w-1', ReviewQuality.good.sm2);
+      expect(second!.reps, 2);
+      expect(second.intervalDays, 6);
+    });
+
+    test('a lapse resets reps and schedules the word one day out', () async {
+      srs.registerWord('w-1');
+      await srs.reviewWord('w-1', ReviewQuality.good.sm2);
+      await srs.reviewWord('w-1', ReviewQuality.good.sm2);
+      final lapsed = await srs.reviewWord('w-1', ReviewQuality.again.sm2);
+
+      expect(lapsed!.reps, 0);
+      expect(lapsed.intervalDays, 1);
+      expect(lapsed.lapses, 1);
+      expect(lapsed.dueAt.isAfter(DateTime.now()), isTrue);
+      // The word is scheduled roughly one day from the review moment.
+      final diff = lapsed.dueAt.difference(DateTime.now());
+      expect(diff.inHours, greaterThanOrEqualTo(23));
+      expect(diff.inHours, lessThanOrEqualTo(25));
+    });
+  });
 }

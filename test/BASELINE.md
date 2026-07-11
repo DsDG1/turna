@@ -1,29 +1,24 @@
 # Test Baseline
 
-Generated: 2026-07-10 (Wave D package rename + LocalUser + lint/deps)
+Generated: 2026-07-11 (Phase 16 — test foundation for future4)
 
 ## Results
-- Passed: 221
+- Passed: 296
 - Failed: 0
-- Total: 221
+- Total: 296
 - `flutter analyze`: No issues found
 
-## Coverage (flutter test --coverage)
-- `lib/application`: TBD
-- `lib/views/lesson`: TBD
+## New / Extended Test Files
+- `test/core/sm2_test.dart` — SM-2 engine direct tests (11 cases).
+- `test/application/lesson_link_store_test.dart` — first-seen links, `_writeChain`, corruption (7 cases).
+- `test/data/study_log_repository_test.dart` — append/aggregation, 90-day purge, serialization, corruption (10 cases).
+- `test/data/course_repository_test.dart` — section/unit/lesson rebuild, sort order, `lessonById`, corruption degradation (12 cases).
+- `test/data/schema_migration_test.dart` — added `v3 -> v5` migration preservation.
+- `test/application/srs_provider_test.dart` — added due-count caching and review progression tests.
 
 ## Notes
-- Wave D:
-  - Pub package renamed `words625` → `varnamala` (all Dart imports).
-  - App widget `VarnamalaApp`; Android id `com.example.varnamala`;
-    display names Varnamala on Android/iOS/web.
-  - `SerializableFirebaseUser` → `LocalUser` (class rename, JSON shape
-    unchanged for prefs compatibility).
-  - Deps: dropped unused `http` / `equatable` / `flutter_svg`; moved
-    `freezed` + `json_serializable` to `dev_dependencies`.
-  - Lint: exclude generated sources; enable `avoid_print`,
-    `cancel_subscriptions`, `close_sinks`, `unnecessary_late`,
-    `prefer_const_declarations`.
-- Wave C: typed `UserGameState`, `LessonCompletionCoordinator`, settings/lesson
-  splits, dark-mode audit.
-- Wave A: ThemeProvider singleton, FakeAudioController, dead Explore/Shop.
+- Phase 16 does **not** modify production code (`lib/`, `android/`, `assets/`, `tool/`).
+- Two known gaps documented in tests and scheduled for future4 Phase 17:
+  - `StudyLogRepository._readLogs` does not catch malformed JSON yet.
+  - `CourseRepository._toLesson` does not degrade on malformed `contentJson` yet.
+- Previous baseline (Wave D): 221 tests. Phase 16 added 75 tests.

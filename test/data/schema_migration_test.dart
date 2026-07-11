@@ -58,6 +58,25 @@ class _CourseDatabaseV2 extends db.CourseDatabase {
       );
 }
 
+class _CourseDatabaseV3 extends db.CourseDatabase {
+  _CourseDatabaseV3(super.e);
+
+  @override
+  int get schemaVersion => 3;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (m) async {
+          await m.createTable(sections);
+          await m.createTable(units);
+          await m.createTable(lessons);
+          await m.createTable(lessonContents);
+          await m.createTable(vocabulary);
+          await m.createTable(grammarPoints);
+        },
+      );
+}
+
 class _CourseDatabaseV4 extends db.CourseDatabase {
   _CourseDatabaseV4(super.e);
 
@@ -105,6 +124,17 @@ Future<void> _seedV2Data(db.CourseDatabase database) async {
         const db.GrammarPointsCompanion(
           id: Value('gp-v2'),
           title: Value('Grammar V2'),
+        ),
+      );
+}
+
+Future<void> _seedV3Data(db.CourseDatabase database) async {
+  await _seedV2Data(database);
+  await database.into(database.grammarPoints).insert(
+        const db.GrammarPointsCompanion(
+          id: Value('gp-v3'),
+          title: Value('Grammar V3'),
+          practiceItems: Value('[{"\$type":"showWord","wordId":"w-v3"}]'),
         ),
       );
 }
@@ -175,6 +205,27 @@ void main() {
       expect(grammar.map((r) => r.id), ['gp-v2']);
       // practiceItems column was added in v3; should default to empty list.
       expect(grammar.single.practiceItems, '[]');
+
+      final expressions = await migrated.select(migrated.expressions).get();
+      expect(expressions, isEmpty);
+
+      await migrated.close();
+      await File(path).parent.delete(recursive: true);
+    });
+
+    test('v3 -> v5 preserves grammar point practiceItems', () async {
+      final path = await _tempDbPath();
+      final oldDb = _CourseDatabaseV3(NativeDatabase(File(path)));
+      await _forceOpen(oldDb);
+      await _seedV3Data(oldDb);
+      await oldDb.close();
+
+      final migrated = db.CourseDatabase(NativeDatabase(File(path)));
+      await _forceOpen(migrated);
+
+      final grammar = await migrated.select(migrated.grammarPoints).get();
+      final gpV3 = grammar.firstWhere((r) => r.id == 'gp-v3');
+      expect(gpV3.practiceItems, '[{"\$type":"showWord","wordId":"w-v3"}]');
 
       final expressions = await migrated.select(migrated.expressions).get();
       expect(expressions, isEmpty);
