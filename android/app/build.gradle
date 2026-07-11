@@ -49,6 +49,12 @@ android {
         targetSdkVersion flutter.targetSdkVersion
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
+
+        // NOTE: single-arch (arm64-v8a) packaging is driven by the build
+        // command `flutter build apk --release --split-per-abi
+        // --target-platform android-arm64`. Flutter's Gradle plugin sets
+        // splits.abi from that flag, so we must NOT also set ndk.abiFilters
+        // here (they conflict). See Varnamala build docs.
     }
 
     buildTypes {
@@ -56,6 +62,13 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig signingConfigs.debug
+
+            // R8 code shrinking + resource shrinking. ProGuard rules in
+            // proguard-rules.pro keep the FFI/reflection entry points that R8
+            // cannot see statically (sherpa_onnx JNI, drift, freezed/json).
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 }

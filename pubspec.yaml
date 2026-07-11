@@ -94,7 +94,16 @@ flutter:
     - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/lang/zle/
     - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/lang/zls/
     - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/lang/zlw/
-    - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/voices/!v/
+flutter_gen:
+  # The Piper TTS model + espeak-ng-data are read via rootBundle / AssetManifest
+  # at runtime (see piper_swahili_tts.dart) and never referenced through the
+  # generated `Assets` class. Exclude them from flutter_gen so it does not try
+  # to mint Dart getters from the asset leaf names — some espeak language
+  # files are named after Dart keywords (`is`, `as`) and would produce a
+  # non-compiling assets.gen.dart (e.g. `String get is => ...`).
+  assets:
+    exclude:
+      - assets/voices/**
 flutter_launcher_icons:
   android: launcher_icon
   ios: true

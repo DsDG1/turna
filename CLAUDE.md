@@ -208,6 +208,11 @@ flutter run -d android
 
 # Clean build
 flutter clean && flutter pub get && flutter pub run build_runner build --delete-conflicting-outputs
+
+# Release APK (single-arch arm64-v8a, R8 + resource shrinking + espeak pruning)
+# Use --split-per-abi so only arm64-v8a native libs are packed (≈65 MB vs 162 MB fat).
+flutter build apk --release --split-per-abi --target-platform android-arm64
+# Output: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
 ```
 
 ---
