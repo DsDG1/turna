@@ -17,18 +17,25 @@ import 'package:varnamala/application/language_provider.dart';
 import 'package:varnamala/application/lesson_completion_coordinator.dart';
 import 'package:varnamala/application/lesson_link_store.dart';
 import 'package:varnamala/application/lesson_viewmodel.dart';
-import 'package:varnamala/application/mistake_provider.dart';
+import 'package:varnamala/application/mistake_provider.dart'; // MistakeProvider for StudyStatsProvider
 import 'package:varnamala/application/srs_provider.dart';
 import 'package:varnamala/application/settings_provider.dart';
 import 'package:varnamala/application/study_stats_provider.dart';
 import 'package:varnamala/data/study_log_repository.dart';
 import 'package:varnamala/di/injection.dart';
+import 'package:varnamala/domain/audio/vocab_audio_resolver.dart';
 import 'package:varnamala/domain/course/interaction.dart';
 import 'package:varnamala/domain/course/lesson.dart';
 import 'package:varnamala/domain/course/lesson_content.dart';
 import 'package:varnamala/domain/course/stage.dart';
 import 'package:varnamala/domain/study/study_log.dart';
 import 'package:varnamala/service/locator.dart';
+
+class _PassthroughVocabResolver implements VocabAudioResolver {
+  @override
+  ResolvedVocabAudio resolve(String wordId) =>
+      ResolvedVocabAudio(speakText: wordId);
+}
 
 class _FakeFlutterTts implements FlutterTts {
   @override
@@ -53,6 +60,7 @@ class _FakeAudioController extends AudioController {
           _FakeFlutterTts(),
           _FakeLanguageProvider(),
           getIt<SettingsProvider>(),
+          _PassthroughVocabResolver(),
           audioPlayer: _FakeAudioPlayer(),
           speechPlayer: _FakeAudioPlayer(),
         );
@@ -84,7 +92,7 @@ class _FakeAchievementsProvider extends AchievementsProvider {
 
 class _FakeStudyStatsProvider extends StudyStatsProvider {
   _FakeStudyStatsProvider(AppPrefs appPrefs)
-      : super(StudyLogRepository(appPrefs), appPrefs);
+      : super(StudyLogRepository(appPrefs), MistakeProvider(appPrefs));
   @override
   Future<void> recordActivity({
     required StudyActivityType type,
@@ -128,7 +136,7 @@ Lesson _masteryLesson() {
 
 LessonViewModel _harness(AppPrefs prefs, Lesson lesson) {
   final linkStore = LessonLinkStore(prefs);
-  final gameProvider = GameProvider(prefs);
+  final gameProvider = GameProvider.forTesting(prefs);
   final gemsProvider = GemsProvider(prefs);
   final achievementsProvider = _FakeAchievementsProvider();
   final studyStatsProvider = _FakeStudyStatsProvider(prefs);
