@@ -7,10 +7,12 @@ on:
     paths:
       - "lib/**"
       - "test/**"
+      - "tool/**"
       - "pubspec.yaml"
       - "pubspec.lock"
       - "analysis_options.yaml"
       - "build.yaml"
+      - "Makefile"
       - ".github/workflows/flutter_ci.yml"
   pull_request:
     branches:
@@ -18,10 +20,12 @@ on:
     paths:
       - "lib/**"
       - "test/**"
+      - "tool/**"
       - "pubspec.yaml"
       - "pubspec.lock"
       - "analysis_options.yaml"
       - "build.yaml"
+      - "Makefile"
       - ".github/workflows/flutter_ci.yml"
 
 jobs:
@@ -59,3 +63,12 @@ jobs:
 
       - name: Run tests
         run: flutter test
+
+      - name: Run Python tool tests
+        run: python3 -m unittest discover -s test -p "*_test.py"
+
+      - name: Build release smoke test
+        # Web is skipped because CI does not need the web artifact; content
+        # validation is skipped here because course_validation.yml already
+        # validates course assets on content changes.
+        run: python3 tool/build_release.py --version ci-smoke --skip-web --skip-content-validation

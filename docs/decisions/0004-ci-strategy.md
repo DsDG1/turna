@@ -1,8 +1,8 @@
 # ADR 0004: CI Strategy (Flutter CI workflow + Makefile)
 
 - **Status**: Accepted
-- **Date**: 2026-07-10
-- **Related**: Robustness roadmap Phase 0
+- **Date**: 2026-07-10 (updated 2026-07-11 for release pipeline integration)
+- **Related**: Robustness roadmap Phase 0, future4 Phase 25, ADR 0017
 
 ## Context
 
@@ -21,7 +21,9 @@ There was also no build automation file (no `Makefile`), so contributors had to 
 
 2. **Fix the branch mismatch**: change `discord_notification.yml` to monitor `master` so push notifications actually fire.
 
-3. **Add a root `Makefile`** with targets `gen`, `analyze`, `test`, `test-python`, `ci`, `clean`, and a `help` target. `make ci` runs the local equivalent of CI (`flutter analyze` + `flutter test` + `python -m unittest`).
+3. **Add a root `Makefile`** with targets `gen`, `analyze`, `test`, `test-python`, `build-release`, `build-release-smoke`, `ci`, `clean`, and a `help` target. `make ci` runs the local equivalent of CI (`flutter analyze` + `flutter test` + `python -m unittest` + build smoke).
+
+4. **Extend the workflow and Makefile to run a release build smoke test** (future4 Phase 25). After tests pass, CI runs `python3 tool/build_release.py --version ci-smoke --skip-web --skip-content-validation`. This ensures the release path (codegen + `flutter build apk/appbundle`) does not rot between releases. Web is skipped because CI does not consume web artifacts; content validation is skipped because `course_validation.yml` already validates course assets on content changes.
 
 ## Consequences
 

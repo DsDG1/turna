@@ -48,6 +48,8 @@
 > Phase 23 后（2026-07-11）：`flutter test` **358/358**，`flutter analyze` **0 issue**。GameProvider 拆为 Score/Streak/LessonProgress/GameMilestone + 薄外观；`streak_resolver` 纯函数；ADR 0015。
 >
 > Phase 24 后（2026-07-11）：`flutter test` **372/372**，`flutter analyze` **0 issue**。`test/integration/` 三流 + `test/golden/` 亮暗 8 图；ADR 0016。
+>
+> Phase 25 后（2026-07-11）：`flutter test` **372/372**，`flutter analyze` **0 issue**。新增 `tool/build_release.py`、`test/tool/build_release_test.py`、`docs/decisions/0017-release-pipeline-and-versioning.md`；更新 `.github/workflows/flutter_ci.yml`、`Makefile`、`docs/decisions/0004-ci-strategy.md`；生成 `docs/content_inventory_v0.4.0.md`。
 
 ### 2.1 已稳固保留的好模式（本轮必须保持）
 
@@ -436,14 +438,17 @@
 
 ---
 
-### Phase 25：发布流水线与版本策略（1 周） ⬅️ **下一步**
+### Phase 25：发布流水线与版本策略（1 周） ✅ 已完成
+
+**完成时间**：2026-07-11  
+**状态**：`flutter test` 372/372，`flutter analyze` 0 issue。详见 `test/BASELINE.md`。ADR 0017 新增，ADR 0004 更新。
 
 **目标**：把 future3 Phase 19 遗留的发布工程补齐，把框架+功能成果固定为可持续发布节奏。前置 Phase 24。
 
 **范围**：
 - **版本号与 tag 策略**：明确语义化版本规则（内容大改升 minor，工程改动升 patch）；准备 `v0.4.0-future4` 发布（框架+功能轮）。
 - **构建脚本**：`tool/build_release.py`：自动执行 `flutter pub get`、`build_runner`、`flutter build apk/appbundle/web`、资源校验；生成带版本号的构建产物；复用 Phase 17 的 applicationId/签名骨架。
-- **内容清单报告**：`docs/content_inventory_v0.4.0.md`：词汇数、表达数、语法点数、lesson 数、音频覆盖率（现有占位内容）+ 已知问题与下一步内容缺口（交接 future5）。
+- **内容清单报告**：`docs/content_inventory_v0.4.0-future4.md`：词汇数、表达数、语法点数、lesson 数、音频覆盖率（现有占位内容）+ 已知问题与下一步内容缺口（交接 future5）。
 - **分发准备**：截图（可用现有占位内容 + 新功能页）、应用描述。
 - **CI**：CI workflow（Makefile per ADR 0004）跑通 `flutter test` + `flutter analyze` + 构建。
 
@@ -469,7 +474,7 @@
 **范围**：
 - 更新 `CLAUDE.md`：反映 future4 完成状态（新 provider、新 route、新功能、新 ADR）。
 - 写 `docs/decisions/0018-future4-completion-and-content-handoff.md`：总结 future4 完成项，明确 future5（内容轮）入口——真实 Swahili 词表替换的干净地基已就位（集成测试 + golden 兜底、`VocabAudioResolver` + repository 接口铺路、SRS/日志性能天花板移除）。
-- `test/BASELINE.md` 最终基线；`docs/content_inventory_v0.4.0.md` 定稿。
+- `test/BASELINE.md` 最终基线；`docs/content_inventory_v0.4.0-future4.md` 定稿。
 
 **验收**：
 - `CLAUDE.md` 与代码一致。
@@ -555,7 +560,7 @@ future4 期间新增/更新的 ADR（延续 0008 之后）：
 - [ ] `play_hub` 卡片参数化为 `_PlayHubCard`（含 Weak Words 卡）；词典/弱词/提醒/课程树状态功能可用。
 - [ ] `build.gradle` 无 `com.example` 无签名 TODO；prefs 错误统一 `logger.w`；`CourseRepository._toLesson` 有 try-catch；`CourseDatabase` 有 `onDowngrade`；seeder 检跨 section 重复 id + expressions version；内容更新提示弹窗。
 - [ ] a11y：icon button 全 tooltip、MCQ 屏幕阅读器、对比度达标、输入框语义标签。
-- [ ] 一条命令打 release APK/AAB；内容清单 v0.4.0 可读；CI 跑通。
+- [ ] 一条命令打 release APK/AAB；内容清单 v0.4.0-future4 可读；CI 跑通。
 - [ ] ADR 0001–0018 在册，0004/0006/0007 已更新。
 - [ ] `CLAUDE.md` 与代码一致；`BASELINE.md` 最终基线；future5 入口文档清晰。
 
