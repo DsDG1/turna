@@ -27,6 +27,7 @@ class SrsProvider extends ChangeNotifier {
   Map<String, SrsWord>? _cachedState;
   List<SrsWord>? _cachedDueWords;
   DateTime? _cachedDueAt;
+  int? _cachedDueCount;
 
   /// wordId → current [SrsWord] state. Words never seen are absent.
   Map<String, SrsWord> get state {
@@ -92,19 +93,24 @@ class SrsProvider extends ChangeNotifier {
 
   /// Persist the lesson(s) where a set of word/expression/grammar ids were
   /// first encountered. Only the first recorded link for each id is kept.
+  ///
+  /// Notifies listeners only when at least one id is newly linked, so loading
+  /// a lesson (which calls this for already-seen words) doesn't trigger a
+  /// spurious dueCount recompute downstream.
   Future<void> recordLessonLinks({
     required Iterable<String> wordIds,
     required String lessonId,
     required String lessonName,
     LinkType type = LinkType.word,
   }) async {
+    final anyNew = wordIds.any((id) => !linkStore.containsId(id));
     await linkStore.upsertFirstSeen(
       ids: wordIds,
       lessonId: lessonId,
       lessonName: lessonName,
       type: type,
     );
-    notifyListeners();
+    if (anyNew) notifyListeners();
   }
 
   /// The lesson name where [wordId] was first encountered, or `null` if
@@ -166,6 +172,7 @@ class SrsProvider extends ChangeNotifier {
       ..sort((a, b) => a.dueAt.compareTo(b.dueAt));
     _cachedDueWords = result;
     _cachedDueAt = cutoff;
+    _cachedDueCount = result.length;
     return result;
   }
 
@@ -213,7 +220,11 @@ class SrsProvider extends ChangeNotifier {
       ..sort((a, b) => b.lapses.compareTo(a.lapses));
   }
 
-  int get dueCount => getDueWords().length;
+  /// Cached due-word count, recomputed only when SRS state changes (in
+  /// [_persist] / [getDueWords]). Avoids a full `state.values` filter+sort on
+  /// every build — this getter is hot (watched by the SRS review screen and
+  /// selected by the play hub). Falls back to a live count if no cache yet.
+  int get dueCount => _cachedDueCount ?? getDueWords().length;
   int get totalSeen =>
       state.values.where((w) => w.type == SrsItemType.word && w.reps >= 1).length;
   int get totalRegistered => state.values.where((w) => w.type == SrsItemType.word).length;
@@ -231,6 +242,7 @@ class SrsProvider extends ChangeNotifier {
     _cachedState = map;
     _cachedDueWords = null;
     _cachedDueAt = null;
+    _cachedDueCount = null;
     notifyListeners();
 
     final encoded = jsonEncode(

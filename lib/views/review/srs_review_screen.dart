@@ -144,7 +144,7 @@ class _SrsReviewPageState extends State<SrsReviewPage> {
 
   @override
   Widget build(BuildContext context) {
-    final dueCount = context.watch<SrsProvider>().dueCount;
+    final dueCount = context.select((SrsProvider p) => p.dueCount);
 
     if (_queue.isEmpty) {
       return ReviewEmptyState(

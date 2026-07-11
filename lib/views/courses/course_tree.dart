@@ -140,10 +140,15 @@ class _CourseTreeState extends State<CourseTree> {
                 final completedCount = unit.lessons
                     .where((l) => progress.isLessonCompleted(l.id))
                     .length;
-                return _UnitCard(
-                  unit: unit,
-                  completedCount: completedCount,
-                  onLessonTap: (lesson) => _navigateToLesson(context, lesson),
+                // RepaintBoundary isolates each card's painting so a progress
+                // or selection notification repaints only the changed card,
+                // not the whole visible list.
+                return RepaintBoundary(
+                  child: _UnitCard(
+                    unit: unit,
+                    completedCount: completedCount,
+                    onLessonTap: (lesson) => _navigateToLesson(context, lesson),
+                  ),
                 );
               },
               childCount: section.units.length,

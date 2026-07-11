@@ -1,3 +1,6 @@
+// Dart imports:
+import 'dart:async';
+
 // Flutter imports:
 import 'package:flutter/material.dart';
 
@@ -26,7 +29,7 @@ class SettingsLanguageSelectorTile extends StatelessWidget {
       initialValue: current,
       onSelected: (value) {
         languageProvider.setLanguage(value);
-        languageProvider.cacheLanguage();
+        unawaited(languageProvider.cacheLanguage());
       },
       itemBuilder: (context) => TargetLanguage.values
           .map(

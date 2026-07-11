@@ -129,7 +129,7 @@ class _TranslateBodyState extends State<_TranslateBody> {
             enabled: !submitted,
             maxLines: 3,
             minLines: 1,
-            style: const TextStyle(fontSize: 18, color: VarnamalaTheme.textPrimary),
+            style: TextStyle(fontSize: 18, color: VarnamalaTheme.textPrimaryColor(context)),
             decoration: InputDecoration(
               hintText: 'Type the translation...',
               filled: true,

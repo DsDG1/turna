@@ -52,7 +52,7 @@ class StudyStatsProvider extends ChangeNotifier {
     );
 
     await _repository.appendLog(log);
-    _emitDailyStats();
+    unawaited(_emitDailyStats());
   }
 
   /// Get today's statistics snapshot.
@@ -212,9 +212,17 @@ class StudyStatsProvider extends ChangeNotifier {
     return result;
   }
 
-  void _emitDailyStats() async {
-    final stats = await _repository.readLastNDays(7);
-    _dailyStatsController.add(stats);
+  Future<void> _emitDailyStats() async {
+    try {
+      final stats = await _repository.readLastNDays(7);
+      if (!_dailyStatsController.isClosed) {
+        _dailyStatsController.add(stats);
+      }
+    } catch (e) {
+      // Don't let a stats-emit failure escape as an unhandled async-void
+      // exception; the stream subscribers just won't get this update.
+      debugPrint('StudyStatsProvider _emitDailyStats failed: $e');
+    }
   }
 
   final Random _rand = Random();

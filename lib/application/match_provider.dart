@@ -32,6 +32,10 @@ class MatchProvider extends ChangeNotifier {
   String? selectedTargetWord;
   Timer? _timer;
   int secondsRemaining = 90;
+  /// Per-second countdown exposed as a [ValueListenable] so the timer text in
+  /// the app bar can rebuild in isolation (via [ValueListenableBuilder])
+  /// instead of triggering a whole-screen [notifyListeners] every second.
+  final ValueNotifier<int> countdownNotifier = ValueNotifier<int>(90);
   Set<String> matchedWords = {};
   Map<String, String>? wordPairs;
   bool isGameOver = false;
@@ -42,6 +46,12 @@ class MatchProvider extends ChangeNotifier {
   MatchCelebrationType celebrationType = MatchCelebrationType.sparkles;
   int matchesPerRound = 8;
   List<MapEntry<String, String>> _dictionaryEntries = [];
+
+  /// Re-entry guard for [checkMatch]. The method awaits an animation/sound
+  /// delay between matching the pair and clearing the selection; without this,
+  /// rapid taps that fire a second `checkMatch` mid-await would match against
+  /// the stale selection and double-count the score.
+  bool _checking = false;
 
   void initializeGame() {
     final targetLanguage =
@@ -56,6 +66,7 @@ class MatchProvider extends ChangeNotifier {
     selectedEnglishWord = null;
     selectedTargetWord = null;
     secondsRemaining = 90;
+    countdownNotifier.value = 90;
     matchedWords = {};
     isGameOver = false;
     sessionScore = 0;
@@ -81,7 +92,7 @@ class MatchProvider extends ChangeNotifier {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (secondsRemaining > 0) {
         secondsRemaining--;
-        notifyListeners();
+        countdownNotifier.value = secondsRemaining;
       } else {
         _timer?.cancel();
         isGameOver = true;
@@ -108,8 +119,14 @@ class MatchProvider extends ChangeNotifier {
   }
 
   Future<void> checkMatch() async {
-    if (selectedEnglishWord != null && selectedTargetWord != null) {
-      if (wordPairs![selectedEnglishWord!] == selectedTargetWord) {
+    if (_checking) return; // a previous match is still animating
+    if (selectedEnglishWord == null || selectedTargetWord == null) return;
+    final pairs = wordPairs;
+    if (pairs == null) return; // game not initialized / disposed
+
+    _checking = true;
+    try {
+      if (pairs[selectedEnglishWord!] == selectedTargetWord) {
         sessionScore += 2;
         currentRoundMatches += 1;
         await _audioController.playRandomLevelUpSound();
@@ -137,12 +154,24 @@ class MatchProvider extends ChangeNotifier {
         selectedTargetWord = null;
         notifyListeners();
       }
+    } finally {
+      _checking = false;
     }
+  }
+
+  /// Stop the countdown. Called from the match page's `dispose()` because this
+  /// provider is a `@lazySingleton` (lives for the app lifetime) and would
+  /// otherwise keep firing `notifyListeners` every second after the user leaves
+  /// the game — wasting CPU and rebuilding any still-mounted listeners.
+  void pauseTimer() {
+    _timer?.cancel();
+    _timer = null;
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    countdownNotifier.dispose();
     super.dispose();
   }
 

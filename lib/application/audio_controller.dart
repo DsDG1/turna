@@ -263,7 +263,7 @@ class AudioController {
   ///   but [TtsSpeakResult.usedFallback] is true so settings can warn).
   Future<TtsSpeakResult> speakWithResult(String text, {double? speed}) async {
     if (text.isEmpty) {
-      final empty = TtsSpeakResult(
+      const empty = TtsSpeakResult(
         source: TtsSpeakSource.failed,
         error: 'empty text',
       );
@@ -278,7 +278,7 @@ class AudioController {
     if (engine == TtsEngine.system) {
       try {
         await _speakWithSystemTts(text, effectiveSpeed);
-        final ok = const TtsSpeakResult(source: TtsSpeakSource.system);
+        const ok = TtsSpeakResult(source: TtsSpeakSource.system);
         _lastSpeakResult = ok;
         debugPrint('TTS route: system primary OK');
         return ok;
@@ -293,7 +293,7 @@ class AudioController {
         final ok = TtsSpeakResult(
           source: TtsSpeakSource.piper,
           usedFallback: true,
-          error: preferredError?.toString(),
+          error: preferredError.toString(),
         );
         _lastSpeakResult = ok;
         return ok;
@@ -314,7 +314,7 @@ class AudioController {
         'TTS route: offline primary (piper, rate=$effectiveSpeed)',
       );
       await _speakWithPiper(text, effectiveSpeed);
-      final ok = const TtsSpeakResult(source: TtsSpeakSource.piper);
+      const ok = TtsSpeakResult(source: TtsSpeakSource.piper);
       _lastSpeakResult = ok;
       debugPrint('TTS route: offline primary OK');
       return ok;
@@ -331,7 +331,7 @@ class AudioController {
       final ok = TtsSpeakResult(
         source: TtsSpeakSource.system,
         usedFallback: true,
-        error: preferredError?.toString(),
+        error: preferredError.toString(),
       );
       _lastSpeakResult = ok;
       return ok;

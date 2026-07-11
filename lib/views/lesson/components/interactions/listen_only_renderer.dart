@@ -110,7 +110,7 @@ class _ListenOnlyBodyState extends State<_ListenOnlyBody> {
           Text(
             _hasPlayed ? 'Tap the speaker to replay' : 'Tap the speaker to listen',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: VarnamalaTheme.textHint,
+                  color: VarnamalaTheme.textHintColor(context),
                 ),
             textAlign: TextAlign.center,
           ),

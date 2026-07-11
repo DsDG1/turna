@@ -40,7 +40,10 @@ class LanguageProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void cacheLanguage() async {
+  /// Persist the current language selection. Callers fire-and-forget via
+  /// `unawaited(...)` — the selection is already in memory, this just durably
+  /// writes it so a fast app-kill doesn't lose the choice.
+  Future<void> cacheLanguage() async {
     await appPrefs.setString(PrefsConstants.currentLanguage, selectedLanguage.name);
 
     notifyListeners();

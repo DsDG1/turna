@@ -105,10 +105,10 @@ class _TypeTheWordBodyState extends State<_TypeTheWordBody> {
             enabled: !submitted,
             autofocus: !submitted,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w700,
-              color: VarnamalaTheme.textPrimary,
+              color: VarnamalaTheme.textPrimaryColor(context),
               letterSpacing: 0.5,
             ),
             decoration: InputDecoration(

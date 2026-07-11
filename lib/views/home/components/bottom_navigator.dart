@@ -16,7 +16,7 @@ class BottomNavigator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bottomPadding = MediaQuery.of(context).padding.bottom;
+    final bottomPadding = MediaQuery.viewPaddingOf(context).bottom;
     return SizedBox(
       height: 64 + bottomPadding,
       child: Container(

@@ -73,6 +73,15 @@ class LessonLinkStore {
 
   String? lessonNameFor(String id) => readAll()[id]?.lessonName;
 
+  /// Whether [id] already has a recorded first-seen link — reads the cache
+  /// directly without copying the whole map (unlike [lessonNameFor], which
+  /// allocates a full copy per lookup). Use this for pre-flight "is this new?"
+  /// checks before [upsertFirstSeen].
+  bool containsId(String id) {
+    if (_cache == null) readAll(); // populate cache
+    return _cache!.containsKey(id);
+  }
+
   Map<String, LessonWordLink> filtered(LinkType type) {
     final all = readAll();
     return Map.fromEntries(all.entries.where((e) => e.value.type == type));

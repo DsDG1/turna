@@ -216,9 +216,9 @@ class _HintChip extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               hint,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
-                color: VarnamalaTheme.textSecondary,
+                color: VarnamalaTheme.textSecondaryColor(context),
                 fontWeight: FontWeight.w500,
               ),
             ),

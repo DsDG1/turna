@@ -20,7 +20,7 @@ class MistakeListPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final mistakes = context.watch<MistakeProvider>().entries;
+    final mistakes = context.select((MistakeProvider p) => p.entries);
 
     return Scaffold(
       appBar: AppBar(title: const Text('My Mistakes')),

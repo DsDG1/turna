@@ -305,17 +305,28 @@ class RenderCharacter extends StatefulWidget {
 }
 
 class RenderCharacterState extends State<RenderCharacter> {
-  final List<List<Offset>> strokes = [];
+  /// Strokes live in a [ValueNotifier] used as the [CustomPainter]'s `repaint`
+  /// listenable. This means active drawing only repaints the canvas — no
+  /// `setState`, so the Stack / LayoutBuilder / GestureDetector subtree is not
+  /// rebuilt on every pointer move (was 60-120 rebuilds/sec).
+  final ValueNotifier<List<List<Offset>>> strokesNotifier =
+      ValueNotifier<List<List<Offset>>>([]);
   List<Offset> currentStroke = [];
+
+  List<List<Offset>> get strokes => strokesNotifier.value;
 
   @override
   void initState() {
     super.initState();
     widget.shouldRebuild.addListener(() {
-      setState(() {
-        strokes.clear();
-      });
+      strokesNotifier.value = [];
     });
+  }
+
+  @override
+  void dispose() {
+    strokesNotifier.dispose();
+    super.dispose();
   }
 
   @override
@@ -351,29 +362,35 @@ class RenderCharacterState extends State<RenderCharacter> {
                   return GestureDetector(
                     onPanStart: (details) {
                       currentStroke = [details.localPosition];
-                      setState(() {
-                        strokes.add(currentStroke);
-                      });
+                      // New list identity so the notifier fires + painter repaints.
+                      strokesNotifier.value = [
+                        ...strokes,
+                        currentStroke,
+                      ];
                     },
                     onPanUpdate: (details) {
-                      setState(() {
-                        if (currentStroke.isNotEmpty) {
-                          final distance =
-                              (currentStroke.last - details.localPosition)
-                                  .distance;
-                          if (distance > 8.0) {
-                            currentStroke.add(details.localPosition);
-                          }
-                        } else {
-                          currentStroke.add(details.localPosition);
-                        }
-                      });
+                      if (currentStroke.isNotEmpty) {
+                        final distance =
+                            (currentStroke.last - details.localPosition)
+                                .distance;
+                        if (distance <= 8.0) return;
+                      }
+                      currentStroke.add(details.localPosition);
+                      // Append a fresh outer list so ValueNotifier detects a
+                      // change (it compares by reference).
+                      strokesNotifier.value = [
+                        ...strokes.sublist(0, strokes.length - 1),
+                        List.of(currentStroke),
+                      ];
                     },
                     onPanEnd: (details) {
                       currentStroke = [];
                     },
                     child: CustomPaint(
-                      painter: CharacterPainter(strokes: strokes),
+                      painter: CharacterPainter(
+                        strokes: strokes,
+                        repaint: strokesNotifier,
+                      ),
                       size: Size(constraints.maxWidth, constraints.maxHeight),
                     ),
                   );
@@ -390,10 +407,8 @@ class RenderCharacterState extends State<RenderCharacter> {
                     borderRadius:
                         BorderRadius.circular(VarnamalaTheme.radiusSmall),
                     onTap: () {
-                      setState(() {
-                        strokes.clear();
-                        currentStroke = [];
-                      });
+                      strokesNotifier.value = [];
+                      currentStroke = [];
                     },
                     child: const Padding(
                       padding: EdgeInsets.all(8),
@@ -598,7 +613,10 @@ class _VowelAndConsonantLearningPageState
 class CharacterPainter extends CustomPainter {
   final List<List<Offset>> strokes;
 
-  CharacterPainter({required this.strokes});
+  /// [repaint] is the [ValueNotifier] holding [strokes]; while it fires,
+  /// CustomPaint repaints without consulting [shouldRepaint], so the deep
+  /// O(n*m) stroke comparison below is never run during active drawing.
+  CharacterPainter({required this.strokes, super.repaint});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -634,16 +652,5 @@ class CharacterPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(CharacterPainter oldDelegate) {
-    if (oldDelegate.strokes.length != strokes.length) return true;
-    for (int i = 0; i < strokes.length; i++) {
-      final oldStroke = oldDelegate.strokes[i];
-      final newStroke = strokes[i];
-      if (oldStroke.length != newStroke.length) return true;
-      for (int j = 0; j < oldStroke.length; j++) {
-        if (oldStroke[j] != newStroke[j]) return true;
-      }
-    }
-    return false;
-  }
+  bool shouldRepaint(CharacterPainter oldDelegate) => false;
 }

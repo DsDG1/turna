@@ -93,7 +93,16 @@ class PiperTtsWorker {
         );
       }
     });
-    _sendPort.send(request);
+    try {
+      _sendPort.send(request);
+    } catch (e) {
+      // The isolate may have died (send throws). Cancel the listener and
+      // complete the future so the caller isn't left awaiting forever.
+      sub.cancel();
+      completer.completeError(
+        StateError('Piper TTS worker send failed: $e'),
+      );
+    }
     await completer.future;
   }
 

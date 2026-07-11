@@ -187,7 +187,7 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
 
   @override
   Widget build(BuildContext context) {
-    final dueCount = context.watch<GrammarReviewProvider>().dueCount;
+    final dueCount = context.select((GrammarReviewProvider p) => p.dueCount);
 
     if (_queue.isEmpty) {
       return ReviewEmptyState(
@@ -423,7 +423,7 @@ class _GrammarCard extends StatelessWidget {
                   point!.title,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.w800,
-                        color: VarnamalaTheme.textPrimary,
+                        color: VarnamalaTheme.textPrimaryColor(context),
                       ),
                   textAlign: TextAlign.center,
                 ),
@@ -435,7 +435,7 @@ class _GrammarCard extends StatelessWidget {
                     point!.explanation,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           height: 1.5,
-                          color: VarnamalaTheme.textPrimary,
+                          color: VarnamalaTheme.textPrimaryColor(context),
                         ),
                   ),
                   const SizedBox(height: 16),
@@ -448,7 +448,7 @@ class _GrammarCard extends StatelessWidget {
                             ? 'Learned in: $lessonName'
                             : 'First seen: ${word.wordId}',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: VarnamalaTheme.textHint,
+                              color: VarnamalaTheme.textHintColor(context),
                             ),
                       );
                     },
@@ -457,7 +457,7 @@ class _GrammarCard extends StatelessWidget {
                   Text(
                     'Tap to reveal explanation',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: VarnamalaTheme.textHint,
+                          color: VarnamalaTheme.textHintColor(context),
                         ),
                     textAlign: TextAlign.center,
                   ),
@@ -474,7 +474,7 @@ class _GrammarCard extends StatelessWidget {
                 Text(
                   'Grammar point not found',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: VarnamalaTheme.textHint,
+                        color: VarnamalaTheme.textHintColor(context),
                       ),
                   textAlign: TextAlign.center,
                 ),

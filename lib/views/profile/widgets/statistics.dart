@@ -21,62 +21,57 @@ class Statistics extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _sectionTitle(context, 'Statistics', Icons.bar_chart_rounded),
-          Consumer<GameProvider>(
-            builder: (context, gameProvider, _) {
-              return StreamBuilder(
-                stream: gameProvider.getUserGameStateStream(),
-                builder: (context, snapshot) {
-                  final data = snapshot.data;
-                  final streak = data?.streak ?? 0;
-                  final totalXp = data?.score ?? 0;
-                  const currentLanguage = 'Swahili';
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+          // The StreamBuilders already react to state changes; wrapping them in
+          // Consumers would just re-subscribe on every notifyListeners (XP
+          // award, streak check, lesson completion) for no benefit.
+          StreamBuilder(
+            stream: context.read<GameProvider>().getUserGameStateStream(),
+            builder: (context, snapshot) {
+              final data = snapshot.data;
+              final streak = data?.streak ?? 0;
+              final totalXp = data?.score ?? 0;
+              const currentLanguage = 'Swahili';
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 8),
+                  _LanguageChip(language: currentLanguage.toTitleCase),
+                  const SizedBox(height: 12),
+                  GridView.count(
+                    primary: false,
+                    shrinkWrap: true,
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    childAspectRatio: 2.2,
                     children: [
-                      const SizedBox(height: 8),
-                      _LanguageChip(language: currentLanguage.toTitleCase),
-                      const SizedBox(height: 12),
-                      GridView.count(
-                        primary: false,
-                        shrinkWrap: true,
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 10,
-                        mainAxisSpacing: 10,
-                        childAspectRatio: 2.2,
-                        children: [
-                          _StatCard(
-                            icon: Icons.local_fire_department_rounded,
-                            iconColor: const Color(0xFFFF9500),
-                            value: streak.toString(),
-                            label: 'Day Streak',
-                          ),
-                          _StatCard(
-                            icon: Icons.bolt_rounded,
-                            iconColor: VarnamalaTheme.peacockTurquoise,
-                            value: totalXp.toString(),
-                            label: 'Total XP',
-                          ),
-                          Consumer<GemsProvider>(
-                            builder: (context, _, __) {
-                              return StreamBuilder<int>(
-                                stream: _.getGemsStream(),
-                                builder: (context, snap) {
-                                  final gems = snap.data ?? 0;
-                                  return _StatCard(
-                                    icon: Icons.diamond_rounded,
-                                    iconColor: VarnamalaTheme.error,
-                                    value: gems.toString(),
-                                    label: 'Gems',
-                                  );
-                                },
-                              );
-                            },
-                          ),
-                        ],
+                      _StatCard(
+                        icon: Icons.local_fire_department_rounded,
+                        iconColor: const Color(0xFFFF9500),
+                        value: streak.toString(),
+                        label: 'Day Streak',
+                      ),
+                      _StatCard(
+                        icon: Icons.bolt_rounded,
+                        iconColor: VarnamalaTheme.peacockTurquoise,
+                        value: totalXp.toString(),
+                        label: 'Total XP',
+                      ),
+                      StreamBuilder<int>(
+                        stream: context.read<GemsProvider>().getGemsStream(),
+                        builder: (context, snap) {
+                          final gems = snap.data ?? 0;
+                          return _StatCard(
+                            icon: Icons.diamond_rounded,
+                            iconColor: VarnamalaTheme.error,
+                            value: gems.toString(),
+                            label: 'Gems',
+                          );
+                        },
                       ),
                     ],
-                  );
-                },
+                  ),
+                ],
               );
             },
           ),

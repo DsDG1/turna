@@ -26,6 +26,14 @@ class _MalaWelcomesState extends State<MalaWelcomes> {
   @override
   void initState() {
     super.initState();
+    // Pre-decode all three images so the 3-second swap never stalls on a
+    // first-frame decode (the previous code re-loaded each image on swap).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      for (final path in images) {
+        precacheImage(AssetImage(path), context);
+      }
+    });
     _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
       if (!mounted) return;
       setState(() {

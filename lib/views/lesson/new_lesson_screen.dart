@@ -301,6 +301,11 @@ class _NewLessonPageState extends State<NewLessonPage> {
         unawaited(navigator.maybePop());
         break;
       case null:
+        // The dialog is barrierDismissible:false, so the only way `result` is
+        // null is the Android system back button. Without handling it the user
+        // is trapped (no dialog shown, no interaction, no way forward).
+        // Re-show the dialog so they must pick Retry or Back explicitly.
+        if (mounted) unawaited(_showMasteryRetryDialog());
         break;
     }
   }

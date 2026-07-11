@@ -91,9 +91,9 @@ class _ReadingShortAnswerBodyState extends State<_ReadingShortAnswerBody> {
             controller: _controller,
             enabled: !submitted,
             autofocus: !submitted,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 18,
-              color: VarnamalaTheme.textPrimary,
+              color: VarnamalaTheme.textPrimaryColor(context),
             ),
             decoration: InputDecoration(
               hintText: 'Type your answer...',

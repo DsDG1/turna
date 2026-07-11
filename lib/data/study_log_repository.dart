@@ -24,6 +24,11 @@ class StudyLogRepository {
   /// by [LessonLinkStore._writeChain].
   Future<void> _writeChain = Future.value();
 
+  /// Decoded daily-stats cache. The profile page fires multiple FutureBuilders
+  /// that each used to re-`jsonDecode` the whole blob; this cache makes repeat
+  /// reads free. Invalidated by every write ([_updateDailyStats]/[clearAll]).
+  Map<String, DailyStudyStats>? _dailyStatsCache;
+
   StudyLogRepository(this.appPrefs);
 
   Future<void> appendLog(StudyLog log) async {
@@ -56,12 +61,26 @@ class StudyLogRepository {
   }
 
   Future<Map<String, DailyStudyStats>> readAllDailyStats() async {
+    final cached = _dailyStatsCache;
+    if (cached != null) return cached;
+
     final raw = appPrefs.preferences
         .getString(_dailyStatsKey, defaultValue: '{}')
         .getValue();
-    final map = jsonDecode(raw) as Map<String, dynamic>;
-    return map.map((key, value) =>
-        MapEntry(key, DailyStudyStats.fromJson(value as Map<String, dynamic>)));
+    try {
+      final map = jsonDecode(raw) as Map<String, dynamic>;
+      return _dailyStatsCache = map.map((key, value) =>
+          MapEntry(key, DailyStudyStats.fromJson(value as Map<String, dynamic>)));
+    } catch (e) {
+      // Corrupted prefs (partial write / migration glitch): return empty
+      // instead of crashing the profile page. Mirrors SrsProvider.state guard.
+      assert(() {
+        // ignore: avoid_print
+        print('StudyLogRepository dailyStats decode failed: $e');
+        return true;
+      }());
+      return _dailyStatsCache = <String, DailyStudyStats>{};
+    }
   }
 
   Future<DailyStudyStats?> readDailyStats(DateTime date) async {
@@ -85,6 +104,7 @@ class StudyLogRepository {
     await _enqueueWrite(() async {
       await appPrefs.preferences.setString(_logsKey, '[]');
       await appPrefs.preferences.setString(_dailyStatsKey, '{}');
+      _dailyStatsCache = <String, DailyStudyStats>{};
     });
   }
 
@@ -162,6 +182,9 @@ class StudyLogRepository {
       all.map((k, v) => MapEntry(k, v.toJson())),
     );
     await appPrefs.preferences.setString(_dailyStatsKey, encoded);
+    // `all` was the cached object; keep it as the fresh cache so back-to-back
+    // reads after a write don't re-decode.
+    _dailyStatsCache = all;
   }
 
   static String _dateKey(DateTime d) =>

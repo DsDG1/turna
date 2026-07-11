@@ -223,7 +223,14 @@ class CourseRepository {
   }
 
   List<String> _decodeStringList(String encoded) {
-    final list = jsonDecode(encoded);
-    return (list as List).map((e) => e as String).toList(growable: false);
+    try {
+      final list = jsonDecode(encoded);
+      return (list as List).map((e) => e as String).toList(growable: false);
+    } catch (e) {
+      // Corrupted column (migration glitch / partial write) degrades to empty
+      // rather than crashing section/lesson load. Mirrors _decodePracticeItems.
+      logger.w('Corrupted string list, treating as empty: $e');
+      return const <String>[];
+    }
   }
 }

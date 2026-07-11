@@ -30,6 +30,7 @@ class GrammarReviewProvider extends ChangeNotifier {
   Map<String, SrsWord>? _cachedState;
   List<SrsWord>? _cachedDueWords;
   DateTime? _cachedDueAt;
+  int? _cachedDueCount;
 
   /// grammarPointId → current [SrsWord] state. Points never seen are absent.
   Map<String, SrsWord> get state {
@@ -88,18 +89,23 @@ class GrammarReviewProvider extends ChangeNotifier {
 
   /// Persist the lesson(s) where a set of grammar points was first
   /// encountered. Only the first recorded link for each id is kept.
+  ///
+  /// Notifies only when at least one id is newly linked, so loading a lesson
+  /// that re-records already-seen grammar points doesn't trigger a spurious
+  /// dueCount recompute downstream.
   Future<void> recordLessonLinks({
     required Iterable<String> ids,
     required String lessonId,
     required String lessonName,
   }) async {
+    final anyNew = ids.any((id) => !linkStore.containsId(id));
     await linkStore.upsertFirstSeen(
       ids: ids,
       lessonId: lessonId,
       lessonName: lessonName,
       type: LinkType.grammarPoint,
     );
-    notifyListeners();
+    if (anyNew) notifyListeners();
   }
 
   /// The lesson name where [id] was first encountered, or `null` if unknown.
@@ -134,10 +140,14 @@ class GrammarReviewProvider extends ChangeNotifier {
       ..sort((a, b) => a.dueAt.compareTo(b.dueAt));
     _cachedDueWords = result;
     _cachedDueAt = cutoff;
+    _cachedDueCount = result.length;
     return result;
   }
 
-  int get dueCount => getDueGrammarPoints().length;
+  /// Cached due-grammar count, recomputed only when state changes (in
+  /// [_persist] / [getDueGrammarPoints]). Avoids a full filter+sort on every
+  /// build. Falls back to a live count if no cache yet.
+  int get dueCount => _cachedDueCount ?? getDueGrammarPoints().length;
   int get totalSeen => state.values.where((w) => w.reps >= 1).length;
   int get totalRegistered => state.length;
 
@@ -147,6 +157,7 @@ class GrammarReviewProvider extends ChangeNotifier {
     _cachedState = map;
     _cachedDueWords = null;
     _cachedDueAt = null;
+    _cachedDueCount = null;
     notifyListeners();
 
     final encoded = jsonEncode(

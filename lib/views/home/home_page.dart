@@ -82,11 +82,9 @@ class _HomePageState extends State<HomePage> {
         currentIndex: currentIndex,
         onPress: onBottomNavigatorTapped,
       ),
-      body: RepaintBoundary(
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 200),
-          child: screens[currentIndex],
-        ),
+      body: IndexedStack(
+        index: currentIndex,
+        children: screens,
       ),
     );
   }

@@ -12,9 +12,6 @@ import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 
 // Project imports:
 import 'package:varnamala/core/logger.dart';
-import 'package:varnamala/courses/languages/expressions.dart';
-import 'package:varnamala/courses/languages/grammar_points.dart';
-import 'package:varnamala/courses/languages/swahili_vocab.dart';
 import 'package:varnamala/data/course_database.dart';
 import 'package:varnamala/data/course_database_seeder.dart';
 import 'package:varnamala/di/injection.dart';
@@ -160,18 +157,11 @@ Future<void> setupLocator() async {
   final db = await _openAndSeedCourseDatabase();
   getIt.registerSingleton<CourseDatabase>(db);
 
-  // Pre-load Swahili vocabulary so the synchronous [swahiliVocabById]
-  // and [swahiliVocabByTranslation] lookups are populated before any
-  // lesson is rendered. This is a one-shot cost at app start.
-  await loadSwahiliVocabulary();
-
-  // Pre-load grammar points so [swahiliGrammarPointById] is populated before
-  // the grammar review screen renders.
-  await loadSwahiliGrammarPoints();
-
-  // Pre-load expressions so [swahiliExpressionsById] is populated before any
-  // expression review cards are rendered.
-  await loadSwahiliExpressions();
+  // NOTE: the Swahili vocabulary / grammar / expression pre-loads
+  // (loadSwahiliVocabulary / loadSwahiliGrammarPoints / loadSwahiliExpressions)
+  // are deferred to a post-frame callback in main.dart so runApp can paint the
+  // splash immediately instead of blocking on the full table read. They are
+  // idempotent one-shot loads and finish before the course tree shows lessons.
 }
 
 /// Opens the on-device course database and seeds it from the bundled JSON

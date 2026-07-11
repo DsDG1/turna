@@ -32,8 +32,9 @@ class SettingsToggleTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final settings = context.watch<SettingsProvider>();
-    final value = valueSelector(settings);
+    final value = context.select<SettingsProvider, bool>(
+      (settings) => valueSelector(settings),
+    );
 
     return SettingsTile(
       icon: icon,
@@ -48,7 +49,7 @@ class SettingsToggleTile extends StatelessWidget {
           }
           return null;
         }),
-        onChanged: (newValue) => onChanged(settings, newValue),
+        onChanged: (newValue) => onChanged(context.read<SettingsProvider>(), newValue),
       ),
     );
   }
@@ -136,12 +137,12 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
 
   @override
   Widget build(BuildContext context) {
-    final settings = context.watch<SettingsProvider>();
+    final ttsEngine = context.select((SettingsProvider p) => p.ttsEngine);
 
     return SettingsTile(
       icon: Icons.record_voice_over_rounded,
       title: 'Voice source',
-      subtitle: _subtitle(settings.ttsEngine),
+      subtitle: _subtitle(ttsEngine),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -153,7 +154,7 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
             )
           else
             Text(
-              _label(settings.ttsEngine),
+              _label(ttsEngine),
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: VarnamalaTheme.peacockTeal,
                     fontWeight: FontWeight.w700,
@@ -166,12 +167,11 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
           ),
         ],
       ),
-      onTap: _previewing ? null : () => _showEnginePicker(context, settings),
+      onTap: _previewing ? null : () => _showEnginePicker(context.read<SettingsProvider>()),
     );
   }
 
   Future<void> _showEnginePicker(
-    BuildContext context,
     SettingsProvider settings,
   ) async {
     final selected = await showDialog<Object>(
@@ -252,12 +252,12 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
     if (!mounted || selected == null) return;
 
     if (selected == 'retry_piper') {
-      await _retryPiper(context);
+      await _retryPiper();
       return;
     }
 
     if (selected == 'preview') {
-      await _playSample(context, settings);
+      await _playSample(settings);
       return;
     }
 
@@ -277,13 +277,13 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
         }
       }
       if (!mounted) return;
-      await _playSample(context, settings);
+      await _playSample(settings);
     }
   }
 
-  Future<void> _retryPiper(BuildContext context) async {
+  Future<void> _retryPiper() async {
     if (!getIt.isRegistered<PiperSwahiliTts>()) {
-      _showMessage(context, 'Offline Piper is not available on this build.');
+      _showMessage('Offline Piper is not available on this build.');
       return;
     }
     final piper = getIt<PiperSwahiliTts>();
@@ -293,10 +293,9 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
       await piper.prewarm();
       if (!mounted) return;
       if (piper.isReady) {
-        _showMessage(context, 'Offline Piper ready.');
+        _showMessage('Offline Piper ready.');
       } else {
         _showMessage(
-          context,
           'Offline Piper still not ready'
           '${piper.lastError != null ? ": ${piper.lastError}" : "."}',
         );
@@ -307,7 +306,6 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
   }
 
   Future<void> _playSample(
-    BuildContext context,
     SettingsProvider settings,
   ) async {
     setState(() => _previewing = true);
@@ -336,7 +334,7 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
       } else {
         message = 'Playing: ${result.userLabel}';
       }
-      _showMessage(context, message.trim());
+      _showMessage(message.trim());
     } finally {
       if (mounted) {
         setState(() => _previewing = false);
@@ -344,7 +342,7 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
     }
   }
 
-  void _showMessage(BuildContext context, String message) {
+  void _showMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),

@@ -57,6 +57,7 @@ class _SplashPageState extends State<SplashPage> {
     if (!mounted || alreadyPrompted) return;
 
     final diag = await checker.diagnose(languageCode);
+    if (!mounted) return;
     final (title, body) = switch (diag.preferredStatus) {
       TtsPreferredStatus.swahiliDataMissing => (
           'Swahili voice data missing',

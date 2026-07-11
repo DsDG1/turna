@@ -23,14 +23,25 @@ class MatchWordsPage extends StatefulWidget {
 
 class _MatchWordsPageState extends State<MatchWordsPage> {
   bool _gameOverHandled = false;
+  late final MatchProvider _matchProvider;
 
   @override
   void initState() {
     super.initState();
+    _matchProvider = context.read<MatchProvider>();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<MatchProvider>().initializeGame();
+      _matchProvider.initializeGame();
     });
+  }
+
+  @override
+  void dispose() {
+    // MatchProvider is a @lazySingleton, so its own dispose() is never called
+    // by Provider. Stop the per-second timer here so it doesn't keep firing
+    // (and burning CPU) after the user leaves the game.
+    _matchProvider.pauseTimer();
+    super.dispose();
   }
 
   Future<void> _handleGameOver(
@@ -85,15 +96,20 @@ class _MatchWordsPageState extends State<MatchWordsPage> {
                         color: VarnamalaTheme.leagueAmethyst,
                       ),
                 ),
-                Text(
-                  getFormattedTime(matchProvider.secondsRemaining),
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: matchProvider.secondsRemaining < 25
-                        ? VarnamalaTheme.error
-                        : VarnamalaTheme.peacockTeal,
-                  ),
+                ValueListenableBuilder<int>(
+                  valueListenable: matchProvider.countdownNotifier,
+                  builder: (context, seconds, _) {
+                    return Text(
+                      getFormattedTime(seconds),
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: seconds < 25
+                            ? VarnamalaTheme.error
+                            : VarnamalaTheme.peacockTeal,
+                      ),
+                    );
+                  },
                 ),
               ],
             ),

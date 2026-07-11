@@ -24,6 +24,18 @@ class FakeAudioController implements AudioController {
   }
 
   @override
+  Future<TtsSpeakResult> speakWithResult(String text, {double? speed}) async {
+    spoken.add(text);
+    return const TtsSpeakResult(source: TtsSpeakSource.system);
+  }
+
+  @override
+  TtsSpeakResult? get lastSpeakResult => null;
+
+  @override
+  Future<void> stopSystemTts() async {}
+
+  @override
   Future<void> speakFromAsset(String assetPath) async {}
 
   @override

@@ -1,3 +1,6 @@
+// Dart imports:
+import 'dart:async';
+
 // Flutter imports:
 import 'package:flutter/material.dart';
 
@@ -51,14 +54,13 @@ class LanguageSwitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final languageProvider = context.watch<LanguageProvider>();
-    final current = languageProvider.selectedLanguage;
+    final current = context.select((LanguageProvider p) => p.selectedLanguage);
 
     return PopupMenuButton<TargetLanguage>(
       initialValue: current,
       onSelected: (value) {
-        languageProvider.setLanguage(value);
-        languageProvider.cacheLanguage();
+        context.read<LanguageProvider>().setLanguage(value);
+        unawaited(context.read<LanguageProvider>().cacheLanguage());
       },
       itemBuilder: (context) => TargetLanguage.values
           .map(
