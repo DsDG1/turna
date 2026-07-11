@@ -35,7 +35,7 @@ The script is the single entry point for producing release artifacts. It:
    - `varnamala-v0.4.0-future4-release.apk`
    - `varnamala-v0.4.0-future4-release.aab`
    - `varnamala-v0.4.0-future4-web/` (when built)
-9. Copies `docs/content_inventory_current.md` to `docs/content_inventory_v0.4.0.md`.
+9. Copies `docs/content_inventory_current.md` to `docs/content_inventory_v{version}.md` (e.g., `docs/content_inventory_v0.4.0-future4.md`).
 10. Prints a summary with artifact paths.
 
 The script uses `subprocess.run(..., check=True)` and fails fast on any step so CI can treat a non-zero exit as a broken build.

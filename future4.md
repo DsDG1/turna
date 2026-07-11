@@ -49,7 +49,7 @@
 >
 > Phase 24 后（2026-07-11）：`flutter test` **372/372**，`flutter analyze` **0 issue**。`test/integration/` 三流 + `test/golden/` 亮暗 8 图；ADR 0016。
 >
-> Phase 25 后（2026-07-11）：`flutter test` **372/372**，`flutter analyze` **0 issue**。新增 `tool/build_release.py`、`test/tool/build_release_test.py`、`docs/decisions/0017-release-pipeline-and-versioning.md`；更新 `.github/workflows/flutter_ci.yml`、`Makefile`、`docs/decisions/0004-ci-strategy.md`；生成 `docs/content_inventory_v0.4.0.md`。
+> Phase 25 后（2026-07-11）：`flutter test` **372/372**，`flutter analyze` **0 issue**。新增 `tool/build_release.py`、`test/tool/build_release_test.py`、`docs/decisions/0017-release-pipeline-and-versioning.md`；更新 `.github/workflows/flutter_ci.yml`、`Makefile`、`docs/decisions/0004-ci-strategy.md`；生成 `docs/content_inventory_v0.4.0-future4.md`。
 
 ### 2.1 已稳固保留的好模式（本轮必须保持）
 
