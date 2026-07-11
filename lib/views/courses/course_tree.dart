@@ -7,7 +7,12 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:varnamala/application/course_provider.dart';
+import 'package:varnamala/application/lesson_link_store.dart';
+import 'package:varnamala/application/mistake_provider.dart';
 import 'package:varnamala/application/progress_provider.dart';
+import 'package:varnamala/application/srs_provider.dart';
+import 'package:varnamala/application/weak_word_quiz_assembler.dart';
+import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/domain/course/lesson.dart';
 import 'package:varnamala/domain/course/unit.dart';
 import 'package:varnamala/routing/routing.gr.dart';
@@ -127,6 +132,32 @@ class _CourseTreeState extends State<CourseTree> {
     }
 
     final progress = context.read<ProgressProvider>();
+    // Status badges are best-effort: unit tests may not wire full SRS/mistake DI.
+    Set<String> dueWordIds = const {};
+    Set<String> weakWordIds = const {};
+    final lessonIdsWithDue = <String>{};
+    final lessonIdsWithWeak = <String>{};
+    try {
+      dueWordIds = context.select(
+        (SrsProvider p) => p.getDueWords().map((w) => w.wordId).toSet(),
+      );
+      weakWordIds = WeakWordQuizAssembler.aggregateWeakWords(
+        context.select((MistakeProvider p) => p.entries),
+      ).map((w) => w.wordId).toSet();
+      if (getIt.isRegistered<LessonLinkStore>()) {
+        final links = getIt<LessonLinkStore>().readAll();
+        for (final link in links.values) {
+          if (dueWordIds.contains(link.wordId)) {
+            lessonIdsWithDue.add(link.lessonId);
+          }
+          if (weakWordIds.contains(link.wordId)) {
+            lessonIdsWithWeak.add(link.lessonId);
+          }
+        }
+      }
+    } catch (_) {
+      // ProviderNotFound / empty DI — tree still renders without status dots.
+    }
 
     return CustomScrollView(
       physics: const BouncingScrollPhysics(),
@@ -140,6 +171,10 @@ class _CourseTreeState extends State<CourseTree> {
                 final completedCount = unit.lessons
                     .where((l) => progress.isLessonCompleted(l.id))
                     .length;
+                final unitHasDue =
+                    unit.lessons.any((l) => lessonIdsWithDue.contains(l.id));
+                final unitHasWeak =
+                    unit.lessons.any((l) => lessonIdsWithWeak.contains(l.id));
                 // RepaintBoundary isolates each card's painting so a progress
                 // or selection notification repaints only the changed card,
                 // not the whole visible list.
@@ -147,6 +182,10 @@ class _CourseTreeState extends State<CourseTree> {
                   child: _UnitCard(
                     unit: unit,
                     completedCount: completedCount,
+                    hasDue: unitHasDue,
+                    hasWeak: unitHasWeak,
+                    lessonIdsWithDue: lessonIdsWithDue,
+                    lessonIdsWithWeak: lessonIdsWithWeak,
                     onLessonTap: (lesson) => _navigateToLesson(context, lesson),
                   ),
                 );
@@ -232,7 +271,7 @@ class _CourseTreeState extends State<CourseTree> {
               label: const Text('Retry'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: VarnamalaTheme.peacockTeal,
-                foregroundColor: Colors.white,
+                foregroundColor: VarnamalaTheme.textOnPrimary,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,
                   vertical: 12,
@@ -255,11 +294,19 @@ class _CourseTreeState extends State<CourseTree> {
 class _UnitCard extends StatefulWidget {
   final Unit unit;
   final int completedCount;
+  final bool hasDue;
+  final bool hasWeak;
+  final Set<String> lessonIdsWithDue;
+  final Set<String> lessonIdsWithWeak;
   final void Function(Lesson lesson) onLessonTap;
 
   const _UnitCard({
     required this.unit,
     required this.completedCount,
+    required this.hasDue,
+    required this.hasWeak,
+    required this.lessonIdsWithDue,
+    required this.lessonIdsWithWeak,
     required this.onLessonTap,
   });
 
@@ -372,28 +419,46 @@ class _UnitCardState extends State<_UnitCard> {
                         ),
                       ),
                     ),
+                    if (widget.hasDue || widget.hasWeak) ...[
+                      const SizedBox(width: 6),
+                      if (widget.hasDue)
+                        const Icon(Icons.schedule_rounded,
+                            size: 16, color: VarnamalaTheme.warning),
+                      if (widget.hasWeak)
+                        const Icon(Icons.fitness_center_rounded,
+                            size: 16, color: VarnamalaTheme.error),
+                    ],
                   ],
                 ),
               ),
             ),
 
-            // Lesson list — shown when expanded
+            // Lesson list — lazy when expanded so large units (100+ lessons)
+            // do not build every tile eagerly.
             if (_expanded) ...[
               const Divider(height: 1),
-              ...unit.lessons.map(
-                (lesson) => Selector<ProgressProvider,
-                    ({bool completed, bool perfect})>(
-                  selector: (_, progress) => (
-                    completed: progress.isLessonCompleted(lesson.id),
-                    perfect: progress.isLessonPerfect(lesson.id),
-                  ),
-                  builder: (context, value, _) => _LessonTile(
-                    lesson: lesson,
-                    isCompleted: value.completed,
-                    isPerfect: value.perfect,
-                    onTap: () => widget.onLessonTap(lesson),
-                  ),
-                ),
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: unit.lessons.length,
+                itemBuilder: (context, index) {
+                  final lesson = unit.lessons[index];
+                  return Selector<ProgressProvider,
+                      ({bool completed, bool perfect})>(
+                    selector: (_, progress) => (
+                      completed: progress.isLessonCompleted(lesson.id),
+                      perfect: progress.isLessonPerfect(lesson.id),
+                    ),
+                    builder: (context, value, _) => _LessonTile(
+                      lesson: lesson,
+                      isCompleted: value.completed,
+                      isPerfect: value.perfect,
+                      hasDue: widget.lessonIdsWithDue.contains(lesson.id),
+                      hasWeak: widget.lessonIdsWithWeak.contains(lesson.id),
+                      onTap: () => widget.onLessonTap(lesson),
+                    ),
+                  );
+                },
               ),
             ],
           ],
@@ -408,43 +473,62 @@ class _LessonTile extends StatelessWidget {
   final Lesson lesson;
   final bool isCompleted;
   final bool isPerfect;
+  final bool hasDue;
+  final bool hasWeak;
   final VoidCallback onTap;
 
   const _LessonTile({
     required this.lesson,
     required this.isCompleted,
     required this.isPerfect,
+    required this.hasDue,
+    required this.hasWeak,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final typeColor = _lessonTypeColor(lesson.type);
+    // Priority: completed > due > weak > default type color.
+    Color iconBg;
+    Color iconColor;
+    IconData icon;
+    if (isCompleted) {
+      iconBg = VarnamalaTheme.success.withValues(alpha: 0.18);
+      iconColor = VarnamalaTheme.successDark;
+      icon = Icons.check_circle_rounded;
+    } else if (hasDue) {
+      iconBg = VarnamalaTheme.warning.withValues(alpha: 0.18);
+      iconColor = VarnamalaTheme.warning;
+      icon = Icons.schedule_rounded;
+    } else if (hasWeak) {
+      iconBg = VarnamalaTheme.error.withValues(alpha: 0.12);
+      iconColor = VarnamalaTheme.error;
+      icon = Icons.fitness_center_rounded;
+    } else {
+      iconBg = typeColor.withValues(alpha: 0.1);
+      iconColor = typeColor;
+      icon = _lessonTypeIcon(lesson.type);
+    }
     return InkWell(
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           children: [
-            // Type icon (or check_circle if completed)
+            // Status-aware lesson icon
             Container(
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: isCompleted
-                    ? VarnamalaTheme.success.withValues(alpha: 0.18)
-                    : typeColor.withValues(alpha: 0.1),
+                color: iconBg,
                 borderRadius:
                     BorderRadius.circular(VarnamalaTheme.radiusSmall),
               ),
               child: Icon(
-                isCompleted
-                    ? Icons.check_circle_rounded
-                    : _lessonTypeIcon(lesson.type),
+                icon,
                 size: 16,
-                color: isCompleted
-                    ? VarnamalaTheme.successDark
-                    : typeColor,
+                color: iconColor,
               ),
             ),
             const SizedBox(width: 12),

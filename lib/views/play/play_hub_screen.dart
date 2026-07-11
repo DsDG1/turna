@@ -10,6 +10,7 @@ import 'package:varnamala/application/game_provider.dart';
 import 'package:varnamala/application/grammar_review_provider.dart';
 import 'package:varnamala/application/mistake_provider.dart';
 import 'package:varnamala/application/srs_provider.dart';
+import 'package:varnamala/application/weak_word_quiz_assembler.dart';
 import 'package:varnamala/routing/routing.gr.dart';
 import 'package:varnamala/views/theme.dart';
 
@@ -18,6 +19,13 @@ class PlayHubScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final mistakes = context.select((MistakeProvider p) => p.entries);
+    final mistakesCount = mistakes.length;
+    final weakCount =
+        WeakWordQuizAssembler.aggregateWeakWords(mistakes).length;
+    final srsDue = context.select((SrsProvider p) => p.dueCount);
+    final grammarDue = context.select((GrammarReviewProvider p) => p.dueCount);
+
     return CustomScrollView(
       physics: const BouncingScrollPhysics(),
       slivers: [
@@ -25,7 +33,12 @@ class PlayHubScreen extends StatelessWidget {
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: _QuickPlayCard(
+            child: _PlayHubCard(
+              title: 'Quick Play',
+              subtitle: 'Match words as fast as you can',
+              icon: Icons.bolt_rounded,
+              accentColor: VarnamalaTheme.peacockTeal,
+              filled: true,
               onTap: () => context.router.push(const MatchWordsRoute()),
             ),
           ),
@@ -34,7 +47,14 @@ class PlayHubScreen extends StatelessWidget {
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: _MistakesCard(
+            child: _PlayHubCard(
+              title: 'My Mistakes',
+              subtitle: mistakesCount > 0
+                  ? '$mistakesCount mistakes to review (max 30)'
+                  : 'No mistakes recorded',
+              icon: Icons.error_outline_rounded,
+              accentColor: VarnamalaTheme.error,
+              badge: mistakesCount > 0 ? '$mistakesCount' : null,
               onTap: () => context.router.push(const MistakeListRoute()),
             ),
           ),
@@ -43,7 +63,14 @@ class PlayHubScreen extends StatelessWidget {
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: _ReviewCard(
+            child: _PlayHubCard(
+              title: 'Review',
+              subtitle: srsDue > 0
+                  ? '$srsDue words due for review'
+                  : 'No words due right now',
+              icon: Icons.repeat_rounded,
+              accentColor: VarnamalaTheme.success,
+              badge: srsDue > 0 ? '$srsDue' : null,
               onTap: () => context.router.push(const SrsReviewRoute()),
             ),
           ),
@@ -52,7 +79,14 @@ class PlayHubScreen extends StatelessWidget {
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: _GrammarReviewCard(
+            child: _PlayHubCard(
+              title: 'Grammar Review',
+              subtitle: grammarDue > 0
+                  ? '$grammarDue grammar points due for review'
+                  : 'No grammar due right now',
+              icon: Icons.menu_book_rounded,
+              accentColor: VarnamalaTheme.peacockTeal,
+              badge: grammarDue > 0 ? '$grammarDue' : null,
               onTap: () => context.router.push(const GrammarReviewRoute()),
             ),
           ),
@@ -61,8 +95,41 @@ class PlayHubScreen extends StatelessWidget {
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: _DailyChallengeCard(
+            child: _PlayHubCard(
+              title: 'Daily Challenge',
+              subtitle: 'Random 15 questions — test your Swahili',
+              icon: Icons.calendar_today_rounded,
+              accentColor: VarnamalaTheme.leagueAmethyst,
               onTap: () => context.router.push(const DailyChallengeRoute()),
+            ),
+          ),
+        ),
+        const SliverToBoxAdapter(child: SizedBox(height: 16)),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: _PlayHubCard(
+              title: 'Weak Words',
+              subtitle: weakCount > 0
+                  ? '$weakCount words missed twice in 30 days'
+                  : 'No weak words right now',
+              icon: Icons.fitness_center_rounded,
+              accentColor: VarnamalaTheme.warning,
+              badge: weakCount > 0 ? '$weakCount' : null,
+              onTap: () => context.router.push(const WeakWordsRoute()),
+            ),
+          ),
+        ),
+        const SliverToBoxAdapter(child: SizedBox(height: 16)),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: _PlayHubCard(
+              title: 'Dictionary',
+              subtitle: 'Search words, phrases, and grammar',
+              icon: Icons.menu_book_outlined,
+              accentColor: VarnamalaTheme.peacockCyan,
+              onTap: () => context.router.push(const DictionaryRoute()),
             ),
           ),
         ),
@@ -85,15 +152,47 @@ class PlayHubScreen extends StatelessWidget {
   }
 }
 
-class _QuickPlayCard extends StatelessWidget {
+/// Shared play-hub action card. Use [filled] for the primary Quick Play style;
+/// otherwise a tinted surface with accent icon/title (Phase 22 Weak Words can
+/// reuse this widget).
+class _PlayHubCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color accentColor;
   final VoidCallback onTap;
+  final String? badge;
+  final bool filled;
 
-  const _QuickPlayCard({required this.onTap});
+  const _PlayHubCard({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.accentColor,
+    required this.onTap,
+    this.badge,
+    this.filled = false,
+  });
 
   @override
   Widget build(BuildContext context) {
+    const onAccent = VarnamalaTheme.textOnPrimary;
+    final titleColor = filled ? onAccent : accentColor;
+    final subtitleColor = filled
+        ? onAccent.withValues(alpha: 0.9)
+        : VarnamalaTheme.textSecondaryColor(context);
+    final chevronColor = filled
+        ? onAccent
+        : accentColor.withValues(alpha: 0.6);
+    final materialColor =
+        filled ? accentColor : accentColor.withValues(alpha: 0.12);
+    final iconBg = filled
+        ? onAccent.withValues(alpha: 0.2)
+        : accentColor.withValues(alpha: 0.2);
+    final iconColor = filled ? onAccent : accentColor;
+
     return Material(
-      color: VarnamalaTheme.peacockTeal,
+      color: materialColor,
       borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
       child: InkWell(
         onTap: onTap,
@@ -105,13 +204,13 @@ class _QuickPlayCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
+                  color: iconBg,
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: const Icon(
-                  Icons.bolt_rounded,
-                  color: Colors.white,
-                  size: 32,
+                child: Icon(
+                  icon,
+                  color: iconColor,
+                  size: filled ? 32 : 28,
                 ),
               ),
               const SizedBox(width: 16),
@@ -120,345 +219,47 @@ class _QuickPlayCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Quick Play',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                          ),
+                      title,
+                      style: (filled
+                              ? Theme.of(context).textTheme.titleLarge
+                              : Theme.of(context).textTheme.titleMedium)
+                          ?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: titleColor,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Match words as fast as you can',
+                      subtitle,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.white.withValues(alpha: 0.9),
+                            color: subtitleColor,
                           ),
                     ),
                   ],
                 ),
               ),
-              const Icon(
-                Icons.arrow_forward_ios_rounded,
-                color: Colors.white,
-                size: 18,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MistakesCard extends StatelessWidget {
-  final VoidCallback onTap;
-
-  const _MistakesCard({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final count = context.select((MistakeProvider p) => p.count);
-
-    return Material(
-      color: VarnamalaTheme.error.withValues(alpha: 0.08),
-      borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: VarnamalaTheme.error.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Icon(
-                  Icons.error_outline_rounded,
-                  color: VarnamalaTheme.error,
-                  size: 28,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'My Mistakes',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            color: VarnamalaTheme.error,
-                          ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      count > 0
-                          ? '$count mistakes to review (max 30)'
-                          : 'No mistakes recorded',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: VarnamalaTheme.textSecondaryColor(context),
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-              if (count > 0)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: VarnamalaTheme.error,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '$count',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              const SizedBox(width: 8),
-              Icon(
-                Icons.arrow_forward_ios_rounded,
-                color: VarnamalaTheme.error.withValues(alpha: 0.6),
-                size: 18,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ReviewCard extends StatelessWidget {
-  final VoidCallback onTap;
-
-  const _ReviewCard({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final dueCount = context.select((SrsProvider p) => p.dueCount);
-
-    return Material(
-      color: VarnamalaTheme.success.withValues(alpha: 0.12),
-      borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: VarnamalaTheme.success.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Icon(
-                  Icons.repeat_rounded,
-                  color: VarnamalaTheme.success,
-                  size: 28,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Review',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            color: VarnamalaTheme.success,
-                          ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      dueCount > 0
-                          ? '$dueCount words due for review'
-                          : 'No words due right now',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: VarnamalaTheme.textSecondaryColor(context),
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-              if (dueCount > 0)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: VarnamalaTheme.success,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '$dueCount',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              const SizedBox(width: 8),
-              Icon(
-                Icons.arrow_forward_ios_rounded,
-                color: VarnamalaTheme.success.withValues(alpha: 0.6),
-                size: 18,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _GrammarReviewCard extends StatelessWidget {
-  final VoidCallback onTap;
-
-  const _GrammarReviewCard({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final dueCount = context.select((GrammarReviewProvider p) => p.dueCount);
-
-    return Material(
-      color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.12),
-      borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Icon(
-                  Icons.menu_book_rounded,
-                  color: VarnamalaTheme.peacockTeal,
-                  size: 28,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Grammar Review',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            color: VarnamalaTheme.peacockTeal,
-                          ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      dueCount > 0
-                          ? '$dueCount grammar points due for review'
-                          : 'No grammar due right now',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: VarnamalaTheme.textSecondaryColor(context),
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-              if (dueCount > 0)
+              if (badge != null) ...[
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: VarnamalaTheme.peacockTeal,
+                    color: accentColor,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    '$dueCount',
+                    badge!,
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: onAccent,
                       fontWeight: FontWeight.w800,
                       fontSize: 12,
                     ),
                   ),
                 ),
-              const SizedBox(width: 8),
+                const SizedBox(width: 8),
+              ],
               Icon(
                 Icons.arrow_forward_ios_rounded,
-                color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.6),
-                size: 18,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DailyChallengeCard extends StatelessWidget {
-  final VoidCallback onTap;
-
-  const _DailyChallengeCard({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: VarnamalaTheme.leagueAmethyst.withValues(alpha: 0.12),
-      borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: VarnamalaTheme.leagueAmethyst.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Icon(
-                  Icons.calendar_today_rounded,
-                  color: VarnamalaTheme.leagueAmethyst,
-                  size: 28,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Daily Challenge',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            color: VarnamalaTheme.leagueAmethyst,
-                          ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Random 15 questions — test your Swahili',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: VarnamalaTheme.textSecondaryColor(context),
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                Icons.arrow_forward_ios_rounded,
-                color: VarnamalaTheme.leagueAmethyst.withValues(alpha: 0.6),
+                color: chevronColor,
                 size: 18,
               ),
             ],

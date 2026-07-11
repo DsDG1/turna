@@ -20,6 +20,9 @@ class SettingsProvider extends ChangeNotifier {
   bool _hapticFeedbackEnabled = true;
   double _ttsSpeed = 1.0;
   TtsEngine _ttsEngine = TtsEngine.system;
+  bool _dailyReminderEnabled = false;
+  int _dailyReminderHour = 19;
+  int _dailyReminderMinute = 0;
 
   SettingsProvider(this._appPrefs) {
     _load();
@@ -29,6 +32,12 @@ class SettingsProvider extends ChangeNotifier {
   bool get hapticFeedbackEnabled => _hapticFeedbackEnabled;
   double get ttsSpeed => _ttsSpeed;
   TtsEngine get ttsEngine => _ttsEngine;
+  bool get dailyReminderEnabled => _dailyReminderEnabled;
+  int get dailyReminderHour => _dailyReminderHour;
+  int get dailyReminderMinute => _dailyReminderMinute;
+
+  TimeOfDay get dailyReminderTime =>
+      TimeOfDay(hour: _dailyReminderHour, minute: _dailyReminderMinute);
 
   void _load() {
     _soundEffectsEnabled = _appPrefs.preferences
@@ -45,6 +54,15 @@ class SettingsProvider extends ChangeNotifier {
           .getString(LocalStateKeys.ttsEngine, defaultValue: TtsEngine.system.name)
           .getValue(),
     );
+    _dailyReminderEnabled = _appPrefs.preferences
+        .getBool(LocalStateKeys.dailyReminderEnabled, defaultValue: false)
+        .getValue();
+    _dailyReminderHour = _appPrefs.preferences
+        .getInt(LocalStateKeys.dailyReminderHour, defaultValue: 19)
+        .getValue();
+    _dailyReminderMinute = _appPrefs.preferences
+        .getInt(LocalStateKeys.dailyReminderMinute, defaultValue: 0)
+        .getValue();
   }
 
   static TtsEngine _parseTtsEngine(String value) {
@@ -76,6 +94,20 @@ class SettingsProvider extends ChangeNotifier {
   Future<void> setTtsEngine(TtsEngine value) async {
     _ttsEngine = value;
     await _appPrefs.setString(LocalStateKeys.ttsEngine, value.name);
+    notifyListeners();
+  }
+
+  Future<void> setDailyReminderEnabled(bool value) async {
+    _dailyReminderEnabled = value;
+    await _appPrefs.setBool(LocalStateKeys.dailyReminderEnabled, value: value);
+    notifyListeners();
+  }
+
+  Future<void> setDailyReminderTime(TimeOfDay time) async {
+    _dailyReminderHour = time.hour;
+    _dailyReminderMinute = time.minute;
+    await _appPrefs.setInt(LocalStateKeys.dailyReminderHour, time.hour);
+    await _appPrefs.setInt(LocalStateKeys.dailyReminderMinute, time.minute);
     notifyListeners();
   }
 

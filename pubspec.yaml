@@ -11,6 +11,7 @@ dependencies:
   drift: ^2.16.0
   flutter:
     sdk: flutter
+  flutter_local_notifications: ^22.0.1
   flutter_tts: ^4.0.2
   freezed_annotation: ^2.4.1
   get_it: ^7.7.0
@@ -27,6 +28,7 @@ dependencies:
   sherpa_onnx: ^1.13.4
   sqlite3_flutter_libs: ^0.5.24
   streaming_shared_preferences: ^2.0.0
+  timezone: ^0.11.1
   url_launcher: ^6.3.2
 dev_dependencies:
   auto_route_generator: ^9.0.0

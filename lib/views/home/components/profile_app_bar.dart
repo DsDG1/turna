@@ -147,7 +147,7 @@ class _ShareProgressSheetState extends State<_ShareProgressSheet> {
                                 height: 18,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  color: Colors.white,
+                                  color: VarnamalaTheme.textOnPrimary,
                                 ),
                               )
                             : const Icon(Icons.share_rounded),

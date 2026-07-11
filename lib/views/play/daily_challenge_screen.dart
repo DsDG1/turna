@@ -116,6 +116,7 @@ class _DailyChallengePageState extends State<DailyChallengePage> {
       backgroundColor: VarnamalaTheme.surfaceColor(context),
       elevation: 0,
       leading: IconButton(
+        tooltip: 'Close',
         icon: Icon(
           Icons.close_rounded,
           color: VarnamalaTheme.textPrimaryColor(context),

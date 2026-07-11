@@ -27,18 +27,20 @@ class SectionPickerPage extends StatelessWidget {
               ),
         ),
       ),
-      body: Consumer<CourseProvider>(
-        builder: (context, courseProvider, _) {
-          final sections = courseProvider.sections;
-          final currentId = courseProvider.currentSectionId;
-
+      body: Selector<CourseProvider, ({List<Section> sections, String? currentId})>(
+        selector: (_, p) => (
+          sections: p.sections,
+          currentId: p.currentSectionId,
+        ),
+        builder: (context, data, _) {
+          final courseProvider = context.read<CourseProvider>();
           return ListView.separated(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-            itemCount: sections.length,
+            itemCount: data.sections.length,
             separatorBuilder: (_, __) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
-              final section = sections[index];
-              final isSelected = section.id == currentId;
+              final section = data.sections[index];
+              final isSelected = section.id == data.currentId;
               return _SectionCard(
                 section: section,
                 isSelected: isSelected,

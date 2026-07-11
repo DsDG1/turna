@@ -26,7 +26,7 @@ class GetStartedButton extends StatelessWidget {
         onPressed: () => _handleGetStarted(context),
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryColor,
-          foregroundColor: Colors.white,
+          foregroundColor: VarnamalaTheme.textOnPrimary,
           elevation: 4,
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(
@@ -39,13 +39,13 @@ class GetStartedButton extends StatelessWidget {
             Text(
               'GET STARTED',
               style: TextStyle(
-                color: Colors.white,
+                color: VarnamalaTheme.textOnPrimary,
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
             ),
             SizedBox(width: 16),
-            Icon(Icons.arrow_forward, color: Colors.white, size: 18),
+            Icon(Icons.arrow_forward, color: VarnamalaTheme.textOnPrimary, size: 18),
           ],
         ),
       ),

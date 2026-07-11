@@ -13,6 +13,7 @@ import 'package:varnamala/views/settings/widgets/settings_account_section.dart';
 import 'package:varnamala/views/settings/widgets/settings_appearance_section.dart';
 import 'package:varnamala/views/settings/widgets/settings_common.dart';
 import 'package:varnamala/views/settings/widgets/settings_learning_section.dart';
+import 'package:varnamala/views/settings/widgets/settings_reminder_section.dart';
 import 'package:varnamala/views/settings/widgets/settings_sound_section.dart';
 import 'package:varnamala/views/theme.dart';
 
@@ -48,6 +49,8 @@ class SettingsPage extends StatelessWidget {
                 const SettingsLanguageSelectorTile(),
                 settingsTileDivider(context),
                 const SettingsTtsSpeedTile(),
+                settingsTileDivider(context),
+                const SettingsDailyReminderTile(),
               ],
             ),
             const SizedBox(height: 16),

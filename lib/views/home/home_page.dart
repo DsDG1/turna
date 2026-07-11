@@ -8,7 +8,16 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:varnamala/application/game_provider.dart';
 import 'package:varnamala/application/gems_provider.dart';
+import 'package:varnamala/application/grammar_review_provider.dart';
 import 'package:varnamala/application/language_provider.dart';
+import 'package:varnamala/application/mistake_provider.dart';
+import 'package:varnamala/application/srs_provider.dart';
+import 'package:varnamala/data/course_database.dart';
+import 'package:varnamala/data/course_repository.dart';
+import 'package:varnamala/data/study_log_repository.dart';
+import 'package:varnamala/di/injection.dart';
+import 'package:varnamala/service/locator.dart';
+import 'package:varnamala/views/content_update/content_update_dialog.dart';
 import 'package:varnamala/views/courses/course_tree.dart';
 import 'package:varnamala/views/home/components/components.dart';
 import 'package:varnamala/views/play/play_app_bar.dart';
@@ -63,6 +72,57 @@ class _HomePageState extends State<HomePage> {
         ),
       );
     }
+
+    // Content-update prompt (ADR 0002): once per content-version bump, when
+    // the user has existing progress, offer to keep or reset progress.
+    await _maybePromptContentUpdate();
+  }
+
+  Future<void> _maybePromptContentUpdate() async {
+    final appPrefs = getIt<AppPrefs>();
+    final repo = CourseRepository(getIt<CourseDatabase>());
+    final storedVersion = await repo.contentVersion();
+    if (storedVersion == null) return; // not seeded yet
+
+    final acknowledged = appPrefs.preferences
+        .getString(LocalStateKeys.contentVersionAcknowledged, defaultValue: '')
+        .getValue();
+    if (storedVersion == acknowledged) return; // already acknowledged
+
+    if (!mounted) return;
+    final game = context.read<GameProvider>();
+    if (game.completedLessonIds.isEmpty) {
+      // No progress to protect: silently acknowledge, no dialog.
+      await appPrefs.setString(
+        LocalStateKeys.contentVersionAcknowledged,
+        storedVersion,
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    final choice = await showDialog<ContentUpdateChoice>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const ContentUpdateDialog(),
+    );
+    if (!mounted) return;
+
+    if (choice == ContentUpdateChoice.resetProgress) {
+      if (!mounted) return;
+      await Future.wait([
+        game.resetLessonProgress(),
+        context.read<MistakeProvider>().clear(),
+        getIt<StudyLogRepository>().clearAll(),
+        context.read<SrsProvider>().clear(),
+        context.read<GrammarReviewProvider>().clear(),
+      ]);
+    }
+    // Either choice persists the acknowledged version so the dialog won't recur.
+    await appPrefs.setString(
+      LocalStateKeys.contentVersionAcknowledged,
+      storedVersion,
+    );
   }
 
   final List<PreferredSizeWidget> appBars = [

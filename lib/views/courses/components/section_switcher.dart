@@ -21,9 +21,11 @@ class SectionSwitcher extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<CourseProvider>(
-      builder: (context, provider, _) {
-        final section = provider.currentSection;
+    // Only rebuild when the current section identity changes — not on every
+    // CourseProvider body-load notification for other sections.
+    return Selector<CourseProvider, Section?>(
+      selector: (_, provider) => provider.currentSection,
+      builder: (context, section, _) {
         if (section == null) return const SizedBox.shrink();
 
         return Padding(
