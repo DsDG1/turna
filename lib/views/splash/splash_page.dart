@@ -47,27 +47,46 @@ class _SplashPageState extends State<SplashPage> {
     final checker = getIt<TtsAvailabilityChecker>();
     final languageCode = getIt<LanguageProvider>().ttsLanguageCode;
 
-    // Preferred = Google TTS (Android) with a usable locale — not OEM-only.
+    // Preferred = Google TTS (Android) with installed Swahili voice data.
+    // isPreferredSystemTtsAvailable already configures the Google engine via
+    // resolveLanguageCode — do not call configureSystemEngine again here
+    // (concurrent setEngine races crash flutter_tts on Android).
     final preferred = await checker.isPreferredSystemTtsAvailable(languageCode);
-    if (preferred) {
-      await checker.configureSystemEngine();
-      return;
-    }
+    if (preferred) return;
 
     if (!mounted || alreadyPrompted) return;
+
+    final diag = await checker.diagnose(languageCode);
+    final (title, body) = switch (diag.preferredStatus) {
+      TtsPreferredStatus.swahiliDataMissing => (
+          'Swahili voice data missing',
+          'Google Text-to-speech is installed, but the Swahili voice pack '
+              'is not downloaded yet.\n\n'
+              'Open system TTS settings → preferred engine = Google → '
+              'install language data for Swahili (Kiswahili).\n\n'
+              'Offline Piper (Congo accent) is only a temporary alternative.',
+        ),
+      TtsPreferredStatus.googleMissing => (
+          'Google TTS not available',
+          'This device does not show Google Text-to-speech '
+              '(or package visibility blocked engine discovery).\n\n'
+              'Install "Speech Recognition & Synthesis from Google", set it '
+              'as the preferred engine, and download the Swahili voice.\n\n'
+              'Offline Piper is a temporary alternative only.',
+        ),
+      TtsPreferredStatus.ready => (
+          'Google TTS not available',
+          'Preferred system voice is not ready. Install Google TTS and '
+              'the Swahili voice pack, or use offline Piper for now.',
+        ),
+    };
 
     final action = await showDialog<_GoogleTtsPromptAction>(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('Google TTS not available'),
-        content: const Text(
-          'This device does not have Google Text-to-speech installed '
-          '(or it is not enabled). For best Swahili pronunciation, install '
-          '"Speech Recognition & Synthesis from Google", then set it as the '
-          'preferred engine and download the Swahili voice if offered.\n\n'
-          'Offline Piper is a temporary alternative only.',
-        ),
+        title: Text(title),
+        content: Text(body),
         actions: [
           TextButton(
             onPressed: () =>

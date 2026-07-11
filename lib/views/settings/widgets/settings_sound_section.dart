@@ -6,8 +6,10 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:varnamala/application/audio_controller.dart';
+import 'package:varnamala/application/language_provider.dart';
 import 'package:varnamala/application/settings_provider.dart';
 import 'package:varnamala/di/injection.dart';
+import 'package:varnamala/service/piper_swahili_tts.dart';
 import 'package:varnamala/service/tts_availability_checker.dart';
 import 'package:varnamala/views/settings/widgets/settings_common.dart';
 import 'package:varnamala/views/theme.dart';
@@ -60,23 +62,24 @@ class SettingsTtsEngineTile extends StatefulWidget {
 }
 
 class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
-  bool? _hasGoogleTts;
-  List<String> _engines = const [];
+  TtsDiagnostics? _diagnostics;
+  bool _loading = true;
+  bool _previewing = false;
 
   @override
   void initState() {
     super.initState();
-    _refreshGoogleStatus();
+    _refreshDiagnostics();
   }
 
-  Future<void> _refreshGoogleStatus() async {
+  Future<void> _refreshDiagnostics() async {
     final checker = getIt<TtsAvailabilityChecker>();
-    final hasGoogle = await checker.hasGoogleTtsEngine();
-    final engines = await checker.listEngineNames();
+    final lang = getIt<LanguageProvider>().ttsLanguageCode;
+    final diag = await checker.diagnose(lang);
     if (!mounted) return;
     setState(() {
-      _hasGoogleTts = hasGoogle;
-      _engines = engines;
+      _diagnostics = diag;
+      _loading = false;
     });
   }
 
@@ -89,19 +92,45 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
     }
   }
 
+  String _piperStatusLabel() {
+    if (!getIt.isRegistered<PiperSwahiliTts>()) {
+      return 'not registered';
+    }
+    final piper = getIt<PiperSwahiliTts>();
+    switch (piper.status) {
+      case PiperTtsStatus.ready:
+        return 'ready';
+      case PiperTtsStatus.loading:
+        return 'loading…';
+      case PiperTtsStatus.failed:
+        return 'init failed — use Retry';
+      case PiperTtsStatus.idle:
+        return 'not loaded yet';
+    }
+  }
+
   String _subtitle(TtsEngine engine) {
     switch (engine) {
       case TtsEngine.system:
-        if (_hasGoogleTts == true) {
-          return 'Google TTS (preferred for Swahili)';
+        if (_loading || _diagnostics == null) {
+          return 'Checking device TTS engines…';
         }
-        if (_hasGoogleTts == false) {
-          final oem = _engines.isEmpty ? 'OEM' : _engines.join(', ');
-          return 'Google TTS not installed — using $oem';
+        final d = _diagnostics!;
+        switch (d.preferredStatus) {
+          case TtsPreferredStatus.ready:
+            final locale = d.resolvedLocale ?? 'sw';
+            return 'Google TTS ready ($locale) — recommended for learning';
+          case TtsPreferredStatus.swahiliDataMissing:
+            if (d.hasGoogleEngine) {
+              return 'Google installed — download Swahili voice data in system TTS settings';
+            }
+            return 'Swahili voice not ready — open system TTS settings';
+          case TtsPreferredStatus.googleMissing:
+            final oem = d.engines.isEmpty ? 'none listed' : d.engines.join(', ');
+            return 'Google TTS not detected (engines: $oem)';
         }
-        return 'Checking device TTS engines…';
       case TtsEngine.offline:
-        return 'Bundled Piper Swahili voice (offline)';
+        return 'Bundled neural voice (sw_CD) · ${_piperStatusLabel()}';
     }
   }
 
@@ -116,13 +145,20 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            _label(settings.ttsEngine),
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: VarnamalaTheme.peacockTeal,
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
+          if (_previewing)
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          else
+            Text(
+              _label(settings.ttsEngine),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: VarnamalaTheme.peacockTeal,
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
           const SizedBox(width: 4),
           const Icon(
             Icons.chevron_right_rounded,
@@ -130,7 +166,7 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
           ),
         ],
       ),
-      onTap: () => _showEnginePicker(context, settings),
+      onTap: _previewing ? null : () => _showEnginePicker(context, settings),
     );
   }
 
@@ -138,7 +174,7 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
     BuildContext context,
     SettingsProvider settings,
   ) async {
-    final selected = await showDialog<TtsEngine>(
+    final selected = await showDialog<Object>(
       context: context,
       builder: (context) => SimpleDialog(
         title: const Text('Voice source'),
@@ -184,38 +220,136 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
               ),
             );
           }),
-          if (_hasGoogleTts == false) ...[
-            const Divider(),
-            SimpleDialogOption(
-              onPressed: () async {
-                Navigator.of(context).pop();
-                await getIt<TtsAvailabilityChecker>().openGoogleTtsInstallPage();
-                await _refreshGoogleStatus();
-              },
-              child: const Text('Install Google TTS…'),
-            ),
-            SimpleDialogOption(
-              onPressed: () async {
-                Navigator.of(context).pop();
-                await getIt<TtsAvailabilityChecker>().openSystemTtsSettings();
-                await _refreshGoogleStatus();
-              },
-              child: const Text('Open system TTS settings…'),
-            ),
-          ],
+          const Divider(),
+          SimpleDialogOption(
+            onPressed: () => Navigator.of(context).pop('preview'),
+            child: const Text('Play sample (Habari) with current source…'),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.of(context).pop('retry_piper'),
+            child: const Text('Retry offline Piper init…'),
+          ),
+          SimpleDialogOption(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              await getIt<TtsAvailabilityChecker>().openSystemTtsSettings();
+              await _refreshDiagnostics();
+            },
+            child: const Text('Open system TTS settings…'),
+          ),
+          SimpleDialogOption(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              await getIt<TtsAvailabilityChecker>().openGoogleTtsInstallPage();
+              await _refreshDiagnostics();
+            },
+            child: const Text('Install / open Google TTS…'),
+          ),
         ],
       ),
     );
 
-    if (selected != null && selected != settings.ttsEngine) {
-      await settings.setTtsEngine(selected);
+    if (!mounted || selected == null) return;
+
+    if (selected == 'retry_piper') {
+      await _retryPiper(context);
+      return;
+    }
+
+    if (selected == 'preview') {
+      await _playSample(context, settings);
+      return;
+    }
+
+    if (selected is TtsEngine) {
+      if (selected != settings.ttsEngine) {
+        await settings.setTtsEngine(selected);
+      }
       final audio = getIt<AudioController>();
       if (selected == TtsEngine.system) {
         await audio.rebindSystemTts();
-        await _refreshGoogleStatus();
+        await _refreshDiagnostics();
+      } else if (selected == TtsEngine.offline) {
+        // Ensure a sticky init failure can recover when user picks offline.
+        if (getIt.isRegistered<PiperSwahiliTts>()) {
+          final piper = getIt<PiperSwahiliTts>();
+          if (piper.initFailed) piper.resetFailure();
+        }
       }
-      // Short sample so the user (and logcat) confirm which path is active.
-      await audio.speak('Habari');
+      if (!mounted) return;
+      await _playSample(context, settings);
     }
+  }
+
+  Future<void> _retryPiper(BuildContext context) async {
+    if (!getIt.isRegistered<PiperSwahiliTts>()) {
+      _showMessage(context, 'Offline Piper is not available on this build.');
+      return;
+    }
+    final piper = getIt<PiperSwahiliTts>();
+    piper.resetFailure();
+    setState(() => _previewing = true);
+    try {
+      await piper.prewarm();
+      if (!mounted) return;
+      if (piper.isReady) {
+        _showMessage(context, 'Offline Piper ready.');
+      } else {
+        _showMessage(
+          context,
+          'Offline Piper still not ready'
+          '${piper.lastError != null ? ": ${piper.lastError}" : "."}',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _previewing = false);
+    }
+  }
+
+  Future<void> _playSample(
+    BuildContext context,
+    SettingsProvider settings,
+  ) async {
+    setState(() => _previewing = true);
+    try {
+      final audio = getIt<AudioController>();
+      final result = await audio.speakWithResult('Habari');
+      if (!mounted) return;
+
+      final engine = settings.ttsEngine;
+      String message;
+      if (result.source == TtsSpeakSource.failed) {
+        message =
+            'No voice played. ${result.error ?? "Check logcat for TTS errors."}';
+      } else if (engine == TtsEngine.offline &&
+          result.source == TtsSpeakSource.system &&
+          result.usedFallback) {
+        message =
+            'Wanted Offline Piper, but it failed — played Google/system instead.\n'
+            'Use “Retry offline Piper init”. '
+            '${result.error ?? ""}';
+      } else if (engine == TtsEngine.system &&
+          result.source == TtsSpeakSource.piper &&
+          result.usedFallback) {
+        message =
+            'Wanted System TTS, but it failed — played Offline Piper instead.';
+      } else {
+        message = 'Playing: ${result.userLabel}';
+      }
+      _showMessage(context, message.trim());
+    } finally {
+      if (mounted) {
+        setState(() => _previewing = false);
+      }
+    }
+  }
+
+  void _showMessage(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 4),
+      ),
+    );
   }
 }

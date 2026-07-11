@@ -125,8 +125,8 @@ class TestGenerateAudio(unittest.TestCase):
                         "name": "Word",
                         # audioAsset collides with a vocab word id -> excluded
                         # (word pronunciation is runtime TTS, not bundled MP3).
-                        "audioAsset": "w-naanu",
-                        "transcript": "Naanu",
+                        "audioAsset": "w-mimi",
+                        "transcript": "Mimi",
                     },
                 ],
             )

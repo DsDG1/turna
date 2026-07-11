@@ -7,18 +7,29 @@ class _FakeFlutterTts implements FlutterTts {
   _FakeFlutterTts({
     this.engines = const [],
     this.availableLanguages = const {'sw'},
+    this.installedLanguages = const {},
     this.engineShouldFail = false,
     /// Languages only available after Google engine is selected.
     this.googleOnlyLanguages = const {},
+    this.googleOnlyInstalled = const {},
   });
 
   final List<dynamic> engines;
   final Set<String> availableLanguages;
+  final Set<String> installedLanguages;
   final bool engineShouldFail;
   final Set<String> googleOnlyLanguages;
+  final Set<String> googleOnlyInstalled;
 
   String? lastEngine;
   final List<String> languageQueries = [];
+  final List<String> installedQueries = [];
+  final List<String> engineCalls = [];
+  int setEngineInFlight = 0;
+  int maxSetEngineInFlight = 0;
+
+  /// Artificial delay so concurrent configureSystemEngine calls overlap.
+  Duration setEngineDelay = Duration.zero;
 
   @override
   Future<dynamic> get getEngines async => engines;
@@ -34,10 +45,32 @@ class _FakeFlutterTts implements FlutterTts {
   }
 
   @override
+  Future<dynamic> isLanguageInstalled(String language) async {
+    installedQueries.add(language);
+    if (lastEngine == 'com.google.android.tts' &&
+        googleOnlyInstalled.contains(language)) {
+      return true;
+    }
+    return installedLanguages.contains(language);
+  }
+
+  @override
   Future<dynamic> setEngine(String engine) async {
-    if (engineShouldFail) throw Exception('engine failure');
-    lastEngine = engine;
-    return null;
+    setEngineInFlight++;
+    if (setEngineInFlight > maxSetEngineInFlight) {
+      maxSetEngineInFlight = setEngineInFlight;
+    }
+    engineCalls.add(engine);
+    try {
+      if (setEngineDelay > Duration.zero) {
+        await Future<void>.delayed(setEngineDelay);
+      }
+      if (engineShouldFail) throw Exception('engine failure');
+      lastEngine = engine;
+      return null;
+    } finally {
+      setEngineInFlight--;
+    }
   }
 
   @override
@@ -160,6 +193,7 @@ void main() {
             ],
             availableLanguages: const {},
             googleOnlyLanguages: const {'sw', 'sw-KE'},
+            googleOnlyInstalled: const {'sw', 'sw-KE'},
           );
           final checker = TtsAvailabilityChecker(tts);
 
@@ -186,11 +220,33 @@ void main() {
       });
 
       test(
+        'concurrent configureSystemEngine calls only setEngine once',
+        () async {
+          final tts = _FakeFlutterTts(
+            engines: const ['com.google.android.tts'],
+          )..setEngineDelay = const Duration(milliseconds: 40);
+          final checker = TtsAvailabilityChecker(tts);
+
+          // Mimic main.dart post-frame + Splash isPreferred racing on startup.
+          await Future.wait([
+            checker.configureSystemEngine(),
+            checker.configureSystemEngine(),
+            checker.resolveLanguageCode('sw'),
+          ]);
+
+          expect(tts.engineCalls, ['com.google.android.tts']);
+          expect(tts.maxSetEngineInFlight, 1);
+          expect(checker.isEngineConfigured, isTrue);
+        },
+      );
+
+      test(
         'vivo-only engine: any system may be available but preferred is not',
         () async {
           final tts = _FakeFlutterTts(
             engines: const ['com.vivo.aiservice'],
             availableLanguages: const {'sw'},
+            installedLanguages: const {'sw'},
           );
           final checker = TtsAvailabilityChecker(tts);
 
@@ -203,11 +259,12 @@ void main() {
       );
 
       test(
-        'preferred system TTS requires Google engine and locale',
+        'preferred system TTS requires Google engine and installed locale',
         () async {
           final tts = _FakeFlutterTts(
             engines: const ['com.google.android.tts'],
             availableLanguages: const {'sw-KE'},
+            installedLanguages: const {'sw-KE'},
           );
           final checker = TtsAvailabilityChecker(tts);
 
@@ -230,6 +287,49 @@ void main() {
           expect(await checker.isPreferredSystemTtsAvailable('sw'), isFalse);
         },
       );
+
+      test(
+        'Google available but voice data not installed -> preferred unavailable',
+        () async {
+          final tts = _FakeFlutterTts(
+            engines: const ['com.google.android.tts'],
+            availableLanguages: const {'sw-KE'},
+            installedLanguages: const {}, // advertised but not downloaded
+          );
+          final checker = TtsAvailabilityChecker(tts);
+
+          expect(await checker.isPreferredSystemTtsAvailable('sw'), isFalse);
+          final diag = await checker.diagnose('sw');
+          expect(diag.preferredStatus, TtsPreferredStatus.swahiliDataMissing);
+          expect(diag.hasGoogleEngine, isTrue);
+        },
+      );
+
+      test(
+        'resolveLanguageCode prefers installed locale over merely available',
+        () async {
+          final tts = _FakeFlutterTts(
+            engines: const ['com.google.android.tts'],
+            availableLanguages: const {'sw', 'sw-KE'},
+            installedLanguages: const {'sw-KE'},
+          );
+          final checker = TtsAvailabilityChecker(tts);
+
+          // 'sw' is checked first; not installed → continue to sw-KE.
+          expect(await checker.resolveLanguageCode('sw'), 'sw-KE');
+        },
+      );
+
+      test('diagnose reports googleMissing when engines empty', () async {
+        final tts = _FakeFlutterTts(
+          engines: const [],
+          availableLanguages: const {},
+        );
+        final checker = TtsAvailabilityChecker(tts);
+        final diag = await checker.diagnose('sw');
+        expect(diag.hasGoogleEngine, isFalse);
+        expect(diag.preferredStatus, TtsPreferredStatus.googleMissing);
+      });
     });
   });
 }

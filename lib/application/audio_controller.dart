@@ -19,6 +19,43 @@ import 'package:varnamala/gen/assets.gen.dart';
 import 'package:varnamala/service/piper_swahili_tts.dart';
 import 'package:varnamala/service/tts_availability_checker.dart';
 
+/// Which backend actually produced the last [AudioController.speak] utterance.
+enum TtsSpeakSource {
+  system,
+  piper,
+  failed,
+}
+
+/// Result of [AudioController.speakWithResult] for settings UI / debugging.
+class TtsSpeakResult {
+  const TtsSpeakResult({
+    required this.source,
+    this.error,
+    this.usedFallback = false,
+  });
+
+  final TtsSpeakSource source;
+  final String? error;
+
+  /// True when the preferred engine failed and a secondary engine spoke.
+  final bool usedFallback;
+
+  String get userLabel {
+    switch (source) {
+      case TtsSpeakSource.system:
+        return usedFallback
+            ? 'Google / system TTS (offline failed)'
+            : 'Google / system TTS';
+      case TtsSpeakSource.piper:
+        return usedFallback
+            ? 'Offline Piper (system failed)'
+            : 'Offline Piper';
+      case TtsSpeakSource.failed:
+        return 'No voice played';
+    }
+  }
+}
+
 @lazySingleton
 class AudioController {
   final AudioPlayer _audioPlayer;
@@ -33,6 +70,9 @@ class AudioController {
   double _ttsSpeed = 1.0;
   double get ttsSpeed => _ttsSpeed;
   String? _lastTtsLanguage;
+
+  TtsSpeakResult? _lastSpeakResult;
+  TtsSpeakResult? get lastSpeakResult => _lastSpeakResult;
 
   AudioController(
     this._tts,
@@ -101,30 +141,65 @@ class AudioController {
   // TTS / speech
   // ──────────────────────────────────────────────────────────────
 
+  /// Maps UI speed multipliers (0.5–2.0, where 1.0 = normal) to flutter_tts
+  /// [setSpeechRate] values.
+  ///
+  /// flutter_tts documents normal speech as **0.5** on both Android and iOS
+  /// (Android multiplies by 2.0 internally so 0.5 → native 1.0). Passing the
+  /// UI value 1.0 directly would speak at ~2× normal speed.
+  @visibleForTesting
+  static double mapUiSpeedToFlutterTtsRate(double uiSpeed) {
+    final clamped = uiSpeed.clamp(0.5, 2.0);
+    return (0.5 * clamped).clamp(0.0, 1.5);
+  }
+
+  static bool _isTruthyResult(dynamic value) {
+    if (value == null) return true; // some platforms return null on success
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    return true;
+  }
+
   /// Prefers Google TTS on Android, then sets language for the current target.
   ///
-  /// [setEngine] can reset the TTS service, so language is re-applied whenever
-  /// the resolved locale differs from the last one used.
+  /// Throws [StateError] when no usable system locale can be bound so the
+  /// caller can fall back to Piper instead of speaking with the wrong voice.
   Future<void> _ensureSystemTtsReady() async {
     final baseLang = _languageProvider.ttsLanguageCode;
     final checker = _ttsChecker;
     final wasConfigured = checker?.isEngineConfigured ?? true;
 
-    String lang = baseLang;
+    String? lang;
     if (checker != null) {
       // resolveLanguageCode configures Google TTS first, then picks a locale
       // the engine actually reports as available (e.g. sw-KE).
-      final resolved = await checker.resolveLanguageCode(baseLang);
+      lang = await checker.resolveLanguageCode(baseLang);
       if (!wasConfigured) {
         // Engine may have been selected for the first time → force setLanguage.
         _lastTtsLanguage = null;
       }
-      if (resolved != null) lang = resolved;
+    } else {
+      lang = baseLang;
+    }
+
+    if (lang == null) {
+      throw StateError(
+        'No system TTS locale available for "$baseLang" '
+        '(install Google TTS + Swahili voice data)',
+      );
     }
 
     if (_lastTtsLanguage == lang) return;
-    await _tts.setLanguage(lang);
+
+    final result = await _tts.setLanguage(lang);
+    if (!_isTruthyResult(result)) {
+      _lastTtsLanguage = null;
+      throw StateError(
+        'setLanguage("$lang") failed — language missing or not installed',
+      );
+    }
     _lastTtsLanguage = lang;
+    debugPrint('AudioController: system TTS language bound to "$lang"');
   }
 
   /// Re-select Google TTS (if present) and clear the cached language so the
@@ -135,66 +210,139 @@ class AudioController {
     await _ttsChecker?.configureSystemEngine(force: true);
   }
 
+  /// Stop any in-progress system TTS (e.g. before offline Piper playback).
+  Future<void> stopSystemTts() async {
+    try {
+      await _tts.stop();
+    } catch (e) {
+      debugPrint('AudioController: stopSystemTts failed: $e');
+    }
+  }
+
+  Future<void> _speakWithSystemTts(String text, double effectiveSpeed) async {
+    await _ensureSystemTtsReady();
+    final rate = mapUiSpeedToFlutterTtsRate(effectiveSpeed);
+    await _tts.setSpeechRate(rate);
+    await _tts.stop();
+    debugPrint(
+      'TTS route: system (lang=$_lastTtsLanguage, '
+      'uiSpeed=$effectiveSpeed, flutterRate=$rate)',
+    );
+    final result = await _tts.speak(text);
+    if (result == false || result == 0) {
+      throw StateError('system TTS speak() returned failure ($result)');
+    }
+  }
+
+  Future<void> _speakWithPiper(String text, double effectiveSpeed) async {
+    final piper = _piperTts;
+    if (piper == null) {
+      throw StateError('Piper TTS not registered');
+    }
+    if (_languageProvider.selectedLanguage != TargetLanguage.swahili) {
+      throw StateError('Piper only supports Swahili');
+    }
+    // Avoid Google still holding the audio focus on some OEMs.
+    await stopSystemTts();
+    await piper.speak(text, speed: effectiveSpeed);
+  }
+
   /// Speak arbitrary [text] using TTS in the current target language.
   /// [speed] overrides the current global speed for this utterance.
   ///
-  /// The source is chosen from [SettingsProvider.ttsEngine]:
-  /// - [TtsEngine.system]: use the device's local TTS engine first (Google TTS
-  ///   on Android when installed), then fall back to the bundled Piper model
-  ///   for Swahili.
-  /// - [TtsEngine.offline]: use the bundled Piper model first, then fall back
-  ///   to the system TTS engine.
+  /// See [speakWithResult] when the caller needs to know which engine spoke.
   Future<void> speak(String text, {double? speed}) async {
-    if (text.isEmpty) return;
+    await speakWithResult(text, speed: speed);
+  }
+
+  /// Like [speak], but returns which backend produced audio.
+  ///
+  /// Routing:
+  /// - [TtsEngine.system]: device/Google first, then Piper fallback.
+  /// - [TtsEngine.offline]: Piper first, then system fallback (still audible,
+  ///   but [TtsSpeakResult.usedFallback] is true so settings can warn).
+  Future<TtsSpeakResult> speakWithResult(String text, {double? speed}) async {
+    if (text.isEmpty) {
+      final empty = TtsSpeakResult(
+        source: TtsSpeakSource.failed,
+        error: 'empty text',
+      );
+      _lastSpeakResult = empty;
+      return empty;
+    }
 
     final effectiveSpeed = speed ?? _ttsSpeed;
     final engine = _settingsProvider.ttsEngine;
+    Object? preferredError;
 
     if (engine == TtsEngine.system) {
       try {
-        await _ensureSystemTtsReady();
-        await _tts.setSpeechRate(effectiveSpeed);
-        await _tts.stop();
-        debugPrint(
-          'TTS route: system primary (lang=$_lastTtsLanguage, rate=$effectiveSpeed)',
-        );
-        await _tts.speak(text);
-        return;
+        await _speakWithSystemTts(text, effectiveSpeed);
+        final ok = const TtsSpeakResult(source: TtsSpeakSource.system);
+        _lastSpeakResult = ok;
+        debugPrint('TTS route: system primary OK');
+        return ok;
       } catch (e) {
+        preferredError = e;
         debugPrint('TTS route: system failed → piper fallback: $e');
       }
-    }
 
-    final piper = _piperTts;
-    if (piper != null &&
-        _languageProvider.selectedLanguage == TargetLanguage.swahili) {
       try {
-        debugPrint(
-          engine == TtsEngine.offline
-              ? 'TTS route: offline primary (piper, rate=$effectiveSpeed)'
-              : 'TTS route: piper fallback (rate=$effectiveSpeed)',
+        debugPrint('TTS route: piper fallback (rate=$effectiveSpeed)');
+        await _speakWithPiper(text, effectiveSpeed);
+        final ok = TtsSpeakResult(
+          source: TtsSpeakSource.piper,
+          usedFallback: true,
+          error: preferredError?.toString(),
         );
-        await piper.speak(text, speed: effectiveSpeed);
-        return;
+        _lastSpeakResult = ok;
+        return ok;
       } catch (e) {
         debugPrint('Piper Swahili TTS failed: $e');
+        final fail = TtsSpeakResult(
+          source: TtsSpeakSource.failed,
+          error: 'system: $preferredError; piper: $e',
+        );
+        _lastSpeakResult = fail;
+        return fail;
       }
     }
 
-    // If the user explicitly chose offline but Piper is unavailable, still
-    // try the system TTS so the user gets some feedback instead of silence.
-    if (engine == TtsEngine.offline) {
-      try {
-        await _ensureSystemTtsReady();
-        await _tts.setSpeechRate(effectiveSpeed);
-        await _tts.stop();
-        debugPrint(
-          'TTS route: offline failed → system fallback (lang=$_lastTtsLanguage)',
-        );
-        await _tts.speak(text);
-      } catch (e) {
-        debugPrint('Offline fallback also failed: $e');
-      }
+    // Offline preferred.
+    try {
+      debugPrint(
+        'TTS route: offline primary (piper, rate=$effectiveSpeed)',
+      );
+      await _speakWithPiper(text, effectiveSpeed);
+      final ok = const TtsSpeakResult(source: TtsSpeakSource.piper);
+      _lastSpeakResult = ok;
+      debugPrint('TTS route: offline primary OK');
+      return ok;
+    } catch (e) {
+      preferredError = e;
+      debugPrint('Piper Swahili TTS failed: $e');
+    }
+
+    try {
+      await _speakWithSystemTts(text, effectiveSpeed);
+      debugPrint(
+        'TTS route: offline failed → system fallback (lang=$_lastTtsLanguage)',
+      );
+      final ok = TtsSpeakResult(
+        source: TtsSpeakSource.system,
+        usedFallback: true,
+        error: preferredError?.toString(),
+      );
+      _lastSpeakResult = ok;
+      return ok;
+    } catch (e) {
+      debugPrint('Offline fallback also failed: $e');
+      final fail = TtsSpeakResult(
+        source: TtsSpeakSource.failed,
+        error: 'piper: $preferredError; system: $e',
+      );
+      _lastSpeakResult = fail;
+      return fail;
     }
   }
 

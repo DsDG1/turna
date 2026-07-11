@@ -26,13 +26,13 @@
                 "items": [
                   {
                     "runtimeType": "showWord",
-                    "id": "sw-w-oota",
-                    "wordId": "w-oota"
+                    "id": "sw-w-kula",
+                    "wordId": "w-kula"
                   },
                   {
                     "runtimeType": "showWord",
-                    "id": "sw-w-neeru",
-                    "wordId": "w-neeru"
+                    "id": "sw-w-chakula",
+                    "wordId": "w-chakula"
                   }
                 ]
               },
@@ -44,25 +44,25 @@
                 "items": [
                   {
                     "runtimeType": "multipleChoice",
-                    "id": "mc-w-oota-0",
-                    "prompt": "Which word matches 'w-oota'?",
+                    "id": "mc-food",
+                    "prompt": "Which word means \"Food\"?",
                     "options": [
-                      "Yes",
-                      "No",
-                      "Come",
-                      "Go"
+                      "Chakula",
+                      "Kula",
+                      "Maji",
+                      "Mimi"
                     ],
                     "correctIndex": 0
                   },
                   {
                     "runtimeType": "multipleChoice",
-                    "id": "mc-w-neeru-1",
-                    "prompt": "Which word matches 'w-neeru'?",
+                    "id": "mc-eat",
+                    "prompt": "Which word means \"To eat\"?",
                     "options": [
-                      "Yes",
-                      "No",
-                      "Come",
-                      "Go"
+                      "Kula",
+                      "Chakula",
+                      "Kwenda",
+                      "Kujifunza"
                     ],
                     "correctIndex": 0
                   }
@@ -87,13 +87,13 @@
                 "items": [
                   {
                     "runtimeType": "showWord",
-                    "id": "sw-w-prayan",
-                    "wordId": "w-prayan"
+                    "id": "sw-w-safari",
+                    "wordId": "w-safari"
                   },
                   {
                     "runtimeType": "showWord",
-                    "id": "sw-w-bus",
-                    "wordId": "w-bus"
+                    "id": "sw-w-basi",
+                    "wordId": "w-basi"
                   }
                 ]
               },
@@ -105,25 +105,25 @@
                 "items": [
                   {
                     "runtimeType": "multipleChoice",
-                    "id": "mc-w-prayan-0",
-                    "prompt": "Which word matches 'w-prayan'?",
+                    "id": "mc-bus",
+                    "prompt": "Which means \"Bus\"?",
                     "options": [
-                      "Yes",
-                      "No",
-                      "Come",
-                      "Go"
+                      "Basi",
+                      "Treni",
+                      "Hoteli",
+                      "Safari"
                     ],
                     "correctIndex": 0
                   },
                   {
                     "runtimeType": "multipleChoice",
-                    "id": "mc-w-bus-1",
-                    "prompt": "Which word matches 'w-bus'?",
+                    "id": "mc-safari",
+                    "prompt": "Which means \"Journey/travel\"?",
                     "options": [
-                      "Yes",
-                      "No",
-                      "Come",
-                      "Go"
+                      "Safari",
+                      "Basi",
+                      "Treni",
+                      "Ardhi"
                     ],
                     "correctIndex": 0
                   }

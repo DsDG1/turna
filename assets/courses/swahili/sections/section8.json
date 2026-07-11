@@ -26,8 +26,8 @@
                 "items": [
                   {
                     "runtimeType": "showWord",
-                    "id": "sw-w-rail",
-                    "wordId": "w-rail"
+                    "id": "sw-w-treni",
+                    "wordId": "w-treni"
                   },
                   {
                     "runtimeType": "showWord",
@@ -44,25 +44,25 @@
                 "items": [
                   {
                     "runtimeType": "multipleChoice",
-                    "id": "mc-w-rail-0",
-                    "prompt": "Which word matches 'w-rail'?",
+                    "id": "mc-train",
+                    "prompt": "Which means \"Train\"?",
                     "options": [
-                      "Yes",
-                      "No",
-                      "Come",
-                      "Go"
+                      "Treni",
+                      "Basi",
+                      "Hoteli",
+                      "Safari"
                     ],
                     "correctIndex": 0
                   },
                   {
                     "runtimeType": "multipleChoice",
-                    "id": "mc-w-hotel-1",
-                    "prompt": "Which word matches 'w-hotel'?",
+                    "id": "mc-hotel",
+                    "prompt": "Which means \"Hotel\"?",
                     "options": [
-                      "Yes",
-                      "No",
-                      "Come",
-                      "Go"
+                      "Hoteli",
+                      "Treni",
+                      "Basi",
+                      "Safari"
                     ],
                     "correctIndex": 0
                   }
@@ -87,13 +87,13 @@
                 "items": [
                   {
                     "runtimeType": "showWord",
-                    "id": "sw-w-aane",
-                    "wordId": "w-aane"
+                    "id": "sw-w-tembo",
+                    "wordId": "w-tembo"
                   },
                   {
                     "runtimeType": "showWord",
-                    "id": "sw-w-naayi",
-                    "wordId": "w-naayi"
+                    "id": "sw-w-mbwa",
+                    "wordId": "w-mbwa"
                   }
                 ]
               },
@@ -105,25 +105,25 @@
                 "items": [
                   {
                     "runtimeType": "multipleChoice",
-                    "id": "mc-w-aane-0",
-                    "prompt": "Which word matches 'w-aane'?",
+                    "id": "mc-elephant-review",
+                    "prompt": "Which means \"Elephant\"?",
                     "options": [
-                      "Yes",
-                      "No",
-                      "Come",
-                      "Go"
+                      "Tembo",
+                      "Mbwa",
+                      "Paka",
+                      "Mimi"
                     ],
                     "correctIndex": 0
                   },
                   {
                     "runtimeType": "multipleChoice",
-                    "id": "mc-w-naayi-1",
-                    "prompt": "Which word matches 'w-naayi'?",
+                    "id": "mc-dog-review",
+                    "prompt": "Which means \"Dog\"?",
                     "options": [
-                      "Yes",
-                      "No",
-                      "Come",
-                      "Go"
+                      "Mbwa",
+                      "Tembo",
+                      "Paka",
+                      "Mimi"
                     ],
                     "correctIndex": 0
                   }

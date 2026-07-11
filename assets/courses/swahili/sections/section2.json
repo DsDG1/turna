@@ -26,23 +26,18 @@
                 "items": [
                   {
                     "runtimeType": "showWord",
-                    "id": "sw-naayi",
-                    "wordId": "w-naayi"
+                    "id": "sw-mbwa",
+                    "wordId": "w-mbwa"
                   },
                   {
                     "runtimeType": "showWord",
-                    "id": "sw-koli",
-                    "wordId": "w-koli"
+                    "id": "sw-paka",
+                    "wordId": "w-paka"
                   },
                   {
                     "runtimeType": "showWord",
-                    "id": "sw-aane",
-                    "wordId": "w-aane"
-                  },
-                  {
-                    "runtimeType": "showWord",
-                    "id": "sw-bekku",
-                    "wordId": "w-bekku"
+                    "id": "sw-tembo",
+                    "wordId": "w-tembo"
                   }
                 ]
               },
@@ -57,18 +52,31 @@
                     "id": "mc-elephant",
                     "prompt": "Which is \"Elephant\"?",
                     "options": [
-                      "Naayi",
-                      "Koli",
-                      "Aane",
-                      "Bekku"
+                      "Mbwa",
+                      "Paka",
+                      "Tembo",
+                      "Mimi"
                     ],
                     "correctIndex": 2
                   },
                   {
                     "runtimeType": "fillBlank",
                     "id": "fb-cat",
-                    "sentence": "_____ = Cat (colloquial)",
-                    "answer": "Bekku"
+                    "sentence": "_____ = Cat",
+                    "answer": "Paka"
+                  },
+                  {
+                    "runtimeType": "listenAndPick",
+                    "id": "lp-mbwa",
+                    "audioAsset": "w-mbwa",
+                    "prompt": "What did you hear?",
+                    "options": [
+                      "Dog",
+                      "Cat",
+                      "Elephant",
+                      "I"
+                    ],
+                    "correctIndex": 0
                   }
                 ]
               }
@@ -99,23 +107,23 @@
                 "items": [
                   {
                     "runtimeType": "showWord",
-                    "id": "sw-kempu",
-                    "wordId": "w-kempu"
+                    "id": "sw-nyekundu",
+                    "wordId": "w-nyekundu"
                   },
                   {
                     "runtimeType": "showWord",
-                    "id": "sw-bili",
-                    "wordId": "w-bili"
+                    "id": "sw-nyeupe",
+                    "wordId": "w-nyeupe"
                   },
                   {
                     "runtimeType": "showWord",
-                    "id": "sw-kappu",
-                    "wordId": "w-kappu"
+                    "id": "sw-nyeusi",
+                    "wordId": "w-nyeusi"
                   },
                   {
                     "runtimeType": "showWord",
-                    "id": "sw-hasiru",
-                    "wordId": "w-hasiru"
+                    "id": "sw-kijani",
+                    "wordId": "w-kijani"
                   }
                 ]
               },
@@ -127,8 +135,8 @@
                 "items": [
                   {
                     "runtimeType": "listenAndPick",
-                    "id": "lp-kempu",
-                    "audioAsset": "w-kempu",
+                    "id": "lp-nyekundu",
+                    "audioAsset": "w-nyekundu",
                     "prompt": "Pick the color you hear",
                     "options": [
                       "Red",
@@ -137,6 +145,12 @@
                       "Green"
                     ],
                     "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "fillBlank",
+                    "id": "fb-kijani",
+                    "sentence": "_____ = Green",
+                    "answer": "Kijani"
                   }
                 ]
               }
@@ -167,28 +181,28 @@
                 "items": [
                   {
                     "runtimeType": "showWord",
-                    "id": "sw-ondu",
-                    "wordId": "w-ondu"
+                    "id": "sw-moja",
+                    "wordId": "w-moja"
                   },
                   {
                     "runtimeType": "showWord",
-                    "id": "sw-eradu",
-                    "wordId": "w-eradu"
+                    "id": "sw-mbili",
+                    "wordId": "w-mbili"
                   },
                   {
                     "runtimeType": "showWord",
-                    "id": "sw-mooru",
-                    "wordId": "w-mooru"
+                    "id": "sw-tatu",
+                    "wordId": "w-tatu"
                   },
                   {
                     "runtimeType": "showWord",
-                    "id": "sw-naaku",
-                    "wordId": "w-naaku"
+                    "id": "sw-nne",
+                    "wordId": "w-nne"
                   },
                   {
                     "runtimeType": "showWord",
-                    "id": "sw-aidhu",
-                    "wordId": "w-aidhu"
+                    "id": "sw-tano",
+                    "wordId": "w-tano"
                   }
                 ]
               },
@@ -200,28 +214,34 @@
                 "items": [
                   {
                     "runtimeType": "multipleChoice",
-                    "id": "mc-five",
-                    "prompt": "\"Five\" in Swahili",
+                    "id": "mc-three",
+                    "prompt": "Which is \"Three\"?",
                     "options": [
-                      "Naaku",
-                      "Aidhu",
-                      "Mooru",
-                      "Eradu"
+                      "Moja",
+                      "Mbili",
+                      "Tatu",
+                      "Nne"
                     ],
-                    "correctIndex": 1
+                    "correctIndex": 2
+                  },
+                  {
+                    "runtimeType": "fillBlank",
+                    "id": "fb-five",
+                    "sentence": "_____ = Five",
+                    "answer": "Tano"
                   },
                   {
                     "runtimeType": "reorderSentence",
-                    "id": "rs-mooru-ondu-aidhu",
+                    "id": "rs-count",
                     "scrambled": [
-                      "Mooru",
-                      "ondu",
-                      "aidhu"
+                      "Moja",
+                      "mbili",
+                      "tatu"
                     ],
                     "correct": [
-                      "Ondu",
-                      "eradu",
-                      "mooru"
+                      "Moja",
+                      "mbili",
+                      "tatu"
                     ]
                   }
                 ]

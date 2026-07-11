@@ -26,24 +26,24 @@
                 "items": [
                   {
                     "runtimeType": "showWord",
-                    "id": "sw-naanu",
-                    "wordId": "w-naanu",
-                    "context": "Naanu vidyaarthi. — I am a student."
+                    "id": "sw-mimi",
+                    "wordId": "w-mimi",
+                    "context": "Mimi ni mwanafunzi. — I am a student."
                   },
                   {
                     "runtimeType": "showWord",
-                    "id": "sw-neenu",
-                    "wordId": "w-neenu"
+                    "id": "sw-wewe",
+                    "wordId": "w-wewe"
                   },
                   {
                     "runtimeType": "showWord",
-                    "id": "sw-howdu",
-                    "wordId": "w-howdu"
+                    "id": "sw-ndiyo",
+                    "wordId": "w-ndiyo"
                   },
                   {
                     "runtimeType": "showWord",
-                    "id": "sw-illa",
-                    "wordId": "w-illa"
+                    "id": "sw-hapana",
+                    "wordId": "w-hapana"
                   }
                 ]
               },
@@ -58,10 +58,10 @@
                     "id": "mc-yes-no",
                     "prompt": "Which word means \"Yes\"?",
                     "options": [
-                      "Howdu",
-                      "Illa",
-                      "Baa",
-                      "Hogu"
+                      "Ndiyo",
+                      "Hapana",
+                      "Kuja",
+                      "Kwenda"
                     ],
                     "correctIndex": 0
                   },
@@ -69,13 +69,13 @@
                     "runtimeType": "fillBlank",
                     "id": "fb-no",
                     "sentence": "_____ = \"No\" in Swahili",
-                    "answer": "Illa",
-                    "hint": "Starts with \"I\""
+                    "answer": "Hapana",
+                    "hint": "Starts with \"H\""
                   },
                   {
                     "runtimeType": "listenAndPick",
-                    "id": "lp-howdu",
-                    "audioAsset": "w-howdu",
+                    "id": "lp-ndiyo",
+                    "audioAsset": "w-ndiyo",
                     "prompt": "What did you hear?",
                     "options": [
                       "Yes",
@@ -107,13 +107,13 @@
                 "items": [
                   {
                     "runtimeType": "showWord",
-                    "id": "sw-naavu",
-                    "wordId": "w-naavu"
+                    "id": "sw-sisi",
+                    "wordId": "w-sisi"
                   },
                   {
                     "runtimeType": "showWord",
-                    "id": "sw-neenu-2",
-                    "wordId": "w-neenu"
+                    "id": "sw-wewe-2",
+                    "wordId": "w-wewe"
                   }
                 ]
               },
@@ -125,21 +125,23 @@
                 "items": [
                   {
                     "runtimeType": "typeTheWord",
-                    "id": "tw-naavu",
-                    "audioAsset": "w-naavu",
+                    "id": "tw-sisi",
+                    "audioAsset": "w-sisi",
                     "prompt": "Type the word you hear",
-                    "expected": "Naavu"
+                    "expected": "Sisi"
                   },
                   {
                     "runtimeType": "reorderSentence",
-                    "id": "rs-naavu-vidyaarthi",
+                    "id": "rs-sisi-wanafunzi",
                     "scrambled": [
-                      "Naavu",
-                      "vidyaarthi"
+                      "Sisi",
+                      "ni",
+                      "wanafunzi"
                     ],
                     "correct": [
-                      "Naavu",
-                      "vidyaarthi"
+                      "Sisi",
+                      "ni",
+                      "wanafunzi"
                     ]
                   }
                 ]
@@ -155,184 +157,161 @@
           "content": {
             "questions": [
               {
+                "runtimeType": "multipleChoice",
                 "id": "q-flat-1",
-                "runtimeType": "multipleChoice",
-                "prompt": "Demo question 1: pick Yes in Swahili",
+                "prompt": "Which word means \"Yes\"?",
                 "options": [
-                  "Howdu",
-                  "Illa",
-                  "Baa",
-                  "Hogu"
+                  "Ndiyo",
+                  "Hapana",
+                  "Kuja",
+                  "Kwenda"
                 ],
                 "correctIndex": 0
               },
               {
+                "runtimeType": "multipleChoice",
                 "id": "q-flat-2",
-                "runtimeType": "multipleChoice",
-                "prompt": "Demo question 2: pick Yes in Swahili",
+                "prompt": "Which word means \"No\"?",
                 "options": [
-                  "Howdu",
-                  "Illa",
-                  "Baa",
-                  "Hogu"
+                  "Hapana",
+                  "Ndiyo",
+                  "Mimi",
+                  "Wewe"
                 ],
                 "correctIndex": 0
               },
               {
+                "runtimeType": "multipleChoice",
                 "id": "q-flat-3",
-                "runtimeType": "multipleChoice",
-                "prompt": "Demo question 3: pick Yes in Swahili",
+                "prompt": "Which pronoun means \"I\"?",
                 "options": [
-                  "Howdu",
-                  "Illa",
-                  "Baa",
-                  "Hogu"
+                  "Mimi",
+                  "Wewe",
+                  "Sisi",
+                  "Yeye"
                 ],
                 "correctIndex": 0
               },
               {
+                "runtimeType": "multipleChoice",
                 "id": "q-flat-4",
-                "runtimeType": "multipleChoice",
-                "prompt": "Demo question 4: pick Yes in Swahili",
+                "prompt": "Which pronoun means \"You\"?",
                 "options": [
-                  "Howdu",
-                  "Illa",
-                  "Baa",
-                  "Hogu"
+                  "Wewe",
+                  "Mimi",
+                  "Sisi",
+                  "Yeye"
                 ],
                 "correctIndex": 0
               },
               {
+                "runtimeType": "multipleChoice",
                 "id": "q-flat-5",
-                "runtimeType": "multipleChoice",
-                "prompt": "Demo question 5: pick Yes in Swahili",
+                "prompt": "Which word means \"Name\"?",
                 "options": [
-                  "Howdu",
-                  "Illa",
-                  "Baa",
-                  "Hogu"
+                  "Jina",
+                  "Mwanafunzi",
+                  "Mimi",
+                  "Wewe"
                 ],
                 "correctIndex": 0
               },
               {
+                "runtimeType": "fillBlank",
                 "id": "q-flat-6",
-                "runtimeType": "multipleChoice",
-                "prompt": "Demo question 6: pick Yes in Swahili",
-                "options": [
-                  "Howdu",
-                  "Illa",
-                  "Baa",
-                  "Hogu"
-                ],
-                "correctIndex": 0
+                "sentence": "_____ = \"Yes\" in Swahili",
+                "answer": "Ndiyo"
               },
               {
+                "runtimeType": "fillBlank",
                 "id": "q-flat-7",
-                "runtimeType": "multipleChoice",
-                "prompt": "Demo question 7: pick Yes in Swahili",
-                "options": [
-                  "Howdu",
-                  "Illa",
-                  "Baa",
-                  "Hogu"
-                ],
-                "correctIndex": 0
+                "sentence": "_____ = \"No\" in Swahili",
+                "answer": "Hapana"
               },
               {
+                "runtimeType": "fillBlank",
                 "id": "q-flat-8",
-                "runtimeType": "multipleChoice",
-                "prompt": "Demo question 8: pick Yes in Swahili",
-                "options": [
-                  "Howdu",
-                  "Illa",
-                  "Baa",
-                  "Hogu"
-                ],
-                "correctIndex": 0
+                "sentence": "_____ ni mwanafunzi. (I am a student.)",
+                "answer": "Mimi"
               },
               {
+                "runtimeType": "fillBlank",
                 "id": "q-flat-9",
-                "runtimeType": "multipleChoice",
-                "prompt": "Demo question 9: pick Yes in Swahili",
-                "options": [
-                  "Howdu",
-                  "Illa",
-                  "Baa",
-                  "Hogu"
-                ],
-                "correctIndex": 0
+                "sentence": "_____ langu (my name)",
+                "answer": "Jina"
               },
               {
+                "runtimeType": "listenAndPick",
                 "id": "q-flat-10",
-                "runtimeType": "multipleChoice",
-                "prompt": "Demo question 10: pick Yes in Swahili",
+                "audioAsset": "w-ndiyo",
+                "prompt": "What did you hear?",
                 "options": [
-                  "Howdu",
-                  "Illa",
-                  "Baa",
-                  "Hogu"
+                  "Yes",
+                  "No",
+                  "Come",
+                  "Go"
                 ],
                 "correctIndex": 0
               },
               {
+                "runtimeType": "listenAndPick",
                 "id": "q-flat-11",
-                "runtimeType": "multipleChoice",
-                "prompt": "Demo question 11: pick Yes in Swahili",
+                "audioAsset": "w-hapana",
+                "prompt": "What did you hear?",
                 "options": [
-                  "Howdu",
-                  "Illa",
-                  "Baa",
-                  "Hogu"
+                  "Yes",
+                  "No",
+                  "Come",
+                  "Go"
                 ],
-                "correctIndex": 0
+                "correctIndex": 1
               },
               {
+                "runtimeType": "listenAndPick",
                 "id": "q-flat-12",
-                "runtimeType": "multipleChoice",
-                "prompt": "Demo question 12: pick Yes in Swahili",
+                "audioAsset": "w-mimi",
+                "prompt": "What did you hear?",
                 "options": [
-                  "Howdu",
-                  "Illa",
-                  "Baa",
-                  "Hogu"
+                  "I",
+                  "You",
+                  "We",
+                  "Student"
                 ],
                 "correctIndex": 0
               },
               {
+                "runtimeType": "listenAndPick",
                 "id": "q-flat-13",
-                "runtimeType": "multipleChoice",
-                "prompt": "Demo question 13: pick Yes in Swahili",
+                "audioAsset": "w-wewe",
+                "prompt": "What did you hear?",
                 "options": [
-                  "Howdu",
-                  "Illa",
-                  "Baa",
-                  "Hogu"
+                  "I",
+                  "You",
+                  "We",
+                  "Student"
                 ],
-                "correctIndex": 0
+                "correctIndex": 1
               },
               {
+                "runtimeType": "translateSentence",
                 "id": "q-flat-14",
-                "runtimeType": "multipleChoice",
-                "prompt": "Demo question 14: pick Yes in Swahili",
-                "options": [
-                  "Howdu",
-                  "Illa",
-                  "Baa",
-                  "Hogu"
-                ],
-                "correctIndex": 0
+                "source": "Wewe ni mwanafunzi.",
+                "expected": "You are a student.",
+                "hints": []
               },
               {
+                "runtimeType": "reorderSentence",
                 "id": "q-flat-15",
-                "runtimeType": "multipleChoice",
-                "prompt": "Demo question 15: pick Yes in Swahili",
-                "options": [
-                  "Howdu",
-                  "Illa",
-                  "Baa",
-                  "Hogu"
+                "scrambled": [
+                  "Mimi",
+                  "ni",
+                  "mwanafunzi"
                 ],
-                "correctIndex": 0
+                "correct": [
+                  "Mimi",
+                  "ni",
+                  "mwanafunzi"
+                ]
               }
             ]
           }
@@ -361,13 +340,13 @@
                 "items": [
                   {
                     "runtimeType": "showWord",
-                    "id": "sw-hesaru",
-                    "wordId": "w-hesaru"
+                    "id": "sw-jina",
+                    "wordId": "w-jina"
                   },
                   {
                     "runtimeType": "showWord",
-                    "id": "sw-vidyaarthi",
-                    "wordId": "w-vidyaarthi"
+                    "id": "sw-mwanafunzi",
+                    "wordId": "w-mwanafunzi"
                   }
                 ]
               },
@@ -379,18 +358,19 @@
                 "items": [
                   {
                     "runtimeType": "translateSentence",
-                    "id": "ts-naanu-vidyaarthi",
-                    "source": "Naanu vidyaarthi.",
-                    "expected": "I am a student."
+                    "id": "ts-mimi-mwanafunzi",
+                    "source": "Mimi ni mwanafunzi.",
+                    "expected": "I am a student.",
+                    "hints": []
                   },
                   {
                     "runtimeType": "multipleChoice",
                     "id": "mc-my-name-is",
                     "prompt": "\"My name is ___\" in Swahili",
                     "options": [
-                      "Nanna hesaru ___",
-                      "Naanu ___",
-                      "Neenu ___"
+                      "Jina langu ___",
+                      "Mimi ___",
+                      "Wewe ___"
                     ],
                     "correctIndex": 0
                   }

@@ -1,4 +1,15 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!--
+      Android 11+ package visibility: without this, getEngines / setEngine for
+      Google TTS (and other TTS engines) can fail even when the package is installed.
+      See flutter_tts README and TextToSpeech.Engine.INTENT_ACTION_TTS_SERVICE.
+    -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+        <package android:name="com.google.android.tts" />
+    </queries>
     <application
         android:label="Varnamala"
         android:name="${applicationName}"

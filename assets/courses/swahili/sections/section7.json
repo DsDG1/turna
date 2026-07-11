@@ -26,13 +26,13 @@
                 "items": [
                   {
                     "runtimeType": "showWord",
-                    "id": "sw-w-mara",
-                    "wordId": "w-mara"
+                    "id": "sw-w-mti",
+                    "wordId": "w-mti"
                   },
                   {
                     "runtimeType": "showWord",
-                    "id": "sw-w-bhoomi",
-                    "wordId": "w-bhoomi"
+                    "id": "sw-w-ardhi",
+                    "wordId": "w-ardhi"
                   }
                 ]
               },
@@ -44,25 +44,25 @@
                 "items": [
                   {
                     "runtimeType": "multipleChoice",
-                    "id": "mc-w-mara-0",
-                    "prompt": "Which word matches 'w-mara'?",
+                    "id": "mc-tree",
+                    "prompt": "Which means \"Tree\"?",
                     "options": [
-                      "Yes",
-                      "No",
-                      "Come",
-                      "Go"
+                      "Mti",
+                      "Ardhi",
+                      "Ua",
+                      "Maji"
                     ],
                     "correctIndex": 0
                   },
                   {
                     "runtimeType": "multipleChoice",
-                    "id": "mc-w-bhoomi-1",
-                    "prompt": "Which word matches 'w-bhoomi'?",
+                    "id": "mc-earth",
+                    "prompt": "Which means \"Earth/land\"?",
                     "options": [
-                      "Yes",
-                      "No",
-                      "Come",
-                      "Go"
+                      "Ardhi",
+                      "Mti",
+                      "Ua",
+                      "Maji"
                     ],
                     "correctIndex": 0
                   }
@@ -87,13 +87,13 @@
                 "items": [
                   {
                     "runtimeType": "showWord",
-                    "id": "sw-w-kempu",
-                    "wordId": "w-kempu"
+                    "id": "sw-w-nyekundu",
+                    "wordId": "w-nyekundu"
                   },
                   {
                     "runtimeType": "showWord",
-                    "id": "sw-w-hasiru",
-                    "wordId": "w-hasiru"
+                    "id": "sw-w-kijani",
+                    "wordId": "w-kijani"
                   }
                 ]
               },
@@ -105,25 +105,25 @@
                 "items": [
                   {
                     "runtimeType": "multipleChoice",
-                    "id": "mc-w-kempu-0",
-                    "prompt": "Which word matches 'w-kempu'?",
+                    "id": "mc-red",
+                    "prompt": "Which means \"Red\"?",
                     "options": [
-                      "Yes",
-                      "No",
-                      "Come",
-                      "Go"
+                      "Nyekundu",
+                      "Kijani",
+                      "Nyeusi",
+                      "Nyeupe"
                     ],
                     "correctIndex": 0
                   },
                   {
                     "runtimeType": "multipleChoice",
-                    "id": "mc-w-hasiru-1",
-                    "prompt": "Which word matches 'w-hasiru'?",
+                    "id": "mc-green",
+                    "prompt": "Which means \"Green\"?",
                     "options": [
-                      "Yes",
-                      "No",
-                      "Come",
-                      "Go"
+                      "Kijani",
+                      "Nyekundu",
+                      "Nyeusi",
+                      "Nyeupe"
                     ],
                     "correctIndex": 0
                   }

@@ -8,48 +8,48 @@
 - Vocabulary entries: 35
 - Expression entries: 0
 - Grammar points: 3
-- Distinct audio asset references: 5
-- Vocabulary words referenced by at least one lesson: 28
+- Distinct audio asset references: 9
+- Vocabulary words referenced by at least one lesson: 33
 
 ## Vocabulary
 
 | id | term | translation | tags | referenced in |
 |---|---|---|---|---|
-| w-aane | Aane | Elephant | animal | s-daily/s-daily-u-animals/l-animals-1 |
-| w-aidhu | Aidhu | Five | number | s-daily/s-daily-u-numbers/l-numbers-1 |
-| w-baa | Baa | Come | verb | (unused) |
-| w-bekku | Bekku | Cat (colloquial) | animal | s-daily/s-daily-u-animals/l-animals-1 |
-| w-bhayav | Bayav | Fear | emotion | (unused) |
-| w-bhoomi | Bhoomi | Earth / Land | nature | s-world/s-world-u-nature/l-nature-1 |
-| w-bili | Bili | White | color | s-daily/s-daily-u-colors/l-colors-1 |
-| w-bus | Bus | Bus | travel | s-world/s-world-u-travel/l-travel-1 |
-| w-dukha | Dukha | Sad | emotion | (unused) |
-| w-eradu | Eradu | Two | number | s-daily/s-daily-u-numbers/l-numbers-1 |
-| w-hasiru | Hasiru | Green | color | s-daily/s-daily-u-colors/l-colors-1 |
-| w-hesaru | Hesaru | Name | noun | s-foundations/s-foundations-u-intro/l-intro-1 |
-| w-hogu | Hogu | Go | verb | (unused) |
-| w-hotel | Hotel | Hotel | travel | s-world/s-world-u-travel/l-travel-1 |
-| w-howdu | Howdu | Yes | greeting | s-foundations/s-foundations-u-greetings/l-greetings-1; s-test/u-test-1/l-test-vocab-1; s-test/u-test-1/l-tpl-intro-smoke; s-test/u-test-1/l-tpl-reading-smoke |
-| w-huvu | Huvu | Flower | nature | s-world/s-world-u-nature/l-nature-1 |
-| w-illa | Illa | No | greeting | s-foundations/s-foundations-u-greetings/l-greetings-1; s-test/u-test-1/l-tpl-intro-smoke; s-test/u-test-1/l-tpl-reading-smoke |
-| w-kappu | Kappu | Black | color | s-daily/s-daily-u-colors/l-colors-1 |
-| w-kempu | Kempu | Red | color | s-daily/s-daily-u-colors/l-colors-1 |
-| w-koli | Koli | Cat | animal | s-daily/s-daily-u-animals/l-animals-1 |
-| w-kopam | Kopam | Anger | emotion | (unused) |
-| w-mara | Mara | Tree | nature | s-world/s-world-u-nature/l-nature-1 |
-| w-mooru | Mooru | Three | number | s-daily/s-daily-u-numbers/l-numbers-1 |
-| w-naaku | Naaku | Four | number | s-daily/s-daily-u-numbers/l-numbers-1 |
-| w-naanu | Naanu | I | pronoun | s-foundations/s-foundations-u-greetings/l-greetings-1; s-test/u-test-1/l-test-vocab-1; s-test/u-test-1/l-tpl-intro-smoke; s-test/u-test-1/l-tpl-reading-smoke; s-test/u-test-1/l-tpl-review-smoke |
-| w-naavu | Naavu | We | pronoun | s-foundations/s-foundations-u-greetings/l-greetings-2 |
-| w-naayi | Naayi | Dog | animal | s-daily/s-daily-u-animals/l-animals-1 |
-| w-neenu | Neenu | You | pronoun | s-foundations/s-foundations-u-greetings/l-greetings-1; s-foundations/s-foundations-u-greetings/l-greetings-2; s-test/u-test-1/l-test-grammar-1; s-test/u-test-1/l-tpl-intro-smoke; s-test/u-test-1/l-tpl-reading-smoke |
-| w-neeru | Neeru | Water | nature | s-world/s-world-u-nature/l-nature-1 |
-| w-ondu | Ondu | One | number | s-daily/s-daily-u-numbers/l-numbers-1 |
-| w-oota | Oota | Food / Eating | noun, verb | (unused) |
-| w-prayan | Prayan | Travel | travel | s-world/s-world-u-travel/l-travel-1 |
-| w-rail | Rail | Train | travel | s-world/s-world-u-travel/l-travel-1 |
-| w-santosha | Santosha | Happy | emotion | (unused) |
-| w-vidyaarthi | Vidyaarthi | Student | noun | s-foundations/s-foundations-u-intro/l-intro-1 |
+| w-ardhi | Ardhi | earth/land | nature | section3/s-world-u-nature/l-nature-1; section7/s7-u1/s7-l1 |
+| w-basi | Basi | bus | travel | section3/s-world-u-travel/l-travel-1; section5/s5-u1/s5-l2 |
+| w-chakula | Chakula | food | noun | section5/s5-u1/s5-l1 |
+| w-furaha | Furaha | happiness/joy | emotion | section3/s-world-u-emotions/l-emotions-1; section6/s6-u1/s6-l1 |
+| w-hapana | Hapana | no | greeting | section1/s-foundations-u-greetings/l-greetings-1; section4/u-test-1/l-tpl-intro-smoke; section4/u-test-1/l-tpl-reading-smoke |
+| w-hasira | Hasira | anger | emotion | section6/s6-u1/s6-l2 |
+| w-hotel | Hoteli | hotel | travel | section3/s-world-u-travel/l-travel-1; section8/s8-u1/s8-l1 |
+| w-huzuni | Huzuni | sadness | emotion | section3/s-world-u-emotions/l-emotions-1; section6/s6-u1/s6-l1 |
+| w-jina | Jina | name | noun | section1/s-foundations-u-intro/l-intro-1 |
+| w-kijani | Kijani | green | color | section2/s-daily-u-colors/l-colors-1; section7/s7-u1/s7-l2 |
+| w-kuja | Kuja | to come | verb | (unused) |
+| w-kula | Kula | to eat | verb | section5/s5-u1/s5-l1 |
+| w-kwenda | Kwenda | to go | verb | (unused) |
+| w-maji | Maji | water | nature | section3/s-world-u-nature/l-nature-1 |
+| w-mbili | Mbili | two | number | section2/s-daily-u-numbers/l-numbers-1 |
+| w-mbwa | Mbwa | dog | animal | section2/s-daily-u-animals/l-animals-1; section8/s8-u1/s8-l2 |
+| w-mimi | Mimi | I | pronoun | section1/s-foundations-u-greetings/l-greetings-1; section4/u-test-1/l-test-vocab-1; section4/u-test-1/l-tpl-intro-smoke; section4/u-test-1/l-tpl-reading-smoke; section4/u-test-1/l-tpl-review-smoke |
+| w-moja | Moja | one | number | section2/s-daily-u-numbers/l-numbers-1 |
+| w-mti | Mti | tree | nature | section3/s-world-u-nature/l-nature-1; section7/s7-u1/s7-l1 |
+| w-mwanafunzi | Mwanafunzi | student | noun | section1/s-foundations-u-intro/l-intro-1 |
+| w-ndiyo | Ndiyo | yes | greeting | section1/s-foundations-u-greetings/l-greetings-1; section4/u-test-1/l-test-vocab-1; section4/u-test-1/l-tpl-intro-smoke; section4/u-test-1/l-tpl-reading-smoke |
+| w-nne | Nne | four | number | section2/s-daily-u-numbers/l-numbers-1 |
+| w-nyekundu | Nyekundu | red | color | section2/s-daily-u-colors/l-colors-1; section7/s7-u1/s7-l2 |
+| w-nyeupe | Nyeupe | white | color | section2/s-daily-u-colors/l-colors-1 |
+| w-nyeusi | Nyeusi | black | color | section2/s-daily-u-colors/l-colors-1 |
+| w-paka | Paka | cat | animal | section2/s-daily-u-animals/l-animals-1 |
+| w-safari | Safari | journey/travel | travel | section3/s-world-u-travel/l-travel-1; section5/s5-u1/s5-l2 |
+| w-sisi | Sisi | we | pronoun | section1/s-foundations-u-greetings/l-greetings-2 |
+| w-tano | Tano | five | number | section2/s-daily-u-numbers/l-numbers-1 |
+| w-tatu | Tatu | three | number | section2/s-daily-u-numbers/l-numbers-1 |
+| w-tembo | Tembo | elephant | animal | section2/s-daily-u-animals/l-animals-1; section8/s8-u1/s8-l2 |
+| w-treni | Treni | train | travel | section3/s-world-u-travel/l-travel-1; section8/s8-u1/s8-l1 |
+| w-ua | Ua | flower | nature | section3/s-world-u-nature/l-nature-1 |
+| w-wewe | Wewe | you | pronoun | section1/s-foundations-u-greetings/l-greetings-1; section1/s-foundations-u-greetings/l-greetings-2; section4/u-test-1/l-test-grammar-1; section4/u-test-1/l-tpl-intro-smoke; section4/u-test-1/l-tpl-reading-smoke |
+| w-woga | Woga | fear | emotion | section6/s6-u1/s6-l2 |
 
 ## Expressions
 
@@ -61,15 +61,19 @@
 | id | title | referenced in |
 |---|---|---|
 | gp.present-a | Present tense (ni / si) | (unused) |
-| gp.greetings | Greetings | s-test/u-test-1/l-test-vocab-1 |
-| gp.pronouns | Personal pronouns | s-test/u-test-1/l-test-grammar-1 |
+| gp.greetings | Greetings | section4/u-test-1/l-test-vocab-1 |
+| gp.pronouns | Personal pronouns | section4/u-test-1/l-test-grammar-1 |
 
 ## Audio Asset References
 
 | asset | referenced in |
 |---|---|
-| section:foundations | s-foundations/s-foundations-u-greetings/l-greetings-2 |
-| w-howdu | s-foundations/s-foundations-u-greetings/l-greetings-1 |
-| w-kempu | s-daily/s-daily-u-colors/l-colors-1 |
-| w-naavu | s-foundations/s-foundations-u-greetings/l-greetings-2 |
-| w-neeru | s-world/s-world-u-nature/l-nature-1 |
+| section:foundations | section1/s-foundations-u-greetings/l-greetings-2 |
+| w-hapana | section1/s-foundations-u-greetings/l-flat-demo |
+| w-maji | section3/s-world-u-nature/l-nature-1 |
+| w-mbwa | section2/s-daily-u-animals/l-animals-1 |
+| w-mimi | section1/s-foundations-u-greetings/l-flat-demo |
+| w-ndiyo | section1/s-foundations-u-greetings/l-flat-demo; section1/s-foundations-u-greetings/l-greetings-1 |
+| w-nyekundu | section2/s-daily-u-colors/l-colors-1 |
+| w-sisi | section1/s-foundations-u-greetings/l-greetings-2 |
+| w-wewe | section1/s-foundations-u-greetings/l-flat-demo |

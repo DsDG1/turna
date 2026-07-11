@@ -26,13 +26,13 @@
                 "items": [
                   {
                     "runtimeType": "showWord",
-                    "id": "sw-w-santosha",
-                    "wordId": "w-santosha"
+                    "id": "sw-w-furaha",
+                    "wordId": "w-furaha"
                   },
                   {
                     "runtimeType": "showWord",
-                    "id": "sw-w-dukha",
-                    "wordId": "w-dukha"
+                    "id": "sw-w-huzuni",
+                    "wordId": "w-huzuni"
                   }
                 ]
               },
@@ -44,25 +44,25 @@
                 "items": [
                   {
                     "runtimeType": "multipleChoice",
-                    "id": "mc-w-santosha-0",
-                    "prompt": "Which word matches 'w-santosha'?",
+                    "id": "mc-happy",
+                    "prompt": "Which means \"Happiness/joy\"?",
                     "options": [
-                      "Yes",
-                      "No",
-                      "Come",
-                      "Go"
+                      "Furaha",
+                      "Huzuni",
+                      "Hasira",
+                      "Woga"
                     ],
                     "correctIndex": 0
                   },
                   {
                     "runtimeType": "multipleChoice",
-                    "id": "mc-w-dukha-1",
-                    "prompt": "Which word matches 'w-dukha'?",
+                    "id": "mc-sad",
+                    "prompt": "Which means \"Sadness\"?",
                     "options": [
-                      "Yes",
-                      "No",
-                      "Come",
-                      "Go"
+                      "Huzuni",
+                      "Furaha",
+                      "Hasira",
+                      "Woga"
                     ],
                     "correctIndex": 0
                   }
@@ -87,13 +87,13 @@
                 "items": [
                   {
                     "runtimeType": "showWord",
-                    "id": "sw-w-kopam",
-                    "wordId": "w-kopam"
+                    "id": "sw-w-hasira",
+                    "wordId": "w-hasira"
                   },
                   {
                     "runtimeType": "showWord",
-                    "id": "sw-w-bhayav",
-                    "wordId": "w-bhayav"
+                    "id": "sw-w-woga",
+                    "wordId": "w-woga"
                   }
                 ]
               },
@@ -105,25 +105,25 @@
                 "items": [
                   {
                     "runtimeType": "multipleChoice",
-                    "id": "mc-w-kopam-0",
-                    "prompt": "Which word matches 'w-kopam'?",
+                    "id": "mc-anger",
+                    "prompt": "Which means \"Anger\"?",
                     "options": [
-                      "Yes",
-                      "No",
-                      "Come",
-                      "Go"
+                      "Hasira",
+                      "Woga",
+                      "Huzuni",
+                      "Furaha"
                     ],
                     "correctIndex": 0
                   },
                   {
                     "runtimeType": "multipleChoice",
-                    "id": "mc-w-bhayav-1",
-                    "prompt": "Which word matches 'w-bhayav'?",
+                    "id": "mc-fear",
+                    "prompt": "Which means \"Fear\"?",
                     "options": [
-                      "Yes",
-                      "No",
-                      "Come",
-                      "Go"
+                      "Woga",
+                      "Hasira",
+                      "Huzuni",
+                      "Furaha"
                     ],
                     "correctIndex": 0
                   }

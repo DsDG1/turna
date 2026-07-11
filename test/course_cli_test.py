@@ -86,7 +86,7 @@ class TestCourseCli(unittest.TestCase):
             self.assertTrue(out_path.exists())
             text = out_path.read_text(encoding="utf-8")
             self.assertIn("id,term,translation,pronunciation,audioAsset,tags", text)
-            self.assertIn("w-naanu,Naanu,I,,,pronoun", text)
+            self.assertIn("w-mimi,Mimi,I,mi-mi,,pronoun", text)
 
     def test_import_csv_round_trip(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -105,8 +105,8 @@ class TestCourseCli(unittest.TestCase):
             lines = text.splitlines()
             new_lines = []
             for line in lines:
-                if line.startswith("w-naanu,"):
-                    new_lines.append("w-naanu,Mimi,I,,,pronoun")
+                if line.startswith("w-mimi,"):
+                    new_lines.append("w-mimi,Mimi,I,mi-mi,,pronoun")
                 else:
                     new_lines.append(line)
             new_lines.append("w-new-word,New,New translation,,,noun")
@@ -123,7 +123,7 @@ class TestCourseCli(unittest.TestCase):
 
             vocab = load_vocab(tmp_course)
             by_id = {w["id"]: w for w in vocab}
-            self.assertEqual(by_id["w-naanu"]["term"], "Mimi")
+            self.assertEqual(by_id["w-mimi"]["term"], "Mimi")
             self.assertEqual(by_id["w-new-word"]["term"], "New")
 
     def test_lint_detects_missing_audio(self) -> None:
@@ -188,7 +188,7 @@ class TestCourseCli(unittest.TestCase):
             self.assertIn("l-pilot-dialogue,listening,", text)
             self.assertIn(",missing", text)
             # Word/expression ids are NOT listed (runtime TTS handles them).
-            self.assertNotIn("w-howdu", text)
+            self.assertNotIn("w-ndiyo", text)
             self.assertNotIn(",word,", text)
             self.assertNotIn(",expression,", text)
             self.assertNotIn(",lesson,", text)

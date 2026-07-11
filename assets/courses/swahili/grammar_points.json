@@ -11,7 +11,12 @@
           "runtimeType": "multipleChoice",
           "id": "gp-present-mc1",
           "prompt": "What does the copula \"ni\" mean?",
-          "options": ["is/am/are", "was/were", "will be", "not"],
+          "options": [
+            "is/am/are",
+            "was/were",
+            "will be",
+            "not"
+          ],
           "correctIndex": 0,
           "grammarPointId": "gp.present-a"
         }
@@ -28,7 +33,12 @@
           "runtimeType": "multipleChoice",
           "id": "gp-greetings-mc1",
           "prompt": "What is a casual Swahili hello often used with visitors?",
-          "options": ["Jambo", "Howdu", "Illa", "Baa"],
+          "options": [
+            "Jambo",
+            "Ndiyo",
+            "Hapana",
+            "Wewe"
+          ],
           "correctIndex": 0,
           "grammarPointId": "gp.greetings"
         },
@@ -36,7 +46,12 @@
           "runtimeType": "multipleChoice",
           "id": "gp-greetings-mc2",
           "prompt": "A common reply to \"Habari\" is:",
-          "options": ["nzuri", "jambo", "si", "wewe"],
+          "options": [
+            "nzuri",
+            "jambo",
+            "si",
+            "wewe"
+          ],
           "correctIndex": 0,
           "grammarPointId": "gp.greetings"
         }
@@ -53,7 +68,12 @@
           "runtimeType": "multipleChoice",
           "id": "gp-pronouns-mc1",
           "prompt": "Which pronoun means \"I\" in standard Swahili?",
-          "options": ["mimi", "wewe", "yeye", "sisi"],
+          "options": [
+            "mimi",
+            "wewe",
+            "yeye",
+            "sisi"
+          ],
           "correctIndex": 0,
           "grammarPointId": "gp.pronouns"
         },
