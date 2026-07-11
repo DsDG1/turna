@@ -7,6 +7,7 @@ import 'package:drift/drift.dart' hide Expression;
 // Project imports:
 import 'package:varnamala/core/logger.dart';
 import 'package:varnamala/data/course_database.dart' as db;
+import 'package:varnamala/data/course_database_seeder.dart';
 import 'package:varnamala/domain/course/expression.dart';
 import 'package:varnamala/domain/course/grammar_point.dart';
 import 'package:varnamala/domain/course/interaction.dart';
@@ -15,6 +16,7 @@ import 'package:varnamala/domain/course/lesson_content.dart';
 import 'package:varnamala/domain/course/section.dart';
 import 'package:varnamala/domain/course/unit.dart';
 import 'package:varnamala/domain/course/word_entry.dart';
+import 'package:varnamala/domain/repositories/i_course_repository.dart';
 
 /// Reads course content from [CourseDatabase] and reconstructs the existing
 /// freezed domain models ([Section]/[Unit]/[Lesson]/[LessonContent]/
@@ -25,12 +27,13 @@ import 'package:varnamala/domain/course/word_entry.dart';
 /// lesson content blobs) and grouped in Dart; lesson content is a pure
 /// `LessonContent.fromJson(jsonDecode(blob))` since the seeder stores
 /// normalized content.
-class CourseRepository {
+class CourseRepository implements ICourseRepository {
   final db.CourseDatabase database;
   CourseRepository(this.database);
 
   /// Lightweight section shells (id/name/description/prerequisiteSectionIds,
   /// `units` empty) in on-disk order.
+  @override
   Future<List<Section>> sectionShells() async {
     final rows = await (database.select(database.sections)
           ..orderBy([(t) => OrderingTerm(expression: t.sortOrder)]))
@@ -49,6 +52,7 @@ class CourseRepository {
   }
 
   /// Full vocabulary list.
+  @override
   Future<List<WordEntry>> vocabulary() async {
     final rows = await database.select(database.vocabulary).get();
     return [
@@ -65,12 +69,14 @@ class CourseRepository {
   }
 
   /// All grammar points.
+  @override
   Future<List<GrammarPoint>> grammarPoints() async {
     final rows = await database.select(database.grammarPoints).get();
     return [for (final r in rows) _toGrammarPoint(r)];
   }
 
   /// A single grammar point by id, or `null` if unknown.
+  @override
   Future<GrammarPoint?> grammarPointById(String id) async {
     final row = await (database.select(database.grammarPoints)
           ..where((t) => t.id.equals(id)))
@@ -79,12 +85,14 @@ class CourseRepository {
   }
 
   /// All expressions / phrases.
+  @override
   Future<List<Expression>> expressions() async {
     final rows = await database.select(database.expressions).get();
     return [for (final r in rows) _toExpression(r)];
   }
 
   /// A single expression by id, or `null` if unknown.
+  @override
   Future<Expression?> expressionById(String id) async {
     final row = await (database.select(database.expressions)
           ..where((t) => t.id.equals(id)))
@@ -133,6 +141,7 @@ class CourseRepository {
 
   /// Rebuild a full [Section] (units → lessons → content) by id. Throws
   /// [ArgumentError] if the section id is unknown.
+  @override
   Future<Section> section(String id) async {
     final sectionRow = await (database.select(database.sections)
           ..where((t) => t.id.equals(id)))
@@ -193,6 +202,7 @@ class CourseRepository {
 
   /// Rebuild a single [Lesson] by id (the new "Lesson by ID" capability).
   /// Throws [ArgumentError] if the lesson id is unknown.
+  @override
   Future<Lesson> lessonById(String id) async {
     final row = await (database.select(database.lessons)
           ..where((t) => t.id.equals(id)))
@@ -206,7 +216,34 @@ class CourseRepository {
     return _toLesson(row, contentRow?.contentJson);
   }
 
+  /// The stored course content version (composite `index+expressions`, written
+  /// by [DatabaseSeeder] after seeding), or `null` if the DB has not been
+  /// seeded yet. Used by the content-update prompt (ADR 0002) to detect
+  /// version bumps.
+  Future<String?> contentVersion() async {
+    final row = await (database.select(database.courseMeta)
+          ..where((t) => t.key.equals(DatabaseSeeder.metaContentVersion)))
+        .getSingleOrNull();
+    return row?.value;
+  }
+
   Lesson _toLesson(db.Lesson row, String? contentJson) {
+    LessonContent content;
+    if (contentJson == null) {
+      content = const LessonContent();
+    } else {
+      try {
+        content = LessonContent.fromJson(
+          jsonDecode(contentJson) as Map<String, dynamic>,
+        );
+      } catch (e) {
+        // Corrupted content blob (partial write / migration glitch): degrade
+        // to an empty LessonContent instead of crashing section()/lessonById()
+        // for the whole row. Mirrors _decodePracticeItems / _decodeStringList.
+        logger.w('Corrupted content for lesson ${row.id}, treating as empty: $e');
+        content = const LessonContent();
+      }
+    }
     return Lesson(
       id: row.id,
       name: row.name,
@@ -214,11 +251,7 @@ class CourseRepository {
       type: LessonType.values.byName(row.type),
       template: LessonTemplate.values.byName(row.template),
       prerequisiteLessonIds: _decodeStringList(row.prerequisiteLessonIds),
-      content: contentJson == null
-          ? const LessonContent()
-          : LessonContent.fromJson(
-              jsonDecode(contentJson) as Map<String, dynamic>,
-            ),
+      content: content,
     );
   }
 

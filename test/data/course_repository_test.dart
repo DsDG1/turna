@@ -209,11 +209,10 @@ void main() {
       expect(() => repo.lessonById('missing'), throwsArgumentError);
     });
 
-    // NOTE: _toLesson currently does not catch jsonDecode/LessonContent.fromJson
-    // errors. This test documents the current behavior and will be flipped to
-    // expect a degraded empty LessonContent once future4 Phase 17 adds the
-    // try/catch guard.
-    test('currently throws when content JSON is corrupted', () async {
+    // _toLesson degrades corrupted content JSON to an empty LessonContent
+    // (mirrors _decodePracticeItems / _decodeStringList) rather than throwing
+    // and taking down the whole section()/lessonById() load.
+    test('degrades corrupted content JSON to empty LessonContent', () async {
       await database.into(database.sections).insert(
             const db.SectionsCompanion(
               id: Value('s-1'),
@@ -241,7 +240,36 @@ void main() {
             ),
           );
 
-      expect(() => repo.lessonById('l-bad'), throwsException);
+      final lesson = await repo.lessonById('l-bad');
+      expect(lesson.id, 'l-bad');
+      expect(lesson.content.stages, isEmpty);
+    });
+
+    test('degrades corrupted content in section() rebuild', () async {
+      await seedMinimalCourse();
+      // Add a second lesson with corrupted content in the same section.
+      await database.into(database.lessons).insert(
+            const db.LessonsCompanion(
+              id: Value('l-bad'),
+              unitId: Value('u-1'),
+              name: Value('Bad Lesson'),
+              type: Value('normal'),
+              template: Value('practice'),
+              sortOrder: Value(1),
+            ),
+          );
+      await database.into(database.lessonContents).insert(
+            const db.LessonContentsCompanion(
+              lessonId: Value('l-bad'),
+              contentJson: Value('not-json'),
+            ),
+          );
+
+      // section() must not throw on the corrupted sibling; l-1 still loads
+      // normally and l-bad degrades to empty content.
+      final section = await repo.section('s-1');
+      final bad = section.units.first.lessons.firstWhere((l) => l.id == 'l-bad');
+      expect(bad.content.stages, isEmpty);
     });
   });
 

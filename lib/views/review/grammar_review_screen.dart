@@ -270,7 +270,7 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
                     onPressed: _onPracticeContinue,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: VarnamalaTheme.peacockTeal,
-                      foregroundColor: Colors.white,
+                      foregroundColor: VarnamalaTheme.textOnPrimary,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius:
@@ -295,7 +295,7 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
                     onPressed: _onRevealExplanation,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: VarnamalaTheme.peacockTeal,
-                      foregroundColor: Colors.white,
+                      foregroundColor: VarnamalaTheme.textOnPrimary,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius:

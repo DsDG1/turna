@@ -7,6 +7,7 @@ import 'package:varnamala/service/locator.dart';
 
 // StudyLogRepository uses private key constants; mirror them here for tests.
 const _logsKey = 'study.logs';
+const _recentKey = 'study.logs.recent';
 const _dailyStatsKey = 'study.dailyStats';
 
 void main() {
@@ -22,6 +23,7 @@ void main() {
     // Reset the keys touched by StudyLogRepository to avoid cross-test leakage
     // from the cached StreamingSharedPreferences instance.
     await prefs.preferences.setString(_logsKey, '[]');
+    await prefs.preferences.setString(_recentKey, '[]');
     await prefs.preferences.setString(_dailyStatsKey, '{}');
     repo = StudyLogRepository(prefs);
   });
@@ -197,6 +199,71 @@ void main() {
     });
   });
 
+  group('recent queue (ADR 0012)', () {
+    test('append stays in recent until cap, still readable', () async {
+      final now = DateTime.now();
+      await repo.appendLog(makeLog(id: 'r1', timestamp: now));
+
+      final recentRaw =
+          prefs.preferences.getString(_recentKey, defaultValue: '[]').getValue();
+      expect(recentRaw.contains('r1'), isTrue);
+
+      final mainRaw =
+          prefs.preferences.getString(_logsKey, defaultValue: '[]').getValue();
+      expect(mainRaw, '[]');
+
+      final logs = await repo.readLogs();
+      expect(logs.map((l) => l.id), ['r1']);
+    });
+
+    test('reaching recentCap merges into main and clears recent', () async {
+      final now = DateTime.now();
+      const cap = StudyLogRepository.recentCap;
+      for (var i = 0; i < cap; i++) {
+        await repo.appendLog(
+          makeLog(id: 'bulk-$i', timestamp: now, xpEarned: 1),
+        );
+      }
+
+      final recentRaw =
+          prefs.preferences.getString(_recentKey, defaultValue: '[]').getValue();
+      expect(recentRaw, '[]');
+
+      final logs = await repo.readLogs();
+      expect(logs.length, cap);
+    });
+
+    test('flushRecent merges pending entries', () async {
+      final now = DateTime.now();
+      await repo.appendLog(makeLog(id: 'pending', timestamp: now));
+      await repo.flushRecent();
+
+      final recentRaw =
+          prefs.preferences.getString(_recentKey, defaultValue: '[]').getValue();
+      expect(recentRaw, '[]');
+
+      final mainRaw =
+          prefs.preferences.getString(_logsKey, defaultValue: '[]').getValue();
+      expect(mainRaw.contains('pending'), isTrue);
+    });
+
+    test('1000 appends preserve all ids (cap merge)', () async {
+      final now = DateTime.now();
+      final sw = Stopwatch()..start();
+      for (var i = 0; i < 1000; i++) {
+        await repo.appendLog(
+          makeLog(id: 'n-$i', timestamp: now, xpEarned: 1, durationSeconds: 1),
+        );
+      }
+      sw.stop();
+      // ignore: avoid_print
+      print('StudyLog 1000 appends: ${sw.elapsedMilliseconds}ms');
+
+      final logs = await repo.readLogs();
+      expect(logs.length, 1000);
+    });
+  });
+
   group('corruption handling', () {
     test('returns empty dailyStats when JSON is corrupted', () async {
       await prefs.preferences.setString(_dailyStatsKey, 'not-json');
@@ -204,9 +271,19 @@ void main() {
       expect(stats, isEmpty);
     });
 
-    // NOTE: _readLogs currently does not catch jsonDecode errors. This is a
-    // known gap tracked in future4 Phase 17 (CourseRepository._toLesson-style
-    // degradation for study logs). Re-enable once fixed.
-    // test('returns empty logs when JSON is corrupted', () async { ... });
+    test('returns empty logs when JSON is corrupted', () async {
+      await prefs.preferences.setString(_logsKey, 'not-json');
+      final logs = await repo.readLogs();
+      expect(logs, isEmpty);
+    });
+
+    test('appendLog still works after corrupted logs (reads empty, then writes)',
+        () async {
+      await prefs.preferences.setString(_logsKey, 'not-json');
+      await repo.appendLog(makeLog(id: 'recovered', timestamp: DateTime.now()));
+      final logs = await repo.readLogs();
+      expect(logs, hasLength(1));
+      expect(logs.single.id, 'recovered');
+    });
   });
 }

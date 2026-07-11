@@ -1,23 +1,38 @@
 // Dart imports:
 import 'dart:convert';
 
+// Flutter imports:
+import 'package:flutter/foundation.dart';
+
 // Package imports:
 import 'package:injectable/injectable.dart';
 
 // Project imports:
+import 'package:varnamala/core/logger.dart';
+import 'package:varnamala/domain/repositories/i_study_log_repository.dart';
 import 'package:varnamala/domain/study/daily_stats.dart';
 import 'package:varnamala/domain/study/study_log.dart';
 import 'package:varnamala/service/locator.dart';
 
 /// Stores study logs and daily aggregates in [StreamingSharedPreferences].
-/// Keeps the last 90 days of raw logs; older logs are purged during write.
+///
+/// **Append strategy (ADR 0012)**: each [appendLog] writes to a small recent
+/// queue (`study.logs.recent`, cap [_recentCap]) instead of rewriting the full
+/// 90-day main blob every time. When the queue reaches the cap (or [flushRecent]
+/// is forced), recent entries are merged into `study.logs` and purged.
+/// [readLogs] always merges main + recent so callers never miss in-flight rows.
 @lazySingleton
-class StudyLogRepository {
+class StudyLogRepository implements IStudyLogRepository {
   final AppPrefs appPrefs;
 
   static const String _logsKey = 'study.logs';
+  static const String _recentKey = 'study.logs.recent';
   static const String _dailyStatsKey = 'study.dailyStats';
   static const int _maxLogDays = 90;
+
+  /// Cap for the incremental recent queue before merge into the main log.
+  @visibleForTesting
+  static const int recentCap = 200;
 
   /// Serializes mutating writes (appendLog / clearAll) so concurrent callers
   /// don't race on the read-modify-write cycle for [_dailyStatsKey]. Inspired
@@ -31,22 +46,40 @@ class StudyLogRepository {
 
   StudyLogRepository(this.appPrefs);
 
+  @override
   Future<void> appendLog(StudyLog log) async {
     await _enqueueWrite(() async {
-      final logs = await _readLogs();
-      logs.add(log);
-      _purgeOldLogs(logs);
-      await _writeLogs(logs);
+      final recent = await _readRecentLogs();
+      recent.add(log);
+      // Drop stale recent rows so a 90-day-old append never lingers in the
+      // queue until a full merge (matches prior purge-on-every-write semantics).
+      _purgeOldLogs(recent);
+      if (recent.length >= recentCap) {
+        await _mergeRecentIntoMain(recent);
+      } else {
+        await _writeRecentLogs(recent);
+      }
       await _updateDailyStats(log);
     });
   }
 
+  /// Force-merge any pending recent entries into the main log.
+  /// Useful for tests and for future background flush hooks.
+  Future<void> flushRecent() async {
+    await _enqueueWrite(() async {
+      final recent = await _readRecentLogs();
+      if (recent.isEmpty) return;
+      await _mergeRecentIntoMain(recent);
+    });
+  }
+
+  @override
   Future<List<StudyLog>> readLogs({
     DateTime? since,
     DateTime? until,
     StudyActivityType? type,
   }) async {
-    var logs = await _readLogs();
+    var logs = await _readAllLogsMerged();
     if (since != null) {
       logs = logs.where((l) => l.timestamp.isAfter(since)).toList();
     }
@@ -60,6 +93,7 @@ class StudyLogRepository {
     return logs;
   }
 
+  @override
   Future<Map<String, DailyStudyStats>> readAllDailyStats() async {
     final cached = _dailyStatsCache;
     if (cached != null) return cached;
@@ -74,11 +108,7 @@ class StudyLogRepository {
     } catch (e) {
       // Corrupted prefs (partial write / migration glitch): return empty
       // instead of crashing the profile page. Mirrors SrsProvider.state guard.
-      assert(() {
-        // ignore: avoid_print
-        print('StudyLogRepository dailyStats decode failed: $e');
-        return true;
-      }());
+      logger.w('StudyLogRepository dailyStats decode failed: $e');
       return _dailyStatsCache = <String, DailyStudyStats>{};
     }
   }
@@ -88,6 +118,7 @@ class StudyLogRepository {
     return all[_dateKey(date)];
   }
 
+  @override
   Future<List<DailyStudyStats>> readLastNDays(int n) async {
     final all = await readAllDailyStats();
     final today = DateTime.now();
@@ -100,9 +131,11 @@ class StudyLogRepository {
     return result;
   }
 
+  @override
   Future<void> clearAll() async {
     await _enqueueWrite(() async {
       await appPrefs.preferences.setString(_logsKey, '[]');
+      await appPrefs.preferences.setString(_recentKey, '[]');
       await appPrefs.preferences.setString(_dailyStatsKey, '{}');
       _dailyStatsCache = <String, DailyStudyStats>{};
     });
@@ -116,28 +149,86 @@ class StudyLogRepository {
     _writeChain = _writeChain.then((_) => op()).catchError((Object e) {
       // Ignore: error here means a subsequent read will see stale stats,
       // but the next appendLog will repaint from the latest prefs read.
-      assert(() {
-        // ignore: avoid_print
-        print('StudyLogRepository write failed: $e');
-        return true;
-      }());
+      logger.w('StudyLogRepository write failed: $e');
     });
     return _writeChain;
   }
 
-  Future<List<StudyLog>> _readLogs() async {
+  Future<List<StudyLog>> _readMainLogs() async {
     final raw = appPrefs.preferences
         .getString(_logsKey, defaultValue: '[]')
         .getValue();
-    final list = jsonDecode(raw) as List<dynamic>;
-    return list
-        .map((e) => StudyLog.fromJson(e as Map<String, dynamic>))
-        .toList();
+    try {
+      final list = jsonDecode(raw) as List<dynamic>;
+      return list
+          .map((e) => StudyLog.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      logger.w('StudyLogRepository logs decode failed, treating as empty: $e');
+      return <StudyLog>[];
+    }
   }
 
-  Future<void> _writeLogs(List<StudyLog> logs) async {
+  Future<List<StudyLog>> _readRecentLogs() async {
+    final raw = appPrefs.preferences
+        .getString(_recentKey, defaultValue: '[]')
+        .getValue();
+    try {
+      final list = jsonDecode(raw) as List<dynamic>;
+      return list
+          .map((e) => StudyLog.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      logger.w(
+        'StudyLogRepository recent logs decode failed, treating as empty: $e',
+      );
+      return <StudyLog>[];
+    }
+  }
+
+  /// Merge main + recent by id (recent wins on collision), sorted by timestamp.
+  Future<List<StudyLog>> _readAllLogsMerged() async {
+    final main = await _readMainLogs();
+    final recent = await _readRecentLogs();
+    if (recent.isEmpty) return main;
+    if (main.isEmpty) return recent;
+
+    final byId = <String, StudyLog>{};
+    for (final log in main) {
+      byId[log.id] = log;
+    }
+    for (final log in recent) {
+      byId[log.id] = log;
+    }
+    final merged = byId.values.toList()
+      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    return merged;
+  }
+
+  Future<void> _writeMainLogs(List<StudyLog> logs) async {
     final encoded = jsonEncode(logs.map((l) => l.toJson()).toList());
     await appPrefs.preferences.setString(_logsKey, encoded);
+  }
+
+  Future<void> _writeRecentLogs(List<StudyLog> logs) async {
+    final encoded = jsonEncode(logs.map((l) => l.toJson()).toList());
+    await appPrefs.preferences.setString(_recentKey, encoded);
+  }
+
+  Future<void> _mergeRecentIntoMain(List<StudyLog> recent) async {
+    final main = await _readMainLogs();
+    final byId = <String, StudyLog>{};
+    for (final log in main) {
+      byId[log.id] = log;
+    }
+    for (final log in recent) {
+      byId[log.id] = log;
+    }
+    final merged = byId.values.toList()
+      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    _purgeOldLogs(merged);
+    await _writeMainLogs(merged);
+    await appPrefs.preferences.setString(_recentKey, '[]');
   }
 
   void _purgeOldLogs(List<StudyLog> logs) {

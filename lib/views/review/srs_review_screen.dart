@@ -232,7 +232,7 @@ class _SrsReviewPageState extends State<SrsReviewPage> {
                     onPressed: () => setState(() => _showAnswer = true),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: VarnamalaTheme.peacockTeal,
-                      foregroundColor: Colors.white,
+                      foregroundColor: VarnamalaTheme.textOnPrimary,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius:
@@ -312,6 +312,7 @@ class _FlashCard extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               IconButton(
+                tooltip: 'Play pronunciation',
                 onPressed: onSpeak,
                 icon: const Icon(Icons.volume_up_rounded),
                 iconSize: 32,

@@ -57,6 +57,9 @@ class PiperSwahiliTts {
   int _autoRetryCount = 0;
   String? _lastError;
 
+  /// In-flight init waiters share this completer (no busy-wait polling).
+  Completer<void>? _initCompleter;
+
   // Serializes synthesize requests: only one inference runs at a time so the
   // single worker isolate isn't asked to overlap generations.
   Future<void> _inflight = Future<void>.value();
@@ -169,11 +172,10 @@ class PiperSwahiliTts {
   }
 
   Future<void> _init() async {
-    if (_initializing) {
-      // Wait for the in-flight init by polling lightly (single isolate).
-      while (_initializing) {
-        await Future<void>.delayed(const Duration(milliseconds: 20));
-      }
+    // Join an in-flight init instead of busy-polling `_initializing`.
+    final inFlight = _initCompleter;
+    if (inFlight != null) {
+      await inFlight.future;
       if (_worker != null) return;
       if (_initFailed) {
         throw StateError(
@@ -184,6 +186,9 @@ class PiperSwahiliTts {
       return;
     }
     if (_worker != null) return;
+
+    final completer = Completer<void>();
+    _initCompleter = completer;
     _initializing = true;
 
     try {
@@ -217,13 +222,18 @@ class PiperSwahiliTts {
       _lastError = null;
       _autoRetryCount = 0;
       debugPrint('PiperSwahiliTts: worker initialized from $_assetDir');
+      if (!completer.isCompleted) completer.complete();
     } catch (e, st) {
       _initFailed = true;
       _lastError = e.toString();
       debugPrint('PiperSwahiliTts init failed: $e\n$st');
+      // Complete (not completeError) so waiters re-check `_initFailed` /
+      // `_worker` with a consistent StateError message.
+      if (!completer.isCompleted) completer.complete();
       rethrow;
     } finally {
       _initializing = false;
+      _initCompleter = null;
     }
   }
 

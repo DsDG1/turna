@@ -242,6 +242,24 @@ void main() {
       expect(srs.expressionDueCount, 2);
       expect(srs.getDueExpressions(DateTime.now()), hasLength(2));
     });
+
+    test('expressionDueCount caches the computed value', () {
+      srs.registerExpression('e-1');
+      srs.registerExpression('e-2');
+
+      final first = srs.expressionDueCount;
+      expect(first, 2);
+      final second = srs.expressionDueCount;
+      expect(second, first);
+    });
+
+    test('expressionDueCount cache is invalidated after a review', () async {
+      srs.registerExpression('e-1');
+      expect(srs.expressionDueCount, 1);
+
+      await srs.reviewExpression('e-1', ReviewQuality.good.sm2);
+      expect(srs.expressionDueCount, 0);
+    });
   });
 
   group('review progression', () {
