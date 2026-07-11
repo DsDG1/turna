@@ -36,11 +36,33 @@ class FakeAudioController implements AudioController {
   Future<void> stopSystemTts() async {}
 
   @override
-  Future<void> speakFromAsset(String assetPath) async {}
+  Future<void> speakFromAsset(String assetPath) async {
+    spoken.add(assetPath);
+  }
 
   @override
   Future<void> speakWord(String wordId) async {
     spoken.add(wordId);
+  }
+
+  @override
+  Future<void> speakListenContent({
+    String? audioAsset,
+    String transcript = '',
+  }) async {
+    final asset = audioAsset?.trim();
+    final text = transcript.trim();
+    if (asset != null && asset.isNotEmpty) {
+      if (AudioController.isAssetPath(asset)) {
+        await speakFromAsset(asset);
+      } else if (text.isNotEmpty) {
+        await speak(text);
+      } else {
+        await speakWord(asset);
+      }
+    } else if (text.isNotEmpty) {
+      await speak(text);
+    }
   }
 
   @override

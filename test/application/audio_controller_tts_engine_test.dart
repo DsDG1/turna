@@ -8,9 +8,16 @@ import 'package:varnamala/application/language_provider.dart';
 import 'package:varnamala/application/settings_provider.dart';
 import 'package:varnamala/core/enums.dart';
 import 'package:varnamala/di/injection.dart';
+import 'package:varnamala/domain/audio/vocab_audio_resolver.dart';
 import 'package:varnamala/service/locator.dart';
 import 'package:varnamala/service/piper_swahili_tts.dart';
 import 'package:varnamala/service/tts_availability_checker.dart';
+
+class _PassthroughVocabResolver implements VocabAudioResolver {
+  @override
+  ResolvedVocabAudio resolve(String wordId) =>
+      ResolvedVocabAudio(speakText: wordId);
+}
 
 class _FakeFlutterTts implements FlutterTts {
   _FakeFlutterTts({
@@ -125,6 +132,7 @@ AudioController _buildController({
     tts,
     _FakeLanguageProvider(),
     settings,
+    _PassthroughVocabResolver(),
     audioPlayer: _FakeAudioPlayer(),
     speechPlayer: _FakeAudioPlayer(),
     piperTts: piper,

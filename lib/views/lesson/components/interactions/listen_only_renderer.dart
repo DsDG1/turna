@@ -64,23 +64,12 @@ class _ListenOnlyBodyState extends State<_ListenOnlyBody> {
   bool _hasPlayed = false;
 
   Future<void> _speak() async {
-    final audio = getIt<AudioController>();
-    final asset = widget.audioAsset?.trim();
-    final transcript = widget.transcript.trim();
-
-    if (asset != null && asset.isNotEmpty) {
-      if (asset.contains('/') || asset.startsWith('assets')) {
-        await audio.speakFromAsset(asset);
-      } else if (transcript.isNotEmpty) {
-        // Prefer readable transcript for TTS when asset is a logical id
-        // without offline path; still try word-id path if no transcript.
-        await audio.speak(transcript);
-      } else {
-        await audio.speakWord(asset);
-      }
-    } else if (transcript.isNotEmpty) {
-      await audio.speak(transcript);
-    }
+    // Path-vs-word-id routing and asset-prefix normalization live in
+    // AudioController so renderers stay free of content/path heuristics.
+    await getIt<AudioController>().speakListenContent(
+      audioAsset: widget.audioAsset,
+      transcript: widget.transcript,
+    );
 
     if (mounted) setState(() => _hasPlayed = true);
   }

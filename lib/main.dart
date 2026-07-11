@@ -11,7 +11,8 @@ import 'package:varnamala/courses/languages/grammar_points.dart';
 import 'package:varnamala/courses/languages/swahili_vocab.dart';
 import 'package:varnamala/core/logger.dart';
 import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/routing/routing.dart';
+import 'package:varnamala/application/settings_provider.dart';
+import 'package:varnamala/service/local_reminder_service.dart';
 import 'package:varnamala/service/locator.dart';
 import 'package:varnamala/service/piper_swahili_tts.dart';
 import 'package:varnamala/service/tts_availability_checker.dart';
@@ -42,7 +43,7 @@ Future<void> main() async {
 
   WidgetsFlutterBinding.ensureInitialized();
   configureDependencies();
-  getIt.registerLazySingleton<AppRouter>(() => AppRouter());
+  // AppRouter is registered via Injectable (@lazySingleton on AppRouter).
 
   // AppPrefs (and other async-native services) must be registered before the
   // first frame because MultiProvider creates ThemeProvider immediately.
@@ -78,6 +79,15 @@ Future<void> main() async {
       // does not stall on model load. Fire-and-forget: it runs in its own
       // isolate and never blocks the UI.
       getIt<PiperSwahiliTts>().prewarm().catchError((_) {/* best-effort */});
+
+      // Re-arm daily reminder from prefs (best-effort; never block UI).
+      try {
+        final settings = getIt<SettingsProvider>();
+        await getIt<LocalReminderService>().applyFromSettings(
+          enabled: settings.dailyReminderEnabled,
+          time: settings.dailyReminderTime,
+        );
+      } catch (_) {/* best-effort */}
     }
   });
 }

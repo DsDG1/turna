@@ -13,8 +13,7 @@ import 'package:injectable/injectable.dart';
 import 'package:varnamala/application/language_provider.dart';
 import 'package:varnamala/application/settings_provider.dart';
 import 'package:varnamala/core/enums.dart';
-import 'package:varnamala/courses/languages/swahili_vocab.dart';
-import 'package:varnamala/di/injection.dart';
+import 'package:varnamala/domain/audio/vocab_audio_resolver.dart';
 import 'package:varnamala/gen/assets.gen.dart';
 import 'package:varnamala/service/piper_swahili_tts.dart';
 import 'package:varnamala/service/tts_availability_checker.dart';
@@ -63,6 +62,7 @@ class AudioController {
   final FlutterTts _tts;
   final LanguageProvider _languageProvider;
   final SettingsProvider _settingsProvider;
+  final VocabAudioResolver _vocabAudioResolver;
   final PiperSwahiliTts? _piperTts;
   final TtsAvailabilityChecker? _ttsChecker;
   final Random _random = Random();
@@ -77,7 +77,8 @@ class AudioController {
   AudioController(
     this._tts,
     this._languageProvider,
-    this._settingsProvider, {
+    this._settingsProvider,
+    this._vocabAudioResolver, {
     @Named('audioPlayer') required AudioPlayer audioPlayer,
     @Named('speechPlayer') required AudioPlayer speechPlayer,
     PiperSwahiliTts? piperTts,
@@ -120,16 +121,14 @@ class AudioController {
   }
 
   void _triggerHaptic(HapticFeedbackType type) {
-    getIt<SettingsProvider>().triggerHaptic(type);
+    _settingsProvider.triggerHaptic(type);
   }
 
   Future<void> _playSound(String assetPath) async {
-    if (!getIt<SettingsProvider>().soundEffectsEnabled) return;
+    if (!_settingsProvider.soundEffectsEnabled) return;
     try {
-      // need to remove the assets/ prefix from the asset path
-      final String path = assetPath.replaceFirst('assets/', '');
       await _audioPlayer.play(
-        AssetSource(path),
+        AssetSource(normalizeAssetPath(assetPath)),
         mode: PlayerMode.lowLatency,
       );
     } catch (e) {
@@ -346,13 +345,36 @@ class AudioController {
     }
   }
 
-  /// Play a pre-recorded audio asset. [assetPath] is expected to start with
-  /// `assets/`; the prefix is stripped before passing to [AudioPlayer].
+  /// Whether [ref] looks like a bundled asset path rather than a logical id.
+  ///
+  /// Paths contain `/` or start with `assets`; vocab word ids are bare tokens.
+  @visibleForTesting
+  static bool isAssetPath(String ref) {
+    final t = ref.trim();
+    return t.contains('/') || t.startsWith('assets');
+  }
+
+  /// Strip leading `/` and optional `assets/` so [AssetSource] gets a relative
+  /// path (e.g. `audio/swahili/test.mp3`).
+  @visibleForTesting
+  static String normalizeAssetPath(String assetPath) {
+    var path = assetPath.trim();
+    if (path.startsWith('/')) {
+      path = path.substring(1);
+    }
+    if (path.startsWith('assets/')) {
+      path = path.substring('assets/'.length);
+    }
+    return path;
+  }
+
+  /// Play a pre-recorded audio asset. Accepts paths with or without an
+  /// `assets/` prefix (and optional leading `/`); normalization is applied
+  /// before passing to [AudioPlayer].
   Future<void> speakFromAsset(String assetPath) async {
     try {
-      final String path = assetPath.replaceFirst('assets/', '');
       await _speechPlayer.stop();
-      await _speechPlayer.play(AssetSource(path));
+      await _speechPlayer.play(AssetSource(normalizeAssetPath(assetPath)));
     } catch (e) {
       debugPrint('Error playing asset audio: $e');
     }
@@ -360,13 +382,42 @@ class AudioController {
 
   /// Speak a vocabulary word. Prefers the offline [audioAsset] if present,
   /// otherwise falls back to TTS of the word term.
+  ///
+  /// Content lookup goes through [VocabAudioResolver] so this class does not
+  /// import language-specific vocab maps.
   Future<void> speakWord(String wordId) async {
-    final entry = swahiliVocabById[wordId];
-    if (entry?.audioAsset?.isNotEmpty == true) {
-      await speakFromAsset(entry!.audioAsset!);
+    final resolved = _vocabAudioResolver.resolve(wordId);
+    final asset = resolved.audioAsset;
+    if (asset != null && asset.isNotEmpty) {
+      await speakFromAsset(asset);
       return;
     }
-    await speak(entry?.term ?? wordId);
+    await speak(resolved.speakText);
+  }
+
+  /// Listen-only / mixed content helper: [audioAsset] may be an asset path or
+  /// a logical word id. Path detection lives here so renderers only call this
+  /// (or plain [speak] / [speakFromAsset] / [speakWord]).
+  Future<void> speakListenContent({
+    String? audioAsset,
+    String transcript = '',
+  }) async {
+    final asset = audioAsset?.trim();
+    final text = transcript.trim();
+
+    if (asset != null && asset.isNotEmpty) {
+      if (isAssetPath(asset)) {
+        await speakFromAsset(asset);
+      } else if (text.isNotEmpty) {
+        // Prefer readable transcript for TTS when asset is a logical id
+        // without an offline path.
+        await speak(text);
+      } else {
+        await speakWord(asset);
+      }
+    } else if (text.isNotEmpty) {
+      await speak(text);
+    }
   }
 
   /// Set the global TTS speed. Clamped to [0.5, 2.0].
