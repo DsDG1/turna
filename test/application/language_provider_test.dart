@@ -10,10 +10,10 @@ class _FakeAppPrefs implements AppPrefs {
 
 void main() {
   group('LanguageProvider', () {
-    test('ttsLanguageCode returns sw for Swahili', () {
+    test('ttsLanguageCode returns tr for Turkish', () {
       final provider = LanguageProvider(_FakeAppPrefs());
-      provider.selectedLanguage = TargetLanguage.swahili;
-      expect(provider.ttsLanguageCode, 'sw');
+      provider.selectedLanguage = TargetLanguage.turkish;
+      expect(provider.ttsLanguageCode, 'tr');
     });
   });
 }

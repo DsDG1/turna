@@ -8,7 +8,14 @@ import 'package:varnamala/domain/course/stage.dart';
 import 'package:varnamala/domain/course/sub_lesson.dart';
 import 'package:varnamala/domain/course/word_entry.dart';
 
-/// Thrown by [validateSwahiliCourse] when the bundled course JSON violates a
+/// Design-contract limits for course-tree performance (~9300 lessons target).
+/// Enforced at seed/CI ([validateCourse] / [validateSection]) and on
+/// runtime L1 open ([validateSectionTree]). Soft production targets are lower
+/// (≈30 lessons/unit); these are hard fail ceilings.
+const int kMaxUnitsPerSection = 60;
+const int kMaxLessonsPerUnit = 40;
+
+/// Thrown by [validateCourse] when the bundled course JSON violates a
 /// structural invariant. Carries every problem found in one pass so an
 /// author can fix them all at once instead of one error per run.
 class CourseValidationException implements Exception {
@@ -47,7 +54,7 @@ class CourseValidationException implements Exception {
 ///  - Every [ShowWord.wordId] resolves to a [WordEntry] in [vocabulary].
 ///  - Every [ShowWord.expressionId] (when present) resolves to an [Expression]
 ///    in [expressions].
-void validateSwahiliCourse(
+void validateCourse(
   List<Section> sections,
   List<WordEntry> vocabulary, [
   List<Expression> expressions = const [],
@@ -69,12 +76,24 @@ void validateSwahiliCourse(
   // Units.
   final unitIds = <String>{};
   for (final section in sections) {
+    if (section.units.length > kMaxUnitsPerSection) {
+      errors.add(
+        'Section ${section.id} has ${section.units.length} units '
+        '(max $kMaxUnitsPerSection).',
+      );
+    }
     for (final unit in section.units) {
       if (unit.id.isEmpty) {
         errors.add('Unit "${unit.name}" in section ${section.id} has an empty '
             'id.');
       } else if (!unitIds.add(unit.id)) {
         errors.add('Duplicate unit id: ${unit.id}.');
+      }
+      if (unit.lessons.length > kMaxLessonsPerUnit) {
+        errors.add(
+          'Unit ${unit.id} has ${unit.lessons.length} lessons '
+          '(max $kMaxLessonsPerUnit).',
+        );
       }
     }
   }
@@ -115,7 +134,7 @@ void validateSwahiliCourse(
 ///
 /// Cross-course invariants (unit/lesson ids unique across the whole course)
 /// are NOT checked here — those need every section assembled together and are
-/// enforced offline/CI by [validateSwahiliCourse].
+/// enforced offline/CI by [validateCourse].
 void validateSection(
   Section section,
   Set<String> vocabIds, [
@@ -127,6 +146,13 @@ void validateSection(
     errors.add('Section "${section.name}" has an empty id.');
   }
 
+  if (section.units.length > kMaxUnitsPerSection) {
+    errors.add(
+      'Section ${section.id} has ${section.units.length} units '
+      '(max $kMaxUnitsPerSection).',
+    );
+  }
+
   // Units (unique within this section).
   final unitIds = <String>{};
   for (final unit in section.units) {
@@ -136,6 +162,12 @@ void validateSection(
     } else if (!unitIds.add(unit.id)) {
       errors.add('Duplicate unit id: ${unit.id} (within section '
           '${section.id}).');
+    }
+    if (unit.lessons.length > kMaxLessonsPerUnit) {
+      errors.add(
+        'Unit ${unit.id} has ${unit.lessons.length} lessons '
+        '(max $kMaxLessonsPerUnit).',
+      );
     }
   }
 
@@ -152,6 +184,57 @@ void validateSection(
       }
 
       _validateLessonContent(lesson, vocabIds, expressionIds, errors);
+    }
+  }
+
+  if (errors.isNotEmpty) {
+    throw CourseValidationException(errors);
+  }
+}
+
+/// Lightweight L1 gate for runtime [CourseLoader.loadSection].
+///
+/// Checks ids, within-section uniqueness, and [kMaxUnitsPerSection] /
+/// [kMaxLessonsPerUnit] only. Does **not** walk lesson content (bodies are
+/// empty on the tree path and validated offline/CI or at seed time).
+void validateSectionTree(Section section) {
+  final errors = <String>[];
+
+  if (section.id.isEmpty) {
+    errors.add('Section "${section.name}" has an empty id.');
+  }
+
+  if (section.units.length > kMaxUnitsPerSection) {
+    errors.add(
+      'Section ${section.id} has ${section.units.length} units '
+      '(max $kMaxUnitsPerSection).',
+    );
+  }
+
+  final unitIds = <String>{};
+  final lessonIds = <String>{};
+  for (final unit in section.units) {
+    if (unit.id.isEmpty) {
+      errors.add('Unit "${unit.name}" in section ${section.id} has an empty '
+          'id.');
+    } else if (!unitIds.add(unit.id)) {
+      errors.add('Duplicate unit id: ${unit.id} (within section '
+          '${section.id}).');
+    }
+    if (unit.lessons.length > kMaxLessonsPerUnit) {
+      errors.add(
+        'Unit ${unit.id} has ${unit.lessons.length} lessons '
+        '(max $kMaxLessonsPerUnit).',
+      );
+    }
+    for (final lesson in unit.lessons) {
+      if (lesson.id.isEmpty) {
+        errors.add('Lesson "${lesson.name}" in unit ${unit.id} has an empty '
+            'id.');
+      } else if (!lessonIds.add(lesson.id)) {
+        errors.add('Duplicate lesson id: ${lesson.id} (within section '
+            '${section.id}).');
+      }
     }
   }
 

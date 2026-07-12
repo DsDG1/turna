@@ -40,7 +40,7 @@ class Args:
 
 class TestCourseCli(unittest.TestCase):
     def setUp(self) -> None:
-        self.course_dir = PROJECT_ROOT / "assets" / "courses" / "swahili"
+        self.course_dir = PROJECT_ROOT / "assets" / "courses" / "turkish"
 
     def test_validate_passes_for_bundled_course(self) -> None:
         args = Args(course_dir=self.course_dir)
@@ -48,17 +48,19 @@ class TestCourseCli(unittest.TestCase):
 
     def test_validate_fails_on_dangling_word_id(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            tmp_course = Path(tmp) / "swahili"
+            tmp_course = Path(tmp) / "turkish"
             shutil.copytree(self.course_dir, tmp_course)
 
-            section_path = tmp_course / "sections" / "section4.json"
+            section_path = tmp_course / "sections" / "section1.json"
             section = load_json(section_path)
-            # Replace the first ShowWord with a dangling word id.
-            first_item = section["units"][0]["lessons"][0]["content"]["stages"][0][
-                "items"
-            ][0]
-            self.assertEqual(first_item.get("runtimeType"), "showWord")
-            first_item["wordId"] = "w-does-not-exist"
+            # Insert a ShowWord with a dangling word id at the front of the
+            # first stage. The scaffold ships an empty vocab, so any word id
+            # is dangling.
+            first_stage = section["units"][0]["lessons"][0]["content"]["stages"][0]
+            first_stage["items"].insert(
+                0,
+                {"runtimeType": "showWord", "id": "sw-bad", "wordId": "w-does-not-exist"},
+            )
             section_path.write_text(json.dumps(section, indent=2), encoding="utf-8")
 
             args = Args(course_dir=tmp_course)
@@ -66,13 +68,16 @@ class TestCourseCli(unittest.TestCase):
 
     def test_validate_fails_on_duplicate_lesson_id(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            tmp_course = Path(tmp) / "swahili"
+            tmp_course = Path(tmp) / "turkish"
             shutil.copytree(self.course_dir, tmp_course)
 
-            section_path = tmp_course / "sections" / "section4.json"
+            section_path = tmp_course / "sections" / "section1.json"
             section = load_json(section_path)
             lessons = section["units"][0]["lessons"]
-            lessons[1]["id"] = lessons[0]["id"]
+            # Append a second lesson that duplicates the first lesson's id.
+            dup = json.loads(json.dumps(lessons[0]))
+            dup["id"] = lessons[0]["id"]
+            lessons.append(dup)
             section_path.write_text(json.dumps(section, indent=2), encoding="utf-8")
 
             args = Args(course_dir=tmp_course)
@@ -86,31 +91,29 @@ class TestCourseCli(unittest.TestCase):
             self.assertTrue(out_path.exists())
             text = out_path.read_text(encoding="utf-8")
             self.assertIn("id,term,translation,pronunciation,audioAsset,tags", text)
-            self.assertIn("w-mimi,Mimi,I,mi-mi,,pronoun", text)
+            # The Turkish course ships real greeting vocab, so the CSV has a
+            # header row plus at least one data row (e.g. w-merhaba).
+            lines = text.splitlines()
+            self.assertGreaterEqual(len(lines), 2)
+            self.assertTrue(any(line.startswith("w-merhaba,") for line in lines))
 
     def test_import_csv_round_trip(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            tmp_course = Path(tmp) / "swahili"
+            tmp_course = Path(tmp) / "turkish"
             shutil.copytree(self.course_dir, tmp_course)
 
-            # Export existing vocab.
+            # Export existing vocab (real greeting words + header).
             export_path = Path(tmp) / "vocab.csv"
             args = Args(
                 course_dir=tmp_course, type="vocab", output=str(export_path)
             )
             self.assertEqual(cmd_export_csv(args), 0)
 
-            # Modify a row and add a new row.
+            # Add a new row.
             text = export_path.read_text(encoding="utf-8")
             lines = text.splitlines()
-            new_lines = []
-            for line in lines:
-                if line.startswith("w-mimi,"):
-                    new_lines.append("w-mimi,Mimi,I,mi-mi,,pronoun")
-                else:
-                    new_lines.append(line)
-            new_lines.append("w-new-word,New,New translation,,,noun")
-            export_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+            lines.append("w-new-word,New,New translation,,,noun")
+            export_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
             # Import back.
             args = Args(
@@ -123,7 +126,6 @@ class TestCourseCli(unittest.TestCase):
 
             vocab = load_vocab(tmp_course)
             by_id = {w["id"]: w for w in vocab}
-            self.assertEqual(by_id["w-mimi"]["term"], "Mimi")
             self.assertEqual(by_id["w-new-word"]["term"], "New")
 
     def test_lint_detects_missing_audio(self) -> None:
@@ -134,7 +136,7 @@ class TestCourseCli(unittest.TestCase):
 
     def test_audio_manifest_lists_referenced_assets(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            tmp_course = Path(tmp) / "swahili"
+            tmp_course = Path(tmp) / "turkish"
             shutil.copytree(self.course_dir, tmp_course)
 
             # Add a listening lesson referencing a listening asset that is not
@@ -159,7 +161,7 @@ class TestCourseCli(unittest.TestCase):
                                             "id": "p-1",
                                             "name": "P1",
                                             "audioAsset": "l-pilot-dialogue",
-                                            "transcript": "Habari za asubuhi",
+                                            "transcript": "Merhaba",
                                         }
                                     ]
                                 },
@@ -188,7 +190,6 @@ class TestCourseCli(unittest.TestCase):
             self.assertIn("l-pilot-dialogue,listening,", text)
             self.assertIn(",missing", text)
             # Word/expression ids are NOT listed (runtime TTS handles them).
-            self.assertNotIn("w-ndiyo", text)
             self.assertNotIn(",word,", text)
             self.assertNotIn(",expression,", text)
             self.assertNotIn(",lesson,", text)

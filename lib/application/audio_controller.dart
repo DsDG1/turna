@@ -12,16 +12,13 @@ import 'package:injectable/injectable.dart';
 // Project imports:
 import 'package:varnamala/application/language_provider.dart';
 import 'package:varnamala/application/settings_provider.dart';
-import 'package:varnamala/core/enums.dart';
 import 'package:varnamala/domain/audio/vocab_audio_resolver.dart';
 import 'package:varnamala/gen/assets.gen.dart';
-import 'package:varnamala/service/piper_swahili_tts.dart';
 import 'package:varnamala/service/tts_availability_checker.dart';
 
 /// Which backend actually produced the last [AudioController.speak] utterance.
 enum TtsSpeakSource {
   system,
-  piper,
   failed,
 }
 
@@ -37,18 +34,13 @@ class TtsSpeakResult {
   final String? error;
 
   /// True when the preferred engine failed and a secondary engine spoke.
+  /// Always `false` in this build (system TTS only — no fallback).
   final bool usedFallback;
 
   String get userLabel {
     switch (source) {
       case TtsSpeakSource.system:
-        return usedFallback
-            ? 'Google / system TTS (offline failed)'
-            : 'Google / system TTS';
-      case TtsSpeakSource.piper:
-        return usedFallback
-            ? 'Offline Piper (system failed)'
-            : 'Offline Piper';
+        return 'Google / system TTS';
       case TtsSpeakSource.failed:
         return 'No voice played';
     }
@@ -63,7 +55,6 @@ class AudioController {
   final LanguageProvider _languageProvider;
   final SettingsProvider _settingsProvider;
   final VocabAudioResolver _vocabAudioResolver;
-  final PiperSwahiliTts? _piperTts;
   final TtsAvailabilityChecker? _ttsChecker;
   final Random _random = Random();
 
@@ -81,11 +72,9 @@ class AudioController {
     this._vocabAudioResolver, {
     @Named('audioPlayer') required AudioPlayer audioPlayer,
     @Named('speechPlayer') required AudioPlayer speechPlayer,
-    PiperSwahiliTts? piperTts,
     TtsAvailabilityChecker? ttsChecker,
   })  : _audioPlayer = audioPlayer,
         _speechPlayer = speechPlayer,
-        _piperTts = piperTts,
         _ttsChecker = ttsChecker {
     _ttsSpeed = _settingsProvider.ttsSpeed;
   }
@@ -162,7 +151,7 @@ class AudioController {
   /// Prefers Google TTS on Android, then sets language for the current target.
   ///
   /// Throws [StateError] when no usable system locale can be bound so the
-  /// caller can fall back to Piper instead of speaking with the wrong voice.
+  /// caller can report the failure instead of speaking with the wrong voice.
   Future<void> _ensureSystemTtsReady() async {
     final baseLang = _languageProvider.ttsLanguageCode;
     final checker = _ttsChecker;
@@ -171,7 +160,7 @@ class AudioController {
     String? lang;
     if (checker != null) {
       // resolveLanguageCode configures Google TTS first, then picks a locale
-      // the engine actually reports as available (e.g. sw-KE).
+      // the engine actually reports as available (e.g. tr-TR).
       lang = await checker.resolveLanguageCode(baseLang);
       if (!wasConfigured) {
         // Engine may have been selected for the first time → force setLanguage.
@@ -184,7 +173,7 @@ class AudioController {
     if (lang == null) {
       throw StateError(
         'No system TTS locale available for "$baseLang" '
-        '(install Google TTS + Swahili voice data)',
+        '(install Google TTS + Turkish voice data)',
       );
     }
 
@@ -202,14 +191,13 @@ class AudioController {
   }
 
   /// Re-select Google TTS (if present) and clear the cached language so the
-  /// next [speak] re-binds locale. Used when the user switches back to system
-  /// TTS in settings.
+  /// next [speak] re-binds locale. Used when the user revisits TTS settings.
   Future<void> rebindSystemTts() async {
     _lastTtsLanguage = null;
     await _ttsChecker?.configureSystemEngine(force: true);
   }
 
-  /// Stop any in-progress system TTS (e.g. before offline Piper playback).
+  /// Stop any in-progress system TTS.
   Future<void> stopSystemTts() async {
     try {
       await _tts.stop();
@@ -233,19 +221,6 @@ class AudioController {
     }
   }
 
-  Future<void> _speakWithPiper(String text, double effectiveSpeed) async {
-    final piper = _piperTts;
-    if (piper == null) {
-      throw StateError('Piper TTS not registered');
-    }
-    if (_languageProvider.selectedLanguage != TargetLanguage.swahili) {
-      throw StateError('Piper only supports Swahili');
-    }
-    // Avoid Google still holding the audio focus on some OEMs.
-    await stopSystemTts();
-    await piper.speak(text, speed: effectiveSpeed);
-  }
-
   /// Speak arbitrary [text] using TTS in the current target language.
   /// [speed] overrides the current global speed for this utterance.
   ///
@@ -256,10 +231,9 @@ class AudioController {
 
   /// Like [speak], but returns which backend produced audio.
   ///
-  /// Routing:
-  /// - [TtsEngine.system]: device/Google first, then Piper fallback.
-  /// - [TtsEngine.offline]: Piper first, then system fallback (still audible,
-  ///   but [TtsSpeakResult.usedFallback] is true so settings can warn).
+  /// This build routes through the device/Google system TTS only. If it
+  /// fails, [TtsSpeakSource.failed] is returned with the error — there is no
+  /// offline fallback in this build.
   Future<TtsSpeakResult> speakWithResult(String text, {double? speed}) async {
     if (text.isEmpty) {
       const empty = TtsSpeakResult(
@@ -271,74 +245,18 @@ class AudioController {
     }
 
     final effectiveSpeed = speed ?? _ttsSpeed;
-    final engine = _settingsProvider.ttsEngine;
-    Object? preferredError;
-
-    if (engine == TtsEngine.system) {
-      try {
-        await _speakWithSystemTts(text, effectiveSpeed);
-        const ok = TtsSpeakResult(source: TtsSpeakSource.system);
-        _lastSpeakResult = ok;
-        debugPrint('TTS route: system primary OK');
-        return ok;
-      } catch (e) {
-        preferredError = e;
-        debugPrint('TTS route: system failed → piper fallback: $e');
-      }
-
-      try {
-        debugPrint('TTS route: piper fallback (rate=$effectiveSpeed)');
-        await _speakWithPiper(text, effectiveSpeed);
-        final ok = TtsSpeakResult(
-          source: TtsSpeakSource.piper,
-          usedFallback: true,
-          error: preferredError.toString(),
-        );
-        _lastSpeakResult = ok;
-        return ok;
-      } catch (e) {
-        debugPrint('Piper Swahili TTS failed: $e');
-        final fail = TtsSpeakResult(
-          source: TtsSpeakSource.failed,
-          error: 'system: $preferredError; piper: $e',
-        );
-        _lastSpeakResult = fail;
-        return fail;
-      }
-    }
-
-    // Offline preferred.
-    try {
-      debugPrint(
-        'TTS route: offline primary (piper, rate=$effectiveSpeed)',
-      );
-      await _speakWithPiper(text, effectiveSpeed);
-      const ok = TtsSpeakResult(source: TtsSpeakSource.piper);
-      _lastSpeakResult = ok;
-      debugPrint('TTS route: offline primary OK');
-      return ok;
-    } catch (e) {
-      preferredError = e;
-      debugPrint('Piper Swahili TTS failed: $e');
-    }
 
     try {
       await _speakWithSystemTts(text, effectiveSpeed);
-      debugPrint(
-        'TTS route: offline failed → system fallback (lang=$_lastTtsLanguage)',
-      );
-      final ok = TtsSpeakResult(
-        source: TtsSpeakSource.system,
-        usedFallback: true,
-        error: preferredError.toString(),
-      );
+      const ok = TtsSpeakResult(source: TtsSpeakSource.system);
       _lastSpeakResult = ok;
+      debugPrint('TTS route: system OK');
       return ok;
     } catch (e) {
-      debugPrint('Offline fallback also failed: $e');
+      debugPrint('TTS route: system failed: $e');
       final fail = TtsSpeakResult(
         source: TtsSpeakSource.failed,
-        error: 'piper: $preferredError; system: $e',
+        error: 'system: $e',
       );
       _lastSpeakResult = fail;
       return fail;
@@ -355,7 +273,7 @@ class AudioController {
   }
 
   /// Strip leading `/` and optional `assets/` so [AssetSource] gets a relative
-  /// path (e.g. `audio/swahili/test.mp3`).
+  /// path (e.g. `audio/turkish/test.mp3`).
   @visibleForTesting
   static String normalizeAssetPath(String assetPath) {
     var path = assetPath.trim();

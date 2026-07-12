@@ -34,6 +34,21 @@ extension AnswerStateX on AnswerState {
   bool get isIncorrect => this == AnswerState.incorrect;
 }
 
+/// Snapshot of one submitted question for the lesson-completion summary.
+class QuestionResult {
+  final String prompt;
+  final bool correct;
+  final String? userAnswer;
+  final String? correctAnswer;
+
+  const QuestionResult({
+    required this.prompt,
+    required this.correct,
+    this.userAnswer,
+    this.correctAnswer,
+  });
+}
+
 /// ViewModel for the lesson flow.
 ///
 /// Owns progression through [Stage]s inside a [Lesson]. Every lesson —
@@ -99,7 +114,40 @@ class LessonViewModel extends ChangeNotifier {
   bool get masteryPassed => _masteryPassed;
   int get masteryAttempts => _masteryAttempts;
   int get correctAnswers => _correctAnswers;
+  int get incorrectAnswers => _incorrectAnswers;
   int get totalInteractionCount => _totalItemCount;
+
+  /// Seconds elapsed since the lesson started. Returns 0 when no lesson is
+  /// loaded or the clock has not been set.
+  int get durationSeconds {
+    final start = _lessonStartTime;
+    if (start == null) return 0;
+    return DateTime.now().difference(start).inSeconds;
+  }
+
+  /// A per-question snapshot of the user's performance, in lesson order.
+  List<QuestionResult> get questionResults {
+    final results = <QuestionResult>[];
+    final stages = _stages;
+    for (var stageIndex = 0; stageIndex < stages.length; stageIndex++) {
+      final stage = stages[stageIndex];
+      for (var itemIndex = 0; itemIndex < stage.items.length; itemIndex++) {
+        final item = stage.items[itemIndex];
+        final itemId = interactionItemId(stage.id, item.id, itemIndex);
+        final state = _interactionStates[itemId];
+        if (state == null || !state.submitted) continue;
+        results.add(
+          QuestionResult(
+            prompt: interactionPromptLabel(item),
+            correct: state.correct == true,
+            userAnswer: state.userAnswerText,
+            correctAnswer: interactionCorrectAnswerLabel(item),
+          ),
+        );
+      }
+    }
+    return results;
+  }
 
   /// 1-based index of the question the user is currently answering, clamped
   /// to [totalInteractionCount] when the lesson is complete. Returns 0 when
@@ -182,16 +230,20 @@ class LessonViewModel extends ChangeNotifier {
 
   /// Load a lesson by ID and reset all progress state.
   ///
-  /// Prefers [CourseProvider] when the section body is already in memory;
-  /// otherwise falls back to [SwahiliCourse.loadLessonById] so deep links /
-  /// tests work without pre-loading the whole section tree.
+  /// Uses [CourseProvider] only when the cached [Lesson] already has body
+  /// content (tests / preloaded full lessons). The course tree holds L1
+  /// metadata with empty [Lesson.content], so those fall through to
+  /// [CourseLoader.loadLessonById] (L2).
   ///
   /// Returns `true` if the lesson was found and loaded.
   Future<bool> loadLesson(String lessonId) async {
     Lesson? lesson = _courseProvider.findLessonById(lessonId);
+    if (lesson != null && !_lessonHasBody(lesson)) {
+      lesson = null;
+    }
     if (lesson == null) {
       try {
-        lesson = await SwahiliCourse.loadLessonById(lessonId);
+        lesson = await CourseLoader.loadLessonById(lessonId);
       } catch (e) {
         debugPrint('loadLesson($lessonId) failed: $e');
         lesson = null;
@@ -210,6 +262,16 @@ class LessonViewModel extends ChangeNotifier {
 
     notifyListeners();
     return true;
+  }
+
+  /// True when [lesson] carries playable content (not L1 tree metadata).
+  static bool _lessonHasBody(Lesson lesson) {
+    final c = lesson.content;
+    return c.stages.isNotEmpty ||
+        c.subLessons.isNotEmpty ||
+        c.listeningPhases.isNotEmpty ||
+        c.readingPassage != null ||
+        c.passage.isNotEmpty;
   }
 
   /// Load an in-memory [Lesson] directly, bypassing the by-id lookup. Used

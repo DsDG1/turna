@@ -21,7 +21,7 @@ import '../helpers/in_memory_course_db.dart';
 
 Future<String> _tempDbPath() async {
   final dir = await Directory.systemTemp.createTemp('varnamala_seeder_');
-  return p.join(dir.path, 'course.swahili.db');
+  return p.join(dir.path, 'course.db');
 }
 
 Set<String> _ids(Iterable<dynamic> rows) =>
@@ -55,10 +55,12 @@ void main() {
           .getSingleOrNull();
 
       expect(sections1, isNotEmpty);
+      // The Turkish course ships real vocab (greeting words) + expressions;
+      // grammar points are still empty by design.
       expect(vocab1, isNotEmpty);
-      expect(grammar1, isNotEmpty);
-      // Current asset is legitimately empty — this is what triggered the bug.
-      expect(expressions1, isEmpty);
+      expect(grammar1, isEmpty);
+      // Expressions ship real content too.
+      expect(expressions1, isNotEmpty);
       expect(meta1, isNotNull);
 
       await db1.close();
@@ -106,6 +108,8 @@ void main() {
       });
 
       expect(await (db.select(db.sections)..limit(1)).get(), isEmpty);
+      // The course ships real vocab; the residue scenario still applies to
+      // the meta/sections mismatch path.
       expect(await (db.select(db.vocabulary)..limit(1)).get(), isNotEmpty);
       expect(
         (await (db.select(db.courseMeta)

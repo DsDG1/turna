@@ -182,7 +182,7 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
 
   GrammarPoint? get _currentPoint {
     if (_queue.isEmpty || _currentIndex >= _queue.length) return null;
-    return swahiliGrammarPointById[_queue[_currentIndex].wordId];
+    return grammarPointById[_queue[_currentIndex].wordId];
   }
 
   @override
@@ -213,7 +213,7 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
     }
 
     final item = _queue[_currentIndex];
-    final point = swahiliGrammarPointById[item.wordId];
+    final point = grammarPointById[item.wordId];
     final practiceItems = _practiceFor(point);
 
     return Scaffold(

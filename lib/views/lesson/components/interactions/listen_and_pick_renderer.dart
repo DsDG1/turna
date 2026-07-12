@@ -12,7 +12,7 @@ import 'package:varnamala/domain/course/interaction.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
 
 /// Play audio (TTS) and pick the matching option. The [Interaction.audioAsset]
-/// field is a wordId in current data; we look up the Swahili term from the
+/// field is a wordId in current data; we look up the target-language term from the
 /// vocab table and speak it via [FlutterTts].
 @injectable
 class ListenAndPickRenderer extends InteractionRenderer {

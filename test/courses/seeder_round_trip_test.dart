@@ -14,11 +14,11 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('DatabaseSeeder round-trip', () {
-    test('section4.json survives parse -> seed -> read -> serialize', () async {
+    test('section1.json survives parse -> seed -> read -> serialize', () async {
       final raw = await rootBundle.loadString(
-        '${SwahiliCourse.baseDir}/sections/section4.json',
+        '${CourseLoader.baseDir}/sections/section1.json',
       );
-      final originalSection = parseSwahiliSection(raw);
+      final originalSection = parseSection(raw);
 
       final db = await seedInMemoryCourseDb();
       final repo = CourseRepository(db);
@@ -69,10 +69,18 @@ void main() {
         );
       }
 
-      // Lesson content JSON serializes back to the same shape.
+      // Tree path is metadata-only; bodies come back via lessonById (L2).
+      for (final lesson in roundTrippedLessons) {
+        expect(
+          lesson.content.stages,
+          isEmpty,
+          reason: 'section() must not hydrate content for ${lesson.id}',
+        );
+      }
       for (var i = 0; i < originalLessons.length; i++) {
+        final body = await repo.lessonById(originalLessons[i].id);
         final originalJson = originalLessons[i].content.toJson();
-        final roundJson = roundTrippedLessons[i].content.toJson();
+        final roundJson = body.content.toJson();
         expect(
           jsonEncode(roundJson),
           jsonEncode(originalJson),

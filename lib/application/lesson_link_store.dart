@@ -71,7 +71,13 @@ class LessonLinkStore {
     });
   }
 
-  String? lessonNameFor(String id) => readAll()[id]?.lessonName;
+  String? lessonNameFor(String id) => linkFor(id)?.lessonName;
+
+  /// O(1) lookup without copying the full map. Returns `null` if unknown.
+  LessonWordLink? linkFor(String id) {
+    if (_cache == null) readAll(); // populate cache
+    return _cache![id];
+  }
 
   /// Whether [id] already has a recorded first-seen link — reads the cache
   /// directly without copying the whole map (unlike [lessonNameFor], which

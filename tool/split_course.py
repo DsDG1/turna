@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """One-time split of monolithic kannada_lessons.json into per-section layout.
 
-Produces assets/courses/swahili/{index.json, sections/<id>.json, vocab.json}.
+Produces assets/courses/turkish/{index.json, sections/<id>.json, vocab.json}.
 Re-runnable: produces identical output from the same source file.
 """
 import json
@@ -11,7 +11,7 @@ import shutil
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 LESSONS = ROOT / "assets/courses/kannada_lessons.json"
 VOCAB = ROOT / "assets/courses/kannada_vocab.json"
-OUT = ROOT / "assets/courses/swahili"
+OUT = ROOT / "assets/courses/turkish"
 
 
 def main() -> None:

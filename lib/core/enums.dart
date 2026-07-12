@@ -1,3 +1,3 @@
 enum TargetLanguage {
-  swahili,
+  turkish,
 }

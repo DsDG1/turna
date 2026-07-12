@@ -97,7 +97,7 @@ class PlayHubScreen extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: _PlayHubCard(
               title: 'Daily Challenge',
-              subtitle: 'Random 15 questions — test your Swahili',
+              subtitle: 'Random 15 questions — test your Turkish',
               icon: Icons.calendar_today_rounded,
               accentColor: VarnamalaTheme.leagueAmethyst,
               onTap: () => context.router.push(const DailyChallengeRoute()),

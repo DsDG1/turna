@@ -2,7 +2,7 @@
 import 'dart:math';
 
 // Project imports:
-import 'package:varnamala/courses/languages/swahili_vocab.dart';
+import 'package:varnamala/courses/languages/vocab.dart';
 import 'package:varnamala/domain/course/interaction.dart';
 import 'package:varnamala/domain/course/lesson.dart';
 import 'package:varnamala/domain/course/lesson_content.dart';
@@ -61,7 +61,7 @@ class WeakWordQuizAssembler {
     final result = <WeakWord>[];
     for (final e in qualified) {
       if (result.length >= limit) break;
-      final entry = swahiliVocabById[e.key];
+      final entry = vocabById[e.key];
       result.add(WeakWord(
         wordId: e.key,
         displayText: entry?.term ?? e.key,
@@ -81,12 +81,12 @@ class WeakWordQuizAssembler {
   }) {
     final rng = random ?? Random();
     final pool = weakWords.take(maxItems).toList();
-    final vocabPool = swahiliVocabById.values.toList();
+    final vocabPool = vocabById.values.toList();
     final items = <Interaction>[];
 
     for (var i = 0; i < pool.length; i++) {
       final w = pool[i];
-      final entry = swahiliVocabById[w.wordId];
+      final entry = vocabById[w.wordId];
       final translation = entry?.translation ?? w.translation;
       final term = entry?.term ?? w.displayText;
 

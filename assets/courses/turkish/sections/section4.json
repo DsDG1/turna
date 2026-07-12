@@ -1,0 +1,43 @@
+{
+  "id": "section4",
+  "name": "Section 4",
+  "description": "Türkçeyi rahatça konuşabiliyorum",
+  "prerequisiteSectionIds": ["section3"],
+  "units": [
+    {
+      "id": "s4-u1",
+      "name": "Conversations",
+      "description": "Speaking Turkish with confidence.",
+      "prerequisiteUnitIds": [],
+      "lessons": [
+        {
+          "id": "s4-l1",
+          "name": "At the cafe",
+          "description": "Placeholder lesson — Turkish content to be authored.",
+          "type": "normal",
+          "template": "legacy",
+          "prerequisiteLessonIds": [],
+          "content": {
+            "stages": [
+              {
+                "id": "stage-welcome",
+                "name": "Welcome",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-welcome",
+                    "prompt": "Which phrase would you use to order tea in Turkish?",
+                    "options": ["Bir çay, lütfen", "Hoşça kal", "Günaydın", "Evet"],
+                    "correctIndex": 0
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

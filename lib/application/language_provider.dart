@@ -12,23 +12,23 @@ import 'package:varnamala/service/locator.dart';
 class LanguageProvider extends ChangeNotifier {
   final AppPrefs appPrefs;
 
-  TargetLanguage selectedLanguage = TargetLanguage.swahili;
+  TargetLanguage selectedLanguage = TargetLanguage.turkish;
 
   LanguageProvider(this.appPrefs);
 
   /// TTS language code for the currently selected target language.
   String get ttsLanguageCode {
     switch (selectedLanguage) {
-      case TargetLanguage.swahili:
-        // See docs/decisions/0001-tts-language-code.md
-        return 'sw';
+      case TargetLanguage.turkish:
+        // See docs/decisions/0020-swahili-to-turkish-pivot.md
+        return 'tr';
     }
   }
 
   initLanguage() {
     selectedLanguage = TargetLanguage.values.firstWhere(
       (element) => element.name == appPrefs.currentLanguage.getValue(),
-      orElse: () => TargetLanguage.swahili,
+      orElse: () => TargetLanguage.turkish,
     );
 
     notifyListeners();

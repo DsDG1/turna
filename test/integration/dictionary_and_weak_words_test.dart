@@ -21,7 +21,7 @@ import 'package:varnamala/application/settings_provider.dart';
 import 'package:varnamala/application/srs_provider.dart';
 import 'package:varnamala/application/study_stats_provider.dart';
 import 'package:varnamala/application/weak_word_quiz_assembler.dart';
-import 'package:varnamala/courses/languages/swahili_vocab.dart';
+import 'package:varnamala/courses/languages/vocab.dart';
 import 'package:varnamala/data/study_log_repository.dart';
 import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/domain/audio/vocab_audio_resolver.dart';
@@ -39,7 +39,7 @@ class _FakeFlutterTts implements FlutterTts {
 
 class _FakeLanguageProvider implements LanguageProvider {
   @override
-  String get ttsLanguageCode => 'sw';
+  String get ttsLanguageCode => 'tr';
   @override
   dynamic noSuchMethod(Invocation i) => super.noSuchMethod(i);
 }
@@ -111,7 +111,7 @@ void main() {
       () => SettingsProvider(prefs),
     );
 
-    swahiliVocabById
+    vocabById
       ..clear()
       ..addAll({
         'w-habari': const WordEntry(
@@ -139,7 +139,7 @@ void main() {
   });
 
   tearDown(() async {
-    swahiliVocabById.clear();
+    vocabById.clear();
     await getIt.reset();
   });
 

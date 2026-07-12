@@ -6,6 +6,7 @@ import 'package:varnamala/views/lesson/components/interactions/fill_blank_render
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:varnamala/views/lesson/components/interactions/listen_and_pick_renderer.dart';
 import 'package:varnamala/views/lesson/components/interactions/listen_only_renderer.dart';
+import 'package:varnamala/views/lesson/components/interactions/multi_select_renderer.dart';
 import 'package:varnamala/views/lesson/components/interactions/multiple_choice_renderer.dart';
 import 'package:varnamala/views/lesson/components/interactions/reading_mcq_renderer.dart';
 import 'package:varnamala/views/lesson/components/interactions/reading_short_answer_renderer.dart';
@@ -21,6 +22,7 @@ void main() {
   final renderers = <InteractionRenderer>{
     ShowWordRenderer(FakeAudioController()),
     MultipleChoiceRenderer(),
+    MultiSelectRenderer(),
     FillBlankRenderer(),
     TranslateSentenceRenderer(),
     ListenAndPickRenderer(),
@@ -39,6 +41,12 @@ void main() {
       prompt: 'p',
       options: ['x', 'y'],
       correctIndex: 0,
+    ),
+    const Interaction.multiSelect(
+      id: 'b2',
+      prompt: 'p',
+      options: ['x', 'y', 'z'],
+      correctIndices: [0, 2],
     ),
     const Interaction.fillBlank(id: 'c', sentence: '_', answer: 'a'),
     const Interaction.translateSentence(

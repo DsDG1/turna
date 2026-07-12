@@ -3,7 +3,7 @@ version: 1.0.0+1
 publish_to: 'none'
 environment:
   sdk: ">=3.2.3 <4.0.0"
-description: Varnamala - Local-first language learning (Swahili)
+description: Varnamala - Local-first language learning (Turkish)
 dependencies:
   audioplayers: ^6.0.0
   auto_route: 9.2.2
@@ -25,7 +25,6 @@ dependencies:
   path_provider: ^2.1.4
   provider: ^6.1.2
   share_plus: ^10.0.0
-  sherpa_onnx: ^1.13.4
   sqlite3_flutter_libs: ^0.5.24
   streaming_shared_preferences: ^2.0.0
   timezone: ^0.11.1
@@ -51,61 +50,12 @@ flutter:
   uses-material-design: true
   assets:
     - assets/sounds/
-    - assets/sounds/swahili/listening/
     - assets/images/
     - assets/images/mala/
     - assets/courses/
-    - assets/courses/swahili/
-    - assets/courses/swahili/sections/
-    # Piper Swahili TTS model + espeak-ng data.
-    # Flutter only includes *direct* files of each listed directory (no recursion),
-    # so every nested folder that holds files must be declared explicitly.
-    - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/
-    - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/
-    - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/lang/
-    - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/lang/aav/
-    - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/lang/art/
-    - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/lang/azc/
-    - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/lang/bat/
-    - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/lang/bnt/
-    - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/lang/ccs/
-    - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/lang/cel/
-    - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/lang/cus/
-    - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/lang/dra/
-    - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/lang/esx/
-    - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/lang/gmq/
-    - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/lang/gmw/
-    - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/lang/grk/
-    - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/lang/inc/
-    - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/lang/ine/
-    - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/lang/ira/
-    - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/lang/iro/
-    - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/lang/itc/
-    - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/lang/jpx/
-    - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/lang/map/
-    - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/lang/miz/
-    - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/lang/myn/
-    - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/lang/poz/
-    - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/lang/roa/
-    - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/lang/sai/
-    - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/lang/sem/
-    - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/lang/sit/
-    - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/lang/tai/
-    - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/lang/trk/
-    - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/lang/urj/
-    - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/lang/zle/
-    - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/lang/zls/
-    - assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8/espeak-ng-data/lang/zlw/
+    - assets/courses/turkish/
+    - assets/courses/turkish/sections/
 flutter_gen:
-  # The Piper TTS model + espeak-ng-data are read via rootBundle / AssetManifest
-  # at runtime (see piper_swahili_tts.dart) and never referenced through the
-  # generated `Assets` class. Exclude them from flutter_gen so it does not try
-  # to mint Dart getters from the asset leaf names — some espeak language
-  # files are named after Dart keywords (`is`, `as`) and would produce a
-  # non-compiling assets.gen.dart (e.g. `String get is => ...`).
-  assets:
-    exclude:
-      - assets/voices/**
 flutter_launcher_icons:
   android: launcher_icon
   ios: true

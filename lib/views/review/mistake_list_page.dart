@@ -8,8 +8,9 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:varnamala/application/grammar_review_provider.dart';
 import 'package:varnamala/application/mistake_provider.dart';
+import 'package:varnamala/courses/languages/dictionary.dart';
 import 'package:varnamala/courses/languages/grammar_points.dart';
-import 'package:varnamala/courses/languages/swahili_vocab.dart';
+import 'package:varnamala/courses/languages/vocab.dart';
 import 'package:varnamala/domain/course/mistake_entry.dart';
 import 'package:varnamala/routing/routing.gr.dart';
 import 'package:varnamala/views/theme.dart';
@@ -184,16 +185,21 @@ class _MistakeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final word = mistake.wordId != null
-        ? swahiliVocabById[mistake.wordId!]
+        ? vocabById[mistake.wordId!]
         : null;
     final grammar = mistake.grammarPointId != null
-        ? swahiliGrammarPointById[mistake.grammarPointId!]
+        ? grammarPointById[mistake.grammarPointId!]
         : null;
     final displayQuestion = word?.term ??
         (mistake.interactionId.isNotEmpty
             ? mistake.interactionId
             : 'Unknown question');
     final correctAnswer = word?.translation ?? mistake.correctAnswer;
+    final resolvedMeaning = word == null && correctAnswer.isNotEmpty
+        ? getWordMeaning(correctAnswer)
+        : '--';
+    final showMeaning =
+        resolvedMeaning != '--' && resolvedMeaning != correctAnswer;
 
     final isGrammar = mistake.grammarPointId != null;
     final isWord = mistake.wordId != null;
@@ -246,6 +252,28 @@ class _MistakeCard extends StatelessWidget {
               userAnswer: mistake.userAnswer,
               correctAnswer: correctAnswer,
             ),
+            if (showMeaning) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(
+                    Icons.menu_book_outlined,
+                    size: 14,
+                    color: VarnamalaTheme.textHintColor(context),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      resolvedMeaning,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: VarnamalaTheme.textSecondaryColor(context),
+                            fontStyle: FontStyle.italic,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 12),
             Row(
               children: [

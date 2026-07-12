@@ -38,34 +38,34 @@ class TtsDiagnostics {
     }
     if (resolvedLocale == null) {
       return hasGoogleEngine
-          ? TtsPreferredStatus.swahiliDataMissing
+          ? TtsPreferredStatus.turkishVoiceMissing
           : TtsPreferredStatus.googleMissing;
     }
     if (!localeInstalled) {
-      return TtsPreferredStatus.swahiliDataMissing;
+      return TtsPreferredStatus.turkishVoiceMissing;
     }
     return TtsPreferredStatus.ready;
   }
 }
 
-/// Product-facing status of the preferred system voice (Google + Swahili).
+/// Product-facing status of the preferred system voice (Google + Turkish).
 enum TtsPreferredStatus {
-  /// Google engine selected and a Swahili locale is usable.
+  /// Google engine selected and a Turkish locale is usable.
   ready,
 
   /// Google TTS package not visible / not installed (Android).
   googleMissing,
 
-  /// Engine present but Swahili voice data not installed or locale unsupported.
-  swahiliDataMissing,
+  /// Engine present but Turkish voice data not installed or locale unsupported.
+  turkishVoiceMissing,
 }
 
 /// Inspects the device's local TTS capabilities and, when appropriate, selects
 /// the Google TTS engine on Android.
 ///
-/// Product priority: **Google TTS is the preferred system voice** for Swahili.
-/// Piper is only an explicit offline choice / emergency fallback (see
-/// [AudioController]), not a silent replacement when Google is missing.
+/// Product priority: **Google TTS is the preferred system voice** for Turkish.
+/// There is no bundled offline fallback in this build — if the system voice
+/// is unavailable, the audio controller reports an error to the UI.
 ///
 /// This class does not play audio; it answers availability questions and
 /// configures the preferred engine.
@@ -95,10 +95,10 @@ class TtsAvailabilityChecker {
 
   bool get isEngineConfigured => _engineConfigured;
 
-  /// Locale candidates for a base BCP-47 language code (e.g. `sw`).
+  /// Locale candidates for a base BCP-47 language code (e.g. `tr`).
   ///
   /// Android TTS engines sometimes only report region-specific tags as
-  /// available (`sw-KE` / `sw_KE`) even when the base code `sw` is intended.
+  /// available (`tr-TR` / `tr_TR`) even when the base code `tr` is intended.
   static List<String> languageCandidates(String languageCode) {
     final base = languageCode.trim();
     if (base.isEmpty) return const [];
@@ -113,13 +113,11 @@ class TtsAvailabilityChecker {
       if (parts.length > 1) '${lang}_${parts[1].toUpperCase()}',
     };
 
-    // Swahili: common Google / OEM pack tags.
-    if (lang == 'sw') {
+    // Turkish: common Google / OEM pack tags.
+    if (lang == 'tr') {
       candidates.addAll(const [
-        'sw-KE',
-        'sw-TZ',
-        'sw_KE',
-        'sw_TZ',
+        'tr-TR',
+        'tr_TR',
       ]);
     }
 
@@ -241,7 +239,7 @@ class TtsAvailabilityChecker {
   /// Returns `true` when *any* local TTS engine claims to support [languageCode].
   ///
   /// On Android we prefer the Google TTS engine **before** querying language
-  /// availability, so a non-Google default engine without Swahili does not
+  /// availability, so a non-Google default engine without Turkish does not
   /// incorrectly report the system as unavailable when Google has the pack.
   ///
   /// Prefer [isPreferredSystemTtsAvailable] for product decisions about whether
@@ -302,7 +300,7 @@ class TtsAvailabilityChecker {
       if (installed == false) {
         debugPrint(
           'TtsAvailabilityChecker: preferred system TTS unavailable '
-          '(locale $resolved not installed — download Swahili voice data)',
+          '(locale $resolved not installed — download Turkish voice data)',
         );
         return false;
       }

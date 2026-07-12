@@ -1,0 +1,43 @@
+{
+  "id": "section7",
+  "name": "Section 7",
+  "description": "Soyut konuları tartışabiliyorum",
+  "prerequisiteSectionIds": ["section6"],
+  "units": [
+    {
+      "id": "s7-u1",
+      "name": "Abstract topics",
+      "description": "Discussing ideas, dreams, and plans.",
+      "prerequisiteUnitIds": [],
+      "lessons": [
+        {
+          "id": "s7-l1",
+          "name": "Dreams and goals",
+          "description": "Placeholder lesson — Turkish content to be authored.",
+          "type": "normal",
+          "template": "legacy",
+          "prerequisiteLessonIds": [],
+          "content": {
+            "stages": [
+              {
+                "id": "stage-welcome",
+                "name": "Welcome",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-welcome",
+                    "prompt": "Which Turkish word means \"dream\"?",
+                    "options": ["rüya", "merhaba", "evet", "ekmek"],
+                    "correctIndex": 0
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

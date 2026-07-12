@@ -63,7 +63,7 @@ class _DictionaryPageState extends State<DictionaryPage> {
               controller: _controller,
               onChanged: _onQueryChanged,
               decoration: InputDecoration(
-                hintText: 'Search Swahili or English…',
+                hintText: 'Search Turkish or English…',
                 prefixIcon: const Icon(Icons.search_rounded),
                 filled: true,
                 fillColor: VarnamalaTheme.inputFillColor(context),

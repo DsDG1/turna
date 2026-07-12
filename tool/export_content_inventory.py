@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Export a content inventory for the Swahili course.
+"""Export a content inventory for the Turkish course.
 
 Outputs a Markdown report listing all vocabulary, expressions, grammar points,
 and where each is referenced inside lessons. This is the starting point for
@@ -13,7 +13,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-COURSE_DIR = Path(__file__).resolve().parent.parent / "assets" / "courses" / "swahili"
+COURSE_DIR = Path(__file__).resolve().parent.parent / "assets" / "courses" / "turkish"
 OUTPUT = Path(__file__).resolve().parent.parent / "docs" / "content_inventory_current.md"
 
 
@@ -78,6 +78,29 @@ def find_audio_assets(obj: Any) -> set[str]:
         for item in obj:
             assets.update(find_audio_assets(item))
     return assets
+
+
+def collect_section_stats() -> list[dict[str, Any]]:
+    """Per-section unit/lesson counts for scale-contract reporting."""
+    index = load_json(COURSE_DIR / "index.json")
+    rows: list[dict[str, Any]] = []
+    for section in index.get("sections", []):
+        section_id = section["id"]
+        section_file = COURSE_DIR / section["file"]
+        section_data = load_json(section_file)
+        units = section_data.get("units", [])
+        lesson_count = sum(len(u.get("lessons", [])) for u in units)
+        max_lessons = max((len(u.get("lessons", [])) for u in units), default=0)
+        rows.append(
+            {
+                "id": section_id,
+                "name": section.get("name", section_data.get("name", "")),
+                "units": len(units),
+                "lessons": lesson_count,
+                "max_lessons_per_unit": max_lessons,
+            }
+        )
+    return rows
 
 
 def collect_references() -> dict[str, dict[str, set[str]]]:
@@ -170,12 +193,16 @@ def render_markdown(
     expression_rows: list[dict[str, Any]],
     grammar_rows: list[dict[str, Any]],
     audio_assets: set[str],
+    section_stats: list[dict[str, Any]] | None = None,
 ) -> str:
+    section_stats = section_stats or []
+    total_units = sum(s["units"] for s in section_stats)
+    total_lessons = sum(s["lessons"] for s in section_stats)
     lines = [
-        "# Content Inventory (Swahili Course)",
+        "# Content Inventory (Turkish Course)",
         "",
         f"> Generated from `{COURSE_DIR.relative_to(Path(__file__).resolve().parent.parent)}`.",
-        "> This is a future3 Phase 13 artifact used to plan the Kannada → Swahili content migration.",
+        "> This is a future3 Phase 13 artifact used to plan the content migration planning.",
         "",
         "## Summary",
         "",
@@ -184,12 +211,29 @@ def render_markdown(
         f"- Grammar points: {len(grammar_rows)}",
         f"- Distinct audio asset references: {len(audio_assets)}",
         f"- Vocabulary words referenced by at least one lesson: {sum(1 for r in word_rows if r['referenced_in'] != '(unused)')}",
+        f"- Sections: {len(section_stats)}",
+        f"- Units (all sections): {total_units}",
+        f"- Lessons (all sections): {total_lessons}",
         "",
-        "## Vocabulary",
+        "## Section scale (design contract: ≤60 units/section, ≤40 lessons/unit)",
         "",
-        "| id | term | translation | tags | referenced in |",
-        "|---|---|---|---|---|",
+        "| section | name | units | lessons | max lessons/unit |",
+        "|---|---|---:|---:|---:|",
     ]
+    for s in section_stats:
+        lines.append(
+            f"| {s['id']} | {s['name']} | {s['units']} | {s['lessons']} | "
+            f"{s['max_lessons_per_unit']} |"
+        )
+    lines.extend(
+        [
+            "",
+            "## Vocabulary",
+            "",
+            "| id | term | translation | tags | referenced in |",
+            "|---|---|---|---|---|",
+        ]
+    )
     for row in word_rows:
         lines.append(
             f"| {row['id']} | {row['term']} | {row['translation']} | {row['tags']} | {row['referenced_in']} |"
@@ -241,6 +285,7 @@ def render_markdown(
 def main() -> None:
     global refs
     refs = collect_references()
+    section_stats = collect_section_stats()
     word_rows = build_word_rows(refs)
     expression_rows = build_expression_rows(refs)
     grammar_rows = build_grammar_rows(refs)
@@ -248,7 +293,13 @@ def main() -> None:
 
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(
-        render_markdown(word_rows, expression_rows, grammar_rows, audio_assets),
+        render_markdown(
+            word_rows,
+            expression_rows,
+            grammar_rows,
+            audio_assets,
+            section_stats=section_stats,
+        ),
         encoding="utf-8",
     )
     print(f"Wrote content inventory to {OUTPUT}")

@@ -1,0 +1,29 @@
+{
+  "id": "l-example-intro-1",
+  "name": "Intro example",
+  "description": "Four sub-lessons introducing new vocab.",
+  "type": "normal",
+  "template": "intro",
+  "prerequisiteLessonIds": [],
+  "content": {
+    "subLessons": [
+      {
+        "id": "sl-1",
+        "name": "Meet the words",
+        "stages": [
+          {
+            "id": "st-1",
+            "name": "Show",
+            "items": [
+              {
+                "runtimeType": "showWord",
+                "id": "sw-1",
+                "wordId": "w-jambo"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

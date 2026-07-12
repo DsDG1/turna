@@ -25,7 +25,7 @@ class AppPrefs {
     this.preferences,
   )   : currentLanguage = preferences.getString(
           PrefsConstants.currentLanguage,
-          defaultValue: "swahili",
+          defaultValue: "turkish",
         ),
         authUser = preferences.getCustomValue(
           PrefsConstants.authUser,
@@ -143,7 +143,10 @@ class LocalStateKeys {
   static const String soundEffects = 'settings.soundEffects';
   static const String haptic = 'settings.haptic';
   static const String ttsSpeed = 'settings.ttsSpeed';
-  static const String ttsEngine = 'settings.ttsEngine'; // 'system' | 'offline'
+  // Legacy: 'settings.ttsEngine' selected the bundled Piper offline model in
+  // the Swahili build. Turkish uses system/Google TTS only, so the engine
+  // toggle was removed; the key is retained for back-compat reads.
+  static const String ttsEngine = 'settings.ttsEngine';
   static const String ttsAvailabilityPromptShown =
       'settings.ttsAvailabilityPromptShown';
 
@@ -170,13 +173,13 @@ Future<void> setupLocator() async {
 
   // Open + seed the course database before any course read. First install /
   // content-version bump reseeds; subsequent cold starts skip when version
-  // matches and sections exist. Registered as a singleton so [SwahiliCourse]
+  // matches and sections exist. Registered as a singleton so [CourseLoader]
   // can resolve it synchronously.
   final db = await _openAndSeedCourseDatabase();
   getIt.registerSingleton<CourseDatabase>(db);
 
-  // NOTE: the Swahili vocabulary / grammar / expression pre-loads
-  // (loadSwahiliVocabulary / loadSwahiliGrammarPoints / loadSwahiliExpressions)
+  // NOTE: the vocabulary / grammar / expression pre-loads
+  // (loadVocabulary / loadGrammarPoints / loadExpressions)
   // are deferred to a post-frame callback in main.dart so runApp can paint the
   // splash immediately instead of blocking on the full table read. They are
   // idempotent one-shot loads and finish before the course tree shows lessons.
@@ -194,7 +197,7 @@ Future<CourseDatabase> _openAndSeedCourseDatabase() async {
     );
   }
   final dir = await getApplicationDocumentsDirectory();
-  final file = File(p.join(dir.path, 'course.swahili.db'));
+  final file = File(p.join(dir.path, 'course.db'));
   final db = CourseDatabase(NativeDatabase(file));
   try {
     await DatabaseSeeder(db).seedIfNeeded();

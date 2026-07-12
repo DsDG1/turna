@@ -18,7 +18,7 @@ class ResolvedVocabAudio {
 /// Resolves vocabulary word ids to offline audio or TTS text.
 ///
 /// Keeps [AudioController] free of language-specific content imports.
-/// Swahili ships one implementation; other languages can register their own
+/// The Turkish build ships one implementation; other languages can register their own
 /// without changing the audio stack (see ADR 0010).
 abstract class VocabAudioResolver {
   /// Resolve [wordId] to an offline asset and/or TTS term.

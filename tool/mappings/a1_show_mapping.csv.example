@@ -1,0 +1,14 @@
+# A1 listening lesson show variant mapping
+# Format: <main_filename_without_ext>,<variant A/B/C>
+# Variant A = Show 1: 又是一个奇怪的人
+# Variant B = Show 2: 探索日记
+# Variant C = Show 3: 妈妈的作文
+# Lines starting with # are ignored.
+
+S1U1L01,A
+S1U1L02,B
+S1U1L03,C
+S1U1L04,A
+S1U1L05,B
+S1U2L01,C
+S1U2L02,A

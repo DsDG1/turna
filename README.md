@@ -1,34 +1,35 @@
 # Varnamala Plus
 
-> ✅ 框架核心闭环已完成；当前为性能 / 暗黑模式 polish 阶段（暗黑模式文字自适应、TTS 后台 isolate、启动首帧优化、动画卡顿修复）。AI 协作（vibecoding）持续迭代。
+> 当前状态：future4 框架已闭环，并完成 Swahili→Turkish 迁移（ADR 0020）。Section 1 已填充真实 Turkish 问候语内容（8 词 + 2 表达），Sections 2–8 为占位框架，等待后续内容轮填充。
 
 ## 起源
 
-本仓库是一个**二次开发分支**，底层框架来自 GitHub 开源项目 **[Varnamala](https://github.com/rshrc/Varnamala)**（同一仓库名）。我们借用了它的 Section / Unit / Lesson / SRS / 错题本 / 暗色主题 / 学习统计等核心骨架，将目标聚焦到**单一目标语 Swahili** 上，并按 `future2.md` 路线图做"减法"——去社交化、去除 Duolingo 风格的 friction、收紧范围。
+本仓库是一个**二次开发分支**，底层框架来自 GitHub 开源项目 **[Varnamala](https://github.com/rshrc/Varnamala)**（同一仓库名）。我们借用了它的 Section / Unit / Lesson / SRS / 错题本 / 暗色主题 / 学习统计等核心骨架，将目标聚焦到**单一目标语 Turkish（土耳其语）** 上，并按路线图做"减法"——去社交化、去除 Duolingo 风格的 friction、收紧范围。
 
 本仓库并非原项目官方版本；如需纯原版功能，请直接访问上游 [rshrc/Varnamala](https://github.com/rshrc/Varnamala)。
 
 ## 当前定位
 
-- **唯一目标语**：Swahili（当前 vocab 仍为 Kannada 占位词表，待替换为真实 Swahili 内容）。
+- **唯一目标语**：Turkish（土耳其语）。Section 1 已有真实问候语课程，Sections 2–8 仍为空课程占位。
 - **本地优先**：纯本地 SQLite 缓存，**不**接入任何云后端 / 推送 / 登录。
 - **单人 / 离线**：无好友、无排行榜、无联赛、无心数、无宝石购买——一切"反学习"摩擦都已被剔除。
-- **AI 协作开发（vibecoding）**：本项目通过与 AI 协作迭代，每一步有文档化的施工步骤（见 `future2.md` §6），并由 git commit 串成可回放的时间线。
+- **AI 协作开发（vibecoding）**：本项目通过与 AI 协作迭代，工程决策以 ADR 形式记录在 `docs/decisions/`。
 
 ## 框架已完成的能力
 
 - **课程引擎**：`Section → Unit → Lesson → SubLesson / ListeningPhase / ReadingPassage → Stage → Interaction`（freezed 模型 + JSON 序列化）。
-- **11 种 Interaction 题型**：`showWord` / `multipleChoice` / `fillBlank` / `translateSentence` / `listenAndPick` / `typeTheWord` / `listenOnly` / `reorderSentence` / `readingMcq` / `readingTrueFalse` / `readingShortAnswer`，每个作为 `@injectable` 插件注册到 GetIt。
+- **12 种 Interaction 题型**：`showWord` / `multipleChoice` / `multiSelect` / `fillBlank` / `translateSentence` / `listenAndPick` / `typeTheWord` / `listenOnly` / `reorderSentence` / `readingMcq` / `readingTrueFalse` / `readingShortAnswer`，每个作为 `@injectable` 插件注册到 GetIt。
 - **6 种 Lesson Template**：`intro` / `practice` / `listening` / `reading` / `review` / `mastery`（+ `legacy` 兜底），`Lesson.flattenedStages` 把所有形态展平为渲染器可遍历的 `List<Stage>`。
 - **按需加载**：`index.json` + per-section JSON + drift SQLite 缓存（schemaVersion 5，含 expressions 表），按内容版本号自动 reseed。
 - **SRS 复习**：基于 SM-2 算法的单词 SRS + 独立语法点 SRS 队列；闪卡显示"Learned in: <lesson>"。
 - **错题本**：30 条 FIFO，错题含原始 interaction 快照，支持重做清除 + 跨路由到语法复习。
 - **语法复习**：Explain → Practice → Rate 三段流，练习题直接复用 Interaction 渲染器。
-- **TTS 引擎**：`AudioController` 统一接管 TTS 调用，按 `TargetLanguage.ttsLanguageCode` 切语言。内建 Piper `sw_CD-lanfrica-medium-int8`（经 `sherpa_onnx`）作为离线引擎，运行在**长驻后台 isolate** 中——ONNX 推理不阻塞 UI 线程；首帧后 `prewarm()` 预热，首次点词发音不再卡顿。系统/Google TTS 为主，Piper 为离线/失败回退。
+- **TTS 引擎**：`AudioController` 统一接管 TTS 调用，按 `TargetLanguage.ttsLanguageCode` 切语言。当前仅使用系统 / Google TTS（language code `tr`），已移除 Piper 离线模型与 `sherpa_onnx` 依赖（ADR 0020）。
 - **暗色 / 亮色主题**：`VarnamalaTheme` 语义化颜色 + `ThemeProvider` 持久化；所有前景文字经 `textXxxColor(context)` 自适应，切换主题顺滑无闪烁。
 - **学习统计仪表盘**：90 天 `StudyLog` 滚动 + 7 日 XP 趋势 + 总时长 / 准确率 / 课数 / 复习数。
 - **课程树加载状态**：显式 `SectionLoadState` + 错误重试 UI，避免 section body 加载失败时显示灰色空白页。
 - **Match Madness 单词配对小游戏**。
+- **发布流水线**：`tool/build_release.py` 一键生成版本化 APK/AAB/web 产物 + 内容清单。
 
 ## 已明确**不**做的事（防 scope creep）
 
@@ -36,18 +37,6 @@
 - Hearts（生命限制）/ Streak Repair（XP 计数型）/ 商店道具。
 - Speaking 录音匹配题型。
 - 云端 CMS / Firebase / 推送通知。
-- 任何**新内容**（新词 / 新语法 / 新 lesson / 新阅读 / 新音频）—— **暂时不加**，是因为我们仍在优化框架本身；后续计划开发一个 GUI 项目管理工具，并结合 AI 自动生成课程内容。**未来再见**。
-
-详细列表见 `future2.md` §6 / §7。
-
-## 性能与流畅度
-
-- **TTS 后台 isolate**：Piper ONNX 推理在长驻后台 isolate（`lib/service/piper_tts_worker.dart`），主线程只负责 WAV 播放；`prewarm()` 在 splash 后台预热。
-- **启动不阻塞**：`main.dart` 先 `runApp`，课程 DB 加载移到 post-frame，首帧立即可见（CourseTree 自带 loading 指示）。
-- **动画隔离**：`AnimatedCounter` 从上一值平滑过渡（不再每次从 0 跳数），关键动画用 `RepaintBoundary` 隔离重绘。
-- **课程树细粒度订阅**：每个 lesson tile 用 `Selector` 只在自己完成/完美状态变化时重建。
-- **图片解码**：`Image.asset` 按设备像素比设 `cacheWidth/cacheHeight`，避免全分辨率解码。
-- **暗黑模式**：前景文字 `textXxxColor(context)` 全自适应；硬编码白底改为 `cardBg/scaffoldBg(context)`，切换主题无白块闪烁。
 
 ## 项目结构
 
@@ -55,7 +44,7 @@
 lib/
 ├── application/   # Providers：Course / Lesson / SRS / Mistake / Grammar / Game / Study …
 ├── core/          # enums, sm2, spacing, text styles, logger
-├── courses/       # 字母 + 语种 loader（生产 Swahili，Kannada 占位词表）
+├── courses/       # 字母 + 语种 loader（目标 Turkish）
 ├── data/          # drift CourseDatabase + Seeder + Repository
 ├── di/            # GetIt + Injectable（renderer_module 收集所有 InteractionRenderer）
 ├── domain/        # section / unit / lesson / stage / interaction / sub_lesson /
@@ -74,7 +63,18 @@ dart run build_runner build --delete-conflicting-outputs   # freezed / json_seri
 flutter run                                                # 设备或模拟器
 ```
 
-首次启动时，课程数据库 `course.swahili.db` 从 bundle 的 JSON assets seed；之后会复用缓存。如需强制 reseed，bump `assets/courses/swahili/index.json` 的 `version` 即可（自动），或清空 app data。
+首次启动时，课程数据库 `course.db` 从 bundle 的 JSON assets seed；之后会复用缓存。如需强制 reseed，bump `assets/courses/turkish/index.json` 的 `version` 即可（自动），或清空 app data。
+
+### Makefile 快捷命令
+
+```bash
+make gen                # 生成代码
+make test               # Dart 测试
+make test-python        # Python 工具测试
+make analyze            # 静态分析
+make ci                 # 本地 CI 等价流程
+make build-release VERSION=0.4.0-future4
+```
 
 ## 测试
 
@@ -82,15 +82,16 @@ flutter run                                                # 设备或模拟器
 flutter test
 ```
 
-当前 **235 / 235** 单元 + 组件测试通过，覆盖率与详情见 [`test/BASELINE.md`](./test/BASELINE.md)。新增暗黑模式文字对比度 smoke test、`AppTextStyles` 自适应解析 test、`AnimatedCounter` 从旧值过渡 test。
+当前 **380 / 380** 单元 + 组件测试通过，覆盖率与详情见 [`test/BASELINE.md`](./test/BASELINE.md)。另有 Python 工具测试 13 项通过。
 
 ## 文档
 
-- [`future2.md`](./future2.md) — **唯一路线图**，38 个施工步骤（Phase 7–12），明确边界与不做项。
-- [`dreamplan.md`](./dreamplan.md) — 旧版 v1 计划，仅作历史参考。
-- [`CLAUDE.md`](./CLAUDE.md) — 面向 AI Agent 的架构说明。
-- [`plan.md`](./plan.md) — 5-layer 架构设计历史，prereq/unlock 未在当前路线图中。
-- `docs/decisions/` — 工程决策记录（如 TTS 语言码 ADR）。
+- [`CLAUDE.md`](./CLAUDE.md) — 面向 AI Agent 的架构总览与 onboarding 速查。
+- [`docs/decisions/`](./docs/decisions/) — 工程决策记录（ADR 0001–0020）。
+- [`docs/decisions/0018-future4-completion-and-content-handoff.md`](./docs/decisions/0018-future4-completion-and-content-handoff.md) — future4 框架闭环总结。
+- [`docs/decisions/0020-swahili-to-turkish-pivot.md`](./docs/decisions/0020-swahili-to-turkish-pivot.md) — Swahili→Turkish 迁移决策。
+- [`docs/content_inventory_current.md`](./docs/content_inventory_current.md) — 当前 Turkish 课程内容清单。
+- [`test/BASELINE.md`](./test/BASELINE.md) — 最新测试基线。
 
 ## 致谢
 
@@ -101,8 +102,8 @@ flutter test
 
 ## 截图
 
-| Home | Lesson | Profile | Alphabets | Writing | Games |
-|:---:|:---:|:---:|:---:|:---:|:---:|
-| ![Home](screenshots/screenshot0.png) | ![Lesson](screenshots/screenshot1.png) | ![Profile](screenshots/screenshot2.png) | ![Alphabets](screenshots/screenshot3.png) | ![Writing](screenshots/screenshot4.png) | ![Games](screenshots/screenshot7.png) |
+| Home | Lesson | Profile | Alphabets | Match Madness |
+|:---:|:---:|:---:|:---:|:---:|
+| ![Home](screenshots/screenshot0.png) | ![Lesson](screenshots/screenshot1.png) | ![Profile](screenshots/screenshot2.png) | ![Alphabets](screenshots/screenshot3.png) | ![Games](screenshots/screenshot7.png) |
 
-> 截图展示当前仓库实际功能：课程树、学习页、个人统计、字母页、书写练习、Match Madness 小游戏。Social / Leaderboard / League 等功能已按 `future2.md` 移除。
+> 截图展示当前仓库实际功能：课程树、学习页、个人统计、字母页、Match Madness 小游戏。Social / Leaderboard / League 等功能已移除。

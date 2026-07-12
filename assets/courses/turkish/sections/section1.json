@@ -1,0 +1,165 @@
+{
+  "id": "section1",
+  "name": "Section 1",
+  "description": "Selamlamayı öğreniyorum",
+  "prerequisiteSectionIds": [],
+  "units": [
+    {
+      "id": "s1-u1",
+      "name": "Greetings",
+      "description": "How to say hello, thank you, and goodbye.",
+      "prerequisiteUnitIds": [],
+      "lessons": [
+        {
+          "id": "s1-l1",
+          "name": "Welcome",
+          "description": "A quick first look at Turkish greetings.",
+          "type": "normal",
+          "template": "legacy",
+          "prerequisiteLessonIds": [],
+          "content": {
+            "stages": [
+              {
+                "id": "stage-welcome",
+                "name": "Welcome",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-welcome",
+                    "prompt": "What does \"Merhaba\" mean?",
+                    "options": [
+                      "Hello",
+                      "Goodbye",
+                      "Thank you",
+                      "Yes"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "s1-l2",
+          "name": "Merhaba",
+          "description": "Meet common Turkish greetings and practice them.",
+          "type": "normal",
+          "template": "intro",
+          "prerequisiteLessonIds": ["s1-l1"],
+          "content": {
+            "subLessons": [
+              {
+                "id": "sl-meet",
+                "name": "Meet the words",
+                "stages": [
+                  {
+                    "id": "st-meet",
+                    "name": "Show",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-merhaba",
+                        "wordId": "w-merhaba"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-gunaydin",
+                        "wordId": "w-gunaydin"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-tesekkurler",
+                        "wordId": "w-tesekkurler"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-hoscakal",
+                        "wordId": "w-hoscakal"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-nasilsin",
+                        "wordId": "w-nasilsin"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-iyiyim",
+                        "wordId": "w-iyiyim",
+                        "context": "İyiyim, teşekkürler."
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-evet",
+                        "wordId": "w-evet"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-hayir",
+                        "wordId": "w-hayir"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-choose",
+                "name": "Choose",
+                "stages": [
+                  {
+                    "id": "st-choose",
+                    "name": "MCQ",
+                    "items": [
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-merhaba",
+                        "prompt": "What does \"merhaba\" mean?",
+                        "options": ["Hello", "Goodbye", "Thank you", "Yes"],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-tesekkurler",
+                        "prompt": "What does \"teşekkürler\" mean?",
+                        "options": ["Sorry", "Please", "Thank you", "Hello"],
+                        "correctIndex": 2
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-practice",
+                "name": "Practice",
+                "stages": [
+                  {
+                    "id": "st-practice",
+                    "name": "Use it",
+                    "items": [
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-greet",
+                        "sentence": "_____, nasılsın?",
+                        "answer": "Merhaba",
+                        "hint": "A common Turkish greeting"
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-evet",
+                        "prompt": "Choose the word that means \"yes\".",
+                        "options": ["hayır", "evet", "hoşça kal", "merhaba"],
+                        "correctIndex": 1
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

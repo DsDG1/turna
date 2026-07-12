@@ -26,7 +26,7 @@ class ContentUpdateDialog extends StatelessWidget {
       ),
       title: const Text('Course updated'),
       content: const Text(
-        'The Swahili course has been updated with new words and lessons. '
+        'The Turkish course has been updated with new words and lessons. '
         'You can start over or continue with your current progress.',
       ),
       actions: [

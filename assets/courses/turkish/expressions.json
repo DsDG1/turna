@@ -1,0 +1,20 @@
+{
+  "version": 2,
+  "language": "tr",
+  "expressions": [
+    {
+      "id": "e-selam",
+      "term": "Selam!",
+      "translation": "Hi!",
+      "pronunciation": "se-lam",
+      "tags": ["greeting"]
+    },
+    {
+      "id": "e-nasilsin",
+      "term": "Nasılsın?",
+      "translation": "How are you?",
+      "pronunciation": "na-sıl-sın",
+      "tags": ["greeting"]
+    }
+  ]
+}

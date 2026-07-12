@@ -1,0 +1,43 @@
+{
+  "id": "section8",
+  "name": "Section 8",
+  "description": "Çeşitli konularda akıcı konuşabiliyorum",
+  "prerequisiteSectionIds": ["section7"],
+  "units": [
+    {
+      "id": "s8-u1",
+      "name": "Fluency",
+      "description": "Speaking fluently across topics.",
+      "prerequisiteUnitIds": [],
+      "lessons": [
+        {
+          "id": "s8-l1",
+          "name": "Travel advanced",
+          "description": "Placeholder lesson — Turkish content to be authored.",
+          "type": "normal",
+          "template": "legacy",
+          "prerequisiteLessonIds": [],
+          "content": {
+            "stages": [
+              {
+                "id": "stage-welcome",
+                "name": "Welcome",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-welcome",
+                    "prompt": "Which Turkish word means \"journey\"?",
+                    "options": ["yolculuk", "merhaba", "evet", "su"],
+                    "correctIndex": 0
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

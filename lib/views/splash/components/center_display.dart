@@ -27,7 +27,7 @@ class _CenterDisplayState extends State<CenterDisplay>
       const Duration(milliseconds: 1000),
     ),
     _TextItem(
-      'Learn Swahili \u2022 Jifunze',
+      'Learn Turkish \u2022 T\u00fcrk\u00e7e \u00f6\u011fren',
       FontWeight.w600,
       (context) => VarnamalaTheme.textSecondaryColor(context),
       const Duration(milliseconds: 1000),

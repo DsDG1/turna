@@ -10,7 +10,6 @@ import 'package:varnamala/core/enums.dart';
 import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/domain/audio/vocab_audio_resolver.dart';
 import 'package:varnamala/service/locator.dart';
-import 'package:varnamala/service/piper_swahili_tts.dart';
 import 'package:varnamala/service/tts_availability_checker.dart';
 
 class _PassthroughVocabResolver implements VocabAudioResolver {
@@ -73,11 +72,11 @@ class _FakeFlutterTts implements FlutterTts {
 
   @override
   Future<dynamic> isLanguageAvailable(String language) async =>
-      language == 'sw' || language.startsWith('sw') ? 1 : 0;
+      language == 'tr' || language.startsWith('tr') ? 1 : 0;
 
   @override
   Future<dynamic> isLanguageInstalled(String language) async =>
-      language == 'sw' || language.startsWith('sw');
+      language == 'tr' || language.startsWith('tr');
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -85,10 +84,10 @@ class _FakeFlutterTts implements FlutterTts {
 
 class _FakeLanguageProvider implements LanguageProvider {
   @override
-  String get ttsLanguageCode => 'sw';
+  String get ttsLanguageCode => 'tr';
 
   @override
-  TargetLanguage get selectedLanguage => TargetLanguage.swahili;
+  TargetLanguage get selectedLanguage => TargetLanguage.turkish;
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -99,33 +98,9 @@ class _FakeAudioPlayer implements AudioPlayer {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-class _FakePiperTts implements PiperSwahiliTts {
-  final List<String> calls = [];
-  bool shouldThrow = false;
-
-  @override
-  bool get isReady => true;
-
-  @override
-  bool get initFailed => false;
-
-  @override
-  PiperTtsStatus get status => PiperTtsStatus.ready;
-
-  @override
-  Future<void> speak(String text, {double speed = 1.0}) async {
-    calls.add(text);
-    if (shouldThrow) throw Exception('piper failed');
-  }
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
 AudioController _buildController({
   required SettingsProvider settings,
   required _FakeFlutterTts tts,
-  _FakePiperTts? piper,
   TtsAvailabilityChecker? checker,
 }) {
   return AudioController(
@@ -135,7 +110,6 @@ AudioController _buildController({
     _PassthroughVocabResolver(),
     audioPlayer: _FakeAudioPlayer(),
     speechPlayer: _FakeAudioPlayer(),
-    piperTts: piper,
     ttsChecker: checker ?? TtsAvailabilityChecker(tts),
   );
 }
@@ -172,102 +146,41 @@ void main() {
     });
   });
 
-  group('AudioController TTS engine routing', () {
-    test('system mode uses device TTS and does not call Piper', () async {
+  group('AudioController TTS routing', () {
+    test('system mode uses device TTS', () async {
       final tts = _FakeFlutterTts();
-      final piper = _FakePiperTts();
-      final controller =
-          _buildController(settings: settings, tts: tts, piper: piper);
+      final controller = _buildController(settings: settings, tts: tts);
 
-      final result = await controller.speakWithResult('Habari');
+      final result = await controller.speakWithResult('Merhaba');
 
       expect(result.source, TtsSpeakSource.system);
       expect(result.usedFallback, isFalse);
       expect(tts.languageCalls, isNotEmpty);
-      expect(tts.languageCalls.last, anyOf('sw', 'sw-KE', 'sw-TZ', 'sw_KE', 'sw_TZ'));
+      expect(tts.languageCalls.last, anyOf('tr', 'tr-TR', 'tr_TR'));
       expect(tts.rateCalls, [0.5]);
-      expect(tts.speakCalls, ['Habari']);
-      expect(piper.calls, isEmpty);
+      expect(tts.speakCalls, ['Merhaba']);
     });
 
-    test('system mode falls back to Piper when device TTS fails', () async {
+    test('device TTS failure → TtsSpeakSource.failed', () async {
       final tts = _FakeFlutterTts(speakShouldThrow: true);
-      final piper = _FakePiperTts();
-      final controller =
-          _buildController(settings: settings, tts: tts, piper: piper);
+      final controller = _buildController(settings: settings, tts: tts);
 
-      final result = await controller.speakWithResult('Habari');
-
-      expect(result.source, TtsSpeakSource.piper);
-      expect(result.usedFallback, isTrue);
-      expect(tts.speakCalls, ['Habari']);
-      expect(piper.calls, ['Habari']);
-      // System stop before piper.
-      expect(tts.stopCalls, greaterThan(0));
-    });
-
-    test('system mode falls back to Piper when setLanguage fails', () async {
-      final tts = _FakeFlutterTts(setLanguageSucceeds: false);
-      final piper = _FakePiperTts();
-      final controller =
-          _buildController(settings: settings, tts: tts, piper: piper);
-
-      final result = await controller.speakWithResult('Habari');
-
-      expect(result.source, TtsSpeakSource.piper);
-      expect(result.usedFallback, isTrue);
-      expect(tts.languageCalls, isNotEmpty);
-      expect(tts.speakCalls, isEmpty);
-      expect(piper.calls, ['Habari']);
-    });
-
-    test('offline mode uses Piper first and skips device TTS speak', () async {
-      final tts = _FakeFlutterTts();
-      final piper = _FakePiperTts();
-      await settings.setTtsEngine(TtsEngine.offline);
-      final controller =
-          _buildController(settings: settings, tts: tts, piper: piper);
-
-      final result = await controller.speakWithResult('Habari');
-
-      expect(result.source, TtsSpeakSource.piper);
-      expect(result.usedFallback, isFalse);
-      expect(piper.calls, ['Habari']);
-      expect(tts.speakCalls, isEmpty);
-      // stopSystemTts before piper.
-      expect(tts.stopCalls, greaterThan(0));
-    });
-
-    test(
-      'offline mode falls back to device TTS and marks usedFallback',
-      () async {
-        final tts = _FakeFlutterTts();
-        final piper = _FakePiperTts()..shouldThrow = true;
-        await settings.setTtsEngine(TtsEngine.offline);
-        final controller =
-            _buildController(settings: settings, tts: tts, piper: piper);
-
-        final result = await controller.speakWithResult('Habari');
-
-        expect(result.source, TtsSpeakSource.system);
-        expect(result.usedFallback, isTrue);
-        expect(result.error, isNotNull);
-        expect(piper.calls, ['Habari']);
-        expect(tts.speakCalls, ['Habari']);
-      },
-    );
-
-    test('both engines fail → TtsSpeakSource.failed', () async {
-      final tts = _FakeFlutterTts(speakShouldThrow: true);
-      final piper = _FakePiperTts()..shouldThrow = true;
-      await settings.setTtsEngine(TtsEngine.offline);
-      final controller =
-          _buildController(settings: settings, tts: tts, piper: piper);
-
-      final result = await controller.speakWithResult('Habari');
+      final result = await controller.speakWithResult('Merhaba');
 
       expect(result.source, TtsSpeakSource.failed);
       expect(result.error, isNotNull);
+      expect(tts.speakCalls, ['Merhaba']);
+    });
+
+    test('setLanguage failure → TtsSpeakSource.failed', () async {
+      final tts = _FakeFlutterTts(setLanguageSucceeds: false);
+      final controller = _buildController(settings: settings, tts: tts);
+
+      final result = await controller.speakWithResult('Merhaba');
+
+      expect(result.source, TtsSpeakSource.failed);
+      expect(tts.languageCalls, isNotEmpty);
+      expect(tts.speakCalls, isEmpty);
     });
 
     test('rebindSystemTts forces engine reconfigure and clears language cache',
@@ -275,14 +188,14 @@ void main() {
       final tts = _FakeFlutterTts();
       final controller = _buildController(settings: settings, tts: tts);
 
-      await controller.speak('Habari');
+      await controller.speak('Merhaba');
       final languagesAfterFirst = List<String>.from(tts.languageCalls);
 
       await controller.rebindSystemTts();
-      await controller.speak('Jambo');
+      await controller.speak('Selam');
 
       expect(tts.languageCalls.length, greaterThan(languagesAfterFirst.length));
-      expect(tts.speakCalls, ['Habari', 'Jambo']);
+      expect(tts.speakCalls, ['Merhaba', 'Selam']);
     });
   });
 }

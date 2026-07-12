@@ -1,48 +1,45 @@
 #!/usr/bin/env python3
-"""Bulk audio generation for Swahili listening lessons.
+"""Bulk audio generation for Turkish listening lessons via MiniMax TTS.
 
-Uses the same Piper VITS model that the Flutter runtime bundles, so
-pre-generated listening assets and fallback TTS sound identical.
+Synthesizes listening-lesson audio assets by calling the MiniMax REST API
+(https://api.minimax.io/v1/t2a_v2). The generated MP3s are stored under
+assets/sounds/turkish/listening/ and can then be mixed with BGM using
+`tool/mix_listening_a1.py`.
 
-Word and expression pronunciation is handled at runtime by Piper (or
-flutter_tts); this script only generates MP3 for `audioAsset` references
-inside listening lessons.
-
-Backends (tried in order):
-  1. sherpa-onnx Python API  (matches the Flutter runtime)
-  2. Piper command-line executable
-
-If neither backend is available, the script prints a manifest of missing
-audio and exits with a non-zero code. It does not modify course JSON.
+Authentication:
+  export MINIMAX_API_KEY="sk-..."
+  # Optional, required by some MiniMax accounts:
+  export MINIMAX_GROUP_ID="..."
 
 Examples:
   python tool/generate_audio.py all
+  python tool/generate_audio.py all --voice-id male-qn-jingying --speed 0.9
   python tool/generate_audio.py list section:foundations
-  python tool/generate_audio.py speak "Habari za asubuhi" assets/sounds/swahili/listening/l-greetings.mp3
+  python tool/generate_audio.py speak "Habari za asubuhi" assets/sounds/turkish/listening/l-greetings.mp3
 """
 
 from __future__ import annotations
 
 import argparse
+import base64
 import json
-import shutil
-import subprocess
+import os
 import sys
-from abc import ABC, abstractmethod
+import urllib.error
+import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from course_cli import is_listening_lesson  # type: ignore
 
-COURSE_DIR = Path("assets/courses/swahili")
-SOUNDS_DIR = Path("assets/sounds/swahili")
-VOICE_DIR = (
-    Path("assets/voices/swahili/vits-piper-sw_CD-lanfrica-medium-int8")
-)
-MODEL_FILE = VOICE_DIR / "sw_CD-lanfrica-medium.onnx"
-TOKENS_FILE = VOICE_DIR / "tokens.txt"
-DATA_DIR = VOICE_DIR / "espeak-ng-data"
+COURSE_DIR = Path("assets/courses/turkish")
+SOUNDS_DIR = Path("assets/sounds/turkish")
+
+MINIMAX_API_URL = os.environ.get("MINIMAX_API_URL", "https://api.minimax.io/v1/t2a_v2")
+DEFAULT_VOICE_ID = "female-tianmei"
+DEFAULT_MODEL = "speech-2.8-hd"
+DEFAULT_SPEED = 0.9
 
 
 # --------------------------------------------------------------------------- #
@@ -59,153 +56,117 @@ class AudioEntry:
 
 
 # --------------------------------------------------------------------------- #
-# TTS backends
+# MiniMax backend
 # --------------------------------------------------------------------------- #
 
 
-class TtsBackend(ABC):
-    """Abstract TTS backend that can synthesize text to a wave file."""
+class MiniMaxBackend:
+    """Call the MiniMax Text-to-Audio v2 HTTP API."""
 
-    @abstractmethod
-    def name(self) -> str:
-        ...
-
-    @abstractmethod
-    def synthesize(self, text: str, output_wav: Path) -> None:
-        """Synthesize [text] to a mono wave file at [output_wav]."""
-        ...
-
-
-class SherpaOnnxBackend(TtsBackend):
-    """sherpa-onnx Python API backend."""
-
-    def __init__(self) -> None:
-        import sherpa_onnx
-
-        self._sherpa_onnx = sherpa_onnx
-        sherpa_onnx.initBindings()
-
-        vits = sherpa_onnx.OfflineTtsVitsModelConfig(
-            model=str(MODEL_FILE),
-            tokens=str(TOKENS_FILE),
-            data_dir=str(DATA_DIR),
-        )
-        model_config = sherpa_onnx.OfflineTtsModelConfig(
-            vits=vits,
-            num_threads=2,
-            provider="cpu",
-        )
-        config = sherpa_onnx.OfflineTtsConfig(
-            model=model_config,
-            maxNumSenetences=1,
-        )
-        self._tts = sherpa_onnx.OfflineTts(config)
-
-    def name(self) -> str:
-        return "sherpa-onnx"
-
-    def synthesize(self, text: str, output_wav: Path) -> None:
-        audio = self._tts.generate(text=text, sid=0, speed=1.0)
-        ok = self._sherpa_onnx.writeWave(
-            filename=str(output_wav),
-            samples=audio.samples,
-            sampleRate=audio.sampleRate,
-        )
-        if not ok:
-            raise RuntimeError(f"sherpa-onnx failed to write {output_wav}")
-
-
-class PiperCliBackend(TtsBackend):
-    """Piper command-line backend."""
-
-    def __init__(self, executable: str = "piper") -> None:
-        self._executable = executable
-
-    def name(self) -> str:
-        return f"piper-cli ({self._executable})"
-
-    def synthesize(self, text: str, output_wav: Path) -> None:
-        cmd = [
-            self._executable,
-            "--model",
-            str(MODEL_FILE),
-            "--output_file",
-            str(output_wav),
-        ]
-        result = subprocess.run(
-            cmd,
-            input=text,
-            text=True,
-            capture_output=True,
-        )
-        if result.returncode != 0:
+    def __init__(
+        self,
+        voice_id: str = DEFAULT_VOICE_ID,
+        speed: float = DEFAULT_SPEED,
+        model: str = DEFAULT_MODEL,
+    ) -> None:
+        self.api_key = os.environ.get("MINIMAX_API_KEY")
+        if not self.api_key:
             raise RuntimeError(
-                f"piper failed: {result.stderr.strip() or result.stdout.strip()}"
+                "MINIMAX_API_KEY environment variable is required. "
+                "Set it with: export MINIMAX_API_KEY=sk-..."
             )
 
+        self.group_id = os.environ.get("MINIMAX_GROUP_ID")
+        self.voice_id = voice_id
+        self.speed = speed
+        self.model = model
 
-def detect_backend(prefer: str | None = None) -> TtsBackend | None:
-    """Return the best available TTS backend, or None if none is available."""
-    if prefer == "sherpa-onnx" or prefer is None:
+    def name(self) -> str:
+        return f"minimax ({self.model}, voice={self.voice_id}, speed={self.speed})"
+
+    def synthesize(self, text: str, output_mp3: Path) -> None:
+        """Synthesize [text] to an MP3 file at [output_mp3]."""
+        payload: dict[str, Any] = {
+            "model": self.model,
+            "text": text,
+            "stream": False,
+            "voice_setting": {
+                "voice_id": self.voice_id,
+                "speed": self.speed,
+                "vol": 1.0,
+                "pitch": 0,
+            },
+            "audio_setting": {
+                "sample_rate": 32000,
+                "bitrate": 128000,
+                "format": "mp3",
+                "channel": 1,
+            },
+            # Ask MiniMax to return the audio bytes as a hex string inside JSON.
+            # If the API instead returns base64, _decode_audio will fall back.
+            "output_format": "hex",
+        }
+
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+        if self.group_id:
+            headers["MiniMax-Group-Id"] = self.group_id
+
+        data = json.dumps(payload).encode("utf-8")
+        request = urllib.request.Request(
+            MINIMAX_API_URL,
+            data=data,
+            headers=headers,
+            method="POST",
+        )
+
         try:
-            if MODEL_FILE.exists() and TOKENS_FILE.exists() and DATA_DIR.exists():
-                return SherpaOnnxBackend()
-        except Exception:
-            pass
+            with urllib.request.urlopen(request, timeout=120) as response:
+                response_body = json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode("utf-8", errors="replace")
+            raise RuntimeError(f"MiniMax API error {exc.code}: {body}") from exc
 
-    if prefer == "piper" or prefer is None:
-        executable = shutil.which("piper") or shutil.which("piper-tts")
-        if executable:
-            return PiperCliBackend(executable)
+        audio_bytes = _extract_audio_bytes(response_body)
 
-    return None
+        output_mp3.parent.mkdir(parents=True, exist_ok=True)
+        with output_mp3.open("wb") as f:
+            f.write(audio_bytes)
+
+
+def _extract_audio_bytes(response: dict[str, Any]) -> bytes:
+    """Extract raw audio bytes from a MiniMax T2A v2 JSON response."""
+    audio_value = response.get("audio") or response.get("data", {}).get("audio")
+    if audio_value is None:
+        raise RuntimeError(f"MiniMax response did not contain audio data: {response}")
+
+    if isinstance(audio_value, bytes):
+        return audio_value
+
+    if not isinstance(audio_value, str):
+        raise RuntimeError(f"Unexpected audio type in MiniMax response: {type(audio_value)}")
+
+    cleaned = audio_value.strip()
+    # MiniMax often returns hex-encoded audio when output_format=hex.
+    try:
+        return bytes.fromhex(cleaned)
+    except ValueError:
+        pass
+
+    # Fall back to base64 decoding.
+    try:
+        return base64.b64decode(cleaned, validate=True)
+    except Exception as exc:
+        raise RuntimeError(
+            f"Could not decode MiniMax audio as hex or base64: {cleaned[:80]}..."
+        ) from exc
 
 
 # --------------------------------------------------------------------------- #
 # Audio output helpers
 # --------------------------------------------------------------------------- #
-
-
-def _wav_to_mp3(wav_path: Path, mp3_path: Path) -> None:
-    """Convert a wave file to MP3 using ffmpeg or pydub if available."""
-    if shutil.which("ffmpeg"):
-        subprocess.run(
-            [
-                "ffmpeg",
-                "-y",
-                "-i",
-                str(wav_path),
-                "-ar",
-                "44100",
-                "-ac",
-                "1",
-                "-q:a",
-                "4",
-                str(mp3_path),
-            ],
-            check=True,
-            capture_output=True,
-        )
-        wav_path.unlink()
-        return
-
-    try:
-        from pydub import AudioSegment
-
-        segment = AudioSegment.from_wav(str(wav_path))
-        segment.export(str(mp3_path), format="mp3", parameters=["-q:a", "4"])
-        wav_path.unlink()
-        return
-    except Exception:
-        pass
-
-    # No converter available: keep the wave file but name it back to mp3
-    # so the manifest is still correct. The build will need a real mp3 later.
-    wav_path.rename(mp3_path)
-    print(
-        f"Warning: no mp3 encoder found; kept raw wave data at {mp3_path}",
-        file=sys.stderr,
-    )
 
 
 def listening_asset_path(asset: str, base_dir: Path = SOUNDS_DIR) -> Path:
@@ -224,7 +185,7 @@ def target_path_for(asset: str, category: str | None = None) -> Path:
 
 def generate_entry(
     entry: AudioEntry,
-    backend: TtsBackend,
+    backend: MiniMaxBackend,
     force: bool = False,
     base_dir: Path = SOUNDS_DIR,
 ) -> Path:
@@ -234,9 +195,7 @@ def generate_entry(
         return output
 
     output.parent.mkdir(parents=True, exist_ok=True)
-    wav_path = output.with_suffix(".wav")
-    backend.synthesize(entry.text, wav_path)
-    _wav_to_mp3(wav_path, output)
+    backend.synthesize(entry.text, output)
     return output
 
 
@@ -254,8 +213,7 @@ def collect_entries(course_dir: Path) -> list[AudioEntry]:
     """Return listening-lesson AudioEntries that should have MP3 files.
 
     Only `ListeningPhase.audioAsset` references with a non-empty `transcript`
-    are bundled: the transcript is the text Piper synthesizes, mirroring the
-    runtime listen-only fallback (speak the transcript). Word/expression
+    are bundled: the transcript is the text MiniMax synthesizes. Word/expression
     pronunciation is synthesized at runtime, so those ids are excluded. Assets
     that lack a transcript (e.g. legacy `content.audioAsset`) are intentionally
     skipped — they need a human recording or a transcript, not synthesized
@@ -299,21 +257,18 @@ def collect_entries(course_dir: Path) -> list[AudioEntry]:
 # --------------------------------------------------------------------------- #
 
 
-def cmd_all(args: argparse.Namespace) -> int:
-    backend = detect_backend(prefer=args.backend)
-    if backend is None:
-        print(
-            "Error: no TTS backend available. Install sherpa-onnx "
-            "(`pip install sherpa-onnx`) or put `piper` on PATH.",
-            file=sys.stderr,
-        )
-        entries = collect_entries(args.course_dir)
-        print(f"\nWould generate {len(entries)} audio file(s):", file=sys.stderr)
-        for e in entries:
-            print(f"  {e.audio_asset:30} -> {e.text}", file=sys.stderr)
-        return 1
+def _build_backend(args: argparse.Namespace) -> MiniMaxBackend:
+    return MiniMaxBackend(
+        voice_id=args.voice_id,
+        speed=args.speed,
+        model=args.model,
+    )
 
+
+def cmd_all(args: argparse.Namespace) -> int:
+    backend = _build_backend(args)
     print(f"Using backend: {backend.name()}")
+
     entries = collect_entries(args.course_dir)
     generated = 0
     skipped = 0
@@ -331,14 +286,7 @@ def cmd_all(args: argparse.Namespace) -> int:
 
 
 def cmd_list(args: argparse.Namespace) -> int:
-    backend = detect_backend(prefer=args.backend)
-    if backend is None:
-        print(
-            "Error: no TTS backend available. Install sherpa-onnx "
-            "(`pip install sherpa-onnx`) or put `piper` on PATH.",
-            file=sys.stderr,
-        )
-        return 1
+    backend = _build_backend(args)
 
     # `list` is a manual-override entry point: the caller supplies the asset
     # ids to synthesize. There is no transcript lookup here — if the caller
@@ -356,20 +304,9 @@ def cmd_list(args: argparse.Namespace) -> int:
 
 
 def cmd_speak(args: argparse.Namespace) -> int:
-    backend = detect_backend(prefer=args.backend)
-    if backend is None:
-        print(
-            "Error: no TTS backend available. Install sherpa-onnx "
-            "(`pip install sherpa-onnx`) or put `piper` on PATH.",
-            file=sys.stderr,
-        )
-        return 1
-
+    backend = _build_backend(args)
     output = Path(args.output)
-    output.parent.mkdir(parents=True, exist_ok=True)
-    wav_path = output.with_suffix(".wav")
-    backend.synthesize(args.text, wav_path)
-    _wav_to_mp3(wav_path, output)
+    backend.synthesize(args.text, output)
     print(f"Generated {output}")
     return 0
 
@@ -381,19 +318,29 @@ def cmd_speak(args: argparse.Namespace) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Bulk audio generation for Swahili listening lessons"
+        description="Bulk audio generation for Turkish listening lessons via MiniMax TTS"
     )
     parser.add_argument(
         "--course-dir",
         type=Path,
         default=COURSE_DIR,
-        help="Course directory (default: assets/courses/swahili)",
+        help="Course directory (default: assets/courses/turkish)",
     )
     parser.add_argument(
-        "--backend",
-        choices=["sherpa-onnx", "piper"],
-        default=None,
-        help="TTS backend to use (default: auto-detect)",
+        "--voice-id",
+        default=DEFAULT_VOICE_ID,
+        help=f"MiniMax voice ID (default: {DEFAULT_VOICE_ID})",
+    )
+    parser.add_argument(
+        "--model",
+        default=DEFAULT_MODEL,
+        help=f"MiniMax model (default: {DEFAULT_MODEL})",
+    )
+    parser.add_argument(
+        "--speed",
+        type=float,
+        default=DEFAULT_SPEED,
+        help=f"Speech speed (default: {DEFAULT_SPEED})",
     )
     parser.add_argument(
         "--force",

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/courses/languages/swahili_vocab.dart';
+import 'package:varnamala/courses/languages/vocab.dart';
 import 'package:varnamala/domain/course/interaction.dart';
 import 'package:varnamala/domain/course/word_entry.dart';
 import 'package:varnamala/views/lesson/components/interactions/show_word_renderer.dart';
@@ -12,7 +12,7 @@ void main() {
 
   setUp(() {
     harness.submissions.clear();
-    swahiliVocabById['w-test-show'] = const WordEntry(
+    vocabById['w-test-show'] = const WordEntry(
       id: 'w-test-show',
       term: 'Habari',
       translation: 'Hello',
@@ -20,7 +20,7 @@ void main() {
   });
 
   tearDown(() {
-    swahiliVocabById.remove('w-test-show');
+    vocabById.remove('w-test-show');
   });
 
   testWidgets('ShowWord builds and submits correct on tap', (tester) async {
@@ -58,7 +58,7 @@ void main() {
     expect(audio.lastSpoken, 'Habari');
     expect(harness.submissions, isEmpty);
 
-    // Tapping the context sentence speaks only the Swahili part.
+    // Tapping the context sentence speaks only the target-language part.
     await tester.tap(find.text('Habari asubuhi. — Good morning.'));
     await tester.pumpAndSettle();
     expect(audio.lastSpoken, 'Habari asubuhi.');

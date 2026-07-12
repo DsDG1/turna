@@ -6,7 +6,7 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:varnamala/application/audio_controller.dart';
-import 'package:varnamala/courses/languages/swahili_vocab.dart';
+import 'package:varnamala/courses/languages/vocab.dart';
 import 'package:varnamala/domain/course/interaction.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:varnamala/views/theme.dart';
@@ -37,7 +37,7 @@ class ShowWordRenderer extends InteractionRenderer {
     OnInteractionSubmit onSubmit,
   ) {
     final i = interaction as ShowWord;
-    final vocab = swahiliVocabById[i.wordId];
+    final vocab = vocabById[i.wordId];
     final term = vocab?.term ?? i.wordId;
     final translation = vocab?.translation ?? '';
 
@@ -122,7 +122,7 @@ class _ShowWordCard extends StatelessWidget {
                     const SizedBox(height: 20),
                     GestureDetector(
                       onTap: () => audioController.speak(
-                        _swahiliPart(contextSentence!),
+                        _targetPart(contextSentence!),
                       ),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
@@ -179,8 +179,8 @@ class _ShowWordCard extends StatelessWidget {
   }
 
   /// If the context sentence includes a translation separator, speak only the
-  /// first (Swahili) part; otherwise speak the whole sentence.
-  static String _swahiliPart(String sentence) {
+  /// first (target-language) part; otherwise speak the whole sentence.
+  static String _targetPart(String sentence) {
     final match = RegExp(r'\s*[—–-]\s*|\s*\|\s*').firstMatch(sentence);
     if (match != null) {
       return sentence.substring(0, match.start).trim();

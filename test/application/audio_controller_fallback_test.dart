@@ -21,7 +21,7 @@ class _FakeFlutterTts implements FlutterTts {
 
 class _FakeLanguageProvider implements LanguageProvider {
   @override
-  String get ttsLanguageCode => 'sw';
+  String get ttsLanguageCode => 'tr';
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -96,13 +96,13 @@ void main() {
 
     test('audioAsset present → speaks from asset, no TTS', () async {
       resolver.entries['w-test-audio'] = const ResolvedVocabAudio(
-        audioAsset: 'assets/audio/swahili/test.mp3',
+        audioAsset: 'assets/audio/turkish/test.mp3',
         speakText: 'Test',
       );
 
       await controller.speakWord('w-test-audio');
 
-      expect(controller.assetCalls, ['assets/audio/swahili/test.mp3']);
+      expect(controller.assetCalls, ['assets/audio/turkish/test.mp3']);
       expect(controller.ttsCalls, isEmpty);
     });
 
@@ -118,7 +118,7 @@ void main() {
     });
 
     test('audioAsset empty → falls back to TTS with term', () async {
-      // Empty asset is treated as absent by the Swahili resolver; the map
+      // Empty asset is treated as absent by the vocab resolver; the map
       // resolver mirrors that by omitting audioAsset.
       resolver.entries['w-test-empty-audio'] = const ResolvedVocabAudio(
         speakText: 'Jambo',
@@ -141,7 +141,7 @@ void main() {
   group('AudioController asset path helpers', () {
     test('isAssetPath detects paths vs word ids', () {
       expect(AudioController.isAssetPath('assets/audio/x.mp3'), isTrue);
-      expect(AudioController.isAssetPath('audio/swahili/x.mp3'), isTrue);
+      expect(AudioController.isAssetPath('audio/turkish/x.mp3'), isTrue);
       expect(AudioController.isAssetPath('/assets/audio/x.mp3'), isTrue);
       expect(AudioController.isAssetPath('w-habari'), isFalse);
       expect(AudioController.isAssetPath('habari'), isFalse);
@@ -186,9 +186,9 @@ void main() {
 
     test('asset path → speakFromAsset', () async {
       await controller.speakListenContent(
-        audioAsset: 'assets/sounds/swahili/listening/x.mp3',
+        audioAsset: 'assets/sounds/turkish/listening/x.mp3',
       );
-      expect(controller.assetCalls, ['assets/sounds/swahili/listening/x.mp3']);
+      expect(controller.assetCalls, ['assets/sounds/turkish/listening/x.mp3']);
       expect(controller.ttsCalls, isEmpty);
     });
 

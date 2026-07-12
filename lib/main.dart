@@ -8,13 +8,12 @@ import 'package:flutter/material.dart';
 import 'package:varnamala/application/course_provider.dart';
 import 'package:varnamala/courses/languages/expressions.dart';
 import 'package:varnamala/courses/languages/grammar_points.dart';
-import 'package:varnamala/courses/languages/swahili_vocab.dart';
+import 'package:varnamala/courses/languages/vocab.dart';
 import 'package:varnamala/core/logger.dart';
 import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/application/settings_provider.dart';
 import 'package:varnamala/service/local_reminder_service.dart';
 import 'package:varnamala/service/locator.dart';
-import 'package:varnamala/service/piper_swahili_tts.dart';
 import 'package:varnamala/service/tts_availability_checker.dart';
 import 'package:varnamala/views/app.dart';
 
@@ -58,27 +57,21 @@ Future<void> main() async {
   runApp(const VarnamalaApp());
 
   WidgetsBinding.instance.addPostFrameCallback((_) async {
-    // Populate the synchronous Swahili lookup maps (vocab / grammar /
+    // Populate the synchronous lookup maps (vocab / grammar /
     // expressions) before the course tree shows lessons. Deferred from
     // setupLocator so runApp paints the splash without waiting on the full
     // table read. Idempotent one-shot loads.
-    await loadSwahiliVocabulary();
-    await loadSwahiliGrammarPoints();
-    await loadSwahiliExpressions();
+    await loadVocabulary();
+    await loadGrammarPoints();
+    await loadExpressions();
 
     await getIt<CourseProvider>().load();
 
     if (!kIsWeb) {
       // Prefer Google TTS on Android before any speak/availability checks so
-      // OEM default engines without Swahili do not shadow the real system
+      // OEM default engines without Turkish do not shadow the real system
       // voice.
       await getIt<TtsAvailabilityChecker>().configureSystemEngine();
-
-      // Warm the Piper offline worker in the background so the first
-      // tap-to-speak (when falling back to / preferring the bundled model)
-      // does not stall on model load. Fire-and-forget: it runs in its own
-      // isolate and never blocks the UI.
-      getIt<PiperSwahiliTts>().prewarm().catchError((_) {/* best-effort */});
 
       // Re-arm daily reminder from prefs (best-effort; never block UI).
       try {

@@ -10,6 +10,8 @@ import 'package:auto_route/annotations.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
+import 'package:varnamala/application/game_provider.dart';
+import 'package:varnamala/application/gems_provider.dart';
 import 'package:varnamala/application/lesson_viewmodel.dart';
 import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
@@ -206,12 +208,15 @@ class _NewLessonPageState extends State<NewLessonPage> {
         else if (legacyPassage.isNotEmpty)
           LessonLegacyReadingPassage(text: legacyPassage),
         Expanded(
-          child: renderer.build(
-            interaction,
-            vm.currentInteractionState,
-            (correct, {userAnswerText}) {
-              vm.submitInteraction(correct, userAnswerText: userAnswerText);
-            },
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.only(top: 8, bottom: 16),
+            child: renderer.build(
+              interaction,
+              vm.currentInteractionState,
+              (correct, {userAnswerText}) {
+                vm.submitInteraction(correct, userAnswerText: userAnswerText);
+              },
+            ),
           ),
         ),
         if (vm.hasSubmitted && !renderer.autoAdvance)
@@ -272,9 +277,28 @@ class _NewLessonPageState extends State<NewLessonPage> {
   Future<void> _showCompletionDialog() async {
     if (!mounted || _dialogShown) return;
     _dialogShown = true;
+
+    final total = _vm.totalInteractionCount;
+    final correct = _vm.correctAnswers;
+    final wasPerfect = total > 0 && correct == total;
+    final xpEarned = wasPerfect
+        ? XPEvent.lessonComplete.base + XPEvent.perfectLesson.base
+        : XPEvent.lessonComplete.base;
+    final gemsEarned = wasPerfect
+        ? GemEvent.lessonComplete.amount + GemEvent.perfectLesson.amount
+        : GemEvent.lessonComplete.amount;
+
     await showLessonCompletionDialog(
       context: context,
       isMounted: () => mounted,
+      correctCount: correct,
+      incorrectCount: _vm.incorrectAnswers,
+      totalCount: total,
+      durationSeconds: _vm.durationSeconds,
+      xpEarned: xpEarned,
+      gemsEarned: gemsEarned,
+      wasPerfect: wasPerfect,
+      questionResults: _vm.questionResults,
       random: _random,
     );
     _dialogShown = false;

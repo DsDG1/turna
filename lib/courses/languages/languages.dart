@@ -1,6 +1,6 @@
-// Loading entry point for the Swahili course. Course data is bundled as
-// JSON under `assets/courses/swahili/` and loaded asynchronously by
-// `SwahiliCourse.load()`.
+// Loading entry point for the course. Course data is bundled as
+// JSON under `assets/courses/turkish/` and loaded asynchronously by
+// `CourseLoader.load()`.
+export 'course_lookup.dart';
 export 'grammar_points.dart';
-export 'swahili.dart';
-export 'swahili_vocab.dart';
+export 'vocab.dart';

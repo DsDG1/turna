@@ -40,14 +40,14 @@ void ensureSqliteLibForTestHost() {
   _sqliteOverrideApplied = true;
 }
 
-/// Creates an in-memory [CourseDatabase], seeds it from the bundled Swahili
-/// JSON assets, and injects it into [SwahiliCourse] via [overrideDatabase] so
+/// Creates an in-memory [CourseDatabase], seeds it from the bundled Turkish
+/// JSON assets, and injects it into [CourseLoader] via [overrideDatabase] so
 /// the static loader resolves to this DB. Returns the DB for direct queries.
 Future<CourseDatabase> seedInMemoryCourseDb() async {
   TestWidgetsFlutterBinding.ensureInitialized();
   ensureSqliteLibForTestHost();
   final db = CourseDatabase(NativeDatabase.memory());
   await DatabaseSeeder(db).seedIfNeeded();
-  SwahiliCourse.overrideDatabase(() => db);
+  CourseLoader.overrideDatabase(() => db);
   return db;
 }

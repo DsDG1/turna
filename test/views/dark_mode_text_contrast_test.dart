@@ -101,7 +101,7 @@ Section _loadedSection() => const Section(
         Unit(
           id: 'u-1',
           name: 'Greetings',
-          description: 'Say hello in Swahili',
+          description: 'Say hello in Turkish',
           prerequisiteUnitIds: [],
           lessons: [
             Lesson(

@@ -194,6 +194,16 @@ void main() {
     });
   });
 
+  group('sectionIdForUnit / sectionIdForLesson', () {
+    test('resolves owning section ids', () async {
+      await seedMinimalCourse();
+      expect(await repo.sectionIdForUnit('u-1'), 's-1');
+      expect(await repo.sectionIdForUnit('missing'), equals(null));
+      expect(await repo.sectionIdForLesson('l-1'), 's-1');
+      expect(await repo.sectionIdForLesson('missing'), equals(null));
+    });
+  });
+
   group('lessonById', () {
     test('returns a single lesson with content', () async {
       await seedMinimalCourse();
@@ -245,31 +255,72 @@ void main() {
       expect(lesson.content.stages, isEmpty);
     });
 
-    test('degrades corrupted content in section() rebuild', () async {
+    test('section() is metadata-only (empty content even when blob exists)',
+        () async {
       await seedMinimalCourse();
-      // Add a second lesson with corrupted content in the same section.
-      await database.into(database.lessons).insert(
-            const db.LessonsCompanion(
-              id: Value('l-bad'),
-              unitId: Value('u-1'),
-              name: Value('Bad Lesson'),
-              type: Value('normal'),
-              template: Value('practice'),
+      final section = await repo.section('s-1');
+      final l1 = section.units.first.lessons.firstWhere((l) => l.id == 'l-1');
+      expect(l1.name, 'Lesson 1');
+      expect(l1.template, LessonTemplate.intro);
+      // Tree path never hydrates contentJson.
+      expect(l1.content.stages, isEmpty);
+      // Body path still returns stored content.
+      final body = await repo.lessonById('l-1');
+      expect(body.content.stages, isEmpty); // seed used {"stages":[]}
+    });
+
+    test('section() scales past SQLite ~999 IN limit (no content isIn)',
+        () async {
+      // 2 units × 600 lessons = 1200 lessons — would break lessonId.isIn.
+      await database.into(database.sections).insert(
+            const db.SectionsCompanion(
+              id: Value('s-big'),
+              name: Value('Big'),
               sortOrder: Value(1),
             ),
           );
-      await database.into(database.lessonContents).insert(
-            const db.LessonContentsCompanion(
-              lessonId: Value('l-bad'),
-              contentJson: Value('not-json'),
+      await database.batch((batch) {
+        for (var u = 0; u < 2; u++) {
+          final unitId = 'u-big-$u';
+          batch.insert(
+            database.units,
+            db.UnitsCompanion(
+              id: Value(unitId),
+              sectionId: const Value('s-big'),
+              name: Value('Unit $u'),
+              sortOrder: Value(u),
             ),
           );
+          for (var i = 0; i < 600; i++) {
+            final lid = 'l-big-$u-$i';
+            batch.insert(
+              database.lessons,
+              db.LessonsCompanion(
+                id: Value(lid),
+                unitId: Value(unitId),
+                name: Value('Lesson $i'),
+                sortOrder: Value(i),
+              ),
+            );
+            // Content rows exist but must not be queried by section().
+            batch.insert(
+              database.lessonContents,
+              db.LessonContentsCompanion(
+                lessonId: Value(lid),
+                contentJson: const Value('{"stages":[]}'),
+              ),
+            );
+          }
+        }
+      });
 
-      // section() must not throw on the corrupted sibling; l-1 still loads
-      // normally and l-bad degrades to empty content.
-      final section = await repo.section('s-1');
-      final bad = section.units.first.lessons.firstWhere((l) => l.id == 'l-bad');
-      expect(bad.content.stages, isEmpty);
+      final section = await repo.section('s-big');
+      expect(section.units, hasLength(2));
+      expect(section.units[0].lessons, hasLength(600));
+      expect(section.units[1].lessons, hasLength(600));
+      expect(section.units[0].lessons.first.content.stages, isEmpty);
+      final body = await repo.lessonById('l-big-0-0');
+      expect(body.id, 'l-big-0-0');
     });
   });
 

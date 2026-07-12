@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "language": "tr",
+  "words": [
+    {
+      "id": "w-merhaba",
+      "term": "merhaba",
+      "translation": "hello",
+      "pronunciation": "mer-ha-ba",
+      "tags": ["greeting"]
+    },
+    {
+      "id": "w-gunaydin",
+      "term": "günaydın",
+      "translation": "good morning",
+      "pronunciation": "gü-nay-dın",
+      "tags": ["greeting"]
+    },
+    {
+      "id": "w-tesekkurler",
+      "term": "teşekkürler",
+      "translation": "thank you",
+      "pronunciation": "te-şek-kür-ler",
+      "tags": ["greeting"]
+    },
+    {
+      "id": "w-hoscakal",
+      "term": "hoşça kal",
+      "translation": "goodbye",
+      "pronunciation": "hoş-ça kal",
+      "tags": ["greeting"]
+    },
+    {
+      "id": "w-evet",
+      "term": "evet",
+      "translation": "yes",
+      "pronunciation": "e-vet",
+      "tags": ["greeting"]
+    },
+    {
+      "id": "w-hayir",
+      "term": "hayır",
+      "translation": "no",
+      "pronunciation": "ha-yır",
+      "tags": ["greeting"]
+    },
+    {
+      "id": "w-nasilsin",
+      "term": "nasılsın?",
+      "translation": "how are you?",
+      "pronunciation": "na-sıl-sın",
+      "tags": ["greeting"]
+    },
+    {
+      "id": "w-iyiyim",
+      "term": "iyiyim",
+      "translation": "I am fine",
+      "pronunciation": "i-yi-yim",
+      "tags": ["greeting"]
+    }
+  ]
+}

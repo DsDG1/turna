@@ -20,13 +20,13 @@ import 'package:varnamala/domain/repositories/i_course_repository.dart';
 
 /// Reads course content from [CourseDatabase] and reconstructs the existing
 /// freezed domain models ([Section]/[Unit]/[Lesson]/[LessonContent]/
-/// [WordEntry]). This is the data-access layer `SwahiliCourse` calls instead
+/// [WordEntry]). This is the data-access layer `CourseLoader` calls instead
 /// of `rootBundle`.
 ///
-/// Section bodies are rebuilt with 4 ordered queries (section, units, lessons,
-/// lesson content blobs) and grouped in Dart; lesson content is a pure
-/// `LessonContent.fromJson(jsonDecode(blob))` since the seeder stores
-/// normalized content.
+/// Section trees (L1) are rebuilt with 2–3 queries (section, units, lessons
+/// via join) and **do not** load `lesson_contents` — that keeps opening a
+/// section with ~1800 lessons free of giant `IN` lists and mass JSON decode.
+/// Full bodies are loaded only via [lessonById] (L2).
 class CourseRepository implements ICourseRepository {
   final db.CourseDatabase database;
   CourseRepository(this.database);
@@ -139,8 +139,11 @@ class CourseRepository implements ICourseRepository {
     }
   }
 
-  /// Rebuild a full [Section] (units → lessons → content) by id. Throws
-  /// [ArgumentError] if the section id is unknown.
+  /// Rebuild an L1 [Section] tree (units → lesson **metadata** only) by id.
+  ///
+  /// [Lesson.content] is always empty here so course-tree open stays O(metadata)
+  /// and never hits SQLite's ~999-variable `IN` limit on content ids. Use
+  /// [lessonById] for full bodies. Throws [ArgumentError] if unknown.
   @override
   Future<Section> section(String id) async {
     final sectionRow = await (database.select(database.sections)
@@ -157,25 +160,25 @@ class CourseRepository implements ICourseRepository {
 
     final lessonsByUnit = <String, List<Lesson>>{};
     if (unitRows.isNotEmpty) {
-      final unitIds = unitRows.map((u) => u.id).toList();
-      final lessonRows = await (database.select(database.lessons)
-            ..where((t) => t.unitId.isIn(unitIds))
-            ..orderBy([(t) => OrderingTerm(expression: t.sortOrder)]))
-          .get();
+      // Join on sectionId — single bind parameter, scales past 999 lessons.
+      final lessonQuery = database.select(database.lessons).join([
+        innerJoin(
+          database.units,
+          database.units.id.equalsExp(database.lessons.unitId),
+        ),
+      ])
+        ..where(database.units.sectionId.equals(id))
+        ..orderBy([
+          OrderingTerm(expression: database.units.sortOrder),
+          OrderingTerm(expression: database.lessons.sortOrder),
+        ]);
 
-      if (lessonRows.isNotEmpty) {
-        final lessonIds = lessonRows.map((l) => l.id).toList();
-        final contentRows = await (database.select(database.lessonContents)
-              ..where((t) => t.lessonId.isIn(lessonIds)))
-            .get();
-        final contentByLesson = {
-          for (final c in contentRows) c.lessonId: c.contentJson,
-        };
-
-        for (final lr in lessonRows) {
-          final lesson = _toLesson(lr, contentByLesson[lr.id]);
-          lessonsByUnit.putIfAbsent(lr.unitId, () => []).add(lesson);
-        }
+      final joined = await lessonQuery.get();
+      for (final row in joined) {
+        final lr = row.readTable(database.lessons);
+        // Metadata only — empty content is intentional for the course tree.
+        final lesson = _toLesson(lr, null);
+        lessonsByUnit.putIfAbsent(lr.unitId, () => []).add(lesson);
       }
     }
 
@@ -214,6 +217,29 @@ class CourseRepository implements ICourseRepository {
           ..where((t) => t.lessonId.equals(id)))
         .getSingleOrNull();
     return _toLesson(row, contentRow?.contentJson);
+  }
+
+  @override
+  Future<String?> sectionIdForUnit(String unitId) async {
+    final row = await (database.select(database.units)
+          ..where((t) => t.id.equals(unitId)))
+        .getSingleOrNull();
+    return row?.sectionId;
+  }
+
+  @override
+  Future<String?> sectionIdForLesson(String lessonId) async {
+    final query = database.select(database.lessons).join([
+      innerJoin(
+        database.units,
+        database.units.id.equalsExp(database.lessons.unitId),
+      ),
+    ])
+      ..where(database.lessons.id.equals(lessonId))
+      ..limit(1);
+    final rows = await query.get();
+    if (rows.isEmpty) return null;
+    return rows.first.readTable(database.units).sectionId;
   }
 
   /// The stored course content version (composite `index+expressions`, written

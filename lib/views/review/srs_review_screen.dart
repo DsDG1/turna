@@ -13,7 +13,7 @@ import 'package:varnamala/application/srs_provider.dart';
 import 'package:varnamala/application/study_stats_provider.dart';
 import 'package:varnamala/core/sm2.dart';
 import 'package:varnamala/courses/languages/expressions.dart';
-import 'package:varnamala/courses/languages/swahili_vocab.dart';
+import 'package:varnamala/courses/languages/vocab.dart';
 import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/domain/course/expression.dart';
 import 'package:varnamala/domain/course/srs_word.dart';
@@ -171,10 +171,10 @@ class _SrsReviewPageState extends State<SrsReviewPage> {
 
     final word = _queue[_currentIndex];
     final wordEntry = word.type == SrsItemType.word
-        ? swahiliVocabById[word.wordId]
+        ? vocabById[word.wordId]
         : null;
     final expression = word.type == SrsItemType.expression
-        ? swahiliExpressionsById[word.wordId]
+        ? expressionsById[word.wordId]
         : null;
 
     return Scaffold(

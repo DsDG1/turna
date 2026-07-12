@@ -7,7 +7,7 @@ import 'package:injectable/injectable.dart';
 // Project imports:
 import 'package:varnamala/core/logger.dart';
 import 'package:varnamala/courses/course_loader.dart';
-import 'package:varnamala/courses/languages/swahili.dart';
+import 'package:varnamala/courses/languages/course_lookup.dart';
 import 'package:varnamala/domain/course/section.dart';
 import 'package:varnamala/domain/course/unit.dart';
 import 'package:varnamala/domain/course/lesson.dart';
@@ -152,7 +152,7 @@ class CourseProvider extends ChangeNotifier {
 
   // --- Loading ---
 
-  /// Load the Swahili course shells from the index and pre-load the first
+  /// Load the course shells from the index and pre-load the first
   /// section's body so the course tree has something to show immediately.
   ///
   /// Idempotent: a second invocation while [_isLoaded] is already true is a
@@ -166,7 +166,7 @@ class CourseProvider extends ChangeNotifier {
       return;
     }
     logger.w('CourseProvider.load: first load, fetching from DB');
-    _sections = await loadSwahiliSectionShells();
+    _sections = await loadSectionShells();
     _currentSectionId = _sections.isNotEmpty ? _sections.first.id : null;
     _selectedUnitId = null;
     _selectedLessonId = null;
@@ -185,7 +185,7 @@ class CourseProvider extends ChangeNotifier {
 
   /// Ensure the section's full body (units/lessons) is loaded and replace
   /// its shell with the populated [Section]. Cached per id via
-  /// [SwahiliCourse.loadSection]; concurrent calls coalesce.
+  /// [CourseLoader.loadSection]; concurrent calls coalesce.
   ///
   /// The load outcome is reflected in [sectionLoadState] and
   /// [sectionLoadError] so the UI can show loading / error / content states
@@ -211,7 +211,7 @@ class CourseProvider extends ChangeNotifier {
       _sectionLoadErrors.remove(id);
       notifyListeners();
       try {
-        final full = await SwahiliCourse.loadSection(id);
+        final full = await CourseLoader.loadSection(id);
         logger.i(
           'CourseProvider.ensureSectionLoaded($id): body received, '
           'replacing shell',
@@ -297,25 +297,21 @@ class CourseProvider extends ChangeNotifier {
   }
 
   /// Select a unit by id. If the unit lives in a not-yet-loaded section,
-  /// we eagerly load that section first so deep links / router restores
-  /// work without a manual [switchToSection] call. Returns a [Future] that
-  /// completes when both the section body and selection are applied; for
-  /// already-loaded sections it completes on the next microtask.
+  /// loads **only that section's** L1 tree (via DB reverse lookup), not every
+  /// unloaded section.
   Future<void> selectUnit(String id) async {
     if (findUnitById(id) != null) {
       _selectUnitInternal(id);
       return;
     }
-    // Try to find the owning section by loading bodies lazily. We don't
-    // know which section the id belongs to without scanning — so we issue
-    // `ensureSectionLoaded` on every section whose body we don't yet have
-    // and then re-check. This is one-shot per section per session.
-    final unfetched = _sections
-        .map((s) => s.id)
-        .where((sid) => !_loadedSectionIds.contains(sid))
-        .toList();
-    if (unfetched.isEmpty) return; // not present at all.
-    await Future.wait(unfetched.map(ensureSectionLoaded));
+    try {
+      final sectionId = await CourseLoader.sectionIdForUnit(id);
+      if (sectionId == null) return;
+      await ensureSectionLoaded(sectionId);
+    } catch (e, st) {
+      logger.e('selectUnit($id) failed', error: e, stackTrace: st);
+      return;
+    }
     if (findUnitById(id) != null) {
       _selectUnitInternal(id);
     }
@@ -327,19 +323,21 @@ class CourseProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Select a lesson by id with the same eager-load behavior as [selectUnit].
+  /// Select a lesson by id; loads only the owning section's L1 tree when needed.
   Future<void> selectLesson(String id) async {
     if (findLessonById(id) != null) {
       _selectedLessonId = id;
       notifyListeners();
       return;
     }
-    final unfetched = _sections
-        .map((s) => s.id)
-        .where((sid) => !_loadedSectionIds.contains(sid))
-        .toList();
-    if (unfetched.isEmpty) return;
-    await Future.wait(unfetched.map(ensureSectionLoaded));
+    try {
+      final sectionId = await CourseLoader.sectionIdForLesson(id);
+      if (sectionId == null) return;
+      await ensureSectionLoaded(sectionId);
+    } catch (e, st) {
+      logger.e('selectLesson($id) failed', error: e, stackTrace: st);
+      return;
+    }
     if (findLessonById(id) != null) {
       _selectedLessonId = id;
       notifyListeners();

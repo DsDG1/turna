@@ -1,4 +1,4 @@
-/// Swahili Level 1 vocabulary used by the match-words game.
+/// Level 1 vocabulary used by the match-words game.
 /// Single-language build: the lookup map has been removed.
 final allLevel1Words = <String, String>{
   "I": "Mimi",

@@ -12,6 +12,8 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:varnamala/application/course_provider.dart';
 import 'package:varnamala/application/daily_challenge_assembler.dart';
+import 'package:varnamala/application/game_provider.dart';
+import 'package:varnamala/application/gems_provider.dart';
 import 'package:varnamala/application/lesson_viewmodel.dart';
 import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
@@ -254,9 +256,28 @@ class _DailyChallengePageState extends State<DailyChallengePage> {
   Future<void> _showCompletionDialog() async {
     if (!mounted || _dialogShown) return;
     _dialogShown = true;
+
+    final total = _vm.totalInteractionCount;
+    final correct = _vm.correctAnswers;
+    final wasPerfect = total > 0 && correct == total;
+    final xpEarned = wasPerfect
+        ? XPEvent.lessonComplete.base + XPEvent.perfectLesson.base
+        : XPEvent.lessonComplete.base;
+    final gemsEarned = wasPerfect
+        ? GemEvent.lessonComplete.amount + GemEvent.perfectLesson.amount
+        : GemEvent.lessonComplete.amount;
+
     await showLessonCompletionDialog(
       context: context,
       isMounted: () => mounted,
+      correctCount: correct,
+      incorrectCount: _vm.incorrectAnswers,
+      totalCount: total,
+      durationSeconds: _vm.durationSeconds,
+      xpEarned: xpEarned,
+      gemsEarned: gemsEarned,
+      wasPerfect: wasPerfect,
+      questionResults: _vm.questionResults,
       random: _random,
     );
     _dialogShown = false;

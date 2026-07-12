@@ -1,5 +1,5 @@
 // Runtime cross-course lesson/unit id uniqueness gate. The CI
-// `validateSwahiliCourse` already enforces this, but a runtime mirror lives in
+// `validateCourse` already enforces this, but a runtime mirror lives in
 // `DatabaseSeeder._seedSections` (via `collectCrossCourseIdErrors`) so a
 // duplicate id cannot silently corrupt the seeded course tree.
 

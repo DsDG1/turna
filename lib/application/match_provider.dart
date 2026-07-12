@@ -73,8 +73,8 @@ class MatchProvider extends ChangeNotifier {
   void initializeGame() {
     final targetLanguage =
         _appPrefs.currentLanguage.getValue().getEnumValue();
-    // Single-language build: always use Swahili dictionary regardless of
-    // the stored preference value (which only ever resolves to swahili now).
+    // Single-language build: always use the target-language dictionary regardless of
+    // the stored preference value (which only ever resolves to turkish now).
     _dictionaryEntries = allLevel1Words.entries.toList(growable: false);
     logger.i("Match game starting for $targetLanguage");
 

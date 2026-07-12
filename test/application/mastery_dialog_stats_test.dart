@@ -44,7 +44,7 @@ class _FakeFlutterTts implements FlutterTts {
 
 class _FakeLanguageProvider implements LanguageProvider {
   @override
-  String get ttsLanguageCode => 'sw';
+  String get ttsLanguageCode => 'tr';
   @override
   dynamic noSuchMethod(Invocation i) => super.noSuchMethod(i);
 }
@@ -215,5 +215,27 @@ void main() {
     expect(vm.masteryPassed, isTrue);
     expect(vm.correctAnswers, 5);
     expect(vm.totalInteractionCount, 6);
+  });
+
+  test('lesson completion exposes incorrectAnswers, duration and per-question results', () async {
+    final lesson = _masteryLesson();
+    final vm = _harness(prefs, lesson);
+
+    await vm.loadLesson(lesson.id);
+    for (var i = 0; i < 6; i++) {
+      final correct = i < 4;
+      vm.submitInteraction(correct, userAnswerText: correct ? 'Correct' : 'Wrong');
+      vm.advance();
+    }
+    await pumpEventQueue();
+
+    expect(vm.incorrectAnswers, 2);
+    expect(vm.durationSeconds, greaterThanOrEqualTo(0));
+
+    final results = vm.questionResults;
+    expect(results.length, 6);
+    expect(results.where((r) => r.correct).length, 4);
+    expect(results.where((r) => !r.correct).length, 2);
+    expect(results.first.prompt, 'Q0');
   });
 }

@@ -9,7 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:varnamala/application/mistake_provider.dart';
 import 'package:varnamala/application/study_stats_provider.dart';
-import 'package:varnamala/courses/languages/swahili_vocab.dart';
+import 'package:varnamala/courses/languages/vocab.dart';
 import 'package:varnamala/data/study_log_repository.dart';
 import 'package:varnamala/domain/course/interaction.dart';
 import 'package:varnamala/domain/course/mistake_entry.dart';
@@ -66,7 +66,7 @@ void main() {
         timestamp: now,
       ),
     ]);
-    swahiliVocabById['w-cache'] = _TestVocab.of('w-cache');
+    vocabById['w-cache'] = _TestVocab.of('w-cache');
 
     final first = await provider.getWeakWords();
     expect(first, hasLength(1));
@@ -75,7 +75,7 @@ void main() {
     expect(second.single.mistakeCount, first.single.mistakeCount);
     expect(second.single.wordId, 'w-cache');
 
-    swahiliVocabById.remove('w-cache');
+    vocabById.remove('w-cache');
   });
 
   test('aggregates mistakes by wordId and sorts by count desc', () async {
@@ -153,8 +153,8 @@ void main() {
   test('vocab lookup yields displayTerm / translation', () async {
     // Inject a vocab entry directly so we don't depend on setupLocator.
     const testId = 'w-weak-test';
-    swahiliVocabById[testId] = _TestVocab.of(testId);
-    addTearDown(() => swahiliVocabById.remove(testId));
+    vocabById[testId] = _TestVocab.of(testId);
+    addTearDown(() => vocabById.remove(testId));
 
     final now = DateTime.now();
     await seedMistakes([

@@ -43,7 +43,7 @@ class _FakeFlutterTts implements FlutterTts {
 
 class _FakeLanguageProvider implements LanguageProvider {
   @override
-  String get ttsLanguageCode => 'sw';
+  String get ttsLanguageCode => 'tr';
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

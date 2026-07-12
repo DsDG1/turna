@@ -114,6 +114,7 @@ Type _handlesTypeFor(Interaction interaction) {
   return switch (interaction) {
     ShowWord() => ShowWord,
     MultipleChoice() => MultipleChoice,
+    MultiSelect() => MultiSelect,
     FillBlank() => FillBlank,
     TranslateSentence() => TranslateSentence,
     ListenAndPick() => ListenAndPick,

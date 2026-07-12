@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:varnamala/application/weak_word_quiz_assembler.dart';
-import 'package:varnamala/courses/languages/swahili_vocab.dart';
+import 'package:varnamala/courses/languages/vocab.dart';
 import 'package:varnamala/domain/course/interaction.dart';
 import 'package:varnamala/domain/course/mistake_entry.dart';
 import 'package:varnamala/domain/course/word_entry.dart';
@@ -9,7 +9,7 @@ void main() {
   final now = DateTime(2026, 7, 11, 12);
 
   setUp(() {
-    swahiliVocabById
+    vocabById
       ..clear()
       ..addAll({
         'w-a': const WordEntry(
@@ -35,7 +35,7 @@ void main() {
       });
   });
 
-  tearDown(swahiliVocabById.clear);
+  tearDown(vocabById.clear);
 
   MistakeEntry mistake(String id, String wordId, DateTime ts) => MistakeEntry(
         id: id,

@@ -3,6 +3,8 @@
 
 Subcommands:
   validate        Run the Python equivalent of Dart's course_validator.
+                  Supports --format text|json (json for GUI/CI). Enforces
+                  scale ceilings: max 60 units/section, 40 lessons/unit.
   export-csv      Export vocab / expressions / grammar_points to CSV.
   import-csv      Import vocab / expressions / grammar_points from CSV.
   lint            Find content quality problems (empty fields, missing audio,
@@ -10,7 +12,7 @@ Subcommands:
   audio-manifest  Emit a CSV of all referenced audio assets and their status.
   diff            Compare two course directories and list changed IDs.
 
-All commands default to `assets/courses/swahili` as the course directory and
+All commands default to `assets/courses/turkish` as the course directory and
 can be overridden with `--course-dir`.
 """
 
@@ -25,8 +27,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-DEFAULT_COURSE_DIR = Path("assets/courses/swahili")
+DEFAULT_COURSE_DIR = Path("assets/courses/turkish")
 SOUNDS_DIR = Path("assets/sounds")
+
+# Design-contract limits (must match lib/courses/course_validator.dart).
+MAX_UNITS_PER_SECTION = 60
+MAX_LESSONS_PER_UNIT = 40
 
 ALLOWED_TAGS = {
     "pronoun",
@@ -212,6 +218,14 @@ def is_listening_lesson(lesson: dict[str, Any], content: dict[str, Any]) -> bool
 class Problem:
     level: str  # 'error' | 'warning'
     message: str
+    path: str = ""  # optional machine-readable locator (file / id path)
+
+    def to_dict(self) -> dict[str, str]:
+        return {
+            "level": self.level,
+            "message": self.message,
+            "path": self.path,
+        }
 
 
 class CourseValidationError(Exception):
@@ -225,7 +239,7 @@ class CourseValidationError(Exception):
 
 
 def _validate_course(course_dir: Path) -> list[Problem]:
-    """Run the Python equivalent of Dart's validateSwahiliCourse."""
+    """Run the Python equivalent of Dart's validateCourse."""
     problems: list[Problem] = []
 
     vocab = load_vocab(course_dir)
@@ -292,8 +306,19 @@ def _validate_course(course_dir: Path) -> list[Problem]:
                 )
             )
 
+        units = section.get("units", [])
+        if len(units) > MAX_UNITS_PER_SECTION:
+            problems.append(
+                Problem(
+                    "error",
+                    f"Section {sid} has {len(units)} units "
+                    f"(max {MAX_UNITS_PER_SECTION}).",
+                    path=f"section:{sid}",
+                )
+            )
+
         local_unit_ids: set[str] = set()
-        for unit in section.get("units", []):
+        for unit in units:
             uid = unit.get("id", "")
             if not uid:
                 problems.append(
@@ -312,8 +337,19 @@ def _validate_course(course_dir: Path) -> list[Problem]:
                 unit_ids.add(uid)
                 local_unit_ids.add(uid)
 
+            lessons = unit.get("lessons", [])
+            if len(lessons) > MAX_LESSONS_PER_UNIT:
+                problems.append(
+                    Problem(
+                        "error",
+                        f"Unit {uid} has {len(lessons)} lessons "
+                        f"(max {MAX_LESSONS_PER_UNIT}).",
+                        path=f"section:{sid}/unit:{uid}",
+                    )
+                )
+
             local_lesson_ids: set[str] = set()
-            for lesson in unit.get("lessons", []):
+            for lesson in lessons:
                 lid = lesson.get("id", "")
                 if not lid:
                     problems.append(
@@ -661,8 +697,18 @@ def _validate_listening_phases(
 def cmd_validate(args: argparse.Namespace) -> int:
     problems = _validate_course(args.course_dir)
     errors = [p for p in problems if p.level == "error"]
+    fmt = getattr(args, "format", "text") or "text"
+    if fmt == "json":
+        payload = {
+            "ok": not errors,
+            "errorCount": len(errors),
+            "problems": [p.to_dict() for p in problems],
+        }
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 1 if errors else 0
     for p in problems:
-        print(f"{p.level.upper()}: {p.message}")
+        path_part = f" [{p.path}]" if p.path else ""
+        print(f"{p.level.upper()}: {p.message}{path_part}")
     if errors:
         print(f"\nValidation failed with {len(errors)} error(s).")
         return 1
@@ -1261,13 +1307,19 @@ def main(argv: list[str] | None = None) -> int:
         "--course-dir",
         type=_course_dir,
         default=DEFAULT_COURSE_DIR,
-        help="Course directory to operate on (default: assets/courses/swahili)",
+        help="Course directory to operate on (default: assets/courses/turkish)",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # validate
     p_validate = subparsers.add_parser(
         "validate", help="Validate course JSON against invariants"
+    )
+    p_validate.add_argument(
+        "--format",
+        choices=["text", "json"],
+        default="text",
+        help="Output format (json is for GUI / CI machine consumption)",
     )
     p_validate.set_defaults(func=cmd_validate)
 

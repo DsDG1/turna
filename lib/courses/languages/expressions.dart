@@ -6,19 +6,19 @@ import 'package:varnamala/domain/course/expression.dart';
 /// id lookup map used by renderers / review UI.
 ///
 /// Called once during [setupLocator] after the course DB is seeded.
-Future<List<Expression>> loadSwahiliExpressions() async {
-  final course = await SwahiliCourse.load();
+Future<List<Expression>> loadExpressions() async {
+  final course = await CourseLoader.load();
   _populateExpressionLookups(course);
   return course.expressions;
 }
 
-void _populateExpressionLookups(SwahiliCourse course) {
-  swahiliExpressionsById
+void _populateExpressionLookups(CourseLoader course) {
+  expressionsById
     ..clear()
     ..addAll(course.expressionsById);
 }
 
 /// Global synchronous lookup from expression id to [Expression].
 ///
-/// Populated once at startup; empty until [loadSwahiliExpressions] completes.
-final Map<String, Expression> swahiliExpressionsById = <String, Expression>{};
+/// Populated once at startup; empty until [loadExpressions] completes.
+final Map<String, Expression> expressionsById = <String, Expression>{};

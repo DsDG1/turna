@@ -1,10 +1,10 @@
 # Varnamala - Language Learning App
 
-> 后续开发以 [`future4.md`](./future4.md) 为准。本文件仅作架构总览与 onboarding 速查。
+> 当前状态：future4 框架已完成，并完成 Swahili→Turkish 迁移（ADR 0020）。真实 Turkish 内容已填充 Section 1 问候语单元（8 词 + 2 表达），Sections 2–8 仍为占位。最新内容清单见 [`docs/content_inventory_current.md`](./docs/content_inventory_current.md)，决策记录见 [`docs/decisions/`](./docs/decisions/)。
 
 ## Project Overview
 
-**Varnamala** is a Flutter-based, local-first language learning framework. Currently focused on **Swahili** as the primary target language (with Kannada course data as a temporary placeholder). The app follows a clean architecture pattern and is entirely offline — no Firebase backend, no social features, no pay-to-win mechanics.
+**Varnamala** is a Flutter-based, local-first language learning framework. Currently focused on **Turkish** as the primary target language. Ships 8 CEFR-graded sections (A1→B2) with inter-section prerequisites; Section 1 contains a real greetings lesson (8 vocab words + 2 expressions), while Sections 2–8 are metadata-only placeholders awaiting content authoring (see ADR 0020 and `docs/content_inventory_current.md`). The app follows a clean architecture pattern and is entirely offline — no Firebase backend, no social features, no pay-to-win mechanics.
 
 ---
 
@@ -80,7 +80,7 @@ lib/
 - [x] SRS engine (SM-2) + review UI
 - [x] Mistake tracking with FIFO log + review list
 - [x] Match Madness word-matching mini-game
-- [x] Multi-language support (Kannada content presented as Swahili for now)
+- [x] Multi-language framework support (target language currently Turkish)
 - [x] Content model extended for sub-lessons, listening phases, expressions, grammar points, reading passages
 - [x] **Dark Mode** — full light/dark/system theme support with persistent preference, semantic color helpers, and theme-aware widget backgrounds
 - [x] **Learning Statistics Dashboard** — daily/weekly XP trends, study time tracking, accuracy metrics, weak-word analysis (Profile page)
@@ -107,16 +107,16 @@ lib/
 - [ ] ~~Speaking exercises~~ — Removed (TTS route sufficient)
 - [ ] ~~External GUI editor~~ — Removed (JSON-first approach)
 
-### ✅ Completed via future2.md / future4.md
+### ✅ Completed framework milestones
 - [x] **Lesson Templates** — intro / practice / review / mastery / reading smoke lessons implemented and verified
 - [x] **Expression-level SRS** — end-to-end data pipeline (schema v5, seeder, repository, provider, review UI)
-- [x] **TTS language code** — switched to `sw` with ADR at `docs/decisions/0001-tts-language-code.md`
+- [x] **TTS language code** — switched to `tr` (Turkish) per ADR 0020 (supersedes the old `sw` decision in ADR 0001)
 - [x] **Test coverage** — core ViewModel / Provider / Renderer / seeder / schema migration tests
-- [x] **Built-in Swahili TTS** — default **system/Google TTS** via `flutter_tts` (Android prefers `com.google.android.tts`); bundled Piper `sw_CD-lanfrica-medium-int8` via `sherpa_onnx` as offline mode / system-failure fallback; pre-recorded `audioAsset` reserved for listening exercises
-- [x] **future4 framework round** — DI consolidation, audio/content decoupling, performance fixes, repository interfaces, SRS queue base class, GameProvider split with facade, integration tests, golden baselines, release pipeline (see `future4.md` and ADRs 0009–0018)
+- [x] **System / Google TTS** — `flutter_tts` with language code `'tr'` (Android prefers `com.google.android.tts`). No bundled offline model in this build — the Piper Swahili model and `sherpa_onnx` dependency were removed (ADR 0020). Pre-recorded `audioAsset` reserved for listening exercises.
+- [x] **future4 framework round** — DI consolidation, audio/content decoupling, performance fixes, repository interfaces, SRS queue base class, GameProvider split with facade, integration tests, golden baselines, release pipeline (see ADR 0018 and ADRs 0009–0018)
 
-### 📋 Next Round (future5)
-- [ ] **Content** — Real Swahili vocabulary replacement, lesson rewriting. The framework is ready; this is a content-only round.
+### 📋 Next Round
+- [ ] **Content authoring** — Fill Sections 2–8 with real Turkish vocabulary, expressions, grammar points, listening phases, and reading passages. The framework ships **8 sections** (CEFR A1→B2, inter-section prerequisites wired) with a real **intro greetings lesson** in Section 1 (`s1-l2`: 8 vocab + 2 expressions, 3 subLessons). Sections 2–8 currently contain one placeholder unit/legacy MCQ lesson each (see ADR 0020 and `docs/content_inventory_current.md`).
 
 ---
 
@@ -189,30 +189,24 @@ enum QuestionType {
 }
 ```
 
-### Course Format (in lib/courses/languages/)
+### Course Format (in assets/courses/turkish/)
+Course data is JSON, loaded by `CourseLoader` (`lib/courses/course_loader.dart`)
+and seeded into SQLite by `DatabaseSeeder`. See `docs/authoring/course-layout.md`
+for the full authoring contract. Minimal `index.json` shape:
 ```dart
 {
-  "courseName": "basics",
-  "image": "assets/images/course_icon.png",
-  "color": 0xff2b70c9,
-  "levels": [
-    {
-      "level": 1,
-      "questions": [
-        {
-          "type": "multiple_choice",
-          "prompt": "Choose an appropriate response",
-          "sentence": "Ninna hesaru enu?",
-          "sentenceIsTargetLanguage": true,
-          "options": ["Option A", "Option B", "Option C"],
-          "correctAnswer": "Option A",
-          "translatedSentence": "What is your name?"
-        }
-      ]
-    }
+  "version": 5,
+  "language": "tr",
+  "displayName": "Turkish",
+  "sections": [
+    { "id": "section1", "name": "Section 1", "level": "A1",
+      "prerequisiteSectionIds": [], "file": "sections/section1.json" }
   ]
 }
 ```
+Each section file holds `units → lessons → content` (stages / subLessons /
+listeningPhases / readingPassage). Interaction variants are discriminated by
+`runtimeType` (see `lib/domain/course/interaction.dart`).
 
 ---
 
@@ -288,9 +282,10 @@ make build-release
 | `lib/views/profile/widgets/learning_stats.dart` | Profile learning statistics dashboard |
 | `lib/views/theme.dart` | VarnamalaTheme: light/dark ThemeData + semantic color helpers |
 | `tool/build_release.py` | One-command release builder |
-| `future4.md` | Completed framework plan |
+| `docs/decisions/0018-future4-completion-and-content-handoff.md` | Completed framework plan |
+| `docs/decisions/0020-swahili-to-turkish-pivot.md` | Swahili→Turkish pivot migration plan |
 | `test/BASELINE.md` | Latest test baseline |
-| `docs/decisions/` | Architecture Decision Records (0001–0018) |
+| `docs/decisions/` | Architecture Decision Records (0001–0020) |
 
 ---
 

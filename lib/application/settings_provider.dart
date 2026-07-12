@@ -19,7 +19,6 @@ class SettingsProvider extends ChangeNotifier {
   bool _soundEffectsEnabled = true;
   bool _hapticFeedbackEnabled = true;
   double _ttsSpeed = 1.0;
-  TtsEngine _ttsEngine = TtsEngine.system;
   bool _dailyReminderEnabled = false;
   int _dailyReminderHour = 19;
   int _dailyReminderMinute = 0;
@@ -31,7 +30,6 @@ class SettingsProvider extends ChangeNotifier {
   bool get soundEffectsEnabled => _soundEffectsEnabled;
   bool get hapticFeedbackEnabled => _hapticFeedbackEnabled;
   double get ttsSpeed => _ttsSpeed;
-  TtsEngine get ttsEngine => _ttsEngine;
   bool get dailyReminderEnabled => _dailyReminderEnabled;
   int get dailyReminderHour => _dailyReminderHour;
   int get dailyReminderMinute => _dailyReminderMinute;
@@ -49,11 +47,6 @@ class SettingsProvider extends ChangeNotifier {
     _ttsSpeed = _appPrefs.preferences
         .getDouble(LocalStateKeys.ttsSpeed, defaultValue: 1.0)
         .getValue();
-    _ttsEngine = _parseTtsEngine(
-      _appPrefs.preferences
-          .getString(LocalStateKeys.ttsEngine, defaultValue: TtsEngine.system.name)
-          .getValue(),
-    );
     _dailyReminderEnabled = _appPrefs.preferences
         .getBool(LocalStateKeys.dailyReminderEnabled, defaultValue: false)
         .getValue();
@@ -63,13 +56,6 @@ class SettingsProvider extends ChangeNotifier {
     _dailyReminderMinute = _appPrefs.preferences
         .getInt(LocalStateKeys.dailyReminderMinute, defaultValue: 0)
         .getValue();
-  }
-
-  static TtsEngine _parseTtsEngine(String value) {
-    return TtsEngine.values.firstWhere(
-      (e) => e.name == value,
-      orElse: () => TtsEngine.system,
-    );
   }
 
   Future<void> setSoundEffects(bool value) async {
@@ -88,12 +74,6 @@ class SettingsProvider extends ChangeNotifier {
     final clamped = value.clamp(0.5, 2.0);
     _ttsSpeed = clamped;
     await _appPrefs.setDouble(LocalStateKeys.ttsSpeed, clamped);
-    notifyListeners();
-  }
-
-  Future<void> setTtsEngine(TtsEngine value) async {
-    _ttsEngine = value;
-    await _appPrefs.setString(LocalStateKeys.ttsEngine, value.name);
     notifyListeners();
   }
 
@@ -127,10 +107,3 @@ class SettingsProvider extends ChangeNotifier {
 }
 
 enum HapticFeedbackType { light, medium, heavy }
-
-/// Available TTS sources.
-///
-/// - [system]: use the device's built-in TTS engine (Google TTS on Android,
-///   Apple system TTS on iOS).
-/// - [offline]: use the bundled Piper Swahili model.
-enum TtsEngine { system, offline }

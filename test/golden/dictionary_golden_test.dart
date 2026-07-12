@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/courses/languages/swahili_vocab.dart';
+import 'package:varnamala/courses/languages/vocab.dart';
 import 'package:varnamala/domain/course/word_entry.dart';
 import 'package:varnamala/views/dictionary/dictionary_page.dart';
 import 'package:varnamala/views/theme.dart';
@@ -9,7 +9,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUp(() {
-    swahiliVocabById
+    vocabById
       ..clear()
       ..addAll({
         'w-1': const WordEntry(
@@ -21,7 +21,7 @@ void main() {
       });
   });
 
-  tearDown(swahiliVocabById.clear);
+  tearDown(vocabById.clear);
 
   Future<void> pumpDict(WidgetTester tester, ThemeMode mode) async {
     await tester.binding.setSurfaceSize(const Size(400, 700));

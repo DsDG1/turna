@@ -16,7 +16,7 @@ class LocalReminderService {
   static const int notificationId = 2201;
   static const String channelId = 'varnamala_daily_review';
   static const String channelName = 'Daily review';
-  static const String reminderBody = 'Time for a quick Swahili review';
+  static const String reminderBody = 'Time for a quick Turkish review';
 
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
@@ -71,7 +71,7 @@ class LocalReminderService {
     const androidDetails = AndroidNotificationDetails(
       channelId,
       channelName,
-      channelDescription: 'Gentle daily reminder to review Swahili',
+      channelDescription: 'Gentle daily reminder to review Turkish',
       importance: Importance.defaultImportance,
       priority: Priority.defaultPriority,
     );

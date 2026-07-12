@@ -1,11 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:varnamala/application/dictionary_search.dart';
-import 'package:varnamala/courses/languages/swahili_vocab.dart';
+import 'package:varnamala/courses/languages/vocab.dart';
 import 'package:varnamala/domain/course/word_entry.dart';
 
 void main() {
   setUp(() {
-    swahiliVocabById
+    vocabById
       ..clear()
       ..addAll({
         'w-1': const WordEntry(
@@ -23,7 +23,7 @@ void main() {
       });
   });
 
-  tearDown(swahiliVocabById.clear);
+  tearDown(vocabById.clear);
 
   test('empty query returns no hits', () {
     expect(searchDictionary(''), isEmpty);

@@ -16,8 +16,8 @@ import 'package:varnamala/domain/course/section.dart';
 
 /// Seeds [CourseDatabase] from the bundled JSON assets.
 ///
-/// The DB is a derived cache of `assets/courses/swahili/`. Content is stored
-/// **normalized** — the seeder runs `parseSwahiliSection` before writing the
+/// The DB is a derived cache of `assets/courses/turkish/`. Content is stored
+/// **normalized** — the seeder runs `parseSection` before writing the
 /// `LessonContent` blob.
 ///
 /// **Invariant:** skip only when `contentVersion` meta equals the asset
@@ -42,12 +42,12 @@ class DatabaseSeeder {
   /// `expressions.json` versions (`"$indexVersion+$expressionsVersion"`), so
   /// bumping either triggers a reseed.
   Future<bool> seedIfNeeded() async {
-    final indexRaw = await rootBundle.loadString(SwahiliCourse.indexAsset);
+    final indexRaw = await rootBundle.loadString(CourseLoader.indexAsset);
     final index = jsonDecode(indexRaw) as Map<String, dynamic>;
     final indexVersion = '${index['version'] ?? 0}';
 
     final expressionsRaw = await rootBundle.loadString(
-      SwahiliCourse.expressionsAsset,
+      CourseLoader.expressionsAsset,
     );
     final expressionsJson = jsonDecode(expressionsRaw) as Map<String, dynamic>;
     final expressionsVersion = '${expressionsJson['version'] ?? 0}';
@@ -76,7 +76,7 @@ class DatabaseSeeder {
 
     // Always wipe before plain INSERT — empty clear is cheap; residue is not.
     await _clearCourseTables();
-    SwahiliCourse.invalidateCaches();
+    CourseLoader.invalidateCaches();
 
     await _seed(
       seedSections: true,
@@ -84,7 +84,7 @@ class DatabaseSeeder {
       seedExpressions: true,
     );
     await _writeMeta(metaContentVersion, assetVersion);
-    SwahiliCourse.invalidateCaches();
+    CourseLoader.invalidateCaches();
     return true;
   }
 
@@ -139,30 +139,12 @@ class DatabaseSeeder {
   }
 
   Future<void> _seedSections() async {
-    final indexRaw = await rootBundle.loadString(SwahiliCourse.indexAsset);
+    final indexRaw = await rootBundle.loadString(CourseLoader.indexAsset);
     final index = jsonDecode(indexRaw) as Map<String, dynamic>;
     final entries = (index['sections'] as List).cast<Map<String, dynamic>>();
 
-    final vocabRaw = await rootBundle.loadString(SwahiliCourse.vocabAsset);
-    final vocab = parseSwahiliVocabulary(vocabRaw);
-
-    // Parse every section once so we can assert cross-course lesson/unit id
-    // uniqueness before writing anything (runtime mirror of the CI-only
-    // validateSwahiliCourse check — see course_validator.dart).
-    final sections = <Section>[];
-    for (final entry in entries) {
-      final file = entry['file'] as String;
-      final raw = await rootBundle.loadString('${SwahiliCourse.baseDir}/$file');
-      // parseSwahiliSection runs _normalizeSection -> stored normalized.
-      sections.add(parseSwahiliSection(raw));
-    }
-    final crossErrors = collectCrossCourseIdErrors(sections);
-    if (crossErrors.isNotEmpty) {
-      for (final err in crossErrors) {
-        logger.e(err);
-      }
-      throw CourseValidationException(crossErrors);
-    }
+    final vocabRaw = await rootBundle.loadString(CourseLoader.vocabAsset);
+    final vocab = parseVocabulary(vocabRaw);
 
     // Vocabulary first (independent of the section tree).
     await db.batch((b) {
@@ -181,8 +163,46 @@ class DatabaseSeeder {
       }
     });
 
-    for (var sOrder = 0; sOrder < sections.length; sOrder++) {
-      final section = sections[sOrder];
+    // Stream per section: parse → cross-id check against running sets → write
+    // → drop Freezed graph. Avoids holding all ~9300 lesson bodies in RAM.
+    final seenUnitIds = <String>{};
+    final seenLessonIds = <String>{};
+    var sectionCount = 0;
+
+    for (var sOrder = 0; sOrder < entries.length; sOrder++) {
+      final entry = entries[sOrder];
+      final file = entry['file'] as String;
+      final raw = await rootBundle.loadString('${CourseLoader.baseDir}/$file');
+      // parseSection runs _normalizeSection -> stored normalized.
+      final section = parseSection(raw);
+
+      final crossErrors = collectCrossCourseIdErrorsAgainst(
+        section,
+        seenUnitIds: seenUnitIds,
+        seenLessonIds: seenLessonIds,
+      );
+      if (crossErrors.isNotEmpty) {
+        for (final err in crossErrors) {
+          logger.e(err);
+        }
+        throw CourseValidationException(crossErrors);
+      }
+
+      // Scale contract (same ceilings as course_validator).
+      if (section.units.length > kMaxUnitsPerSection) {
+        throw CourseValidationException([
+          'Section ${section.id} has ${section.units.length} units '
+              '(max $kMaxUnitsPerSection).',
+        ]);
+      }
+      for (final u in section.units) {
+        if (u.lessons.length > kMaxLessonsPerUnit) {
+          throw CourseValidationException([
+            'Unit ${u.id} has ${u.lessons.length} lessons '
+                '(max $kMaxLessonsPerUnit).',
+          ]);
+        }
+      }
 
       await db.transaction(() async {
         await db.into(db.sections).insert(
@@ -233,14 +253,19 @@ class DatabaseSeeder {
           }
         }
       });
+      sectionCount++;
+      logger.i(
+        'Seeded section ${section.id} '
+        '(${section.units.length} units, order $sOrder)',
+      );
     }
 
-    logger.i('Seeded course database: ${sections.length} sections, '
+    logger.i('Seeded course database: $sectionCount sections, '
         '${vocab.length} vocab words');
   }
 
   /// Collects cross-course unit/lesson id uniqueness errors from the assembled
-  /// [sections]. Runtime mirror of the CI-only `validateSwahiliCourse`
+  /// [sections]. Runtime mirror of the CI-only `validateCourse`
   /// check — runtime `validateSection` only checks within a single section.
   ///
   /// Vocab / expression ids are not checked here (expressions asset is
@@ -251,16 +276,37 @@ class DatabaseSeeder {
     final lessonIds = <String>{};
     final errors = <String>[];
     for (final section in sections) {
-      for (final u in section.units) {
-        if (u.id.isEmpty) continue;
-        if (!unitIds.add(u.id)) {
-          errors.add('Duplicate unit id across course: ${u.id}');
-        }
-        for (final l in u.lessons) {
-          if (l.id.isEmpty) continue;
-          if (!lessonIds.add(l.id)) {
-            errors.add('Duplicate lesson id across course: ${l.id}');
-          }
+      errors.addAll(
+        collectCrossCourseIdErrorsAgainst(
+          section,
+          seenUnitIds: unitIds,
+          seenLessonIds: lessonIds,
+        ),
+      );
+    }
+    return errors;
+  }
+
+  /// Streaming variant: merge [section] into running id sets; returns only
+  /// new errors for this section. Mutates [seenUnitIds] / [seenLessonIds]
+  /// on success paths for unique ids (duplicates are still recorded in the
+  /// sets so later collisions continue to be detected).
+  @visibleForTesting
+  static List<String> collectCrossCourseIdErrorsAgainst(
+    Section section, {
+    required Set<String> seenUnitIds,
+    required Set<String> seenLessonIds,
+  }) {
+    final errors = <String>[];
+    for (final u in section.units) {
+      if (u.id.isEmpty) continue;
+      if (!seenUnitIds.add(u.id)) {
+        errors.add('Duplicate unit id across course: ${u.id}');
+      }
+      for (final l in u.lessons) {
+        if (l.id.isEmpty) continue;
+        if (!seenLessonIds.add(l.id)) {
+          errors.add('Duplicate lesson id across course: ${l.id}');
         }
       }
     }
@@ -269,8 +315,8 @@ class DatabaseSeeder {
 
   Future<void> _seedGrammarPoints() async {
     final raw =
-        await rootBundle.loadString(SwahiliCourse.grammarPointsAsset);
-    final points = parseSwahiliGrammarPoints(raw);
+        await rootBundle.loadString(CourseLoader.grammarPointsAsset);
+    final points = parseGrammarPoints(raw);
 
     await db.batch((b) {
       for (final gp in points) {
@@ -294,8 +340,8 @@ class DatabaseSeeder {
   }
 
   Future<void> _seedExpressions() async {
-    final raw = await rootBundle.loadString(SwahiliCourse.expressionsAsset);
-    final expressions = parseSwahiliExpressions(raw);
+    final raw = await rootBundle.loadString(CourseLoader.expressionsAsset);
+    final expressions = parseExpressions(raw);
 
     await db.batch((b) {
       for (final e in expressions) {

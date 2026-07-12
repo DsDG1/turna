@@ -6,7 +6,7 @@ import 'package:varnamala/service/tts_availability_checker.dart';
 class _FakeFlutterTts implements FlutterTts {
   _FakeFlutterTts({
     this.engines = const [],
-    this.availableLanguages = const {'sw'},
+    this.availableLanguages = const {'tr'},
     this.installedLanguages = const {},
     this.engineShouldFail = false,
     /// Languages only available after Google engine is selected.
@@ -89,10 +89,10 @@ void main() {
 
     test('language available -> reports system TTS available', () async {
       final checker = TtsAvailabilityChecker(
-        _FakeFlutterTts(availableLanguages: const {'sw'}),
+        _FakeFlutterTts(availableLanguages: const {'tr'}),
       );
 
-      expect(await checker.isSystemTtsAvailable('sw'), isTrue);
+      expect(await checker.isSystemTtsAvailable('tr'), isTrue);
     });
 
     test('language unavailable -> reports system TTS unavailable', () async {
@@ -100,28 +100,28 @@ void main() {
         _FakeFlutterTts(availableLanguages: const {}),
       );
 
-      expect(await checker.isSystemTtsAvailable('sw'), isFalse);
+      expect(await checker.isSystemTtsAvailable('tr'), isFalse);
     });
 
     test('availability query exception -> reports unavailable', () async {
       final throwingTts = _ThrowingFlutterTts();
       final checker = TtsAvailabilityChecker(throwingTts);
 
-      expect(await checker.isSystemTtsAvailable('sw'), isFalse);
+      expect(await checker.isSystemTtsAvailable('tr'), isFalse);
     });
 
     test('resolveLanguageCode returns first available candidate', () async {
-      final tts = _FakeFlutterTts(availableLanguages: const {'sw-KE'});
+      final tts = _FakeFlutterTts(availableLanguages: const {'tr-TR'});
       final checker = TtsAvailabilityChecker(tts);
 
-      expect(await checker.resolveLanguageCode('sw'), 'sw-KE');
-      expect(tts.languageQueries, contains('sw'));
-      expect(tts.languageQueries, contains('sw-KE'));
+      expect(await checker.resolveLanguageCode('tr'), 'tr-TR');
+      expect(tts.languageQueries, contains('tr'));
+      expect(tts.languageQueries, contains('tr-TR'));
     });
 
     test('languageCandidates includes sw region tags', () {
-      final candidates = TtsAvailabilityChecker.languageCandidates('sw');
-      expect(candidates, containsAll(['sw', 'sw-KE', 'sw-TZ', 'sw_KE', 'sw_TZ']));
+      final candidates = TtsAvailabilityChecker.languageCandidates('tr');
+      expect(candidates, containsAll(['tr', 'tr-TR', 'tr_TR']));
     });
 
     group('on Android', () {
@@ -174,30 +174,30 @@ void main() {
 
       test('isSystemTtsAvailable requires at least one engine', () async {
         final tts = _FakeFlutterTts(
-          availableLanguages: const {'sw'},
+          availableLanguages: const {'tr'},
           engines: const [],
         );
         final checker = TtsAvailabilityChecker(tts);
 
-        expect(await checker.isSystemTtsAvailable('sw'), isFalse);
+        expect(await checker.isSystemTtsAvailable('tr'), isFalse);
       });
 
       test(
         'selects Google engine before language check so OEM default without sw still works',
         () async {
-          // Default engine has no Swahili; only Google does.
+          // Default engine has no Turkish; only Google does.
           final tts = _FakeFlutterTts(
             engines: const [
               'com.samsung.SMT',
               'com.google.android.tts',
             ],
             availableLanguages: const {},
-            googleOnlyLanguages: const {'sw', 'sw-KE'},
-            googleOnlyInstalled: const {'sw', 'sw-KE'},
+            googleOnlyLanguages: const {'tr', 'tr-TR'},
+            googleOnlyInstalled: const {'tr', 'tr-TR'},
           );
           final checker = TtsAvailabilityChecker(tts);
 
-          expect(await checker.isSystemTtsAvailable('sw'), isTrue);
+          expect(await checker.isSystemTtsAvailable('tr'), isTrue);
           expect(tts.lastEngine, 'com.google.android.tts');
           // Engine must be set before (or as part of) language resolution.
           expect(tts.languageQueries, isNotEmpty);
@@ -231,7 +231,7 @@ void main() {
           await Future.wait([
             checker.configureSystemEngine(),
             checker.configureSystemEngine(),
-            checker.resolveLanguageCode('sw'),
+            checker.resolveLanguageCode('tr'),
           ]);
 
           expect(tts.engineCalls, ['com.google.android.tts']);
@@ -245,16 +245,16 @@ void main() {
         () async {
           final tts = _FakeFlutterTts(
             engines: const ['com.vivo.aiservice'],
-            availableLanguages: const {'sw'},
-            installedLanguages: const {'sw'},
+            availableLanguages: const {'tr'},
+            installedLanguages: const {'tr'},
           );
           final checker = TtsAvailabilityChecker(tts);
 
           expect(await checker.hasGoogleTtsEngine(), isFalse);
           expect(await checker.listEngineNames(), ['com.vivo.aiservice']);
-          // OEM can still claim Swahili — not learning-quality preferred path.
-          expect(await checker.isSystemTtsAvailable('sw'), isTrue);
-          expect(await checker.isPreferredSystemTtsAvailable('sw'), isFalse);
+          // OEM can still claim Turkish — not learning-quality preferred path.
+          expect(await checker.isSystemTtsAvailable('tr'), isTrue);
+          expect(await checker.isPreferredSystemTtsAvailable('tr'), isFalse);
         },
       );
 
@@ -263,19 +263,19 @@ void main() {
         () async {
           final tts = _FakeFlutterTts(
             engines: const ['com.google.android.tts'],
-            availableLanguages: const {'sw-KE'},
-            installedLanguages: const {'sw-KE'},
+            availableLanguages: const {'tr-TR'},
+            installedLanguages: const {'tr-TR'},
           );
           final checker = TtsAvailabilityChecker(tts);
 
           expect(await checker.hasGoogleTtsEngine(), isTrue);
-          expect(await checker.isPreferredSystemTtsAvailable('sw'), isTrue);
+          expect(await checker.isPreferredSystemTtsAvailable('tr'), isTrue);
           expect(tts.lastEngine, 'com.google.android.tts');
         },
       );
 
       test(
-        'Google installed but no Swahili pack -> preferred unavailable',
+        'Google installed but no Turkish pack -> preferred unavailable',
         () async {
           final tts = _FakeFlutterTts(
             engines: const ['com.google.android.tts'],
@@ -284,7 +284,7 @@ void main() {
           final checker = TtsAvailabilityChecker(tts);
 
           expect(await checker.hasGoogleTtsEngine(), isTrue);
-          expect(await checker.isPreferredSystemTtsAvailable('sw'), isFalse);
+          expect(await checker.isPreferredSystemTtsAvailable('tr'), isFalse);
         },
       );
 
@@ -293,14 +293,14 @@ void main() {
         () async {
           final tts = _FakeFlutterTts(
             engines: const ['com.google.android.tts'],
-            availableLanguages: const {'sw-KE'},
+            availableLanguages: const {'tr-TR'},
             installedLanguages: const {}, // advertised but not downloaded
           );
           final checker = TtsAvailabilityChecker(tts);
 
-          expect(await checker.isPreferredSystemTtsAvailable('sw'), isFalse);
-          final diag = await checker.diagnose('sw');
-          expect(diag.preferredStatus, TtsPreferredStatus.swahiliDataMissing);
+          expect(await checker.isPreferredSystemTtsAvailable('tr'), isFalse);
+          final diag = await checker.diagnose('tr');
+          expect(diag.preferredStatus, TtsPreferredStatus.turkishVoiceMissing);
           expect(diag.hasGoogleEngine, isTrue);
         },
       );
@@ -310,13 +310,13 @@ void main() {
         () async {
           final tts = _FakeFlutterTts(
             engines: const ['com.google.android.tts'],
-            availableLanguages: const {'sw', 'sw-KE'},
-            installedLanguages: const {'sw-KE'},
+            availableLanguages: const {'tr', 'tr-TR'},
+            installedLanguages: const {'tr-TR'},
           );
           final checker = TtsAvailabilityChecker(tts);
 
-          // 'sw' is checked first; not installed → continue to sw-KE.
-          expect(await checker.resolveLanguageCode('sw'), 'sw-KE');
+          // 'tr' is checked first; not installed → continue to tr-TR.
+          expect(await checker.resolveLanguageCode('tr'), 'tr-TR');
         },
       );
 
@@ -326,7 +326,7 @@ void main() {
           availableLanguages: const {},
         );
         final checker = TtsAvailabilityChecker(tts);
-        final diag = await checker.diagnose('sw');
+        final diag = await checker.diagnose('tr');
         expect(diag.hasGoogleEngine, isFalse);
         expect(diag.preferredStatus, TtsPreferredStatus.googleMissing);
       });

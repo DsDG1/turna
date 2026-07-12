@@ -2,6 +2,10 @@
 
 ## Status
 
+**Superseded by [ADR 0020](./0020-swahili-to-turkish-pivot.md)** — the project
+pivoted from Swahili to Turkish; the TTS language code is now `'tr'`. This ADR
+is kept as a historical record.
+
 Accepted (2026-07-09)
 
 ## Context

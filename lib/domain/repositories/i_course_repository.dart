@@ -9,10 +9,27 @@ import 'package:varnamala/domain/course/word_entry.dart';
 ///
 /// Concrete: [CourseRepository]. Phase 21 defines the interface only —
 /// DI still registers the concrete class (see ADR 0007).
+///
+/// Loading is split for scale (~10k lessons):
+/// - [sectionShells] — L0 index (no units)
+/// - [section] — L1 tree metadata (units/lessons, **empty** [Lesson.content])
+/// - [lessonById] — L2 full body (content JSON)
 abstract class ICourseRepository {
   Future<List<Section>> sectionShells();
+
+  /// L1 section tree: units + lesson metadata only. [Lesson.content] is empty;
+  /// load bodies with [lessonById].
   Future<Section> section(String id);
+
+  /// L2: single lesson with full [LessonContent].
   Future<Lesson> lessonById(String id);
+
+  /// Owning section id for [unitId], or `null` if the unit is unknown.
+  Future<String?> sectionIdForUnit(String unitId);
+
+  /// Owning section id for [lessonId], or `null` if the lesson is unknown.
+  Future<String?> sectionIdForLesson(String lessonId);
+
   Future<List<WordEntry>> vocabulary();
   Future<List<GrammarPoint>> grammarPoints();
   Future<GrammarPoint?> grammarPointById(String id);

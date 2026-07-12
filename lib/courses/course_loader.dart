@@ -1,4 +1,5 @@
 // Flutter imports:
+import 'dart:collection';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
@@ -22,7 +23,7 @@ import 'package:varnamala/domain/course/section.dart';
 import 'package:varnamala/domain/course/word_entry.dart';
 
 /// Loads a language course from a SQLite database ([CourseDatabase]) that is
-/// seeded from the bundled JSON assets under `assets/courses/swahili/` on
+/// seeded from the bundled JSON assets under `assets/courses/turkish/` on
 /// first launch.
 ///
 /// At startup only the section index and vocabulary are read — section bodies
@@ -35,13 +36,14 @@ import 'package:varnamala/domain/course/word_entry.dart';
 /// `units`; they carry enough (id/name/description/prerequisiteSectionIds)
 /// for the section switcher and selection logic. [loadSection] rebuilds a
 /// fully-populated [Section] from the DB.
-class SwahiliCourse {
+class CourseLoader {
   /// Lightweight section shells built from the DB index — id/name/description/
   /// prerequisiteSectionIds only, `units` empty until [loadSection] is called.
   final List<Section> sectionShells;
 
   final List<WordEntry> vocabulary;
   final Map<String, WordEntry> vocabularyById;
+  final Map<String, WordEntry> vocabularyByTerm;
   final Map<String, WordEntry> vocabularyByTranslation;
 
   /// Grammar points loaded at startup for the grammar-review SRS queue.
@@ -52,10 +54,11 @@ class SwahiliCourse {
   final List<Expression> expressions;
   final Map<String, Expression> expressionsById;
 
-  const SwahiliCourse({
+  const CourseLoader({
     required this.sectionShells,
     required this.vocabulary,
     required this.vocabularyById,
+    required this.vocabularyByTerm,
     required this.vocabularyByTranslation,
     required this.grammarPoints,
     required this.grammarPointsById,
@@ -66,7 +69,7 @@ class SwahiliCourse {
   /// Directory holding the seed JSON assets (index + per-section files +
   /// vocab + grammar points). Used by [DatabaseSeeder]; exposed for seed-time
   /// file resolution.
-  static const String baseDir = 'assets/courses/swahili';
+  static const String baseDir = 'assets/courses/turkish';
 
   /// Course index: metadata + one lightweight entry per section with a `file`
   /// pointer (relative to [baseDir]) to that section's full JSON. Seed source.
@@ -82,22 +85,21 @@ class SwahiliCourse {
   static const String expressionsAsset = '$baseDir/expressions.json';
 
   /// Cached in-flight / completed load of the index + vocabulary so they are
-  /// read once per process even though both [loadSwahiliVocabulary] (startup)
-  /// and [loadSwahiliSectionShells] (CourseProvider.load) call [load].
-  static Future<SwahiliCourse>? _instance;
+  /// read once per process even though both [loadVocabulary] (startup)
+  /// and [loadSectionShells] (CourseProvider.load) call [load].
+  static Future<CourseLoader>? _instance;
 
-  /// Cached vocabulary id set for runtime per-section validation.
-  static Set<String> _vocabIdSet = const {};
-
-  /// Cached expression id set for runtime per-section validation.
-  static Set<String> _expressionIdSet = const {};
+  /// Max resolved lesson bodies kept in process memory (L2 LRU).
+  @visibleForTesting
+  static const int lessonBodyCacheCap = 48;
 
   /// In-flight / completed per-section loads, keyed by section id. Coalesces
   /// concurrent requests for the same section and caches the result.
   static final Map<String, Future<Section>> _sectionLoads = {};
 
-  /// In-flight / completed per-lesson loads, keyed by lesson id.
-  static final Map<String, Future<Lesson>> _lessonLoads = {};
+  /// In-flight / completed per-lesson body loads (L2), insertion-order LRU.
+  static final LinkedHashMap<String, Future<Lesson>> _lessonLoads =
+      LinkedHashMap<String, Future<Lesson>>();
 
   /// Optional override supplying a [CourseDatabase] (e.g. an in-memory DB for
   /// tests). When `null`, the registered [CourseDatabase] is resolved via
@@ -118,8 +120,6 @@ class SwahiliCourse {
     _instance = null;
     _sectionLoads.clear();
     _lessonLoads.clear();
-    _vocabIdSet = const {};
-    _expressionIdSet = const {};
   }
 
   static CourseDatabase get _db {
@@ -128,29 +128,30 @@ class SwahiliCourse {
     if (getIt.isRegistered<CourseDatabase>()) return getIt<CourseDatabase>();
     throw StateError(
       'CourseDatabase is not registered. Call setupLocator() (or '
-      'SwahiliCourse.overrideDatabase in tests) before loading the course.',
+      'CourseLoader.overrideDatabase in tests) before loading the course.',
     );
   }
 
   /// Load the index + vocabulary (no section bodies). Subsequent calls return
   /// the cached result (the same future), so the DB is queried exactly once
   /// per session for shells + vocab.
-  static Future<SwahiliCourse> load() {
+  static Future<CourseLoader> load() {
     return _instance ??= _loadFresh();
   }
 
-  static Future<SwahiliCourse> _loadFresh() async {
+  static Future<CourseLoader> _loadFresh() async {
     final repo = CourseRepository(_db);
     final shells = await repo.sectionShells();
     final vocab = await repo.vocabulary();
     final grammar = await repo.grammarPoints();
     final expressions = await repo.expressions();
-    _vocabIdSet = {for (final w in vocab) w.id};
-    _expressionIdSet = {for (final e in expressions) e.id};
-    return SwahiliCourse(
+    return CourseLoader(
       sectionShells: shells,
       vocabulary: vocab,
       vocabularyById: {for (final w in vocab) w.id: w},
+      vocabularyByTerm: {
+        for (final w in vocab) w.term.toLowerCase(): w,
+      },
       vocabularyByTranslation: {
         for (final w in vocab) w.translation.toLowerCase(): w,
       },
@@ -161,10 +162,10 @@ class SwahiliCourse {
     );
   }
 
-  /// Load a single section's full body on demand, with in-flight coalescing
-  /// and caching. Validates the section in isolation ([validateSection]) —
-  /// cross-course uniqueness is enforced offline/CI by [validateSwahiliCourse]
-  /// over the seed assets. Throws [ArgumentError] for an unknown id.
+  /// Load a section's L1 tree (units + lesson metadata, empty content) on
+  /// demand, with in-flight coalescing and caching. Uses [validateSectionTree]
+  /// only — deep content checks stay in seed/CI via [validateCourse].
+  /// Throws [ArgumentError] for an unknown id.
   ///
   /// Failed loads are **not** cached so a later retry can succeed.
   static Future<Section> loadSection(String id) {
@@ -174,7 +175,7 @@ class SwahiliCourse {
     final future = () async {
       try {
         final section = await CourseRepository(_db).section(id);
-        validateSection(section, _vocabIdSet, _expressionIdSet);
+        validateSectionTree(section);
         return section;
       } catch (e) {
         _sectionLoads.remove(id);
@@ -186,11 +187,15 @@ class SwahiliCourse {
   }
 
   /// Load a single [Lesson] by id on demand, with in-flight coalescing and
-  /// caching. Throws [ArgumentError] for an unknown id.
-  /// Failed loads are not cached.
+  /// an LRU cache capped at [lessonBodyCacheCap]. Throws [ArgumentError] for
+  /// an unknown id. Failed loads are not cached.
   static Future<Lesson> loadLessonById(String id) {
-    final existing = _lessonLoads[id];
-    if (existing != null) return existing;
+    final existing = _lessonLoads.remove(id);
+    if (existing != null) {
+      // Touch: re-insert at end (most recently used).
+      _lessonLoads[id] = existing;
+      return existing;
+    }
 
     final future = () async {
       try {
@@ -201,14 +206,26 @@ class SwahiliCourse {
       }
     }();
     _lessonLoads[id] = future;
+    while (_lessonLoads.length > lessonBodyCacheCap) {
+      _lessonLoads.remove(_lessonLoads.keys.first);
+    }
     return future;
   }
+
+  /// Owning section id for a unit, or `null` if unknown. Used by
+  /// [CourseProvider.selectUnit] to load only the needed L1 tree.
+  static Future<String?> sectionIdForUnit(String unitId) =>
+      CourseRepository(_db).sectionIdForUnit(unitId);
+
+  /// Owning section id for a lesson, or `null` if unknown.
+  static Future<String?> sectionIdForLesson(String lessonId) =>
+      CourseRepository(_db).sectionIdForLesson(lessonId);
 }
 
 /// Parse a single [Section] from a per-section JSON string. Used by
 /// [DatabaseSeeder] (seed path) and tests; not on the runtime read path.
 /// Visible for testing.
-Section parseSwahiliSection(String raw) =>
+Section parseSection(String raw) =>
     Section.fromJson(_normalizeSection(jsonDecode(raw) as Map<String, dynamic>));
 
 /// Pre-process a raw section map before handing it to [Section.fromJson].
@@ -218,7 +235,7 @@ Section parseSwahiliSection(String raw) =>
 /// synthesize a single default stage wrapping those questions so the runtime
 /// model is always `List<Stage>` and no downstream consumer ever branches on
 /// "flat vs grouped". A lesson must carry exactly one of `stages`/`questions`
-/// — carrying both is rejected by [validateSwahiliCourse] via the loader.
+/// — carrying both is rejected by [validateCourse] via the loader.
 Map<String, dynamic> _normalizeSection(Map<String, dynamic> section) {
   final units = section['units'] as List<dynamic>?;
   if (units == null) return section;
@@ -266,8 +283,7 @@ Map<String, dynamic> _normalizeLesson(Map<String, dynamic> lesson) {
 
 /// Parse a list of [WordEntry]s from a JSON string. Used by [DatabaseSeeder]
 /// and tests. Visible for testing.
-List<WordEntry> parseSwahiliVocabulary(String raw) =>
-    _parseVocabulary(raw);
+List<WordEntry> parseVocabulary(String raw) => _parseVocabulary(raw);
 
 List<WordEntry> _parseVocabulary(String raw) {
   final json = jsonDecode(raw) as Map<String, dynamic>;
@@ -279,7 +295,7 @@ List<WordEntry> _parseVocabulary(String raw) {
 
 /// Parse a list of [GrammarPoint]s from a JSON string. Used by
 /// [DatabaseSeeder] and tests. Visible for testing.
-List<GrammarPoint> parseSwahiliGrammarPoints(String raw) {
+List<GrammarPoint> parseGrammarPoints(String raw) {
   final json = jsonDecode(raw) as Map<String, dynamic>;
   final points = json['grammarPoints'] as List<dynamic>;
   return points
@@ -289,7 +305,7 @@ List<GrammarPoint> parseSwahiliGrammarPoints(String raw) {
 
 /// Parse a list of [Expression]s from a JSON string. Used by
 /// [DatabaseSeeder] and tests. Visible for testing.
-List<Expression> parseSwahiliExpressions(String raw) {
+List<Expression> parseExpressions(String raw) {
   final json = jsonDecode(raw) as Map<String, dynamic>;
   final expressions = (json['expressions'] as List<dynamic>?) ?? [];
   return expressions

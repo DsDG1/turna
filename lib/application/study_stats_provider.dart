@@ -11,7 +11,7 @@ import 'package:injectable/injectable.dart';
 // Project imports:
 import 'package:varnamala/application/mistake_provider.dart';
 import 'package:varnamala/courses/languages/grammar_points.dart';
-import 'package:varnamala/courses/languages/swahili_vocab.dart';
+import 'package:varnamala/courses/languages/vocab.dart';
 import 'package:varnamala/data/study_log_repository.dart';
 import 'package:varnamala/domain/study/daily_stats.dart';
 import 'package:varnamala/domain/study/study_log.dart';
@@ -180,7 +180,7 @@ class StudyStatsProvider extends ChangeNotifier {
       WeakWord? word;
       if (agg.key.startsWith('grammar:')) {
         final gpId = agg.key.substring('grammar:'.length);
-        final gp = swahiliGrammarPointById[gpId];
+        final gp = grammarPointById[gpId];
         word = WeakWord(
           wordId: gpId,
           displayText: gp?.title ?? gpId,
@@ -189,7 +189,7 @@ class StudyStatsProvider extends ChangeNotifier {
           lastMistakeAt: agg.lastMistakeAt,
         );
       } else {
-        final entry = swahiliVocabById[agg.key];
+        final entry = vocabById[agg.key];
         word = WeakWord(
           wordId: agg.key,
           displayText: entry?.term ?? agg.key,

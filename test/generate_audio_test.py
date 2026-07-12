@@ -8,6 +8,7 @@ Run with:
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import sys
 import tempfile
@@ -21,8 +22,8 @@ from generate_audio import (  # type: ignore
     AudioEntry,
     COURSE_DIR,
     SOUNDS_DIR,
+    MiniMaxBackend,
     collect_entries,
-    detect_backend,
     generate_entry,
     listening_asset_path,
     target_path_for,
@@ -30,9 +31,17 @@ from generate_audio import (  # type: ignore
 
 
 def _write_listening_course(tmp_course: Path, phases: list[dict]) -> None:
-    """Write a minimal course with one listening lesson containing `phases`."""
-    src_course = PROJECT_ROOT / "assets" / "courses" / "swahili"
+    """Write a minimal course with one listening lesson containing `phases."""
+    src_course = PROJECT_ROOT / "assets" / "courses" / "turkish"
     shutil.copytree(src_course, tmp_course)
+    # Seed a vocab entry so word-id exclusion (audioAsset == a vocab id) is
+    # exercised — the scaffold ships an empty vocab by design.
+    (tmp_course / "vocab.json").write_text(
+        json.dumps(
+            {"version": 1, "language": "tr", "words": [{"id": "w-mimi", "term": "Mimi"}]},
+        ),
+        encoding="utf-8",
+    )
     section = {
         "id": "s-test",
         "name": "Test",
@@ -62,7 +71,7 @@ def _write_listening_course(tmp_course: Path, phases: list[dict]) -> None:
 
 
 class _FakeTtsBackend:
-    """Backend that writes a minimal valid WAV file for testing."""
+    """Backend that writes minimal MP3-like bytes for testing."""
 
     def __init__(self) -> None:
         self.calls: list[tuple[str, Path]] = []
@@ -70,21 +79,34 @@ class _FakeTtsBackend:
     def name(self) -> str:
         return "fake"
 
-    def synthesize(self, text: str, output_wav: Path) -> None:
-        self.calls.append((text, output_wav))
-        # Write a minimal RIFF/WAVE header with no samples.
-        output_wav.write_bytes(
-            b"RIFF\x26\x00\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00"
-            b"\x44\xac\x00\x00\x88X\x01\x00\x02\x00\x10\x00data\x02\x00\x00\x00\x00\x00"
+    def synthesize(self, text: str, output_mp3: Path) -> None:
+        self.calls.append((text, output_mp3))
+        # Write a tiny byte sequence; tests only check existence/contents length.
+        output_mp3.write_bytes(b"FAKE_MP3_" + text.encode("utf-8"))
+
+
+class TestMiniMaxBackend(unittest.TestCase):
+    def test_backend_requires_api_key(self) -> None:
+        env_key = os.environ.pop("MINIMAX_API_KEY", None)
+        try:
+            with self.assertRaises(RuntimeError) as ctx:
+                MiniMaxBackend()
+            self.assertIn("MINIMAX_API_KEY", str(ctx.exception))
+        finally:
+            if env_key is not None:
+                os.environ["MINIMAX_API_KEY"] = env_key
+
+    def test_backend_name_includes_model_and_voice(self) -> None:
+        os.environ["MINIMAX_API_KEY"] = "sk-test"
+        backend = MiniMaxBackend(
+            voice_id="male-qn-jingying", speed=0.85, model="speech-2.8-hd"
         )
+        self.assertIn("minimax", backend.name())
+        self.assertIn("male-qn-jingying", backend.name())
+        self.assertIn("0.85", backend.name())
 
 
 class TestGenerateAudio(unittest.TestCase):
-    def test_detect_backend_returns_none_when_nothing_available(self) -> None:
-        # In this test environment neither sherpa-onnx nor piper is installed.
-        backend = detect_backend()
-        self.assertIsNone(backend)
-
     def test_target_path_for_listening(self) -> None:
         # category is now ignored; all bundled assets live under listening/.
         self.assertEqual(
@@ -102,7 +124,7 @@ class TestGenerateAudio(unittest.TestCase):
 
     def test_collect_entries_uses_phase_transcripts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            tmp_course = Path(tmp) / "swahili"
+            tmp_course = Path(tmp) / "turkish"
             _write_listening_course(
                 tmp_course,
                 phases=[
@@ -116,7 +138,6 @@ class TestGenerateAudio(unittest.TestCase):
                     {
                         "id": "p-summary",
                         "name": "Summary",
-                        "type": "summary",
                         # No transcript -> skipped (needs recording).
                         "audioAsset": "l-needs-recording",
                     },
@@ -138,8 +159,8 @@ class TestGenerateAudio(unittest.TestCase):
 
     def test_collect_entries_skips_non_listening_lessons(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            tmp_course = Path(tmp) / "swahili"
-            src_course = PROJECT_ROOT / "assets" / "courses" / "swahili"
+            tmp_course = Path(tmp) / "turkish"
+            src_course = PROJECT_ROOT / "assets" / "courses" / "turkish"
             shutil.copytree(src_course, tmp_course)
             # A non-listening lesson carrying an audioAsset must not yield a
             # bundled-asset entry.

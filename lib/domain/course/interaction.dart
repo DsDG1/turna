@@ -38,6 +38,23 @@ sealed class Interaction with _$Interaction {
     String? grammarPointId,
   }) = MultipleChoice;
 
+  /// Choose one or more options out of N.
+  ///
+  /// Used for listening exercises such as "select the 3 words you heard".
+  /// [correctIndices] lists the zero-based indices of all correct options.
+  /// [minSelections] / [maxSelections] constrain how many options the learner
+  /// must pick before submitting.
+  const factory Interaction.multiSelect({
+    @Default('') String id,
+    required String prompt,
+    required List<String> options,
+    required List<int> correctIndices,
+    @Default(1) int minSelections,
+    @Default(2147483647) int maxSelections,
+    String? imageAsset,
+    String? grammarPointId,
+  }) = MultiSelect;
+
   /// Fill in the blanked word(s) in a sentence.
   const factory Interaction.fillBlank({
     @Default('') String id,
@@ -128,6 +145,7 @@ String? interactionGrammarPointId(Interaction interaction) {
   return switch (interaction) {
     ShowWord(:final grammarPointId) => grammarPointId,
     MultipleChoice(:final grammarPointId) => grammarPointId,
+    MultiSelect(:final grammarPointId) => grammarPointId,
     FillBlank(:final grammarPointId) => grammarPointId,
     TranslateSentence(:final grammarPointId) => grammarPointId,
     ListenAndPick(:final grammarPointId) => grammarPointId,
@@ -146,6 +164,8 @@ String? interactionCorrectAnswerLabel(Interaction interaction) {
     ShowWord(:final wordId) => wordId,
     MultipleChoice(:final options, :final correctIndex) =>
       options[correctIndex],
+    MultiSelect(:final options, :final correctIndices) =>
+      correctIndices.map((i) => options[i]).join(', '),
     FillBlank(:final answer) => answer,
     TranslateSentence(:final expected) => expected,
     ListenAndPick(:final options, :final correctIndex) => options[correctIndex],
@@ -155,5 +175,25 @@ String? interactionCorrectAnswerLabel(Interaction interaction) {
     ReadingMcq(:final options, :final correctIndex) => options[correctIndex],
     ReadingTrueFalse(:final answer) => answer.toString(),
     ReadingShortAnswer(:final expectedAnswer) => expectedAnswer,
+  };
+}
+
+/// Short prompt label used in lesson-completion summaries to identify a
+/// question. Falls back to a generic label when the interaction has no
+/// meaningful prompt.
+String interactionPromptLabel(Interaction interaction) {
+  return switch (interaction) {
+    ShowWord(:final wordId) => wordId,
+    MultipleChoice(:final prompt) => prompt,
+    MultiSelect(:final prompt) => prompt,
+    FillBlank(:final sentence) => sentence,
+    TranslateSentence(:final source) => source,
+    ListenAndPick(:final prompt) => prompt,
+    TypeTheWord(:final prompt) => prompt,
+    ListenOnly(:final prompt) => prompt,
+    ReorderSentence(:final scrambled) => scrambled.join(' '),
+    ReadingMcq(:final prompt) => prompt,
+    ReadingTrueFalse(:final statement) => statement,
+    ReadingShortAnswer(:final prompt) => prompt,
   };
 }

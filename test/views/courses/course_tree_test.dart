@@ -296,6 +296,64 @@ void main() {
       expect(find.text('Unit One'), findsOneWidget);
       expect(find.text('No units available'), findsNothing);
     });
+
+    testWidgets(
+        'expanding a unit with 100 lessons renders them without building '
+        'all tiles eagerly',
+        (tester) async {
+      final lessons = List.generate(
+        100,
+        (i) => Lesson(
+          id: 'l-$i',
+          name: 'Lesson $i',
+          description: '',
+          type: LessonType.normal,
+          template: LessonTemplate.legacy,
+          prerequisiteLessonIds: const [],
+          content: const LessonContent(),
+        ),
+      );
+      final provider = _FakeCourseProvider(
+        currentSection: Section(
+          id: 's-big-unit',
+          name: 'Big Unit Section',
+          description: '',
+          prerequisiteSectionIds: const [],
+          units: [
+            Unit(
+              id: 'u-big',
+              name: 'Big Unit',
+              description: '',
+              prerequisiteUnitIds: const [],
+              lessons: lessons,
+            ),
+          ],
+        ),
+        loadState: SectionLoadState.loaded,
+      );
+
+      await tester.pumpWidget(pumpTree(provider));
+      await tester.pumpAndSettle();
+
+      // Unit is collapsed by default.
+      expect(find.text('Big Unit'), findsOneWidget);
+      expect(find.text('Lesson 0'), findsNothing);
+
+      // Expand the unit.
+      await tester.tap(find.text('Big Unit'));
+      await tester.pumpAndSettle();
+
+      // First lesson appears after expand.
+      expect(find.text('Lesson 0'), findsOneWidget);
+
+      // Scroll to the bottom of the list and verify the last lesson is
+      // reachable. This exercises the lazy sliver builder with 100 items.
+      await tester.scrollUntilVisible(
+        find.text('Lesson 99'),
+        200,
+      );
+      expect(find.text('Lesson 99'), findsOneWidget);
+    });
   });
 }
 

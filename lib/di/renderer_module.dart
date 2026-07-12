@@ -6,6 +6,7 @@ import 'package:varnamala/views/lesson/components/interactions/fill_blank_render
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:varnamala/views/lesson/components/interactions/listen_and_pick_renderer.dart';
 import 'package:varnamala/views/lesson/components/interactions/listen_only_renderer.dart';
+import 'package:varnamala/views/lesson/components/interactions/multi_select_renderer.dart';
 import 'package:varnamala/views/lesson/components/interactions/multiple_choice_renderer.dart';
 import 'package:varnamala/views/lesson/components/interactions/reading_mcq_renderer.dart';
 import 'package:varnamala/views/lesson/components/interactions/reading_short_answer_renderer.dart';
@@ -36,6 +37,7 @@ abstract class RendererModule {
   Set<InteractionRenderer> renderers(
     ShowWordRenderer showWord,
     MultipleChoiceRenderer multipleChoice,
+    MultiSelectRenderer multiSelect,
     FillBlankRenderer fillBlank,
     TranslateSentenceRenderer translateSentence,
     ListenAndPickRenderer listenAndPick,
@@ -49,6 +51,7 @@ abstract class RendererModule {
       {
         showWord,
         multipleChoice,
+        multiSelect,
         fillBlank,
         translateSentence,
         listenAndPick,

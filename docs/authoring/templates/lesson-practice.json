@@ -1,0 +1,31 @@
+{
+  "id": "l-example-practice-1",
+  "name": "Practice example",
+  "description": "Harder practice of prior intro content.",
+  "type": "normal",
+  "template": "practice",
+  "prerequisiteLessonIds": [],
+  "content": {
+    "subLessons": [
+      {
+        "id": "sl-1",
+        "name": "Choose",
+        "stages": [
+          {
+            "id": "st-1",
+            "name": "MCQ",
+            "items": [
+              {
+                "runtimeType": "multipleChoice",
+                "id": "mc-1",
+                "prompt": "What does Jambo mean?",
+                "options": ["Hello", "Goodbye", "Thanks"],
+                "correctAnswer": "Hello"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

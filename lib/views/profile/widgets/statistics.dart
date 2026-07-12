@@ -30,7 +30,7 @@ class Statistics extends StatelessWidget {
               final data = snapshot.data;
               final streak = data?.streak ?? 0;
               final totalXp = data?.score ?? 0;
-              const currentLanguage = 'Swahili';
+              const currentLanguage = 'Turkish';
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

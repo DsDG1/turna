@@ -1,7 +1,7 @@
 // Project imports:
 import 'package:varnamala/courses/languages/expressions.dart';
 import 'package:varnamala/courses/languages/grammar_points.dart';
-import 'package:varnamala/courses/languages/swahili_vocab.dart';
+import 'package:varnamala/courses/languages/vocab.dart';
 import 'package:varnamala/domain/course/expression.dart';
 import 'package:varnamala/domain/course/grammar_point.dart';
 import 'package:varnamala/domain/course/word_entry.dart';
@@ -43,7 +43,7 @@ List<DictionaryHit> searchDictionary(String query, {int limit = 50}) {
 
   final hits = <DictionaryHit>[];
 
-  for (final entry in swahiliVocabById.values) {
+  for (final entry in vocabById.values) {
     if (_matchesVocab(entry, q)) {
       hits.add(DictionaryHit(
         kind: DictionaryHitKind.vocab,
@@ -58,7 +58,7 @@ List<DictionaryHit> searchDictionary(String query, {int limit = 50}) {
     }
   }
 
-  for (final exp in swahiliExpressionsById.values) {
+  for (final exp in expressionsById.values) {
     if (_matchesExpression(exp, q)) {
       hits.add(DictionaryHit(
         kind: DictionaryHitKind.expression,
@@ -72,7 +72,7 @@ List<DictionaryHit> searchDictionary(String query, {int limit = 50}) {
     }
   }
 
-  for (final gp in swahiliGrammarPointById.values) {
+  for (final gp in grammarPointById.values) {
     if (_matchesGrammar(gp, q)) {
       hits.add(DictionaryHit(
         kind: DictionaryHitKind.grammar,

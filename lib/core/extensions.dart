@@ -233,7 +233,7 @@ extension EnumType on String {
   TargetLanguage getEnumValue() {
     return TargetLanguage.values.firstWhere(
       (element) => element.name == this,
-      orElse: () => TargetLanguage.swahili,
+      orElse: () => TargetLanguage.turkish,
     );
   }
 }

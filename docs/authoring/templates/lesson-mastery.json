@@ -1,0 +1,25 @@
+{
+  "id": "l-example-mastery-1",
+  "name": "Mastery check",
+  "description": "Single stage with pass threshold.",
+  "type": "challenge",
+  "template": "mastery",
+  "prerequisiteLessonIds": [],
+  "content": {
+    "stages": [
+      {
+        "id": "st-mastery",
+        "name": "Check",
+        "items": [
+          {
+            "runtimeType": "multipleChoice",
+            "id": "mc-1",
+            "prompt": "Pick the greeting",
+            "options": ["Jambo", "Asante", "Kwaheri"],
+            "correctAnswer": "Jambo"
+          }
+        ]
+      }
+    ]
+  }
+}
