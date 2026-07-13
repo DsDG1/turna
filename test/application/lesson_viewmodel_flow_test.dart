@@ -373,6 +373,59 @@ void main() {
       expect(vm.progress, 0.0);
     });
 
+    // Regression: loading a mastery lesson must NOT look like a failed check.
+    // The old UI triggered the retry dialog purely from
+    // `isMastery && !masteryPassed`, which is true right after load because
+    // `_masteryPassed` initializes to false. `masteryFailed` must stay false
+    // until the user has actually walked off the end of the lesson.
+    test('mastery lesson: masteryFailed is false immediately after load',
+        () async {
+      final lesson = _buildMasteryLesson();
+      final harness = _buildHarness(lesson: lesson, appPrefs: appPrefs);
+      final vm = harness.vm;
+
+      await vm.loadLesson(lesson.id);
+
+      expect(vm.isMastery, isTrue);
+      expect(vm.masteryPassed, isFalse);
+      expect(vm.isComplete, isFalse);
+      expect(vm.masteryFailed, isFalse,
+          reason:
+              'A freshly loaded mastery lesson is not started, not failed');
+      expect(vm.currentInteraction, isNotNull,
+          reason: 'There must be a first question to render');
+    });
+
+    // Regression: masteryFailed must become true only after the user answers
+    // every question and still falls below the 80% threshold.
+    test('mastery lesson: masteryFailed is true only after failing all items',
+        () async {
+      final lesson = _buildMasteryLesson();
+      final harness = _buildHarness(lesson: lesson, appPrefs: appPrefs);
+      final vm = harness.vm;
+
+      await vm.loadLesson(lesson.id);
+
+      // Answer 4/6 correctly (< 80%).
+      for (var i = 0; i < 6; i++) {
+        final correct = i < 4;
+        _answerMultipleChoice(
+          vm,
+          correct: correct,
+          userAnswer: correct ? 'Correct' : 'Wrong',
+        );
+        vm.advance();
+      }
+
+      await pumpEventQueue();
+
+      expect(vm.masteryPassed, isFalse);
+      expect(vm.isComplete, isFalse);
+      expect(vm.masteryFailed, isTrue,
+          reason: 'All questions answered and accuracy < 80% => failed');
+      expect(vm.currentInteraction, isNull);
+    });
+
     test('mastery lesson with accuracy >= 80% completes', () async {
       final lesson = _buildMasteryLesson();
       final harness = _buildHarness(lesson: lesson, appPrefs: appPrefs);

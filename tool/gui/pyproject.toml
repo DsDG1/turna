@@ -1,0 +1,17 @@
+[project]
+name = "varnamala-gui"
+version = "0.1.0"
+description = "Varnamala local GUI course editor (constrained form frontend over course_cli)"
+requires-python = ">=3.11"
+dependencies = [
+  "PySide6>=6.5",
+  "PyPDF2>=3.0",
+  "python-docx>=1.1",
+]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["src"]

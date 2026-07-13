@@ -1,0 +1,227 @@
+"""Resource editor dialog: tabbed tables for vocab / expressions / grammar.
+
+Each tab is a QTableWidget bound directly to the adapter's in-memory resource
+list. CSV import/export are transport tools; edits land in memory and persist
+via CourseAdapter.save() (guiplan §7.2). Reference dropdowns in lesson forms
+refresh when this dialog closes (see MainWindow._on_resources).
+"""
+from __future__ import annotations
+
+from typing import Any
+
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QFileDialog,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QMessageBox,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QTabWidget,
+    QVBoxLayout,
+    QWidget,
+)
+
+import course_cli
+
+from src.backend.course_adapter import CourseAdapter
+
+RESOURCE_TYPES = ("vocab", "expressions", "grammar_points")
+TYPE_LABELS = {
+    "vocab": "词库 (Vocab)",
+    "expressions": "表达 (Expressions)",
+    "grammar_points": "语法 (Grammar)",
+}
+
+_LIST_FIELD = {
+    "vocab": "tags",
+    "expressions": "tags",
+    "grammar_points": "exampleExpressionIds",
+}
+_LIST_FIELDS = {
+    "vocab": {"tags"},
+    "expressions": {"tags"},
+    "grammar_points": {"exampleExpressionIds", "exampleSentenceIds"},
+}
+
+
+def _columns(row_type: str) -> list[str]:
+    headers, _rows = course_cli.build_csv_rows(row_type, [])
+    return headers
+
+
+class ResourceTableWidget(QWidget):
+    """Single resource type table: QTableWidget + add/del/import/export."""
+
+    def __init__(self, adapter: CourseAdapter, row_type: str) -> None:
+        super().__init__()
+        self.adapter = adapter
+        self.row_type = row_type
+        self.columns = _columns(row_type)
+        self._dirty = False
+        self._build_ui()
+        self._refresh()
+
+    def is_dirty(self) -> bool:
+        return self._dirty
+
+    def _build_ui(self) -> None:
+        layout = QVBoxLayout(self)
+        self.table = QTableWidget()
+        self.table.setColumnCount(len(self.columns))
+        self.table.setHorizontalHeaderLabels(self.columns)
+        self.table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.Stretch
+        )
+        self.table.itemChanged.connect(self._on_cell_changed)
+        layout.addWidget(self.table)
+
+        row = QHBoxLayout()
+        self.add_btn = QPushButton("+ 添加行")
+        self.del_btn = QPushButton("- 删除行")
+        self.import_btn = QPushButton("导入 CSV")
+        self.export_btn = QPushButton("导出 CSV")
+        row.addWidget(self.add_btn)
+        row.addWidget(self.del_btn)
+        row.addStretch()
+        row.addWidget(self.import_btn)
+        row.addWidget(self.export_btn)
+        layout.addLayout(row)
+
+        self.add_btn.clicked.connect(self._on_add)
+        self.del_btn.clicked.connect(self._on_del)
+        self.import_btn.clicked.connect(self._on_import)
+        self.export_btn.clicked.connect(self._on_export)
+
+    def _refresh(self) -> None:
+        self.table.blockSignals(True)
+        entries = self.adapter._resource_list(self.row_type)
+        self.table.setRowCount(len(entries))
+        for r, entry in enumerate(entries):
+            for c, col in enumerate(self.columns):
+                value = entry.get(col, "")
+                if col in _LIST_FIELDS.get(self.row_type, set()):
+                    text = ", ".join(str(v) for v in (value or []))
+                else:
+                    text = "" if value is None else str(value)
+                item = QTableWidgetItem(text)
+                if col == "id":
+                    item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                self.table.setItem(r, c, item)
+        self.table.blockSignals(False)
+
+    def _current_entry_id(self) -> str | None:
+        row = self.table.currentRow()
+        if row < 0:
+            return None
+        item = self.table.item(row, 0)
+        return item.text() if item else None
+
+    def _on_cell_changed(self, item: QTableWidgetItem) -> None:
+        col = self.columns[item.column()]
+        entries = self.adapter._resource_list(self.row_type)
+        row = item.row()
+        if not (0 <= row < len(entries)):
+            return
+        entry = entries[row]
+        text = item.text()
+        if col in _LIST_FIELDS.get(self.row_type, set()):
+            entry[col] = [p.strip() for p in text.split(",") if p.strip()]
+        else:
+            entry[col] = text
+        self._dirty = True
+
+    def _on_add(self) -> None:
+        new_id = self.adapter.add_resource_entry(self.row_type)
+        self._refresh()
+        for r in range(self.table.rowCount()):
+            if self.table.item(r, 0).text() == new_id:
+                self.table.setCurrentCell(r, 1)
+                break
+        self._dirty = True
+
+    def _on_del(self) -> None:
+        entry_id = self._current_entry_id()
+        if not entry_id:
+            return
+        reply = QMessageBox.question(
+            self, "删除", f"确认删除 {self.row_type} [{entry_id}]？\n保存时 validate 会校验悬空引用。",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            self.adapter.delete_resource_entry(self.row_type, entry_id)
+        except KeyError:
+            return
+        self._refresh()
+        self._dirty = True
+
+    def _on_import(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(
+            self, f"导入 {self.row_type} CSV", "", "CSV Files (*.csv)"
+        )
+        if not path:
+            return
+        from pathlib import Path
+
+        problems = self.adapter.import_csv(self.row_type, Path(path))
+        errors = [p for p in problems if p["level"] == "error"]
+        if errors:
+            detail = "\n".join(f"[{p['level']}] {p['message']}" for p in problems)
+            QMessageBox.warning(self, "导入失败（未应用）", detail)
+        else:
+            self._refresh()
+            self._dirty = True
+            if problems:
+                detail = "\n".join(f"[{p['level']}] {p['message']}" for p in problems)
+                QMessageBox.information(self, "导入完成（含警告）", detail)
+            else:
+                QMessageBox.information(self, "导入完成", "CSV 已合并到内存，记得保存。")
+
+    def _on_export(self) -> None:
+        path, _ = QFileDialog.getSaveFileName(
+            self, f"导出 {self.row_type} CSV", f"{self.row_type}.csv", "CSV Files (*.csv)"
+        )
+        if not path:
+            return
+        from pathlib import Path
+
+        try:
+            self.adapter.export_csv(self.row_type, Path(path))
+        except Exception as exc:
+            QMessageBox.warning(self, "导出失败", str(exc))
+            return
+        QMessageBox.information(self, "导出完成", f"已写入 {path}")
+
+
+class ResourceEditorDialog(QWidget):
+    """Tabbed dialog: vocab / expressions / grammar_points.
+
+    Tracks dirty state across all tabs; MainWindow reads is_dirty() on close
+    to decide whether to refresh reference dropdowns.
+    """
+
+    def __init__(self, adapter: CourseAdapter, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("资源编辑")
+        self.resize(900, 520)
+        self.adapter = adapter
+        self.tabs: list[ResourceTableWidget] = []
+
+        layout = QVBoxLayout(self)
+        hint = QLabel("编辑后关闭此窗口，再点工具栏「保存」落盘并校验。")
+        hint.setStyleSheet("color: gray;")
+        layout.addWidget(hint)
+
+        self.tab_widget = QTabWidget()
+        for rt in RESOURCE_TYPES:
+            tab = ResourceTableWidget(adapter, rt)
+            self.tab_widget.addTab(tab, TYPE_LABELS[rt])
+            self.tabs.append(tab)
+        layout.addWidget(self.tab_widget)
+
+    def is_dirty(self) -> bool:
+        return any(tab.is_dirty() for tab in self.tabs)

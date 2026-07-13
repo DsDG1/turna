@@ -747,12 +747,12 @@ def _read_csv(path: Path) -> list[dict[str, str]]:
         return list(reader)
 
 
-def cmd_export_csv(args: argparse.Namespace) -> int:
-    course_dir = args.course_dir
-    out_path = Path(args.output)
-
-    if args.type == "vocab":
-        entries = load_vocab(course_dir)
+def build_csv_rows(
+    row_type: str,
+    entries: list[dict[str, Any]],
+) -> tuple[list[str], list[dict[str, str]]]:
+    """Return (headers, rows) for the given resource type. Pure: no I/O."""
+    if row_type in ("vocab", "expressions"):
         headers = ["id", "term", "translation", "pronunciation", "audioAsset", "tags"]
         rows = [
             {
@@ -765,22 +765,7 @@ def cmd_export_csv(args: argparse.Namespace) -> int:
             }
             for e in sorted(entries, key=lambda x: x.get("id", ""))
         ]
-    elif args.type == "expressions":
-        entries = load_expressions(course_dir)
-        headers = ["id", "term", "translation", "pronunciation", "audioAsset", "tags"]
-        rows = [
-            {
-                "id": e.get("id", ""),
-                "term": e.get("term", ""),
-                "translation": e.get("translation", ""),
-                "pronunciation": e.get("pronunciation", ""),
-                "audioAsset": e.get("audioAsset", ""),
-                "tags": _join_list(e.get("tags", [])),
-            }
-            for e in sorted(entries, key=lambda x: x.get("id", ""))
-        ]
-    elif args.type == "grammar_points":
-        entries = load_grammar_points(course_dir)
+    elif row_type == "grammar_points":
         headers = [
             "id",
             "title",
@@ -799,9 +784,81 @@ def cmd_export_csv(args: argparse.Namespace) -> int:
             for e in sorted(entries, key=lambda x: x.get("id", ""))
         ]
     else:
+        raise ValueError(f"Unknown export type: {row_type}")
+    return headers, rows
+
+
+def _build_entry(
+    row: dict[str, str],
+    row_type: str,
+    existing_by_id: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    if row_type in ("vocab", "expressions"):
+        return {
+            "id": row["id"].strip(),
+            "term": row["term"].strip(),
+            "translation": row["translation"].strip(),
+            "pronunciation": row.get("pronunciation", "").strip() or None,
+            "audioAsset": row.get("audioAsset", "").strip() or None,
+            "tags": _split_list(row.get("tags", "")),
+        }
+    # grammar_points: preserve practiceItems from existing (CSV omits it)
+    return {
+        "id": row["id"].strip(),
+        "title": row["title"].strip(),
+        "explanation": row.get("explanation", "").strip(),
+        "exampleExpressionIds": _split_list(row.get("exampleExpressionIds", "")),
+        "exampleSentenceIds": _split_list(row.get("exampleSentenceIds", "")),
+        "practiceItems": existing_by_id.get(row["id"].strip(), {}).get(
+            "practiceItems", []
+        ),
+    }
+
+
+def merge_csv_rows(
+    row_type: str,
+    existing_entries: list[dict[str, Any]],
+    rows: list[dict[str, str]],
+    expression_ids: set[str],
+) -> tuple[list[dict[str, Any]], list[Problem]]:
+    """Merge CSV rows into existing entries by id. Pure: no I/O.
+
+    Returns (merged_entries, problems). Upsert semantics: rows update/add by id,
+    existing entries absent from CSV are kept. grammar_points practiceItems is
+    preserved from existing.
+    """
+    existing_by_id = {e["id"]: e for e in existing_entries}
+    problems: list[Problem] = []
+    for row in rows:
+        problems.extend(
+            _validate_import_row(row, row_type, existing_by_id, expression_ids)
+        )
+    errors = [p for p in problems if p.level == "error"]
+    if errors:
+        return list(existing_entries), problems
+    merged = dict(existing_by_id)
+    for row in rows:
+        entry = _build_entry(row, row_type, existing_by_id)
+        merged[entry["id"]] = entry
+    merged_list = sorted(merged.values(), key=lambda e: e["id"])
+    return merged_list, problems
+
+
+def cmd_export_csv(args: argparse.Namespace) -> int:
+    course_dir = args.course_dir
+    out_path = Path(args.output)
+
+    if args.type == "vocab":
+        entries = load_vocab(course_dir)
+    elif args.type == "expressions":
+        entries = load_expressions(course_dir)
+    elif args.type == "grammar_points":
+        entries = load_grammar_points(course_dir)
+    else:
         print(f"Unknown export type: {args.type}", file=sys.stderr)
         return 1
 
+    headers, rows = build_csv_rows(args.type, entries)
     _write_csv(out_path, headers, rows)
     print(f"Exported {len(rows)} {args.type} row(s) to {out_path}")
     return 0
@@ -815,15 +872,27 @@ def _validate_import_row(
 ) -> list[Problem]:
     problems: list[Problem] = []
     eid = row.get("id", "").strip()
-    term = row.get("term", "").strip()
-    translation = row.get("translation", "").strip()
 
     if not eid:
         problems.append(Problem("error", "Row has empty id"))
-    if not term:
-        problems.append(Problem("error", f"Row {eid or '?'} has empty term"))
-    if not translation:
-        problems.append(Problem("error", f"Row {eid or '?'} has empty translation"))
+
+    if row_type == "grammar_points":
+        title = row.get("title", "").strip()
+        if not title:
+            problems.append(
+                Problem("error", f"Row {eid or '?'} has empty title")
+            )
+    else:
+        term = row.get("term", "").strip()
+        translation = row.get("translation", "").strip()
+        if not term:
+            problems.append(
+                Problem("error", f"Row {eid or '?'} has empty term")
+            )
+        if not translation:
+            problems.append(
+                Problem("error", f"Row {eid or '?'} has empty translation")
+            )
 
     if row_type == "vocab" and eid and not eid.startswith("w-"):
         problems.append(
@@ -852,52 +921,21 @@ def cmd_import_csv(args: argparse.Namespace) -> int:
     if args.type == "vocab":
         json_path = course_dir / "vocab.json"
         data = load_json(json_path)
-        existing = {e["id"]: e for e in data.get("words", [])}
+        existing_entries = list(data.get("words", []))
         key = "words"
         row_type = "vocab"
-        build_entry = lambda row: {
-            "id": row["id"].strip(),
-            "term": row["term"].strip(),
-            "translation": row["translation"].strip(),
-            "pronunciation": row.get("pronunciation", "").strip() or None,
-            "audioAsset": row.get("audioAsset", "").strip() or None,
-            "tags": _split_list(row.get("tags", "")),
-        }
     elif args.type == "expressions":
         json_path = course_dir / "expressions.json"
         data = load_json(json_path)
-        existing = {e["id"]: e for e in (data.get("expressions", []) or [])}
+        existing_entries = list(data.get("expressions", []) or [])
         key = "expressions"
         row_type = "expressions"
-        build_entry = lambda row: {
-            "id": row["id"].strip(),
-            "term": row["term"].strip(),
-            "translation": row["translation"].strip(),
-            "pronunciation": row.get("pronunciation", "").strip() or None,
-            "audioAsset": row.get("audioAsset", "").strip() or None,
-            "tags": _split_list(row.get("tags", "")),
-        }
     elif args.type == "grammar_points":
         json_path = course_dir / "grammar_points.json"
         data = load_json(json_path)
-        existing = {e["id"]: e for e in data.get("grammarPoints", [])}
+        existing_entries = list(data.get("grammarPoints", []))
         key = "grammarPoints"
         row_type = "grammar_points"
-        expression_ids = {e["id"] for e in load_expressions(course_dir)}
-        build_entry = lambda row: {
-            "id": row["id"].strip(),
-            "title": row["title"].strip(),
-            "explanation": row.get("explanation", "").strip(),
-            "exampleExpressionIds": _split_list(
-                row.get("exampleExpressionIds", "")
-            ),
-            "exampleSentenceIds": _split_list(
-                row.get("exampleSentenceIds", "")
-            ),
-            "practiceItems": existing.get(row["id"].strip(), {}).get(
-                "practiceItems", []
-            ),
-        }
     else:
         print(f"Unknown import type: {args.type}", file=sys.stderr)
         return 1
@@ -905,11 +943,9 @@ def cmd_import_csv(args: argparse.Namespace) -> int:
     rows = _read_csv(in_path)
     expression_ids = {e["id"] for e in load_expressions(course_dir)}
 
-    problems: list[Problem] = []
-    for row in rows:
-        problems.extend(
-            _validate_import_row(row, row_type, existing, expression_ids)
-        )
+    new_entries, problems = merge_csv_rows(
+        row_type, existing_entries, rows, expression_ids
+    )
 
     errors = [p for p in problems if p.level == "error"]
     for p in problems:
@@ -919,12 +955,6 @@ def cmd_import_csv(args: argparse.Namespace) -> int:
         print(f"\nImport aborted: {len(errors)} error(s).", file=sys.stderr)
         return 1
 
-    merged = dict(existing)
-    for row in rows:
-        entry = build_entry(row)
-        merged[entry["id"]] = entry
-
-    new_entries = sorted(merged.values(), key=lambda e: e["id"])
     data[key] = new_entries
 
     if dry_run:
@@ -1164,17 +1194,17 @@ def _audio_asset_path(asset: str, kind: str) -> Path:
     return (SOUNDS_DIR / "listening" / f"{asset}.mp3").resolve()
 
 
-def cmd_audio_manifest(args: argparse.Namespace) -> int:
-    course_dir = args.course_dir
-    out_path = Path(args.output)
+def build_audio_manifest(course_dir: Path) -> list[dict[str, str]]:
+    """Return manifest rows for referenced listening assets. Pure computation.
 
+    Each row: {asset_id, type, referenced_by, status}.
+    status = 'present' if the asset file exists else 'missing'.
+    """
     vocab = {w["id"]: w for w in load_vocab(course_dir)}
     expressions = {e["id"]: e for e in load_expressions(course_dir)}
     word_and_expr_ids = set(vocab.keys()) | set(expressions.keys())
 
-    # asset_id -> set of reference locations (only listening lessons)
     referenced: dict[str, set[str]] = {}
-
     for section_id, section in load_sections(course_dir):
         normalize_section(section)
         for unit in section.get("units", []):
@@ -1190,9 +1220,6 @@ def cmd_audio_manifest(args: argparse.Namespace) -> int:
                     referenced.setdefault(asset, set()).add(loc)
 
     rows: list[dict[str, str]] = []
-    total = 0
-    present = 0
-
     for asset, locations in sorted(referenced.items()):
         asset_path = _audio_asset_path(asset, "listening")
         status = "present" if asset_path.exists() else "missing"
@@ -1204,9 +1231,16 @@ def cmd_audio_manifest(args: argparse.Namespace) -> int:
                 "status": status,
             }
         )
-        total += 1
-        if status == "present":
-            present += 1
+    return rows
+
+
+def cmd_audio_manifest(args: argparse.Namespace) -> int:
+    course_dir = args.course_dir
+    out_path = Path(args.output)
+
+    rows = build_audio_manifest(course_dir)
+    total = len(rows)
+    present = sum(1 for r in rows if r["status"] == "present")
 
     headers = ["asset_id", "type", "referenced_by", "status"]
     _write_csv(out_path, headers, rows)
