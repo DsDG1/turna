@@ -25,6 +25,7 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: HomeRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(page: NewLessonRoute.page),
         AutoRoute(page: SectionPickerRoute.page),
+        AutoRoute(page: AiCourseGeneratorRoute.page),
         AutoRoute(page: VowelAndConsonantLearningRoute.page),
         AutoRoute(page: MatchWordsRoute.page),
         AutoRoute(page: DailyChallengeRoute.page),

@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 
 // Package imports:
-import 'package:auto_route/annotations.dart';
+import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
@@ -23,6 +23,7 @@ import 'package:varnamala/views/home/components/components.dart';
 import 'package:varnamala/views/play/play_app_bar.dart';
 import 'package:varnamala/views/play/play_hub_screen.dart';
 import 'package:varnamala/views/profile/profile_screen.dart';
+import 'package:varnamala/routing/routing.gr.dart';
 import 'package:varnamala/views/theme.dart';
 
 @RoutePage()
@@ -146,6 +147,16 @@ class _HomePageState extends State<HomePage> {
         index: currentIndex,
         children: screens,
       ),
+      floatingActionButton: currentIndex == 0
+          ? FloatingActionButton(
+              tooltip: 'AI Course Generator',
+              backgroundColor: VarnamalaTheme.primary,
+              foregroundColor: Colors.white,
+              child: const Icon(Icons.auto_awesome),
+              onPressed: () =>
+                  context.router.push(const AiCourseGeneratorRoute()),
+            )
+          : null,
     );
   }
 

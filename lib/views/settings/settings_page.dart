@@ -2,12 +2,13 @@
 import 'package:flutter/material.dart';
 
 // Package imports:
-import 'package:auto_route/annotations.dart';
+import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:varnamala/application/game_provider.dart';
 import 'package:varnamala/application/mistake_provider.dart';
+import 'package:varnamala/routing/routing.gr.dart';
 import 'package:varnamala/views/settings/widgets/settings_about_section.dart';
 import 'package:varnamala/views/settings/widgets/settings_account_section.dart';
 import 'package:varnamala/views/settings/widgets/settings_appearance_section.dart';
@@ -51,6 +52,20 @@ class SettingsPage extends StatelessWidget {
                 const SettingsTtsSpeedTile(),
                 settingsTileDivider(context),
                 const SettingsDailyReminderTile(),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const SettingsSectionTitle(
+                title: 'AI Course Generator', icon: Icons.auto_awesome),
+            SettingsCard(
+              children: [
+                SettingsActionTile(
+                  icon: Icons.auto_awesome,
+                  title: 'Generate a course with AI',
+                  subtitle: 'Pick a topic, let AI author & add a new section',
+                  onTap: (context) =>
+                      context.router.push(const AiCourseGeneratorRoute()),
+                ),
               ],
             ),
             const SizedBox(height: 16),

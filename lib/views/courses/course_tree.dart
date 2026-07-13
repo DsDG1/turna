@@ -170,24 +170,45 @@ class _CourseTreeState extends State<CourseTree> {
       // ProviderNotFound / empty DI — tree still renders without status dots.
     }
 
+    // Single pass over section: completedCount per unit + lessonId→unit index.
+    // Replaces the previous per-unit .where().length + 2×.any pattern whose
+    // total cost was O(3 × section lessons). due/weak unit flags are now
+    // resolved by reverse-looking up the due/weak lessonId sets through the
+    // index — O(section lessons + due + weak) instead of O(section lessons
+    // per badge).
+    final completedCountByUnit = <String, int>{};
+    final lessonToUnit = <String, String>{};
+    for (final unit in section.units) {
+      var count = 0;
+      for (final lesson in unit.lessons) {
+        lessonToUnit[lesson.id] = unit.id;
+        if (progress.isLessonCompleted(lesson.id)) count++;
+      }
+      completedCountByUnit[unit.id] = count;
+    }
+
+    final unitsWithDue = <String>{};
+    final unitsWithWeak = <String>{};
+    for (final lessonId in lessonIdsWithDue) {
+      final uid = lessonToUnit[lessonId];
+      if (uid != null) unitsWithDue.add(uid);
+    }
+    for (final lessonId in lessonIdsWithWeak) {
+      final uid = lessonToUnit[lessonId];
+      if (uid != null) unitsWithWeak.add(uid);
+    }
+
     // Flatten section into a single virtualized list of headers and lessons.
     final items = <_TreeItem>[];
     for (final unit in section.units) {
-      final completedCount = unit.lessons
-          .where((l) => progress.isLessonCompleted(l.id))
-          .length;
-      final unitHasDue =
-          unit.lessons.any((l) => lessonIdsWithDue.contains(l.id));
-      final unitHasWeak =
-          unit.lessons.any((l) => lessonIdsWithWeak.contains(l.id));
       final expanded = _expandedUnitId == unit.id;
 
       items.add(
         _UnitHeaderItem(
           unit: unit,
-          completedCount: completedCount,
-          hasDue: unitHasDue,
-          hasWeak: unitHasWeak,
+          completedCount: completedCountByUnit[unit.id] ?? 0,
+          hasDue: unitsWithDue.contains(unit.id),
+          hasWeak: unitsWithWeak.contains(unit.id),
           expanded: expanded,
         ),
       );

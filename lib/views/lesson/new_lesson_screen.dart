@@ -71,7 +71,7 @@ class _NewLessonPageState extends State<NewLessonPage> {
       _showCompletionDialog();
       return;
     }
-    if (vm.isMastery && !vm.masteryPassed && vm.lesson != null) {
+    if (vm.masteryFailed) {
       _showMasteryRetryDialog();
       return;
     }

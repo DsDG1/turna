@@ -113,6 +113,19 @@ class LessonViewModel extends ChangeNotifier {
   bool get isMastery => _lesson?.isMastery ?? false;
   bool get masteryPassed => _masteryPassed;
   int get masteryAttempts => _masteryAttempts;
+
+  /// True only when the user has finished every interaction of a mastery
+  /// lesson but failed to reach the 80% pass threshold. Distinguishes the
+  /// "walked off the end" state from the freshly-loaded "not started" state
+  /// (both have [_masteryPassed] == false) by requiring that there is no
+  /// current interaction left to render.
+  bool get masteryFailed =>
+      _lesson != null &&
+      _lesson!.isMastery &&
+      !_isComplete &&
+      !_masteryPassed &&
+      currentInteraction == null;
+
   int get correctAnswers => _correctAnswers;
   int get incorrectAnswers => _incorrectAnswers;
   int get totalInteractionCount => _totalItemCount;

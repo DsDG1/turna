@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:varnamala/application/achievements_provider.dart';
+import 'package:varnamala/application/ai_course_provider.dart';
 import 'package:varnamala/application/character_provider.dart';
 import 'package:varnamala/application/course_provider.dart';
 import 'package:varnamala/application/game_provider.dart';
@@ -23,6 +24,9 @@ import 'package:varnamala/di/injection.dart';
 /// **same** instance that constructor-injected collaborators receive
 /// (stateful services are `@lazySingleton` — see Wave A).
 final providers = [
+  ChangeNotifierProvider<AiCourseProvider>(
+    create: (_) => AiCourseProvider(),
+  ),
   ChangeNotifierProvider<ThemeProvider>(
     create: (_) => getIt<ThemeProvider>(),
   ),
