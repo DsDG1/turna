@@ -13,7 +13,7 @@
         {
           "id": "s1-l1",
           "name": "Welcome",
-          "description": "A quick first look at Turkish greetings.",
+          "description": "",
           "type": "normal",
           "template": "legacy",
           "prerequisiteLessonIds": [],
@@ -39,7 +39,8 @@
                   }
                 ]
               }
-            ]
+            ],
+            "subLessons": []
           }
         },
         {
@@ -48,7 +49,9 @@
           "description": "Meet common Turkish greetings and produce them right away.",
           "type": "normal",
           "template": "intro",
-          "prerequisiteLessonIds": ["s1-l1"],
+          "prerequisiteLessonIds": [
+            "s1-l1"
+          ],
           "content": {
             "subLessons": [
               {
@@ -70,7 +73,9 @@
                         "id": "ts-merhaba",
                         "source": "Hello!",
                         "expected": "Merhaba!",
-                        "hints": ["merhaba"]
+                        "hints": [
+                          "merhaba"
+                        ]
                       },
                       {
                         "runtimeType": "fillBlank",
@@ -102,7 +107,9 @@
                         "id": "ts-nasilsin",
                         "source": "How are you?",
                         "expected": "Nasılsın?",
-                        "hints": ["nasılsın"]
+                        "hints": [
+                          "nasılsın"
+                        ]
                       },
                       {
                         "runtimeType": "fillBlank",
@@ -134,7 +141,10 @@
                         "id": "ts-iyiyim",
                         "source": "I'm fine, thank you.",
                         "expected": "İyiyim, teşekkürler.",
-                        "hints": ["iyiyim", "teşekkürler"]
+                        "hints": [
+                          "iyiyim",
+                          "teşekkürler"
+                        ]
                       },
                       {
                         "runtimeType": "fillBlank",
@@ -166,7 +176,9 @@
                         "id": "ts-tesekkurler",
                         "source": "Thank you!",
                         "expected": "Teşekkürler!",
-                        "hints": ["teşekkürler"]
+                        "hints": [
+                          "teşekkürler"
+                        ]
                       },
                       {
                         "runtimeType": "typeTheWord",
@@ -190,15 +202,26 @@
                       {
                         "runtimeType": "reorderSentence",
                         "id": "rs-greet-ali",
-                        "scrambled": ["Ali", "Merhaba", "nasılsın"],
-                        "correct": ["Merhaba", "Ali", "nasılsın"]
+                        "scrambled": [
+                          "Ali",
+                          "Merhaba",
+                          "nasılsın"
+                        ],
+                        "correct": [
+                          "Merhaba",
+                          "Ali",
+                          "nasılsın"
+                        ]
                       },
                       {
                         "runtimeType": "translateSentence",
                         "id": "ts-review-greet",
                         "source": "Hello, how are you?",
                         "expected": "Merhaba, nasılsın?",
-                        "hints": ["merhaba", "nasılsın"]
+                        "hints": [
+                          "merhaba",
+                          "nasılsın"
+                        ]
                       },
                       {
                         "runtimeType": "fillBlank",

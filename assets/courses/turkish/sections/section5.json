@@ -2,7 +2,9 @@
   "id": "section5",
   "name": "Section 5",
   "description": "Günlük konuşmalar yapabiliyorum",
-  "prerequisiteSectionIds": ["section4"],
+  "prerequisiteSectionIds": [
+    "section4"
+  ],
   "units": [
     {
       "id": "s5-u1",
@@ -29,7 +31,12 @@
                     "runtimeType": "multipleChoice",
                     "id": "mc-welcome",
                     "prompt": "Which Turkish word means \"bread\"?",
-                    "options": ["ekmek", "çay", "su", "merhaba"],
+                    "options": [
+                      "ekmek",
+                      "çay",
+                      "su",
+                      "merhaba"
+                    ],
                     "correctIndex": 0
                   }
                 ]

@@ -1,0 +1,31 @@
+{
+  "id": "l-example-review-1",
+  "name": "Review example",
+  "description": "Mixed review of prior lessons.",
+  "type": "review",
+  "template": "review",
+  "prerequisiteLessonIds": [],
+  "content": {
+    "subLessons": [
+      {
+        "id": "sl-1",
+        "name": "Words",
+        "stages": [
+          {
+            "id": "st-1",
+            "name": "Recall",
+            "items": [
+              {
+                "runtimeType": "multipleChoice",
+                "id": "mc-1",
+                "prompt": "How do you say 'Thank you'?",
+                "options": ["Jambo", "Asante", "Kwaheri"],
+                "correctIndex": 1
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

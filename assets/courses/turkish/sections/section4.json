@@ -2,7 +2,9 @@
   "id": "section4",
   "name": "Section 4",
   "description": "Türkçeyi rahatça konuşabiliyorum",
-  "prerequisiteSectionIds": ["section3"],
+  "prerequisiteSectionIds": [
+    "section3"
+  ],
   "units": [
     {
       "id": "s4-u1",
@@ -29,7 +31,12 @@
                     "runtimeType": "multipleChoice",
                     "id": "mc-welcome",
                     "prompt": "Which phrase would you use to order tea in Turkish?",
-                    "options": ["Bir çay, lütfen", "Hoşça kal", "Günaydın", "Evet"],
+                    "options": [
+                      "Bir çay, lütfen",
+                      "Hoşça kal",
+                      "Günaydın",
+                      "Evet"
+                    ],
                     "correctIndex": 0
                   }
                 ]

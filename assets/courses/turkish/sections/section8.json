@@ -2,7 +2,9 @@
   "id": "section8",
   "name": "Section 8",
   "description": "Çeşitli konularda akıcı konuşabiliyorum",
-  "prerequisiteSectionIds": ["section7"],
+  "prerequisiteSectionIds": [
+    "section7"
+  ],
   "units": [
     {
       "id": "s8-u1",
@@ -29,7 +31,12 @@
                     "runtimeType": "multipleChoice",
                     "id": "mc-welcome",
                     "prompt": "Which Turkish word means \"journey\"?",
-                    "options": ["yolculuk", "merhaba", "evet", "su"],
+                    "options": [
+                      "yolculuk",
+                      "merhaba",
+                      "evet",
+                      "su"
+                    ],
                     "correctIndex": 0
                   }
                 ]

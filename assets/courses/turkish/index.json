@@ -16,7 +16,9 @@
       "name": "Section 2",
       "description": "Temel kelimeleri öğreniyorum",
       "level": "A1",
-      "prerequisiteSectionIds": ["section1"],
+      "prerequisiteSectionIds": [
+        "section1"
+      ],
       "file": "sections/section2.json"
     },
     {
@@ -24,7 +26,9 @@
       "name": "Section 3",
       "description": "Basit konuşmalar yapabiliyorum",
       "level": "A1",
-      "prerequisiteSectionIds": ["section2"],
+      "prerequisiteSectionIds": [
+        "section2"
+      ],
       "file": "sections/section3.json"
     },
     {
@@ -32,7 +36,9 @@
       "name": "Section 4",
       "description": "Türkçeyi rahatça konuşabiliyorum",
       "level": "A2",
-      "prerequisiteSectionIds": ["section3"],
+      "prerequisiteSectionIds": [
+        "section3"
+      ],
       "file": "sections/section4.json"
     },
     {
@@ -40,7 +46,9 @@
       "name": "Section 5",
       "description": "Günlük konuşmalar yapabiliyorum",
       "level": "B1",
-      "prerequisiteSectionIds": ["section4"],
+      "prerequisiteSectionIds": [
+        "section4"
+      ],
       "file": "sections/section5.json"
     },
     {
@@ -48,7 +56,9 @@
       "name": "Section 6",
       "description": "Bağlama göre farklı görüş bildiriyorum",
       "level": "B1",
-      "prerequisiteSectionIds": ["section5"],
+      "prerequisiteSectionIds": [
+        "section5"
+      ],
       "file": "sections/section6.json"
     },
     {
@@ -56,7 +66,9 @@
       "name": "Section 7",
       "description": "Soyut konuları tartışabiliyorum",
       "level": "B2",
-      "prerequisiteSectionIds": ["section6"],
+      "prerequisiteSectionIds": [
+        "section6"
+      ],
       "file": "sections/section7.json"
     },
     {
@@ -64,7 +76,9 @@
       "name": "Section 8",
       "description": "Çeşitli konularda akıcı konuşabiliyorum",
       "level": "B2",
-      "prerequisiteSectionIds": ["section7"],
+      "prerequisiteSectionIds": [
+        "section7"
+      ],
       "file": "sections/section8.json"
     }
   ]

@@ -20,7 +20,7 @@
                 "id": "mc-1",
                 "prompt": "What does Jambo mean?",
                 "options": ["Hello", "Goodbye", "Thanks"],
-                "correctAnswer": "Hello"
+                "correctIndex": 0
               }
             ]
           }

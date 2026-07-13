@@ -2,7 +2,9 @@
   "id": "section6",
   "name": "Section 6",
   "description": "Bağlama göre farklı görüş bildiriyorum",
-  "prerequisiteSectionIds": ["section5"],
+  "prerequisiteSectionIds": [
+    "section5"
+  ],
   "units": [
     {
       "id": "s6-u1",
@@ -29,7 +31,12 @@
                     "runtimeType": "multipleChoice",
                     "id": "mc-welcome",
                     "prompt": "Which Turkish phrase expresses agreement?",
-                    "options": ["Kesinlikle", "Hayır", "Hoşça kal", "Günaydın"],
+                    "options": [
+                      "Kesinlikle",
+                      "Hayır",
+                      "Hoşça kal",
+                      "Günaydın"
+                    ],
                     "correctIndex": 0
                   }
                 ]

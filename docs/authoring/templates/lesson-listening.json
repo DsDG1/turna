@@ -1,0 +1,50 @@
+{
+  "id": "l-example-listening-1",
+  "name": "Listening example",
+  "description": "Three-phase listening lesson.",
+  "type": "listening",
+  "template": "listening",
+  "prerequisiteLessonIds": [],
+  "content": {
+    "listeningPhases": [
+      {
+        "id": "lp-word",
+        "name": "Word pairing",
+        "type": "wordPairing",
+        "items": [
+          {
+            "runtimeType": "listenAndPick",
+            "id": "lp-word-1",
+            "audioAsset": "sounds/example/jambo.mp3",
+            "prompt": "What do you hear?",
+            "options": ["Jambo", "Asante", "Kwaheri"],
+            "correctIndex": 0
+          }
+        ]
+      },
+      {
+        "id": "lp-dialogue",
+        "name": "Dialogue",
+        "type": "dialogue",
+        "audioAsset": "sounds/example/dialogue_greetings.mp3",
+        "transcript": "A: Jambo! B: Jambo, habari?",
+        "items": [
+          {
+            "runtimeType": "multipleChoice",
+            "id": "lp-diag-1",
+            "prompt": "What is the dialogue about?",
+            "options": ["Greetings", "Food", "Family"],
+            "correctIndex": 0
+          }
+        ]
+      },
+      {
+        "id": "lp-summary",
+        "name": "Summary",
+        "type": "summary",
+        "audioAsset": "sounds/example/summary_greetings.mp3",
+        "transcript": "Today we learned common greetings."
+      }
+    ]
+  }
+}

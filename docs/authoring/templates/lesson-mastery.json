@@ -16,7 +16,7 @@
             "id": "mc-1",
             "prompt": "Pick the greeting",
             "options": ["Jambo", "Asante", "Kwaheri"],
-            "correctAnswer": "Jambo"
+            "correctIndex": 0
           }
         ]
       }

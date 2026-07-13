@@ -2,7 +2,9 @@
   "id": "section7",
   "name": "Section 7",
   "description": "Soyut konuları tartışabiliyorum",
-  "prerequisiteSectionIds": ["section6"],
+  "prerequisiteSectionIds": [
+    "section6"
+  ],
   "units": [
     {
       "id": "s7-u1",
@@ -29,7 +31,12 @@
                     "runtimeType": "multipleChoice",
                     "id": "mc-welcome",
                     "prompt": "Which Turkish word means \"dream\"?",
-                    "options": ["rüya", "merhaba", "evet", "ekmek"],
+                    "options": [
+                      "rüya",
+                      "merhaba",
+                      "evet",
+                      "ekmek"
+                    ],
                     "correctIndex": 0
                   }
                 ]

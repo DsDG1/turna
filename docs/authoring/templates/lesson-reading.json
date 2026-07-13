@@ -1,0 +1,41 @@
+{
+  "id": "l-example-reading-1",
+  "name": "Reading example",
+  "description": "Reading passage with comprehension questions.",
+  "type": "reading",
+  "template": "reading",
+  "prerequisiteLessonIds": [],
+  "content": {
+    "readingPassage": {
+      "title": "Example passage",
+      "paragraphs": [
+        "This is the first paragraph.",
+        "This is the second paragraph."
+      ],
+      "difficulty": 1,
+      "linkedWordIds": [],
+      "linkedExpressionIds": []
+    },
+    "stages": [
+      {
+        "id": "st-reading-questions",
+        "name": "Comprehension",
+        "items": [
+          {
+            "runtimeType": "readingMcq",
+            "id": "rq-1",
+            "prompt": "What is this passage about?",
+            "options": ["Example topic", "Another topic", "Unrelated topic"],
+            "correctIndex": 0
+          },
+          {
+            "runtimeType": "readingTrueFalse",
+            "id": "rq-2",
+            "statement": "This is an example passage.",
+            "answer": true
+          }
+        ]
+      }
+    ]
+  }
+}

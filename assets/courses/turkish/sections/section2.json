@@ -1,8 +1,10 @@
 {
   "id": "section2",
   "name": "Section 2",
-  "description": "Temel kelimeleri öğreniyorum",
-  "prerequisiteSectionIds": ["section1"],
+  "description": "",
+  "prerequisiteSectionIds": [
+    "section1"
+  ],
   "units": [
     {
       "id": "s2-u1",
@@ -29,7 +31,12 @@
                     "runtimeType": "multipleChoice",
                     "id": "mc-welcome",
                     "prompt": "Which Turkish word means a number?",
-                    "options": ["bir", "kırmızı", "merhaba", "evet"],
+                    "options": [
+                      "bir",
+                      "kırmızı",
+                      "merhaba",
+                      "evet"
+                    ],
                     "correctIndex": 0
                   }
                 ]
