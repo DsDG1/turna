@@ -15,6 +15,7 @@ import 'package:varnamala/application/ai/ai_hint_provider.dart';
 import 'package:varnamala/application/game_provider.dart';
 import 'package:varnamala/application/gems_provider.dart';
 import 'package:varnamala/application/lesson_viewmodel.dart';
+import 'package:varnamala/core/enums.dart';
 import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/domain/course/interaction.dart';
 import 'package:varnamala/routing/routing.gr.dart';
@@ -204,12 +205,13 @@ class _NewLessonPageState extends State<NewLessonPage> {
     );
   }
 
-  /// The AI hint button is shown for every interaction EXCEPT the
-  /// listening-specific types (audio-driven, no text prompt to explain).
+  /// The AI hint button is shown for interactions that carry a text prompt
+  /// worth explaining. See [interactionAiHintEligible] — audio-driven types
+  /// (no text prompt) opt out there, on the model.
   bool _aiButtonEligible(LessonViewModel vm) {
     final i = vm.currentInteraction;
     if (i == null) return false;
-    return i is! ListenAndPick && i is! TypeTheWord && i is! ListenOnly;
+    return interactionAiHintEligible(i);
   }
 
   /// Build the question snapshot, trigger an explanation, and pop up the
@@ -225,7 +227,11 @@ class _NewLessonPageState extends State<NewLessonPage> {
     }
 
     final ctx = AiQuestionContext(
-      language: 'Turkish',
+      // The loaded course is hardcoded to Turkish (CourseLoader.baseDir);
+      // derive the persona's language label from that, not from the user's
+      // LanguageProvider preference (a TTS/UI setting that could diverge once
+      // a second TargetLanguage ships).
+      language: TargetLanguage.turkish.displayName,
       typeLabel: interactionTypeLabel(interaction),
       promptLabel: interactionPromptLabel(interaction),
       optionsLabel: interactionOptionsLabel(interaction),

@@ -59,9 +59,16 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
   Future<void> _onSend() async {
     final text = _inputCtrl.text.trim();
     if (text.isEmpty) return;
-    _inputCtrl.clear();
-    await context.read<AiHintProvider>().ask(config: _config(), text: text);
-    _scrollToBottom();
+    // Ask first; only clear the field once the turn is actually accepted,
+    // so a no-op (e.g. context cleared by a concurrent reset) doesn't
+    // silently swallow the user's text.
+    final started = await context
+        .read<AiHintProvider>()
+        .ask(config: _config(), text: text);
+    if (started) {
+      _inputCtrl.clear();
+      _scrollToBottom();
+    }
   }
 
   void _scrollToBottom() {
@@ -97,25 +104,41 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
             Expanded(
               child: Selector<
                   AiHintProvider,
-                  ({bool empty, int count, bool hasError})>(
+                  ({bool empty, int count, bool hasError, AiHintState state})>(
                 selector: (_, w) => (
                   empty: w.messages.isEmpty,
                   count: w.messages.length,
                   hasError: w.error != null,
+                  state: w.state,
                 ),
                 builder: (context, v, _) {
-                  if (v.empty && !_busy(context)) return _emptyHint();
+                  if (v.empty && v.state != AiHintState.loading) {
+                    return _emptyHint();
+                  }
+                  // Loading + no assistant reply yet → show an in-list
+                  // "thinking" bubble so the message area doesn't look
+                  // answered-but-unanswered.
+                  final showThinking = v.state == AiHintState.loading &&
+                      _lastIsUser(v.count);
+                  final itemCount =
+                      v.count + (v.hasError ? 1 : 0) + (showThinking ? 1 : 0);
                   return ListView.builder(
                     controller: _scrollCtrl,
                     padding: const EdgeInsets.all(12),
-                    itemCount: v.count + (v.hasError ? 1 : 0),
+                    itemCount: itemCount,
                     itemBuilder: (context, i) {
                       final w = context.read<AiHintProvider>();
-                      if (i == v.count && v.hasError) {
-                        return _errorBubble(w.error!);
+                      // Guard against a concurrent reset()/new question
+                      // shrinking _messages between the Selector snapshot
+                      // and this item build.
+                      if (i < w.messages.length) {
+                        final m = w.messages[i];
+                        return _bubble(m.role, m.content, isDark);
                       }
-                      final m = w.messages[i];
-                      return _bubble(m.role, m.content, isDark);
+                      if (v.hasError && i == v.count) {
+                        return _errorBubble(w.error ?? '未知错误');
+                      }
+                      return _thinkingBubble();
                     },
                   );
                 },
@@ -139,8 +162,14 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
     );
   }
 
-  bool _busy(BuildContext context) =>
-      context.read<AiHintProvider>().state == AiHintState.loading;
+  bool _lastIsUser(int count) {
+    // `count` is the Selector snapshot; the live list may have shrunk via a
+    // concurrent reset()/new question, so bound the index before reading.
+    final messages = context.read<AiHintProvider>().messages;
+    return count > 0 &&
+        messages.isNotEmpty &&
+        messages[messages.length - 1].role == 'user';
+  }
 
   Widget _emptyHint() {
     return Center(
@@ -150,6 +179,38 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
           'AI 正在准备这道题的讲解…',
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodyMedium,
+        ),
+      ),
+    );
+  }
+
+  Widget _thinkingBubble() {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: VarnamalaTheme.cardBg(context),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: VarnamalaTheme.peacockTeal,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'AI 正在思考…',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ],
         ),
       ),
     );

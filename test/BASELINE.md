@@ -3,7 +3,7 @@
 Generated: 2026-07-14 (课程题 AI 答疑助手：右上角 AI 按钮 → 解释弹窗 → 对话页)
 
 ## Results
-- `flutter test`: **415 total** — all passed (incl. regenerated `play_hub` goldens)
+- `flutter test`: **424 total** — all passed (incl. regenerated `play_hub` goldens)
 - `flutter analyze`: only info-level lint (no errors) — `DropdownButtonFormField.value` deprecation + `prefer_const` infos (pre-existing)
 - Python: `python3 -m unittest discover -s test -p "*_test.py"` — 14 passed
 - `tool/course_cli.py validate` passes against the 8-section Turkish course

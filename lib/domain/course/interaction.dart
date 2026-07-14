@@ -158,6 +158,28 @@ String? interactionGrammarPointId(Interaction interaction) {
   };
 }
 
+/// Whether an interaction has a text prompt worth explaining, so the
+/// in-lesson AI hint assistant should offer itself. Audio-driven types
+/// (no text prompt to explain) opt out here. Add a `false` arm for any
+/// future audio-only type so the lesson screen doesn't need to grow an
+/// `is!` exclusion list.
+bool interactionAiHintEligible(Interaction interaction) {
+  return switch (interaction) {
+    ListenAndPick() => false,
+    TypeTheWord() => false,
+    ListenOnly() => false,
+    ShowWord() => true,
+    MultipleChoice() => true,
+    MultiSelect() => true,
+    FillBlank() => true,
+    TranslateSentence() => true,
+    ReorderSentence() => true,
+    ReadingMcq() => true,
+    ReadingTrueFalse() => true,
+    ReadingShortAnswer() => true,
+  };
+}
+
 /// Canonical correct-answer label for mistake logging / feedback.
 String? interactionCorrectAnswerLabel(Interaction interaction) {
   return switch (interaction) {

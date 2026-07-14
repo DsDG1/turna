@@ -75,6 +75,13 @@ class AiHintProvider extends ChangeNotifier {
   AiQuestionContext? _context;
   AiQuestionContext? get context => _context;
 
+  /// Monotonic token bumped on every [explainQuestion] / [reset]. Each
+  /// request captures the token at start and refuses to mutate state if the
+  /// token changed while it was awaiting the network — so a stale in-flight
+  /// reply from a previous question can't be appended into the current
+  /// conversation.
+  int _generation = 0;
+
   /// Latest assistant explanation/reply, for the sheet to render without
   /// scanning the message list.
   String? get latestReply {
@@ -85,6 +92,7 @@ class AiHintProvider extends ChangeNotifier {
   }
 
   void reset() {
+    _generation++;
     _messages.clear();
     _state = AiHintState.idle;
     _error = null;
@@ -99,6 +107,8 @@ class AiHintProvider extends ChangeNotifier {
     required AiApiConfig config,
     required AiQuestionContext ctx,
   }) async {
+    _generation++;
+    final gen = _generation;
     _error = null;
     _context = ctx;
     _state = AiHintState.loading;
@@ -113,9 +123,11 @@ class AiHintProvider extends ChangeNotifier {
         systemPrompt: _buildSystemPrompt(ctx),
         messages: _messages.map((m) => m.toApiDict()).toList(),
       );
+      if (gen != _generation) return; // superseded by a newer request/reset
       _messages.add(AiChatMessage(role: 'assistant', content: reply));
       _state = AiHintState.ready;
     } catch (e) {
+      if (gen != _generation) return; // superseded — drop the stale error
       logger.w('AiHintProvider.explainQuestion failed: $e');
       _error = e.toString();
       _state = AiHintState.error;
@@ -123,12 +135,18 @@ class AiHintProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Append a follow-up question and the assistant's reply.
-  Future<void> ask({
+  /// Append a follow-up question and the assistant's reply. Returns `true`
+  /// when the turn was actually started (context present, text non-empty),
+  /// `false` when it was a no-op — callers can use the return value to avoid
+  /// clearing the input field on a no-op so the user's text isn't lost.
+  Future<bool> ask({
     required AiApiConfig config,
     required String text,
   }) async {
-    if (text.trim().isEmpty || _context == null) return;
+    if (text.trim().isEmpty || _context == null) return false;
+    _generation++;
+    final gen = _generation;
+    final userIndex = _messages.length; // for orphan cleanup if superseded
     _error = null;
     _state = AiHintState.loading;
     _messages.add(AiChatMessage(role: 'user', content: text));
@@ -139,14 +157,31 @@ class AiHintProvider extends ChangeNotifier {
         systemPrompt: _buildSystemPrompt(_context!),
         messages: _messages.map((m) => m.toApiDict()).toList(),
       );
+      if (gen != _generation) {
+        // Superseded — remove this turn's orphan user message so the stale
+        // question doesn't linger in the transcript or the newer request's
+        // history. Only do this if it's still ours at that index (a newer
+        // ask that already cleaned up would have shifted indices).
+        if (userIndex < _messages.length) {
+          _messages.removeAt(userIndex);
+        }
+        return true;
+      }
       _messages.add(AiChatMessage(role: 'assistant', content: reply));
       _state = AiHintState.ready;
     } catch (e) {
+      if (gen != _generation) {
+        if (userIndex < _messages.length) {
+          _messages.removeAt(userIndex);
+        }
+        return true; // superseded — drop the stale error
+      }
       logger.w('AiHintProvider.ask failed: $e');
       _error = e.toString();
       _state = AiHintState.error;
     }
     notifyListeners();
+    return true;
   }
 
   /// Persona + rules for the hint assistant. The correct answer is NOT

@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:varnamala/application/game_provider.dart';
 import 'package:varnamala/application/gems_provider.dart';
+import 'package:varnamala/core/enums.dart';
 import 'package:varnamala/core/extensions.dart';
 import 'package:varnamala/views/theme.dart';
 
@@ -30,7 +31,7 @@ class Statistics extends StatelessWidget {
               final data = snapshot.data;
               final streak = data?.streak ?? 0;
               final totalXp = data?.score ?? 0;
-              const currentLanguage = 'Turkish';
+              final currentLanguage = TargetLanguage.turkish.displayName;
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

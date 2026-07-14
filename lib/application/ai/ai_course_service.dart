@@ -93,6 +93,37 @@ class AiCourseService {
     }
   }
 
+  /// Extract the assistant's reply text from an OpenAI-compatible chat
+  /// completion response body. Guards against malformed shapes (missing
+  /// `choices`, a null `message`, or `content` that is not a plain string
+  /// — e.g. a multimodal array or a rate-limit payload) by throwing a
+  /// user-facing error instead of a raw `TypeError`.
+  ///
+  /// Shared by [requestTextReply] and [requestAlignmentReply] so the two
+  /// paths can't drift apart on a response-format change.
+  String extractAssistantText(Map<String, dynamic> body) {
+    final choices = body['choices'];
+    if (choices is! List || choices.isEmpty) {
+      throw Exception('API 返回的 choices 为空。');
+    }
+    // Check `is Map` rather than `as Map?` so a malformed first element that
+    // is neither null nor a Map (e.g. `{"choices":[42]}`) throws the friendly
+    // error below instead of a raw `TypeError` at the cast.
+    final first = choices.first;
+    if (first is! Map) {
+      throw Exception('API 返回的 message 为空或格式异常。');
+    }
+    final message = first['message'];
+    if (message is! Map) {
+      throw Exception('API 返回的 message 为空或格式异常。');
+    }
+    final content = message['content'];
+    if (content is! String) {
+      throw Exception('API 返回的 content 为空或格式异常。');
+    }
+    return content.trim();
+  }
+
   /// Parse an OpenAI-compatible chat completion response body into the
   /// decoded course JSON dict. Runs resource normalization, auto-fix and
   /// self-consistency checks.
@@ -225,12 +256,7 @@ class AiCourseService {
       temperature: temperature,
       timeout: timeout,
     );
-    final choices = body['choices'];
-    if (choices is! List || choices.isEmpty) {
-      throw Exception('API 返回的 choices 为空。');
-    }
-    final content = ((choices.first as Map)['message'] as Map)['content'];
-    return (content as String? ?? '').trim();
+    return extractAssistantText(body);
   }
 
   /// Get a plain-language alignment reply from the AI (wish mode).
@@ -250,12 +276,7 @@ class AiCourseService {
       temperature: 0.7,
       timeout: timeout,
     );
-    final choices = body['choices'];
-    if (choices is! List || choices.isEmpty) {
-      throw Exception('API 返回的 choices 为空。');
-    }
-    final content = ((choices.first as Map)['message'] as Map)['content'];
-    return (content as String? ?? '').trim();
+    return extractAssistantText(body);
   }
 
   /// Generate the final course section JSON from wish-mode conversation
@@ -326,8 +347,7 @@ class AiCourseService {
     );
     final choices = body['choices'];
     if (choices is! List || choices.isEmpty) return '（AI 未返回解释）';
-    final content = ((choices.first as Map)['message'] as Map)['content'];
-    return (content as String? ?? '').trim();
+    return extractAssistantText(body);
   }
 
   /// If a genre tag is present and batch mode is on, update the spec template.

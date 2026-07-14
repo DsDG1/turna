@@ -104,6 +104,59 @@ void main() {
     });
   });
 
+  group('AiCourseService.extractAssistantText', () {
+    final service = const AiCourseService();
+
+    test('returns trimmed content for a well-formed response', () {
+      final body = jsonDecode(_chatResponse('  hello  ').body)
+          as Map<String, dynamic>;
+      expect(service.extractAssistantText(body), 'hello');
+    });
+
+    test('throws a user-facing error when choices is empty', () {
+      expect(
+        () => service.extractAssistantText({'choices': []}),
+        throwsA(isA<Exception>()),
+      );
+    });
+
+    test('throws a user-facing error when message is null', () {
+      expect(
+        () => service
+            .extractAssistantText({'choices': [{'message': null}]}),
+        throwsA(isA<Exception>()),
+      );
+    });
+
+    test('throws a user-facing error when content is not a string', () {
+      // Multimodal-style content array — must not crash with a TypeError.
+      expect(
+        () => service.extractAssistantText({
+          'choices': [
+            {
+              'message': {
+                'role': 'assistant',
+                'content': [
+                  {'type': 'text', 'text': 'hi'},
+                ],
+              },
+            },
+          ],
+        }),
+        throwsA(isA<Exception>()),
+      );
+    });
+
+    test('throws a user-facing error when the first choice is not a Map', () {
+      // A malformed/stub payload like {"choices":[42]} must surface the
+      // friendly Exception, not a raw TypeError from an `as Map?` cast.
+      expect(
+        () => service.extractAssistantText({'choices': [42]}),
+        throwsA(isA<Exception>()),
+      );
+    });
+  });
+
   group('AiCourseService.requestCourseWithRetry', () {
     test('retries once when validator reports errors', () async {
       var callCount = 0;
