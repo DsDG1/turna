@@ -197,3 +197,44 @@ String interactionPromptLabel(Interaction interaction) {
     ReadingShortAnswer(:final prompt) => prompt,
   };
 }
+
+/// A short Chinese label naming the interaction type, for display in the
+/// in-lesson AI hint assistant and other UI surfaces.
+String interactionTypeLabel(Interaction interaction) {
+  return switch (interaction) {
+    ShowWord() => '词汇展示',
+    MultipleChoice() => '单选题',
+    MultiSelect() => '多选题',
+    FillBlank() => '填空题',
+    TranslateSentence() => '翻译题',
+    ListenAndPick() => '听音选词',
+    TypeTheWord() => '听写题',
+    ListenOnly() => '听力-only',
+    ReorderSentence() => '句子排序',
+    ReadingMcq() => '阅读单选',
+    ReadingTrueFalse() => '阅读判断',
+    ReadingShortAnswer() => '阅读简答',
+  };
+}
+
+/// A human-readable list of the interaction's selectable items, when it has
+/// any (options for choice types, scrambled tokens for reorder). Returns
+/// `null` for interactions with no notion of options (ShowWord, FillBlank,
+/// TranslateSentence, ListenOnly, ReadingTrueFalse, ReadingShortAnswer) so
+/// callers can skip rendering an options block.
+String? interactionOptionsLabel(Interaction interaction) {
+  return switch (interaction) {
+    MultipleChoice(:final options) => options.join(' / '),
+    MultiSelect(:final options) => options.join(' / '),
+    ListenAndPick(:final options) => options.join(' / '),
+    ReorderSentence(:final scrambled) => scrambled.join(' / '),
+    ReadingMcq(:final options) => options.join(' / '),
+    ShowWord() => null,
+    FillBlank() => null,
+    TranslateSentence() => null,
+    TypeTheWord() => null,
+    ListenOnly() => null,
+    ReadingTrueFalse() => null,
+    ReadingShortAnswer() => null,
+  };
+}

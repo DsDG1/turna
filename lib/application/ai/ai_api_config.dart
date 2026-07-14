@@ -12,13 +12,13 @@ class AiApiConfig {
   });
 
   /// Base URL of an OpenAI-compatible endpoint, e.g.
-  /// `https://api.openai.com/v1` or `http://localhost:11434/v1`.
+  /// `https://api.deepseek.com` or `http://localhost:11434/v1`.
   final String baseUrl;
 
   /// Secret API key. Never logged or persisted.
   final String apiKey;
 
-  /// Model id, e.g. `gpt-4o-mini`, `deepseek-chat`, `moonshot-v1-8k`.
+  /// Model id, e.g. `deepseek-v4-pro`, `deepseek-v4-flash`, `moonshot-v1-8k`.
   final String model;
 
   bool get isComplete =>

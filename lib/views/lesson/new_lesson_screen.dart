@@ -6,14 +6,19 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 // Package imports:
-import 'package:auto_route/annotations.dart';
+import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
+import 'package:varnamala/application/ai/ai_course_provider.dart';
+import 'package:varnamala/application/ai/ai_hint_provider.dart';
 import 'package:varnamala/application/game_provider.dart';
 import 'package:varnamala/application/gems_provider.dart';
 import 'package:varnamala/application/lesson_viewmodel.dart';
 import 'package:varnamala/di/injection.dart';
+import 'package:varnamala/domain/course/interaction.dart';
+import 'package:varnamala/routing/routing.gr.dart';
+import 'package:varnamala/views/lesson/components/ai_hint_sheet.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:varnamala/views/lesson/components/lesson_dialogs.dart';
 import 'package:varnamala/views/lesson/components/lesson_stage_widgets.dart';
@@ -82,60 +87,62 @@ class _NewLessonPageState extends State<NewLessonPage> {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider.value(
       value: _vm,
-      child: Scaffold(
-        backgroundColor: VarnamalaTheme.scaffoldBg(context),
-        appBar: _buildAppBar(context),
-        body: Consumer<LessonViewModel>(
-          builder: (context, vm, _) {
-            if (_loadFailed) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error_outline_rounded, size: 48),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Could not load lesson',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        widget.lessonId,
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                      const SizedBox(height: 16),
-                      TextButton(
-                        onPressed: () {
-                          setState(() => _loadFailed = false);
-                          _openLesson();
-                        },
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }
-
-            if (vm.lesson == null) {
-              return const Center(
-                child: CircularProgressIndicator(
-                  color: VarnamalaTheme.peacockTeal,
-                  strokeWidth: 3,
-                ),
-              );
-            }
-
-            return _buildLessonBody(vm);
-          },
+      child: Consumer<LessonViewModel>(
+        builder: (context, vm, _) => Scaffold(
+          backgroundColor: VarnamalaTheme.scaffoldBg(context),
+          appBar: _buildAppBar(context, vm),
+          body: _buildBodyContent(context, vm),
         ),
       ),
     );
   }
 
-  PreferredSizeWidget _buildAppBar(BuildContext context) {
+  Widget _buildBodyContent(BuildContext context, LessonViewModel vm) {
+    if (_loadFailed) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline_rounded, size: 48),
+              const SizedBox(height: 12),
+              Text(
+                'Could not load lesson',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                widget.lessonId,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () {
+                  setState(() => _loadFailed = false);
+                  _openLesson();
+                },
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (vm.lesson == null) {
+      return const Center(
+        child: CircularProgressIndicator(
+          color: VarnamalaTheme.peacockTeal,
+          strokeWidth: 3,
+        ),
+      );
+    }
+
+    return _buildLessonBody(vm);
+  }
+
+  PreferredSizeWidget _buildAppBar(BuildContext context, LessonViewModel vm) {
     return AppBar(
       backgroundColor: VarnamalaTheme.surfaceColor(context),
       elevation: 0,
@@ -145,24 +152,24 @@ class _NewLessonPageState extends State<NewLessonPage> {
           Icons.close_rounded,
           color: VarnamalaTheme.textPrimaryColor(context),
         ),
-        onPressed: () => _vm.isComplete
+        onPressed: () => vm.isComplete
             ? null
             : Navigator.of(context).maybePop(),
       ),
       title: Column(
         children: [
           Text(
-            _vm.lesson?.name ?? 'Lesson',
+            vm.lesson?.name ?? 'Lesson',
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,
               color: VarnamalaTheme.textPrimaryColor(context),
             ),
           ),
-          if (_vm.currentStageName != null) ...[
+          if (vm.currentStageName != null) ...[
             const SizedBox(height: 2),
             Text(
-              _vm.currentStageName!,
+              vm.currentStageName!,
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
@@ -173,15 +180,99 @@ class _NewLessonPageState extends State<NewLessonPage> {
         ],
       ),
       centerTitle: true,
+      actions: [
+        if (_aiButtonEligible(vm))
+          IconButton(
+            tooltip: 'AI 讲解',
+            icon: Icon(
+              Icons.auto_awesome_rounded,
+              color: VarnamalaTheme.textPrimaryColor(context),
+            ),
+            onPressed: () => _openAiHint(context, vm),
+          ),
+      ],
       bottom: PreferredSize(
         preferredSize: const Size.fromHeight(4),
         child: LinearProgressIndicator(
-          value: _vm.progress,
+          value: vm.progress,
           backgroundColor: VarnamalaTheme.peacockTeal.withValues(alpha: 0.1),
           valueColor: const AlwaysStoppedAnimation<Color>(
             VarnamalaTheme.peacockTeal,
           ),
         ),
+      ),
+    );
+  }
+
+  /// The AI hint button is shown for every interaction EXCEPT the
+  /// listening-specific types (audio-driven, no text prompt to explain).
+  bool _aiButtonEligible(LessonViewModel vm) {
+    final i = vm.currentInteraction;
+    if (i == null) return false;
+    return i is! ListenAndPick && i is! TypeTheWord && i is! ListenOnly;
+  }
+
+  /// Build the question snapshot, trigger an explanation, and pop up the
+  /// hint sheet. If no API config is set, route the user to settings instead.
+  Future<void> _openAiHint(BuildContext context, LessonViewModel vm) async {
+    final interaction = vm.currentInteraction;
+    if (interaction == null) return;
+
+    final config = context.read<AiCourseProvider>().config;
+    if (!config.isComplete) {
+      await _showAiConfigPrompt(context);
+      return;
+    }
+
+    final ctx = AiQuestionContext(
+      language: 'Turkish',
+      typeLabel: interactionTypeLabel(interaction),
+      promptLabel: interactionPromptLabel(interaction),
+      optionsLabel: interactionOptionsLabel(interaction),
+      correctLabel: interactionCorrectAnswerLabel(interaction),
+      userAnswer: vm.currentInteractionState.userAnswerText,
+    );
+
+    final hintProvider = context.read<AiHintProvider>();
+    hintProvider.reset();
+    unawaited(hintProvider.explainQuestion(config: config, ctx: ctx));
+
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: VarnamalaTheme.cardBg(context),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => AiHintSheet(
+        onEnterChat: () {
+          context.router.push(AiHintChatRoute(context: ctx));
+        },
+      ),
+    );
+  }
+
+  Future<void> _showAiConfigPrompt(BuildContext context) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('AI 未配置'),
+        content: const Text('请先在 设置 → AI API Configuration 中填写 '
+            'Base URL / API Key / Model 后再使用 AI 讲解。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('稍后'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              context.router.push(const SettingsRoute());
+            },
+            child: const Text('去设置'),
+          ),
+        ],
       ),
     );
   }

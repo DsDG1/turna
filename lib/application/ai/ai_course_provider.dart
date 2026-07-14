@@ -40,9 +40,9 @@ class AiCourseProvider extends ChangeNotifier {
   final AiCourseService _service;
 
   AiApiConfig _config = const AiApiConfig(
-    baseUrl: 'https://api.openai.com/v1',
+    baseUrl: 'https://api.deepseek.com',
     apiKey: '',
-    model: 'gpt-4o-mini',
+    model: 'deepseek-v4-pro',
   );
 
   AiApiConfig get config => _config;

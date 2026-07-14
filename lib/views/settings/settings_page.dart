@@ -6,6 +6,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
+import 'package:varnamala/application/ai/ai_course_provider.dart';
 import 'package:varnamala/application/game_provider.dart';
 import 'package:varnamala/application/mistake_provider.dart';
 import 'package:varnamala/routing/routing.gr.dart';
@@ -56,15 +57,22 @@ class SettingsPage extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             const SettingsSectionTitle(
-                title: 'AI Course Generator', icon: Icons.auto_awesome),
+                title: 'AI Course Designer', icon: Icons.auto_awesome),
             SettingsCard(
               children: [
                 SettingsActionTile(
+                  icon: Icons.vpn_key,
+                  title: 'AI API Configuration',
+                  subtitle: 'Base URL, API key & model (not saved on exit)',
+                  onTap: (context) => _openAiApiConfigSheet(context),
+                ),
+                settingsTileDivider(context),
+                SettingsActionTile(
                   icon: Icons.auto_awesome,
-                  title: 'Generate a course with AI',
-                  subtitle: 'Pick a topic, let AI author & add a new section',
+                  title: 'Design a course with AI',
+                  subtitle: 'Open the AI design chat',
                   onTap: (context) =>
-                      context.router.push(const AiCourseGeneratorRoute()),
+                      context.router.push(const AiWishChatRoute()),
                 ),
               ],
             ),
@@ -167,6 +175,140 @@ class SettingsPage extends StatelessWidget {
   void _showSnack(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
+    );
+  }
+
+  Future<void> _openAiApiConfigSheet(BuildContext context) async {
+    final provider = context.read<AiCourseProvider>();
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: VarnamalaTheme.cardBg(context),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => _AiApiConfigSheet(provider: provider),
+    );
+  }
+}
+
+class _AiApiConfigSheet extends StatefulWidget {
+  final AiCourseProvider provider;
+
+  const _AiApiConfigSheet({required this.provider});
+
+  @override
+  State<_AiApiConfigSheet> createState() => _AiApiConfigSheetState();
+}
+
+class _AiApiConfigSheetState extends State<_AiApiConfigSheet> {
+  late final TextEditingController _baseUrlCtrl;
+  late final TextEditingController _apiKeyCtrl;
+  late final TextEditingController _modelCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _baseUrlCtrl = TextEditingController(text: widget.provider.config.baseUrl);
+    _apiKeyCtrl = TextEditingController(text: widget.provider.config.apiKey);
+    _modelCtrl = TextEditingController(text: widget.provider.config.model);
+  }
+
+  @override
+  void dispose() {
+    _baseUrlCtrl.dispose();
+    _apiKeyCtrl.dispose();
+    _modelCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 12,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  'AI API Configuration',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 22),
+                  tooltip: 'Close',
+                  onPressed: () => Navigator.of(context).maybePop(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Not saved on exit — kept in memory only.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: VarnamalaTheme.textHintColor(context),
+                  ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _baseUrlCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Base URL',
+                hintText: 'https://api.deepseek.com',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _apiKeyCtrl,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'API Key',
+                hintText: 'sk-...',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _modelCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Model',
+                hintText: 'deepseek-v4-pro',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () {
+                  widget.provider.updateConfig(
+                    baseUrl: _baseUrlCtrl.text.trim(),
+                    apiKey: _apiKeyCtrl.text.trim(),
+                    model: _modelCtrl.text.trim(),
+                  );
+                  Navigator.of(context).maybePop();
+                },
+                icon: const Icon(Icons.check),
+                label: const Text('Save configuration'),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

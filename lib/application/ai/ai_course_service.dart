@@ -205,6 +205,34 @@ class AiCourseService {
     return result;
   }
 
+  /// Generic plain-text chat. [systemPrompt] sets the assistant persona;
+  /// [messages] is the conversation history (role/content dicts). Returns the
+  /// assistant's reply text (trimmed). Used by the in-lesson AI hint assistant
+  /// which has no [AiCourseSpec] to bind to.
+  Future<String> requestTextReply({
+    required AiApiConfig config,
+    required String systemPrompt,
+    required List<Map<String, dynamic>> messages,
+    double temperature = 0.5,
+    Duration timeout = const Duration(seconds: 60),
+  }) async {
+    final body = await requestChat(
+      config: config,
+      messages: <Map<String, dynamic>>[
+        {'role': 'system', 'content': systemPrompt},
+        ...messages,
+      ],
+      temperature: temperature,
+      timeout: timeout,
+    );
+    final choices = body['choices'];
+    if (choices is! List || choices.isEmpty) {
+      throw Exception('API 返回的 choices 为空。');
+    }
+    final content = ((choices.first as Map)['message'] as Map)['content'];
+    return (content as String? ?? '').trim();
+  }
+
   /// Get a plain-language alignment reply from the AI (wish mode).
   Future<String> requestAlignmentReply({
     required AiApiConfig config,

@@ -25,8 +25,8 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: HomeRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(page: NewLessonRoute.page),
         AutoRoute(page: SectionPickerRoute.page),
-        AutoRoute(page: AiCourseGeneratorRoute.page),
         AutoRoute(page: AiWishChatRoute.page),
+        AutoRoute(page: AiHintChatRoute.page),
         AutoRoute(page: VowelAndConsonantLearningRoute.page),
         AutoRoute(page: MatchWordsRoute.page),
         AutoRoute(page: DailyChallengeRoute.page),
@@ -34,6 +34,8 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: GrammarReviewRoute.page),
         AutoRoute(page: MistakeListRoute.page),
         AutoRoute(page: MistakePracticeRoute.page),
+        AutoRoute(
+            page: MistakeReviewRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(page: SettingsRoute.page),
         AutoRoute(page: DictionaryRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(page: WeakWordsRoute.page, guards: [_courseReadyGuard]),

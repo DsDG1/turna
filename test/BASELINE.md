@@ -1,10 +1,10 @@
 # Test Baseline
 
-Generated: 2026-07-14 (App 内 AI 课程功能对齐 GUI — 核心生成 + 许愿模式)
+Generated: 2026-07-14 (课程题 AI 答疑助手：右上角 AI 按钮 → 解释弹窗 → 对话页)
 
 ## Results
-- `flutter test`: **409 total** — 404 non-golden passed; 8 golden pixel diffs (env-sensitive, pre-existing font-rendering variance, unrelated to AI work)
-- `flutter analyze`: only info-level lint (no errors) — `DropdownButtonFormField.value` deprecation + `prefer_const` infos in new AI code
+- `flutter test`: **415 total** — all passed (incl. regenerated `play_hub` goldens)
+- `flutter analyze`: only info-level lint (no errors) — `DropdownButtonFormField.value` deprecation + `prefer_const` infos (pre-existing)
 - Python: `python3 -m unittest discover -s test -p "*_test.py"` — 14 passed
 - `tool/course_cli.py validate` passes against the 8-section Turkish course
 
@@ -12,7 +12,10 @@ Generated: 2026-07-14 (App 内 AI 课程功能对齐 GUI — 核心生成 + 许�
 - App 内 AI 课程功能已与 Python GUI 端（`tool/gui/src/backend/ai_generator.py` +
   `ai_genre.py`）对齐：完整模板/题型/资源 schema prompt、genre 标签批量、
   资源自洽校验与 autoFix、`validateSection` + 1 次自愈重试、许愿模式（独立聊天页
-  `AiWishChatPage` 多轮对齐 + 「我感觉差不多了」生成 + 通俗解释）。不含编辑模式。
+  `AiWishChatPage` 多轮对齐 + 滑动确认条「Swipe to finalize」生成 + 通俗解释）。
+  入口已从 Learn 右下 FAB 迁到 `StatAppBar` 右上 `auto_awesome` 图标直进聊天页，
+  课程参数移到页面 AppBar 齿轮按钮的底部弹层；普通模式/编辑模式与可编辑 JSON 已移除
+  （`AiCourseGeneratorPage` 删除）；API 配置移到 Settings 页 AI 区块。不含编辑模式。
 - 资源持久化：AI 生成的顶层 `words` / `expressions` / `grammarPoints` 现随 section
   一并写入 `CourseDatabase` 的 `vocabulary` / `expressions` / `grammarPoints` 表
   （`insertOnConflictUpdate`，已存在 id 跳过），与 DatabaseSeeder 合并语义一致。
@@ -39,4 +42,4 @@ Generated: 2026-07-14 (App 内 AI 课程功能对齐 GUI — 核心生成 + 许�
 - Piper Swahili TTS + `sherpa_onnx` removed; TTS is system/Google `'tr'` only.
 
 ## Previous baselines
-- AI align with GUI = 409 (404 non-golden pass; 8 golden env-diff); MiniMax migration = 385; Pre-pivot = 373; Phase 24 = 372; Phase 23 = 358; Phase 22 = 350; Phase 21 = 342.
+- 错题复习 + 二按钮复习 + SM-2 调优 = 411 (all pass); AI align with GUI = 409 (404 non-golden pass; 8 golden env-diff); MiniMax migration = 385; Pre-pivot = 373; Phase 24 = 372; Phase 23 = 358; Phase 22 = 350; Phase 21 = 342.
