@@ -36,7 +36,6 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: MistakePracticeRoute.page),
         AutoRoute(
             page: MistakeReviewRoute.page, guards: [_courseReadyGuard]),
-        AutoRoute(page: SettingsRoute.page),
         AutoRoute(page: DictionaryRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(page: WeakWordsRoute.page, guards: [_courseReadyGuard]),
       ];

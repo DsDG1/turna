@@ -17,6 +17,8 @@ import 'package:varnamala/data/course_database.dart';
 import 'package:varnamala/data/course_database_seeder.dart';
 import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/domain/auth/local_user.dart';
+import 'package:varnamala/service/export_service.dart';
+import 'package:varnamala/service/tab_router.dart';
 
 class AppPrefs {
   final StreamingSharedPreferences preferences;
@@ -166,6 +168,12 @@ class LocalStateKeys {
 Future<void> setupLocator() async {
   final preferences = await StreamingSharedPreferences.instance;
   getIt.registerLazySingleton<AppPrefs>(() => AppPrefs(preferences));
+
+  // Bottom-nav tab switcher — registered early so HomePage and any pushed
+  // route (e.g. lesson dialog) can resolve it synchronously.
+  getIt.registerLazySingleton<TabRouter>(() => TabRouter());
+
+  getIt.registerLazySingleton<ExportService>(() => ExportService(getIt<AppPrefs>()));
 
   if (!kIsWeb) {
     getIt.registerLazySingleton<FlutterTts>(() => FlutterTts());

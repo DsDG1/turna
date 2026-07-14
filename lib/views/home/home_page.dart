@@ -17,12 +17,15 @@ import 'package:varnamala/data/course_repository.dart';
 import 'package:varnamala/data/study_log_repository.dart';
 import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/service/locator.dart';
+import 'package:varnamala/service/tab_router.dart';
 import 'package:varnamala/views/content_update/content_update_dialog.dart';
 import 'package:varnamala/views/courses/course_tree.dart';
 import 'package:varnamala/views/home/components/components.dart';
 import 'package:varnamala/views/play/play_app_bar.dart';
 import 'package:varnamala/views/play/play_hub_screen.dart';
 import 'package:varnamala/views/profile/profile_screen.dart';
+import 'package:varnamala/views/settings/settings_app_bar.dart';
+import 'package:varnamala/views/settings/settings_page.dart';
 import 'package:varnamala/views/theme.dart';
 
 @RoutePage()
@@ -42,14 +45,28 @@ class _HomePageState extends State<HomePage> {
     const CourseTree(),
     const PlayHubScreen(),
     const ProfilePage(),
+    const SettingsPage(),
   ];
 
   @override
   void initState() {
     super.initState();
+    getIt<TabRouter>().index.addListener(_onTabRouteChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       initSession();
     });
+  }
+
+  @override
+  void dispose() {
+    getIt<TabRouter>().index.removeListener(_onTabRouteChanged);
+    super.dispose();
+  }
+
+  void _onTabRouteChanged() {
+    final next = getIt<TabRouter>().index.value;
+    if (next == currentIndex) return;
+    setState(() => currentIndex = next);
   }
 
   initSession() async {
@@ -129,6 +146,7 @@ class _HomePageState extends State<HomePage> {
     const StatAppBar(),
     const PlayAppBar(),
     const ProfileAppBar(),
+    const SettingsAppBar(),
   ];
 
   @override
@@ -150,8 +168,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   void onBottomNavigatorTapped(int index) {
-    setState(() {
-      currentIndex = index;
-    });
+    // Route through TabRouter so external callers (e.g. the lesson "去设置"
+    // dialog) and the nav bar share one write path. The listener applies it.
+    getIt<TabRouter>().switchTo(index);
   }
 }

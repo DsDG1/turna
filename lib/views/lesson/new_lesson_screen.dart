@@ -19,6 +19,7 @@ import 'package:varnamala/core/enums.dart';
 import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/domain/course/interaction.dart';
 import 'package:varnamala/routing/routing.gr.dart';
+import 'package:varnamala/service/tab_router.dart';
 import 'package:varnamala/views/lesson/components/ai_hint_sheet.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:varnamala/views/lesson/components/lesson_dialogs.dart';
@@ -274,7 +275,7 @@ class _NewLessonPageState extends State<NewLessonPage> {
           FilledButton(
             onPressed: () {
               Navigator.of(dialogContext).pop();
-              context.router.push(const SettingsRoute());
+              getIt<TabRouter>().switchTo(TabDestination.settings);
             },
             child: const Text('去设置'),
           ),

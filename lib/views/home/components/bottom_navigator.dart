@@ -53,6 +53,12 @@ class BottomNavigator extends StatelessWidget {
               isSelected: currentIndex == 2,
               onTap: () => onPress(2),
             ),
+            _NavItem(
+              icon: Icons.settings_rounded,
+              label: 'Settings',
+              isSelected: currentIndex == 3,
+              onTap: () => onPress(3),
+            ),
           ],
         ),
       ),

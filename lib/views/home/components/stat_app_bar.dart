@@ -101,16 +101,11 @@ class LanguageSwitch extends StatelessWidget {
             ),
           )
           .toList(),
-      child: Container(
-        width: 48,
-        height: 36,
-        decoration: BoxDecoration(
-          color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusRound),
-        ),
-        child: const Icon(
+      child: const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 8),
+        child: Icon(
           Icons.language_rounded,
-          size: 20,
+          size: 22,
           color: VarnamalaTheme.peacockTeal,
         ),
       ),

@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 
 // Package imports:
-import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
@@ -11,7 +10,6 @@ import 'package:varnamala/application/gems_provider.dart';
 import 'package:varnamala/application/language_provider.dart';
 import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/domain/auth/local_user.dart';
-import 'package:varnamala/routing/routing.gr.dart';
 import 'package:varnamala/service/locator.dart';
 import 'package:varnamala/views/profile/utils/share_image_generator.dart';
 import 'package:varnamala/views/profile/widgets/share_progress_card.dart';
@@ -39,12 +37,6 @@ class ProfileAppBar extends StatelessWidget implements PreferredSizeWidget {
               color: VarnamalaTheme.peacockTeal, size: 22),
           tooltip: 'Share',
           onPressed: () => _openShareSheet(context),
-        ),
-        IconButton(
-          icon: const Icon(Icons.settings_rounded,
-              color: VarnamalaTheme.peacockTeal, size: 22),
-          tooltip: 'Settings',
-          onPressed: () => context.router.push(const SettingsRoute()),
         ),
       ],
     );
