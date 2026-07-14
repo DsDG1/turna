@@ -159,13 +159,13 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
     }
   }
 
-  void _onRate(ReviewQuality quality) async {
+  void _onRate(ReviewGrade grade) async {
     if (_queue.isEmpty || _currentIndex >= _queue.length) return;
 
     final item = _queue[_currentIndex];
     await context
         .read<GrammarReviewProvider>()
-        .reviewWithQuality(item.wordId, quality);
+        .reviewWithQuality(item.wordId, grade);
 
     final nextIndex = _currentIndex + 1;
     final nextCount = _sessionCount + 1;
@@ -260,7 +260,7 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
               if (_phase == _GrammarCardPhase.rate) ...[
                 ReviewRatingBar(
                   onRate: _onRate,
-                  prompt: 'How well did you understand this?',
+                  prompt: '你理解这个语法点吗？',
                 ),
               ] else if (_phase == _GrammarCardPhase.practice &&
                   _practiceSubmitted) ...[

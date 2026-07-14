@@ -61,17 +61,17 @@ class SrsProvider extends SrsQueueProvider {
   Future<SrsWord?> reviewWord(String wordId, int quality) =>
       reviewItem(wordId, quality);
 
-  Future<SrsWord?> reviewWithQuality(String wordId, ReviewQuality quality) =>
-      reviewWord(wordId, quality.sm2);
+  Future<SrsWord?> reviewWithQuality(String wordId, ReviewGrade grade) =>
+      reviewWord(wordId, grade.sm2);
 
   Future<SrsWord?> reviewExpression(String expressionId, int quality) =>
       reviewItem(expressionId, quality);
 
   Future<SrsWord?> reviewExpressionWithQuality(
     String expressionId,
-    ReviewQuality quality,
+    ReviewGrade grade,
   ) =>
-      reviewExpression(expressionId, quality.sm2);
+      reviewExpression(expressionId, grade.sm2);
 
   /// Words whose `dueAt` is in the past or now (primary due cache).
   List<SrsWord> getDueWords([DateTime? now]) => getDueItems(

@@ -53,8 +53,8 @@ class GrammarReviewProvider extends SrsQueueProvider {
   Future<SrsWord?> reviewGrammarPoint(String id, int quality) =>
       reviewItem(id, quality);
 
-  Future<SrsWord?> reviewWithQuality(String id, ReviewQuality quality) =>
-      reviewGrammarPoint(id, quality.sm2);
+  Future<SrsWord?> reviewWithQuality(String id, ReviewGrade grade) =>
+      reviewGrammarPoint(id, grade.sm2);
 
   List<SrsWord> getDueGrammarPoints([DateTime? now]) => getDueItems(now: now);
 

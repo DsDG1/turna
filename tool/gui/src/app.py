@@ -122,6 +122,11 @@ class MainWindow(QMainWindow):
         self.resources_action.triggered.connect(self._on_resources)
         toolbar.addAction(self.resources_action)
 
+        self.git_action = QAction("资源库(Git)", self)
+        self.git_action.setEnabled(False)
+        self.git_action.triggered.connect(self._on_git_library)
+        toolbar.addAction(self.git_action)
+
         self.publish_action = QAction("发布", self)
         self.publish_action.setEnabled(False)
         self.publish_action.triggered.connect(self._on_publish)
@@ -246,6 +251,7 @@ class MainWindow(QMainWindow):
         self.wizard_action.setEnabled(True)
         self.ai_action.setEnabled(True)
         self.resources_action.setEnabled(True)
+        self.git_action.setEnabled(True)
         self.publish_action.setEnabled(True)
 
     # --- Toolbar actions -------------------------------------------------
@@ -573,6 +579,17 @@ class MainWindow(QMainWindow):
 
         if editor.is_dirty():
             self.statusBar().showMessage("资源已修改，记得保存", 5000)
+
+    def _on_git_library(self) -> None:
+        from src.dialogs.git_library_dialog import GitLibraryDialog
+
+        dlg = GitLibraryDialog(self.adapter, self)
+        dlg.open_requested.connect(self._open_repo_path)
+        dlg.exec()
+        # After the dialog closes, if a clone dir was opened, reflect it.
+        clone = dlg.clone_dir()
+        if clone is not None and self.course_dir == clone:
+            self.statusBar().showMessage(f"已从 Git 资源库加载: {clone}", 5000)
 
     def _on_publish(self) -> None:
         if self.teacher_mode:

@@ -46,7 +46,7 @@ void main() {
     test('registerWord is idempotent — re-registering does not reset state', () {
       srs.registerWord('w-1');
       // Mutate state by reviewing.
-      srs.reviewWord('w-1', ReviewQuality.good.sm2);
+      srs.reviewWord('w-1', ReviewGrade.known.sm2);
       final before = registeredWord('w-1');
 
       srs.registerWord('w-1'); // no-op
@@ -75,7 +75,7 @@ void main() {
     test('a successful first review grows the interval to 1 day and reps to 1',
         () async {
       srs.registerWord('w-1');
-      final updated = await srs.reviewWord('w-1', ReviewQuality.good.sm2);
+      final updated = await srs.reviewWord('w-1', ReviewGrade.known.sm2);
       expect(updated, isNotNull);
       expect(updated!.reps, 1);
       expect(updated.intervalDays, 1);
@@ -83,41 +83,41 @@ void main() {
       expect(updated.dueAt.isAfter(DateTime.now()), isTrue);
     });
 
-    test('a second successful review grows the interval to 6 days', () async {
+    test('a second successful review grows the interval to 4 days', () async {
       srs.registerWord('w-1');
-      await srs.reviewWord('w-1', ReviewQuality.good.sm2);
-      final updated = await srs.reviewWord('w-1', ReviewQuality.good.sm2);
+      await srs.reviewWord('w-1', ReviewGrade.known.sm2);
+      final updated = await srs.reviewWord('w-1', ReviewGrade.known.sm2);
       expect(updated!.reps, 2);
-      expect(updated.intervalDays, 6);
+      expect(updated.intervalDays, 4);
     });
 
     test('a failed review resets reps, counts a lapse, and re-dues tomorrow',
         () async {
       srs.registerWord('w-1');
-      await srs.reviewWord('w-1', ReviewQuality.good.sm2);
-      final updated = await srs.reviewWord('w-1', ReviewQuality.again.sm2);
+      await srs.reviewWord('w-1', ReviewGrade.known.sm2);
+      final updated = await srs.reviewWord('w-1', ReviewGrade.unknown.sm2);
       expect(updated!.reps, 0);
       expect(updated.lapses, 1);
       expect(updated.intervalDays, 1);
     });
 
     test('reviewWord on an unknown id returns null', () async {
-      expect(await srs.reviewWord('missing', ReviewQuality.good.sm2), isNull);
+      expect(await srs.reviewWord('missing', ReviewGrade.known.sm2), isNull);
     });
 
     test('reviewWithQuality maps the 4-button grade to SM-2 quality', () async {
       srs.registerWord('w-1');
-      final viaQuality = await srs.reviewWithQuality('w-1', ReviewQuality.good);
+      final viaQuality = await srs.reviewWithQuality('w-1', ReviewGrade.known);
       expect(viaQuality, isNotNull);
       expect(viaQuality!.reps, 1);
       // A second review via the SM-2 quality int should advance identically.
-      final viaSm2 = await srs.reviewWord('w-1', ReviewQuality.good.sm2);
+      final viaSm2 = await srs.reviewWord('w-1', ReviewGrade.known.sm2);
       expect(viaSm2!.reps, 2);
     });
 
     test('expression review goes through the expression queue', () async {
       srs.registerExpression('e-1');
-      final updated = await srs.reviewExpression('e-1', ReviewQuality.good.sm2);
+      final updated = await srs.reviewExpression('e-1', ReviewGrade.known.sm2);
       expect(updated, isNotNull);
       expect(updated!.type, SrsItemType.expression);
       expect(updated.reps, 1);
@@ -135,7 +135,7 @@ void main() {
     test('reviewed words scheduled in the future are not due', () async {
       srs.registerWord('w-1');
       // good review → interval 1 day, due tomorrow.
-      await srs.reviewWord('w-1', ReviewQuality.good.sm2);
+      await srs.reviewWord('w-1', ReviewGrade.known.sm2);
       final due = srs.getDueWords(DateTime.now());
       expect(due, isEmpty);
     });
@@ -164,9 +164,9 @@ void main() {
         () async {
       srs.registerWord('w-1');
       srs.registerWord('w-2');
-      await srs.reviewWord('w-1', ReviewQuality.again.sm2);
-      await srs.reviewWord('w-1', ReviewQuality.again.sm2);
-      await srs.reviewWord('w-2', ReviewQuality.again.sm2);
+      await srs.reviewWord('w-1', ReviewGrade.unknown.sm2);
+      await srs.reviewWord('w-1', ReviewGrade.unknown.sm2);
+      await srs.reviewWord('w-2', ReviewGrade.unknown.sm2);
       final lapses = srs.getLapseWords();
       expect(lapses.map((w) => w.wordId).toList(), ['w-1', 'w-2']);
       expect(lapses.first.lapses, greaterThan(lapses.last.lapses));
@@ -175,7 +175,7 @@ void main() {
     test('getMixedWords only returns words reviewed at least once', () async {
       srs.registerWord('w-seen');
       srs.registerWord('w-unseen');
-      await srs.reviewWord('w-seen', ReviewQuality.good.sm2);
+      await srs.reviewWord('w-seen', ReviewGrade.known.sm2);
       final mixed = srs.getMixedWords(10);
       expect(mixed.map((w) => w.wordId), ['w-seen']);
     });
@@ -185,7 +185,7 @@ void main() {
       srs.registerWord('w-1');
       srs.registerExpression('e-unseen');
       srs.registerExpression('e-seen');
-      await srs.reviewExpression('e-seen', ReviewQuality.good.sm2);
+      await srs.reviewExpression('e-seen', ReviewGrade.known.sm2);
       final mixed = srs.getMixedExpressions(10);
       expect(mixed.map((w) => w.wordId), ['e-seen']);
     });
@@ -194,7 +194,7 @@ void main() {
   group('persistence', () {
     test('state survives a new SrsProvider reading the same prefs', () async {
       srs.registerWord('w-1');
-      await srs.reviewWord('w-1', ReviewQuality.good.sm2);
+      await srs.reviewWord('w-1', ReviewGrade.known.sm2);
       final before = srs.state['w-1']!;
 
       // A new instance backed by the same prefs should reload the state.
@@ -229,7 +229,7 @@ void main() {
       srs.registerWord('w-1');
       expect(srs.dueCount, 1);
 
-      await srs.reviewWord('w-1', ReviewQuality.good.sm2);
+      await srs.reviewWord('w-1', ReviewGrade.known.sm2);
       // After a successful review the word is scheduled for tomorrow, so the
       // due count should drop to 0 and the cache must have been cleared.
       expect(srs.dueCount, 0);
@@ -257,7 +257,7 @@ void main() {
       srs.registerExpression('e-1');
       expect(srs.expressionDueCount, 1);
 
-      await srs.reviewExpression('e-1', ReviewQuality.good.sm2);
+      await srs.reviewExpression('e-1', ReviewGrade.known.sm2);
       expect(srs.expressionDueCount, 0);
     });
   });
@@ -265,20 +265,20 @@ void main() {
   group('review progression', () {
     test('interval follows SM-2 after good/good reviews', () async {
       srs.registerWord('w-1');
-      final first = await srs.reviewWord('w-1', ReviewQuality.good.sm2);
+      final first = await srs.reviewWord('w-1', ReviewGrade.known.sm2);
       expect(first!.reps, 1);
       expect(first.intervalDays, 1);
 
-      final second = await srs.reviewWord('w-1', ReviewQuality.good.sm2);
+      final second = await srs.reviewWord('w-1', ReviewGrade.known.sm2);
       expect(second!.reps, 2);
-      expect(second.intervalDays, 6);
+      expect(second.intervalDays, 4);
     });
 
     test('a lapse resets reps and schedules the word one day out', () async {
       srs.registerWord('w-1');
-      await srs.reviewWord('w-1', ReviewQuality.good.sm2);
-      await srs.reviewWord('w-1', ReviewQuality.good.sm2);
-      final lapsed = await srs.reviewWord('w-1', ReviewQuality.again.sm2);
+      await srs.reviewWord('w-1', ReviewGrade.known.sm2);
+      await srs.reviewWord('w-1', ReviewGrade.known.sm2);
+      final lapsed = await srs.reviewWord('w-1', ReviewGrade.unknown.sm2);
 
       expect(lapsed!.reps, 0);
       expect(lapsed.intervalDays, 1);

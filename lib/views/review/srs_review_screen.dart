@@ -110,15 +110,15 @@ class _SrsReviewPageState extends State<SrsReviewPage> {
     }
   }
 
-  void _onRate(ReviewQuality quality) async {
+  void _onRate(ReviewGrade grade) async {
     if (_queue.isEmpty || _currentIndex >= _queue.length) return;
 
     final word = _queue[_currentIndex];
     final srs = context.read<SrsProvider>();
     if (word.type == SrsItemType.expression) {
-      await srs.reviewExpression(word.wordId, quality.sm2);
+      await srs.reviewExpression(word.wordId, grade.sm2);
     } else {
-      await srs.reviewWithQuality(word.wordId, quality);
+      await srs.reviewWithQuality(word.wordId, grade);
     }
 
     final nextIndex = _currentIndex + 1;
@@ -223,7 +223,7 @@ class _SrsReviewPageState extends State<SrsReviewPage> {
               if (_showAnswer) ...[
                 ReviewRatingBar(
                   onRate: _onRate,
-                  prompt: 'How well did you know this?',
+                  prompt: '你认识这个词吗？',
                 ),
               ] else ...[
                 SizedBox(

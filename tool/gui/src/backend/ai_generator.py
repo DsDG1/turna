@@ -22,7 +22,10 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
+from typing import Any, Callable
+
+class AiCancelled(Exception):
+    """Raised when an in-flight AI request is cancelled by the user."""
 
 from src.backend.ai_genre import (
     genre_prompt_block,
@@ -592,11 +595,13 @@ def request_chat(
     temperature: float = 0.7,
     response_format: dict[str, str] | None = None,
     timeout: float = 120.0,
+    cancel_check: Callable[[], bool] | None = None,
 ) -> dict:
     """Call the OpenAI-compatible endpoint and return the parsed JSON body.
 
     Raises ``RuntimeError`` with a human-readable message on network / HTTP /
-    parse errors.
+    parse errors. If ``cancel_check`` is supplied and returns True while the
+    response body is being read, raises ``AiCancelled``.
     """
     if not config.is_complete:
         raise RuntimeError("API 配置不完整，请填写 Base URL / API Key / Model。")
@@ -621,7 +626,18 @@ def request_chat(
     )
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
-            body = resp.read().decode("utf-8")
+            if cancel_check is None:
+                body = resp.read().decode("utf-8")
+            else:
+                chunks: list[bytes] = []
+                while True:
+                    if cancel_check():
+                        raise AiCancelled("用户取消了请求。")
+                    chunk = resp.read(65536)
+                    if not chunk:
+                        break
+                    chunks.append(chunk)
+                body = b"".join(chunks).decode("utf-8")
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")[:300]
         raise RuntimeError(f"HTTP {exc.code}: {detail}") from exc
@@ -634,7 +650,7 @@ def request_chat(
         raise RuntimeError(f"无法解析 API 响应: {exc}") from exc
 
 
-def request_course(config: AiApiConfig, spec: AiCourseSpec, timeout: float = 120.0) -> dict:
+def request_course(config: AiApiConfig, spec: AiCourseSpec, timeout: float = 120.0, cancel_check: Callable[[], bool] | None = None) -> dict:
     """Single-shot course generation (legacy normal mode)."""
     messages = [
         {
@@ -652,6 +668,7 @@ def request_course(config: AiApiConfig, spec: AiCourseSpec, timeout: float = 120
         temperature=0.4,
         response_format={"type": "json_object"},
         timeout=timeout,
+        cancel_check=cancel_check,
     )
     return parse_completion(body)
 
@@ -662,6 +679,7 @@ def request_course_with_retry(
     validator,
     timeout: float = 120.0,
     max_retries: int = 1,
+    cancel_check: Callable[[], bool] | None = None,
 ) -> dict:
     """Generate a course and, if ``validator(section_json)`` returns error
     strings, re-prompt the model with those errors once (C3).
@@ -685,6 +703,7 @@ def request_course_with_retry(
         request_chat(
             config, messages, temperature=0.4,
             response_format={"type": "json_object"}, timeout=timeout,
+            cancel_check=cancel_check,
         )
     )
     for _ in range(max(0, max_retries)):
@@ -702,6 +721,7 @@ def request_course_with_retry(
             request_chat(
                 config, messages, temperature=0.2,
                 response_format={"type": "json_object"}, timeout=timeout,
+                cancel_check=cancel_check,
             )
         )
     return section
@@ -712,6 +732,7 @@ def request_alignment_reply(
     spec: AiCourseSpec,
     messages: list[ChatMessage],
     timeout: float = 120.0,
+    cancel_check: Callable[[], bool] | None = None,
 ) -> str:
     """Get a plain-language alignment reply from the AI.
 
@@ -725,6 +746,7 @@ def request_alignment_reply(
         api_messages,
         temperature=0.7,
         timeout=timeout,
+        cancel_check=cancel_check,
     )
     choices = body.get("choices") or []
     if not choices:
@@ -739,6 +761,7 @@ def generate_from_chat(
     messages: list[ChatMessage],
     draft_json: dict[str, Any] | None = None,
     timeout: float = 180.0,
+    cancel_check: Callable[[], bool] | None = None,
 ) -> dict:
     """Generate the final course section JSON from the conversation history.
 
@@ -772,6 +795,7 @@ def generate_from_chat(
         temperature=0.4,
         response_format={"type": "json_object"},
         timeout=timeout,
+        cancel_check=cancel_check,
     )
     return parse_completion(body)
 
@@ -781,6 +805,7 @@ def explain_course(
     spec: AiCourseSpec,
     section_json: dict[str, Any],
     timeout: float = 120.0,
+    cancel_check: Callable[[], bool] | None = None,
 ) -> str:
     """Ask the AI to explain the generated course in plain language."""
     prompt = (
@@ -802,6 +827,7 @@ def explain_course(
         api_messages,
         temperature=0.6,
         timeout=timeout,
+        cancel_check=cancel_check,
     )
     choices = body.get("choices") or []
     if not choices:
@@ -922,6 +948,7 @@ def generate_edit(
     messages: list[ChatMessage] | None = None,
     draft_json: dict[str, Any] | None = None,
     timeout: float = 180.0,
+    cancel_check: Callable[[], bool] | None = None,
 ) -> dict:
     """Generate an edited section JSON based on an existing section.
 
@@ -959,6 +986,7 @@ def generate_edit(
         temperature=0.4,
         response_format={"type": "json_object"},
         timeout=timeout,
+        cancel_check=cancel_check,
     )
     parsed = parse_completion(body)
     # In edit mode the returned section must keep the same id.

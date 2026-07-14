@@ -13,6 +13,7 @@ if str(_GUI) not in sys.path:
 
 from src.backend.ai_generator import (
     AiApiConfig,
+    AiCancelled,
     AiCourseSpec,
     ChatMessage,
     build_alignment_prompt,
@@ -21,6 +22,7 @@ from src.backend.ai_generator import (
     generate_from_chat,
     parse_completion,
     request_alignment_reply,
+    request_chat,
 )
 from src.backend.ai_genre import genre_prompt_block, parse_genre_tag
 from src.backend.attachment_extractor import extract_attachment, summarize_attachment
@@ -386,21 +388,55 @@ class TestGenerateFromChat(unittest.TestCase):
 
         sig = inspect.signature(generate_from_chat)
         params = list(sig.parameters.keys())
-        self.assertEqual(params, ["config", "spec", "messages", "draft_json", "timeout"])
+        self.assertEqual(params, ["config", "spec", "messages", "draft_json", "timeout", "cancel_check"])
 
     def test_explain_course_signature(self) -> None:
         import inspect
 
         sig = inspect.signature(explain_course)
         params = list(sig.parameters.keys())
-        self.assertEqual(params, ["config", "spec", "section_json", "timeout"])
+        self.assertEqual(params, ["config", "spec", "section_json", "timeout", "cancel_check"])
 
     def test_request_alignment_reply_signature(self) -> None:
         import inspect
 
         sig = inspect.signature(request_alignment_reply)
         params = list(sig.parameters.keys())
-        self.assertEqual(params, ["config", "spec", "messages", "timeout"])
+        self.assertEqual(params, ["config", "spec", "messages", "timeout", "cancel_check"])
+
+
+class TestRequestChatCancel(unittest.TestCase):
+    """The cooperative cancel_check should raise AiCancelled mid-read."""
+
+    def _config(self) -> AiApiConfig:
+        return AiApiConfig(
+            base_url="https://api.example.com/v1",
+            api_key="sk-x",
+            model="gpt-4o",
+        )
+
+    def test_cancel_raises_ai_cancelled(self) -> None:
+        from unittest import mock
+
+        class _FakeResp:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+            def read(self, n=-1):
+                # Return a chunk on the first call so the loop iterates and the
+                # cancel_check fires on the next iteration.
+                return b'{"choices": [{"message": {"content": "x"}}]}'
+
+        with mock.patch("src.backend.ai_generator.urllib.request.urlopen", return_value=_FakeResp()):
+            with self.assertRaises(AiCancelled):
+                request_chat(
+                    self._config(),
+                    messages=[{"role": "user", "content": "hi"}],
+                    cancel_check=lambda: True,
+                )
 
 
 if __name__ == "__main__":

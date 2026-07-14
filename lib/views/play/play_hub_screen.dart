@@ -48,14 +48,14 @@ class PlayHubScreen extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: _PlayHubCard(
-              title: 'My Mistakes',
+              title: '错题复习',
               subtitle: mistakesCount > 0
-                  ? '$mistakesCount mistakes to review (max 30)'
-                  : 'No mistakes recorded',
+                  ? '$mistakesCount 道错题，最多练习 10 题'
+                  : '没有错题记录',
               icon: Icons.error_outline_rounded,
               accentColor: VarnamalaTheme.error,
               badge: mistakesCount > 0 ? '$mistakesCount' : null,
-              onTap: () => context.router.push(const MistakeListRoute()),
+              onTap: () => context.router.push(const MistakeReviewRoute()),
             ),
           ),
         ),

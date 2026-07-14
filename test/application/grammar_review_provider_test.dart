@@ -55,7 +55,7 @@ void main() {
       expect(grammar.dueCount, 1);
 
       final updated =
-          await grammar.reviewWithQuality('gp.a', ReviewQuality.good);
+          await grammar.reviewWithQuality('gp.a', ReviewGrade.known);
       expect(updated, isNotNull);
       expect(updated!.reps, 1);
       // Reviewed just now with Good -> next due is in the future.
@@ -65,14 +65,14 @@ void main() {
 
     test('review on an unknown id returns null', () async {
       final grammar = GrammarReviewProvider(appPrefs, LessonLinkStore(appPrefs));
-      expect(await grammar.reviewWithQuality('nope', ReviewQuality.good),
+      expect(await grammar.reviewWithQuality('nope', ReviewGrade.known),
           isNull);
     });
 
     test('state persists across provider instances', () async {
       final first = GrammarReviewProvider(appPrefs, LessonLinkStore(appPrefs));
       first.registerGrammarPoint('gp.a');
-      await first.reviewWithQuality('gp.a', ReviewQuality.good);
+      await first.reviewWithQuality('gp.a', ReviewGrade.known);
 
       // A new provider reading the same prefs must restore the state.
       final second = GrammarReviewProvider(appPrefs, LessonLinkStore(appPrefs));
@@ -92,7 +92,7 @@ void main() {
           isTrue);
 
       // Schedule into the future via Good, then pull back with markDueNow.
-      await grammar.reviewWithQuality('gp.a', ReviewQuality.good);
+      await grammar.reviewWithQuality('gp.a', ReviewGrade.known);
       expect(grammar.dueCount, 0);
 
       await grammar.markDueNow('gp.a');

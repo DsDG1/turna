@@ -76,6 +76,16 @@ class MistakeProvider extends ChangeNotifier {
     await _persist(current);
   }
 
+  /// Remove the mistakes answered correctly in a review session ("做完则掌握"
+  /// — clear only correct ones). Each id in [ids] that matches a stored entry
+  /// is removed in a single shot, regardless of its [MistakeEntry.rewriteCount].
+  Future<void> removeByIds(Set<String> ids) async {
+    if (ids.isEmpty) return;
+    final current = entries.toList();
+    current.removeWhere((e) => ids.contains(e.id));
+    await _persist(current);
+  }
+
   /// Clear all recorded mistakes.
   Future<void> clear() async {
     await _persist(<MistakeEntry>[]);

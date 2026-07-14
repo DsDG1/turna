@@ -28,7 +28,7 @@ void main() {
     srs.registerWord('w-due-2');
     expect(srs.dueCount, 2);
 
-    await srs.reviewWord('w-due-1', ReviewQuality.good.sm2);
+    await srs.reviewWord('w-due-1', ReviewGrade.known.sm2);
     expect(srs.dueCount, 1);
 
     // "Restart" = new provider instance on same prefs.

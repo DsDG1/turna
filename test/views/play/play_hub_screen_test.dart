@@ -50,7 +50,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Quick Play'), findsOneWidget);
-    expect(find.text('My Mistakes'), findsOneWidget);
+    expect(find.text('错题复习'), findsOneWidget);
     expect(find.text('Review'), findsOneWidget);
     expect(find.text('Grammar Review'), findsOneWidget);
     expect(find.text('Daily Challenge'), findsOneWidget);

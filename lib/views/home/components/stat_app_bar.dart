@@ -5,6 +5,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 // Package imports:
+import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
@@ -12,6 +13,7 @@ import 'package:varnamala/application/game_provider.dart';
 import 'package:varnamala/application/language_provider.dart';
 import 'package:varnamala/core/enums.dart';
 import 'package:varnamala/core/extensions.dart';
+import 'package:varnamala/routing/routing.gr.dart';
 import 'package:varnamala/views/theme.dart';
 import 'package:varnamala/views/widgets/gems_display.dart';
 import 'package:varnamala/views/widgets/loader.dart';
@@ -44,7 +46,17 @@ class StatAppBar extends StatelessWidget implements PreferredSizeWidget {
           ],
         ),
       ),
-      actions: const [],
+      actions: [
+        IconButton(
+          icon: const Icon(
+            Icons.auto_awesome,
+            color: VarnamalaTheme.peacockTeal,
+            size: 22,
+          ),
+          tooltip: 'AI Course Designer',
+          onPressed: () => context.router.push(const AiWishChatRoute()),
+        ),
+      ],
     );
   }
 }

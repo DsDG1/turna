@@ -4,13 +4,13 @@ import 'package:varnamala/core/sm2.dart';
 import 'package:varnamala/views/theme.dart';
 
 class ReviewRatingBar extends StatelessWidget {
-  final ValueChanged<ReviewQuality> onRate;
+  final ValueChanged<ReviewGrade> onRate;
   final String prompt;
 
   const ReviewRatingBar({
     super.key,
     required this.onRate,
-    this.prompt = 'How well did you know this?',
+    this.prompt = '你认识这个词吗？',
   });
 
   @override
@@ -21,33 +21,17 @@ class ReviewRatingBar extends StatelessWidget {
           children: [
             Expanded(
               child: _RateButton(
-                label: 'Again',
+                label: '不认识',
                 color: VarnamalaTheme.error,
-                onTap: () => onRate(ReviewQuality.again),
+                onTap: () => onRate(ReviewGrade.unknown),
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 12),
             Expanded(
               child: _RateButton(
-                label: 'Hard',
-                color: Colors.orange,
-                onTap: () => onRate(ReviewQuality.hard),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _RateButton(
-                label: 'Good',
+                label: '认识',
                 color: VarnamalaTheme.success,
-                onTap: () => onRate(ReviewQuality.good),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _RateButton(
-                label: 'Easy',
-                color: VarnamalaTheme.peacockTeal,
-                onTap: () => onRate(ReviewQuality.easy),
+                onTap: () => onRate(ReviewGrade.known),
               ),
             ),
           ],

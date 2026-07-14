@@ -85,27 +85,27 @@ extension GetItInjectableX on _i174.GetIt {
     );
     final audioModule = _$AudioModule();
     final rendererModule = _$RendererModule();
+    gh.factory<_i757.TypeTheWordRenderer>(() => _i757.TypeTheWordRenderer());
+    gh.factory<_i147.MultiSelectRenderer>(() => _i147.MultiSelectRenderer());
+    gh.factory<_i785.ListenOnlyRenderer>(() => _i785.ListenOnlyRenderer());
+    gh.factory<_i767.TranslateSentenceRenderer>(
+        () => _i767.TranslateSentenceRenderer());
+    gh.factory<_i990.MultipleChoiceRenderer>(
+        () => _i990.MultipleChoiceRenderer());
+    gh.factory<_i235.ReadingMcqRenderer>(() => _i235.ReadingMcqRenderer());
     gh.factory<_i665.FillBlankRenderer>(() => _i665.FillBlankRenderer());
     gh.factory<_i657.ListenAndPickRenderer>(
         () => _i657.ListenAndPickRenderer());
-    gh.factory<_i785.ListenOnlyRenderer>(() => _i785.ListenOnlyRenderer());
-    gh.factory<_i990.MultipleChoiceRenderer>(
-        () => _i990.MultipleChoiceRenderer());
-    gh.factory<_i147.MultiSelectRenderer>(() => _i147.MultiSelectRenderer());
-    gh.factory<_i235.ReadingMcqRenderer>(() => _i235.ReadingMcqRenderer());
     gh.factory<_i532.ReadingShortAnswerRenderer>(
         () => _i532.ReadingShortAnswerRenderer());
     gh.factory<_i399.ReadingTrueFalseRenderer>(
         () => _i399.ReadingTrueFalseRenderer());
     gh.factory<_i215.ReorderSentenceRenderer>(
         () => _i215.ReorderSentenceRenderer());
-    gh.factory<_i767.TranslateSentenceRenderer>(
-        () => _i767.TranslateSentenceRenderer());
-    gh.factory<_i757.TypeTheWordRenderer>(() => _i757.TypeTheWordRenderer());
-    gh.lazySingleton<_i229.CharacterProvider>(() => _i229.CharacterProvider());
-    gh.lazySingleton<_i1051.CourseProvider>(() => _i1051.CourseProvider());
     gh.lazySingleton<_i711.LocalReminderService>(
         () => _i711.LocalReminderService());
+    gh.lazySingleton<_i229.CharacterProvider>(() => _i229.CharacterProvider());
+    gh.lazySingleton<_i1051.CourseProvider>(() => _i1051.CourseProvider());
     gh.lazySingleton<_i188.VocabAudioResolver>(
         () => _i73.VocabAudioResolverImpl());
     gh.lazySingleton<_i793.SettingsProvider>(
@@ -124,14 +124,16 @@ extension GetItInjectableX on _i174.GetIt {
         () => _i579.CourseReadyGuard(gh<_i1051.CourseProvider>()));
     gh.lazySingleton<_i936.AppRouter>(
         () => _i936.AppRouter(gh<_i579.CourseReadyGuard>()));
-    gh.lazySingleton<_i143.AchievementsProvider>(
-        () => _i143.AchievementsProvider(gh<_i523.AppPrefs>()));
-    gh.lazySingleton<_i788.GameMilestoneProvider>(
-        () => _i788.GameMilestoneProvider(gh<_i523.AppPrefs>()));
+    gh.lazySingleton<_i889.StudyLogRepository>(
+        () => _i889.StudyLogRepository(gh<_i523.AppPrefs>()));
     gh.lazySingleton<_i417.GemsProvider>(
         () => _i417.GemsProvider(gh<_i523.AppPrefs>()));
-    gh.lazySingleton<_i233.LanguageProvider>(
-        () => _i233.LanguageProvider(gh<_i523.AppPrefs>()));
+    gh.lazySingleton<_i151.ThemeProvider>(
+        () => _i151.ThemeProvider(gh<_i523.AppPrefs>()));
+    gh.lazySingleton<_i788.GameMilestoneProvider>(
+        () => _i788.GameMilestoneProvider(gh<_i523.AppPrefs>()));
+    gh.lazySingleton<_i143.AchievementsProvider>(
+        () => _i143.AchievementsProvider(gh<_i523.AppPrefs>()));
     gh.lazySingleton<_i854.LessonLinkStore>(
         () => _i854.LessonLinkStore(gh<_i523.AppPrefs>()));
     gh.lazySingleton<_i409.LessonProgressProvider>(
@@ -142,10 +144,8 @@ extension GetItInjectableX on _i174.GetIt {
         () => _i166.ScoreProvider(gh<_i523.AppPrefs>()));
     gh.lazySingleton<_i927.StreakProvider>(
         () => _i927.StreakProvider(gh<_i523.AppPrefs>()));
-    gh.lazySingleton<_i151.ThemeProvider>(
-        () => _i151.ThemeProvider(gh<_i523.AppPrefs>()));
-    gh.lazySingleton<_i889.StudyLogRepository>(
-        () => _i889.StudyLogRepository(gh<_i523.AppPrefs>()));
+    gh.lazySingleton<_i233.LanguageProvider>(
+        () => _i233.LanguageProvider(gh<_i523.AppPrefs>()));
     gh.lazySingleton<_i565.GameProvider>(() => _i565.GameProvider(
           gh<_i523.AppPrefs>(),
           gh<_i166.ScoreProvider>(),
@@ -153,15 +153,15 @@ extension GetItInjectableX on _i174.GetIt {
           gh<_i409.LessonProgressProvider>(),
           gh<_i788.GameMilestoneProvider>(),
         ));
+    gh.lazySingleton<_i361.SrsProvider>(() => _i361.SrsProvider(
+          gh<_i523.AppPrefs>(),
+          gh<_i854.LessonLinkStore>(),
+        ));
     gh.lazySingleton<_i1008.GrammarReviewProvider>(
         () => _i1008.GrammarReviewProvider(
               gh<_i523.AppPrefs>(),
               gh<_i854.LessonLinkStore>(),
             ));
-    gh.lazySingleton<_i361.SrsProvider>(() => _i361.SrsProvider(
-          gh<_i523.AppPrefs>(),
-          gh<_i854.LessonLinkStore>(),
-        ));
     gh.lazySingleton<_i106.AudioController>(() => _i106.AudioController(
           gh<_i50.FlutterTts>(),
           gh<_i233.LanguageProvider>(),

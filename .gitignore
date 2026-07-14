@@ -68,3 +68,11 @@ __pycache__/
 # Flutter run logs
 flutter_run.log
 flutter_run.err.log
+
+# Build artifacts / release output
+dist/
+
+# IDE / editor metadata
+.trae/
+android/.kotlin/errors/
+*.iml

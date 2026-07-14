@@ -1,5 +1,6 @@
 // Flutter imports:
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 // Package imports:
 import 'package:auto_route/auto_route.dart';
@@ -26,7 +27,7 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
   final TextEditingController _inputCtrl = TextEditingController();
   final ScrollController _scrollCtrl = ScrollController();
 
-  // Local spec inputs (mirror generator page).
+  // Local spec inputs (edited via the gear bottom sheet).
   late final TextEditingController _languageCtrl;
   late final TextEditingController _sourceLanguageCtrl;
   late final TextEditingController _topicCtrl;
@@ -133,200 +134,295 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
     });
   }
 
+  Future<void> _openCourseParamsSheet() async {
+    // The sheet keeps its own ephemeral StatefulBuilder state so toggles (e.g.
+    // Genre batch) react instantly without depending on the parent rebuild,
+    // and the last-edited values persist on the page fields for the spec.
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: VarnamalaTheme.cardBg(context),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (innerContext, setInnerState) {
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: 12,
+              bottom: MediaQuery.of(innerContext).viewInsets.bottom + 16,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'Course Parameters',
+                        style: Theme.of(innerContext).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        icon: const Icon(Icons.close, size: 22),
+                        tooltip: 'Close',
+                        onPressed: () => Navigator.of(sheetContext).maybePop(),
+                      ),
+                    ],
+                  ),
+                  _courseParamsForm(setInnerState),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+    if (mounted) setState(() {}); // refresh spec-derived UI after editing
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       backgroundColor: VarnamalaTheme.scaffoldBg(context),
       appBar: AppBar(
         title: Text(
-          'AI 课程设计对话',
+          'AI Course Designer',
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
         ),
         backgroundColor: VarnamalaTheme.bottomNavBg(context),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings, size: 22),
+            tooltip: 'Course parameters',
+            onPressed: _openCourseParamsSheet,
+          ),
+        ],
       ),
+      // Body is rebuilt only when the conversation length or the high-level
+      // generation state changes — not on every notifyListeners() (e.g. while
+      // the AI streams progress). Selectors + const leaf widgets keep the chat
+      // list from being rebuilt during input edits and AI polling.
       body: SafeArea(
-        child: Consumer<AiWishProvider>(
-          builder: (context, w, _) {
-            final busy = w.state == AiWishState.aligning ||
-                w.state == AiWishState.generating ||
-                w.state == AiWishState.explaining;
-            return Column(
-              children: [
-                _specSummary(),
-                Expanded(
-                  child: w.messages.isEmpty && !busy
-                      ? _emptyHint()
-                      : ListView.builder(
-                          controller: _scrollCtrl,
-                          padding: const EdgeInsets.all(12),
-                          itemCount: w.messages.length + (w.error != null ? 1 : 0),
-                          itemBuilder: (context, i) {
-                            if (i == w.messages.length && w.error != null) {
-                              return _errorBubble(w.error!);
-                            }
-                            final m = w.messages[i];
-                            return _bubble(m.role, m.content);
-                          },
-                        ),
+        child: Column(
+          children: [
+            Expanded(
+              child: Selector<AiWishProvider, ({bool empty, int count, bool hasError})>(
+                selector: (_, w) => (
+                  empty: w.messages.isEmpty,
+                  count: w.messages.length,
+                  hasError: w.error != null,
                 ),
-                if (w.state == AiWishState.generated) _generatedPanel(w, busy),
-                if (busy) const LinearProgressIndicator(),
-                _inputBar(w, busy),
-              ],
-            );
-          },
+                builder: (context, v, _) {
+                  final empty = v.empty && !_busyValue(context);
+                  if (empty) return _emptyHint();
+                  return ListView.builder(
+                    controller: _scrollCtrl,
+                    padding: const EdgeInsets.all(12),
+                    // +1 row reserved for the trailing error bubble, if any.
+                    itemCount: v.count + (v.hasError ? 1 : 0),
+                    itemBuilder: (context, i) {
+                      final w = context.read<AiWishProvider>();
+                      if (i == v.count && v.hasError) {
+                        return _errorBubble(w.error!);
+                      }
+                      final m = w.messages[i];
+                      return _bubble(m.role, m.content, isDark);
+                    },
+                  );
+                },
+              ),
+            ),
+            Selector<AiWishProvider, AiWishState>(
+              selector: (_, w) => w.state,
+              builder: (context, state, _) {
+                final busy = state == AiWishState.aligning ||
+                    state == AiWishState.generating ||
+                    state == AiWishState.explaining;
+                final generated = state == AiWishState.generated;
+                return Column(
+                  children: [
+                    if (generated)
+              Selector<AiWishProvider, String?>(
+                selector: (_, w) => w.explanation,
+                builder: (context, explanation, _) => _generatedPanel(explanation),
+              ),
+                    if (busy) const LinearProgressIndicator(),
+                    _chatInputBar(busy, generated),
+                  ],
+                );
+              },
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _specSummary() {
-    return Container(
-      width: double.infinity,
-      color: VarnamalaTheme.cardBg(context),
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '课程参数',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _languageCtrl,
-                  decoration: const InputDecoration(
-                    labelText: '目标语言',
-                    isDense: true,
-                    border: OutlineInputBorder(),
-                  ),
-                  onChanged: (_) => setState(() {}),
+  bool _busyValue(BuildContext context) {
+    final s = context.read<AiWishProvider>().state;
+    return s == AiWishState.aligning ||
+        s == AiWishState.generating ||
+        s == AiWishState.explaining;
+  }
+
+  Widget _courseParamsForm(void Function(void Function()) setInnerState) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _languageCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Target language',
+                  isDense: true,
+                  border: OutlineInputBorder(),
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: TextField(
-                  controller: _sourceLanguageCtrl,
-                  decoration: const InputDecoration(
-                    labelText: '源语言',
-                    isDense: true,
-                    border: OutlineInputBorder(),
-                  ),
-                  onChanged: (_) => setState(() {}),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _topicCtrl,
-            decoration: const InputDecoration(
-              labelText: '主题',
-              isDense: true,
-              border: OutlineInputBorder(),
             ),
-            onChanged: (_) => setState(() {}),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  value: _level,
-                  decoration: const InputDecoration(
-                    labelText: '等级',
-                    isDense: true,
-                    border: OutlineInputBorder(),
-                  ),
-                  items: ['A1', 'A2', 'B1', 'B2', 'C1']
-                      .map((l) => DropdownMenuItem(value: l, child: Text(l)))
-                      .toList(),
-                  onChanged: (v) => setState(() => _level = v ?? 'A1'),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                controller: _sourceLanguageCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Source language',
+                  isDense: true,
+                  border: OutlineInputBorder(),
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: DropdownButtonFormField<int>(
-                  value: _unitCount,
-                  decoration: const InputDecoration(
-                    labelText: '单元',
-                    isDense: true,
-                    border: OutlineInputBorder(),
-                  ),
-                  items: [1, 2, 3, 4, 5]
-                      .map((n) => DropdownMenuItem(value: n, child: Text('$n')))
-                      .toList(),
-                  onChanged: (v) => setState(() => _unitCount = v ?? 1),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: DropdownButtonFormField<int>(
-                  value: _lessonsPerUnit,
-                  decoration: const InputDecoration(
-                    labelText: '课时',
-                    isDense: true,
-                    border: OutlineInputBorder(),
-                  ),
-                  items: [1, 2, 3, 4, 5]
-                      .map((n) => DropdownMenuItem(value: n, child: Text('$n')))
-                      .toList(),
-                  onChanged: (v) =>
-                      setState(() => _lessonsPerUnit = v ?? 3),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  value: _template,
-                  decoration: const InputDecoration(
-                    labelText: '模板',
-                    isDense: true,
-                    border: OutlineInputBorder(),
-                  ),
-                  items: ['intro', 'practice', 'review', 'listening', 'reading', 'mastery', 'mixed']
-                      .map((t) => DropdownMenuItem(
-                            value: t,
-                            child: Text('$t (${templateLabel(t)})'),
-                          ))
-                      .toList(),
-                  onChanged: (v) => setState(() => _template = v ?? 'mixed'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: SwitchListTile(
-                  title: const Text('Genre batch'),
-                  value: _useGenreBatch,
-                  onChanged: (v) => setState(() => _useGenreBatch = v),
-                  dense: true,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _extraCtrl,
-            maxLines: 2,
-            decoration: const InputDecoration(
-              labelText: '额外指令（可选）',
-              isDense: true,
-              border: OutlineInputBorder(),
             ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _topicCtrl,
+          decoration: const InputDecoration(
+            labelText: 'Topic',
+            isDense: true,
+            border: OutlineInputBorder(),
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                value: _level,
+                decoration: const InputDecoration(
+                  labelText: 'Level',
+                  isDense: true,
+                  border: OutlineInputBorder(),
+                ),
+                items: ['A1', 'A2', 'B1', 'B2', 'C1']
+                    .map((l) => DropdownMenuItem(value: l, child: Text(l)))
+                    .toList(),
+                onChanged: (v) => setInnerState(() => _level = v ?? 'A1'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: DropdownButtonFormField<int>(
+                value: _unitCount,
+                decoration: const InputDecoration(
+                  labelText: 'Units',
+                  isDense: true,
+                  border: OutlineInputBorder(),
+                ),
+                items: [1, 2, 3, 4, 5]
+                    .map((n) => DropdownMenuItem(value: n, child: Text('$n')))
+                    .toList(),
+                onChanged: (v) => setInnerState(() => _unitCount = v ?? 1),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: DropdownButtonFormField<int>(
+                value: _lessonsPerUnit,
+                decoration: const InputDecoration(
+                  labelText: 'Lessons/unit',
+                  isDense: true,
+                  border: OutlineInputBorder(),
+                ),
+                items: [1, 2, 3, 4, 5]
+                    .map((n) => DropdownMenuItem(value: n, child: Text('$n')))
+                    .toList(),
+                onChanged: (v) =>
+                    setInnerState(() => _lessonsPerUnit = v ?? 3),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        // Template dropdown is full-width: its labels ("listening (听力训练)")
+        // are too long to share a row with the Genre batch toggle without
+        // overflowing, so the toggle gets its own row below.
+        DropdownButtonFormField<String>(
+          value: _template,
+          isExpanded: true,
+          decoration: const InputDecoration(
+            labelText: 'Template',
+            isDense: true,
+            border: OutlineInputBorder(),
+          ),
+          items: ['intro', 'practice', 'review', 'listening', 'reading', 'mastery', 'mixed']
+              .map((t) => DropdownMenuItem(
+                    value: t,
+                    child: Text('$t (${templateLabel(t)})',
+                        overflow: TextOverflow.ellipsis),
+                  ))
+              .toList(),
+          onChanged: (v) => setInnerState(() => _template = v ?? 'mixed'),
+        ),
+        // Genre batch toggle on its own row — a custom Switch row avoids the
+        // SwitchListTile intrinsic-width overflow and reacts via setInnerState.
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Genre batch',
+                        style: TextStyle(fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Use [genre] tags for multi-template batch generation',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: _useGenreBatch,
+                onChanged: (v) => setInnerState(() => _useGenreBatch = v),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _extraCtrl,
+          maxLines: 2,
+          decoration: const InputDecoration(
+            labelText: 'Extra instructions (optional)',
+            isDense: true,
+            border: OutlineInputBorder(),
+          ),
+        ),
+      ],
     );
   }
 
@@ -335,7 +431,8 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Text(
-          '开始与 AI 对齐课程设计吧。在下方输入你的想法，例如：\n「我想教土耳其语旅行常用词，重点是打招呼和点餐。」',
+          'Tell the AI what course you want. For example:\n'
+          '"I want to teach Turkish travel phrases — greetings and ordering food."',
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodyMedium,
         ),
@@ -343,8 +440,14 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
     );
   }
 
-  Widget _bubble(String role, String content) {
+  Widget _bubble(String role, String content, bool isDark) {
     final isUser = role == 'user';
+    final bg = isUser
+        ? VarnamalaTheme.primaryLight
+        : (isDark ? const Color(0xFF2A2A2A) : Colors.white);
+    final textColor = isUser
+        ? Colors.white
+        : (isDark ? Colors.white : Colors.black87);
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -354,17 +457,10 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
           maxWidth: MediaQuery.of(context).size.width * 0.8,
         ),
         decoration: BoxDecoration(
-          color: isUser
-              ? VarnamalaTheme.primaryLight
-              : VarnamalaTheme.streakChipBg(context),
+          color: bg,
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Text(
-          content,
-          style: TextStyle(
-            color: isUser ? Colors.white : Theme.of(context).textTheme.bodyMedium?.color,
-          ),
-        ),
+        child: Text(content, style: TextStyle(color: textColor)),
       ),
     );
   }
@@ -380,14 +476,14 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
           borderRadius: BorderRadius.circular(12),
         ),
         child: Text(
-          '错误：$error',
+          'Error: $error',
           style: const TextStyle(color: VarnamalaTheme.error),
         ),
       ),
     );
   }
 
-  Widget _generatedPanel(AiWishProvider w, bool busy) {
+  Widget _generatedPanel(String? explanation) {
     return Container(
       width: double.infinity,
       color: VarnamalaTheme.cardBg(context),
@@ -396,14 +492,14 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '课程已生成',
+            'Course generated',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
           ),
-          if (w.explanation != null && w.explanation!.isNotEmpty) ...[
+          if (explanation != null && explanation.isNotEmpty) ...[
             const SizedBox(height: 8),
-            Text('AI 解释：${w.explanation}'),
+            Text('AI explanation: $explanation'),
           ],
           const SizedBox(height: 8),
           Row(
@@ -412,7 +508,7 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
                 child: FilledButton.icon(
                   onPressed: _onSave,
                   icon: const Icon(Icons.save),
-                  label: const Text('保存到课程树'),
+                  label: const Text('Save to Course Tree'),
                 ),
               ),
             ],
@@ -422,35 +518,191 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
     );
   }
 
-  Widget _inputBar(AiWishProvider w, bool busy) {
-    final generated = w.state == AiWishState.generated;
+  Widget _chatInputBar(bool busy, bool generated) {
     return Padding(
-      padding: const EdgeInsets.all(8),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: TextField(
-              controller: _inputCtrl,
-              enabled: !busy && !generated,
-              decoration: const InputDecoration(
-                hintText: '输入你的想法…',
-                border: OutlineInputBorder(),
-                isDense: true,
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _inputCtrl,
+                  enabled: !busy && !generated,
+                  decoration: const InputDecoration(
+                    hintText: 'Type your idea…',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  onSubmitted: (_) => _onSend(),
+                ),
               ),
-              onSubmitted: (_) => _onSend(),
-            ),
+              const SizedBox(width: 8),
+              IconButton(
+                onPressed: busy || generated ? null : _onSend,
+                icon: const Icon(Icons.send),
+                tooltip: 'Send',
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          IconButton(
-            onPressed: busy || generated ? null : _onSend,
-            icon: const Icon(Icons.send),
-          ),
-          const SizedBox(width: 4),
-          FilledButton(
-            onPressed: busy || generated ? null : _onFinalize,
-            child: const Text('我感觉差不多了'),
+          const SizedBox(height: 8),
+          _SwipeConfirmBar(
+            enabled: !busy && !generated,
+            onConfirm: _onFinalize,
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A horizontal swipe-to-confirm bar. Drag the handle from left to right; the
+/// track fills gray → green as it nears completion, and a full swipe triggers
+/// [onConfirm]. Releasing below the threshold springs back to the start.
+class _SwipeConfirmBar extends StatefulWidget {
+  final bool enabled;
+  final Future<void> Function() onConfirm;
+
+  const _SwipeConfirmBar({required this.enabled, required this.onConfirm});
+
+  @override
+  State<_SwipeConfirmBar> createState() => _SwipeConfirmBarState();
+}
+
+class _SwipeConfirmBarState extends State<_SwipeConfirmBar>
+    with SingleTickerProviderStateMixin {
+  static const _height = 48.0;
+  // Confirm at ~80% — dragging the handle all the way to the far edge is
+  // awkward on most phones, so we trigger before the physical end.
+  static const _threshold = 0.8;
+
+  double _fraction = 0;
+  double _trackWidth = 0;
+  bool _fired = false;
+
+  late final AnimationController _spring = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 200),
+  );
+  Animation<double>? _springAnim;
+
+  @override
+  void dispose() {
+    _spring.dispose();
+    super.dispose();
+  }
+
+  void _snapBack() {
+    final start = _fraction;
+    if (start <= 0) return;
+    _springAnim = Tween<double>(begin: start, end: 0).animate(
+      CurvedAnimation(parent: _spring, curve: Curves.easeOut),
+    )..addListener(() {
+        setState(() => _fraction = _springAnim!.value);
+      });
+    _spring.forward(from: 0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fillWidth = _trackWidth * _fraction;
+    final fillColor = Color.lerp(
+      Colors.grey.shade400,
+      VarnamalaTheme.primary,
+      _fraction,
+    )!;
+    final dim = widget.enabled ? 1.0 : 0.4;
+    // Show the "release to confirm" cue once past the threshold.
+    final atThreshold = _fraction >= _threshold;
+
+    return Opacity(
+      opacity: dim,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          _trackWidth = constraints.maxWidth;
+          return GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onHorizontalDragUpdate: widget.enabled
+                ? (d) {
+                    if (_trackWidth <= 0) return;
+                    _spring.stop();
+                    final next =
+                        (_fraction + d.delta.dx / _trackWidth).clamp(0.0, 1.0);
+                    // Haptic bump exactly when crossing the threshold.
+                    if (_fraction < _threshold && next >= _threshold) {
+                      HapticFeedback.mediumImpact();
+                    }
+                    setState(() => _fraction = next);
+                  }
+                : null,
+            onHorizontalDragEnd: widget.enabled
+                ? (_) {
+                    if (_fraction >= _threshold && !_fired) {
+                      _fired = true;
+                      setState(() => _fraction = 1.0);
+                      HapticFeedback.heavyImpact();
+                      widget.onConfirm().whenComplete(() {
+                        if (mounted) {
+                          setState(() {
+                            _fraction = 0;
+                            _fired = false;
+                          });
+                        }
+                      });
+                    } else {
+                      _snapBack();
+                    }
+                  }
+                : null,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(_height / 2),
+              child: SizedBox(
+                height: _height,
+                child: Stack(
+                  children: [
+                    // Base track (gray).
+                    Container(color: Colors.grey.shade300),
+                    // Fill (gray → green).
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 80),
+                      width: fillWidth + _height / 2,
+                      color: fillColor,
+                    ),
+                    // Centered label.
+                    Center(
+                      child: Text(
+                        atThreshold ? 'Release to finalize' : 'Swipe to finalize',
+                        style: TextStyle(
+                          color: _fraction > 0.5
+                              ? Colors.white
+                              : Theme.of(context).textTheme.bodyMedium?.color,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    // Handle on the leading edge.
+                    Positioned(
+                      left: _fraction * (_trackWidth - _height),
+                      child: Container(
+                        width: _height,
+                        height: _height,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.chevron_right,
+                          color: VarnamalaTheme.primary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

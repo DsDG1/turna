@@ -46,6 +46,7 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QPushButton,
     QSpinBox,
+    QSplitter,
     QTextBrowser,
     QTextEdit,
     QVBoxLayout,
@@ -54,6 +55,7 @@ from PySide6.QtWidgets import (
 
 from src.backend.ai_generator import (
     AiApiConfig,
+    AiCancelled,
     AiCourseSpec,
     ChatMessage,
     apply_genre_to_spec,
@@ -65,7 +67,7 @@ from src.backend.ai_generator import (
     request_alignment_reply,
     request_course,
 )
-from src.backend.ai_genre import genre_tags_in_text
+from src.backend.ai_genre import GENRE_TEMPLATES, genre_tags_in_text
 from src.backend.attachment_extractor import extract_attachment
 
 
@@ -81,6 +83,11 @@ class AiRequestWorker(QThread):
 
     ``target`` is any callable; ``*args``/``**kwargs`` are forwarded to it.
     The result or exception is delivered via Qt signals.
+
+    A cooperative ``cancel_check`` callable is forwarded to ``request_chat``-
+    based targets so a long HTTP read can be interrupted. Call ``cancel()``
+    from the UI thread to request cancellation; the running call raises
+    ``AiCancelled`` and the error is surfaced via ``error_occurred``.
     """
 
     result_ready = Signal(object)
@@ -92,14 +99,44 @@ class AiRequestWorker(QThread):
         self._target = target
         self._args = args
         self._kwargs = kwargs
+        self._cancelled = False
+
+    def cancel(self) -> None:
+        """Request cooperative cancellation of the in-flight call."""
+        self._cancelled = True
+
+    def is_cancelled(self) -> bool:
+        return self._cancelled
+
+    def _check_cancel(self) -> bool:
+        return self._cancelled
 
     def run(self) -> None:
+        import inspect
+
         try:
-            result = self._target(*self._args, **self._kwargs)
+            kwargs = dict(self._kwargs)
+            # Only forward cancel_check to targets that actually accept it
+            # (the request_chat-based AI functions). Plain callables used in
+            # unit tests would otherwise raise TypeError.
+            if "cancel_check" not in kwargs:
+                try:
+                    sig = inspect.signature(self._target)
+                    if "cancel_check" in sig.parameters or any(
+                        p.kind == inspect.Parameter.VAR_KEYWORD
+                        for p in sig.parameters.values()
+                    ):
+                        kwargs["cancel_check"] = self._check_cancel
+                except (TypeError, ValueError):
+                    pass
+            result = self._target(*self._args, **kwargs)
+        except AiCancelled as exc:
+            self.error_occurred.emit(str(exc) or "请求已取消。")
         except Exception as exc:  # noqa: BLE001
             self.error_occurred.emit(str(exc))
         else:
-            self.result_ready.emit(result)
+            if not self._cancelled:
+                self.result_ready.emit(result)
         finally:
             self.completed.emit()
 
@@ -332,6 +369,10 @@ class AiGeneratorDialog(QDialog):
         self._attachments: list[_AttachmentRecord] = []
         self._draft_json: dict | None = None
         self._current_worker: AiRequestWorker | None = None
+        self._busy_normal = False
+        self._busy_wish = False
+        self._compact_geometry = None
+        self._compact_flags = None
 
         self._build_ui()
         self._update_api_status()
@@ -344,9 +385,12 @@ class AiGeneratorDialog(QDialog):
         root.setSpacing(14)
         root.setContentsMargins(16, 16, 16, 16)
 
-        root.addWidget(self._build_beta_banner())
-        root.addWidget(self._build_header_bar())
-        root.addWidget(self._build_spec_bar())
+        self._beta_banner = self._build_beta_banner()
+        self._header_bar = self._build_header_bar()
+        self._spec_bar = self._build_spec_bar()
+        root.addWidget(self._beta_banner)
+        root.addWidget(self._header_bar)
+        root.addWidget(self._spec_bar)
 
         self._stack = QVBoxLayout()
         self._stack.setSpacing(0)
@@ -460,12 +504,19 @@ class AiGeneratorDialog(QDialog):
         return widget
 
     def _build_template_selector(self) -> QWidget:
-        """Reusable widget with template combo + genre batch switch."""
-        widget = QWidget()
-        layout = QHBoxLayout(widget)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(8)
+        """Reusable widget with visual template cards + genre batch switch.
 
+        A hidden ``template_combo`` remains the single source of truth (its
+        ``currentData()`` is read by ``_current_spec``); the cards drive the
+        combo via ``setCurrentIndex`` so existing genre-sync logic still works.
+        """
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(6)
+
+        # Hidden combo — kept for backwards compatibility with spec building
+        # and genre-tag sync.
         self.template_combo = QComboBox()
         self.template_combo.addItem("混合", "mixed")
         self.template_combo.addItem("认识新词", "intro")
@@ -475,9 +526,31 @@ class AiGeneratorDialog(QDialog):
         self.template_combo.addItem("阅读理解", "reading")
         self.template_combo.addItem("综合测验", "mastery")
         self.template_combo.currentIndexChanged.connect(self._on_template_changed)
-        layout.addWidget(QLabel("课程类型:"))
-        layout.addWidget(self.template_combo)
+        self.template_combo.setVisible(False)
 
+        cards_row = QHBoxLayout()
+        cards_row.setContentsMargins(0, 0, 0, 0)
+        cards_row.setSpacing(8)
+        cards_row.addWidget(QLabel("课程类型:"))
+        self._template_cards: dict[str, QPushButton] = {}
+        for tag, meta in GENRE_TEMPLATES.items():
+            template = meta["template"]
+            card = QPushButton(meta["label"])
+            card.setCheckable(True)
+            card.setToolTip(meta.get("description", ""))
+            card.setCursor(Qt.CursorShape.PointingHandCursor)
+            card.setMinimumWidth(86)
+            card.setStyleSheet(self._template_card_stylesheet(selected=False))
+            card.clicked.connect(lambda _checked=False, t=template: self._select_template_card(t))
+            self._template_cards[template] = card
+            cards_row.addWidget(card)
+        cards_row.addWidget(self.template_combo)
+        cards_row.addStretch()
+        layout.addLayout(cards_row)
+
+        genre_row = QHBoxLayout()
+        genre_row.setContentsMargins(0, 0, 0, 0)
+        genre_row.setSpacing(8)
         self.genre_switch = QCheckBox("启用 [genre] 多模板批量生成（Beta）")
         self.genre_switch.setChecked(False)
         self.genre_switch.setToolTip(
@@ -485,10 +558,65 @@ class AiGeneratorDialog(QDialog):
             "让 AI 批量生成多种模板的课程。会显著增加 token 消耗。"
         )
         self.genre_switch.stateChanged.connect(self._on_genre_switch_changed)
-        layout.addWidget(self.genre_switch)
+        genre_row.addWidget(self.genre_switch)
+        genre_row.addStretch()
+        layout.addLayout(genre_row)
 
-        layout.addStretch()
+        # Default selection = mixed (index 0).
+        self._select_template_card("mixed", emit=False)
         return widget
+
+    @staticmethod
+    def _template_card_stylesheet(selected: bool) -> str:
+        if selected:
+            return (
+                "QPushButton {"
+                "  background-color: rgba(31, 114, 126, 0.25);"
+                "  color: #46D1BF;"
+                "  border: 2px solid #1F727E;"
+                "  border-radius: 8px;"
+                "  padding: 8px 10px;"
+                "  font-size: 13px;"
+                "  text-align: left;"
+                "}"
+                "QPushButton:hover { background-color: rgba(31, 114, 126, 0.35); }"
+            )
+        return (
+            "QPushButton {"
+            "  background-color: #1F232C;"
+            "  color: #E8EAF0;"
+            "  border: 1px solid #2C313C;"
+            "  border-radius: 8px;"
+            "  padding: 8px 10px;"
+            "  font-size: 13px;"
+            "  text-align: left;"
+            "}"
+            "QPushButton:hover { border: 1px solid #1F727E; color: #46D1BF; }"
+        )
+
+    def _select_template_card(self, template: str, emit: bool = True) -> None:
+        """Visually select a template card and sync the hidden combo.
+
+        When ``emit`` is False (used during initial build), the combo's
+        ``currentIndexChanged`` signal is blocked so we don't recurse.
+        """
+        for tpl, card in self._template_cards.items():
+            is_sel = tpl == template
+            card.setChecked(is_sel)
+            card.setStyleSheet(self._template_card_stylesheet(selected=is_sel))
+        # Sync the hidden combo without re-emitting during initial setup.
+        combo = self.template_combo
+        target_index = 0
+        for i in range(combo.count()):
+            if combo.itemData(i) == template:
+                target_index = i
+                break
+        if emit:
+            combo.setCurrentIndex(target_index)
+        else:
+            combo.blockSignals(True)
+            combo.setCurrentIndex(target_index)
+            combo.blockSignals(False)
 
     def _build_normal_panel(self) -> QWidget:
         widget = QWidget()
@@ -519,9 +647,20 @@ class AiGeneratorDialog(QDialog):
         return widget
 
     def _build_result_group(self) -> QGroupBox:
+        from src.widgets.result_preview import ResultPreviewWidget
+
         grp = QGroupBox("生成结果（可编辑 JSON）")
         layout = QVBoxLayout(grp)
         layout.setSpacing(8)
+        self.result_preview = ResultPreviewWidget(self.adapter, grp)
+        self.result_preview.setVisible(False)
+        self.result_preview.validity_changed.connect(self._on_preview_validity)
+        # Override the preview's validate button so it validates the JSON
+        # currently in the editor (which the user may have edited), not a
+        # stale cached copy.
+        self.result_preview.validate_btn.clicked.disconnect()
+        self.result_preview.validate_btn.clicked.connect(self._on_validate_from_editor)
+        layout.addWidget(self.result_preview)
         self.json_edit = QPlainTextEdit()
         self.json_edit.setPlaceholderText("点击「生成课程」后，JSON 会显示在这里供你检查与修改。")
         self.json_edit.setStyleSheet("font-family: Consolas, monospace; font-size: 12px;")
@@ -542,7 +681,15 @@ class AiGeneratorDialog(QDialog):
         self.progress = QProgressBar()
         self.progress.setRange(0, 0)
         self.progress.setVisible(False)
-        layout.addWidget(self.progress)
+        progress_row = QHBoxLayout()
+        progress_row.setSpacing(8)
+        progress_row.addWidget(self.progress)
+        self.stage_label = QLabel("")
+        self.stage_label.setStyleSheet("color: #46D1BF; font-size: 12px;")
+        self.stage_label.setVisible(False)
+        progress_row.addWidget(self.stage_label)
+        progress_row.addStretch()
+        layout.addLayout(progress_row)
         return grp
 
     def _build_wish_panel(self) -> QWidget:
@@ -551,12 +698,33 @@ class AiGeneratorDialog(QDialog):
         layout.setSpacing(12)
         layout.setContentsMargins(0, 0, 0, 0)
 
+        hint_row = QHBoxLayout()
+        hint_row.setContentsMargins(0, 0, 0, 0)
+        hint_row.setSpacing(8)
         hint = QLabel(
             "许愿模式：像聊天一样描述课程需求，把图片、PDF、Word 或文本文件直接拖入窗口作为参考。"
         )
         hint.setWordWrap(True)
         hint.setStyleSheet("color: #9CA3AF; font-size: 12px;")
-        layout.addWidget(hint)
+        hint_row.addWidget(hint, 1)
+        self.expand_btn = QPushButton("↕ 放大聊天")
+        self.expand_btn.setToolTip("把聊天区放大成独立可缩放窗口（再次点击还原）")
+        self.expand_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.expand_btn.setStyleSheet(
+            "QPushButton {"
+            "  background-color: #1F232C;"
+            "  color: #46D1BF;"
+            "  border: 1px solid #2C313C;"
+            "  border-radius: 6px;"
+            "  padding: 4px 10px;"
+            "  font-size: 12px;"
+            "}"
+            "QPushButton:hover { border: 1px solid #1F727E; }"
+        )
+        self.expand_btn.setCheckable(True)
+        self.expand_btn.toggled.connect(self._on_expand_toggled)
+        hint_row.addWidget(self.expand_btn)
+        layout.addLayout(hint_row)
 
         layout.addWidget(self._build_template_selector())
 
@@ -578,12 +746,39 @@ class AiGeneratorDialog(QDialog):
             "}"
         )
         chat_layout.addWidget(self.chat_view)
-        layout.addWidget(chat_container, 1)
+
+        # Wrap chat + input in a vertical splitter so the chat area and the
+        # input box can be resized (and the chat area expands) in 放大 mode.
+        self.wish_splitter = QSplitter(Qt.Vertical)
+        self.wish_splitter.setContentsMargins(0, 0, 0, 0)
+        self.wish_splitter.addWidget(chat_container)
+        self.wish_splitter.setStretchFactor(0, 1)
+        self.wish_splitter.setCollapsible(0, False)
+        # The input widget is added after it's built below; hold a placeholder
+        # index reference via setSizes later.
+        self._wish_input_widget: QWidget | None = None
 
         self.wish_progress = QProgressBar()
         self.wish_progress.setRange(0, 0)
         self.wish_progress.setVisible(False)
-        layout.addWidget(self.wish_progress)
+        wish_progress_row = QHBoxLayout()
+        wish_progress_row.setSpacing(8)
+        wish_progress_row.addWidget(self.wish_progress)
+        self.wish_stage_label = QLabel("")
+        self.wish_stage_label.setStyleSheet("color: #46D1BF; font-size: 12px;")
+        self.wish_stage_label.setVisible(False)
+        wish_progress_row.addWidget(self.wish_stage_label)
+        wish_progress_row.addStretch()
+        layout.addLayout(wish_progress_row)
+
+        from src.widgets.result_preview import ResultPreviewWidget
+
+        self.wish_result_preview = ResultPreviewWidget(self.adapter, widget)
+        self.wish_result_preview.setVisible(False)
+        self.wish_result_preview.validity_changed.connect(self._on_preview_validity)
+        self.wish_result_preview.validate_btn.clicked.disconnect()
+        self.wish_result_preview.validate_btn.clicked.connect(self._on_validate_from_editor)
+        layout.addWidget(self.wish_result_preview)
 
         self.explain_group = QGroupBox("AI 通俗解释")
         explain_layout = QVBoxLayout(self.explain_group)
@@ -660,7 +855,15 @@ class AiGeneratorDialog(QDialog):
         action_layout.addWidget(self.wish_btn)
         action_layout.addStretch()
         input_row.addLayout(action_layout)
-        layout.addLayout(input_row)
+
+        input_widget = QWidget()
+        input_widget.setLayout(input_row)
+        self._wish_input_widget = input_widget
+        self.wish_splitter.addWidget(input_widget)
+        self.wish_splitter.setStretchFactor(1, 0)
+        self.wish_splitter.setCollapsible(1, False)
+        self.wish_splitter.setSizes([520, 120])
+        layout.addWidget(self.wish_splitter, 1)
 
         return widget
 
@@ -677,6 +880,55 @@ class AiGeneratorDialog(QDialog):
             "lesson": "应用编辑（Lesson）",
         }.get(scope, "应用编辑")
         self._button_box.button(QDialogButtonBox.StandardButton.Ok).setText(label)
+
+    # --- Wish expand / restore -------------------------------------------
+
+    def _on_expand_toggled(self, expanded: bool) -> None:
+        """Toggle the wish chat between the in-dialog panel and a larger,
+        resizable/maximizable window. The dialog stays modal (``exec()`` is
+        preserved); we only grow it and give the chat area more room.
+        """
+        if expanded:
+            self._enter_expanded()
+            self.expand_btn.setText("↕ 还原")
+        else:
+            self._exit_expanded()
+            self.expand_btn.setText("↕ 放大聊天")
+
+    def _enter_expanded(self) -> None:
+        # Remember the compact state so we can restore it exactly.
+        self._compact_geometry = self.saveGeometry()
+
+        # Grow the window. We avoid setWindowFlags() here because the dialog is
+        # running inside a modal exec() loop; swapping flags mid-exec can end
+        # the modal session on some platforms. Resizing + hiding the spec
+        # chrome gives the chat area the WeChat-style full-window feel while
+        # keeping the dialog resizable (it already has a minimum size and is
+        # user-resizable by default).
+        self.resize(1400, 940)
+
+        # Focus the chat: hide the spec/header/banner chrome that isn't needed
+        # while conversing.
+        for attr in ("_beta_banner", "_spec_bar"):
+            w = getattr(self, attr, None)
+            if w is not None:
+                w.setVisible(False)
+
+        # Give the input box more vertical room and let the splitter breathe.
+        self.input_edit.setMaximumHeight(16777215)
+        self.input_edit.setMinimumHeight(96)
+        self.wish_splitter.setSizes([760, 180])
+
+    def _exit_expanded(self) -> None:
+        if getattr(self, "_compact_geometry", None) is not None:
+            self.restoreGeometry(self._compact_geometry)
+        for attr in ("_beta_banner", "_spec_bar"):
+            w = getattr(self, attr, None)
+            if w is not None:
+                w.setVisible(True)
+        self.input_edit.setMaximumHeight(80)
+        self.input_edit.setMinimumHeight(0)
+        self.wish_splitter.setSizes([520, 120])
 
     def config(self) -> AiApiConfig:
         """Return the current (possibly verified) API config."""
@@ -702,7 +954,9 @@ class AiGeneratorDialog(QDialog):
         self._button_box.button(QDialogButtonBox.StandardButton.Ok).setText("导入到课程")
 
     def _on_template_changed(self, index: int) -> None:
-        """Placeholder for template selection side effects."""
+        """Keep cards in sync when the hidden combo changes, plus placeholder."""
+        template = self.template_combo.itemData(index) or "mixed"
+        self._sync_card_selection(template)
         self._update_input_placeholders()
 
     def _on_genre_switch_changed(self, state: int) -> None:
@@ -746,8 +1000,19 @@ class AiGeneratorDialog(QDialog):
         for i in range(self.template_combo.count()):
             if self.template_combo.itemData(i) == template:
                 self.template_combo.setCurrentIndex(i)
+                self._sync_card_selection(template)
                 return
         self.template_combo.setCurrentIndex(0)
+        self._sync_card_selection("mixed")
+
+    def _sync_card_selection(self, template: str) -> None:
+        """Keep the visual cards in sync when the combo changes externally."""
+        if not hasattr(self, "_template_cards"):
+            return
+        for tpl, card in self._template_cards.items():
+            is_sel = tpl == template
+            card.setChecked(is_sel)
+            card.setStyleSheet(self._template_card_stylesheet(selected=is_sel))
 
     def _on_api_settings(self) -> None:
         dlg = ApiConfigDialog(self._config, self)
@@ -798,19 +1063,85 @@ class AiGeneratorDialog(QDialog):
         # Config is already kept in self._config via the settings dialog.
         pass
 
-    def _set_busy(self, busy: bool, normal: bool = False) -> None:
-        """Enable/disable UI while an AI request is running."""
+    def _set_busy(self, busy: bool, normal: bool = False, stage: str = "") -> None:
+        """Enable/disable UI while an AI request is running.
+
+        When ``busy`` is True the primary action button is repurposed as a
+        ``取消生成`` button that cancels the in-flight worker; when it returns
+        to idle the original action is restored. ``stage`` sets the staged
+        progress label text (e.g. ``对齐中…``).
+        """
+        if stage:
+            self._set_stage_label(stage)
         if normal:
-            self.generate_btn.setEnabled(not busy)
-            self.progress.setVisible(busy)
+            self._busy_normal = busy
+            if busy:
+                self.generate_btn.setText("取消生成")
+                self.generate_btn.setToolTip("中断当前生成请求")
+                try:
+                    self.generate_btn.clicked.disconnect()
+                except RuntimeError:
+                    pass
+                self.generate_btn.clicked.connect(self._cancel_current_worker)
+                self.progress.setVisible(True)
+            else:
+                self.generate_btn.setText("生成课程")
+                self.generate_btn.setToolTip("按主题和规格直接生成 JSON")
+                try:
+                    self.generate_btn.clicked.disconnect()
+                except RuntimeError:
+                    pass
+                self.generate_btn.clicked.connect(self._on_generate_normal)
+                self.progress.setVisible(False)
+            self.validate_btn.setEnabled(not busy)
+            self.reset_btn.setEnabled(not busy and self._generated is not None)
         else:
-            self.send_btn.setEnabled(not busy)
-            self.wish_btn.setEnabled(not busy)
-            self.attach_btn.setEnabled(not busy)
-            self.wish_progress.setVisible(busy)
+            self._busy_wish = busy
+            if busy:
+                self.send_btn.setText("取消")
+                self.send_btn.setToolTip("中断当前请求")
+                try:
+                    self.send_btn.clicked.disconnect()
+                except RuntimeError:
+                    pass
+                self.send_btn.clicked.connect(self._cancel_current_worker)
+                self.wish_btn.setEnabled(False)
+                self.attach_btn.setEnabled(False)
+                self.wish_progress.setVisible(True)
+            else:
+                self.send_btn.setText("发送")
+                self.send_btn.setToolTip("Ctrl+Enter 快捷发送")
+                try:
+                    self.send_btn.clicked.disconnect()
+                except RuntimeError:
+                    pass
+                self.send_btn.clicked.connect(self._on_send_message)
+                self.wish_btn.setEnabled(True)
+                self.attach_btn.setEnabled(True)
+                self.wish_progress.setVisible(False)
+            self.input_edit.setEnabled(not busy)
+
+    def _set_stage_label(self, stage: str) -> None:
+        if hasattr(self, "stage_label"):
+            self.stage_label.setText(stage)
+            self.stage_label.setVisible(bool(stage))
+        if hasattr(self, "wish_stage_label"):
+            self.wish_stage_label.setText(stage)
+            self.wish_stage_label.setVisible(bool(stage))
+
+    def _cancel_current_worker(self) -> None:
+        worker = self._current_worker
+        if worker is not None and worker.isRunning():
+            worker.cancel()
+            self._set_stage_label("正在取消…")
 
     def _on_worker_error(self, message: str) -> None:
-        self._set_busy(False)
+        self._set_busy(False, normal=self._busy_normal)
+        self._set_stage_label("")
+        # Treat cancellation quietly (the user already knows they cancelled).
+        if "取消" in message or "cancelled" in message.lower():
+            self.statusMessage = message  # noqa: F841 — keep a trace for debugging
+            return
         QMessageBox.critical(self, "请求失败", message)
 
     def _current_spec(self) -> AiCourseSpec:
@@ -855,16 +1186,24 @@ class AiGeneratorDialog(QDialog):
             worker = AiRequestWorker(generate_from_chat, self._config, spec, [])
         worker.result_ready.connect(self._on_normal_generation_ready)
         worker.error_occurred.connect(self._on_worker_error)
-        worker.completed.connect(lambda: self._set_busy(False, normal=True))
+        worker.completed.connect(lambda: self._set_busy(False, normal=True, stage=""))
         self._current_worker = worker
-        self._set_busy(True, normal=True)
+        self._set_busy(True, normal=True, stage="生成课程中…")
         worker.start()
 
     def _on_normal_generation_ready(self, parsed: object) -> None:
         self._generated = parsed
         self.json_edit.setPlainText(json.dumps(parsed, ensure_ascii=False, indent=2))
         self.reset_btn.setEnabled(True)
+        if isinstance(parsed, dict):
+            self.result_preview.show_section(parsed)
+            self.result_preview.setVisible(True)
         self._update_mode_ui()
+
+    def _on_preview_validity(self, ok: bool) -> None:
+        """Enable/disable the import (Ok) button based on preview validation."""
+        if self._generated is not None:
+            self._button_box.button(QDialogButtonBox.StandardButton.Ok).setEnabled(ok)
 
     def _on_reset(self) -> None:
         if self._generated is not None:
@@ -883,6 +1222,21 @@ class AiGeneratorDialog(QDialog):
             "JSON 有效",
             f"JSON 解析成功：{len(data.get('units', []))} 个单元。",
         )
+
+    def _on_validate_from_editor(self) -> None:
+        """Validate the current (possibly edited) JSON via the preview widget.
+
+        Parses the editor text in normal mode (or the cached generated dict in
+        wish mode), refreshes the preview overview cards, then runs validation.
+        """
+        try:
+            data = self._current_json()
+        except ValueError as exc:
+            QMessageBox.warning(self, "JSON 无效", str(exc))
+            return
+        preview = self.wish_result_preview if self._mode == "wish" else self.result_preview
+        preview.show_section(data)
+        preview._on_validate()  # noqa: SLF001 — reuse the widget's validate path
 
     def _current_json(self) -> dict:
         if self._mode == "wish":
@@ -1006,9 +1360,9 @@ class AiGeneratorDialog(QDialog):
         )
         worker.result_ready.connect(self._on_alignment_reply_ready)
         worker.error_occurred.connect(self._on_worker_error)
-        worker.completed.connect(lambda: self._set_busy(False))
+        worker.completed.connect(lambda: self._set_busy(False, stage=""))
         self._current_worker = worker
-        self._set_busy(True)
+        self._set_busy(True, stage="对齐中…")
         worker.start()
 
     def _on_alignment_reply_ready(self, reply: object) -> None:
@@ -1131,7 +1485,7 @@ class AiGeneratorDialog(QDialog):
         worker.error_occurred.connect(self._on_worker_error)
         worker.completed.connect(lambda: None)
         self._current_worker = worker
-        self._set_busy(True)
+        self._set_busy(True, stage="生成课程中…")
         worker.start()
 
     def _on_wish_generation_ready(self, parsed: object) -> None:
@@ -1143,13 +1497,17 @@ class AiGeneratorDialog(QDialog):
             QMessageBox.critical(self, "生成失败", "模型返回了非预期的数据类型。")
             return
 
+        self.wish_result_preview.show_section(parsed)
+        self.wish_result_preview.setVisible(True)
+
         worker = AiRequestWorker(
             explain_course, self._config, self._current_spec(), parsed
         )
         worker.result_ready.connect(self._on_explain_ready)
         worker.error_occurred.connect(self._on_worker_error)
-        worker.completed.connect(lambda: self._set_busy(False))
+        worker.completed.connect(lambda: self._set_busy(False, stage=""))
         self._current_worker = worker
+        self._set_busy(True, stage="通俗解释中…")
         worker.start()
 
     def _on_explain_ready(self, explanation: object) -> None:

@@ -101,6 +101,12 @@ class LessonViewModel extends ChangeNotifier {
   int _masteryAttempts = 0;
   bool _masteryPassed = false;
 
+  /// When false, wrong answers are NOT recorded to [MistakeProvider]. Used by
+  /// synthetic review sessions (e.g. mistake review) whose own completion
+  /// prunes the log — recording fresh entries there would create a feedback
+  /// loop. Set by [loadLessonInstance] and reset to `true` by [loadLesson].
+  bool _recordsMistakes = true;
+
   /// Per-item submission state, keyed by [interactionItemId] — uses the
   /// item's stable `id` field when present, falling back to `legacy-$idx`.
   final Map<String, InteractionState> _interactionStates = {};
@@ -271,6 +277,7 @@ class LessonViewModel extends ChangeNotifier {
 
     final fresh = lesson;
     _lesson = fresh;
+    _recordsMistakes = true; // real lessons always record wrong answers
     _resetToLesson(fresh);
 
     notifyListeners();
@@ -291,8 +298,14 @@ class LessonViewModel extends ChangeNotifier {
   /// for synthesized lessons that are not registered in the course tree
   /// (e.g. the Daily Challenge deck assembled at runtime). Resets all
   /// progress state exactly like [loadLesson].
-  void loadLessonInstance(Lesson lesson) {
+  ///
+  /// Pass [recordMistakes] `false` for synthetic review sessions that manage
+  /// their own mistake-log pruning (e.g. mistake review) so wrong answers do
+  /// not create new entries — avoiding a feedback loop. The flag is reset to
+  /// `true` on the next load.
+  void loadLessonInstance(Lesson lesson, {bool recordMistakes = true}) {
     _lesson = lesson;
+    _recordsMistakes = recordMistakes;
     _resetToLesson(lesson);
     notifyListeners();
   }
@@ -328,7 +341,7 @@ class LessonViewModel extends ChangeNotifier {
       _totalMistakes++;
       _incorrectAnswers++;
       _audioController.playRandomErrorSound();
-      _recordMistake(userAnswerText);
+      if (_recordsMistakes) _recordMistake(userAnswerText);
     } else {
       _correctAnswers++;
       _audioController.playRandomLevelUpSound();
