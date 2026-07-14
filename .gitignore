@@ -4,8 +4,8 @@
 .dart_tool/
 .packages
 build/
-# If you're building an application, you may want to check-in your pubspec.lock
-pubspec.lock
+# pubspec.lock is committed for reproducible builds across clones and CI.
+# pubspec.lock
 
 # Directory created by dartdoc
 # If you don't generate documentation locally you can remove this line.
@@ -30,14 +30,14 @@ lib/configs/build_config.dart
 *.apk
 .fvm
 
-# AutoRoute generated files
-**/*.gr.dart
-
-# Freezed generated files
-**/*.freezed.dart
-**/*.g.dart
-**/*.gen.dart
-injection.config.dart
+# AutoRoute / Freezed / json_serializable / injectable generated files.
+# These are committed so a fresh clone can build without build_runner.
+# Re-run `flutter pub run build_runner build` after changing annotations.
+# **/*.gr.dart
+# **/*.freezed.dart
+# **/*.g.dart
+# **/*.gen.dart
+# injection.config.dart
 .firebase/*
 
 # mason

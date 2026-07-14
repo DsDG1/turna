@@ -16,6 +16,21 @@
 
 > 本仓库非上游官方版本；如需纯原版功能请访问 [rshrc/Varnamala](https://github.com/rshrc/Varnamala)。
 
+## 快速开始
+
+```bash
+git clone <仓库地址>
+cd VarnamalaPlus
+flutter pub get
+flutter run
+```
+
+> **生成代码已提交到版本库**（`.freezed.dart` / `.g.dart` / `.gr.dart` / `.gen.dart` / `injection.config.dart`），因此**新克隆无需先跑 `build_runner`**。只有当你修改了带 `@freezed`、`@JsonSerializable`、`@AutoRoute`、`@injectable` 注解的类时，才需要重新生成：
+>
+> ```bash
+> flutter pub run build_runner build --delete-conflicting-outputs
+> ```
+
 ### 当前内容状态
 
 课程已迁移到 Turkish（ADR 0020）。8 个 CEFR 分级 Section（A1→B2，含 inter-section 前置依赖）就位，仅 Section 1 有真实内容：
@@ -169,12 +184,17 @@ JSON 位于 `assets/courses/turkish/`，由 `CourseLoader` 加载、`DatabaseSee
 ## 构建与运行
 
 ```bash
-flutter pub get                                                    # 安装依赖
-flutter pub run build_runner build --delete-conflicting-outputs   # 生成代码（或 make gen）
-flutter run                                                        # 运行
+flutter pub get        # 安装依赖（生成代码已提交，无需 build_runner）
+flutter run            # 运行
 ```
 
 首次启动从 bundle JSON seed `course.db`；之后复用缓存。强制 reseed：bump `index.json` 的 `version` 或清空 app data。
+
+只有修改了 `@freezed` / `@JsonSerializable` / `@AutoRoute` / `@injectable` 注解后才需要重新生成：
+
+```bash
+flutter pub run build_runner build --delete-conflicting-outputs   # 或 make gen
+```
 
 ### Makefile
 

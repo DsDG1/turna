@@ -213,14 +213,14 @@ listeningPhases / readingPassage). Interaction variants are discriminated by
 ## Development Commands
 
 ```bash
-# Install dependencies
+# Install dependencies (generated code is committed, so build_runner is not required for a fresh clone)
 flutter pub get
-
-# Generate code (routes, freezed, json_serializable)
-flutter pub run build_runner build --delete-conflicting-outputs
 
 # Run app
 flutter run
+
+# Generate code (only needed after changing @freezed / @JsonSerializable / @AutoRoute / @injectable annotations)
+flutter pub run build_runner build --delete-conflicting-outputs
 
 # Run on specific device
 flutter run -d chrome
