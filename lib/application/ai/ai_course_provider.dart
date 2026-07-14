@@ -5,12 +5,17 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 // Package imports:
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' show Value;
+import 'package:http/http.dart' as http;
 
 // Project imports:
-import 'package:varnamala/application/ai_course_service.dart';
+import 'package:varnamala/application/ai/ai_api_config.dart';
+import 'package:varnamala/application/ai/ai_course_service.dart';
+import 'package:varnamala/application/ai/ai_course_spec.dart';
+import 'package:varnamala/application/ai/ai_resource_consistency.dart';
 import 'package:varnamala/core/logger.dart';
 import 'package:varnamala/courses/course_loader.dart';
+import 'package:varnamala/courses/course_validator.dart';
 import 'package:varnamala/data/course_database.dart' as db;
 import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/domain/course/section.dart';
@@ -19,18 +24,20 @@ import 'package:varnamala/domain/course/section.dart';
 enum AiCourseState { idle, generating, generated, saving, saved, error }
 
 /// Holds in-memory AI configuration and orchestrates generate → preview →
-/// save-to-DB. The [AiApiConfig] is intentionally **never persisted**; it
-/// lives only for the current app session and is lost on exit (per product
-/// requirement).
+/// save-to-DB. The [AiApiConfig] is intentionally **never persisted**.
 ///
 /// Generated course JSON is kept in [_generatedJson] for the user to edit
 /// before saving. Saving writes a new section (and its units/lessons/content
-/// blobs) into [CourseDatabase], then invalidates [CourseLoader] caches so
-/// the course tree refreshes.
+/// blobs + top-level resources) into [CourseDatabase], then invalidates
+/// [CourseLoader] caches so the course tree refreshes.
 class AiCourseProvider extends ChangeNotifier {
-  AiCourseProvider();
+  AiCourseProvider({http.Client? client})
+      : _service = AiCourseService(client: client);
 
-  final AiCourseService _service = const AiCourseService();
+  // ignore: depend_on_referenced_packages
+  AiCourseProvider.withService(this._service);
+
+  final AiCourseService _service;
 
   AiApiConfig _config = const AiApiConfig(
     baseUrl: 'https://api.openai.com/v1',
@@ -46,14 +53,18 @@ class AiCourseProvider extends ChangeNotifier {
   String? _error;
   String? get error => _error;
 
-  /// Editable raw JSON of the last generated course (for the preview/edit
-  /// screen). `null` until generation succeeds.
+  /// Editable raw JSON of the last generated course. `null` until generation
+  /// succeeds.
   String? _generatedJson;
   String? get generatedJson => _generatedJson;
 
-  /// Parsed section id of the last generated course (extracted from JSON).
+  /// Parsed section id of the last generated course.
   String? _generatedSectionId;
   String? get generatedSectionId => _generatedSectionId;
+
+  /// Optional plain-language explanation (wish mode sets this).
+  String? _explanation;
+  String? get explanation => _explanation;
 
   // --- Config mutation (in-memory only) ---
 
@@ -73,16 +84,21 @@ class AiCourseProvider extends ChangeNotifier {
   // --- Generation flow ---
 
   /// Calls the AI endpoint with [spec] and stores the result for preview.
-  Future<void> generate(AiCourseRequestSpec spec) async {
+  /// Runs validateSection + resource self-consistency; on errors retries the
+  /// AI once (C3 self-heal).
+  Future<void> generate(AiCourseSpec spec) async {
     _error = null;
     _state = AiCourseState.generating;
     _generatedJson = null;
     _generatedSectionId = null;
+    _explanation = null;
     notifyListeners();
     try {
-      final result = await _service.generateCourse(
+      final applied = _service.applyGenreToSpec(spec);
+      final result = await _service.requestCourseWithRetry(
         config: _config,
-        spec: spec,
+        spec: applied,
+        validator: _validateGenerated,
       );
       _generatedJson = result.rawJson;
       _generatedSectionId = result.parsed['id'] as String?;
@@ -95,8 +111,32 @@ class AiCourseProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Validator used by [requestCourseWithRetry]. Combines structural
+  /// validation ([validateSection]) with resource self-consistency (already
+  /// enforced inside [AiCourseService.parseCompletion], so this mainly
+  /// re-checks the structure).
+  List<String> _validateGenerated(Map<String, dynamic> parsed) {
+    final errors = <String>[];
+    try {
+      final wordIds = <String>{
+        for (final w in (parsed['words'] as List? ?? const []))
+          if (w is Map) w['id']?.toString() ?? '',
+      }..remove('');
+      final exprIds = <String>{
+        for (final e in (parsed['expressions'] as List? ?? const []))
+          if (e is Map) e['id']?.toString() ?? '',
+      }..remove('');
+      final section = Section.fromJson(_normalizeForSave(parsed));
+      validateSection(section, wordIds, exprIds);
+    } on CourseValidationException catch (e) {
+      errors.addAll(e.errors);
+    } catch (e) {
+      errors.add(e.toString());
+    }
+    return errors;
+  }
+
   /// Replace the editable JSON (e.g. user edited it in the preview screen).
-  /// Re-parses the section id so save knows what to write.
   void updateGeneratedJson(String raw) {
     _generatedJson = raw;
     try {
@@ -108,10 +148,15 @@ class AiCourseProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Set the plain-language explanation (used by wish provider).
+  void setExplanation(String? text) {
+    _explanation = text;
+    notifyListeners();
+  }
+
   /// Persists the current generated JSON as a new section in the course DB,
-  /// then refreshes the [CourseLoader] caches so the tree re-reads from disk.
-  /// Throws on invalid JSON or DB write failure; the caller should surface
-  /// the message.
+  /// including its top-level resources, then refreshes [CourseLoader] caches.
+  /// Throws on invalid JSON or DB write failure.
   Future<void> save() async {
     final raw = _generatedJson;
     if (raw == null) {
@@ -121,10 +166,12 @@ class AiCourseProvider extends ChangeNotifier {
     _state = AiCourseState.saving;
     notifyListeners();
     try {
-      final section = Section.fromJson(
-        _normalizeForSave(jsonDecode(raw) as Map<String, dynamic>),
-      );
-      await _writeSectionToDb(section);
+      final parsed = jsonDecode(raw) as Map<String, dynamic>;
+      normalizeResources(parsed);
+      autoFixResources(parsed);
+      checkResourceSelfConsistency(parsed);
+      final section = Section.fromJson(_normalizeForSave(parsed));
+      await _writeSectionToDb(section, parsed);
       CourseLoader.invalidateCaches();
       _state = AiCourseState.saved;
     } catch (e, st) {
@@ -143,12 +190,16 @@ class AiCourseProvider extends ChangeNotifier {
     _error = null;
     _generatedJson = null;
     _generatedSectionId = null;
+    _explanation = null;
     notifyListeners();
   }
 
   // --- DB write ---
 
-  Future<void> _writeSectionToDb(Section section) async {
+  Future<void> _writeSectionToDb(
+    Section section,
+    Map<String, dynamic> parsed,
+  ) async {
     final database = getIt<db.CourseDatabase>();
     final nextOrder = await _nextSectionSortOrder(database);
 
@@ -199,25 +250,78 @@ class AiCourseProvider extends ChangeNotifier {
               );
         }
       }
+
+      // Top-level resources: words / expressions / grammar points.
+      await _writeResources(database, parsed);
     });
+  }
+
+  Future<void> _writeResources(
+    db.CourseDatabase database,
+    Map<String, dynamic> parsed,
+  ) async {
+    final words = (parsed['words'] as List?) ?? const [];
+    for (final w in words) {
+      if (w is! Map) continue;
+      await database.into(database.vocabulary).insertOnConflictUpdate(
+            db.VocabularyCompanion(
+              id: Value(w['id']?.toString() ?? ''),
+              term: Value(w['term']?.toString() ?? ''),
+              translation: Value(w['translation']?.toString() ?? ''),
+              pronunciation: Value(w['pronunciation']?.toString()),
+              audioAsset: Value(w['audioAsset']?.toString()),
+              tags: Value(jsonEncode(w['tags'] ?? const [])),
+            ),
+          );
+    }
+    final exprs = (parsed['expressions'] as List?) ?? const [];
+    for (final e in exprs) {
+      if (e is! Map) continue;
+      await database.into(database.expressions).insertOnConflictUpdate(
+            db.ExpressionsCompanion(
+              id: Value(e['id']?.toString() ?? ''),
+              term: Value(e['term']?.toString() ?? ''),
+              translation: Value(e['translation']?.toString() ?? ''),
+              pronunciation: Value(e['pronunciation']?.toString()),
+              audioAsset: Value(e['audioAsset']?.toString()),
+              tags: Value(jsonEncode(e['tags'] ?? const [])),
+            ),
+          );
+    }
+    final gps = (parsed['grammarPoints'] as List?) ?? const [];
+    for (final g in gps) {
+      if (g is! Map) continue;
+      await database.into(database.grammarPoints).insertOnConflictUpdate(
+            db.GrammarPointsCompanion(
+              id: Value(g['id']?.toString() ?? ''),
+              title: Value(g['title']?.toString() ?? ''),
+              explanation: Value(g['explanation']?.toString() ?? ''),
+              exampleExpressionIds:
+                  Value(jsonEncode(g['exampleExpressionIds'] ?? const [])),
+              exampleSentenceIds:
+                  Value(jsonEncode(g['exampleSentenceIds'] ?? const [])),
+              practiceItems: Value(jsonEncode(g['practiceItems'] ?? const [])),
+            ),
+          );
+    }
   }
 
   Future<int> _nextSectionSortOrder(db.CourseDatabase database) async {
     final rows = await database.select(database.sections).get();
     if (rows.isEmpty) return 0;
-    return rows.map((r) => r.sortOrder).fold<int>(0, (a, b) => a > b ? a : b) +
+    return rows
+            .map((r) => r.sortOrder)
+            .fold<int>(0, (a, b) => a > b ? a : b) +
         1;
   }
 
   /// Minimal normalization mirroring [CourseLoader._normalizeLesson]:
-  /// supports flat `content.questions` by wrapping them in one stage so the
-  /// runtime is always `List<Stage>`.
+  /// supports flat `content.questions` by wrapping them in one stage.
   Map<String, dynamic> _normalizeForSave(Map<String, dynamic> section) {
     final units = section['units'] as List<dynamic>?;
     if (units == null) return section;
     section['units'] = [
-      for (final u in units)
-        _normalizeUnitJson(u as Map<String, dynamic>),
+      for (final u in units) _normalizeUnitJson(u as Map<String, dynamic>),
     ];
     return section;
   }
@@ -226,8 +330,7 @@ class AiCourseProvider extends ChangeNotifier {
     final lessons = unit['lessons'] as List<dynamic>?;
     if (lessons == null) return unit;
     unit['lessons'] = [
-      for (final l in lessons)
-        _normalizeLessonJson(l as Map<String, dynamic>),
+      for (final l in lessons) _normalizeLessonJson(l as Map<String, dynamic>),
     ];
     return unit;
   }

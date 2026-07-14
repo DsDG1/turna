@@ -88,6 +88,129 @@ class TestParseCompletion(unittest.TestCase):
         with self.assertRaises(ValueError):
             parse_completion("not json at all")
 
+    def test_parse_normalizes_missing_resource_arrays(self) -> None:
+        course = {"id": "ai-x", "name": "X", "units": []}
+        parsed = parse_completion(self._body(json.dumps(course)))
+        self.assertEqual(parsed["words"], [])
+        self.assertEqual(parsed["expressions"], [])
+        self.assertEqual(parsed["grammarPoints"], [])
+
+    def test_parse_accepts_showWord_with_matching_word(self) -> None:
+        course = {
+            "id": "ai-x",
+            "name": "X",
+            "words": [{"id": "w-merhaba", "term": "Merhaba", "translation": "你好"}],
+            "units": [
+                {
+                    "id": "u1",
+                    "lessons": [
+                        {
+                            "id": "l1",
+                            "content": {
+                                "subLessons": [
+                                    {
+                                        "id": "sl1",
+                                        "stages": [
+                                            {
+                                                "id": "st1",
+                                                "items": [
+                                                    {
+                                                        "runtimeType": "showWord",
+                                                        "id": "i1",
+                                                        "wordId": "w-merhaba",
+                                                    }
+                                                ],
+                                            }
+                                        ],
+                                    }
+                                ]
+                            },
+                        }
+                    ],
+                }
+            ],
+        }
+        parsed = parse_completion(self._body(json.dumps(course)))
+        self.assertEqual(len(parsed["words"]), 1)
+
+    def test_parse_auto_fixes_dangling_wordId(self) -> None:
+        course = {
+            "id": "ai-x",
+            "name": "X",
+            "words": [],
+            "units": [
+                {
+                    "id": "u1",
+                    "lessons": [
+                        {
+                            "id": "l1",
+                            "content": {
+                                "stages": [
+                                    {
+                                        "id": "st1",
+                                        "items": [
+                                            {
+                                                "runtimeType": "showWord",
+                                                "id": "i1",
+                                                "wordId": "w-missing",
+                                                "context": "Merhaba — 你好",
+                                            }
+                                        ],
+                                    }
+                                ]
+                            },
+                        }
+                    ],
+                }
+            ],
+        }
+        parsed = parse_completion(self._body(json.dumps(course)))
+        word_ids = [w["id"] for w in parsed["words"]]
+        self.assertIn("w-missing", word_ids)
+        stub = next(w for w in parsed["words"] if w["id"] == "w-missing")
+        self.assertEqual(stub["term"], "Merhaba")
+        self.assertEqual(stub["translation"], "你好")
+        self.assertIn("auto-fix", stub.get("tags", []))
+
+    def test_parse_auto_fixes_dangling_expressionId(self) -> None:
+        course = {
+            "id": "ai-x",
+            "name": "X",
+            "expressions": [],
+            "units": [
+                {
+                    "id": "u1",
+                    "lessons": [
+                        {
+                            "id": "l1",
+                            "content": {
+                                "stages": [
+                                    {
+                                        "id": "st1",
+                                        "items": [
+                                            {
+                                                "runtimeType": "showExpression",
+                                                "id": "i1",
+                                                "expressionId": "e-missing",
+                                            }
+                                        ],
+                                    }
+                                ]
+                            },
+                        }
+                    ],
+                }
+            ],
+        }
+        parsed = parse_completion(self._body(json.dumps(course)))
+        expr_ids = [e["id"] for e in parsed["expressions"]]
+        self.assertIn("e-missing", expr_ids)
+
+    def test_parse_rejects_non_list_words(self) -> None:
+        course = {"id": "ai-x", "name": "X", "words": "not a list", "units": []}
+        with self.assertRaises(ValueError):
+            parse_completion(self._body(json.dumps(course)))
+
 
 class TestBuildPrompt(unittest.TestCase):
     def test_prompt_contains_topic_and_counts(self) -> None:

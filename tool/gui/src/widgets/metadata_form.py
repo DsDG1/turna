@@ -2,12 +2,16 @@
 
 id is read-only; name / description editable. prerequisite fields use a
 checkable QListWidget populated from same-layer siblings (guiplan §9 M1.4).
+
+Edits are pushed onto the shared ``QUndoStack`` (when set) as coarse-grained
+metadata commands: one undoable step per focus-loss commit, not per keystroke.
 """
 from __future__ import annotations
 
 from typing import Any
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QUndoStack
 from PySide6.QtWidgets import (
     QFormLayout,
     QGroupBox,
@@ -21,11 +25,41 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from src.application.commands import (
+    UpdateLessonMetaCommand,
+    UpdateLessonPrereqsCommand,
+    UpdateSectionMetaCommand,
+    UpdateSectionPrereqsCommand,
+    UpdateUnitMetaCommand,
+    UpdateUnitPrereqsCommand,
+)
 from src.backend.course_adapter import CourseAdapter
 
 
+class _FocusTextEdit(QTextEdit):
+    """QTextEdit that emits :attr:`focusLost` when it loses focus."""
+
+    focusLost = Signal()
+
+    def focusOutEvent(self, event) -> None:  # noqa: N802
+        super().focusOutEvent(event)
+        self.focusLost.emit()
+
+
+class _FocusListWidget(QListWidget):
+    """QListWidget that emits :attr:`focusLost` when it loses focus."""
+
+    focusLost = Signal()
+
+    def focusOutEvent(self, event) -> None:  # noqa: N802
+        super().focusOutEvent(event)
+        self.focusLost.emit()
+
+
 class MetadataForm(QGroupBox):
-    """Form bound to a single node; writes edits back to the adapter."""
+    """Form bound to a single node; writes edits back via undo commands."""
+
+    metadata_changed = Signal()
 
     def __init__(self) -> None:
         super().__init__("属性")
@@ -43,6 +77,8 @@ class MetadataForm(QGroupBox):
         self._adapter: CourseAdapter | None = None
         self._kind: str = ""
         self._node_id: str = ""
+        self.undo_stack: QUndoStack | None = None
+        self._loading = False
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -50,13 +86,12 @@ class MetadataForm(QGroupBox):
         self.id_value.setStyleSheet("color: #6B7280;")
         self.name_edit = QLineEdit()
         self.name_edit.setEnabled(False)
-        self.desc_edit = QTextEdit()
+        self.desc_edit = _FocusTextEdit()
         self.desc_edit.setEnabled(False)
         self.desc_edit.setMaximumHeight(120)
-        self.prereq_list = QListWidget()
+        self.prereq_list = _FocusListWidget()
         self.prereq_list.setEnabled(False)
         self.prereq_list.setSelectionMode(QListWidget.SelectionMode.NoSelection)
-        self.prereq_list.itemChanged.connect(self._on_prereq_changed)
 
         form = QFormLayout()
         form.setSpacing(12)
@@ -75,14 +110,17 @@ class MetadataForm(QGroupBox):
         outer.addLayout(wrap)
         self.setLayout(outer)
 
-        self.name_edit.textChanged.connect(self._on_name_changed)
-        self.desc_edit.textChanged.connect(self._on_desc_changed)
+        # Commit on focus loss / enter so each edit = one undo step.
+        self.name_edit.editingFinished.connect(self._commit_name_desc)
+        self.desc_edit.focusLost.connect(self._commit_name_desc)
+        self.prereq_list.focusLost.connect(self._commit_prereqs)
 
     def _fill_prereq(
         self,
         options: list[tuple[str, str]],
         current: list[str],
     ) -> None:
+        self._loading = True
         self.prereq_list.blockSignals(True)
         self.prereq_list.clear()
         current_set = set(current)
@@ -95,17 +133,21 @@ class MetadataForm(QGroupBox):
             )
             self.prereq_list.addItem(item)
         self.prereq_list.blockSignals(False)
+        self._loading = False
 
     def show_section(self, adapter: CourseAdapter, section: dict[str, Any]) -> None:
         self._bind(adapter, "section", section.get("id", ""))
+        self._loading = True
         self.id_value.setText(section.get("id", ""))
         self.name_edit.setText(section.get("name", ""))
         self.desc_edit.setPlainText(section.get("description", ""))
         prereqs = section.get("prerequisiteSectionIds", [])
         self._fill_prereq(adapter.section_prereq_options(section.get("id", "")), prereqs)
+        self._loading = False
 
     def show_unit(self, adapter: CourseAdapter, unit: dict[str, Any]) -> None:
         self._bind(adapter, "unit", unit.get("id", ""))
+        self._loading = True
         self.id_value.setText(unit.get("id", ""))
         self.name_edit.setText(unit.get("name", ""))
         self.desc_edit.setPlainText(unit.get("description", ""))
@@ -115,9 +157,11 @@ class MetadataForm(QGroupBox):
             adapter.unit_prereq_options(_section.get("id", ""), unit.get("id", "")),
             prereqs,
         )
+        self._loading = False
 
     def show_lesson(self, adapter: CourseAdapter, lesson: dict[str, Any]) -> None:
         self._bind(adapter, "lesson", lesson.get("id", ""))
+        self._loading = True
         self.id_value.setText(lesson.get("id", ""))
         self.name_edit.setText(lesson.get("name", ""))
         self.desc_edit.setPlainText(lesson.get("description", ""))
@@ -127,6 +171,7 @@ class MetadataForm(QGroupBox):
             adapter.lesson_prereq_options(_unit.get("id", ""), lesson.get("id", "")),
             prereqs,
         )
+        self._loading = False
 
     def _bind(self, adapter: CourseAdapter | None, kind: str, node_id: str) -> None:
         self._adapter = adapter
@@ -137,31 +182,28 @@ class MetadataForm(QGroupBox):
         self.desc_edit.setEnabled(editable)
         self.prereq_list.setEnabled(editable)
 
-    def _on_name_changed(self, text: str) -> None:
-        if self._adapter is None or not self._node_id:
-            return
-        desc = self.desc_edit.toPlainText()
-        if self._kind == "section":
-            self._adapter.update_section_meta(self._node_id, text, desc)
-        elif self._kind == "unit":
-            self._adapter.update_unit_meta(self._node_id, text, desc)
-        elif self._kind == "lesson":
-            self._adapter.update_lesson_meta(self._node_id, text, desc)
+    def _push(self, cmd) -> None:
+        if self.undo_stack is not None:
+            cmd.signals.changed.connect(self.metadata_changed.emit)
+            self.undo_stack.push(cmd)
+        else:
+            cmd.redo()
+            self.metadata_changed.emit()
 
-    def _on_desc_changed(self) -> None:
-        if self._adapter is None or not self._node_id:
+    def _commit_name_desc(self) -> None:
+        if self._loading or self._adapter is None or not self._node_id:
             return
         name = self.name_edit.text()
         desc = self.desc_edit.toPlainText()
         if self._kind == "section":
-            self._adapter.update_section_meta(self._node_id, name, desc)
+            self._push(UpdateSectionMetaCommand(self._adapter, self._node_id, name, desc))
         elif self._kind == "unit":
-            self._adapter.update_unit_meta(self._node_id, name, desc)
+            self._push(UpdateUnitMetaCommand(self._adapter, self._node_id, name, desc))
         elif self._kind == "lesson":
-            self._adapter.update_lesson_meta(self._node_id, name, desc)
+            self._push(UpdateLessonMetaCommand(self._adapter, self._node_id, name, desc))
 
-    def _on_prereq_changed(self, _item: QListWidgetItem) -> None:
-        if self._adapter is None or not self._node_id:
+    def _commit_prereqs(self) -> None:
+        if self._loading or self._adapter is None or not self._node_id:
             return
         checked = [
             self.prereq_list.item(i).data(Qt.ItemDataRole.UserRole)
@@ -169,8 +211,8 @@ class MetadataForm(QGroupBox):
             if self.prereq_list.item(i).checkState() == Qt.CheckState.Checked
         ]
         if self._kind == "section":
-            self._adapter.update_section_prereqs(self._node_id, checked)
+            self._push(UpdateSectionPrereqsCommand(self._adapter, self._node_id, checked))
         elif self._kind == "unit":
-            self._adapter.update_unit_prereqs(self._node_id, checked)
+            self._push(UpdateUnitPrereqsCommand(self._adapter, self._node_id, checked))
         elif self._kind == "lesson":
-            self._adapter.update_lesson_prereqs(self._node_id, checked)
+            self._push(UpdateLessonPrereqsCommand(self._adapter, self._node_id, checked))

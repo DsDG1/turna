@@ -75,15 +75,91 @@ LEVEL_LABELS: dict[str, str] = {
     "B2": "中高级",
 }
 
+# English mirror for teacher-facing labels (C4 locale groundwork).
+# ``zh`` remains the default to preserve backward compatibility; pass
+# ``locale="en"`` to access the English forms.
+FIELD_LABELS_EN: dict[str, str] = {
+    "id": "ID",
+    "name": "Name",
+    "description": "Description",
+    "term": "Word",
+    "translation": "Translation",
+    "pronunciation": "Pronunciation",
+    "audioAsset": "Audio",
+    "tags": "Tags",
+    "wordId": "Word",
+    "expressionId": "Expression",
+    "grammarPointId": "Grammar point",
+    "prompt": "Prompt",
+    "options": "Options",
+    "correctIndex": "Correct answer",
+    "correctIndices": "Correct answers",
+    "sentence": "Sentence",
+    "answer": "Answer",
+    "source": "Source text",
+    "expected": "Expected translation",
+    "hints": "Hints",
+    "scrambled": "Scrambled",
+    "correct": "Correct order",
+    "statement": "Statement",
+    "expectedAnswer": "Expected answer",
+    "transcript": "Transcript",
+    "context": "Context",
+    "prerequisiteLessonIds": "Prerequisite lessons",
+    "prerequisiteSectionIds": "Prerequisite sections",
+    "title": "Title",
+    "explanation": "Explanation",
+    "exampleExpressionIds": "Example expressions",
+    "exampleSentenceIds": "Example sentences",
+}
 
-def field_label(field: str) -> str:
+NESTED_LAYER_LABELS_EN: dict[str, str] = {
+    "section": "Section",
+    "unit": "Unit",
+    "lesson": "Lesson",
+    "subLessons": "Teaching segments",
+    "subLesson": "Teaching segment",
+    "stages": "Teaching steps",
+    "stage": "Teaching step",
+    "items": "Questions",
+    "item": "Question",
+    "listeningPhases": "Listening phases",
+    "readingPassage": "Reading passage",
+}
+
+LEVEL_LABELS_EN: dict[str, str] = {
+    "A1": "Beginner",
+    "A2": "Elementary",
+    "B1": "Intermediate",
+    "B2": "Upper-intermediate",
+}
+
+_LOCALE_TABLES = {
+    "zh": (FIELD_LABELS, NESTED_LAYER_LABELS, LEVEL_LABELS),
+    "en": (FIELD_LABELS_EN, NESTED_LAYER_LABELS_EN, LEVEL_LABELS_EN),
+}
+
+
+def _resolve_locale(locale: str) -> str:
+    return locale if locale in _LOCALE_TABLES else "zh"
+
+
+def field_label(field: str, locale: str = "zh") -> str:
     """Return the teacher-facing label for an engineering field name."""
-    return FIELD_LABELS.get(field, field)
+    table = _LOCALE_TABLES.get(_resolve_locale(locale), _LOCALE_TABLES["zh"])[0]
+    return table.get(field, field)
 
 
-def layer_label(layer: str) -> str:
+def layer_label(layer: str, locale: str = "zh") -> str:
     """Return the teacher-facing label for a nested content layer."""
-    return NESTED_LAYER_LABELS.get(layer, layer)
+    table = _LOCALE_TABLES.get(_resolve_locale(locale), _LOCALE_TABLES["zh"])[1]
+    return table.get(layer, layer)
+
+
+def level_label(level: str, locale: str = "zh") -> str:
+    """Return the teacher-facing label for a CEFR level."""
+    table = _LOCALE_TABLES.get(_resolve_locale(locale), _LOCALE_TABLES["zh"])[2]
+    return table.get(level, level)
 
 
 def interaction_label(runtime_type: str) -> str:

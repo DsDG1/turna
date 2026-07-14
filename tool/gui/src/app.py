@@ -4,7 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QSettings
-from PySide6.QtGui import QAction
+from PySide6.QtGui import QAction, QKeySequence, QUndoStack
 from PySide6.QtWidgets import (
     QFileDialog,
     QHBoxLayout,
@@ -20,6 +20,13 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from src.application.commands import (
+    AiEditLessonCommand,
+    AiEditSectionCommand,
+    AiEditUnitCommand,
+    ImportAiSectionCommand,
+)
+from src.backend.ai_generator import AiApiConfig
 from src.backend.course_adapter import CourseAdapter
 from src.widgets.course_tree import CourseTreeWidget
 from src.widgets.detail_panel import DetailPanel
@@ -38,12 +45,38 @@ class MainWindow(QMainWindow):
         self._current_node_ref: tuple[str, str] | None = None
         self.teacher_mode: bool = False
 
+        # AI API config held in memory at the window level so it persists
+        # across dialog reopens (still lost on app exit, never written to disk).
+        self._ai_config = AiApiConfig()
+        self._ai_verified_config: AiApiConfig | None = None
+
         self._settings = QSettings("Varnamala", "CourseEditor")
+
+        self.undo_stack = QUndoStack(self)
+        self.undo_stack.setUndoLimit(100)
+        self.undo_stack.cleanChanged.connect(self._on_undo_clean_changed)
 
         self._build_toolbar()
         self._build_central()
         self._build_status_bar()
+        self._build_undo_actions()
         self._maybe_open_last_repo()
+
+    def _build_undo_actions(self) -> None:
+        self.undo_action = self.undo_stack.createUndoAction(self, "撤销")
+        self.undo_action.setShortcut(QKeySequence.StandardKey.Undo)
+        self.redo_action = self.undo_stack.createRedoAction(self, "重做")
+        self.redo_action.setShortcut(QKeySequence.StandardKey.Redo)
+        self.addAction(self.undo_action)
+        self.addAction(self.redo_action)
+
+    def _on_undo_clean_changed(self, clean: bool) -> None:
+        if self.course_dir is not None:
+            marker = "" if clean else " *"
+            base = "Varnamala 课程编辑器"
+            if self.teacher_mode:
+                base += " · 教师模式"
+            self.setWindowTitle(base + marker)
 
     def _build_toolbar(self) -> None:
         toolbar = QToolBar("main")
@@ -105,11 +138,15 @@ class MainWindow(QMainWindow):
         splitter = QSplitter(Qt.Horizontal)
 
         self.tree = CourseTreeWidget()
+        self.tree.undo_stack = self.undo_stack
         self.tree.node_selected.connect(self._on_node_selected)
         self.tree.tree_changed.connect(self._on_tree_changed)
+        self.tree.ai_edit_requested.connect(self._on_ai_edit)
         splitter.addWidget(self.tree)
 
         self.detail = DetailPanel()
+        self.detail.undo_stack = self.undo_stack
+        self.detail.tree_changed.connect(self._on_tree_changed)
         splitter.addWidget(self.detail)
 
         splitter.setStretchFactor(0, 2)
@@ -199,6 +236,7 @@ class MainWindow(QMainWindow):
             return
         self.course_dir = path
         self.tree.display(self.adapter)
+        self.undo_stack.clear()
         self._enable_editor_actions()
         self._add_recent_repo(path)
         self.statusBar().showMessage(f"已加载: {self.course_dir}", 4000)
@@ -223,6 +261,7 @@ class MainWindow(QMainWindow):
             return
         self.course_dir = init_dir
         self.tree.display(self.adapter)
+        self.undo_stack.clear()
         self._enable_editor_actions()
         self._add_recent_repo(init_dir)
         self.statusBar().showMessage(f"已新建并加载: {init_dir}", 5000)
@@ -239,6 +278,7 @@ class MainWindow(QMainWindow):
             return
         self.course_dir = Path(chosen)
         self.tree.display(self.adapter)
+        self.undo_stack.clear()
         self._enable_editor_actions()
         self._add_recent_repo(self.course_dir)
         self.statusBar().showMessage(f"已加载: {self.course_dir}", 4000)
@@ -301,9 +341,14 @@ class MainWindow(QMainWindow):
             )
             self._settings.setValue("ai_beta_warning_shown", True)
 
-        dlg = AiGeneratorDialog(self.adapter, self)
+        dlg = AiGeneratorDialog(
+            self.adapter, self, initial_config=self._ai_config
+        )
+        dlg.set_verified_config(self._ai_verified_config)
         if not dlg.exec():
+            self._ai_config = dlg.config()
             return
+        self._ai_config = dlg.config()
         try:
             section = dlg.section_json()
         except ValueError as exc:
@@ -342,26 +387,138 @@ class MainWindow(QMainWindow):
                 self, "AI section 导入警告", f"存在警告，但仍可导入：\n\n{detail}"
             )
 
-        section_file_name = f"sections/{sid}.json"
         section.setdefault("prerequisiteSectionIds", [])
+        cmd = ImportAiSectionCommand(self.adapter, section)
+        cmd.signals.changed.connect(self.tree._on_command_changed)
+        self.undo_stack.push(cmd)
 
-        self.adapter.sections.append(section)
-        self.adapter.index.setdefault("sections", []).append(
-            {
-                "id": sid,
-                "name": section.get("name", sid),
-                "description": section.get("description", ""),
-                "level": section.get("level", ""),
-                "prerequisiteSectionIds": section.get("prerequisiteSectionIds", []),
-                "file": section_file_name,
-            }
-        )
-
-        self.tree.refresh()
         self.tree.select_section(sid)
+        resource_note = ""
+        added = self.adapter.detect_changes()
+        if added.get("vocab") or added.get("expressions") or added.get("grammar_points"):
+            resource_note = "（资源已合并到词库/表达/语法，记得保存）"
         self.statusBar().showMessage(
-            f"已通过 AI 生成课程「{section.get('name', sid)}」并已选中，记得保存", 6000
+            f"已通过 AI 生成课程「{section.get('name', sid)}」并已选中，记得保存 {resource_note}",
+            8000,
         )
+
+    def _on_ai_edit(self, kind: str, node_id: str) -> None:
+        from src.dialogs.ai_generator_dialog import AiGeneratorDialog
+
+        if not self._settings.value("ai_beta_warning_shown", False):
+            QMessageBox.information(
+                self,
+                "AI 编辑课程（Beta）",
+                "AI 编辑课程为 Beta 功能，编辑结果仅供参考，请作者自行审核。\n\n"
+                "本功能会消耗大量 token，且建议模型支持 1M 上下文窗口。\n\n"
+                "点击「确定」继续。",
+            )
+            self._settings.setValue("ai_beta_warning_shown", True)
+
+        if not self.course_dir:
+            QMessageBox.warning(self, "未加载课程目录", "请先打开课程目录。")
+            return
+
+        try:
+            if kind == "section":
+                section = self.adapter.find_section(node_id)
+            elif kind == "unit":
+                section, _unit = self.adapter.find_unit(node_id)
+            elif kind == "lesson":
+                section, _unit, _lesson = self.adapter.find_lesson(node_id)
+            else:
+                return
+        except KeyError as exc:
+            QMessageBox.warning(self, "无法编辑", str(exc))
+            return
+
+        edit_mode = {
+            "scope": kind,
+            "scope_id": node_id,
+            "existing_section": section,
+        }
+        dlg = AiGeneratorDialog(
+            self.adapter,
+            self,
+            edit_mode=edit_mode,
+            initial_config=self._ai_config,
+        )
+        dlg.set_verified_config(self._ai_verified_config)
+        if not dlg.exec():
+            self._ai_config = dlg.config()
+            return
+        self._ai_config = dlg.config()
+        self._ai_verified_config = dlg._verified_config
+
+        try:
+            new_section = dlg.section_json()
+        except ValueError as exc:
+            QMessageBox.warning(self, "无法应用编辑", str(exc))
+            return
+
+        # Merge any new resources the AI introduced (skips existing ids).
+        self.adapter.merge_section_resources(new_section)
+
+        if kind == "section":
+            cmd = AiEditSectionCommand(
+                self.adapter, section.get("id", ""), new_section
+            )
+            cmd.signals.changed.connect(self._on_ai_edit_applied)
+            self.undo_stack.push(cmd)
+            self.tree.select_section(section.get("id", ""))
+        elif kind == "unit":
+            new_unit = self._extract_unit(new_section, node_id)
+            if new_unit is None:
+                QMessageBox.warning(
+                    self, "无法应用编辑", f"AI 返回的 JSON 中找不到 unit「{node_id}」。"
+                )
+                return
+            cmd = AiEditUnitCommand(
+                self.adapter, section.get("id", ""), node_id, new_unit
+            )
+            cmd.signals.changed.connect(self._on_ai_edit_applied)
+            self.undo_stack.push(cmd)
+            self.tree.refresh_incremental()
+        elif kind == "lesson":
+            new_lesson = self._extract_lesson(new_section, node_id)
+            if new_lesson is None:
+                QMessageBox.warning(
+                    self, "无法应用编辑", f"AI 返回的 JSON 中找不到 lesson「{node_id}」。"
+                )
+                return
+            cmd = AiEditLessonCommand(self.adapter, node_id, new_lesson)
+            cmd.signals.changed.connect(self._on_ai_edit_applied)
+            self.undo_stack.push(cmd)
+            self.tree.refresh_incremental()
+
+        if self._current_node_ref is not None:
+            self._on_node_selected(self._current_node_ref)
+        self.statusBar().showMessage(
+            f"已应用 AI 编辑（{kind}），记得保存", 8000
+        )
+
+    def _on_ai_edit_applied(self) -> None:
+        self.tree.refresh_incremental()
+        self.tree.tree_changed.emit()
+        if self._current_node_ref is not None:
+            self._on_node_selected(self._current_node_ref)
+
+    @staticmethod
+    def _extract_unit(new_section: dict, unit_id: str) -> dict | None:
+        for u in new_section.get("units") or []:
+            if isinstance(u, dict) and u.get("id") == unit_id:
+                return u
+        return None
+
+    @staticmethod
+    def _extract_lesson(new_section: dict, lesson_id: str) -> dict | None:
+        for u in new_section.get("units") or []:
+            if not isinstance(u, dict):
+                continue
+            for l in u.get("lessons") or []:
+                if isinstance(l, dict) and l.get("id") == lesson_id:
+                    return l
+        return None
 
     def _on_node_selected(self, node_ref: tuple[str, str]) -> None:
         self._current_node_ref = node_ref
@@ -397,7 +554,6 @@ class MainWindow(QMainWindow):
             layout.addWidget(buttons)
             dlg.exec()
             if table.is_dirty():
-                self.tree.refresh()
                 self.statusBar().showMessage("词库已修改，记得保存", 5000)
             return
         from PySide6.QtWidgets import QDialog, QDialogButtonBox
@@ -416,9 +572,6 @@ class MainWindow(QMainWindow):
         dlg.exec()
 
         if editor.is_dirty():
-            self.tree.refresh()
-            if self._current_node_ref is not None:
-                self.detail.show_node(self.adapter, self._current_node_ref)
             self.statusBar().showMessage("资源已修改，记得保存", 5000)
 
     def _on_publish(self) -> None:
@@ -443,15 +596,51 @@ class MainWindow(QMainWindow):
         result = self.adapter.save()
         self.tree.refresh()
         if result.ok:
+            self.undo_stack.setClean()
             self.statusBar().showMessage(result.message or "保存成功", 5000)
         else:
             self.statusBar().showMessage(result.message or "保存失败（已回滚）", 8000)
             if result.errors:
-                detail_text = "\n".join(
-                    f"[{e.get('level', 'error')}] {e.get('message', '')}"
-                    for e in result.errors
-                )
-                QMessageBox.warning(self, "校验失败（已回滚）", detail_text)
+                self._show_validation_report(result.errors, title="校验失败（已回滚）")
+
+    def _show_validation_report(
+        self, problems: list[dict], title: str = "校验结果"
+    ) -> None:
+        """Show a non-modal validation report panel with double-click-to-jump."""
+        from PySide6.QtWidgets import QDialog, QDialogButtonBox, QVBoxLayout
+
+        from src.widgets.validation_report import ValidationReportWidget
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle(title)
+        dlg.resize(640, 420)
+        report = ValidationReportWidget(self.adapter, dlg)
+        report.show_problems(problems)
+        report.jump_to.connect(self._jump_to_node)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        buttons.rejected.connect(dlg.reject)
+        layout = QVBoxLayout(dlg)
+        layout.addWidget(report)
+        layout.addWidget(buttons)
+        dlg.setModal(False)
+        dlg.show()
+
+    def _jump_to_node(self, node_ref: tuple[str, str]) -> None:
+        kind, node_id = node_ref
+        if kind == "lesson":
+            self.tree.select_lesson(node_id)
+        elif kind == "section":
+            self.tree.select_section(node_id)
+        elif kind == "unit":
+            for top_idx in range(self.tree.topLevelItemCount()):
+                section = self.tree.topLevelItem(top_idx)
+                for i in range(section.childCount()):
+                    unit = section.child(i)
+                    ref = unit.data(0, 0x0100)
+                    if ref and ref[0] == "unit" and ref[1] == node_id:
+                        self.tree.setCurrentItem(unit)
+                        self.tree.node_selected.emit(ref)
+                        return
 
     def closeEvent(self, event) -> None:  # noqa: N802
         if self.course_dir and self.adapter and any(self.adapter.detect_changes().values()):

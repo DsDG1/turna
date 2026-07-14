@@ -52,6 +52,34 @@ class CourseAdapter:
         self.expressions_version: int = 1
         self._snapshot: dict[str, Any] | None = None
         self._hash_cache: dict[str, int] = {}
+        self._resource_listeners: list = []
+
+    # --- Resource change notification (A3) --------------------------------
+
+    def add_resource_listener(self, callback) -> None:
+        """Register a callable invoked whenever in-memory resources change.
+
+        The callback receives no arguments; listeners re-query
+        ``vocab_options`` / ``expression_options`` / ``grammar_options`` to
+        refresh their reference dropdowns in place.
+        """
+        if callable(callback) and callback not in self._resource_listeners:
+            self._resource_listeners.append(callback)
+
+    def remove_resource_listener(self, callback) -> None:
+        try:
+            self._resource_listeners.remove(callback)
+        except ValueError:
+            pass
+
+    def notify_resources_changed(self) -> None:
+        """Fire resource listeners. Called by the resource editor after any
+        in-memory vocab/expressions/grammar mutation."""
+        for cb in list(self._resource_listeners):
+            try:
+                cb()
+            except Exception:
+                pass
 
     def load(self, course_dir: Path) -> None:
         self.course_dir = Path(course_dir)
@@ -363,6 +391,40 @@ class CourseAdapter:
                         return section, unit, lesson
         raise KeyError(f"unknown lesson: {lesson_id}")
 
+    def lesson_body(self, lesson_id: str) -> dict[str, Any]:
+        """Return the content dict for a lesson (C1 groundwork).
+
+        Today sections are pre-loaded into memory at ``load()`` time, so this
+        is a thin lookup. It exists so a future lazy-loading path (only L1
+        metadata resident; body fetched on expand/select) can swap the
+        implementation without touching callers. Callers should prefer this
+        over reaching into ``find_lesson`` and indexing ``content`` directly.
+        """
+        _section, _unit, lesson = self.find_lesson(lesson_id)
+        return lesson.setdefault("content", {})
+
+    def reload_section(self, section_id: str) -> dict[str, Any]:
+        """Re-read a single section file from disk and replace the in-memory
+        copy. Useful for lazy loading and for picking up external file changes
+        without a full ``load()``. Returns the reloaded section dict."""
+        entry = None
+        for e in self.index.get("sections", []):
+            if e.get("id") == section_id:
+                entry = e
+                break
+        if entry is None:
+            raise KeyError(f"unknown section: {section_id}")
+        assert self.course_dir is not None
+        path = self.course_dir / entry["file"]
+        section = course_cli.load_json(path)
+        for i, existing in enumerate(self.sections):
+            if existing.get("id") == section_id:
+                self.sections[i] = section
+                break
+        else:
+            self.sections.append(section)
+        return section
+
     def validate_section_json(self, section_json: dict[str, Any]) -> list[dict[str, str]]:
         """Validate an AI-generated section dict before importing it.
 
@@ -424,6 +486,18 @@ class CourseAdapter:
         vocab_ids = {w.get("id") for w in self.vocab}
         expression_ids = {e.get("id") for e in self.expressions}
         grammar_ids = {g.get("id") for g in self.grammar_points}
+        # AI-generated sections may carry their own resources in top-level
+        # words/expressions/grammarPoints arrays; merge their ids so that
+        # showWord/expressionId/grammarPointId references resolve.
+        for w in section_json.get("words") or []:
+            if isinstance(w, dict):
+                vocab_ids.add(w.get("id"))
+        for e in section_json.get("expressions") or []:
+            if isinstance(e, dict):
+                expression_ids.add(e.get("id"))
+        for g in section_json.get("grammarPoints") or []:
+            if isinstance(g, dict):
+                grammar_ids.add(g.get("id"))
         existing_unit_ids = all_unit_ids(self.sections)
         existing_lesson_ids = all_lesson_ids(self.sections)
 
@@ -592,6 +666,86 @@ class CourseAdapter:
                     return
         raise KeyError(f"unknown unit: {unit_id}")
 
+    def section_is_referenced(self, section_id: str) -> list[str]:
+        """Return ids of other sections whose prerequisiteSectionIds include
+        ``section_id``. Used to block deletion of a depended-on section."""
+        refs: list[str] = []
+        for section in self.sections:
+            sid = section.get("id", "")
+            if sid == section_id:
+                continue
+            if section_id in section.get("prerequisiteSectionIds", []):
+                refs.append(sid)
+        return refs
+
+    def delete_section(self, section_id: str) -> None:
+        """Remove a section from ``self.sections`` and from ``index["sections"]``.
+
+        Does NOT clear prerequisiteSectionIds references in other sections; the
+        caller should check ``section_is_referenced`` first and block deletion
+        when references exist.
+        """
+        removed = False
+        for i, section in enumerate(self.sections):
+            if section.get("id") == section_id:
+                del self.sections[i]
+                removed = True
+                break
+        entries = self.index.get("sections", [])
+        for i, entry in enumerate(entries):
+            if entry.get("id") == section_id:
+                del entries[i]
+                break
+        if not removed:
+            raise KeyError(f"unknown section: {section_id}")
+
+    def replace_section(self, section_id: str, new_section: dict[str, Any]) -> None:
+        """Replace the section with id ``section_id`` by ``new_section`` in both
+        ``self.sections`` and ``index["sections"]``. ``new_section["id"]`` must
+        equal ``section_id`` (or the index entry keeps the old id)."""
+        for i, section in enumerate(self.sections):
+            if section.get("id") == section_id:
+                self.sections[i] = new_section
+                break
+        else:
+            raise KeyError(f"unknown section: {section_id}")
+        for entry in self.index.get("sections", []):
+            if entry.get("id") == section_id:
+                entry["name"] = new_section.get("name", entry.get("name", ""))
+                entry["description"] = new_section.get(
+                    "description", entry.get("description", "")
+                )
+                entry["level"] = new_section.get(
+                    "level", entry.get("level", "")
+                )
+                entry["prerequisiteSectionIds"] = new_section.get(
+                    "prerequisiteSectionIds", entry.get("prerequisiteSectionIds", [])
+                )
+                break
+
+    def replace_unit(
+        self, section_id: str, unit_id: str, new_unit: dict[str, Any]
+    ) -> None:
+        """Replace the unit with id ``unit_id`` within the section ``section_id``."""
+        section = self.find_section(section_id)
+        units = section.get("units", [])
+        for i, unit in enumerate(units):
+            if unit.get("id") == unit_id:
+                units[i] = new_unit
+                return
+        raise KeyError(f"unknown unit: {unit_id}")
+
+    def replace_lesson(self, lesson_id: str, new_lesson: dict[str, Any]) -> None:
+        """Replace the lesson with id ``lesson_id`` in its containing unit."""
+        for section in self.sections:
+            for unit in section.get("units", []):
+                lessons = unit.get("lessons", [])
+                for i, lesson in enumerate(lessons):
+                    if lesson.get("id") == lesson_id:
+                        lessons[i] = new_lesson
+                        return
+        raise KeyError(f"unknown lesson: {lesson_id}")
+
     def _resource_list(self, row_type: str) -> list[dict[str, Any]]:
         if row_type == "vocab":
             return self.vocab
@@ -647,6 +801,31 @@ class CourseAdapter:
                 del entries[i]
                 return
         raise KeyError(f"unknown {row_type} id: {entry_id}")
+
+    def merge_section_resources(self, section: dict[str, Any]) -> dict[str, int]:
+        """Merge a section's top-level words/expressions/grammarPoints into the
+        course resource lists, skipping ids that already exist.
+
+        Returns a dict with counts: {"vocab": n, "expressions": n, "grammar_points": n}.
+        """
+        mapping = {
+            "words": ("vocab", self.vocab),
+            "expressions": ("expressions", self.expressions),
+            "grammarPoints": ("grammar_points", self.grammar_points),
+        }
+        added: dict[str, int] = {"vocab": 0, "expressions": 0, "grammar_points": 0}
+        for section_key, (row_type, target) in mapping.items():
+            existing_ids = {e.get("id") for e in target}
+            for entry in section.get(section_key) or []:
+                if not isinstance(entry, dict):
+                    continue
+                eid = entry.get("id")
+                if not eid or eid in existing_ids:
+                    continue
+                target.append(entry)
+                existing_ids.add(eid)
+                added[row_type] += 1
+        return added
 
     def import_csv(
         self, row_type: str, csv_path: Path

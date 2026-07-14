@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QDialogButtonBox,
     QFileDialog,
     QGroupBox,
+    QHBoxLayout,
     QLabel,
     QMessageBox,
     QPushButton,

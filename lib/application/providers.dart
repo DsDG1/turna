@@ -3,7 +3,8 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:varnamala/application/achievements_provider.dart';
-import 'package:varnamala/application/ai_course_provider.dart';
+import 'package:varnamala/application/ai/ai_course_provider.dart';
+import 'package:varnamala/application/ai/ai_wish_provider.dart';
 import 'package:varnamala/application/character_provider.dart';
 import 'package:varnamala/application/course_provider.dart';
 import 'package:varnamala/application/game_provider.dart';
@@ -26,6 +27,9 @@ import 'package:varnamala/di/injection.dart';
 final providers = [
   ChangeNotifierProvider<AiCourseProvider>(
     create: (_) => AiCourseProvider(),
+  ),
+  ChangeNotifierProvider<AiWishProvider>(
+    create: (_) => AiWishProvider(),
   ),
   ChangeNotifierProvider<ThemeProvider>(
     create: (_) => getIt<ThemeProvider>(),

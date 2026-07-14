@@ -1,0 +1,102 @@
+"""Reusable validation report panel (A2, guiplan §8 ValidationReport).
+
+Renders CLI validate/lint problem lists as a clickable list. Double-clicking
+an item with a resolvable node path emits ``jump_to`` so the MainWindow can
+select + highlight the offending node in the tree. Reuses the pure
+``error_mapper`` (originally a teacher-view helper) so expert and teacher
+modes share the same path -> human message -> jump ref pipeline.
+"""
+from __future__ import annotations
+
+from typing import Any
+
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import (
+    QFrame,
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
+
+from src.backend.course_adapter import CourseAdapter
+from src.teacher.error_mapper import humanize_problem, problem_to_node_ref
+
+
+class ValidationReportWidget(QWidget):
+    """List of validate/lint problems with double-click-to-jump.
+
+    ``jump_to`` carries a ``(kind, id)`` node ref, or is not emitted when the
+    problem has no resolvable path (caller shows it in the global panel).
+    """
+
+    jump_to = Signal(tuple)  # (kind, id)
+
+    def __init__(self, adapter: CourseAdapter, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.adapter = adapter
+        self._problems: list[dict[str, Any]] = []
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(6)
+
+        self.title = QLabel("校验结果")
+        self.title.setStyleSheet("font-weight: 700; color: #E74C3C;")
+        layout.addWidget(self.title)
+
+        self.list_widget = QListWidget()
+        self.list_widget.setFrameShape(QFrame.Shape.NoFrame)
+        self.list_widget.itemDoubleClicked.connect(self._on_item_double_clicked)
+        layout.addWidget(self.list_widget)
+
+        self._hint = QLabel("双击条目可跳转到对应节点")
+        self._hint.setStyleSheet("color: #9CA3AF; font-size: 11px;")
+        layout.addWidget(self._hint)
+
+    def show_problems(self, problems: list[dict[str, Any]]) -> None:
+        """Render a list of problem dicts (keys: level, message, path)."""
+        self._problems = list(problems)
+        self.list_widget.clear()
+        errors = [p for p in self._problems if p.get("level") == "error"]
+        warnings = [p for p in self._problems if p.get("level") == "warning"]
+        self.title.setText(
+            f"校验结果：{len(errors)} 个错误，{len(warnings)} 个警告"
+        )
+        self.title.setStyleSheet(
+            "font-weight: 700; color: #E74C3C;" if errors
+            else "font-weight: 700; color: #FF9F43;" if warnings
+            else "font-weight: 700; color: #27AE60;"
+        )
+        for problem in self._problems:
+            level = problem.get("level", "error")
+            human = humanize_problem(problem)
+            node_ref = problem_to_node_ref(problem, self.adapter.sections)
+            tag = "❌" if level == "error" else "⚠️"
+            location = ""
+            if node_ref is not None:
+                location = f"  [{node_ref[0]}: {node_ref[1]}]"
+            text = f"{tag} {human}{location}"
+            item = QListWidgetItem(text)
+            item.setData(Qt.ItemDataRole.UserRole, problem)
+            color = "#E74C3C" if level == "error" else "#FF9F43"
+            item.setForeground(Qt.GlobalColor.white)
+            item.setToolTip(problem.get("message", ""))
+            self.list_widget.addItem(item)
+        self._hint.setVisible(bool(self._problems))
+
+    def clear(self) -> None:
+        self._problems = []
+        self.list_widget.clear()
+        self.title.setText("校验结果")
+        self.title.setStyleSheet("font-weight: 700; color: #FFFFFF;")
+        self._hint.setVisible(False)
+
+    def _on_item_double_clicked(self, item: QListWidgetItem) -> None:
+        problem = item.data(Qt.ItemDataRole.UserRole)
+        if not isinstance(problem, dict):
+            return
+        ref = problem_to_node_ref(problem, self.adapter.sections)
+        if ref is not None:
+            self.jump_to.emit(ref)

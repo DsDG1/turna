@@ -132,6 +132,7 @@ class ResourceTableWidget(QWidget):
         else:
             entry[col] = text
         self._dirty = True
+        self.adapter.notify_resources_changed()
 
     def _on_add(self) -> None:
         new_id = self.adapter.add_resource_entry(self.row_type)
@@ -141,6 +142,7 @@ class ResourceTableWidget(QWidget):
                 self.table.setCurrentCell(r, 1)
                 break
         self._dirty = True
+        self.adapter.notify_resources_changed()
 
     def _on_del(self) -> None:
         entry_id = self._current_entry_id()
@@ -158,6 +160,7 @@ class ResourceTableWidget(QWidget):
             return
         self._refresh()
         self._dirty = True
+        self.adapter.notify_resources_changed()
 
     def _on_import(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
@@ -175,6 +178,7 @@ class ResourceTableWidget(QWidget):
         else:
             self._refresh()
             self._dirty = True
+            self.adapter.notify_resources_changed()
             if problems:
                 detail = "\n".join(f"[{p['level']}] {p['message']}" for p in problems)
                 QMessageBox.information(self, "导入完成（含警告）", detail)

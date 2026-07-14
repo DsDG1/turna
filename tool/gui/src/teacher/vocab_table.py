@@ -126,12 +126,14 @@ class VocabTableWidget(QWidget):
                 elif col == 3:
                     w["tags"] = [t.strip() for t in item.text().split(",") if t.strip()]
                 self._dirty = True
+                self.adapter.notify_resources_changed()
                 self.changed.emit()
                 return
 
     def _on_add(self) -> None:
         new_id = self.adapter.add_resource_entry("vocab")
         self._dirty = True
+        self.adapter.notify_resources_changed()
         self.changed.emit()
         self._refresh()
         for r in range(self.table.rowCount()):
@@ -149,6 +151,7 @@ class VocabTableWidget(QWidget):
         except KeyError:
             return
         self._dirty = True
+        self.adapter.notify_resources_changed()
         self.changed.emit()
         self._refresh()
 
@@ -167,6 +170,7 @@ class VocabTableWidget(QWidget):
             QMessageBox.warning(self, "导入失败（未应用）", detail)
         else:
             self._dirty = True
+            self.adapter.notify_resources_changed()
             self.changed.emit()
             self._refresh()
             QMessageBox.information(self, "导入完成", "CSV 已合并，记得保存。")

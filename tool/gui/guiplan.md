@@ -240,27 +240,29 @@ tool/gui/
 | 2.8 | 新建 lesson | 模板文件 | 新 lesson 节点 | 自动生成唯一 id，clone 模板并替换 id | ✅ `NewLessonDialog` + uuid |
 | 2.9 | 删除节点 | 选中节点 | 确认对话框 | 删除 lesson/unit 带确认，保存后 validate 通过 | ✅ 右键菜单 + 确认对话框 |
 
-### 里程碑 3：Resources 批量编辑  ⬜ 未开始
+### 里程碑 3：Resources 批量编辑  ✅ 已完成（2026-07-13，与 §9A 实际落地一致）
 
 **目标**：vocab / expressions / grammar_points 用 CSV 进出。
 
 | # | 任务 | 输入 | 输出 | 验收标准 | 状态 |
 |---|------|------|------|----------|------|
-| 3.1 | CSV 导出 | 选中资源表 | 临时 CSV | 调用 `export-csv` 成功 | ⬜ |
-| 3.2 | 表格编辑 | CSV 或内存数据 | 编辑界面 | 可增删改行 | ⬜ |
-| 3.3 | CSV 导入 | 编辑后的 CSV | 写回 JSON | `import-csv --dry-run` 预检通过后再落盘 | ⬜ |
-| 3.4 | 引用同步 | vocab 改动 | 刷新后的下拉框 | lesson 表单的 wordId 下拉框反映最新资源 | ⬜ |
+| 3.1 | CSV 导出 | 选中资源表 | 临时 CSV | 调用 `export-csv` 成功 | ✅ `ResourceEditorDialog.export_csv` |
+| 3.2 | 表格编辑 | CSV 或内存数据 | 编辑界面 | 可增删改行 | ✅ 内存直改 + CSV 运输 |
+| 3.3 | CSV 导入 | 编辑后的 CSV | 写回 JSON | `import-csv --dry-run` 预检通过后再落盘 | ✅ `CourseAdapter.import_csv` |
+| 3.4 | 引用同步 | vocab 改动 | 刷新后的下拉框 | lesson 表单的 wordId 下拉框反映最新资源 | 🟡 关闭对话框后整节点重载；实时联动见方向 A3（待办） |
 
-### 里程碑 4：发布工作流  ⬜ 未开始
+> 说明：§9A 原先只承认 M1/M2，实际 M3（`src/widgets/resource_editor.py`）、M4（`src/widgets/publish_dialog.py`）代码均已落地。本表已与 §9A 对齐。
+
+### 里程碑 4：发布工作流  ✅ 已完成（2026-07-13）
 
 **目标**：辅助教师完成 export checklist。
 
 | # | 任务 | 输入 | 输出 | 验收标准 | 状态 |
 |---|------|------|------|----------|------|
-| 4.1 | 版本 bump | 改动文件集合 | 更新后的 version | 仅当 index/expressions 改动时 bump 对应 version | ⬜ |
-| 4.2 | 听力资源核对 | 课程目录 | audio-manifest CSV | 调用 `audio-manifest` 成功 | ⬜ |
-| 4.3 | 发布 diff | 当前目录与 git HEAD | diff 报告 | 调用 `diff` 成功 | ⬜ |
-| 4.4 | 清单报告 | 发布数据 | 可导出文本 | 包含改动文件、version 变更、id 集变更 | ⬜ |
+| 4.1 | 版本 bump | 改动文件集合 | 更新后的 version | 仅当 index/expressions 改动时 bump 对应 version | ✅ `version_bump_plan` |
+| 4.2 | 听力资源核对 | 课程目录 | audio-manifest CSV | 调用 `audio-manifest` 成功 | ✅ `audio_manifest_rows` |
+| 4.3 | 发布 diff | 当前目录与 git HEAD | diff 报告 | 调用 `diff` 成功 | ✅ `release_diff` |
+| 4.4 | 清单报告 | 发布数据 | 可导出文本 | 包含改动文件、version 变更、id 集变更 | ✅ `release_report` + `PublishDialog` |
 
 ### 里程碑 5：收尾与测试  🟡 部分进行
 
@@ -354,13 +356,19 @@ python -m src.main
 
 ### 待办（按 guiplan 顺序）
 
-- [ ] **M1.4 补全**：prerequisiteLessonIds 多选下拉（当前为逗号分隔只读展示）
-- [ ] **M3**：Resources 批量编辑（CSV 导入导出 + 表格编辑 + 引用同步）
-- [ ] **M4**：发布工作流（version bump / audio-manifest / diff / 清单报告）
-- [ ] **M5.1 补全**：GUI→CLI 完整 fixture round-trip 测试
-- [ ] **M5.2**：pyinstaller 打包
-- [ ] **M5.3**：`tool/gui/README.md`
-- [ ] **§15 教师视图**：在 M1 CourseAdapter 之上起 intro 课型原型窄路径
+- [x] **A1 增量刷新树**（2026-07-14）：`CourseTreeWidget.refresh()` 改为 `refresh_incremental()`，保留展开/选中/滚动状态；选中节点被删时回退到父 unit/section。测试 `tests/test_course_tree.py`。
+- [x] **A2 校验报告面板**（2026-07-14）：新增 `src/widgets/validation_report.py`，复用 `teacher/error_mapper` 的纯函数；`app.py _on_save` 校验失败改为非模态列表，双击条目跳转高亮对应节点。
+- [x] **A4 文档归一**（2026-07-14）：§9 的 M3/M4 标注与 §9A 对齐（实际已落地）。
+- [x] **A3 资源↔课程树实时联动**（2026-07-14）：`CourseAdapter` 加 `resources_changed` 监听机制；资源编辑器/词库表改动时通知；`DetailPanel` 订阅并原地调用当前 widget 的 `refresh_references()` 重建引用下拉框，不再整节点重载（保留老师已填字段）。
+- [x] **B1 实时预览/试做**（2026-07-14）：新增 `src/teacher/preview_window.py`（`LessonPreviewDialog`），按模板遍历 subLessons/stages/listeningPhases 渲染可做题卡片，提交即判对错；`LinearFlowWidget` 与 `TeacherTemplateWidget` 头部接入「🔍 预览本课」按钮。改题后重新打开即刷新。
+- [x] **B3 题型卡片核对**（2026-07-14）：`typeTheWord`/`listenOnly`/`reorderSentence` 在 `question_cards.py` 均已可编辑，非占位文本。
+- [x] **M5.1 补全**（2026-07-14）：`test/tool/gui_round_trip_test.py` 扩展到 12 用例（原 5 + 新 7：6 模板建课 round-trip / CSV 往返 / 增删 unit / lint 无 ERROR / 二次保存幂等 / section 删除清孤文件 / 校验失败回滚保护磁盘文件），全量 CLI validate/lint subprocess 兜底，沙箱可跑。
+- [x] **§15.12 / T.9 零代码可用性测试**（2026-07-14）：新增 `tool/gui/tests/usability_smoke.py` 自动化回归（新建课程→向导建课→保存→预览可答→发布清单，输出 ✅/❌ 报告，无 PySide6）；人工清单 `docs/authoring/teacher-usability-checklist.md` 7 步路径 + 记录表 + 通过判据。
+- [x] **B2 撤销/重做**（2026-07-14）：新增 `src/application/commands.py`（AddItem/DeleteItem/MoveItem/UpdateField/MoveSubLesson/MoveStage）；`app.py` 持有 `QUndoStack`，Ctrl+Z/Y 接线，保存成功标记 clean（标题栏 `*` 跟踪脏态），加载/新建课程时 clear；`LinearFlowWidget` 题目增删移/改类型经 undo 栈。
+- [x] **C2 UI/VM 解耦**（2026-07-14）：抽取 `src/backend/teacher_view_model.py`（prompt/correctness/answer/label 解析纯函数，无 PySide6）；`tests/test_teacher_view_model.py` 30 用例可在沙箱跑，补齐 UI 逻辑测试盲区。
+- [x] **C1 懒加载基础**（2026-07-14）：`CourseAdapter.lesson_body()` + `reload_section()` 为未来懒加载预留接口（当前预加载不变，避免破坏 139 测试）。
+- [x] **C3 AI 自修复**（2026-07-14）：`ai_generator.request_course_with_retry()` 校验失败带错误回灌模型自动重试一轮。
+- [x] **C4 i18n 基础**（2026-07-14）：`labels.py` 加 `locale` 维度（zh 默认 + en 镜像），`field_label/layer_label/level_label` 接受可选 locale，向后兼容。
 
 ### 已知限制
 

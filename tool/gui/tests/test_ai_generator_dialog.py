@@ -64,6 +64,12 @@ class TestAiGeneratorDialogAsync(unittest.TestCase):
             api_key="sk-test",
             model="gpt-test",
         )
+        # Simulate a successfully verified config so _ensure_api_configured passes.
+        dlg._verified_config = AiApiConfig(
+            base_url=dlg._config.base_url,
+            api_key=dlg._config.api_key,
+            model=dlg._config.model,
+        )
         return dlg
 
     def _sync_start(self, worker: AiRequestWorker) -> None:
@@ -149,9 +155,9 @@ class TestAiGeneratorDialogAsync(unittest.TestCase):
         self.assertEqual(dlg._generated, course)
         self.assertIn(
             "This course teaches food vocabulary.",
-            dlg.explain_label.text(),
+            dlg.explain_label.toPlainText(),
         )
-        self.assertTrue(dlg.explain_label.isVisible())
+        self.assertFalse(dlg.explain_group.isHidden())
         self.assertTrue(dlg.wish_btn.isEnabled())
         mock_update.assert_called_once()
 

@@ -6,9 +6,11 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/ai_course_provider.dart';
-import 'package:varnamala/application/ai_course_service.dart';
+import 'package:varnamala/application/ai/ai_course_provider.dart';
+import 'package:varnamala/application/ai/ai_course_spec.dart';
+import 'package:varnamala/application/ai/ai_genre.dart';
 import 'package:varnamala/application/course_provider.dart';
+import 'package:varnamala/routing/routing.gr.dart';
 import 'package:varnamala/views/theme.dart';
 
 @RoutePage()
@@ -27,6 +29,7 @@ class _AiCourseGeneratorPageState extends State<AiCourseGeneratorPage> {
   late final TextEditingController _apiKeyCtrl;
   late final TextEditingController _modelCtrl;
   late final TextEditingController _languageCtrl;
+  late final TextEditingController _sourceLanguageCtrl;
   late final TextEditingController _topicCtrl;
   late final TextEditingController _extraCtrl;
   late final TextEditingController _jsonCtrl;
@@ -34,6 +37,19 @@ class _AiCourseGeneratorPageState extends State<AiCourseGeneratorPage> {
   String _level = 'A1';
   int _unitCount = 1;
   int _lessonsPerUnit = 3;
+  String _template = 'mixed';
+  bool _useGenreBatch = false;
+  bool _wishMode = false;
+
+  static const _templateOptions = <String>[
+    'intro',
+    'practice',
+    'review',
+    'listening',
+    'reading',
+    'mastery',
+    'mixed',
+  ];
 
   @override
   void initState() {
@@ -43,7 +59,8 @@ class _AiCourseGeneratorPageState extends State<AiCourseGeneratorPage> {
     _apiKeyCtrl = TextEditingController(text: p.config.apiKey);
     _modelCtrl = TextEditingController(text: p.config.model);
     _languageCtrl = TextEditingController(text: 'Turkish');
-    _topicCtrl = TextEditingController(text: p.generatedJson == null ? '' : '');
+    _sourceLanguageCtrl = TextEditingController(text: 'Chinese');
+    _topicCtrl = TextEditingController();
     _extraCtrl = TextEditingController();
     _jsonCtrl = TextEditingController(text: p.generatedJson ?? '');
   }
@@ -54,6 +71,7 @@ class _AiCourseGeneratorPageState extends State<AiCourseGeneratorPage> {
     _apiKeyCtrl.dispose();
     _modelCtrl.dispose();
     _languageCtrl.dispose();
+    _sourceLanguageCtrl.dispose();
     _topicCtrl.dispose();
     _extraCtrl.dispose();
     _jsonCtrl.dispose();
@@ -68,19 +86,27 @@ class _AiCourseGeneratorPageState extends State<AiCourseGeneratorPage> {
         );
   }
 
-  Future<void> _onGenerate() async {
-    _syncConfigToProvider();
-    if (!_topicCtrl.text.trim().isNotEmpty) return;
-    final spec = AiCourseRequestSpec(
-      language: _languageCtrl.text.trim().isEmpty
-          ? 'Turkish'
-          : _languageCtrl.text.trim(),
+  AiCourseSpec _buildSpec() {
+    return AiCourseSpec(
+      language:
+          _languageCtrl.text.trim().isEmpty ? 'Turkish' : _languageCtrl.text.trim(),
+      sourceLanguage: _sourceLanguageCtrl.text.trim().isEmpty
+          ? 'Chinese'
+          : _sourceLanguageCtrl.text.trim(),
       topic: _topicCtrl.text.trim(),
-      learnerLevel: _level,
+      level: _level,
       unitCount: _unitCount,
       lessonsPerUnit: _lessonsPerUnit,
+      template: _template,
+      useGenreBatch: _useGenreBatch,
       extraInstructions: _extraCtrl.text.trim(),
     );
+  }
+
+  Future<void> _onGenerate() async {
+    _syncConfigToProvider();
+    if (_topicCtrl.text.trim().isEmpty) return;
+    final spec = _buildSpec();
     await context.read<AiCourseProvider>().generate(spec);
     if (!mounted) return;
     final p = context.read<AiCourseProvider>();
@@ -127,15 +153,83 @@ class _AiCourseGeneratorPageState extends State<AiCourseGeneratorPage> {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              _modeSwitch(p),
+              const SizedBox(height: 16),
               _configSection(p),
               const SizedBox(height: 16),
-              _specSection(p),
+              if (_wishMode) _wishEntry(p) else _specSection(p),
               const SizedBox(height: 16),
               _resultSection(p),
               const SizedBox(height: 24),
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _modeSwitch(AiCourseProvider p) {
+    return Card(
+      color: VarnamalaTheme.cardBg(context),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: Row(
+          children: [
+            Text(
+              '模式',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment(value: false, label: Text('普通模式')),
+                  ButtonSegment(value: true, label: Text('许愿模式')),
+                ],
+                selected: {_wishMode},
+                onSelectionChanged: (s) => setState(() => _wishMode = s.first),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _wishEntry(AiCourseProvider p) {
+    return Card(
+      color: VarnamalaTheme.cardBg(context),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '许愿模式（Beta）',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              '通过多轮对话与 AI 对齐课程设计意图，再生成最终课程。'
+              '请先在下方填写课程参数（语言/主题/等级/模板等），然后进入对话。',
+            ),
+            const SizedBox(height: 12),
+            _specFields(),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () => context.router.push(const AiWishChatRoute()),
+                icon: const Icon(Icons.chat),
+                label: const Text('前往许愿对话'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -208,97 +302,41 @@ class _AiCourseGeneratorPageState extends State<AiCourseGeneratorPage> {
                   ),
             ),
             const SizedBox(height: 8),
-            TextField(
-              controller: _languageCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Target language',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              key: _topicKey,
-              controller: _topicCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Topic / theme',
-                hintText: 'e.g. Travel vocabulary, Past tense, Food & drink',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-            ),
-            const SizedBox(height: 8),
+            _specFields(),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: _level,
+                    value: _template,
                     decoration: const InputDecoration(
-                      labelText: 'Level',
+                      labelText: 'Template',
                       border: OutlineInputBorder(),
                       isDense: true,
                     ),
-                    items: ['A1', 'A2', 'B1', 'B2', 'C1']
-                        .map((l) => DropdownMenuItem(
-                              value: l,
-                              child: Text(l),
-                            ))
-                        .toList(),
-                    onChanged: (v) => setState(() => _level = v ?? 'A1'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: DropdownButtonFormField<int>(
-                    value: _unitCount,
-                    decoration: const InputDecoration(
-                      labelText: 'Units',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    items: [1, 2, 3, 4, 5]
-                        .map((n) => DropdownMenuItem(
-                              value: n,
-                              child: Text('$n'),
+                    items: _templateOptions
+                        .map((t) => DropdownMenuItem(
+                              value: t,
+                              child: Text('$t (${templateLabel(t)})'),
                             ))
                         .toList(),
                     onChanged: busy
                         ? null
-                        : (v) => setState(() => _unitCount = v ?? 1),
+                        : (v) => setState(() => _template = v ?? 'mixed'),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: DropdownButtonFormField<int>(
-                    value: _lessonsPerUnit,
-                    decoration: const InputDecoration(
-                      labelText: 'Lessons/unit',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    items: [1, 2, 3, 4, 5]
-                        .map((n) => DropdownMenuItem(
-                              value: n,
-                              child: Text('$n'),
-                            ))
-                        .toList(),
+                  child: SwitchListTile(
+                    title: const Text('Genre batch'),
+                    value: _useGenreBatch,
                     onChanged: busy
                         ? null
-                        : (v) => setState(() => _lessonsPerUnit = v ?? 3),
+                        : (v) => setState(() => _useGenreBatch = v),
+                    dense: true,
                   ),
                 ),
               ],
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              key: _extraKey,
-              controller: _extraCtrl,
-              maxLines: 2,
-              decoration: const InputDecoration(
-                labelText: 'Extra instructions (optional)',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
             ),
             const SizedBox(height: 12),
             SizedBox(
@@ -323,6 +361,128 @@ class _AiCourseGeneratorPageState extends State<AiCourseGeneratorPage> {
     );
   }
 
+  Widget _specFields() {
+    final busy = context.read<AiCourseProvider>().state ==
+            AiCourseState.generating ||
+        context.read<AiCourseProvider>().state == AiCourseState.saving;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _languageCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Target language',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                controller: _sourceLanguageCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Source language',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          key: _topicKey,
+          controller: _topicCtrl,
+          decoration: const InputDecoration(
+            labelText: 'Topic / theme',
+            hintText: 'e.g. Travel vocabulary, Past tense, Food & drink',
+            border: OutlineInputBorder(),
+            isDense: true,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                value: _level,
+                decoration: const InputDecoration(
+                  labelText: 'Level',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+                items: ['A1', 'A2', 'B1', 'B2', 'C1']
+                    .map((l) => DropdownMenuItem(
+                          value: l,
+                          child: Text(l),
+                        ))
+                    .toList(),
+                onChanged: busy
+                    ? null
+                    : (v) => setState(() => _level = v ?? 'A1'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: DropdownButtonFormField<int>(
+                value: _unitCount,
+                decoration: const InputDecoration(
+                  labelText: 'Units',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+                items: [1, 2, 3, 4, 5]
+                    .map((n) => DropdownMenuItem(
+                          value: n,
+                          child: Text('$n'),
+                        ))
+                    .toList(),
+                onChanged: busy
+                    ? null
+                    : (v) => setState(() => _unitCount = v ?? 1),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: DropdownButtonFormField<int>(
+                value: _lessonsPerUnit,
+                decoration: const InputDecoration(
+                  labelText: 'Lessons/unit',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+                items: [1, 2, 3, 4, 5]
+                    .map((n) => DropdownMenuItem(
+                          value: n,
+                          child: Text('$n'),
+                        ))
+                    .toList(),
+                onChanged: busy
+                    ? null
+                    : (v) => setState(() => _lessonsPerUnit = v ?? 3),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          key: _extraKey,
+          controller: _extraCtrl,
+          maxLines: 2,
+          decoration: const InputDecoration(
+            labelText: 'Extra instructions (optional)',
+            border: OutlineInputBorder(),
+            isDense: true,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _resultSection(AiCourseProvider p) {
     if (p.state == AiCourseState.generating) {
       return const Padding(
@@ -334,7 +494,8 @@ class _AiCourseGeneratorPageState extends State<AiCourseGeneratorPage> {
       return Card(
         color: VarnamalaTheme.cardBg(context),
         child: ListTile(
-          leading: const Icon(Icons.error_outline, color: VarnamalaTheme.error),
+          leading:
+              const Icon(Icons.error_outline, color: VarnamalaTheme.error),
           title: const Text('Generation failed'),
           subtitle: Text(p.error!),
         ),
@@ -368,6 +529,29 @@ class _AiCourseGeneratorPageState extends State<AiCourseGeneratorPage> {
                 ),
               ],
             ),
+            if (p.explanation != null && p.explanation!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: VarnamalaTheme.streakChipBg(context),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'AI 解释',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(p.explanation!),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 8),
             SizedBox(
               height: 280,

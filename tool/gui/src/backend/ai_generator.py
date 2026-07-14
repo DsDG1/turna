@@ -21,6 +21,7 @@ import json
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 
 from src.backend.ai_genre import (
@@ -33,9 +34,9 @@ from src.backend.ai_genre import (
 
 @dataclass
 class AiApiConfig:
-    base_url: str = "https://api.openai.com/v1"
+    base_url: str = "https://api.deepseek.com"
     api_key: str = ""
-    model: str = "gpt-4o-mini"
+    model: str = "deepseek-v4-flash"
 
     @property
     def is_complete(self) -> bool:
@@ -70,6 +71,7 @@ class ChatMessage:
 
     role: str = "user"
     content: str | list[dict[str, Any]] = field(default_factory=str)
+    timestamp: str = field(default_factory=lambda: datetime.now().strftime("%H:%M"))
 
     def to_api_dict(self) -> dict[str, Any]:
         return {"role": self.role, "content": self.content}
@@ -89,7 +91,7 @@ def _template_schema_block() -> str:
 - mixed: 混合。可在不同单元/课时中使用不同模板。
 
 常用题型（runtimeType）说明：
-- showWord: { wordId, context? } — 展示生词。
+- showWord: { wordId, context? } — 展示生词。wordId 必须在顶层 words 数组中定义。
 - multipleChoice: { prompt, options(4), correctIndex } — 单选题。
 - multiSelect: { prompt, options, correctIndices, minSelections?, maxSelections? } — 多选题。
 - fillBlank: { sentence（含 ____ 空白）, answer, hint? } — 填空。
@@ -108,6 +110,57 @@ def _template_schema_block() -> str:
 - listening: listenAndPick + typeTheWord + listenOnly（phase 结构）
 - reading: readingPassage + readingMcq + readingTrueFalse + readingShortAnswer
 - mastery: multipleChoice + multiSelect + translateSentence + fillBlank
+"""
+
+
+def _resource_schema_block() -> str:
+    """Describe the top-level resource arrays the AI must output alongside units.
+
+    The course stores vocabulary / expressions / grammar points in separate
+    resource files (vocab.json, expressions.json, grammar_points.json), not
+    inside the section. A showWord item only stores a ``wordId`` foreign key,
+    so the word must already exist. To keep AI-generated sections self-
+    contained, the AI is required to emit the resources it uses as top-level
+    arrays; the importer merges them into the course resource files.
+    """
+    return """顶层资源数组（与 units 同级，必须输出）：
+
+words: 本课程用到的所有生词。每个条目结构：
+{
+  "id": "w-merhaba",            // 全局唯一，小写 kebab-case，建议前缀 w-
+  "term": "Merhaba",            // 目标语言原文（如土耳其语单词）
+  "translation": "你好",         // 源语言译文（如中文）
+  "pronunciation": null,        // 可选，音标或拉丁转写；没有就填 null
+  "audioAsset": null,           // 可选，音频资源路径；没有就填 null
+  "tags": ["greeting"]          // 可选标签数组
+}
+
+expressions: 本课程用到的所有惯用表达。每个条目结构：
+{
+  "id": "e-ben-adim",           // 全局唯一，建议前缀 e-
+  "term": "Adım ...",            // 目标语言原文
+  "translation": "我叫……",       // 源语言译文
+  "pronunciation": null,
+  "audioAsset": null,
+  "tags": []
+}
+
+grammarPoints: 本课程用到的所有语法点。每个条目结构：
+{
+  "id": "g-suffix-dan",         // 全局唯一，建议前缀 g-
+  "title": "来源格 -dan",
+  "explanation": "表示“从……”，加在名词后。",
+  "exampleExpressionIds": [],   // 引用 expressions 中的 id
+  "exampleSentenceIds": [],
+  "practiceItems": []
+}
+
+自洽规则（最重要）：
+1. 任何 showWord 的 wordId 必须出现在顶层 words 数组的某个条目 id 中。
+2. 任何 expressionId 必须出现在顶层 expressions 数组的某个条目 id 中。
+3. 任何 grammarPointId 必须出现在顶层 grammarPoints 数组的某个条目 id 中。
+4. 只输出本课程真正用到的资源，不要输出未被引用的条目。
+5. 资源 id 不能与现有词库冲突（导入时会自动跳过已存在的 id，但建议用 ai- / w-ai- 等前缀避免碰撞）。
 """
 
 
@@ -193,6 +246,13 @@ def _build_json_schema_example(spec: AiCourseSpec) -> str:
   "name": "...",
   "description": "...",
   "prerequisiteSectionIds": [],
+  "words": [
+    {{ "id": "w-merhaba", "term": "Merhaba", "translation": "你好", "pronunciation": null, "audioAsset": null, "tags": ["greeting"] }}
+  ],
+  "expressions": [
+    {{ "id": "e-ben-adim", "term": "Adım ...", "translation": "我叫……", "pronunciation": null, "audioAsset": null, "tags": [] }}
+  ],
+  "grammarPoints": [],
   "units": [
     {{
       "id": "ai-topic-u1",
@@ -219,7 +279,8 @@ Rules:
 2. Multiple choice items: exactly 4 options, correctIndex in 0..3.
 3. translateSentence: source in {spec.source_language}, expected in {spec.language}.
 4. fillBlank: sentence in {spec.language} with a single ____ blank; answer is the missing word.
-5. Output JSON object only — no surrounding text, no markdown fences.
+5. Every showWord.wordId / expressionId / grammarPointId MUST reference an id defined in the top-level words / expressions / grammarPoints arrays. Do NOT invent ids that are not defined there.
+6. Output JSON object only — no surrounding text, no markdown fences.
 """
 
 
@@ -262,6 +323,8 @@ def build_prompt(spec: AiCourseSpec) -> str:
         "",
         _template_schema_block(),
         "",
+        _resource_schema_block(),
+        "",
         _id_rules_block(),
         "",
         _build_json_schema_example(spec),
@@ -302,8 +365,9 @@ def build_alignment_prompt(spec: AiCourseSpec) -> str:
         "1. Use friendly, plain Chinese. No jargon, no JSON, no code, no markdown fences.",
         "2. In each reply, briefly summarize what you understand, then give 2-3 concrete suggestions or clarifying questions.",
         "3. If the teacher uploads files, incorporate them into your suggestions naturally.",
-        "4. Do NOT output the final course JSON. The teacher will click \"我感觉差不多了\" when ready.",
-        "5. If the teacher asks to change the course, acknowledge the change and explain how it affects the design.",
+        "4. When suggesting vocabulary or expressions, also tell the teacher that these will be added to the course's vocabulary list automatically — they don't need to prepare a separate word bank.",
+        "5. Do NOT output the final course JSON. The teacher will click \"我感觉差不多了\" when ready.",
+        "6. If the teacher asks to change the course, acknowledge the change and explain how it affects the design.",
     ])
     return "\n".join(parts)
 
@@ -317,6 +381,159 @@ def _strip_code_fences(text: str) -> str:
         if s.endswith("```"):
             s = s[: -3]
     return s.strip()
+
+
+def _normalize_resources(parsed: dict[str, Any]) -> None:
+    """Ensure words/expressions/grammarPoints are lists (default empty)."""
+    for key in ("words", "expressions", "grammarPoints"):
+        val = parsed.get(key)
+        if val is None:
+            parsed[key] = []
+        elif not isinstance(val, list):
+            raise ValueError(f"顶层 '{key}' 必须是数组。")
+
+
+def _iter_items(lesson: dict[str, Any]):
+    """Yield every interaction item dict inside a lesson's content."""
+    content = lesson.get("content") or {}
+    stages = content.get("stages") or []
+    for stage in stages:
+        for item in stage.get("items") or []:
+            if isinstance(item, dict):
+                yield item
+    for sub in content.get("subLessons") or []:
+        for stage in sub.get("stages") or []:
+            for item in stage.get("items") or []:
+                if isinstance(item, dict):
+                    yield item
+    for phase in content.get("listeningPhases") or []:
+        for item in phase.get("items") or []:
+            if isinstance(item, dict):
+                yield item
+
+
+def _slugify_for_stub(text: str) -> str:
+    """Best-effort slug from arbitrary text for synthesizing resource ids."""
+    import re
+
+    s = re.sub(r"[^a-zA-Z0-9]+", "-", text or "").strip("-").lower()
+    return s or "stub"
+
+
+def _auto_fix_resources(parsed: dict[str, Any]) -> None:
+    """Auto-fix dangling resource references by adding stub entries.
+
+    When the AI model forgets to define a word/expression/grammar point in
+    the top-level arrays while still referencing it from a lesson item, this
+    function synthesizes a minimal stub entry so the section can be imported.
+    The stub is populated best-effort from nearby item fields (context,
+    expected, source, prompt); the author can refine it later in the editor.
+    """
+    words = parsed.setdefault("words", [])
+    expressions = parsed.setdefault("expressions", [])
+    grammar_points = parsed.setdefault("grammarPoints", [])
+
+    word_ids = {w.get("id") for w in words if isinstance(w, dict)}
+    expr_ids = {e.get("id") for e in expressions if isinstance(e, dict)}
+    grammar_ids = {g.get("id") for g in grammar_points if isinstance(g, dict)}
+
+    for unit in parsed.get("units") or []:
+        if not isinstance(unit, dict):
+            continue
+        for lesson in unit.get("lessons") or []:
+            if not isinstance(lesson, dict):
+                continue
+            for item in _iter_items(lesson):
+                rt = item.get("runtimeType")
+                if rt == "showWord":
+                    wid = item.get("wordId")
+                    if wid and wid not in word_ids:
+                        context = item.get("context") or ""
+                        term = ""
+                        translation = ""
+                        if context:
+                            parts = context.split("—", 1)
+                            if len(parts) == 2:
+                                term = parts[0].strip()
+                                translation = parts[1].strip()
+                            else:
+                                term = context.strip()
+                        words.append(
+                            {
+                                "id": wid,
+                                "term": term or wid,
+                                "translation": translation,
+                                "pronunciation": None,
+                                "audioAsset": None,
+                                "tags": ["auto-fix"],
+                            }
+                        )
+                        word_ids.add(wid)
+                eid = item.get("expressionId")
+                if eid and eid not in expr_ids:
+                    prompt = item.get("prompt") or item.get("source") or ""
+                    expected = item.get("expected") or item.get("expectedAnswer") or ""
+                    expressions.append(
+                        {
+                            "id": eid,
+                            "term": expected or eid,
+                            "translation": prompt,
+                            "pronunciation": None,
+                            "audioAsset": None,
+                            "tags": ["auto-fix"],
+                        }
+                    )
+                    expr_ids.add(eid)
+                gid = item.get("grammarPointId")
+                if gid and gid not in grammar_ids:
+                    grammar_points.append(
+                        {
+                            "id": gid,
+                            "title": gid,
+                            "explanation": "",
+                            "exampleExpressionIds": [],
+                            "exampleSentenceIds": [],
+                            "practiceItems": [],
+                        }
+                    )
+                    grammar_ids.add(gid)
+
+
+def _check_resource_self_consistency(parsed: dict[str, Any]) -> None:
+    """Verify every wordId/expressionId/grammarPointId is defined in the
+    top-level resource arrays. Raises ValueError listing all dangling refs.
+    """
+    word_ids = {w.get("id") for w in parsed.get("words") or [] if isinstance(w, dict)}
+    expr_ids = {e.get("id") for e in parsed.get("expressions") or [] if isinstance(e, dict)}
+    grammar_ids = {
+        g.get("id") for g in parsed.get("grammarPoints") or [] if isinstance(g, dict)
+    }
+
+    missing: list[str] = []
+    for unit in parsed.get("units") or []:
+        if not isinstance(unit, dict):
+            continue
+        for lesson in unit.get("lessons") or []:
+            if not isinstance(lesson, dict):
+                continue
+            for item in _iter_items(lesson):
+                lid = lesson.get("id", "?")
+                rt = item.get("runtimeType")
+                if rt == "showWord":
+                    wid = item.get("wordId")
+                    if wid and wid not in word_ids:
+                        missing.append(f"lesson {lid}: showWord 引用了未定义的 wordId「{wid}」")
+                eid = item.get("expressionId")
+                if eid and eid not in expr_ids:
+                    missing.append(f"lesson {lid}: 引用了未定义的 expressionId「{eid}」")
+                gid = item.get("grammarPointId")
+                if gid and gid not in grammar_ids:
+                    missing.append(f"lesson {lid}: 引用了未定义的 grammarPointId「{gid}」")
+    if missing:
+        raise ValueError(
+            "资源自洽校验失败（引用的资源 id 未在顶层 words/expressions/grammarPoints 中定义）:\n"
+            + "\n".join(missing[:20])
+        )
 
 
 def parse_completion(body: str | dict[str, Any]) -> dict:
@@ -347,6 +564,9 @@ def parse_completion(body: str | dict[str, Any]) -> dict:
         ) from exc
     if not isinstance(parsed, dict) or "units" not in parsed:
         raise ValueError("模型输出缺少顶层 'units' 数组。")
+    _normalize_resources(parsed)
+    _auto_fix_resources(parsed)
+    _check_resource_self_consistency(parsed)
     return parsed
 
 
@@ -434,6 +654,57 @@ def request_course(config: AiApiConfig, spec: AiCourseSpec, timeout: float = 120
         timeout=timeout,
     )
     return parse_completion(body)
+
+
+def request_course_with_retry(
+    config: AiApiConfig,
+    spec: AiCourseSpec,
+    validator,
+    timeout: float = 120.0,
+    max_retries: int = 1,
+) -> dict:
+    """Generate a course and, if ``validator(section_json)`` returns error
+    strings, re-prompt the model with those errors once (C3).
+
+    ``validator`` is a callable ``(section_json: dict) -> list[str]`` returning
+    a list of human-readable error strings (empty == valid). The original
+    generation is retried at most ``max_retries`` times by appending an
+    assistant turn + a correction turn to the conversation.
+    """
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You are a language-course authoring assistant. "
+                "You output ONLY valid JSON, no prose, no markdown fences."
+            )
+        },
+        {"role": "user", "content": build_prompt(spec)},
+    ]
+    section = parse_completion(
+        request_chat(
+            config, messages, temperature=0.4,
+            response_format={"type": "json_object"}, timeout=timeout,
+        )
+    )
+    for _ in range(max(0, max_retries)):
+        errors = list(validator(section) or [])
+        if not errors:
+            break
+        correction = (
+            "上一版有以下校验错误，请修正后只输出完整的修正 JSON：\n- "
+            + "\n- ".join(errors)
+        )
+        assistant_turn = {"role": "assistant", "content": json.dumps(section, ensure_ascii=False)}
+        messages.append(assistant_turn)
+        messages.append({"role": "user", "content": correction})
+        section = parse_completion(
+            request_chat(
+                config, messages, temperature=0.2,
+                response_format={"type": "json_object"}, timeout=timeout,
+            )
+        )
+    return section
 
 
 def request_alignment_reply(
@@ -553,3 +824,145 @@ def apply_genre_to_spec(spec: AiCourseSpec) -> AiCourseSpec:
     if tag:
         spec.template = genre_to_template(tag)
     return spec
+
+
+# --- Edit mode: revise an existing section --------------------------------
+
+
+def _existing_context_block(existing_section: dict[str, Any]) -> str:
+    """Render a compact summary of the existing section for the AI.
+
+    Lists units, lessons (with ids + names), and the top-level vocab /
+    expressions so the AI can reuse existing ids and avoid collisions.
+    """
+    lines: list[str] = []
+    lines.append("现有 section 概览：")
+    lines.append(f"  section id: {existing_section.get('id', '')}")
+    lines.append(f"  section name: {existing_section.get('name', '')}")
+    units = existing_section.get("units") or []
+    for u in units:
+        if not isinstance(u, dict):
+            continue
+        lines.append(f"  - unit id={u.get('id', '')} name={u.get('name', '')}")
+        for l in u.get("lessons") or []:
+            if isinstance(l, dict):
+                lines.append(
+                    f"      • lesson id={l.get('id', '')} "
+                    f"name={l.get('name', '')} template={l.get('template', '')}"
+                )
+    words = existing_section.get("words") or []
+    if words:
+        lines.append("  现有 words（id | term | translation）：")
+        for w in words[:80]:
+            if isinstance(w, dict):
+                lines.append(
+                    f"    {w.get('id', '')} | {w.get('term', '')} | {w.get('translation', '')}"
+                )
+        if len(words) > 80:
+            lines.append(f"    …(共 {len(words)} 个，已省略)")
+    exprs = existing_section.get("expressions") or []
+    if exprs:
+        lines.append("  现有 expressions（id | term | translation）：")
+        for e in exprs[:40]:
+            if isinstance(e, dict):
+                lines.append(
+                    f"    {e.get('id', '')} | {e.get('term', '')} | {e.get('translation', '')}"
+                )
+    return "\n".join(lines)
+
+
+def build_edit_prompt(
+    spec: AiCourseSpec,
+    existing_section: dict[str, Any],
+    edit_scope: str,
+    scope_id: str,
+) -> str:
+    """Build a prompt that asks the AI to edit an existing section in place.
+
+    ``edit_scope`` is one of "section" / "unit" / "lesson" and ``scope_id``
+    is the id of the unit or lesson to focus on (ignored for section scope).
+    The AI must return the FULL section JSON (with unchanged parts preserved).
+    """
+    base = build_prompt(spec)
+    scope_hint = {
+        "section": "本次为 section 级编辑：可在该 section 范围内任意修改/新增/删除 unit 与 lesson。",
+        "unit": f"本次为 unit 级编辑：请只修改 unit「{scope_id}」内的 lessons（可新增/编辑/删除 lesson），"
+        "其余 unit 与 lesson 保持不变。",
+        "lesson": f"本次为 lesson 级编辑：请只修改 lesson「{scope_id}」的 content/题目，"
+        "其余结构保持不变。",
+    }.get(edit_scope, "section 级编辑。")
+
+    existing_json = json.dumps(existing_section, ensure_ascii=False, indent=2)
+    parts = [
+        base,
+        "",
+        "==== 编辑模式指令 ====",
+        scope_hint,
+        "",
+        _existing_context_block(existing_section),
+        "",
+        "下面是该 section 的完整当前 JSON。请在其基础上编辑，保留未改动部分，"
+        "并返回完整的新的 section JSON（顶层必须仍是 section 对象，id 必须保持为 "
+        f"{existing_section.get('id', '')}）。",
+        "复用现有 id 以保持引用稳定；新增的 id 用 ai- 前缀并避免与现有 id 冲突。",
+        "",
+        "```json",
+        existing_json,
+        "```",
+    ]
+    return "\n".join(parts)
+
+
+def generate_edit(
+    config: AiApiConfig,
+    spec: AiCourseSpec,
+    existing_section: dict[str, Any],
+    edit_scope: str,
+    scope_id: str,
+    messages: list[ChatMessage] | None = None,
+    draft_json: dict[str, Any] | None = None,
+    timeout: float = 180.0,
+) -> dict:
+    """Generate an edited section JSON based on an existing section.
+
+    In normal mode ``messages`` is None and the edit prompt is the sole user
+    turn. In wish mode the conversation history is prepended and the edit
+    prompt is appended as the final user turn (so the model incorporates the
+    teacher's latest instructions).
+    """
+    edit_prompt = build_edit_prompt(spec, existing_section, edit_scope, scope_id)
+    if draft_json is not None:
+        edit_prompt += (
+            "\n\n以下是目前已生成的课程草稿，请根据对话中的修改意见进行调整，"
+            "返回完整的新的课程 JSON（不要只返回 diff）。\n\n"
+            f"```json\n{json.dumps(draft_json, ensure_ascii=False, indent=2)}\n```"
+        )
+
+    api_messages: list[dict[str, Any]] = [
+        {
+            "role": "system",
+            "content": (
+                "You are a language-course authoring assistant. "
+                "You output ONLY valid JSON, no prose, no markdown fences. "
+                "You are editing an EXISTING course section; preserve unchanged "
+                "structure and reuse existing ids where possible."
+            ),
+        }
+    ]
+    if messages:
+        api_messages += [m.to_api_dict() for m in messages]
+    api_messages.append({"role": "user", "content": edit_prompt})
+
+    body = request_chat(
+        config,
+        api_messages,
+        temperature=0.4,
+        response_format={"type": "json_object"},
+        timeout=timeout,
+    )
+    parsed = parse_completion(body)
+    # In edit mode the returned section must keep the same id.
+    existing_id = existing_section.get("id", "")
+    if existing_id and parsed.get("id") != existing_id:
+        parsed["id"] = existing_id
+    return parsed

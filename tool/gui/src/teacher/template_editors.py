@@ -50,12 +50,14 @@ class TeacherTemplateWidget(QWidget):
         unit: dict[str, Any],
         lesson: dict[str, Any],
         parent: QWidget | None = None,
+        undo_stack: Any = None,
     ) -> None:
         super().__init__(parent)
         self.adapter = adapter
         self.section = section
         self.unit = unit
         self.lesson = lesson
+        self.undo_stack = undo_stack
         self._advanced_btn: QPushButton | None = None
         self._content_layout: QVBoxLayout | None = None
         self._last_item_type = "multipleChoice"
@@ -80,6 +82,10 @@ class TeacherTemplateWidget(QWidget):
         self._advanced_btn.setCheckable(True)
         self._advanced_btn.toggled.connect(self._on_advanced_toggled)
         hlayout.addWidget(self._advanced_btn)
+        preview_btn = QPushButton("🔍 预览本课")
+        preview_btn.setToolTip("实际做题验证题目设置（guiplan §15.7）")
+        preview_btn.clicked.connect(self._on_preview)
+        hlayout.addWidget(preview_btn)
         layout.addWidget(header)
 
         self._content_host = QWidget()
@@ -202,6 +208,17 @@ class TeacherTemplateWidget(QWidget):
         add_item(stage, rt)
         self.changed.emit()
         self._build_teacher_view()
+
+    def refresh_references(self) -> None:
+        """Rebuild teacher view so QuestionCard reference dropdowns pick up
+        resource changes (A3)."""
+        self._build_teacher_view()
+
+    def _on_preview(self) -> None:
+        from src.teacher.preview_window import LessonPreviewDialog
+
+        dlg = LessonPreviewDialog(self.adapter, self.lesson, self)
+        dlg.exec()
 
 
 class ListeningTeacherWidget(TeacherTemplateWidget):

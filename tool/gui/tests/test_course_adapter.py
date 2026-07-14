@@ -59,6 +59,69 @@ class CourseAdapterRoundTripTest(unittest.TestCase):
         _s, _u, reloaded_lesson = adapter.find_lesson(lid)
         self.assertEqual(reloaded_lesson["content"], original_content)
 
+    def test_merge_section_resources_adds_new_and_skips_existing(self) -> None:
+        adapter = CourseAdapter()
+        adapter.load(self.course_dir)
+        existing_word_id = adapter.vocab[0]["id"] if adapter.vocab else "w-x"
+        section = {
+            "id": "ai-merge-test",
+            "words": [
+                {"id": existing_word_id, "term": "dup", "translation": "dup"},
+                {"id": "w-ai-new-1", "term": "Merhaba", "translation": "你好"},
+            ],
+            "expressions": [
+                {"id": "e-ai-new-1", "term": "Adım", "translation": "我叫"},
+            ],
+            "grammarPoints": [],
+        }
+        before_vocab = len(adapter.vocab)
+        added = adapter.merge_section_resources(section)
+        self.assertEqual(added["vocab"], 1)
+        self.assertEqual(added["expressions"], 1)
+        self.assertEqual(added["grammar_points"], 0)
+        self.assertEqual(len(adapter.vocab), before_vocab + 1)
+        self.assertTrue(any(w["id"] == "w-ai-new-1" for w in adapter.vocab))
+
+    def test_validate_section_json_accepts_self_carried_words(self) -> None:
+        adapter = CourseAdapter()
+        adapter.load(self.course_dir)
+        section = {
+            "id": "ai-self-carried",
+            "name": "Self carried",
+            "words": [{"id": "w-ai-self-1", "term": "Selam", "translation": "你好"}],
+            "units": [
+                {
+                    "id": "ai-self-carried-u1",
+                    "lessons": [
+                        {
+                            "id": "ai-self-carried-u1-l1",
+                            "content": {
+                                "stages": [
+                                    {
+                                        "id": "ai-self-carried-u1-l1-st1",
+                                        "items": [
+                                            {
+                                                "runtimeType": "showWord",
+                                                "id": "ai-self-carried-u1-l1-st1-i1",
+                                                "wordId": "w-ai-self-1",
+                                            }
+                                        ],
+                                    }
+                                ]
+                            },
+                        }
+                    ],
+                }
+            ],
+        }
+        problems = adapter.validate_section_json(section)
+        errors = [p for p in problems if p["level"] == "error"]
+        self.assertEqual(
+            errors,
+            [],
+            f"expected no errors for self-carried word, got: {errors}",
+        )
+
 
 class PrereqEditTest(unittest.TestCase):
     def setUp(self) -> None:

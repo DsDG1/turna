@@ -460,3 +460,7 @@ class LessonEditor(QWidget):
                 return
         switch_template(self.lesson, new_template)
         self._render_body()
+
+    def refresh_references(self) -> None:
+        """Re-render the body so reference dropdowns pick up resource changes."""
+        self._render_body()

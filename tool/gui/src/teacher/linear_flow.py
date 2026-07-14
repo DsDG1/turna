@@ -53,12 +53,14 @@ class LinearFlowWidget(QWidget):
         unit: dict[str, Any],
         lesson: dict[str, Any],
         parent: QWidget | None = None,
+        undo_stack: Any = None,
     ) -> None:
         super().__init__(parent)
         self.adapter = adapter
         self.section = section
         self.unit = unit
         self.lesson = lesson
+        self.undo_stack = undo_stack
         self._last_item_type = "multipleChoice"
         self._content_layout: QVBoxLayout | None = None
         self._add_sub_btn: QPushButton | None = None
@@ -93,6 +95,11 @@ class LinearFlowWidget(QWidget):
         title = QLabel(f"📚 {self.lesson.get('name', '')}")
         title.setStyleSheet("font-size: 18px; font-weight: 700; color: #FFFFFF;")
         layout.addWidget(title)
+
+        preview_btn = QPushButton("🔍 预览本课")
+        preview_btn.setToolTip("实际做题验证题目设置（guiplan §15.7）")
+        preview_btn.clicked.connect(self._on_preview)
+        layout.addWidget(preview_btn)
 
         for sl in self._sub_lessons():
             frame = self._build_sub_lesson(sl)
@@ -282,7 +289,15 @@ class LinearFlowWidget(QWidget):
     def _on_add_item(self, stage: dict[str, Any], combo: QComboBox) -> None:
         rt = combo.currentData() or "multipleChoice"
         self._last_item_type = rt
-        item = add_item(stage, rt)
+        if self.undo_stack is not None:
+            from src.application.commands import AddItemCommand
+
+            cmd = AddItemCommand(stage, rt)
+            cmd.signals.changed.connect(lambda: self._rebuild_stage_of(stage))
+            self.undo_stack.push(cmd)
+            self.changed.emit()
+            return
+        add_item(stage, rt)
         self.changed.emit()
         self._rebuild_stage_of(stage)
 
@@ -292,6 +307,14 @@ class LinearFlowWidget(QWidget):
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply != QMessageBox.StandardButton.Yes:
+            return
+        if self.undo_stack is not None:
+            from src.application.commands import DeleteItemCommand
+
+            cmd = DeleteItemCommand(stage, item)
+            cmd.signals.changed.connect(lambda: self._rebuild_stage_of(stage))
+            self.undo_stack.push(cmd)
+            self.changed.emit()
             return
         delete_item(stage, item.get("id", ""))
         self.changed.emit()
@@ -304,6 +327,16 @@ class LinearFlowWidget(QWidget):
         except ValueError:
             return
         new_item = switch_runtime_type(item, new_type)
+        if self.undo_stack is not None:
+            from src.application.commands import UpdateFieldCommand
+
+            cmd = UpdateFieldCommand(stage, "items", list(items))
+            cmd.signals.changed.connect(lambda: self._rebuild_stage_of(stage))
+            self.undo_stack.push(cmd)
+            items[idx] = new_item
+            self.changed.emit()
+            self._rebuild_stage_of(stage)
+            return
         items[idx] = new_item
         self.changed.emit()
         self._rebuild_stage_of(stage)
@@ -316,6 +349,14 @@ class LinearFlowWidget(QWidget):
             return
         new_idx = idx + delta
         if not (0 <= new_idx < len(items)):
+            return
+        if self.undo_stack is not None:
+            from src.application.commands import MoveItemCommand
+
+            cmd = MoveItemCommand(stage, idx, new_idx)
+            cmd.signals.changed.connect(lambda: self._rebuild_stage_of(stage))
+            self.undo_stack.push(cmd)
+            self.changed.emit()
             return
         move_item(stage, idx, new_idx)
         self.changed.emit()
@@ -410,3 +451,13 @@ class LinearFlowWidget(QWidget):
 
     def _rebuild(self) -> None:
         self._build_ui()
+
+    def refresh_references(self) -> None:
+        """Rebuild so QuestionCard reference dropdowns pick up resource changes."""
+        self._rebuild()
+
+    def _on_preview(self) -> None:
+        from src.teacher.preview_window import LessonPreviewDialog
+
+        dlg = LessonPreviewDialog(self.adapter, self.lesson, self)
+        dlg.exec()

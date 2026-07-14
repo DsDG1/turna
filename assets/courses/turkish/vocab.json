@@ -73,6 +73,76 @@
       "tags": [
         "greeting"
       ]
+    },
+    {
+      "id": "w-tesekkur",
+      "term": "Teşekkür ederim",
+      "translation": "谢谢",
+      "pronunciation": null,
+      "audioAsset": null,
+      "tags": [
+        "polite"
+      ]
+    },
+    {
+      "id": "w-tuvalet",
+      "term": "tuvalet",
+      "translation": "厕所",
+      "pronunciation": null,
+      "audioAsset": null,
+      "tags": [
+        "place"
+      ]
+    },
+    {
+      "id": "w-havaalani",
+      "term": "havaalanı",
+      "translation": "机场",
+      "pronunciation": null,
+      "audioAsset": null,
+      "tags": [
+        "transport"
+      ]
+    },
+    {
+      "id": "w-otel",
+      "term": "otel",
+      "translation": "酒店",
+      "pronunciation": null,
+      "audioAsset": null,
+      "tags": [
+        "accommodation"
+      ]
+    },
+    {
+      "id": "w-restoran",
+      "term": "restoran",
+      "translation": "餐馆",
+      "pronunciation": null,
+      "audioAsset": null,
+      "tags": [
+        "food"
+      ]
+    },
+    {
+      "id": "w-su",
+      "term": "su",
+      "translation": "水",
+      "pronunciation": null,
+      "audioAsset": null,
+      "tags": [
+        "drink"
+      ]
+    },
+    {
+      "id": "w-fiyat",
+      "term": "fiyat",
+      "translation": "价格",
+      "pronunciation": null,
+      "audioAsset": null,
+      "tags": [
+        "shopping"
+      ]
     }
   ]
 }
