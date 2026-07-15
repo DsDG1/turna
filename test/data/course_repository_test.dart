@@ -255,6 +255,47 @@ void main() {
       expect(lesson.content.stages, isEmpty);
     });
 
+    // Forward-incompatible / corrupted enum strings in the `type`/`template`
+    // columns must degrade to safe defaults (mirroring Lesson.fromJson's
+    // @Default) rather than throwing ArgumentError and taking down the whole
+    // section()/lessonById() load.
+    test('degrades unknown type/template strings to safe defaults', () async {
+      await database.into(database.sections).insert(
+            const db.SectionsCompanion(
+              id: Value('s-1'),
+              name: Value('Section 1'),
+            ),
+          );
+      await database.into(database.units).insert(
+            const db.UnitsCompanion(
+              id: Value('u-1'),
+              sectionId: Value('s-1'),
+              name: Value('Unit 1'),
+            ),
+          );
+      await database.into(database.lessons).insert(
+            const db.LessonsCompanion(
+              id: Value('l-unknown-enums'),
+              unitId: Value('u-1'),
+              name: Value('Future Lesson'),
+              type: Value('futureType'),
+              template: Value('futureTemplate'),
+            ),
+          );
+
+      final lesson = await repo.lessonById('l-unknown-enums');
+      expect(lesson.id, 'l-unknown-enums');
+      expect(lesson.type, LessonType.normal);
+      expect(lesson.template, LessonTemplate.legacy);
+
+      // section() must also tolerate the same row without throwing.
+      final section = await repo.section('s-1');
+      final l = section.units.first.lessons
+          .firstWhere((l) => l.id == 'l-unknown-enums');
+      expect(l.type, LessonType.normal);
+      expect(l.template, LessonTemplate.legacy);
+    });
+
     test('section() is metadata-only (empty content even when blob exists)',
         () async {
       await seedMinimalCourse();

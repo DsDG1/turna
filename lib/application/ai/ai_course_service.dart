@@ -44,6 +44,18 @@ class AiCourseService {
       'messages': messages,
       'temperature': temperature,
     };
+    // Reasoning controls, gated on the endpoint's declared capability
+    // (config.supportsReasoning, defaulting to the DeepSeek host check — see
+    // AiApiConfig.reasoningEnabled). Other OpenAI-compatible endpoints (OpenAI,
+    // Ollama, Moonshot) reject or ignore `reasoning_effort`/`thinking`, and
+    // some return an error for unknown fields. For reasoning-capable
+    // endpoints, reasoning output is returned in a separate
+    // `reasoning_content` field and never leaks into `message.content`, so
+    // JSON-course-generation parsing is unaffected.
+    if (config.reasoningEnabled) {
+      payloadObj['reasoning_effort'] = 'high';
+      payloadObj['thinking'] = const {'type': 'enabled'};
+    }
     if (responseFormat != null) {
       payloadObj['response_format'] = responseFormat;
     }

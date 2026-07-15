@@ -114,18 +114,27 @@ class _ShareProgressSheetState extends State<_ShareProgressSheet> {
                           ),
                     ),
                     const SizedBox(height: 20),
-                    // Visible preview
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(
-                          VarnamalaTheme.radiusXLarge),
-                      child: ShareProgressCard(
-                        user: user,
-                        streak: streak,
-                        totalXp: totalXp,
-                        gems: gems,
-                        completedLessons: completedLessons,
-                        perfectLessons: perfectLessons,
-                        targetLanguage: languageProvider.selectedLanguage,
+                    // Visible preview doubles as the capture target. The
+                    // RepaintBoundary wraps the ClipRRect (not the reverse) so
+                    // its layer includes the rounded-corner clip —
+                    // RenderRepaintBoundary.toImage rasterizes the boundary's
+                    // own subtree only and does NOT apply ancestor clips, so
+                    // the boundary must be the OUTER widget for the rounded
+                    // corners to appear in the captured PNG.
+                    RepaintBoundary(
+                      key: _generator.boundaryKey,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(
+                            VarnamalaTheme.radiusXLarge),
+                        child: ShareProgressCard(
+                          user: user,
+                          streak: streak,
+                          totalXp: totalXp,
+                          gems: gems,
+                          completedLessons: completedLessons,
+                          perfectLessons: perfectLessons,
+                          targetLanguage: languageProvider.selectedLanguage,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -147,16 +156,6 @@ class _ShareProgressSheetState extends State<_ShareProgressSheet> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    // Offstage capture target for the generator
-                    _generator.captureTarget(
-                      user: user,
-                      streak: streak,
-                      totalXp: totalXp,
-                      gems: gems,
-                      completedLessons: completedLessons,
-                      perfectLessons: perfectLessons,
-                      targetLanguage: languageProvider.selectedLanguage,
-                    ),
                   ],
                 ),
               ),
@@ -169,10 +168,18 @@ class _ShareProgressSheetState extends State<_ShareProgressSheet> {
 
   Future<int> _initialGems(GemsProvider provider) async {
     // The gems stream is async*, so we take the first event as a one-off value.
-    await for (final value in provider.getGemsStream()) {
-      return value;
+    // The first event is read synchronously from prefs inside the generator,
+    // so this completes immediately in practice. The timeout is a safety net
+    // so a future stream implementation that never emits can't hang the
+    // FutureBuilder forever — fall back to 0.
+    try {
+      return await provider.getGemsStream().first.timeout(
+        const Duration(seconds: 1),
+        onTimeout: () => 0,
+      );
+    } catch (_) {
+      return 0;
     }
-    return 0;
   }
 
   Future<void> _handleShare() async {
@@ -185,7 +192,7 @@ class _ShareProgressSheetState extends State<_ShareProgressSheet> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not share: $e')),
+          SnackBar(content: Text('Could not share progress: $e')),
         );
       }
     } finally {

@@ -136,9 +136,31 @@ sealed class Interaction with _$Interaction {
     String? grammarPointId,
   }) = ReadingShortAnswer;
 
-  factory Interaction.fromJson(Map<String, dynamic> json) =>
-      _$InteractionFromJson(json);
+  factory Interaction.fromJson(Map<String, dynamic> json) {
+    try {
+      return _$InteractionFromJson(json);
+    } catch (e) {
+      // Unknown runtimeType from a newer content version (or a corrupted
+      // blob) would otherwise throw CheckedFromJsonException and — at the
+      // runtime read path — get swallowed by CourseRepository._toLesson's
+      // catch, silently emptying the whole lesson. Degrade to a benign
+      // ShowWord carrying the offending type so the lesson still loads; the
+      // wordId is prefixed with [unknownInteractionWordIdPrefix] so consumers
+      // (SRS registration, the ShowWord renderer) can recognize the sentinel
+      // and treat it as a load-time failure rather than a real vocab id.
+      final rt = json['runtimeType']?.toString() ?? 'unknown';
+      return Interaction.showWord(
+        wordId: '$unknownInteractionWordIdPrefix$rt',
+      );
+    }
+  }
 }
+
+/// Prefix [Interaction.fromJson] emits on the `ShowWord` it returns when the
+/// `runtimeType` is unknown/corrupted. Consumers use this to recognize the
+/// sentinel as a load-time parse failure (skip SRS registration, render a
+/// placeholder) instead of treating it as a real vocabulary id.
+const String unknownInteractionWordIdPrefix = 'unknown-interaction:';
 
 /// Optional grammar-point link on any [Interaction] variant.
 String? interactionGrammarPointId(Interaction interaction) {
@@ -160,15 +182,16 @@ String? interactionGrammarPointId(Interaction interaction) {
 
 /// Whether an interaction has a text prompt worth explaining, so the
 /// in-lesson AI hint assistant should offer itself. Audio-driven types
-/// (no text prompt to explain) opt out here. Add a `false` arm for any
-/// future audio-only type so the lesson screen doesn't need to grow an
-/// `is!` exclusion list.
+/// (no text prompt to explain) opt out here, as does [ShowWord] — it is a
+/// display-only card whose word/expression is already shown, so there is
+/// nothing to "hint" at. Add a `false` arm for any future audio-only type
+/// so the lesson screen doesn't need to grow an `is!` exclusion list.
 bool interactionAiHintEligible(Interaction interaction) {
   return switch (interaction) {
     ListenAndPick() => false,
     TypeTheWord() => false,
     ListenOnly() => false,
-    ShowWord() => true,
+    ShowWord() => false,
     MultipleChoice() => true,
     MultiSelect() => true,
     FillBlank() => true,

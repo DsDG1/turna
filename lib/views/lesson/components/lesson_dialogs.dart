@@ -128,7 +128,7 @@ class _LessonCompletionSummary extends StatelessWidget {
       ),
       child: ConstrainedBox(
         constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.85,
+          maxHeight: MediaQuery.sizeOf(context).height * 0.85,
         ),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
@@ -196,7 +196,7 @@ class _LessonCompletionSummary extends StatelessWidget {
                 ),
                 child: const Icon(
                   Icons.star_rounded,
-                  color: Colors.white,
+                  color: VarnamalaTheme.textOnPrimary,
                   size: 16,
                 ),
               ),

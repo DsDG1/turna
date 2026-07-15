@@ -213,7 +213,7 @@ class _CharacterTile extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
-            border: Border.all(color: const Color(0xFFEEF2F1)),
+            border: Border.all(color: VarnamalaTheme.dividerBg(context)),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -506,7 +506,7 @@ class _VowelAndConsonantLearningPageState
                 color: VarnamalaTheme.textOnPrimary,
                 borderRadius:
                     BorderRadius.circular(VarnamalaTheme.radiusMedium),
-                border: Border.all(color: const Color(0xFFEEF2F1)),
+                border: Border.all(color: VarnamalaTheme.dividerBg(context)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,

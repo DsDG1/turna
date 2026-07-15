@@ -214,7 +214,7 @@ class ApiConfigDialog(QDialog):
         form.addRow("API Key:", self.api_key_edit)
 
         self.model_edit = QLineEdit(self._config.model)
-        self.model_edit.setPlaceholderText("deepseek-v4-flash")
+        self.model_edit.setPlaceholderText("deepseek-v4-pro")
         self.model_edit.textChanged.connect(self._on_field_changed)
         form.addRow("Model:", self.model_edit)
         layout.addLayout(form)
@@ -231,7 +231,7 @@ class ApiConfigDialog(QDialog):
         layout.addWidget(self.test_result_label)
 
         hint = QLabel(
-            "默认使用 DeepSeek（https://api.deepseek.com，模型 deepseek-v4-flash）。"
+            "默认使用 DeepSeek（https://api.deepseek.com，模型 deepseek-v4-pro）。"
             "也兼容 OpenAI / Moonshot / 本地 Ollama 等 OpenAI 兼容接口。"
             "密钥仅在内存中，关闭程序后不保留。必须测试连接通过后才能保存。"
         )
@@ -1135,6 +1135,24 @@ class AiGeneratorDialog(QDialog):
             worker.cancel()
             self._set_stage_label("正在取消…")
 
+    def _register_worker(self, worker: AiRequestWorker) -> None:
+        """Remember the active worker and clear the reference when it finishes.
+
+        Without the ``finished`` hook, a completed worker lingered in
+        ``_current_worker`` (harmless, since callers check ``isRunning()``,
+        but it pinned a QThread in memory). The finished signal fires after
+        ``completed``/``error_occurred`` regardless of success or cancel.
+        """
+        self._current_worker = worker
+        worker.finished.connect(self._forget_worker)
+
+    def _forget_worker(self) -> None:
+        # Only clear if the finished worker is still the one we registered —
+        # a newer worker may already have replaced it.
+        worker = self.sender()
+        if worker is self._current_worker:
+            self._current_worker = None
+
     def _on_worker_error(self, message: str) -> None:
         self._set_busy(False, normal=self._busy_normal)
         self._set_stage_label("")
@@ -1187,7 +1205,7 @@ class AiGeneratorDialog(QDialog):
         worker.result_ready.connect(self._on_normal_generation_ready)
         worker.error_occurred.connect(self._on_worker_error)
         worker.completed.connect(lambda: self._set_busy(False, normal=True, stage=""))
-        self._current_worker = worker
+        self._register_worker(worker)
         self._set_busy(True, normal=True, stage="生成课程中…")
         worker.start()
 
@@ -1361,7 +1379,7 @@ class AiGeneratorDialog(QDialog):
         worker.result_ready.connect(self._on_alignment_reply_ready)
         worker.error_occurred.connect(self._on_worker_error)
         worker.completed.connect(lambda: self._set_busy(False, stage=""))
-        self._current_worker = worker
+        self._register_worker(worker)
         self._set_busy(True, stage="对齐中…")
         worker.start()
 
@@ -1484,7 +1502,7 @@ class AiGeneratorDialog(QDialog):
         worker.result_ready.connect(self._on_wish_generation_ready)
         worker.error_occurred.connect(self._on_worker_error)
         worker.completed.connect(lambda: None)
-        self._current_worker = worker
+        self._register_worker(worker)
         self._set_busy(True, stage="生成课程中…")
         worker.start()
 
@@ -1506,7 +1524,7 @@ class AiGeneratorDialog(QDialog):
         worker.result_ready.connect(self._on_explain_ready)
         worker.error_occurred.connect(self._on_worker_error)
         worker.completed.connect(lambda: self._set_busy(False, stage=""))
-        self._current_worker = worker
+        self._register_worker(worker)
         self._set_busy(True, stage="通俗解释中…")
         worker.start()
 

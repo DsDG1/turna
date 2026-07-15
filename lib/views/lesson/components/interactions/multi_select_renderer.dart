@@ -8,6 +8,7 @@ import 'package:injectable/injectable.dart';
 import 'package:varnamala/core/spacing.dart';
 import 'package:varnamala/core/text_styles.dart';
 import 'package:varnamala/domain/course/interaction.dart';
+import 'package:varnamala/views/lesson/components/cached_asset_image.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:varnamala/views/theme.dart';
 
@@ -141,8 +142,7 @@ class _MultiSelectBodyState extends State<_MultiSelectBody> {
     final submitted = widget.state.submitted;
     final correct = widget.state.correct;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+    return InteractionBody(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -164,24 +164,7 @@ class _MultiSelectBodyState extends State<_MultiSelectBody> {
           ),
           if (widget.imageAsset != null) ...[
             const SizedBox(height: 16),
-            ClipRRect(
-              borderRadius:
-                  BorderRadius.circular(VarnamalaTheme.radiusMedium),
-              child: Builder(
-                builder: (context) {
-                  final dpr = MediaQuery.devicePixelRatioOf(context);
-                  final cacheWidth =
-                      (MediaQuery.sizeOf(context).width.clamp(0, 600) * dpr)
-                          .round();
-                  return Image.asset(
-                    widget.imageAsset!,
-                    fit: BoxFit.cover,
-                    cacheWidth: cacheWidth,
-                    cacheHeight: (300 * dpr).round(),
-                  );
-                },
-              ),
-            ),
+            RoundedCachedAssetImage(asset: widget.imageAsset!),
           ],
           const SizedBox(height: 24),
           ..._buildOptions(submitted, correct),

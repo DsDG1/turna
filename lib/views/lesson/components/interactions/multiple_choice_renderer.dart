@@ -7,8 +7,8 @@ import 'package:injectable/injectable.dart';
 // Project imports:
 import 'package:varnamala/core/text_styles.dart';
 import 'package:varnamala/domain/course/interaction.dart';
+import 'package:varnamala/views/lesson/components/cached_asset_image.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:varnamala/views/theme.dart';
 
 /// Pick one of N options. Submit locks the UI and colours correct/incorrect
 /// choices using [InteractionState.correct].
@@ -91,8 +91,7 @@ class _MultipleChoiceBodyState extends State<_MultipleChoiceBody> {
     final correct = widget.state.correct;
     final canSubmit = !submitted && _picked != null;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+    return InteractionBody(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -105,26 +104,7 @@ class _MultipleChoiceBodyState extends State<_MultipleChoiceBody> {
           ),
           if (widget.imageAsset != null) ...[
             const SizedBox(height: 16),
-            ClipRRect(
-              borderRadius:
-                  BorderRadius.circular(VarnamalaTheme.radiusMedium),
-              child: Builder(
-                builder: (context) {
-                  // Cap the decoded image to the display width so we never
-                  // decode a multi-megapixel asset for a column-width slot.
-                  final dpr = MediaQuery.devicePixelRatioOf(context);
-                  final cacheWidth =
-                      (MediaQuery.sizeOf(context).width.clamp(0, 600) * dpr)
-                          .round();
-                  return Image.asset(
-                    widget.imageAsset!,
-                    fit: BoxFit.cover,
-                    cacheWidth: cacheWidth,
-                    cacheHeight: (300 * dpr).round(),
-                  );
-                },
-              ),
-            ),
+            RoundedCachedAssetImage(asset: widget.imageAsset!),
           ],
           const SizedBox(height: 24),
           ..._buildOptions(submitted, correct),

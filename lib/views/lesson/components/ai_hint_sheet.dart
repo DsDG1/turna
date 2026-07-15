@@ -112,7 +112,7 @@ class AiHintSheet extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: VarnamalaTheme.error.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
       ),
       child: Text(
         '出错了：${error ?? '未知错误'}',

@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import 'package:varnamala/application/ai/ai_api_config.dart';
 import 'package:varnamala/application/ai/ai_course_provider.dart';
 import 'package:varnamala/application/ai/ai_hint_provider.dart';
+import 'package:varnamala/views/ai/chat_bubble.dart';
 import 'package:varnamala/views/theme.dart';
 
 @RoutePage()
@@ -85,7 +86,6 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final ctx = widget.context;
     return Scaffold(
       backgroundColor: VarnamalaTheme.scaffoldBg(context),
@@ -133,7 +133,7 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
                       // and this item build.
                       if (i < w.messages.length) {
                         final m = w.messages[i];
-                        return _bubble(m.role, m.content, isDark);
+                        return ChatBubble(role: m.role, content: m.content);
                       }
                       if (v.hasError && i == v.count) {
                         return _errorBubble(w.error ?? '未知错误');
@@ -216,30 +216,6 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
     );
   }
 
-  Widget _bubble(String role, String content, bool isDark) {
-    final isUser = role == 'user';
-    final bg = isUser
-        ? VarnamalaTheme.primaryLight
-        : (isDark ? const Color(0xFF2A2A2A) : Colors.white);
-    final textColor =
-        isUser ? Colors.white : (isDark ? Colors.white : Colors.black87);
-    return Align(
-      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.all(10),
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.8,
-        ),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Text(content, style: TextStyle(color: textColor)),
-      ),
-    );
-  }
-
   Widget _errorBubble(String error) {
     return Align(
       alignment: Alignment.centerLeft,
@@ -248,7 +224,7 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: VarnamalaTheme.error.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
         ),
         child: Text(
           'Error: $error',

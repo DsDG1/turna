@@ -33,6 +33,19 @@ class InteractionState {
 
   static const InteractionState idle = InteractionState();
 
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is InteractionState &&
+          runtimeType == other.runtimeType &&
+          submitted == other.submitted &&
+          correct == other.correct &&
+          userAnswerText == other.userAnswerText;
+
+  @override
+  int get hashCode =>
+      Object.hash(runtimeType, submitted, correct, userAnswerText);
+
   InteractionState copyWith({
     bool? submitted,
     bool? correct,
@@ -166,8 +179,13 @@ class LessonCheckButton extends StatelessWidget {
   }
 }
 
-/// Default body chrome every renderer sits inside: scrolls, centers vertically,
-/// and constrains width on tablet.
+/// Default body chrome every renderer sits inside. Provides the standard
+/// side padding + bottom safe area. Scrolling is owned by the lesson page's
+/// outer [SingleChildScrollView] — this used to nest its own scroll view,
+/// which double-wrapped FillBlank / Translate / TypeTheWord / Reading* and
+/// caused nested-scroll jank. Centering padding only; no [LayoutBuilder]
+/// (its `minHeight: maxHeight - 120` math broke under the outer scroll's
+/// unbounded height constraint).
 class InteractionBody extends StatelessWidget {
   final Widget child;
 
@@ -176,18 +194,9 @@ class InteractionBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          return SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: constraints.maxHeight - 120,
-              ),
-              child: child,
-            ),
-          );
-        },
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        child: child,
       ),
     );
   }
@@ -330,19 +339,25 @@ class SpeakerButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: VarnamalaTheme.peacockTeal,
-      shape: const CircleBorder(),
-      elevation: 4,
-      shadowColor: VarnamalaTheme.peacockTeal.withValues(alpha: 0.4),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onPressed,
-        child: const Padding(
-          padding: EdgeInsets.all(24),
-          child:
-              Icon(Icons.volume_up_rounded,
+    return Semantics(
+      button: true,
+      label: 'Play audio',
+      child: Tooltip(
+        message: 'Play audio',
+        child: Material(
+          color: VarnamalaTheme.peacockTeal,
+          shape: const CircleBorder(),
+          elevation: 4,
+          shadowColor: VarnamalaTheme.peacockTeal.withValues(alpha: 0.4),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onPressed,
+            child: const Padding(
+              padding: EdgeInsets.all(24),
+              child: Icon(Icons.volume_up_rounded,
                   color: VarnamalaTheme.textOnPrimary, size: 36),
+            ),
+          ),
         ),
       ),
     );

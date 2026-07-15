@@ -11,43 +11,20 @@ import 'package:flutter/rendering.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
-// Project imports:
-import 'package:varnamala/core/enums.dart';
-import 'package:varnamala/domain/auth/local_user.dart';
-import 'package:varnamala/views/profile/widgets/share_progress_card.dart';
-
 /// Captures a [ShareProgressCard] to a PNG and shares it via the platform sheet.
+///
+/// Attach [boundaryKey] to a *laid-out* (painted) [ShareProgressCard] — e.g. the
+/// visible preview inside the share sheet — wrapped in a [RepaintBoundary]. Do
+/// NOT wrap the capture target in [Offstage]: an offstage subtree is never
+/// laid out or painted, so its [RenderRepaintBoundary] has no context and
+/// [RenderRepaintBoundary.toImage] cannot capture it.
 class ShareProgressImageGenerator {
   final GlobalKey _boundaryKey = GlobalKey();
 
-  /// Builds an offstage capture target that can be rendered into an image.
-  ///
-  /// Place this widget in the widget tree before calling [captureAndShare].
-  /// It is sized to zero so it does not affect layout.
-  Widget captureTarget({
-    required LocalUser user,
-    required int streak,
-    required int totalXp,
-    required int gems,
-    required int completedLessons,
-    required int perfectLessons,
-    required TargetLanguage targetLanguage,
-  }) {
-    return Offstage(
-      child: RepaintBoundary(
-        key: _boundaryKey,
-        child: ShareProgressCard(
-          user: user,
-          streak: streak,
-          totalXp: totalXp,
-          gems: gems,
-          completedLessons: completedLessons,
-          perfectLessons: perfectLessons,
-          targetLanguage: targetLanguage,
-        ),
-      ),
-    );
-  }
+  /// The key the caller must attach to a laid-out [RepaintBoundary] wrapping the
+  /// card to capture. Exposed so the visible preview card can double as the
+  /// capture target (no separate offstage widget needed).
+  GlobalKey get boundaryKey => _boundaryKey;
 
   /// Renders the capture target to a PNG and opens the platform share sheet.
   Future<void> captureAndShare() async {
@@ -57,14 +34,29 @@ class ShareProgressImageGenerator {
     if (boundary == null) {
       throw StateError(
         'ShareProgressCard is not laid out yet. '
-        'Make sure captureTarget() is in the widget tree.',
+        'Make sure boundaryKey is attached to a laid-out RepaintBoundary.',
       );
     }
 
-    final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
+    // Ensure the current frame has finished laying out + painting the boundary
+    // before rasterizing it, so the capture is not taken mid-build.
+    await WidgetsBinding.instance.endOfFrame;
+
+    // Cap the raster pixel ratio to 3.0: on high-DPR devices (4x) capturing at
+    // the native ratio produces very large images and the PNG encode becomes
+    // a visible jank source. 3.0 is visually crisp while keeping the encode
+    // bounded.
+    final views = WidgetsBinding.instance.platformDispatcher.views;
+    final deviceRatio = views.isEmpty ? 1.0 : views.first.devicePixelRatio;
+    final pixelRatio = deviceRatio < 3.0 ? deviceRatio : 3.0;
+
+    final ui.Image image = await boundary.toImage(pixelRatio: pixelRatio);
     final ByteData? byteData =
         await image.toByteData(format: ui.ImageByteFormat.png);
-    final Uint8List pngBytes = byteData!.buffer.asUint8List();
+    if (byteData == null) {
+      throw StateError('Failed to encode share image to PNG (toByteData null).');
+    }
+    final Uint8List pngBytes = byteData.buffer.asUint8List();
 
     final tempDir = await getTemporaryDirectory();
     final file = File('${tempDir.path}/varnamala_progress.png');

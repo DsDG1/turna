@@ -16,6 +16,7 @@ from src.backend.ai_generator import (
     AiCancelled,
     AiCourseSpec,
     ChatMessage,
+    apply_genre_to_spec,
     build_alignment_prompt,
     build_prompt,
     explain_course,
@@ -54,6 +55,143 @@ class TestAiApiConfig(unittest.TestCase):
     def test_chat_completions_url_strips_trailing_slash(self) -> None:
         cfg = AiApiConfig(base_url="https://api.deepseek.com/v1/", api_key="k", model="m")
         self.assertEqual(cfg.chat_completions_url, "https://api.deepseek.com/v1/chat/completions")
+
+    def test_is_deepseek_true_for_deepseek_host(self) -> None:
+        cfg = AiApiConfig(base_url="https://api.deepseek.com", api_key="k", model="m")
+        self.assertTrue(cfg.is_deepseek)
+
+    def test_is_deepseek_true_for_subdomain(self) -> None:
+        cfg = AiApiConfig(base_url="https://api-cn.deepseek.com/v1", api_key="k", model="m")
+        self.assertTrue(cfg.is_deepseek)
+
+    def test_is_deepseek_false_for_non_deepseek_host(self) -> None:
+        for url in (
+            "https://api.openai.com/v1",
+            "https://generativelanguage.googleapis.com/v1",
+            "http://localhost:11434/v1",
+        ):
+            cfg = AiApiConfig(base_url=url, api_key="k", model="m")
+            self.assertFalse(cfg.is_deepseek, url)
+
+    def test_reasoning_enabled_falls_back_to_host_check(self) -> None:
+        deepseek = AiApiConfig(base_url="https://api.deepseek.com", api_key="k", model="m")
+        openai = AiApiConfig(base_url="https://api.openai.com/v1", api_key="k", model="m")
+        self.assertTrue(deepseek.reasoning_enabled)
+        self.assertFalse(openai.reasoning_enabled)
+
+    def test_reasoning_enabled_honors_explicit_flag(self) -> None:
+        # Explicit opt-in on a non-DeepSeek host overrides the host inference.
+        forced = AiApiConfig(
+            base_url="https://my-proxy.example.com/v1",
+            api_key="k",
+            model="m",
+            supports_reasoning=True,
+        )
+        # Explicit opt-out on a DeepSeek host overrides the host inference.
+        suppressed = AiApiConfig(
+            base_url="https://api.deepseek.com",
+            api_key="k",
+            model="m",
+            supports_reasoning=False,
+        )
+        self.assertTrue(forced.reasoning_enabled)
+        self.assertFalse(suppressed.reasoning_enabled)
+
+
+class TestRequestChatReasoningPayload(unittest.TestCase):
+    """reasoning_effort/thinking must be DeepSeek-only (mirrors the Dart side).
+
+    Non-DeepSeek OpenAI-compatible endpoints reject unknown payload fields
+    (OpenAI returns HTTP 400), so the fields are gated on the endpoint host.
+    """
+
+    @staticmethod
+    def _capturing_fake(resp_body: str):
+        captured: dict[str, object] = {}
+
+        class _FakeResp:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+            def read(self, n=-1):
+                return resp_body.encode("utf-8")
+
+        def _factory(req, *args, **kwargs):
+            captured["body"] = json.loads(req.data.decode("utf-8"))
+            return _FakeResp()
+
+        return captured, _factory
+
+    def test_deepseek_payload_includes_reasoning_fields(self) -> None:
+        from unittest import mock
+
+        captured, factory = self._capturing_fake(
+            '{"choices": [{"message": {"content": "ok"}}]}'
+        )
+        cfg = AiApiConfig(
+            base_url="https://api.deepseek.com", api_key="k", model="deepseek-v4-pro"
+        )
+        with mock.patch("src.backend.ai_generator.urllib.request.urlopen", side_effect=factory):
+            request_chat(cfg, messages=[{"role": "user", "content": "hi"}])
+        self.assertEqual(captured["body"]["reasoning_effort"], "high")
+        self.assertEqual(captured["body"]["thinking"], {"type": "enabled"})
+
+    def test_non_deepseek_payload_omits_reasoning_fields(self) -> None:
+        from unittest import mock
+
+        captured, factory = self._capturing_fake(
+            '{"choices": [{"message": {"content": "ok"}}]}'
+        )
+        cfg = AiApiConfig(
+            base_url="https://api.openai.com/v1", api_key="k", model="gpt-4o"
+        )
+        with mock.patch("src.backend.ai_generator.urllib.request.urlopen", side_effect=factory):
+            request_chat(cfg, messages=[{"role": "user", "content": "hi"}])
+        body = captured["body"]
+        self.assertNotIn("reasoning_effort", body)
+        self.assertNotIn("thinking", body)
+
+    def test_supports_reasoning_override_sends_fields_on_non_deepseek_host(
+        self,
+    ) -> None:
+        from unittest import mock
+
+        captured, factory = self._capturing_fake(
+            '{"choices": [{"message": {"content": "ok"}}]}'
+        )
+        cfg = AiApiConfig(
+            base_url="https://my-proxy.example.com/v1",
+            api_key="k",
+            model="some-reasoning-model",
+            supports_reasoning=True,
+        )
+        with mock.patch("src.backend.ai_generator.urllib.request.urlopen", side_effect=factory):
+            request_chat(cfg, messages=[{"role": "user", "content": "hi"}])
+        self.assertEqual(captured["body"]["reasoning_effort"], "high")
+        self.assertEqual(captured["body"]["thinking"], {"type": "enabled"})
+
+    def test_supports_reasoning_false_suppresses_fields_on_deepseek_host(
+        self,
+    ) -> None:
+        from unittest import mock
+
+        captured, factory = self._capturing_fake(
+            '{"choices": [{"message": {"content": "ok"}}]}'
+        )
+        cfg = AiApiConfig(
+            base_url="https://api.deepseek.com",
+            api_key="k",
+            model="deepseek-v4-pro",
+            supports_reasoning=False,
+        )
+        with mock.patch("src.backend.ai_generator.urllib.request.urlopen", side_effect=factory):
+            request_chat(cfg, messages=[{"role": "user", "content": "hi"}])
+        body = captured["body"]
+        self.assertNotIn("reasoning_effort", body)
+        self.assertNotIn("thinking", body)
 
 
 class TestParseCompletion(unittest.TestCase):
@@ -437,6 +575,47 @@ class TestRequestChatCancel(unittest.TestCase):
                     messages=[{"role": "user", "content": "hi"}],
                     cancel_check=lambda: True,
                 )
+
+
+class TestApplyGenreToSpec(unittest.TestCase):
+    def test_no_genre_batch_returns_spec_unchanged(self) -> None:
+        spec = AiCourseSpec(topic="Travel", use_genre_batch=False, template="mixed")
+        result = apply_genre_to_spec(spec)
+        self.assertIs(result, spec)
+
+    def test_genre_tag_returns_new_spec_with_template(self) -> None:
+        # "[practice]" is a recognized genre tag (see ai_genre.GENRE_TEMPLATES).
+        spec = AiCourseSpec(
+            topic="Travel",
+            extra_instructions="[practice]",
+            use_genre_batch=True,
+            template="mixed",
+        )
+        result = apply_genre_to_spec(spec)
+        self.assertIsNotNone(result)
+        # The returned spec is a new instance (no in-place mutation).
+        self.assertIsNot(result, spec)
+        # And the original spec is left untouched.
+        self.assertEqual(spec.template, "mixed")
+        # The new template is derived from the genre ("practice"), not "mixed".
+        self.assertEqual(result.template, "practice")
+
+    def test_does_not_mutate_input_across_calls(self) -> None:
+        # Regression: apply_genre_to_spec used to mutate the spec in place, so
+        # reusing one spec object with a different genre tag would leak the
+        # first tag's template into the second call. Now it returns a new spec.
+        spec = AiCourseSpec(
+            topic="Travel",
+            extra_instructions="[practice]",
+            use_genre_batch=True,
+            template="mixed",
+        )
+        first = apply_genre_to_spec(spec)
+        self.assertEqual(first.template, "practice")
+        # Reuse the same spec object — its template must still be "mixed".
+        self.assertEqual(spec.template, "mixed")
+        second = apply_genre_to_spec(spec)
+        self.assertEqual(second.template, "practice")
 
 
 if __name__ == "__main__":

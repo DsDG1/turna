@@ -91,6 +91,39 @@ void main() {
       final reviews = await repo.readLogs(type: StudyActivityType.srsReview);
       expect(reviews.map((l) => l.id), ['review']);
     });
+
+    test('readLogs caches the merged set and invalidates on append', () async {
+      final now = DateTime.now();
+      await repo.appendLog(makeLog(id: 'log-1', timestamp: now));
+
+      // First read populates the merged-log cache.
+      final first = await repo.readLogs();
+      expect(first, hasLength(1));
+
+      // A second read with no filter returns a fresh (defensive) copy with the
+      // same contents — callers can mutate it without corrupting the cache.
+      final second = await repo.readLogs();
+      expect(second, hasLength(1));
+      expect(identical(first, second), isFalse);
+      second.clear();
+      // Cache is untouched by the caller's mutation.
+      final third = await repo.readLogs();
+      expect(third, hasLength(1));
+
+      // An append invalidates the cache so the next read reflects new data.
+      await repo.appendLog(makeLog(id: 'log-2', timestamp: now));
+      final afterAppend = await repo.readLogs();
+      expect(afterAppend.map((l) => l.id).toSet(), {'log-1', 'log-2'});
+    });
+
+    test('clearAll invalidates the merged-log cache', () async {
+      final now = DateTime.now();
+      await repo.appendLog(makeLog(id: 'log-1', timestamp: now));
+      expect(await repo.readLogs(), hasLength(1));
+
+      await repo.clearAll();
+      expect(await repo.readLogs(), isEmpty);
+    });
   });
 
   group('90-day purge', () {
@@ -196,6 +229,21 @@ void main() {
       final stats = await repo.readLastNDays(1);
       expect(stats.first.totalXp, 10);
       expect(stats.first.lessonCount, 10);
+    });
+
+    // writeFailures is the observable surface for otherwise-silent write
+    // failures (SharedPreferences I/O error / encode failure). It must start
+    // at zero and stay zero across successful writes — the counter only moves
+    // when a chained op actually throws.
+    test('writeFailures starts at zero and stays zero on successful writes',
+        () async {
+      expect(repo.writeFailures, 0);
+
+      final now = DateTime.now();
+      await repo.appendLog(makeLog(id: 'ok-1', timestamp: now));
+      await repo.clearAll();
+
+      expect(repo.writeFailures, 0);
     });
   });
 

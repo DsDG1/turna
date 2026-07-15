@@ -44,11 +44,29 @@ class StudyLogRepository implements IStudyLogRepository {
   /// reads free. Invalidated by every write ([_updateDailyStats]/[clearAll]).
   Map<String, DailyStudyStats>? _dailyStatsCache;
 
+  /// Decoded merged-log cache (main + recent, sorted). [readLogs] previously
+  /// re-decoded both blobs and merged by id on every call; this cache makes
+  /// repeat reads free. Invalidated by every mutating write (appendLog /
+  /// flushRecent / clearAll) since any of them can change the merged set.
+  List<StudyLog>? _mergedLogsCache;
+
+  /// Count of write ops that failed (SharedPreferences I/O error, encode
+  /// failure, …) since this repository was constructed. Writes are still
+  /// best-effort (a failure degrades to stale-but-readable state rather than
+  /// crashing the caller), but this counter surfaces the otherwise-silent
+  /// data-loss risk for diagnostics / crash reporting.
+  int _writeFailures = 0;
+
+  /// Number of mutating writes that failed since construction. Exposed for
+  /// diagnostics; not user-facing. See [_enqueueWrite].
+  int get writeFailures => _writeFailures;
+
   StudyLogRepository(this.appPrefs);
 
   @override
   Future<void> appendLog(StudyLog log) async {
     await _enqueueWrite(() async {
+      _invalidateMergedLogs();
       final recent = await _readRecentLogs();
       recent.add(log);
       // Drop stale recent rows so a 90-day-old append never lingers in the
@@ -67,6 +85,7 @@ class StudyLogRepository implements IStudyLogRepository {
   /// Useful for tests and for future background flush hooks.
   Future<void> flushRecent() async {
     await _enqueueWrite(() async {
+      _invalidateMergedLogs();
       final recent = await _readRecentLogs();
       if (recent.isEmpty) return;
       await _mergeRecentIntoMain(recent);
@@ -79,7 +98,8 @@ class StudyLogRepository implements IStudyLogRepository {
     DateTime? until,
     StudyActivityType? type,
   }) async {
-    var logs = await _readAllLogsMerged();
+    final all = await _readAllLogsMerged();
+    var logs = all;
     if (since != null) {
       logs = logs.where((l) => l.timestamp.isAfter(since)).toList();
     }
@@ -90,26 +110,42 @@ class StudyLogRepository implements IStudyLogRepository {
     if (type != null) {
       logs = logs.where((l) => l.type == type).toList();
     }
+    // Defensive copy so callers can't mutate the shared [_mergedLogsCache].
+    // When a filter ran, `logs` is already a fresh list; only copy when it's
+    // still the cached reference (no filter, or all filters were no-ops).
+    if (identical(logs, all)) {
+      logs = List.of(logs);
+    }
     return logs;
   }
 
   @override
   Future<Map<String, DailyStudyStats>> readAllDailyStats() async {
     final cached = _dailyStatsCache;
-    if (cached != null) return cached;
+    if (cached != null) {
+      // Defensive copy: _updateDailyStats mutates the cached map instance in
+      // place (all[key] = ...; all.removeWhere(...)) and reassigns it as the
+      // cache. A caller iterating a returned reference concurrently with a
+      // queued write would throw ConcurrentModificationException. Hand back a
+      // fresh map so callers can't mutate or race the cache.
+      return Map.of(cached);
+    }
 
     final raw = appPrefs.preferences
         .getString(_dailyStatsKey, defaultValue: '{}')
         .getValue();
     try {
       final map = jsonDecode(raw) as Map<String, dynamic>;
-      return _dailyStatsCache = map.map((key, value) =>
+      final decoded = map.map((key, value) =>
           MapEntry(key, DailyStudyStats.fromJson(value as Map<String, dynamic>)));
+      _dailyStatsCache = decoded;
+      return Map.of(decoded);
     } catch (e) {
       // Corrupted prefs (partial write / migration glitch): return empty
       // instead of crashing the profile page. Mirrors SrsProvider.state guard.
       logger.w('StudyLogRepository dailyStats decode failed: $e');
-      return _dailyStatsCache = <String, DailyStudyStats>{};
+      _dailyStatsCache = <String, DailyStudyStats>{};
+      return <String, DailyStudyStats>{};
     }
   }
 
@@ -134,6 +170,7 @@ class StudyLogRepository implements IStudyLogRepository {
   @override
   Future<void> clearAll() async {
     await _enqueueWrite(() async {
+      _invalidateMergedLogs();
       await appPrefs.preferences.setString(_logsKey, '[]');
       await appPrefs.preferences.setString(_recentKey, '[]');
       await appPrefs.preferences.setString(_dailyStatsKey, '{}');
@@ -147,9 +184,11 @@ class StudyLogRepository implements IStudyLogRepository {
   /// one op don't break subsequent writes — they just get logged.
   Future<void> _enqueueWrite(Future<void> Function() op) {
     _writeChain = _writeChain.then((_) => op()).catchError((Object e) {
-      // Ignore: error here means a subsequent read will see stale stats,
-      // but the next appendLog will repaint from the latest prefs read.
-      logger.w('StudyLogRepository write failed: $e');
+      // Don't rethrow: a failed write degrades to stale-but-readable state and
+      // the next appendLog repaints from the latest prefs read. Count it so
+      // the otherwise-silent data-loss risk stays observable (writeFailures).
+      _writeFailures++;
+      logger.w('StudyLogRepository write failed (#$_writeFailures): $e');
     });
     return _writeChain;
   }
@@ -187,23 +226,67 @@ class StudyLogRepository implements IStudyLogRepository {
   }
 
   /// Merge main + recent by id (recent wins on collision), sorted by timestamp.
+  /// Results are cached in [_mergedLogsCache]; invalidated by any mutating
+  /// write (see [_invalidateMergedLogs]).
+  ///
+  /// Cache hits return directly WITHOUT chaining onto [_writeChain] — the
+  /// cache is invalidated synchronously at the start of every mutating write,
+  /// so a populated cache is always a consistent snapshot and there is no
+  /// value in stalling a hot read behind in-flight writes. Only a cache MISS
+  /// (re-merge from prefs) serializes on the write chain: without that, a
+  /// [readLogs] queued while a write is suspended at an await (after the write
+  /// nulled the cache but before it persisted) would re-merge from the
+  /// still-old prefs and pin a stale cache that the completed write never
+  /// re-invalidates.
   Future<List<StudyLog>> _readAllLogsMerged() async {
-    final main = await _readMainLogs();
-    final recent = await _readRecentLogs();
-    if (recent.isEmpty) return main;
-    if (main.isEmpty) return recent;
+    final cached = _mergedLogsCache;
+    if (cached != null) return cached;
 
-    final byId = <String, StudyLog>{};
-    for (final log in main) {
-      byId[log.id] = log;
-    }
-    for (final log in recent) {
-      byId[log.id] = log;
-    }
-    final merged = byId.values.toList()
-      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    List<StudyLog> merged = const [];
+    await _enqueueRead(() async {
+      // Re-check inside the chain: another read ahead of us may have already
+      // repopulated the cache, or a write may have invalidated it.
+      final recached = _mergedLogsCache;
+      if (recached != null) {
+        merged = recached;
+        return;
+      }
+
+      final main = await _readMainLogs();
+      final recent = await _readRecentLogs();
+      if (recent.isEmpty) {
+        merged = main;
+      } else if (main.isEmpty) {
+        merged = recent;
+      } else {
+        final byId = <String, StudyLog>{};
+        for (final log in main) {
+          byId[log.id] = log;
+        }
+        for (final log in recent) {
+          byId[log.id] = log;
+        }
+        merged = byId.values.toList();
+      }
+      merged.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+      _mergedLogsCache = merged;
+    });
     return merged;
   }
+
+  /// Chain a read op onto [_writeChain] so reads are serialized with writes
+  /// (and with each other). A read never counts as a write failure and never
+  /// rethrows — a decode error here degrades to an empty result, logged.
+  Future<void> _enqueueRead(Future<void> Function() op) {
+    _writeChain = _writeChain.then((_) => op()).catchError((Object e) {
+      logger.w('StudyLogRepository read failed: $e');
+    });
+    return _writeChain;
+  }
+
+  /// Drop the merged-log cache. Called at the start of every mutating write so
+  /// a subsequent read re-merges from the updated prefs.
+  void _invalidateMergedLogs() => _mergedLogsCache = null;
 
   Future<void> _writeMainLogs(List<StudyLog> logs) async {
     final encoded = jsonEncode(logs.map((l) => l.toJson()).toList());

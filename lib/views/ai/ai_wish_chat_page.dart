@@ -13,6 +13,7 @@ import 'package:varnamala/application/ai/ai_course_spec.dart';
 import 'package:varnamala/application/ai/ai_genre.dart';
 import 'package:varnamala/application/ai/ai_wish_provider.dart';
 import 'package:varnamala/application/course_provider.dart';
+import 'package:varnamala/views/ai/chat_bubble.dart';
 import 'package:varnamala/views/theme.dart';
 
 @RoutePage()
@@ -188,7 +189,6 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       backgroundColor: VarnamalaTheme.scaffoldBg(context),
       appBar: AppBar(
@@ -235,7 +235,7 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
                         return _errorBubble(w.error!);
                       }
                       final m = w.messages[i];
-                      return _bubble(m.role, m.content, isDark);
+                      return ChatBubble(role: m.role, content: m.content);
                     },
                   );
                 },
@@ -440,31 +440,6 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
     );
   }
 
-  Widget _bubble(String role, String content, bool isDark) {
-    final isUser = role == 'user';
-    final bg = isUser
-        ? VarnamalaTheme.primaryLight
-        : (isDark ? const Color(0xFF2A2A2A) : Colors.white);
-    final textColor = isUser
-        ? Colors.white
-        : (isDark ? Colors.white : Colors.black87);
-    return Align(
-      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.all(10),
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.8,
-        ),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Text(content, style: TextStyle(color: textColor)),
-      ),
-    );
-  }
-
   Widget _errorBubble(String error) {
     return Align(
       alignment: Alignment.centerLeft,
@@ -473,7 +448,7 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: VarnamalaTheme.error.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
         ),
         child: Text(
           'Error: $error',

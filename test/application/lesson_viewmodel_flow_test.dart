@@ -340,6 +340,72 @@ void main() {
       expect(harness.studyStatsProvider.activities.first.type,
           StudyActivityType.lessonComplete);
       expect(harness.studyStatsProvider.activities.first.lessonId, lesson.id);
+
+      // F2: questionResults is incrementally cached in submission order.
+      final results = vm.questionResults;
+      expect(results, hasLength(2));
+      expect(results[0].prompt, 'Choose A');
+      expect(results[0].correct, isTrue);
+      expect(results[0].userAnswer, 'A');
+      expect(results[1].prompt, 'Choose X');
+      expect(results[1].correct, isFalse);
+      expect(results[1].userAnswer, 'Y');
+      // Read again — same cached backing list (unmodifiable view), not a re-walk.
+      expect(identical(vm.questionResults, vm.questionResults), isFalse);
+      expect(vm.questionResults.map((r) => r.prompt), ['Choose A', 'Choose X']);
+    });
+
+    test('progress reflects submitted count and totalInteractionCount is cached',
+        () async {
+      final lesson = _buildLegacyLesson(
+        items: [
+          const Interaction.multipleChoice(
+            id: 'mcq-1',
+            prompt: 'Q1',
+            options: ['A', 'B'],
+            correctIndex: 0,
+          ),
+          const Interaction.multipleChoice(
+            id: 'mcq-2',
+            prompt: 'Q2',
+            options: ['A', 'B'],
+            correctIndex: 0,
+          ),
+          const Interaction.multipleChoice(
+            id: 'mcq-3',
+            prompt: 'Q3',
+            options: ['A', 'B'],
+            correctIndex: 0,
+          ),
+        ],
+      );
+      final harness = _buildHarness(lesson: lesson, appPrefs: appPrefs);
+      final vm = harness.vm;
+
+      await vm.loadLesson(lesson.id);
+      expect(vm.totalInteractionCount, 3);
+      expect(vm.progress, 0.0);
+      expect(vm.currentQuestionNumber, 1);
+
+      // Submitting one item advances the completed counter by exactly one —
+      // even if the same item is submitted twice (guard against inflation).
+      _answerMultipleChoice(vm, correct: true, userAnswer: 'A');
+      _answerMultipleChoice(vm, correct: true, userAnswer: 'A');
+      expect(vm.progress, closeTo(1 / 3, 1e-9));
+      expect(vm.currentQuestionNumber, 1); // still on item 1 until advance
+      vm.advance();
+
+      _answerMultipleChoice(vm, correct: true, userAnswer: 'A');
+      vm.advance();
+      expect(vm.progress, closeTo(2 / 3, 1e-9));
+
+      _answerMultipleChoice(vm, correct: true, userAnswer: 'A');
+      vm.advance();
+      await pumpEventQueue();
+      expect(vm.isComplete, isTrue);
+      // On completion currentQuestionNumber clamps to total.
+      expect(vm.currentQuestionNumber, 3);
+      expect(vm.progress, 1.0);
     });
 
     test('mastery lesson with accuracy < 80% does not complete', () async {
@@ -371,6 +437,10 @@ void main() {
       expect(vm.masteryAttempts, 1);
       expect(vm.isComplete, isFalse);
       expect(vm.progress, 0.0);
+
+      // F2: retry clears the cached questionResults so the retry pass starts
+      // fresh (old answers from the failed attempt don't leak into the summary).
+      expect(vm.questionResults, isEmpty);
     });
 
     // Regression: loading a mastery lesson must NOT look like a failed check.

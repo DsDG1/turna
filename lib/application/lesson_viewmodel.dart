@@ -89,6 +89,12 @@ class LessonViewModel extends ChangeNotifier {
   int _correctAnswers = 0;
   int _incorrectAnswers = 0;
 
+  /// Total interaction count across all stages, cached at lesson load. A
+  /// lesson pass never changes its stage/item structure, so recomputing the
+  /// fold on every [progress] / [currentQuestionNumber] read is wasteful —
+  /// especially as several widgets read these getters per VM notify.
+  int _cachedTotalItemCount = 0;
+
   /// Idempotency guard for [_onLessonCompleted]. `advance()` calls it
   /// fire-and-forget (the Future keeps running after the widget unmounts —
   /// Flutter doesn't tear down pending Futures on dispose — so the XP/gems/
@@ -110,6 +116,13 @@ class LessonViewModel extends ChangeNotifier {
   /// Per-item submission state, keyed by [interactionItemId] — uses the
   /// item's stable `id` field when present, falling back to `legacy-$idx`.
   final Map<String, InteractionState> _interactionStates = {};
+
+  /// Cached [QuestionResult]s in submission order. Appended once per
+  /// [submitInteraction] (an item is submitted at most once per lesson pass —
+  /// re-submits only happen via [retryMastery]/[reset], which clear this list)
+  /// so the completion-summary dialog doesn't re-walk every stage/item and
+  /// re-allocate the whole list on every build.
+  final List<QuestionResult> _questionResults = [];
 
   // --- Getters ---
 
@@ -144,29 +157,14 @@ class LessonViewModel extends ChangeNotifier {
     return DateTime.now().difference(start).inSeconds;
   }
 
-  /// A per-question snapshot of the user's performance, in lesson order.
-  List<QuestionResult> get questionResults {
-    final results = <QuestionResult>[];
-    final stages = _stages;
-    for (var stageIndex = 0; stageIndex < stages.length; stageIndex++) {
-      final stage = stages[stageIndex];
-      for (var itemIndex = 0; itemIndex < stage.items.length; itemIndex++) {
-        final item = stage.items[itemIndex];
-        final itemId = interactionItemId(stage.id, item.id, itemIndex);
-        final state = _interactionStates[itemId];
-        if (state == null || !state.submitted) continue;
-        results.add(
-          QuestionResult(
-            prompt: interactionPromptLabel(item),
-            correct: state.correct == true,
-            userAnswer: state.userAnswerText,
-            correctAnswer: interactionCorrectAnswerLabel(item),
-          ),
-        );
-      }
-    }
-    return results;
-  }
+  /// A per-question snapshot of the user's performance, in submission order.
+  /// Backed by the incrementally-maintained [_questionResults] cache so the
+  /// completion dialog's build path is O(1) instead of re-walking every
+  /// stage/item. Also serves as the single source of truth for the submitted-
+  /// item count ([progress] reads [_questionResults.length]), so there is no
+  /// separate completed-count counter to keep in lockstep across resets.
+  List<QuestionResult> get questionResults =>
+      List.unmodifiable(_questionResults);
 
   /// 1-based index of the question the user is currently answering, clamped
   /// to [totalInteractionCount] when the lesson is complete. Returns 0 when
@@ -223,7 +221,7 @@ class LessonViewModel extends ChangeNotifier {
     if (_lesson == null) return 0.0;
     final total = _totalItemCount;
     if (total == 0) return 0.0;
-    return _completedItemCount / total;
+    return _questionResults.length / total;
   }
 
   /// Progress within the current stage.
@@ -271,6 +269,8 @@ class LessonViewModel extends ChangeNotifier {
     if (lesson == null) {
       _lesson = null;
       _cachedStages = const [];
+      _cachedTotalItemCount = 0;
+      _questionResults.clear();
       notifyListeners();
       return false;
     }
@@ -324,8 +324,13 @@ class LessonViewModel extends ChangeNotifier {
     _correctAnswers = 0;
     _incorrectAnswers = 0;
     _interactionStates.clear();
+    _questionResults.clear();
     _masteryAttempts = 0;
     _masteryPassed = !lesson.isMastery; // default true for non-mastery lessons
+    _cachedTotalItemCount = _cachedStages.fold<int>(
+      0,
+      (sum, stage) => sum + stage.items.length,
+    );
 
     // Register SRS words referenced by ShowWord interactions.
     _registerSrsWords();
@@ -347,11 +352,38 @@ class LessonViewModel extends ChangeNotifier {
       _audioController.playRandomLevelUpSound();
     }
 
+    // Count this item as completed exactly once per pass — guard against a
+    // double-submit of the same item inflating the progress counter (which is
+    // [_questionResults.length]). retry/reset clear the list, so re-submits
+    // after a reset start from zero again.
+    final wasAlreadySubmitted =
+        _interactionStates[currentInteractionId]?.submitted ?? false;
+
     _interactionStates[currentInteractionId] = InteractionState(
       submitted: true,
       correct: correct,
       userAnswerText: userAnswerText,
     );
+
+    // Incrementally cache the completion-summary snapshot so the dialog's
+    // build path is O(1), and so [progress] (which reads
+    // [_questionResults].length) advances by exactly one per submitted item.
+    // Guarded by wasAlreadySubmitted so a double-submit of one item doesn't
+    // append a duplicate row — the completion summary and the mistake-review
+    // zip (which pairs results with entryIds by index) rely on one row per
+    // item. retry/reset clear _questionResults, so re-submits after a reset
+    // start fresh.
+    final interaction = currentInteraction;
+    if (interaction != null && !wasAlreadySubmitted) {
+      _questionResults.add(
+        QuestionResult(
+          prompt: interactionPromptLabel(interaction),
+          correct: correct,
+          userAnswer: userAnswerText,
+          correctAnswer: interactionCorrectAnswerLabel(interaction),
+        ),
+      );
+    }
 
     notifyListeners();
   }
@@ -411,6 +443,7 @@ class LessonViewModel extends ChangeNotifier {
     _correctAnswers = 0;
     _incorrectAnswers = 0;
     _interactionStates.clear();
+    _questionResults.clear();
     notifyListeners();
   }
 
@@ -425,6 +458,7 @@ class LessonViewModel extends ChangeNotifier {
     _correctAnswers = 0;
     _incorrectAnswers = 0;
     _interactionStates.clear();
+    _questionResults.clear();
     notifyListeners();
   }
 
@@ -439,8 +473,7 @@ class LessonViewModel extends ChangeNotifier {
     return _stages[_currentStageIndex].items.length;
   }
 
-  int get _totalItemCount =>
-      _stages.fold<int>(0, (sum, stage) => sum + stage.items.length);
+  int get _totalItemCount => _cachedTotalItemCount;
 
   /// Flat (across all stages) 0-based index of the current item.
   int _flatItemIndex() {
@@ -451,10 +484,6 @@ class LessonViewModel extends ChangeNotifier {
     return index + _currentInteractionIndex;
   }
 
-  /// Count of items already submitted (completed).
-  int get _completedItemCount =>
-      _interactionStates.values.where((s) => s.submitted).length;
-
   /// Register all ShowWord interactions and register their wordIds in SRS.
   void _registerSrsWords() {
     if (_lesson == null) return;
@@ -463,7 +492,15 @@ class LessonViewModel extends ChangeNotifier {
     for (final stage in _stages) {
       for (final item in stage.items) {
         if (item is ShowWord) {
-          if (item.wordId.isNotEmpty) wordIds.add(item.wordId);
+          // Skip the synthetic fallback ShowWord that Interaction.fromJson
+          // emits for an unknown/corrupted runtimeType — its wordId is a
+          // diagnostic sentinel (unknownInteractionWordIdPrefix + rt), not a
+          // real vocab id. Registering it would pollute the SRS queue with a
+          // phantom, unanswerable card and record a bogus lesson link.
+          if (item.wordId.isNotEmpty &&
+              !item.wordId.startsWith(unknownInteractionWordIdPrefix)) {
+            wordIds.add(item.wordId);
+          }
           if (item.expressionId != null && item.expressionId!.isNotEmpty) {
             expressionIds.add(item.expressionId!);
           }
@@ -549,12 +586,21 @@ class LessonViewModel extends ChangeNotifier {
     _completionStarted = true;
     final lesson = _lesson;
     if (lesson == null) return;
-    await _completionCoordinator.complete(
-      lessonId: lesson.id,
-      wasPerfect: _totalMistakes == 0,
-      correctAnswers: _correctAnswers,
-      incorrectAnswers: _incorrectAnswers,
-      lessonStartTime: _lessonStartTime,
-    );
+    try {
+      await _completionCoordinator.complete(
+        lessonId: lesson.id,
+        wasPerfect: _totalMistakes == 0,
+        correctAnswers: _correctAnswers,
+        incorrectAnswers: _incorrectAnswers,
+        lessonStartTime: _lessonStartTime,
+      );
+    } catch (e, st) {
+      // Fire-and-forget: an unhandled exception here would surface as a
+      // framework error after the widget unmounts. Log and swallow so a
+      // side-effect failure (XP/gems/stats) doesn't crash the app. The
+      // side effects in [LessonCompletionCoordinator] are already
+      // individually guarded, this is the outer backstop.
+      debugPrint('LessonCompletionCoordinator failed: $e\n$st');
+    }
   }
 }

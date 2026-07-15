@@ -239,10 +239,15 @@ class _TokenWrap extends StatelessWidget {
       spacing: 8,
       runSpacing: 8,
       children: [
-        for (final t in tokens)
+        // Key by position, not by token string: a scrambled sentence can
+        // repeat a word ("the the", "I I"), and ValueKey(token) would collide
+        // across siblings and trip MultiChildRenderObjectElement's duplicate-key
+        // assertion. The index is stable for a given scramble.
+        for (var i = 0; i < tokens.length; i++)
           _TokenChip(
-            label: t,
-            onTap: enabled ? () => onTapToken(t) : null,
+            key: ValueKey(i),
+            label: tokens[i],
+            onTap: enabled ? () => onTapToken(tokens[i]) : null,
             selected: false,
           ),
       ],
@@ -256,6 +261,7 @@ class _TokenChip extends StatelessWidget {
   final bool selected;
 
   const _TokenChip({
+    super.key,
     required this.label,
     required this.onTap,
     required this.selected,
@@ -273,24 +279,29 @@ class _TokenChip extends StatelessWidget {
         ? VarnamalaTheme.peacockTeal
         : VarnamalaTheme.textHint.withValues(alpha: 0.3);
 
-    return Material(
-      color: bg,
-      shape: RoundedRectangleBorder(
-        side: BorderSide(color: border, width: 1.5),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusRound),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusRound),
-        onTap: onTap,
-        child: Padding(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: fg,
+    return Semantics(
+      button: true,
+      label: label,
+      selected: selected,
+      child: Material(
+        color: bg,
+        shape: RoundedRectangleBorder(
+          side: BorderSide(color: border, width: 1.5),
+          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusRound),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusRound),
+          onTap: onTap,
+          child: Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: fg,
+              ),
             ),
           ),
         ),

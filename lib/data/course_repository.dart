@@ -6,6 +6,7 @@ import 'package:drift/drift.dart' hide Expression;
 
 // Project imports:
 import 'package:varnamala/core/logger.dart';
+import 'package:varnamala/core/utils.dart';
 import 'package:varnamala/data/course_database.dart' as db;
 import 'package:varnamala/data/course_database_seeder.dart';
 import 'package:varnamala/domain/course/expression.dart';
@@ -274,11 +275,35 @@ class CourseRepository implements ICourseRepository {
       id: row.id,
       name: row.name,
       description: row.description,
-      type: LessonType.values.byName(row.type),
-      template: LessonTemplate.values.byName(row.template),
+      type: _lessonTypeByName(row.type),
+      template: _lessonTemplateByName(row.template),
       prerequisiteLessonIds: _decodeStringList(row.prerequisiteLessonIds),
       content: content,
     );
+  }
+
+  /// Resolve [LessonType] from a stored string without throwing. An unknown
+  /// value (forward-incompatible content version, manual DB edit) degrades to
+  /// [LessonType.normal], mirroring the `@Default(LessonType.normal)` fallback
+  /// in `Lesson.fromJson` so the read path never crashes section()/lessonById().
+  LessonType _lessonTypeByName(String name) {
+    final resolved = enumByName(LessonType.values, name,
+        fallback: LessonType.normal);
+    if (resolved == LessonType.normal && name != LessonType.normal.name) {
+      logger.w('Unknown LessonType "$name", falling back to normal');
+    }
+    return resolved;
+  }
+
+  /// Resolve [LessonTemplate] from a stored string without throwing. See
+  /// [_lessonTypeByName]; falls back to [LessonTemplate.legacy].
+  LessonTemplate _lessonTemplateByName(String name) {
+    final resolved = enumByName(LessonTemplate.values, name,
+        fallback: LessonTemplate.legacy);
+    if (resolved == LessonTemplate.legacy && name != LessonTemplate.legacy.name) {
+      logger.w('Unknown LessonTemplate "$name", falling back to legacy');
+    }
+    return resolved;
   }
 
   List<String> _decodeStringList(String encoded) {

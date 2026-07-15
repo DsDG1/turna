@@ -172,19 +172,24 @@ abstract class SrsQueueProvider extends ChangeNotifier {
     _cachedDueCount = null;
   }
 
-  /// Persist [map], update in-memory cache, notify, write prefs.
+  /// Persist [map]: update in-memory cache, notify synchronously, then write
+  /// prefs.
+  ///
+  /// Listeners are notified BEFORE the prefs write completes: the in-memory
+  /// cache is already updated to [map] (so session state is consistent), and
+  /// delaying the notify until after the disk write would gate every UI
+  /// repaint on the SharedPreferences platform-channel round-trip — a latency
+  /// hit on the per-card SRS review hot path. A failed write degrades to
+  /// "unsaved but current for the session", not "stale UI": the cache already
+  /// holds [map] and the failure is logged. (notify here is unconditional,
+  /// matching the old pre-`try` placement that always fired regardless of
+  /// write outcome.)
   @protected
   Future<void> persist(Map<String, SrsWord> map) async {
     _cachedState = map;
     invalidateDueCaches();
     notifyListeners();
-
-    try {
-      final encoded = encodeStateForPersist(map);
-      await appPrefs.preferences.setString(statePrefsKey, encoded);
-    } catch (e, st) {
-      logger.w('$logTag persist failed: $e', stackTrace: st);
-    }
+    await _writeState(encodeStateForPersist(map), tag: 'persist');
   }
 
   /// Clear queue state (content-update reset).
@@ -192,10 +197,19 @@ abstract class SrsQueueProvider extends ChangeNotifier {
     _cachedState = <String, SrsWord>{};
     invalidateDueCaches();
     notifyListeners();
+    await _writeState('{}', tag: 'clear');
+  }
+
+  /// Write the encoded state blob to prefs, logging (never rethrowing) on
+  /// failure. The in-memory cache and notify have already happened in the
+  /// caller, so a failure here degrades to "unsaved but current for the
+  /// session" — see [persist]. Shared by [persist] and [clear] so the
+  /// notify-then-write invariant lives in one place.
+  Future<void> _writeState(String encoded, {required String tag}) async {
     try {
-      await appPrefs.preferences.setString(statePrefsKey, '{}');
+      await appPrefs.preferences.setString(statePrefsKey, encoded);
     } catch (e, st) {
-      logger.w('$logTag clear failed: $e', stackTrace: st);
+      logger.w('$logTag $tag failed: $e', stackTrace: st);
     }
   }
 }

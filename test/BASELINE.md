@@ -1,11 +1,11 @@
 # Test Baseline
 
-Generated: 2026-07-14 (课程题 AI 答疑助手：右上角 AI 按钮 → 解释弹窗 → 对话页)
+Generated: 2026-07-15 (code-review 第二轮修复：ShowWord 未知类型 sentinel 不再渲染为字面词/TTS（改渲染占位卡片）+ ShowWord 语义节点拆分（朗读动作对读屏可达）、SRS notify 改回写盘前同步（去掉每张卡的热路径延迟）、study_log 合并缓存命中读绕过写链（仅 cache-miss 串行化）、reasoning 能力从主机推断改为 AiApiConfig.supportsReasoning 声明字段（Dart+Python 双端）、_completedItemCount 合并为 _questionResults.length 单一真相、抽取共享 ChatBubble、core/utils.enumByName 收敛 byName 回退、SRS persist/clear 写盘逻辑收敛到 _writeState)
 
 ## Results
-- `flutter test`: **424 total** — all passed (incl. regenerated `play_hub` goldens)
-- `flutter analyze`: only info-level lint (no errors) — `DropdownButtonFormField.value` deprecation + `prefer_const` infos (pre-existing)
-- Python: `python3 -m unittest discover -s test -p "*_test.py"` — 14 passed
+- `flutter test`: **445 total** — all passed (新增 enumByName 3 + AiApiConfig reasoning 5 + reasoning override 2)
+- `flutter analyze`: only info-level lint (no errors/warnings from new code) — `DropdownButtonFormField.value` deprecation + `prefer_const` infos (pre-existing)
+- Python: `python3 -m unittest discover -s test -p "*_test.py"` — 14 passed; `tool/gui` suite (from `tool/gui`: `python3 -m unittest discover -s . -p "test_*.py"`) — 210 passed (新增 reasoning_enabled 回退/覆盖 2 + request_chat supports_reasoning 覆盖 2)
 - `tool/course_cli.py validate` passes against the 8-section Turkish course
 
 ## Notes

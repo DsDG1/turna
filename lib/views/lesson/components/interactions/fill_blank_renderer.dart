@@ -56,7 +56,6 @@ class _FillBlankBody extends StatefulWidget {
 
 class _FillBlankBodyState extends State<_FillBlankBody> {
   final TextEditingController _controller = TextEditingController();
-  final FocusNode _focus = FocusNode();
   late (String, String) _split;
 
   @override
@@ -79,7 +78,6 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
   @override
   void dispose() {
     _controller.dispose();
-    _focus.dispose();
     super.dispose();
   }
 
@@ -90,6 +88,10 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
     final text = _controller.text;
     if (widget.state.submitted || text.trim().isEmpty) return;
     widget.onSubmit(_matches(text), userAnswerText: text);
+    // Drop the soft keyboard once the answer is locked in — the field is
+    // disabled on submit and the CONTINUE/GOT IT button takes over, so the
+    // keyboard would otherwise sit over it until the user dismisses it.
+    FocusScope.of(context).unfocus();
   }
 
   @override
@@ -139,8 +141,8 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
                       ),
                       child: TextField(
                         controller: _controller,
-                        focusNode: _focus,
                         enabled: !submitted,
+                        autofocus: !submitted,
                         textAlign: TextAlign.center,
                         style: AppTextStyles.promptMd(context).copyWith(fontSize: 18),
                         decoration: const InputDecoration(

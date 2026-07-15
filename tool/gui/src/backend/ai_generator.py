@@ -19,8 +19,9 @@ from __future__ import annotations
 
 import json
 import urllib.error
+import urllib.parse
 import urllib.request
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from typing import Any, Callable
 
@@ -39,7 +40,14 @@ from src.backend.ai_genre import (
 class AiApiConfig:
     base_url: str = "https://api.deepseek.com"
     api_key: str = ""
-    model: str = "deepseek-v4-flash"
+    model: str = "deepseek-v4-pro"
+    # Whether the endpoint accepts ``reasoning_effort`` / ``thinking``. ``None``
+    # (the default) infers this from the host via ``is_deepseek`` — DeepSeek's
+    # documented behavior — so the common case needs no extra config. Set
+    # explicitly to override: a reasoning-capable endpoint on a non-DeepSeek
+    # host, or to suppress reasoning for a DeepSeek-host endpoint that
+    # shouldn't use it. Mirrors the Dart ``AiApiConfig.supports_reasoning``.
+    supports_reasoning: bool | None = None
 
     @property
     def is_complete(self) -> bool:
@@ -53,6 +61,32 @@ class AiApiConfig:
         if b.endswith("/chat/completions"):
             return b
         return f"{b}/chat/completions"
+
+    @property
+    def is_deepseek(self) -> bool:
+        """True when the endpoint host points at DeepSeek.
+
+        DeepSeek's ``/chat/completions`` endpoint accepts the
+        ``reasoning_effort`` / ``thinking`` payload fields (returned reasoning
+        lives in a separate ``reasoning_content`` field and never leaks into
+        ``message.content``); other OpenAI-compatible endpoints (OpenAI,
+        Ollama, Moonshot) reject or error on unknown fields. This is the single
+        host-detection predicate for the Python side and mirrors the Dart
+        ``is_deep_seek_host`` so the two clients agree on when the reasoning
+        controls are safe to send by default.
+        """
+        host = urllib.parse.urlparse(self.base_url).hostname or ""
+        return host == "api.deepseek.com" or host.endswith(".deepseek.com")
+
+    @property
+    def reasoning_enabled(self) -> bool:
+        """Whether to send the reasoning payload fields.
+
+        Falls back to [is_deepseek] when [supports_reasoning] is ``None``.
+        """
+        if self.supports_reasoning is not None:
+            return self.supports_reasoning
+        return self.is_deepseek
 
 
 @dataclass
@@ -611,6 +645,16 @@ def request_chat(
         "messages": messages,
         "temperature": temperature,
     }
+    # Reasoning controls, gated on the endpoint's declared capability
+    # (config.supports_reasoning, defaulting to the DeepSeek host check — see
+    # AiApiConfig.reasoning_enabled). Other OpenAI-compatible endpoints (OpenAI,
+    # Ollama, Moonshot) reject or error on unknown payload fields. For
+    # reasoning-capable endpoints, reasoning output is returned in a separate
+    # ``reasoning_content`` field and never leaks into ``message.content``, so
+    # JSON-course-generation parsing is unaffected.
+    if config.reasoning_enabled:
+        payload_obj["reasoning_effort"] = "high"
+        payload_obj["thinking"] = {"type": "enabled"}
     if response_format is not None:
         payload_obj["response_format"] = response_format
     payload = json.dumps(payload_obj).encode("utf-8")
@@ -843,12 +887,19 @@ def detect_genre_from_spec(spec: AiCourseSpec) -> str | None:
 
 
 def apply_genre_to_spec(spec: AiCourseSpec) -> AiCourseSpec:
-    """If a genre tag is present and batch mode is on, update the spec template."""
+    """If a genre tag is present and batch mode is on, update the spec template.
+
+    Returns a new spec (via :func:`dataclasses.replace`) rather than mutating
+    the input in place, mirroring the Dart side
+    (``AiCourseService.applyGenreToSpec`` which uses ``copyWith``). Callers
+    reuse ``AiCourseSpec`` objects across calls, so an in-place mutation would
+    leak the genre template into a later call with a different tag.
+    """
     if not spec.use_genre_batch:
         return spec
     tag = detect_genre_from_spec(spec)
     if tag:
-        spec.template = genre_to_template(tag)
+        return replace(spec, template=genre_to_template(tag))
     return spec
 
 
