@@ -10,7 +10,7 @@ class ReviewRatingBar extends StatelessWidget {
   const ReviewRatingBar({
     super.key,
     required this.onRate,
-    this.prompt = '你认识这个词吗？',
+    this.prompt = 'Do you know this word?',
   });
 
   @override
@@ -21,7 +21,7 @@ class ReviewRatingBar extends StatelessWidget {
           children: [
             Expanded(
               child: _RateButton(
-                label: '不认识',
+                label: "Don't know",
                 color: VarnamalaTheme.error,
                 onTap: () => onRate(ReviewGrade.unknown),
               ),
@@ -29,7 +29,7 @@ class ReviewRatingBar extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: _RateButton(
-                label: '认识',
+                label: 'Know it',
                 color: VarnamalaTheme.success,
                 onTap: () => onRate(ReviewGrade.known),
               ),

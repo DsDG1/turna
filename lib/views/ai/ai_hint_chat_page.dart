@@ -91,7 +91,7 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
       backgroundColor: VarnamalaTheme.scaffoldBg(context),
       appBar: AppBar(
         title: Text(
-          ctx == null ? 'AI 答疑' : 'AI 答疑 · ${ctx.typeLabel}',
+          ctx == null ? 'AI Tutor' : 'AI Tutor · ${ctx.typeLabel}',
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
@@ -136,7 +136,7 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
                         return ChatBubble(role: m.role, content: m.content);
                       }
                       if (v.hasError && i == v.count) {
-                        return _errorBubble(w.error ?? '未知错误');
+                        return _errorBubble(w.error ?? 'Unknown error');
                       }
                       return _thinkingBubble();
                     },
@@ -176,7 +176,7 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Text(
-          'AI 正在准备这道题的讲解…',
+          'AI is preparing an explanation for this question…',
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodyMedium,
         ),
@@ -207,7 +207,7 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
             ),
             const SizedBox(width: 8),
             Text(
-              'AI 正在思考…',
+              'AI is thinking…',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ],
@@ -244,7 +244,7 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
               controller: _inputCtrl,
               enabled: !busy,
               decoration: const InputDecoration(
-                hintText: '继续提问…',
+                hintText: 'Ask more…',
                 border: OutlineInputBorder(),
                 isDense: true,
               ),
@@ -255,7 +255,7 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
           IconButton(
             onPressed: busy ? null : _onSend,
             icon: const Icon(Icons.send),
-            tooltip: '发送',
+            tooltip: 'Send',
           ),
         ],
       ),

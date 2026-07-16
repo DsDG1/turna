@@ -168,7 +168,7 @@ class _MistakeReviewPageState extends State<MistakeReviewPage> {
               onPressed: () => Navigator.of(context).maybePop(),
             ),
             title: Text(
-              '错题复习',
+              'Mistake Review',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
@@ -178,7 +178,7 @@ class _MistakeReviewPageState extends State<MistakeReviewPage> {
             centerTitle: true,
             actions: [
               IconButton(
-                tooltip: '查看错题列表',
+                tooltip: 'View mistake list',
                 icon: Icon(
                   Icons.list_rounded,
                   color: VarnamalaTheme.textPrimaryColor(context),
@@ -215,7 +215,8 @@ class _MistakeReviewPageState extends State<MistakeReviewPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              '没有错题需要复习。\n做错题时会自动记录到这里，最多 10 题一起练习。',
+              'No mistakes to review.\nMistakes are recorded here automatically; '
+              'practice up to 10 at a time.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: VarnamalaTheme.textSecondaryColor(context),
@@ -224,7 +225,7 @@ class _MistakeReviewPageState extends State<MistakeReviewPage> {
             const SizedBox(height: 16),
             TextButton(
               onPressed: () => Navigator.of(context).maybePop(),
-              child: const Text('返回'),
+              child: const Text('Back'),
             ),
           ],
         ),
@@ -259,7 +260,7 @@ class _MistakeReviewPageState extends State<MistakeReviewPage> {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
               child: LessonCheckButton(
-                label: vm.isAnswerCorrect ? '继续' : '知道了',
+                label: vm.isAnswerCorrect ? 'Continue' : 'Got it',
                 enabled: true,
                 onPressed: () => vm.advance(),
               ),

@@ -17,17 +17,17 @@ void main() {
 
     test('buildPrompt contains template schema, resource schema, id rules', () {
       final p = buildPrompt(spec);
-      expect(p.contains('可用课模板'), isTrue);
+      expect(p.contains('Available lesson templates'), isTrue);
       expect(p.contains('showWord'), isTrue);
-      expect(p.contains('顶层资源数组'), isTrue);
-      expect(p.contains('ID 规则'), isTrue);
+      expect(p.contains('Top-level resource arrays'), isTrue);
+      expect(p.contains('ID rules'), isTrue);
       expect(p.contains('Target language: Turkish'), isTrue);
       expect(p.contains('Template for all lessons: intro'), isTrue);
     });
 
     test('buildPrompt includes genre batch block when enabled', () {
       final p = buildPrompt(spec.copyWith(useGenreBatch: true));
-      expect(p.contains('genre 标签'), isTrue);
+      expect(p.contains('Available genre tags'), isTrue);
       expect(p.contains('multi-template batch mode'), isTrue);
     });
 

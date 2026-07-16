@@ -59,11 +59,11 @@ class MistakeReviewAssembler {
 
     final lesson = Lesson(
       id: lessonId,
-      name: '错题复习',
+      name: 'Mistake Review',
       type: LessonType.review,
       template: LessonTemplate.legacy,
       content: LessonContent(
-        stages: [Stage(id: stageId, name: '错题复习', items: items)],
+        stages: [Stage(id: stageId, name: 'Mistake Review', items: items)],
       ),
     );
 

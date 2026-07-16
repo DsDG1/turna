@@ -223,7 +223,7 @@ class _SrsReviewPageState extends State<SrsReviewPage> {
               if (_showAnswer) ...[
                 ReviewRatingBar(
                   onRate: _onRate,
-                  prompt: '你认识这个词吗？',
+                  prompt: 'Do you know this word?',
                 ),
               ] else ...[
                 SizedBox(

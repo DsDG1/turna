@@ -55,14 +55,14 @@ class AiHintSheet extends StatelessWidget {
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            ctx == null ? 'AI 讲解' : 'AI 讲解 · ${ctx.typeLabel}',
+            ctx == null ? 'AI hint' : 'AI hint · ${ctx.typeLabel}',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
           ),
         ),
         IconButton(
-          tooltip: '关闭',
+          tooltip: 'Close',
           icon: const Icon(Icons.close, size: 22),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
@@ -115,7 +115,7 @@ class AiHintSheet extends StatelessWidget {
         borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
       ),
       child: Text(
-        '出错了：${error ?? '未知错误'}',
+        'Something went wrong: ${error ?? 'Unknown error'}',
         style: const TextStyle(color: VarnamalaTheme.error),
       ),
     );
@@ -131,7 +131,7 @@ class AiHintSheet extends StatelessWidget {
               onEnterChat();
             },
             icon: const Icon(Icons.chat_outlined),
-            label: const Text('进入对话'),
+            label: const Text('Open chat'),
           ),
         ),
       ],

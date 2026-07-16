@@ -175,20 +175,20 @@ class _NewLessonPageState extends State<NewLessonPage> {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('AI 未配置'),
-        content: const Text('请先在 设置 → AI API Configuration 中填写 '
-            'Base URL / API Key / Model 后再使用 AI 讲解。'),
+        title: const Text('AI not configured'),
+        content: const Text('Please fill in Base URL / API Key / Model under '
+            'Settings → Learning → AI API Configuration before using AI hints.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('稍后'),
+            child: const Text('Later'),
           ),
           FilledButton(
             onPressed: () {
               Navigator.of(dialogContext).pop();
               getIt<TabRouter>().switchTo(TabDestination.settings);
             },
-            child: const Text('去设置'),
+            child: const Text('Go to settings'),
           ),
         ],
       ),
@@ -311,7 +311,7 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
         backgroundColor: VarnamalaTheme.surfaceColor(context),
         elevation: 0,
         leading: IconButton(
-          tooltip: '关闭',
+          tooltip: 'Close',
           icon: Icon(
             Icons.close_rounded,
             color: VarnamalaTheme.textPrimaryColor(context),
@@ -346,7 +346,7 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
         actions: [
           if (s.aiEligible)
             IconButton(
-              tooltip: 'AI 讲解',
+              tooltip: 'AI hint',
               icon: Icon(
                 Icons.auto_awesome_rounded,
                 color: VarnamalaTheme.textPrimaryColor(context),

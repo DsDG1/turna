@@ -7,87 +7,87 @@ import 'package:varnamala/application/ai/ai_genre.dart';
 /// `_resource_schema_block`, `_id_rules_block`, `_build_json_schema_example`.
 
 String _templateSchemaBlock() {
-  return '''课程结构层级：section → units → lessons → content。
+  return '''Course structure hierarchy: section → units → lessons → content.
 
-可用课模板（template）及对应的 content 主键：
-- intro: 认识新词。content 主键为 subLessons。每个 subLesson 含 stages，每个 stage 含 items。
-- practice: 巩固练习。content 主键为 subLessons。
-- review: 复习。content 主键为 subLessons，可额外包含 stages。
-- listening: 听力训练。content 主键为 listeningPhases。每个 phase 可含 items（wordPairing/dialogue）或只听不答（summary）。
-- reading: 阅读理解。content 包含 readingPassage（title + paragraphs）和 stages（理解题）。
-- mastery: 综合测验。content 主键为 stages，一个 stage 即可。
-- mixed: 混合。可在不同单元/课时中使用不同模板。
+Available lesson templates and their content primary key:
+- intro: New Words. content primary key is subLessons. Each subLesson contains stages; each stage contains items.
+- practice: Practice. content primary key is subLessons.
+- review: Review. content primary key is subLessons; may also include stages.
+- listening: Listening. content primary key is listeningPhases. Each phase may contain items (wordPairing/dialogue) or be listen-only (summary).
+- reading: Reading. content contains readingPassage (title + paragraphs) and stages (comprehension questions).
+- mastery: Quiz. content primary key is stages; a single stage is enough.
+- mixed: Mixed. Different units/lessons may use different templates.
 
-常用题型（runtimeType）说明：
-- showWord: { wordId, context? } — 展示生词。wordId 必须在顶层 words 数组中定义。
-- multipleChoice: { prompt, options(4), correctIndex } — 单选题。
-- multiSelect: { prompt, options, correctIndices, minSelections?, maxSelections? } — 多选题。
-- fillBlank: { sentence（含 ____ 空白）, answer, hint? } — 填空。
-- translateSentence: { source（源语言句子）, expected（目标语言翻译）, hints? } — 翻译。
-- listenAndPick: { audioAsset, prompt, options(4), correctIndex } — 听音选择。
-- typeTheWord: { audioAsset, prompt, expected } — 听写。
-- listenOnly: { audioAsset?, transcript?, prompt? } — 只听不答。
-- reorderSentence: { scrambled（打乱词数组）, correct（正确词数组） } — 排序。
-- readingMcq: { prompt, options(4), correctIndex } — 阅读选择。
-- readingTrueFalse: { statement, answer(true/false) } — 阅读判断。
-- readingShortAnswer: { prompt, expectedAnswer } — 阅读简答。
+Interaction types (runtimeType) reference:
+- showWord: { wordId, context? } — display a new word. wordId must be defined in the top-level words array.
+- multipleChoice: { prompt, options(4), correctIndex } — single-choice question.
+- multiSelect: { prompt, options, correctIndices, minSelections?, maxSelections? } — multi-choice question.
+- fillBlank: { sentence (with a ____ blank), answer, hint? } — fill-in-the-blank.
+- translateSentence: { source (source-language sentence), expected (target-language translation), hints? } — translation.
+- listenAndPick: { audioAsset, prompt, options(4), correctIndex } — listen and pick.
+- typeTheWord: { audioAsset, prompt, expected } — dictation.
+- listenOnly: { audioAsset?, transcript?, prompt? } — listen only, no answer.
+- reorderSentence: { scrambled (shuffled word array), correct (correct word array) } — sentence ordering.
+- readingMcq: { prompt, options(4), correctIndex } — reading multiple choice.
+- readingTrueFalse: { statement, answer(true/false) } — reading true/false.
+- readingShortAnswer: { prompt, expectedAnswer } — reading short answer.
 
-模板与题型对应建议：
+Suggested template → interaction pairings:
 - intro: showWord + translateSentence + fillBlank
 - practice: multipleChoice + fillBlank + translateSentence + reorderSentence
-- listening: listenAndPick + typeTheWord + listenOnly（phase 结构）
+- listening: listenAndPick + typeTheWord + listenOnly (phase structure)
 - reading: readingPassage + readingMcq + readingTrueFalse + readingShortAnswer
 - mastery: multipleChoice + multiSelect + translateSentence + fillBlank
 ''';
 }
 
 String _resourceSchemaBlock() {
-  return '''顶层资源数组（与 units 同级，必须输出）：
+  return '''Top-level resource arrays (same level as units, must be output):
 
-words: 本课程用到的所有生词。每个条目结构：
+words: all new words used in this course. Each entry structure:
 {
-  "id": "w-merhaba",            // 全局唯一，小写 kebab-case，建议前缀 w-
-  "term": "Merhaba",            // 目标语言原文（如土耳其语单词）
-  "translation": "你好",         // 源语言译文（如中文）
-  "pronunciation": null,        // 可选，音标或拉丁转写；没有就填 null
-  "audioAsset": null,           // 可选，音频资源路径；没有就填 null
-  "tags": ["greeting"]          // 可选标签数组
+  "id": "w-merhaba",            // globally unique, lower kebab-case, suggest prefix w-
+  "term": "Merhaba",            // target-language original (e.g. the Turkish word)
+  "translation": "hello",       // source-language translation (e.g. Chinese)
+  "pronunciation": null,        // optional, phonetic or latin transliteration; null if none
+  "audioAsset": null,           // optional, audio asset path; null if none
+  "tags": ["greeting"]          // optional tag array
 }
 
-expressions: 本课程用到的所有惯用表达。每个条目结构：
+expressions: all idiomatic expressions used in this course. Each entry structure:
 {
-  "id": "e-ben-adim",           // 全局唯一，建议前缀 e-
-  "term": "Adım ...",            // 目标语言原文
-  "translation": "我叫……",       // 源语言译文
+  "id": "e-ben-adim",           // globally unique, suggest prefix e-
+  "term": "Adım ...",            // target-language original
+  "translation": "My name is…",  // source-language translation
   "pronunciation": null,
   "audioAsset": null,
   "tags": []
 }
 
-grammarPoints: 本课程用到的所有语法点。每个条目结构：
+grammarPoints: all grammar points used in this course. Each entry structure:
 {
-  "id": "g-suffix-dan",         // 全局唯一，建议前缀 g-
-  "title": "来源格 -dan",
-  "explanation": "表示“从……”，加在名词后。",
-  "exampleExpressionIds": [],   // 引用 expressions 中的 id
+  "id": "g-suffix-dan",         // globally unique, suggest prefix g-
+  "title": "Ablative case -dan",
+  "explanation": "Means 'from…', appended to a noun.",
+  "exampleExpressionIds": [],   // references ids in expressions
   "exampleSentenceIds": [],
   "practiceItems": []
 }
 
-自洽规则（最重要）：
-1. 任何 showWord 的 wordId 必须出现在顶层 words 数组的某个条目 id 中。
-2. 任何 expressionId 必须出现在顶层 expressions 数组的某个条目 id 中。
-3. 任何 grammarPointId 必须出现在顶层 grammarPoints 数组的某个条目 id 中。
-4. 只输出本课程真正用到的资源，不要输出未被引用的条目。
-5. 资源 id 不能与现有词库冲突（导入时会自动跳过已存在的 id，但建议用 ai- / w-ai- 等前缀避免碰撞）。
+Self-consistency rules (most important):
+1. Any showWord's wordId must appear in the id of some entry in the top-level words array.
+2. Any expressionId must appear in the id of some entry in the top-level expressions array.
+3. Any grammarPointId must appear in the id of some entry in the top-level grammarPoints array.
+4. Only output resources actually used in this course; do not output unreferenced entries.
+5. Resource ids must not collide with the existing word bank (import will auto-skip existing ids, but prefer prefixes like ai- / w-ai- to avoid collisions).
 ''';
 }
 
 String _idRulesBlock() {
-  return '''ID 规则：
-1. 所有 id 必须全局唯一，包括 section id、unit id、lesson id、stage id、subLesson id、item id。
-2. 使用小写 kebab-case，前缀建议为 "ai-"，例如 ai-travel-u1-l1、ai-travel-u1-l1-st1。
-3. 不要包含空格或特殊字符。
+  return '''ID rules:
+1. All ids must be globally unique, including section id, unit id, lesson id, stage id, subLesson id, and item id.
+2. Use lower kebab-case; suggested prefix is "ai-", e.g. ai-travel-u1-l1, ai-travel-u1-l1-st1.
+3. Do not include spaces or special characters.
 ''';
 }
 
@@ -160,17 +160,17 @@ String _buildJsonSchemaExample(AiCourseSpec spec) {
   ]
 }''';
   }
-  return '''返回 JSON 形状示例（顶层 section）：
+  return '''Example of the JSON shape to return (top-level section):
 {
   "id": "ai-topic",
   "name": "...",
   "description": "...",
   "prerequisiteSectionIds": [],
   "words": [
-    { "id": "w-merhaba", "term": "Merhaba", "translation": "你好", "pronunciation": null, "audioAsset": null, "tags": ["greeting"] }
+    { "id": "w-merhaba", "term": "Merhaba", "translation": "hello", "pronunciation": null, "audioAsset": null, "tags": ["greeting"] }
   ],
   "expressions": [
-    { "id": "e-ben-adim", "term": "Adım ...", "translation": "我叫……", "pronunciation": null, "audioAsset": null, "tags": [] }
+    { "id": "e-ben-adim", "term": "Adım ...", "translation": "My name is…", "pronunciation": null, "audioAsset": null, "tags": [] }
   ],
   "grammarPoints": [],
   "units": [
@@ -201,6 +201,7 @@ Rules:
 4. fillBlank: sentence in ${spec.language} with a single ____ blank; answer is the missing word.
 5. Every showWord.wordId / expressionId / grammarPointId MUST reference an id defined in the top-level words / expressions / grammarPoints arrays. Do NOT invent ids that are not defined there.
 6. Output JSON object only — no surrounding text, no markdown fences.
+7. Any prose explanations (e.g. grammar explanations or context fields) MUST be written in the learner's source language (${spec.sourceLanguage}).
 ''';
 }
 
@@ -288,11 +289,11 @@ String buildAlignmentPrompt(AiCourseSpec spec) {
   parts.addAll([
     '',
     'Your job is to ALIGN with the teacher through conversation. Follow these rules:',
-    '1. Use friendly, plain Chinese. No jargon, no JSON, no code, no markdown fences.',
+    '1. Use friendly, plain ${spec.sourceLanguage}. No jargon, no JSON, no code, no markdown fences.',
     '2. In each reply, briefly summarize what you understand, then give 2-3 concrete suggestions or clarifying questions.',
     '3. If the teacher uploads files, incorporate them into your suggestions naturally.',
     '4. When suggesting vocabulary or expressions, also tell the teacher that these will be added to the course\'s vocabulary list automatically — they don\'t need to prepare a separate word bank.',
-    '5. Do NOT output the final course JSON. The teacher will click "我感觉差不多了" when ready.',
+    '5. Do NOT output the final course JSON. The teacher will click "I think that\'s about right" when ready.',
     '6. If the teacher asks to change the course, acknowledge the change and explain how it affects the design.',
   ]);
   return parts.join('\n');

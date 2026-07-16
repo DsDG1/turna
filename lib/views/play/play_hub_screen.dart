@@ -48,10 +48,10 @@ class PlayHubScreen extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: _PlayHubCard(
-              title: '错题复习',
+              title: 'Mistake Review',
               subtitle: mistakesCount > 0
-                  ? '$mistakesCount 道错题，最多练习 10 题'
-                  : '没有错题记录',
+                  ? '$mistakesCount mistakes — practice up to 10'
+                  : 'No mistakes recorded',
               icon: Icons.error_outline_rounded,
               accentColor: VarnamalaTheme.error,
               badge: mistakesCount > 0 ? '$mistakesCount' : null,

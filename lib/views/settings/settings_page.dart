@@ -22,25 +22,144 @@ import 'package:varnamala/views/settings/widgets/settings_reminder_section.dart'
 import 'package:varnamala/views/settings/widgets/settings_sound_section.dart';
 import 'package:varnamala/views/theme.dart';
 
-class SettingsPage extends StatelessWidget {
+/// Settings is organized as a category list that pushes a sub-page per
+/// category (iOS Settings style). Because [SettingsPage] lives inside the
+/// Home `IndexedStack` (not a routed page) and is switched to via `TabRouter`,
+/// navigation is kept in-page with [_category] state rather than AutoRoute —
+/// this preserves the "Go to settings" tab-switch and avoids touching routing.
+class SettingsPage extends StatefulWidget {
   const SettingsPage({Key? key}) : super(key: key);
 
   @override
+  State<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends State<SettingsPage> {
+  /// null = landing category list; 0..4 = the selected category sub-page.
+  int? _category;
+
+  static const _categories = <_SettingsCategory>[
+    _SettingsCategory(
+      index: 0,
+      title: 'Account',
+      icon: Icons.person_rounded,
+    ),
+    _SettingsCategory(
+      index: 1,
+      title: 'Learning',
+      icon: Icons.menu_book_rounded,
+    ),
+    _SettingsCategory(
+      index: 2,
+      title: 'Audio & Display',
+      icon: Icons.tune_rounded,
+    ),
+    _SettingsCategory(
+      index: 3,
+      title: 'Data',
+      icon: Icons.storage_rounded,
+    ),
+    _SettingsCategory(
+      index: 4,
+      title: 'About',
+      icon: Icons.info_rounded,
+    ),
+  ];
+
+  @override
   Widget build(BuildContext context) {
+    final isList = _category == null;
+    return PopScope(
+      // When a sub-page is open, the system back button returns to the
+      // category list instead of leaving the Settings tab.
+      canPop: isList,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _category != null) {
+          setState(() => _category = null);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: VarnamalaTheme.surfaceColor(context),
+        appBar: AppBar(
+          backgroundColor: VarnamalaTheme.surfaceColor(context),
+          elevation: 0,
+          centerTitle: true,
+          leading: isList
+              ? null
+              : IconButton(
+                  icon: const Icon(Icons.arrow_back_rounded),
+                  tooltip: 'Back',
+                  onPressed: () => setState(() => _category = null),
+                ),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.settings_rounded,
+                color: VarnamalaTheme.peacockTeal,
+                size: 22,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                isList ? 'Settings' : _categoryName(_category!),
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ],
+          ),
+        ),
+        body: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          child: isList ? _buildCategoryList() : _buildSubPage(_category!),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryList() {
     return SingleChildScrollView(
+      key: const ValueKey('settings-list'),
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. Account
-          const SettingsSectionTitle(
-              title: 'Account', icon: Icons.person_rounded),
-          const SettingsAccountTile(),
-          const SizedBox(height: 16),
+          SettingsCard(
+            children: [
+              for (int i = 0; i < _categories.length; i++) ...[
+                if (i > 0) settingsTileDivider(context),
+                SettingsNavigationTile(
+                  key: ValueKey(_categories[i].title),
+                  icon: _categories[i].icon,
+                  title: _categories[i].title,
+                  onTap: (_) => setState(() => _category = _categories[i].index),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
 
-          // 2. Learning (language, TTS speed, daily reminder, AI course tools)
-          const SettingsSectionTitle(
-              title: 'Learning', icon: Icons.menu_book_rounded),
+  Widget _buildSubPage(int category) {
+    return SingleChildScrollView(
+      key: ValueKey('settings-$category'),
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: _sectionChildren(category),
+      ),
+    );
+  }
+
+  List<Widget> _sectionChildren(int category) {
+    switch (category) {
+      case 0:
+        return const [SettingsAccountTile(), SizedBox(height: 24)];
+      case 1:
+        return [
           SettingsCard(
             children: [
               const SettingsLanguageSelectorTile(),
@@ -65,11 +184,10 @@ class SettingsPage extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16),
-
-          // 3. Audio & Display (sound, haptics, TTS engine, theme)
-          const SettingsSectionTitle(
-              title: 'Audio & Display', icon: Icons.tune_rounded),
+          const SizedBox(height: 24),
+        ];
+      case 2:
+        return [
           SettingsCard(
             children: [
               SettingsToggleTile(
@@ -93,11 +211,10 @@ class SettingsPage extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const SettingsThemeSelector(),
-          const SizedBox(height: 16),
-
-          // 4. Data (export/import, clear, reset)
-          const SettingsSectionTitle(
-              title: 'Data', icon: Icons.storage_rounded),
+          const SizedBox(height: 24),
+        ];
+      case 3:
+        return [
           SettingsCard(
             children: [
               SettingsActionTile(
@@ -129,17 +246,17 @@ class SettingsPage extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16),
-
-          // 5. About
-          const SettingsSectionTitle(
-              title: 'About', icon: Icons.info_rounded),
-          const SettingsAboutSection(),
           const SizedBox(height: 24),
-        ],
-      ),
-    );
+        ];
+      case 4:
+        return const [SettingsAboutSection(), SizedBox(height: 24)];
+      default:
+        return const [];
+    }
   }
+
+  String _categoryName(int category) =>
+      _categories.firstWhere((c) => c.index == category).title;
 
   Future<void> _confirmClearMistakes(BuildContext context) async {
     final mistakeProvider = context.read<MistakeProvider>();
@@ -246,6 +363,18 @@ class SettingsPage extends StatelessWidget {
       }
     }
   }
+}
+
+class _SettingsCategory {
+  const _SettingsCategory({
+    required this.index,
+    required this.title,
+    required this.icon,
+  });
+
+  final int index;
+  final String title;
+  final IconData icon;
 }
 
 class _AiApiConfigSheet extends StatefulWidget {

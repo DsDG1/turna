@@ -25,17 +25,19 @@ const Map<String, GenreMeta> genreTemplates = {
   '[intro]': GenreMeta(
     tag: '[intro]',
     template: 'intro',
-    label: '认识新词',
+    label: 'New Words',
     primaryKey: 'subLessons',
-    description: '通过展示新词、翻译句子和填空引导学生认识生词。',
+    description:
+        'Introduce new words via word display, translation, and fill-in-the-blank.',
     suggestedTypes: ['showWord', 'translateSentence', 'fillBlank'],
   ),
   '[practice]': GenreMeta(
     tag: '[practice]',
     template: 'practice',
-    label: '巩固练习',
+    label: 'Practice',
     primaryKey: 'subLessons',
-    description: '通过多轮互动练习巩固词汇和句型。',
+    description:
+        'Reinforce vocabulary and sentence patterns through multiple interactions.',
     suggestedTypes: [
       'multipleChoice',
       'translateSentence',
@@ -46,33 +48,33 @@ const Map<String, GenreMeta> genreTemplates = {
   '[review]': GenreMeta(
     tag: '[review]',
     template: 'review',
-    label: '复习',
+    label: 'Review',
     primaryKey: 'subLessons',
-    description: '复习已学内容，可混合使用 subLessons 和 stages。',
+    description: 'Review learned content; may mix subLessons and stages.',
     suggestedTypes: ['multipleChoice', 'fillBlank', 'translateSentence'],
   ),
   '[listening]': GenreMeta(
     tag: '[listening]',
     template: 'listening',
-    label: '听力训练',
+    label: 'Listening',
     primaryKey: 'listeningPhases',
-    description: '通过听力阶段训练学生的听力理解。',
+    description: 'Train listening comprehension through listening phases.',
     suggestedTypes: ['listenAndPick', 'typeTheWord', 'listenOnly'],
   ),
   '[reading]': GenreMeta(
     tag: '[reading]',
     template: 'reading',
-    label: '阅读理解',
+    label: 'Reading',
     primaryKey: 'readingPassage',
-    description: '提供阅读材料并配合阅读理解题目。',
+    description: 'Provide a reading passage with comprehension questions.',
     suggestedTypes: ['readingMcq', 'readingTrueFalse', 'readingShortAnswer'],
   ),
   '[mastery]': GenreMeta(
     tag: '[mastery]',
     template: 'mastery',
-    label: '综合测验',
+    label: 'Quiz',
     primaryKey: 'stages',
-    description: '单元末综合测验，覆盖多种题型。',
+    description: 'End-of-unit quiz covering multiple question types.',
     suggestedTypes: [
       'multipleChoice',
       'translateSentence',
@@ -83,21 +85,22 @@ const Map<String, GenreMeta> genreTemplates = {
   '[mixed]': GenreMeta(
     tag: '[mixed]',
     template: 'mixed',
-    label: '混合',
+    label: 'Mixed',
     primaryKey: '',
-    description: '在一个 section 中混合使用多种模板，适合综合课程。',
+    description:
+        'Combine multiple templates in one section for comprehensive courses.',
     suggestedTypes: [],
   ),
 };
 
 const Map<String, String> templateLabels = {
-  'intro': '认识新词',
-  'practice': '巩固练习',
-  'review': '复习',
-  'listening': '听力训练',
-  'reading': '阅读理解',
-  'mastery': '综合测验',
-  'mixed': '混合',
+  'intro': 'New Words',
+  'practice': 'Practice',
+  'review': 'Review',
+  'listening': 'Listening',
+  'reading': 'Reading',
+  'mastery': 'Quiz',
+  'mixed': 'Mixed',
 };
 
 final RegExp _tagRe = RegExp(r'\[([a-zA-Z]+)\]');
@@ -141,17 +144,23 @@ List<String> allGenreTags() => genreTemplates.keys.toList();
 
 /// Prompt block explaining available genre tags to the model.
 String genrePromptBlock() {
-  final lines = <String>['可用 genre 标签（用户可在主题或额外指令中插入这些标签来指定模板）：'];
+  final lines = <String>[
+    'Available genre tags (the user may insert these in the topic or extra '
+        'instructions to specify a template):',
+  ];
   for (final entry in genreTemplates.entries) {
     final meta = entry.value;
     lines.add(
-      '${entry.key} → ${meta.label}（template=${meta.template}，'
-      '主键=${meta.primaryKey.isEmpty ? "混合" : meta.primaryKey}）：${meta.description}',
+      '${entry.key} → ${meta.label} (template=${meta.template}, '
+      'primaryKey=${meta.primaryKey.isEmpty ? "mixed" : meta.primaryKey}): '
+      '${meta.description}',
     );
   }
   lines.add(
-    '规则：如果用户在主题或额外指令中插入了 genre 标签，'
-    '请按标签为对应单元或课时生成相应模板结构；未标注的部分回退到默认模板。',
+    'Rule: if the user inserts a genre tag in the topic or extra '
+        'instructions, generate the corresponding template structure for the '
+        'matching unit or lesson; untagged parts fall back to the default '
+        'template.',
   );
   return lines.join('\n');
 }

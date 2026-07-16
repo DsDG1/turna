@@ -11,7 +11,7 @@ void normalizeResources(Map<String, dynamic> parsed) {
     if (val == null) {
       parsed[key] = <Map<String, dynamic>>[];
     } else if (val is! List) {
-      throw FormatException("顶层 '$key' 必须是数组。");
+      throw FormatException("Top-level '$key' must be an array.");
     }
   }
 }
@@ -194,16 +194,16 @@ void checkResourceSelfConsistency(Map<String, dynamic> parsed) {
           if (rt == 'showWord') {
             final wid = item['wordId']?.toString();
             if (wid != null && wid.isNotEmpty && !wordIds.contains(wid)) {
-              missing.add('lesson $lid: showWord 引用了未定义的 wordId「$wid」');
+              missing.add('lesson $lid: showWord references undefined wordId "$wid"');
             }
           }
           final eid = item['expressionId']?.toString();
           if (eid != null && eid.isNotEmpty && !exprIds.contains(eid)) {
-            missing.add('lesson $lid: 引用了未定义的 expressionId「$eid」');
+            missing.add('lesson $lid: references undefined expressionId "$eid"');
           }
           final gid = item['grammarPointId']?.toString();
           if (gid != null && gid.isNotEmpty && !grammarIds.contains(gid)) {
-            missing.add('lesson $lid: 引用了未定义的 grammarPointId「$gid」');
+            missing.add('lesson $lid: references undefined grammarPointId "$gid"');
           }
         }
       }
@@ -212,7 +212,8 @@ void checkResourceSelfConsistency(Map<String, dynamic> parsed) {
   if (missing.isNotEmpty) {
     final shown = missing.take(20).join('\n');
     throw FormatException(
-      '资源自洽校验失败（引用的资源 id 未在顶层 words/expressions/grammarPoints 中定义）:\n$shown',
+      'Resource self-consistency check failed (a referenced resource id is '
+      'not defined in the top-level words/expressions/grammarPoints):\n$shown',
     );
   }
 }

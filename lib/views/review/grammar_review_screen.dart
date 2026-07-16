@@ -260,7 +260,7 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
               if (_phase == _GrammarCardPhase.rate) ...[
                 ReviewRatingBar(
                   onRate: _onRate,
-                  prompt: '你理解这个语法点吗？',
+                  prompt: 'Do you understand this grammar point?',
                 ),
               ] else if (_phase == _GrammarCardPhase.practice &&
                   _practiceSubmitted) ...[

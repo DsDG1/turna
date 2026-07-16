@@ -37,9 +37,9 @@ AiApiConfig _config() => const AiApiConfig(
 
 AiQuestionContext _ctx() => const AiQuestionContext(
       language: 'Turkish',
-      typeLabel: '单选题',
-      promptLabel: 'Merhaba 的意思是？',
-      optionsLabel: '你好 / 再见 / 谢谢',
+      typeLabel: 'Multiple Choice',
+      promptLabel: 'What does Merhaba mean?',
+      optionsLabel: 'Hello / Goodbye / Thanks',
     );
 
 void main() {
@@ -120,8 +120,8 @@ void main() {
     final a = _ctx();
     final b = const AiQuestionContext(
       language: 'Turkish',
-      typeLabel: '填空题',
-      promptLabel: '另一道题',
+      typeLabel: 'Fill-in-the-blank',
+      promptLabel: 'Another question',
     );
 
     final first = provider.explainQuestion(config: _config(), ctx: a);

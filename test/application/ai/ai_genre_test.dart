@@ -13,8 +13,8 @@ void main() {
     });
 
     test('templateLabel returns human-readable label', () {
-      expect(templateLabel('intro'), '认识新词');
-      expect(templateLabel('listening'), '听力训练');
+      expect(templateLabel('intro'), 'New Words');
+      expect(templateLabel('listening'), 'Listening');
       expect(templateLabel('unknown'), 'unknown');
     });
 

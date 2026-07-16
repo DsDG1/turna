@@ -1,0 +1,142 @@
+{
+  "version": 1,
+  "project_id": "未命名项目_ab702aa7",
+  "name": "未命名项目",
+  "created_at": "2026-07-16T10:36:18.148103+00:00",
+  "updated_at": "2026-07-16T10:36:18.150236+00:00",
+  "current_step": 4,
+  "source_path": "/tmp/tmpvx53m87y.md",
+  "source_checksum": "d861f6c318dbb22c4bbb68f054fc4af9fe6b6f2a2399b3e2499e5d3dbcb5e7f4",
+  "markdown": "## 1 Merhaba\nmerhaba means hello\n\n## 2 Aile\naile means family\n",
+  "language": "Turkish",
+  "source_language": "Chinese",
+  "chapters": [
+    {
+      "chapter": {
+        "idx": 1,
+        "level": 2,
+        "title": "1 Merhaba",
+        "slug": "1-merhaba",
+        "markdown": "## 1 Merhaba\nmerhaba means hello\n\n"
+      },
+      "keep": true,
+      "knowledge": {
+        "words": [
+          {
+            "id": "w-merhaba",
+            "pronunciation": "",
+            "tags": [],
+            "term": "merhaba",
+            "translation": "hello"
+          },
+          {
+            "id": "w-merhaba",
+            "pronunciation": "",
+            "tags": [],
+            "term": "merhaba",
+            "translation": "hello"
+          }
+        ],
+        "expressions": [
+          {
+            "id": "e-selam",
+            "pronunciation": "",
+            "tags": [],
+            "term": "Selam!",
+            "translation": "Hi!"
+          },
+          {
+            "id": "e-selam",
+            "pronunciation": "",
+            "tags": [],
+            "term": "Selam!",
+            "translation": "Hi!"
+          }
+        ],
+        "grammarPoints": [
+          {
+            "exampleExpressionIds": [],
+            "exampleSentenceIds": [],
+            "explanation": "hi",
+            "id": "g-greetings",
+            "practiceItems": [],
+            "title": "Greetings"
+          },
+          {
+            "exampleExpressionIds": [],
+            "exampleSentenceIds": [],
+            "explanation": "hi",
+            "id": "g-greetings",
+            "practiceItems": [],
+            "title": "Greetings"
+          }
+        ]
+      },
+      "error": ""
+    },
+    {
+      "chapter": {
+        "idx": 2,
+        "level": 2,
+        "title": "2 Aile",
+        "slug": "2-aile",
+        "markdown": "## 2 Aile\naile means family\n"
+      },
+      "keep": true,
+      "knowledge": {
+        "words": [
+          {
+            "id": "w-merhaba",
+            "pronunciation": "",
+            "tags": [],
+            "term": "merhaba",
+            "translation": "hello"
+          },
+          {
+            "id": "w-merhaba",
+            "pronunciation": "",
+            "tags": [],
+            "term": "merhaba",
+            "translation": "hello"
+          }
+        ],
+        "expressions": [
+          {
+            "id": "e-selam",
+            "pronunciation": "",
+            "tags": [],
+            "term": "Selam!",
+            "translation": "Hi!"
+          },
+          {
+            "id": "e-selam",
+            "pronunciation": "",
+            "tags": [],
+            "term": "Selam!",
+            "translation": "Hi!"
+          }
+        ],
+        "grammarPoints": [
+          {
+            "exampleExpressionIds": [],
+            "exampleSentenceIds": [],
+            "explanation": "hi",
+            "id": "g-greetings",
+            "practiceItems": [],
+            "title": "Greetings"
+          },
+          {
+            "exampleExpressionIds": [],
+            "exampleSentenceIds": [],
+            "explanation": "hi",
+            "id": "g-greetings",
+            "practiceItems": [],
+            "title": "Greetings"
+          }
+        ]
+      },
+      "error": ""
+    }
+  ],
+  "imported_section_ids": []
+}

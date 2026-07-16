@@ -35,7 +35,8 @@ class AiCourseService {
     Duration timeout = const Duration(seconds: 120),
   }) async {
     if (!config.isComplete) {
-      throw Exception('API 配置不完整，请填写 Base URL / API Key / Model。');
+      throw Exception(
+          'AI config incomplete: please fill in Base URL / API Key / Model.');
     }
 
     final uri = Uri.parse(config.chatCompletionsUrl);
@@ -88,7 +89,7 @@ class AiCourseService {
       }
     } catch (e) {
       logger.w('AiCourseService network error: $e');
-      throw Exception('网络错误: $e');
+      throw Exception('Network error: $e');
     }
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
@@ -101,7 +102,7 @@ class AiCourseService {
       return jsonDecode(res.body) as Map<String, dynamic>;
     } catch (e) {
       logger.w('AiCourseService parse error: $e');
-      throw Exception('无法解析 API 响应: $e');
+      throw Exception('Could not parse AI response: $e');
     }
   }
 
@@ -116,22 +117,22 @@ class AiCourseService {
   String extractAssistantText(Map<String, dynamic> body) {
     final choices = body['choices'];
     if (choices is! List || choices.isEmpty) {
-      throw Exception('API 返回的 choices 为空。');
+      throw Exception('AI response choices is empty.');
     }
     // Check `is Map` rather than `as Map?` so a malformed first element that
     // is neither null nor a Map (e.g. `{"choices":[42]}`) throws the friendly
     // error below instead of a raw `TypeError` at the cast.
     final first = choices.first;
     if (first is! Map) {
-      throw Exception('API 返回的 message 为空或格式异常。');
+      throw Exception('AI response message is empty or malformed.');
     }
     final message = first['message'];
     if (message is! Map) {
-      throw Exception('API 返回的 message 为空或格式异常。');
+      throw Exception('AI response message is empty or malformed.');
     }
     final content = message['content'];
     if (content is! String) {
-      throw Exception('API 返回的 content 为空或格式异常。');
+      throw Exception('AI response content is empty or malformed.');
     }
     return content.trim();
   }
@@ -147,14 +148,14 @@ class AiCourseService {
       try {
         decoded = jsonDecode(body) as Map<String, dynamic>;
       } catch (e) {
-        throw Exception('无法解析 API 响应 JSON: $e');
+        throw Exception('Could not parse AI response JSON: $e');
       }
     } else {
-      throw Exception('无法解析 API 响应: 非预期类型');
+      throw Exception('Could not parse AI response: unexpected type');
     }
     final choices = decoded['choices'];
     if (choices is! List || choices.isEmpty) {
-      throw Exception('API 返回的 choices 为空。');
+      throw Exception('AI response choices is empty.');
     }
     final message = (choices.first as Map)['message'] as Map;
     final content = (message['content'] as String?) ?? '';
@@ -163,10 +164,10 @@ class AiCourseService {
     try {
       parsed = jsonDecode(cleaned) as Map<String, dynamic>;
     } catch (e) {
-      throw Exception('无法解析模型输出的 JSON: $e\n原始内容前 200 字: ${cleaned.substring(0, cleaned.length < 200 ? cleaned.length : 200)}');
+      throw Exception('Could not parse model JSON output: $e\nFirst 200 chars: ${cleaned.substring(0, cleaned.length < 200 ? cleaned.length : 200)}');
     }
     if (parsed['units'] is! List) {
-      throw Exception("模型输出缺少顶层 'units' 数组。");
+      throw Exception("Model output is missing the top-level 'units' array.");
     }
     normalizeResources(parsed);
     autoFixResources(parsed);
@@ -229,7 +230,7 @@ class AiCourseService {
       final errors = validator(result.parsed);
       if (errors.isEmpty) break;
       final correction =
-          '上一版有以下校验错误，请修正后只输出完整的修正 JSON：\n- ${errors.join('\n- ')}';
+          'The previous version has the following validation errors. Fix them and output only the complete corrected JSON:\n- ${errors.join('\n- ')}';
       messages.add({
         'role': 'assistant',
         'content': jsonEncode(result.parsed),
@@ -303,8 +304,9 @@ class AiCourseService {
     var generationPrompt = buildPrompt(spec);
     if (draftJson != null) {
       generationPrompt +=
-          '\n\n以下是目前已生成的课程草稿，请根据对话中的修改意见进行调整，'
-          '返回完整的新的课程 JSON（不要只返回 diff）。\n\n'
+          '\n\nBelow is the current course draft. Adjust it according to the '
+          'changes discussed in the conversation and return the complete new '
+          'course JSON (do not return only a diff).\n\n'
           '```json\n${jsonEncode(draftJson)}\n```';
     }
     final apiMessages = <Map<String, dynamic>>[
@@ -336,18 +338,22 @@ class AiCourseService {
     Duration timeout = const Duration(seconds: 120),
   }) async {
     final prompt =
-        '你刚刚为一位没有技术背景的教师生成了以下课程。'
-        '请用通俗易懂的中文简要解释这门课的教学目标、单元划分、重点词汇/句型，'
-        '以及为什么这样设计。不要输出 JSON 或代码。\n\n'
-        '课程语言：${spec.language}\n'
-        '提示语言：${spec.sourceLanguage}\n'
-        '等级：${spec.level}\n'
-        '课程名称：${sectionJson['name'] ?? ''}\n'
-        '课程描述：${sectionJson['description'] ?? ''}\n';
+        'You just generated the following course for a teacher with no '
+        'technical background. Please explain in plain, easy-to-understand '
+        '${spec.sourceLanguage}: the course\'s learning objectives, how units '
+        'are divided, the key vocabulary / sentence patterns, and why it is '
+        'designed this way. Do not output JSON or code.\n\n'
+        'Course language: ${spec.language}\n'
+        'Prompt language: ${spec.sourceLanguage}\n'
+        'Level: ${spec.level}\n'
+        'Course name: ${sectionJson['name'] ?? ''}\n'
+        'Course description: ${sectionJson['description'] ?? ''}\n';
     final apiMessages = <Map<String, dynamic>>[
       {
         'role': 'system',
-        'content': '你是语言课程设计助手，用中文通俗解释课程内容。',
+        'content':
+            'You are a language-course design assistant who explains course '
+            'content in plain ${spec.sourceLanguage}.',
       },
       {'role': 'user', 'content': prompt},
     ];
@@ -358,7 +364,7 @@ class AiCourseService {
       timeout: timeout,
     );
     final choices = body['choices'];
-    if (choices is! List || choices.isEmpty) return '（AI 未返回解释）';
+    if (choices is! List || choices.isEmpty) return '(AI returned no explanation)';
     return extractAssistantText(body);
   }
 

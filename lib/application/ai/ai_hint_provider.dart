@@ -30,7 +30,7 @@ class AiQuestionContext {
   /// Target language being taught (e.g. "Turkish").
   final String language;
 
-  /// Human-readable question type (e.g. "单选题").
+  /// Human-readable question type (e.g. "Multiple Choice").
   final String typeLabel;
 
   /// The prompt / question text shown to the learner.
@@ -188,27 +188,35 @@ class AiHintProvider extends ChangeNotifier {
   /// included — the assistant explains the knowledge point and reasoning
   /// rather than revealing the answer, to keep it a learning aid.
   String _buildSystemPrompt(AiQuestionContext ctx) {
-    return '你是一位${ctx.language}语言学习答疑助手，用通俗中文为学习者讲解练习题。\n'
-        '要求：\n'
-        '- 先说明这道题在考查什么（语法点、词义、句型等）。\n'
-        '- 再给出解题思路或相关知识点，简洁分点。\n'
-        '- 不要直接复述正确答案的文字；引导学习者自己得出答案。\n'
-        '- 学习者若追问，可逐步给更具体的提示，但仍以启发为主。\n'
-        '- 全程使用中文。';
+    return 'You are a ${ctx.language} language-learning tutor who explains '
+        'practice questions to the learner in plain Chinese.\n'
+        'Requirements:\n'
+        '- First state what this question is testing (grammar point, word '
+        'meaning, sentence pattern, etc.).\n'
+        '- Then give the solving approach or related knowledge points, '
+        'concisely as bullet points.\n'
+        '- Do not directly restate the correct answer; guide the learner to '
+        'reach it themselves.\n'
+        '- If the learner asks a follow-up, you may give more specific hints '
+        'step by step, but keep it primarily heuristic.\n'
+        '- Reply in Chinese throughout.';
   }
 
   /// The first user turn: describe the question for the model.
   String _buildExplainPrompt(AiQuestionContext ctx) {
     final buf = StringBuffer()
-      ..writeln('请帮我讲解下面这道${ctx.language}练习题（题型：${ctx.typeLabel}）：')
-      ..writeln('题目：${ctx.promptLabel}');
+      ..writeln(
+          'Please explain the following ${ctx.language} practice question '
+          '(question type: ${ctx.typeLabel}):')
+      ..writeln('Question: ${ctx.promptLabel}');
     if (ctx.optionsLabel != null && ctx.optionsLabel!.isNotEmpty) {
-      buf.writeln('选项：${ctx.optionsLabel}');
+      buf.writeln('Options: ${ctx.optionsLabel}');
     }
     if (ctx.userAnswer != null && ctx.userAnswer!.isNotEmpty) {
-      buf.writeln('我填写的答案：${ctx.userAnswer}');
+      buf.writeln('My answer: ${ctx.userAnswer}');
     }
-    buf.writeln('请按你的规则讲解，不要直接给出答案。');
+    buf.writeln('Explain according to your rules; do not give the answer '
+        'directly.');
     return buf.toString();
   }
 }

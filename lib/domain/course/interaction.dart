@@ -243,22 +243,22 @@ String interactionPromptLabel(Interaction interaction) {
   };
 }
 
-/// A short Chinese label naming the interaction type, for display in the
+/// A short English label naming the interaction type, for display in the
 /// in-lesson AI hint assistant and other UI surfaces.
 String interactionTypeLabel(Interaction interaction) {
   return switch (interaction) {
-    ShowWord() => '词汇展示',
-    MultipleChoice() => '单选题',
-    MultiSelect() => '多选题',
-    FillBlank() => '填空题',
-    TranslateSentence() => '翻译题',
-    ListenAndPick() => '听音选词',
-    TypeTheWord() => '听写题',
-    ListenOnly() => '听力-only',
-    ReorderSentence() => '句子排序',
-    ReadingMcq() => '阅读单选',
-    ReadingTrueFalse() => '阅读判断',
-    ReadingShortAnswer() => '阅读简答',
+    ShowWord() => 'Vocab Display',
+    MultipleChoice() => 'Multiple Choice',
+    MultiSelect() => 'Multi-Select',
+    FillBlank() => 'Fill-in-the-blank',
+    TranslateSentence() => 'Translation',
+    ListenAndPick() => 'Listen & Pick',
+    TypeTheWord() => 'Dictation',
+    ListenOnly() => 'Listening-only',
+    ReorderSentence() => 'Sentence Order',
+    ReadingMcq() => 'Reading MCQ',
+    ReadingTrueFalse() => 'Reading True/False',
+    ReadingShortAnswer() => 'Reading Short Answer',
   };
 }
 
