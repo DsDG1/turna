@@ -1,0 +1,796 @@
+"""Single-dialog textbook import: view layer.
+
+The business logic lives in ``TextbookImportController``; this module builds the
+6-step UI and wires user events to the controller. The dialog itself does NOT
+write to disk or push undo commands — it emits ``sections_ready`` and the
+MainWindow (``app.py``) runs ``_import_section_dict`` for each section.
+"""
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QDragEnterEvent, QDropEvent
+from PySide6.QtWidgets import (
+    QButtonGroup,
+    QComboBox,
+    QDialog,
+    QFileDialog,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QMessageBox,
+    QProgressBar,
+    QPushButton,
+    QRadioButton,
+    QSpinBox,
+    QSplitter,
+    QStackedWidget,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
+
+from src.backend.import_step_result import ImportStepResult
+from src.backend.import_strategy import ImportStrategy
+from src.backend.textbook_project import TextbookProject
+from src.backend.textbook_project_store import TextbookProjectStore
+from src.dialogs.ai_fix_dialog import AiFixDialog
+from src.dialogs.textbook_import_controller import TextbookImportController
+from src.infrastructure.telemetry import telemetry
+from src.widgets.bulk_import_preview_panel import BulkImportPreviewPanel
+from src.widgets.resource_review_table import ResourceReviewTable, ResourceRow
+
+# Import-strategy radio options shown on the import page (bookplan2 Phase 4).
+_STRATEGY_OPTIONS = (
+    (ImportStrategy.MERGE.value, "合并预览（交互逐章确认）"),
+    (ImportStrategy.SKIP_EXISTING.value, "跳过已存在 section"),
+    (ImportStrategy.FORCE_REPLACE.value, "覆盖已存在 section"),
+    (ImportStrategy.APPEND_AS_NEW.value, "作为新 section 追加（自动改 id）"),
+)
+
+# Steps of the timeline.
+STEP_PICK, STEP_PARSE, STEP_CHAPTERS, STEP_EXTRACT, STEP_REVIEW, STEP_IMPORT = range(6)
+_STEP_TITLES = (
+    "① 选择教材",
+    "② 解析课本",
+    "③ 章节勾选",
+    "④ 提取知识点",
+    "⑤ 审校",
+    "⑥ 导入",
+)
+
+
+class TextbookImportDialog(QDialog):
+    """Single-window textbook import timeline. Emits ``sections_ready``."""
+
+    sections_ready = Signal(list, str)  # (list[dict], strategy) - one section per kept chapter — one section per kept chapter
+
+    def __init__(
+        self,
+        adapter,
+        parent: QWidget | None = None,
+        *,
+        project: TextbookProject | None = None,
+        store: TextbookProjectStore | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self.adapter = adapter
+        self._parent_window = parent
+        self._project = project
+        self._store = store or TextbookProjectStore()
+        self.setWindowTitle("导入教材（Beta）")
+        self.resize(720, 600)
+        self.setAcceptDrops(True)
+
+        self._controller = TextbookImportController(
+            ai_config_fn=self._ai_config,
+            on_step_changed=self._on_step_changed,
+            on_extract_log=self._on_extract_log,
+            on_extract_progress=self._on_extract_progress,
+            on_sections_ready=self._on_controller_sections_ready,
+            on_autosave=self._on_autosave,
+            on_quality_report_changed=self._on_quality_report_changed,
+            on_usage_update=self._on_usage_update,
+            language=project.language if project else "Turkish",
+            source_language=project.source_language if project else "Chinese",
+            project_name=project.name if project else "",
+        )
+
+        self._build_ui()
+        self._apply_preset()  # push the default textbook-type preset to the controller
+        self._selected_chapter_index: int | None = None
+        if project is not None:
+            self._picked_label.setText(
+                Path(project.source_path).name if project.source_path else "未选择"
+            )
+            self._controller.apply_project(project)
+        else:
+            self._go_to_step(STEP_PICK)
+
+    # ------------------------------------------------------------------ UI
+
+    def _build_ui(self) -> None:
+        root = QVBoxLayout(self)
+        root.setContentsMargins(16, 16, 16, 16)
+        root.setSpacing(12)
+
+        # Left stepper + right stacked pages.
+        body = QHBoxLayout()
+        self._stepper_labels: list[QLabel] = []
+        stepper_col = QVBoxLayout()
+        stepper_col.setSpacing(6)
+        for title in _STEP_TITLES:
+            lbl = QLabel(title)
+            lbl.setFixedWidth(120)
+            self._stepper_labels.append(lbl)
+            stepper_col.addWidget(lbl)
+        stepper_col.addStretch()
+        body.addLayout(stepper_col)
+
+        self._stack = QStackedWidget()
+        self._stack.addWidget(self._build_pick_page())
+        self._stack.addWidget(self._build_parse_page())
+        self._stack.addWidget(self._build_chapters_page())
+        self._stack.addWidget(self._build_extract_page())
+        self._stack.addWidget(self._build_review_page())
+        self._stack.addWidget(self._build_import_page())
+        body.addWidget(self._stack, 1)
+        root.addLayout(body, 1)
+
+        # Bottom progress row + cancel.
+        bottom = QHBoxLayout()
+        self._progress = QProgressBar()
+        self._progress.setRange(0, 0)
+        self._progress.setVisible(False)
+        bottom.addWidget(self._progress)
+        self._stage_label = QLabel("")
+        self._stage_label.setStyleSheet("color: #46D1BF; font-size: 12px;")
+        bottom.addWidget(self._stage_label)
+        bottom.addStretch()
+        self._usage_label = QLabel("")
+        self._usage_label.setStyleSheet("color: #9CA3AF; font-size: 11px;")
+        bottom.addWidget(self._usage_label)
+        self._autosave_label = QLabel("")
+        self._autosave_label.setStyleSheet("color: #9CA3AF; font-size: 11px;")
+        bottom.addWidget(self._autosave_label)
+        self._cancel_btn = QPushButton("取消")
+        self._cancel_btn.clicked.connect(self._on_cancel)
+        bottom.addWidget(self._cancel_btn)
+        root.addLayout(bottom)
+
+    def _build_pick_page(self) -> QWidget:
+        page = QWidget()
+        lay = QVBoxLayout(page)
+        lay.addWidget(QLabel("拖入教材文件，或点击「选择文件」。支持 .md / .txt / .pdf（文本原生 PDF）。"))
+        row = QHBoxLayout()
+        self._pick_btn = QPushButton("选择文件…")
+        self._pick_btn.clicked.connect(self._on_pick_file)
+        row.addWidget(self._pick_btn)
+        self._picked_label = QLabel("未选择")
+        row.addWidget(self._picked_label, 1)
+        lay.addLayout(row)
+        lay.addStretch()
+        return page
+
+    def _build_parse_page(self) -> QWidget:
+        page = QWidget()
+        lay = QVBoxLayout(page)
+        lay.addWidget(QLabel("解析结果预览（前 2000 字）："))
+        self._parse_preview = QTextEdit()
+        self._parse_preview.setReadOnly(True)
+        lay.addWidget(self._parse_preview, 1)
+        self._parse_error_label = QLabel("")
+        self._parse_error_label.setStyleSheet("color: #E74C3C;")
+        self._parse_error_label.setVisible(False)
+        lay.addWidget(self._parse_error_label)
+        return page
+
+    def _build_chapters_page(self) -> QWidget:
+        page = QWidget()
+        lay = QVBoxLayout(page)
+        lay.addWidget(QLabel("勾选要导入的章节："))
+        btns = QHBoxLayout()
+        select_all = QPushButton("全选")
+        select_all.clicked.connect(lambda: self._set_all_chapters(True))
+        invert = QPushButton("反选")
+        invert.clicked.connect(self._invert_chapters)
+        btns.addWidget(select_all)
+        btns.addWidget(invert)
+        btns.addStretch()
+        lay.addLayout(btns)
+        self._chapter_list = QListWidget()
+        lay.addWidget(self._chapter_list, 1)
+        self._empty_chapters_label = QLabel("未切到章节（请确认标题层级 ≥ ##）")
+        self._empty_chapters_label.setStyleSheet("color: #9CA3AF;")
+        self._empty_chapters_label.setVisible(False)
+        lay.addWidget(self._empty_chapters_label)
+        # Extraction options (bookplan2 Phase 5): textbook type + concurrency.
+        from src.backend.textbook_presets import preset_names, preset_for
+
+        opt_row = QHBoxLayout()
+        opt_row.addWidget(QLabel("教材类型："))
+        self._preset_combo = QComboBox()
+        for name in preset_names():
+            preset = preset_for(name)
+            self._preset_combo.addItem(preset.label, name)
+        self._preset_combo.currentIndexChanged.connect(self._apply_preset)
+        opt_row.addWidget(self._preset_combo)
+        opt_row.addSpacing(12)
+        opt_row.addWidget(QLabel("并发："))
+        self._concurrency_spin = QSpinBox()
+        self._concurrency_spin.setRange(1, 3)
+        self._concurrency_spin.setValue(1)
+        self._concurrency_spin.setToolTip("同时抽取的章节数（1=串行，越大越快但 token 并发消耗更高）")
+        self._concurrency_spin.valueChanged.connect(
+            lambda v: setattr(self._controller, "max_concurrent", int(v))
+        )
+        opt_row.addWidget(self._concurrency_spin)
+        opt_row.addStretch()
+        lay.addLayout(opt_row)
+
+        next_btn = QPushButton("提取知识点 →")
+        next_btn.clicked.connect(self._start_extraction)
+        lay.addWidget(next_btn)
+        return page
+
+    def _build_extract_page(self) -> QWidget:
+        page = QWidget()
+        lay = QVBoxLayout(page)
+        lay.addWidget(QLabel("逐章提取知识点（串行）："))
+        self._extract_log = QTextEdit()
+        self._extract_log.setReadOnly(True)
+        lay.addWidget(self._extract_log, 1)
+        return page
+
+    def _build_review_page(self) -> QWidget:
+        page = QWidget()
+        lay = QVBoxLayout(page)
+        lay.addWidget(
+            QLabel("审校抽取结果：可编辑、批量删除；红色=错误，黄色=警告。")
+        )
+
+        splitter = QSplitter(Qt.Horizontal)
+
+        # Left: chapter quality list + recovery controls.
+        left = QWidget()
+        left_lay = QVBoxLayout(left)
+        left_lay.addWidget(QLabel("章节质量"))
+        self._chapter_quality_list = QListWidget()
+        self._chapter_quality_list.currentRowChanged.connect(
+            self._on_chapter_quality_selected
+        )
+        left_lay.addWidget(self._chapter_quality_list, 1)
+
+        self._chapter_recovery_label = QLabel("")
+        self._chapter_recovery_label.setStyleSheet(
+            "color: #9CA3AF; font-size: 11px;"
+        )
+        self._chapter_recovery_label.setWordWrap(True)
+        left_lay.addWidget(self._chapter_recovery_label)
+
+        self._retry_btn = QPushButton("重试本章")
+        self._retry_btn.clicked.connect(lambda: self._on_retry_chapter("standard"))
+        self._retry_vocab_btn = QPushButton("仅抽词汇")
+        self._retry_vocab_btn.clicked.connect(
+            lambda: self._on_retry_chapter("vocab_only")
+        )
+        self._skip_btn = QPushButton("跳过本章")
+        self._skip_btn.clicked.connect(self._on_skip_chapter)
+        for btn in (self._retry_btn, self._retry_vocab_btn, self._skip_btn):
+            btn.setVisible(False)
+            left_lay.addWidget(btn)
+
+        splitter.addWidget(left)
+
+        # Right: unified review table.
+        self._review_table = ResourceReviewTable()
+        self._review_table.rows_changed.connect(self._on_review_rows_changed)
+        self._review_table.fix_requested.connect(self._on_ai_fix_requested)
+        splitter.addWidget(self._review_table)
+        splitter.setStretchFactor(0, 1)
+        splitter.setStretchFactor(1, 4)
+
+        lay.addWidget(splitter, 1)
+
+        self._quality_summary_label = QLabel("")
+        lay.addWidget(self._quality_summary_label)
+
+        # Navigate to the import / preview page (bookplan2 Phase 4).
+        next_btn = QPushButton("下一步：预览导入 ->")
+        next_btn.clicked.connect(self._goto_import_preview)
+        lay.addWidget(next_btn)
+        return page
+
+    def _build_import_page(self) -> QWidget:
+        page = QWidget()
+        lay = QVBoxLayout(page)
+        lay.addWidget(QLabel("选择导入策略，预览每个章节将生成的 section 与冲突，确认后导入。"))
+
+        # Strategy radio group.
+        strategy_box = QGroupBox("导入策略")
+        strategy_lay = QVBoxLayout(strategy_box)
+        self._strategy_group = QButtonGroup(self)
+        self._strategy_buttons: dict[str, QRadioButton] = {}
+        for i, (value, label) in enumerate(_STRATEGY_OPTIONS):
+            radio = QRadioButton(label)
+            if i == 0:
+                radio.setChecked(True)
+            self._strategy_group.addButton(radio, i)
+            self._strategy_buttons[value] = radio
+            strategy_lay.addWidget(radio)
+        self._strategy_group.idToggled.connect(
+            lambda _id, checked: self._on_strategy_changed() if checked else None
+        )
+        lay.addWidget(strategy_box)
+
+        # Bulk preview panel.
+        self._preview_panel = BulkImportPreviewPanel()
+        lay.addWidget(self._preview_panel, 1)
+
+        btns = QHBoxLayout()
+        back_btn = QPushButton("<- 返回审校")
+        back_btn.clicked.connect(lambda: self._go_to_step(STEP_REVIEW))
+        btns.addWidget(back_btn)
+        btns.addStretch()
+        self._import_btn = QPushButton("确认导入 ↗")
+        self._import_btn.clicked.connect(self._on_import)
+        btns.addWidget(self._import_btn)
+        lay.addLayout(btns)
+        return page
+
+    # ------------------------------------------------------------- step nav
+
+    def _go_to_step(self, step: int) -> None:
+        self._stack.setCurrentIndex(step)
+        for i, lbl in enumerate(self._stepper_labels):
+            if i < step:
+                lbl.setText("✓ " + _STEP_TITLES[i])
+                lbl.setStyleSheet("color: #9CA3AF;")
+            elif i == step:
+                lbl.setText("▸ " + _STEP_TITLES[i])
+                lbl.setStyleSheet("color: #1F727E; font-weight: 600;")
+            else:
+                lbl.setText("○ " + _STEP_TITLES[i])
+                lbl.setStyleSheet("color: #9CA3AF;")
+
+    def _set_busy(self, busy: bool, stage: str = "") -> None:
+        self._progress.setVisible(busy)
+        self._stage_label.setText(stage)
+        self._stage_label.setVisible(bool(stage))
+
+    # ------------------------------------------------------------- controller callbacks
+
+    def _on_step_changed(self, step: int, result: ImportStepResult | None) -> None:
+        self._go_to_step(step)
+        if result is None:
+            return
+        if result.outcome in ("success", "warning"):
+            self._set_busy(False)
+        elif result.outcome == "error":
+            self._set_busy(False)
+            self._show_error_for_step(step, result)
+        elif result.outcome == "cancelled":
+            self._set_busy(False)
+
+        if step == STEP_PARSE and result.outcome == "success":
+            self._parse_preview.setPlainText(self._controller.markdown[:2000])
+            self._parse_error_label.setVisible(False)
+        elif step == STEP_CHAPTERS:
+            self._parse_preview.setPlainText(self._controller.markdown[:2000])
+            self._parse_error_label.setVisible(False)
+            self._populate_chapters()
+        elif step == STEP_EXTRACT and result.outcome == "success":
+            self._set_busy(True, "提取中…")
+        elif step == STEP_REVIEW:
+            self._populate_review()
+        elif step == STEP_IMPORT and result.outcome == "success":
+            self.close()
+
+    def _show_error_for_step(self, step: int, result: ImportStepResult) -> None:
+        if step == self.STEP_PARSE:
+            self._parse_error_label.setText(result.message)
+            self._parse_error_label.setVisible(True)
+            self._parse_preview.setPlainText("")
+        else:
+            QMessageBox.warning(self, "导入教材", result.message)
+
+    def _on_extract_log(self, message: str) -> None:
+        self._extract_log.insertPlainText(message)
+        self._extract_log.ensureCursorVisible()
+
+    def _on_autosave(self, project: TextbookProject) -> None:
+        """Persist project snapshot, preserving original identity and imports."""
+        if self._project is not None:
+            self._project.merge_from(project)
+            self._store.save_project(self._project)
+        else:
+            self._store.save_project(project)
+            self._project = project
+        self._autosave_label.setText(
+            f"已自动保存于 {project.updated_at[:19].replace('T', ' ')}"
+        )
+
+    def _on_extract_progress(self, progress: dict[str, Any]) -> None:
+        current = progress.get("current", 0)
+        total = progress.get("total", 0)
+        remaining = progress.get("remaining_seconds")
+        text = f"第 {current}/{total} 章"
+        if remaining is not None:
+            text += f"，预计剩余 {remaining} 秒"
+        self._stage_label.setText(text)
+
+    def _on_quality_report_changed(self, report) -> None:
+        self._refresh_quality_summary(report)
+
+    def _apply_preset(self, *_args) -> None:
+        """Push the selected textbook-type preset onto the controller."""
+        from src.backend.textbook_presets import preset_for
+
+        name = self._preset_combo.currentData() if hasattr(self, "_preset_combo") else None
+        self._controller.preset = preset_for(name) if name else None
+
+    def _on_usage_update(self, chapter_index: int, chapter_usage: dict, project_usage: dict) -> None:
+        """Render the running project token/cost estimate (bookplan2 Phase 5)."""
+        from src.backend.ai_usage import format_usage_line
+
+        config = self._ai_config()
+        model = getattr(config, "model", "")
+        self._usage_label.setText(
+            f"项目用量：{format_usage_line(project_usage, model)}"
+        )
+
+    # ------------------------------------------------------------- ① pick
+
+    def dragEnterEvent(self, event: QDragEnterEvent) -> None:
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            super().dragEnterEvent(event)
+
+    def dropEvent(self, event: QDropEvent) -> None:
+        urls = event.mimeData().urls()
+        paths = [Path(u.toLocalFile()) for u in urls if u.isLocalFile()]
+        if paths:
+            self._load_file(paths[0])
+        event.acceptProposedAction()
+
+    def _on_pick_file(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(
+            self, "选择教材", "", "教材 (*.md *.txt *.pdf);;所有文件 (*)"
+        )
+        if path:
+            self._load_file(Path(path))
+
+    def _load_file(self, path: Path) -> None:
+        self._picked_label.setText(path.name)
+        self._controller.load_file(path)
+
+    # ------------------------------------------------------------- ③ chapters
+
+    def _populate_chapters(self) -> None:
+        chapters = [cr.chapter for cr in self._controller.chapters]
+        self._chapter_list.clear()
+        if not chapters:
+            self._empty_chapters_label.setVisible(True)
+            return
+        self._empty_chapters_label.setVisible(False)
+        for idx, cr in enumerate(self._controller.chapters, start=1):
+            ch = cr.chapter
+            item = QListWidgetItem(f"{idx}. {ch.title}  ({len(ch.markdown)} 字)")
+            item.setCheckState(Qt.CheckState.Checked if cr.keep else Qt.CheckState.Unchecked)
+            self._chapter_list.addItem(item)
+
+    def _set_all_chapters(self, checked: bool) -> None:
+        state = Qt.CheckState.Checked if checked else Qt.CheckState.Unchecked
+        for i in range(self._chapter_list.count()):
+            self._chapter_list.item(i).setCheckState(state)
+        self._sync_chapter_keep_flags()
+
+    def _invert_chapters(self) -> None:
+        for i in range(self._chapter_list.count()):
+            it = self._chapter_list.item(i)
+            it.setCheckState(
+                Qt.CheckState.Checked
+                if it.checkState() == Qt.CheckState.Unchecked
+                else Qt.CheckState.Unchecked
+            )
+        self._sync_chapter_keep_flags()
+
+    def _sync_chapter_keep_flags(self) -> None:
+        for i in range(self._chapter_list.count()):
+            it = self._chapter_list.item(i)
+            self._controller.set_chapter_kept(i, it.checkState() == Qt.CheckState.Checked)
+
+    # ------------------------------------------------------------ ④ extract
+
+    def _start_extraction(self) -> None:
+        self._sync_chapter_keep_flags()
+        self._extract_log.clear()
+        result = self._controller.start_extraction()
+        if result.outcome == "error":
+            QMessageBox.warning(self, "导入教材", result.message)
+
+    def _ai_config(self):
+        from src.app import current_ai_config
+
+        return current_ai_config()
+
+    # ------------------------------------------------------------- ⑤ review
+
+    def _populate_review(self) -> None:
+        report = self._controller.compute_quality_report(adapter=self.adapter)
+        rows: list[ResourceRow] = []
+        for ci, cr in enumerate(self._controller.chapters):
+            if not cr.keep:
+                continue
+            chapter_quality = report.chapter_quality(ci)
+            issues = chapter_quality.issues if chapter_quality else []
+            if cr.knowledge is not None:
+                for i, w in enumerate(cr.knowledge.words):
+                    row_issues = [
+                        issue
+                        for issue in issues
+                        if issue.resource_type == "word" and issue.resource_index == i
+                    ]
+                    rows.append(
+                        ResourceRow(
+                            chapter_index=ci,
+                            resource_type="word",
+                            entry=w,
+                            issues=row_issues,
+                        )
+                    )
+                for i, e in enumerate(cr.knowledge.expressions):
+                    row_issues = [
+                        issue
+                        for issue in issues
+                        if issue.resource_type == "expression"
+                        and issue.resource_index == i
+                    ]
+                    rows.append(
+                        ResourceRow(
+                            chapter_index=ci,
+                            resource_type="expression",
+                            entry=e,
+                            issues=row_issues,
+                        )
+                    )
+                for i, g in enumerate(cr.knowledge.grammarPoints):
+                    row_issues = [
+                        issue
+                        for issue in issues
+                        if issue.resource_type == "grammarPoint"
+                        and issue.resource_index == i
+                    ]
+                    rows.append(
+                        ResourceRow(
+                            chapter_index=ci,
+                            resource_type="grammarPoint",
+                            entry=g,
+                            issues=row_issues,
+                        )
+                    )
+        self._review_table.set_rows(rows)
+        self._populate_chapter_quality_list(report)
+        self._refresh_quality_summary(report)
+
+    def _populate_chapter_quality_list(self, report) -> None:
+        self._chapter_quality_list.clear()
+        for ci, cr in enumerate(self._controller.chapters):
+            if not cr.keep:
+                continue
+            badge = report.badge_for_chapter(ci)
+            icon = {"error": "🔴", "warning": "🟡", "ok": "🟢"}.get(badge, "⚪")
+            item = QListWidgetItem(f"{icon} {cr.chapter.title}")
+            item.setData(Qt.ItemDataRole.UserRole, ci)
+            self._chapter_quality_list.addItem(item)
+
+    def _on_chapter_quality_selected(self, row: int) -> None:
+        item = self._chapter_quality_list.item(row)
+        if item is None:
+            self._selected_chapter_index = None
+            self._review_table.set_chapter_filter(None)
+            return
+        ci = item.data(Qt.ItemDataRole.UserRole)
+        self._selected_chapter_index = ci
+        self._review_table.set_chapter_filter(ci)
+        self._update_recovery_buttons(ci)
+
+    def _update_recovery_buttons(self, ci: int) -> None:
+        cr = self._controller.chapters[ci]
+        failed = bool(cr.error)
+        for btn in (self._retry_btn, self._retry_vocab_btn, self._skip_btn):
+            btn.setVisible(failed)
+        if failed:
+            self._chapter_recovery_label.setText(
+                f"第 {ci + 1} 章抽取失败：{cr.error}"
+            )
+        else:
+            self._chapter_recovery_label.setText("")
+
+    def _on_retry_chapter(self, mode: str) -> None:
+        if self._selected_chapter_index is None:
+            return
+        telemetry.record_event(
+            "textbook.extract.chapter.retry"
+            if mode == "standard"
+            else "textbook.extract.chapter.vocab_only",
+            payload={"chapter_index": self._selected_chapter_index, "mode": mode},
+        )
+        result = self._controller.retry_chapter(self._selected_chapter_index, mode=mode)
+        if result.outcome == "error":
+            QMessageBox.warning(self, "重试抽取", result.message)
+        else:
+            self._set_busy(True, "重试中…")
+
+    def _on_skip_chapter(self) -> None:
+        if self._selected_chapter_index is None:
+            return
+        telemetry.record_event(
+            "textbook.extract.chapter.skip",
+            payload={"chapter_index": self._selected_chapter_index},
+        )
+        self._controller.skip_chapter(self._selected_chapter_index)
+        self._populate_review()
+
+    def _on_review_rows_changed(self) -> None:
+        telemetry.record_event("textbook.review.edit")
+
+    def _on_ai_fix_requested(self, rows: list[ResourceRow]) -> None:
+        telemetry.record_event(
+            "textbook.review.ai_fix",
+            payload={"row_count": len(rows)},
+        )
+        self._run_ai_fix_for_rows(rows)
+
+    def _run_ai_fix_for_rows(self, rows: list[ResourceRow]) -> None:
+        if not rows:
+            return
+        words = [r.entry for r in rows if r.resource_type == "word"]
+        expressions = [r.entry for r in rows if r.resource_type == "expression"]
+        grammar_points = [r.entry for r in rows if r.resource_type == "grammarPoint"]
+        temp_section = {
+            "id": "temp-fix-section",
+            "name": "审校临时节点",
+            "description": "",
+            "level": "A1",
+            "prerequisiteSectionIds": [],
+            "units": [],
+            "words": words,
+            "expressions": expressions,
+            "grammarPoints": grammar_points,
+        }
+        problems: list[dict[str, Any]] = []
+        for r in rows:
+            for issue in r.issues:
+                path = r.resource_type
+                if issue.resource_index is not None:
+                    path += f"[{issue.resource_index}]"
+                if issue.field:
+                    path += f".{issue.field}"
+                problems.append(
+                    {
+                        "level": issue.level,
+                        "message": issue.message,
+                        "path": path,
+                    }
+                )
+        course_context = {
+            "node_kind": "section",
+            "language": self._controller._language,
+            "source_language": self._controller._source_language,
+            "existing_resource_ids": {
+                "vocab": [w.get("id") for w in getattr(self.adapter, "vocab", []) if w.get("id")],
+                "expressions": [
+                    e.get("id") for e in getattr(self.adapter, "expressions", []) if e.get("id")
+                ],
+                "grammar_points": [
+                    g.get("id") for g in getattr(self.adapter, "grammar_points", []) if g.get("id")
+                ],
+            },
+        }
+        config = self._ai_config()
+        if not getattr(config, "is_complete", False):
+            QMessageBox.warning(self, "AI 修复", "请先在设置中配置 AI API。")
+            return
+        dlg = AiFixDialog(
+            problems,
+            temp_section,
+            course_context,
+            config,
+            parent=self,
+        )
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        corrected = dlg.corrected_node()
+        if corrected is None:
+            return
+        # Map corrected resources back into the rows that were sent.
+        corrected_words = corrected.get("words", [])
+        corrected_exprs = corrected.get("expressions", [])
+        corrected_grammar = corrected.get("grammarPoints", [])
+        for r, entry in zip(
+            [r for r in rows if r.resource_type == "word"], corrected_words
+        ):
+            r.entry.clear()
+            r.entry.update(entry)
+        for r, entry in zip(
+            [r for r in rows if r.resource_type == "expression"], corrected_exprs
+        ):
+            r.entry.clear()
+            r.entry.update(entry)
+        for r, entry in zip(
+            [r for r in rows if r.resource_type == "grammarPoint"], corrected_grammar
+        ):
+            r.entry.clear()
+            r.entry.update(entry)
+        self._controller.apply_review_rows(self._review_table.kept_rows())
+        self._populate_review()
+
+    def _refresh_quality_summary(self, report) -> None:
+        overall = report.overall
+        if not overall:
+            self._quality_summary_label.setText("")
+            return
+        errors = overall.get("error_count", 0)
+        warnings = overall.get("warning_count", 0)
+        parts = []
+        for key in ("coverage", "duplicate_rate", "consistency", "lang_check"):
+            if key in overall:
+                parts.append(f"{key}={overall[key]:.2f}")
+        self._quality_summary_label.setText(
+            f"质量概览：{errors} 个错误，{warnings} 个警告 | {' | '.join(parts)}"
+        )
+
+    # ------------------------------------------------------------ ⑥ import
+
+    def _current_strategy(self) -> str:
+        """Return the currently-selected import-strategy value."""
+        for value, radio in self._strategy_buttons.items():
+            if radio.isChecked():
+                return value
+        return ImportStrategy.MERGE.value
+
+    def _on_strategy_changed(self) -> None:
+        telemetry.record_event(
+            "textbook.import.strategy_changed",
+            payload={"strategy": self._current_strategy()},
+        )
+        self._refresh_preview()
+
+    def _goto_import_preview(self) -> None:
+        """Apply review edits, then show the import/preview page."""
+        self._controller.apply_review_rows(self._review_table.kept_rows())
+        self._go_to_step(STEP_IMPORT)
+        self._refresh_preview()
+
+    def _refresh_preview(self) -> None:
+        """Recompute the bulk-import preview for the current strategy."""
+        previews = self._controller.preview_import(self.adapter, self._current_strategy())
+        self._preview_panel.set_previews(previews)
+
+    def _on_controller_sections_ready(self, sections: list) -> None:
+        """Forward built sections to MainWindow with the chosen strategy."""
+        self.sections_ready.emit(sections, self._current_strategy())
+
+    def _on_import(self) -> None:
+        self._controller.apply_review_rows(self._review_table.kept_rows())
+        # Dedup intra-project + align course-collision ids before building so
+        # the emitted sections carry unified ids (bookplan2 Phase 4).
+        self._controller.merge_knowledge(self.adapter)
+        result = self._controller.build_sections()
+        if result.outcome == "error":
+            QMessageBox.information(self, "导入教材", result.message)
+
+    # ------------------------------------------------------------- cancel
+
+    def _on_cancel(self) -> None:
+        if self._controller.is_busy:
+            self._controller.cancel()
+            self._set_busy(True, "正在取消…")
+            return
+        self.close()
