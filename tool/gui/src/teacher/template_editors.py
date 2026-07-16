@@ -10,6 +10,7 @@ from typing import Any
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QComboBox,
+    QDialog,
     QHBoxLayout,
     QInputDialog,
     QLabel,
@@ -21,6 +22,17 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from src.application.commands import (
+    AddItemCommand,
+    AddListeningPhaseCommand,
+    DeleteItemCommand,
+    DeleteListeningPhaseCommand,
+    MoveItemCommand,
+    MoveListeningPhaseCommand,
+    RenameListeningPhaseCommand,
+    ReplaceItemCommand,
+)
+from src.backend.ai_generator import AiApiConfig
 from src.backend.course_adapter import CourseAdapter
 from src.backend.lesson_content import (
     ALLOWED_RUNTIME_TYPES,
@@ -34,6 +46,7 @@ from src.backend.lesson_content import (
     rename_listening_phase,
     switch_runtime_type,
 )
+from src.dialogs.ai_lesson_helper_dialog import AiLessonHelperDialog
 from src.i18n.labels import interaction_label, layer_label
 from src.teacher.question_cards import QuestionCard
 
@@ -51,6 +64,7 @@ class TeacherTemplateWidget(QWidget):
         lesson: dict[str, Any],
         parent: QWidget | None = None,
         undo_stack: Any = None,
+        ai_config: AiApiConfig | None = None,
     ) -> None:
         super().__init__(parent)
         self.adapter = adapter
@@ -58,6 +72,7 @@ class TeacherTemplateWidget(QWidget):
         self.unit = unit
         self.lesson = lesson
         self.undo_stack = undo_stack
+        self.ai_config = ai_config
         self._advanced_btn: QPushButton | None = None
         self._content_layout: QVBoxLayout | None = None
         self._last_item_type = "multipleChoice"
@@ -82,10 +97,14 @@ class TeacherTemplateWidget(QWidget):
         self._advanced_btn.setCheckable(True)
         self._advanced_btn.toggled.connect(self._on_advanced_toggled)
         hlayout.addWidget(self._advanced_btn)
-        preview_btn = QPushButton("🔍 预览本课")
+        preview_btn = QPushButton("预览本课")
         preview_btn.setToolTip("实际做题验证题目设置（guiplan §15.7）")
         preview_btn.clicked.connect(self._on_preview)
         hlayout.addWidget(preview_btn)
+        ai_btn = QPushButton("AI 改写")
+        ai_btn.setToolTip("用 AI 根据你的指令改写当前课程")
+        ai_btn.clicked.connect(self._on_ai_rewrite)
+        hlayout.addWidget(ai_btn)
         layout.addWidget(header)
 
         self._content_host = QWidget()
@@ -113,16 +132,17 @@ class TeacherTemplateWidget(QWidget):
             return
         while self._content_layout.count():
             child = self._content_layout.takeAt(0)
-            if child.widget():
-                child.widget().setParent(None)
-                child.widget().deleteLater()
+            widget = child.widget()
+            if widget is not None:
+                widget.setParent(None)
+                widget.deleteLater()
 
     def _build_teacher_view(self) -> None:
         raise NotImplementedError
 
     def _tool_button(self, text: str, tooltip: str, callback) -> QPushButton:
         btn = QPushButton(text)
-        btn.setFixedWidth(32)
+        btn.setMinimumWidth(48)
         btn.setToolTip(tooltip)
         btn.clicked.connect(callback)
         return btn
@@ -149,7 +169,36 @@ class TeacherTemplateWidget(QWidget):
         card.type_changed.connect(lambda new_type, st=stage, it=item: self._change_item_type(st, it, new_type))
         card.move_up_requested.connect(lambda _c=False, st=stage, it=item: self._move_item(st, it, -1))
         card.move_down_requested.connect(lambda _c=False, st=stage, it=item: self._move_item(st, it, 1))
+        card.ai_rewrite_requested.connect(lambda _c=False, st=stage, it=item: self._on_ai_rewrite_item(st, it))
         return card
+
+    def _on_ai_rewrite_item(self, stage: dict[str, Any], item: dict[str, Any]) -> None:
+        dialog = AiLessonHelperDialog(
+            self.adapter,
+            item,
+            mode="item",
+            parent=self,
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        result = dialog.result()
+        if result is None:
+            return
+        item_id = item.get("id", "")
+        if not item_id:
+            return
+        if self.undo_stack is not None:
+            cmd = ReplaceItemCommand(stage, item_id, result)
+            cmd.signals.changed.connect(self._build_teacher_view)
+            self.undo_stack.push(cmd)
+        else:
+            items = stage.get("items", [])
+            for i, it in enumerate(items):
+                if it.get("id") == item_id:
+                    items[i] = result
+                    break
+            self._build_teacher_view()
+        self.changed.emit()
 
     def _delete_item(self, stage: dict[str, Any], item: dict[str, Any]) -> None:
         reply = QMessageBox.question(
@@ -158,20 +207,32 @@ class TeacherTemplateWidget(QWidget):
         )
         if reply != QMessageBox.StandardButton.Yes:
             return
-        delete_item(stage, item.get("id", ""))
+        if self.undo_stack is not None:
+            cmd = DeleteItemCommand(stage, item)
+            cmd.signals.changed.connect(self._build_teacher_view)
+            self.undo_stack.push(cmd)
+        else:
+            delete_item(stage, item.get("id", ""))
+            self._build_teacher_view()
         self.changed.emit()
-        self._build_teacher_view()
 
     def _change_item_type(self, stage: dict[str, Any], item: dict[str, Any], new_type: str) -> None:
-        items = stage.get("items", [])
-        try:
-            idx = items.index(item)
-        except ValueError:
-            return
         new_item = switch_runtime_type(item, new_type)
-        items[idx] = new_item
+        item_id = item.get("id", "")
+        if not item_id:
+            return
+        if self.undo_stack is not None:
+            cmd = ReplaceItemCommand(stage, item_id, new_item)
+            cmd.signals.changed.connect(self._build_teacher_view)
+            self.undo_stack.push(cmd)
+        else:
+            items = stage.get("items", [])
+            for i, it in enumerate(items):
+                if it.get("id") == item_id:
+                    items[i] = new_item
+                    break
+            self._build_teacher_view()
         self.changed.emit()
-        self._build_teacher_view()
 
     def _move_item(self, stage: dict[str, Any], item: dict[str, Any], delta: int) -> None:
         items = stage.get("items", [])
@@ -182,9 +243,14 @@ class TeacherTemplateWidget(QWidget):
         new_idx = idx + delta
         if not (0 <= new_idx < len(items)):
             return
-        move_item(stage, idx, new_idx)
+        if self.undo_stack is not None:
+            cmd = MoveItemCommand(stage, idx, new_idx)
+            cmd.signals.changed.connect(self._build_teacher_view)
+            self.undo_stack.push(cmd)
+        else:
+            move_item(stage, idx, new_idx)
+            self._build_teacher_view()
         self.changed.emit()
-        self._build_teacher_view()
 
     def _add_item_row(self, stage: dict[str, Any]) -> QWidget:
         row = QWidget()
@@ -205,9 +271,14 @@ class TeacherTemplateWidget(QWidget):
     def _on_add_item(self, stage: dict[str, Any], combo: QComboBox) -> None:
         rt = combo.currentData() or "multipleChoice"
         self._last_item_type = rt
-        add_item(stage, rt)
+        if self.undo_stack is not None:
+            cmd = AddItemCommand(stage, rt)
+            cmd.signals.changed.connect(self._build_teacher_view)
+            self.undo_stack.push(cmd)
+        else:
+            add_item(stage, rt)
+            self._build_teacher_view()
         self.changed.emit()
-        self._build_teacher_view()
 
     def refresh_references(self) -> None:
         """Rebuild teacher view so QuestionCard reference dropdowns pick up
@@ -220,6 +291,30 @@ class TeacherTemplateWidget(QWidget):
         dlg = LessonPreviewDialog(self.adapter, self.lesson, self)
         dlg.exec()
 
+    def _on_ai_rewrite(self) -> None:
+        from src.application.commands import AiEditLessonCommand
+
+        dialog = AiLessonHelperDialog(
+            self.adapter,
+            self.lesson,
+            mode="lesson",
+            parent=self,
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        result = dialog.result()
+        if result is None:
+            return
+        if self.undo_stack is not None:
+            cmd = AiEditLessonCommand(self.adapter, self.lesson.get("id", ""), result)
+            cmd.signals.changed.connect(self._build_teacher_view)
+            self.undo_stack.push(cmd)
+        else:
+            self.lesson["content"] = result.get("content", self.lesson.get("content"))
+            self.lesson["template"] = result.get("template", self.lesson.get("template"))
+            self._build_teacher_view()
+        self.changed.emit()
+
 
 class ListeningTeacherWidget(TeacherTemplateWidget):
     """Teacher view for listening lessons: phases with optional items."""
@@ -229,7 +324,7 @@ class ListeningTeacherWidget(TeacherTemplateWidget):
         if layout is None:
             return
 
-        title = QLabel(f"🎧 {self.lesson.get('name', '')}")
+        title = QLabel(self.lesson.get('name', ''))
         title.setStyleSheet("font-size: 18px; font-weight: 700; color: #FFFFFF;")
         layout.addWidget(title)
 
@@ -289,12 +384,12 @@ class ListeningTeacherWidget(TeacherTemplateWidget):
         hlayout.setContentsMargins(0, 0, 0, 0)
         hlayout.setSpacing(6)
 
-        title = QLabel(f"📁 {phase.get('name', phase.get('id', ''))}")
+        title = QLabel(phase.get('name', phase.get('id', '')))
         title.setStyleSheet("font-size: 15px; font-weight: 700; color: #E8EAF0;")
         hlayout.addWidget(title)
         hlayout.addStretch()
 
-        hlayout.addWidget(self._tool_button("✏️", "重命名", lambda _c=False, p=phase: self._on_rename_phase(p)))
+        hlayout.addWidget(self._tool_button("重命名", "重命名", lambda _c=False, p=phase: self._on_rename_phase(p)))
 
         phases = self.lesson.get("content", {}).get("listeningPhases", []) or []
         idx = phases.index(phase) if phase in phases else -1
@@ -305,22 +400,33 @@ class ListeningTeacherWidget(TeacherTemplateWidget):
         down_btn.setEnabled(idx >= 0 and idx < len(phases) - 1)
         hlayout.addWidget(down_btn)
 
-        hlayout.addWidget(self._tool_button("🗑️", "删除", lambda _c=False, p=phase: self._on_delete_phase(p)))
+        hlayout.addWidget(self._tool_button("删除", "删除", lambda _c=False, p=phase: self._on_delete_phase(p)))
 
         return header
 
     def _on_add_phase(self) -> None:
-        add_listening_phase(self.lesson, "wordPairing", "新阶段")
+        if self.undo_stack is not None:
+            cmd = AddListeningPhaseCommand(self.lesson, "wordPairing", "新阶段")
+            cmd.signals.changed.connect(self._build_teacher_view)
+            self.undo_stack.push(cmd)
+        else:
+            add_listening_phase(self.lesson, "wordPairing", "新阶段")
+            self._build_teacher_view()
         self.changed.emit()
-        self._build_teacher_view()
 
     def _on_rename_phase(self, phase: dict[str, Any]) -> None:
         old = phase.get("name", "")
         text, ok = QInputDialog.getText(self, "重命名", "新名称：", text=old)
-        if ok and text:
+        if not ok or not text:
+            return
+        if self.undo_stack is not None:
+            cmd = RenameListeningPhaseCommand(phase, text)
+            cmd.signals.changed.connect(self._build_teacher_view)
+            self.undo_stack.push(cmd)
+        else:
             rename_listening_phase(phase, text)
-            self.changed.emit()
             self._build_teacher_view()
+        self.changed.emit()
 
     def _on_delete_phase(self, phase: dict[str, Any]) -> None:
         reply = QMessageBox.question(
@@ -329,9 +435,14 @@ class ListeningTeacherWidget(TeacherTemplateWidget):
         )
         if reply != QMessageBox.StandardButton.Yes:
             return
-        delete_listening_phase(self.lesson, phase.get("id", ""))
+        if self.undo_stack is not None:
+            cmd = DeleteListeningPhaseCommand(self.lesson, phase)
+            cmd.signals.changed.connect(self._build_teacher_view)
+            self.undo_stack.push(cmd)
+        else:
+            delete_listening_phase(self.lesson, phase.get("id", ""))
+            self._build_teacher_view()
         self.changed.emit()
-        self._build_teacher_view()
 
     def _on_move_phase(self, phase: dict[str, Any], idx: int, delta: int) -> None:
         phases = self.lesson.get("content", {}).get("listeningPhases", []) or []
@@ -340,9 +451,14 @@ class ListeningTeacherWidget(TeacherTemplateWidget):
         new_idx = idx + delta
         if not (0 <= new_idx < len(phases)):
             return
-        move_listening_phase(self.lesson, idx, new_idx)
+        if self.undo_stack is not None:
+            cmd = MoveListeningPhaseCommand(self.lesson, idx, new_idx)
+            cmd.signals.changed.connect(self._build_teacher_view)
+            self.undo_stack.push(cmd)
+        else:
+            move_listening_phase(self.lesson, idx, new_idx)
+            self._build_teacher_view()
         self.changed.emit()
-        self._build_teacher_view()
 
     def _on_phase_type_changed(self, phase: dict[str, Any], combo: QComboBox) -> None:
         new_type = combo.currentData()
@@ -369,7 +485,7 @@ class ReadingTeacherWidget(TeacherTemplateWidget):
         if layout is None:
             return
 
-        title = QLabel(f"📖 {self.lesson.get('name', '')}")
+        title = QLabel(self.lesson.get('name', ''))
         title.setStyleSheet("font-size: 18px; font-weight: 700; color: #FFFFFF;")
         layout.addWidget(title)
 
@@ -394,7 +510,7 @@ class ReadingTeacherWidget(TeacherTemplateWidget):
 
         stage = self._stage()
         if stage is not None:
-            layout.addWidget(QLabel(f"📝 {stage.get('name', ' comprehension')}"))
+            layout.addWidget(QLabel(stage.get('name', ' comprehension')))
             for item in stage.get("items", []) or []:
                 layout.addWidget(self._build_card(stage, item))
             layout.addWidget(self._add_item_row(stage))
@@ -414,7 +530,7 @@ class MasteryTeacherWidget(TeacherTemplateWidget):
         if layout is None:
             return
 
-        title = QLabel(f"🏆 {self.lesson.get('name', '')}")
+        title = QLabel(self.lesson.get('name', ''))
         title.setStyleSheet("font-size: 18px; font-weight: 700; color: #FFFFFF;")
         layout.addWidget(title)
 
@@ -423,7 +539,7 @@ class MasteryTeacherWidget(TeacherTemplateWidget):
             from src.backend.lesson_content import add_stage
             stage = add_stage(self.lesson.setdefault("content", {}), "Check")
 
-        layout.addWidget(QLabel(f"📝 {stage.get('name', '综合测验')}"))
+        layout.addWidget(QLabel(stage.get('name', '综合测验')))
         for item in stage.get("items", []) or []:
             layout.addWidget(self._build_card(stage, item))
         layout.addWidget(self._add_item_row(stage))

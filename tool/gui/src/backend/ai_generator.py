@@ -34,6 +34,7 @@ from src.backend.ai_genre import (
     genre_to_template,
     template_label,
 )
+from src.backend import ai_stream, ai_usage
 
 
 @dataclass
@@ -89,6 +90,38 @@ class AiApiConfig:
         return self.is_deepseek
 
 
+# --- Shared system prompts (P1-4) ------------------------------------------
+# Single source for the three system prompts used by every request helper in
+# this module. Text must stay byte-identical to the strings the Dart side
+# mirrors (lib/application/ai/ai_course_service.dart).
+SYSTEM_AUTHORING = (
+    "You are a language-course authoring assistant. "
+    "You output ONLY valid JSON, no prose, no markdown fences."
+)
+SYSTEM_EDITING = (
+    "You are a language-course editing assistant. "
+    "You output ONLY valid JSON, no prose, no markdown fences."
+)
+SYSTEM_CORRECTION = (
+    "You are a course-data correction assistant. "
+    "You output ONLY valid JSON, no prose, no markdown fences."
+)
+# Wish-mode chat → generation: history carries the requirements.
+SYSTEM_AUTHORING_CHAT = (
+    "You are a language-course authoring assistant. "
+    "You output ONLY valid JSON, no prose, no markdown fences. "
+    "The conversation history below captures the teacher's requirements. "
+    "Generate the final course JSON based on those requirements."
+)
+# Section edit mode: preserve unchanged structure.
+SYSTEM_AUTHORING_EDIT = (
+    "You are a language-course authoring assistant. "
+    "You output ONLY valid JSON, no prose, no markdown fences. "
+    "You are editing an EXISTING course section; preserve unchanged "
+    "structure and reuse existing ids where possible."
+)
+
+
 @dataclass
 class AiCourseSpec:
     language: str = "Turkish"          # Target language being taught
@@ -100,6 +133,17 @@ class AiCourseSpec:
     template: str = "mixed"              # Lesson template applied when not using genre batch
     use_genre_batch: bool = False        # Enable [genre] tag batch multi-template generation
     extra_instructions: str = ""
+    # Existing course vocab/expressions/grammarPoints (already trimmed by the
+    # caller). When set, build_prompt includes a reuse-these-ids context block
+    # so the model stops re-creating duplicates (connectplan P0-5).
+    course_resources: dict[str, list] | None = None
+    # Grounded design (connectplan §3.4): the project's resource pool. When
+    # non-empty, the model must pick words from the pool and copy them
+    # verbatim into the top-level arrays — course design only, no invention.
+    resource_pool: list[dict] | None = None
+    # Free-form orchestration intent from the teacher (e.g. "前两章做
+    # intro+listening，语法点单独一个 review 单元"); usually distilled from chat.
+    design_brief: str = ""
 
 
 @dataclass
@@ -321,6 +365,81 @@ Rules:
 """
 
 
+def _course_context_block(spec: AiCourseSpec) -> str:
+    """Render a compact summary of the course's existing resources (P0-5).
+
+    Lets the model reuse existing word/expression/grammar ids instead of
+    re-creating duplicates. The caller is expected to trim the lists
+    (see ``AiGeneratorDialog._course_resource_summary``).
+    """
+    res = spec.course_resources or {}
+    lines: list[str] = ["课程已有资源（id | 词条 | 释义）："]
+    for key in ("words", "expressions", "grammarPoints"):
+        entries = res.get(key) or []
+        if not entries:
+            continue
+        lines.append(f"  {key}:")
+        for e in entries:
+            if not isinstance(e, dict):
+                continue
+            rid = e.get("id", "")
+            term = e.get("term") or e.get("title") or ""
+            trans = e.get("translation") or e.get("explanation") or ""
+            lines.append(f"    {rid} | {term} | {trans}")
+    lines.extend([
+        "",
+        "复用规则：优先引用上述已有词条的 id；不要在顶层 words/expressions/"
+        "grammarPoints 中重复定义已存在的 id。确需新词时使用不与上述冲突的新 id"
+        "（建议 ai- 前缀）。",
+    ])
+    return "\n".join(lines)
+
+
+#: Character budget for the resource-pool prompt block (§3.4); overflow is
+#: truncated in pool order with a note, mirroring ``max_chapter_chars``.
+_POOL_CHAR_BUDGET = 6000
+
+
+def _resource_pool_block(spec: AiCourseSpec) -> str:
+    """Render the project's resource pool for grounded generation (§3.4).
+
+    The model must design lessons around these entries: pick from the pool,
+    copy chosen entries verbatim (same id/term/translation) into the top-level
+    arrays, and invent nothing outside the pool except ``new``-tagged extras.
+    """
+    pool = [e for e in (spec.resource_pool or []) if isinstance(e, dict)]
+    lines = ["资源池（本课必须使用的词条来源）："]
+    budget = _POOL_CHAR_BUDGET
+    shown = 0
+    for e in pool:
+        rid = e.get("id", "")
+        if not rid:
+            continue
+        kind = e.get("_kind", "word")
+        term = e.get("term") or e.get("title") or ""
+        trans = e.get("translation") or e.get("explanation") or ""
+        tags = e.get("tags") or []
+        tag_text = f" [{','.join(str(t) for t in tags)}]" if tags else ""
+        line = f"  {kind}: {rid} | {term} | {trans}{tag_text}"
+        if budget - len(line) < 0 and shown:
+            break
+        lines.append(line)
+        budget -= len(line)
+        shown += 1
+    if shown < len(pool):
+        lines.append(f"  …(共 {len(pool)} 条，已按顺序截取前 {shown} 条)")
+    lines.extend([
+        "",
+        "编排规则（grounded 模式）：",
+        "1. 从资源池挑选本课所需词条，按原 id / term / translation 原样复制到顶层 "
+        "words / expressions / grammarPoints 数组（pronunciation/audioAsset 可填 null）。",
+        "2. 禁止修改资源池条目的 id 或内容；禁止编造与资源池无关的词条。",
+        "3. 确需池外新词时，在顶层数组定义完整条目并打上 \"new\" tag。",
+        "4. lesson 中的 wordId / expressionId / grammarPointId 必须引用顶层数组中已定义的 id。",
+    ])
+    return "\n".join(lines)
+
+
 def build_prompt(spec: AiCourseSpec) -> str:
     """Build the generation prompt for the AI model."""
     parts = [
@@ -334,6 +453,7 @@ def build_prompt(spec: AiCourseSpec) -> str:
     ]
 
     if spec.use_genre_batch:
+        tags = detect_genre_from_spec(spec)
         parts.extend([
             "",
             f"Default fallback template: {spec.template} ({template_label(spec.template)})",
@@ -344,6 +464,20 @@ def build_prompt(spec: AiCourseSpec) -> str:
             "in the topic or extra instructions, generate the corresponding lesson(s) using that template. "
             "Lessons without a tag should use the default fallback template.",
         ])
+        if len(tags) > 1:
+            distribution = _distribute_genres_to_lessons(
+                tags, spec.unit_count, spec.lessons_per_unit
+            )
+            parts.extend([
+                "",
+                "Genre tag distribution (apply per unit/lesson in order):",
+            ])
+            for u_idx, unit_templates in enumerate(distribution, start=1):
+                unit_line = f"  Unit {u_idx}: " + ", ".join(
+                    f"Lesson {l_idx}={tpl}"
+                    for l_idx, tpl in enumerate(unit_templates, start=1)
+                )
+                parts.append(unit_line)
     else:
         parts.extend([
             "",
@@ -354,13 +488,26 @@ def build_prompt(spec: AiCourseSpec) -> str:
     if spec.extra_instructions:
         parts.extend(["", f"Extra instructions: {spec.extra_instructions}"])
 
+    if spec.design_brief:
+        parts.extend(["", f"编排意图（老师的课程设计要求）: {spec.design_brief}"])
+
+    grounded = bool(spec.resource_pool)
+    if spec.course_resources:
+        parts.extend(["", _course_context_block(spec)])
+    if grounded:
+        parts.extend(["", _resource_pool_block(spec)])
+
     parts.extend([
         "",
         "Return STRICT JSON only (no markdown, no code fences).",
         "",
         _template_schema_block(),
-        "",
-        _resource_schema_block(),
+    ])
+    if not grounded:
+        # Grounded mode drops the full resource schema (~1/3 of the prompt):
+        # entries are copied from the pool, whose listing shows their shape.
+        parts.extend(["", _resource_schema_block()])
+    parts.extend([
         "",
         _id_rules_block(),
         "",
@@ -495,6 +642,24 @@ def _auto_fix_resources(parsed: dict[str, Any]) -> None:
                                 translation = parts[1].strip()
                             else:
                                 term = context.strip()
+                        # Fall back to nearby item fields before giving up,
+                        # and never emit an empty translation (B4): a dirty
+                        # "[待补]" placeholder flagged needs-review is safer
+                        # than an entry the learner sees as a blank.
+                        if not term:
+                            term = (
+                                item.get("expected")
+                                or item.get("source")
+                                or item.get("prompt")
+                                or wid
+                            )
+                        if not translation:
+                            translation = (
+                                item.get("expectedAnswer")
+                                or item.get("expected")
+                                or item.get("source")
+                                or "[待补]"
+                            )
                         words.append(
                             {
                                 "id": wid,
@@ -502,7 +667,7 @@ def _auto_fix_resources(parsed: dict[str, Any]) -> None:
                                 "translation": translation,
                                 "pronunciation": None,
                                 "audioAsset": None,
-                                "tags": ["auto-fix"],
+                                "tags": ["auto-fix", "needs-review"],
                             }
                         )
                         word_ids.add(wid)
@@ -514,10 +679,10 @@ def _auto_fix_resources(parsed: dict[str, Any]) -> None:
                         {
                             "id": eid,
                             "term": expected or eid,
-                            "translation": prompt,
+                            "translation": prompt or "[待补]",
                             "pronunciation": None,
                             "audioAsset": None,
-                            "tags": ["auto-fix"],
+                            "tags": ["auto-fix", "needs-review"],
                         }
                     )
                     expr_ids.add(eid)
@@ -630,12 +795,34 @@ def request_chat(
     response_format: dict[str, str] | None = None,
     timeout: float = 120.0,
     cancel_check: Callable[[], bool] | None = None,
+    stream: bool = False,
+    on_chunk: Callable[[str], None] | None = None,
+    usage_callback: Callable[[dict[str, int]], None] | None = None,
+    max_tokens: int | None = None,
 ) -> dict:
     """Call the OpenAI-compatible endpoint and return the parsed JSON body.
 
     Raises ``RuntimeError`` with a human-readable message on network / HTTP /
     parse errors. If ``cancel_check`` is supplied and returns True while the
     response body is being read, raises ``AiCancelled``.
+
+    When ``stream=True`` and ``on_chunk`` is provided, the request is sent with
+    ``"stream": true`` and the response is read line-by-line; each content
+    fragment is delivered to ``on_chunk`` as it arrives so the UI can render
+    tokens incrementally. The full assembled text is still returned as a normal
+    completion body (``{"choices": [{"message": {"content": full}}], ...}``) so
+    downstream callers (``parse_completion`` etc.) need no changes. If the
+    endpoint ignores ``stream: true`` and returns a buffered body, this falls
+    back to a bulk read and delivers the whole content to ``on_chunk`` at once.
+
+    ``cancel_check`` is polled before each line read during streaming, so a
+    cancel takes effect promptly even mid-generation (fixes B6); previously it
+    only polled between buffered-body chunk reads.
+
+    If ``usage_callback`` is provided, it receives the extracted ``usage`` dict
+    (``prompt_tokens``/``completion_tokens``/``total_tokens``) for cost display,
+    whether or not streaming is used. Streaming endpoints that omit usage get a
+    rough text-based estimate instead of zeros.
     """
     if not config.is_complete:
         raise RuntimeError("API 配置不完整，请填写 Base URL / API Key / Model。")
@@ -645,6 +832,8 @@ def request_chat(
         "messages": messages,
         "temperature": temperature,
     }
+    if max_tokens is not None:
+        payload_obj["max_tokens"] = max_tokens
     # Reasoning controls, gated on the endpoint's declared capability
     # (config.supports_reasoning, defaulting to the DeepSeek host check — see
     # AiApiConfig.reasoning_enabled). Other OpenAI-compatible endpoints (OpenAI,
@@ -657,6 +846,9 @@ def request_chat(
         payload_obj["thinking"] = {"type": "enabled"}
     if response_format is not None:
         payload_obj["response_format"] = response_format
+    # Streaming is only meaningful if the caller wants incremental chunks.
+    if stream and on_chunk is not None:
+        payload_obj["stream"] = True
     payload = json.dumps(payload_obj).encode("utf-8")
 
     req = urllib.request.Request(
@@ -665,12 +857,19 @@ def request_chat(
         headers={
             "Content-Type": "application/json",
             "Authorization": f"Bearer {config.api_key}",
+            # Disable urllib's transparent Accept-Encoding gzip so that the
+            # streamed SSE lines are plain text we can iterate by line. (urllib
+            # does not auto-decompress streamed reads.)
+            "Accept-Encoding": "identity",
         },
         method="POST",
     )
+    streaming_requested = bool(payload_obj.get("stream"))
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
-            if cancel_check is None:
+            if streaming_requested:
+                body = _read_streaming(resp, config, cancel_check, on_chunk)
+            elif cancel_check is None:
                 body = resp.read().decode("utf-8")
             else:
                 chunks: list[bytes] = []
@@ -689,20 +888,159 @@ def request_chat(
         raise RuntimeError(f"网络错误: {exc.reason}") from exc
 
     try:
-        return json.loads(body)
+        parsed = json.loads(body) if isinstance(body, str) else body
     except json.JSONDecodeError as exc:
         raise RuntimeError(f"无法解析 API 响应: {exc}") from exc
 
+    if usage_callback is not None:
+        usage = ai_usage.estimate_usage(parsed if isinstance(parsed, dict) else None)
+        if not any(usage.values()) and streaming_requested and isinstance(parsed, dict):
+            # SSE endpoints often omit usage; fall back to a rough text-based
+            # estimate so the cost display is not silently zero (P0-6).
+            usage = _estimate_usage_from_messages(messages, parsed)
+        usage_callback(usage)
+    return parsed
 
-def request_course(config: AiApiConfig, spec: AiCourseSpec, timeout: float = 120.0, cancel_check: Callable[[], bool] | None = None) -> dict:
+
+def _estimate_usage_from_messages(
+    messages: list[dict[str, Any]], result_body: dict[str, Any]
+) -> dict[str, int]:
+    """Estimate prompt/completion tokens from message + result text (P0-6)."""
+    prompt_text = "\n".join(
+        _content_text(m.get("content")) for m in messages if isinstance(m, dict)
+    )
+    completion_text = ""
+    choices = result_body.get("choices") or []
+    if choices:
+        completion_text = _content_text((choices[0].get("message") or {}).get("content"))
+    prompt = ai_usage.estimate_tokens_from_text(prompt_text)
+    completion = ai_usage.estimate_tokens_from_text(completion_text)
+    return {
+        "prompt_tokens": prompt,
+        "completion_tokens": completion,
+        "total_tokens": prompt + completion,
+    }
+
+
+def verify_connection(
+    config: AiApiConfig,
+    timeout: float = 10.0,
+) -> dict[str, Any]:
+    """Send a minimal request to verify the configured endpoint works.
+
+    Returns a dict ``{"ok": bool, "error": str, "model": str, "usage": dict}``.
+    On success ``error`` is empty and ``usage`` contains token counts.
+    """
+    try:
+        body = request_chat(
+            config,
+            messages=[{"role": "user", "content": "hi"}],
+            temperature=0.0,
+            timeout=timeout,
+            max_tokens=1,
+        )
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "error": str(exc), "model": "", "usage": {}}
+
+    choices = body.get("choices") or []
+    model = body.get("model", "")
+    usage = ai_usage.estimate_usage(body)
+    if not choices:
+        return {"ok": False, "error": "API 返回为空 choices", "model": model, "usage": usage}
+    return {"ok": True, "error": "", "model": model, "usage": usage}
+
+
+def _read_streaming(resp: Any, config: AiApiConfig, cancel_check, on_chunk) -> str:
+    """Read an SSE streaming response, delivering fragments to ``on_chunk``.
+
+    Falls back to a bulk read if the endpoint returns a non-SSE body (it
+    ignored ``stream: true``). Returns the assembled text body in either case,
+    normalized to the non-streaming completion shape so callers stay uniform.
+    """
+    # Peek the first line without consuming the rest: read one line via the
+    # response's iterator, then stream the remainder.
+    line_iter = ai_stream._iter_lines(resp)
+    try:
+        first_line = next(line_iter)
+    except StopIteration:
+        first_line = ""
+
+    if not ai_stream.looks_like_sse(first_line):
+        # Non-SSE fallback: assemble the body from the first line plus the
+        # remaining lines from the iterator (do NOT call resp.read(), which
+        # would re-return the already-consumed first chunk on some fake
+        # responses and double the body).
+        remainder = "".join(line_iter)
+        full_body = first_line + remainder
+        # The whole body is a normal completion JSON; on_chunk gets the message
+        # content so the UI still shows something, but callers parse the body.
+        try:
+            obj = json.loads(full_body)
+            content = (obj.get("choices") or [{}])[0].get("message", {}).get("content", "")
+            if content:
+                on_chunk(content)
+            return full_body
+        except (json.JSONDecodeError, IndexError, KeyError):
+            on_chunk(full_body)
+            return full_body
+
+    # True SSE path: stitch the first line back in front of the iterator.
+    fragments: list[str] = []
+    usage: dict[str, Any] | None = None
+    done = False
+
+    def _emit(fragment: str) -> bool:
+        nonlocal done, usage
+        if fragment == ai_stream.DONE:
+            done = True
+            return True
+        fragments.append(fragment)
+        on_chunk(fragment)
+        return False
+
+    # The first line is already consumed; process it then continue.
+    first_usage = ai_stream.parse_sse_usage(first_line)
+    if first_usage:
+        usage = first_usage
+    first_fragment = ai_stream.parse_sse_line(first_line)
+    if first_fragment is not None:
+        if _emit(first_fragment):
+            pass
+    if not done:
+        for line in line_iter:
+            if cancel_check is not None and cancel_check():
+                raise AiCancelled("用户取消了请求。")
+            chunk_usage = ai_stream.parse_sse_usage(line)
+            if chunk_usage:
+                usage = chunk_usage
+            fragment = ai_stream.parse_sse_line(line)
+            if fragment is None:
+                continue
+            if _emit(fragment):
+                break
+
+    full_content = "".join(fragments)
+    # Endpoints that send a terminal usage chunk get real counts here; the
+    # rest leave ``usage`` empty and request_chat falls back to a rough
+    # text-based estimate so cost display is not silently zero (P0-6).
+    return json.dumps(
+        {
+            "choices": [
+                {"message": {"role": "assistant", "content": full_content}, "finish_reason": "stop"}
+            ],
+            "usage": usage or {},
+            "model": config.model,
+        },
+        ensure_ascii=False,
+    )
+
+
+def request_course(config: AiApiConfig, spec: AiCourseSpec, timeout: float = 120.0, cancel_check: Callable[[], bool] | None = None, on_chunk: Callable[[str], None] | None = None, usage_callback: Callable[[dict[str, int]], None] | None = None) -> dict:
     """Single-shot course generation (legacy normal mode)."""
     messages = [
         {
             "role": "system",
-            "content": (
-                "You are a language-course authoring assistant. "
-                "You output ONLY valid JSON, no prose, no markdown fences."
-            ),
+            "content": SYSTEM_AUTHORING,
         },
         {"role": "user", "content": build_prompt(spec)},
     ]
@@ -713,8 +1051,34 @@ def request_course(config: AiApiConfig, spec: AiCourseSpec, timeout: float = 120
         response_format={"type": "json_object"},
         timeout=timeout,
         cancel_check=cancel_check,
+        stream=on_chunk is not None,
+        on_chunk=on_chunk,
+        usage_callback=usage_callback,
     )
     return parse_completion(body)
+
+
+def _coerce_problem_messages(items) -> list[str]:
+    """Normalize a validator's return value to human-readable error strings.
+
+    ``validate_section_json`` returns ``list[dict]`` (Problem dicts with
+    ``level``/``message``/``path``), but the retry contract historically
+    documented ``list[str]``. Accept either: for a dict, take ``message`` and
+    only keep it when ``level`` is missing or ``"error"`` (warnings are not
+    re-fed to the model); for a plain string, treat it as an error.
+    """
+    messages: list[str] = []
+    for item in items or []:
+        if isinstance(item, dict):
+            level = item.get("level", "error")
+            if level and level != "error":
+                continue
+            msg = item.get("message") or ""
+            if msg:
+                messages.append(str(msg))
+        elif item:
+            messages.append(str(item))
+    return messages
 
 
 def request_course_with_retry(
@@ -723,35 +1087,40 @@ def request_course_with_retry(
     validator,
     timeout: float = 120.0,
     max_retries: int = 1,
+    temperature: float = 0.4,
     cancel_check: Callable[[], bool] | None = None,
+    on_chunk: Callable[[str], None] | None = None,
+    usage_callback: Callable[[dict[str, int]], None] | None = None,
 ) -> dict:
-    """Generate a course and, if ``validator(section_json)`` returns error
-    strings, re-prompt the model with those errors once (C3).
+    """Generate a course and, if ``validator(section_json)`` reports errors,
+    re-prompt the model with those errors up to ``max_retries`` times (C3).
 
-    ``validator`` is a callable ``(section_json: dict) -> list[str]`` returning
-    a list of human-readable error strings (empty == valid). The original
-    generation is retried at most ``max_retries`` times by appending an
-    assistant turn + a correction turn to the conversation.
+    ``validator`` is a callable ``(section_json: dict) -> list[dict] | list[str]``
+    returning either Problem dicts (with ``level``/``message``) or plain error
+    strings; empty == valid. Problem dicts whose ``level`` is not ``"error"``
+    (e.g. warnings) are not re-fed to the model. The original generation is
+    retried by appending an assistant turn (the last JSON) plus a correction
+    turn to the conversation.
     """
     messages = [
         {
             "role": "system",
-            "content": (
-                "You are a language-course authoring assistant. "
-                "You output ONLY valid JSON, no prose, no markdown fences."
-            )
+            "content": SYSTEM_AUTHORING
         },
         {"role": "user", "content": build_prompt(spec)},
     ]
     section = parse_completion(
         request_chat(
-            config, messages, temperature=0.4,
+            config, messages, temperature=temperature,
             response_format={"type": "json_object"}, timeout=timeout,
             cancel_check=cancel_check,
+            stream=on_chunk is not None, on_chunk=on_chunk,
+            usage_callback=usage_callback,
         )
     )
     for _ in range(max(0, max_retries)):
-        errors = list(validator(section) or [])
+        problems = list(validator(section) or [])
+        errors = _coerce_problem_messages(problems)
         if not errors:
             break
         correction = (
@@ -763,9 +1132,11 @@ def request_course_with_retry(
         messages.append({"role": "user", "content": correction})
         section = parse_completion(
             request_chat(
-                config, messages, temperature=0.2,
+                config, messages, temperature=max(0.0, temperature - 0.2),
                 response_format={"type": "json_object"}, timeout=timeout,
                 cancel_check=cancel_check,
+                # Only stream the first attempt; retries are usually short.
+                stream=False, on_chunk=None,
             )
         )
     return section
@@ -776,7 +1147,10 @@ def request_alignment_reply(
     spec: AiCourseSpec,
     messages: list[ChatMessage],
     timeout: float = 120.0,
+    temperature: float = 0.7,
     cancel_check: Callable[[], bool] | None = None,
+    on_chunk: Callable[[str], None] | None = None,
+    usage_callback: Callable[[dict[str, int]], None] | None = None,
 ) -> str:
     """Get a plain-language alignment reply from the AI.
 
@@ -788,9 +1162,12 @@ def request_alignment_reply(
     body = request_chat(
         config,
         api_messages,
-        temperature=0.7,
+        temperature=temperature,
         timeout=timeout,
         cancel_check=cancel_check,
+        stream=on_chunk is not None,
+        on_chunk=on_chunk,
+        usage_callback=usage_callback,
     )
     choices = body.get("choices") or []
     if not choices:
@@ -805,7 +1182,10 @@ def generate_from_chat(
     messages: list[ChatMessage],
     draft_json: dict[str, Any] | None = None,
     timeout: float = 180.0,
+    temperature: float = 0.4,
     cancel_check: Callable[[], bool] | None = None,
+    on_chunk: Callable[[str], None] | None = None,
+    usage_callback: Callable[[dict[str, int]], None] | None = None,
 ) -> dict:
     """Generate the final course section JSON from the conversation history.
 
@@ -823,12 +1203,7 @@ def generate_from_chat(
     api_messages = [
         {
             "role": "system",
-            "content": (
-                "You are a language-course authoring assistant. "
-                "You output ONLY valid JSON, no prose, no markdown fences. "
-                "The conversation history below captures the teacher's requirements. "
-                "Generate the final course JSON based on those requirements."
-            ),
+            "content": SYSTEM_AUTHORING_CHAT,
         }
     ] + [m.to_api_dict() for m in messages]
     api_messages.append({"role": "user", "content": generation_prompt})
@@ -836,10 +1211,13 @@ def generate_from_chat(
     body = request_chat(
         config,
         api_messages,
-        temperature=0.4,
+        temperature=temperature,
         response_format={"type": "json_object"},
         timeout=timeout,
         cancel_check=cancel_check,
+        stream=on_chunk is not None,
+        on_chunk=on_chunk,
+        usage_callback=usage_callback,
     )
     return parse_completion(body)
 
@@ -849,7 +1227,10 @@ def explain_course(
     spec: AiCourseSpec,
     section_json: dict[str, Any],
     timeout: float = 120.0,
+    temperature: float = 0.6,
     cancel_check: Callable[[], bool] | None = None,
+    on_chunk: Callable[[str], None] | None = None,
+    usage_callback: Callable[[dict[str, int]], None] | None = None,
 ) -> str:
     """Ask the AI to explain the generated course in plain language."""
     prompt = (
@@ -869,25 +1250,38 @@ def explain_course(
     body = request_chat(
         config,
         api_messages,
-        temperature=0.6,
+        temperature=temperature,
         timeout=timeout,
         cancel_check=cancel_check,
+        stream=on_chunk is not None,
+        on_chunk=on_chunk,
+        usage_callback=usage_callback,
     )
     choices = body.get("choices") or []
     if not choices:
-        return "（AI 未返回解释）"
-    return choices[0].get("message", {}).get("content", "").strip()
+        raise ValueError("AI 未返回解释")
+    content = choices[0].get("message", {}).get("content", "").strip()
+    if not content:
+        raise ValueError("AI 未返回解释")
+    return content
 
 
-def detect_genre_from_spec(spec: AiCourseSpec) -> str | None:
-    """Detect the first explicit genre tag in the spec's topic or extra instructions."""
+def detect_genre_from_spec(spec: AiCourseSpec) -> list[str]:
+    """Detect all explicit genre tags in the spec's topic or extra instructions.
+
+    Returns a de-duplicated, ordered list of bracketed tags such as
+    ``["[intro]", "[listening]"]``.
+    """
     combined = f"{spec.topic} {spec.extra_instructions}"
-    tags = genre_tags_in_text(combined)
-    return tags[0] if tags else None
+    return genre_tags_in_text(combined)
 
 
 def apply_genre_to_spec(spec: AiCourseSpec) -> AiCourseSpec:
-    """If a genre tag is present and batch mode is on, update the spec template.
+    """If a single genre tag is present and batch mode is on, update the spec template.
+
+    When multiple genre tags are present, the spec template is left untouched
+    and the distribution is handled in :func:`build_prompt` so the caller can
+    still see the original fallback template.
 
     Returns a new spec (via :func:`dataclasses.replace`) rather than mutating
     the input in place, mirroring the Dart side
@@ -897,10 +1291,31 @@ def apply_genre_to_spec(spec: AiCourseSpec) -> AiCourseSpec:
     """
     if not spec.use_genre_batch:
         return spec
-    tag = detect_genre_from_spec(spec)
-    if tag:
-        return replace(spec, template=genre_to_template(tag))
+    tags = detect_genre_from_spec(spec)
+    if len(tags) == 1:
+        return replace(spec, template=genre_to_template(tags[0]))
     return spec
+
+
+def _distribute_genres_to_lessons(
+    tags: list[str],
+    unit_count: int,
+    lessons_per_unit: int,
+) -> list[list[str]]:
+    """Distribute genre tags across units in round-robin order.
+
+    Returns a nested list ``[unit][lesson] -> template``. If there are no tags,
+    every lesson uses ``"mixed"``. If there is one tag, every lesson uses that
+    tag's template. If there are multiple tags, tags cycle per unit; all
+    lessons within a unit share the same tag.
+    """
+    if not tags:
+        return [["mixed" for _ in range(lessons_per_unit)] for _ in range(unit_count)]
+    templates = [genre_to_template(tag) for tag in tags]
+    return [
+        [templates[u_idx % len(templates)] for _ in range(lessons_per_unit)]
+        for u_idx in range(unit_count)
+    ]
 
 
 # --- Edit mode: revise an existing section --------------------------------
@@ -999,7 +1414,10 @@ def generate_edit(
     messages: list[ChatMessage] | None = None,
     draft_json: dict[str, Any] | None = None,
     timeout: float = 180.0,
+    temperature: float = 0.4,
     cancel_check: Callable[[], bool] | None = None,
+    on_chunk: Callable[[str], None] | None = None,
+    usage_callback: Callable[[dict[str, int]], None] | None = None,
 ) -> dict:
     """Generate an edited section JSON based on an existing section.
 
@@ -1019,12 +1437,7 @@ def generate_edit(
     api_messages: list[dict[str, Any]] = [
         {
             "role": "system",
-            "content": (
-                "You are a language-course authoring assistant. "
-                "You output ONLY valid JSON, no prose, no markdown fences. "
-                "You are editing an EXISTING course section; preserve unchanged "
-                "structure and reuse existing ids where possible."
-            ),
+            "content": SYSTEM_AUTHORING_EDIT,
         }
     ]
     if messages:
@@ -1034,10 +1447,13 @@ def generate_edit(
     body = request_chat(
         config,
         api_messages,
-        temperature=0.4,
+        temperature=temperature,
         response_format={"type": "json_object"},
         timeout=timeout,
         cancel_check=cancel_check,
+        stream=on_chunk is not None,
+        on_chunk=on_chunk,
+        usage_callback=usage_callback,
     )
     parsed = parse_completion(body)
     # In edit mode the returned section must keep the same id.
@@ -1045,3 +1461,482 @@ def generate_edit(
     if existing_id and parsed.get("id") != existing_id:
         parsed["id"] = existing_id
     return parsed
+
+
+# --- Local regeneration (P2.3 / C5) ----------------------------------------
+
+
+def _section_unit_ids(section: dict[str, Any]) -> set[str]:
+    return {u.get("id") for u in (section.get("units") or []) if isinstance(u, dict) and u.get("id")}
+
+
+def _section_lesson_ids(section: dict[str, Any]) -> set[str]:
+    ids: set[str] = set()
+    for unit in section.get("units") or []:
+        if not isinstance(unit, dict):
+            continue
+        for lesson in unit.get("lessons") or []:
+            if isinstance(lesson, dict) and lesson.get("id"):
+                ids.add(lesson["id"])
+    return ids
+
+
+def _top_level_ids(section: dict[str, Any], key: str) -> set[str]:
+    return {r.get("id") for r in (section.get(key) or []) if isinstance(r, dict) and r.get("id")}
+
+
+def structural_diff(existing: dict[str, Any], parsed: dict[str, Any]) -> dict[str, set[str]]:
+    """Compare id sets of an existing section vs an AI-edited one (B3).
+
+    Returns a dict of *removed* ids only (before minus after) at the unit,
+    lesson, word, expression and grammar-point levels. Additions and renames
+    are not reported here — only deletions the dialog must confirm, since a
+    silent drop of units/words by the model is the failure mode we guard
+    against. An all-empty dict means no structural removals.
+    """
+    return {
+        "removed_units": _section_unit_ids(existing) - _section_unit_ids(parsed),
+        "removed_lessons": _section_lesson_ids(existing) - _section_lesson_ids(parsed),
+        "removed_words": _top_level_ids(existing, "words") - _top_level_ids(parsed, "words"),
+        "removed_expressions": _top_level_ids(existing, "expressions")
+        - _top_level_ids(parsed, "expressions"),
+        "removed_grammar": _top_level_ids(existing, "grammarPoints")
+        - _top_level_ids(parsed, "grammarPoints"),
+    }
+
+
+def _entries_by_id(section: dict[str, Any], key: str) -> dict[str, dict[str, Any]]:
+    """Top-level resource entries keyed by id (e.g. words/expressions/grammarPoints)."""
+    out: dict[str, dict[str, Any]] = {}
+    for r in section.get(key) or []:
+        if isinstance(r, dict) and r.get("id"):
+            out[r["id"]] = r
+    return out
+
+
+def _units_by_id(section: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    return {u.get("id"): u for u in (section.get("units") or []) if isinstance(u, dict) and u.get("id")}
+
+
+def _lessons_by_id(section: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    out: dict[str, dict[str, Any]] = {}
+    for unit in section.get("units") or []:
+        if not isinstance(unit, dict):
+            continue
+        for lesson in unit.get("lessons") or []:
+            if isinstance(lesson, dict) and lesson.get("id"):
+                out[lesson["id"]] = lesson
+    return out
+
+
+def _entry_fingerprint(entry: dict[str, Any]) -> str:
+    """Stable serialized form for deep-equality comparison (changed detection)."""
+    return json.dumps(entry, sort_keys=True, ensure_ascii=False)
+
+
+def full_section_diff(
+    existing: dict[str, Any], generated: dict[str, Any]
+) -> dict[str, dict[str, list[str]]]:
+    """Full add/remove/change diff between two sections (P3.4).
+
+    Returns ``{category: {"added": [...], "removed": [...], "changed": [...]}}``
+    for categories ``units``/``lessons``/``words``/``expressions``/``grammar``.
+    ``added`` = ids in generated but not existing; ``removed`` = ids in existing
+    but not generated; ``changed`` = ids present in both whose serialized
+    content differs. Lists are sorted for stable display.
+    """
+    spec: list[tuple[str, dict[str, dict], dict[str, dict]]] = [
+        ("units", _units_by_id(existing), _units_by_id(generated)),
+        ("lessons", _lessons_by_id(existing), _lessons_by_id(generated)),
+        ("words", _entries_by_id(existing, "words"), _entries_by_id(generated, "words")),
+        ("expressions", _entries_by_id(existing, "expressions"), _entries_by_id(generated, "expressions")),
+        ("grammar", _entries_by_id(existing, "grammarPoints"), _entries_by_id(generated, "grammarPoints")),
+    ]
+    result: dict[str, dict[str, list[str]]] = {}
+    for category, before, after in spec:
+        before_ids = set(before)
+        after_ids = set(after)
+        added = sorted(after_ids - before_ids)
+        removed = sorted(before_ids - after_ids)
+        changed = sorted(
+            bid
+            for bid in (before_ids & after_ids)
+            if _entry_fingerprint(before[bid]) != _entry_fingerprint(after[bid])
+        )
+        result[category] = {"added": added, "removed": removed, "changed": changed}
+    return result
+
+
+def _build_local_regen_instruction(spec: AiCourseSpec, scope_label: str) -> str:
+    """Pure helper: build a local-regeneration instruction from the spec.
+
+    The teacher's edit intent is derived from ``spec.topic`` and
+    ``spec.extra_instructions`` (the same prompt material used for full
+    generation), scoped to the selected lesson/unit. Extracted as a pure
+    function so it can be unit-tested without PySide6.
+    """
+    parts = [f"请在此课程主题下{scope_label}：保持 id 与题型不变，改进内容质量。"]
+    if spec.topic:
+        parts.append(f"课程主题：{spec.topic}")
+    if spec.extra_instructions:
+        parts.append(f"额外要求：{spec.extra_instructions}")
+    return "\n".join(parts)
+
+
+def _find_lesson(section: dict[str, Any], lesson_id: str) -> tuple[dict | None, dict | None]:
+    """Return (unit, lesson) for ``lesson_id`` in ``section``, or (None, None)."""
+    for unit in section.get("units") or []:
+        if not isinstance(unit, dict):
+            continue
+        for lesson in unit.get("lessons") or []:
+            if isinstance(lesson, dict) and lesson.get("id") == lesson_id:
+                return unit, lesson
+    return None, None
+
+
+def _splice_lesson(
+    existing_section: dict[str, Any], lesson_id: str, new_lesson: dict[str, Any]
+) -> dict[str, Any]:
+    """Return a deep-ish copy of ``existing_section`` with ``lesson_id``
+    replaced by ``new_lesson`` (matched by id). If the id is not found, the
+    new lesson is appended to the first unit. Other lessons/units are
+    preserved verbatim.
+    """
+    import copy
+
+    section = copy.deepcopy(existing_section)
+    # Ensure the new lesson keeps its identity id.
+    new_lesson = dict(new_lesson)
+    new_lesson["id"] = lesson_id
+    units = section.get("units") or []
+    replaced = False
+    for unit in units:
+        lessons = unit.get("lessons") or []
+        for i, lesson in enumerate(lessons):
+            if isinstance(lesson, dict) and lesson.get("id") == lesson_id:
+                lessons[i] = new_lesson
+                replaced = True
+                break
+        if replaced:
+            break
+    if not replaced:
+        first_unit = next((u for u in units if isinstance(u, dict)), None)
+        if first_unit is None:
+            first_unit = {"id": "u-ai", "lessons": []}
+            section.setdefault("units", []).append(first_unit)
+        first_unit.setdefault("lessons", []).append(new_lesson)
+    return section
+
+
+def regenerate_lesson_in_section(
+    config: AiApiConfig,
+    spec: AiCourseSpec,
+    existing_section: dict[str, Any],
+    lesson_id: str,
+    instruction: str | None = None,
+    timeout: float = 120.0,
+    temperature: float = 0.5,
+    cancel_check: Callable[[], bool] | None = None,
+    on_chunk: Callable[[str], None] | None = None,
+    usage_callback: Callable[[dict[str, int]], None] | None = None,
+) -> dict[str, Any]:
+    """Regenerate a single lesson in place and splice it back (C5).
+
+    Only the targeted lesson is sent to the model via
+    ``request_lesson_transform`` (which validates and preserves identity
+    fields), so unchanged units/lessons cost no tokens. Returns the
+    reassembled full section JSON.
+    """
+    _, lesson = _find_lesson(existing_section, lesson_id)
+    if lesson is None:
+        raise ValueError(f"未找到课时「{lesson_id}」。")
+    instr = instruction or _build_local_regen_instruction(spec, "重写该课时")
+    new_lesson = request_lesson_transform(
+        config,
+        lesson,
+        instr,
+        timeout=timeout,
+        temperature=temperature,
+        cancel_check=cancel_check,
+        on_chunk=on_chunk,
+        usage_callback=usage_callback,
+    )
+    return _splice_lesson(existing_section, lesson_id, new_lesson)
+
+
+def regenerate_unit_in_section(
+    config: AiApiConfig,
+    spec: AiCourseSpec,
+    existing_section: dict[str, Any],
+    unit_id: str,
+    instruction: str | None = None,
+    timeout: float = 120.0,
+    temperature: float = 0.5,
+    cancel_check: Callable[[], bool] | None = None,
+    on_chunk: Callable[[str], None] | None = None,
+    usage_callback: Callable[[dict[str, int]], None] | None = None,
+) -> dict[str, Any]:
+    """Regenerate every lesson in a unit in place and splice them back (C5).
+
+    Iterates the unit's lessons, calling ``request_lesson_transform`` on each
+    (reusing the already-validated single-lesson path and fine-grained token
+    usage), then splices each result back. The section id and other units are
+    untouched. ``cancel_check`` is honoured between lessons.
+    """
+    unit = next(
+        (u for u in (existing_section.get("units") or []) if isinstance(u, dict) and u.get("id") == unit_id),
+        None,
+    )
+    if unit is None:
+        raise ValueError(f"未找到单元「{unit_id}」。")
+    instr = instruction or _build_local_regen_instruction(spec, "重写该单元内的课时")
+    section = existing_section
+    for lesson in list(unit.get("lessons") or []):
+        if not isinstance(lesson, dict) or not lesson.get("id"):
+            continue
+        if cancel_check and cancel_check():
+            raise AiCancelled("请求已取消。")
+        new_lesson = request_lesson_transform(
+            config,
+            lesson,
+            instr,
+            timeout=timeout,
+            temperature=temperature,
+            cancel_check=cancel_check,
+            on_chunk=on_chunk,
+            usage_callback=usage_callback,
+        )
+        section = _splice_lesson(section, lesson["id"], new_lesson)
+    return section
+
+
+# --- Teacher-view inline AI helpers ----------------------------------------
+
+
+def _allowed_interactions_block() -> str:
+    from src.backend.lesson_content import ALLOWED_RUNTIME_TYPES, INTERACTION_LABELS
+
+    lines = ["- 可用 interaction runtimeType："]
+    for rt in ALLOWED_RUNTIME_TYPES:
+        lines.append(f"  • {rt}（{INTERACTION_LABELS.get(rt, rt)}）")
+    return "\n".join(lines)
+
+
+def request_lesson_transform(
+    config: AiApiConfig,
+    lesson: dict[str, Any],
+    instruction: str,
+    timeout: float = 120.0,
+    temperature: float = 0.5,
+    cancel_check: Callable[[], bool] | None = None,
+    on_chunk: Callable[[str], None] | None = None,
+    usage_callback: Callable[[dict[str, int]], None] | None = None,
+) -> dict[str, Any]:
+    """Transform a single lesson in-place according to a teacher instruction.
+
+    The returned lesson keeps the same ``id`` and ``template`` as the input
+    unless the instruction explicitly asks to change the template. Content
+    shape (subLessons / stages / listeningPhases / readingPassage) must remain
+    valid for the template.
+    """
+    from src.backend import api
+
+    template = lesson.get("template", "legacy")
+    prompt = (
+        "你是一位语言课程编辑助手。请根据教师的指令改写下面这门课。\n\n"
+        f"课程模板：{template}\n"
+        f"课程 id（必须保留）：{lesson.get('id', '')}\n"
+        f"课程名称：{lesson.get('name', '')}\n"
+        f"课程描述：{lesson.get('description', '')}\n\n"
+        "当前课程完整 JSON：\n"
+        f"```json\n{json.dumps(lesson, ensure_ascii=False, indent=2)}\n```\n\n"
+        "教师指令：\n"
+        f"{instruction}\n\n"
+        "要求：\n"
+        "1. 只返回完整的课程 JSON，不要任何解释、markdown 代码块标记或额外文字。\n"
+        "2. 必须保留顶层 id、name、template、prerequisiteLessonIds 字段。\n"
+        "3. content 结构必须符合该模板的规范（intro/practice/review 用 subLessons；"
+        "listening 用 listeningPhases；reading 用 readingPassage + stages；mastery 用 stages）。\n"
+        f"{_allowed_interactions_block()}\n"
+        "5. 引用的 wordId / expressionId / grammarPointId 必须在课程现有资源中存在；"
+        "如果没有合适资源，宁可留空也不要编造。\n"
+    )
+
+    messages = [
+        {
+            "role": "system",
+            "content": SYSTEM_EDITING,
+        },
+        {"role": "user", "content": prompt},
+    ]
+    body = request_chat(
+        config,
+        messages,
+        temperature=temperature,
+        response_format={"type": "json_object"},
+        timeout=timeout,
+        cancel_check=cancel_check,
+        stream=on_chunk is not None,
+        on_chunk=on_chunk,
+        usage_callback=usage_callback,
+    )
+    choices = body.get("choices") or []
+    if not choices:
+        raise ValueError("API 返回的 choices 为空。")
+    content = choices[0].get("message", {}).get("content", "")
+    cleaned = _strip_code_fences(content)
+    try:
+        parsed = json.loads(cleaned)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"无法解析模型输出的 JSON: {exc}") from exc
+    if not isinstance(parsed, dict):
+        raise ValueError("模型输出不是 JSON 对象。")
+    if "content" not in parsed:
+        raise ValueError("模型输出不是合法的课程 JSON（缺少 content）。")
+
+    # Preserve identity fields.
+    for key in ("id", "name", "template", "prerequisiteLessonIds"):
+        if key in lesson:
+            parsed[key] = lesson[key]
+
+    # Basic lesson-level validation against empty resource sets; the caller
+    # can do a stronger validation with the actual course vocab/expressions.
+    problems = api.validate_lesson(parsed, set(), set(), set())
+    errors = [p.to_dict() for p in problems if p.level == "error"]
+    if errors:
+        raise ValueError(
+            "AI 返回的课程校验失败：\n" + "\n".join(p["message"] for p in errors[:5])
+        )
+    return parsed
+
+
+def request_item_transform(
+    config: AiApiConfig,
+    item: dict[str, Any],
+    instruction: str,
+    vocab_ids: set[str] | None = None,
+    expression_ids: set[str] | None = None,
+    grammar_ids: set[str] | None = None,
+    timeout: float = 120.0,
+    temperature: float = 0.5,
+    cancel_check: Callable[[], bool] | None = None,
+    on_chunk: Callable[[str], None] | None = None,
+    usage_callback: Callable[[dict[str, int]], None] | None = None,
+) -> dict[str, Any]:
+    """Transform a single interaction item in-place.
+
+    Preserves the item ``id`` and ``runtimeType`` unless the instruction asks
+    to switch type.
+    """
+    from src.backend.lesson_content import INTERACTION_SCHEMA, normalize_item
+
+    rt = item.get("runtimeType", "")
+    prompt = (
+        "你是一位语言课程编辑助手。请根据教师的指令改写下面这道题目。\n\n"
+        f"题目 id（必须保留）：{item.get('id', '')}\n"
+        f"当前 runtimeType：{rt}\n"
+        "当前题目 JSON：\n"
+        f"```json\n{json.dumps(item, ensure_ascii=False, indent=2)}\n```\n\n"
+        "教师指令：\n"
+        f"{instruction}\n\n"
+        "要求：\n"
+        "1. 只返回完整的题目 JSON，不要任何解释、markdown 代码块标记或额外文字。\n"
+        "2. 必须保留 id 字段；如未要求改题型，请保留 runtimeType。\n"
+        f"{_allowed_interactions_block()}\n"
+        "4. 引用的 wordId / expressionId / grammarPointId 必须在可用资源中存在；"
+        "没有则留空。\n"
+    )
+
+    messages = [
+        {
+            "role": "system",
+            "content": SYSTEM_EDITING,
+        },
+        {"role": "user", "content": prompt},
+    ]
+    body = request_chat(
+        config,
+        messages,
+        temperature=temperature,
+        response_format={"type": "json_object"},
+        timeout=timeout,
+        cancel_check=cancel_check,
+        stream=on_chunk is not None,
+        on_chunk=on_chunk,
+        usage_callback=usage_callback,
+    )
+    choices = body.get("choices") or []
+    if not choices:
+        raise ValueError("API 返回的 choices 为空。")
+    content = choices[0].get("message", {}).get("content", "")
+    cleaned = _strip_code_fences(content)
+    try:
+        parsed = json.loads(cleaned)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"无法解析模型输出的 JSON: {exc}") from exc
+    if not isinstance(parsed, dict):
+        raise ValueError("模型输出不是 JSON 对象。")
+
+    # Preserve id and default runtimeType if missing.
+    parsed["id"] = item.get("id", parsed.get("id", ""))
+    if "runtimeType" not in parsed:
+        parsed["runtimeType"] = rt
+
+    # Normalize against the schema to fill missing fields and catch unknown types.
+    try:
+        parsed = normalize_item(parsed)
+    except ValueError as exc:
+        raise ValueError(f"AI 返回的题目格式不正确: {exc}") from exc
+
+    # Reference check.
+    wid = parsed.get("wordId")
+    if wid and vocab_ids and wid not in vocab_ids:
+        parsed["wordId"] = ""
+    eid = parsed.get("expressionId")
+    if eid and expression_ids and eid not in expression_ids:
+        parsed["expressionId"] = ""
+    gid = parsed.get("grammarPointId")
+    if gid and grammar_ids and gid not in grammar_ids:
+        parsed["grammarPointId"] = ""
+    return parsed
+
+
+def request_correction(
+    config: AiApiConfig,
+    prompt: str,
+    timeout: float = 120.0,
+    temperature: float = 0.2,
+    cancel_check: Callable[[], bool] | None = None,
+    on_chunk: Callable[[str], None] | None = None,
+    usage_callback: Callable[[dict[str, int]], None] | None = None,
+) -> dict[str, Any]:
+    """Ask the model to correct a JSON node and return the parsed dict.
+
+    The prompt is expected to contain the problematic JSON node and a list of
+    validation problems. The model must return only a JSON object.
+    """
+    from src.backend.ai_fixer import extract_json_object
+
+    messages = [
+        {
+            "role": "system",
+            "content": SYSTEM_CORRECTION,
+        },
+        {"role": "user", "content": prompt},
+    ]
+    body = request_chat(
+        config,
+        messages,
+        temperature=temperature,
+        response_format={"type": "json_object"},
+        timeout=timeout,
+        cancel_check=cancel_check,
+        stream=on_chunk is not None,
+        on_chunk=on_chunk,
+        usage_callback=usage_callback,
+    )
+    choices = body.get("choices") or []
+    if not choices:
+        raise ValueError("API 返回的 choices 为空。")
+    content = choices[0].get("message", {}).get("content", "")
+    return extract_json_object(content)
