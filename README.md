@@ -83,10 +83,9 @@ flutter run
 ### 工具与发布
 
 - **发布流水线**：`tool/build_release.py` 一键生成版本化 APK/AAB/web 产物 + 内容清单。
-- **内容 CLI**：`tool/course_cli.py`（校验 / lint / CSV 导入导出 / 音频清单 / diff）、`tool/export_content_inventory.py`、`tool/split_course.py`。
-- **app 内置 AI 生成器**：实验性页面 `AiCourseGeneratorPage`，配置任意 OpenAI-compatible endpoint 生成 section JSON（配置仅存内存）。
-
-> **GUI 课程编辑器**与**听力音频生成**是两个独立的作者工具链，详见下方专节。
+- **内容 CLI**：`tool/course_cli.py`（校验/lint/CSV 导入导出/音频清单/diff）、`tool/export_content_inventory.py`、`tool/split_course.py`。
+- **GUI 课程编辑器**：完整 PySide6 桌面编辑器，含教材导入、AI 生成、Workshop 工作区、Git 课程库、操作日志（见下方专节）。
+- **app 内置 AI 生成器**：实验性页面 `AiCourseGeneratorPage`，配置任意 OpenAI-compatible endpoint（配置仅存内存）。
 
 ---
 
@@ -252,46 +251,59 @@ python3 -m unittest discover -s test -p "*_test.py"   # Python 工具 14 项
 
 ### 教材导入（Textbook Import）
 
-从外部教材（PDF/Word/图片/文本）提取语言教学内容，多阶段流程导入课程树：
+从外部教材（PDF/Word/图片/文本）提取语言教学内容，经多阶段向导流程导入课程树。核心模块：
 
-- **提取**：拖入教材文件，AI 识别词汇、表达、语法点、对话、练习。
-- **知识合并**：`KnowledgeMerger` 去重合并提取结果，解决跨章节重复与冲突。
-- **批量预览**：导入前预览全部拟导入条目，支持逐条确认/编辑/排除。
-- **预设与策略**：内置多种导入策略（保守/激进/交互式），支持并发提取。
+**项目持久化**（`textbook_project.py`）——导入任务以项目为单位保存到 `tool/var/textbooks/`，含源文件引用、提取进度、用户决策，支持中断恢复与跨会话续传。
+
+**多阶段导入向导**（`textbook_import_dialog.py`）——结构化分步流程：
+
+1. **选材**：拖入 PDF/Word/图片/文本，自动识别文件类型并抽取可读文本（PDF 经 PyPDF2、Word 经 python-docx、图片经 base64 入 vision API）。
+2. **提取**：调 AI 逐章识别词汇、表达、语法点、对话、练习，`KnowledgeExtractor` 按 `KnowledgeSchema` 产出结构化条目。
+3. **合并**：`KnowledgeMerger` 跨章节去重合并，处理同一词汇的多次出现、释义冲突、例句归并。
+4. **预览**：`BulkImportPreviewPanel` 展示全部拟导入条目，支持逐条确认、编辑、排除，按资源类型（词汇/表达/语法点）分 tab。
+5. **导入**：确认后的条目写入 `vocab.json` / `expressions.json` / `grammar_points.json`，并生成对应 lesson。
+
+**提取质量控制**（`extraction_quality.py`）——校验 AI 提取结果的完整性：必填字段检查、id 格式校验、题型引用有效性、语言方向一致性。
+
+**导入策略**（`import_strategy.py`）——三种预设策略控制导入行为：
+
+| 策略 | 新建 | 冲突 | 缺失 |
+|---|---|---|---|
+| 保守 | 跳过 | 跳过 | 跳过 |
+| 激进 | 新建 | 覆盖 | 补充 |
+| 交互式 | 确认 | 确认 | 确认 |
+
+**并发与性能**——多文件提取阶段并发调 AI（可配并发数），大文件自动分段（`markdown_chopper.py`），支持断点续传。
+
+**预设模板**（`textbook_presets.py`）——内置常用教材的语言对、CEFR 等级、题型偏好预设，一键填充向导参数。
 
 ### 工作区窗口（Workshop）
 
-独立于课程树的 **Workshop 窗口**，用于批量操作：教材导入、AI 批量生成、内容迁移等。与主编辑器共享同一项目上下文。
+独立于课程树的 **Workshop 窗口**（`workshop_window.py`），与 App Shell（`app.py`）松耦合，共享项目上下文。集中管理批量操作：教材导入任务列表、AI 批量生成队列、跨 section 内容迁移、操作日志查看。支持多任务并行，后台执行不阻塞主编辑器。
 
-### AI 课程生成器（Beta）
+### AI 生成引擎
 
-内置 AI 生成对话框（[`tool/gui/src/dialogs/ai_generator_dialog.py`](./tool/gui/src/dialogs/ai_generator_dialog.py)），支持任意 OpenAI-compatible endpoint。API 配置仅存内存，关闭即丢。
+AI 能力集中在下述后端模块，GUI 对话框仅做表单/聊天前端：
 
-#### 普通模式
+| 模块 | 职责 |
+|---|---|
+| `ai_generator.py` | 普通模式 + 许愿模式生成调度 |
+| `ai_stream.py` | SSE 流式响应处理，实时显示生成进度 |
+| `ai_fixer.py` | 生成后自动修复：id 冲突、引用断裂、schema 不符 |
+| `ai_prompt_library.py` | 可复用的 prompt 模板库，按 template/CEFR/题型索引 |
+| `ai_genre.py` | Genre 标签映射，多模板批量生成编排 |
+| `ai_presets.py` | 常用模型/参数预设 |
+| `ai_usage.py` | Token 用量追踪，按会话/项目统计 |
 
-表单式生成：填写目标语言/源语言/CEFR 等级/单元数/课时/课程类型/主题 → AI 返回 section JSON → 可编辑文本框检查修改 → 导入（id 冲突检测）。
+### AI 课程生成器
 
-#### 许愿模式（Wish Mode）
+内置 AI 生成对话框，支持任意 OpenAI-compatible endpoint（API 配置仅存内存）。
 
-两阶段对话式生成：
-1. **对齐**：多轮对话描述需求 + 拖入附件（图片/PDF/Word/文本），AI 用口语化中文回应，不输出 JSON。
-2. **生成**：点「我感觉差不多了」→ AI 生成 section JSON + 通俗解释 → 导入课程树。
-
-支持生成后继续对话修改，再次生成保留 draft 上下文。
-
-#### Genre 多模板批量生成
-
-在主题/额外指令中插入 genre 标签，在一个 section 内按标签生成不同模板的课：
-
-| 标签 | template | 主键 | 建议题型 |
-|---|---|---|---|
-| `[intro]` | intro | subLessons | showWord / translateSentence / fillBlank |
-| `[practice]` | practice | subLessons | multipleChoice / translateSentence / fillBlank / reorderSentence |
-| `[review]` | review | subLessons | multipleChoice / fillBlank / translateSentence |
-| `[listening]` | listening | listeningPhases | listenAndPick / typeTheWord / listenOnly |
-| `[reading]` | reading | readingPassage | readingMcq / readingTrueFalse / readingShortAnswer |
-| `[mastery]` | mastery | stages | multipleChoice / translateSentence / fillBlank / multiSelect |
-| `[mixed]` | mixed | — | 混合 |
+- **普通模式**：表单填写语言/等级/单元数/主题 → AI 生成 section JSON → 可编辑预览 → 导入。
+- **许愿模式**：多轮对话对齐需求 + 附件（图片/PDF/Word/文本）→ 点「我感觉差不多了」→ AI 生成 JSON + 解释。
+- **Genre 批量生成**：在主题中插入 `[intro]`/`[practice]`/`[listening]`/`[reading]`/`[review]`/`[mastery]` 标签，一次生成多种模板的课。
+- **流式输出**：SSE 实时显示生成进度，支持中途取消。
+- **自动修复**：`ai_fixer.py` 生成后自动修复 id 冲突、引用断裂、schema 不符。
 
 #### 护栏
 
@@ -300,10 +312,7 @@ python3 -m unittest discover -s test -p "*_test.py"   # Python 工具 14 项
 | **id 全局唯一** | id 只读；rename 只改 name；validate 兜底查重；导入冲突弹窗 |
 | **scale ceiling** | 复用 `course_cli.py` 的 `MAX_UNITS_PER_SECTION=60` / `MAX_LESSONS_PER_UNIT=40` |
 | **引用完整性** | `wordId`/`expressionId`/`grammarPointId` 从已加载资源下拉选 |
-| **tags 白名单** | 多选下拉，选项 = `course_cli.py::ALLOWED_TAGS` |
-| **template↔content 一致** | UI 按 template 切换字段 |
 | **保存前校验** | `validate --format json` 失败 → 禁用保存 + 高亮问题节点 |
-| **版本号 bump** | 「标记为内容发布」自动 bump 对应 version |
 | **密钥不落盘** | API key/base URL/model 仅存内存；附件用临时文件 |
 
 ### 运行与打包
