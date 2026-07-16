@@ -47,43 +47,63 @@
 
 ---
 
-## 3. 六步流程
+## 3. 三阶段流程
 
-入口:GUI 工具栏「导入教材(Beta)」→ 先选/新建一个教材项目 → 进入 6 步时间线。
+入口（二选一）：
+- 工具栏「**课程工坊**」（推荐，Phase 2 起）：非 modal 工作台，项目库与导入流水线同窗，
+  阶段导航可点击回跳。工作台比旧入口多一个 **设计** 阶段（见 §3.1）。
+- 工具栏「导入教材(Beta)」（旧 modal 入口，保留兼容）：先选/新建项目 → 进入同样的 3 页时间线。
 
-| 步骤 | 操作 | 关键代码 |
+（页面历经两次重组：「② 解析课本」独立页面已移除，解析预览并入素材页；随后素材（选文件+章节勾选）、
+知识（提取日志+审校）、导入三页定型。）
+
+| 阶段 | 操作 | 关键代码 |
 |------|------|----------|
-| ① 选择教材 | 拖入文件或点「选择文件」 | `TextbookImportController.load_file` |
-| ② 解析课本 | 读取 + 预览前 2000 字 | `attachment_extractor` → `split_chapters` |
-| ③ 章节勾选 | 勾选要导入的章节;选**教材类型**与**并发数** | `set_chapter_kept` + `textbook_presets` |
-| ④ 提取知识点 | 逐章 LLM 抽取,底部显示用量/成本 | `knowledge_extractor.extract_knowledge_points` |
-| ⑤ 审校 | 红黄质量标记、批量删、AI 修复、重试/仅抽词汇/跳过 | `ResourceReviewTable` + `extraction_quality` |
-| ⑥ 导入 | 选**导入策略**,预览冲突,确认导入 | `BulkImportPreviewPanel` + `app.py::_import_section_dict_result` |
+| ① 素材 | 拖入/选择文件，内联预览前 2000 字；勾选章节，选**教材类型**与**并发数** | `TextbookImportController.load_file` + `set_chapter_kept` + `textbook_presets` |
+| ② 知识 | 上半提取日志（用量/成本），下半审校：红黄质量标记、批量删、AI 修复、重试/仅抽词汇/跳过 | `knowledge_extractor.extract_knowledge_points` + `ResourceReviewTable` + `extraction_quality` |
+| ③ 导入 | 选**导入策略**，预览冲突，确认导入 | `BulkImportPreviewPanel` + `SectionImportService` |
 
-关闭对话框后,项目自动保存到 `tool/gui/var/textbooks/{project_id}/project.json`,
-可从「教材库」对话框重新打开继续(见 §8)。
+关闭对话框后,项目自动保存到 `tool/gui/var/textbooks/{project_id}/project.json`（v2 格式，
+含 resource_pool 快照与 import_map），可从「项目库」页重新打开继续(见 §8)。
 
 ---
 
-## 4. 导入策略(⑥)
+## 3.1 设计阶段（课程工坊专属，Phase 3）
+
+知识页点「**AI 设计课程 →**」进入设计阶段：AI 以**资源池为词表**（grounded）编排课程——
+从池中按原 id 选词复制进 section，只负责单元/课时/模板/题目编排，不凭空造词
+（确需池外新词会打 `"new"` tag；资源池为空时退回自由生成）。
+
+- 左栏：主题/级别/单元数/模板/编排意图 + 许愿式对话（可多轮讨论后再「生成课程 ▶」）。
+- 右栏：草稿 JSON（可手改，导入以编辑器内容为准）+ 校验/试做/导入到课程。
+- 草稿、对话记录、参数全部持久化在项目 `design` 字段，关窗重开完整恢复。
+- 知识页改动资源池后再回设计页，会提示"资源池已更新，建议重新生成"。
+- 导入走与教材导入相同的 `SectionImportService` 管线（合并/冲突处理一致）。
+
+关键代码：`src/dialogs/ai/design_controller.py`（纯逻辑）+ `src/dialogs/ai/design_panel.py`（视图）。
+
+---
+
+## 4. 导入策略(③)
 
 当某章生成的 section id 已存在于当前课程时,策略决定如何处理:
 
 | 策略 | 行为 | 适用场景 |
 |------|------|----------|
-| 合并预览(默认) | 弹 `AiMergePreviewDialog`,逐 unit/lesson 让作者勾选合并 | 重新导入同一教材、想保留已有改动 |
+| 合并预览(默认) | 单章冲突弹 `AiMergePreviewDialog` 逐项勾选;**多章冲突弹一次 `BulkMergeResolveDialog` 批量决策**（逐行 合并/跳过/细看） | 重新导入同一教材、想保留已有改动 |
 | 跳过已存在 | 直接跳过该章,保留现有 section | 只想补新章节 |
 | 覆盖已存在 | 用 `AiEditSectionCommand` 整体覆盖(无预览) | 确定要替换旧内容 |
 | 作为新 section 追加 | 自动改 id(`{id}-2`...)导入为独立 section | 想并存新旧两版 |
 
 策略由 [`import_strategy.ImportStrategy`](../../tool/gui/src/backend/import_strategy.py)
-定义;执行走 `app.py::_import_section_dict_result(section, strategy=...)`,
+定义;执行走 [`SectionImportService`](../../tool/gui/src/application/section_import_service.py)
+（自 `app.py` 抽出,AI 生成/教材导入/课程工坊共用）,
 默认 `merge` 以保持 AI 生成器既有行为。预览面板(`BulkImportPreviewPanel`)展示每章将
 生成的 section id、动作、新增/重复资源数与冲突。
 
 ---
 
-## 5. 教材类型预设(③)
+## 5. 教材类型预设(①)
 
 不同教材内容类型用不同抽取参数。预设由
 [`textbook_presets.BUILTIN_TEXTBOOK_PRESETS`](../../tool/gui/src/backend/textbook_presets.py)
@@ -153,7 +173,7 @@ LLM 抽取时每章用独立 id 前缀 `ch-{slug}-`,因此**同一术语在两�
 | 某章 LLM 抽取失败 | 审校页选「重试本章」→ 仍失败选「仅抽词汇」→ 或「跳过本章」 |
 | 导入预览显示 section id 冲突 | 选「作为新 section 追加」会自动改 id,或「跳过已存在」 |
 | 审校页红/黄标记 | 红色=错误(如 term 为空),黄色=警告(如与现有课程重复);可选中行点「AI 修复」 |
-| 大教材(50+ 章)抽取慢 | ③ 步把「并发」调到 2–3(默认 1 串行);token 并发消耗会升高 |
+| 大教材(50+ 章)抽取慢 | ② 步把「并发」调到 2–3(默认 1 串行);token 并发消耗会升高 |
 
 ---
 
@@ -161,10 +181,13 @@ LLM 抽取时每章用独立 id 前缀 `ch-{slug}-`,因此**同一术语在两�
 
 | 文件 | 作用 |
 |------|------|
-| `tool/gui/src/dialogs/textbook_import_dialog.py` | 6 步 UI + 策略/预设/用量接线 |
+| `tool/gui/src/dialogs/workshop_window.py` | 课程工坊（非 modal 工作台，阶段导航可点击） |
+| `tool/gui/src/dialogs/textbook_import_dialog.py` | 3 页流水线视图（素材/知识/导入）+ 策略/预设/用量接线 |
 | `tool/gui/src/dialogs/textbook_import_controller.py` | 纯 Python 流水线控制器(并发/用量/预览) |
+| `tool/gui/src/application/section_import_service.py` | 共享导入执行管线（单条+批量,UI 回调注入） |
+| `tool/gui/src/widgets/bulk_merge_resolve_panel.py` | 多章冲突一次性批量合并决策 |
 | `tool/gui/src/backend/knowledge_extractor.py` | 逐章 LLM 抽取 + 重试 |
-| `tool/gui/src/backend/knowledge_prompt.py` | 抽取 prompt + 按语言对模板库 + 段落截断 |
+| `tool/gui/src/backend/knowledge_prompt.py` | 抽取 prompt + 按语言对模板库（可持久化覆盖） + 段落截断 |
 | `tool/gui/src/backend/knowledge_merger.py` | 项目内去重 + 课程碰撞对齐 |
 | `tool/gui/src/backend/import_strategy.py` | 导入策略 + 批量导入规划 |
 | `tool/gui/src/backend/textbook_presets.py` | 教材类型预设 |

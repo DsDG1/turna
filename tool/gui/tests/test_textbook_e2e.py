@@ -99,17 +99,17 @@ class TextbookImportE2ETest(unittest.TestCase):
             f.write(_sample_md())
             path = Path(f.name)
         try:
-            # ① pick / ② parse
+            # ① pick (lands directly on the 素材 source page, P2-1)
             self.dlg._load_file(path)
             self.assertEqual(len(self.dlg._controller.chapters), 2)
-            self.assertEqual(self.dlg._stack.currentIndex(), 2)  # chapters step
+            self.assertEqual(self.dlg._stack.currentIndex(), 0)  # 素材 source page
 
-            # ③ chapters already all checked; ④ extract
+            # chapters already all checked → extract → 知识 knowledge page
             self.dlg._start_extraction()
-            self.assertEqual(self.dlg._stack.currentIndex(), 4)  # review step
+            self.assertEqual(self.dlg._stack.currentIndex(), 1)  # 知识 page
             self.assertTrue(all(cr.knowledge is not None for cr in self.dlg._controller.chapters))
 
-            # ⑤ review / ⑥ import
+            # ④ review / ⑤ import (same 知识 page hosts extract log + review)
             self.assertIsNotNone(self.dlg._controller.quality_report)
             self.assertEqual(self.dlg._review_table.row_count(), 6)
             self.assertEqual(self.dlg._chapter_quality_list.count(), 2)

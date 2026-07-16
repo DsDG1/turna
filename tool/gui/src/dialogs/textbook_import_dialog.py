@@ -41,6 +41,7 @@ from src.backend.textbook_project_store import TextbookProjectStore
 from src.dialogs.ai_fix_dialog import AiFixDialog
 from src.dialogs.textbook_import_controller import TextbookImportController
 from src.infrastructure.telemetry import telemetry
+from src.theme import ai_color, current_palette
 from src.widgets.bulk_import_preview_panel import BulkImportPreviewPanel
 from src.widgets.resource_review_table import ResourceReviewTable, ResourceRow
 
@@ -52,22 +53,34 @@ _STRATEGY_OPTIONS = (
     (ImportStrategy.APPEND_AS_NEW.value, "作为新 section 追加（自动改 id）"),
 )
 
-# Steps of the timeline.
+# Steps of the timeline. STEP_PARSE is kept for project.json compatibility
+# (saved projects persist numeric current_step values) but has no page of its
+# own — the parse preview lives inline on the source page (P0-4).
+# Pages were reorganized into three stages in Phase 2 (connectplan §4.2):
+# 素材 (pick + chapters) / 知识 (extract + review) / 导入.
 STEP_PICK, STEP_PARSE, STEP_CHAPTERS, STEP_EXTRACT, STEP_REVIEW, STEP_IMPORT = range(6)
-_STEP_TITLES = (
-    "① 选择教材",
-    "② 解析课本",
-    "③ 章节勾选",
-    "④ 提取知识点",
-    "⑤ 审校",
-    "⑥ 导入",
-)
+_PAGE_FOR_STEP = {
+    STEP_PICK: 0,
+    STEP_PARSE: 0,
+    STEP_CHAPTERS: 0,
+    STEP_EXTRACT: 1,
+    STEP_REVIEW: 1,
+    STEP_IMPORT: 2,
+}
+_STEPPER_STAGES = (STEP_CHAPTERS, STEP_EXTRACT, STEP_IMPORT)
+_STEP_TITLES = {
+    STEP_CHAPTERS: "① 素材",
+    STEP_EXTRACT: "② 知识",
+    STEP_IMPORT: "③ 导入",
+}
 
 
 class TextbookImportDialog(QDialog):
     """Single-window textbook import timeline. Emits ``sections_ready``."""
 
     sections_ready = Signal(list, str)  # (list[dict], strategy) - one section per kept chapter — one section per kept chapter
+    # Ask the host (WorkshopWindow) to jump to the grounded design stage.
+    design_requested = Signal()
 
     def __init__(
         self,
@@ -76,12 +89,16 @@ class TextbookImportDialog(QDialog):
         *,
         project: TextbookProject | None = None,
         store: TextbookProjectStore | None = None,
+        embedded: bool = False,
     ) -> None:
         super().__init__(parent)
         self.adapter = adapter
         self._parent_window = parent
         self._project = project
         self._store = store or TextbookProjectStore()
+        # Embedded mode (P2-2): hosted inside WorkshopWindow as a plain
+        # widget — never close/hide ourselves, signals still fire.
+        self._embedded = embedded
         self.setWindowTitle("导入教材（Beta）")
         self.resize(720, 600)
         self.setAcceptDrops(True)
@@ -108,6 +125,12 @@ class TextbookImportDialog(QDialog):
                 Path(project.source_path).name if project.source_path else "未选择"
             )
             self._controller.apply_project(project)
+            # A project freshly created in the library has just picked its
+            # source file — load it immediately instead of asking again (P0-3).
+            if not project.chapters and project.source_path:
+                source = Path(project.source_path)
+                if source.exists():
+                    self._load_file(source)
         else:
             self._go_to_step(STEP_PICK)
 
@@ -120,23 +143,22 @@ class TextbookImportDialog(QDialog):
 
         # Left stepper + right stacked pages.
         body = QHBoxLayout()
-        self._stepper_labels: list[QLabel] = []
-        stepper_col = QVBoxLayout()
+        self._stepper_widget = QWidget()
+        stepper_col = QVBoxLayout(self._stepper_widget)
+        stepper_col.setContentsMargins(0, 0, 0, 0)
         stepper_col.setSpacing(6)
-        for title in _STEP_TITLES:
-            lbl = QLabel(title)
+        self._stepper_labels: dict[int, QLabel] = {}
+        for step in _STEPPER_STAGES:
+            lbl = QLabel(_STEP_TITLES[step])
             lbl.setFixedWidth(120)
-            self._stepper_labels.append(lbl)
+            self._stepper_labels[step] = lbl
             stepper_col.addWidget(lbl)
         stepper_col.addStretch()
-        body.addLayout(stepper_col)
+        body.addWidget(self._stepper_widget)
 
         self._stack = QStackedWidget()
-        self._stack.addWidget(self._build_pick_page())
-        self._stack.addWidget(self._build_parse_page())
-        self._stack.addWidget(self._build_chapters_page())
-        self._stack.addWidget(self._build_extract_page())
-        self._stack.addWidget(self._build_review_page())
+        self._stack.addWidget(self._build_source_page())
+        self._stack.addWidget(self._build_knowledge_page())
         self._stack.addWidget(self._build_import_page())
         body.addWidget(self._stack, 1)
         root.addLayout(body, 1)
@@ -148,21 +170,26 @@ class TextbookImportDialog(QDialog):
         self._progress.setVisible(False)
         bottom.addWidget(self._progress)
         self._stage_label = QLabel("")
-        self._stage_label.setStyleSheet("color: #46D1BF; font-size: 12px;")
+        self._stage_label.setStyleSheet(f"color: {ai_color('ai_accent')}; font-size: 12px;")
         bottom.addWidget(self._stage_label)
         bottom.addStretch()
         self._usage_label = QLabel("")
-        self._usage_label.setStyleSheet("color: #9CA3AF; font-size: 11px;")
+        self._usage_label.setStyleSheet(
+            f"color: {current_palette()['text_secondary']}; font-size: 11px;"
+        )
         bottom.addWidget(self._usage_label)
         self._autosave_label = QLabel("")
-        self._autosave_label.setStyleSheet("color: #9CA3AF; font-size: 11px;")
+        self._autosave_label.setStyleSheet(
+            f"color: {current_palette()['text_secondary']}; font-size: 11px;"
+        )
         bottom.addWidget(self._autosave_label)
         self._cancel_btn = QPushButton("取消")
         self._cancel_btn.clicked.connect(self._on_cancel)
         bottom.addWidget(self._cancel_btn)
         root.addLayout(bottom)
 
-    def _build_pick_page(self) -> QWidget:
+    def _build_source_page(self) -> QWidget:
+        """素材页: file pick + inline preview + chapter selection (P2-1)."""
         page = QWidget()
         lay = QVBoxLayout(page)
         lay.addWidget(QLabel("拖入教材文件，或点击「选择文件」。支持 .md / .txt / .pdf（文本原生 PDF）。"))
@@ -173,25 +200,21 @@ class TextbookImportDialog(QDialog):
         self._picked_label = QLabel("未选择")
         row.addWidget(self._picked_label, 1)
         lay.addLayout(row)
-        lay.addStretch()
-        return page
-
-    def _build_parse_page(self) -> QWidget:
-        page = QWidget()
-        lay = QVBoxLayout(page)
-        lay.addWidget(QLabel("解析结果预览（前 2000 字）："))
-        self._parse_preview = QTextEdit()
-        self._parse_preview.setReadOnly(True)
-        lay.addWidget(self._parse_preview, 1)
         self._parse_error_label = QLabel("")
-        self._parse_error_label.setStyleSheet("color: #E74C3C;")
+        self._parse_error_label.setStyleSheet(f"color: {current_palette()['error']};")
+        self._parse_error_label.setWordWrap(True)
         self._parse_error_label.setVisible(False)
         lay.addWidget(self._parse_error_label)
-        return page
+        self._preview_caption = QLabel("内容预览（前 2000 字）：")
+        self._preview_caption.setVisible(False)
+        lay.addWidget(self._preview_caption)
+        self._parse_preview = QTextEdit()
+        self._parse_preview.setReadOnly(True)
+        self._parse_preview.setVisible(False)
+        self._parse_preview.setMaximumHeight(140)
+        lay.addWidget(self._parse_preview)
 
-    def _build_chapters_page(self) -> QWidget:
-        page = QWidget()
-        lay = QVBoxLayout(page)
+        # Chapter selection (formerly its own page).
         lay.addWidget(QLabel("勾选要导入的章节："))
         btns = QHBoxLayout()
         select_all = QPushButton("全选")
@@ -205,7 +228,9 @@ class TextbookImportDialog(QDialog):
         self._chapter_list = QListWidget()
         lay.addWidget(self._chapter_list, 1)
         self._empty_chapters_label = QLabel("未切到章节（请确认标题层级 ≥ ##）")
-        self._empty_chapters_label.setStyleSheet("color: #9CA3AF;")
+        self._empty_chapters_label.setStyleSheet(
+            f"color: {current_palette()['text_secondary']};"
+        )
         self._empty_chapters_label.setVisible(False)
         lay.addWidget(self._empty_chapters_label)
         # Extraction options (bookplan2 Phase 5): textbook type + concurrency.
@@ -237,23 +262,32 @@ class TextbookImportDialog(QDialog):
         lay.addWidget(next_btn)
         return page
 
-    def _build_extract_page(self) -> QWidget:
+    def _build_knowledge_page(self) -> QWidget:
+        """知识页: extraction log on top, review area below (P2-1)."""
         page = QWidget()
         lay = QVBoxLayout(page)
-        lay.addWidget(QLabel("逐章提取知识点（串行）："))
+
+        splitter = QSplitter(Qt.Orientation.Vertical)
+
+        # Top: extraction progress log.
+        log_box = QWidget()
+        log_lay = QVBoxLayout(log_box)
+        log_lay.setContentsMargins(0, 0, 0, 0)
+        log_lay.addWidget(QLabel("提取日志："))
         self._extract_log = QTextEdit()
         self._extract_log.setReadOnly(True)
-        lay.addWidget(self._extract_log, 1)
-        return page
+        log_lay.addWidget(self._extract_log)
+        splitter.addWidget(log_box)
 
-    def _build_review_page(self) -> QWidget:
-        page = QWidget()
-        lay = QVBoxLayout(page)
-        lay.addWidget(
+        # Bottom: review area (formerly its own page).
+        review_box = QWidget()
+        review_lay = QVBoxLayout(review_box)
+        review_lay.setContentsMargins(0, 0, 0, 0)
+        review_lay.addWidget(
             QLabel("审校抽取结果：可编辑、批量删除；红色=错误，黄色=警告。")
         )
 
-        splitter = QSplitter(Qt.Horizontal)
+        review_splitter = QSplitter(Qt.Orientation.Horizontal)
 
         # Left: chapter quality list + recovery controls.
         left = QWidget()
@@ -267,7 +301,7 @@ class TextbookImportDialog(QDialog):
 
         self._chapter_recovery_label = QLabel("")
         self._chapter_recovery_label.setStyleSheet(
-            "color: #9CA3AF; font-size: 11px;"
+            f"color: {current_palette()['text_secondary']}; font-size: 11px;"
         )
         self._chapter_recovery_label.setWordWrap(True)
         left_lay.addWidget(self._chapter_recovery_label)
@@ -284,25 +318,39 @@ class TextbookImportDialog(QDialog):
             btn.setVisible(False)
             left_lay.addWidget(btn)
 
-        splitter.addWidget(left)
+        review_splitter.addWidget(left)
 
         # Right: unified review table.
         self._review_table = ResourceReviewTable()
         self._review_table.rows_changed.connect(self._on_review_rows_changed)
         self._review_table.fix_requested.connect(self._on_ai_fix_requested)
-        splitter.addWidget(self._review_table)
-        splitter.setStretchFactor(0, 1)
-        splitter.setStretchFactor(1, 4)
+        review_splitter.addWidget(self._review_table)
+        review_splitter.setStretchFactor(0, 1)
+        review_splitter.setStretchFactor(1, 4)
 
-        lay.addWidget(splitter, 1)
+        review_lay.addWidget(review_splitter, 1)
 
         self._quality_summary_label = QLabel("")
-        lay.addWidget(self._quality_summary_label)
+        review_lay.addWidget(self._quality_summary_label)
+
+        splitter.addWidget(review_box)
+        splitter.setStretchFactor(0, 1)
+        splitter.setStretchFactor(1, 2)
+        lay.addWidget(splitter, 1)
 
         # Navigate to the import / preview page (bookplan2 Phase 4).
+        nav_row = QHBoxLayout()
+        self._design_btn = QPushButton("AI 设计课程 →")
+        self._design_btn.setToolTip("用资源池里的知识点，让 AI 编排成课程（课程工坊）")
+        self._design_btn.clicked.connect(lambda: self.design_requested.emit())
+        # Only meaningful inside the workshop, which owns the design stage.
+        self._design_btn.setVisible(self._embedded)
+        nav_row.addWidget(self._design_btn)
         next_btn = QPushButton("下一步：预览导入 ->")
         next_btn.clicked.connect(self._goto_import_preview)
-        lay.addWidget(next_btn)
+        nav_row.addWidget(next_btn)
+        nav_row.addStretch(1)
+        lay.addLayout(nav_row)
         return page
 
     def _build_import_page(self) -> QWidget:
@@ -345,17 +393,25 @@ class TextbookImportDialog(QDialog):
     # ------------------------------------------------------------- step nav
 
     def _go_to_step(self, step: int) -> None:
-        self._stack.setCurrentIndex(step)
-        for i, lbl in enumerate(self._stepper_labels):
-            if i < step:
-                lbl.setText("✓ " + _STEP_TITLES[i])
-                lbl.setStyleSheet("color: #9CA3AF;")
-            elif i == step:
-                lbl.setText("▸ " + _STEP_TITLES[i])
-                lbl.setStyleSheet("color: #1F727E; font-weight: 600;")
+        page = _PAGE_FOR_STEP.get(step, 0)
+        self._stack.setCurrentIndex(page)
+        secondary = current_palette()["text_secondary"]
+        for i, s in enumerate(_STEPPER_STAGES):
+            lbl = self._stepper_labels[s]
+            if i < page:
+                lbl.setText("✓ " + _STEP_TITLES[s])
+                lbl.setStyleSheet(f"color: {secondary};")
+            elif i == page:
+                lbl.setText("▸ " + _STEP_TITLES[s])
+                lbl.setStyleSheet(f"color: {ai_color('ai_accent')}; font-weight: 600;")
             else:
-                lbl.setText("○ " + _STEP_TITLES[i])
-                lbl.setStyleSheet("color: #9CA3AF;")
+                lbl.setText("○ " + _STEP_TITLES[s])
+                lbl.setStyleSheet(f"color: {secondary};")
+
+    def set_stepper_visible(self, visible: bool) -> None:
+        """Show/hide the built-in stage stepper (hidden inside WorkshopWindow,
+        which provides its own outer stage navigation)."""
+        self._stepper_widget.setVisible(visible)
 
     def _set_busy(self, busy: bool, stage: str = "") -> None:
         self._progress.setVisible(busy)
@@ -372,31 +428,72 @@ class TextbookImportDialog(QDialog):
             self._set_busy(False)
         elif result.outcome == "error":
             self._set_busy(False)
-            self._show_error_for_step(step, result)
+            self._show_error_with_recovery(step, result)
         elif result.outcome == "cancelled":
             self._set_busy(False)
 
-        if step == STEP_PARSE and result.outcome == "success":
-            self._parse_preview.setPlainText(self._controller.markdown[:2000])
-            self._parse_error_label.setVisible(False)
-        elif step == STEP_CHAPTERS:
-            self._parse_preview.setPlainText(self._controller.markdown[:2000])
-            self._parse_error_label.setVisible(False)
+        if step == STEP_CHAPTERS:
+            self._show_parse_preview()
             self._populate_chapters()
         elif step == STEP_EXTRACT and result.outcome == "success":
             self._set_busy(True, "提取中…")
         elif step == STEP_REVIEW:
             self._populate_review()
         elif step == STEP_IMPORT and result.outcome == "success":
-            self.close()
+            if not self._embedded:
+                self.close()
+
+    def _show_parse_preview(self) -> None:
+        has_text = bool(self._controller.markdown)
+        self._parse_preview.setPlainText(self._controller.markdown[:2000])
+        self._parse_preview.setVisible(has_text)
+        self._preview_caption.setVisible(has_text)
+        self._parse_error_label.setVisible(False)
 
     def _show_error_for_step(self, step: int, result: ImportStepResult) -> None:
-        if step == self.STEP_PARSE:
+        if step in (STEP_PICK, STEP_PARSE):
+            # File load/parse failures surface inline on the pick page.
             self._parse_error_label.setText(result.message)
             self._parse_error_label.setVisible(True)
             self._parse_preview.setPlainText("")
         else:
             QMessageBox.warning(self, "导入教材", result.message)
+
+    def _show_error_with_recovery(self, step: int, result: ImportStepResult) -> None:
+        """Show an error, rendering ``recovery_options`` as action buttons (P0-4)."""
+        options = [o for o in (result.recovery_options or []) if o]
+        if not result.recoverable or not options:
+            self._show_error_for_step(step, result)
+            return
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Warning)
+        box.setWindowTitle("导入教材")
+        box.setText(result.message)
+        option_buttons = [
+            (opt, box.addButton(opt, QMessageBox.ButtonRole.ActionRole))
+            for opt in options
+        ]
+        box.addButton("关闭", QMessageBox.ButtonRole.RejectRole)
+        box.exec()
+        clicked = box.clickedButton()
+        for opt, btn in option_buttons:
+            if clicked is btn:
+                self._run_recovery_action(opt)
+                return
+
+    def _run_recovery_action(self, option: str) -> None:
+        """Map a recovery-option label from the controller to a view action."""
+        if option == "重新选择":
+            self._go_to_step(STEP_PICK)
+            self._on_pick_file()
+        elif option == "打开设置":
+            window = self._parent_window
+            if window is not None and hasattr(window, "_on_settings"):
+                window._on_settings()
+        elif option == "返回勾选":
+            self._go_to_step(STEP_CHAPTERS)
+        elif option == "返回审校":
+            self._go_to_step(STEP_REVIEW)
 
     def _on_extract_log(self, message: str) -> None:
         self._extract_log.insertPlainText(message)
@@ -467,7 +564,10 @@ class TextbookImportDialog(QDialog):
 
     def _load_file(self, path: Path) -> None:
         self._picked_label.setText(path.name)
-        self._controller.load_file(path)
+        result = self._controller.load_file(path)
+        if result.outcome == "error":
+            # Load/parse errors are returned, not emitted — surface them here.
+            self._show_error_with_recovery(STEP_PICK, result)
 
     # ------------------------------------------------------------- ③ chapters
 
@@ -512,7 +612,7 @@ class TextbookImportDialog(QDialog):
         self._extract_log.clear()
         result = self._controller.start_extraction()
         if result.outcome == "error":
-            QMessageBox.warning(self, "导入教材", result.message)
+            self._show_error_with_recovery(STEP_CHAPTERS, result)
 
     def _ai_config(self):
         from src.app import current_ai_config
@@ -784,7 +884,7 @@ class TextbookImportDialog(QDialog):
         self._controller.merge_knowledge(self.adapter)
         result = self._controller.build_sections()
         if result.outcome == "error":
-            QMessageBox.information(self, "导入教材", result.message)
+            self._show_error_with_recovery(STEP_IMPORT, result)
 
     # ------------------------------------------------------------- cancel
 
@@ -793,4 +893,5 @@ class TextbookImportDialog(QDialog):
             self._controller.cancel()
             self._set_busy(True, "正在取消…")
             return
-        self.close()
+        if not self._embedded:
+            self.close()

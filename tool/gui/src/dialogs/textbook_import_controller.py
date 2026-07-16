@@ -692,6 +692,9 @@ class TextbookImportController:
             [(cr.chapter, cr.keep, cr.knowledge, cr.error) for cr in self._chapters]
         )
         project.current_step = self.current_step
+        # Snapshot the merged knowledge as the resource pool (connectplan §3.1);
+        # dedup stays with the import-time KnowledgeMerger.
+        project.update_resource_pool()
         return project
 
     def apply_project(self, project: TextbookProject) -> None:

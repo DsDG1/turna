@@ -132,6 +132,81 @@ class TextbookImportViewTest(unittest.TestCase):
         self.assertEqual(len(dlg._controller.chapters), 2)
         self.assertIsNotNone(dlg._controller.chapters[0].knowledge)
 
+    def test_new_project_auto_loads_source_file(self) -> None:
+        """P0-3: a freshly created project already picked its file — the
+        dialog must load it immediately and land on the chapters page."""
+        from src.backend.textbook_project_store import TextbookProjectStore
+
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / "book.md"
+            source.write_text(_sample_md(), encoding="utf-8")
+            store = TextbookProjectStore(base_dir=Path(tmp) / "store")
+            project = store.create_project(name="book", source_path=source)
+            self.assertEqual(project.chapters, [])
+
+            dlg = TextbookImportDialog(None, None, project=project, store=store)
+            self.assertEqual(len(dlg._controller.chapters), 2)
+            self.assertEqual(dlg._stack.currentIndex(), 0)  # 素材 source page
+            self.assertEqual(dlg._chapter_list.count(), 2)
+
+    def test_resumed_project_does_not_auto_reload(self) -> None:
+        """A project with existing chapters is resumed as-is (no reload)."""
+        project = TextbookProject.create(
+            project_id="p2",
+            name="Resume",
+            source_path=Path("/nonexistent/book.md"),
+            markdown=_sample_md(),
+        )
+        ch = split_chapters(_sample_md())
+        project.set_chapters([(ch[0], True, _sample_kp(), "")])
+        project.current_step = 4
+        dlg = TextbookImportDialog(None, None, project=project)
+        # Stack shows the 知识 knowledge page (index 1), not the source page.
+        self.assertEqual(dlg._stack.currentIndex(), 1)
+
+
+class RecoveryActionTest(unittest.TestCase):
+    """P0-4: recovery_options rendered as buttons; actions navigate."""
+
+    def setUp(self) -> None:
+        _TestApp.get()
+        self.dlg = TextbookImportDialog(None, None)
+
+    def test_extraction_without_selection_shows_recovery_box(self) -> None:
+        self.dlg._controller._md = _sample_md()
+        self.dlg._controller._split_into_chapters()
+        for cr in self.dlg._controller.chapters:
+            cr.keep = False
+        with patch("src.dialogs.textbook_import_dialog.QMessageBox") as mock_box_cls:
+            box = mock_box_cls.return_value
+            self.dlg._start_extraction()
+        # Recovery box offers the controller's "返回勾选" option + a close button.
+        button_texts = [c.args[0] for c in box.addButton.call_args_list]
+        self.assertIn("返回勾选", button_texts)
+        self.assertIn("关闭", button_texts)
+        box.exec.assert_called_once()
+
+    def test_recovery_action_navigates(self) -> None:
+        self.dlg._run_recovery_action("返回勾选")
+        self.assertEqual(self.dlg._stack.currentIndex(), 0)  # 素材 source page
+        self.dlg._run_recovery_action("返回审校")
+        self.assertEqual(self.dlg._stack.currentIndex(), 1)  # 知识 knowledge page
+
+    def test_error_without_options_falls_back_to_plain_warning(self) -> None:
+        from src.backend.import_step_result import ImportStepResult
+
+        result = ImportStepResult.error("chapters", "plain failure")
+        with patch("src.dialogs.textbook_import_dialog.QMessageBox") as mock_box_cls:
+            self.dlg._show_error_with_recovery(2, result)
+            mock_box_cls.warning.assert_called_once()
+            mock_box_cls.assert_not_called()
+
+    def test_load_error_surfaces_inline(self) -> None:
+        """Load errors are returned (not emitted) — the view must show them."""
+        self.dlg._load_file(Path("/nonexistent/missing.md"))
+        self.assertFalse(self.dlg._parse_error_label.isHidden())
+        self.assertIn("不存在", self.dlg._parse_error_label.text())
+
 
 class ImportPreviewPageTest(unittest.TestCase):
     """bookplan2 Phase 4: strategy radios + bulk preview on the import page."""
@@ -155,7 +230,7 @@ class ImportPreviewPageTest(unittest.TestCase):
     def test_goto_import_preview_populates_panel(self) -> None:
         self.dlg.adapter = _FakeAdapter()
         self.dlg._goto_import_preview()
-        self.assertEqual(self.dlg._stack.currentIndex(), 5)  # STEP_IMPORT
+        self.assertEqual(self.dlg._stack.currentIndex(), 2)  # 导入 import page
         self.assertEqual(self.dlg._preview_panel._table.rowCount(), 2)
 
     def test_strategy_change_refreshes_preview_action(self) -> None:

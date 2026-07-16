@@ -29,6 +29,10 @@ from src.backend.markdown_chopper import Chapter
 # the textbook is dense; longer chapters get truncated with a notice.
 _MAX_CHAPTER_CHARS = 8000
 
+# Default system prompt for extraction. Mirrors ``ai_generator.SYSTEM_AUTHORING``
+# but is kept as separate *data* (it is the default value of the
+# ``KnowledgePromptTemplates.system`` template field, overridable per language
+# pair via the prompt library) rather than shared code.
 _SYSTEM_PROMPT = (
     "You are a language-course authoring assistant. "
     "You output ONLY valid JSON, no prose, no markdown fences."
@@ -99,6 +103,31 @@ class KnowledgePromptTemplates:
     intro: str = "Extract teachable knowledge points from the textbook chapter below."
     vocab_intro: str = "Extract only vocabulary words from the textbook chapter below."
 
+    def to_dict(self) -> dict[str, str]:
+        return {
+            "system": self.system,
+            "schema_block": self.schema_block,
+            "rules_block": self.rules_block,
+            "vocab_schema_block": self.vocab_schema_block,
+            "vocab_rules_block": self.vocab_rules_block,
+            "intro": self.intro,
+            "vocab_intro": self.vocab_intro,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "KnowledgePromptTemplates":
+        """Build from a partial dict; missing keys fall back to defaults."""
+        defaults = cls()
+        return cls(
+            system=data.get("system") or defaults.system,
+            schema_block=data.get("schema_block") or defaults.schema_block,
+            rules_block=data.get("rules_block") or defaults.rules_block,
+            vocab_schema_block=data.get("vocab_schema_block") or defaults.vocab_schema_block,
+            vocab_rules_block=data.get("vocab_rules_block") or defaults.vocab_rules_block,
+            intro=data.get("intro") or defaults.intro,
+            vocab_intro=data.get("vocab_intro") or defaults.vocab_intro,
+        )
+
 
 @dataclass
 class KnowledgePromptLibrary:
@@ -108,10 +137,19 @@ class KnowledgePromptLibrary:
     an override for a specific ``(language, source_language)`` to ship different
     extraction wording (e.g. reading-heavy vs grammar-heavy phrasing) without
     forking the module. Language matching is case-insensitive.
+
+    Lookup order (connectplan P1-3): in-memory ``register`` overrides (tests)
+    win over persisted overrides loaded via ``load_overrides_from``, which in
+    turn win over the built-in defaults.
     """
 
     templates: KnowledgePromptTemplates = field(default_factory=KnowledgePromptTemplates)
     _overrides: dict[tuple[str, str], KnowledgePromptTemplates] = field(default_factory=dict)
+    _persisted: dict[tuple[str, str], KnowledgePromptTemplates] = field(default_factory=dict)
+
+    @staticmethod
+    def _key(language: str, source_language: str) -> tuple[str, str]:
+        return (language.strip().lower(), source_language.strip().lower())
 
     def register(
         self,
@@ -119,20 +157,37 @@ class KnowledgePromptLibrary:
         source_language: str,
         templates: KnowledgePromptTemplates,
     ) -> None:
-        self._overrides[
-            (language.strip().lower(), source_language.strip().lower())
-        ] = templates
+        self._overrides[self._key(language, source_language)] = templates
+
+    def register_persisted(
+        self,
+        language: str,
+        source_language: str,
+        templates: KnowledgePromptTemplates,
+    ) -> None:
+        """Register an override loaded from persistent storage.
+
+        Loses to a later in-memory ``register`` for the same pair.
+        """
+        self._persisted[self._key(language, source_language)] = templates
+
+    def unregister_persisted(self, language: str, source_language: str) -> None:
+        """Drop a persisted override (e.g. after the user deleted it)."""
+        self._persisted.pop(self._key(language, source_language), None)
 
     def templates_for(
         self, language: str, source_language: str
     ) -> KnowledgePromptTemplates:
-        return self._overrides.get(
-            (language.strip().lower(), source_language.strip().lower()),
-            self.templates,
-        )
+        key = self._key(language, source_language)
+        if key in self._overrides:
+            return self._overrides[key]
+        if key in self._persisted:
+            return self._persisted[key]
+        return self.templates
 
     def clear(self) -> None:
         self._overrides.clear()
+        self._persisted.clear()
 
 
 #: Module-level default library used when callers do not pass one explicitly.
@@ -142,6 +197,26 @@ DEFAULT_LIBRARY = KnowledgePromptLibrary()
 def default_library() -> KnowledgePromptLibrary:
     """Return the shared default prompt library."""
     return DEFAULT_LIBRARY
+
+
+def load_overrides_from(library: Any) -> int:
+    """Load persisted extraction overrides into the default library (P1-3).
+
+    ``library`` is anything exposing ``list_extraction_overrides()`` returning
+    ``{"lang|src": blocks}`` (e.g. ``AiPromptLibrary``); this module stays
+    Qt-free by depending only on that duck-typed method. Returns the number of
+    overrides registered. In-memory ``register`` overrides keep precedence.
+    """
+    count = 0
+    for key, blocks in library.list_extraction_overrides().items():
+        if "|" not in key or not isinstance(blocks, dict):
+            continue
+        language, _, source_language = key.partition("|")
+        DEFAULT_LIBRARY.register_persisted(
+            language, source_language, KnowledgePromptTemplates.from_dict(blocks)
+        )
+        count += 1
+    return count
 
 
 def _truncate_markdown(md: str, max_chars: int = _MAX_CHAPTER_CHARS) -> str:
