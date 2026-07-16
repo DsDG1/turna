@@ -4,8 +4,8 @@
 
 ## 当前基线
 
-- 日期：2026-07-16
-- 后端/可沙箱运行用例：633 passed（排除 `test_app.py`，该文件需在支持 Qt 显示的本机环境运行）
+- 日期：2026-07-17
+- 后端/可沙箱运行用例：733 passed（排除 `test_app.py`，该文件需在支持 Qt 显示的本机环境运行；含 `test_app.py` 共 752 passed）
 - 运行命令：
   ```bash
   QT_QPA_PLATFORM=offscreen python -m pytest tests/ --ignore=tests/test_app.py -q

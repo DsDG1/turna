@@ -25,24 +25,17 @@ from PySide6.QtWidgets import (
 
 from src.application.commands import (
     AiEditLessonCommand,
-    AiEditSectionCommand,
     AiEditUnitCommand,
     AppendLessonCommand,
-    ImportAiSectionCommand,
     MergeAiSectionCommand,
 )
 from src.application.settings import Settings
 from src.backend.ai_generator import AiApiConfig
 from src.backend.course_adapter import CourseAdapter
 from src.backend.import_step_result import ImportStepResult
-from src.backend.import_strategy import (
-    ImportStrategy,
-    plan_bulk_import,
-    resolve_action,
-    unique_section_id,
-)
+from src.backend.import_strategy import ImportStrategy
 from src.infrastructure.telemetry import telemetry
-from src.theme import apply_theme
+from src.theme import apply_theme, current_palette
 from src.widgets.course_tree import CourseTreeWidget
 from src.widgets.detail_panel import DetailPanel
 
@@ -92,6 +85,9 @@ class MainWindow(QMainWindow):
         self._current_node_ref: tuple[str, str] | None = None
         self.teacher_mode: bool = False
         self._teacher_window = None
+        self._workshop_window = None
+        self._last_textbook_project = None
+        self._last_imported_section_id: str | None = None
 
         self._settings = QSettings("Varnamala", "CourseEditor")
         self._settings_obj = Settings.load_from_qsettings(self._settings)
@@ -109,8 +105,64 @@ class MainWindow(QMainWindow):
         self._build_central()
         self._build_status_bar()
         self._build_undo_actions()
+        self._import_service = self._make_import_service()
         self._usage_t0 = time.perf_counter()
+        self._load_extraction_prompt_overrides()
         self._maybe_open_last_repo()
+
+    def _make_import_service(self):
+        """Build the shared section-import pipeline with UI callbacks wired."""
+        from src.application.section_import_service import SectionImportService
+
+        def _merge_resolver(plan):
+            from src.dialogs.ai.ai_merge_preview_dialog import AiMergePreviewDialog
+
+            preview = AiMergePreviewDialog(plan, parent=self)
+            if preview.exec() != QDialog.DialogCode.Accepted:
+                return None
+            return preview.plan()
+
+        def _bulk_merge_resolver(plans):
+            from src.widgets.bulk_merge_resolve_panel import BulkMergeResolveDialog
+
+            return BulkMergeResolveDialog.resolve(plans, parent=self)
+
+        def _on_status(msg: str) -> None:
+            # Resource notes are suffixes to the action message, not replacements.
+            if msg.startswith("（"):
+                self.statusBar().showMessage(
+                    self.statusBar().currentMessage() + msg, 8000
+                )
+            else:
+                self.statusBar().showMessage(msg, 8000)
+
+        return SectionImportService(
+            None,
+            self.undo_stack,
+            adapter_fn=lambda: self.adapter,
+            show_error=lambda title, msg: QMessageBox.warning(self, title, msg),
+            show_info=lambda title, msg: QMessageBox.information(self, title, msg),
+            merge_resolver=_merge_resolver,
+            bulk_merge_resolver=_bulk_merge_resolver,
+            on_command_pushed=self._on_import_command_pushed,
+            on_status=_on_status,
+        )
+
+    def _on_import_command_pushed(self, cmd, section_id: str) -> None:
+        """Wire an import undo command to the tree and reveal the section."""
+        cmd.signals.changed.connect(self.tree._on_command_changed)
+        self.tree.select_section(section_id)
+
+    def _load_extraction_prompt_overrides(self) -> None:
+        """Load persisted extraction-prompt overrides into the default library."""
+        try:
+            from src.backend import knowledge_prompt
+            from src.backend.ai_prompt_library import AiPromptLibrary
+
+            knowledge_prompt.load_overrides_from(AiPromptLibrary(self._settings))
+        except Exception:
+            # Prompt overrides are an enhancement; never block startup.
+            pass
 
     def _build_undo_actions(self) -> None:
         self.undo_action = self.undo_stack.createUndoAction(self, "撤销")
@@ -165,6 +217,12 @@ class MainWindow(QMainWindow):
         self.textbook_action.triggered.connect(self._on_textbook_import)
         toolbar.addAction(self.textbook_action)
 
+        self.workshop_action = QAction("课程工坊", self)
+        self.workshop_action.setEnabled(False)
+        self.workshop_action.setToolTip("教材 → 知识 → 课程，一站式创作工作区")
+        self.workshop_action.triggered.connect(self._on_workshop)
+        toolbar.addAction(self.workshop_action)
+
         self.resources_menu_btn = QToolButton(self)
         self.resources_menu_btn.setText("资源库")
         self.resources_menu_btn.setEnabled(False)
@@ -218,7 +276,9 @@ class MainWindow(QMainWindow):
         status = QStatusBar()
         status.setFixedHeight(28)
         disclaimer = QLabel("AI 生成内容仅供参考，请作者自行审核其准确性与适用性。")
-        disclaimer.setStyleSheet("color: #9CA3AF; font-size: 11px;")
+        disclaimer.setStyleSheet(
+            f"color: {current_palette()['text_secondary']}; font-size: 11px;"
+        )
         disclaimer.setToolTip(disclaimer.text())
         status.addPermanentWidget(disclaimer)
         self.setStatusBar(status)
@@ -335,6 +395,7 @@ class MainWindow(QMainWindow):
         self.save_action.setEnabled(True)
         self.ai_action.setEnabled(True)
         self.textbook_action.setEnabled(True)
+        self.workshop_action.setEnabled(True)
         self.resources_menu_btn.setEnabled(True)
         self.publish_action.setEnabled(True)
 
@@ -549,127 +610,41 @@ class MainWindow(QMainWindow):
     ) -> ImportStepResult:
         """Structured version of ``_import_section_dict``.
 
-        Returns an ``ImportStepResult`` so bulk callers (e.g. textbook import)
-        can aggregate outcomes instead of showing one dialog per section.
-
-        ``strategy`` selects the collision behaviour; see
-        ``src.backend.import_strategy``. Defaults to ``merge`` so the AI
-        generator flow is unchanged.
+        Thin delegate over ``SectionImportService`` (connectplan P1-2); the
+        pipeline itself lives in ``src/application/section_import_service.py``
+        and is shared by the AI generator, textbook import, and workshop.
         """
-        sid = section.get("id") or ""
-        if not sid:
-            QMessageBox.warning(self, "缺少 section id", "生成的 JSON 缺少顶层 id 字段。")
-            return ImportStepResult.error(
-                "import", "缺少 section id", details={"outcome": "blocked"}
-            )
+        return self._import_service.import_section(section, strategy=strategy)
 
-        # Format-only validation: the AI may intentionally reuse existing ids.
-        problems = self.adapter.validate_section_json(section, check_existing_ids=False)
-        errors = [p for p in problems if p["level"] == "error"]
-        warnings = [p for p in problems if p["level"] == "warning"]
-        if errors:
-            detail = "\n".join(f"[{p['level']}] {p['message']}" for p in errors)
-            QMessageBox.warning(self, "AI section 校验失败", detail)
-            return ImportStepResult.error(
-                "import", "校验失败", details={"outcome": "blocked", "errors": errors}
-            )
-        if warnings:
-            detail = "\n".join(f"[{p['level']}] {p['message']}" for p in warnings)
+    def _on_workshop(self) -> None:
+        """Open the unified authoring workspace (connectplan Phase 2)."""
+        from src.dialogs.workshop_window import WorkshopWindow
+
+        telemetry.record_event("workshop.open")
+        if not self._settings.value("workshop_beta_warning_shown", False):
             QMessageBox.information(
-                self, "AI section 导入警告", f"存在警告，但仍可导入：\n\n{detail}"
+                self,
+                "课程工坊（Beta）",
+                "课程工坊为 Beta 功能：从教材到课程一站式创作，结果请自行审核。\n\n"
+                "知识点提取与 AI 生成都可能消耗大量 token，建议模型支持 1M 上下文窗口。\n\n"
+                "点击「确定」继续。",
             )
+            self._settings.setValue("workshop_beta_warning_shown", True)
 
-        existing_ids = {s.get("id") for s in self.adapter.sections}
-        existing_index_ids = {
-            e.get("id") for e in self.adapter.index.get("sections", [])
-        }
-        exists = sid in existing_ids or sid in existing_index_ids
-        action = resolve_action(exists, strategy)
+        if self._workshop_window is None:
+            self._workshop_window = WorkshopWindow(self.adapter, self)
+            self._workshop_window.sections_ready.connect(self._on_textbook_sections)
+            self._workshop_window.locate_requested.connect(self._on_workshop_locate)
+        self._workshop_window.show()
+        self._workshop_window.raise_()
+        self._workshop_window.activateWindow()
 
-        if action == "skip":
-            self.statusBar().showMessage(
-                f"已跳过「{section.get('name', sid)}」（同 id section 已存在）", 8000
-            )
-            return ImportStepResult.success(
-                "import",
-                message="跳过已存在 section",
-                details={"outcome": "skipped", "section_id": sid},
-            )
-
-        if action == "replace":
-            # Force-overwrite the existing section wholesale (no preview).
-            cmd = AiEditSectionCommand(self.adapter, sid, section, resource_section=section)
-            cmd.signals.changed.connect(self.tree._on_command_changed)
-            self.undo_stack.push(cmd)
-            self.tree.select_section(sid)
-            self.statusBar().showMessage(
-                f"已覆盖「{section.get('name', sid)}」，记得保存", 8000
-            )
-            outcome = "replaced"
-        elif action == "append_new":
-            # Single-section path (AI generator): rewrite the id here. The
-            # textbook batch path (_on_textbook_sections) pre-rewrites the id
-            # from plan_bulk_import's target_id, so it reaches this point with
-            # a fresh id and resolves to "append" instead — this branch then
-            # only fires for non-batch callers.
-            new_id = unique_section_id(self.adapter, sid)
-            section = dict(section)
-            section["id"] = new_id
-            section.setdefault("prerequisiteSectionIds", [])
-            cmd = ImportAiSectionCommand(self.adapter, section)
-            cmd.signals.changed.connect(self.tree._on_command_changed)
-            self.undo_stack.push(cmd)
-            self.tree.select_section(new_id)
-            self.statusBar().showMessage(
-                f"已作为新 section「{new_id}」导入（原 id {sid} 已存在），记得保存", 8000
-            )
-            sid = new_id
-            outcome = "imported"
-        elif action == "merge":
-            # Merge into the existing section via interactive preview.
-            plan = self.adapter.plan_section_merge(sid, section)
-            from src.dialogs.ai.ai_merge_preview_dialog import AiMergePreviewDialog
-
-            preview = AiMergePreviewDialog(plan, parent=self)
-            if preview.exec() != QDialog.DialogCode.Accepted:
-                return ImportStepResult(
-                    step="import",
-                    outcome="cancelled",
-                    message="用户取消了合并预览",
-                    details={"outcome": "skipped", "section_id": sid},
-                )
-            cmd = MergeAiSectionCommand(self.adapter, preview.plan())
-            cmd.signals.changed.connect(self.tree._on_command_changed)
-            self.undo_stack.push(cmd)
-            self.tree.select_section(sid)
-            self.statusBar().showMessage(
-                f"已将 AI 生成内容合并到「{section.get('name', sid)}」，记得保存", 8000
-            )
-            outcome = "merged"
-        else:  # "append" - brand new section
-            section.setdefault("prerequisiteSectionIds", [])
-            cmd = ImportAiSectionCommand(self.adapter, section)
-            cmd.signals.changed.connect(self.tree._on_command_changed)
-            self.undo_stack.push(cmd)
-            self.tree.select_section(sid)
-            self.statusBar().showMessage(
-                f"已通过 AI 生成课程「{section.get('name', sid)}」并已选中，记得保存", 8000
-            )
-            outcome = "imported"
-
-        resource_note = ""
-        added = self.adapter.detect_changes()
-        if added.get("vocab") or added.get("expressions") or added.get("grammar_points"):
-            resource_note = "（资源已合并到词库/表达/语法，记得保存）"
-        if resource_note:
-            self.statusBar().showMessage(
-                self.statusBar().currentMessage() + resource_note, 8000
-            )
-        return ImportStepResult.success(
-            "import",
-            message=f"section {outcome}",
-            details={"outcome": outcome, "section_id": sid},
-        )
+    def _on_workshop_locate(self, section_id: str) -> None:
+        """Reveal an imported section in the main course tree."""
+        self.showNormal()
+        self.raise_()
+        self.activateWindow()
+        self.tree.select_section(section_id)
 
     def _on_textbook_import(self) -> None:
         from src.dialogs.textbook_import_dialog import TextbookImportDialog
@@ -695,6 +670,7 @@ class MainWindow(QMainWindow):
         if project is None:
             telemetry.record_event("textbook.import.closed")
             return
+        self._last_textbook_project = project
 
         dlg = TextbookImportDialog(self.adapter, self, project=project)
         dlg.sections_ready.connect(self._on_textbook_sections)
@@ -705,39 +681,15 @@ class MainWindow(QMainWindow):
         if not self.course_dir:
             QMessageBox.warning(self, "未加载课程目录", "请先打开课程目录。")
             return
-        # Pre-compute the per-section plan so the summary reflects the strategy
-        # (e.g. append_as_new rewrites ids; skip drops collisions). Execution
-        # still goes through ``_import_section_dict_result`` per section so the
-        # interactive merge preview (``merge`` strategy) can prompt per section.
-        plans = plan_bulk_import(sections, self.adapter, strategy)
-        counts = {"imported": 0, "merged": 0, "replaced": 0, "skipped": 0, "blocked": 0}
-        for section, plan in zip(sections, plans):
-            sid = section.get("id", "")
-            # For append_as_new, use the planned target id so the section is
-            # imported under the non-colliding id the preview promised.
-            if plan.action == "append_new" and plan.target_id != sid:
-                section = dict(section)
-                section["id"] = plan.target_id
-                sid = plan.target_id
-            result = self._import_section_dict_result(section, strategy=strategy)
-            outcome = result.details.get("outcome", "blocked") if result.details else "blocked"
-            counts[outcome] = counts.get(outcome, 0) + 1
-            if outcome == "imported":
-                telemetry.record_event(
-                    "textbook.import.imported", payload={"section_id": sid}
-                )
-            elif outcome == "merged":
-                telemetry.record_event(
-                    "textbook.import.merged", payload={"section_id": sid}
-                )
-            elif outcome == "replaced":
-                telemetry.record_event(
-                    "textbook.import.replaced", payload={"section_id": sid}
-                )
-            elif outcome == "skipped":
-                telemetry.record_event(
-                    "textbook.import.merge.cancelled", payload={"section_id": sid}
-                )
+        results, counts = self._import_service.import_bulk(sections, strategy=strategy)
+        successful = [
+            (
+                (r.details or {}).get("source_id", ""),
+                (r.details or {}).get("section_id", ""),
+            )
+            for r in results
+            if (r.details or {}).get("outcome") in ("imported", "merged", "replaced")
+        ]
         summary = (
             f"导入完成：新增 {counts['imported']} 个，"
             f"合并 {counts['merged']} 个，"
@@ -745,6 +697,26 @@ class MainWindow(QMainWindow):
             f"跳过 {counts['skipped']} 个，"
             f"失败 {counts['blocked']} 个。"
         )
+        # Record the import back into the textbook project so the library can
+        # show 已导入 (connectplan P0-2); import_map tracks where each source
+        # id actually landed (P1-1). merge_from() preserves both fields, so
+        # later dialog autosaves cannot clobber them.
+        if self._last_textbook_project is not None and successful:
+            from src.backend.textbook_project_store import record_imported_sections
+
+            added = record_imported_sections(
+                self._last_textbook_project,
+                [final for _, final in successful],
+                id_pairs=[(src, final) for src, final in successful if src],
+            )
+            if added:
+                summary += "\n项目已记录导入状态。"
+        if successful:
+            self._last_imported_section_id = successful[-1][1]
+            if self._workshop_window is not None:
+                self._workshop_window.on_import_finished(
+                    self._last_imported_section_id
+                )
         QMessageBox.information(self, "导入教材", summary)
 
     def _on_ai_edit(self, kind: str, node_id: str) -> None:

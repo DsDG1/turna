@@ -41,7 +41,7 @@ from src.backend.teacher_view_model import (  # noqa: E402
     prompt_for,
     text_answer_for,
 )
-from src.teacher.lesson_wizard import build_intro_lesson  # noqa: E402
+from src.backend.lesson_content import build_intro_lesson  # noqa: E402
 
 _CLI = ROOT / "tool" / "course_cli.py"
 
