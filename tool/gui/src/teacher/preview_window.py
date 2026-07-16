@@ -36,10 +36,16 @@ from src.backend.lesson_content import listening_phase_has_items
 class _PreviewCard(QFrame):
     """A single try-it-yourself question card bound to one item."""
 
-    def __init__(self, adapter: CourseAdapter, item: dict[str, Any]) -> None:
+    def __init__(
+        self,
+        adapter: CourseAdapter,
+        item: dict[str, Any],
+        vocab_override: dict[str, dict[str, Any]] | None = None,
+    ) -> None:
         super().__init__()
         self.adapter = adapter
         self.item = item
+        self._vocab_override = vocab_override or {}
         self.setFrameShape(QFrame.Shape.StyledPanel)
         self.setStyleSheet(
             "_PreviewCard { background-color: #232833; border: 1px solid #2C313C; border-radius: 8px; }"
@@ -50,10 +56,17 @@ class _PreviewCard(QFrame):
         self._build(layout)
 
     def _term_for(self, ref_id: str) -> str:
-        for w in self.adapter.vocab:
-            if w.get("id") == ref_id:
-                return f"{w.get('term', ref_id)} — {w.get('translation', '')}"
-        return ref_id
+        # Prefer a vocab override (used by the AI dialog's 试做 so generated
+        # words resolve even before they're imported into the adapter).
+        w = self._vocab_override.get(ref_id)
+        if w is None:
+            for cand in self.adapter.vocab:
+                if cand.get("id") == ref_id:
+                    w = cand
+                    break
+        if w is None:
+            return ref_id
+        return f"{w.get('term', ref_id)} — {w.get('translation', '')}"
 
     def _build(self, layout: QVBoxLayout) -> None:
         rt = self.item.get("runtimeType", "")
@@ -214,10 +227,12 @@ class LessonPreviewDialog(QDialog):
         adapter: CourseAdapter,
         lesson: dict[str, Any],
         parent: QWidget | None = None,
+        vocab_override: dict[str, dict[str, Any]] | None = None,
     ) -> None:
         super().__init__(parent)
         self.adapter = adapter
         self.lesson = lesson
+        self._vocab_override = vocab_override or {}
         self.setWindowTitle(f"预览：{lesson.get('name', lesson.get('id', ''))}")
         self.resize(560, 640)
         self._build()
@@ -241,7 +256,7 @@ class LessonPreviewDialog(QDialog):
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(10)
 
-        title = QLabel(f"🔍 预览：{self.lesson.get('name', '')}")
+        title = QLabel(f"预览：{self.lesson.get('name', '')}")
         title.setStyleSheet("font-size: 18px; font-weight: 700; color: #FFFFFF;")
         layout.addWidget(title)
         hint = QLabel("实际做题验证你的题目设置。改题后重新打开此窗口即刷新。")
@@ -257,7 +272,7 @@ class LessonPreviewDialog(QDialog):
                 label_parts.append(st_name)
             if label_parts:
                 layout.addWidget(QLabel("  ›  ".join(label_parts)))
-            layout.addWidget(_PreviewCard(self.adapter, item))
+            layout.addWidget(_PreviewCard(self.adapter, item, self._vocab_override))
             count += 1
         if count == 0:
             layout.addWidget(QLabel("这节课还没有题目，先在编辑器里添加。"))

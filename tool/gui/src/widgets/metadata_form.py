@@ -34,6 +34,7 @@ from src.application.commands import (
     UpdateUnitPrereqsCommand,
 )
 from src.backend.course_adapter import CourseAdapter
+from src.theme import current_palette
 
 
 class _FocusTextEdit(QTextEdit):
@@ -63,16 +64,17 @@ class MetadataForm(QGroupBox):
 
     def __init__(self) -> None:
         super().__init__("属性")
-        self.setStyleSheet("""
-            QGroupBox {
+        palette = current_palette()
+        self.setStyleSheet(f"""
+            QGroupBox {{
                 font-weight: 600;
                 margin-top: 8px;
-            }
-            QGroupBox::title {
-                color: #9CA3AF;
+            }}
+            QGroupBox::title {{
+                color: {palette["text_secondary"]};
                 left: 0px;
                 top: 4px;
-            }
+            }}
         """)
         self._adapter: CourseAdapter | None = None
         self._kind: str = ""
@@ -83,7 +85,7 @@ class MetadataForm(QGroupBox):
 
     def _build_ui(self) -> None:
         self.id_value = QLabel("(未选择)")
-        self.id_value.setStyleSheet("color: #6B7280;")
+        self.id_value.setStyleSheet(f"color: {current_palette()['text_disabled']};")
         self.name_edit = QLineEdit()
         self.name_edit.setEnabled(False)
         self.desc_edit = _FocusTextEdit()

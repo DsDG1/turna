@@ -13,9 +13,11 @@ from typing import Any
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QFrame,
+    QHBoxLayout,
     QLabel,
     QListWidget,
     QListWidgetItem,
+    QPushButton,
     QVBoxLayout,
     QWidget,
 )
@@ -29,9 +31,13 @@ class ValidationReportWidget(QWidget):
 
     ``jump_to`` carries a ``(kind, id)`` node ref, or is not emitted when the
     problem has no resolvable path (caller shows it in the global panel).
+
+    ``ai_fix_requested`` is emitted when the user clicks the AI auto-fix button.
+    It carries the currently selected problem dict and its node ref (or None).
     """
 
     jump_to = Signal(tuple)  # (kind, id)
+    ai_fix_requested = Signal(object, object)  # problem, node_ref
 
     def __init__(self, adapter: CourseAdapter, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -42,16 +48,25 @@ class ValidationReportWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(6)
 
+        header = QHBoxLayout()
         self.title = QLabel("校验结果")
         self.title.setStyleSheet("font-weight: 700; color: #E74C3C;")
-        layout.addWidget(self.title)
+        header.addWidget(self.title)
+        header.addStretch()
+        self.ai_fix_btn = QPushButton("AI 自动修正")
+        self.ai_fix_btn.setToolTip("使用 AI 修正当前选中的校验问题")
+        self.ai_fix_btn.setEnabled(False)
+        self.ai_fix_btn.clicked.connect(self._on_ai_fix_clicked)
+        header.addWidget(self.ai_fix_btn)
+        layout.addLayout(header)
 
         self.list_widget = QListWidget()
         self.list_widget.setFrameShape(QFrame.Shape.NoFrame)
         self.list_widget.itemDoubleClicked.connect(self._on_item_double_clicked)
+        self.list_widget.currentItemChanged.connect(self._on_selection_changed)
         layout.addWidget(self.list_widget)
 
-        self._hint = QLabel("双击条目可跳转到对应节点")
+        self._hint = QLabel("双击条目可跳转到对应节点；选中条目后点击「AI 自动修正」")
         self._hint.setStyleSheet("color: #9CA3AF; font-size: 11px;")
         layout.addWidget(self._hint)
 
@@ -100,3 +115,19 @@ class ValidationReportWidget(QWidget):
         ref = problem_to_node_ref(problem, self.adapter.sections)
         if ref is not None:
             self.jump_to.emit(ref)
+
+    def _on_selection_changed(self, current: QListWidgetItem | None, _previous: QListWidgetItem | None) -> None:
+        if current is None:
+            self.ai_fix_btn.setEnabled(False)
+            return
+        problem = current.data(Qt.ItemDataRole.UserRole)
+        ref = problem_to_node_ref(problem, self.adapter.sections) if isinstance(problem, dict) else None
+        self.ai_fix_btn.setEnabled(ref is not None)
+
+    def _on_ai_fix_clicked(self) -> None:
+        item = self.list_widget.currentItem()
+        if item is None:
+            return
+        problem = item.data(Qt.ItemDataRole.UserRole)
+        ref = problem_to_node_ref(problem, self.adapter.sections) if isinstance(problem, dict) else None
+        self.ai_fix_requested.emit(problem, ref)

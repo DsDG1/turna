@@ -229,6 +229,288 @@ def _empty_reading_passage() -> dict[str, Any]:
     }
 
 
+def _mcq_options(term: str, pool: list[str]) -> list[str]:
+    """Return [term, distractor1, distractor2] using other terms from pool."""
+    others = [t for t in pool if t != term]
+    distractors = (others + [f"{term}-alt1", f"{term}-alt2"])[:2]
+    return [term, *distractors]
+
+
+def build_intro_lesson(
+    name: str,
+    description: str,
+    words: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Generate an intro lesson from selected vocab words.
+
+    Each word becomes one sub-lesson with three stages:
+    1. showWord - present the new word
+    2. translateSentence - translate the word's meaning
+    3. fillBlank - reinforce with a fill-in-the-blank
+    """
+    sub_lessons: list[dict[str, Any]] = []
+    for w in words:
+        wid = w["id"]
+        term = w.get("term", wid)
+        translation = w.get("translation", "")
+        sub_lessons.append(
+            {
+                "id": short_id("sl"),
+                "name": f"认识 {term}",
+                "stages": [
+                    {
+                        "id": short_id("st"),
+                        "name": "展示",
+                        "items": [
+                            {
+                                "runtimeType": "showWord",
+                                "id": short_id("sw"),
+                                "wordId": wid,
+                                "context": "",
+                                "grammarPointId": "",
+                                "expressionId": "",
+                            }
+                        ],
+                    },
+                    {
+                        "id": short_id("st"),
+                        "name": "翻译",
+                        "items": [
+                            {
+                                "runtimeType": "translateSentence",
+                                "id": short_id("ts"),
+                                "source": translation,
+                                "expected": term,
+                                "hints": [],
+                                "grammarPointId": "",
+                            }
+                        ],
+                    },
+                    {
+                        "id": short_id("st"),
+                        "name": "填空",
+                        "items": [
+                            {
+                                "runtimeType": "fillBlank",
+                                "id": short_id("fb"),
+                                "sentence": f"___ -> {translation}",
+                                "answer": term,
+                                "hint": "",
+                                "grammarPointId": "",
+                            }
+                        ],
+                    },
+                ],
+            }
+        )
+    return {
+        "id": short_id("l"),
+        "name": name or "新认识新词课",
+        "description": description,
+        "type": "normal",
+        "template": "intro",
+        "prerequisiteLessonIds": [],
+        "content": {"subLessons": sub_lessons},
+    }
+
+
+def build_practice_lesson(
+    name: str,
+    description: str,
+    words: list[dict[str, Any]],
+    mix_types: tuple[str, ...] = ("multipleChoice", "fillBlank"),
+) -> dict[str, Any]:
+    """Generate a practice lesson from selected words.
+
+    Each word becomes one sub-lesson. Stages are created for each selected
+    ``mix_types`` in order. Supported types: multipleChoice, fillBlank,
+    translateSentence, typeTheWord.
+    """
+    allowed = {"multipleChoice", "fillBlank", "translateSentence", "typeTheWord"}
+    types = [t for t in mix_types if t in allowed]
+    if not types:
+        types = ["fillBlank"]
+
+    terms = [w.get("term", w["id"]) for w in words]
+    sub_lessons: list[dict[str, Any]] = []
+    for w in words:
+        wid = w["id"]
+        term = w.get("term", wid)
+        translation = w.get("translation", "")
+        stages: list[dict[str, Any]] = []
+        for rt in types:
+            item: dict[str, Any] = {"runtimeType": rt, "id": short_id(rt[:2])}
+            if rt == "multipleChoice":
+                item.update(
+                    {
+                        "prompt": f"{translation} 是什么意思？",
+                        "options": _mcq_options(term, terms),
+                        "correctIndex": 0,
+                        "imageAsset": "",
+                        "grammarPointId": "",
+                    }
+                )
+            elif rt == "fillBlank":
+                item.update(
+                    {
+                        "sentence": f"___ -> {translation}",
+                        "answer": term,
+                        "hint": "",
+                        "grammarPointId": "",
+                    }
+                )
+            elif rt == "translateSentence":
+                item.update(
+                    {
+                        "source": translation,
+                        "expected": term,
+                        "hints": [],
+                        "grammarPointId": "",
+                    }
+                )
+            elif rt == "typeTheWord":
+                item.update(
+                    {
+                        "audioAsset": "",
+                        "prompt": translation,
+                        "expected": term,
+                        "grammarPointId": "",
+                    }
+                )
+            stages.append(
+                {
+                    "id": short_id("st"),
+                    "name": INTERACTION_LABELS.get(rt, rt),
+                    "items": [item],
+                }
+            )
+        sub_lessons.append(
+            {
+                "id": short_id("sl"),
+                "name": f"练习 {term}",
+                "stages": stages,
+            }
+        )
+    return {
+        "id": short_id("l"),
+        "name": name or "新巩固练习课",
+        "description": description,
+        "type": "normal",
+        "template": "practice",
+        "prerequisiteLessonIds": [],
+        "content": {"subLessons": sub_lessons},
+    }
+
+
+def build_review_lesson(
+    name: str,
+    description: str,
+    source_words: list[dict[str, Any]],
+    source_expressions: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Generate a review lesson from previously seen words/expressions.
+
+    Creates one sub-lesson per word with a mixed set of recognition and recall
+    stages, plus one sub-lesson per expression for translation practice.
+    """
+    expressions = source_expressions or []
+    terms = [w.get("term", w["id"]) for w in source_words]
+    sub_lessons: list[dict[str, Any]] = []
+
+    for w in source_words:
+        wid = w["id"]
+        term = w.get("term", wid)
+        translation = w.get("translation", "")
+        sub_lessons.append(
+            {
+                "id": short_id("sl"),
+                "name": f"复习 {term}",
+                "stages": [
+                    {
+                        "id": short_id("st"),
+                        "name": "再看一眼",
+                        "items": [
+                            {
+                                "runtimeType": "showWord",
+                                "id": short_id("sw"),
+                                "wordId": wid,
+                                "context": "",
+                                "grammarPointId": "",
+                                "expressionId": "",
+                            }
+                        ],
+                    },
+                    {
+                        "id": short_id("st"),
+                        "name": "选择",
+                        "items": [
+                            {
+                                "runtimeType": "multipleChoice",
+                                "id": short_id("mc"),
+                                "prompt": f"{translation} 是什么意思？",
+                                "options": _mcq_options(term, terms),
+                                "correctIndex": 0,
+                                "imageAsset": "",
+                                "grammarPointId": "",
+                            }
+                        ],
+                    },
+                    {
+                        "id": short_id("st"),
+                        "name": "填空",
+                        "items": [
+                            {
+                                "runtimeType": "fillBlank",
+                                "id": short_id("fb"),
+                                "sentence": f"___ -> {translation}",
+                                "answer": term,
+                                "hint": "",
+                                "grammarPointId": "",
+                            }
+                        ],
+                    },
+                ],
+            }
+        )
+
+    for e in expressions:
+        eid = e["id"]
+        term = e.get("term", eid)
+        translation = e.get("translation", "")
+        sub_lessons.append(
+            {
+                "id": short_id("sl"),
+                "name": f"复习表达 {term}",
+                "stages": [
+                    {
+                        "id": short_id("st"),
+                        "name": "翻译",
+                        "items": [
+                            {
+                                "runtimeType": "translateSentence",
+                                "id": short_id("ts"),
+                                "source": translation,
+                                "expected": term,
+                                "hints": [],
+                                "grammarPointId": "",
+                            }
+                        ],
+                    }
+                ],
+            }
+        )
+
+    return {
+        "id": short_id("l"),
+        "name": name or "新复习课",
+        "description": description,
+        "type": "normal",
+        "template": "review",
+        "prerequisiteLessonIds": [],
+        "content": {"subLessons": sub_lessons},
+    }
+
+
 def short_id(prefix: str) -> str:
     return f"{prefix}-{uuid.uuid4().hex[:8]}"
 

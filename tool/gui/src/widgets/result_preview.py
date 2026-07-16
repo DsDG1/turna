@@ -16,9 +16,12 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QTreeWidget,
+    QTreeWidgetItem,
     QVBoxLayout,
     QWidget,
 )
+from src.teacher.error_mapper import humanize_problem, parse_path
 
 
 class _StatCard(QFrame):
@@ -79,11 +82,15 @@ class ResultPreviewWidget(QWidget):
     """
 
     validity_changed = Signal(bool)
+    # Emitted with a JSON-path string (e.g. "units/0/lessons/1") when the user
+    # clicks a tree node, so the host can jump to the matching JSON line (P3.1).
+    node_activated = Signal(str)
 
     def __init__(self, adapter, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.adapter = adapter
         self._section: dict[str, Any] | None = None
+        self._path_nodes: dict[str, QTreeWidgetItem] = {}
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -129,6 +136,14 @@ class ResultPreviewWidget(QWidget):
         self._chip_container.setLayout(self.chip_row)
         layout.addWidget(self._chip_container)
 
+        # Structured tree (P3.1): Section→Unit→Lesson→stage/phase→item.
+        self.tree = QTreeWidget()
+        self.tree.setHeaderHidden(True)
+        self.tree.setIndentation(16)
+        self.tree.itemClicked.connect(self._on_tree_item_clicked)
+        self.tree.setMaximumHeight(220)
+        layout.addWidget(self.tree)
+
     def show_section(self, section: dict[str, Any]) -> None:
         """Update the overview cards for ``section`` (does not validate)."""
         self._section = section
@@ -146,6 +161,7 @@ class ResultPreviewWidget(QWidget):
         self.card_expressions.set_value(str(counts["expressions"]))
         self.card_grammar.set_value(str(counts["grammar_points"]))
         self._clear_chips()
+        self._build_tree(section)
         self.status_label.setText("点击「一键校验」检查结果。")
         self.status_label.setStyleSheet("color: #9CA3AF; font-size: 12px;")
 
@@ -159,6 +175,8 @@ class ResultPreviewWidget(QWidget):
             self.card_grammar,
         ):
             card.set_value("0" if card is not self.card_section else "—")
+        self.tree.clear()
+        self._path_nodes = {}
 
     def _clear_chips(self) -> None:
         while self.chip_row.count():
@@ -193,6 +211,7 @@ class ResultPreviewWidget(QWidget):
         warnings = [p for p in problems if p.get("level") == "warning"]
         for p in problems:
             self._add_chip(p.get("message", ""), p.get("level", "error"))
+        self._highlight_problems([p for p in problems if p.get("level") == "error"])
         if not problems:
             self.status_label.setText("✓ 校验通过，可以导入。")
             self.status_label.setStyleSheet("color: #27AE60; font-size: 12px;")
@@ -208,3 +227,128 @@ class ResultPreviewWidget(QWidget):
 
     def section(self) -> dict[str, Any] | None:
         return self._section
+
+    # --- structured tree (P3.1) -----------------------------------------
+
+    def _build_tree(self, section: dict[str, Any]) -> None:
+        self.tree.clear()
+        self._path_nodes = {}
+        if not isinstance(section, dict):
+            return
+        root = QTreeWidgetItem([f"📦 {section.get('name') or section.get('id') or '课程'}"])
+        self.tree.addTopLevelItem(root)
+        for ui, unit in enumerate(section.get("units") or []):
+            if not isinstance(unit, dict):
+                continue
+            unit_path = f"units/{ui}"
+            unit_node = QTreeWidgetItem([f"📙 {unit.get('name') or unit.get('id') or f'Unit {ui+1}'}"])
+            unit_node.setData(0, Qt.ItemDataRole.UserRole, unit_path)
+            if unit.get("id"):
+                unit_node.setData(0, Qt.ItemDataRole.UserRole + 1, unit.get("id"))
+            self._path_nodes[unit_path] = unit_node
+            self._register_id_node(unit.get("id"), unit_node)
+            root.addChild(unit_node)
+            for li, lesson in enumerate(unit.get("lessons") or []):
+                if not isinstance(lesson, dict):
+                    continue
+                lesson_path = f"{unit_path}/lessons/{li}"
+                tpl = lesson.get("template", "")
+                label = f"📘 {lesson.get('name') or lesson.get('id') or f'Lesson {li+1}'}"
+                if tpl:
+                    label += f"  · {tpl}"
+                lesson_node = QTreeWidgetItem([label])
+                lesson_node.setData(0, Qt.ItemDataRole.UserRole, lesson_path)
+                if lesson.get("id"):
+                    lesson_node.setData(0, Qt.ItemDataRole.UserRole + 1, lesson.get("id"))
+                self._path_nodes[lesson_path] = lesson_node
+                self._register_id_node(lesson.get("id"), lesson_node)
+                unit_node.addChild(lesson_node)
+                self._add_content_children(lesson_node, lesson, f"{lesson_path}/content")
+        root.setExpanded(True)
+        for i in range(root.childCount()):
+            root.child(i).setExpanded(True)
+
+    def _add_content_children(self, lesson_node: QTreeWidgetItem, lesson: dict[str, Any], base_path: str) -> None:
+        content = lesson.get("content") or {}
+        if not isinstance(content, dict):
+            return
+        # subLessons → stages → items
+        for si, sub in enumerate(content.get("subLessons") or []):
+            if not isinstance(sub, dict):
+                continue
+            sub_path = f"{base_path}/subLessons/{si}"
+            sub_node = QTreeWidgetItem([f"🔹 {sub.get('name') or sub.get('id') or f'Sub {si+1}'}"])
+            sub_node.setData(0, Qt.ItemDataRole.UserRole, sub_path)
+            self._path_nodes[sub_path] = sub_node
+            lesson_node.addChild(sub_node)
+            self._add_stages(sub_node, sub, f"{sub_path}/stages")
+        # direct stages (practice/review/mastery templates)
+        if not (content.get("subLessons") or []):
+            self._add_stages(lesson_node, content, f"{base_path}/stages")
+        # listeningPhases
+        for pi, phase in enumerate(content.get("listeningPhases") or []):
+            if not isinstance(phase, dict):
+                continue
+            phase_path = f"{base_path}/listeningPhases/{pi}"
+            phase_node = QTreeWidgetItem([f"🎧 {phase.get('name') or phase.get('id') or f'Phase {pi+1}'}"])
+            phase_node.setData(0, Qt.ItemDataRole.UserRole, phase_path)
+            self._path_nodes[phase_path] = phase_node
+            lesson_node.addChild(phase_node)
+
+    def _add_stages(self, parent_node: QTreeWidgetItem, holder: dict[str, Any], base_path: str) -> None:
+        for sti, stage in enumerate(holder.get("stages") or []):
+            if not isinstance(stage, dict):
+                continue
+            stage_path = f"{base_path}/{sti}"
+            stage_node = QTreeWidgetItem([f"▪ {stage.get('name') or f'Stage {sti+1}'}"])
+            stage_node.setData(0, Qt.ItemDataRole.UserRole, stage_path)
+            self._path_nodes[stage_path] = stage_node
+            parent_node.addChild(stage_node)
+            for ii, item in enumerate(stage.get("items") or []):
+                if not isinstance(item, dict):
+                    continue
+                item_path = f"{stage_path}/items/{ii}"
+                rt = item.get("runtimeType", "item")
+                prompt = (
+                    item.get("prompt") or item.get("source") or item.get("sentence")
+                    or item.get("statement") or item.get("id") or ""
+                )
+                short = (prompt[:18] + "…") if len(prompt) > 18 else prompt
+                label = f"• {rt}" + (f"  {short}" if short else "")
+                item_node = QTreeWidgetItem([label])
+                item_node.setData(0, Qt.ItemDataRole.UserRole, item_path)
+                self._path_nodes[item_path] = item_node
+                stage_node.addChild(item_node)
+
+    def _register_id_node(self, node_id: str | None, node: QTreeWidgetItem) -> None:
+        if node_id:
+            self._path_nodes[f"id:{node_id}"] = node
+
+    def _on_tree_item_clicked(self, item: QTreeWidgetItem, _column: int) -> None:
+        path = item.data(0, Qt.ItemDataRole.UserRole)
+        if path:
+            # Prefer the node's id (if any) for JSON-line jumping; fall back to
+            # the structural path.
+            id_data = item.data(0, Qt.ItemDataRole.UserRole + 1)
+            payload = f"id:{id_data}" if id_data else str(path)
+            self.node_activated.emit(payload)
+
+    def _highlight_problems(self, problems: list[dict[str, Any]]) -> None:
+        """Mark tree nodes whose unit/lesson id matches a problem path (P3.1)."""
+        from PySide6.QtGui import QColor
+
+        default = self.tree.palette().text().color()
+        for node in self._path_nodes.values():
+            node.setForeground(0, default)
+            node.setToolTip(0, "")
+        err_color = QColor("#E74C3C")
+        for p in problems:
+            path = p.get("path") or ""
+            parsed = parse_path(path) if path else {}
+            for kind in ("unit", "lesson"):
+                nid = parsed.get(kind)
+                if nid:
+                    node = self._path_nodes.get(f"id:{nid}")
+                    if node is not None:
+                        node.setForeground(0, err_color)
+                        node.setToolTip(0, humanize_problem(p))

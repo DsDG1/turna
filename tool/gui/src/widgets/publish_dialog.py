@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
 )
 
 from src.backend.course_adapter import CourseAdapter, SaveResult
+from src.theme import current_palette
 
 
 class PublishDialog(QDialog):
@@ -121,7 +122,7 @@ class PublishDialog(QDialog):
         plan = self._report["version_bump"]
         if not plan:
             hint = QLabel("（无需 bump：index/expressions 无改动）")
-            hint.setStyleSheet("color: gray;")
+            hint.setStyleSheet(f"color: {current_palette()['text_secondary']};")
             self.bump_layout.addWidget(hint)
             return
         for file_key, (cur, nxt) in plan.items():

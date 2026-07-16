@@ -63,6 +63,7 @@ class QuestionCard(QFrame):
     type_changed = Signal(str)
     move_up_requested = Signal()
     move_down_requested = Signal()
+    ai_rewrite_requested = Signal()
 
     def __init__(self, adapter: CourseAdapter, item: dict[str, Any]) -> None:
         super().__init__()
@@ -127,11 +128,17 @@ class QuestionCard(QFrame):
         down_btn.clicked.connect(self.move_down_requested.emit)
         hlayout.addWidget(down_btn)
 
-        del_btn = QPushButton("🗑️")
-        del_btn.setFixedWidth(36)
+        del_btn = QPushButton("删除")
+        del_btn.setMinimumWidth(48)
         del_btn.setToolTip("删除题目")
         del_btn.clicked.connect(self._on_delete)
         hlayout.addWidget(del_btn)
+
+        ai_btn = QPushButton("AI")
+        ai_btn.setMinimumWidth(48)
+        ai_btn.setToolTip("AI 改写本题")
+        ai_btn.clicked.connect(self.ai_rewrite_requested.emit)
+        hlayout.addWidget(ai_btn)
 
         return header
 

@@ -1,14 +1,55 @@
 """Right-side detail panel container: switches form by selected node kind."""
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from PySide6.QtCore import Signal
+from PySide6.QtGui import QUndoStack
 from PySide6.QtWidgets import QLabel, QSplitter, QVBoxLayout, QWidget
 
+from src.backend.ai_generator import AiApiConfig
+
+logger = logging.getLogger(__name__)
 from src.backend.course_adapter import CourseAdapter
 from src.widgets.metadata_form import MetadataForm
 from src.widgets.lesson_editor import LessonEditor
+
+
+def build_teacher_widget(
+    adapter: CourseAdapter,
+    section: dict[str, Any],
+    unit: dict[str, Any],
+    lesson: dict[str, Any],
+    parent: QWidget,
+    undo_stack: "QUndoStack | None",
+    ai_config: "AiApiConfig | None",
+) -> QWidget:
+    """Construct the teacher-view widget for a lesson based on its template.
+
+    Shared by the inline ``DetailPanel.show_teacher_lesson`` and the
+    independent ``TeacherWindow`` so the template dispatch lives in one
+    place. The caller is responsible for connecting ``widget.changed`` to
+    the appropriate change-listener and for wrapping the widget in a
+    ``QScrollArea`` if desired.
+    """
+    from src.teacher.sublesson_flow import SubLessonFlowWidget
+    from src.teacher.template_editors import (
+        ListeningTeacherWidget,
+        MasteryTeacherWidget,
+        ReadingTeacherWidget,
+    )
+
+    template = lesson.get("template", "legacy")
+    if template in ("listening",):
+        widget: QWidget = ListeningTeacherWidget(adapter, section, unit, lesson, parent, undo_stack, ai_config)
+    elif template in ("reading",):
+        widget = ReadingTeacherWidget(adapter, section, unit, lesson, parent, undo_stack, ai_config)
+    elif template in ("mastery",):
+        widget = MasteryTeacherWidget(adapter, section, unit, lesson, parent, undo_stack, ai_config)
+    else:
+        widget = SubLessonFlowWidget(adapter, section, unit, lesson, parent, undo_stack, ai_config)
+    return widget
 
 
 class DetailPanel(QWidget):
@@ -24,12 +65,10 @@ class DetailPanel(QWidget):
 
         self.breadcrumb = QLabel("编辑内容")
         self.breadcrumb.setObjectName("breadcrumbLabel")
-        self.breadcrumb.setStyleSheet("font-size: 13px; color: #9CA3AF;")
         layout.addWidget(self.breadcrumb)
 
         self.title = QLabel("选择左侧节点开始编辑")
         self.title.setObjectName("titleLabel")
-        self.title.setStyleSheet("font-size: 20px; font-weight: 700; color: #FFFFFF;")
         layout.addWidget(self.title)
 
         self.splitter = QSplitter()
@@ -45,14 +84,18 @@ class DetailPanel(QWidget):
         layout.addWidget(self.splitter, 1)
 
         self.adapter: CourseAdapter | None = None
+        self.ai_config: AiApiConfig = AiApiConfig()
         self._current_content_widget: QWidget | None = None
         self._resource_listener = self._on_resources_changed
+        self._meta_connection = None
 
     def clear_content(self) -> None:
         while self.content_layout.count():
             child = self.content_layout.takeAt(0)
-            if child.widget():
-                child.widget().deleteLater()
+            widget = child.widget()
+            if widget is not None:
+                widget.setParent(None)
+                widget.deleteLater()
         self._current_content_widget = None
 
     def _attach_adapter(self, adapter: CourseAdapter) -> None:
@@ -70,11 +113,13 @@ class DetailPanel(QWidget):
         metadata_changed signal to tree_changed so the tree title updates."""
         stack = getattr(self, "undo_stack", None)
         self.form.undo_stack = stack
-        try:
-            self.form.metadata_changed.disconnect()
-        except (TypeError, RuntimeError):
-            pass
-        self.form.metadata_changed.connect(self.tree_changed.emit)
+        if self._meta_connection is not None:
+            try:
+                self.form.metadata_changed.disconnect(self._meta_connection)
+            except (TypeError, RuntimeError):
+                pass
+            self._meta_connection = None
+        self._meta_connection = self.form.metadata_changed.connect(self.tree_changed.emit)
 
     def _on_resources_changed(self) -> None:
         """Resource lists changed; refresh the current content widget's
@@ -87,7 +132,7 @@ class DetailPanel(QWidget):
             try:
                 refresh()
             except Exception:
-                pass
+                logger.exception("refresh_references failed for %r", widget)
 
     def show_node(self, adapter: CourseAdapter, node_ref: tuple[str, str]) -> None:
         self._attach_adapter(adapter)
@@ -132,13 +177,6 @@ class DetailPanel(QWidget):
         """Show the teacher-view widget for this lesson's template."""
         from PySide6.QtWidgets import QScrollArea
 
-        from src.teacher.linear_flow import LinearFlowWidget
-        from src.teacher.template_editors import (
-            ListeningTeacherWidget,
-            MasteryTeacherWidget,
-            ReadingTeacherWidget,
-        )
-
         self._attach_adapter(adapter)
         self._inject_form_undo_stack()
         self.clear_content()
@@ -150,15 +188,10 @@ class DetailPanel(QWidget):
         )
 
         undo_stack = getattr(self, "undo_stack", None)
-        template = lesson.get("template", "legacy")
-        if template in ("listening",):
-            widget: QWidget = ListeningTeacherWidget(adapter, section, unit, lesson, self, undo_stack)
-        elif template in ("reading",):
-            widget = ReadingTeacherWidget(adapter, section, unit, lesson, self, undo_stack)
-        elif template in ("mastery",):
-            widget = MasteryTeacherWidget(adapter, section, unit, lesson, self, undo_stack)
-        else:
-            widget = LinearFlowWidget(adapter, section, unit, lesson, self, undo_stack)
+        ai_config = getattr(self, "ai_config", None)
+        widget = build_teacher_widget(
+            adapter, section, unit, lesson, self, undo_stack, ai_config
+        )
 
         widget.changed.connect(self.tree_changed.emit)
         scroll = QScrollArea()

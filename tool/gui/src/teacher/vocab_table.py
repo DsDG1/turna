@@ -66,7 +66,7 @@ class VocabTableWidget(QWidget):
         layout.addLayout(header_row)
 
         self.search = QLineEdit()
-        self.search.setPlaceholderText("🔍 搜索词或翻译")
+        self.search.setPlaceholderText("搜索词或翻译")
         self.search.textChanged.connect(self._on_search_changed)
         layout.addWidget(self.search)
 

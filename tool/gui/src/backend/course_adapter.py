@@ -1,34 +1,35 @@
-"""Adapter bridging the GUI to ``tool/course_cli.py``.
+"""Adapter bridging the GUI to the stable backend API.
 
-Loads course JSON via in-process import of course_cli functions, and runs
-validate/lint via subprocess to capture structured output. JSON remains the
+The GUI no longer imports ``course_cli`` directly; all loading, saving,
+validating and linting goes through ``src.backend.api``. JSON remains the
 single source of truth; this adapter only holds an in-memory working copy.
 """
 from __future__ import annotations
 
 import json
+import logging
 import os
 import shutil
-import subprocess
-import sys
 import tempfile
-import uuid
+import time
 from copy import deepcopy
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-_REPO_ROOT = Path(__file__).resolve().parents[4]
-_TOOL_DIR = _REPO_ROOT / "tool"
-if str(_TOOL_DIR) not in sys.path:
-    sys.path.insert(0, str(_TOOL_DIR))
+logger = logging.getLogger(__name__)
 
-import course_cli  # noqa: E402
+from src.backend import api
+from src.infrastructure.telemetry import telemetry
 from src.backend.lesson_content import (  # noqa: E402
     all_lesson_ids,
     all_unit_ids,
     slugify,
 )
+
+# Kept for backwards compatibility with git_library.py.
+_REPO_ROOT = Path(__file__).resolve().parents[4]
 
 
 @dataclass
@@ -37,6 +38,33 @@ class SaveResult:
     errors: list[dict[str, str]] = field(default_factory=list)
     warnings: list[dict[str, str]] = field(default_factory=list)
     message: str = ""
+
+
+@dataclass
+class MergeAction:
+    """A single unit/lesson merge decision.
+
+    ``action`` is one of "add", "replace" or "skip".
+    ``target_index`` is the position of the existing unit/lesson in the target
+    section/unit; it is ``None`` for additions.
+    """
+
+    kind: str
+    action: str
+    incoming: dict[str, Any]
+    target_index: int | None = None
+
+
+@dataclass
+class SectionMergePlan:
+    """Planned merge of an AI-generated section into an existing section."""
+
+    target_section_id: str | None
+    incoming_section: dict[str, Any]
+    added_units: list[MergeAction] = field(default_factory=list)
+    replaced_units: list[MergeAction] = field(default_factory=list)
+    added_lessons_by_unit: dict[str, list[MergeAction]] = field(default_factory=dict)
+    replaced_lessons_by_unit: dict[str, list[MergeAction]] = field(default_factory=dict)
 
 
 class CourseAdapter:
@@ -70,7 +98,7 @@ class CourseAdapter:
         try:
             self._resource_listeners.remove(callback)
         except ValueError:
-            pass
+            logger.warning("Tried to remove a resource listener that was not registered")
 
     def notify_resources_changed(self) -> None:
         """Fire resource listeners. Called by the resource editor after any
@@ -79,22 +107,32 @@ class CourseAdapter:
             try:
                 cb()
             except Exception:
-                pass
+                logger.exception("Resource listener failed")
 
     def load(self, course_dir: Path) -> None:
         self.course_dir = Path(course_dir)
-        self.index = course_cli.load_index(self.course_dir)
-        self.sections = [
-            section
-            for _sid, section in course_cli.load_sections(self.course_dir)
-        ]
-        self.vocab = course_cli.load_vocab(self.course_dir)
-        self.expressions = course_cli.load_expressions(self.course_dir)
-        self.grammar_points = course_cli.load_grammar_points(self.course_dir)
-        expr_data = course_cli.load_json(self.course_dir / "expressions.json")
-        self.expressions_version = int(expr_data.get("version", 1))
-        self._snapshot = self._deep_snapshot()
-        self._refresh_hash_cache()
+        start = time.perf_counter()
+        try:
+            bundle = api.load_course(self.course_dir)
+            self.index = bundle.index
+            self.sections = bundle.sections
+            self.vocab = bundle.vocab
+            self.expressions = bundle.expressions
+            self.grammar_points = bundle.grammar_points
+            self.expressions_version = bundle.expressions_version
+            self._snapshot = self._deep_snapshot()
+            self._refresh_hash_cache()
+        except Exception:
+            telemetry.record_error(
+                context={"action": "repo.load", "course_dir": str(self.course_dir)},
+            )
+            raise
+        finally:
+            telemetry.record_duration(
+                "repo.load",
+                (time.perf_counter() - start) * 1000,
+                payload={"course_dir": str(self.course_dir)},
+            )
 
     def _refresh_hash_cache(self) -> None:
         """Cache hashes of the last-saved snapshot."""
@@ -123,6 +161,7 @@ class CourseAdapter:
         - lessons_per_unit (int)
         """
         course_dir = Path(course_dir)
+        start = time.perf_counter()
         if course_dir.exists() and any(course_dir.iterdir()):
             raise FileExistsError(f"目标目录非空，无法初始化：{course_dir}")
         course_dir.mkdir(parents=True, exist_ok=True)
@@ -187,10 +226,10 @@ class CourseAdapter:
                 }
             )
 
-        course_cli.save_json(course_dir / "index.json", index)
+        api.save_json(course_dir / "index.json", index)
         for section, entry in zip(sections, index["sections"]):
-            course_cli.save_json(course_dir / entry["file"], section)
-        course_cli.save_json(
+            api.save_json(course_dir / entry["file"], section)
+        api.save_json(
             course_dir / "vocab.json",
             {
                 "version": 1,
@@ -198,7 +237,7 @@ class CourseAdapter:
                 "words": self._sample_vocab(language),
             },
         )
-        course_cli.save_json(
+        api.save_json(
             course_dir / "expressions.json",
             {
                 "version": 1,
@@ -206,12 +245,21 @@ class CourseAdapter:
                 "expressions": self._sample_expressions(language),
             },
         )
-        course_cli.save_json(
+        api.save_json(
             course_dir / "grammar_points.json",
             {"grammarPoints": self._sample_grammar_points(language)},
         )
 
         self.load(course_dir)
+        telemetry.record_duration(
+            "repo.init_new",
+            (time.perf_counter() - start) * 1000,
+            payload={
+                "course_dir": str(course_dir),
+                "language": language,
+                "section_count": meta.get("section_count", 3),
+            },
+        )
 
     @staticmethod
     def _sample_section_description(index: int, source_language: str) -> str:
@@ -222,7 +270,6 @@ class CourseAdapter:
     @staticmethod
     def _sample_vocab(language: str) -> list[dict[str, Any]]:
         """Return a few casual sample words for the target language."""
-        # Default Chinese-English direction: target=English, source hints in Chinese.
         if language.lower() in ("en", "english"):
             words = [
                 ("你好", "Hello"),
@@ -300,7 +347,6 @@ class CourseAdapter:
         self, source_language: str, target_language: str
     ) -> dict[str, Any]:
         """Build a casual intro lesson using Chinese-English direction."""
-        # Default sample: Chinese source hints, English target answers.
         if target_language.lower() in ("en", "english"):
             word = ("你好", "Hello", "nǐ hǎo")
             sentence = ("你好吗？", "How are you?")
@@ -391,6 +437,22 @@ class CourseAdapter:
                         return section, unit, lesson
         raise KeyError(f"unknown lesson: {lesson_id}")
 
+    @staticmethod
+    def move_within(items: list[Any], from_idx: int, to_idx: int) -> bool:
+        """Move an element within a list in place (sibling reorder only).
+
+        Returns True if the move was applied, False if indices were out of
+        range or the move was a no-op. Used by the tree-level move commands
+        (MoveSection/Unit/Lesson) which only ever reorder within a single
+        parent list — hierarchy is preserved by construction.
+        """
+        if not (0 <= from_idx < len(items) and 0 <= to_idx < len(items)):
+            return False
+        if from_idx == to_idx:
+            return False
+        items.insert(to_idx, items.pop(from_idx))
+        return True
+
     def lesson_body(self, lesson_id: str) -> dict[str, Any]:
         """Return the content dict for a lesson (C1 groundwork).
 
@@ -416,7 +478,7 @@ class CourseAdapter:
             raise KeyError(f"unknown section: {section_id}")
         assert self.course_dir is not None
         path = self.course_dir / entry["file"]
-        section = course_cli.load_json(path)
+        section = api.load_json(path)
         for i, existing in enumerate(self.sections):
             if existing.get("id") == section_id:
                 self.sections[i] = section
@@ -425,11 +487,22 @@ class CourseAdapter:
             self.sections.append(section)
         return section
 
-    def validate_section_json(self, section_json: dict[str, Any]) -> list[dict[str, str]]:
+    def validate_section_json(
+        self,
+        section_json: dict[str, Any],
+        *,
+        check_existing_ids: bool = True,
+    ) -> list[dict[str, str]]:
         """Validate an AI-generated section dict before importing it.
 
         Returns a list of problem dicts with keys ``level``, ``message``,
         ``path``.  Empty list means the section can be imported.
+
+        When ``check_existing_ids`` is ``False``, unit/lesson ids are only
+        checked for local duplicates *within* ``section_json`` and for empty
+        values, not for collisions with the rest of the course. This is what
+        AI merge paths need: the AI reuses existing ids on purpose, and the
+        importer decides whether to overwrite or append.
         """
         problems: list[dict[str, str]] = []
         if not isinstance(section_json, dict):
@@ -442,18 +515,19 @@ class CourseAdapter:
             problems.append(
                 {"level": "error", "message": "section id 不能为空", "path": "id"}
             )
-        existing_section_ids = {s.get("id") for s in self.sections}
-        existing_index_ids = {
-            e.get("id") for e in self.index.get("sections", [])
-        }
-        if sid and (sid in existing_section_ids or sid in existing_index_ids):
-            problems.append(
-                {
-                    "level": "error",
-                    "message": f"section id「{sid}」已存在",
-                    "path": "id",
-                }
-            )
+        if check_existing_ids:
+            existing_section_ids = {s.get("id") for s in self.sections}
+            existing_index_ids = {
+                e.get("id") for e in self.index.get("sections", [])
+            }
+            if sid and (sid in existing_section_ids or sid in existing_index_ids):
+                problems.append(
+                    {
+                        "level": "error",
+                        "message": f"section id「{sid}」已存在",
+                        "path": "id",
+                    }
+                )
 
         if not section_json.get("name"):
             problems.append(
@@ -471,13 +545,13 @@ class CourseAdapter:
             )
             return problems
 
-        if len(units) > course_cli.MAX_UNITS_PER_SECTION:
+        if len(units) > api.MAX_UNITS_PER_SECTION:
             problems.append(
                 {
                     "level": "error",
                     "message": (
                         f"section 包含 {len(units)} 个单元，"
-                        f"超过上限 {course_cli.MAX_UNITS_PER_SECTION}"
+                        f"超过上限 {api.MAX_UNITS_PER_SECTION}"
                     ),
                     "path": "units",
                 }
@@ -498,8 +572,12 @@ class CourseAdapter:
         for g in section_json.get("grammarPoints") or []:
             if isinstance(g, dict):
                 grammar_ids.add(g.get("id"))
-        existing_unit_ids = all_unit_ids(self.sections)
-        existing_lesson_ids = all_lesson_ids(self.sections)
+        if check_existing_ids:
+            existing_unit_ids = all_unit_ids(self.sections)
+            existing_lesson_ids = all_lesson_ids(self.sections)
+        else:
+            existing_unit_ids: set[str] = set()
+            existing_lesson_ids: set[str] = set()
 
         local_unit_ids: set[str] = set()
         for unit in units:
@@ -512,7 +590,9 @@ class CourseAdapter:
                         "path": "units",
                     }
                 )
-            elif uid in local_unit_ids or uid in existing_unit_ids:
+            elif uid in local_unit_ids or (
+                check_existing_ids and uid in existing_unit_ids
+            ):
                 problems.append(
                     {
                         "level": "error",
@@ -524,13 +604,13 @@ class CourseAdapter:
                 local_unit_ids.add(uid)
 
             lessons = unit.get("lessons", [])
-            if len(lessons) > course_cli.MAX_LESSONS_PER_UNIT:
+            if len(lessons) > api.MAX_LESSONS_PER_UNIT:
                 problems.append(
                     {
                         "level": "error",
                         "message": (
                             f"unit {uid} 包含 {len(lessons)} 个课时，"
-                            f"超过上限 {course_cli.MAX_LESSONS_PER_UNIT}"
+                            f"超过上限 {api.MAX_LESSONS_PER_UNIT}"
                         ),
                         "path": f"unit:{uid}",
                     }
@@ -547,7 +627,9 @@ class CourseAdapter:
                             "path": f"unit:{uid}",
                         }
                     )
-                elif lid in local_lesson_ids or lid in existing_lesson_ids:
+                elif lid in local_lesson_ids or (
+                    check_existing_ids and lid in existing_lesson_ids
+                ):
                     problems.append(
                         {
                             "level": "error",
@@ -558,9 +640,8 @@ class CourseAdapter:
                 else:
                     local_lesson_ids.add(lid)
 
-                lesson_problems: list[course_cli.Problem] = []
-                course_cli._validate_lesson(
-                    lesson, vocab_ids, expression_ids, grammar_ids, lesson_problems
+                lesson_problems = api.validate_lesson(
+                    lesson, vocab_ids, expression_ids, grammar_ids
                 )
                 for p in lesson_problems:
                     problems.append(
@@ -572,6 +653,117 @@ class CourseAdapter:
                     )
 
         return problems
+
+    def plan_section_merge(
+        self,
+        target_section_id: str | None,
+        incoming_section: dict[str, Any],
+    ) -> SectionMergePlan:
+        """Compute a merge plan for importing an AI-generated section.
+
+        ``target_section_id`` is ``None`` when the section is brand new; in that
+        case every unit/lesson is planned as ``add``. When it points to an
+        existing section, units/lessons are classified as ``replace`` if their id
+        already exists in the target, otherwise ``add``.
+        """
+        plan = SectionMergePlan(
+            target_section_id=target_section_id,
+            incoming_section=incoming_section,
+        )
+        incoming_units = incoming_section.get("units") or []
+        if not isinstance(incoming_units, list):
+            return plan
+
+        if target_section_id is None:
+            for unit in incoming_units:
+                if not isinstance(unit, dict):
+                    continue
+                uid = unit.get("id", "")
+                if not uid:
+                    continue
+                plan.added_units.append(
+                    MergeAction(kind="unit", action="add", incoming=unit)
+                )
+            return plan
+
+        try:
+            target_section = self.find_section(target_section_id)
+        except KeyError:
+            # Fallback to treating everything as new if the target disappeared.
+            return self.plan_section_merge(None, incoming_section)
+
+        target_unit_index: dict[str, int] = {
+            u.get("id"): i
+            for i, u in enumerate(target_section.get("units") or [])
+            if isinstance(u, dict) and u.get("id")
+        }
+
+        for unit in incoming_units:
+            if not isinstance(unit, dict):
+                continue
+            uid = unit.get("id", "")
+            if not uid:
+                continue
+            if uid in target_unit_index:
+                plan.replaced_units.append(
+                    MergeAction(
+                        kind="unit",
+                        action="replace",
+                        incoming=unit,
+                        target_index=target_unit_index[uid],
+                    )
+                )
+                self._plan_lesson_merge(plan, uid, unit, target_section)
+            else:
+                plan.added_units.append(
+                    MergeAction(kind="unit", action="add", incoming=unit)
+                )
+
+        return plan
+
+    @staticmethod
+    def _plan_lesson_merge(
+        plan: SectionMergePlan,
+        unit_id: str,
+        incoming_unit: dict[str, Any],
+        target_section: dict[str, Any],
+    ) -> None:
+        """Classify lessons inside a unit that already exists in the target."""
+        target_unit = None
+        for u in target_section.get("units") or []:
+            if isinstance(u, dict) and u.get("id") == unit_id:
+                target_unit = u
+                break
+        if target_unit is None:
+            return
+
+        target_lesson_index: dict[str, int] = {
+            l.get("id"): i
+            for i, l in enumerate(target_unit.get("lessons") or [])
+            if isinstance(l, dict) and l.get("id")
+        }
+
+        for lesson in incoming_unit.get("lessons") or []:
+            if not isinstance(lesson, dict):
+                continue
+            lid = lesson.get("id", "")
+            if not lid:
+                continue
+            if lid in target_lesson_index:
+                plan.replaced_lessons_by_unit.setdefault(unit_id, []).append(
+                    MergeAction(
+                        kind="lesson",
+                        action="replace",
+                        incoming=lesson,
+                        target_index=target_lesson_index[lid],
+                    )
+                )
+            else:
+                plan.added_lessons_by_unit.setdefault(unit_id, []).append(
+                    MergeAction(
+                        kind="lesson", action="add", incoming=lesson
+                    )
+                )
 
     def update_section_meta(self, section_id: str, name: str, description: str) -> None:
         section = self.find_section(section_id)
@@ -835,23 +1027,34 @@ class CourseAdapter:
         On any error the in-memory list is left unchanged (warnings still
         apply). The caller must call save() to persist + validate.
         """
-        rows = course_cli._read_csv(csv_path)
+        start = time.perf_counter()
+        rows = api.read_csv_file(csv_path)
         existing = self._resource_list(row_type)
         expression_ids = {e["id"] for e in self.expressions}
-        merged, problems = course_cli.merge_csv_rows(
+        merged, problems = api.import_csv_rows(
             row_type, existing, rows, expression_ids
         )
         errors = [p for p in problems if p.level == "error"]
         if not errors:
             self._set_resource_list(row_type, merged)
-        return [{"level": p.level, "message": p.message} for p in problems]
+        telemetry.record_duration(
+            "repo.import_csv",
+            (time.perf_counter() - start) * 1000,
+            payload={
+                "row_type": row_type,
+                "csv_path": str(csv_path),
+                "error_count": len(errors),
+                "warning_count": len([p for p in problems if p.level == "warning"]),
+            },
+        )
+        return [p.to_dict() for p in problems]
 
     def export_csv(self, row_type: str, output_path: Path) -> None:
         """Write current in-memory resources to CSV."""
-        headers, rows = course_cli.build_csv_rows(
+        headers, rows = api.export_csv_rows(
             row_type, self._resource_list(row_type)
         )
-        course_cli._write_csv(output_path, headers, rows)
+        api.write_csv_file(output_path, headers, rows)
 
     def _state_hash(self, data: dict[str, Any]) -> int:
         """Return a stable hash for a state dict without deep-copying."""
@@ -892,9 +1095,9 @@ class CourseAdapter:
             self.expressions_version = plan["expressions"][1]
 
     def audio_manifest_rows(self) -> list[dict[str, str]]:
-        """Return audio manifest rows (delegates to course_cli.build_audio_manifest)."""
+        """Return audio manifest rows (delegates to backend API)."""
         assert self.course_dir is not None
-        return course_cli.build_audio_manifest(self.course_dir)
+        return api.build_audio_manifest_rows(self.course_dir)
 
     def release_diff(self) -> dict[str, dict[str, Any]]:
         """Compare last-saved snapshot (before) vs current (after) by id sets."""
@@ -931,17 +1134,17 @@ class CourseAdapter:
         version_bump = self.version_bump_plan()
         audio_manifest = self.audio_manifest_rows()
         diff = self.release_diff()
-        validate = self._run_validate()
-        lint = self._run_lint()
+        validate = api.validate_course_dir(self.course_dir) if self.course_dir else ValidationResult(ok=True, error_count=0, problems=[])
+        lint = api.lint_course_dir(self.course_dir) if self.course_dir else []
         return {
             "changes": changes,
             "version_bump": version_bump,
             "audio_manifest": audio_manifest,
             "diff": diff,
             "validation": {
-                "ok": validate["ok"],
-                "errors": [p for p in validate["problems"] if p["level"] == "error"],
-                "warnings": [p for p in lint if p["level"] == "warning"],
+                "ok": validate.ok,
+                "errors": [p.to_dict() for p in validate.problems if p.level == "error"],
+                "warnings": [p.to_dict() for p in lint if p.level == "warning"],
             },
         }
 
@@ -963,168 +1166,6 @@ class CourseAdapter:
         self.expressions = deepcopy(snap["expressions"])
         self.grammar_points = deepcopy(snap["grammar_points"])
 
-    def save(self) -> SaveResult:
-        if self.course_dir is None:
-            return SaveResult(ok=False, message="未加载课程目录")
-        rollback = self._snapshot
-        if rollback is None:
-            rollback = self._deep_snapshot()
-
-        tmp_dir: Path | None = None
-        try:
-            tmp_dir = self._write_files_to_temp_dir()
-        except Exception as exc:
-            if tmp_dir is not None:
-                shutil.rmtree(tmp_dir, ignore_errors=True)
-            return SaveResult(ok=False, message=f"写入失败: {exc}")
-
-        validate = self._run_validate_on_dir(tmp_dir)
-        if not validate["ok"]:
-            self._restore_from(rollback)
-            shutil.rmtree(tmp_dir, ignore_errors=True)
-            errors = [p for p in validate["problems"] if p["level"] == "error"]
-            return SaveResult(
-                ok=False,
-                errors=errors,
-                message=f"校验失败，已回滚（{len(errors)} 个错误）",
-            )
-
-        try:
-            self._replace_course_files_with(tmp_dir)
-        except Exception as exc:
-            self._restore_from(rollback)
-            shutil.rmtree(tmp_dir, ignore_errors=True)
-            return SaveResult(ok=False, message=f"原子替换失败: {exc}")
-        finally:
-            shutil.rmtree(tmp_dir, ignore_errors=True)
-
-        lint = self._run_lint()
-        warnings = [p for p in lint if p["level"] == "warning"]
-        self._snapshot = self._deep_snapshot()
-        self._refresh_hash_cache()
-        return SaveResult(
-            ok=True,
-            warnings=warnings,
-            message=f"保存成功，{len(warnings)} 条 lint 警告",
-        )
-
-    def _write_files_to_temp_dir(self) -> Path:
-        """Write all course files to a fresh temp directory mirroring the course layout.
-
-        Returns the temp directory path. Caller is responsible for cleanup.
-        """
-        assert self.course_dir is not None
-        tmp_dir = Path(tempfile.mkdtemp(prefix=".varnamala-save-", dir=str(self.course_dir)))
-        (tmp_dir / "sections").mkdir(exist_ok=True)
-
-        course_cli.save_json(tmp_dir / "index.json", self.index)
-        for section in self.sections:
-            path = self.section_file(section["id"])
-            rel = path.relative_to(self.course_dir)
-            course_cli.save_json(tmp_dir / rel, section)
-        course_cli.save_json(
-            tmp_dir / "vocab.json",
-            {
-                "version": 1,
-                "language": self.index.get("language", ""),
-                "words": self.vocab,
-            },
-        )
-        course_cli.save_json(
-            tmp_dir / "expressions.json",
-            {
-                "version": self.expressions_version,
-                "language": self.index.get("language", ""),
-                "expressions": self.expressions,
-            },
-        )
-        course_cli.save_json(
-            tmp_dir / "grammar_points.json",
-            {"grammarPoints": self.grammar_points},
-        )
-        return tmp_dir
-
-    def _replace_course_files_with(self, tmp_dir: Path) -> None:
-        """Atomically replace course files with those in ``tmp_dir``.
-
-        Any section file that no longer exists in ``tmp_dir`` (because the
-        section was deleted) is removed from ``course_dir`` so no orphan files
-        are left behind to confuse the loader/validator.
-        """
-        assert self.course_dir is not None
-        new_rel_paths: set[Path] = set()
-        for tmp_file in tmp_dir.rglob("*.json"):
-            rel = tmp_file.relative_to(tmp_dir)
-            new_rel_paths.add(rel)
-            target = self.course_dir / rel
-            if target.exists():
-                target.unlink()
-            os.replace(tmp_file, target)
-
-        sections_dir = self.course_dir / "sections"
-        if sections_dir.is_dir():
-            for old_file in sections_dir.glob("*.json"):
-                rel = old_file.relative_to(self.course_dir)
-                if rel not in new_rel_paths:
-                    old_file.unlink()
-
-    def _run_validate_on_dir(self, course_dir: Path) -> dict[str, Any]:
-        proc = subprocess.run(
-            [
-                sys.executable,
-                str(_TOOL_DIR / "course_cli.py"),
-                "--course-dir",
-                str(course_dir),
-                "validate",
-                "--format",
-                "json",
-            ],
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-        )
-        try:
-            return json.loads(proc.stdout)
-        except json.JSONDecodeError:
-            return {
-                "ok": False,
-                "problems": [
-                    {
-                        "level": "error",
-                        "message": f"validate 无效输出: {proc.stderr or proc.stdout}",
-                        "path": "",
-                    }
-                ],
-            }
-
-    def _write_files(self) -> None:
-        """Direct (non-atomic) write; retained for tests and internal use."""
-        assert self.course_dir is not None
-        course_cli.save_json(self.course_dir / "index.json", self.index)
-        for section in self.sections:
-            path = self.section_file(section["id"])
-            course_cli.save_json(path, section)
-        course_cli.save_json(
-            self.course_dir / "vocab.json",
-            {
-                "version": 1,
-                "language": self.index.get("language", ""),
-                "words": self.vocab,
-            },
-        )
-        course_cli.save_json(
-            self.course_dir / "expressions.json",
-            {
-                "version": self.expressions_version,
-                "language": self.index.get("language", ""),
-                "expressions": self.expressions,
-            },
-        )
-        course_cli.save_json(
-            self.course_dir / "grammar_points.json",
-            {"grammarPoints": self.grammar_points},
-        )
-
     def _restore_from(self, snapshot: dict[str, Any]) -> None:
         self.index = deepcopy(snapshot["index"])
         self.sections = deepcopy(snapshot["sections"])
@@ -1132,55 +1173,146 @@ class CourseAdapter:
         self.expressions = deepcopy(snapshot.get("expressions", self.expressions))
         self.grammar_points = deepcopy(snapshot.get("grammar_points", self.grammar_points))
 
-    def _run_validate(self) -> dict[str, Any]:
+    def _write_files_to_dir(self, target_dir: Path) -> None:
+        """Write all course files to ``target_dir`` mirroring the course layout."""
         assert self.course_dir is not None
-        proc = subprocess.run(
-            [
-                sys.executable,
-                str(_TOOL_DIR / "course_cli.py"),
-                "--course-dir",
-                str(self.course_dir),
-                "validate",
-                "--format",
-                "json",
-            ],
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-        )
-        try:
-            return json.loads(proc.stdout)
-        except json.JSONDecodeError:
-            return {
-                "ok": False,
-                "problems": [
-                    {
-                        "level": "error",
-                        "message": f"validate 无效输出: {proc.stderr or proc.stdout}",
-                        "path": "",
-                    }
-                ],
-            }
+        target_dir.mkdir(parents=True, exist_ok=True)
+        (target_dir / "sections").mkdir(exist_ok=True)
 
-    def _run_lint(self) -> list[dict[str, str]]:
-        assert self.course_dir is not None
-        proc = subprocess.run(
-            [
-                sys.executable,
-                str(_TOOL_DIR / "course_cli.py"),
-                "--course-dir",
-                str(self.course_dir),
-                "lint",
-            ],
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
+        api.save_json(target_dir / "index.json", self.index)
+        for section in self.sections:
+            path = self.section_file(section["id"])
+            rel = path.relative_to(self.course_dir)
+            api.save_json(target_dir / rel, section)
+        language = self.index.get("language", "")
+        api.save_json(
+            target_dir / "vocab.json",
+            {"version": 1, "language": language, "words": self.vocab},
         )
-        problems: list[dict[str, str]] = []
-        for line in (proc.stdout or "").splitlines():
-            line = line.strip()
-            if line.startswith("ERROR:"):
-                problems.append({"level": "error", "message": line[6:].strip(), "path": ""})
-            elif line.startswith("WARNING:"):
-                problems.append({"level": "warning", "message": line[8:].strip(), "path": ""})
-        return problems
+        api.save_json(
+            target_dir / "expressions.json",
+            {
+                "version": self.expressions_version,
+                "language": language,
+                "expressions": self.expressions,
+            },
+        )
+        api.save_json(
+            target_dir / "grammar_points.json",
+            {"grammarPoints": self.grammar_points},
+        )
+
+    def _backup_json_files(self, src: Path, dst: Path) -> None:
+        """Copy every JSON file under ``src`` to ``dst`` preserving structure.
+
+        Old backup directories are skipped so they do not recurse indefinitely.
+        """
+        for path in src.rglob("*.json"):
+            rel = path.relative_to(src)
+            if any(part.startswith(".varnamala-backup") for part in rel.parts):
+                continue
+            target = dst / rel
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(path, target)
+
+    def _replace_course_files_with(self, tmp_dir: Path, course_dir: Path) -> None:
+        """Atomically replace course files with those in ``tmp_dir``.
+
+        Any section file that no longer exists in ``tmp_dir`` (because the
+        section was deleted) is removed from ``course_dir`` so no orphan files
+        are left behind to confuse the loader/validator.
+        """
+        new_rel_paths: set[Path] = set()
+        for tmp_file in tmp_dir.rglob("*.json"):
+            rel = tmp_file.relative_to(tmp_dir)
+            new_rel_paths.add(rel)
+            target = course_dir / rel
+            target.parent.mkdir(parents=True, exist_ok=True)
+            os.replace(tmp_file, target)
+
+        sections_dir = course_dir / "sections"
+        if sections_dir.is_dir():
+            for old_file in sections_dir.glob("*.json"):
+                rel = old_file.relative_to(course_dir)
+                if rel not in new_rel_paths:
+                    old_file.unlink()
+
+    def save(self) -> SaveResult:
+        """Persist the in-memory course to disk atomically with backup.
+
+        1. Write a complete copy to a system temp directory.
+        2. Run ``course_cli validate`` against the temp copy.
+        3. If validation passes, backup the current on-disk JSON files and
+           replace them with the temp copy.
+        4. If anything fails, restore the in-memory snapshot and return an
+           error result; the original files remain untouched.
+        """
+        if self.course_dir is None:
+            return SaveResult(ok=False, message="未加载课程目录")
+
+        rollback = self._snapshot
+        if rollback is None:
+            rollback = self._deep_snapshot()
+
+        start = time.perf_counter()
+        tmp_dir: Path | None = None
+        result: SaveResult | None = None
+        try:
+            tmp_dir = Path(tempfile.mkdtemp(prefix=".varnamala-save-"))
+            self._write_files_to_dir(tmp_dir)
+
+            validate = api.validate_course_dir(tmp_dir)
+            if not validate.ok:
+                self._restore_from(rollback)
+                errors = [p.to_dict() for p in validate.problems if p.level == "error"]
+                result = SaveResult(
+                    ok=False,
+                    errors=errors,
+                    message=f"校验失败，已回滚（{len(errors)} 个错误）",
+                )
+                telemetry.record_event(
+                    "repo.save.failed",
+                    payload={"reason": "validation", "error_count": len(errors)},
+                )
+                return result
+
+            backup_dir = (
+                self.course_dir
+                / ".varnamala-backup"
+                / datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+            )
+            self._backup_json_files(self.course_dir, backup_dir)
+            self._replace_course_files_with(tmp_dir, self.course_dir)
+        except Exception as exc:
+            self._restore_from(rollback)
+            # Ensure on-disk state matches the restored snapshot so a partial
+            # atomic replacement cannot leave the course in a mixed state.
+            self._write_files_to_dir(self.course_dir)
+            telemetry.record_error(
+                exc,
+                context={"action": "repo.save", "course_dir": str(self.course_dir)},
+            )
+            result = SaveResult(ok=False, message=f"保存失败: {exc}")
+            return result
+        finally:
+            if tmp_dir is not None:
+                shutil.rmtree(tmp_dir, ignore_errors=True)
+
+        lint = api.lint_course_dir(self.course_dir)
+        warnings = [p.to_dict() for p in lint if p.level == "warning"]
+        self._snapshot = self._deep_snapshot()
+        self._refresh_hash_cache()
+        result = SaveResult(
+            ok=True,
+            warnings=warnings,
+            message=f"保存成功，{len(warnings)} 条 lint 警告",
+        )
+        telemetry.record_duration(
+            "repo.save",
+            (time.perf_counter() - start) * 1000,
+            payload={
+                "course_dir": str(self.course_dir),
+                "warning_count": len(warnings),
+            },
+        )
+        return result

@@ -21,7 +21,7 @@ from src.teacher.error_mapper import (  # noqa: E402
     parse_path,
     problem_to_node_ref,
 )
-from src.teacher.lesson_wizard import build_intro_lesson  # noqa: E402
+from src.backend.lesson_content import build_intro_lesson  # noqa: E402
 
 COURSE_SRC = Path(__file__).resolve().parents[3] / "assets" / "courses" / "turkish"
 

@@ -8,9 +8,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import QEvent, QObject, QPoint, Qt, Signal
+from PySide6.QtGui import QDrag, QDragEnterEvent, QDropEvent, QMouseEvent
 from PySide6.QtWidgets import (
     QComboBox,
+    QDialog,
     QFrame,
     QHBoxLayout,
     QInputDialog,
@@ -20,6 +22,63 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from PySide6.QtCore import QMimeData
+
+
+class _DragDropFilter(QObject):
+    """Simple drag source / drop target filter for reordering cards.
+
+    Supports dragging a widget by its id and dropping it onto a container
+    widget. The owning ``LinearFlowWidget`` is notified via
+    ``_handle_drop(kind, source_id, pos)``.
+    """
+
+    _MIME_TYPE = "application/x-varnamala-reorder"
+
+    def __init__(self, owner: "LinearFlowWidget", kind: str, item_id: str) -> None:
+        super().__init__(owner)
+        self._owner = owner
+        self._kind = kind
+        self._item_id = item_id
+        self._drag_start: QPoint | None = None
+
+    def eventFilter(self, watched: QObject, event) -> bool:
+        if isinstance(event, QMouseEvent):
+            if event.type() == QEvent.MouseButtonPress:
+                if event.button() == Qt.MouseButton.LeftButton:
+                    self._drag_start = event.globalPosition().toPoint()
+                return False
+            if event.type() == QEvent.MouseMove:
+                if self._drag_start is None:
+                    return False
+                if (
+                    event.globalPosition().toPoint() - self._drag_start
+                ).manhattanLength() < 10:
+                    return False
+                mime = QMimeData()
+                mime.setData(
+                    self._MIME_TYPE,
+                    f"{self._kind}:{self._item_id}".encode("utf-8"),
+                )
+                drag = QDrag(watched)
+                drag.setMimeData(mime)
+                self._drag_start = None
+                drag.exec(Qt.DropAction.MoveAction)
+                return True
+        if isinstance(event, QDragEnterEvent):
+            if event.mimeData().hasFormat(self._MIME_TYPE):
+                event.acceptProposedAction()
+                return True
+        if isinstance(event, QDropEvent):
+            data = bytes(event.mimeData().data(self._MIME_TYPE)).decode("utf-8")
+            parts = data.split(":", 1)
+            if len(parts) == 2:
+                global_pos = watched.mapToGlobal(event.position().toPoint())
+                self._owner._handle_drop(parts[0], parts[1], global_pos)
+            event.acceptProposedAction()
+            return True
+        return super().eventFilter(watched, event)
+
 
 from src.backend.course_adapter import CourseAdapter
 from src.backend.lesson_content import (
@@ -65,6 +124,8 @@ class LinearFlowWidget(QWidget):
         self._content_layout: QVBoxLayout | None = None
         self._add_sub_btn: QPushButton | None = None
         self._sub_lesson_frames: dict[str, QFrame] = {}
+        self.setAcceptDrops(True)
+        self.installEventFilter(_DragDropFilter(self, "container", ""))
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -72,9 +133,10 @@ class LinearFlowWidget(QWidget):
         if self.layout() is not None:
             while self.layout().count():
                 child = self.layout().takeAt(0)
-                if child.widget():
-                    child.widget().setParent(None)
-                    child.widget().deleteLater()
+                widget = child.widget()
+                if widget is not None:
+                    widget.setParent(None)
+                    widget.deleteLater()
         else:
             QVBoxLayout(self)
 
@@ -92,11 +154,11 @@ class LinearFlowWidget(QWidget):
         breadcrumb.setStyleSheet("color: #9CA3AF; padding: 4px;")
         layout.addWidget(breadcrumb)
 
-        title = QLabel(f"📚 {self.lesson.get('name', '')}")
+        title = QLabel(self.lesson.get('name', ''))
         title.setStyleSheet("font-size: 18px; font-weight: 700; color: #FFFFFF;")
         layout.addWidget(title)
 
-        preview_btn = QPushButton("🔍 预览本课")
+        preview_btn = QPushButton("预览本课")
         preview_btn.setToolTip("实际做题验证题目设置（guiplan §15.7）")
         preview_btn.clicked.connect(self._on_preview)
         layout.addWidget(preview_btn)
@@ -144,7 +206,10 @@ class LinearFlowWidget(QWidget):
         flayout.setSpacing(10)
         flayout.setContentsMargins(12, 12, 12, 12)
 
-        flayout.addWidget(self._build_sub_lesson_header(sl))
+        header = self._build_sub_lesson_header(sl)
+        header.installEventFilter(_DragDropFilter(self, "sublesson", sl.get("id", "")))
+        header.setCursor(Qt.CursorShape.OpenHandCursor)
+        flayout.addWidget(header)
 
         stages_widget = QWidget()
         stages_layout = QVBoxLayout(stages_widget)
@@ -170,12 +235,12 @@ class LinearFlowWidget(QWidget):
         hlayout.setContentsMargins(0, 0, 0, 0)
         hlayout.setSpacing(6)
 
-        title = QLabel(f"📁 {layer_label('subLesson')}：{sl.get('name', sl.get('id', ''))}")
+        title = QLabel(f"{layer_label('subLesson')}：{sl.get('name', sl.get('id', ''))}")
         title.setStyleSheet("font-size: 15px; font-weight: 700; color: #E8EAF0;")
         hlayout.addWidget(title)
         hlayout.addStretch()
 
-        hlayout.addWidget(self._tool_button("✏️", "重命名", lambda _c=False, s=sl: self._on_rename_sub_lesson(s)))
+        hlayout.addWidget(self._tool_button("重命名", "重命名", lambda _c=False, s=sl: self._on_rename_sub_lesson(s)))
 
         idx = self._index_of_sub_lesson(sl)
         up_btn = self._tool_button("↑", "上移", lambda _c=False, s=sl, i=idx: self._on_move_sub_lesson(s, i, -1))
@@ -185,7 +250,7 @@ class LinearFlowWidget(QWidget):
         down_btn.setEnabled(idx >= 0 and idx < len(self._sub_lessons()) - 1)
         hlayout.addWidget(down_btn)
 
-        hlayout.addWidget(self._tool_button("🗑️", "删除", lambda _c=False, s=sl: self._on_delete_sub_lesson(s)))
+        hlayout.addWidget(self._tool_button("删除", "删除", lambda _c=False, s=sl: self._on_delete_sub_lesson(s)))
 
         return header
 
@@ -233,7 +298,7 @@ class LinearFlowWidget(QWidget):
         hlayout.addWidget(title)
         hlayout.addStretch()
 
-        hlayout.addWidget(self._tool_button("✏️", "重命名", lambda _c=False, st=stage: self._on_rename_stage(st)))
+        hlayout.addWidget(self._tool_button("重命名", "重命名", lambda _c=False, st=stage: self._on_rename_stage(st)))
 
         idx = self._index_of_stage(stage, sl)
         up_btn = self._tool_button("↑", "上移", lambda _c=False, st=stage, s=sl, i=idx: self._on_move_stage(st, s, i, -1))
@@ -243,7 +308,7 @@ class LinearFlowWidget(QWidget):
         down_btn.setEnabled(idx >= 0 and idx < len(sl.get("stages", []) or []) - 1)
         hlayout.addWidget(down_btn)
 
-        hlayout.addWidget(self._tool_button("🗑️", "删除", lambda _c=False, st=stage, s=sl: self._on_delete_stage(st, s)))
+        hlayout.addWidget(self._tool_button("删除", "删除", lambda _c=False, st=stage, s=sl: self._on_delete_stage(st, s)))
 
         return header
 
@@ -254,11 +319,28 @@ class LinearFlowWidget(QWidget):
         card.type_changed.connect(lambda new_type, st=stage, it=item: self._on_change_item_type(st, it, new_type))
         card.move_up_requested.connect(lambda _c=False, st=stage, it=item: self._on_move_item(st, it, -1))
         card.move_down_requested.connect(lambda _c=False, st=stage, it=item: self._on_move_item(st, it, 1))
+        card.ai_rewrite_requested.connect(lambda _c=False, st=stage, it=item: self._on_ai_rewrite_item(st, it))
         return card
+
+    def _on_ai_rewrite_item(self, stage: dict[str, Any], item: dict[str, Any]) -> None:
+        from src.dialogs.ai_lesson_helper_dialog import AiLessonHelperDialog
+
+        dialog = AiLessonHelperDialog(
+            self.adapter,
+            item,
+            mode="item",
+            parent=self,
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        result = dialog.result()
+        if result is None:
+            return
+        self._replace_item(stage, item, result)
 
     def _tool_button(self, text: str, tooltip: str, callback) -> QPushButton:
         btn = QPushButton(text)
-        btn.setFixedWidth(32)
+        btn.setMinimumWidth(48)
         btn.setToolTip(tooltip)
         btn.clicked.connect(callback)
         return btn
@@ -271,18 +353,29 @@ class LinearFlowWidget(QWidget):
                 self._last_item_type = rt
 
     def _on_add_sub_lesson(self) -> None:
-        sl = add_sub_lesson(self.lesson.setdefault("content", {}), "新环节")
+        content = self.lesson.setdefault("content", {})
+        if self.undo_stack is not None:
+            from src.application.commands import AddSubLessonCommand
+
+            cmd = AddSubLessonCommand(content, "新环节")
+            cmd.signals.changed.connect(self._rebuild)
+            self.undo_stack.push(cmd)
+            self.changed.emit()
+            return
+        add_sub_lesson(content, "新环节")
         self.changed.emit()
-        if self._content_layout is not None and self._add_sub_btn is not None:
-            frame = self._build_sub_lesson(sl)
-            insert_idx = self._content_layout.indexOf(self._add_sub_btn)
-            self._content_layout.insertWidget(insert_idx, frame)
-            self._refresh_sub_lesson_move_buttons()
-        else:
-            self._rebuild()
+        self._rebuild()
 
     def _on_add_stage(self, sl: dict[str, Any]) -> None:
-        stage = add_stage(sl, "新步骤")
+        if self.undo_stack is not None:
+            from src.application.commands import AddStageCommand
+
+            cmd = AddStageCommand(sl, "新步骤")
+            cmd.signals.changed.connect(lambda: self._rebuild_sub_lesson(sl))
+            self.undo_stack.push(cmd)
+            self.changed.emit()
+            return
+        add_stage(sl, "新步骤")
         self.changed.emit()
         self._rebuild_sub_lesson(sl)
 
@@ -321,23 +414,32 @@ class LinearFlowWidget(QWidget):
         self._rebuild_stage_of(stage)
 
     def _on_change_item_type(self, stage: dict[str, Any], item: dict[str, Any], new_type: str) -> None:
-        items = stage.get("items", [])
-        try:
-            idx = items.index(item)
-        except ValueError:
-            return
         new_item = switch_runtime_type(item, new_type)
-        if self.undo_stack is not None:
-            from src.application.commands import UpdateFieldCommand
+        self._replace_item(stage, item, new_item)
 
-            cmd = UpdateFieldCommand(stage, "items", list(items))
+    def _replace_item(
+        self,
+        stage: dict[str, Any],
+        old_item: dict[str, Any],
+        new_item: dict[str, Any],
+    ) -> None:
+        """Replace an item in a stage, using the undo stack when available."""
+        item_id = old_item.get("id", "")
+        if not item_id:
+            return
+        if self.undo_stack is not None:
+            from src.application.commands import ReplaceItemCommand
+
+            cmd = ReplaceItemCommand(stage, item_id, new_item)
             cmd.signals.changed.connect(lambda: self._rebuild_stage_of(stage))
             self.undo_stack.push(cmd)
-            items[idx] = new_item
             self.changed.emit()
-            self._rebuild_stage_of(stage)
             return
-        items[idx] = new_item
+        items = stage.get("items", [])
+        for i, it in enumerate(items):
+            if it.get("id") == item_id:
+                items[i] = new_item
+                break
         self.changed.emit()
         self._rebuild_stage_of(stage)
 
@@ -365,10 +467,19 @@ class LinearFlowWidget(QWidget):
     def _on_rename_sub_lesson(self, sl: dict[str, Any]) -> None:
         old = sl.get("name", "")
         text, ok = QInputDialog.getText(self, "重命名", "新名称：", text=old)
-        if ok and text:
-            rename_sub_lesson(sl, text)
+        if not ok or not text:
+            return
+        if self.undo_stack is not None:
+            from src.application.commands import RenameSubLessonCommand
+
+            cmd = RenameSubLessonCommand(sl, text)
+            cmd.signals.changed.connect(lambda: self._rebuild_sub_lesson(sl))
+            self.undo_stack.push(cmd)
             self.changed.emit()
-            self._rebuild_sub_lesson(sl)
+            return
+        rename_sub_lesson(sl, text)
+        self.changed.emit()
+        self._rebuild_sub_lesson(sl)
 
     def _on_delete_sub_lesson(self, sl: dict[str, Any]) -> None:
         reply = QMessageBox.question(
@@ -377,7 +488,16 @@ class LinearFlowWidget(QWidget):
         )
         if reply != QMessageBox.StandardButton.Yes:
             return
-        delete_sub_lesson(self.lesson.setdefault("content", {}), sl.get("id", ""))
+        content = self.lesson.setdefault("content", {})
+        if self.undo_stack is not None:
+            from src.application.commands import DeleteSubLessonCommand
+
+            cmd = DeleteSubLessonCommand(content, sl)
+            cmd.signals.changed.connect(self._rebuild)
+            self.undo_stack.push(cmd)
+            self.changed.emit()
+            return
+        delete_sub_lesson(content, sl.get("id", ""))
         self.changed.emit()
         self._rebuild()
 
@@ -388,17 +508,39 @@ class LinearFlowWidget(QWidget):
         new_idx = idx + delta
         if not (0 <= new_idx < len(subs)):
             return
-        move_sub_lesson(self.lesson.setdefault("content", {}), idx, new_idx)
+        content = self.lesson.setdefault("content", {})
+        if self.undo_stack is not None:
+            from src.application.commands import MoveSubLessonCommand
+
+            cmd = MoveSubLessonCommand(content, idx, new_idx)
+            cmd.signals.changed.connect(self._rebuild)
+            self.undo_stack.push(cmd)
+            self.changed.emit()
+            return
+        move_sub_lesson(content, idx, new_idx)
         self.changed.emit()
         self._rebuild()
 
     def _on_rename_stage(self, stage: dict[str, Any]) -> None:
         old = stage.get("name", "")
         text, ok = QInputDialog.getText(self, "重命名", "新名称：", text=old)
-        if ok and text:
-            rename_stage(stage, text)
+        if not ok or not text:
+            return
+        if self.undo_stack is not None:
+            from src.application.commands import RenameStageCommand
+
+            cmd = RenameStageCommand(stage, text)
+            # Stage header is rebuilt with its parent sub-lesson.
+            for sl in self._sub_lessons():
+                if stage in (sl.get("stages", []) or []):
+                    cmd.signals.changed.connect(lambda checked=False, s=sl: self._rebuild_sub_lesson(s))
+                    break
+            self.undo_stack.push(cmd)
             self.changed.emit()
-            self._rebuild_stage_of(stage)
+            return
+        rename_stage(stage, text)
+        self.changed.emit()
+        self._rebuild_stage_of(stage)
 
     def _on_delete_stage(self, stage: dict[str, Any], sl: dict[str, Any]) -> None:
         reply = QMessageBox.question(
@@ -406,6 +548,14 @@ class LinearFlowWidget(QWidget):
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply != QMessageBox.StandardButton.Yes:
+            return
+        if self.undo_stack is not None:
+            from src.application.commands import DeleteStageCommand
+
+            cmd = DeleteStageCommand(sl, stage)
+            cmd.signals.changed.connect(lambda: self._rebuild_sub_lesson(sl))
+            self.undo_stack.push(cmd)
+            self.changed.emit()
             return
         delete_stage(sl, stage.get("id", ""))
         self.changed.emit()
@@ -417,6 +567,14 @@ class LinearFlowWidget(QWidget):
             return
         new_idx = idx + delta
         if not (0 <= new_idx < len(stages)):
+            return
+        if self.undo_stack is not None:
+            from src.application.commands import MoveStageCommand
+
+            cmd = MoveStageCommand(sl, idx, new_idx)
+            cmd.signals.changed.connect(lambda: self._rebuild_sub_lesson(sl))
+            self.undo_stack.push(cmd)
+            self.changed.emit()
             return
         move_stage(sl, idx, new_idx)
         self.changed.emit()
@@ -448,6 +606,65 @@ class LinearFlowWidget(QWidget):
     def _refresh_sub_lesson_move_buttons(self) -> None:
         # Move buttons are rebuilt during _rebuild_sub_lesson, so no extra work needed.
         pass
+
+    def _ordered_sub_lesson_frames(self) -> list[QFrame]:
+        """Return sub-lesson frames in their current visual order."""
+        layout = self._content_layout
+        if layout is None:
+            return []
+        frames: list[QFrame] = []
+        for i in range(layout.count()):
+            item = layout.itemAt(i)
+            if item is None:
+                continue
+            widget = item.widget()
+            if isinstance(widget, QFrame) and widget in self._sub_lesson_frames.values():
+                frames.append(widget)
+        return frames
+
+    def _drop_target_index(self, local_y: int, widgets: list[QWidget]) -> int:
+        """Return the insertion index for a drop at the given local y coordinate."""
+        for i, widget in enumerate(widgets):
+            geo = widget.geometry()
+            center_y = geo.top() + geo.height() // 2
+            if local_y < center_y:
+                return i
+        return len(widgets)
+
+    def _handle_drop(self, kind: str, source_id: str, global_pos: QPoint) -> None:
+        """Handle a drop from the drag-drop filter."""
+        local_pos = self.mapFromGlobal(global_pos)
+        if kind == "sublesson":
+            self._handle_sub_lesson_drop(source_id, local_pos)
+        # Stage and item reordering via drag-and-drop can be added here.
+
+    def _handle_sub_lesson_drop(self, source_id: str, local_pos: QPoint) -> None:
+        subs = self._sub_lessons()
+        source_idx = next(
+            (i for i, sl in enumerate(subs) if sl.get("id") == source_id), -1
+        )
+        if source_idx < 0:
+            return
+        frames = self._ordered_sub_lesson_frames()
+        target_idx = self._drop_target_index(local_pos.y(), frames)
+        if target_idx > len(subs):
+            target_idx = len(subs)
+        if target_idx == source_idx or target_idx == source_idx + 1:
+            return
+        if target_idx > source_idx:
+            target_idx -= 1
+        content = self.lesson.setdefault("content", {})
+        if self.undo_stack is not None:
+            from src.application.commands import MoveSubLessonCommand
+
+            cmd = MoveSubLessonCommand(content, source_idx, target_idx)
+            cmd.signals.changed.connect(self._rebuild)
+            self.undo_stack.push(cmd)
+            self.changed.emit()
+        else:
+            move_sub_lesson(content, source_idx, target_idx)
+            self.changed.emit()
+            self._rebuild()
 
     def _rebuild(self) -> None:
         self._build_ui()

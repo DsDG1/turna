@@ -2,18 +2,32 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QAction, QUndoStack
-from PySide6.QtWidgets import QMenu, QTreeWidget, QTreeWidgetItem
+from PySide6.QtGui import QAction, QColor, QUndoStack
+from PySide6.QtWidgets import (
+    QHBoxLayout,
+    QLabel,
+    QMenu,
+    QStyle,
+    QToolButton,
+    QTreeWidget,
+    QTreeWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
 from typing import Any
 
 from src.application.commands import (
     DeleteLessonCommand,
     DeleteSectionCommand,
     DeleteUnitCommand,
+    MoveLessonCommand,
+    MoveSectionCommand,
+    MoveUnitCommand,
     NewLessonCommand,
     NewUnitCommand,
 )
 from src.backend.course_adapter import CourseAdapter
+from src.theme import current_palette
 
 
 class CourseTreeWidget(QTreeWidget):
@@ -22,6 +36,7 @@ class CourseTreeWidget(QTreeWidget):
     node_selected = Signal(tuple)  # (kind, id)
     tree_changed = Signal()
     ai_edit_requested = Signal(str, str)  # (kind, id)
+    ai_fix_requested = Signal(str, str)  # (kind, id)
 
     def __init__(self) -> None:
         super().__init__()
@@ -29,7 +44,7 @@ class CourseTreeWidget(QTreeWidget):
         self.undo_stack: QUndoStack | None = None
         self.setHeaderLabels(["课程结构", "类型"])
         self.setColumnWidth(0, 280)
-        self.setIndentation(18)
+        self.setIndentation(20)
         self.setUniformRowHeights(True)
         self.setAlternatingRowColors(False)
         self.itemClicked.connect(self._on_clicked)
@@ -44,22 +59,33 @@ class CourseTreeWidget(QTreeWidget):
 
     def _populate(self, adapter: CourseAdapter) -> None:
         """Build all tree items from the adapter. Called after clear()."""
+        style = self.style()
+        secondary = QColor(current_palette()["text_secondary"])
+        section_icon = style.standardIcon(QStyle.StandardPixmap.SP_DirHomeIcon)
+        unit_icon = style.standardIcon(QStyle.StandardPixmap.SP_FileDialogContentsView)
+        lesson_icon = style.standardIcon(QStyle.StandardPixmap.SP_FileIcon)
         for section in adapter.sections:
             sid = section.get("id", "")
-            s_item = QTreeWidgetItem([f"📁 {section.get('name', sid)}", "section"])
+            s_item = QTreeWidgetItem([section.get('name', sid), "section"])
             s_item.setData(0, 0x0100, ("section", sid))
+            s_item.setIcon(0, section_icon)
+            s_item.setForeground(1, secondary)
             self.addTopLevelItem(s_item)
             for unit in section.get("units", []):
                 uid = unit.get("id", "")
-                u_item = QTreeWidgetItem([f"📂 {unit.get('name', uid)}", "unit"])
+                u_item = QTreeWidgetItem([unit.get('name', uid), "unit"])
                 u_item.setData(0, 0x0100, ("unit", uid))
+                u_item.setIcon(0, unit_icon)
+                u_item.setForeground(1, secondary)
                 s_item.addChild(u_item)
                 for lesson in unit.get("lessons", []):
                     lid = lesson.get("id", "")
                     tmpl = lesson.get("template", "")
                     label = lesson.get("name", lid)
-                    l_item = QTreeWidgetItem([f"📝 {label}", f"lesson ({tmpl})"])
+                    l_item = QTreeWidgetItem([label, f"lesson ({tmpl})"])
                     l_item.setData(0, 0x0100, ("lesson", lid))
+                    l_item.setIcon(0, lesson_icon)
+                    l_item.setForeground(1, secondary)
                     u_item.addChild(l_item)
 
     def _capture_state(self) -> dict[str, Any]:
@@ -259,6 +285,11 @@ class CourseTreeWidget(QTreeWidget):
                 lambda: self.ai_edit_requested.emit("unit", node_id)
             )
             menu.addAction(act_ai_edit)
+            act_ai_fix = QAction("AI 修正此 Unit", self)
+            act_ai_fix.triggered.connect(
+                lambda: self.ai_fix_requested.emit("unit", node_id)
+            )
+            menu.addAction(act_ai_fix)
         elif kind == "section":
             act_new_unit = QAction("新建 Unit", self)
             act_new_unit.triggered.connect(lambda: self._new_unit(node_id))
@@ -272,6 +303,11 @@ class CourseTreeWidget(QTreeWidget):
                 lambda: self.ai_edit_requested.emit("section", node_id)
             )
             menu.addAction(act_ai_edit)
+            act_ai_fix = QAction("AI 修正此 Section", self)
+            act_ai_fix.triggered.connect(
+                lambda: self.ai_fix_requested.emit("section", node_id)
+            )
+            menu.addAction(act_ai_fix)
         elif kind == "lesson":
             act_del_lesson = QAction("删除 Lesson", self)
             act_del_lesson.triggered.connect(lambda: self._delete_lesson(node_id))
@@ -282,6 +318,11 @@ class CourseTreeWidget(QTreeWidget):
                 lambda: self.ai_edit_requested.emit("lesson", node_id)
             )
             menu.addAction(act_ai_edit)
+            act_ai_fix = QAction("AI 修正此 Lesson", self)
+            act_ai_fix.triggered.connect(
+                lambda: self.ai_fix_requested.emit("lesson", node_id)
+            )
+            menu.addAction(act_ai_fix)
         if not menu.isEmpty():
             menu.exec(self.viewport().mapToGlobal(pos))
 
@@ -357,3 +398,120 @@ class CourseTreeWidget(QTreeWidget):
         """Refresh the tree and notify listeners after any structural command."""
         self.refresh_incremental()
         self.tree_changed.emit()
+
+    # --- sibling reorder (up/down arrow buttons) ------------------------
+
+    def wrap_with_move_toolbar(self) -> QWidget:
+        """Wrap this tree in a container with ↑/↓ toolbar buttons above it.
+
+        The returned container owns the toolbar; this widget is re-parented
+        into it. Callers add the container to their layout and keep using
+        ``self.tree`` (this widget) directly for selection/refresh APIs.
+        """
+        container = QWidget()
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
+
+        bar = QHBoxLayout()
+        bar.setContentsMargins(2, 2, 2, 2)
+        bar.setSpacing(4)
+        bar.addWidget(QLabel("上下移动:"))
+        self._move_up_btn = QToolButton()
+        self._move_up_btn.setText("↑")
+        self._move_up_btn.setToolTip("上移（仅同级，不改变层级）")
+        self._move_up_btn.setEnabled(False)
+        self._move_up_btn.clicked.connect(lambda: self._move_current(-1))
+        bar.addWidget(self._move_up_btn)
+        self._move_down_btn = QToolButton()
+        self._move_down_btn.setText("↓")
+        self._move_down_btn.setToolTip("下移（仅同级，不改变层级）")
+        self._move_down_btn.setEnabled(False)
+        self._move_down_btn.clicked.connect(lambda: self._move_current(1))
+        bar.addWidget(self._move_down_btn)
+        bar.addStretch()
+        layout.addLayout(bar)
+
+        self.setParent(container)
+        layout.addWidget(self)
+        # Keep selection-driven enable/disable in sync.
+        self.currentItemChanged.connect(self._update_move_buttons)
+        return container
+
+    def _sibling_index(self, ref: tuple[str, str]) -> tuple[list[Any], int, dict[str, Any] | None] | None:
+        """Return (sibling_list, current_index, parent_node) for a ref.
+
+        parent_node is the section dict (for units) or unit dict (for
+        lessons); None for sections. Returns None if the ref cannot be
+        located (e.g. adapter not set or stale id).
+        """
+        if self.adapter is None or ref is None:
+            return None
+        kind, node_id = ref
+        if kind == "section":
+            for i, s in enumerate(self.adapter.sections):
+                if s.get("id") == node_id:
+                    return self.adapter.sections, i, None
+        elif kind == "unit":
+            try:
+                section, _unit = self.adapter.find_unit(node_id)
+            except KeyError:
+                return None
+            units = section.get("units", [])
+            for i, u in enumerate(units):
+                if u.get("id") == node_id:
+                    return units, i, section
+        elif kind == "lesson":
+            try:
+                _s, unit, _l = self.adapter.find_lesson(node_id)
+            except KeyError:
+                return None
+            lessons = unit.get("lessons", [])
+            for i, l in enumerate(lessons):
+                if l.get("id") == node_id:
+                    return lessons, i, unit
+        return None
+
+    def _update_move_buttons(self, *_args) -> None:
+        """Enable ↑/↓ based on whether the current item can move in-sibling."""
+        if not hasattr(self, "_move_up_btn"):
+            return
+        current = self.currentItem()
+        ref = current.data(0, 0x0100) if current is not None else None
+        info = self._sibling_index(ref) if ref is not None else None
+        if info is None:
+            self._move_up_btn.setEnabled(False)
+            self._move_down_btn.setEnabled(False)
+            return
+        siblings, idx, _parent = info
+        self._move_up_btn.setEnabled(idx > 0)
+        self._move_down_btn.setEnabled(idx < len(siblings) - 1)
+
+    def _move_current(self, direction: int) -> None:
+        """Move the current item up (direction=-1) or down (+1) within its
+        sibling list. No-op at bounds or when nothing is selected — this
+        guarantees same-level-only reorder (hierarchy never changes)."""
+        if self.adapter is None:
+            return
+        current = self.currentItem()
+        if current is None:
+            return
+        ref = current.data(0, 0x0100)
+        info = self._sibling_index(ref)
+        if info is None:
+            return
+        siblings, idx, parent = info
+        to_idx = idx + direction
+        if not (0 <= to_idx < len(siblings)):
+            return  # bounds — no-op, no command pushed
+        kind, node_id = ref
+        if kind == "section":
+            cmd: Any = MoveSectionCommand(self.adapter, idx, to_idx)
+        elif kind == "unit":
+            cmd = MoveUnitCommand(self.adapter, parent.get("id", ""), idx, to_idx)
+        elif kind == "lesson":
+            cmd = MoveLessonCommand(self.adapter, parent.get("id", ""), idx, to_idx)
+        else:
+            return
+        cmd.signals.changed.connect(self._on_command_changed)
+        self._push(cmd)

@@ -17,18 +17,32 @@ the whole editor shares one undo stack.
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtGui import QUndoCommand
 
+if TYPE_CHECKING:
+    from src.backend.course_adapter import SectionMergePlan
+
 from src.backend.lesson_content import (
     add_item,
+    add_listening_phase,
+    add_stage,
+    add_sub_lesson,
     delete_item,
+    delete_listening_phase,
+    delete_stage,
+    delete_sub_lesson,
     move_item,
+    move_listening_phase,
     move_stage,
     move_sub_lesson,
+    rename_listening_phase,
+    rename_stage,
+    rename_sub_lesson,
 )
+from src.backend.course_adapter import CourseAdapter
 
 
 class _Signals(QObject):
@@ -155,6 +169,216 @@ class MoveStageCommand(QUndoCommand):
         self.signals.changed.emit()
 
 
+class AddListeningPhaseCommand(QUndoCommand):
+    def __init__(self, lesson: dict[str, Any], phase_type: str = "wordPairing", name: str = "新阶段") -> None:
+        super().__init__("添加听力阶段")
+        self.lesson = lesson
+        self.phase_type = phase_type
+        self.name = name
+        self.phase: dict[str, Any] | None = None
+        self.signals = _make_changed()
+
+    def redo(self) -> None:
+        self.phase = add_listening_phase(self.lesson, self.phase_type, self.name)
+        self.signals.changed.emit()
+
+    def undo(self) -> None:
+        if self.phase is not None:
+            delete_listening_phase(self.lesson, self.phase.get("id", ""))
+        self.signals.changed.emit()
+
+
+class DeleteListeningPhaseCommand(QUndoCommand):
+    def __init__(self, lesson: dict[str, Any], phase: dict[str, Any]) -> None:
+        super().__init__("删除听力阶段")
+        self.lesson = lesson
+        self.phase = deepcopy(phase)
+        self.index = -1
+        self.signals = _make_changed()
+
+    def redo(self) -> None:
+        phases = self.lesson.get("content", {}).get("listeningPhases", [])
+        for i, ph in enumerate(phases):
+            if ph is not None and ph.get("id") == self.phase.get("id"):
+                self.index = i
+                del phases[i]
+                break
+        self.signals.changed.emit()
+
+    def undo(self) -> None:
+        phases = self.lesson.setdefault("content", {}).setdefault("listeningPhases", [])
+        if 0 <= self.index <= len(phases):
+            phases.insert(self.index, deepcopy(self.phase))
+        else:
+            phases.append(deepcopy(self.phase))
+        self.signals.changed.emit()
+
+
+class MoveListeningPhaseCommand(QUndoCommand):
+    def __init__(self, lesson: dict[str, Any], from_idx: int, to_idx: int) -> None:
+        super().__init__("移动听力阶段")
+        self.lesson = lesson
+        self.from_idx = from_idx
+        self.to_idx = to_idx
+        self.signals = _make_changed()
+
+    def redo(self) -> None:
+        move_listening_phase(self.lesson, self.from_idx, self.to_idx)
+        self.signals.changed.emit()
+
+    def undo(self) -> None:
+        move_listening_phase(self.lesson, self.to_idx, self.from_idx)
+        self.signals.changed.emit()
+
+
+class RenameListeningPhaseCommand(UpdateFieldCommand):
+    """Rename a listening phase (reuses UpdateFieldCommand)."""
+
+    def __init__(self, phase: dict[str, Any], new_name: str) -> None:
+        super().__init__(phase, "name", new_name)
+        self.setText("重命名听力阶段")
+
+
+class AddSubLessonCommand(QUndoCommand):
+    def __init__(self, content: dict[str, Any], name: str = "新环节") -> None:
+        super().__init__("添加教学环节")
+        self.content = content
+        self.name = name
+        self.sub_lesson: dict[str, Any] | None = None
+        self.signals = _make_changed()
+
+    def redo(self) -> None:
+        self.sub_lesson = add_sub_lesson(self.content, self.name)
+        self.signals.changed.emit()
+
+    def undo(self) -> None:
+        if self.sub_lesson is not None:
+            delete_sub_lesson(self.content, self.sub_lesson.get("id", ""))
+        self.signals.changed.emit()
+
+
+class DeleteSubLessonCommand(QUndoCommand):
+    def __init__(self, content: dict[str, Any], sub_lesson: dict[str, Any]) -> None:
+        super().__init__("删除教学环节")
+        self.content = content
+        self.sub_lesson = deepcopy(sub_lesson)
+        self.index = -1
+        self.signals = _make_changed()
+
+    def redo(self) -> None:
+        subs = self.content.get("subLessons", [])
+        for i, sl in enumerate(subs):
+            if sl is not None and sl.get("id") == self.sub_lesson.get("id"):
+                self.index = i
+                del subs[i]
+                break
+        self.signals.changed.emit()
+
+    def undo(self) -> None:
+        subs = self.content.setdefault("subLessons", [])
+        if 0 <= self.index <= len(subs):
+            subs.insert(self.index, deepcopy(self.sub_lesson))
+        else:
+            subs.append(deepcopy(self.sub_lesson))
+        self.signals.changed.emit()
+
+
+class AddStageCommand(QUndoCommand):
+    def __init__(self, sub_lesson: dict[str, Any], name: str = "新步骤") -> None:
+        super().__init__("添加教学步骤")
+        self.sub_lesson = sub_lesson
+        self.name = name
+        self.stage: dict[str, Any] | None = None
+        self.signals = _make_changed()
+
+    def redo(self) -> None:
+        self.stage = add_stage(self.sub_lesson, self.name)
+        self.signals.changed.emit()
+
+    def undo(self) -> None:
+        if self.stage is not None:
+            delete_stage(self.sub_lesson, self.stage.get("id", ""))
+        self.signals.changed.emit()
+
+
+class DeleteStageCommand(QUndoCommand):
+    def __init__(self, sub_lesson: dict[str, Any], stage: dict[str, Any]) -> None:
+        super().__init__("删除教学步骤")
+        self.sub_lesson = sub_lesson
+        self.stage = deepcopy(stage)
+        self.index = -1
+        self.signals = _make_changed()
+
+    def redo(self) -> None:
+        stages = self.sub_lesson.get("stages", [])
+        for i, st in enumerate(stages):
+            if st is not None and st.get("id") == self.stage.get("id"):
+                self.index = i
+                del stages[i]
+                break
+        self.signals.changed.emit()
+
+    def undo(self) -> None:
+        stages = self.sub_lesson.setdefault("stages", [])
+        if 0 <= self.index <= len(stages):
+            stages.insert(self.index, deepcopy(self.stage))
+        else:
+            stages.append(deepcopy(self.stage))
+        self.signals.changed.emit()
+
+
+class RenameSubLessonCommand(UpdateFieldCommand):
+    """Rename a sub-lesson (reuses UpdateFieldCommand)."""
+
+    def __init__(self, sub_lesson: dict[str, Any], new_name: str) -> None:
+        super().__init__(sub_lesson, "name", new_name)
+        self.setText("重命名教学环节")
+
+
+class RenameStageCommand(UpdateFieldCommand):
+    """Rename a stage (reuses UpdateFieldCommand)."""
+
+    def __init__(self, stage: dict[str, Any], new_name: str) -> None:
+        super().__init__(stage, "name", new_name)
+        self.setText("重命名教学步骤")
+
+
+class ReplaceItemCommand(QUndoCommand):
+    """Replace a single item in a stage while preserving its position."""
+
+    def __init__(
+        self,
+        stage: dict[str, Any],
+        item_id: str,
+        new_item: dict[str, Any],
+    ) -> None:
+        super().__init__("改写题目")
+        self.stage = stage
+        self.item_id = item_id
+        self.new_item = deepcopy(new_item)
+        self.old_item: dict[str, Any] | None = None
+        self.index = -1
+        self.signals = _make_changed()
+
+    def redo(self) -> None:
+        items = self.stage.get("items", [])
+        for i, it in enumerate(items):
+            if it.get("id") == self.item_id:
+                self.index = i
+                self.old_item = deepcopy(it)
+                items[i] = deepcopy(self.new_item)
+                break
+        self.signals.changed.emit()
+
+    def undo(self) -> None:
+        if self.old_item is None or self.index < 0:
+            return
+        items = self.stage.get("items", [])
+        if 0 <= self.index < len(items):
+            items[self.index] = deepcopy(self.old_item)
+        self.signals.changed.emit()
+
+
 # --- Tree-level structural commands ---------------------------------------
 
 
@@ -237,6 +461,32 @@ class NewLessonCommand(QUndoCommand):
     def undo(self) -> None:
         if self.lesson_id is not None:
             self.adapter.delete_lesson(self.lesson_id)
+        self.signals.changed.emit()
+
+
+class AppendLessonCommand(QUndoCommand):
+    """Append an externally-built lesson to a unit. Undo removes it."""
+
+    def __init__(self, adapter, unit_id: str, lesson: dict[str, Any]) -> None:
+        super().__init__("添加 Lesson")
+        self.adapter = adapter
+        self.unit_id = unit_id
+        self.lesson = deepcopy(lesson)
+        self.lesson_id: str = lesson.get("id", "")
+        self.signals = _make_changed()
+
+    def redo(self) -> None:
+        _section, unit = self.adapter.find_unit(self.unit_id)
+        unit.setdefault("lessons", []).append(deepcopy(self.lesson))
+        self.signals.changed.emit()
+
+    def undo(self) -> None:
+        _section, unit = self.adapter.find_unit(self.unit_id)
+        lessons = unit.get("lessons", [])
+        for i, lesson in enumerate(lessons):
+            if lesson.get("id") == self.lesson_id:
+                del lessons[i]
+                break
         self.signals.changed.emit()
 
 
@@ -328,6 +578,77 @@ class DeleteSectionCommand(QUndoCommand):
         self.signals.changed.emit()
 
 
+class MoveSectionCommand(QUndoCommand):
+    """Reorder a section among its siblings (top-level list). Hierarchy is
+    preserved because the move stays within ``adapter.sections`` — no
+    reparenting. Undo reverses the swap."""
+
+    def __init__(self, adapter, from_idx: int, to_idx: int) -> None:
+        super().__init__("上移/下移 Section")
+        self.adapter = adapter
+        self.from_idx = from_idx
+        self.to_idx = to_idx
+        self.signals = _make_changed()
+
+    def redo(self) -> None:
+        CourseAdapter.move_within(self.adapter.sections, self.from_idx, self.to_idx)
+        self.signals.changed.emit()
+
+    def undo(self) -> None:
+        CourseAdapter.move_within(self.adapter.sections, self.to_idx, self.from_idx)
+        self.signals.changed.emit()
+
+
+class MoveUnitCommand(QUndoCommand):
+    """Reorder a unit among its siblings within its parent section. Hierarchy
+    preserved (no cross-section move). Undo reverses the swap."""
+
+    def __init__(self, adapter, section_id: str, from_idx: int, to_idx: int) -> None:
+        super().__init__("上移/下移 Unit")
+        self.adapter = adapter
+        self.section_id = section_id
+        self.from_idx = from_idx
+        self.to_idx = to_idx
+        self.signals = _make_changed()
+
+    def redo(self) -> None:
+        section = self.adapter.find_section(self.section_id)
+        units = section.setdefault("units", [])
+        CourseAdapter.move_within(units, self.from_idx, self.to_idx)
+        self.signals.changed.emit()
+
+    def undo(self) -> None:
+        section = self.adapter.find_section(self.section_id)
+        units = section.setdefault("units", [])
+        CourseAdapter.move_within(units, self.to_idx, self.from_idx)
+        self.signals.changed.emit()
+
+
+class MoveLessonCommand(QUndoCommand):
+    """Reorder a lesson among its siblings within its parent unit. Hierarchy
+    preserved (no cross-unit move). Undo reverses the swap."""
+
+    def __init__(self, adapter, unit_id: str, from_idx: int, to_idx: int) -> None:
+        super().__init__("上移/下移 Lesson")
+        self.adapter = adapter
+        self.unit_id = unit_id
+        self.from_idx = from_idx
+        self.to_idx = to_idx
+        self.signals = _make_changed()
+
+    def redo(self) -> None:
+        _, unit = self.adapter.find_unit(self.unit_id)
+        lessons = unit.setdefault("lessons", [])
+        CourseAdapter.move_within(lessons, self.from_idx, self.to_idx)
+        self.signals.changed.emit()
+
+    def undo(self) -> None:
+        _, unit = self.adapter.find_unit(self.unit_id)
+        lessons = unit.setdefault("lessons", [])
+        CourseAdapter.move_within(lessons, self.to_idx, self.from_idx)
+        self.signals.changed.emit()
+
+
 class ImportAiSectionCommand(QUndoCommand):
     """Append an AI-generated section + merge its resources + add index entry.
 
@@ -342,9 +663,18 @@ class ImportAiSectionCommand(QUndoCommand):
         self.section_json = deepcopy(section_json)
         self.section_id: str = section_json.get("id", "")
         self.signals = _make_changed()
+        self.added_vocab_ids: set[str] = set()
+        self.added_expression_ids: set[str] = set()
+        self.added_grammar_ids: set[str] = set()
 
     def redo(self) -> None:
         sid = self.section_json.get("id", "")
+        # Snapshot existing ids before merging so we can roll back exactly
+        # the entries introduced by this import on undo.
+        old_vocab_ids = {w.get("id", "") for w in self.adapter.vocab}
+        old_expression_ids = {e.get("id", "") for e in self.adapter.expressions}
+        old_grammar_ids = {g.get("id", "") for g in self.adapter.grammar_points}
+
         self.adapter.sections.append(deepcopy(self.section_json))
         self.adapter.merge_section_resources(self.section_json)
         self.adapter.index.setdefault("sections", []).append(
@@ -359,6 +689,15 @@ class ImportAiSectionCommand(QUndoCommand):
                 "file": f"sections/{sid}.json",
             }
         )
+        self.added_vocab_ids = {
+            w.get("id", "") for w in self.adapter.vocab
+        } - old_vocab_ids
+        self.added_expression_ids = {
+            e.get("id", "") for e in self.adapter.expressions
+        } - old_expression_ids
+        self.added_grammar_ids = {
+            g.get("id", "") for g in self.adapter.grammar_points
+        } - old_grammar_ids
         self.signals.changed.emit()
 
     def undo(self) -> None:
@@ -366,50 +705,298 @@ class ImportAiSectionCommand(QUndoCommand):
             self.adapter.delete_section(self.section_id)
         except KeyError:
             pass
+        # Roll back resources added by this import.
+        self.adapter.vocab = [
+            w for w in self.adapter.vocab if w.get("id", "") not in self.added_vocab_ids
+        ]
+        self.adapter.expressions = [
+            e
+            for e in self.adapter.expressions
+            if e.get("id", "") not in self.added_expression_ids
+        ]
+        self.adapter.grammar_points = [
+            g
+            for g in self.adapter.grammar_points
+            if g.get("id", "") not in self.added_grammar_ids
+        ]
         self.signals.changed.emit()
 
 
 class AiEditSectionCommand(QUndoCommand):
-    """Replace an existing section with an AI-edited version. Undo restores."""
+    """Replace an existing section with an AI-edited version. Undo restores.
 
-    def __init__(self, adapter, section_id: str, new_section: dict[str, Any]) -> None:
+    If ``resource_section`` is provided, its top-level words/expressions/
+    grammarPoints are merged into the course resources on redo and rolled back
+    on undo.
+    """
+
+    def __init__(
+        self,
+        adapter,
+        section_id: str,
+        new_section: dict[str, Any],
+        resource_section: dict[str, Any] | None = None,
+    ) -> None:
         super().__init__("AI 编辑 Section")
         self.adapter = adapter
         self.section_id = section_id
         self.new_section = deepcopy(new_section)
+        self.resource_section = deepcopy(resource_section) if resource_section else None
         self.old_section: dict[str, Any] | None = None
         self.signals = _make_changed()
+        self.added_vocab_ids: set[str] = set()
+        self.added_expression_ids: set[str] = set()
+        self.added_grammar_ids: set[str] = set()
+
+    def _snapshot_resource_ids(self) -> tuple[set[str], set[str], set[str]]:
+        vocab_ids = {w.get("id", "") for w in self.adapter.vocab}
+        expression_ids = {e.get("id", "") for e in self.adapter.expressions}
+        grammar_ids = {g.get("id", "") for g in self.adapter.grammar_points}
+        return vocab_ids, expression_ids, grammar_ids
+
+    def _record_added_resources(self, old_ids: tuple[set[str], set[str], set[str]]) -> None:
+        vocab_ids, expression_ids, grammar_ids = old_ids
+        self.added_vocab_ids = {w.get("id", "") for w in self.adapter.vocab} - vocab_ids
+        self.added_expression_ids = {
+            e.get("id", "") for e in self.adapter.expressions
+        } - expression_ids
+        self.added_grammar_ids = {
+            g.get("id", "") for g in self.adapter.grammar_points
+        } - grammar_ids
+
+    def _merge_resources(self) -> None:
+        if self.resource_section is not None:
+            old_ids = self._snapshot_resource_ids()
+            self.adapter.merge_section_resources(self.resource_section)
+            self._record_added_resources(old_ids)
+
+    def _rollback_resources(self) -> None:
+        self.adapter.vocab = [
+            w for w in self.adapter.vocab if w.get("id", "") not in self.added_vocab_ids
+        ]
+        self.adapter.expressions = [
+            e
+            for e in self.adapter.expressions
+            if e.get("id", "") not in self.added_expression_ids
+        ]
+        self.adapter.grammar_points = [
+            g
+            for g in self.adapter.grammar_points
+            if g.get("id", "") not in self.added_grammar_ids
+        ]
 
     def redo(self) -> None:
         if self.old_section is None:
             self.old_section = deepcopy(self.adapter.find_section(self.section_id))
+        self._merge_resources()
         self.adapter.replace_section(self.section_id, deepcopy(self.new_section))
         self.signals.changed.emit()
 
     def undo(self) -> None:
         if self.old_section is not None:
             self.adapter.replace_section(self.section_id, deepcopy(self.old_section))
+        self._rollback_resources()
+        self.signals.changed.emit()
+
+
+class MergeAiSectionCommand(QUndoCommand):
+    """Merge an AI-generated section into an existing section with user control.
+
+    The ``plan`` describes which units/lessons to replace, add, or skip.
+    Top-level words/expressions/grammarPoints from the incoming section are
+    merged into the course resources. Undo restores the old section and rolls
+    back any resources introduced by this merge.
+    """
+
+    def __init__(
+        self,
+        adapter,
+        plan: "SectionMergePlan",
+    ) -> None:
+        super().__init__("AI 合并 Section")
+        self.adapter = adapter
+        self.plan = plan
+        self.incoming_section = deepcopy(plan.incoming_section)
+        self.section_id: str = plan.target_section_id or ""
+        self.signals = _make_changed()
+        self.old_section: dict[str, Any] | None = None
+        self.added_vocab_ids: set[str] = set()
+        self.added_expression_ids: set[str] = set()
+        self.added_grammar_ids: set[str] = set()
+
+    def _snapshot_resource_ids(self) -> tuple[set[str], set[str], set[str]]:
+        vocab_ids = {w.get("id", "") for w in self.adapter.vocab}
+        expression_ids = {e.get("id", "") for e in self.adapter.expressions}
+        grammar_ids = {g.get("id", "") for g in self.adapter.grammar_points}
+        return vocab_ids, expression_ids, grammar_ids
+
+    def _record_added_resources(self, old_ids: tuple[set[str], set[str], set[str]]) -> None:
+        vocab_ids, expression_ids, grammar_ids = old_ids
+        self.added_vocab_ids = {w.get("id", "") for w in self.adapter.vocab} - vocab_ids
+        self.added_expression_ids = {
+            e.get("id", "") for e in self.adapter.expressions
+        } - expression_ids
+        self.added_grammar_ids = {
+            g.get("id", "") for g in self.adapter.grammar_points
+        } - grammar_ids
+
+    def _merge_resources(self) -> None:
+        old_ids = self._snapshot_resource_ids()
+        self.adapter.merge_section_resources(self.incoming_section)
+        self._record_added_resources(old_ids)
+
+    def _rollback_resources(self) -> None:
+        self.adapter.vocab = [
+            w for w in self.adapter.vocab if w.get("id", "") not in self.added_vocab_ids
+        ]
+        self.adapter.expressions = [
+            e
+            for e in self.adapter.expressions
+            if e.get("id", "") not in self.added_expression_ids
+        ]
+        self.adapter.grammar_points = [
+            g
+            for g in self.adapter.grammar_points
+            if g.get("id", "") not in self.added_grammar_ids
+        ]
+
+    def _apply_plan(self) -> None:
+        target = self.adapter.find_section(self.section_id)
+        target_units = target.setdefault("units", [])
+
+        # Replace existing units lesson-by-lesson so the user can uncheck
+        # individual lessons in the preview. Unit-level metadata is updated
+        # from the incoming unit, but lessons that are not listed in the plan
+        # are left untouched (no deletion).
+        for action in self.plan.replaced_units:
+            if action.action == "skip":
+                continue
+            idx = action.target_index
+            if idx is None or not (0 <= idx < len(target_units)):
+                continue
+            incoming_unit = action.incoming
+            target_unit = target_units[idx]
+            target_unit["name"] = incoming_unit.get("name", target_unit.get("name", ""))
+            target_unit["description"] = incoming_unit.get(
+                "description", target_unit.get("description", "")
+            )
+            unit_id = incoming_unit.get("id", "")
+            lessons = target_unit.setdefault("lessons", [])
+
+            for lesson_action in self.plan.replaced_lessons_by_unit.get(unit_id, []):
+                if lesson_action.action == "skip":
+                    continue
+                lidx = lesson_action.target_index
+                if lidx is None or not (0 <= lidx < len(lessons)):
+                    continue
+                lessons[lidx] = deepcopy(lesson_action.incoming)
+            for lesson_action in self.plan.added_lessons_by_unit.get(unit_id, []):
+                if lesson_action.action == "skip":
+                    continue
+                lessons.append(deepcopy(lesson_action.incoming))
+
+        # Add new units (their lessons are included in the unit dict).
+        for action in self.plan.added_units:
+            if action.action == "skip":
+                continue
+            target_units.append(deepcopy(action.incoming))
+
+    def redo(self) -> None:
+        if self.old_section is None:
+            self.old_section = deepcopy(self.adapter.find_section(self.section_id))
+        self._merge_resources()
+        self._apply_plan()
+        # Sync section metadata to the index entry.
+        for entry in self.adapter.index.setdefault("sections", []):
+            if entry.get("id") == self.section_id:
+                entry["name"] = self.incoming_section.get("name", entry.get("name", ""))
+                entry["description"] = self.incoming_section.get(
+                    "description", entry.get("description", "")
+                )
+                entry["level"] = self.incoming_section.get("level", entry.get("level", ""))
+                entry["prerequisiteSectionIds"] = self.incoming_section.get(
+                    "prerequisiteSectionIds", entry.get("prerequisiteSectionIds", [])
+                )
+                break
+        self.signals.changed.emit()
+
+    def undo(self) -> None:
+        if self.old_section is not None:
+            self.adapter.replace_section(self.section_id, deepcopy(self.old_section))
+        self._rollback_resources()
         self.signals.changed.emit()
 
 
 class AiEditUnitCommand(QUndoCommand):
-    """Replace a single unit within a section with an AI-edited version."""
+    """Replace a single unit within a section with an AI-edited version.
+
+    If ``resource_section`` is provided, its top-level words/expressions/
+    grammarPoints are merged into the course resources on redo and rolled back
+    on undo.
+    """
 
     def __init__(
-        self, adapter, section_id: str, unit_id: str, new_unit: dict[str, Any]
+        self,
+        adapter,
+        section_id: str,
+        unit_id: str,
+        new_unit: dict[str, Any],
+        resource_section: dict[str, Any] | None = None,
     ) -> None:
         super().__init__("AI 编辑 Unit")
         self.adapter = adapter
         self.section_id = section_id
         self.unit_id = unit_id
         self.new_unit = deepcopy(new_unit)
+        self.resource_section = deepcopy(resource_section) if resource_section else None
         self.old_unit: dict[str, Any] | None = None
         self.signals = _make_changed()
+        self.added_vocab_ids: set[str] = set()
+        self.added_expression_ids: set[str] = set()
+        self.added_grammar_ids: set[str] = set()
+
+    def _snapshot_resource_ids(self) -> tuple[set[str], set[str], set[str]]:
+        vocab_ids = {w.get("id", "") for w in self.adapter.vocab}
+        expression_ids = {e.get("id", "") for e in self.adapter.expressions}
+        grammar_ids = {g.get("id", "") for g in self.adapter.grammar_points}
+        return vocab_ids, expression_ids, grammar_ids
+
+    def _record_added_resources(self, old_ids: tuple[set[str], set[str], set[str]]) -> None:
+        vocab_ids, expression_ids, grammar_ids = old_ids
+        self.added_vocab_ids = {w.get("id", "") for w in self.adapter.vocab} - vocab_ids
+        self.added_expression_ids = {
+            e.get("id", "") for e in self.adapter.expressions
+        } - expression_ids
+        self.added_grammar_ids = {
+            g.get("id", "") for g in self.adapter.grammar_points
+        } - grammar_ids
+
+    def _merge_resources(self) -> None:
+        if self.resource_section is not None:
+            old_ids = self._snapshot_resource_ids()
+            self.adapter.merge_section_resources(self.resource_section)
+            self._record_added_resources(old_ids)
+
+    def _rollback_resources(self) -> None:
+        self.adapter.vocab = [
+            w for w in self.adapter.vocab if w.get("id", "") not in self.added_vocab_ids
+        ]
+        self.adapter.expressions = [
+            e
+            for e in self.adapter.expressions
+            if e.get("id", "") not in self.added_expression_ids
+        ]
+        self.adapter.grammar_points = [
+            g
+            for g in self.adapter.grammar_points
+            if g.get("id", "") not in self.added_grammar_ids
+        ]
 
     def redo(self) -> None:
         if self.old_unit is None:
             _section, unit = self.adapter.find_unit(self.unit_id)
             self.old_unit = deepcopy(unit)
+        self._merge_resources()
         self.adapter.replace_unit(
             self.section_id, self.unit_id, deepcopy(self.new_unit)
         )
@@ -420,30 +1007,85 @@ class AiEditUnitCommand(QUndoCommand):
             self.adapter.replace_unit(
                 self.section_id, self.unit_id, deepcopy(self.old_unit)
             )
+        self._rollback_resources()
         self.signals.changed.emit()
 
 
 class AiEditLessonCommand(QUndoCommand):
-    """Replace a single lesson with an AI-edited version."""
+    """Replace a single lesson with an AI-edited version.
 
-    def __init__(self, adapter, lesson_id: str, new_lesson: dict[str, Any]) -> None:
+    If ``resource_section`` is provided, its top-level words/expressions/
+    grammarPoints are merged into the course resources on redo and rolled back
+    on undo.
+    """
+
+    def __init__(
+        self,
+        adapter,
+        lesson_id: str,
+        new_lesson: dict[str, Any],
+        resource_section: dict[str, Any] | None = None,
+    ) -> None:
         super().__init__("AI 编辑 Lesson")
         self.adapter = adapter
         self.lesson_id = lesson_id
         self.new_lesson = deepcopy(new_lesson)
+        self.resource_section = deepcopy(resource_section) if resource_section else None
         self.old_lesson: dict[str, Any] | None = None
         self.signals = _make_changed()
+        self.added_vocab_ids: set[str] = set()
+        self.added_expression_ids: set[str] = set()
+        self.added_grammar_ids: set[str] = set()
+
+    def _snapshot_resource_ids(self) -> tuple[set[str], set[str], set[str]]:
+        vocab_ids = {w.get("id", "") for w in self.adapter.vocab}
+        expression_ids = {e.get("id", "") for e in self.adapter.expressions}
+        grammar_ids = {g.get("id", "") for g in self.adapter.grammar_points}
+        return vocab_ids, expression_ids, grammar_ids
+
+    def _record_added_resources(self, old_ids: tuple[set[str], set[str], set[str]]) -> None:
+        vocab_ids, expression_ids, grammar_ids = old_ids
+        self.added_vocab_ids = {w.get("id", "") for w in self.adapter.vocab} - vocab_ids
+        self.added_expression_ids = {
+            e.get("id", "") for e in self.adapter.expressions
+        } - expression_ids
+        self.added_grammar_ids = {
+            g.get("id", "") for g in self.adapter.grammar_points
+        } - grammar_ids
+
+    def _merge_resources(self) -> None:
+        if self.resource_section is not None:
+            old_ids = self._snapshot_resource_ids()
+            self.adapter.merge_section_resources(self.resource_section)
+            self._record_added_resources(old_ids)
+
+    def _rollback_resources(self) -> None:
+        self.adapter.vocab = [
+            w for w in self.adapter.vocab if w.get("id", "") not in self.added_vocab_ids
+        ]
+        self.adapter.expressions = [
+            e
+            for e in self.adapter.expressions
+            if e.get("id", "") not in self.added_expression_ids
+        ]
+        self.adapter.grammar_points = [
+            g
+            for g in self.adapter.grammar_points
+            if g.get("id", "") not in self.added_grammar_ids
+        ]
 
     def redo(self) -> None:
         if self.old_lesson is None:
             _s, _u, lesson = self.adapter.find_lesson(self.lesson_id)
             self.old_lesson = deepcopy(lesson)
+        self._merge_resources()
         self.adapter.replace_lesson(self.lesson_id, deepcopy(self.new_lesson))
         self.signals.changed.emit()
 
     def undo(self) -> None:
         if self.old_lesson is not None:
             self.adapter.replace_lesson(self.lesson_id, deepcopy(self.old_lesson))
+        self._rollback_resources()
         self.signals.changed.emit()
 
 

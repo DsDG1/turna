@@ -567,6 +567,90 @@ class ValidateSectionJsonTest(unittest.TestCase):
         problems = self.adapter.validate_section_json(section)
         self.assertTrue(any(p["path"] == "id" for p in problems))
 
+    def test_check_existing_ids_false_allows_reused_unit_lesson_ids(self) -> None:
+        """AI merge paths reuse existing unit/lesson ids on purpose."""
+        section = self._valid_section()
+        existing_section = self.adapter.sections[0]
+        existing_unit = existing_section["units"][0]
+        existing_lesson = existing_unit["lessons"][0]
+        section["id"] = "ai-edited-section"
+        section["units"] = [dict(existing_unit)]
+        section["units"][0]["lessons"] = [dict(existing_lesson)]
+
+        problems = self.adapter.validate_section_json(
+            section, check_existing_ids=False
+        )
+        error_messages = [p["message"] for p in problems if p["level"] == "error"]
+        self.assertNotIn(
+            f"unit id「{existing_unit['id']}」重复或已存在", error_messages
+        )
+        self.assertNotIn(
+            f"lesson id「{existing_lesson['id']}」重复或已存在", error_messages
+        )
+
+    def test_check_existing_ids_false_still_catches_local_duplicates(self) -> None:
+        section = self._valid_section()
+        section["units"].append(dict(section["units"][0]))
+        problems = self.adapter.validate_section_json(
+            section, check_existing_ids=False
+        )
+        self.assertTrue(
+            any("重复或已存在" in p["message"] for p in problems)
+        )
+
+    def test_plan_section_merge_for_new_section_all_add(self) -> None:
+        section = self._valid_section()
+        plan = self.adapter.plan_section_merge(None, section)
+        self.assertIsNone(plan.target_section_id)
+        self.assertEqual(len(plan.added_units), len(section["units"]))
+        self.assertEqual(plan.replaced_units, [])
+
+    def test_plan_section_merge_detects_replace_and_add(self) -> None:
+        existing_section = self.adapter.sections[0]
+        existing_unit = existing_section["units"][0]
+        existing_lesson = existing_unit["lessons"][0]
+
+        incoming = {
+            "id": existing_section["id"],
+            "units": [
+                {
+                    "id": existing_unit["id"],
+                    "name": "Updated unit",
+                    "lessons": [
+                        {
+                            "id": existing_lesson["id"],
+                            "name": "Updated lesson",
+                            "template": "intro",
+                            "content": {"subLessons": []},
+                        },
+                        {
+                            "id": "ai-new-lesson",
+                            "name": "New lesson",
+                            "template": "intro",
+                            "content": {"subLessons": []},
+                        },
+                    ],
+                },
+                {
+                    "id": "ai-new-unit",
+                    "name": "New unit",
+                    "lessons": [],
+                },
+            ],
+        }
+        plan = self.adapter.plan_section_merge(existing_section["id"], incoming)
+        self.assertEqual(plan.target_section_id, existing_section["id"])
+        self.assertEqual(len(plan.replaced_units), 1)
+        self.assertEqual(len(plan.added_units), 1)
+        self.assertEqual(
+            len(plan.replaced_lessons_by_unit.get(existing_unit["id"], [])),
+            1,
+        )
+        self.assertEqual(
+            len(plan.added_lessons_by_unit.get(existing_unit["id"], [])),
+            1,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
