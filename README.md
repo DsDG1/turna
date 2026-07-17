@@ -16,6 +16,42 @@
 
 > 本仓库非上游官方版本；纯原版功能请访问 [rshrc/Varnamala](https://github.com/rshrc/Varnamala)。
 
+---
+
+## 语言学习理念与教学法基础
+
+本项目的课程设计与复习机制建立在下述二语习得（Second Language Acquisition, SLA）与认知心理学研究的基础上。以下简要介绍贯穿全文的核心概念。
+
+### 可理解输入与 i+1 原则
+
+Stephen Krashen 的**输入假说**（Input Hypothesis）认为，语言习得发生在学习者接触到略高于当前水平的**可理解输入**（comprehensible input）时——即 "i+1"，其中 i 为学习者当前水平。本项目的 CEFR 分级 Section（A1→B2）与 inter-section 前置依赖即是对这一原则的工程化实现：学习者必须在较低等级的课程中达到一定掌握程度后，才能解锁下一等级的内容。
+
+### 间隔重复与遗忘曲线
+
+Hermann Ebbinghaus 在 1885 年描述了**遗忘曲线**（forgetting curve）：新记忆在形成后迅速衰减，但每次**主动检索**（active retrieval）都能显著减缓衰减速度。**间隔重复**（spaced repetition）将复习安排在遗忘临界点附近，以最少的复习次数达成最长的记忆保持。这在词汇习得中被认为是实证基础最牢固的策略之一（Nation, 2013）。
+
+本项目的 SRS 引擎采用 **SM-2 算法**（SuperMemo 2），根据每次复习的自我评分动态调整下次复习间隔。详见下方「复习与练习」节。
+
+### 检索练习与测试效应
+
+**测试效应**（testing effect）指：相对于被动重读，主动从记忆中提取信息（即"自我测试"）能显著增强长期记忆保持（Roediger & Karpicke, 2006）。本项目的填空、翻译、听写、选择等多种题型本质上都是不同形式的检索练习，而非单纯的"考核"。
+
+### 多技能整合
+
+应用语言学将语言能力分解为**接受性技能**（听、读）与**产出性技能**（说、写），以及词汇、语法、语音等**语言知识**维度。本项目的 6 种 Lesson Template（intro / practice / listening / reading / review / mastery）与 13 种 Interaction 题型覆盖了从词汇呈现到听读输入再到可控产出的完整学习闭环，避免孤立地训练单一技能。
+
+### 关于土耳其语
+
+Turkish 属于**突厥语系**，是一种**黏着语**（agglutinative language）：语法关系通过向词根依次附加词缀来表达，一个词可以承载相当于英语一整句的信息（如 *evlerinizdekilerden* = "from those at your houses"）。其核心特征包括：
+
+- **元音和谐**（vowel harmony）：词缀的元音必须与词根元音在舌位前后与唇形圆展上保持一致。
+- **SOV 语序**：主语—宾语—动词，与汉语（SVO）和英语（SVO）语序显著不同。
+- **无语法性别**：无冠词、无名词类别，代词无性别区分。
+
+这些特征使 Turkish 对于以汉语为母语的学习者既有门槛（语序差异、黏着形态），也有便利（无性别、拼读规则高度一致）。本项目针对这些特点设计了渐进式的语法复习流程与丰富的词形变化练习。
+
+---
+
 ## 快速开始
 
 ```bash
@@ -33,7 +69,9 @@ flutter run
 
 ### 当前内容状态
 
-课程为 Turkish（ADR 0020）。8 个 CEFR 分级 Section（A1→B2，inter-section 前置依赖），Section 1 有真实内容，Sections 2–8 含 AI 生成的占位课程。
+课程为 Turkish（ADR 0020）。8 个 CEFR 分级 Section，覆盖 A1（入门）→ B2（中高级），含 inter-section 前置依赖。
+
+> **CEFR**（Common European Framework of Reference for Languages，欧洲语言共同参考框架）将语言能力分为三等六级：A1/A2（基础使用者）、B1/B2（独立使用者）、C1/C2（熟练使用者）。本项目目前覆盖 A1→B2 四个等级，Section 1（A1）有真实内容，Sections 2–8（A1 高阶→B2）含 AI 生成的占位课程。
 
 清单见 [`docs/content_inventory_current.md`](./docs/content_inventory_current.md)。
 
@@ -44,18 +82,34 @@ flutter run
 ### 课程引擎
 
 - **层级模型**：`Section → Unit → Lesson → SubLesson / ListeningPhase / ReadingPassage → Stage → Interaction`（freezed + JSON 序列化）。
-- **13 种 Interaction 题型**（`@injectable` 插件注册到 GetIt）：`showWord` / `multipleChoice` / `multiSelect` / `fillBlank` / `translateSentence` / `listenAndPick` / `typeTheWord` / `listenOnly` / `reorderSentence` / `readingMcq` / `readingTrueFalse` / `readingShortAnswer`。
-- **6 种 Lesson Template**：`intro` / `practice` / `listening` / `reading` / `review` / `mastery`（+ `legacy` 兜底），覆盖词汇呈现、可控练习、听读输入、综合产出等典型教学环节。`Lesson.flattenedStages` 展平为渲染器可遍历的 `List<Stage>`。
+- **13 种 Interaction 题型**（`@injectable` 插件注册到 GetIt），按语言技能维度分类：
+  - **词汇呈现**：`showWord`（形式 + 意义 + 音频）
+  - **接受性词汇**：`multipleChoice`（识词选义）、`multiSelect`（多选）
+  - **产出性词汇/句法**：`fillBlank`（完形填空）、`translateSentence`（翻译）、`reorderSentence`（乱序组句）、`typeTheWord`（听音拼写）
+  - **听力**：`listenAndPick`（听后选择）、`listenOnly`（纯听输入）
+  - **阅读**：`readingMcq` / `readingTrueFalse` / `readingShortAnswer`（篇章理解）
+- **6 种 Lesson Template**，覆盖从词汇呈现到综合产出的完整教学循环：
+  - **intro**（认识新词）：通过 `showWord` 呈现目标词汇的形式（拼写/发音）与意义（翻译/图片），配合简单选择题建立初步的形式—意义映射（form-meaning mapping）。
+  - **practice**（巩固练习）：在受控语境中反复操练目标语言点——填空、翻译、组句——使陈述性知识（declarative knowledge）开始向程序性技能转化。
+  - **listening**（听力训练）：采用 `listenAndPick`、`typeTheWord`、`listenOnly` 等交互方式，训练自下而上（bottom-up）的语音解码能力。`ListeningPhase` 支持 debut→main→fin 三段式音频结构，可叠加 BGM 模拟真实听力环境。
+  - **reading**（阅读理解）：通过短文阅读 + `readingMcq`、`readingTrueFalse`、`readingShortAnswer` 三道递进题目，训练自上而下（top-down）的篇章理解策略。
+  - **review**（复习）：跨单元回顾近期所学，采用交错出题方式避免集中练习效应。
+  - **mastery**（综合测验）：混合题型限时完成，模拟真实语言使用中的多技能并行需求。
+  - 另含 `legacy` 兜底模板用于兼容旧版课程数据。`Lesson.flattenedStages` 展平为渲染器可遍历的 `List<Stage>`。
 - **按需加载**：`index.json` + per-section JSON + drift SQLite 缓存（schemaVersion 5，含 expressions 表），按内容版本号自动 reseed。
 
 ### 复习与练习
 
-- **SRS**：SM-2 算法的单词 + 语法点队列。基于间隔重复（spaced repetition）原理——在遗忘临界点安排复习，以较低的总复习次数达成长期记忆保持。这一方法在二语习得（SLA）研究中被广泛采纳，是词汇习得领域实证支持最充分的策略之一。闪卡显示 "Learned in: <lesson>"。
-- **错题本**：30 条 FIFO，含原始 interaction 快照，支持重做清除 + 跳转语法复习。
-- **语法复习**：Explain → Practice → Rate 三段流，复用 Interaction 渲染器。
-- **每日挑战**：从课程树随机抽取真实题项合成挑战课。
-- **弱词复习**：近 30 天 ≥2 错次构建 10 题迷你 quiz。
-- **Match Madness**：单词配对小游戏。
+- **SRS（间隔重复系统）**：SM-2 算法的单词 + 语法点队列。核心机制如下：
+  - 每张闪卡在复习时由学习者自评掌握程度（0–5 级），算法据此计算**下次复习间隔**（从数小时逐步拉长到数月）和 **easiness factor**（易度系数）。
+  - 评分为 0–2（失败）时，间隔重置为 1 天并从队列中重新调度；评分 ≥3（通过）时，间隔按 easiness factor 倍增。
+  - 这一设计直接对应 Ebbinghaus 遗忘曲线：在遗忘临界点附近安排复习，以最低的总复习次数达成长期记忆保持。间隔重复在二语词汇习得中的效果已在大量实证研究中得到验证（Nation, 2013; Nakata, 2015）。
+  - 闪卡显示 "Learned in: <lesson>"，便于学习者回溯初次学习语境。
+- **错题本**：30 条 FIFO 队列，保留原始 interaction 快照（含题干、正答、用户错答）。支持重做清除与跳转对应语法点复习。从认知角度看，**错误分析**（error analysis）是 SLA 中理解中介语（interlanguage）发展轨迹的核心手段——学习者的错误并非随机，而是反映了其当前的中介语规则系统（Corder, 1967）。
+- **语法复习**：Explain → Practice → Rate 三段流。先呈现语法规则（显性知识输入），再通过练习转化为程序性知识（procedural knowledge），最后自我评估掌握程度。这一流程参考了 **Skill Acquisition Theory**（DeKeyser, 2007）中从陈述性知识到程序性知识的转化路径。
+- **每日挑战**：从课程树随机抽取真实题项合成挑战课，实现**间隔交错练习**（interleaved practice）——相比集中练习单一类型，交错练习虽然在训练阶段感觉更吃力，但长期保持效果显著更优（Rohrer & Taylor, 2007）。
+- **弱词复习**：近 30 天内错误 ≥2 次的词汇自动汇聚为 10 题迷你 quiz，实现对薄弱项目的**针对性检索练习**。
+- **Match Madness**：限时单词配对小游戏，通过速度压力强化词汇的形式—意义连接自动化（automaticity），降低学习者在实际交流中的认知负荷。
 - **AI 提示助手**：课程内嵌 AI 聊天面板，按当前题目上下文提供提示与解释，支持 DeepSeek 等 OpenAI-compatible 后端。
 
 ### 检索与统计
@@ -74,7 +128,9 @@ flutter run
 ### 音频 / TTS
 
 - `AudioController` 统一接管 TTS（`tr`）；Piper 离线模型已移除（ADR 0020）。
-- 预录 `audioAsset` 预留给听力练习。
+- 预录 `audioAsset` 预留给听力练习，支持三段式结构（debut + main + fin）模拟真实听力场景。
+
+**听力教学的语言学考量**：土耳其语的拼写—发音对应高度规则（浅层正字法，shallow orthography），这对初学者的音位意识（phonemic awareness）训练比较友好。然而，其元音和谐系统要求学习者在听力中同时跟踪词根元音的前/后、圆/展特征才能正确预测后续词缀的形态——这构成了从"听到"到"听懂"的关键跨越。`listenOnly` 阶段的纯听输入为学习者提供了专注于音位解码而不受文字干扰的机会，而 `typeTheWord` 阶段则将音位解码与拼写产出结合，双向强化形—音映射。
 
 ### 提醒
 
@@ -91,11 +147,13 @@ flutter run
 
 ## 已明确不做
 
-- ❌ League/天梯/好友/排行榜/分享。
-- ❌ Hearts/Streak Repair/商店道具。
-- ❌ Speaking 录音匹配。
-- ❌ 云端 CMS/Firebase/推送通知。
-- ❌ GUI 替代 JSON 作为真理源。
+以下"游戏化"机制的移除是经过考量的教学法决策，而非单纯的工程简化：
+
+- ❌ **League/天梯/好友/排行榜/分享**。社会比较（social comparison）虽然在短期能提升参与度，但对语言习得的内在动机（intrinsic motivation）存在抑制作用（Deci & Ryan, 1985 的自我决定理论）。本项目选择以内容驱动而非竞争驱动的学习体验。
+- ❌ **Hearts/Streak Repair/商店道具**。惩罚机制（答错扣心）与"失败恐惧"（fear of failure）相关，可能导致学习者回避高难度内容——而高难度内容恰恰是 i+1 原则所要求的习得关键区间。
+- ❌ **Speaking 录音匹配**。自动语音评分技术在非主流语种（包括 Turkish）上的可靠性与效度不足，且本项目以 TTS + 听力路径覆盖语音层面的输入训练。
+- ❌ **云端 CMS/Firebase/推送通知**。本地优先架构保证了离线可用性与数据隐私，同时避免了服务端依赖带来的持续维护成本。
+- ❌ **GUI 替代 JSON 作为真理源**。GUI 编辑器是 JSON 的可视化前端——JSON 始终是课程内容的唯一权威存储格式，确保可版本化、可 diff、可脚本批处理。
 
 ---
 
@@ -393,7 +451,10 @@ python tool/course_cli.py audio-manifest --output manifest.csv
 
 ## 下一轮计划
 
-- **内容创作**：用真实 Turkish 词汇、表达、语法点、听力阶段、阅读篇章充实 Sections 2–8。
+- **内容创作**：以真实 Turkish 词汇、表达、语法点、听力阶段、阅读篇章充实 Sections 2–8。内容创作遵循以下语言学优先级：
+  1. **高频词汇优先**：以 Turkish National Corpus 词频数据为指导，优先覆盖前 2000 词族（覆盖日常文本约 85%）。
+  2. **语法渐进**：A1 集中于现在时、格标记（主格/宾格/与格/属格/方位格/离格）、简单句；A2 引入过去时与将来时；B1 引入关系从句与名物化结构；B2 涉及语篇衔接手段与语体变化。
+  3. **语用真实性**：表达与对话应反映目标语的真实使用场景（如土耳其语中 `Buyurun` 的多重语用功能），避免翻译腔。
 - 持续完善可访问性与统计指标。
 
 ---

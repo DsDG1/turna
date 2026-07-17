@@ -9,6 +9,59 @@ validate / lint / 发布工作流。GUI 是 `course_cli` 的图形前端，**校
 
 ---
 
+## 课程设计的语言学依据
+
+本编辑器并非通用的 JSON 编辑器，而是围绕语言教学的内在逻辑构建了结构化的内容模型。以下是课程数据模型背后的核心语言学与应用语言学考量，理解这些有助于更有效地使用本工具。
+
+### 课程模板（Lesson Template）的习得依据
+
+6 种模板对应了二语习得中不同阶段的学习活动类型：
+
+| 模板 | 习得功能 | 对应的 SLA 概念 |
+|---|---|---|
+| **intro** | 建立词汇的形式—意义映射 | 附带习得（incidental learning）的启动阶段；Nation 的"形式—意义—使用"三角 |
+| **practice** | 在受控语境中巩固，推动陈述性知识→程序性技能的转化 | Skill Acquisition Theory（DeKeyser, 2007）；输出假说（Swain, 1985）——输出迫使学习者从语义加工转向句法加工 |
+| **listening** | 训练音位解码（phonological decoding）与自下而上加工 | 输入假说（Krashen, 1985）；音位工作记忆在 L2 听力中的作用（Vandergrift & Goh, 2012） |
+| **reading** | 训练自上而下的篇章理解策略，培养附带词汇习得 | 附带词汇习得假说（Nagy, Herman & Anderson, 1985）；交互式阅读模型 |
+| **review** | 间隔交错复习，对抗遗忘曲线 | 间隔效应（Ebbinghaus, 1885）；交错练习效应（Rohrer & Taylor, 2007） |
+| **mastery** | 多技能并行调用，模拟真实交际场景 | 自动化理论（automaticity）；交际语言教学（CLT）的终极产出目标 |
+
+在实际编辑中，选择模板即决定了 `Lesson` 的顶层结构（有无 `listeningPhases`、`readingPassage`、`subLessons` 等），编辑器会根据模板字段动态切换可编辑区域，从而在 UI 层面防止结构非法。
+
+### 题型分类与认知负荷
+
+12 种题型可按认知深度分为三个层次，在设计中应注意同一课内题型梯度的合理性：
+
+- **识别层**（低认知负荷）：`showWord`、`multipleChoice`、`multiSelect`、`listenAndPick`——学习者仅需辨认正答，适合新内容的首次接触。
+- **回忆层**（中认知负荷）：`fillBlank`、`typeTheWord`、`listenOnly`——需要从记忆中提取目标形式，是最典型的检索练习。
+- **产出层**（高认知负荷）：`translateSentence`、`reorderSentence`、`readingShortAnswer`——需要组织完整的语言输出，涉及句法加工与语用判断。
+
+这一梯度设计遵循了**支架式教学**（scaffolding）的原则：从高度结构化的识别任务开始，逐步撤除支架，最终过渡到自主产出。
+
+### 听力阶段的"呈现—练习—语境"三段式
+
+`listening` 模板中的 `ListeningPhase` 支持 `debut → main → fin` 三段式，这一结构来源于听力教学中的"三阶段"框架（pre-listening / while-listening / post-listening）：
+
+- **debut（开场）**：激活背景知识，设定听力目标（相当于 pre-listening）。
+- **main（主音频 + BGM）**：核心听力输入，可叠加背景音模拟真实场景（相当于 while-listening 的扩展——加入环境音有助于训练学习者在噪音中的语音感知能力）。
+- **fin（结尾）**：总结或过渡（相当于 post-listening）。
+
+与混音流水线配合（见项目根 README 的「听力音频生成」节），每个阶段可有 A/B/C 多套 variant，增加同一课程的重复可玩性而无需重复编写内容。
+
+### CEFR 分级的编辑约束
+
+课程的 `level` 字段应反映 CEFR 等级（A1–C2），且 section 之间通过 `prerequisiteSectionIds` 建立前置依赖链。编辑时应遵循以下原则：
+
+- **词汇量与等级匹配**：A1 约 500–800 词族，A2 约 1000–1500，B1 约 2000–2500，B2 约 3000–4000（Milton, 2009）。
+- **语法复杂度递进**：A1 阶段以现在时、简单句为主；B1 开始引入从句与复杂时态；B2 涉及语篇衔接与语体变化。
+- **题型比例随等级调整**：低等级以识别层题型为主（建立信心与基础映射），中高等级逐步增加产出层比例（推动程序化与自动化）。
+
+### 词汇、表达与语法点的资源分离
+
+本编辑器将课程拆分为三类可复用资源——`vocab`（词汇）、`expressions`（固定表达）、`grammar_points`（语法点）——而非将语言内容内嵌在每道题中。这种分离体现了**语料库语言学**中"词汇—语法连续体"（lexicogrammar continuum）的思想：单个词汇在不同搭配中有不同语法行为，同一语法点在不同词汇上表现不同。将二者建模为独立实体并以引用关联，使内容可跨课复用、可批量更新，也便于从资源维度进行覆盖度分析（如：某个语法点是否缺少足够的练习课？）。
+
+---
+
 ## 安装
 
 需要 Python 3.11+。
@@ -163,10 +216,10 @@ tool/gui/
 
 ### 关键约束（guiplan §4）
 
-- **校验单一来源**：GUI 不另立校验标准，全部走 `course_cli validate` + `lint`
-- **JSON 是唯一真理源**：内存编辑 -> save 写 JSON -> CLI 校验
-- **id 不可变**：新增用 `short_id` 生成，不允许重命名 id
-- **保存回滚**：validate 失败时 `_restore_snapshot` 恢复内存 + 重写文件
+- **校验单一来源**：GUI 不另立校验标准，全部走 `course_cli validate` + `lint`。这确保了编辑器不会因前端逻辑偏差而产生在移动端无法正确渲染的课程数据。
+- **JSON 是唯一真理源**：内存编辑 -> save 写 JSON -> CLI 校验。JSON 格式保证了内容的可版本化（git diff 可读）、可脚本批处理（如 `split_course.py` 拆分大型 section）、与 Flutter 端 `CourseLoader` 的无缝对接。
+- **id 不可变**：新增用 `short_id` 生成，不允许重命名 id。id 是跨资源引用的唯一锚点——`wordId`、`expressionId`、`grammarPointId` 在 lesson 中的引用依赖 id 的稳定性。这与语言学数据建模中"形式—意义—使用"三元组的可追溯性需求一致。
+- **保存回滚**：validate 失败时 `_restore_snapshot` 恢复内存 + 重写文件，防止因校验错误导致课程数据损坏。
 
 ---
 
