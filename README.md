@@ -8,19 +8,19 @@
 
 ## 这是什么
 
-基于上游 [Varnamala](https://github.com/rshrc/Varnamala) 的 Section/Unit/Lesson/SRS/错题本骨架，聚焦 **Turkish**，持续做减法。
+基于上游 [Varnamala](https://github.com/rshrc/Varnamala) 的 Section/Unit/Lesson/SRS/错题本骨架，聚焦 **Turkish**，持续精简与深化。
 
 - **纯本地**：SQLite（drift），无云后端/推送/登录。
 - **单人离线**：无好友、排行榜、联赛、心数、宝石。
-- **AI 协作开发**：工程决策记录在 `docs/decisions/`。
+- **AI 辅助开发**：工程决策记录在 `docs/decisions/`。
 
 > 本仓库非上游官方版本；纯原版功能请访问 [rshrc/Varnamala](https://github.com/rshrc/Varnamala)。
 
 ## 快速开始
 
 ```bash
-git clone <仓库地址>
-cd VarnamalaPlus
+git clone git@gitee.com:dhwdwf3/Varnamalaplus.git
+cd Varnamalaplus
 flutter pub get
 flutter run
 ```
@@ -45,12 +45,12 @@ flutter run
 
 - **层级模型**：`Section → Unit → Lesson → SubLesson / ListeningPhase / ReadingPassage → Stage → Interaction`（freezed + JSON 序列化）。
 - **13 种 Interaction 题型**（`@injectable` 插件注册到 GetIt）：`showWord` / `multipleChoice` / `multiSelect` / `fillBlank` / `translateSentence` / `listenAndPick` / `typeTheWord` / `listenOnly` / `reorderSentence` / `readingMcq` / `readingTrueFalse` / `readingShortAnswer`。
-- **6 种 Lesson Template**：`intro` / `practice` / `listening` / `reading` / `review` / `mastery`（+ `legacy` 兜底）。`Lesson.flattenedStages` 展平为渲染器可遍历的 `List<Stage>`。
+- **6 种 Lesson Template**：`intro` / `practice` / `listening` / `reading` / `review` / `mastery`（+ `legacy` 兜底），覆盖词汇呈现、可控练习、听读输入、综合产出等典型教学环节。`Lesson.flattenedStages` 展平为渲染器可遍历的 `List<Stage>`。
 - **按需加载**：`index.json` + per-section JSON + drift SQLite 缓存（schemaVersion 5，含 expressions 表），按内容版本号自动 reseed。
 
 ### 复习与练习
 
-- **SRS**：SM-2 算法的单词 + 语法点队列；闪卡显示 "Learned in: <lesson>"。
+- **SRS**：SM-2 算法的单词 + 语法点队列。基于间隔重复（spaced repetition）原理——在遗忘临界点安排复习，以较低的总复习次数达成长期记忆保持。这一方法在二语习得（SLA）研究中被广泛采纳，是词汇习得领域实证支持最充分的策略之一。闪卡显示 "Learned in: <lesson>"。
 - **错题本**：30 条 FIFO，含原始 interaction 快照，支持重做清除 + 跳转语法复习。
 - **语法复习**：Explain → Practice → Rate 三段流，复用 Interaction 渲染器。
 - **每日挑战**：从课程树随机抽取真实题项合成挑战课。
