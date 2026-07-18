@@ -10,7 +10,6 @@ if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
 from src.backend.extraction_quality import (
-    QualityIssue,
     compute_quality_report,
 )
 from src.backend.knowledge_schema import KnowledgePoints

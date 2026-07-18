@@ -23,7 +23,7 @@ from PySide6.QtWidgets import (
 )
 
 from src.app import current_ai_config
-from src.backend.ai_generator import AiApiConfig, request_chat
+from src.backend.ai_generator import request_chat
 from src.dialogs.ai_generator_dialog import AiRequestWorker
 from src.infrastructure.telemetry import telemetry
 
@@ -204,7 +204,8 @@ class AiErrorAnalyzerDialog(QDialog):
         self._worker = None
 
     def closeEvent(self, event) -> None:  # noqa: N802
+        # Cancel only; the worker keep-alive registry keeps the thread alive
+        # until it finishes (see worker.py), so no blocking wait is needed.
         if self._worker is not None and self._worker.isRunning():
             self._worker.cancel()
-            self._worker.wait(2000)
         super().closeEvent(event)

@@ -303,6 +303,17 @@ class SectionImportService:
 - 未做（转入 Phase 4 或后续）：`explain_course` 通俗解释接入设计页（design.explanation 字段保留空）；许愿聊天附件；旧对话框套壳。
 - 测试：752 全绿（新增 `test_design_controller.py`、`test_design_panel.py`、grounded prompt 用例、workshop 设计阶段用例）。
 
+### 实施记录（merge overhaul A–D，2026-07-18，即本计划的 Phase 4 + UI 重构）
+
+三入口合一 + 工坊 UI 大改 + 随时中断/无限次恢复，分四阶段交付：
+
+- **Phase A 入口合一 + 空白项目 + 续存地基**：工具栏删「AI 生成课程（Beta）」「导入教材（Beta）」，只留「课程工坊」（`app.py`）；`TextbookProject.ui_stage`（可选字段，旧文件兼容）+ QSettings `workshop/last_project_id` 自动恢复；空白 AI 项目（`source_path=None`，库对话框「空白 AI 项目」入口）直达设计阶段，即原「AI 生成课程」的新形态；D9 修复——工坊路径导入也经 `record_imported_sections` 写回「已导入」（`_last_textbook_project` 机制删除，改由 `WorkshopWindow.current_project()` 供给）。
+- **Phase B 工坊 UI 重构**：六阶段（新增⑤审校）左侧 `QListWidget` 导航（完成态 ✓、数据驱动的可用性）、项目头（名称/语言对/进度点）、每页标题+说明骨架、工作坊属页（项目/设计/审校）统一上一步/下一步导航行、统一底栏（进度/阶段提示/用量/autosave/取消，经 `TextbookImportDialog` 新公共信号 `busy_changed/stage_text_changed/usage_changed/autosave_saved` 与 `DesignPanel` 信号上抛，嵌入页内建底栏隐藏 `set_bottom_bar_visible(False)`）；宽松切换——生成 busy 可自由切阶段，提取 busy 切走需确认取消；项目库空态硬编码色改走 palette。
+- **Phase C 设计页补齐 + 审校阶段**：附件（`AttachmentBar` + 拖拽 + 面板持有临时文件生命周期，发送后/关窗即删——顺带修了旧对话框的 temp 文件泄漏）、`PromptTemplateBar` 平移（与模板 combo 双向同步、genre 开关入 spec）、`explain_course` 自动链（结果写 `design.explanation`、可折叠展示、错误走内联不弹窗）、Settings 注入（`ai_timeout/ai_temperature/ai_retry_max` 进 worker，去硬编码 `max_retries=2`）、恢复原始输出、试做课时选择器；新 `src/dialogs/ai/review_panel.py` 审校页（`ResultPreviewWidget` + 试做 + `SectionDiffView` + `AiFixDialog` 回写设计页编辑器 + 导入，草稿真相始终为设计页编辑器/B1）；`apply_genre_to_spec` 接入 `build_spec`（注意其返回 replace 后的新 spec）；chat 图片附件序列化降级为 `[图片附件]` 占位（base64 不落盘）。
+- **Phase D 去 Beta + 文档**：警告框/标题/横幅去 Beta 字样（`app.py`、`ai_generator_dialog.py`、`textbook_import_dialog.py`）；README 工具栏表与「课程工坊使用指南」重写、`gui-beginner-guide.md` §5 重写、`textbook-import.md` 入口段更新、`teacher-usability-checklist.md` A2–A4 步骤更新；基线更新。
+- 测试：848 全绿（新增/改写 `test_workshop_window.py`（6 阶段侧栏/底栏/宽松切换/空白直达/续作幂等）、`test_design_controller.py`（附件/解释链/设置注入/genre/序列化降级）、`test_design_panel.py`（附件生命周期/恢复原始输出/模板栏同步/解释渲染）、`test_review_panel.py`）。
+- 有意调整：`design.review_snapshot` 字段未做——审校页直接读设计页编辑器真相，恢复快照冗余；`AiGeneratorDialog` 内部未动（edit 薄壳原样，仅标题去 Beta）。
+
 ---
 
 ## 六、风险与对策

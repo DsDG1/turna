@@ -166,5 +166,44 @@ class SubLessonLivePreviewTest(unittest.TestCase):
         self.assertEqual(len(cards), 2)
 
 
+class SubLessonAdvancedEditTest(unittest.TestCase):
+    def setUp(self) -> None:
+        _TestApp.get()
+        self.adapter = CourseAdapter()
+        self.lesson = _sample_lesson()
+        self.widget = SubLessonFlowWidget(
+            self.adapter,
+            {"id": "s-test", "name": "Section"},
+            {"id": "u-test", "name": "Unit"},
+            self.lesson,
+        )
+        self.widget.show()
+        QApplication.processEvents()
+
+    def test_has_advanced_edit_button(self) -> None:
+        # Sub-lesson editor now has the same 高级编辑 escape hatch as the
+        # listening/reading/mastery editors.
+        self.assertIsNotNone(self.widget._advanced_btn)
+        self.assertEqual(self.widget._advanced_btn.text(), "高级编辑")
+
+    def test_toggle_advanced_swaps_to_lesson_editor(self) -> None:
+        from src.widgets.lesson_editor import LessonEditor
+
+        self.widget._on_advanced_toggled(True)
+        self.assertEqual(self.widget._advanced_btn.text(), "返回教师视图")
+        self.assertIsNotNone(self.widget.findChild(LessonEditor))
+
+    def test_toggle_back_restores_teacher_view(self) -> None:
+        from src.teacher.question_cards import QuestionCard
+        from src.widgets.lesson_editor import LessonEditor
+
+        self.widget._on_advanced_toggled(True)
+        self.widget._on_advanced_toggled(False)
+        self.assertEqual(self.widget._advanced_btn.text(), "高级编辑")
+        self.assertIsNone(self.widget.findChild(LessonEditor))
+        # Teacher body rebuilt: question cards are back.
+        self.assertTrue(self.widget.findChildren(QuestionCard))
+
+
 if __name__ == "__main__":
     unittest.main()

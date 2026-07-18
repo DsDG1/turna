@@ -182,6 +182,14 @@ class _SettingsPageState extends State<SettingsPage> {
                 onTap: (context) =>
                     context.router.push(const AiWishChatRoute()),
               ),
+              settingsTileDivider(context),
+              SettingsActionTile(
+                icon: Icons.menu_book,
+                title: 'Import from Textbook',
+                subtitle: 'Convert a markdown/text file into course sections',
+                onTap: (context) =>
+                    context.router.push(const TextbookImportRoute()),
+              ),
             ],
           ),
           const SizedBox(height: 24),

@@ -51,7 +51,7 @@ def parse_sse_line(line: str) -> str | None:
         # Tolerate non-JSON ``data:`` lines (some proxies inject them).
         return None
     choices = obj.get("choices") or []
-    if not choices:
+    if not choices or not isinstance(choices[0], dict):
         return None
     delta = choices[0].get("delta") or {}
     content = delta.get("content")

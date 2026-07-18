@@ -168,7 +168,7 @@ class DesignPanelTest(unittest.TestCase):
             ],
             "params": {"topic": "旧主题", "level": "B1", "design_brief": "旧意图"},
             "draft_sections": [],
-            "explanation": "",
+            "explanation": "旧解释",
         }
         self.store.save_project(self.project)
         controller = DesignController(
@@ -183,7 +183,103 @@ class DesignPanelTest(unittest.TestCase):
         self.assertEqual(panel._brief_edit.text(), "旧意图")
         self.assertEqual(panel._level_combo.currentText(), "B1")
         self.assertEqual(len(panel._controller.chat), 1)
+        # Explanation restored into the collapsible group.
+        self.assertFalse(panel._explain_group.isHidden())
+        self.assertIn("旧解释", panel._explain_browser.toPlainText())
         panel.deleteLater()
+
+
+class DesignPanelPhaseCTest(unittest.TestCase):
+    """Phase C: attachments, restore-raw, template bar sync, explain view."""
+
+    def setUp(self) -> None:
+        _App.get()
+        self.tmp = tempfile.TemporaryDirectory()
+        self.store = TextbookProjectStore(base_dir=Path(self.tmp.name))
+        self.project = self.store.create_project(name="Blank", source_path=None)
+        controller = DesignController(
+            ai_config_fn=lambda: AiApiConfig(
+                base_url="http://localhost", api_key="k", model="m"
+            ),
+            worker_factory=_factory(
+                {
+                    request_alignment_reply: "好的。",
+                    generate_from_chat: _section(),
+                }
+            ),
+        )
+        self.panel = DesignPanel(None, None, controller=controller)
+        self.panel.set_project(self.project, self.store)
+
+    def tearDown(self) -> None:
+        self.panel.deleteLater()
+        self.tmp.cleanup()
+
+    def _make_txt(self) -> Path:
+        path = Path(self.tmp.name) / "note.txt"
+        path.write_text("merhaba = hello", encoding="utf-8")
+        return path
+
+    def test_attachment_add_and_cleanup(self) -> None:
+        self.panel._add_attachment_paths([self._make_txt()])
+        records = self.panel._attachment_bar.attachments()
+        self.assertEqual(len(records), 1)
+        temp_path = records[0].temp_path
+        self.assertTrue(temp_path.exists())
+        self.assertEqual(records[0].content["type"], "text")
+        self.panel.cleanup_attachments()
+        self.assertEqual(self.panel._attachment_bar.attachments(), [])
+        self.assertFalse(temp_path.exists())
+
+    def test_send_chat_clears_bar_and_deletes_temp(self) -> None:
+        self.panel._add_attachment_paths([self._make_txt()])
+        temp_path = self.panel._attachment_bar.attachments()[0].temp_path
+        self.panel._chat_input.setText("参考附件做课")
+        self.panel._on_send_chat()
+        self.assertEqual(self.panel._attachment_bar.attachments(), [])
+        self.assertFalse(temp_path.exists())
+        # The message carried the attachment content piece.
+        content = self.panel._controller.chat[0].content
+        self.assertIsInstance(content, list)
+        self.assertEqual(content[0]["text"], "参考附件做课")
+
+    def test_restore_raw_output(self) -> None:
+        self.panel._on_draft_chunk('{"id": "raw-partial"')
+        self.panel._on_draft_ready(_section())
+        self.assertTrue(self.panel._restore_raw_btn.isEnabled())
+        self.panel._json_editor.setPlainText('{"id": "hand-edited"}')
+        self.panel._on_restore_raw()
+        self.assertEqual(
+            self.panel._json_editor.toPlainText(), '{"id": "raw-partial"'
+        )
+
+    def test_template_bar_two_way_sync(self) -> None:
+        self.panel._template_bar.select_template("listening")
+        self.assertEqual(self.panel._template_combo.currentText(), "listening")
+        self.panel._template_combo.setCurrentText("reading")
+        self.assertEqual(self.panel._template_bar.selected_template(), "reading")
+
+    def test_genre_toggle_flows_into_params(self) -> None:
+        self.panel._template_bar.set_genre_enabled(True)
+        self.panel._extra_edit.setText("[intro] 全部 intro")
+        self.panel._sync_params()
+        params = self.panel._controller.params
+        self.assertTrue(params["use_genre_batch"])
+        self.assertEqual(params["extra_instructions"], "[intro] 全部 intro")
+
+    def test_explanation_rendered_and_streamed(self) -> None:
+        self.assertTrue(self.panel._explain_group.isHidden())
+        self.panel._on_explanation_chunk("这门课")
+        self.panel._on_explanation_chunk("先学问候。")
+        # Streaming renders are throttled; flush explicitly for the assertion.
+        self.panel._flush_stream_views()
+        self.assertFalse(self.panel._explain_group.isHidden())
+        self.assertIn("先学问候", self.panel._explain_browser.toPlainText())
+
+    def test_explanation_error_shows_inline(self) -> None:
+        self.panel._on_explanation_error("网络错误")
+        self.assertFalse(self.panel._explain_group.isHidden())
+        self.assertIn("网络错误", self.panel._explain_browser.toPlainText())
 
 
 if __name__ == "__main__":

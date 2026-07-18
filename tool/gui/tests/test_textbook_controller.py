@@ -17,7 +17,6 @@ if str(_GUI) not in sys.path:
 
 from src.backend.ai_generator import AiApiConfig
 from src.backend.knowledge_schema import KnowledgePoints, coerce_knowledge_points
-from src.backend.markdown_chopper import Chapter
 from src.dialogs.textbook_import_controller import TextbookImportController
 
 

@@ -47,7 +47,7 @@ from src.backend.lesson_content import (
     switch_runtime_type,
 )
 from src.dialogs.ai_lesson_helper_dialog import AiLessonHelperDialog
-from src.i18n.labels import interaction_label, layer_label
+from src.i18n.labels import interaction_label
 from src.teacher.question_cards import QuestionCard
 
 
@@ -79,32 +79,20 @@ class TeacherTemplateWidget(QWidget):
         self._build_ui()
 
     def _build_ui(self) -> None:
+        from src.teacher.shell_header import build_teacher_header
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(12)
 
-        header = QWidget()
-        hlayout = QHBoxLayout(header)
-        hlayout.setContentsMargins(0, 0, 0, 0)
-        breadcrumb = QLabel(
-            f"{self.section.get('name', '')} › {self.unit.get('name', '')} › "
-            f"{self.lesson.get('name', '')}"
+        header, self._advanced_btn = build_teacher_header(
+            self.section,
+            self.unit,
+            self.lesson,
+            on_preview=self._on_preview,
+            on_ai_rewrite=self._on_ai_rewrite,
+            on_advanced_toggled=self._on_advanced_toggled,
         )
-        breadcrumb.setStyleSheet("color: #9CA3AF;")
-        hlayout.addWidget(breadcrumb)
-        hlayout.addStretch()
-        self._advanced_btn = QPushButton("高级编辑")
-        self._advanced_btn.setCheckable(True)
-        self._advanced_btn.toggled.connect(self._on_advanced_toggled)
-        hlayout.addWidget(self._advanced_btn)
-        preview_btn = QPushButton("预览本课")
-        preview_btn.setToolTip("实际做题验证题目设置（guiplan §15.7）")
-        preview_btn.clicked.connect(self._on_preview)
-        hlayout.addWidget(preview_btn)
-        ai_btn = QPushButton("AI 改写")
-        ai_btn.setToolTip("用 AI 根据你的指令改写当前课程")
-        ai_btn.clicked.connect(self._on_ai_rewrite)
-        hlayout.addWidget(ai_btn)
         layout.addWidget(header)
 
         self._content_host = QWidget()

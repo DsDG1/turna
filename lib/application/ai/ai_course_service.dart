@@ -179,6 +179,7 @@ class AiCourseService {
   Future<AiGeneratedCourse> requestCourse({
     required AiApiConfig config,
     required AiCourseSpec spec,
+    String? groundedContext,
     Duration timeout = const Duration(seconds: 120),
   }) async {
     final messages = <Map<String, dynamic>>[
@@ -187,7 +188,7 @@ class AiCourseService {
         'content':
             'You are a language-course authoring assistant. You output ONLY valid JSON, no prose, no markdown fences.',
       },
-      {'role': 'user', 'content': buildPrompt(spec)},
+      {'role': 'user', 'content': buildPrompt(spec, groundedContext: groundedContext)},
     ];
     final body = await requestChat(
       config: config,
@@ -206,6 +207,7 @@ class AiCourseService {
     required AiApiConfig config,
     required AiCourseSpec spec,
     required AiSectionValidator validator,
+    String? groundedContext,
     Duration timeout = const Duration(seconds: 120),
     int maxRetries = 1,
   }) async {
@@ -215,7 +217,7 @@ class AiCourseService {
         'content':
             'You are a language-course authoring assistant. You output ONLY valid JSON, no prose, no markdown fences.',
       },
-      {'role': 'user', 'content': buildPrompt(spec)},
+      {'role': 'user', 'content': buildPrompt(spec, groundedContext: groundedContext)},
     ];
     var result = parseCompletion(
       await requestChat(
@@ -277,10 +279,11 @@ class AiCourseService {
     required AiApiConfig config,
     required AiCourseSpec spec,
     required List<AiChatMessage> messages,
+    String? groundedContext,
     Duration timeout = const Duration(seconds: 120),
   }) async {
     final apiMessages = <Map<String, dynamic>>[
-      {'role': 'system', 'content': buildAlignmentPrompt(spec)},
+      {'role': 'system', 'content': buildAlignmentPrompt(spec, groundedContext: groundedContext)},
       for (final m in messages) m.toApiDict(),
     ];
     final body = await requestChat(
@@ -299,9 +302,10 @@ class AiCourseService {
     required AiCourseSpec spec,
     required List<AiChatMessage> messages,
     Map<String, dynamic>? draftJson,
+    String? groundedContext,
     Duration timeout = const Duration(seconds: 180),
   }) async {
-    var generationPrompt = buildPrompt(spec);
+    var generationPrompt = buildPrompt(spec, groundedContext: groundedContext);
     if (draftJson != null) {
       generationPrompt +=
           '\n\nBelow is the current course draft. Adjust it according to the '
@@ -330,7 +334,60 @@ class AiCourseService {
     return parseCompletion(body);
   }
 
-  /// Ask the AI to explain the generated course in plain language.
+  /// Ask the AI to transform a single lesson according to [instruction].
+  /// Returns the parsed lesson JSON. The caller is responsible for validating
+  /// and persisting it.
+  Future<AiGeneratedCourse> requestLessonTransform({
+    required AiApiConfig config,
+    required Map<String, dynamic> lessonJson,
+    required String instruction,
+    required Set<String> resourceIds,
+    Duration timeout = const Duration(seconds: 120),
+  }) async {
+    final messages = <Map<String, dynamic>>[
+      {
+        'role': 'system',
+        'content':
+            'You are a language-course authoring assistant. You output ONLY valid JSON, no prose, no markdown fences. '
+            'You modify lesson content according to the teacher\'s instruction. '
+            'Preserve all existing IDs. Only create new IDs for genuinely new content.',
+      },
+      {
+        'role': 'user',
+        'content': buildLessonTransformPrompt(
+          lessonJson: lessonJson,
+          instruction: instruction,
+          resourceIds: resourceIds,
+        ),
+      },
+    ];
+    final body = await requestChat(
+      config: config,
+      messages: messages,
+      temperature: 0.4,
+      responseFormat: {'type': 'json_object'},
+      timeout: timeout,
+    );
+    return parseCompletion(body);
+  }
+
+  /// Extract teachable knowledge points from a textbook chapter. Returns the
+  /// parsed JSON body; callers coerce it into [KnowledgePoints].
+  Future<Map<String, dynamic>> requestKnowledgeExtraction({
+    required AiApiConfig config,
+    required List<Map<String, String>> messages,
+    Duration timeout = const Duration(seconds: 120),
+  }) async {
+    final body = await requestChat(
+      config: config,
+      messages: messages,
+      temperature: 0.4,
+      responseFormat: {'type': 'json_object'},
+      timeout: timeout,
+    );
+    return parseCompletion(body).parsed;
+  }
+
   Future<String> explainCourse({
     required AiApiConfig config,
     required AiCourseSpec spec,

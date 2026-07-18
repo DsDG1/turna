@@ -22,13 +22,10 @@ import shutil
 import tempfile
 import time
 import uuid
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import re
-
-from PySide6.QtCore import Qt, QThread, QSize, Signal
+from PySide6.QtCore import Qt, QSize, QTimer
 from PySide6.QtGui import QDragEnterEvent, QDropEvent
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -46,7 +43,6 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QMessageBox,
-    QPlainTextEdit,
     QProgressBar,
     QPushButton,
     QSpinBox,
@@ -61,7 +57,6 @@ from PySide6.QtWidgets import (
 from src.app import current_ai_config, current_settings
 from src.backend.ai_generator import (
     AiApiConfig,
-    AiCancelled,
     AiCourseSpec,
     ChatMessage,
     apply_genre_to_spec,
@@ -73,27 +68,23 @@ from src.backend.ai_generator import (
     regenerate_lesson_in_section,
     regenerate_unit_in_section,
     request_alignment_reply,
-    request_course,
     request_course_with_retry,
     structural_diff,
 )
-from src.backend.ai_genre import GENRE_TEMPLATES, genre_tags_in_text
-from src.backend.ai_prompt_library import AiPromptLibrary, AiPromptHistory, AiPromptTemplate, prompt_library
+from src.backend.ai_genre import genre_tags_in_text
+from src.backend.ai_prompt_library import AiPromptHistory, AiPromptTemplate, prompt_library
 from src.backend.ai_usage import format_usage_line
 from src.backend.attachment_extractor import extract_attachment
 from src.dialogs.ai.attachment_bar import AttachmentBar
 from src.dialogs.ai.worker import (
     AttachmentRecord as _AttachmentRecord,
     AiRequestWorker,
-    QApplication_safe_process_events,
     is_valid_http_url as _is_valid_http_url,
 )
 from src.dialogs.ai.chat_view import (
     DEFAULT_PALETTE as _CHAT_PALETTE,
     ChatView,
     escape_html as _escape_html,
-    render_chat_html as _render_chat_html,
-    render_streaming_html as _render_streaming_html,
 )
 from src.dialogs.ai.prompt_template_bar import PromptTemplateBar
 from src.infrastructure.telemetry import telemetry
@@ -117,9 +108,9 @@ class AiGeneratorDialog(QDialog):
         self.adapter = adapter
         self._edit_mode = edit_mode
         if edit_mode is not None:
-            self.setWindowTitle("AI 编辑（Beta）")
+            self.setWindowTitle("AI 编辑")
         else:
-            self.setWindowTitle("AI 生成课程（Beta）")
+            self.setWindowTitle("AI 生成课程")
         self.resize(1180, 860)
         self.setMinimumSize(QSize(900, 640))
         self.setAcceptDrops(True)
@@ -145,9 +136,15 @@ class AiGeneratorDialog(QDialog):
         self._request_start: float | None = None
         # Streaming scratch state: ``_stream_buffer`` accumulates fragments,
         # ``_stream_target`` is "alignment" / "explain" / "json" so the chunk
-        # handler knows where to render.
+        # handler knows where to render. View updates are throttled via
+        # ``_stream_flush_timer`` (per-chunk full-document rewrites are O(n^2)).
         self._stream_buffer = ""
         self._stream_target: str | None = None
+        self._stream_dirty = False
+        self._stream_flush_timer = QTimer(self)
+        self._stream_flush_timer.setSingleShot(True)
+        self._stream_flush_timer.setInterval(120)
+        self._stream_flush_timer.timeout.connect(self._flush_stream_view)
 
         self._build_ui()
         self._update_api_status()
@@ -219,7 +216,7 @@ class AiGeneratorDialog(QDialog):
             f"color: {self._pal('ai_beta_text', '#FFD93D')}; border-radius: 6px;"
         )
         label = QLabel(
-            "Beta：AI 生成结果仅供参考，请人工校验。本功能会消耗大量 token，"
+            "AI 生成结果仅供参考，请人工校验。本功能会消耗大量 token，"
             "且建议模型支持 1M 上下文窗口。"
         )
         label.setWordWrap(True)
@@ -327,16 +324,6 @@ class AiGeneratorDialog(QDialog):
         """React to the genre-batch toggle from the shared bar."""
         self._update_input_placeholders()
         self._sync_template_from_genre_tags()
-
-    @staticmethod
-    def _template_card_stylesheet(selected: bool) -> str:
-        # Delegated to the bar; kept for any stray callers.
-        from src.dialogs.ai.prompt_template_bar import _card_stylesheet
-
-        return _card_stylesheet(selected)
-
-    def _select_template_card(self, template: str, emit: bool = True) -> None:
-        self._template_bar.select_template(template, emit=emit)
 
     def _build_normal_panel(self) -> QWidget:
         widget = QWidget()
@@ -489,7 +476,7 @@ class AiGeneratorDialog(QDialog):
 
         self.topic_edit = QLineEdit()
         self.topic_edit.setPlaceholderText("例如：旅行词汇 [intro]")
-        self.topic_edit.textChanged.connect(self._on_topic_text_changed)
+        # textChanged is wired once in __init__ (together with extra_edit).
         layout.addWidget(QLabel("主题:"))
         layout.addWidget(self.topic_edit, 1)
 
@@ -1076,23 +1063,6 @@ class AiGeneratorDialog(QDialog):
                 return True
         return False
 
-    def _on_template_changed(self, index: int) -> None:
-        """Legacy combo-index handler — no longer wired (bar emits a value signal).
-
-        Kept for backwards compat with any external caller / test that invokes
-        it directly; delegates to the shared bar.
-        """
-        template = self.template_combo.itemData(index) or "mixed"
-        self._template_bar.select_template(template, emit=False)
-        self._update_input_placeholders()
-
-    def _on_genre_switch_changed(self, state: int) -> None:
-        """Legacy state handler — no longer wired (bar emits genre_toggled)."""
-        enabled = state == Qt.CheckState.Checked.value
-        self._template_bar.set_fallback_label(enabled)
-        self._update_input_placeholders()
-        self._sync_template_from_genre_tags()
-
     def _current_topic_text(self) -> str:
         """Topic source by mode — fixes the wish-mode stale-topic read.
 
@@ -1138,12 +1108,6 @@ class AiGeneratorDialog(QDialog):
     def _set_template_combo(self, template: str) -> None:
         self._template_bar.select_template(template)
 
-    def _sync_card_selection(self, template: str) -> None:
-        """Keep the visual cards in sync when the combo changes externally."""
-        if getattr(self, "_template_bar", None) is None:
-            return
-        self._template_bar.select_template(template, emit=False)
-
     def _ensure_api_configured(self) -> bool:
         """Ensure the centrally-managed API config is complete.
 
@@ -1170,12 +1134,6 @@ class AiGeneratorDialog(QDialog):
             self.api_status.setText(f"<font color='{err_color}'>配置不完整</font>")
         else:
             self.api_status.setText(f"<font color='{err_color}'>未配置</font>")
-
-    def _sync_config(self) -> None:
-        # Config is sourced from MainWindow via current_ai_config(); if it could
-        # have changed while the dialog is open, refresh it.
-        self._config = current_ai_config()
-        self._update_api_status()
 
     def _set_busy(self, busy: bool, normal: bool = False, stage: str = "") -> None:
         """Enable/disable UI while an AI request is running.
@@ -1256,23 +1214,26 @@ class AiGeneratorDialog(QDialog):
         return self.wish_usage_label if self._mode == "wish" else self.usage_label
 
     def _on_worker_chunk(self, fragment: str) -> None:
-        """Render an incremental streaming fragment into the active view.
+        """Accumulate a streaming fragment; views refresh on a throttle timer.
 
-        For alignment/explain (free text) we append into the chat / explain
-        bubble so the teacher sees tokens arrive in real time. For JSON
-        generation we surface a lightweight 'model is writing JSON' hint via
-        the stage label rather than dumping raw partial JSON into the editor
-        (which would show invalid mid-stream JSON).
+        For alignment/explain (free text) the flush appends into the chat /
+        explain bubble so the teacher sees tokens arrive in near real time.
+        For normal-mode JSON generation the flush keeps a running preview in
+        the JSON editor so the teacher can watch the model write. Buffering +
+        throttled flush avoids a full-document rewrite per SSE chunk (O(n^2)).
         """
         if not fragment:
             return
+        self._stream_buffer = (getattr(self, "_stream_buffer", "") or "") + fragment
+        self._stream_dirty = True
+        self._stream_flush_timer.start()
+
+    def _flush_stream_view(self) -> None:
+        """Render the accumulated stream buffer once per throttle interval."""
+        if not self._stream_dirty:
+            return
+        self._stream_dirty = False
         if self._mode == "wish":
-            # If an explain worker is running, stream into the explain bubble;
-            # otherwise (alignment reply) stream into the chat as a partial
-            # assistant turn. We track the in-flight assistant text on a
-            # scratch attribute so _render_chat / _on_explain_ready can
-            # finalize it.
-            self._stream_buffer = (getattr(self, "_stream_buffer", "") or "") + fragment
             if self._stream_target == "explain":
                 self.explain_label.setHtml(_escape_html(self._stream_buffer))
                 self.explain_group.setProperty("_has_text", True)
@@ -1280,10 +1241,9 @@ class AiGeneratorDialog(QDialog):
             elif self._stream_target == "alignment":
                 self._render_streaming_chat(self._stream_buffer)
         else:
-            # Normal-mode JSON generation: keep a running preview in the
-            # JSON editor so the teacher can watch the model write.
-            self.json_edit.setPlainText(self._stream_buffer + fragment)
-            self._stream_buffer = self.json_edit.toPlainText()
+            # Normal-mode JSON generation: running preview in the JSON editor
+            # so the teacher can watch the model write.
+            self.json_edit.setPlainText(self._stream_buffer)
 
     def _render_streaming_chat(self, partial_text: str) -> None:
         """Re-render the chat with the in-flight assistant turn appended."""
@@ -1327,11 +1287,18 @@ class AiGeneratorDialog(QDialog):
 
     def _begin_stream(self, target: str) -> None:
         """Reset the streaming scratch buffer for a new worker."""
+        self._stream_flush_timer.stop()
+        self._stream_dirty = False
         self._stream_buffer = ""
         self._stream_target = target
 
     def _finish_stream(self) -> None:
         """Clear the streaming scratch state (call after result/error)."""
+        # Flush whatever accumulated but was not rendered yet, so the view
+        # ends up showing the complete streamed text before we reset.
+        if self._stream_dirty:
+            self._flush_stream_view()
+        self._stream_flush_timer.stop()
         self._stream_buffer = ""
         self._stream_target = None
 
@@ -2202,16 +2169,19 @@ class AiGeneratorDialog(QDialog):
             self._chat_expand = None
 
     def reject(self) -> None:
+        self._cancel_current_worker()
         self._close_json_window()
         self._cleanup_attachments()
         super().reject()
 
     def accept(self) -> None:
+        self._cancel_current_worker()
         self._close_json_window()
         self._cleanup_attachments()
         super().accept()
 
     def closeEvent(self, event) -> None:  # noqa: N802
+        self._cancel_current_worker()
         self._close_json_window()
         self._cleanup_attachments()
         super().closeEvent(event)

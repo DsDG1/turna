@@ -9,7 +9,7 @@ unique (B8).
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable
+from typing import Callable
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
@@ -17,7 +17,6 @@ from PySide6.QtWidgets import (
     QComboBox,
     QHBoxLayout,
     QLabel,
-    QMessageBox,
     QPushButton,
     QVBoxLayout,
     QWidget,
@@ -25,9 +24,6 @@ from PySide6.QtWidgets import (
 
 from src.backend.ai_genre import GENRE_TEMPLATES
 from src.backend.ai_prompt_library import AiPromptLibrary, AiPromptHistory, AiPromptTemplate
-
-if TYPE_CHECKING:
-    from PySide6.QtWidgets import QWidget as _QWidget
 
 
 def _card_stylesheet(selected: bool, palette: dict[str, str] | None = None) -> str:
@@ -122,7 +118,7 @@ class PromptTemplateBar(QWidget):
         genre_row = QHBoxLayout()
         genre_row.setContentsMargins(0, 0, 0, 0)
         genre_row.setSpacing(8)
-        self.genre_switch = QCheckBox("启用 [genre] 多模板批量生成（Beta）")
+        self.genre_switch = QCheckBox("启用 [genre] 多模板批量生成（高 token 消耗）")
         self.genre_switch.setChecked(False)
         self.genre_switch.setToolTip(
             "开启后，可在主题或额外指令中插入 [intro]、[listening] 等标签，"

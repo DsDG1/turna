@@ -156,12 +156,6 @@ def layer_label(layer: str, locale: str = "zh") -> str:
     return table.get(layer, layer)
 
 
-def level_label(level: str, locale: str = "zh") -> str:
-    """Return the teacher-facing label for a CEFR level."""
-    table = _LOCALE_TABLES.get(_resolve_locale(locale), _LOCALE_TABLES["zh"])[2]
-    return table.get(level, level)
-
-
 def interaction_label(runtime_type: str) -> str:
     return INTERACTION_LABELS.get(runtime_type, runtime_type)
 

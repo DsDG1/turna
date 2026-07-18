@@ -116,6 +116,30 @@ class SectionImportServiceTest(unittest.TestCase):
         self.assertEqual(result.details["outcome"], "imported")
         self.assertEqual(result.details["section_id"], "sec-x-2")
 
+    def test_append_as_new_rewrites_nested_ids(self) -> None:
+        # Nested unit/lesson ids derive from the section id; without rewriting
+        # they collide with the original section and the course cannot save.
+        original = _section("x")
+        self.adapter.sections.append(original)
+        self.adapter.index = {"sections": [{"id": "sec-x"}]}
+        draft = _section("x")
+        draft_unit_ids = [u["id"] for u in draft["units"]]
+        result = self.service.import_section(draft, strategy="append_as_new")
+        self.assertEqual(result.details["outcome"], "imported")
+        new_section = self.adapter.sections[-1]
+        old_unit_ids = {u["id"] for u in original["units"]}
+        old_lesson_ids = {
+            lesson["id"] for u in original["units"] for lesson in u.get("lessons", [])
+        }
+        for unit in new_section["units"]:
+            self.assertNotIn(unit["id"], old_unit_ids)
+            self.assertTrue(unit["id"].startswith("sec-x-2-"))
+            for lesson in unit.get("lessons", []):
+                self.assertNotIn(lesson["id"], old_lesson_ids)
+                self.assertTrue(lesson["id"].startswith(unit["id"] + "-"))
+        # The caller's draft must not be mutated in place.
+        self.assertEqual([u["id"] for u in draft["units"]], draft_unit_ids)
+
     def test_merge_approved_by_resolver(self) -> None:
         self.adapter.sections.append(_section("x"))
         result = self.service.import_section(_section("x"), strategy="merge")

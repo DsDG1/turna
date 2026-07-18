@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -447,7 +447,13 @@ class SettingsDialog(QDialog):
 
         self.oplog_search_edit = QLineEdit()
         self.oplog_search_edit.setPlaceholderText("搜索（子串，大小写不敏感）...")
-        self.oplog_search_edit.textChanged.connect(self._refresh_operation_log)
+        # Debounce: each refresh re-parses both log files; avoid doing that
+        # per keystroke.
+        self._oplog_search_timer = QTimer(self)
+        self._oplog_search_timer.setSingleShot(True)
+        self._oplog_search_timer.setInterval(300)
+        self._oplog_search_timer.timeout.connect(self._refresh_operation_log)
+        self.oplog_search_edit.textChanged.connect(self._oplog_search_timer.start)
         filter_row.addWidget(self.oplog_search_edit, 1)
 
         self.oplog_refresh_btn = QPushButton("刷新")

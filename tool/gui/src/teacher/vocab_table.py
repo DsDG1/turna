@@ -6,14 +6,9 @@ demoted to an "advanced" menu entry, not the main path.
 """
 from __future__ import annotations
 
-from typing import Any
-
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtWidgets import (
-    QCheckBox,
-    QComboBox,
     QFileDialog,
-    QFrame,
     QHBoxLayout,
     QHeaderView,
     QLabel,
@@ -67,7 +62,12 @@ class VocabTableWidget(QWidget):
 
         self.search = QLineEdit()
         self.search.setPlaceholderText("搜索词或翻译")
-        self.search.textChanged.connect(self._on_search_changed)
+        # Debounce: rebuilding the full table per keystroke is wasteful.
+        self._search_timer = QTimer(self)
+        self._search_timer.setSingleShot(True)
+        self._search_timer.setInterval(300)
+        self._search_timer.timeout.connect(self._refresh)
+        self.search.textChanged.connect(self._search_timer.start)
         layout.addWidget(self.search)
 
         self.table = QTableWidget()
@@ -83,9 +83,6 @@ class VocabTableWidget(QWidget):
         self.del_btn.clicked.connect(self._on_del)
         self.import_action.triggered.connect(self._on_import)
         self.export_action.triggered.connect(self._on_export)
-
-    def _on_search_changed(self, _text: str) -> None:
-        self._refresh()
 
     def _refresh(self) -> None:
         self.table.blockSignals(True)

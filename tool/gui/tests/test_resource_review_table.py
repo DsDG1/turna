@@ -5,7 +5,6 @@ import sys
 import unittest
 from pathlib import Path
 
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
 _GUI = Path(__file__).resolve().parents[1]

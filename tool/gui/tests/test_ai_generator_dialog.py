@@ -16,7 +16,6 @@ if str(_GUI) not in sys.path:
 from PySide6.QtCore import Qt
 
 from src.backend.ai_generator import AiApiConfig
-from src.backend.lesson_content import build_intro_lesson
 from src.dialogs.ai_generator_dialog import AiGeneratorDialog, AiRequestWorker
 
 

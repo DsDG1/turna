@@ -305,31 +305,40 @@ class TeacherModeToggleTest(unittest.TestCase):
         self.adapter = _real_lookup_adapter()
         self.win.adapter = self.adapter
 
-    def test_toggle_on_opens_window(self) -> None:
-        self.win.mode_action.setChecked(True)
-        self.assertIsNotNone(self.win._teacher_window)
-        self.assertTrue(self.win._teacher_window.isVisible())
-        # Defaults to the first lesson.
-        self.assertEqual(self.win._teacher_window.lesson_combo.currentData(), "s1-l1")
+    def test_no_floating_teacher_window_attr(self) -> None:
+        # The floating TeacherWindow was removed; teacher mode renders inline.
+        self.assertFalse(hasattr(self.win, "_teacher_window"))
 
-    def test_toggle_on_no_lesson_picks_first(self) -> None:
-        # No node selected; window should still open showing first lesson.
-        self.win._current_node_ref = None
-        self.win.mode_action.setChecked(True)
-        self.assertEqual(self.win._teacher_window.lesson_combo.currentData(), "s1-l1")
+    def test_toggle_on_renders_first_lesson_inline(self) -> None:
+        from src.teacher.sublesson_flow import SubLessonFlowWidget
 
-    def test_toggle_off_closes_window(self) -> None:
         self.win.mode_action.setChecked(True)
-        win = self.win._teacher_window
+        self.assertTrue(self.win.teacher_mode)
+        # Defaults to the first lesson when nothing is selected.
+        self.assertEqual(self.win._current_node_ref, ("lesson", "s1-l1"))
+        # The right detail pane hosts the teacher authoring widget inline.
+        self.assertIsInstance(
+            self.win.detail._current_content_widget, SubLessonFlowWidget
+        )
+
+    def test_toggle_on_with_lesson_selected_keeps_it(self) -> None:
+        from src.teacher.sublesson_flow import SubLessonFlowWidget
+
+        self.win._current_node_ref = ("lesson", "s1-l2")
+        self.win.mode_action.setChecked(True)
+        # A selected lesson is preserved rather than reset to the first.
+        self.assertEqual(self.win._current_node_ref, ("lesson", "s1-l2"))
+        self.assertIsInstance(
+            self.win.detail._current_content_widget, SubLessonFlowWidget
+        )
+
+    def test_toggle_off_returns_to_expert_view(self) -> None:
+        self.win.mode_action.setChecked(True)
         self.win.mode_action.setChecked(False)
-        self.assertFalse(win.isVisible())
-
-    def test_window_closed_unchecks_action(self) -> None:
-        self.win.mode_action.setChecked(True)
-        win = self.win._teacher_window
-        win.close()  # triggers finished -> _on_teacher_window_closed
-        self.assertFalse(self.win.mode_action.isChecked())
         self.assertFalse(self.win.teacher_mode)
+        self.assertEqual(self.win.mode_action.text(), "教师模式")
+        # Detail pane cleared the inline teacher widget (show_node -> clear).
+        self.assertIsNone(self.win.detail._current_content_widget)
 
 
 if __name__ == "__main__":

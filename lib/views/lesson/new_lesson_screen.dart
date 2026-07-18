@@ -12,6 +12,7 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:varnamala/application/ai/ai_course_provider.dart';
 import 'package:varnamala/application/ai/ai_hint_provider.dart';
+import 'package:varnamala/application/ai/ai_lesson_helper_provider.dart';
 import 'package:varnamala/application/game_provider.dart';
 import 'package:varnamala/application/gems_provider.dart';
 import 'package:varnamala/application/lesson_viewmodel.dart';
@@ -22,6 +23,7 @@ import 'package:varnamala/domain/course/lesson.dart';
 import 'package:varnamala/routing/routing.gr.dart';
 import 'package:varnamala/service/tab_router.dart';
 import 'package:varnamala/views/lesson/components/ai_hint_sheet.dart';
+import 'package:varnamala/views/ai/ai_lesson_helper_sheet.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:varnamala/views/lesson/components/lesson_dialogs.dart';
 import 'package:varnamala/views/lesson/components/lesson_stage_widgets.dart';
@@ -104,6 +106,7 @@ class _NewLessonPageState extends State<NewLessonPage> {
                 ? null
                 : Navigator.of(context).maybePop(),
             onAiHint: () => _openAiHint(context, _vm),
+            onAiHelper: () => _openAiHelper(context, _vm),
           ),
           body: _LessonBody(
             vm: _vm,
@@ -168,6 +171,33 @@ class _NewLessonPageState extends State<NewLessonPage> {
           context.router.push(AiHintChatRoute(context: ctx));
         },
       ),
+    );
+  }
+
+  Future<void> _openAiHelper(BuildContext context, LessonViewModel vm) async {
+    final config = context.read<AiCourseProvider>().config;
+    if (!config.isComplete) {
+      await _showAiConfigPrompt(context);
+      return;
+    }
+
+    final lesson = vm.lesson;
+    if (lesson == null) return;
+
+    final helperProvider = context.read<AiLessonHelperProvider>();
+    helperProvider.setLesson(lesson);
+
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: VarnamalaTheme.cardBg(context),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(VarnamalaTheme.radiusXLarge),
+        ),
+      ),
+      builder: (_) => const AiLessonHelperSheet(),
     );
   }
 
@@ -286,11 +316,13 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
   final LessonViewModel vm;
   final VoidCallback? onClose;
   final VoidCallback onAiHint;
+  final VoidCallback onAiHelper;
 
   const _LessonAppBar({
     required this.vm,
     required this.onClose,
     required this.onAiHint,
+    required this.onAiHelper,
   });
 
   @override
@@ -344,6 +376,14 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
         ),
         centerTitle: true,
         actions: [
+          IconButton(
+            tooltip: 'AI lesson helper',
+            icon: Icon(
+              Icons.auto_fix_high,
+              color: VarnamalaTheme.textPrimaryColor(context),
+            ),
+            onPressed: onAiHelper,
+          ),
           if (s.aiEligible)
             IconButton(
               tooltip: 'AI hint',

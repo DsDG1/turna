@@ -15,6 +15,7 @@ callbacks, keeping the service testable without a MainWindow:
 """
 from __future__ import annotations
 
+import copy
 from typing import Any, Callable
 
 from src.application.commands import (
@@ -30,6 +31,7 @@ from src.backend.import_strategy import (
     resolve_action,
     unique_section_id,
 )
+from src.backend.textbook_to_course import _rewrite_ids_deterministic
 from src.infrastructure.telemetry import telemetry
 
 #: Sentinel for "no pre-resolved merge decision was supplied" — distinct from
@@ -133,8 +135,12 @@ class SectionImportService:
             outcome = "replaced"
         elif action == "append_new":
             new_id = unique_section_id(self.adapter, sid)
-            section = dict(section)
+            # Deep copy + rewrite every nested id: unit/lesson ids are derived
+            # from the section id, so keeping the originals would collide with
+            # the existing section and make the course fail validation on save.
+            section = copy.deepcopy(section)
             section["id"] = new_id
+            _rewrite_ids_deterministic(section, new_id)
             section.setdefault("prerequisiteSectionIds", [])
             cmd = ImportAiSectionCommand(self.adapter, section)
             self.undo_stack.push(cmd)
@@ -176,8 +182,9 @@ class SectionImportService:
             self._on_status(f"已通过 AI 生成课程「{section.get('name', sid)}」并已选中，记得保存")
             outcome = "imported"
 
-        added = self.adapter.detect_changes()
-        if added.get("vocab") or added.get("expressions") or added.get("grammar_points"):
+        # Use the deltas the command already recorded during redo() instead of
+        # re-hashing the whole course via detect_changes() per section.
+        if cmd.added_vocab_ids or cmd.added_expression_ids or cmd.added_grammar_ids:
             self._on_status("（资源已合并到词库/表达/语法，记得保存）")
         return ImportStepResult.success(
             "import",

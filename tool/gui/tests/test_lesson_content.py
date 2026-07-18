@@ -176,6 +176,22 @@ class SchemaTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             normalize_item({"runtimeType": "bogus"})
 
+    def test_default_interaction_does_not_share_mutable_defaults(self) -> None:
+        first = default_interaction("multipleChoice")
+        second = default_interaction("multipleChoice")
+        first["options"].append("polluted")
+        self.assertEqual(second["options"], [])
+        self.assertEqual(
+            INTERACTION_SCHEMA["multipleChoice"][2].default, [],
+            "schema table default must stay pristine",
+        )
+
+    def test_normalize_item_does_not_share_mutable_defaults(self) -> None:
+        first = normalize_item({"runtimeType": "translateSentence"})
+        second = normalize_item({"runtimeType": "translateSentence"})
+        first["hints"].append("polluted")
+        self.assertEqual(second["hints"], [])
+
 
 class TemplateSwitchTest(unittest.TestCase):
     def test_switch_intro_to_listening_drops_sublessons(self) -> None:

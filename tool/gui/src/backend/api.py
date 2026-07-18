@@ -7,10 +7,13 @@ to be updated.
 """
 from __future__ import annotations
 
+import argparse
+import contextlib
+import io
 import json
 import subprocess
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +22,10 @@ if str(_TOOL_DIR) not in sys.path:
     sys.path.insert(0, str(_TOOL_DIR))
 
 import course_cli  # noqa: E402
+
+#: Timeout for the validate/lint subprocess fallbacks (a hung child must not
+#: freeze the whole GUI; the in-process fast path needs no such guard).
+_CLI_TIMEOUT_SECONDS = 60
 
 
 MAX_UNITS_PER_SECTION = course_cli.MAX_UNITS_PER_SECTION
@@ -114,24 +121,10 @@ def save_course_bundle(
     )
 
 
-def validate_course_dir(course_dir: Path) -> ValidationResult:
-    """Run the CLI validator as a subprocess and return structured problems."""
-    proc = subprocess.run(
-        [
-            sys.executable,
-            str(Path(course_cli.__file__).resolve()),
-            "--course-dir",
-            str(course_dir),
-            "validate",
-            "--format",
-            "json",
-        ],
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-    )
+def _validate_result_from_json(text: str, err_hint: str) -> ValidationResult:
+    """Parse the ``validate --format json`` payload into a ValidationResult."""
     try:
-        data = json.loads(proc.stdout)
+        data = json.loads(text)
     except json.JSONDecodeError:
         return ValidationResult(
             ok=False,
@@ -139,7 +132,7 @@ def validate_course_dir(course_dir: Path) -> ValidationResult:
             problems=[
                 Problem(
                     level="error",
-                    message=f"validate 无效输出: {proc.stderr or proc.stdout}",
+                    message=f"validate 无效输出: {err_hint}",
                     path="",
                 )
             ],
@@ -155,22 +148,10 @@ def validate_course_dir(course_dir: Path) -> ValidationResult:
     )
 
 
-def lint_course_dir(course_dir: Path) -> list[Problem]:
-    """Run the CLI linter as a subprocess and return structured problems."""
-    proc = subprocess.run(
-        [
-            sys.executable,
-            str(Path(course_cli.__file__).resolve()),
-            "--course-dir",
-            str(course_dir),
-            "lint",
-        ],
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-    )
+def _parse_lint_lines(text: str) -> list[Problem]:
+    """Parse ``lint`` stdout lines (``ERROR: ...`` / ``WARNING: ...``)."""
     problems: list[Problem] = []
-    for line in (proc.stdout or "").splitlines():
+    for line in text.splitlines():
         line = line.strip()
         if line.startswith("ERROR:"):
             problems.append(
@@ -181,6 +162,105 @@ def lint_course_dir(course_dir: Path) -> list[Problem]:
                 Problem(level="warning", message=line[8:].strip(), path="")
             )
     return problems
+
+
+def _validate_in_process(course_dir: Path) -> ValidationResult:
+    """Run the CLI validator in-process, capturing its JSON stdout."""
+    buf = io.StringIO()
+    args = argparse.Namespace(course_dir=Path(course_dir), format="json")
+    with contextlib.redirect_stdout(buf):
+        course_cli.cmd_validate(args)
+    return _validate_result_from_json(buf.getvalue(), buf.getvalue()[:200])
+
+
+def _validate_via_subprocess(course_dir: Path) -> ValidationResult:
+    """Run the CLI validator as a subprocess (isolation fallback)."""
+    try:
+        proc = subprocess.run(
+            [
+                sys.executable,
+                str(Path(course_cli.__file__).resolve()),
+                "--course-dir",
+                str(course_dir),
+                "validate",
+                "--format",
+                "json",
+            ],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=_CLI_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        return ValidationResult(
+            ok=False,
+            error_count=1,
+            problems=[
+                Problem(
+                    level="error",
+                    message=f"validate 子进程超时（>{_CLI_TIMEOUT_SECONDS}s）",
+                    path="",
+                )
+            ],
+        )
+    return _validate_result_from_json(proc.stdout, proc.stderr or proc.stdout)
+
+
+def validate_course_dir(course_dir: Path) -> ValidationResult:
+    """Validate a course directory and return structured problems.
+
+    Fast path runs the same ``course_cli.cmd_validate`` code in-process
+    (skipping interpreter startup on every save); any failure falls back to
+    the subprocess, preserving the old isolation behaviour.
+    """
+    try:
+        return _validate_in_process(course_dir)
+    except Exception:  # noqa: BLE001 — fall back to the subprocess path
+        return _validate_via_subprocess(course_dir)
+
+
+def _lint_in_process(course_dir: Path) -> list[Problem]:
+    """Run the CLI linter in-process, capturing its stdout."""
+    buf = io.StringIO()
+    args = argparse.Namespace(course_dir=Path(course_dir), strict=False)
+    with contextlib.redirect_stdout(buf):
+        course_cli.cmd_lint(args)
+    return _parse_lint_lines(buf.getvalue())
+
+
+def _lint_via_subprocess(course_dir: Path) -> list[Problem]:
+    """Run the CLI linter as a subprocess (isolation fallback)."""
+    try:
+        proc = subprocess.run(
+            [
+                sys.executable,
+                str(Path(course_cli.__file__).resolve()),
+                "--course-dir",
+                str(course_dir),
+                "lint",
+            ],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=_CLI_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        return [
+            Problem(
+                level="error",
+                message=f"lint 子进程超时（>{_CLI_TIMEOUT_SECONDS}s）",
+                path="",
+            )
+        ]
+    return _parse_lint_lines(proc.stdout or "")
+
+
+def lint_course_dir(course_dir: Path) -> list[Problem]:
+    """Lint a course directory (in-process fast path, subprocess fallback)."""
+    try:
+        return _lint_in_process(course_dir)
+    except Exception:  # noqa: BLE001 — fall back to the subprocess path
+        return _lint_via_subprocess(course_dir)
 
 
 def validate_lesson(

@@ -22,7 +22,6 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QTextEdit,
     QVBoxLayout,
-    QWidget,
 )
 
 from src.application.commands import (
@@ -183,6 +182,11 @@ class MetadataForm(QGroupBox):
         self.name_edit.setEnabled(editable)
         self.desc_edit.setEnabled(editable)
         self.prereq_list.setEnabled(editable)
+
+    def focus_name(self) -> None:
+        """Focus and select the name field (F2 rename hook)."""
+        self.name_edit.setFocus()
+        self.name_edit.selectAll()
 
     def _push(self, cmd) -> None:
         if self.undo_stack is not None:

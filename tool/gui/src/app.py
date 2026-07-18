@@ -4,29 +4,28 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QSettings
+from PySide6.QtCore import QEvent, QObject, Qt, QSettings, QTimer
 from PySide6.QtGui import QAction, QKeySequence, QUndoStack
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
     QFileDialog,
-    QHBoxLayout,
     QLabel,
     QMainWindow,
     QMenu,
     QMessageBox,
+    QPushButton,
+    QSizePolicy,
     QSplitter,
     QStatusBar,
     QToolBar,
     QToolButton,
     QVBoxLayout,
-    QWidget,
 )
 
 from src.application.commands import (
     AiEditLessonCommand,
     AiEditUnitCommand,
-    AppendLessonCommand,
     MergeAiSectionCommand,
 )
 from src.application.settings import Settings
@@ -72,6 +71,25 @@ def current_settings() -> Settings:
     return Settings()
 
 
+class _ButtonSizePolicyFilter(QObject):
+    """Keep every QPushButton wide enough to show its full text.
+
+    QPushButton defaults to a Preferred horizontal size policy, so a tight
+    layout can shrink it below its text width and clip the label. Switching
+    to Minimum makes the text width the floor - the button grows to fit and
+    never clips. Installed app-wide so every button (including ones created
+    later) benefits.
+    """
+
+    def eventFilter(self, obj, event):  # noqa: N802
+        if event.type() == QEvent.Type.Polish and isinstance(obj, QPushButton):
+            sp = obj.sizePolicy()
+            if sp.horizontalPolicy() != QSizePolicy.Policy.Minimum:
+                sp.setHorizontalPolicy(QSizePolicy.Policy.Minimum)
+                obj.setSizePolicy(sp)
+        return False
+
+
 class MainWindow(QMainWindow):
     """Application main window: tree on the left, detail panel on the right."""
 
@@ -84,14 +102,18 @@ class MainWindow(QMainWindow):
         self.course_dir: Path | None = None
         self._current_node_ref: tuple[str, str] | None = None
         self.teacher_mode: bool = False
-        self._teacher_window = None
         self._workshop_window = None
-        self._last_textbook_project = None
+        self._overview_window = None
         self._last_imported_section_id: str | None = None
 
         self._settings = QSettings("Varnamala", "CourseEditor")
         self._settings_obj = Settings.load_from_qsettings(self._settings)
         apply_theme(QApplication.instance(), self._settings_obj)
+
+        # Keep button text from being clipped by tight layouts (applies to
+        # every QPushButton app-wide, including ones created later).
+        self._btn_size_filter = _ButtonSizePolicyFilter()
+        QApplication.instance().installEventFilter(self._btn_size_filter)
 
         # AI API config is managed centrally via the Settings panel. Base URL
         # and model are persisted; the API key is memory-only and cleared on exit.
@@ -100,6 +122,12 @@ class MainWindow(QMainWindow):
         self.undo_stack = QUndoStack(self)
         self.undo_stack.setUndoLimit(self._settings_obj.undo_limit)
         self.undo_stack.cleanChanged.connect(self._on_undo_clean_changed)
+
+        # Debounce timer for tree/overview refreshes (see _on_tree_changed).
+        self._tree_refresh_timer = QTimer(self)
+        self._tree_refresh_timer.setSingleShot(True)
+        self._tree_refresh_timer.setInterval(250)
+        self._tree_refresh_timer.timeout.connect(self._flush_tree_refresh)
 
         self._build_toolbar()
         self._build_central()
@@ -207,21 +235,17 @@ class MainWindow(QMainWindow):
 
         toolbar.addSeparator()
 
-        self.ai_action = QAction("AI 生成课程（Beta）", self)
-        self.ai_action.setEnabled(False)
-        self.ai_action.triggered.connect(self._on_ai_generate)
-        toolbar.addAction(self.ai_action)
-
-        self.textbook_action = QAction("导入教材（Beta）", self)
-        self.textbook_action.setEnabled(False)
-        self.textbook_action.triggered.connect(self._on_textbook_import)
-        toolbar.addAction(self.textbook_action)
-
         self.workshop_action = QAction("课程工坊", self)
         self.workshop_action.setEnabled(False)
         self.workshop_action.setToolTip("教材 → 知识 → 课程，一站式创作工作区")
         self.workshop_action.triggered.connect(self._on_workshop)
         toolbar.addAction(self.workshop_action)
+
+        self.overview_action = QAction("总览", self)
+        self.overview_action.setEnabled(False)
+        self.overview_action.setToolTip("课程结构总览（Section / Unit / Lesson 鸟瞰，点击定位）")
+        self.overview_action.triggered.connect(self._on_overview)
+        toolbar.addAction(self.overview_action)
 
         self.resources_menu_btn = QToolButton(self)
         self.resources_menu_btn.setText("资源库")
@@ -260,6 +284,7 @@ class MainWindow(QMainWindow):
         self.tree.tree_changed.connect(self._on_tree_changed)
         self.tree.ai_edit_requested.connect(self._on_ai_edit)
         self.tree.ai_fix_requested.connect(self._on_ai_fix_from_tree)
+        self.tree.rename_requested.connect(self._on_rename_requested)
         splitter.addWidget(self.tree.wrap_with_move_toolbar())
 
         self.detail = DetailPanel()
@@ -287,10 +312,6 @@ class MainWindow(QMainWindow):
 
     def _load_recent_repos(self) -> list[dict[str, str]]:
         return [dict(r) for r in self._settings_obj.recent_repos]
-
-    def _save_recent_repos(self, repos: list[dict[str, str]]) -> None:
-        self._settings_obj.recent_repos = [dict(r) for r in repos]
-        self._settings_obj.save_to_qsettings(self._settings)
 
     def _add_recent_repo(self, path: Path) -> None:
         self._settings_obj.add_recent_repo(path)
@@ -393,9 +414,8 @@ class MainWindow(QMainWindow):
 
     def _enable_editor_actions(self) -> None:
         self.save_action.setEnabled(True)
-        self.ai_action.setEnabled(True)
-        self.textbook_action.setEnabled(True)
         self.workshop_action.setEnabled(True)
+        self.overview_action.setEnabled(True)
         self.resources_menu_btn.setEnabled(True)
         self.publish_action.setEnabled(True)
 
@@ -458,73 +478,33 @@ class MainWindow(QMainWindow):
             "app.mode_changed",
             payload={"teacher_mode": checked},
         )
+        self._apply_mode_shell()
         if checked:
-            self._open_teacher_window()
-        else:
-            self._close_teacher_window()
+            # Default to the first lesson so the authoring surface is never
+            # empty when nothing (or a non-lesson node) is selected.
+            if self._current_node_ref is None or self._current_node_ref[0] != "lesson":
+                first = self._first_lesson_id()
+                if first is not None:
+                    self._current_node_ref = ("lesson", first)
         if self._current_node_ref is not None:
             self._on_node_selected(self._current_node_ref)
         self.statusBar().showMessage(
             "已切换到教师模式" if checked else "已切换到专家模式", 3000
         )
 
-    def _open_teacher_window(self) -> None:
-        """Proactively pop up the independent teacher window (Change 2).
+    def _first_lesson_id(self) -> str | None:
+        """Return the id of the first lesson in tree order, or None."""
+        if self.adapter is None:
+            return None
+        for section in self.adapter.sections:
+            for unit in section.get("units", []):
+                for lesson in unit.get("lessons", []):
+                    return lesson.get("id")
+        return None
 
-        Defaults to the currently-selected lesson if one is selected,
-        otherwise to the first lesson in the course. No-op if no course is
-        loaded or the course has no lessons (the window shows a placeholder
-        picker in that case).
-        """
-        if self.course_dir is None or self.adapter is None:
-            return
-        from src.dialogs.teacher_window import TeacherWindow
-
-        if self._teacher_window is None:
-            self._teacher_window = TeacherWindow(
-                self.adapter,
-                self.undo_stack,
-                self._ai_config,
-                self._on_tree_changed,
-                self,
-            )
-            self._teacher_window.finished.connect(self._on_teacher_window_closed)
-        # Decide which lesson to show.
-        target_id: str | None = None
-        if self._current_node_ref is not None and self._current_node_ref[0] == "lesson":
-            target_id = self._current_node_ref[1]
-        if target_id is None:
-            for s in self.adapter.sections:
-                for u in s.get("units", []):
-                    for l in u.get("lessons", []):
-                        target_id = l.get("id")
-                        break
-                if target_id:
-                    break
-        if target_id is not None:
-            self._teacher_window.show_lesson(target_id)
-        else:
-            self._teacher_window.refresh_lesson_list()
-        self._teacher_window.show()
-        self._teacher_window.raise_()
-        self._teacher_window.activateWindow()
-
-    def _close_teacher_window(self) -> None:
-        win = self._teacher_window
-        if win is not None:
-            win.close()
-
-    def _on_teacher_window_closed(self) -> None:
-        """Window closed by the user → uncheck the toggle (signal-safe)."""
-        self._teacher_window = None
-        self.mode_action.blockSignals(True)
-        self.mode_action.setChecked(False)
-        self.mode_action.blockSignals(False)
-        self.teacher_mode = False
-        self.mode_action.setText("教师模式")
-        self.setWindowTitle("Varnamala 课程编辑器")
-        if self._current_node_ref is not None:
-            self._on_node_selected(self._current_node_ref)
+    def _apply_mode_shell(self) -> None:
+        """Reconfigure the shell for the active mode (tree badges, etc.)."""
+        self.tree.set_teacher_mode(self.teacher_mode)
 
     def _on_settings(self) -> None:
         from src.dialogs.settings_dialog import SettingsDialog
@@ -543,48 +523,10 @@ class MainWindow(QMainWindow):
         apply_theme(QApplication.instance(), self._settings_obj)
         self.statusBar().showMessage("设置已应用", 3000)
 
-    def _on_ai_generate(self) -> None:
-        from src.dialogs.ai_generator_dialog import AiGeneratorDialog
-
-        telemetry.record_event("ai.generate.open")
-        if not self._settings.value("ai_beta_warning_shown", False):
-            QMessageBox.information(
-                self,
-                "AI 生成课程（Beta）",
-                "AI 生成课程为 Beta 功能，生成结果仅供参考，请作者自行审核。\n\n"
-                "本功能会消耗大量 token，且建议模型支持 1M 上下文窗口。\n\n"
-                "点击「确定」继续。",
-            )
-            self._settings.setValue("ai_beta_warning_shown", True)
-
-        dlg = AiGeneratorDialog(self.adapter, self)
-        if not dlg.exec():
-            telemetry.record_event("ai.generate.cancelled")
-            return
-        try:
-            section = dlg.section_json()
-        except ValueError as exc:
-            QMessageBox.warning(self, "无法导入", str(exc))
-            return
-        if not self.course_dir:
-            QMessageBox.warning(self, "未加载课程目录", "请先打开课程目录。")
-            return
-
-        outcome = self._import_section_dict(section)
-        sid = section.get("id", "")
-        if outcome == "imported":
-            telemetry.record_event("ai.generate.imported", payload={"section_id": sid})
-        elif outcome == "merged":
-            telemetry.record_event("ai.generate.merged", payload={"section_id": sid})
-        elif outcome == "skipped":
-            telemetry.record_event(
-                "ai.generate.merge.cancelled", payload={"section_id": sid}
-            )
-
     def _import_section_dict(self, section: dict, strategy: str = ImportStrategy.MERGE.value) -> str:
         """Import (or merge) a section dict into the loaded course.
 
-        Shared by ``_on_ai_generate`` and the textbook import flow. Validates
+        Used by the AI edit flow. Validates
         the section (format-only, ids may intentionally collide), then dispatches
         on ``strategy``: append a new section (``ImportAiSectionCommand``), merge
         into an existing one (``AiMergePreviewDialog`` + ``MergeAiSectionCommand``),
@@ -617,15 +559,21 @@ class MainWindow(QMainWindow):
         return self._import_service.import_section(section, strategy=strategy)
 
     def _on_workshop(self) -> None:
-        """Open the unified authoring workspace (connectplan Phase 2)."""
+        """Open the unified authoring workspace (connectplan Phase 2).
+
+        The workshop is the single entry for course authoring: textbook
+        import, grounded AI design, and from-scratch AI generation (blank
+        projects) all live inside it. Opening it restores the last project
+        at its persisted stage (随时中断、无限次恢复).
+        """
         from src.dialogs.workshop_window import WorkshopWindow
 
         telemetry.record_event("workshop.open")
         if not self._settings.value("workshop_beta_warning_shown", False):
             QMessageBox.information(
                 self,
-                "课程工坊（Beta）",
-                "课程工坊为 Beta 功能：从教材到课程一站式创作，结果请自行审核。\n\n"
+                "课程工坊",
+                "课程工坊：从教材到课程一站式创作，AI 生成结果请自行审核。\n\n"
                 "知识点提取与 AI 生成都可能消耗大量 token，建议模型支持 1M 上下文窗口。\n\n"
                 "点击「确定」继续。",
             )
@@ -635,6 +583,7 @@ class MainWindow(QMainWindow):
             self._workshop_window = WorkshopWindow(self.adapter, self)
             self._workshop_window.sections_ready.connect(self._on_textbook_sections)
             self._workshop_window.locate_requested.connect(self._on_workshop_locate)
+            self._workshop_window.restore_last_session()
         self._workshop_window.show()
         self._workshop_window.raise_()
         self._workshop_window.activateWindow()
@@ -646,36 +595,29 @@ class MainWindow(QMainWindow):
         self.activateWindow()
         self.tree.select_section(section_id)
 
-    def _on_textbook_import(self) -> None:
-        from src.dialogs.textbook_import_dialog import TextbookImportDialog
-        from src.dialogs.textbook_library_dialog import TextbookLibraryDialog
+    def _on_overview(self) -> None:
+        """Open the course structure overview window (workshop2 P4)."""
+        from src.widgets.course_overview import CourseOverviewWindow
 
-        telemetry.record_event("textbook.import.open")
-        if not self._settings.value("textbook_beta_warning_shown", False):
-            QMessageBox.information(
-                self,
-                "导入教材（Beta）",
-                "导入教材为 Beta 功能，结果仅供参考，请作者自行审核。\n\n"
-                "本功能会消耗大量 token（逐章 LLM 抽取），且建议模型支持 1M 上下文窗口。\n\n"
-                "支持 .md / .txt / 文本原生 PDF（扫描件暂不支持）。\n\n"
-                "点击「确定」继续。",
-            )
-            self._settings.setValue("textbook_beta_warning_shown", True)
+        telemetry.record_event("overview.open")
+        if self._overview_window is None:
+            self._overview_window = CourseOverviewWindow(self.adapter, self)
+            self._overview_window.lesson_selected.connect(self._on_overview_lesson_selected)
+            self._overview_window.destroyed.connect(self._on_overview_destroyed)
+        self._overview_window.refresh()
+        self._overview_window.show()
+        self._overview_window.raise_()
+        self._overview_window.activateWindow()
 
-        library = TextbookLibraryDialog(parent=self)
-        if library.exec() != QDialog.DialogCode.Accepted:
-            telemetry.record_event("textbook.import.library.cancelled")
-            return
-        project = library.selected_project
-        if project is None:
-            telemetry.record_event("textbook.import.closed")
-            return
-        self._last_textbook_project = project
+    def _on_overview_lesson_selected(self, lesson_id: str) -> None:
+        """Locate a lesson clicked in the overview inside the main tree."""
+        self.showNormal()
+        self.raise_()
+        self.activateWindow()
+        self.tree.select_lesson(lesson_id)
 
-        dlg = TextbookImportDialog(self.adapter, self, project=project)
-        dlg.sections_ready.connect(self._on_textbook_sections)
-        dlg.exec()
-        telemetry.record_event("textbook.import.closed")
+    def _on_overview_destroyed(self, *_args) -> None:
+        self._overview_window = None
 
     def _on_textbook_sections(self, sections: list, strategy: str) -> None:
         if not self.course_dir:
@@ -697,15 +639,20 @@ class MainWindow(QMainWindow):
             f"跳过 {counts['skipped']} 个，"
             f"失败 {counts['blocked']} 个。"
         )
-        # Record the import back into the textbook project so the library can
-        # show 已导入 (connectplan P0-2); import_map tracks where each source
-        # id actually landed (P1-1). merge_from() preserves both fields, so
-        # later dialog autosaves cannot clobber them.
-        if self._last_textbook_project is not None and successful:
+        # Record the import back into the workshop's current project so the
+        # library can show 已导入 (connectplan P0-2); import_map tracks where
+        # each source id actually landed (P1-1). merge_from() preserves both
+        # fields, so later autosaves cannot clobber them.
+        project = (
+            self._workshop_window.current_project()
+            if self._workshop_window is not None
+            else None
+        )
+        if project is not None and successful:
             from src.backend.textbook_project_store import record_imported_sections
 
             added = record_imported_sections(
-                self._last_textbook_project,
+                project,
                 [final for _, final in successful],
                 id_pairs=[(src, final) for src, final in successful if src],
             )
@@ -726,8 +673,8 @@ class MainWindow(QMainWindow):
         if not self._settings.value("ai_beta_warning_shown", False):
             QMessageBox.information(
                 self,
-                "AI 编辑课程（Beta）",
-                "AI 编辑课程为 Beta 功能，编辑结果仅供参考，请作者自行审核。\n\n"
+                "AI 编辑课程",
+                "AI 编辑结果仅供参考，请作者自行审核。\n\n"
                 "本功能会消耗大量 token，且建议模型支持 1M 上下文窗口。\n\n"
                 "点击「确定」继续。",
             )
@@ -887,12 +834,9 @@ class MainWindow(QMainWindow):
         if self.course_dir is None:
             return
         if self.teacher_mode:
-            # Route lesson selections to the teacher window (single teacher
-            # surface) while keeping the inline panel on node metadata so the
-            # right pane is not empty.
+            # Teacher mode renders the lesson authoring surface inline in the
+            # right detail pane (single teacher surface; no separate window).
             if node_ref[0] == "lesson":
-                if self._teacher_window is not None:
-                    self._teacher_window.show_lesson(node_ref[1])
                 try:
                     section, unit, lesson = self.adapter.find_lesson(node_ref[1])
                 except KeyError:
@@ -904,11 +848,24 @@ class MainWindow(QMainWindow):
         else:
             self.detail.show_node(self.adapter, node_ref)
 
+    def _on_rename_requested(self, kind: str, node_id: str) -> None:
+        """F2: focus the name field of the currently-shown node."""
+        # Ensure the detail panel is showing the node being renamed.
+        if self._current_node_ref != (kind, node_id):
+            self._on_node_selected((kind, node_id))
+        self.detail.form.focus_name()
+
     def _on_tree_changed(self) -> None:
+        # Debounce: teacher-view keystrokes and command bursts emit this
+        # per change; collapsing to one rebuild per quiet window avoids an
+        # O(tree) widget churn on every character.
+        self._tree_refresh_timer.start()
+
+    def _flush_tree_refresh(self) -> None:
         self.tree.refresh()
-        # Keep the teacher window's lesson picker in sync after structural edits.
-        if self._teacher_window is not None:
-            self._teacher_window.refresh_lesson_list()
+        # Keep the overview window in sync if it is visible.
+        if self._overview_window is not None and self._overview_window.isVisible():
+            self._overview_window.refresh()
 
     def _on_resources(self) -> None:
         telemetry.record_event("resources.open", payload={"teacher_mode": self.teacher_mode})
@@ -961,21 +918,13 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(f"已从 Git 资源库加载: {clone}", 5000)
 
     def _on_publish(self) -> None:
-        telemetry.record_event("publish.open", payload={"teacher_mode": self.teacher_mode})
-        if self.teacher_mode:
-            from src.teacher.publish_dialog import TeacherPublishDialog
-
-            dlg = TeacherPublishDialog(self.adapter, self)
-            if dlg.exec():
-                self.tree.refresh()
-                self.statusBar().showMessage("发布成功", 5000)
-            return
         from src.widgets.publish_dialog import PublishDialog
 
-        dlg = PublishDialog(self.adapter, self)
+        telemetry.record_event("publish.open", payload={"teacher_mode": self.teacher_mode})
+        dlg = PublishDialog(self.adapter, self, teacher_friendly=self.teacher_mode)
         if dlg.exec():
             self.tree.refresh()
-            if self._current_node_ref is not None:
+            if not self.teacher_mode and self._current_node_ref is not None:
                 self.detail.show_node(self.adapter, self._current_node_ref)
             self.statusBar().showMessage("发布成功", 5000)
 
@@ -1150,7 +1099,6 @@ class MainWindow(QMainWindow):
                 if result.ok:
                     telemetry.record_event("app.close_saved")
                     event.accept()
-                    self._clear_ai_key_on_exit()
                 else:
                     event.ignore()
                     detail_text = "\n".join(
@@ -1162,49 +1110,55 @@ class MainWindow(QMainWindow):
                         "自动保存失败（窗口未关闭）",
                         detail_text or result.message or "未知错误",
                     )
-                return
+                # Fall through to the shared teardown below on success.
 
-            reply = QMessageBox.question(
-                self,
-                "未保存的更改",
-                "当前课程有未保存的更改，是否保存？",
-                (
-                    QMessageBox.StandardButton.Save
-                    | QMessageBox.StandardButton.Discard
-                    | QMessageBox.StandardButton.Cancel
-                ),
-                QMessageBox.StandardButton.Save,
-            )
-            if reply == QMessageBox.StandardButton.Save:
-                result = self.adapter.save()
-                if result.ok:
-                    telemetry.record_event("app.close_saved")
+            else:
+                reply = QMessageBox.question(
+                    self,
+                    "未保存的更改",
+                    "当前课程有未保存的更改，是否保存？",
+                    (
+                        QMessageBox.StandardButton.Save
+                        | QMessageBox.StandardButton.Discard
+                        | QMessageBox.StandardButton.Cancel
+                    ),
+                    QMessageBox.StandardButton.Save,
+                )
+                if reply == QMessageBox.StandardButton.Save:
+                    result = self.adapter.save()
+                    if result.ok:
+                        telemetry.record_event("app.close_saved")
+                        event.accept()
+                    else:
+                        event.ignore()
+                        detail_text = "\n".join(
+                            f"[{e.get('level', 'error')}] {e.get('message', '')}"
+                            for e in result.errors
+                        )
+                        QMessageBox.warning(
+                            self,
+                            "保存失败（窗口未关闭）",
+                            detail_text or result.message or "未知错误",
+                        )
+                elif reply == QMessageBox.StandardButton.Discard:
+                    telemetry.record_event("app.close_discarded")
                     event.accept()
                 else:
+                    telemetry.record_event("app.close_cancelled")
                     event.ignore()
-                    detail_text = "\n".join(
-                        f"[{e.get('level', 'error')}] {e.get('message', '')}"
-                        for e in result.errors
-                    )
-                    QMessageBox.warning(
-                        self,
-                        "保存失败（窗口未关闭）",
-                        detail_text or result.message or "未知错误",
-                    )
-            elif reply == QMessageBox.StandardButton.Discard:
-                telemetry.record_event("app.close_discarded")
-                event.accept()
-            else:
-                telemetry.record_event("app.close_cancelled")
-                event.ignore()
         else:
             event.accept()
 
         if event.isAccepted():
-            # Tear down the independent teacher window so it does not dangle.
-            if self._teacher_window is not None:
-                self._teacher_window.close()
-                self._teacher_window = None
+            # Persist and tear down the workshop so no authoring state is
+            # lost and the window does not dangle (随时中断、无限次恢复).
+            if self._workshop_window is not None:
+                self._workshop_window.interrupt_and_save()
+                self._workshop_window.close()
+                self._workshop_window = None
+            if self._overview_window is not None:
+                self._overview_window.close()
+                self._overview_window = None
             self._clear_ai_key_on_exit()
             self._record_window_duration()
 

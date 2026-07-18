@@ -98,6 +98,34 @@ class TextbookLibraryDialogTest(unittest.TestCase):
         finally:
             path.unlink()
 
+    def test_new_blank_project(self) -> None:
+        """Phase A: 空白 AI 项目 — no source file, chosen name/languages."""
+        with unittest.mock.patch.object(
+            self.dlg, "_pick_blank_meta", return_value=("我的课", "Japanese", "English")
+        ):
+            self.dlg._on_new_blank()
+        project = self.dlg.selected_project
+        self.assertIsNotNone(project)
+        self.assertEqual(project.name, "我的课")
+        self.assertIsNone(project.source_path)
+        self.assertEqual(project.language, "Japanese")
+        self.assertEqual(project.source_language, "English")
+        loaded = self.store.load_project(project.project_id)
+        self.assertIsNotNone(loaded)
+
+    def test_new_blank_cancel_creates_nothing(self) -> None:
+        with unittest.mock.patch.object(
+            self.dlg, "_pick_blank_meta", return_value=None
+        ):
+            self.dlg._on_new_blank()
+        self.assertIsNone(self.dlg.selected_project)
+        self.assertEqual(self.store.list_projects(), [])
+
+    def test_blank_project_shown_as_pure_ai(self) -> None:
+        self.store.create_project(name="Blank", source_path=None)
+        self.dlg._refresh_list()
+        self.assertEqual(self.dlg._table.item(0, 1).text(), "—（纯 AI 项目）")
+
 
 if __name__ == "__main__":
     unittest.main()

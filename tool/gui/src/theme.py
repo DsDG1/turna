@@ -7,10 +7,9 @@ after the QApplication is created.
 from __future__ import annotations
 
 import os
-import sys
 from typing import TYPE_CHECKING
 
-from PySide6.QtGui import QFont, QFontDatabase, QIcon
+from PySide6.QtGui import QFont, QFontDatabase
 from PySide6.QtWidgets import QApplication
 
 if TYPE_CHECKING:
@@ -737,8 +736,3 @@ def apply_theme(app: QApplication, settings: "Settings | None" = None) -> None:
     app.setFont(_system_font(point_size))
 
     # High-DPI pixmaps are the default in Qt 6; no explicit attribute needed.
-
-
-def set_window_icon() -> QIcon | None:
-    """Return a simple built-in icon; None if no icon is available."""
-    return None

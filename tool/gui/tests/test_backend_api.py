@@ -48,6 +48,24 @@ class BackendApiTest(unittest.TestCase):
         for p in problems:
             self.assertIn(p.level, ("error", "warning"))
 
+    def test_validate_in_process_matches_subprocess(self) -> None:
+        fast = api._validate_in_process(self.course_dir)
+        slow = api._validate_via_subprocess(self.course_dir)
+        self.assertEqual(fast.ok, slow.ok)
+        self.assertEqual(fast.error_count, slow.error_count)
+        self.assertEqual(
+            [p.to_dict() for p in fast.problems],
+            [p.to_dict() for p in slow.problems],
+        )
+
+    def test_lint_in_process_matches_subprocess(self) -> None:
+        fast = api._lint_in_process(self.course_dir)
+        slow = api._lint_via_subprocess(self.course_dir)
+        self.assertEqual(
+            [p.to_dict() for p in fast],
+            [p.to_dict() for p in slow],
+        )
+
     def test_export_import_csv_rows_round_trip(self) -> None:
         bundle = api.load_course(self.course_dir)
         headers, rows = api.export_csv_rows("vocab", bundle.vocab)

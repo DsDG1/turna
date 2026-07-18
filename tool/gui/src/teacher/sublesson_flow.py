@@ -14,7 +14,6 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QDialog,
     QDialogButtonBox,
-    QHBoxLayout,
     QLabel,
     QListWidget,
     QListWidgetItem,
@@ -28,7 +27,6 @@ from src.backend.ai_generator import AiApiConfig
 from src.backend.course_adapter import CourseAdapter
 from src.backend.lesson_content import (
     INTERACTION_LABELS,
-    TEMPLATE_LABELS,
     build_intro_lesson,
     build_practice_lesson,
     build_review_lesson,
@@ -200,6 +198,8 @@ class SubLessonFlowWidget(LinearFlowWidget):
         return items
 
     def _build_ui(self) -> None:
+        from src.teacher.shell_header import build_teacher_header
+
         self._sub_lesson_frames.clear()
         if self.layout() is not None:
             while self.layout().count():
@@ -211,53 +211,51 @@ class SubLessonFlowWidget(LinearFlowWidget):
         else:
             QVBoxLayout(self)
 
-        layout = self.layout()
-        if layout is None:
+        main = self.layout()
+        if main is None:
             return
-        self._content_layout = layout
-        layout.setSpacing(12)
-        layout.setContentsMargins(12, 12, 12, 12)
+        main.setSpacing(12)
+        main.setContentsMargins(12, 12, 12, 12)
 
-        breadcrumb = QLabel(
-            f"{self.section.get('name', '')} › {self.unit.get('name', '')} › "
-            f"{self.lesson.get('name', '')}"
-        )
-        breadcrumb.setStyleSheet("color: #9CA3AF; padding: 4px;")
-        layout.addWidget(breadcrumb)
-
-        title = QLabel(self.lesson.get('name', ''))
-        title.setStyleSheet("font-size: 18px; font-weight: 700; color: #FFFFFF;")
-        layout.addWidget(title)
-
-        badge = QLabel(f"课型：{TEMPLATE_LABELS.get(self.template, self.template)}")
-        badge.setStyleSheet(
-            "color: #60A5FA; background-color: #1E3A8A; padding: 4px 10px; "
-            "border-radius: 12px; font-weight: 600;"
-        )
-        layout.addWidget(badge)
-
+        # Header: breadcrumb + badge row, then a wrapping row of action
+        # buttons (template extras first, then 预览/AI改写/高级编辑).
+        extras: list[QWidget] = []
         if self._assistant_title is not None:
             assistant_btn = QPushButton(self._assistant_title)
             assistant_btn.setToolTip("根据所选词汇一键生成完整课程结构")
             assistant_btn.clicked.connect(self._on_generate_from_vocab)
-            layout.addWidget(assistant_btn)
-
-        preview_btn = QPushButton("预览本课")
-        preview_btn.setToolTip("实际做题验证题目设置")
-        preview_btn.clicked.connect(self._on_preview)
-        layout.addWidget(preview_btn)
-
-        ai_btn = QPushButton("AI 改写本课")
-        ai_btn.setToolTip("用 AI 根据你的指令改写当前课程")
-        ai_btn.clicked.connect(self._on_ai_rewrite)
-        layout.addWidget(ai_btn)
+            extras.append(assistant_btn)
 
         preview_toggle = QPushButton("实时预览")
         preview_toggle.setCheckable(True)
         preview_toggle.setChecked(self._preview_visible)
         preview_toggle.setToolTip("在当前页面内预览所有题目")
         preview_toggle.toggled.connect(self._on_toggle_preview)
-        layout.addWidget(preview_toggle)
+        extras.append(preview_toggle)
+
+        header, self._advanced_btn = build_teacher_header(
+            self.section,
+            self.unit,
+            self.lesson,
+            on_preview=self._on_preview,
+            on_ai_rewrite=self._on_ai_rewrite,
+            on_advanced_toggled=self._on_advanced_toggled,
+            extra_widgets=extras,
+        )
+        main.addWidget(header)
+
+        # Body host: swapped between teacher view and raw LessonEditor.
+        self._content_host = QWidget()
+        self._content_layout = QVBoxLayout(self._content_host)
+        self._content_layout.setContentsMargins(0, 0, 0, 0)
+        self._content_layout.setSpacing(12)
+        main.addWidget(self._content_host, 1)
+
+        self._build_teacher_body()
+
+    def _build_teacher_body(self) -> None:
+        """Build the teacher-view body: live preview + sub-lesson frames."""
+        self._clear_content()
 
         self._preview_container = QWidget()
         preview_layout = QVBoxLayout(self._preview_container)
@@ -267,17 +265,39 @@ class SubLessonFlowWidget(LinearFlowWidget):
             "background-color: #1A1D24; border: 1px solid #2C313C; border-radius: 8px;"
         )
         self._preview_container.setVisible(self._preview_visible)
-        layout.addWidget(self._preview_container)
+        self._content_layout.addWidget(self._preview_container)
         self._refresh_preview()
 
         for sl in self._sub_lessons():
             frame = self._build_sub_lesson(sl)
-            layout.addWidget(frame)
+            self._content_layout.addWidget(frame)
 
         self._add_sub_btn = QPushButton("+ 添加教学环节")
         self._add_sub_btn.clicked.connect(self._on_add_sub_lesson)
-        layout.addWidget(self._add_sub_btn)
-        layout.addStretch()
+        self._content_layout.addWidget(self._add_sub_btn)
+        self._content_layout.addStretch()
+
+    def _clear_content(self) -> None:
+        if self._content_layout is None:
+            return
+        while self._content_layout.count():
+            child = self._content_layout.takeAt(0)
+            widget = child.widget()
+            if widget is not None:
+                widget.setParent(None)
+                widget.deleteLater()
+
+    def _on_advanced_toggled(self, checked: bool) -> None:
+        from src.widgets.lesson_editor import LessonEditor
+
+        if self._advanced_btn is not None:
+            self._advanced_btn.setText("返回教师视图" if checked else "高级编辑")
+        self._clear_content()
+        if checked:
+            editor = LessonEditor(self.adapter, self.lesson)
+            self._content_layout.addWidget(editor)
+        else:
+            self._build_teacher_body()
 
     def _on_ai_rewrite(self) -> None:
         from src.application.commands import AiEditLessonCommand

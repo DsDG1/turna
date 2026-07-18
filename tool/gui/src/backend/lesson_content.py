@@ -6,6 +6,7 @@ the single source of truth for content-shape rules used by the widgets.
 """
 from __future__ import annotations
 
+import copy
 import re
 import uuid
 from dataclasses import dataclass
@@ -176,7 +177,9 @@ def default_interaction(runtime_type: str) -> dict[str, Any]:
     """Return a minimal valid item dict for the given runtimeType."""
     item: dict[str, Any] = {"runtimeType": runtime_type}
     for spec in INTERACTION_SCHEMA[runtime_type]:
-        item[spec.name] = spec.default
+        # Deep-copy: defaults in the shared schema table are mutable (lists),
+        # handing out the same object would alias state across items.
+        item[spec.name] = copy.deepcopy(spec.default)
     return item
 
 
@@ -190,7 +193,7 @@ def normalize_item(item: dict[str, Any]) -> dict[str, Any]:
         if spec.name in item:
             out[spec.name] = item[spec.name]
         else:
-            out[spec.name] = spec.default
+            out[spec.name] = copy.deepcopy(spec.default)
     return out
 
 
@@ -550,6 +553,45 @@ def _template_skeleton(template: str) -> dict[str, Any]:
     with path.open("r", encoding="utf-8") as f:
         data = json.load(f)
     return copy.deepcopy(data)
+
+
+def clone_lesson_with_fresh_ids(
+    lesson: dict[str, Any], name: str | None = None
+) -> dict[str, Any]:
+    """Deep-copy a lesson and regenerate all structural ids so the copy can
+    coexist with the original (workshop2 P1 duplicate-lesson support).
+
+    Regenerated: lesson id, subLessons, stages, items, listeningPhases.
+    Preserved (they point to external resources/lessons, not structural ids):
+    ``wordId``, ``expressionId``, ``grammarPointId``, ``linkedWordIds``,
+    ``linkedExpressionIds``, ``prerequisiteLessonIds``.
+    """
+    import copy
+
+    clone = copy.deepcopy(lesson)
+    clone["id"] = short_id("l")
+    if name is not None:
+        clone["name"] = name
+    content = clone.get("content", {})
+
+    def _renew_items(items: list[dict[str, Any]]) -> None:
+        for item in items:
+            rt = item.get("runtimeType")
+            if rt:
+                item["id"] = short_id(rt[:2])
+
+    for sub in content.get("subLessons", []):
+        sub["id"] = short_id("sl")
+        for st in sub.get("stages", []):
+            st["id"] = short_id("st")
+            _renew_items(st.get("items", []))
+    for st in content.get("stages", []):
+        st["id"] = short_id("st")
+        _renew_items(st.get("items", []))
+    for ph in content.get("listeningPhases", []):
+        ph["id"] = short_id("lp")
+        _renew_items(ph.get("items", []))
+    return clone
 
 
 def all_lesson_ids(sections: list[dict[str, Any]]) -> set[str]:

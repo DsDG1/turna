@@ -7,11 +7,11 @@ dependency.
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 import uuid
 from pathlib import Path
-from typing import Any
 
 # Ensure ``tool/gui`` is on sys.path when this module is imported directly.
 _GUI = Path(__file__).resolve().parents[2]
@@ -146,15 +146,22 @@ class TextbookProjectStore:
         return project
 
     def save_project(self, project: TextbookProject) -> None:
-        """Persist ``project`` to disk, creating its directory if needed."""
+        """Persist ``project`` to disk, creating its directory if needed.
+
+        Writes via a sibling temp file + ``os.replace`` so a crash mid-write
+        cannot leave a truncated ``project.json`` behind (which would make
+        the project silently disappear from the library on next load).
+        """
         project.touch()
         project_dir = self.project_dir(project.project_id)
         project_dir.mkdir(parents=True, exist_ok=True)
         path = project_dir / _PROJECT_FILE
-        path.write_text(
+        tmp = path.with_suffix(path.suffix + ".tmp")
+        tmp.write_text(
             json.dumps(project.to_dict(), ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
+        os.replace(tmp, path)
 
     def create_project(
         self,
@@ -186,6 +193,3 @@ class TextbookProjectStore:
 
         shutil.rmtree(project_dir)
         return True
-
-    def project_exists(self, project_id: str) -> bool:
-        return self.project_file(project_id).exists()

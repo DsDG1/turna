@@ -40,9 +40,24 @@ def _empty_design() -> dict[str, Any]:
 def _checksum(path: Path | None) -> str | None:
     if path is None or not path.exists():
         return None
+    try:
+        stat = path.stat()
+    except OSError:
+        return None
+    # Cache by (mtime, size): autosave serializes the project per chapter,
+    # and re-hashing a multi-MB source file every time is wasted work.
+    key = str(path)
+    cached = _CHECKSUM_CACHE.get(key)
+    if cached is not None and cached[0] == stat.st_mtime and cached[1] == stat.st_size:
+        return cached[2]
     h = hashlib.sha256()
     h.update(path.read_bytes())
-    return h.hexdigest()
+    digest = h.hexdigest()
+    _CHECKSUM_CACHE[key] = (stat.st_mtime, stat.st_size, digest)
+    return digest
+
+
+_CHECKSUM_CACHE: dict[str, tuple[float, int, str | None]] = {}
 
 
 @dataclass
@@ -66,6 +81,8 @@ class TextbookProject:
         design: AI design state — chat history, params, draft sections (v2;
             populated from Phase 3 onward).
         import_map: Source section id → actually imported section id (v2).
+        ui_stage: Last workshop stage the user was on (0-based, optional;
+            lets the workshop restore the exact view on reopen).
         version: Format version for migrations.
     """
 
@@ -84,6 +101,7 @@ class TextbookProject:
     resource_pool: dict[str, Any] = field(default_factory=_empty_resource_pool)
     design: dict[str, Any] = field(default_factory=_empty_design)
     import_map: dict[str, str] = field(default_factory=dict)
+    ui_stage: int | None = None
     version: int = PROJECT_VERSION
 
     def to_dict(self) -> dict[str, Any]:
@@ -104,6 +122,7 @@ class TextbookProject:
             "resource_pool": self.resource_pool,
             "design": self.design,
             "import_map": self.import_map,
+            "ui_stage": self.ui_stage,
         }
 
     @classmethod
@@ -124,6 +143,7 @@ class TextbookProject:
             resource_pool=data.get("resource_pool") or _empty_resource_pool(),
             design=data.get("design") or _empty_design(),
             import_map=dict(data.get("import_map", {})),
+            ui_stage=data.get("ui_stage"),
             # Missing version key means a pre-v2 file.
             version=data.get("version", 1),
         )

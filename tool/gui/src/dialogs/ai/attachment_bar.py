@@ -8,8 +8,6 @@ chip.
 from __future__ import annotations
 
 import base64
-from pathlib import Path
-from typing import Any
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QKeyEvent, QPixmap
@@ -26,7 +24,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from src.backend.attachment_extractor import IMAGE_EXTENSIONS, extract_attachment
 from src.dialogs.ai.worker import AttachmentRecord
 
 
@@ -111,9 +108,6 @@ class AttachmentPreviewDialog(QDialog):
             return pixmap
         except Exception:
             return None
-
-    def reference_mode(self) -> str:
-        return self._reference_mode
 
 
 class AttachmentBar(QWidget):

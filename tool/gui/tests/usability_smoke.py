@@ -31,16 +31,7 @@ sys.path.insert(0, str(ROOT / "tool"))
 sys.path.insert(0, str(ROOT / "tool" / "gui"))
 
 from src.backend.course_adapter import CourseAdapter  # noqa: E402
-from src.backend.lesson_content import (  # noqa: E402
-    all_lesson_ids,
-)
-from src.backend.teacher_view_model import (  # noqa: E402
-    correct_index_for,
-    is_answerable,
-    options_for,
-    prompt_for,
-    text_answer_for,
-)
+from src.backend.teacher_view_model import is_answerable  # noqa: E402
 from src.backend.lesson_content import build_intro_lesson  # noqa: E402
 
 _CLI = ROOT / "tool" / "course_cli.py"

@@ -10,7 +10,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from PySide6.QtCore import QSize, Qt
+from PySide6.QtCore import QSize
 from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
@@ -28,7 +28,6 @@ from PySide6.QtWidgets import (
 from src.app import current_ai_config, current_settings
 from src.backend.ai_generator import (
     AiApiConfig,
-    AiCancelled,
     request_item_transform,
     request_lesson_transform,
 )
@@ -153,9 +152,10 @@ class AiLessonHelperDialog(QDialog):
                 self.reject()
 
     def _cancel_if_running(self) -> None:
+        # Cancel only; the worker keep-alive registry keeps the thread alive
+        # until it finishes (see worker.py), so no blocking wait is needed.
         if self._worker is not None and self._worker.isRunning():
             self._worker.cancel()
-            self._worker.wait(2000)
 
     def _set_running_ui(self, running: bool) -> None:
         cancel_btn = self._button_box.button(QDialogButtonBox.StandardButton.Cancel)

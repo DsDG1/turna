@@ -5,8 +5,6 @@ individual replacements before applying the merge.
 """
 from __future__ import annotations
 
-from typing import Any
-
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QDialog,

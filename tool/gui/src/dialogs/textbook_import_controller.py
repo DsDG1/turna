@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import sys
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Literal
 
@@ -30,7 +30,6 @@ from src.backend.import_step_result import ImportStepResult
 from src.backend.import_strategy import SectionImportPreview, plan_bulk_import
 from src.backend.knowledge_extractor import extract_knowledge_points
 from src.backend.knowledge_merger import MergeReport, apply as merge_knowledge_points
-from src.backend.knowledge_prompt import _MAX_CHAPTER_CHARS
 from src.backend.knowledge_schema import KnowledgePoints
 from src.backend.markdown_chopper import Chapter, split_chapters
 from src.backend.textbook_presets import TextbookPreset, preset_for
@@ -110,6 +109,11 @@ class TextbookImportController:
         self._active_workers: dict[int, Any] = {}
         self._cancelled = False
         self._autosave_enabled = True
+        # Autosave throttle: extraction fires _autosave() per completed
+        # chapter; writes are coalesced to at most one per interval while
+        # discrete transitions force an immediate save (force=True).
+        self._autosave_dirty = False
+        self._last_autosave_at = 0.0
         self._extract_start_time: float | None = None
         self._extract_total: int = 0
         self._started_count: int = 0
@@ -263,7 +267,7 @@ class TextbookImportController:
             details={"chapter_count": len(self._chapters)},
         )
         self._emit_step(self.STEP_CHAPTERS, result)
-        self._autosave()
+        self._autosave(force=True)
         return result
 
     def _split_into_chapters(self) -> None:
@@ -331,6 +335,7 @@ class TextbookImportController:
         """
         if self._cancelled:
             if not self._active_workers:
+                self._autosave(force=True)  # persist state before reporting cancel
                 self._emit_step(
                     self.STEP_EXTRACT,
                     ImportStepResult.cancelled("extract", "提取已取消。"),
@@ -347,6 +352,7 @@ class TextbookImportController:
 
         if not self._active_workers and not self._extract_queue:
             self.compute_quality_report(adapter=None)
+            self._autosave(force=True)  # extraction done — persist everything
             self._emit_step(
                 self.STEP_REVIEW,
                 ImportStepResult.success("extract", "提取完成，请审校结果。"),
@@ -388,23 +394,40 @@ class TextbookImportController:
             max_chapter_chars=self._preset.max_chapter_chars,
             max_retries=1,
         )
-        # AiRequestWorker-compatible signal names.
+        # AiRequestWorker-compatible signal names. The worker identity is bound
+        # into every callback so signals arriving after this worker was dropped
+        # from ``_active_workers`` (cancelled run, superseded retry) can be
+        # recognised as stale and ignored.
         if hasattr(worker, "result_ready"):
-            worker.result_ready.connect(lambda kp, idx=idx: self._on_extract_ready(idx, kp))
+            worker.result_ready.connect(
+                lambda kp, idx=idx, w=worker: self._on_extract_ready(idx, kp, w)
+            )
         if hasattr(worker, "error_occurred"):
-            worker.error_occurred.connect(lambda msg, idx=idx: self._on_extract_error(idx, msg))
+            worker.error_occurred.connect(
+                lambda msg, idx=idx, w=worker: self._on_extract_error(idx, msg, w)
+            )
         if hasattr(worker, "chunk_ready"):
             worker.chunk_ready.connect(self._on_extract_chunk)
         if hasattr(worker, "usage_ready"):
-            worker.usage_ready.connect(lambda usage, idx=idx: self._on_usage(idx, usage))
+            worker.usage_ready.connect(
+                lambda usage, idx=idx, w=worker: self._on_usage_guarded(idx, usage, w)
+            )
         self._active_workers[idx] = worker
         worker.start()
+
+    def _is_active(self, idx: int, worker: object) -> bool:
+        """True if ``worker`` is still the tracked worker for chapter ``idx``."""
+        return self._active_workers.get(idx) is worker
 
     def _finish_worker(self, idx: int) -> None:
         """Drop a finished worker from the active pool and advance the queue."""
         self._active_workers.pop(idx, None)
         self._completed_count += 1
         self._extract_next()
+
+    def _on_usage_guarded(self, idx: int, usage: UsageDict, worker: object) -> None:
+        if self._is_active(idx, worker):
+            self._on_usage(idx, usage)
 
     def _on_usage(self, idx: int, usage: UsageDict) -> None:
         """Accumulate per-chapter + project token usage (bookplan2 Phase 5)."""
@@ -437,7 +460,9 @@ class TextbookImportController:
         if fragment:
             self._on_extract_log(fragment)
 
-    def _on_extract_ready(self, idx: int, kp: KnowledgePoints) -> None:
+    def _on_extract_ready(self, idx: int, kp: KnowledgePoints, worker: object) -> None:
+        if not self._is_active(idx, worker):
+            return  # stale worker from a cancelled/superseded run
         if 0 <= idx < len(self._chapters):
             self._chapters[idx].knowledge = kp
             self._chapters[idx].error = ""
@@ -452,7 +477,9 @@ class TextbookImportController:
         self._autosave()
         self._finish_worker(idx)
 
-    def _on_extract_error(self, idx: int, message: str) -> None:
+    def _on_extract_error(self, idx: int, message: str, worker: object) -> None:
+        if not self._is_active(idx, worker):
+            return  # stale worker from a cancelled/superseded run
         if 0 <= idx < len(self._chapters):
             self._chapters[idx].error = message
             self._on_extract_log(f"\n  ✗ 失败：{message}（可在审校页选择重试/仅抽词汇/跳过）")
@@ -492,7 +519,7 @@ class TextbookImportController:
             elif rtype == "grammarPoint":
                 cr.knowledge.grammarPoints.append(entry)
         self.compute_quality_report(adapter=None)
-        self._autosave()
+        self._autosave(force=True)
 
     def apply_review_edits(
         self,
@@ -519,6 +546,10 @@ class TextbookImportController:
         """
         if not (0 <= index < len(self._chapters)):
             return ImportStepResult.error("extract", "章节索引无效。")
+        if index in self._active_workers:
+            return ImportStepResult.error(
+                "extract", "该章节已有提取任务进行中。", recoverable=True
+            )
         config = self._ai_config_fn()
         if not getattr(config, "is_complete", False):
             return ImportStepResult.error(
@@ -539,7 +570,7 @@ class TextbookImportController:
         """Mark a chapter as not imported (used after extraction failure)."""
         if 0 <= index < len(self._chapters):
             self._chapters[index].keep = False
-            self._autosave()
+            self._autosave(force=True)
 
     # ------------------------------------------------------------------ ⑥ import
     def _build_section_list(self) -> list[tuple[int, dict[str, Any]]]:
@@ -587,7 +618,7 @@ class TextbookImportController:
                 "course_collisions": report.course_collision_count,
             },
         )
-        self._autosave()
+        self._autosave(force=True)
         return report
 
     def preview_import(
@@ -602,7 +633,6 @@ class TextbookImportController:
         post-merge state the user will get on confirm. Section-id planning
         delegates to ``plan_bulk_import`` so the preview matches execution.
         """
-        from src.backend.import_strategy import ImportStrategy
         from src.backend.knowledge_merger import analyze as analyze_knowledge
 
         built = self._build_section_list()
@@ -668,7 +698,7 @@ class TextbookImportController:
             self.STEP_IMPORT,
             ImportStepResult.success("import", f"已生成 {len(sections)} 个 section，等待导入。"),
         )
-        self._autosave()
+        self._autosave(force=True)
         self._on_sections_ready(sections)
         return ImportStepResult.success("import", f"已生成 {len(sections)} 个 section。")
 
@@ -712,18 +742,39 @@ class TextbookImportController:
         self._extract_queue = []
         self._active_workers = {}
         self._cancelled = False
+        self._autosave_dirty = False
+        self._last_autosave_at = 0.0
         # Notify the view so it can render the restored step.
         self._emit_step(project.current_step)
 
-    def _autosave(self) -> None:
-        """Build a project snapshot and forward it to the autosave callback."""
+    _AUTOSAVE_INTERVAL = 2.0  # seconds between throttled autosave writes
+
+    def _autosave(self, *, force: bool = False) -> None:
+        """Build a project snapshot and forward it to the autosave callback.
+
+        Throttled to one write per ``_AUTOSAVE_INTERVAL`` unless ``force``;
+        skipped writes mark the state dirty so ``flush_autosave`` can persist
+        them before closing. Serializing the full project (markdown +
+        chapters) per completed chapter would otherwise stall the UI.
+        """
         if not self._autosave_enabled or self._on_autosave is None:
             return
+        now = time.monotonic()
+        if not force and now - self._last_autosave_at < self._AUTOSAVE_INTERVAL:
+            self._autosave_dirty = True
+            return
+        self._autosave_dirty = False
+        self._last_autosave_at = now
         try:
             self._on_autosave(self.to_project())
         except Exception:
             # Autosave must never break the workflow.
             pass
+
+    def flush_autosave(self) -> None:
+        """Force-write any throttled autosave state (close/interrupt safety)."""
+        if self._autosave_dirty:
+            self._autosave(force=True)
 
     # ------------------------------------------------------------------ cancel
     def cancel(self) -> None:
@@ -751,18 +802,3 @@ class TextbookImportController:
 
         return AiRequestWorker(target, *args, **kwargs)
 
-
-def review_rows_from_tables(
-    vocab_rows: list[dict[str, Any]],
-    expr_rows: list[dict[str, Any]],
-    grammar_rows: list[dict[str, Any]],
-) -> tuple[list[tuple[int, dict[str, Any]]], list[tuple[int, dict[str, Any]]], list[tuple[int, dict[str, Any]]]]:
-    """Helper to convert review-table row dicts into ``(chapter_index, entry)`` tuples.
-
-    Each input row dict is expected to contain ``chapter_index`` and ``entry`` keys.
-    """
-    return (
-        [(r["chapter_index"], r["entry"]) for r in vocab_rows if r.get("kept", True)],
-        [(r["chapter_index"], r["entry"]) for r in expr_rows if r.get("kept", True)],
-        [(r["chapter_index"], r["entry"]) for r in grammar_rows if r.get("kept", True)],
-    )

@@ -31,13 +31,6 @@ def _contains_cjk(text: str) -> bool:
     return bool(_CJK_RE.search(text))
 
 
-def _cjk_ratio(text: str) -> float:
-    if not text:
-        return 0.0
-    cjk = sum(1 for ch in text if _CJK_RE.match(ch))
-    return cjk / len(text)
-
-
 def _is_cjk_language(language: str) -> bool:
     """Languages where CJK characters are expected in the term/title."""
     return language.lower() in {

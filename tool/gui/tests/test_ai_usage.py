@@ -13,7 +13,6 @@ if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
 from src.backend.ai_usage import (
-    PRICING,
     estimate_cost,
     estimate_usage,
     format_usage_line,

@@ -130,10 +130,6 @@ class GitLibraryDialog(QDialog):
         if chosen:
             self.dir_edit.setText(chosen)
 
-    def _set_clone_dir(self, path: Path) -> None:
-        self._clone_dir = path
-        self._refresh_state()
-
     def _refresh_state(self) -> None:
         connected = self._clone_dir is not None and (self._clone_dir / ".git").is_dir()
         self.open_btn.setEnabled(connected)

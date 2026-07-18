@@ -28,16 +28,6 @@ logging.basicConfig(
 )
 
 
-def _main_window_ai_config() -> "src.backend.ai_generator.AiApiConfig | None":
-    """Try to grab the current AI config from the running MainWindow."""
-    from src.app import current_ai_config
-
-    config = current_ai_config()
-    if config.base_url or config.api_key or config.model:
-        return config
-    return None
-
-
 def _install_excepthook() -> None:
     """Log unhandled exceptions, record telemetry, and offer AI analysis."""
     from src.infrastructure.telemetry import telemetry

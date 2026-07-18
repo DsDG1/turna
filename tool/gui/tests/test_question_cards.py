@@ -5,7 +5,7 @@ import sys
 import unittest
 from pathlib import Path
 
-from PySide6.QtWidgets import QApplication, QComboBox, QLabel, QLineEdit, QPushButton
+from PySide6.QtWidgets import QApplication, QComboBox, QLabel, QPushButton
 
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:

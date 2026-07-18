@@ -77,19 +77,6 @@ class QuestionCard(QFrame):
         self._type_combo: QComboBox | None = None
         self._build_ui()
 
-    def set_item(self, item: dict[str, Any]) -> None:
-        """Replace the bound item (e.g. after switching runtimeType)."""
-        self.item = item
-        if self._type_combo is not None:
-            self._type_combo.blockSignals(True)
-            rt = item.get("runtimeType", "")
-            for i in range(self._type_combo.count()):
-                if self._type_combo.itemData(i) == rt:
-                    self._type_combo.setCurrentIndex(i)
-                    break
-            self._type_combo.blockSignals(False)
-        self._build_content()
-
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 12, 12, 12)
@@ -386,7 +373,21 @@ class QuestionCard(QFrame):
     def _build_translate(self, layout: QVBoxLayout) -> None:
         self._add_labeled_edit(layout, "source")
         self._add_labeled_edit(layout, "expected")
-        self._add_labeled_edit(layout, "hints", multi_line=True)
+        # hints is a string_list field: one hint per line in the editor.
+        layout.addWidget(QLabel(field_label("hints")))
+        edit = QTextEdit()
+        hints = self.item.get("hints")
+        if isinstance(hints, list):
+            edit.setPlainText("\n".join(str(h) for h in hints))
+        else:
+            edit.setPlainText(str(hints or ""))
+        edit.textChanged.connect(
+            lambda: self._set_field(
+                "hints",
+                [ln.strip() for ln in edit.toPlainText().splitlines() if ln.strip()],
+            )
+        )
+        layout.addWidget(edit)
 
     def _build_true_false(self, layout: QVBoxLayout) -> None:
         layout.addWidget(QLabel("陈述:"))

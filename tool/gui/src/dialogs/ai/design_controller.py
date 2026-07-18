@@ -13,6 +13,11 @@ Generation paths:
 
 When a resource pool is set (``set_resource_pool``), the spec is grounded:
 the model must pick words from the pool and copy them verbatim (§3.4).
+
+Phase C additions: attachments on chat messages (OpenAI content pieces),
+``explain_course`` auto-chained after each draft (persisted to
+``design.explanation``), genre batch application, and Settings-driven
+timeout/temperature/retry injection.
 """
 from __future__ import annotations
 
@@ -21,6 +26,8 @@ from typing import Any, Callable
 from src.backend.ai_generator import (
     AiCourseSpec,
     ChatMessage,
+    apply_genre_to_spec,
+    explain_course,
     generate_from_chat,
     request_alignment_reply,
     request_course_with_retry,
@@ -29,6 +36,26 @@ from src.backend.textbook_to_course import _rewrite_ids_deterministic
 
 #: Usage dict shape: {"prompt_tokens", "completion_tokens", "total_tokens"}.
 UsageDict = dict[str, int]
+
+
+def _serialize_content(content: Any) -> Any:
+    """Make chat content JSON-safe for ``project.design`` persistence.
+
+    Image pieces carry base64 payloads that must not land in the project
+    file (connectplan D4: 附件引用可存，base64 本体不存); they degrade to a
+    text placeholder. Text pieces pass through verbatim.
+    """
+    if isinstance(content, str):
+        return content
+    if not isinstance(content, list):
+        return str(content)
+    pieces: list[dict] = []
+    for piece in content:
+        if isinstance(piece, dict) and piece.get("type") == "text":
+            pieces.append(piece)
+        else:
+            pieces.append({"type": "text", "text": "[图片附件]"})
+    return pieces
 
 
 class DesignController:
@@ -58,6 +85,7 @@ class DesignController:
         ai_config_fn: Callable[[], Any],
         worker_factory: Callable[..., Any] | None = None,
         validator: Callable[[dict], list] | None = None,
+        settings_fn: Callable[[], Any] | None = None,
         on_chat_updated: Callable[[], None] | None = None,
         on_chat_stream_chunk: Callable[[str], None] | None = None,
         on_draft_ready: Callable[[dict], None] | None = None,
@@ -66,10 +94,14 @@ class DesignController:
         on_busy_changed: Callable[[bool, str], None] | None = None,
         on_usage_update: Callable[[UsageDict], None] | None = None,
         on_design_changed: Callable[[], None] | None = None,
+        on_explanation: Callable[[str], None] | None = None,
+        on_explanation_chunk: Callable[[str], None] | None = None,
+        on_explanation_error: Callable[[str], None] | None = None,
     ) -> None:
         self._ai_config_fn = ai_config_fn
         self._worker_factory = worker_factory or self._default_worker_factory
         self._validator = validator
+        self._settings_fn = settings_fn
         self._on_chat_updated = on_chat_updated or (lambda: None)
         self._on_chat_stream_chunk = on_chat_stream_chunk or (lambda _t: None)
         self._on_draft_ready = on_draft_ready or (lambda _s: None)
@@ -78,6 +110,9 @@ class DesignController:
         self._on_busy_changed = on_busy_changed or (lambda _b, _s: None)
         self._on_usage_update = on_usage_update or (lambda _u: None)
         self._on_design_changed = on_design_changed or (lambda: None)
+        self._on_explanation = on_explanation or (lambda _t: None)
+        self._on_explanation_chunk = on_explanation_chunk or (lambda _t: None)
+        self._on_explanation_error = on_explanation_error or (lambda _m: None)
 
         self._params: dict[str, Any] = {
             "topic": "",
@@ -94,6 +129,7 @@ class DesignController:
         self._resource_pool: list[dict] = []
         self._chat: list[ChatMessage] = []
         self._draft: dict[str, Any] | None = None
+        self._explanation = ""
         self._worker: Any | None = None
         self._usage: UsageDict = {
             "prompt_tokens": 0,
@@ -109,6 +145,10 @@ class DesignController:
     @property
     def draft(self) -> dict[str, Any] | None:
         return self._draft
+
+    @property
+    def explanation(self) -> str:
+        return self._explanation
 
     @property
     def is_busy(self) -> bool:
@@ -147,7 +187,7 @@ class DesignController:
 
     def build_spec(self) -> AiCourseSpec:
         """Assemble the generation spec, injecting pool + brief (§3.4)."""
-        return AiCourseSpec(
+        spec = AiCourseSpec(
             language=self._language,
             source_language=self._source_language,
             topic=self._params["topic"],
@@ -160,10 +200,21 @@ class DesignController:
             resource_pool=list(self._resource_pool) or None,
             design_brief=self._design_brief,
         )
+        if spec.use_genre_batch:
+            # [genre] tags in topic/extra instructions steer per-unit
+            # templates (mirrors the legacy dialog's _current_spec); the
+            # helper returns a replaced spec when a single tag is present.
+            spec = apply_genre_to_spec(spec)
+        return spec
 
     # ------------------------------------------------------------------ chat
-    def send_chat(self, text: str) -> bool:
-        """Append a user message and request an alignment reply."""
+    def send_chat(self, text: str, attachments: list[Any] | None = None) -> bool:
+        """Append a user message and request an alignment reply.
+
+        ``attachments`` are duck-typed attachment records (``.content`` is an
+        OpenAI content piece, see ``AttachmentRecord``); their content rides
+        inside the user message, mirroring the legacy wish mode.
+        """
         text = text.strip()
         if not text or self.is_busy:
             return False
@@ -171,7 +222,14 @@ class DesignController:
         if not getattr(config, "is_complete", False):
             self._on_error("请先在设置中配置 AI API（base_url / api_key / model）。")
             return False
-        self._chat.append(ChatMessage(role="user", content=text))
+        pieces = [
+            getattr(att, "content", None) for att in (attachments or [])
+        ]
+        pieces = [p for p in pieces if isinstance(p, dict)]
+        content: Any = (
+            [{"type": "text", "text": text}] + pieces if pieces else text
+        )
+        self._chat.append(ChatMessage(role="user", content=content))
         # The topic defaults to the latest user message (mirrors the legacy
         # wish mode) so generation stays anchored to the conversation.
         self._params["topic"] = text
@@ -187,6 +245,7 @@ class DesignController:
             on_result=self._on_alignment_ready,
             on_chunk=self._on_chat_stream_chunk,
             stage="对话中…",
+            **self._ai_kwargs(),
         )
         return True
 
@@ -215,6 +274,7 @@ class DesignController:
                 on_result=self._on_draft_generated,
                 on_chunk=self._on_stream_chunk,
                 stage="生成课程中…",
+                **self._ai_kwargs(),
             )
         else:
             if not spec.topic.strip():
@@ -225,10 +285,11 @@ class DesignController:
                 config,
                 spec,
                 self._validator or (lambda _s: []),
-                max_retries=2,
+                max_retries=self._retry_max(),
                 on_result=self._on_draft_generated,
                 on_chunk=self._on_stream_chunk,
                 stage="生成课程中…",
+                **self._ai_kwargs(),
             )
         return True
 
@@ -242,11 +303,43 @@ class DesignController:
             self._draft = section
             self._on_draft_ready(section)
             self._on_design_changed()
+            self._start_explain(section)
 
     def set_draft(self, section: dict | None) -> None:
         """Replace the draft (e.g. after manual JSON edits in the panel)."""
         self._draft = section
         self._on_design_changed()
+
+    # ------------------------------------------------------------------ explain
+    def _start_explain(self, section: dict) -> None:
+        """Auto-chain the plain-language explanation after each draft (P-C)."""
+        config = self._ai_config_fn()
+        if not getattr(config, "is_complete", False):
+            return
+        self._explanation = ""
+        self._start_worker(
+            explain_course,
+            config,
+            self.build_spec(),
+            section,
+            on_result=self._on_explain_ready,
+            on_chunk=self._on_explain_chunk,
+            on_error=self._on_explain_error,
+            stage="通俗解释中…",
+            **self._ai_kwargs(),
+        )
+
+    def _on_explain_ready(self, text: str) -> None:
+        self._explanation = text or ""
+        self._on_explanation(self._explanation)
+        self._on_design_changed()
+
+    def _on_explain_chunk(self, text: str) -> None:
+        self._on_explanation_chunk(text)
+
+    def _on_explain_error(self, message: str) -> None:
+        # Explanation is a nice-to-have — never route to the blocking popup.
+        self._on_explanation_error(message)
 
     # ------------------------------------------------------------------ cancel
     def cancel(self) -> None:
@@ -254,6 +347,22 @@ class DesignController:
             self._worker.cancel()
 
     # ------------------------------------------------------------------ worker plumbing
+    def _ai_kwargs(self) -> dict[str, Any]:
+        """Settings-driven worker kwargs (timeout/temperature); empty when no
+        settings provider was injected (tests, defaults)."""
+        if self._settings_fn is None:
+            return {}
+        s = self._settings_fn()
+        return {
+            "timeout": float(getattr(s, "ai_timeout", 120.0)),
+            "temperature": float(getattr(s, "ai_temperature", 0.7)),
+        }
+
+    def _retry_max(self) -> int:
+        if self._settings_fn is None:
+            return 2
+        return int(getattr(self._settings_fn(), "ai_retry_max", 2))
+
     def _start_worker(
         self,
         target: Callable,
@@ -261,6 +370,7 @@ class DesignController:
         on_result: Callable[[Any], None],
         on_chunk: Callable[[str], None],
         stage: str,
+        on_error: Callable[[str], None] | None = None,
         **worker_kwargs: Any,
     ) -> None:
         worker = self._worker_factory(target, *args, **worker_kwargs)
@@ -269,16 +379,33 @@ class DesignController:
                 lambda result: self._finish_worker(worker, on_result, result)
             )
         if hasattr(worker, "error_occurred"):
+            error_cb = on_error or self._on_error
             worker.error_occurred.connect(
-                lambda msg: self._fail_worker(worker, msg)
+                lambda msg: self._fail_worker(worker, msg, error_cb)
             )
         if hasattr(worker, "chunk_ready"):
-            worker.chunk_ready.connect(on_chunk)
+            worker.chunk_ready.connect(
+                lambda chunk: self._deliver_chunk(worker, on_chunk, chunk)
+            )
         if hasattr(worker, "usage_ready"):
-            worker.usage_ready.connect(self._accumulate_usage)
+            worker.usage_ready.connect(
+                lambda usage: self._deliver_usage(worker, usage)
+            )
         self._worker = worker
         self._on_busy_changed(True, stage)
         worker.start()
+
+    def _deliver_chunk(
+        self, worker: Any, on_chunk: Callable[[str], None], chunk: str
+    ) -> None:
+        # Late fragments from a cancelled/superseded worker must not land in
+        # the new request's stream buffer.
+        if worker is self._worker:
+            on_chunk(chunk)
+
+    def _deliver_usage(self, worker: Any, usage: Any) -> None:
+        if worker is self._worker:
+            self._accumulate_usage(usage)
 
     def _finish_worker(
         self, worker: Any, on_result: Callable[[Any], None], result: Any
@@ -289,12 +416,14 @@ class DesignController:
         self._on_busy_changed(False, "")
         on_result(result)
 
-    def _fail_worker(self, worker: Any, message: str) -> None:
+    def _fail_worker(
+        self, worker: Any, message: str, on_error: Callable[[str], None]
+    ) -> None:
         if worker is not self._worker:
             return
         self._worker = None
         self._on_busy_changed(False, "")
-        self._on_error(message)
+        on_error(message)
 
     def _accumulate_usage(self, usage: UsageDict) -> None:
         if not isinstance(usage, dict):
@@ -314,12 +443,16 @@ class DesignController:
         """Serialize into ``project.design`` (connectplan D4)."""
         return {
             "chat_history": [
-                {"role": m.role, "content": m.content, "timestamp": m.timestamp}
+                {
+                    "role": m.role,
+                    "content": _serialize_content(m.content),
+                    "timestamp": m.timestamp,
+                }
                 for m in self._chat
             ],
             "params": {**self._params, "design_brief": self._design_brief},
             "draft_sections": [self._draft] if self._draft else [],
-            "explanation": "",
+            "explanation": self._explanation,
         }
 
     def apply_design_dict(self, data: dict[str, Any] | None) -> None:
@@ -341,6 +474,9 @@ class DesignController:
         ]
         drafts = data.get("draft_sections") or []
         self._draft = drafts[-1] if drafts and isinstance(drafts[-1], dict) else None
+        self._explanation = data.get("explanation", "") or ""
         self._on_chat_updated()
+        if self._explanation:
+            self._on_explanation(self._explanation)
         if self._draft:
             self._on_draft_ready(self._draft)

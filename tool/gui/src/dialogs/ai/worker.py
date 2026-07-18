@@ -35,6 +35,14 @@ class AttachmentRecord:
 _AttachmentRecord = AttachmentRecord
 
 
+# Strong references to workers whose run() has not finished yet. Owner dialogs
+# may be closed while a request is still in flight; destroying the last
+# reference to a running QThread aborts the process
+# ("QThread: Destroyed while thread is still running"), so the registry keeps
+# every started worker alive until its ``finished`` signal fires.
+_LIVE_WORKERS: set["AiRequestWorker"] = set()
+
+
 class AiRequestWorker(QThread):
     """Run a synchronous AI call in a background thread.
 
@@ -66,8 +74,15 @@ class AiRequestWorker(QThread):
         """Request cooperative cancellation of the in-flight call."""
         self._cancelled = True
 
-    def is_cancelled(self) -> bool:
-        return self._cancelled
+    def start(self, *args, **kwargs) -> None:
+        # Register before starting so the worker can never be garbage
+        # collected mid-run, even if every owner drops its reference.
+        _LIVE_WORKERS.add(self)
+        self.finished.connect(self._release_keepalive)
+        super().start(*args, **kwargs)
+
+    def _release_keepalive(self) -> None:
+        _LIVE_WORKERS.discard(self)
 
     def _check_cancel(self) -> bool:
         return self._cancelled
@@ -127,12 +142,3 @@ def is_valid_http_url(url: str) -> bool:
 
 # Backwards-compat alias for the old private name.
 _is_valid_http_url = is_valid_http_url
-
-
-def QApplication_safe_process_events() -> None:
-    """Process pending Qt events without re-entrancy hazards (module helper)."""
-    from PySide6.QtWidgets import QApplication
-
-    app = QApplication.instance()
-    if app is not None:
-        app.processEvents()

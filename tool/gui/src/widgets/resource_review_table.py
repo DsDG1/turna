@@ -65,13 +65,6 @@ class ResourceRow:
     def set_display_tags(self, value: str) -> None:
         self.entry["tags"] = [t.strip() for t in value.split(",") if t.strip()]
 
-    def highest_issue_level(self) -> str:
-        if any(i.level == "error" for i in self.issues):
-            return "error"
-        if any(i.level == "warning" for i in self.issues):
-            return "warning"
-        return "ok"
-
 
 class ResourceTableModel:
     """In-memory model backing the review table.
@@ -97,18 +90,6 @@ class ResourceTableModel:
 
     def set_rows(self, rows: list[ResourceRow]) -> None:
         self.rows = list(rows)
-
-    def kept_entries(self) -> list[tuple[int, dict[str, Any]]]:
-        """Return ``(chapter_index, entry)`` for checked rows."""
-        return [(r.chapter_index, r.entry) for r in self.rows if r.checked]
-
-    def set_all_checked(self, checked: bool) -> None:
-        for row in self.rows:
-            row.checked = checked
-
-    def invert_checked(self) -> None:
-        for row in self.rows:
-            row.checked = not row.checked
 
     def remove_rows(self, indices: set[int]) -> None:
         self.rows = [r for i, r in enumerate(self.rows) if i not in indices]
@@ -185,11 +166,6 @@ class ResourceReviewTable(QWidget):
         self._rows_signature: tuple = ()
 
     # ------------------------------------------------------------------ public
-
-    def clear_rows(self) -> None:
-        self._model.clear()
-        self._rows_signature = ()
-        self._refresh_table()
 
     def set_rows(self, rows: list[ResourceRow]) -> None:
         self._model.set_rows(rows)

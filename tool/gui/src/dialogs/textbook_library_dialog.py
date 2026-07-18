@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
     QLabel,
+    QLineEdit,
     QMessageBox,
     QPushButton,
     QTableWidget,
@@ -66,7 +67,7 @@ class TextbookLibraryDialog(QDialog):
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(12)
 
-        layout.addWidget(QLabel("选择一个现有项目继续，或新建项目开始导入。"))
+        layout.addWidget(QLabel("选择项目继续创作，或新建：教材项目从素材开始，空白 AI 项目直达设计。所有进度自动保存，可随时关闭。"))
 
         self._table = QTableWidget(0, 5)
         self._table.setHorizontalHeaderLabels(
@@ -79,14 +80,22 @@ class TextbookLibraryDialog(QDialog):
         self._table.doubleClicked.connect(self._on_continue)
         layout.addWidget(self._table)
 
-        self._empty_label = QLabel("还没有课本项目，点击「新建项目」开始。")
+        self._empty_label = QLabel("还没有项目：从教材新建，或创建空白 AI 项目直接开始设计。")
         self._empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._empty_label.setStyleSheet("color: #9CA3AF; padding: 40px;")
+        from src.theme import current_palette
+
+        self._empty_label.setStyleSheet(
+            f"color: {current_palette()['text_secondary']}; padding: 40px;"
+        )
         layout.addWidget(self._empty_label)
 
         btn_row = QHBoxLayout()
-        self._new_btn = QPushButton("新建项目")
+        self._new_btn = QPushButton("从教材新建…")
+        self._new_btn.setToolTip("选择 .md/.txt/.pdf 教材文件，提取知识点后由 AI 设计课程")
         self._new_btn.clicked.connect(self._on_new)
+        self._new_blank_btn = QPushButton("空白 AI 项目")
+        self._new_blank_btn.setToolTip("无教材，直接进入 AI 设计阶段自由生成课程")
+        self._new_blank_btn.clicked.connect(self._on_new_blank)
         self._continue_btn = QPushButton("继续")
         self._continue_btn.setEnabled(False)
         self._continue_btn.clicked.connect(self._on_continue)
@@ -94,6 +103,7 @@ class TextbookLibraryDialog(QDialog):
         self._delete_btn.setEnabled(False)
         self._delete_btn.clicked.connect(self._on_delete)
         btn_row.addWidget(self._new_btn)
+        btn_row.addWidget(self._new_blank_btn)
         btn_row.addStretch()
         btn_row.addWidget(self._continue_btn)
         btn_row.addWidget(self._delete_btn)
@@ -106,7 +116,11 @@ class TextbookLibraryDialog(QDialog):
         self._table.setRowCount(len(self._projects))
         for row, project in enumerate(self._projects):
             self._table.setItem(row, 0, QTableWidgetItem(project.name))
-            source_name = Path(project.source_path).name if project.source_path else "—"
+            source_name = (
+                Path(project.source_path).name
+                if project.source_path
+                else "—（纯 AI 项目）"
+            )
             self._table.setItem(row, 1, QTableWidgetItem(source_name))
             step_label = (
                 _STEP_LABELS[project.current_step]
@@ -161,6 +175,63 @@ class TextbookLibraryDialog(QDialog):
         self.project_selected.emit(project)
         if not self._embedded:
             self.accept()
+
+    def _on_new_blank(self) -> None:
+        """Create a source-less AI project: name + languages, no textbook file.
+
+        This is the form the standalone "AI 生成课程" feature takes inside
+        the workshop — the workshop jumps such projects straight to the
+        design stage.
+        """
+        meta = self._pick_blank_meta()
+        if meta is None:
+            return
+        name, target, source = meta
+        project = self._store.create_project(
+            name=name, source_path=None, language=target, source_language=source
+        )
+        self.selected_project = project
+        self.project_selected.emit(project)
+        if not self._embedded:
+            self.accept()
+
+    def _pick_blank_meta(self) -> tuple[str, str, str] | None:
+        """Ask for the name and language pair of a blank AI project.
+
+        Returns ``(name, target_language, source_language)`` or None on cancel.
+        """
+        dlg = QDialog(self)
+        dlg.setWindowTitle("空白 AI 项目")
+        lay = QVBoxLayout(dlg)
+        lay.addWidget(QLabel("无教材的自由创作：打开后将直接进入 AI 设计阶段。"))
+        form = QFormLayout()
+        name_edit = QLineEdit()
+        name_edit.setPlaceholderText("如：土耳其语入门")
+        target = QComboBox()
+        target.setEditable(True)
+        target.addItems(
+            ["Turkish", "English", "Spanish", "Japanese", "Korean", "German", "French"]
+        )
+        source = QComboBox()
+        source.setEditable(True)
+        source.addItems(["Chinese", "English", "Japanese", "Korean"])
+        form.addRow("项目名称", name_edit)
+        form.addRow("目标语言", target)
+        form.addRow("讲解语言", source)
+        lay.addLayout(form)
+        btns = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        btns.accepted.connect(dlg.accept)
+        btns.rejected.connect(dlg.reject)
+        lay.addWidget(btns)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return None
+        return (
+            name_edit.text().strip() or "未命名项目",
+            target.currentText().strip() or "Turkish",
+            source.currentText().strip() or "Chinese",
+        )
 
     def _pick_languages(self) -> tuple[str, str] | None:
         """Ask for the target/source language pair of a new project (P0-3).

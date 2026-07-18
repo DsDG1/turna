@@ -102,11 +102,6 @@ def parse_genre_tag(text: str) -> str | None:
     return None
 
 
-def all_genre_tags() -> list[str]:
-    """Return all recognized genre tags including brackets."""
-    return list(GENRE_TEMPLATES.keys())
-
-
 def genre_prompt_block() -> str:
     """Return a prompt block that explains available genre tags to the model."""
     lines = ["可用 genre 标签（用户可在主题或额外指令中插入这些标签来指定模板）："]

@@ -81,6 +81,12 @@ class TextbookImportDialog(QDialog):
     sections_ready = Signal(list, str)  # (list[dict], strategy) - one section per kept chapter — one section per kept chapter
     # Ask the host (WorkshopWindow) to jump to the grounded design stage.
     design_requested = Signal()
+    # Status signals for the workshop's unified bottom bar (Phase B). The
+    # built-in bottom bar can be hidden via ``set_bottom_bar_visible``.
+    busy_changed = Signal(bool, str)  # (busy, stage text)
+    stage_text_changed = Signal(str)  # progress detail, e.g. 第 x/y 章
+    usage_changed = Signal(str)  # formatted usage line
+    autosave_saved = Signal(str)  # formatted autosave timestamp line
 
     def __init__(
         self,
@@ -99,7 +105,7 @@ class TextbookImportDialog(QDialog):
         # Embedded mode (P2-2): hosted inside WorkshopWindow as a plain
         # widget — never close/hide ourselves, signals still fire.
         self._embedded = embedded
-        self.setWindowTitle("导入教材（Beta）")
+        self.setWindowTitle("导入教材")
         self.resize(720, 600)
         self.setAcceptDrops(True)
 
@@ -163,8 +169,10 @@ class TextbookImportDialog(QDialog):
         body.addWidget(self._stack, 1)
         root.addLayout(body, 1)
 
-        # Bottom progress row + cancel.
-        bottom = QHBoxLayout()
+        # Bottom progress row + cancel (wrappable so hosts can hide it).
+        self._bottom_bar = QWidget()
+        bottom = QHBoxLayout(self._bottom_bar)
+        bottom.setContentsMargins(0, 0, 0, 0)
         self._progress = QProgressBar()
         self._progress.setRange(0, 0)
         self._progress.setVisible(False)
@@ -186,7 +194,7 @@ class TextbookImportDialog(QDialog):
         self._cancel_btn = QPushButton("取消")
         self._cancel_btn.clicked.connect(self._on_cancel)
         bottom.addWidget(self._cancel_btn)
-        root.addLayout(bottom)
+        root.addWidget(self._bottom_bar)
 
     def _build_source_page(self) -> QWidget:
         """素材页: file pick + inline preview + chapter selection (P2-1)."""
@@ -413,10 +421,18 @@ class TextbookImportDialog(QDialog):
         which provides its own outer stage navigation)."""
         self._stepper_widget.setVisible(visible)
 
+    def set_bottom_bar_visible(self, visible: bool) -> None:
+        """Show/hide the built-in bottom bar (hidden inside WorkshopWindow,
+        which renders the same state in its unified bottom bar via the
+        ``busy_changed``/``stage_text_changed``/``usage_changed``/
+        ``autosave_saved`` signals)."""
+        self._bottom_bar.setVisible(visible)
+
     def _set_busy(self, busy: bool, stage: str = "") -> None:
         self._progress.setVisible(busy)
         self._stage_label.setText(stage)
         self._stage_label.setVisible(bool(stage))
+        self.busy_changed.emit(busy, stage)
 
     # ------------------------------------------------------------- controller callbacks
 
@@ -507,9 +523,9 @@ class TextbookImportDialog(QDialog):
         else:
             self._store.save_project(project)
             self._project = project
-        self._autosave_label.setText(
-            f"已自动保存于 {project.updated_at[:19].replace('T', ' ')}"
-        )
+        text = f"已自动保存于 {project.updated_at[:19].replace('T', ' ')}"
+        self._autosave_label.setText(text)
+        self.autosave_saved.emit(text)
 
     def _on_extract_progress(self, progress: dict[str, Any]) -> None:
         current = progress.get("current", 0)
@@ -519,6 +535,7 @@ class TextbookImportDialog(QDialog):
         if remaining is not None:
             text += f"，预计剩余 {remaining} 秒"
         self._stage_label.setText(text)
+        self.stage_text_changed.emit(text)
 
     def _on_quality_report_changed(self, report) -> None:
         self._refresh_quality_summary(report)
@@ -536,9 +553,9 @@ class TextbookImportDialog(QDialog):
 
         config = self._ai_config()
         model = getattr(config, "model", "")
-        self._usage_label.setText(
-            f"项目用量：{format_usage_line(project_usage, model)}"
-        )
+        text = f"项目用量：{format_usage_line(project_usage, model)}"
+        self._usage_label.setText(text)
+        self.usage_changed.emit(text)
 
     # ------------------------------------------------------------- ① pick
 

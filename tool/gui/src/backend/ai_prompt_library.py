@@ -142,12 +142,6 @@ class AiPromptLibrary:
             templates = [t for t in templates if t.kind == kind]
         return templates
 
-    def get_template(self, name: str) -> AiPromptTemplate | None:
-        for d in self._template_list():
-            if d.get("name") == name:
-                return AiPromptTemplate.from_dict(d)
-        return None
-
     def save_template(self, template: AiPromptTemplate) -> None:
         templates = self._template_list()
         templates = [d for d in templates if d.get("name") != template.name]
@@ -193,9 +187,6 @@ class AiPromptLibrary:
 
     def recent_history(self, limit: int = 20) -> list[AiPromptHistory]:
         return [AiPromptHistory.from_dict(d) for d in self._history_list()[:limit]]
-
-    def clear_history(self) -> None:
-        self._save_history_list([])
 
     # --- Extraction prompt overrides (connectplan P1-3) --------------------
     #

@@ -11,6 +11,7 @@ dependency). All network operations are explicit (never automatic) and raise
 """
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -78,7 +79,8 @@ class GitLibrary:
             self._run(["pull", "--ff-only"], cwd=local_dir)
             return local_dir
         local_dir.mkdir(parents=True, exist_ok=True)
-        self._run(["clone", remote_url, str(local_dir)], cwd=local_dir.parent)
+        # "--" keeps a pasted URL starting with "-" from being read as an option.
+        self._run(["clone", "--", remote_url, str(local_dir)], cwd=local_dir.parent)
         return local_dir
 
     def pull(self, local_dir: Path) -> None:
@@ -149,6 +151,8 @@ class GitLibrary:
             raise RuntimeError(f"源目录不是有效课程仓库：{course_dir}")
         if not lang_code:
             raise RuntimeError("缺少语言代码，无法确定 assets 目标目录。")
+        if re.fullmatch(r"[A-Za-z0-9_-]+", lang_code) is None:
+            raise RuntimeError(f"非法语言代码：{lang_code!r}（只允许字母、数字、-、_）")
 
         target = Path(repo_root) / "assets" / "courses" / lang_code
         if target.exists() and any(target.iterdir()):
@@ -170,18 +174,3 @@ class GitLibrary:
 
         shutil.copytree(course_dir, target, dirs_exist_ok=True, ignore=_ignore_git)
         return target
-
-    @staticmethod
-    def list_course_files(course_dir: Path) -> list[Path]:
-        """List the course JSON files in ``course_dir`` (non-recursive top
-        level + ``sections/``). Useful for confirmation dialogs."""
-        course_dir = Path(course_dir)
-        files: list[Path] = []
-        for name in ("index.json", "vocab.json", "expressions.json", "grammar_points.json"):
-            p = course_dir / name
-            if p.is_file():
-                files.append(p)
-        sections = course_dir / "sections"
-        if sections.is_dir():
-            files.extend(sorted(sections.glob("*.json")))
-        return files

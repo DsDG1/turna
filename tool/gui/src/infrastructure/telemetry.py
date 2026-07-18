@@ -203,7 +203,7 @@ class Telemetry:
         Token counts are read from ``duration_ms`` payloads (when available) or
         from ``usage`` events. Costs are estimated locally via the pricing table.
         """
-        from src.backend import ai_presets, ai_usage
+        from src.backend import ai_presets
 
         today = datetime.now(timezone.utc).date()
         buckets = {

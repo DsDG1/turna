@@ -596,14 +596,6 @@ def _iter_items(lesson: dict[str, Any]):
                 yield item
 
 
-def _slugify_for_stub(text: str) -> str:
-    """Best-effort slug from arbitrary text for synthesizing resource ids."""
-    import re
-
-    s = re.sub(r"[^a-zA-Z0-9]+", "-", text or "").strip("-").lower()
-    return s or "stub"
-
-
 def _auto_fix_resources(parsed: dict[str, Any]) -> None:
     """Auto-fix dangling resource references by adding stub entries.
 
@@ -1033,29 +1025,6 @@ def _read_streaming(resp: Any, config: AiApiConfig, cancel_check, on_chunk) -> s
         },
         ensure_ascii=False,
     )
-
-
-def request_course(config: AiApiConfig, spec: AiCourseSpec, timeout: float = 120.0, cancel_check: Callable[[], bool] | None = None, on_chunk: Callable[[str], None] | None = None, usage_callback: Callable[[dict[str, int]], None] | None = None) -> dict:
-    """Single-shot course generation (legacy normal mode)."""
-    messages = [
-        {
-            "role": "system",
-            "content": SYSTEM_AUTHORING,
-        },
-        {"role": "user", "content": build_prompt(spec)},
-    ]
-    body = request_chat(
-        config,
-        messages,
-        temperature=0.4,
-        response_format={"type": "json_object"},
-        timeout=timeout,
-        cancel_check=cancel_check,
-        stream=on_chunk is not None,
-        on_chunk=on_chunk,
-        usage_callback=usage_callback,
-    )
-    return parse_completion(body)
 
 
 def _coerce_problem_messages(items) -> list[str]:
@@ -1828,7 +1797,7 @@ def request_item_transform(
     Preserves the item ``id`` and ``runtimeType`` unless the instruction asks
     to switch type.
     """
-    from src.backend.lesson_content import INTERACTION_SCHEMA, normalize_item
+    from src.backend.lesson_content import normalize_item
 
     rt = item.get("runtimeType", "")
     prompt = (

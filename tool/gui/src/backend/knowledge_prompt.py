@@ -19,7 +19,7 @@ bookplan2 Phase 5 adds:
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from typing import Any
 
 from src.backend.markdown_chopper import Chapter

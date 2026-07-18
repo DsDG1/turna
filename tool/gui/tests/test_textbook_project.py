@@ -59,6 +59,21 @@ class TextbookProjectModelTest(unittest.TestCase):
         self.assertIsNotNone(chapters[0][2])
         self.assertEqual(chapters[0][2].words[0]["term"], "merhaba")
 
+    def test_ui_stage_round_trip_and_default(self) -> None:
+        """Phase A: ui_stage is optional and survives serialization."""
+        project = TextbookProject.create(
+            project_id="p2", name="Blank", source_path=None
+        )
+        # Absent key (older files) → None.
+        data = project.to_dict()
+        data.pop("ui_stage")
+        restored = TextbookProject.from_dict(data)
+        self.assertIsNone(restored.ui_stage)
+        # Set value round-trips.
+        project.ui_stage = 3
+        restored = TextbookProject.from_dict(project.to_dict())
+        self.assertEqual(restored.ui_stage, 3)
+
     def test_source_changed_detects_modification(self) -> None:
         with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
             f.write("hello")

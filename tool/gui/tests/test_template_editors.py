@@ -5,8 +5,7 @@ import sys
 import unittest
 from pathlib import Path
 
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QComboBox, QInputDialog, QMessageBox
+from PySide6.QtWidgets import QApplication, QInputDialog, QMessageBox
 from unittest.mock import patch
 
 _GUI = Path(__file__).resolve().parents[1]

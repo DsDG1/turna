@@ -4,13 +4,42 @@
 
 ## 当前基线
 
-- 日期：2026-07-17
-- 后端/可沙箱运行用例：733 passed（排除 `test_app.py`，该文件需在支持 Qt 显示的本机环境运行；含 `test_app.py` 共 752 passed）
-- 运行命令：
+- 日期：2026-07-18
+- 全量用例：867 passed（含 `test_app.py`；skipped=2），命令：
   ```bash
-  QT_QPA_PLATFORM=offscreen python -m pytest tests/ --ignore=tests/test_app.py -q
-  # 或（无 pytest 时）：QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests -p "test_*.py"
+  QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests -p "test_*.py"
   ```
+
+## 2026-07-18 性能/缺陷/体积优化轮（不改功能）
+
+| 模块 | 文件 | 覆盖项 |
+|------|------|--------|
+| schema 默认值隔离 | `test_lesson_content.py` | `default_interaction`/`normalize_item` 不共享可变默认值（跨条目污染回归） |
+| append-as-new 嵌套 id | `test_section_import_service.py` | 导入时重写 unit/lesson id、源草稿不被原地修改 |
+| 进程内校验一致性 | `test_backend_api.py` | `_validate_in_process`/`_lint_in_process` 与子进程结果逐项一致 |
+| 流式渲染节流 | `test_design_panel.py` | 解释流 chunk 经 `_flush_stream_views()` 后渲染（节流不变量） |
+| usage 守卫 | `test_design_controller.py` | 仅活动 worker 的 usage 计入（失效 worker 丢弃） |
+
+## 2026-07-18 教师模式重构（三面合一 + 编辑器外壳统一 + 发布合并）
+
+| 模块 | 文件 | 覆盖项 |
+|------|------|--------|
+| 主窗口教师模式 | `test_app.py` | 删除浮动 TeacherWindow；toggle on 内联渲染首课 SubLessonFlowWidget、保留已选课、toggle off 回专家视图且无 `_teacher_window` 属性 |
+| 子课流高级编辑 | `test_linear_flow.py` | SubLessonFlowWidget 具"高级编辑"出口、toggle 切到 LessonEditor、toggle 回恢复教师视图与 QuestionCard |
+| 课程树模式徽章 | `test_course_tree.py` | 专家模式裸 `lesson (tmpl)` 文本、教师模式友好课型名+`_TEMPLATE_COLORS` 着色、section/unit 类型列置空 |
+| 发布对话框合并 | `test_publish_dialog.py` | 专家模式全清单（diff/bump checkbox/确认发布/原始错误 tooltip）、教师模式隐藏工程段+版本自动更新+人话化错误+禁用发布按钮 |
+| 按钮文字全局不截断 | `test_button_sizing.py` | app 级过滤器把 QPushButton 水平 policy 置 Minimum（polish 时生效、幂等）、FlowLayout 窄宽 heightForWidth 变高（换行） |
+
+## 2026-07-18 三入口合一 + 工坊 UI 大改（merge overhaul A–D）新增覆盖
+
+| 模块 | 文件 | 覆盖项 |
+|------|------|--------|
+| 工坊窗口 | `test_workshop_window.py` | 6 阶段侧栏导航/完成态 ✓/门控、统一底栏信号上抛与取消路由、导航行可见性、空白项目直达设计、ui_stage 持久化与降级恢复、last_project_id 自动续作、busy 中断（生成自由切换/提取确认取消）、反复中断幂等 |
+| 设计控制器 | `test_design_controller.py` | 附件 content pieces、explain 自动链与错误隔离、Settings(timeout/temperature/retry) 注入、genre 模板替换、图片附件序列化降级、解释恢复 |
+| 设计面板 | `test_design_panel.py` | 附件添加/发送/清理（temp 文件无泄漏）、恢复原始输出、模板栏双向同步、genre 入参、解释流式渲染与内联错误 |
+| 审校面板 | `test_review_panel.py` | 无草稿/有草稿刷新、编辑器真相（B1）、导入委托、无 adapter diff 提示 |
+| 项目库 | `test_textbook_library_dialog.py` | 空白 AI 项目新建/取消/纯 AI 标记列 |
+| 项目模型 | `test_textbook_project.py` | ui_stage 可选字段缺省与往返 |
 
 ## 2026-07-16 教材导入 Phase 6（收尾）新增覆盖
 

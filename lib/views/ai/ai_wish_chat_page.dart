@@ -38,6 +38,8 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
   int _lessonsPerUnit = 3;
   String _template = 'mixed';
   bool _useGenreBatch = false;
+  bool _groundedMode = false;
+  final List<String> _resourceScope = ['words', 'expressions', 'grammarPoints'];
 
   @override
   void initState() {
@@ -76,6 +78,8 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
         template: _template,
         useGenreBatch: _useGenreBatch,
         extraInstructions: _extraCtrl.text.trim(),
+        groundedMode: _groundedMode,
+        resourceScope: _resourceScope,
       );
 
   Future<void> _onSend() async {
@@ -408,6 +412,33 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
               Switch(
                 value: _useGenreBatch,
                 onChanged: (v) => setInnerState(() => _useGenreBatch = v),
+              ),
+            ],
+          ),
+        ),
+        // Grounded generation toggle — reuse existing course resources.
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Grounded generation',
+                        style: TextStyle(fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Reuse existing vocabulary, expressions, and grammar points',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: _groundedMode,
+                onChanged: (v) => setInnerState(() => _groundedMode = v),
               ),
             ],
           ),

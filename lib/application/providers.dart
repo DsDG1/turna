@@ -4,8 +4,11 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:varnamala/application/achievements_provider.dart';
 import 'package:varnamala/application/ai/ai_course_provider.dart';
+import 'package:varnamala/application/ai/ai_grounded_resource_provider.dart';
 import 'package:varnamala/application/ai/ai_hint_provider.dart';
+import 'package:varnamala/application/ai/ai_lesson_helper_provider.dart';
 import 'package:varnamala/application/ai/ai_wish_provider.dart';
+import 'package:varnamala/application/ai/textbook/textbook_import_provider.dart';
 import 'package:varnamala/application/character_provider.dart';
 import 'package:varnamala/application/course_provider.dart';
 import 'package:varnamala/application/game_provider.dart';
@@ -31,6 +34,15 @@ final providers = [
   ),
   ChangeNotifierProvider<AiWishProvider>(
     create: (_) => AiWishProvider(),
+  ),
+  ChangeNotifierProvider<AiGroundedResourceProvider>(
+    create: (_) => AiGroundedResourceProvider(),
+  ),
+  ChangeNotifierProvider<AiLessonHelperProvider>(
+    create: (_) => AiLessonHelperProvider(),
+  ),
+  ChangeNotifierProvider<TextbookImportProvider>(
+    create: (_) => TextbookImportProvider(),
   ),
   ChangeNotifierProvider<AiHintProvider>(
     create: (_) => AiHintProvider(),

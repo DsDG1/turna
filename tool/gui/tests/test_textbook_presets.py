@@ -11,7 +11,6 @@ if str(_GUI) not in sys.path:
 
 from src.backend.textbook_presets import (
     BUILTIN_TEXTBOOK_PRESETS,
-    TextbookPreset,
     preset_for,
     preset_names,
 )

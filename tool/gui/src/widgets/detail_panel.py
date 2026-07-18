@@ -6,13 +6,15 @@ from typing import Any
 
 from PySide6.QtCore import Signal
 from PySide6.QtGui import QUndoStack
-from PySide6.QtWidgets import QLabel, QSplitter, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QSplitter, QVBoxLayout, QWidget
 
 from src.backend.ai_generator import AiApiConfig
 
 logger = logging.getLogger(__name__)
 from src.backend.course_adapter import CourseAdapter
+from src.backend.lesson_presets import FUNCTIONAL_TEMPLATES
 from src.widgets.metadata_form import MetadataForm
+from src.widgets.lesson_blueprint import LessonBlueprint
 from src.widgets.lesson_editor import LessonEditor
 
 
@@ -27,11 +29,10 @@ def build_teacher_widget(
 ) -> QWidget:
     """Construct the teacher-view widget for a lesson based on its template.
 
-    Shared by the inline ``DetailPanel.show_teacher_lesson`` and the
-    independent ``TeacherWindow`` so the template dispatch lives in one
-    place. The caller is responsible for connecting ``widget.changed`` to
-    the appropriate change-listener and for wrapping the widget in a
-    ``QScrollArea`` if desired.
+    Used by ``DetailPanel.show_teacher_lesson`` so the template dispatch
+    lives in one place. The caller is responsible for connecting
+    ``widget.changed`` to the appropriate change-listener and for wrapping
+    the widget in a ``QScrollArea`` if desired.
     """
     from src.teacher.sublesson_flow import SubLessonFlowWidget
     from src.teacher.template_editors import (
@@ -160,12 +161,85 @@ class DetailPanel(QWidget):
                     f"编辑内容  ›  {section.get('name', '')}  /  "
                     f"{unit.get('name', '')}  /  {lesson.get('name', '')}"
                 )
-                editor = LessonEditor(adapter, lesson)
-                self.content_layout.addWidget(editor)
-                self._current_content_widget = editor
+                container = self._build_lesson_content(adapter, section, unit, lesson)
+                self.content_layout.addWidget(container)
         except KeyError:
             self.title.setText(f"未找到节点: {node_id}")
             self.breadcrumb.setText("编辑内容")
+
+    # --- lesson view toggle (蓝图 / 高级编辑) ---------------------------
+
+    def _build_lesson_content(
+        self,
+        adapter: CourseAdapter,
+        section: dict[str, Any],
+        unit: dict[str, Any],
+        lesson: dict[str, Any],
+    ) -> QWidget:
+        """Build the lesson content host with a 蓝图/高级编辑 view toggle.
+
+        Functional templates (listening/reading/mastery) default to the
+        blueprint; others default to the advanced LessonEditor. Both views
+        read from the same lesson dict so they stay in sync across toggles.
+        """
+        container = QWidget()
+        v = QVBoxLayout(container)
+        v.setContentsMargins(0, 0, 0, 0)
+        v.setSpacing(8)
+
+        template = lesson.get("template", "legacy")
+        self._lesson_view_mode = "blueprint" if template in FUNCTIONAL_TEMPLATES else "advanced"
+        self._lesson_context = (adapter, section, unit, lesson)
+
+        bar = QHBoxLayout()
+        bar.setContentsMargins(0, 0, 0, 0)
+        bar.setSpacing(6)
+        self._blueprint_btn = QPushButton("蓝图")
+        self._advanced_btn = QPushButton("高级编辑")
+        self._blueprint_btn.setCheckable(True)
+        self._advanced_btn.setCheckable(True)
+        self._blueprint_btn.setChecked(self._lesson_view_mode == "blueprint")
+        self._advanced_btn.setChecked(self._lesson_view_mode == "advanced")
+        self._blueprint_btn.clicked.connect(lambda: self._set_lesson_view("blueprint"))
+        self._advanced_btn.clicked.connect(lambda: self._set_lesson_view("advanced"))
+        bar.addWidget(self._blueprint_btn)
+        bar.addWidget(self._advanced_btn)
+        bar.addStretch()
+        v.addLayout(bar)
+
+        self._lesson_view_host = QWidget()
+        self._lesson_view_layout = QVBoxLayout(self._lesson_view_host)
+        self._lesson_view_layout.setContentsMargins(0, 0, 0, 0)
+        v.addWidget(self._lesson_view_host, 1)
+
+        self._render_lesson_view()
+        return container
+
+    def _set_lesson_view(self, mode: str) -> None:
+        if mode == self._lesson_view_mode:
+            return
+        self._lesson_view_mode = mode
+        self._blueprint_btn.setChecked(mode == "blueprint")
+        self._advanced_btn.setChecked(mode == "advanced")
+        self._render_lesson_view()
+
+    def _render_lesson_view(self) -> None:
+        while self._lesson_view_layout.count():
+            child = self._lesson_view_layout.takeAt(0)
+            widget = child.widget()
+            if widget is not None:
+                widget.setParent(None)
+                widget.deleteLater()
+        adapter, _section, _unit, lesson = self._lesson_context
+        if self._lesson_view_mode == "blueprint":
+            widget = LessonBlueprint(
+                adapter, lesson, undo_stack=getattr(self, "undo_stack", None), read_only=False
+            )
+            widget.changed.connect(self.tree_changed.emit)
+        else:
+            widget = LessonEditor(adapter, lesson)
+        self._lesson_view_layout.addWidget(widget)
+        self._current_content_widget = widget
 
     def show_teacher_lesson(
         self,

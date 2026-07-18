@@ -11,14 +11,12 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.ai_generator import AiApiConfig
 from src.backend.import_strategy import ImportStrategy
 from src.backend.knowledge_schema import coerce_knowledge_points
 from src.backend.markdown_chopper import split_chapters
@@ -70,7 +68,7 @@ class TextbookImportViewTest(unittest.TestCase):
         self.dlg = TextbookImportDialog(None, None)
 
     def test_constructs_without_crash(self) -> None:
-        self.assertEqual(self.dlg.windowTitle(), "导入教材（Beta）")
+        self.assertEqual(self.dlg.windowTitle(), "导入教材")
         self.assertIsNotNone(self.dlg._controller)
 
     def test_load_file_populates_chapters(self) -> None:

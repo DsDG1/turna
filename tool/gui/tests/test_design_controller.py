@@ -35,6 +35,7 @@ class _FakeWorker:
     def __init__(self, target, *args, result=None, **kwargs):
         self.target = target
         self.args = args
+        self.kwargs = kwargs
         self.result = result
         self.result_ready = _FakeSignal()
         self.error_occurred = _FakeSignal()
@@ -142,7 +143,8 @@ class DesignControllerGenerateTest(unittest.TestCase):
         self.assertEqual(draft["units"][0]["id"], "greetings-u1")
         self.assertEqual(draft["units"][0]["lessons"][0]["id"], "greetings-u1-l1")
         # The chat path was used (chat history present) with draft slot.
-        gen_worker = records[-1]
+        # (records[-1] is the auto-chained explain worker, so filter by target.)
+        gen_worker = [r for r in records if r.target is generate_from_chat][-1]
         self.assertIs(gen_worker.target, generate_from_chat)
 
     def test_generate_without_chat_uses_one_shot_path(self) -> None:
@@ -157,7 +159,8 @@ class DesignControllerGenerateTest(unittest.TestCase):
         self.assertTrue(ctrl.generate())
         from src.backend.ai_generator import request_course_with_retry
 
-        self.assertIs(records[-1].target, request_course_with_retry)
+        gen_workers = [r for r in records if r.target is request_course_with_retry]
+        self.assertEqual(len(gen_workers), 1)
         self.assertEqual(len(drafts), 1)
 
     def test_grounded_spec_carries_pool_and_brief(self) -> None:
@@ -171,7 +174,9 @@ class DesignControllerGenerateTest(unittest.TestCase):
         )
         ctrl.set_params(topic="问候", design_brief="两单元 intro")
         self.assertTrue(ctrl.generate())
-        spec = records[-1].args[1]
+        from src.backend.ai_generator import request_course_with_retry
+
+        spec = [r for r in records if r.target is request_course_with_retry][-1].args[1]
         self.assertEqual(spec.resource_pool[0]["id"], "w-1")
         self.assertEqual(spec.design_brief, "两单元 intro")
 
@@ -242,12 +247,162 @@ class DesignControllerPersistenceTest(unittest.TestCase):
         )
         ctrl.set_params(topic="问候")
         ctrl.generate()
-        worker = records[-1]
+        from src.backend.ai_generator import request_course_with_retry
+
+        worker = [r for r in records if r.target is request_course_with_retry][-1]
+        # Real workers emit usage mid-flight (before the result); the fake
+        # already delivered its result synchronously in start(), so re-mark
+        # it as the active worker — usage from non-active workers is dropped.
+        ctrl._worker = worker
         worker.usage_ready.emit(
             {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}
         )
         self.assertEqual(usages[-1]["total_tokens"], 15)
         self.assertEqual(ctrl.usage["prompt_tokens"], 10)
+
+
+class DesignControllerPhaseCTest(unittest.TestCase):
+    """Phase C: attachments, explain chain, settings injection, genre, sanitize."""
+
+    def test_send_chat_with_attachments_builds_content_pieces(self) -> None:
+        records: list = []
+        ctrl = DesignController(
+            ai_config_fn=_config,
+            worker_factory=_factory(records, "好的"),
+        )
+
+        class _Rec:
+            def __init__(self, content):
+                self.content = content
+
+        ok = ctrl.send_chat(
+            "参考这张图做课",
+            [
+                _Rec({"type": "image_url", "image_url": {"url": "data:..."}}),
+                _Rec({"type": "text", "text": "extracted text"}),
+            ],
+        )
+        self.assertTrue(ok)
+        content = ctrl.chat[0].content
+        self.assertIsInstance(content, list)
+        self.assertEqual(content[0], {"type": "text", "text": "参考这张图做课"})
+        self.assertEqual(content[1]["type"], "image_url")
+        self.assertEqual(content[2]["text"], "extracted text")
+
+    def test_explain_chain_runs_after_draft(self) -> None:
+        from src.backend.ai_generator import explain_course
+
+        records: list = []
+        explanations: list[str] = []
+        ctrl = DesignController(
+            ai_config_fn=_config,
+            worker_factory=_factory(records, _section()),
+            on_explanation=explanations.append,
+        )
+        ctrl.set_params(topic="问候")
+        self.assertTrue(ctrl.generate())
+        explain_workers = [r for r in records if r.target is explain_course]
+        self.assertEqual(len(explain_workers), 1)
+        # explain args: (config, spec, section)
+        self.assertEqual(explain_workers[0].args[2]["id"], "greetings")
+        # The canned result doubles as the explanation text.
+        self.assertTrue(explanations)
+        self.assertEqual(ctrl.explanation, explanations[-1])
+        self.assertEqual(ctrl.to_design_dict()["explanation"], explanations[-1])
+
+    def test_explain_error_routes_off_popup_channel(self) -> None:
+        from src.backend.ai_generator import explain_course
+
+        class _ErrorWorker(_FakeWorker):
+            def start(self) -> None:
+                self.error_occurred.emit("boom")
+
+        records: list = []
+        explain_errors: list[str] = []
+        errors: list[str] = []
+
+        def factory(target, *args, **kwargs):
+            if target is explain_course:
+                worker = _ErrorWorker(target, *args, **kwargs)
+            else:
+                worker = _FakeWorker(target, *args, result=_section(), **kwargs)
+            records.append(worker)
+            return worker
+
+        ctrl = DesignController(
+            ai_config_fn=_config,
+            worker_factory=factory,
+            on_error=errors.append,
+            on_explanation_error=explain_errors.append,
+        )
+        ctrl.set_params(topic="问候")
+        ctrl.generate()
+        self.assertEqual(explain_errors, ["boom"])
+        self.assertEqual(errors, [])
+
+    def test_settings_injected_into_worker_kwargs(self) -> None:
+        from src.backend.ai_generator import request_course_with_retry
+
+        class _Settings:
+            ai_timeout = 33.0
+            ai_temperature = 0.5
+            ai_retry_max = 4
+
+        records: list = []
+        ctrl = DesignController(
+            ai_config_fn=_config,
+            worker_factory=_factory(records, _section()),
+            settings_fn=_Settings,
+        )
+        ctrl.set_params(topic="问候")
+        ctrl.generate()
+        worker = [r for r in records if r.target is request_course_with_retry][-1]
+        self.assertEqual(worker.kwargs["timeout"], 33.0)
+        self.assertEqual(worker.kwargs["temperature"], 0.5)
+        self.assertEqual(worker.kwargs["max_retries"], 4)
+
+    def test_genre_batch_replaces_template(self) -> None:
+        from src.backend.ai_generator import request_course_with_retry
+
+        records: list = []
+        ctrl = DesignController(
+            ai_config_fn=_config,
+            worker_factory=_factory(records, _section()),
+        )
+        ctrl.set_params(topic="[listening] 机场对话", use_genre_batch=True)
+        spec = ctrl.build_spec()
+        self.assertEqual(spec.template, "listening")
+        ctrl.generate()
+        sent = [r for r in records if r.target is request_course_with_retry][-1].args[1]
+        self.assertEqual(sent.template, "listening")
+
+    def test_design_dict_sanitizes_image_content(self) -> None:
+        ctrl = DesignController(
+            ai_config_fn=_config,
+            worker_factory=_factory([], "好的"),
+        )
+
+        class _Rec:
+            content = {"type": "image_url", "image_url": {"url": "data:base64..."}}
+
+        ctrl.send_chat("看图做课", [_Rec()])
+        data = ctrl.to_design_dict()
+        content = data["chat_history"][0]["content"]
+        # base64 本体不落盘 — image pieces degrade to a placeholder.
+        texts = [p["text"] for p in content if p["type"] == "text"]
+        self.assertIn("[图片附件]", texts)
+        self.assertNotIn("data:base64...", str(data))
+
+    def test_explanation_restored_from_design_dict(self) -> None:
+        explanations: list[str] = []
+        restored = DesignController(
+            ai_config_fn=_config,
+            worker_factory=_factory([], None),
+            on_explanation=explanations.append,
+        )
+        restored.apply_design_dict({"explanation": "这门课先学问候。"})
+        self.assertEqual(restored.explanation, "这门课先学问候。")
+        self.assertEqual(explanations, ["这门课先学问候。"])
 
 
 if __name__ == "__main__":

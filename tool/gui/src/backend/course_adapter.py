@@ -453,40 +453,6 @@ class CourseAdapter:
         items.insert(to_idx, items.pop(from_idx))
         return True
 
-    def lesson_body(self, lesson_id: str) -> dict[str, Any]:
-        """Return the content dict for a lesson (C1 groundwork).
-
-        Today sections are pre-loaded into memory at ``load()`` time, so this
-        is a thin lookup. It exists so a future lazy-loading path (only L1
-        metadata resident; body fetched on expand/select) can swap the
-        implementation without touching callers. Callers should prefer this
-        over reaching into ``find_lesson`` and indexing ``content`` directly.
-        """
-        _section, _unit, lesson = self.find_lesson(lesson_id)
-        return lesson.setdefault("content", {})
-
-    def reload_section(self, section_id: str) -> dict[str, Any]:
-        """Re-read a single section file from disk and replace the in-memory
-        copy. Useful for lazy loading and for picking up external file changes
-        without a full ``load()``. Returns the reloaded section dict."""
-        entry = None
-        for e in self.index.get("sections", []):
-            if e.get("id") == section_id:
-                entry = e
-                break
-        if entry is None:
-            raise KeyError(f"unknown section: {section_id}")
-        assert self.course_dir is not None
-        path = self.course_dir / entry["file"]
-        section = api.load_json(path)
-        for i, existing in enumerate(self.sections):
-            if existing.get("id") == section_id:
-                self.sections[i] = section
-                break
-        else:
-            self.sections.append(section)
-        return section
-
     def validate_section_json(
         self,
         section_json: dict[str, Any],
@@ -774,29 +740,6 @@ class CourseAdapter:
                 entry["name"] = name
                 entry["description"] = description
 
-    def update_unit_meta(self, unit_id: str, name: str, description: str) -> None:
-        _section, unit = self.find_unit(unit_id)
-        unit["name"] = name
-        unit["description"] = description
-
-    def update_lesson_meta(
-        self,
-        lesson_id: str,
-        name: str,
-        description: str,
-    ) -> None:
-        _section, _unit, lesson = self.find_lesson(lesson_id)
-        lesson["name"] = name
-        lesson["description"] = description
-
-    def update_section_prereqs(self, section_id: str, prereq_ids: list[str]) -> None:
-        section = self.find_section(section_id)
-        section["prerequisiteSectionIds"] = [p for p in prereq_ids if p != section_id]
-
-    def update_unit_prereqs(self, unit_id: str, prereq_ids: list[str]) -> None:
-        _section, unit = self.find_unit(unit_id)
-        unit["prerequisiteUnitIds"] = [p for p in prereq_ids if p != unit_id]
-
     def update_lesson_prereqs(self, lesson_id: str, prereq_ids: list[str]) -> None:
         _section, _unit, lesson = self.find_lesson(lesson_id)
         lesson["prerequisiteLessonIds"] = [p for p in prereq_ids if p != lesson_id]
@@ -815,11 +758,6 @@ class CourseAdapter:
         return [(l["id"], f"{l.get('name', l['id'])} ({l['id']})")
                 for l in unit.get("lessons", []) if l.get("id") != exclude_id]
 
-    def switch_lesson_template(self, lesson_id: str, new_template: str) -> None:
-        from src.backend.lesson_content import switch_template
-        _section, _unit, lesson = self.find_lesson(lesson_id)
-        switch_template(lesson, new_template)
-
     def new_lesson(self, unit_id: str, template: str) -> str:
         from src.backend.lesson_content import new_lesson_from_template
         _section, unit = self.find_unit(unit_id)
@@ -835,6 +773,22 @@ class CourseAdapter:
                         del lessons[i]
                         return
         raise KeyError(f"unknown lesson: {lesson_id}")
+
+    def duplicate_lesson(self, lesson_id: str) -> str:
+        """Deep-copy a lesson with fresh structural ids into the same unit.
+
+        Returns the new lesson id. Reference ids (wordId/expressionId/etc.)
+        are preserved so the clone points at the same resources as the
+        original (workshop2 P1).
+        """
+        from src.backend.lesson_content import clone_lesson_with_fresh_ids
+
+        _section, unit, lesson = self.find_lesson(lesson_id)
+        clone = clone_lesson_with_fresh_ids(
+            lesson, name=f"{lesson.get('name', lesson_id)} 副本"
+        )
+        unit.setdefault("lessons", []).append(clone)
+        return clone["id"]
 
     def new_unit(self, section_id: str, name: str = "New unit") -> str:
         from src.backend.lesson_content import short_id
@@ -1076,9 +1030,16 @@ class CourseAdapter:
             for key in current
         }
 
-    def version_bump_plan(self) -> dict[str, tuple[int, int]]:
-        """Return {file: (current_version, next_version)} for files to bump."""
-        changes = self.detect_changes()
+    def version_bump_plan(
+        self, changes: dict[str, bool] | None = None
+    ) -> dict[str, tuple[int, int]]:
+        """Return {file: (current_version, next_version)} for files to bump.
+
+        ``changes`` may be passed to reuse an already-computed
+        ``detect_changes()`` result (avoids re-hashing the whole course).
+        """
+        if changes is None:
+            changes = self.detect_changes()
         plan: dict[str, tuple[int, int]] = {}
         if changes["index"] or changes["sections"]:
             cur = int(self.index.get("version", 1))
@@ -1131,10 +1092,10 @@ class CourseAdapter:
     def release_report(self) -> dict[str, Any]:
         """Aggregate release checklist data for the publish dialog."""
         changes = self.detect_changes()
-        version_bump = self.version_bump_plan()
+        version_bump = self.version_bump_plan(changes)
         audio_manifest = self.audio_manifest_rows()
         diff = self.release_diff()
-        validate = api.validate_course_dir(self.course_dir) if self.course_dir else ValidationResult(ok=True, error_count=0, problems=[])
+        validate = api.validate_course_dir(self.course_dir) if self.course_dir else api.ValidationResult(ok=True, error_count=0, problems=[])
         lint = api.lint_course_dir(self.course_dir) if self.course_dir else []
         return {
             "changes": changes,
@@ -1156,15 +1117,6 @@ class CourseAdapter:
             "expressions": deepcopy(self.expressions),
             "grammar_points": deepcopy(self.grammar_points),
         }
-
-    def _restore_snapshot(self) -> None:
-        snap = self._snapshot
-        assert snap is not None
-        self.index = deepcopy(snap["index"])
-        self.sections = deepcopy(snap["sections"])
-        self.vocab = deepcopy(snap["vocab"])
-        self.expressions = deepcopy(snap["expressions"])
-        self.grammar_points = deepcopy(snap["grammar_points"])
 
     def _restore_from(self, snapshot: dict[str, Any]) -> None:
         self.index = deepcopy(snapshot["index"])
@@ -1283,6 +1235,11 @@ class CourseAdapter:
             )
             self._backup_json_files(self.course_dir, backup_dir)
             self._replace_course_files_with(tmp_dir, self.course_dir)
+            # Files are durably replaced at this point: refresh the snapshot
+            # immediately so a later failure/rollback can never resurrect
+            # pre-save state over the newer on-disk files.
+            self._snapshot = self._deep_snapshot()
+            self._refresh_hash_cache()
         except Exception as exc:
             self._restore_from(rollback)
             # Ensure on-disk state matches the restored snapshot so a partial
@@ -1298,10 +1255,15 @@ class CourseAdapter:
             if tmp_dir is not None:
                 shutil.rmtree(tmp_dir, ignore_errors=True)
 
-        lint = api.lint_course_dir(self.course_dir)
-        warnings = [p.to_dict() for p in lint if p.level == "warning"]
-        self._snapshot = self._deep_snapshot()
-        self._refresh_hash_cache()
+        try:
+            lint = api.lint_course_dir(self.course_dir)
+            warnings = [p.to_dict() for p in lint if p.level == "warning"]
+        except Exception as exc:  # noqa: BLE001 — lint is advisory and must
+            telemetry.record_error(  # never turn a successful save into a crash
+                exc,
+                context={"action": "repo.save.lint", "course_dir": str(self.course_dir)},
+            )
+            warnings = []
         result = SaveResult(
             ok=True,
             warnings=warnings,

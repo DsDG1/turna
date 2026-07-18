@@ -12,7 +12,6 @@ if str(_GUI) not in sys.path:
 
 from src.backend.ai_generator import AiCourseSpec
 from src.backend.ai_prompt_library import (
-    AiPromptHistory,
     AiPromptLibrary,
     AiPromptTemplate,
 )

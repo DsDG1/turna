@@ -208,7 +208,9 @@ class AiFixDialog(QDialog):
         return self._corrected
 
     def closeEvent(self, event) -> None:  # noqa: N802
+        # Cancel only: the worker keep-alive registry (worker.py) keeps the
+        # thread object alive until it actually finishes, so closing here is
+        # safe and never blocks the UI on a stalled socket.
         if self._worker is not None and self._worker.isRunning():
             self._worker.cancel()
-            self._worker.wait(2000)
         super().closeEvent(event)

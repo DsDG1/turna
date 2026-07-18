@@ -12,6 +12,9 @@ class AiCourseSpec {
     this.template = 'mixed',
     this.useGenreBatch = false,
     this.extraInstructions = '',
+    this.groundedMode = false,
+    this.resourceScope = const ['words', 'expressions', 'grammarPoints'],
+    this.maxGroundedResources = 200,
   });
 
   /// Target language to teach (e.g. "Turkish").
@@ -43,6 +46,17 @@ class AiCourseSpec {
   /// Optional extra instructions appended to the prompt.
   final String extraInstructions;
 
+  /// When true, the AI is grounded to reuse existing course resources instead of
+  /// inventing new ones. Mirrors tool-gui design-panel grounding.
+  final bool groundedMode;
+
+  /// Which resource types to include in the grounded context:
+  /// words, expressions, grammarPoints.
+  final List<String> resourceScope;
+
+  /// Cap on how many resources to inject into the prompt.
+  final int maxGroundedResources;
+
   AiCourseSpec copyWith({
     String? language,
     String? sourceLanguage,
@@ -53,6 +67,9 @@ class AiCourseSpec {
     String? template,
     bool? useGenreBatch,
     String? extraInstructions,
+    bool? groundedMode,
+    List<String>? resourceScope,
+    int? maxGroundedResources,
   }) =>
       AiCourseSpec(
         language: language ?? this.language,
@@ -64,6 +81,9 @@ class AiCourseSpec {
         template: template ?? this.template,
         useGenreBatch: useGenreBatch ?? this.useGenreBatch,
         extraInstructions: extraInstructions ?? this.extraInstructions,
+        groundedMode: groundedMode ?? this.groundedMode,
+        resourceScope: resourceScope ?? this.resourceScope,
+        maxGroundedResources: maxGroundedResources ?? this.maxGroundedResources,
       );
 }
 

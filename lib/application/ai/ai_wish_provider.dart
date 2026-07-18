@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:varnamala/application/ai/ai_api_config.dart';
 import 'package:varnamala/application/ai/ai_course_service.dart';
 import 'package:varnamala/application/ai/ai_course_spec.dart';
+import 'package:varnamala/application/ai/ai_grounded_resource_provider.dart';
 import 'package:varnamala/core/logger.dart';
 
 /// State machine for wish-mode conversation.
@@ -19,10 +20,14 @@ enum AiWishState { idle, aligning, generating, explaining, generated, error }
 /// The [AiApiConfig] is shared with [AiCourseProvider]; the chat page reads it
 /// from the main provider and passes it here.
 class AiWishProvider extends ChangeNotifier {
-  AiWishProvider({http.Client? client}) : _service = AiCourseService(client: client);
-  AiWishProvider.withService(this._service);
+  AiWishProvider({http.Client? client, AiGroundedResourceProvider? groundedProvider})
+      : _service = AiCourseService(client: client),
+        _groundedProvider = groundedProvider ?? AiGroundedResourceProvider();
+  AiWishProvider.withService(this._service, {AiGroundedResourceProvider? groundedProvider})
+      : _groundedProvider = groundedProvider ?? AiGroundedResourceProvider();
 
   final AiCourseService _service;
+  final AiGroundedResourceProvider _groundedProvider;
 
   final List<AiChatMessage> _messages = <AiChatMessage>[];
   List<AiChatMessage> get messages => List.unmodifiable(_messages);
@@ -67,10 +72,12 @@ class AiWishProvider extends ChangeNotifier {
     _messages.add(AiChatMessage(role: 'user', content: userText));
     notifyListeners();
     try {
+      final groundedContext = await _loadGroundedContext(spec);
       final reply = await _service.requestAlignmentReply(
         config: config,
         spec: spec,
         messages: _messages,
+        groundedContext: groundedContext,
       );
       _messages.add(AiChatMessage(role: 'assistant', content: reply));
       _state = AiWishState.idle;
@@ -92,10 +99,12 @@ class AiWishProvider extends ChangeNotifier {
     _state = AiWishState.generating;
     notifyListeners();
     try {
+      final groundedContext = await _loadGroundedContext(spec);
       final result = await _service.generateFromChat(
         config: config,
         spec: _service.applyGenreToSpec(spec),
         messages: _messages,
+        groundedContext: groundedContext,
       );
       _generatedJson = result.rawJson;
       _generatedSectionId = result.parsed['id'] as String?;
@@ -118,5 +127,19 @@ class AiWishProvider extends ChangeNotifier {
       _state = AiWishState.error;
     }
     notifyListeners();
+  }
+
+  /// Loads existing resources when [spec.groundedMode] is enabled. Returns
+  /// `null` when grounding is off or no resources are available.
+  Future<String?> _loadGroundedContext(AiCourseSpec spec) async {
+    if (!spec.groundedMode) return null;
+    await _groundedProvider.load(scope: spec.resourceScope);
+    if (_groundedProvider.error != null) {
+      logger.w('AiWishProvider grounded load failed: ${_groundedProvider.error}');
+      return null;
+    }
+    return _groundedProvider.formatContext(
+      maxResources: spec.maxGroundedResources,
+    );
   }
 }

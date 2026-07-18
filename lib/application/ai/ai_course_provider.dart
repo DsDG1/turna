@@ -12,12 +12,14 @@ import 'package:http/http.dart' as http;
 import 'package:varnamala/application/ai/ai_api_config.dart';
 import 'package:varnamala/application/ai/ai_course_service.dart';
 import 'package:varnamala/application/ai/ai_course_spec.dart';
+import 'package:varnamala/application/ai/ai_grounded_resource_provider.dart';
 import 'package:varnamala/application/ai/ai_resource_consistency.dart';
 import 'package:varnamala/core/logger.dart';
 import 'package:varnamala/courses/course_loader.dart';
 import 'package:varnamala/courses/course_validator.dart';
 import 'package:varnamala/data/course_database.dart' as db;
 import 'package:varnamala/di/injection.dart';
+import 'package:varnamala/domain/course/lesson.dart';
 import 'package:varnamala/domain/course/section.dart';
 
 /// State machine for the AI course generation flow.
@@ -31,13 +33,16 @@ enum AiCourseState { idle, generating, generated, saving, saved, error }
 /// blobs + top-level resources) into [CourseDatabase], then invalidates
 /// [CourseLoader] caches so the course tree refreshes.
 class AiCourseProvider extends ChangeNotifier {
-  AiCourseProvider({http.Client? client})
-      : _service = AiCourseService(client: client);
+  AiCourseProvider({http.Client? client, AiGroundedResourceProvider? groundedProvider})
+      : _service = AiCourseService(client: client),
+        _groundedProvider = groundedProvider ?? AiGroundedResourceProvider();
 
   // ignore: depend_on_referenced_packages
-  AiCourseProvider.withService(this._service);
+  AiCourseProvider.withService(this._service, {AiGroundedResourceProvider? groundedProvider})
+      : _groundedProvider = groundedProvider ?? AiGroundedResourceProvider();
 
   final AiCourseService _service;
+  final AiGroundedResourceProvider _groundedProvider;
 
   AiApiConfig _config = const AiApiConfig(
     baseUrl: 'https://api.deepseek.com',
@@ -95,10 +100,12 @@ class AiCourseProvider extends ChangeNotifier {
     notifyListeners();
     try {
       final applied = _service.applyGenreToSpec(spec);
+      final groundedContext = await _loadGroundedContext(applied);
       final result = await _service.requestCourseWithRetry(
         config: _config,
         spec: applied,
         validator: _validateGenerated,
+        groundedContext: groundedContext,
       );
       _generatedJson = result.rawJson;
       _generatedSectionId = result.parsed['id'] as String?;
@@ -109,6 +116,19 @@ class AiCourseProvider extends ChangeNotifier {
       _state = AiCourseState.error;
     }
     notifyListeners();
+  }
+
+  /// Loads existing resources when [spec.groundedMode] is enabled.
+  Future<String?> _loadGroundedContext(AiCourseSpec spec) async {
+    if (!spec.groundedMode) return null;
+    await _groundedProvider.load(scope: spec.resourceScope);
+    if (_groundedProvider.error != null) {
+      logger.w('AiCourseProvider grounded load failed: ${_groundedProvider.error}');
+      return null;
+    }
+    return _groundedProvider.formatContext(
+      maxResources: spec.maxGroundedResources,
+    );
   }
 
   /// Validator used by [requestCourseWithRetry]. Combines structural
@@ -182,6 +202,55 @@ class AiCourseProvider extends ChangeNotifier {
       rethrow;
     }
     notifyListeners();
+  }
+
+  /// Persists an arbitrary section JSON (e.g. from textbook import) into the
+  /// DB after normalization and validation. Used by importers that already
+  /// hold parsed JSON.
+  Future<void> saveSectionJson(Map<String, dynamic> parsed) async {
+    normalizeResources(parsed);
+    autoFixResources(parsed);
+    checkResourceSelfConsistency(parsed);
+    final section = Section.fromJson(_normalizeForSave(parsed));
+    await _writeSectionToDb(section, parsed);
+    CourseLoader.invalidateCaches();
+  }
+
+  /// Updates a single existing lesson and its content in the DB. Used by the
+  /// AI lesson helper. The caller is responsible for validating [lesson].
+  Future<void> updateLessonInDb(Lesson lesson) async {
+    final database = getIt<db.CourseDatabase>();
+
+    // Preserve existing unit/sort metadata by reading the current lesson row.
+    final existing = await (database.select(database.lessons)
+          ..where((t) => t.id.equals(lesson.id)))
+        .getSingleOrNull();
+    if (existing == null) {
+      throw StateError('Lesson ${lesson.id} not found in database.');
+    }
+
+    await database.transaction(() async {
+      await database.into(database.lessons).insertOnConflictUpdate(
+            db.LessonsCompanion(
+              id: Value(lesson.id),
+              unitId: Value(existing.unitId),
+              name: Value(lesson.name),
+              description: Value(lesson.description),
+              type: Value(lesson.type.name),
+              template: Value(lesson.template.name),
+              prerequisiteLessonIds:
+                  Value(jsonEncode(lesson.prerequisiteLessonIds)),
+              sortOrder: Value(existing.sortOrder),
+            ),
+          );
+      await database.into(database.lessonContents).insertOnConflictUpdate(
+            db.LessonContentsCompanion(
+              lessonId: Value(lesson.id),
+              contentJson: Value(jsonEncode(lesson.content.toJson())),
+            ),
+          );
+    });
+    CourseLoader.invalidateCaches();
   }
 
   /// Reset to idle, dropping any generated/edited JSON.

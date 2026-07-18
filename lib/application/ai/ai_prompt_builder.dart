@@ -1,3 +1,6 @@
+// Dart imports:
+import 'dart:convert';
+
 // Project imports:
 import 'package:varnamala/application/ai/ai_course_spec.dart';
 import 'package:varnamala/application/ai/ai_genre.dart';
@@ -205,9 +208,24 @@ Rules:
 ''';
 }
 
+String _groundedResourceBlock(String contextJson) {
+  return '''Existing course resources (REUSE these IDs when the concept matches; only create new IDs for genuinely new concepts):
+
+```json
+$contextJson
+```
+
+Grounded rules:
+1. Prefer reusing existing resource IDs over inventing new ones.
+2. When reusing an existing resource, copy its id, term, and translation exactly; do not duplicate it under a new id.
+3. Only add new resources when the topic requires knowledge not present above.
+4. All referenced wordId / expressionId / grammarPointId values must exist either in the resources above or in the new resources you add.
+''';
+}
+
 /// Build the generation prompt for the AI model. Mirrors
 /// `ai_generator.py:build_prompt`.
-String buildPrompt(AiCourseSpec spec) {
+String buildPrompt(AiCourseSpec spec, {String? groundedContext}) {
   final parts = <String>[
     'Generate a language learning course section as JSON.',
     '',
@@ -241,6 +259,10 @@ String buildPrompt(AiCourseSpec spec) {
     parts.addAll(['', 'Extra instructions: ${spec.extraInstructions}']);
   }
 
+  if (groundedContext != null && groundedContext.isNotEmpty) {
+    parts.addAll(['', _groundedResourceBlock(groundedContext)]);
+  }
+
   parts.addAll([
     '',
     'Return STRICT JSON only (no markdown, no code fences).',
@@ -256,9 +278,59 @@ String buildPrompt(AiCourseSpec spec) {
   return parts.join('\n');
 }
 
+/// Build the prompt that transforms a single lesson according to the user's
+/// instruction. Mirrors tool-gui's `ai_generator.py:request_lesson_transform`.
+String buildLessonTransformPrompt({
+  required Map<String, dynamic> lessonJson,
+  required String instruction,
+  required Set<String> resourceIds,
+}) {
+  final parts = <String>[
+    'Modify the following language lesson according to the instruction.',
+    'Return the COMPLETE modified lesson JSON (do not return a diff or partial JSON).',
+    '',
+    'Instruction: $instruction',
+    '',
+    'Allowed resource IDs (reuse these, do not invent new words/expressions/grammar unless truly necessary):',
+    if (resourceIds.isEmpty)
+      '(none yet — only create resources that are genuinely needed)'
+    else
+      resourceIds.join(', '),
+    '',
+    'Current lesson JSON:',
+    jsonEncode(lessonJson),
+  ];
+  return parts.join('\n');
+}
+
+/// Build the prompt that transforms a single interaction item. Mirrors
+/// tool-gui's `ai_generator.py:request_item_transform`.
+String buildItemTransformPrompt({
+  required Map<String, dynamic> itemJson,
+  required String instruction,
+  required Set<String> resourceIds,
+}) {
+  final parts = <String>[
+    'Modify the following lesson interaction item according to the instruction.',
+    'Return the COMPLETE modified item JSON (do not return a diff or partial JSON).',
+    '',
+    'Instruction: $instruction',
+    '',
+    'Allowed resource IDs (reuse these, do not invent new resources unless truly necessary):',
+    if (resourceIds.isEmpty)
+      '(none yet — only create resources that are genuinely needed)'
+    else
+      resourceIds.join(', '),
+    '',
+    'Current item JSON:',
+    jsonEncode(itemJson),
+  ];
+  return parts.join('\n');
+}
+
 /// Build the alignment-phase prompt for wish mode. Mirrors
 /// `ai_generator.py:build_alignment_prompt`.
-String buildAlignmentPrompt(AiCourseSpec spec) {
+String buildAlignmentPrompt(AiCourseSpec spec, {String? groundedContext}) {
   final parts = <String>[
     'You are a language-course design assistant helping a non-technical beginner teacher.',
     '',
@@ -284,6 +356,15 @@ String buildAlignmentPrompt(AiCourseSpec spec) {
 
   if (spec.extraInstructions.isNotEmpty) {
     parts.addAll(['', 'Extra notes: ${spec.extraInstructions}']);
+  }
+
+  if (groundedContext != null && groundedContext.isNotEmpty) {
+    parts.addAll([
+      '',
+      'The following course resources already exist. When suggesting vocabulary, expressions, or grammar points, prefer reusing these IDs rather than inventing new ones. Only suggest new resources when the topic genuinely needs them:',
+      '',
+      groundedContext,
+    ]);
   }
 
   parts.addAll([
