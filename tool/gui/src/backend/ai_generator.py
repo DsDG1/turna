@@ -567,6 +567,38 @@ def _strip_code_fences(text: str) -> str:
     return s.strip()
 
 
+def _extract_content(
+    body: dict, *, strip: bool = False, empty_msg: str = "API 返回的 choices 为空。"
+) -> str:
+    """Pull the assistant message content out of a chat-completion response body."""
+    choices = body.get("choices") or []
+    if not choices:
+        raise ValueError(empty_msg)
+    content = choices[0].get("message", {}).get("content", "")
+    return content.strip() if strip else content
+
+
+def _parse_json_obj(content: str) -> dict:
+    """Strip code fences and parse ``content`` as a JSON object (dict)."""
+    cleaned = _strip_code_fences(content)
+    try:
+        parsed = json.loads(cleaned)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"无法解析模型输出的 JSON: {exc}") from exc
+    if not isinstance(parsed, dict):
+        raise ValueError("模型输出不是 JSON 对象。")
+    return parsed
+
+
+def _draft_json_suffix(draft_json: dict) -> str:
+    """Prompt suffix asking the model to revise an existing course draft."""
+    return (
+        "\n\n以下是目前已生成的课程草稿，请根据对话中的修改意见进行调整，"
+        "返回完整的新的课程 JSON（不要只返回 diff）。\n\n"
+        f"```json\n{json.dumps(draft_json, ensure_ascii=False, indent=2)}\n```"
+    )
+
+
 def _normalize_resources(parsed: dict[str, Any]) -> None:
     """Ensure words/expressions/grammarPoints are lists (default empty)."""
     for key in ("words", "expressions", "grammarPoints"):
@@ -996,8 +1028,7 @@ def _read_streaming(resp: Any, config: AiApiConfig, cancel_check, on_chunk) -> s
         usage = first_usage
     first_fragment = ai_stream.parse_sse_line(first_line)
     if first_fragment is not None:
-        if _emit(first_fragment):
-            pass
+        _emit(first_fragment)
     if not done:
         for line in line_iter:
             if cancel_check is not None and cancel_check():
@@ -1138,10 +1169,7 @@ def request_alignment_reply(
         on_chunk=on_chunk,
         usage_callback=usage_callback,
     )
-    choices = body.get("choices") or []
-    if not choices:
-        raise ValueError("API 返回的 choices 为空。")
-    content = choices[0].get("message", {}).get("content", "")
+    content = _extract_content(body)
     return content.strip()
 
 
@@ -1163,11 +1191,7 @@ def generate_from_chat(
     """
     generation_prompt = build_prompt(spec)
     if draft_json is not None:
-        generation_prompt += (
-            "\n\n以下是目前已生成的课程草稿，请根据对话中的修改意见进行调整，"
-            "返回完整的新的课程 JSON（不要只返回 diff）。\n\n"
-            f"```json\n{json.dumps(draft_json, ensure_ascii=False, indent=2)}\n```"
-        )
+        generation_prompt += _draft_json_suffix(draft_json)
 
     api_messages = [
         {
@@ -1226,10 +1250,7 @@ def explain_course(
         on_chunk=on_chunk,
         usage_callback=usage_callback,
     )
-    choices = body.get("choices") or []
-    if not choices:
-        raise ValueError("AI 未返回解释")
-    content = choices[0].get("message", {}).get("content", "").strip()
+    content = _extract_content(body, strip=True, empty_msg="AI 未返回解释")
     if not content:
         raise ValueError("AI 未返回解释")
     return content
@@ -1397,11 +1418,7 @@ def generate_edit(
     """
     edit_prompt = build_edit_prompt(spec, existing_section, edit_scope, scope_id)
     if draft_json is not None:
-        edit_prompt += (
-            "\n\n以下是目前已生成的课程草稿，请根据对话中的修改意见进行调整，"
-            "返回完整的新的课程 JSON（不要只返回 diff）。\n\n"
-            f"```json\n{json.dumps(draft_json, ensure_ascii=False, indent=2)}\n```"
-        )
+        edit_prompt += _draft_json_suffix(draft_json)
 
     api_messages: list[dict[str, Any]] = [
         {
@@ -1749,17 +1766,8 @@ def request_lesson_transform(
         on_chunk=on_chunk,
         usage_callback=usage_callback,
     )
-    choices = body.get("choices") or []
-    if not choices:
-        raise ValueError("API 返回的 choices 为空。")
-    content = choices[0].get("message", {}).get("content", "")
-    cleaned = _strip_code_fences(content)
-    try:
-        parsed = json.loads(cleaned)
-    except json.JSONDecodeError as exc:
-        raise ValueError(f"无法解析模型输出的 JSON: {exc}") from exc
-    if not isinstance(parsed, dict):
-        raise ValueError("模型输出不是 JSON 对象。")
+    content = _extract_content(body)
+    parsed = _parse_json_obj(content)
     if "content" not in parsed:
         raise ValueError("模型输出不是合法的课程 JSON（缺少 content）。")
 
@@ -1834,17 +1842,8 @@ def request_item_transform(
         on_chunk=on_chunk,
         usage_callback=usage_callback,
     )
-    choices = body.get("choices") or []
-    if not choices:
-        raise ValueError("API 返回的 choices 为空。")
-    content = choices[0].get("message", {}).get("content", "")
-    cleaned = _strip_code_fences(content)
-    try:
-        parsed = json.loads(cleaned)
-    except json.JSONDecodeError as exc:
-        raise ValueError(f"无法解析模型输出的 JSON: {exc}") from exc
-    if not isinstance(parsed, dict):
-        raise ValueError("模型输出不是 JSON 对象。")
+    content = _extract_content(body)
+    parsed = _parse_json_obj(content)
 
     # Preserve id and default runtimeType if missing.
     parsed["id"] = item.get("id", parsed.get("id", ""))
@@ -1904,8 +1903,5 @@ def request_correction(
         on_chunk=on_chunk,
         usage_callback=usage_callback,
     )
-    choices = body.get("choices") or []
-    if not choices:
-        raise ValueError("API 返回的 choices 为空。")
-    content = choices[0].get("message", {}).get("content", "")
+    content = _extract_content(body)
     return extract_json_object(content)

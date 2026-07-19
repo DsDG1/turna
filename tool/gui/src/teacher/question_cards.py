@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 from PySide6.QtCore import Signal
+from PySide6.QtGui import QStandardItemModel
 from PySide6.QtWidgets import (
     QButtonGroup,
     QCheckBox,
@@ -29,6 +30,7 @@ from PySide6.QtWidgets import (
 from src.backend.course_adapter import CourseAdapter
 from src.backend.lesson_content import ALLOWED_RUNTIME_TYPES
 from src.i18n.labels import field_label, interaction_label
+from src.widgets.option_models import build_options_model, select_by_id
 
 
 class _OptionRow(QWidget):
@@ -65,7 +67,14 @@ class QuestionCard(QFrame):
     move_down_requested = Signal()
     ai_rewrite_requested = Signal()
 
-    def __init__(self, adapter: CourseAdapter, item: dict[str, Any]) -> None:
+    def __init__(
+        self,
+        adapter: CourseAdapter,
+        item: dict[str, Any],
+        vocab_model: QStandardItemModel | None = None,
+        expression_model: QStandardItemModel | None = None,
+        grammar_model: QStandardItemModel | None = None,
+    ) -> None:
         super().__init__()
         self.setFrameShape(QFrame.Shape.StyledPanel)
         self.setStyleSheet(
@@ -73,6 +82,9 @@ class QuestionCard(QFrame):
         )
         self.adapter = adapter
         self.item = item
+        self._vocab_model = vocab_model
+        self._expression_model = expression_model
+        self._grammar_model = grammar_model
         self._content_widget: QWidget | None = None
         self._type_combo: QComboBox | None = None
         self._build_ui()
@@ -207,23 +219,20 @@ class QuestionCard(QFrame):
 
     def _word_combo(self, current_id: str) -> QComboBox:
         combo = QComboBox()
-        combo.addItem("(未选择)", "")
-        for wid, label in self.adapter.vocab_options():
-            combo.addItem(label, wid)
-            if wid == current_id:
-                combo.setCurrentIndex(combo.count() - 1)
+        model = self._vocab_model
+        if model is None:
+            model = build_options_model(self.adapter.vocab_options(), placeholder="(未选择)")
+        combo.setModel(model)
+        select_by_id(combo, model, current_id)
         return combo
 
     def _build_grammar_combo(self, layout: QVBoxLayout) -> None:
         combo = QComboBox()
-        combo.addItem("(未关联)", "")
-        sel = 0
-        current = self.item.get("grammarPointId") or ""
-        for gid, label in self.adapter.grammar_options():
-            combo.addItem(label, gid)
-            if gid == current:
-                sel = combo.count() - 1
-        combo.setCurrentIndex(sel)
+        model = self._grammar_model
+        if model is None:
+            model = build_options_model(self.adapter.grammar_options(), placeholder="(未关联)")
+        combo.setModel(model)
+        select_by_id(combo, model, self.item.get("grammarPointId") or "")
         combo.currentIndexChanged.connect(
             lambda _i: self._set_field("grammarPointId", combo.currentData() or "")
         )
@@ -415,7 +424,14 @@ class QuestionCard(QFrame):
         from src.widgets.interaction_forms import InteractionForm
 
         layout.addWidget(QLabel("教师视图暂未优化此题型，已使用通用表单。"))
-        form = InteractionForm(self.adapter, self.item, self.changed.emit)
+        form = InteractionForm(
+            self.adapter,
+            self.item,
+            self.changed.emit,
+            vocab_model=self._vocab_model,
+            expression_model=self._expression_model,
+            grammar_model=self._grammar_model,
+        )
         layout.addWidget(form)
 
     def _rebuild(self) -> None:

@@ -98,6 +98,7 @@ from src.backend.lesson_content import (
 )
 from src.i18n.labels import interaction_label, layer_label
 from src.teacher.question_cards import QuestionCard
+from src.widgets.option_models import build_options_model
 
 
 class LinearFlowWidget(QWidget):
@@ -146,6 +147,17 @@ class LinearFlowWidget(QWidget):
         self._content_layout = layout
         layout.setSpacing(12)
         layout.setContentsMargins(12, 12, 12, 12)
+
+        # Shared reference models for all cards in this render pass.
+        self._vocab_model = build_options_model(
+            self.adapter.vocab_options(), placeholder="(未选择)"
+        )
+        self._expression_model = build_options_model(
+            self.adapter.expression_options(), placeholder="(无)"
+        )
+        self._grammar_model = build_options_model(
+            self.adapter.grammar_options(), placeholder="(未关联)"
+        )
 
         breadcrumb = QLabel(
             f"{self.section.get('name', '')} › {self.unit.get('name', '')} › "
@@ -313,7 +325,13 @@ class LinearFlowWidget(QWidget):
         return header
 
     def _build_card(self, stage: dict[str, Any], item: dict[str, Any]) -> QuestionCard:
-        card = QuestionCard(self.adapter, item)
+        card = QuestionCard(
+            self.adapter,
+            item,
+            vocab_model=self._vocab_model,
+            expression_model=self._expression_model,
+            grammar_model=self._grammar_model,
+        )
         card.changed.connect(self.changed.emit)
         card.delete_requested.connect(lambda _c=False, st=stage, it=item: self._on_delete_item(st, it))
         card.type_changed.connect(lambda new_type, st=stage, it=item: self._on_change_item_type(st, it, new_type))

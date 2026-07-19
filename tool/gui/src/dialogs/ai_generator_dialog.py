@@ -107,10 +107,7 @@ class AiGeneratorDialog(QDialog):
         super().__init__(parent)
         self.adapter = adapter
         self._edit_mode = edit_mode
-        if edit_mode is not None:
-            self.setWindowTitle("AI 编辑")
-        else:
-            self.setWindowTitle("AI 生成课程")
+        self.setWindowTitle("AI 编辑" if edit_mode is not None else "AI 生成课程")
         self.resize(1180, 860)
         self.setMinimumSize(QSize(900, 640))
         self.setAcceptDrops(True)
@@ -1421,6 +1418,16 @@ class AiGeneratorDialog(QDialog):
             return None
         return summary
 
+    def _apply_prompt_fields(self, obj) -> None:
+        """Copy the shared prompt fields (topic/level/unit/lessons/template/genre/extra)."""
+        self.topic_edit.setText(obj.topic)
+        self.level_combo.setCurrentText(obj.level)
+        self.unit_spin.setValue(obj.unit_count)
+        self.lessons_spin.setValue(obj.lessons_per_unit)
+        self._template_bar.select_template(obj.template)
+        self._template_bar.set_genre_enabled(obj.use_genre_batch)
+        self.extra_edit.setText(obj.extra_instructions)
+
     def _on_template_applied(self, obj: object) -> None:
         """Apply a saved template or handle a save request from the template bar."""
         if isinstance(obj, dict) and obj.get("action") == "save_request":
@@ -1429,24 +1436,11 @@ class AiGeneratorDialog(QDialog):
                 self._template_bar.save_current_template(self._current_spec())
             return
         if isinstance(obj, AiPromptTemplate):
-            template = obj
-            self.topic_edit.setText(template.topic)
-            self.level_combo.setCurrentText(template.level)
-            self.unit_spin.setValue(template.unit_count)
-            self.lessons_spin.setValue(template.lessons_per_unit)
-            self._template_bar.select_template(template.template)
-            self._template_bar.set_genre_enabled(template.use_genre_batch)
-            self.extra_edit.setText(template.extra_instructions)
+            self._apply_prompt_fields(obj)
 
     def _on_history_applied(self, entry: object) -> None:
         if isinstance(entry, AiPromptHistory):
-            self.topic_edit.setText(entry.topic)
-            self.level_combo.setCurrentText(entry.level)
-            self.unit_spin.setValue(entry.unit_count)
-            self.lessons_spin.setValue(entry.lessons_per_unit)
-            self._template_bar.select_template(entry.template)
-            self._template_bar.set_genre_enabled(entry.use_genre_batch)
-            self.extra_edit.setText(entry.extra_instructions)
+            self._apply_prompt_fields(entry)
 
     # --- Normal mode actions ---------------------------------------------
 
@@ -1739,9 +1733,6 @@ class AiGeneratorDialog(QDialog):
         if not isinstance(data, dict) or "units" not in data:
             raise ValueError("JSON 必须是包含 'units' 数组的对象。")
         return data
-
-    def _active_json_editor(self):
-        return self.wish_json_edit if self._mode == "wish" else self.json_edit
 
     def _on_preview_node_activated(self, path: str) -> None:
         """Jump the active JSON editor to the line matching the tree path (P3.1)."""

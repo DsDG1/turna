@@ -8,6 +8,7 @@ explicit and confirmed.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
@@ -27,6 +28,7 @@ from PySide6.QtWidgets import (
 
 from src.backend.course_adapter import CourseAdapter
 from src.backend.git_library import GitLibrary
+from src.dialogs.ai.worker import AiRequestWorker
 
 
 class GitLibraryDialog(QDialog):
@@ -44,6 +46,7 @@ class GitLibraryDialog(QDialog):
         self.adapter = adapter
         self.git = GitLibrary()
         self._clone_dir: Path | None = None
+        self._git_worker: Any | None = None
         self.setWindowTitle("资源库（Git）")
         self.resize(620, 420)
         self._build_ui()
@@ -178,21 +181,85 @@ class GitLibraryDialog(QDialog):
             QMessageBox.warning(self, "信息不完整", "请填写远程仓库 URL 和本地目录。")
             return
         local_path = Path(local)
-        try:
-            self._set_clone_dir_pending(local_path)
-            self.git.clone(url, local_path)
-        except RuntimeError as exc:
-            QMessageBox.critical(self, "连接失败", str(exc))
-            self._clone_dir = None
-            self._refresh_state()
-            return
-        self._clone_dir = local_path
-        self._refresh_state()
-        QMessageBox.information(self, "连接成功", f"已就绪：{local_path}")
+        self._set_clone_dir_pending(local_path)
+        self._run_git_async(
+            "连接",
+            self.git.clone,
+            url,
+            local_path,
+            on_ok=lambda _result: setattr(self, "_clone_dir", local_path),
+            ok_title="连接成功",
+            ok_message=f"已就绪：{local_path}",
+            error_title="连接失败",
+        )
 
     def _set_clone_dir_pending(self, path: Path) -> None:
         # Placeholder hook for future pre-clone validation.
         self._pending_dir = path
+
+    def _run_git_async(
+        self,
+        label: str,
+        fn,
+        *args,
+        on_ok=None,
+        ok_title: str = "",
+        ok_message: str = "",
+        error_title: str = "",
+    ) -> None:
+        """Run a synchronous git call in a background worker.
+
+        Disables action buttons while busy. Results from a superseded worker
+        are ignored via ``self._git_worker`` identity guard.
+        """
+        self._set_git_busy(True, label)
+        worker = AiRequestWorker(fn, *args)
+        worker.result_ready.connect(
+            lambda result: self._on_git_result(
+                worker, result, on_ok, ok_title, ok_message
+            )
+        )
+        worker.error_occurred.connect(
+            lambda msg: self._on_git_error(worker, msg, error_title)
+        )
+        self._git_worker = worker
+        worker.start()
+
+    def _on_git_result(
+        self,
+        worker: Any,
+        result: Any,
+        on_ok,
+        ok_title: str,
+        ok_message: str,
+    ) -> None:
+        if worker is not self._git_worker:
+            return
+        self._git_worker = None
+        self._set_git_busy(False, "")
+        if on_ok is not None:
+            on_ok(result)
+        self._refresh_state()
+        if ok_title:
+            QMessageBox.information(self, ok_title, ok_message)
+
+    def _on_git_error(self, worker: Any, message: str, error_title: str) -> None:
+        if worker is not self._git_worker:
+            return
+        self._git_worker = None
+        self._set_git_busy(False, "")
+        self._refresh_state()
+        if error_title:
+            QMessageBox.critical(self, error_title, message)
+
+    def _set_git_busy(self, busy: bool, label: str = "") -> None:
+        self.connect_btn.setEnabled(not busy)
+        self.open_btn.setEnabled(not busy)
+        self.pull_btn.setEnabled(not busy)
+        self.push_btn.setEnabled(not busy)
+        self.copy_btn.setEnabled(not busy)
+        if busy:
+            self.status_label.setText(f"{label}中…")
 
     def _on_open(self) -> None:
         if self._clone_dir is None:
@@ -203,13 +270,14 @@ class GitLibraryDialog(QDialog):
     def _on_pull(self) -> None:
         if self._clone_dir is None:
             return
-        try:
-            self.git.pull(self._clone_dir)
-        except RuntimeError as exc:
-            QMessageBox.critical(self, "拉取失败", str(exc))
-            return
-        self._refresh_state()
-        QMessageBox.information(self, "已是最新", "已拉取远程最新内容。")
+        self._run_git_async(
+            "拉取",
+            self.git.pull,
+            self._clone_dir,
+            ok_title="已是最新",
+            ok_message="已拉取远程最新内容。",
+            error_title="拉取失败",
+        )
 
     def _on_push(self) -> None:
         if self._clone_dir is None:
@@ -227,13 +295,15 @@ class GitLibraryDialog(QDialog):
         msg, ok = self._commit_message()
         if not ok:
             return
-        try:
-            self.git.commit_and_push(self._clone_dir, msg)
-        except RuntimeError as exc:
-            QMessageBox.critical(self, "推送失败", str(exc))
-            return
-        self._refresh_state()
-        QMessageBox.information(self, "已推送", "本地改动已提交并推送到远程。")
+        self._run_git_async(
+            "推送",
+            self.git.commit_and_push,
+            self._clone_dir,
+            msg,
+            ok_title="已推送",
+            ok_message="本地改动已提交并推送到远程。",
+            error_title="推送失败",
+        )
 
     def _commit_message(self) -> tuple[str, bool]:
         text, ok = QInputDialog.getText(

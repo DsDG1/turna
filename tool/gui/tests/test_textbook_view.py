@@ -62,10 +62,49 @@ class _TestApp:
         return cls._app
 
 
+class _FakeSignal:
+    def __init__(self) -> None:
+        self._callbacks: list = []
+
+    def connect(self, callback) -> None:
+        self._callbacks.append(callback)
+
+    def emit(self, *args, **kwargs) -> None:
+        for cb in self._callbacks:
+            cb(*args, **kwargs)
+
+
+class _SyncFakeWorker:
+    """Worker that runs the target synchronously and emits immediately.
+
+    Makes file-loading async paths testable without an event loop.
+    """
+
+    def __init__(self, target, *args, **kwargs) -> None:
+        self._target = target
+        self._args = args
+        self.result_ready = _FakeSignal()
+        self.error_occurred = _FakeSignal()
+
+    def start(self) -> None:
+        try:
+            result = self._target(*self._args)
+            self.result_ready.emit(result)
+        except Exception as exc:
+            self.error_occurred.emit(str(exc))
+
+    def cancel(self) -> None:
+        pass
+
+
+def _sync_worker_factory(target, *args, **kwargs):
+    return _SyncFakeWorker(target, *args, **kwargs)
+
+
 class TextbookImportViewTest(unittest.TestCase):
     def setUp(self) -> None:
         _TestApp.get()
-        self.dlg = TextbookImportDialog(None, None)
+        self.dlg = TextbookImportDialog(None, None, worker_factory=_sync_worker_factory)
 
     def test_constructs_without_crash(self) -> None:
         self.assertEqual(self.dlg.windowTitle(), "导入教材")
@@ -142,7 +181,10 @@ class TextbookImportViewTest(unittest.TestCase):
             project = store.create_project(name="book", source_path=source)
             self.assertEqual(project.chapters, [])
 
-            dlg = TextbookImportDialog(None, None, project=project, store=store)
+            dlg = TextbookImportDialog(
+                None, None, project=project, store=store,
+                worker_factory=_sync_worker_factory,
+            )
             self.assertEqual(len(dlg._controller.chapters), 2)
             self.assertEqual(dlg._stack.currentIndex(), 0)  # 素材 source page
             self.assertEqual(dlg._chapter_list.count(), 2)

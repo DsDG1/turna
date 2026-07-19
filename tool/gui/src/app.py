@@ -39,6 +39,17 @@ from src.widgets.course_tree import CourseTreeWidget
 from src.widgets.detail_panel import DetailPanel
 
 
+def _active_main_window() -> "MainWindow | None":
+    """Return the active MainWindow, or None when no window is present (tests)."""
+    app = QApplication.instance()
+    if app is None:
+        return None
+    for widget in app.topLevelWidgets():
+        if isinstance(widget, MainWindow):
+            return widget
+    return None
+
+
 def current_ai_config() -> AiApiConfig:
     """Return the current AI config from the active MainWindow.
 
@@ -46,13 +57,8 @@ def current_ai_config() -> AiApiConfig:
     maintaining their own input fields. Returns an empty config if no main
     window is present (e.g. during tests).
     """
-    app = QApplication.instance()
-    if app is None:
-        return AiApiConfig()
-    for widget in app.topLevelWidgets():
-        if isinstance(widget, MainWindow):
-            return widget._ai_config
-    return AiApiConfig()
+    window = _active_main_window()
+    return window._ai_config if window is not None else AiApiConfig()
 
 
 def current_settings() -> Settings:
@@ -62,13 +68,8 @@ def current_settings() -> Settings:
     limit). Returns a default ``Settings`` instance when no main window is
     present (tests / sandbox).
     """
-    app = QApplication.instance()
-    if app is None:
-        return Settings()
-    for widget in app.topLevelWidgets():
-        if isinstance(widget, MainWindow):
-            return widget._settings_obj
-    return Settings()
+    window = _active_main_window()
+    return window._settings_obj if window is not None else Settings()
 
 
 class _ButtonSizePolicyFilter(QObject):
@@ -558,6 +559,12 @@ class MainWindow(QMainWindow):
         """
         return self._import_service.import_section(section, strategy=strategy)
 
+    def _show_beta_warning_once(self, key: str, title: str, message: str) -> None:
+        """Show a one-time informational beta warning, remembered via QSettings."""
+        if not self._settings.value(key, False):
+            QMessageBox.information(self, title, message)
+            self._settings.setValue(key, True)
+
     def _on_workshop(self) -> None:
         """Open the unified authoring workspace (connectplan Phase 2).
 
@@ -569,15 +576,13 @@ class MainWindow(QMainWindow):
         from src.dialogs.workshop_window import WorkshopWindow
 
         telemetry.record_event("workshop.open")
-        if not self._settings.value("workshop_beta_warning_shown", False):
-            QMessageBox.information(
-                self,
-                "课程工坊",
-                "课程工坊：从教材到课程一站式创作，AI 生成结果请自行审核。\n\n"
-                "知识点提取与 AI 生成都可能消耗大量 token，建议模型支持 1M 上下文窗口。\n\n"
-                "点击「确定」继续。",
-            )
-            self._settings.setValue("workshop_beta_warning_shown", True)
+        self._show_beta_warning_once(
+            "workshop_beta_warning_shown",
+            "课程工坊",
+            "课程工坊：从教材到课程一站式创作，AI 生成结果请自行审核。\n\n"
+            "知识点提取与 AI 生成都可能消耗大量 token，建议模型支持 1M 上下文窗口。\n\n"
+            "点击「确定」继续。",
+        )
 
         if self._workshop_window is None:
             self._workshop_window = WorkshopWindow(self.adapter, self)
@@ -670,15 +675,13 @@ class MainWindow(QMainWindow):
         from src.dialogs.ai_generator_dialog import AiGeneratorDialog
 
         telemetry.record_event("ai.edit.open", payload={"kind": kind, "node_id": node_id})
-        if not self._settings.value("ai_beta_warning_shown", False):
-            QMessageBox.information(
-                self,
-                "AI 编辑课程",
-                "AI 编辑结果仅供参考，请作者自行审核。\n\n"
-                "本功能会消耗大量 token，且建议模型支持 1M 上下文窗口。\n\n"
-                "点击「确定」继续。",
-            )
-            self._settings.setValue("ai_beta_warning_shown", True)
+        self._show_beta_warning_once(
+            "ai_beta_warning_shown",
+            "AI 编辑课程",
+            "AI 编辑结果仅供参考，请作者自行审核。\n\n"
+            "本功能会消耗大量 token，且建议模型支持 1M 上下文窗口。\n\n"
+            "点击「确定」继续。",
+        )
 
         if not self.course_dir:
             QMessageBox.warning(self, "未加载课程目录", "请先打开课程目录。")

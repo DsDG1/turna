@@ -91,12 +91,18 @@ class SettingsDialog(QDialog):
         self.buttons.clicked.connect(self._on_button_clicked)
         layout.addWidget(self.buttons)
 
-    def _build_appearance_tab(self) -> QWidget:
+    @staticmethod
+    def _make_tab(spacing: int = 14) -> tuple[QWidget, QVBoxLayout]:
+        """Standard tab scaffold: top-aligned QVBoxLayout with consistent margins."""
         tab = QWidget()
         layout = QVBoxLayout(tab)
-        layout.setSpacing(14)
+        layout.setSpacing(spacing)
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        return tab, layout
+
+    def _build_appearance_tab(self) -> QWidget:
+        tab, layout = self._make_tab()
 
         group = QGroupBox("外观")
         form = QFormLayout(group)
@@ -121,11 +127,7 @@ class SettingsDialog(QDialog):
         return tab
 
     def _build_ai_tab(self) -> QWidget:
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
-        layout.setSpacing(14)
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        tab, layout = self._make_tab()
 
         provider_group = QGroupBox("AI 服务提供商")
         provider_form = QFormLayout(provider_group)
@@ -210,11 +212,7 @@ class SettingsDialog(QDialog):
         return tab
 
     def _build_ai_usage_tab(self) -> QWidget:
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
-        layout.setSpacing(14)
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        tab, layout = self._make_tab()
 
         summary_group = QGroupBox("本地用量概览")
         summary_layout = QVBoxLayout(summary_group)
@@ -381,11 +379,7 @@ class SettingsDialog(QDialog):
         )
 
     def _build_editor_tab(self) -> QWidget:
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
-        layout.setSpacing(14)
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        tab, layout = self._make_tab()
 
         behaviour_group = QGroupBox("编辑器行为")
         behaviour_form = QFormLayout(behaviour_group)
@@ -550,15 +544,22 @@ class SettingsDialog(QDialog):
         text_part = f" «{text}»" if text else ""
         return f"{ts} {event}{dur_text} {target}{text_part} @{window}".rstrip()
 
-    def _on_clear_operation_log(self) -> None:
+    def _confirm_clear(self, title: str, message: str) -> bool:
+        """Ask a yes/no clear confirmation; return True when the user confirms."""
         reply = QMessageBox.question(
             self,
-            "清空操作日志",
-            "确定要清空 operations.log 吗？（仅清操作记录，保留 telemetry.log 的 AI 用量/错误/启动时间）此操作不可撤销。",
+            title,
+            message,
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )
-        if reply == QMessageBox.StandardButton.Yes:
+        return reply == QMessageBox.StandardButton.Yes
+
+    def _on_clear_operation_log(self) -> None:
+        if self._confirm_clear(
+            "清空操作日志",
+            "确定要清空 operations.log 吗？（仅清操作记录，保留 telemetry.log 的 AI 用量/错误/启动时间）此操作不可撤销。",
+        ):
             operations.clear()
             self._refresh_operation_log()
 
@@ -682,12 +683,10 @@ class SettingsDialog(QDialog):
             f"今日：{today_text}　|　累计：{total_text}"
         )
 
-        lines: list[str] = []
-        lines.append("<b>今日</b>")
-        lines.append(self._usage_bucket_html(today))
-        lines.append("<b>累计</b>")
-        lines.append(self._usage_bucket_html(total))
-        self.ai_usage_detail.setHtml("<br>".join(lines))
+        self.ai_usage_detail.setHtml("<br>".join([
+            "<b>今日</b>", self._usage_bucket_html(today),
+            "<b>累计</b>", self._usage_bucket_html(total),
+        ]))
 
     @staticmethod
     def _format_usage_bucket(bucket: dict[str, Any]) -> str:
@@ -723,14 +722,7 @@ class SettingsDialog(QDialog):
         QDesktopServices.openUrl(QUrl.fromLocalFile(str(Path.home() / ".varnamala-gui")))
 
     def _on_clear_telemetry(self) -> None:
-        reply = QMessageBox.question(
-            self,
-            "清空本地 AI 用量记录",
-            "确定要清空本地 telemetry 日志吗？此操作不可撤销。",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        if reply == QMessageBox.StandardButton.Yes:
+        if self._confirm_clear("清空本地 AI 用量记录", "确定要清空本地 telemetry 日志吗？此操作不可撤销。"):
             telemetry.clear()
             self._refresh_ai_usage()
 
@@ -743,14 +735,7 @@ class SettingsDialog(QDialog):
         self._populate_recent_list()
 
     def _on_clear_recent(self) -> None:
-        reply = QMessageBox.question(
-            self,
-            "清空历史",
-            "确定要清空所有最近仓库历史吗？此操作不可撤销。",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        if reply == QMessageBox.StandardButton.Yes:
+        if self._confirm_clear("清空历史", "确定要清空所有最近仓库历史吗？此操作不可撤销。"):
             self._settings.clear_recent_repos()
             self._populate_recent_list()
 

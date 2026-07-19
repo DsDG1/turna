@@ -40,6 +40,7 @@ from src.infrastructure.telemetry import telemetry
 
 #: Usage dict shape: {"prompt_tokens", "completion_tokens", "total_tokens"}.
 UsageDict = dict[str, int]
+_ZERO_USAGE: UsageDict = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
 
 @dataclass
@@ -109,6 +110,10 @@ class TextbookImportController:
         self._active_workers: dict[int, Any] = {}
         self._cancelled = False
         self._autosave_enabled = True
+        # Guard for asynchronous file loading: incremented on every new load so
+        # late results from a superseded request are discarded.
+        self._load_id: int = 0
+        self._load_worker: Any | None = None
         # Autosave throttle: extraction fires _autosave() per completed
         # chapter; writes are coalesced to at most one per interval while
         # discrete transitions force an immediate save (force=True).
@@ -119,7 +124,7 @@ class TextbookImportController:
         self._started_count: int = 0
         self._completed_count: int = 0
         self._usage_by_chapter: dict[int, UsageDict] = {}
-        self._project_usage: UsageDict = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+        self._project_usage: UsageDict = dict(_ZERO_USAGE)
         self._quality_report: ExtractionQualityReport | None = None
 
     # ------------------------------------------------------------------ state
@@ -169,9 +174,7 @@ class TextbookImportController:
 
     def usage_for_chapter(self, index: int) -> UsageDict:
         """Return the accumulated token usage for one chapter (zeros if none)."""
-        return dict(self._usage_by_chapter.get(index, {
-            "prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0
-        }))
+        return dict(self._usage_by_chapter.get(index, _ZERO_USAGE))
 
     @property
     def quality_report(self) -> ExtractionQualityReport | None:
@@ -216,9 +219,32 @@ class TextbookImportController:
     def _emit_step(self, step: int, result: ImportStepResult | None = None) -> None:
         self._on_step_changed(step, result)
 
+    # ------------------------------------------------------------------ helpers
+    @staticmethod
+    def _read_source_text(path: Path) -> str:
+        """Read text from a .md/.txt file or extract it from a text PDF.
+
+        Raises ``OSError`` for filesystem errors and ``RuntimeError`` for
+        parse/extraction errors so both sync and async callers can share the
+        same message conversion.
+        """
+        suffix = path.suffix.lower()
+        if suffix in (".md", ".txt"):
+            return path.read_text(encoding="utf-8")
+
+        result = extract_attachment(path)
+        if not result.ok:
+            raise RuntimeError(
+                f"{result.error}\n建议改用 .md/.txt，或使用文本原生 PDF（扫描件暂不支持）。"
+            )
+        text = result.content.get("text", "") if result.content else ""
+        if not text.strip():
+            raise RuntimeError("PDF 未提取到文本（可能是扫描件）。")
+        return text
+
     # ------------------------------------------------------------------ ① pick / ② parse
     def load_file(self, path: Path) -> ImportStepResult:
-        """Load and parse the source file.
+        """Load and parse the source file synchronously.
 
         Returns a ``parse`` step result. On success the controller moves to the
         ``chapters`` step internally; the view should observe ``on_step_changed``.
@@ -237,28 +263,17 @@ class TextbookImportController:
 
         self._source_path = path
 
-        if suffix in (".md", ".txt"):
-            try:
-                self._md = path.read_text(encoding="utf-8")
-            except OSError as exc:
-                return ImportStepResult.error("parse", f"读取文件失败：{exc}")
-        else:  # .pdf
-            result = extract_attachment(path)
-            if not result.ok:
-                return ImportStepResult.error(
-                    "parse",
-                    f"{result.error}\n建议改用 .md/.txt，或使用文本原生 PDF（扫描件暂不支持）。",
-                    recoverable=True,
-                    recovery_options=["重新选择"],
-                )
-            self._md = result.content.get("text", "") if result.content else ""
-            if not self._md.strip():
-                return ImportStepResult.error(
-                    "parse",
-                    "PDF 未提取到文本（可能是扫描件）。",
-                    recoverable=True,
-                    recovery_options=["重新选择"],
-                )
+        try:
+            self._md = self._read_source_text(path)
+        except OSError as exc:
+            return ImportStepResult.error("parse", f"读取文件失败：{exc}")
+        except RuntimeError as exc:
+            return ImportStepResult.error(
+                "parse",
+                str(exc),
+                recoverable=True,
+                recovery_options=["重新选择"],
+            )
 
         self._split_into_chapters()
         result = ImportStepResult.success(
@@ -269,6 +284,94 @@ class TextbookImportController:
         self._emit_step(self.STEP_CHAPTERS, result)
         self._autosave(force=True)
         return result
+
+    def load_file_async(
+        self,
+        path: Path,
+        *,
+        on_done: Callable[[ImportStepResult], None] | None = None,
+    ) -> ImportStepResult | None:
+        """Load and parse the source file in a background worker.
+
+        Performs cheap validation synchronously and returns an
+        ``ImportStepResult`` immediately on validation failure. Otherwise
+        returns ``None`` and calls ``on_done`` on the UI thread when the worker
+        finishes. Late results from a superseded request are discarded via
+        ``self._load_id``.
+        """
+        self._cancelled = False
+        if not path.exists():
+            result = ImportStepResult.error("pick", f"文件不存在：{path}")
+            if on_done is not None:
+                on_done(result)
+            return result
+        suffix = path.suffix.lower()
+        if suffix not in (".md", ".txt", ".pdf"):
+            result = ImportStepResult.error(
+                "pick",
+                "不支持的文件类型，请选择 .md / .txt / .pdf。",
+                recoverable=True,
+                recovery_options=["重新选择"],
+            )
+            if on_done is not None:
+                on_done(result)
+            return result
+
+        self._load_id += 1
+        load_id = self._load_id
+        worker = self._worker_factory(self._read_source_text, path)
+        worker.result_ready.connect(
+            lambda text: self._apply_loaded_text(path, text, load_id, on_done)
+        )
+        worker.error_occurred.connect(
+            lambda msg: self._on_load_error(path, msg, load_id, on_done)
+        )
+        self._load_worker = worker
+        worker.start()
+        return None
+
+    def _apply_loaded_text(
+        self,
+        path: Path,
+        text: str,
+        load_id: int,
+        on_done: Callable[[ImportStepResult], None] | None,
+    ) -> None:
+        """UI-thread callback for a successful async file load."""
+        if load_id != self._load_id:
+            return
+        self._source_path = path
+        self._md = text
+        self._split_into_chapters()
+        result = ImportStepResult.success(
+            "chapters",
+            f"解析完成，共 {len(self._chapters)} 章。",
+            details={"chapter_count": len(self._chapters)},
+        )
+        self._emit_step(self.STEP_CHAPTERS, result)
+        self._autosave(force=True)
+        if on_done is not None:
+            on_done(result)
+
+    def _on_load_error(
+        self,
+        path: Path,
+        message: str,
+        load_id: int,
+        on_done: Callable[[ImportStepResult], None] | None,
+    ) -> None:
+        """UI-thread callback for a failed async file load."""
+        if load_id != self._load_id:
+            return
+        self._source_path = path
+        result = ImportStepResult.error(
+            "parse",
+            message,
+            recoverable=True,
+            recovery_options=["重新选择"],
+        )
+        if on_done is not None:
+            on_done(result)
 
     def _split_into_chapters(self) -> None:
         chapters = split_chapters(self._md)
@@ -319,7 +422,7 @@ class TextbookImportController:
         self._started_count = 0
         self._completed_count = 0
         self._usage_by_chapter = {}
-        self._project_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+        self._project_usage = dict(_ZERO_USAGE)
         self._emit_step(self.STEP_EXTRACT, ImportStepResult.success("extract", "开始提取知识点…"))
         self._extract_next()
         return ImportStepResult.success("extract", "开始提取知识点…")
@@ -433,9 +536,7 @@ class TextbookImportController:
         """Accumulate per-chapter + project token usage (bookplan2 Phase 5)."""
         if not isinstance(usage, dict):
             return
-        cur = self._usage_by_chapter.get(idx, {
-            "prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0
-        })
+        cur = self._usage_by_chapter.get(idx, _ZERO_USAGE)
         merged = {
             k: int(cur.get(k, 0)) + int(usage.get(k, 0) or 0)
             for k in ("prompt_tokens", "completion_tokens", "total_tokens")

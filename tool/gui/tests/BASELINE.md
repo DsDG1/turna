@@ -4,11 +4,30 @@
 
 ## 当前基线
 
-- 日期：2026-07-18
-- 全量用例：867 passed（含 `test_app.py`；skipped=2），命令：
+- 日期：2026-07-19
+- 全量用例：888 passed（含 `test_app.py`；skipped=2），命令：
   ```bash
   QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests -p "test_*.py"
   ```
+
+## 2026-07-19 代码精简 T1+T2（不改功能）
+
+用例数不变（888 passed, skipped=2）。删除死代码/未用导入/未调用方法，并将重复代码抽为共享 helper；行为等价，全量测试通过。净减约 110 行。
+
+| 模块 | 文件 | 覆盖项 |
+|------|------|--------|
+| 死代码 / 未用导入 | `theme.py` `ai_error_analyzer.py` `knowledge_extractor.py` `extraction_quality.py` `validation_report.py` `import_step_result.py` `resource_review_table.py` `ai_generator.py` `lesson_content.py` `ai_generator_dialog.py` | 未用 import、死变量链、重复方法 `_active_json_editor`、未调用工厂 `ImportStepResult.warning`/`ResourceReviewTable.add_row`、`if _emit(): pass` 空操作 |
+| 冗长等价改写 | `lesson_content.py` `course_tree.py` `settings_dialog.py` `ai_generator_dialog.py` `textbook_import_dialog.py` | 集合推导、海象推导、三元、列表字面量、`_set_busy(False)` 上提 |
+| 重复抽 helper | `ai_generator.py` `course_adapter.py` `textbook_import_dialog.py` `ai_generator_dialog.py` `app.py` `settings_dialog.py` `textbook_import_controller.py` | `_extract_content`/`_parse_json_obj`/`_draft_json_suffix`、`release_diff` sections 并入循环、`_populate_review` 三段合并、`_apply_prompt_fields`、`_active_main_window`、`_show_beta_warning_once`、`_make_tab`、`_confirm_clear`、`_ZERO_USAGE` 常量 |
+
+## 2026-07-19 upgradeplus1 第二阶段优化（不改功能）
+
+| 模块 | 文件 | 覆盖项 |
+|------|------|--------|
+| 教材加载异步化 | `test_textbook_controller.py` `LoadFileAsyncTest` / `test_textbook_view.py` / `test_textbook_e2e.py` | `_read_source_text` 纯函数、同步/异步入口行为一致、PDF 解析失败 recoverable、load_id 守卫丢弃过期结果 |
+| 下拉框共享模型 | `test_option_models.py` / `test_question_cards.py` `SharedModelTest` | `build_options_model` placeholder + UserRole、`select_by_id` 定位/回退、两个 QuestionCard 共享同一 vocab/grammar model |
+| 项目库 manifest | `test_textbook_project.py` `ProjectSummaryTest` / `test_textbook_library_dialog.py` | `index.json` 首次生成、save/delete 同步更新、mtime 自愈外部修改、损坏回退全量扫描 |
+| Git 操作异步化 | `test_git_library_dialog.py` `GitLibraryDialogAsyncTest` | `_run_git_async` worker 包装、成功/失败回调与按钮态、过期 worker 结果被丢弃 |
 
 ## 2026-07-18 性能/缺陷/体积优化轮（不改功能）
 

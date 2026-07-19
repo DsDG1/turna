@@ -305,7 +305,6 @@ def _lang_check_issues(
     issues: list[QualityIssue] = []
     bad_count = 0
     target_is_cjk = _is_cjk_language(language)
-    source_is_cjk = _is_cjk_language(source_language)
 
     for ci, rtype, ri, entry in project_resources:
         if rtype in ("word", "expression"):

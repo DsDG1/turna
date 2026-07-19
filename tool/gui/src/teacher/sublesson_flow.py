@@ -34,6 +34,7 @@ from src.backend.lesson_content import (
 from src.dialogs.ai_lesson_helper_dialog import AiLessonHelperDialog
 from src.teacher.linear_flow import LinearFlowWidget
 from src.teacher.preview_window import _PreviewCard
+from src.widgets.option_models import build_options_model
 
 
 class _WordSelectorDialog(QDialog):
@@ -256,6 +257,17 @@ class SubLessonFlowWidget(LinearFlowWidget):
     def _build_teacher_body(self) -> None:
         """Build the teacher-view body: live preview + sub-lesson frames."""
         self._clear_content()
+
+        # Shared reference models for all cards in this render pass.
+        self._vocab_model = build_options_model(
+            self.adapter.vocab_options(), placeholder="(未选择)"
+        )
+        self._expression_model = build_options_model(
+            self.adapter.expression_options(), placeholder="(无)"
+        )
+        self._grammar_model = build_options_model(
+            self.adapter.grammar_options(), placeholder="(未关联)"
+        )
 
         self._preview_container = QWidget()
         preview_layout = QVBoxLayout(self._preview_container)

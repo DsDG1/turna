@@ -163,6 +163,79 @@ class LoadFileTest(unittest.TestCase):
             path.unlink()
 
 
+class LoadFileAsyncTest(unittest.TestCase):
+    def test_async_md_file_splits_into_chapters(self) -> None:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
+            f.write(_sample_md())
+            path = Path(f.name)
+        try:
+            ctrl = _RecordingController(
+                ai_config_fn=AiApiConfig,
+                worker_factory=_fake_worker_factory(_sample_md()),
+            )
+            called: list[ImportStepResult] = []
+            result = ctrl.load_file_async(path, on_done=lambda r: called.append(r))
+            self.assertIsNone(result)
+            self.assertEqual(len(ctrl.chapters), 2)
+            self.assertEqual(called[0].outcome, "success")
+            self.assertEqual(ctrl.step_changes[-1][0], ctrl.STEP_CHAPTERS)
+        finally:
+            path.unlink()
+
+    def test_async_missing_file_returns_error_immediately(self) -> None:
+        ctrl = _RecordingController(ai_config_fn=AiApiConfig)
+        called: list[ImportStepResult] = []
+        result = ctrl.load_file_async(
+            Path("/nonexistent/file.md"), on_done=lambda r: called.append(r)
+        )
+        self.assertIsNotNone(result)
+        self.assertEqual(result.outcome, "error")
+        self.assertEqual(len(called), 1)
+
+    def test_async_pdf_parse_error_is_recoverable(self) -> None:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".pdf", delete=False) as f:
+            f.write("dummy")
+            path = Path(f.name)
+        try:
+            ctrl = _RecordingController(
+                ai_config_fn=AiApiConfig,
+                worker_factory=_fake_worker_factory(RuntimeError("PDF failed")),
+            )
+            called: list[ImportStepResult] = []
+            result = ctrl.load_file_async(path, on_done=lambda r: called.append(r))
+            self.assertIsNone(result)
+            self.assertEqual(called[0].outcome, "error")
+            self.assertTrue(called[0].recoverable)
+            self.assertIn("PDF failed", called[0].message)
+        finally:
+            path.unlink()
+
+    def test_stale_load_result_is_ignored(self) -> None:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
+            f.write(_sample_md())
+            path = Path(f.name)
+        try:
+            workers: list[_DeferredFakeWorker] = []
+
+            def factory(_target, *_args, **_kwargs):
+                w = _DeferredFakeWorker()
+                workers.append(w)
+                return w
+
+            ctrl = _RecordingController(
+                ai_config_fn=AiApiConfig, worker_factory=factory
+            )
+            ctrl.load_file_async(path)
+            ctrl.load_file_async(path)
+            self.assertEqual(len(workers), 2)
+            workers[0].emit_result(_sample_md())
+            self.assertEqual(len(ctrl.chapters), 0)
+            workers[1].emit_result(_sample_md())
+            self.assertEqual(len(ctrl.chapters), 2)
+        finally:
+            path.unlink()
+
+
 class ChapterSelectionTest(unittest.TestCase):
     def test_kept_flags_round_trip(self) -> None:
         ctrl = _RecordingController(ai_config_fn=AiApiConfig)

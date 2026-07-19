@@ -95,7 +95,6 @@ class ValidationReportWidget(QWidget):
             text = f"{tag} {human}{location}"
             item = QListWidgetItem(text)
             item.setData(Qt.ItemDataRole.UserRole, problem)
-            color = "#E74C3C" if level == "error" else "#FF9F43"
             item.setForeground(Qt.GlobalColor.white)
             item.setToolTip(problem.get("message", ""))
             self.list_widget.addItem(item)

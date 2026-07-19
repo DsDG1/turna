@@ -5,6 +5,7 @@ import sys
 import unittest
 from pathlib import Path
 
+from PySide6.QtGui import QStandardItemModel
 from PySide6.QtWidgets import QApplication, QComboBox, QLabel, QPushButton
 
 _GUI = Path(__file__).resolve().parents[1]
@@ -14,6 +15,7 @@ if str(_GUI) not in sys.path:
 from src.backend.course_adapter import CourseAdapter  # noqa: E402
 from src.backend.lesson_content import ALLOWED_RUNTIME_TYPES, default_interaction  # noqa: E402
 from src.teacher.question_cards import QuestionCard, _OptionRow  # noqa: E402
+from src.widgets.option_models import build_options_model  # noqa: E402
 
 
 class _TestApp:
@@ -140,6 +142,67 @@ class GrammarPointComboTest(unittest.TestCase):
         self.assertGreaterEqual(idx, 0)
         grammar_combo.setCurrentIndex(idx)
         self.assertEqual(item.get("grammarPointId"), "g-1")
+
+
+class SharedModelTest(unittest.TestCase):
+    def setUp(self) -> None:
+        _TestApp.get()
+        self.adapter = CourseAdapter()
+        self.adapter.vocab = [
+            {"id": "w-1", "term": "hello", "translation": "你好"},
+            {"id": "w-2", "term": "world", "translation": "世界"},
+        ]
+        self.adapter.grammar_points = [
+            {"id": "g-1", "title": "Grammar 1"},
+        ]
+        self.vocab_model = build_options_model(
+            self.adapter.vocab_options(), placeholder="(未选择)"
+        )
+        self.grammar_model = build_options_model(
+            self.adapter.grammar_options(), placeholder="(未关联)"
+        )
+
+    def test_shared_vocab_model_is_used_when_passed(self) -> None:
+        item = default_interaction("showWord")
+        card = QuestionCard(
+            self.adapter,
+            item,
+            vocab_model=self.vocab_model,
+            grammar_model=self.grammar_model,
+        )
+        combos = card.findChildren(QComboBox)
+        word_combo = None
+        for combo in combos:
+            if combo.model() is self.vocab_model:
+                word_combo = combo
+                break
+        self.assertIsNotNone(word_combo)
+        self.assertEqual(word_combo.model().rowCount(), 3)  # placeholder + 2 words
+
+    def test_multiple_cards_share_the_same_model(self) -> None:
+        item1 = default_interaction("showWord")
+        item2 = default_interaction("showWord")
+        card1 = QuestionCard(
+            self.adapter,
+            item1,
+            vocab_model=self.vocab_model,
+            grammar_model=self.grammar_model,
+        )
+        card2 = QuestionCard(
+            self.adapter,
+            item2,
+            vocab_model=self.vocab_model,
+            grammar_model=self.grammar_model,
+        )
+        shared_models = set()
+        for card in (card1, card2):
+            for combo in card.findChildren(QComboBox):
+                model = combo.model()
+                if model in (self.vocab_model, self.grammar_model):
+                    shared_models.add(model)
+        self.assertEqual(len(shared_models), 2)
+        self.assertIn(self.vocab_model, shared_models)
+        self.assertIn(self.grammar_model, shared_models)
 
 
 if __name__ == "__main__":

@@ -1,9 +1,9 @@
 {
-  "version": 1,
+  "version": 2,
   "project_id": "README_38644b3f",
   "name": "README",
   "created_at": "2026-07-16T14:25:24.554342+00:00",
-  "updated_at": "2026-07-16T14:25:36.795611+00:00",
+  "updated_at": "2026-07-16T18:17:03.466370+00:00",
   "current_step": 2,
   "source_path": "/home/whwen/documents/reso/languageapp/Varnamalaplus/README.md",
   "source_checksum": "906a57848b978f4dc2d246233bbfbf625123a640b001295574e0a2cfb921c3f0",
@@ -192,5 +192,18 @@
       "error": ""
     }
   ],
-  "imported_section_ids": []
+  "imported_section_ids": [],
+  "resource_pool": {
+    "words": [],
+    "expressions": [],
+    "grammarPoints": [],
+    "updated_at": ""
+  },
+  "design": {
+    "chat_history": [],
+    "params": {},
+    "draft_sections": [],
+    "explanation": ""
+  },
+  "import_map": {}
 }

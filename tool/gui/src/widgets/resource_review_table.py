@@ -176,13 +176,6 @@ class ResourceReviewTable(QWidget):
         # not on every filter/search refresh (bookplan2 Phase 6 perf).
         self._table.resizeColumnsToContents()
 
-    def add_row(self, row: ResourceRow) -> None:
-        self._model.rows.append(row)
-        self._rows_signature = ()
-        self._refresh_tag_combo()
-        self._refresh_table()
-        self._table.resizeColumnsToContents()
-
     def kept_rows(self) -> list[tuple[int, str, dict[str, Any]]]:
         """Return ``(chapter_index, resource_type, entry)`` for all checked rows."""
         self._apply_edits_from_table()

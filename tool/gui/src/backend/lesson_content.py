@@ -595,22 +595,22 @@ def clone_lesson_with_fresh_ids(
 
 
 def all_lesson_ids(sections: list[dict[str, Any]]) -> set[str]:
-    ids: set[str] = set()
-    for section in sections:
-        for unit in section.get("units", []):
-            for lesson in unit.get("lessons", []):
-                if lesson.get("id"):
-                    ids.add(lesson["id"])
-    return ids
+    return {
+        lesson["id"]
+        for section in sections
+        for unit in section.get("units", [])
+        for lesson in unit.get("lessons", [])
+        if lesson.get("id")
+    }
 
 
 def all_unit_ids(sections: list[dict[str, Any]]) -> set[str]:
-    ids: set[str] = set()
-    for section in sections:
-        for unit in section.get("units", []):
-            if unit.get("id"):
-                ids.add(unit["id"])
-    return ids
+    return {
+        unit["id"]
+        for section in sections
+        for unit in section.get("units", [])
+        if unit.get("id")
+    }
 
 
 def add_sub_lesson(stage_container: dict[str, Any], name: str = "New sub-lesson") -> dict[str, Any]:
@@ -741,11 +741,8 @@ def switch_runtime_type(item: dict[str, Any], new_runtime_type: str) -> dict[str
         raise ValueError(f"unknown runtimeType: {new_runtime_type}")
 
     new_item = default_interaction(new_runtime_type)
-    old_rt = item.get("runtimeType", "")
-    old_schema = INTERACTION_SCHEMA.get(old_rt, [])
     new_schema = INTERACTION_SCHEMA[new_runtime_type]
     new_field_names = {spec.name for spec in new_schema}
-    old_field_names = {spec.name for spec in old_schema}
 
     # Build a mapping from the new item's canonical field name to the best old value.
     semantic_values: dict[str, Any] = {}

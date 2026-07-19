@@ -76,3 +76,6 @@ dist/
 .trae/
 android/.kotlin/errors/
 *.iml
+
+# Textbook project migration backups (project.v1.json.bak etc.)
+*.bak

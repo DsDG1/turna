@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
+from PySide6.QtGui import QStandardItemModel
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -25,6 +26,7 @@ from PySide6.QtWidgets import (
 
 from src.backend.course_adapter import CourseAdapter
 from src.backend.lesson_content import INTERACTION_SCHEMA, INTERACTION_LABELS
+from src.widgets.option_models import build_options_model, select_by_id
 
 
 class StringListEditor(QWidget):
@@ -93,21 +95,31 @@ class StringListEditor(QWidget):
             self._emit()
 
 
-def _ref_combo(adapter: CourseAdapter, kind: str, current: str) -> QComboBox:
+def _ref_combo(
+    adapter: CourseAdapter,
+    kind: str,
+    current: str,
+    vocab_model: QStandardItemModel | None = None,
+    expression_model: QStandardItemModel | None = None,
+    grammar_model: QStandardItemModel | None = None,
+) -> QComboBox:
     combo = QComboBox()
-    combo.addItem("(无)", "")
     if kind == "ref_word":
-        options = adapter.vocab_options()
+        model = vocab_model
+        options = None if model is not None else adapter.vocab_options()
+        placeholder = "(无)"
     elif kind == "ref_expression":
-        options = adapter.expression_options()
+        model = expression_model
+        options = None if model is not None else adapter.expression_options()
+        placeholder = "(无)"
     else:
-        options = adapter.grammar_options()
-    sel = 0
-    for i, (rid, label) in enumerate(options, start=1):
-        combo.addItem(label, rid)
-        if rid == current:
-            sel = i
-    combo.setCurrentIndex(sel)
+        model = grammar_model
+        options = None if model is not None else adapter.grammar_options()
+        placeholder = "(无)"
+    if model is None:
+        model = build_options_model(options, placeholder=placeholder)
+    combo.setModel(model)
+    select_by_id(combo, model, current)
     return combo
 
 
@@ -119,11 +131,17 @@ class InteractionForm(QWidget):
         adapter: CourseAdapter,
         item: dict[str, Any],
         on_changed: Callable[[], None] | None = None,
+        vocab_model: QStandardItemModel | None = None,
+        expression_model: QStandardItemModel | None = None,
+        grammar_model: QStandardItemModel | None = None,
     ) -> None:
         super().__init__()
         self.adapter = adapter
         self.item = item
         self._on_changed = on_changed
+        self._vocab_model = vocab_model
+        self._expression_model = expression_model
+        self._grammar_model = grammar_model
         rt = item.get("runtimeType", "")
         layout = QVBoxLayout(self)
         title = QLabel(f"题型：{INTERACTION_LABELS.get(rt, rt)}")
@@ -169,7 +187,14 @@ class InteractionForm(QWidget):
             )
             return edit
         if spec.kind in ("ref_word", "ref_expression", "ref_grammar"):
-            combo = _ref_combo(self.adapter, spec.kind, str(value or ""))
+            combo = _ref_combo(
+                self.adapter,
+                spec.kind,
+                str(value or ""),
+                vocab_model=self._vocab_model,
+                expression_model=self._expression_model,
+                grammar_model=self._grammar_model,
+            )
             combo.currentIndexChanged.connect(
                 lambda _i, c=combo, n=spec.name: self._set(n, c.currentData())
             )

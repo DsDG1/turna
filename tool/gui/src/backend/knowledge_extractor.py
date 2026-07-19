@@ -19,11 +19,10 @@ Design notes (verified against existing code):
 """
 from __future__ import annotations
 
-import json
 from typing import Any, Callable, Literal
 
 from src.backend.ai_fixer import extract_json_object
-from src.backend.ai_generator import AiApiConfig, AiCancelled, request_chat
+from src.backend.ai_generator import AiApiConfig, request_chat
 from src.backend.knowledge_prompt import (
     _MAX_CHAPTER_CHARS,
     build_correction_prompt,

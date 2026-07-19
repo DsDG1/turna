@@ -11,7 +11,9 @@ import os
 import re
 import sys
 import uuid
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 # Ensure ``tool/gui`` is on sys.path when this module is imported directly.
 _GUI = Path(__file__).resolve().parents[2]
@@ -22,6 +24,64 @@ from src.backend.textbook_project import TextbookProject
 
 
 _PROJECT_FILE = "project.json"
+_INDEX_FILE = "index.json"
+_INDEX_VERSION = 1
+
+
+@dataclass
+class ProjectSummary:
+    """Lightweight row for the project library list."""
+
+    project_id: str
+    name: str
+    updated_at: str
+    current_step: int
+    language: str
+    source_language: str
+    source_path: str | None
+    has_source: bool
+    imported: bool
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "project_id": self.project_id,
+            "name": self.name,
+            "updated_at": self.updated_at,
+            "current_step": self.current_step,
+            "language": self.language,
+            "source_language": self.source_language,
+            "source_path": self.source_path,
+            "has_source": self.has_source,
+            "imported": self.imported,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "ProjectSummary":
+        return cls(
+            project_id=data.get("project_id", ""),
+            name=data.get("name", ""),
+            updated_at=data.get("updated_at", ""),
+            current_step=data.get("current_step", 0),
+            language=data.get("language", "Turkish"),
+            source_language=data.get("source_language", "Chinese"),
+            source_path=data.get("source_path"),
+            has_source=bool(data.get("has_source", False)),
+            imported=bool(data.get("imported", False)),
+        )
+
+    @classmethod
+    def from_project(cls, project: TextbookProject) -> "ProjectSummary":
+        return cls(
+            project_id=project.project_id,
+            name=project.name,
+            updated_at=project.updated_at,
+            current_step=project.current_step,
+            language=project.language,
+            source_language=project.source_language,
+            source_path=project.source_path,
+            has_source=project.source_path is not None,
+            imported=project.is_fully_imported,
+        )
 
 
 def _safe_name(name: str) -> str:
@@ -94,6 +154,9 @@ class TextbookProjectStore:
     def project_file(self, project_id: str) -> Path:
         return self.project_dir(project_id) / _PROJECT_FILE
 
+    def index_file(self) -> Path:
+        return self.base_dir / _INDEX_FILE
+
     def list_projects(self) -> list[TextbookProject]:
         """Return all stored projects, sorted by most recently updated first."""
         projects: list[TextbookProject] = []
@@ -107,6 +170,74 @@ class TextbookProjectStore:
                 projects.append(project)
         projects.sort(key=lambda p: p.updated_at, reverse=True)
         return projects
+
+    def list_project_summaries(self) -> list[ProjectSummary]:
+        """Return lightweight summaries for the project library.
+
+        Uses a cached ``index.json`` when possible. If a project's
+        ``project.json`` mtime is newer than the cached entry, that project is
+        reloaded individually and the index is rewritten. If the index is
+        missing, corrupt, or out of date, it is rebuilt from a full scan.
+        """
+        summaries: list[ProjectSummary] = []
+        index_path = self.index_file()
+        index_data: dict[str, Any] | None = None
+        if index_path.exists():
+            try:
+                index_data = json.loads(index_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                index_data = None
+
+        if index_data is not None and index_data.get("version") == _INDEX_VERSION:
+            entries = index_data.get("projects", [])
+            stale = False
+            for entry in entries:
+                summary = ProjectSummary.from_dict(entry)
+                project_path = self.project_file(summary.project_id)
+                if not project_path.exists():
+                    stale = True
+                    continue
+                try:
+                    mtime = project_path.stat().st_mtime
+                except OSError:
+                    stale = True
+                    continue
+                cached_mtime = entry.get("_mtime")
+                if cached_mtime is None or mtime > cached_mtime:
+                    project = self.load_project(summary.project_id)
+                    if project is None:
+                        stale = True
+                        continue
+                    summary = ProjectSummary.from_project(project)
+                    stale = True
+                summaries.append(summary)
+            if stale:
+                self._write_index(summaries)
+            summaries.sort(key=lambda s: s.updated_at, reverse=True)
+            return summaries
+
+        # Index missing or unusable: full scan and rebuild.
+        projects = self.list_projects()
+        summaries = [ProjectSummary.from_project(p) for p in projects]
+        self._write_index(summaries)
+        return summaries
+
+    def _write_index(self, summaries: list[ProjectSummary]) -> None:
+        """Atomically rewrite the project index from the given summaries."""
+        index_path = self.index_file()
+        entries = []
+        for summary in summaries:
+            entry = summary.to_dict()
+            project_path = self.project_file(summary.project_id)
+            try:
+                entry["_mtime"] = project_path.stat().st_mtime
+            except OSError:
+                entry["_mtime"] = 0.0
+            entries.append(entry)
+        data = {"version": _INDEX_VERSION, "projects": entries}
+        tmp = index_path.with_suffix(index_path.suffix + ".tmp")
+        tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        os.replace(tmp, index_path)
 
     def load_project(self, project_id: str) -> TextbookProject | None:
         """Load a project by id, or None if missing/corrupt.
@@ -162,6 +293,26 @@ class TextbookProjectStore:
             encoding="utf-8",
         )
         os.replace(tmp, path)
+        self._update_index_for_project(project)
+
+    def _update_index_for_project(self, project: TextbookProject) -> None:
+        """Update or append a single project entry in the index."""
+        index_path = self.index_file()
+        summaries: list[ProjectSummary] = []
+        if index_path.exists():
+            try:
+                data = json.loads(index_path.read_text(encoding="utf-8"))
+                if data.get("version") == _INDEX_VERSION:
+                    summaries = [
+                        ProjectSummary.from_dict(e)
+                        for e in data.get("projects", [])
+                    ]
+            except (OSError, json.JSONDecodeError):
+                pass
+
+        by_id = {s.project_id: s for s in summaries}
+        by_id[project.project_id] = ProjectSummary.from_project(project)
+        self._write_index(list(by_id.values()))
 
     def create_project(
         self,
@@ -192,4 +343,25 @@ class TextbookProjectStore:
         import shutil
 
         shutil.rmtree(project_dir)
+        self._remove_from_index(project_id)
         return True
+
+    def _remove_from_index(self, project_id: str) -> None:
+        """Remove a project from the index if present."""
+        index_path = self.index_file()
+        if not index_path.exists():
+            return
+        try:
+            data = json.loads(index_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return
+        if data.get("version") != _INDEX_VERSION:
+            return
+        original = data.get("projects", [])
+        filtered = [e for e in original if e.get("project_id") != project_id]
+        if len(filtered) == len(original):
+            return
+        data["projects"] = filtered
+        tmp = index_path.with_suffix(index_path.suffix + ".tmp")
+        tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        os.replace(tmp, index_path)

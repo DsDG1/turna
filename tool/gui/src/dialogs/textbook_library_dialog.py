@@ -23,7 +23,7 @@ from PySide6.QtWidgets import (
 )
 
 from src.backend.textbook_project import TextbookProject
-from src.backend.textbook_project_store import TextbookProjectStore
+from src.backend.textbook_project_store import ProjectSummary, TextbookProjectStore
 
 _STEP_LABELS = [
     "选择教材",
@@ -54,6 +54,7 @@ class TextbookLibraryDialog(QDialog):
         super().__init__(parent)
         self._store = store or TextbookProjectStore()
         self.selected_project: TextbookProject | None = None
+        self._summaries: list[ProjectSummary] = []
         # Embedded mode (P2-2): hosted inside WorkshopWindow as a plain
         # widget — project selection is signalled, never accept()/hide.
         self._embedded = embedded
@@ -112,42 +113,42 @@ class TextbookLibraryDialog(QDialog):
         self._table.itemSelectionChanged.connect(self._update_button_state)
 
     def _refresh_list(self) -> None:
-        self._projects = self._store.list_projects()
-        self._table.setRowCount(len(self._projects))
-        for row, project in enumerate(self._projects):
-            self._table.setItem(row, 0, QTableWidgetItem(project.name))
+        self._summaries = self._store.list_project_summaries()
+        self._table.setRowCount(len(self._summaries))
+        for row, summary in enumerate(self._summaries):
+            self._table.setItem(row, 0, QTableWidgetItem(summary.name))
             source_name = (
-                Path(project.source_path).name
-                if project.source_path
+                Path(summary.source_path).name
+                if summary.has_source
                 else "—（纯 AI 项目）"
             )
             self._table.setItem(row, 1, QTableWidgetItem(source_name))
             step_label = (
-                _STEP_LABELS[project.current_step]
-                if 0 <= project.current_step < len(_STEP_LABELS)
+                _STEP_LABELS[summary.current_step]
+                if 0 <= summary.current_step < len(_STEP_LABELS)
                 else "未知"
             )
             self._table.setItem(row, 2, QTableWidgetItem(step_label))
-            self._table.setItem(row, 3, QTableWidgetItem(project.updated_at[:19].replace("T", " ")))
-            imported = "是" if project.is_fully_imported else "否"
+            self._table.setItem(row, 3, QTableWidgetItem(summary.updated_at[:19].replace("T", " ")))
+            imported = "是" if summary.imported else "否"
             self._table.setItem(row, 4, QTableWidgetItem(imported))
 
-        has_projects = len(self._projects) > 0
+        has_projects = len(self._summaries) > 0
         self._table.setVisible(has_projects)
         self._empty_label.setVisible(not has_projects)
         self._update_button_state()
 
-    def _selected_project(self) -> TextbookProject | None:
+    def _selected_summary(self) -> ProjectSummary | None:
         rows = self._table.selectionModel().selectedRows()
         if not rows:
             return None
         idx = rows[0].row()
-        if 0 <= idx < len(self._projects):
-            return self._projects[idx]
+        if 0 <= idx < len(self._summaries):
+            return self._summaries[idx]
         return None
 
     def _update_button_state(self) -> None:
-        has_selection = self._selected_project() is not None
+        has_selection = self._selected_summary() is not None
         self._continue_btn.setEnabled(has_selection)
         self._delete_btn.setEnabled(has_selection)
 
@@ -268,8 +269,12 @@ class TextbookLibraryDialog(QDialog):
         )
 
     def _on_continue(self) -> None:
-        project = self._selected_project()
+        summary = self._selected_summary()
+        if summary is None:
+            return
+        project = self._store.load_project(summary.project_id)
         if project is None:
+            QMessageBox.critical(self, "打开失败", "无法加载所选项目。")
             return
         if project.source_path and project.source_changed():
             reply = QMessageBox.question(
@@ -286,15 +291,15 @@ class TextbookLibraryDialog(QDialog):
             self.accept()
 
     def _on_delete(self) -> None:
-        project = self._selected_project()
-        if project is None:
+        summary = self._selected_summary()
+        if summary is None:
             return
         reply = QMessageBox.question(
             self,
             "删除项目",
-            f"确定要删除项目「{project.name}」吗？本地项目文件将被一并删除。",
+            f"确定要删除项目「{summary.name}」吗？本地项目文件将被一并删除。",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply == QMessageBox.StandardButton.Yes:
-            self._store.delete_project(project.project_id)
+            self._store.delete_project(summary.project_id)
             self._refresh_list()

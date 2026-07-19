@@ -1,9 +1,9 @@
 {
-  "version": 1,
+  "version": 2,
   "project_id": "未命名项目_915c5d87",
   "name": "未命名项目",
   "created_at": "2026-07-16T15:16:17.497602+00:00",
-  "updated_at": "2026-07-16T15:16:17.497611+00:00",
+  "updated_at": "2026-07-16T18:17:03.445892+00:00",
   "current_step": 0,
   "source_path": null,
   "source_checksum": null,
@@ -110,5 +110,18 @@
       "error": ""
     }
   ],
-  "imported_section_ids": []
+  "imported_section_ids": [],
+  "resource_pool": {
+    "words": [],
+    "expressions": [],
+    "grammarPoints": [],
+    "updated_at": ""
+  },
+  "design": {
+    "chat_history": [],
+    "params": {},
+    "draft_sections": [],
+    "explanation": ""
+  },
+  "import_map": {}
 }

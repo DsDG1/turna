@@ -44,19 +44,6 @@ class ImportStepResult:
         )
 
     @staticmethod
-    def warning(
-        step: StepKind,
-        message: str,
-        details: dict[str, Any] | None = None,
-    ) -> "ImportStepResult":
-        return ImportStepResult(
-            step=step,
-            outcome="warning",
-            message=message,
-            details=details or {},
-        )
-
-    @staticmethod
     def error(
         step: StepKind,
         message: str,

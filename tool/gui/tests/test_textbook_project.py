@@ -14,6 +14,7 @@ from src.backend.knowledge_schema import KnowledgePoints, coerce_knowledge_point
 from src.backend.markdown_chopper import Chapter, split_chapters
 from src.backend.textbook_project import TextbookProject
 from src.backend.textbook_project_store import (
+    ProjectSummary,
     TextbookProjectStore,
     record_imported_sections,
 )
@@ -134,6 +135,70 @@ class TextbookProjectStoreTest(unittest.TestCase):
         self.store.save_project(project)
         loaded = self.store.load_project(project.project_id)
         self.assertEqual(len(loaded.get_chapters()), 1)
+
+
+class ProjectSummaryTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.store = TextbookProjectStore(base_dir=Path(self.tmp.name))
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def test_summaries_created_on_first_call(self) -> None:
+        self.store.create_project(name="First", source_path=None)
+        self.store.create_project(name="Second", source_path=None)
+        summaries = self.store.list_project_summaries()
+        self.assertEqual(len(summaries), 2)
+        self.assertTrue(all(isinstance(s, ProjectSummary) for s in summaries))
+        self.assertTrue(self.store.index_file().exists())
+
+    def test_summaries_sorted_by_updated_desc(self) -> None:
+        self.store.create_project(name="Old", source_path=None)
+        self.store.create_project(name="New", source_path=None)
+        summaries = self.store.list_project_summaries()
+        self.assertEqual([s.name for s in summaries], ["New", "Old"])
+
+    def test_save_updates_index(self) -> None:
+        project = self.store.create_project(name="Before", source_path=None)
+        summaries = self.store.list_project_summaries()
+        self.assertEqual(summaries[0].name, "Before")
+
+        project.name = "After"
+        self.store.save_project(project)
+        summaries = self.store.list_project_summaries()
+        self.assertEqual(summaries[0].name, "After")
+
+    def test_delete_updates_index(self) -> None:
+        p1 = self.store.create_project(name="Keep", source_path=None)
+        p2 = self.store.create_project(name="Drop", source_path=None)
+        self.store.delete_project(p2.project_id)
+        summaries = self.store.list_project_summaries()
+        self.assertEqual(len(summaries), 1)
+        self.assertEqual(summaries[0].project_id, p1.project_id)
+
+    def test_manual_project_change_is_detected_and_healed(self) -> None:
+        project = self.store.create_project(name="Original", source_path=None)
+        self.store.list_project_summaries()  # create index
+
+        # Simulate external edit: rewrite project.json directly.
+        project.name = "Modified"
+        path = self.store.project_file(project.project_id)
+        import json as _json
+
+        data = project.to_dict()
+        path.write_text(_json.dumps(data, ensure_ascii=False), encoding="utf-8")
+
+        summaries = self.store.list_project_summaries()
+        self.assertEqual(summaries[0].name, "Modified")
+
+    def test_corrupt_index_falls_back_to_full_scan(self) -> None:
+        self.store.create_project(name="Recover", source_path=None)
+        self.store.list_project_summaries()  # create index
+        self.store.index_file().write_text("not json", encoding="utf-8")
+        summaries = self.store.list_project_summaries()
+        self.assertEqual(len(summaries), 1)
+        self.assertEqual(summaries[0].name, "Recover")
 
 
 class RecordImportedSectionsTest(unittest.TestCase):

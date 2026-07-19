@@ -1068,6 +1068,7 @@ class CourseAdapter:
             ("vocab", snap["vocab"], self.vocab),
             ("expressions", snap["expressions"], self.expressions),
             ("grammar_points", snap["grammar_points"], self.grammar_points),
+            ("sections", snap["index"].get("sections", []), self.index.get("sections", [])),
         ]:
             before = {e.get("id", "") for e in snap_list if e.get("id")}
             after = {e.get("id", "") for e in cur_list if e.get("id")}
@@ -1076,17 +1077,6 @@ class CourseAdapter:
                 "removed": sorted(before - after),
                 "unchanged_count": len(before & after),
             }
-        before_sec = {
-            s.get("id", "") for s in snap["index"].get("sections", []) if s.get("id")
-        }
-        after_sec = {
-            s.get("id", "") for s in self.index.get("sections", []) if s.get("id")
-        }
-        result["sections"] = {
-            "added": sorted(after_sec - before_sec),
-            "removed": sorted(before_sec - after_sec),
-            "unchanged_count": len(before_sec & after_sec),
-        }
         return result
 
     def release_report(self) -> dict[str, Any]:

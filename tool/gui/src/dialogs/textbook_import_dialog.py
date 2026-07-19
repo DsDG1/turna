@@ -96,6 +96,7 @@ class TextbookImportDialog(QDialog):
         project: TextbookProject | None = None,
         store: TextbookProjectStore | None = None,
         embedded: bool = False,
+        worker_factory=None,
     ) -> None:
         super().__init__(parent)
         self.adapter = adapter
@@ -111,6 +112,7 @@ class TextbookImportDialog(QDialog):
 
         self._controller = TextbookImportController(
             ai_config_fn=self._ai_config,
+            worker_factory=worker_factory,
             on_step_changed=self._on_step_changed,
             on_extract_log=self._on_extract_log,
             on_extract_progress=self._on_extract_progress,
@@ -207,6 +209,12 @@ class TextbookImportDialog(QDialog):
         row.addWidget(self._pick_btn)
         self._picked_label = QLabel("未选择")
         row.addWidget(self._picked_label, 1)
+        self._load_busy_label = QLabel("解析中…（可关闭，进度已自动保存）")
+        self._load_busy_label.setStyleSheet(
+            f"color: {current_palette()['ai_accent']};"
+        )
+        self._load_busy_label.setVisible(False)
+        row.addWidget(self._load_busy_label)
         lay.addLayout(row)
         self._parse_error_label = QLabel("")
         self._parse_error_label.setStyleSheet(f"color: {current_palette()['error']};")
@@ -440,13 +448,9 @@ class TextbookImportDialog(QDialog):
         self._go_to_step(step)
         if result is None:
             return
-        if result.outcome in ("success", "warning"):
-            self._set_busy(False)
-        elif result.outcome == "error":
-            self._set_busy(False)
+        self._set_busy(False)
+        if result.outcome == "error":
             self._show_error_with_recovery(step, result)
-        elif result.outcome == "cancelled":
-            self._set_busy(False)
 
         if step == STEP_CHAPTERS:
             self._show_parse_preview()
@@ -581,7 +585,21 @@ class TextbookImportDialog(QDialog):
 
     def _load_file(self, path: Path) -> None:
         self._picked_label.setText(path.name)
-        result = self._controller.load_file(path)
+        self._parse_error_label.setVisible(False)
+        self._pick_btn.setEnabled(False)
+        self._load_busy_label.setVisible(True)
+
+        result = self._controller.load_file_async(
+            path,
+            on_done=lambda r: self._on_load_done(path, r),
+        )
+        # Validation failures return immediately; restore busy UI here.
+        if result is not None:
+            self._on_load_done(path, result)
+
+    def _on_load_done(self, path: Path, result: ImportStepResult) -> None:
+        self._pick_btn.setEnabled(True)
+        self._load_busy_label.setVisible(False)
         if result.outcome == "error":
             # Load/parse errors are returned, not emitted — surface them here.
             self._show_error_with_recovery(STEP_PICK, result)
@@ -647,50 +665,25 @@ class TextbookImportDialog(QDialog):
             chapter_quality = report.chapter_quality(ci)
             issues = chapter_quality.issues if chapter_quality else []
             if cr.knowledge is not None:
-                for i, w in enumerate(cr.knowledge.words):
-                    row_issues = [
-                        issue
-                        for issue in issues
-                        if issue.resource_type == "word" and issue.resource_index == i
-                    ]
-                    rows.append(
-                        ResourceRow(
-                            chapter_index=ci,
-                            resource_type="word",
-                            entry=w,
-                            issues=row_issues,
+                for rtype, entries in (
+                    ("word", cr.knowledge.words),
+                    ("expression", cr.knowledge.expressions),
+                    ("grammarPoint", cr.knowledge.grammarPoints),
+                ):
+                    for i, entry in enumerate(entries):
+                        row_issues = [
+                            issue
+                            for issue in issues
+                            if issue.resource_type == rtype and issue.resource_index == i
+                        ]
+                        rows.append(
+                            ResourceRow(
+                                chapter_index=ci,
+                                resource_type=rtype,
+                                entry=entry,
+                                issues=row_issues,
+                            )
                         )
-                    )
-                for i, e in enumerate(cr.knowledge.expressions):
-                    row_issues = [
-                        issue
-                        for issue in issues
-                        if issue.resource_type == "expression"
-                        and issue.resource_index == i
-                    ]
-                    rows.append(
-                        ResourceRow(
-                            chapter_index=ci,
-                            resource_type="expression",
-                            entry=e,
-                            issues=row_issues,
-                        )
-                    )
-                for i, g in enumerate(cr.knowledge.grammarPoints):
-                    row_issues = [
-                        issue
-                        for issue in issues
-                        if issue.resource_type == "grammarPoint"
-                        and issue.resource_index == i
-                    ]
-                    rows.append(
-                        ResourceRow(
-                            chapter_index=ci,
-                            resource_type="grammarPoint",
-                            entry=g,
-                            issues=row_issues,
-                        )
-                    )
         self._review_table.set_rows(rows)
         self._populate_chapter_quality_list(report)
         self._refresh_quality_summary(report)
@@ -830,21 +823,16 @@ class TextbookImportDialog(QDialog):
         corrected_words = corrected.get("words", [])
         corrected_exprs = corrected.get("expressions", [])
         corrected_grammar = corrected.get("grammarPoints", [])
-        for r, entry in zip(
-            [r for r in rows if r.resource_type == "word"], corrected_words
+        for rtype, corrected_list in (
+            ("word", corrected_words),
+            ("expression", corrected_exprs),
+            ("grammarPoint", corrected_grammar),
         ):
-            r.entry.clear()
-            r.entry.update(entry)
-        for r, entry in zip(
-            [r for r in rows if r.resource_type == "expression"], corrected_exprs
-        ):
-            r.entry.clear()
-            r.entry.update(entry)
-        for r, entry in zip(
-            [r for r in rows if r.resource_type == "grammarPoint"], corrected_grammar
-        ):
-            r.entry.clear()
-            r.entry.update(entry)
+            for r, entry in zip(
+                [r for r in rows if r.resource_type == rtype], corrected_list
+            ):
+                r.entry.clear()
+                r.entry.update(entry)
         self._controller.apply_review_rows(self._review_table.kept_rows())
         self._populate_review()
 

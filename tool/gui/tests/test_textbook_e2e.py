@@ -67,9 +67,11 @@ class _FakeWorker:
         pass
 
 
-def _fake_worker_factory(result: Any) -> Any:
-    def factory(_target, *_args, **_kwargs):
-        return _FakeWorker(result)
+def _fake_worker_factory(file_text: str, kp: Any) -> Any:
+    def factory(target, *_args, **_kwargs):
+        if target.__name__ == "_read_source_text":
+            return _FakeWorker(file_text)
+        return _FakeWorker(kp)
 
     return factory
 
@@ -89,7 +91,9 @@ class TextbookImportE2ETest(unittest.TestCase):
         _TestApp.get()
         self.dlg = TextbookImportDialog(None, None)
         # Inject fake worker and complete AI config.
-        self.dlg._controller._worker_factory = _fake_worker_factory(_sample_kp())
+        self.dlg._controller._worker_factory = _fake_worker_factory(
+            _sample_md(), _sample_kp()
+        )
         self.dlg._controller._ai_config_fn = lambda: AiApiConfig(
             base_url="http://localhost", api_key="key", model="model"
         )

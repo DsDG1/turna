@@ -5,7 +5,7 @@ validate / lint / 发布工作流。GUI 是 `course_cli` 的图形前端，**校
 所有保存都走 `CourseAdapter.save()` -> `course_cli validate` + `lint`，失败回滚。
 
 > **新手入门**：从零开始的图文步骤指南见 [`docs/authoring/gui-beginner-guide.md`](../../docs/authoring/gui-beginner-guide.md)（无需命令行或 JSON 经验即可使用）。
-> 设计与里程碑见 [`connectplan.md`](./connectplan.md)、[`bookplan2.md`](./bookplan2.md)、[`workshop2.md`](./workshop2.md)。本 README 覆盖安装、运行、测试、打包。
+> 本 README 覆盖安装、运行、测试、打包。
 
 ---
 

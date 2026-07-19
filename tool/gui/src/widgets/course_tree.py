@@ -493,12 +493,11 @@ class CourseTreeWidget(QTreeWidget):
 
     def _selected_refs(self) -> list[tuple[str, str]]:
         """Return (kind, id) refs for every selected tree item, top-down."""
-        refs: list[tuple[str, str]] = []
-        for item in self.selectedItems():
-            ref = item.data(0, 0x0100)
-            if ref is not None:
-                refs.append(ref)
-        return refs
+        return [
+            ref
+            for item in self.selectedItems()
+            if (ref := item.data(0, 0x0100)) is not None
+        ]
 
     def _selected_lesson_ids(self) -> list[str]:
         return [rid for kind, rid in self._selected_refs() if kind == "lesson"]
@@ -588,13 +587,11 @@ class CourseTreeWidget(QTreeWidget):
     def _pick_target_unit(self) -> str | None:
         from PySide6.QtWidgets import QInputDialog
 
-        items: list[tuple[str, str]] = []
-        for section in self.adapter.sections:
-            for unit in section.get("units", []):
-                uid = unit.get("id", "")
-                items.append(
-                    (f"{section.get('name', '')} / {unit.get('name', '')}", uid)
-                )
+        items = [
+            (f"{section.get('name', '')} / {unit.get('name', '')}", unit.get("id", ""))
+            for section in self.adapter.sections
+            for unit in section.get("units", [])
+        ]
         if not items:
             return None
         # Resolve by row index, not label text; suffix duplicate labels so
