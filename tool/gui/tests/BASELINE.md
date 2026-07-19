@@ -10,6 +10,17 @@
   QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests -p "test_*.py"
   ```
 
+## 2026-07-19 代码精简 T4（不改功能）
+
+用例数不变（888 passed, skipped=2）。`commands.py` 三个 QUndoCommand 家族抽基类,undo 正确性由 40 处 redo/undo 测试覆盖。净减约 69 行。
+
+| 基类 | 合并 | 覆盖项 |
+|------|------|--------|
+| `_UpdatePrereqsBase` | 3 个 `UpdateXxxPrereqsCommand` | `_captured` 幂等、self-id 过滤、`_find` 钩子 |
+| `_UpdateMetaBase` | 3 个 `UpdateXxxMetaCommand` | `_sync_index` 钩子(Section 同步 index 条目,顺序 set->sync->emit 保留) |
+| `_MoveInContainerCommand` | 4 个叶子 Move(Item/SubLesson/Stage/ListeningPhase) | `_move` 钩子委托 move_* 函数,容器统一 `self.container` |
+| `_MoveNodeCommand` | MoveUnit/MoveLesson | `_list` 钩子返回 setdefault 列表;MoveSection 保留(3 参签名独特) |
+
 ## 2026-07-19 代码精简 T3（不改功能）
 
 用例数不变（888 passed, skipped=2）。中风险重复抽 helper,行为等价,全量测试通过。净减约 112 行。

@@ -102,21 +102,33 @@ class DeleteItemCommand(QUndoCommand):
         self.signals.changed.emit()
 
 
-class MoveItemCommand(QUndoCommand):
-    def __init__(self, stage: dict[str, Any], from_idx: int, to_idx: int) -> None:
-        super().__init__("移动题目")
-        self.stage = stage
+class _MoveInContainerCommand(QUndoCommand):
+    _label: str
+
+    def __init__(self, container: dict[str, Any], from_idx: int, to_idx: int) -> None:
+        super().__init__(self._label)
+        self.container = container
         self.from_idx = from_idx
         self.to_idx = to_idx
         self.signals = _make_changed()
 
+    def _move(self, container, from_idx, to_idx):
+        raise NotImplementedError
+
     def redo(self) -> None:
-        move_item(self.stage, self.from_idx, self.to_idx)
+        self._move(self.container, self.from_idx, self.to_idx)
         self.signals.changed.emit()
 
     def undo(self) -> None:
-        move_item(self.stage, self.to_idx, self.from_idx)
+        self._move(self.container, self.to_idx, self.from_idx)
         self.signals.changed.emit()
+
+
+class MoveItemCommand(_MoveInContainerCommand):
+    _label = "移动题目"
+
+    def _move(self, container, from_idx, to_idx):
+        move_item(container, from_idx, to_idx)
 
 
 class UpdateFieldCommand(QUndoCommand):
@@ -139,38 +151,18 @@ class UpdateFieldCommand(QUndoCommand):
         self.signals.changed.emit()
 
 
-class MoveSubLessonCommand(QUndoCommand):
-    def __init__(self, content: dict[str, Any], from_idx: int, to_idx: int) -> None:
-        super().__init__("移动教学环节")
-        self.content = content
-        self.from_idx = from_idx
-        self.to_idx = to_idx
-        self.signals = _make_changed()
+class MoveSubLessonCommand(_MoveInContainerCommand):
+    _label = "移动教学环节"
 
-    def redo(self) -> None:
-        move_sub_lesson(self.content, self.from_idx, self.to_idx)
-        self.signals.changed.emit()
-
-    def undo(self) -> None:
-        move_sub_lesson(self.content, self.to_idx, self.from_idx)
-        self.signals.changed.emit()
+    def _move(self, container, from_idx, to_idx):
+        move_sub_lesson(container, from_idx, to_idx)
 
 
-class MoveStageCommand(QUndoCommand):
-    def __init__(self, sub_lesson: dict[str, Any], from_idx: int, to_idx: int) -> None:
-        super().__init__("移动教学步骤")
-        self.sub_lesson = sub_lesson
-        self.from_idx = from_idx
-        self.to_idx = to_idx
-        self.signals = _make_changed()
+class MoveStageCommand(_MoveInContainerCommand):
+    _label = "移动教学步骤"
 
-    def redo(self) -> None:
-        move_stage(self.sub_lesson, self.from_idx, self.to_idx)
-        self.signals.changed.emit()
-
-    def undo(self) -> None:
-        move_stage(self.sub_lesson, self.to_idx, self.from_idx)
-        self.signals.changed.emit()
+    def _move(self, container, from_idx, to_idx):
+        move_stage(container, from_idx, to_idx)
 
 
 class AddListeningPhaseCommand(QUndoCommand):
@@ -214,21 +206,11 @@ class DeleteListeningPhaseCommand(QUndoCommand):
         self.signals.changed.emit()
 
 
-class MoveListeningPhaseCommand(QUndoCommand):
-    def __init__(self, lesson: dict[str, Any], from_idx: int, to_idx: int) -> None:
-        super().__init__("移动听力阶段")
-        self.lesson = lesson
-        self.from_idx = from_idx
-        self.to_idx = to_idx
-        self.signals = _make_changed()
+class MoveListeningPhaseCommand(_MoveInContainerCommand):
+    _label = "移动听力阶段"
 
-    def redo(self) -> None:
-        move_listening_phase(self.lesson, self.from_idx, self.to_idx)
-        self.signals.changed.emit()
-
-    def undo(self) -> None:
-        move_listening_phase(self.lesson, self.to_idx, self.from_idx)
-        self.signals.changed.emit()
+    def _move(self, container, from_idx, to_idx):
+        move_listening_phase(container, from_idx, to_idx)
 
 
 class RenameListeningPhaseCommand(UpdateFieldCommand):
@@ -588,54 +570,45 @@ class MoveSectionCommand(QUndoCommand):
         self.signals.changed.emit()
 
 
-class MoveUnitCommand(QUndoCommand):
-    """Reorder a unit among its siblings within its parent section. Hierarchy
-    preserved (no cross-section move). Undo reverses the swap."""
+class _MoveNodeCommand(QUndoCommand):
+    """Reorder a node among its siblings within its parent. Hierarchy preserved
+    (no cross-parent move). Undo reverses the swap."""
 
-    def __init__(self, adapter, section_id: str, from_idx: int, to_idx: int) -> None:
-        super().__init__("上移/下移 Unit")
+    _label: str
+
+    def __init__(self, adapter, container_id: str, from_idx: int, to_idx: int) -> None:
+        super().__init__(self._label)
         self.adapter = adapter
-        self.section_id = section_id
+        self.container_id = container_id
         self.from_idx = from_idx
         self.to_idx = to_idx
         self.signals = _make_changed()
 
+    def _list(self):
+        raise NotImplementedError
+
     def redo(self) -> None:
-        section = self.adapter.find_section(self.section_id)
-        units = section.setdefault("units", [])
-        CourseAdapter.move_within(units, self.from_idx, self.to_idx)
+        CourseAdapter.move_within(self._list(), self.from_idx, self.to_idx)
         self.signals.changed.emit()
 
     def undo(self) -> None:
-        section = self.adapter.find_section(self.section_id)
-        units = section.setdefault("units", [])
-        CourseAdapter.move_within(units, self.to_idx, self.from_idx)
+        CourseAdapter.move_within(self._list(), self.to_idx, self.from_idx)
         self.signals.changed.emit()
 
 
-class MoveLessonCommand(QUndoCommand):
-    """Reorder a lesson among its siblings within its parent unit. Hierarchy
-    preserved (no cross-unit move). Undo reverses the swap."""
+class MoveUnitCommand(_MoveNodeCommand):
+    _label = "上移/下移 Unit"
 
-    def __init__(self, adapter, unit_id: str, from_idx: int, to_idx: int) -> None:
-        super().__init__("上移/下移 Lesson")
-        self.adapter = adapter
-        self.unit_id = unit_id
-        self.from_idx = from_idx
-        self.to_idx = to_idx
-        self.signals = _make_changed()
+    def _list(self):
+        return self.adapter.find_section(self.container_id).setdefault("units", [])
 
-    def redo(self) -> None:
-        _, unit = self.adapter.find_unit(self.unit_id)
-        lessons = unit.setdefault("lessons", [])
-        CourseAdapter.move_within(lessons, self.from_idx, self.to_idx)
-        self.signals.changed.emit()
 
-    def undo(self) -> None:
-        _, unit = self.adapter.find_unit(self.unit_id)
-        lessons = unit.setdefault("lessons", [])
-        CourseAdapter.move_within(lessons, self.to_idx, self.from_idx)
-        self.signals.changed.emit()
+class MoveLessonCommand(_MoveNodeCommand):
+    _label = "上移/下移 Lesson"
+
+    def _list(self):
+        _, unit = self.adapter.find_unit(self.container_id)
+        return unit.setdefault("lessons", [])
 
 
 def _dedupe_preserve_order(ids: list[str]) -> list[str]:
@@ -1183,170 +1156,128 @@ class AiEditLessonCommand(_ResourceMergeMixin, QUndoCommand):
 # --- Metadata commands ----------------------------------------------------
 
 
-class UpdateSectionMetaCommand(QUndoCommand):
-    """Update a section's name + description (and sync the index entry)."""
+class _UpdateMetaBase(QUndoCommand):
+    """Update a node's name + description. Section subclass also syncs the index entry."""
+
+    _label: str
 
     def __init__(
-        self, adapter, section_id: str, new_name: str, new_description: str
+        self, adapter, node_id: str, new_name: str, new_description: str
     ) -> None:
-        super().__init__("修改 Section 属性")
+        super().__init__(self._label)
         self.adapter = adapter
-        self.section_id = section_id
+        self.node_id = node_id
         self.new_name = new_name
         self.new_description = new_description
         self.old_name: str = ""
         self.old_description: str = ""
         self.signals = _make_changed()
 
+    def _find(self, adapter, node_id):
+        raise NotImplementedError
+
+    def _sync_index(self, name: str, desc: str) -> None:
+        pass
+
     def _apply(self, name: str, desc: str) -> None:
-        section = self.adapter.find_section(self.section_id)
-        section["name"] = name
-        section["description"] = desc
+        node = self._find(self.adapter, self.node_id)
+        node["name"] = name
+        node["description"] = desc
+        self._sync_index(name, desc)
+        self.signals.changed.emit()
+
+    def redo(self) -> None:
+        if not getattr(self, "_captured", False):
+            node = self._find(self.adapter, self.node_id)
+            self.old_name = node.get("name", "")
+            self.old_description = node.get("description", "")
+            self._captured = True  # type: ignore[attr-defined]
+        self._apply(self.new_name, self.new_description)
+
+    def undo(self) -> None:
+        self._apply(self.old_name, self.old_description)
+
+
+class UpdateSectionMetaCommand(_UpdateMetaBase):
+    _label = "修改 Section 属性"
+
+    def _find(self, adapter, node_id):
+        return adapter.find_section(node_id)
+
+    def _sync_index(self, name: str, desc: str) -> None:
         for entry in self.adapter.index.get("sections", []):
-            if entry.get("id") == self.section_id:
+            if entry.get("id") == self.node_id:
                 entry["name"] = name
                 entry["description"] = desc
                 break
-        self.signals.changed.emit()
-
-    def redo(self) -> None:
-        if not getattr(self, "_captured", False):
-            section = self.adapter.find_section(self.section_id)
-            self.old_name = section.get("name", "")
-            self.old_description = section.get("description", "")
-            self._captured = True  # type: ignore[attr-defined]
-        self._apply(self.new_name, self.new_description)
-
-    def undo(self) -> None:
-        self._apply(self.old_name, self.old_description)
 
 
-class UpdateUnitMetaCommand(QUndoCommand):
-    def __init__(
-        self, adapter, unit_id: str, new_name: str, new_description: str
-    ) -> None:
-        super().__init__("修改 Unit 属性")
+class UpdateUnitMetaCommand(_UpdateMetaBase):
+    _label = "修改 Unit 属性"
+
+    def _find(self, adapter, node_id):
+        _section, unit = adapter.find_unit(node_id)
+        return unit
+
+
+class UpdateLessonMetaCommand(_UpdateMetaBase):
+    _label = "修改 Lesson 属性"
+
+    def _find(self, adapter, node_id):
+        _s, _u, lesson = adapter.find_lesson(node_id)
+        return lesson
+
+
+class _UpdatePrereqsBase(QUndoCommand):
+    _field: str
+    _label: str
+
+    def __init__(self, adapter, node_id: str, new_prereqs: list[str]) -> None:
+        super().__init__(self._label)
         self.adapter = adapter
-        self.unit_id = unit_id
-        self.new_name = new_name
-        self.new_description = new_description
-        self.old_name: str = ""
-        self.old_description: str = ""
-        self.signals = _make_changed()
-
-    def _apply(self, name: str, desc: str) -> None:
-        _section, unit = self.adapter.find_unit(self.unit_id)
-        unit["name"] = name
-        unit["description"] = desc
-        self.signals.changed.emit()
-
-    def redo(self) -> None:
-        if not getattr(self, "_captured", False):
-            _section, unit = self.adapter.find_unit(self.unit_id)
-            self.old_name = unit.get("name", "")
-            self.old_description = unit.get("description", "")
-            self._captured = True  # type: ignore[attr-defined]
-        self._apply(self.new_name, self.new_description)
-
-    def undo(self) -> None:
-        self._apply(self.old_name, self.old_description)
-
-
-class UpdateLessonMetaCommand(QUndoCommand):
-    def __init__(
-        self, adapter, lesson_id: str, new_name: str, new_description: str
-    ) -> None:
-        super().__init__("修改 Lesson 属性")
-        self.adapter = adapter
-        self.lesson_id = lesson_id
-        self.new_name = new_name
-        self.new_description = new_description
-        self.old_name: str = ""
-        self.old_description: str = ""
-        self.signals = _make_changed()
-
-    def _apply(self, name: str, desc: str) -> None:
-        _s, _u, lesson = self.adapter.find_lesson(self.lesson_id)
-        lesson["name"] = name
-        lesson["description"] = desc
-        self.signals.changed.emit()
-
-    def redo(self) -> None:
-        if not getattr(self, "_captured", False):
-            _s, _u, lesson = self.adapter.find_lesson(self.lesson_id)
-            self.old_name = lesson.get("name", "")
-            self.old_description = lesson.get("description", "")
-            self._captured = True  # type: ignore[attr-defined]
-        self._apply(self.new_name, self.new_description)
-
-    def undo(self) -> None:
-        self._apply(self.old_name, self.old_description)
-
-
-class UpdateSectionPrereqsCommand(QUndoCommand):
-    def __init__(self, adapter, section_id: str, new_prereqs: list[str]) -> None:
-        super().__init__("修改 Section 先修")
-        self.adapter = adapter
-        self.section_id = section_id
+        self.node_id = node_id
         self.new_prereqs = list(new_prereqs)
         self.old_prereqs: list[str] = []
         self.signals = _make_changed()
 
+    def _find(self, adapter, node_id):
+        raise NotImplementedError
+
     def redo(self) -> None:
-        section = self.adapter.find_section(self.section_id)
+        node = self._find(self.adapter, self.node_id)
         if not self.old_prereqs and not getattr(self, "_captured", False):
-            self.old_prereqs = list(section.get("prerequisiteSectionIds", []))
+            self.old_prereqs = list(node.get(self._field, []))
             self._captured = True  # type: ignore[attr-defined]
-        section["prerequisiteSectionIds"] = [p for p in self.new_prereqs if p != self.section_id]
+        node[self._field] = [p for p in self.new_prereqs if p != self.node_id]
         self.signals.changed.emit()
 
     def undo(self) -> None:
-        section = self.adapter.find_section(self.section_id)
-        section["prerequisiteSectionIds"] = list(self.old_prereqs)
+        node = self._find(self.adapter, self.node_id)
+        node[self._field] = list(self.old_prereqs)
         self.signals.changed.emit()
 
 
-class UpdateUnitPrereqsCommand(QUndoCommand):
-    def __init__(self, adapter, unit_id: str, new_prereqs: list[str]) -> None:
-        super().__init__("修改 Unit 先修")
-        self.adapter = adapter
-        self.unit_id = unit_id
-        self.new_prereqs = list(new_prereqs)
-        self.old_prereqs: list[str] = []
-        self.signals = _make_changed()
+class UpdateSectionPrereqsCommand(_UpdatePrereqsBase):
+    _field = "prerequisiteSectionIds"
+    _label = "修改 Section 先修"
 
-    def redo(self) -> None:
-        _section, unit = self.adapter.find_unit(self.unit_id)
-        if not self.old_prereqs and not getattr(self, "_captured", False):
-            self.old_prereqs = list(unit.get("prerequisiteUnitIds", []))
-            self._captured = True  # type: ignore[attr-defined]
-        unit["prerequisiteUnitIds"] = [p for p in self.new_prereqs if p != self.unit_id]
-        self.signals.changed.emit()
-
-    def undo(self) -> None:
-        _section, unit = self.adapter.find_unit(self.unit_id)
-        unit["prerequisiteUnitIds"] = list(self.old_prereqs)
-        self.signals.changed.emit()
+    def _find(self, adapter, node_id):
+        return adapter.find_section(node_id)
 
 
-class UpdateLessonPrereqsCommand(QUndoCommand):
-    def __init__(self, adapter, lesson_id: str, new_prereqs: list[str]) -> None:
-        super().__init__("修改 Lesson 先修")
-        self.adapter = adapter
-        self.lesson_id = lesson_id
-        self.new_prereqs = list(new_prereqs)
-        self.old_prereqs: list[str] = []
-        self.signals = _make_changed()
+class UpdateUnitPrereqsCommand(_UpdatePrereqsBase):
+    _field = "prerequisiteUnitIds"
+    _label = "修改 Unit 先修"
 
-    def redo(self) -> None:
-        _s, _u, lesson = self.adapter.find_lesson(self.lesson_id)
-        if not self.old_prereqs and not getattr(self, "_captured", False):
-            self.old_prereqs = list(lesson.get("prerequisiteLessonIds", []))
-            self._captured = True  # type: ignore[attr-defined]
-        lesson["prerequisiteLessonIds"] = [p for p in self.new_prereqs if p != self.lesson_id]
-        self.signals.changed.emit()
+    def _find(self, adapter, node_id):
+        _section, unit = adapter.find_unit(node_id)
+        return unit
 
-    def undo(self) -> None:
-        _s, _u, lesson = self.adapter.find_lesson(self.lesson_id)
-        lesson["prerequisiteLessonIds"] = list(self.old_prereqs)
-        self.signals.changed.emit()
+
+class UpdateLessonPrereqsCommand(_UpdatePrereqsBase):
+    _field = "prerequisiteLessonIds"
+    _label = "修改 Lesson 先修"
+
+    def _find(self, adapter, node_id):
+        _s, _u, lesson = adapter.find_lesson(node_id)
+        return lesson
