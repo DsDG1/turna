@@ -1,343 +1,385 @@
-# Varnamala Course Editor GUI
+# Varnamala Course Editor GUI (语言课程图形编辑器)
 
-基于 PySide6 的本地课程编辑器，配合 [`tool/course_cli.py`](../course_cli.py) 做
-validate / lint / 发布工作流。GUI 是 `course_cli` 的图形前端，**校验单一来源**：
-所有保存都走 `CourseAdapter.save()` -> `course_cli validate` + `lint`，失败回滚。
+`Varnamala GUI` 是基于 **PySide6** 开发的高效、本地化二语习得（SLA）课程编辑器。它是底层 CLI 工具 [`tool/course_cli.py`](../course_cli.py) 的图形前端，结合严格的结构校验与 AI 辅助能力，为课程创作者提供可视化设计、教材智能化提取、资源集中管理、交互审校与一键发布的全流程解决方案。
 
-> **新手入门**：从零开始的图文步骤指南见 [`docs/authoring/gui-beginner-guide.md`](../../docs/authoring/gui-beginner-guide.md)（无需命令行或 JSON 经验即可使用）。
-> 本 README 覆盖安装、运行、测试、打包。
+> 💡 **新手快速入门**：若您是初次使用的课程创作者或教师，无需命令行背景，可参考 [图形界面新手指南](../../docs/authoring/gui-beginner-guide.md)。  
+> 🛠️ **开发者与高级用户**：本 README 涵盖安装运行、主界面使用、课程工坊（AI 创作中心）全流程、架构设计、测试与打包指南。
 
 ---
 
-## 课程设计的语言学依据
+## 目录
 
-本编辑器并非通用的 JSON 编辑器，而是围绕语言教学的内在逻辑构建了结构化的内容模型。以下是课程数据模型背后的核心语言学与应用语言学考量，理解这些有助于更有效地使用本工具。
-
-### 课程模板（Lesson Template）的习得依据
-
-6 种模板对应了二语习得中不同阶段的学习活动类型：
-
-| 模板 | 习得功能 | 对应的 SLA 概念 |
-|---|---|---|
-| **intro** | 建立词汇的形式—意义映射 | 附带习得（incidental learning）的启动阶段；Nation 的"形式—意义—使用"三角 |
-| **practice** | 在受控语境中巩固，推动陈述性知识→程序性技能的转化 | Skill Acquisition Theory（DeKeyser, 2007）；输出假说（Swain, 1985）——输出迫使学习者从语义加工转向句法加工 |
-| **listening** | 训练音位解码（phonological decoding）与自下而上加工 | 输入假说（Krashen, 1985）；音位工作记忆在 L2 听力中的作用（Vandergrift & Goh, 2012） |
-| **reading** | 训练自上而下的篇章理解策略，培养附带词汇习得 | 附带词汇习得假说（Nagy, Herman & Anderson, 1985）；交互式阅读模型 |
-| **review** | 间隔交错复习，对抗遗忘曲线 | 间隔效应（Ebbinghaus, 1885）；交错练习效应（Rohrer & Taylor, 2007） |
-| **mastery** | 多技能并行调用，模拟真实交际场景 | 自动化理论（automaticity）；交际语言教学（CLT）的终极产出目标 |
-
-在实际编辑中，选择模板即决定了 `Lesson` 的顶层结构（有无 `listeningPhases`、`readingPassage`、`subLessons` 等），编辑器会根据模板字段动态切换可编辑区域，从而在 UI 层面防止结构非法。
-
-### 题型分类与认知负荷
-
-12 种题型可按认知深度分为三个层次，在设计中应注意同一课内题型梯度的合理性：
-
-- **识别层**（低认知负荷）：`showWord`、`multipleChoice`、`multiSelect`、`listenAndPick`——学习者仅需辨认正答，适合新内容的首次接触。
-- **回忆层**（中认知负荷）：`fillBlank`、`typeTheWord`、`listenOnly`——需要从记忆中提取目标形式，是最典型的检索练习。
-- **产出层**（高认知负荷）：`translateSentence`、`reorderSentence`、`readingShortAnswer`——需要组织完整的语言输出，涉及句法加工与语用判断。
-
-这一梯度设计遵循了**支架式教学**（scaffolding）的原则：从高度结构化的识别任务开始，逐步撤除支架，最终过渡到自主产出。
-
-### 听力阶段的"呈现—练习—语境"三段式
-
-`listening` 模板中的 `ListeningPhase` 支持 `debut → main → fin` 三段式，这一结构来源于听力教学中的"三阶段"框架（pre-listening / while-listening / post-listening）：
-
-- **debut（开场）**：激活背景知识，设定听力目标（相当于 pre-listening）。
-- **main（主音频 + BGM）**：核心听力输入，可叠加背景音模拟真实场景（相当于 while-listening 的扩展——加入环境音有助于训练学习者在噪音中的语音感知能力）。
-- **fin（结尾）**：总结或过渡（相当于 post-listening）。
-
-与混音流水线配合（见项目根 README 的「听力音频生成」节），每个阶段可有 A/B/C 多套 variant，增加同一课程的重复可玩性而无需重复编写内容。
-
-### CEFR 分级的编辑约束
-
-课程的 `level` 字段应反映 CEFR 等级（A1–C2），且 section 之间通过 `prerequisiteSectionIds` 建立前置依赖链。编辑时应遵循以下原则：
-
-- **词汇量与等级匹配**：A1 约 500–800 词族，A2 约 1000–1500，B1 约 2000–2500，B2 约 3000–4000（Milton, 2009）。
-- **语法复杂度递进**：A1 阶段以现在时、简单句为主；B1 开始引入从句与复杂时态；B2 涉及语篇衔接与语体变化。
-- **题型比例随等级调整**：低等级以识别层题型为主（建立信心与基础映射），中高等级逐步增加产出层比例（推动程序化与自动化）。
-
-### 词汇、表达与语法点的资源分离
-
-本编辑器将课程拆分为三类可复用资源——`vocab`（词汇）、`expressions`（固定表达）、`grammar_points`（语法点）——而非将语言内容内嵌在每道题中。这种分离体现了**语料库语言学**中"词汇—语法连续体"（lexicogrammar continuum）的思想：单个词汇在不同搭配中有不同语法行为，同一语法点在不同词汇上表现不同。将二者建模为独立实体并以引用关联，使内容可跨课复用、可批量更新，也便于从资源维度进行覆盖度分析（如：某个语法点是否缺少足够的练习课？）。
+- [核心功能特性](#核心功能特性)
+- [环境要求与安装运行](#环境要求与安装运行)
+  - [环境准备](#环境准备)
+  - [启动运行](#启动运行)
+- [主界面与功能使用指南](#主界面与功能使用指南)
+  - [1. 工具栏 (Toolbar)](#1-工具栏-toolbar)
+  - [2. 课程树状导航 (Course Tree)](#2-课程树状导航-course-tree)
+  - [3. 课时编辑器与可视化蓝图 (Lesson Editor & Blueprint)](#3-课时编辑器与可视化蓝图-lesson-editor--blueprint)
+  - [4. 语言资源库管理 (Resource Editor)](#4-语言资源库管理-resource-editor)
+  - [5. 课程总览与教师模式 (Overview & Teacher Mode)](#5-课程总览与教师模式-overview--teacher-mode)
+  - [6. 设置与偏好管理 (Settings)](#6-设置与偏好管理-settings)
+- [课程工坊 (AI 创作中心) 全流程指南](#课程工坊-ai-创作中心-全流程指南)
+  - [0. 双轨道项目类型](#0-双轨道项目类型)
+  - [1. 阶段一：项目与素材准备 (Material)](#1-阶段一项目与素材准备-material)
+  - [2. 阶段二：知识点智能抽取与审校 (Knowledge)](#2-阶段二知识点智能抽取与审校-knowledge)
+  - [3. 阶段三：接地式 AI 课程设计 (Grounded Design)](#3-阶段三接地式-ai-课程设计-grounded-design)
+  - [4. 阶段四：结构化审校与试做 (Review)](#4-阶段四结构化审校与试做-review)
+  - [5. 阶段五：幂等合并导入 (Import)](#5-阶段五幂等合并导入-import)
+  - [6. 高级特性 (Genre 标签 / Prompt 库 / 附件支持 / 自动保存断点续作)](#6-高级特性-genre-标签--prompt-库--附件支持--自动保存断点续作)
+- [技术架构与四项设计约束](#技术架构与四项设计约束)
+  - [模块目录映射](#模块目录映射)
+  - [四项核心设计约束](#四项核心设计约束)
+- [版本发布与音频校验 (Publishing)](#版本发布与音频校验-publishing)
+- [测试套件与打包构建](#测试套件与打包构建)
+  - [单元与集成测试](#单元与集成测试)
+  - [PyInstaller 独立构建](#pyinstaller-独立构建)
+- [附录：二语习得 (SLA) 语言学设计依据](#附录二语习得-sla-语言学设计依据)
 
 ---
 
-## 安装
+## 核心功能特性
 
-需要 Python 3.11+。
+- 🌳 **三级课程树直观编排**：支持 `Section` (章节) -> `Unit` (单元) -> `Lesson` (课时) 的层级化展示，提供拖拽排序、批量复制/移动、删除与预设套用。
+- 🎨 **可视化蓝图与表单引擎**：针对不同课时模板（`intro` / `practice` / `listening` / `reading` / `review` / `mastery`）提供动态属性表单与可视化编排蓝图。
+- 🤖 **课程工坊（AI 创作流水线）**：全功能非模态 AI 协同创作窗口，支持解析 PDF/Word/TXT/图片等素材，自动提取词汇/语法点，接地（Grounded）生成结构化课程。
+- 📦 **语言资源独立建模**：词汇 (`vocab`)、固定表达 (`expressions`) 与语法点 (`grammar_points`) 集中化表格管理，支持 CSV 导入导出与引用依赖检测。
+- 🛡️ **单一校验源与保存回滚**：编辑器本身不另外定义校验规则，完全对接 `course_cli validate & lint`。保存时校验失败将自动恢复内存与磁盘文件，保障课程数据安全。
+- 🎓 **教师预览与试做模式**：可切换为教师视图进行课程结构审查，并对编写的课时进行实时交互测试。
+- 🚀 **版本控制与发布工作流**：整合版本 Bump、音频 Manifest 挂载检查、Diff 差异比对及发布报告一键生成。
+
+---
+
+## 环境要求与安装运行
+
+### 环境准备
+
+- **Python 版本**：Python 3.11 或更高版本。
+- **系统支持**：Windows / macOS / Linux。
+
+安装所需依赖依赖项：
 
 ```bash
 pip install PySide6 PyPDF2 python-docx
 ```
 
-> TRAE 沙箱因 `WinError 5` 无法 pip 安装 PySide6，GUI 启动与打包请在本地终端进行。
-> 后端逻辑（adapter / course_cli / ai_generator / attachment_extractor）无 PySide6 依赖，测试可在沙箱跑。
+> ⚠️ **沙箱开发提示**：若在 TRAE/VS Code 受限沙箱中遇到 `WinError 5` 无法安装 PySide6，请切换至本机系统终端运行 GUI 界面与打包命令。后端核心无 PySide6 依赖，单元测试仍可在沙箱环境中正常执行。
 
----
+### 启动运行
 
-## 运行
-
-在仓库根目录：
+在项目根目录下执行以下命令：
 
 ```bash
 python -m tool.gui.src.main
 ```
 
-启动后点击工具栏「打开」选择课程目录（如 `assets/courses/turkish/`）。
-
-### 工具栏功能
-
-| 按钮 | 功能 | 里程碑 |
-|------|------|--------|
-| 课程仓库 | 新建课程目录 / 打开课程目录 / 最近仓库 / 清除历史 | 新增 |
-| 保存 | 写盘 + validate + lint，失败回滚 | M1 |
-| 课程工坊 | 一站式课程创作：教材导入 → 知识点提取 → AI 设计 → 审校 → 导入；空白 AI 项目直达设计；全程自动保存、随时关闭续作 | 一体化 |
-| 总览 | 课程结构鸟瞰（Section/Unit/Lesson 芯片，点击定位） | 新增 |
-| 资源库 | 本地资源（vocab / expressions / grammar_points 表格 + CSV）/ Git 资源库 | M3 |
-| 发布 | version bump + audio-manifest + diff + 清单报告 | M4 |
-| 教师模式 | 教师视图（模板化编辑、试做） | 新增 |
-| 设置 | 主题、UI 字体缩放、AI 配置、撤销步数、自动保存、最近仓库历史 | 新增 |
-
-> 「向导建课」已并入课程树右键与「新建课时」对话框（功能课向导）；旧的「AI 生成课程」「导入教材」两个 Beta 入口已合并进课程工坊。
-
-### 设置
-
-点击工具栏「设置」打开设置对话框，所有偏好项保存在 `QSettings("Varnamala", "CourseEditor")` 中，重启后生效：
-
-- **外观**：切换深色/浅色主题；调整 UI 字体缩放（80%–150%，仅字体，整体窗口缩放由系统 DPI 控制）。
-- **AI 配置**：选择供应商预设（DeepSeek / OpenAI / Moonshot / Ollama / 自定义），自动填充 Base URL 与默认模型；可启用 reasoning、调整请求超时（5–600 秒）、生成温度（0.0–2.0）与自动重试次数（0–5）。填写完成后可使用「测试连接」发送 1-token 请求立即验证。**API Key 仅在当前会话内存中保留，关闭编辑器后自动清空；Base URL、Model 等配置会持久化。**
-- **AI 用量**：查看今日/累计 token、请求数、估算成本与成功率；可刷新、打开日志目录或清空本地记录。
-- **编辑器行为**：
-  - 自动保存：关闭窗口时若有未保存更改，自动保存而不再弹窗确认。
-  - 撤销步数上限：10–500，修改后立即生效。
-- **最近仓库历史**：查看、删除单条或清空全部历史。
-
-### 编辑能力
-
-- **左侧树**：section / unit / lesson 三级，右键新增/删除；多选支持批量复制/移动/删除/套用预设，快捷键 Ctrl+D / Delete / F2 / Ctrl+↑↓
-- **元数据**：name / description / prerequisite（多选勾选框，同层同类）
-- **Lesson 内容**：6 种模板（intro/practice/review/mastery/listening/reading），
-  12 种题型动态表单；功能课（listening/reading/mastery）默认使用可视化蓝图编辑
-- **课程工坊**（唯一 AI 入口，详见下文「课程工坊使用指南」）：
-  - **教材项目**：素材 → 知识（提取+审校）→ 设计 → 审校 → 导入，阶段可回跳。
-  - **空白 AI 项目**：无教材自由创作，打开直达设计阶段——这就是原「AI 生成课程」。
-  - **随时中断**：任意时刻直接关窗（含生成/提取进行中），草稿、聊天、勾选、阶段位置全部自动保存；重开工坊自动回到上次项目与阶段，无限次续作。
-- **AI 编辑**：课程树右键「AI 编辑此 Section/Unit/Lesson」（edit 模式，独立对话框，不走工坊）。
-- **资源表**：直接编辑内存，CSV 仅作运输工具；保存时写 JSON + 校验
+启动后可点击工具栏的 **「课程仓库 → 打开课程目录」** 选择本地课程目录（例如：`assets/courses/turkish/`）。
 
 ---
 
-## 测试
+## 主界面与功能使用指南
 
-```bash
-cd tool/gui
+界面布局由顶部工具栏、左侧课程树状导航、右侧详情/编辑器面板以及底部状态栏组成。
 
-# 后端逻辑 + GUI 逻辑测试（无需真实显示，offscreen 即可，无需 PySide6 显示服务器）
-QT_QPA_PLATFORM=offscreen python -m pytest tests/ --ignore=tests/test_app.py -q
-# 期望：405 passed（详见 tests/BASELINE.md）
-
-# 完整 GUI 测试（需本机图形环境或可用 offscreen 的 PySide6）
-python -m pytest tests/test_app.py -q
-
-# GUI -> CLI round-trip（M5.1，用 Turkish 课程做 fixture）
-python test/tool/gui_round_trip_test.py -v
-# 期望：5 passed
-
-# CLI 回归
-python -m unittest discover -s test -p "*_cli_test.py"
-# 期望：7 passed
+```
++-----------------------------------------------------------------------------------+
+|  [课程仓库] [保存] [课程工坊] [总览] [资源库] [发布] [教师模式] [设置]            |
++------------------------------------+----------------------------------------------+
+| 课程结构树                         | 详情面板                                     |
+| ├── Section 1: 基础起步             |  ┌────────────────────────────────────────┐  |
+| │   ├── Unit 1: 问候与介绍         |  │ 元数据表单 (名称 / 描述 / 前置依赖)      │  |
+| │   │   ├── Lesson 1 (intro)       |  └────────────────────────────────────────┘  |
+| │   │   └── Lesson 2 (practice)    |  ┌────────────────────────────────────────┐  |
+| │   └── Unit 2: 数字与时间         |  │ Lesson 编辑器 / 题型表单 / 可视化蓝图     │  |
+| └── Section 2: 日常生活             |  └────────────────────────────────────────┘  |
++------------------------------------+----------------------------------------------+
+| 状态栏: 就绪 | AI 校验防护激活中 | 当前路径: /assets/courses/turkish                |
++-----------------------------------------------------------------------------------+
 ```
 
-后端逻辑测试（adapter / course_cli / ai_generator 纯函数）不导入 PySide6；完整 GUI 测试与烟测需要 PySide6。
-GUI 烟测需本机手动，清单见 [`docs/authoring/teacher-usability-checklist.md`](../docs/authoring/teacher-usability-checklist.md)。
+### 1. 工具栏 (Toolbar)
+
+| 按钮 | 功能说明 | 快捷键 / 备注 |
+|---|---|---|
+| **课程仓库** | 打开新仓库 / 新建课程目录 / 浏览最近使用过的仓库 / 清空打开历史 | 自动记录前 10 个历史路径 |
+| **保存** | 将当前修改写盘，自动触发 `course_cli validate` 和 `lint` 校验；校验失败自动回滚 | `Ctrl+S` |
+| **课程工坊** | 启动一站式 AI 协同创作窗口（从教材提取、AI 设计、审校到幂等导入） | 非模态窗口，可并行操作 |
+| **总览** | 弹出全局课程结构鸟瞰图（展示 Section / Unit / Lesson 统计，点击芯片直达对应节点） | 适合大颗粒度可视化跳转 |
+| **资源库** | 开启本地词汇 (`vocab`)、表达 (`expressions`) 与语法点 (`grammar_points`) 编辑表格 | 支持 CSV 一键导出/导入 |
+| **发布** | 执行版本 Bump、音效 Manifest 挂载检查、Diff 差异生成与报告导出 | 发布上线准备工具 |
+| **教师模式** | 切换为教师审查视角，提供课时结构化呈现与实时交互试做体验 | 快速验证学员交互体验 |
+| **设置** | 配置全局主题、字体缩放、AI 接口服务（Base URL / Model / Key）、撤销步数与用量监控 | 全局持久化配置 |
+
+### 2. 课程树状导航 (Course Tree)
+
+左侧树展示 `Section` -> `Unit` -> `Lesson` 的三级包含关系：
+- **右键菜单**：
+  - **新增**：新增 Section、Unit 或 Lesson（弹出模板选择）。
+  - **AI 编辑此节点**：调出快捷 AI 对话框，针对当前节点提出修改要求。
+  - **套用预设 (Presets)**：为 Lesson 快捷套用预构筑的互动模式与梯度组合。
+  - **批量操作**：支持按住 `Ctrl` 或 `Shift` 选定多个节点进行批量复制、移动或删除。
+- **常用快捷键**：
+  - `Ctrl+D`：快速克隆当前选中的节点。
+  - `Delete`：删除选中节点（附带二次确认提示）。
+  - `F2`：快速重命名当前节点名称。
+  - `Ctrl+↑` / `Ctrl+↓`：上移或下移当前节点排序。
+
+### 3. 课时编辑器与可视化蓝图 (Lesson Editor & Blueprint)
+
+在树状导航中选中具体 Lesson 后，右侧面板展示其内容编辑器：
+
+1. **元数据区域**：编辑 Lesson 的名称、描述以及同层前置依赖 (`prerequisiteLessonIds`)。
+2. **模板类型切换**：可在 `intro` / `practice` / `listening` / `reading` / `review` / `mastery` 之间切换，系统将自动纠正数据规范。
+3. **可视化蓝图 (Blueprint Editor)**：针对 `listening`、`reading` 及 `mastery` 等复杂功能课时，界面提供直观的流程蓝图，可拖拽或点击调整听力阶段 (`ListeningPhase`) 或阅读文章 (`ReadingPassage`) 的段落顺序。
+4. **12 种互动题型列表与表单**：
+   - 动态增删题型卡片，支持拖拽调整顺序。
+   - 每种题型根据 Schema 展现专用输入框：词汇下拉关联选择、多选选项定义、填空文本匹配、音频路径挂载等。
+
+### 4. 语言资源库管理 (Resource Editor)
+
+点击工具栏 **「资源库」** 按钮进入全局资源编辑页面：
+- **三大资源表**：分别查看与修改 `vocab.json` (词汇)、`expressions.json` (常用表达)、`grammar_points.json` (语法点)。
+- **表格列交互**：支持在线新增、删除行以及原地双击编辑。
+- **引用检索与安全删除**：在删除特定词汇或语法点时，系统会自动扫描所有 Lesson 中的引用情况，若存在引用将予以警示。
+- **CSV 交换**：支持批量导出为 CSV 文件供外部 Excel/Translators 编辑，编辑完成后一键导入覆盖或合并。
+
+### 5. 课程总览与教师模式 (Overview & Teacher Mode)
+
+- **全局总览图**：以可视化网格与统计卡片的形态，列出全课程的词汇覆盖率、语法点分布密度以及各 Section 的题型构成比例。
+- **教师试做模式**：点击工具栏 **「教师模式」** 后，可模拟学员在移动端的操作流程，在桌面端直接测试各种互动题型（如单选点击、听音选词、句子重排等），验证答题逻辑与渲染效果。
+
+### 6. 设置与偏好管理 (Settings)
+
+点击 **「设置」** 按钮唤起配置对话框，偏好项自动存储在 `QSettings` 中：
+- **外观风格**：支持在深色 (Dark) 与浅色 (Light) 主题间无缝切换；提供 80%–150% 的 UI 字体缩放调整。
+- **AI 接口配置**：
+  - **供应商预设**：一键填充 DeepSeek、OpenAI、Moonshot、Ollama 等供应商的标准 Base URL 和默认模型。
+  - **安全保护**：API Key **仅在当前会话内存中保存**，关闭应用程序后自动销毁，坚决不写入磁盘；Base URL 与 Model 配置持久化保存。
+  - **参数微调**：可自定义思考过程 (Reasoning)、请求超时时间 (5–600 秒)、生成温度 (0.0–2.0) 及自动重试轮数 (0–5)。
+  - **连接测试**：提供「测试连接」按钮，发送最小 1-token 请求验证配置有效性。
+- **用量与成本分析**：实时查看今日与累计的 Token 消耗量、API 请求次数及按模型价格预估的消费金额。
+- **编辑器行为**：配置全局撤销上限 (10–500 步) 及窗口关闭时是否有未保存更改的自动处理策略。
 
 ---
 
-## 打包（M5.2）
+## 课程工坊 (AI 创作中心) 全流程指南
 
-用 PyInstaller 生成单文件 exe：
+课程工坊是 Varnamala GUI 的核心 AI 协同创作模块。它是一个**非模态的主窗口**，支持与主界面并排操作，内部提供六阶段标准流水线：**项目 → 素材 → 知识 → 设计 → 审校 → 导入**。
 
-```bash
-pip install pyinstaller
-python tool/gui/build_gui.py            # 产出 dist/varnamala-gui.exe
-python tool/gui/build_gui.py --clean    # 先清 build/ dist/
-python tool/gui/build_gui.py --onedir   # onedir 代替 onefile
+```
++---------------------------------------------------------------------------------------------------+
+| 课程工坊 - [教材项目: 土耳其语初级教程]                                                          |
++-------------------+-------------------------------------------------------------------------------+
+| 阶段导航           | 阶段三：接地式 AI 课程设计 (Design Stage)                                      |
+| [1] 项目准备      | ┌───────────────────────────┐ ┌────────────────────────────────────────────┐ |
+| [2] 素材提取      | │ 生成参数控制              │ │ 许愿池与 AI 对话 (支持拖入 PDF/图片/文档) │ |
+| [3] 知识点审校    | │ - 目标等级: A1            │ │ User: 请以"机场出关"为主题设计 2 个单元...  │ |
+| => [4] 课程设计   | │ - 单元数量: 2             │ │ AI: 已读取素材库，正在从词汇池中选取词汇...│ |
+| [5] 结构审校      | │ - 课时/单元: 3            │ └────────────────────────────────────────────┘ |
+| [6] 导入课程树    | │ - 启用 [genre] 多模板     │ ┌────────────────────────────────────────────┐ |
+|                   | └───────────────────────────┘ │ 实时生成的课程结构草稿 (JSON / 预览图)      │ |
++-------------------+-------------------------------------------------------------------------------+
+| 用量消耗: 12,450 tokens (约 $0.02) | 状态: 草稿已自动写盘至 var/textbooks/turkish/project.json   |
++---------------------------------------------------------------------------------------------------+
 ```
 
-spec 文件：[`varnamala_gui.spec`](./varnamala_gui.spec)。
+### 0. 双轨道项目类型
 
-**已知限制**：`course_cli.SOUNDS_DIR` 是相对路径 `assets/sounds`，仅 audio-manifest
-发布步骤使用。打包版 exe 里该路径相对 CWD，audio-manifest 的 status 检查可能全部
-报 missing，除非在仓库根目录运行。核心编辑 / validate / lint / version-bump 不依赖它。
+课程工坊支持两种独立的创作模式：
 
-> PyInstaller 同 PySide6 无法在 TRAE 沙箱安装，exe 产物请在本地验证。
+| 项目模式 | 建立方式 | 适用场景与流水线 |
+|---|---|---|
+| **教材项目 (Textbook Project)** | 在项目库点击「从教材新建…」，选择 PDF/Word/TXT/图片 等素材文件并设置语言对 | 基于已有教材自上而下提取知识点，确保 AI 严谨依照教材词汇进行 Grounded 编排。流水线：素材 → 知识 → 设计 → 审校 → 导入。 |
+| **空白 AI 项目 (Blank Project)** | 在项目库点击「空白 AI 项目」，仅填写项目名称与目标语言 | 无需先备教材，通过自然语言对话与提示词直接脑暴生成全新课程。开局直达设计阶段。 |
+
+> 💾 **自动保存与无缝续作**：无论处于哪一阶段，所有勾选状态、提取到的知识词条、聊天记录与课程草稿均实时自动保存到 `var/textbooks/{项目名}/project.json` 中。作者可随时关闭工坊窗口，重新开启时将完美恢复到上次中断的阶段。
+
+### 1. 阶段一：项目与素材准备 (Material)
+
+1. 拖入或选取教材文本、PDF、Word 或图像素材。
+2. 后端自动解析文档结构，在界面中生成大纲树与内联预览。
+3. 勾选需要参与本期课程制作的章节，选择教材解析预设 (Preset) 并设定抽取并发数。
+
+### 2. 阶段二：知识点智能抽取与审校 (Knowledge)
+
+1. 点击 **「提取知识点」**，系统调用 LLM 逐章智能提取词汇 (`vocab`)、固定表达 (`expressions`) 与语法点 (`grammar_points`)。
+2. 章节卡片实时反馈提取状态与质量指标（🔴/🟡/🟢 标记）。若单章提取失败，可选择“重试本章”、“仅抽词汇”或“跳过本章”。
+3. 在知识审校表格中，作者可直接修改编辑提取出的词汇拼写、释义与语法规则，或使用内置的 **「AI 修复」** 补全缺失项。
+
+### 3. 阶段三：接地式 AI 课程设计 (Grounded Design)
+
+1. **生成参数设定**：设置课程主题、CEFR 等级（A1–C1）、单元数、每单元课时数及默认课时模板。
+2. **Grounded 约束编排**：在教材模式下，AI **强制只能从上阶段提取的资源池中选用词汇与语法点**，防止 AI 凭空捏造不符合教学大纲的超纲词汇。
+3. **许愿池交互 (Wish-list Chat)**：在右侧对话框中通过自然语言提出具体的编排意图（例如：“第一单元聚焦打招呼，前两课使用 intro 模板，最后一课用 review 模板”）。
+4. **流式生成与通俗解释**：点击生成后，JSON 草稿流式写入编辑器，AI 自动在下方附带设计意图与“AI 通俗解释”，协助审查编排逻辑。
+
+### 4. 阶段四：结构化审校与试做 (Review)
+
+1. **结构统计与校验 Chips**：展示生成课程的词汇复现率、各题型数量统计及 `course_cli` 校验标志。
+2. **差异比对 (Diff View)**：若当前生成内容与已有的 Section 同名，系统将生成结构级别的 Diff 差异树，直观展示哪些 Unit/Lesson 进行了新增或修改。
+3. **AI 一键修复**：遇到校验不通过的问题，可点击「AI 修复」，模型将自动读取错误日志并尝试纠正结构，修缮结果实时写回草稿。
+
+### 5. 阶段五：幂等合并导入 (Import)
+
+确认审校无误后，点击 **「导入到课程」** 将内容注入主课程树：
+- **四种导入策略**：
+  1. `合并 (Merge)`：同名 Section/Unit 自动合并，相同 ID 节点更新，新节点追加。
+  2. `跳过已存在 (Skip Existing)`：仅导入课程树中尚不存在的新节点。
+  3. `强制覆盖 (Overwrite)`：清空原有同名 Section 并用本次生成内容替代。
+  4. `仅新增 (Add Only)`：不修改现有节点，全部作为全新节点追加。
+- **批量冲突解决**：遇到冲突章节，通过合并预览表格统一决策，避免频繁弹窗中断。
+- **幂等性保障**：多次执行相同的导入操作不会产生重复的废节点。
+
+### 6. 高级特性
+
+- **`[genre]` 标签多模板批量生成**：在生成参数中开启该开关后，可在提示词或主题中显式插入标签（如 `[intro] 机场词汇 [listening] 报关对话`），AI 将根据标签自动为不同课时分配不同的专业模板。
+- **Prompt 模板库与历史记录**：支持将常用的生成 Spec（语言、等级、单元数、提示词）保存为本地模板；历史下拉框可一键回溯过去的请求参数。
+- **多模态附件支持**：在设计阶段的聊天框中，可直接拖入或粘贴图片、PDF、Word 附件。系统会自动提取文本或处理图像，将其作为临时 Prompt 上下文一同发送给模型。
+- **失败原因自动分析**：生成或校验失败时，提供「AI 分析原因」按钮，调用模型对复杂报错日志进行二次解读，提供人类可读的修复建议。
 
 ---
 
-## 架构
+## 技术架构与四项设计约束
+
+### 模块目录映射
 
 ```
 tool/gui/
 ├── src/
-│   ├── main.py                # 入口
-│   ├── app.py                 # MainWindow + 工具栏
-│   ├── application/
-│   │   ├── commands.py        # 撤销/重做命令
-│   │   └── settings.py        # 用户偏好模型 + QSettings 持久化
-│   ├── backend/
-│   │   ├── course_adapter.py  # 封装 course_cli，save/validate/lint/发布/一键初始化
-│   │   ├── lesson_content.py  # lesson 模板 / 题型 normalize
-│   │   ├── ai_generator.py     # OpenAI 兼容后端 + prompt 构建
-│   │   ├── ai_genre.py         # [genre] 标签 ↔ 模板映射
-│   │   ├── ai_presets.py       # 供应商/模型预设与本地价目表
-│   │   ├── ai_prompt_library.py # prompt 模板库与生成历史
-│   │   ├── ai_stream.py        # SSE 流式解析
-│   │   ├── ai_usage.py         # token/成本估算
-│   │   └── attachment_extractor.py # 附件转 OpenAI content
-│   ├── dialogs/
-│   │   ├── new_lesson_dialog.py
-│   │   ├── workshop_window.py   # 课程工坊（唯一 AI 入口，六阶段 + 续作）
-│   │   ├── ai_generator_dialog.py # AI 编辑（edit 模式薄壳，课程树右键）
-│   │   ├── ai/
-│   │   │   ├── design_panel.py  # 工坊设计页（参数 + 许愿聊天 + 附件 + 模板栏）
-│   │   │   ├── design_controller.py # 设计状态机（grounded 生成 + 解释链）
-│   │   │   └── review_panel.py  # 工坊审校页（预览/diff/试做/AI 修复）
-│   │   ├── init_course_dialog.py # 一键初始化新课程仓库
-│   │   └── settings_dialog.py # 设置面板
-│   └── widgets/
-│       ├── course_tree.py     # 左侧树
-│       ├── detail_panel.py    # 右侧容器
-│       ├── metadata_form.py   # section/unit/lesson 元数据 + prereq 多选
-│       ├── lesson_editor.py   # lesson 内容编辑
-│       ├── interaction_forms.py # 12 题型表单工厂
-│       ├── resource_editor.py # 资源表 + CSV（M3）
-│       └── publish_dialog.py  # 发布对话框（M4）
-├── tests/                     # 后端单元测试
-├── varnamala_gui.spec         # PyInstaller spec（M5.2）
-├── build_gui.py               # 打包脚本（M5.2）
-└── connectplan.md 等          # 设计文档
+│   ├── main.py                   # 程序主入口
+│   ├── app.py                    # MainWindow、主工具栏与中央窗口布局
+│   ├── theme.py                  # 深/浅色主题样式与调色板定义
+│   ├── application/              # 应用层逻辑
+│   │   ├── commands.py           # QUndoStack 撤销/重做命令集
+│   │   ├── settings.py           # 偏好配置模型与持久化保存
+│   │   └── section_import_service.py # 章节导入与冲突解决管线
+│   ├── backend/                  # 后端服务与 CLI 适配层
+│   │   ├── course_adapter.py     # 封装 course_cli，提供 save/validate/lint/发布接口
+│   │   ├── lesson_content.py     # Lesson 模板规整与默认生成器
+│   │   ├── ai_generator.py        # OpenAI 兼容 API 请求适配器与 Prompt 构造
+│   │   ├── ai_presets.py          # LLM 供应商预设与本地计价表
+│   │   ├── ai_prompt_library.py    # Prompt 模板库与使用历史
+│   │   ├── ai_usage.py            # Token 用量与成本估算统计
+│   │   └── attachment_extractor.py# 附件多模态提取 (PDF/Word/TXT/图片)
+│   ├── dialogs/                  # 对话框与独立子窗口
+│   │   ├── workshop_window.py    # 课程工坊（AI 创作中心，六阶段流水线）
+│   │   ├── ai_generator_dialog.py# 树节点 AI 快速编辑对话框
+│   │   ├── init_course_dialog.py # 课程仓库初始化向导
+│   │   ├── settings_dialog.py    # 应用全局配置面板
+│   │   └── ai/                   # 工坊子面板 (Design, Review, Merge)
+│   └── widgets/                  # 可复用 UI 组件
+│       ├── course_tree.py        # 左侧 3 级课程结构树
+│       ├── detail_panel.py       # 右侧属性与内容编辑器容器
+│       ├── metadata_form.py      # Section/Unit/Lesson 元数据表单
+│       ├── lesson_editor.py      # Lesson 属性与可视化蓝图编辑器
+│       ├── interaction_forms.py  # 12 种互动题型动态表单工厂
+│       ├── resource_editor.py    # 词汇/表达/语法点表格与 CSV 导入导出
+│       └── publish_dialog.py     # 课程发布与报告生成对话框
+└── tests/                        # pytest 自动化测试套件
 ```
 
-### 关键约束
+### 四项核心设计约束
 
-- **校验单一来源**：GUI 不另立校验标准，全部走 `course_cli validate` + `lint`。这确保了编辑器不会因前端逻辑偏差而产生在移动端无法正确渲染的课程数据。
-- **JSON 是唯一真理源**：内存编辑 -> save 写 JSON -> CLI 校验。JSON 格式保证了内容的可版本化（git diff 可读）、可脚本批处理（如 `split_course.py` 拆分大型 section）、与 Flutter 端 `CourseLoader` 的无缝对接。
-- **id 不可变**：新增用 `short_id` 生成，不允许重命名 id。id 是跨资源引用的唯一锚点——`wordId`、`expressionId`、`grammarPointId` 在 lesson 中的引用依赖 id 的稳定性。这与语言学数据建模中"形式—意义—使用"三元组的可追溯性需求一致。
-- **保存回滚**：validate 失败时 `_restore_from` 恢复内存 + 重写文件，防止因校验错误导致课程数据损坏。
-
----
-
-## 课程工坊使用指南
-
-课程工坊是唯一的 AI 创作入口（工具栏「课程工坊」，非 modal 窗口，可与主窗口并行操作）。
-六阶段流水线：**项目 → 素材 → 知识 → 设计 → 审校 → 导入**，左侧导航可点击回跳。
-
-### 0. 两种项目
-
-| 项目类型 | 创建方式 | 流程 |
-|---|---|---|
-| 教材项目 | 项目库「从教材新建…」（选 .md/.txt/.pdf + 语言对） | 素材 → 知识 → 设计 → 审校 → 导入 |
-| 空白 AI 项目 | 项目库「空白 AI 项目」（只填名称 + 语言对） | 直达设计阶段，自由生成（原「AI 生成课程」） |
-
-**随时中断、无限次续作**：所有进度（章节勾选、知识点、聊天、草稿、解释、阶段位置）
-实时自动保存到 `var/textbooks/{项目}/project.json`；任意时刻可直接关窗（含生成/提取
-进行中，任务自动取消且已完成部分保留），重开工坊自动回到上次项目与上次阶段。
-
-### 1. 准备
-
-1. 点击工具栏「设置 → AI 配置」：
-   - **供应商预设**：选择 DeepSeek / OpenAI / Moonshot / Ollama 可自动填入 Base URL 与默认模型；选「自定义」则保留手动填写的内容。
-   - **Base URL / API Key / Model**：按需核对或手动填写。**API Key 仅在当前会话内存中保留，关闭编辑器后自动清空**，不会写入磁盘。
-   - **reasoning / 超时 / 温度 / 重试**：DeepSeek 等支持 reasoning 的端点可开启 reasoning 字段；超时与温度影响所有 AI 请求；自动重试次数决定校验失败时最多自动发起几轮修正请求。
-   - **测试连接**：点击后发送 1-token 最小请求，立即确认配置能否连通。
-2. 在「设置 → AI 用量」中可查看今日/累计 token、请求数、估算成本与成功率。
-3. 所有 AI 功能（工坊设计、课程树 AI 编辑、AI 修复、错误分析）均共用这一份配置。
-
-### 2. 素材与知识（教材项目）
-
-1. 素材页：拖入或选择教材文件 → 自动解析、内联预览、勾选章节、选教材类型 preset 与并发数。
-2. 知识页：「提取知识点」逐章 LLM 抽取（可取消，断点续传）；章节质量 🔴🟡🟢 标记，
-   失败章可「重试本章 / 仅抽词汇 / 跳过本章」；审校表格可直接编辑/删除词条、或用「AI 修复」。
-3. 提取完点击「AI 设计课程 →」进入设计阶段；资源池（词汇/表达/语法点）会成为 AI 设计的选词来源。
-
-### 3. 设计
-
-- **参数**：主题、级别（A1–C1）、单元数（1–5）、每单元课时（1–5）、课程模板（mixed/intro/…）、
-  编排意图（自由文本，如"前两章 intro，语法点单独 review 单元"）、额外指令。
-- **许愿聊天**：多轮对话细化需求；「附件」按钮或拖拽可加入图片/PDF/Word/文本作为参考；
-  生成按钮随时可取消。有资源池时 AI 必须从池中选词编排（grounded），空白项目自由生成。
-- **生成后**：草稿流式写入 JSON 编辑器（编辑器内容 = 导入唯一真相），自动追加「AI 通俗解释」；
-  可校验、试做（课时选择器）、恢复 AI 原始输出。
-- 资源池变更后回到设计阶段会提示「建议重新生成」。
-
-### 4. 审校
-
-- 结构化预览（统计卡 + 校验 chips），试做、与现有课程 diff（同 id section 存在时）、
-  AI 修复（修复结果回写设计页编辑器）。
-- 确认后「导入到课程 ↗」，经统一导入管线（合并预览/批量冲突解决）进入课程树。
-
-### 5. 导入（教材项目）
-
-- 策略四选一（合并/跳过已存在/强制覆盖/仅新增），批量预览每个 section 的新增/合并/跳过计数。
-- 冲突章节经批量冲突解决表一次性处理，不再逐章弹窗。
-- 导入成功后「定位到课程树」直接在主窗口选中新 section；项目库「已导入」列同步更新；
-  重复导入同一章节是幂等的（确定性 id 走合并，不产生重复课时）。
-
-### 6. [genre] 多模板批量生成
-
-> 默认关闭，在设计页勾选「启用 [genre] 多模板批量生成」。
-
-- 开启后，在主题或额外指令中插入 genre 标签，例如：`[intro] 旅行词汇 [listening] 餐饮对话`。
-- AI 会按标签为对应单元/课时生成相应模板结构；未标注部分回退到默认回退模板。
-- 可用标签：`[intro]`、`[practice]`、`[review]`、`[listening]`、`[reading]`、`[mastery]`、`[mixed]`。
-- 关闭时所有课时强制使用单一模板，prompt 不注入 genre 映射表，节省 token。
-- **注意**：开启后 prompt 显著变长，消耗大量 token，建议模型支持 1M 上下文。
-
-### 7. Prompt 模板库与历史
-
-- **保存为模板**：在设计页模板栏点击保存，把完整 spec（语言、等级、单元数、课时、模板、genre 开关、extra）存入本地。
-- **应用模板/历史**：模板卡与「历史」下拉一键回填参数；模板按用途（课程生成/知识点提取）分类，
-  提取 prompt 在「设置 → 提取 Prompt」中编辑。
-
-### 8. 附件预览与引用
-
-- 设计页聊天支持图片、PDF、Word、文本附件（按钮或拖入）。
-- 附件以 chip 展示；点击 chip 弹出预览（图片缩略图，文本类显示提取的前 10 万字符）；选中后按 Delete 移除。
-- 附件内容随消息发送；临时文件在发送后/关窗时自动清理。
-
-### 9. 用量面板
-
-- 工坊底栏常驻项目用量（token 与估算成本）；「设置 → AI 用量」有今日/累计明细。
-- 成本按本地价目表估算，标注为「仅供参考，不作为计费依据」。
-
-### 10. AI 失败分析与修正
-
-- 生成失败提供「AI 分析原因」，由模型对错误信息进行二次分析并给出可操作建议。
-- AI 修复对话框成功后，点击「查看 diff」可对比修正前后的结构差异，确认后再决定「应用」或「放弃」。
-- 若生成后结构校验报错且自动重试仍未解决，可在 JSON 编辑器中手动修复，或重新生成。
-
-### 11. 免责声明
-
-主窗口状态栏常驻显示：
-
-> AI 生成内容仅供参考，请作者自行审核其准确性与适用性。
+1. **校验单一来源 (Validation Single Source)**  
+   GUI **绝不自行定义二次校验规则**，所有的内容写盘与保存一律调用 `CourseAdapter.save()`，底层执行 `course_cli validate` 与 `course_cli lint`。保证编辑器产生的数据与终端运行及 Flutter 客户端渲染完全一致。
+2. **JSON 为唯一真相源 (JSON as Ground Truth)**  
+   内存编辑状态在保存时全量写入 JSON 磁盘文件。格式符合版本控制规范（Git Diff 清晰可读），且天然契合自动化脚本处理与移动端解析。
+3. **ID 保持强不可变性 (Immutable IDs)**  
+   新增节点使用 `short_id` 算法生成唯一 ID，系统不允许对现有节点的 ID 进行重命名。ID 是 `wordId`、`grammarPointId` 等引用关系的唯一锚点，ID 不可变保障了引用的长期稳定性。
+4. **保存失败自动回滚 (Atomic Rollback)**  
+   写盘保存并触发校验时，若检测到语法错误或结构非法，保存逻辑会自动调用 `_restore_from` 恢复内存数据并写回历史状态，防止坏数据污染磁盘仓库。
 
 ---
 
-## 一键初始化与最近仓库
+## 版本发布与音频校验 (Publishing)
 
-### 新建课程目录
+当课程内容编辑完成并准备提供给客户端上线时，使用工具栏的 **「发布」** 功能：
 
-1. 点击工具栏「新建课程目录」。
-2. 选择父目录（可在仓库外任意位置），填写课程显示名。
-3. 默认目标语言 `en`、源语言 `Chinese`、3 个 Section、每单元 3 课时。
-4. 点击「初始化」，会在父目录下创建以课程名命名的子目录，生成 `index.json`、`vocab.json`、`expressions.json`、`grammar_points.json` 与 `sections/*.json`。
-5. 样例内容为中教英，用于演示数据结构，仅供参考。
-6. 生成后自动加载到课程树，可直接编辑或保存。
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Author as 课程创作者
+    participant GUI as Varnamala GUI
+    participant Adapter as CourseAdapter
+    participant CLI as course_cli
 
-### 最近仓库
+    Author->>GUI: 点击工具栏「发布」按钮
+    GUI->>Adapter: 触发发布流程 (Publish Process)
+    Adapter->>CLI: 1. 执行 version bump (自动递增版本号)
+    Adapter->>CLI: 2. 扫描 assets/sounds 执行 sound manifest 检查
+    Adapter->>CLI: 3. 校验全体 JSON 与资源文件完整性
+    CLI-->>Adapter: 返回音频缺失列表与 Diff 报告
+    Adapter-->>GUI: 渲染发布结果与 Checklist
+    GUI-->>Author: 展示发布报告导出对话框
+```
 
-- 工具栏「最近仓库」下拉菜单列出最近打开的 10 个课程仓库。
-- 以目录绝对路径去重，新打开的仓库排在列表顶部。
-- 启动时若存在历史记录，会询问是否打开上次使用的仓库。
-- 数据存储在 `QSettings("Varnamala", "CourseEditor")`，路径唯一防止冲突。
+1. **版本自动递增 (Version Bump)**：自动更新课程元数据中的版本号。
+2. **音频清单检测 (Audio Sound Manifest)**：自动核对题目引用的音频路径在 `assets/sounds` 目录下是否存在，生成音频资源补全清单。
+3. **差异与报告导出**：生成详细的 Markdown 版本发布报告，汇总本次发布的变更细节。
+
+---
+
+## 测试套件与打包构建
+
+### 单元与集成测试
+
+GUI 附带了覆盖全面的测试套件（位于 `tool/gui/tests/` 目录）：
+
+```bash
+cd tool/gui
+
+# 1. 运行后端逻辑与界面隔离测试 (Headless / Offscreen 模式，无须图形显示服务器)
+QT_QPA_PLATFORM=offscreen python -m pytest tests/ --ignore=tests/test_app.py -q
+
+# 2. 运行全量 GUI 界面测试 (需图形环境或启用 offscreen 的 PySide6)
+python -m pytest tests/test_app.py -q
+
+# 3. 运行 GUI -> CLI 双向 round-trip 回归集成测试
+python test/tool/gui_round_trip_test.py -v
+
+# 4. 运行底层 CLI 单元测试
+python -m unittest discover -s test -p "*_cli_test.py"
+```
+
+测试基准指标与说明详见 [`tests/BASELINE.md`](./tests/BASELINE.md)。
+
+### PyInstaller 独立构建
+
+项目内置了自动化 PyInstaller 打包脚本，可将 GUI 应用程序打包为独立的单文件可执行程序：
+
+```bash
+# 安装 PyInstaller
+pip install pyinstaller
+
+# 默认构建 (在 dist/ 目录下生成 varnamala-gui 可执行文件)
+python tool/gui/build_gui.py
+
+# 清理构建缓存并重新构建
+python tool/gui/build_gui.py --clean
+
+# 构建目录形式 (onedir 模式，适合调试)
+python tool/gui/build_gui.py --onedir
+```
+
+具体的 PyInstaller 打包配置文件参见 [`varnamala_gui.spec`](./varnamala_gui.spec)。
+
+> 📌 **打包已知说明**：发布阶段的音效清单检测 (`sound-manifest`) 需要访问相对路径 `assets/sounds`。打包后的独立 exe 运行于非仓库根目录时，音效检查可能会提示路径缺失，但核心编辑、保存、校验与发布报告导出功能不受影响。推荐在仓库根目录环境下运行或打包。
+
+---
+
+## 附录：二语习得 (SLA) 语言学设计依据
+
+编辑器的数据结构与交互逻辑围绕二语习得 (Second Language Acquisition, SLA) 的核心规律构建：
+
+1. **6 大模板习得逻辑**：
+   - `intro`（新知引入 / 建立形式-意义映射，Nation 框架）、`practice`（受控操练 / 陈述性向程序性知识转化）、`listening`（听力解码 / 音位训练）、`reading`（语篇阅读 / 附带习得）、`review`（螺旋复习 / 抗遗忘）、`mastery`（综合精通 / 自动化产出）。
+2. **12 种题型与认知梯度**：
+   - **识别层**（低认知负荷，如 `showWord` / `multipleChoice` / `listenAndPick`）
+   - **回忆层**（中认知负荷，如 `fillBlank` / `typeTheWord`）
+   - **产出层**（高认知负荷，如 `translateSentence` / `reorderSentence`）
+   - 遵循**支架式教学** (Scaffolding) 原则，建立课时内的难度阶梯。
+3. **听力三段式 (`debut` → `main` → `fin`)**：
+   - 对应 Pre-listening / While-listening / Post-listening 听力教学框架，主音频支持叠加场景背景音训练环境噪音中的语音感知能力。
+4. **资源独立解耦**：
+   - 词汇 (`vocab`)、固定表达 (`expressions`) 与语法点 (`grammar_points`) 独立建模与 ID 引用，实现跨课复用及语法点覆盖度统计。
