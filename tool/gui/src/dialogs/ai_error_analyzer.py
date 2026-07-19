@@ -27,6 +27,29 @@ from src.dialogs.ai_generator_dialog import AiRequestWorker
 from src.infrastructure.telemetry import telemetry
 
 
+def offer_ai_analysis(
+    parent,
+    title: str,
+    message: str,
+    *,
+    informative_text: str | None = None,
+    default_to_analyze: bool = False,
+) -> bool:
+    """Show a critical dialog with 确定 + 'AI 分析原因'; return True if analyze was clicked."""
+    msg = QMessageBox(parent)
+    msg.setIcon(QMessageBox.Icon.Critical)
+    msg.setWindowTitle(title)
+    msg.setText(message)
+    if informative_text:
+        msg.setInformativeText(informative_text)
+    msg.addButton("确定", QMessageBox.ButtonRole.AcceptRole)
+    analyze_btn = msg.addButton("AI 分析原因", QMessageBox.ButtonRole.ActionRole)
+    if default_to_analyze:
+        msg.setDefaultButton(analyze_btn)
+    msg.exec()
+    return msg.clickedButton() is analyze_btn
+
+
 class AiErrorAnalyzerDialog(QDialog):
     """Analyze an exception with an LLM.
 

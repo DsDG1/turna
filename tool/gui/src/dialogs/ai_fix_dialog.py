@@ -10,7 +10,6 @@ from PySide6.QtWidgets import (
     QDialogButtonBox,
     QHBoxLayout,
     QLabel,
-    QMessageBox,
     QPlainTextEdit,
     QProgressBar,
     QPushButton,
@@ -19,7 +18,7 @@ from PySide6.QtWidgets import (
 
 from src.backend.ai_fixer import build_correction_prompt
 from src.backend.ai_generator import request_correction
-from src.dialogs.ai_error_analyzer import AiErrorAnalyzerDialog
+from src.dialogs.ai_error_analyzer import AiErrorAnalyzerDialog, offer_ai_analysis
 from src.dialogs.ai_generator_dialog import AiRequestWorker
 from src.infrastructure.telemetry import telemetry
 from src.widgets.diff_view import SectionDiffView
@@ -150,14 +149,7 @@ class AiFixDialog(QDialog):
                 "error": message,
             },
         )
-        msg = QMessageBox(self)
-        msg.setIcon(QMessageBox.Icon.Critical)
-        msg.setWindowTitle("修正失败")
-        msg.setText(message)
-        msg.addButton("确定", QMessageBox.ButtonRole.AcceptRole)
-        analyze_btn = msg.addButton("AI 分析原因", QMessageBox.ButtonRole.ActionRole)
-        msg.exec()
-        if msg.clickedButton() == analyze_btn:
+        if offer_ai_analysis(self, "修正失败", message):
             AiErrorAnalyzerDialog.analyze_exception(
                 self,
                 message,

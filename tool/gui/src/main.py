@@ -11,7 +11,7 @@ _GUI_DIR = Path(__file__).resolve().parent.parent
 if str(_GUI_DIR) not in sys.path:
     sys.path.insert(0, str(_GUI_DIR))
 
-from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtWidgets import QApplication
 
 from src.app import MainWindow
 from src.theme import apply_theme
@@ -42,16 +42,11 @@ def _install_excepthook() -> None:
             context={"hook": "sys.excepthook", "fatal": True},
         )
         try:
-            msg = QMessageBox()
-            msg.setIcon(QMessageBox.Icon.Critical)
-            msg.setWindowTitle("未捕获的错误")
-            msg.setText(f"程序遇到错误：{exc_value}")
-            msg.setInformativeText(f"详细信息已写入 {_LOG_FILE}")
-            msg.addButton("确定", QMessageBox.ButtonRole.AcceptRole)
-            analyze_btn = msg.addButton("AI 分析原因", QMessageBox.ButtonRole.ActionRole)
-            msg.setDefaultButton(analyze_btn)
-            msg.exec()
-            if msg.clickedButton() == analyze_btn:
+            from src.dialogs.ai_error_analyzer import offer_ai_analysis
+            if offer_ai_analysis(
+                None, "未捕获的错误", f"程序遇到错误：{exc_value}",
+                informative_text=f"详细信息已写入 {_LOG_FILE}", default_to_analyze=True,
+            ):
                 from src.dialogs.ai_error_analyzer import AiErrorAnalyzerDialog
 
                 dlg = AiErrorAnalyzerDialog(

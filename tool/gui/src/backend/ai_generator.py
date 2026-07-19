@@ -599,6 +599,31 @@ def _draft_json_suffix(draft_json: dict) -> str:
     )
 
 
+def _chat_json(
+    config: AiApiConfig,
+    messages: list[dict[str, Any]],
+    *,
+    temperature: float,
+    timeout: float,
+    cancel_check: Callable[[], bool] | None,
+    on_chunk: Callable[[str], None] | None,
+    usage_callback: Callable[[dict[str, int]], None] | None,
+    response_format: bool = True,
+) -> dict:
+    """request_chat with the standard streaming/usage kwargs (JSON mode by default)."""
+    return request_chat(
+        config,
+        messages,
+        temperature=temperature,
+        response_format={"type": "json_object"} if response_format else None,
+        timeout=timeout,
+        cancel_check=cancel_check,
+        stream=on_chunk is not None,
+        on_chunk=on_chunk,
+        usage_callback=usage_callback,
+    )
+
+
 def _normalize_resources(parsed: dict[str, Any]) -> None:
     """Ensure words/expressions/grammarPoints are lists (default empty)."""
     for key in ("words", "expressions", "grammarPoints"):
@@ -1159,15 +1184,10 @@ def request_alignment_reply(
     api_messages = [
         {"role": "system", "content": build_alignment_prompt(spec)}
     ] + [m.to_api_dict() for m in messages]
-    body = request_chat(
-        config,
-        api_messages,
-        temperature=temperature,
-        timeout=timeout,
-        cancel_check=cancel_check,
-        stream=on_chunk is not None,
-        on_chunk=on_chunk,
-        usage_callback=usage_callback,
+    body = _chat_json(
+        config, api_messages, temperature=temperature, timeout=timeout,
+        cancel_check=cancel_check, on_chunk=on_chunk,
+        usage_callback=usage_callback, response_format=False,
     )
     content = _extract_content(body)
     return content.strip()
@@ -1201,15 +1221,9 @@ def generate_from_chat(
     ] + [m.to_api_dict() for m in messages]
     api_messages.append({"role": "user", "content": generation_prompt})
 
-    body = request_chat(
-        config,
-        api_messages,
-        temperature=temperature,
-        response_format={"type": "json_object"},
-        timeout=timeout,
-        cancel_check=cancel_check,
-        stream=on_chunk is not None,
-        on_chunk=on_chunk,
+    body = _chat_json(
+        config, api_messages, temperature=temperature, timeout=timeout,
+        cancel_check=cancel_check, on_chunk=on_chunk,
         usage_callback=usage_callback,
     )
     return parse_completion(body)
@@ -1240,15 +1254,10 @@ def explain_course(
         {"role": "system", "content": "你是语言课程设计助手，用中文通俗解释课程内容。"},
         {"role": "user", "content": prompt},
     ]
-    body = request_chat(
-        config,
-        api_messages,
-        temperature=temperature,
-        timeout=timeout,
-        cancel_check=cancel_check,
-        stream=on_chunk is not None,
-        on_chunk=on_chunk,
-        usage_callback=usage_callback,
+    body = _chat_json(
+        config, api_messages, temperature=temperature, timeout=timeout,
+        cancel_check=cancel_check, on_chunk=on_chunk,
+        usage_callback=usage_callback, response_format=False,
     )
     content = _extract_content(body, strip=True, empty_msg="AI 未返回解释")
     if not content:
@@ -1430,15 +1439,9 @@ def generate_edit(
         api_messages += [m.to_api_dict() for m in messages]
     api_messages.append({"role": "user", "content": edit_prompt})
 
-    body = request_chat(
-        config,
-        api_messages,
-        temperature=temperature,
-        response_format={"type": "json_object"},
-        timeout=timeout,
-        cancel_check=cancel_check,
-        stream=on_chunk is not None,
-        on_chunk=on_chunk,
+    body = _chat_json(
+        config, api_messages, temperature=temperature, timeout=timeout,
+        cancel_check=cancel_check, on_chunk=on_chunk,
         usage_callback=usage_callback,
     )
     parsed = parse_completion(body)
@@ -1755,15 +1758,9 @@ def request_lesson_transform(
         },
         {"role": "user", "content": prompt},
     ]
-    body = request_chat(
-        config,
-        messages,
-        temperature=temperature,
-        response_format={"type": "json_object"},
-        timeout=timeout,
-        cancel_check=cancel_check,
-        stream=on_chunk is not None,
-        on_chunk=on_chunk,
+    body = _chat_json(
+        config, messages, temperature=temperature, timeout=timeout,
+        cancel_check=cancel_check, on_chunk=on_chunk,
         usage_callback=usage_callback,
     )
     content = _extract_content(body)
@@ -1831,15 +1828,9 @@ def request_item_transform(
         },
         {"role": "user", "content": prompt},
     ]
-    body = request_chat(
-        config,
-        messages,
-        temperature=temperature,
-        response_format={"type": "json_object"},
-        timeout=timeout,
-        cancel_check=cancel_check,
-        stream=on_chunk is not None,
-        on_chunk=on_chunk,
+    body = _chat_json(
+        config, messages, temperature=temperature, timeout=timeout,
+        cancel_check=cancel_check, on_chunk=on_chunk,
         usage_callback=usage_callback,
     )
     content = _extract_content(body)
@@ -1892,15 +1883,9 @@ def request_correction(
         },
         {"role": "user", "content": prompt},
     ]
-    body = request_chat(
-        config,
-        messages,
-        temperature=temperature,
-        response_format={"type": "json_object"},
-        timeout=timeout,
-        cancel_check=cancel_check,
-        stream=on_chunk is not None,
-        on_chunk=on_chunk,
+    body = _chat_json(
+        config, messages, temperature=temperature, timeout=timeout,
+        cancel_check=cancel_check, on_chunk=on_chunk,
         usage_callback=usage_callback,
     )
     content = _extract_content(body)

@@ -32,7 +32,7 @@ from src.backend.ai_generator import (
     request_lesson_transform,
 )
 from src.backend.course_adapter import CourseAdapter
-from src.dialogs.ai_error_analyzer import AiErrorAnalyzerDialog
+from src.dialogs.ai_error_analyzer import AiErrorAnalyzerDialog, offer_ai_analysis
 from src.dialogs.ai_generator_dialog import AiRequestWorker
 from src.infrastructure.telemetry import telemetry
 
@@ -258,14 +258,7 @@ class AiLessonHelperDialog(QDialog):
             payload={"mode": self.mode, "success": False, "error": message},
         )
         self.status_label.setText(f"<font color='#E74C3C'>生成失败：{message}</font>")
-        msg = QMessageBox(self)
-        msg.setIcon(QMessageBox.Icon.Critical)
-        msg.setWindowTitle("生成失败")
-        msg.setText(message)
-        msg.addButton("确定", QMessageBox.ButtonRole.AcceptRole)
-        analyze_btn = msg.addButton("AI 分析原因", QMessageBox.ButtonRole.ActionRole)
-        msg.exec()
-        if msg.clickedButton() == analyze_btn:
+        if offer_ai_analysis(self, "生成失败", message):
             AiErrorAnalyzerDialog.analyze_exception(
                 self,
                 message,

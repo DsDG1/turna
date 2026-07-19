@@ -1132,6 +1132,14 @@ class AiGeneratorDialog(QDialog):
         else:
             self.api_status.setText(f"<font color='{err_color}'>未配置</font>")
 
+    def _reconnect(self, btn, slot) -> None:
+        """Reconnect a button's clicked signal to ``slot`` (ignore 'no such signal')."""
+        try:
+            btn.clicked.disconnect()
+        except RuntimeError:
+            pass
+        btn.clicked.connect(slot)
+
     def _set_busy(self, busy: bool, normal: bool = False, stage: str = "") -> None:
         """Enable/disable UI while an AI request is running.
 
@@ -1147,20 +1155,12 @@ class AiGeneratorDialog(QDialog):
             if busy:
                 self.generate_btn.setText("取消生成")
                 self.generate_btn.setToolTip("中断当前生成请求")
-                try:
-                    self.generate_btn.clicked.disconnect()
-                except RuntimeError:
-                    pass
-                self.generate_btn.clicked.connect(self._cancel_current_worker)
+                self._reconnect(self.generate_btn, self._cancel_current_worker)
                 self.progress.setVisible(True)
             else:
                 self.generate_btn.setText("生成课程")
                 self.generate_btn.setToolTip("按主题和规格直接生成 JSON")
-                try:
-                    self.generate_btn.clicked.disconnect()
-                except RuntimeError:
-                    pass
-                self.generate_btn.clicked.connect(self._on_generate_normal)
+                self._reconnect(self.generate_btn, self._on_generate_normal)
                 self.progress.setVisible(False)
             self.validate_btn.setEnabled(not busy)
             self.reset_btn.setEnabled(not busy and self._generated is not None)
@@ -1169,22 +1169,14 @@ class AiGeneratorDialog(QDialog):
             if busy:
                 self.send_btn.setText("取消")
                 self.send_btn.setToolTip("中断当前请求")
-                try:
-                    self.send_btn.clicked.disconnect()
-                except RuntimeError:
-                    pass
-                self.send_btn.clicked.connect(self._cancel_current_worker)
+                self._reconnect(self.send_btn, self._cancel_current_worker)
                 self.wish_btn.setEnabled(False)
                 self.attach_btn.setEnabled(False)
                 self.wish_progress.setVisible(True)
             else:
                 self.send_btn.setText("发送")
                 self.send_btn.setToolTip("Ctrl+Enter 快捷发送")
-                try:
-                    self.send_btn.clicked.disconnect()
-                except RuntimeError:
-                    pass
-                self.send_btn.clicked.connect(self._on_send_message)
+                self._reconnect(self.send_btn, self._on_send_message)
                 self.wish_btn.setEnabled(True)
                 self.attach_btn.setEnabled(True)
                 self.wish_progress.setVisible(False)
@@ -1361,14 +1353,8 @@ class AiGeneratorDialog(QDialog):
 
     def _offer_error_analysis(self, message: str, context: dict[str, Any]) -> None:
         """Show a failure dialog with an optional "AI 分析原因" button (C12)."""
-        msg = QMessageBox(self)
-        msg.setIcon(QMessageBox.Icon.Critical)
-        msg.setWindowTitle("请求失败")
-        msg.setText(message)
-        msg.addButton("确定", QMessageBox.ButtonRole.AcceptRole)
-        analyze_btn = msg.addButton("AI 分析原因", QMessageBox.ButtonRole.ActionRole)
-        msg.exec()
-        if msg.clickedButton() == analyze_btn:
+        from src.dialogs.ai_error_analyzer import offer_ai_analysis
+        if offer_ai_analysis(self, "请求失败", message):
             import traceback
 
             from src.dialogs.ai_error_analyzer import AiErrorAnalyzerDialog

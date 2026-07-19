@@ -10,6 +10,19 @@
   QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests -p "test_*.py"
   ```
 
+## 2026-07-19 代码精简 T3（不改功能）
+
+用例数不变（888 passed, skipped=2）。中风险重复抽 helper,行为等价,全量测试通过。净减约 112 行。
+
+| 模块 | 文件 | 覆盖项 |
+|------|------|--------|
+| Qt 信号接线 | `ai_generator_dialog.py` | `_set_busy` 4 处 disconnect/connect 抽 `_reconnect` |
+| 网络 kwargs | `ai_generator.py` | 7 处 `request_chat` 抽 `_chat_json`(response_format 默认 None 已核;健康检查 L959 不并入) |
+| 错误弹窗 shell | `ai_error_analyzer.py` + `main`/`app`/`ai_fix_dialog`/`ai_lesson_helper_dialog`/`ai_generator_dialog` | 5 处"AI 分析原因" QMessageBox shell 抽 `offer_ai_analysis`(返回 bool;analyzer 调用留各处) |
+| 右键菜单 | `course_tree.py` | `_on_context_menu` ~13 处 QAction+connect+addAction 折叠为 `menu.addAction(text, slot)`(带 setShortcut 的 `act_dup_lesson` 保留三行) |
+| 节点校验 | `app.py` | 8 处 `validate_section_json` temp-包装抽 `_validate_node(kind, node, check_existing_ids=)`,两处三分支塌缩 |
+| undo 删除 | `commands.py` | 5 处 del-by-id 循环抽 `_remove_by_id(lst, id)->int`(4 处存 self.index,1 处 undo 弃返回值) |
+
 ## 2026-07-19 代码精简 T1+T2（不改功能）
 
 用例数不变（888 passed, skipped=2）。删除死代码/未用导入/未调用方法，并将重复代码抽为共享 helper；行为等价，全量测试通过。净减约 110 行。

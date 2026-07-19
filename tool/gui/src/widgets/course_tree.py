@@ -306,89 +306,38 @@ class CourseTreeWidget(QTreeWidget):
         kind, node_id = ref
         menu = QMenu(self)
         if kind == "unit":
-            act_new_lesson = QAction("新建 Lesson", self)
-            act_new_lesson.triggered.connect(lambda: self._new_lesson(node_id))
-            menu.addAction(act_new_lesson)
-            act_wizard = QAction("功能课向导…", self)
-            act_wizard.triggered.connect(
-                lambda: self._open_functional_wizard(node_id, "listening", "")
+            menu.addAction("新建 Lesson", lambda: self._new_lesson(node_id))
+            menu.addAction(
+                "功能课向导…",
+                lambda: self._open_functional_wizard(node_id, "listening", ""),
             )
-            menu.addAction(act_wizard)
-            act_del_unit = QAction("删除 Unit", self)
-            act_del_unit.triggered.connect(lambda: self._delete_unit(node_id))
-            menu.addAction(act_del_unit)
+            menu.addAction("删除 Unit", lambda: self._delete_unit(node_id))
             menu.addSeparator()
-            act_ai_edit = QAction("AI 编辑此 Unit", self)
-            act_ai_edit.triggered.connect(
-                lambda: self.ai_edit_requested.emit("unit", node_id)
-            )
-            menu.addAction(act_ai_edit)
-            act_ai_fix = QAction("AI 修正此 Unit", self)
-            act_ai_fix.triggered.connect(
-                lambda: self.ai_fix_requested.emit("unit", node_id)
-            )
-            menu.addAction(act_ai_fix)
+            menu.addAction("AI 编辑此 Unit", lambda: self.ai_edit_requested.emit("unit", node_id))
+            menu.addAction("AI 修正此 Unit", lambda: self.ai_fix_requested.emit("unit", node_id))
         elif kind == "section":
-            act_new_unit = QAction("新建 Unit", self)
-            act_new_unit.triggered.connect(lambda: self._new_unit(node_id))
-            menu.addAction(act_new_unit)
-            act_del_section = QAction("删除 Section", self)
-            act_del_section.triggered.connect(lambda: self._delete_section(node_id))
-            menu.addAction(act_del_section)
+            menu.addAction("新建 Unit", lambda: self._new_unit(node_id))
+            menu.addAction("删除 Section", lambda: self._delete_section(node_id))
             menu.addSeparator()
-            act_ai_edit = QAction("AI 编辑此 Section", self)
-            act_ai_edit.triggered.connect(
-                lambda: self.ai_edit_requested.emit("section", node_id)
-            )
-            menu.addAction(act_ai_edit)
-            act_ai_fix = QAction("AI 修正此 Section", self)
-            act_ai_fix.triggered.connect(
-                lambda: self.ai_fix_requested.emit("section", node_id)
-            )
-            menu.addAction(act_ai_fix)
+            menu.addAction("AI 编辑此 Section", lambda: self.ai_edit_requested.emit("section", node_id))
+            menu.addAction("AI 修正此 Section", lambda: self.ai_fix_requested.emit("section", node_id))
         elif kind == "lesson":
             selected_lesson_ids = [rid for k, rid in self._selected_refs() if k == "lesson"]
             if len(selected_lesson_ids) > 1:
                 n = len(selected_lesson_ids)
-                act_bulk_dup = QAction(f"批量复制（{n}）", self)
-                act_bulk_dup.triggered.connect(
-                    lambda _c=False, ids=selected_lesson_ids: self._duplicate_lessons(ids)
-                )
-                menu.addAction(act_bulk_dup)
-                act_bulk_move = QAction("批量移动到…", self)
-                act_bulk_move.triggered.connect(
-                    lambda _c=False, ids=selected_lesson_ids: self._bulk_move_lessons(ids)
-                )
-                menu.addAction(act_bulk_move)
-                act_bulk_apply = QAction("批量套用预设…", self)
-                act_bulk_apply.triggered.connect(
-                    lambda _c=False, ids=selected_lesson_ids: self._bulk_apply_preset(ids)
-                )
-                menu.addAction(act_bulk_apply)
-                act_bulk_del = QAction(f"批量删除（{n}）", self)
-                act_bulk_del.triggered.connect(
-                    lambda _c=False, ids=selected_lesson_ids: self._bulk_delete_lessons(ids)
-                )
-                menu.addAction(act_bulk_del)
+                menu.addAction(f"批量复制（{n}）", lambda _c=False, ids=selected_lesson_ids: self._duplicate_lessons(ids))
+                menu.addAction("批量移动到…", lambda _c=False, ids=selected_lesson_ids: self._bulk_move_lessons(ids))
+                menu.addAction("批量套用预设…", lambda _c=False, ids=selected_lesson_ids: self._bulk_apply_preset(ids))
+                menu.addAction(f"批量删除（{n}）", lambda _c=False, ids=selected_lesson_ids: self._bulk_delete_lessons(ids))
                 menu.addSeparator()
             act_dup_lesson = QAction("复制 Lesson", self)
             act_dup_lesson.setShortcut("Ctrl+D")
             act_dup_lesson.triggered.connect(lambda: self._duplicate_lessons([node_id]))
             menu.addAction(act_dup_lesson)
-            act_del_lesson = QAction("删除 Lesson", self)
-            act_del_lesson.triggered.connect(lambda: self._delete_lesson(node_id))
-            menu.addAction(act_del_lesson)
+            menu.addAction("删除 Lesson", lambda: self._delete_lesson(node_id))
             menu.addSeparator()
-            act_ai_edit = QAction("AI 编辑此 Lesson", self)
-            act_ai_edit.triggered.connect(
-                lambda: self.ai_edit_requested.emit("lesson", node_id)
-            )
-            menu.addAction(act_ai_edit)
-            act_ai_fix = QAction("AI 修正此 Lesson", self)
-            act_ai_fix.triggered.connect(
-                lambda: self.ai_fix_requested.emit("lesson", node_id)
-            )
-            menu.addAction(act_ai_fix)
+            menu.addAction("AI 编辑此 Lesson", lambda: self.ai_edit_requested.emit("lesson", node_id))
+            menu.addAction("AI 修正此 Lesson", lambda: self.ai_fix_requested.emit("lesson", node_id))
         if not menu.isEmpty():
             menu.exec(self.viewport().mapToGlobal(pos))
 

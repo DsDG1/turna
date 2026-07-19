@@ -51,6 +51,15 @@ def _make_changed() -> _Signals:
     return _Signals()
 
 
+def _remove_by_id(lst: list, target_id: str) -> int:
+    """Delete the first item whose ``id`` equals ``target_id``; return its index (-1 if not found)."""
+    for i, entry in enumerate(lst):
+        if entry is not None and entry.get("id") == target_id:
+            del lst[i]
+            return i
+    return -1
+
+
 class AddItemCommand(QUndoCommand):
     def __init__(self, stage: dict[str, Any], runtime_type: str) -> None:
         super().__init__("添加题目")
@@ -81,11 +90,7 @@ class DeleteItemCommand(QUndoCommand):
 
     def redo(self) -> None:
         items = self.stage.get("items", [])
-        for i, it in enumerate(items):
-            if it is not None and it.get("id") == self.item.get("id"):
-                self.index = i
-                del items[i]
-                break
+        self.index = _remove_by_id(items, self.item.get("id"))
         self.signals.changed.emit()
 
     def undo(self) -> None:
@@ -197,11 +202,7 @@ class DeleteListeningPhaseCommand(QUndoCommand):
 
     def redo(self) -> None:
         phases = self.lesson.get("content", {}).get("listeningPhases", [])
-        for i, ph in enumerate(phases):
-            if ph is not None and ph.get("id") == self.phase.get("id"):
-                self.index = i
-                del phases[i]
-                break
+        self.index = _remove_by_id(phases, self.phase.get("id"))
         self.signals.changed.emit()
 
     def undo(self) -> None:
@@ -266,11 +267,7 @@ class DeleteSubLessonCommand(QUndoCommand):
 
     def redo(self) -> None:
         subs = self.content.get("subLessons", [])
-        for i, sl in enumerate(subs):
-            if sl is not None and sl.get("id") == self.sub_lesson.get("id"):
-                self.index = i
-                del subs[i]
-                break
+        self.index = _remove_by_id(subs, self.sub_lesson.get("id"))
         self.signals.changed.emit()
 
     def undo(self) -> None:
@@ -310,11 +307,7 @@ class DeleteStageCommand(QUndoCommand):
 
     def redo(self) -> None:
         stages = self.sub_lesson.get("stages", [])
-        for i, st in enumerate(stages):
-            if st is not None and st.get("id") == self.stage.get("id"):
-                self.index = i
-                del stages[i]
-                break
+        self.index = _remove_by_id(stages, self.stage.get("id"))
         self.signals.changed.emit()
 
     def undo(self) -> None:
@@ -482,10 +475,7 @@ class AppendLessonCommand(QUndoCommand):
     def undo(self) -> None:
         _section, unit = self.adapter.find_unit(self.unit_id)
         lessons = unit.get("lessons", [])
-        for i, lesson in enumerate(lessons):
-            if lesson.get("id") == self.lesson_id:
-                del lessons[i]
-                break
+        _remove_by_id(lessons, self.lesson_id)
         self.signals.changed.emit()
 
 

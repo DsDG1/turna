@@ -395,14 +395,8 @@ class MainWindow(QMainWindow):
 
     def _show_load_error(self, message: str) -> None:
         """Show a load error dialog with optional AI analysis."""
-        msg = QMessageBox(self)
-        msg.setIcon(QMessageBox.Icon.Critical)
-        msg.setWindowTitle("加载失败")
-        msg.setText(message)
-        msg.addButton("确定", QMessageBox.ButtonRole.AcceptRole)
-        analyze_btn = msg.addButton("AI 分析原因", QMessageBox.ButtonRole.ActionRole)
-        msg.exec()
-        if msg.clickedButton() == analyze_btn:
+        from src.dialogs.ai_error_analyzer import offer_ai_analysis
+        if offer_ai_analysis(self, "加载失败", message):
             import traceback
 
             from src.dialogs.ai_error_analyzer import AiErrorAnalyzerDialog
@@ -671,6 +665,18 @@ class MainWindow(QMainWindow):
                 )
         QMessageBox.information(self, "导入教材", summary)
 
+    def _validate_node(self, kind: str, node_json: dict, *, check_existing_ids: bool = True) -> list[dict]:
+        """Validate a section/unit/lesson node by wrapping it in a temp section."""
+        if kind == "section":
+            return self.adapter.validate_section_json(node_json, check_existing_ids=check_existing_ids)
+        if kind == "unit":
+            wrapper = {"id": "temp", "name": "temp", "units": [node_json]}
+        elif kind == "lesson":
+            wrapper = {"id": "temp", "name": "temp", "units": [{"id": "temp", "lessons": [node_json]}]}
+        else:
+            return []
+        return self.adapter.validate_section_json(wrapper, check_existing_ids=check_existing_ids)
+
     def _on_ai_edit(self, kind: str, node_id: str) -> None:
         from src.dialogs.ai_generator_dialog import AiGeneratorDialog
 
@@ -735,10 +741,7 @@ class MainWindow(QMainWindow):
                     self, "无法应用编辑", f"AI 返回的 JSON 中找不到 unit「{node_id}」。"
                 )
                 return
-            problems = self.adapter.validate_section_json(
-                {"id": "temp", "name": "temp", "units": [new_unit]},
-                check_existing_ids=False,
-            )
+            problems = self._validate_node("unit", new_unit, check_existing_ids=False)
             errors = [p for p in problems if p.get("level") == "error"]
             if errors:
                 QMessageBox.warning(self, "AI 编辑校验失败", "\n".join(p["message"] for p in errors))
@@ -756,10 +759,7 @@ class MainWindow(QMainWindow):
                     self, "无法应用编辑", f"AI 返回的 JSON 中找不到 lesson「{node_id}」。"
                 )
                 return
-            problems = self.adapter.validate_section_json(
-                {"id": "temp", "name": "temp", "units": [{"id": "temp", "lessons": [new_lesson]}]},
-                check_existing_ids=False,
-            )
+            problems = self._validate_node("lesson", new_lesson, check_existing_ids=False)
             errors = [p for p in problems if p.get("level") == "error"]
             if errors:
                 QMessageBox.warning(self, "AI 编辑校验失败", "\n".join(p["message"] for p in errors))
@@ -790,23 +790,13 @@ class MainWindow(QMainWindow):
         try:
             if kind == "section":
                 node_json = self.adapter.find_section(node_id)
-                problems = self.adapter.validate_section_json(node_json)
             elif kind == "unit":
                 section, node_json = self.adapter.find_unit(node_id)
-                problems = self.adapter.validate_section_json({
-                    "id": "temp",
-                    "name": "temp",
-                    "units": [node_json],
-                })
             elif kind == "lesson":
                 _section, _unit, node_json = self.adapter.find_lesson(node_id)
-                problems = self.adapter.validate_section_json({
-                    "id": "temp",
-                    "name": "temp",
-                    "units": [{"id": "temp", "lessons": [node_json]}],
-                })
             else:
                 return
+            problems = self._validate_node(kind, node_json)
         except KeyError:
             QMessageBox.warning(self, "无法定位节点", f"找不到节点：{kind}/{node_id}")
             return
@@ -1012,22 +1002,7 @@ class MainWindow(QMainWindow):
             return
 
         # Validate the corrected node locally before applying.
-        if kind == "section":
-            problems = self.adapter.validate_section_json(
-                corrected, check_existing_ids=False
-            )
-        elif kind == "unit":
-            problems = self.adapter.validate_section_json(
-                {"id": "temp", "name": "temp", "units": [corrected]},
-                check_existing_ids=False,
-            )
-        elif kind == "lesson":
-            problems = self.adapter.validate_section_json(
-                {"id": "temp", "name": "temp", "units": [{"id": "temp", "lessons": [corrected]}]},
-                check_existing_ids=False,
-            )
-        else:
-            problems = []
+        problems = self._validate_node(kind, corrected, check_existing_ids=False)
         errors = [p for p in problems if p.get("level") == "error"]
         if errors:
             detail = "\n".join(f"[{p['level']}] {p['message']}" for p in errors)
