@@ -4,7 +4,11 @@ import 'dart:async';
 // Flutter imports:
 import 'package:flutter/material.dart';
 
+// Package imports:
+import 'package:provider/provider.dart';
+
 // Project imports:
+import 'package:varnamala/application/accessibility_provider.dart';
 import 'package:varnamala/gen/assets.gen.dart';
 
 class MalaWelcomes extends StatefulWidget {
@@ -34,8 +38,10 @@ class _MalaWelcomesState extends State<MalaWelcomes> {
         precacheImage(AssetImage(path), context);
       }
     });
+    // Focus mode disables the rotating welcome animation (sensory-quiet).
     _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
       if (!mounted) return;
+      if (context.read<AccessibilityProvider>().focusMode) return;
       setState(() {
         _currentIndex = (_currentIndex + 1) % images.length;
       });

@@ -149,9 +149,7 @@ class _CourseTreeState extends State<CourseTree> {
     final lessonIdsWithDue = <String>{};
     final lessonIdsWithWeak = <String>{};
     try {
-      dueWordIds = context.select(
-        (SrsProvider p) => p.getDueWords().map((w) => w.wordId).toSet(),
-      );
+      dueWordIds = context.select((SrsProvider p) => p.dueWordIdSet);
       weakWordIds = WeakWordQuizAssembler.aggregateWeakWords(
         context.select((MistakeProvider p) => p.entries),
       ).map((w) => w.wordId).toSet();

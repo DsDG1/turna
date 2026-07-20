@@ -322,7 +322,7 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
           children: [
             Expanded(
               child: DropdownButtonFormField<String>(
-                value: _level,
+                initialValue: _level,
                 decoration: const InputDecoration(
                   labelText: 'Level',
                   isDense: true,
@@ -337,7 +337,7 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
             const SizedBox(width: 8),
             Expanded(
               child: DropdownButtonFormField<int>(
-                value: _unitCount,
+                initialValue: _unitCount,
                 decoration: const InputDecoration(
                   labelText: 'Units',
                   isDense: true,
@@ -352,7 +352,7 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
             const SizedBox(width: 8),
             Expanded(
               child: DropdownButtonFormField<int>(
-                value: _lessonsPerUnit,
+                initialValue: _lessonsPerUnit,
                 decoration: const InputDecoration(
                   labelText: 'Lessons/unit',
                   isDense: true,
@@ -372,7 +372,7 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
         // are too long to share a row with the Genre batch toggle without
         // overflowing, so the toggle gets its own row below.
         DropdownButtonFormField<String>(
-          value: _template,
+          initialValue: _template,
           isExpanded: true,
           decoration: const InputDecoration(
             labelText: 'Template',

@@ -3,95 +3,47 @@
 Theming is intentionally centralized so the desktop app feels like a modern
 content-editing tool rather than a raw Qt form.  Call :func:`apply_theme` once
 after the QApplication is created.
+
+Design language: **Peacock** - aligned with the Flutter app's
+``VarnamalaTheme`` (``lib/views/theme.dart``). The accent family is teal /
+cyan / turquoise. Four themes are supported: ``dark`` (default), ``light``,
+``high-contrast-dark``, and ``high-contrast-light``.
+
+Palette token tables live in :mod:`src.theme_tokens` (Qt-free, unit-testable).
+This module owns the QSS generation, the ``QApplication`` wiring, and the
+runtime ``current_palette`` / ``ai_color`` accessors used by widgets.
 """
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtGui import QFont, QFontDatabase
-from PySide6.QtWidgets import QApplication
+from PySide6.QtGui import QColor, QFont, QFontDatabase
+from PySide6.QtWidgets import QApplication, QGraphicsDropShadowEffect, QWidget
+
+from src.theme_tokens import (
+    DEFAULT_THEME,
+    PALETTES,
+    is_dark,
+    is_high_contrast,
+    palette_for,
+    valid_themes,
+)
 
 if TYPE_CHECKING:
     from src.application.settings import Settings
 
 
-# Color palettes for the two built-in themes.
-_DARK_PALETTE = {
-    "bg": "#181A20",
-    "bg_secondary": "#1F232C",
-    "bg_input": "#232833",
-    "bg_elevated": "#262C38",
-    "bg_disabled": "#1C2028",
-    "text": "#E8EAF0",
-    "text_secondary": "#9CA3AF",
-    "text_disabled": "#6B7280",
-    "border": "#2C313C",
-    "border_hover": "#3B82F6",
-    "accent": "#3B82F6",
-    "accent_hover": "#2563EB",
-    "accent_pressed": "#1D4ED8",
-    "accent_subtle": "#4D3B82F6",
-    "accent_text": "#60A5FA",
-    "danger": "#EF4444",
-    "danger_hover": "#DC2626",
-    "scrollbar": "#4B5563",
-    "scrollbar_hover": "#6B7280",
-    "success": "#27AE60",
-    "warning": "#FF9F43",
-    "error": "#E74C3C",
-    # AI dialog semantic colors (guiplan2 P5.4) — drive the split widgets'
-    # per-widget stylesheets instead of inline hexes.
-    "ai_chat_bg": "#1A1D23",
-    "ai_bubble_bg": "#2C313C",
-    "ai_user_bubble": "#145A64",
-    "ai_card_bg": "#1F232C",
-    "ai_chip_bg": "#1F232C",
-    "ai_accent": "#46D1BF",
-    "ai_accent_border": "#1F727E",
-    "ai_beta_bg": "#664400",
-    "ai_beta_text": "#FFD93D",
-}
-
-_LIGHT_PALETTE = {
-    "bg": "#F8F9FB",
-    "bg_secondary": "#FFFFFF",
-    "bg_input": "#FFFFFF",
-    "bg_elevated": "#FFFFFF",
-    "bg_disabled": "#F3F4F6",
-    "text": "#1F2937",
-    "text_secondary": "#6B7280",
-    "text_disabled": "#9CA3AF",
-    "border": "#E5E7EB",
-    "border_hover": "#3B82F6",
-    "accent": "#3B82F6",
-    "accent_hover": "#2563EB",
-    "accent_pressed": "#1D4ED8",
-    "accent_subtle": "#263B82F6",
-    "accent_text": "#2563EB",
-    "danger": "#EF4444",
-    "danger_hover": "#DC2626",
-    "scrollbar": "#D1D5DB",
-    "scrollbar_hover": "#9CA3AF",
-    "success": "#27AE60",
-    "warning": "#FF9F43",
-    "error": "#E74C3C",
-    # AI dialog semantic colors (light variants).
-    "ai_chat_bg": "#F3F4F6",
-    "ai_bubble_bg": "#FFFFFF",
-    "ai_user_bubble": "#1F727E",
-    "ai_card_bg": "#FFFFFF",
-    "ai_chip_bg": "#EEF2F7",
-    "ai_accent": "#1F727E",
-    "ai_accent_border": "#145A64",
-    "ai_beta_bg": "#FFF3D6",
-    "ai_beta_text": "#7A5A00",
-}
+# Backward-compatible aliases. Some widgets or tests may still reference the
+# old module-level palette dicts directly.
+_DARK_PALETTE = PALETTES["dark"]
+_LIGHT_PALETTE = PALETTES["light"]
 
 
 # The palette applied by the most recent ``apply_theme`` call. Widgets that
 # build per-widget stylesheets (e.g. the AI dialog's split widgets) read this
 # via :func:`current_palette` so they follow the active light/dark theme.
 _ACTIVE_PALETTE: dict[str, str] = _DARK_PALETTE
+_ACTIVE_THEME: str = DEFAULT_THEME
 
 
 def current_palette() -> dict[str, str]:
@@ -99,9 +51,21 @@ def current_palette() -> dict[str, str]:
     return _ACTIVE_PALETTE
 
 
+def current_theme() -> str:
+    """Return the theme name applied by the last :func:`apply_theme` call."""
+    return _ACTIVE_THEME
+
+
 def ai_color(name: str) -> str:
     """Return a single AI semantic color from the active palette."""
     return _ACTIVE_PALETTE[name]
+
+
+def resolve_theme(theme: str | None) -> str:
+    """Validate *theme* and fall back to the default when invalid."""
+    if theme in valid_themes():
+        return theme
+    return DEFAULT_THEME
 
 
 def _opaque(color_aarrggbb: str, over_hex: str) -> str:
@@ -118,13 +82,26 @@ def _opaque(color_aarrggbb: str, over_hex: str) -> str:
     return f"#{round(r):02X}{round(g):02X}{round(b):02X}"
 
 
-def _build_qss(palette: dict[str, str], base_font_px: int) -> str:
-    """Return a parameterized stylesheet string."""
+def _build_qss(palette: dict[str, str], base_font_px: int, theme: str) -> str:
+    """Return a parameterized stylesheet string.
+
+    The ``theme`` argument controls high-contrast adjustments (thicker
+    borders, stronger focus rings) that cannot be derived from the palette
+    alone.
+    """
     p = palette
+    hc = is_high_contrast(theme)
     # Opaque stand-in for accent_subtle: the tree branch/indent gutter of a
     # selected row is painted without alpha blending (verified by pixel
     # sampling), so it needs the pre-blended color to match ::item:selected.
     branch_selected = _opaque(p["accent_subtle"], p["bg_secondary"])
+
+    # High-contrast tokens: thicker borders, stronger focus rings.
+    border_w = "2px" if hc else "1px"
+    focus_w = "2.5px" if hc else "2px"
+    card_border = f"border: {border_w} solid {p['border']};" if hc else "border: 1px solid {border};".format(border=p["border"])
+    input_focus_border = f"border: {focus_w} solid {p['accent']};"
+
     return f"""
 /* Global palette */
 QWidget {{
@@ -140,10 +117,13 @@ QMainWindow {{
     background-color: {p['bg']};
 }}
 
-/* Toolbar */
+/* Toolbar - subtle peacock gradient for brand identity */
 QToolBar {{
-    background-color: {p['bg_secondary']};
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 {p['toolbar_gradient_start']},
+        stop:1 {p['toolbar_gradient_end']});
     border: none;
+    border-bottom: 1px solid {p['border']};
     padding: 6px 10px;
     spacing: 8px;
 }}
@@ -159,8 +139,9 @@ QToolBar QAction {{
 
 QToolBar QToolButton:hover,
 QToolBar QAction:hover {{
-    background-color: {p['border']};
+    background-color: {p['accent_subtle']};
     border-color: {p['border_hover']};
+    color: {p['accent_text']};
 }}
 
 QToolBar QToolButton:pressed,
@@ -170,7 +151,7 @@ QToolBar QAction:pressed {{
 }}
 
 QToolBar QToolButton:checked {{
-    background-color: {p['accent_hover']};
+    background-color: {p['accent']};
     color: #FFFFFF;
 }}
 
@@ -180,12 +161,14 @@ QToolBar::separator {{
     margin: 4px 8px;
 }}
 
-/* Buttons */
+/* Buttons - peacock gradient on primary */
 QPushButton {{
-    background-color: {p['accent']};
+    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 {p['accent_gradient_start']},
+        stop:1 {p['accent_gradient_end']});
     color: #FFFFFF;
     border: none;
-    border-radius: 6px;
+    border-radius: 8px;
     padding: 7px 16px;
     min-height: 28px;
 }}
@@ -211,13 +194,14 @@ QPushButton#dangerButton:hover {{
 }}
 
 QPushButton#secondaryButton {{
-    background-color: {p['border']};
+    background-color: {p['bg_input']};
     color: {p['text']};
-    border: 1px solid {p['border_hover']};
+    border: {border_w} solid {p['border_hover']};
 }}
 QPushButton#secondaryButton:hover {{
-    background-color: {p['accent']};
-    color: #FFFFFF;
+    background-color: {p['accent_subtle']};
+    color: {p['accent_text']};
+    border-color: {p['accent']};
 }}
 
 /* Tool buttons outside toolbars (toolbar buttons are styled above) */
@@ -230,7 +214,8 @@ QToolButton {{
 }}
 
 QToolButton:hover {{
-    background-color: {p['border']};
+    background-color: {p['accent_subtle']};
+    color: {p['accent_text']};
 }}
 
 QToolButton:pressed {{
@@ -251,7 +236,7 @@ QSpinBox,
 QDoubleSpinBox {{
     background-color: {p['bg_input']};
     color: {p['text']};
-    border: 1px solid {p['border']};
+    border: {border_w} solid {p['border']};
     border-radius: 6px;
     padding: 6px 8px;
     selection-background-color: {p['accent']};
@@ -263,7 +248,7 @@ QPlainTextEdit:focus,
 QComboBox:focus,
 QSpinBox:focus,
 QDoubleSpinBox:focus {{
-    border-color: {p['border_hover']};
+    {input_focus_border}
 }}
 
 QLineEdit:disabled,
@@ -290,7 +275,7 @@ QComboBox::down-arrow {{
 
 QComboBox QAbstractItemView {{
     background-color: {p['bg_input']};
-    border: 1px solid {p['border']};
+    border: {border_w} solid {p['border']};
     selection-background-color: {p['accent']};
 }}
 
@@ -304,7 +289,7 @@ QAbstractSpinBox::down-button {{
 
 QAbstractSpinBox::up-button:hover,
 QAbstractSpinBox::down-button:hover {{
-    background-color: {p['border']};
+    background-color: {p['accent_subtle']};
 }}
 
 QAbstractSpinBox::up-arrow {{
@@ -329,7 +314,7 @@ QAbstractSpinBox::down-arrow {{
 QListWidget,
 QTreeWidget {{
     background-color: {p['bg_secondary']};
-    border: 1px solid {p['border']};
+    border: {border_w} solid {p['border']};
     border-radius: 8px;
     padding: 6px;
     outline: none;
@@ -353,7 +338,7 @@ QTreeWidget::item:selected {{
 
 QListWidget::item:hover,
 QTreeWidget::item:hover {{
-    background-color: {p['border']};
+    background-color: {p['accent_subtle']};
 }}
 
 QTreeWidget::item:selected:hover,
@@ -383,7 +368,7 @@ QTreeWidget::branch:selected {{
 QTableView,
 QTableWidget {{
     background-color: {p['bg_secondary']};
-    border: 1px solid {p['border']};
+    border: {border_w} solid {p['border']};
     border-radius: 8px;
     gridline-color: {p['border']};
     alternate-background-color: {p['bg']};
@@ -403,10 +388,10 @@ QTableWidget::item:selected {{
     color: {p['accent_text']};
 }}
 
-/* Group boxes / Cards */
+/* Group boxes / Cards - elevated surface with border */
 QGroupBox {{
     background-color: {p['bg_secondary']};
-    border: 1px solid {p['border']};
+    {card_border}
     border-radius: 10px;
     margin-top: 12px;
     padding: 24px 16px 16px;
@@ -459,7 +444,7 @@ QStatusBar::item {{
 /* Menus */
 QMenu {{
     background-color: {p['bg_secondary']};
-    border: 1px solid {p['border']};
+    border: {border_w} solid {p['border']};
     border-radius: 8px;
     padding: 6px;
 }}
@@ -550,7 +535,7 @@ QCheckBox::indicator {{
     width: 16px;
     height: 16px;
     border-radius: 4px;
-    border: 1px solid {p['text_disabled']};
+    border: {border_w} solid {p['text_disabled']};
     background-color: {p['bg_input']};
 }}
 
@@ -572,7 +557,7 @@ QRadioButton::indicator {{
     width: 16px;
     height: 16px;
     border-radius: 8px;
-    border: 1px solid {p['text_disabled']};
+    border: {border_w} solid {p['text_disabled']};
     background-color: {p['bg_input']};
 }}
 
@@ -589,22 +574,24 @@ QRadioButton::indicator:disabled {{
 QToolTip {{
     background-color: {p['bg_elevated']};
     color: {p['text']};
-    border: 1px solid {p['border']};
+    border: {border_w} solid {p['border']};
     padding: 6px 8px;
     border-radius: 6px;
 }}
 
-/* Progress bars */
+/* Progress bars - peacock gradient chunk */
 QProgressBar {{
     background-color: {p['bg_input']};
-    border: 1px solid {p['border']};
+    border: {border_w} solid {p['border']};
     border-radius: 6px;
     text-align: center;
     color: {p['text']};
 }}
 
 QProgressBar::chunk {{
-    background-color: {p['accent']};
+    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 {p['accent_gradient_start']},
+        stop:1 {p['accent_gradient_end']});
     border-radius: 5px;
 }}
 
@@ -613,7 +600,7 @@ QScrollArea {{
     border: none;
 }}
 
-/* Sliders */
+/* Sliders - accent handle with glow ring */
 QSlider::groove:horizontal {{
     background-color: {p['bg_input']};
     height: 6px;
@@ -626,10 +613,12 @@ QSlider::handle:horizontal {{
     height: 16px;
     margin: -5px 0;
     border-radius: 8px;
+    border: 2px solid {p['bg_secondary']};
 }}
 
 QSlider::handle:horizontal:hover {{
     background-color: {p['accent_hover']};
+    border: 2px solid {p['glow']};
 }}
 
 QSlider::groove:vertical {{
@@ -644,10 +633,12 @@ QSlider::handle:vertical {{
     height: 16px;
     margin: 0 -5px;
     border-radius: 8px;
+    border: 2px solid {p['bg_secondary']};
 }}
 
 QSlider::handle:vertical:hover {{
     background-color: {p['accent_hover']};
+    border: 2px solid {p['glow']};
 }}
 
 /* Message boxes */
@@ -659,9 +650,9 @@ QMessageBox QLabel {{
     color: {p['text']};
 }}
 
-/* Tab widget */
+/* Tab widget - selected tab gets peacock underline */
 QTabWidget::pane {{
-    border: 1px solid {p['border']};
+    border: {border_w} solid {p['border']};
     border-radius: 8px;
     background-color: {p['bg_secondary']};
 }}
@@ -679,11 +670,13 @@ QTabBar::tab {{
 
 QTabBar::tab:selected {{
     background-color: {p['bg']};
-    color: {p['text']};
+    color: {p['accent_text']};
+    border-bottom: 3px solid {p['accent']};
 }}
 
 QTabBar::tab:hover {{
-    background-color: {p['border']};
+    background-color: {p['accent_subtle']};
+    color: {p['accent_text']};
 }}
 """
 
@@ -713,21 +706,24 @@ def apply_theme(app: QApplication, settings: "Settings | None" = None) -> None:
     """Apply theme and font scaling to the application.
 
     If ``settings`` is omitted, the default dark theme at 100% scale is used.
+    Supported themes: ``dark``, ``light``, ``high-contrast-dark``,
+    ``high-contrast-light``.
     """
-    theme = "dark"
+    theme = DEFAULT_THEME
     scale = 100
     if settings is not None:
-        theme = settings.theme if settings.theme in {"dark", "light"} else "dark"
+        theme = resolve_theme(settings.theme)
         scale = settings.ui_scale_percent
 
-    palette = _LIGHT_PALETTE if theme == "light" else _DARK_PALETTE
+    palette = palette_for(theme)
     base_font_px = _base_font_px_from_scale(scale)
 
-    global _ACTIVE_PALETTE
+    global _ACTIVE_PALETTE, _ACTIVE_THEME
     _ACTIVE_PALETTE = palette
+    _ACTIVE_THEME = theme
 
     app.setStyle("Fusion")
-    app.setStyleSheet(_build_qss(palette, base_font_px))
+    app.setStyleSheet(_build_qss(palette, base_font_px, theme))
 
     # Scale the system font proportionally. Keep the point-size baseline at 10
     # for 100% scale.
@@ -735,3 +731,43 @@ def apply_theme(app: QApplication, settings: "Settings | None" = None) -> None:
     app.setFont(_system_font(point_size))
 
     # High-DPI pixmaps are the default in Qt 6; no explicit attribute needed.
+
+
+def apply_shadow(
+    widget: QWidget,
+    *,
+    color_key: str = "shadow",
+    blur_radius: int = 20,
+    dy: int = 4,
+    alpha: float = 0.15,
+) -> QGraphicsDropShadowEffect | None:
+    """Apply a soft peacock-tinted drop shadow to *widget*.
+
+    QSS does not support ``box-shadow``; this helper bridges that gap by
+    attaching a ``QGraphicsDropShadowEffect`` from code. The shadow color
+    is drawn from the active palette (*color_key*), defaulting to the
+    ``shadow`` token (pure black in dark themes, peacock teal in light).
+
+    Returns the effect so callers can tweak it further, or ``None`` if the
+    widget is ``None`` (defensive for partially-constructed widgets).
+
+    Example::
+
+        from src.theme import apply_shadow
+        apply_shadow(self.core_button, color_key="glow", blur_radius=24, alpha=0.3)
+    """
+    if widget is None:
+        return None
+    pal = current_palette()
+    base_hex = pal.get(color_key, "#000000")
+    # Parse #RRGGBB and apply alpha.
+    r = int(base_hex[1:3], 16)
+    g = int(base_hex[3:5], 16)
+    b = int(base_hex[5:7], 16)
+    a = max(0.0, min(1.0, alpha))
+    effect = QGraphicsDropShadowEffect(widget)
+    effect.setBlurRadius(blur_radius)
+    effect.setOffset(0, dy)
+    effect.setColor(QColor(r, g, b, int(a * 255)))
+    widget.setGraphicsEffect(effect)
+    return effect

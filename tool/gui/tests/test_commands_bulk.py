@@ -1,7 +1,6 @@
 """Tests for duplicate + bulk lesson commands (workshop2 P1)."""
 from __future__ import annotations
 
-import shutil
 import sys
 import tempfile
 import unittest
@@ -10,6 +9,7 @@ from pathlib import Path
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
+from tests._course_fixture import copy_turkish_course  # noqa: E402
 
 from src.application.commands import (  # noqa: E402
     BulkApplyPresetCommand,
@@ -25,13 +25,10 @@ from src.backend.lesson_content import (  # noqa: E402
 )
 from src.backend.lesson_presets import apply_preset_to_lesson  # noqa: E402
 
-_REPO = _GUI.parents[1]
-COURSE_SRC = _REPO / "assets" / "courses" / "turkish"
-
 
 def _load_adapter(tmp: Path) -> CourseAdapter:
     course_dir = tmp / "turkish"
-    shutil.copytree(COURSE_SRC, course_dir)
+    copy_turkish_course(course_dir)
     adapter = CourseAdapter()
     adapter.load(course_dir)
     return adapter

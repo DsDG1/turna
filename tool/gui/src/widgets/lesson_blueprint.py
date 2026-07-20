@@ -116,6 +116,134 @@ class _Card(QFrame):
         self._layout.addWidget(widget)
 
 
+class ClickableLabel(QLabel):
+    """A QLabel that emits a clicked signal on mouse release."""
+
+    clicked = Signal()
+
+    def mouseReleaseEvent(self, event) -> None:
+        self.clicked.emit()
+        super().mouseReleaseEvent(event)
+
+
+class BlueprintItemCard(QFrame):
+    """A wrapper card for a single item in edit mode that can be expanded or collapsed."""
+
+    def __init__(
+        self,
+        blueprint: LessonBlueprint,
+        stage: dict[str, Any],
+        item: dict[str, Any],
+        expanded: bool = False,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self.blueprint = blueprint
+        self.stage = stage
+        self.item = item
+        self.expanded = expanded
+
+        self.setFrameShape(QFrame.Shape.StyledPanel)
+        self._update_style()
+
+        self._layout = QVBoxLayout(self)
+        self._layout.setContentsMargins(6, 6, 6, 6)
+        self._layout.setSpacing(6)
+
+        self._build_ui()
+
+    def _update_style(self) -> None:
+        border_color = _pal("accent") if self.expanded else _pal("border")
+        self.setStyleSheet(
+            f"BlueprintItemCard {{ background-color: {_pal('bg_secondary')}; "
+            f"border: 1px solid {border_color}; border-radius: 8px; }}"
+        )
+
+    def _build_ui(self) -> None:
+        while self._layout.count():
+            child = self._layout.takeAt(0)
+            widget = child.widget()
+            if widget is not None:
+                widget.setParent(None)
+                widget.deleteLater()
+
+        header = QHBoxLayout()
+        header.setContentsMargins(6, 4, 6, 4)
+        header.setSpacing(8)
+
+        self.toggle_btn = QPushButton("▼" if self.expanded else "▶")
+        self.toggle_btn.setFlat(True)
+        self.toggle_btn.setFixedWidth(24)
+        self.toggle_btn.setStyleSheet(
+            f"QPushButton {{ color: {_pal('text_secondary')}; font-weight: bold; border: none; background: transparent; }}"
+            f"QPushButton:hover {{ color: {_pal('accent')}; }}"
+        )
+        self.toggle_btn.clicked.connect(self._toggle_expand)
+        header.addWidget(self.toggle_btn)
+
+        summary_text = _item_summary(self.item)
+        self.summary_label = ClickableLabel(summary_text)
+        self.summary_label.setWordWrap(True)
+        self.summary_label.setStyleSheet(
+            f"color: {_pal('text') if self.expanded else _pal('text_secondary')}; font-size: 13px;"
+        )
+        self.summary_label.clicked.connect(self._toggle_expand)
+        header.addWidget(self.summary_label, 1)
+
+        if not self.expanded:
+            items = self.stage.get("items", [])
+            idx = next((i for i, it in enumerate(items) if it is self.item), -1)
+            if idx < 0:
+                idx = next((i for i, it in enumerate(items) if it.get("id") == self.item.get("id")), -1)
+
+            up_btn = QPushButton("↑")
+            up_btn.setFixedWidth(28)
+            up_btn.setEnabled(idx > 0)
+            up_btn.clicked.connect(lambda: self.blueprint._on_move_item(self.stage, self.item, -1))
+            header.addWidget(up_btn)
+
+            down_btn = QPushButton("↓")
+            down_btn.setFixedWidth(28)
+            down_btn.setEnabled(idx >= 0 and idx < len(items) - 1)
+            down_btn.clicked.connect(lambda: self.blueprint._on_move_item(self.stage, self.item, 1))
+            header.addWidget(down_btn)
+
+            del_btn = QPushButton("删除")
+            del_btn.setMinimumWidth(48)
+            del_btn.clicked.connect(lambda: self.blueprint._on_delete_item(self.stage, self.item))
+            header.addWidget(del_btn)
+
+        self._layout.addLayout(header)
+
+        if self.expanded:
+            qcard = QuestionCard(self.blueprint.adapter, self.item)
+            qcard.changed.connect(self.blueprint.changed.emit)
+            qcard.delete_requested.connect(
+                lambda _c=False: self.blueprint._on_delete_item(self.stage, self.item)
+            )
+            qcard.type_changed.connect(
+                lambda nt: self.blueprint._on_change_item_type(self.stage, self.item, nt)
+            )
+            qcard.move_up_requested.connect(
+                lambda _c=False: self.blueprint._on_move_item(self.stage, self.item, -1)
+            )
+            qcard.move_down_requested.connect(
+                lambda _c=False: self.blueprint._on_move_item(self.stage, self.item, 1)
+            )
+            self._layout.addWidget(qcard)
+
+    def _toggle_expand(self) -> None:
+        self.expanded = not self.expanded
+        item_id = self.item.get("id")
+        if item_id:
+            if self.expanded:
+                self.blueprint.expanded_item_ids.add(item_id)
+            else:
+                self.blueprint.expanded_item_ids.discard(item_id)
+        self._update_style()
+        self._build_ui()
+
+
 class LessonBlueprint(QWidget):
     """Card-flow lesson overview with optional inline editing."""
 
@@ -137,6 +265,9 @@ class LessonBlueprint(QWidget):
         self._last_item_type = "multipleChoice"
         self._scroll: QScrollArea | None = None
         self._host: QWidget | None = None
+        self.expanded_item_ids: set[str] = set()
+        self._known_item_ids: set[str] = set()
+        self._first_build = True
         self._build_outer()
 
     # --- outer shell with rebuild ---------------------------------------
@@ -155,7 +286,66 @@ class LessonBlueprint(QWidget):
         outer.addWidget(self._scroll)
         self._rebuild()
 
+    def _collect_all_item_ids(self) -> set[str]:
+        ids = set()
+        content = self.lesson.get("content", {})
+        template = self.lesson.get("template", "legacy")
+        if template == "listening":
+            for phase in content.get("listeningPhases", []):
+                for item in phase.get("items", []):
+                    item_id = item.get("id")
+                    if item_id:
+                        ids.add(item_id)
+        elif template in ("reading", "mastery"):
+            for stage in content.get("stages", []):
+                for item in stage.get("items", []):
+                    item_id = item.get("id")
+                    if item_id:
+                        ids.add(item_id)
+        else:
+            for sub in content.get("subLessons", []):
+                for stage in sub.get("stages", []):
+                    for item in stage.get("items", []):
+                        item_id = item.get("id")
+                        if item_id:
+                            ids.add(item_id)
+        return ids
+
     def _rebuild(self) -> None:
+        current_ids = self._collect_all_item_ids()
+        if self._first_build:
+            self._first_build = False
+            content = self.lesson.setdefault("content", {})
+            template = self.lesson.get("template", "legacy")
+            if template == "listening":
+                for phase in content.setdefault("listeningPhases", []):
+                    items = phase.setdefault("items", [])
+                    if items:
+                        item_id = items[0].get("id")
+                        if item_id:
+                            self.expanded_item_ids.add(item_id)
+            elif template in ("reading", "mastery"):
+                for stage in content.setdefault("stages", []):
+                    items = stage.setdefault("items", [])
+                    if items:
+                        item_id = items[0].get("id")
+                        if item_id:
+                            self.expanded_item_ids.add(item_id)
+            else:
+                for sub in content.setdefault("subLessons", []):
+                    for stage in sub.setdefault("stages", []):
+                        items = stage.setdefault("items", [])
+                        if items:
+                            item_id = items[0].get("id")
+                            if item_id:
+                                self.expanded_item_ids.add(item_id)
+            self._known_item_ids = current_ids
+        else:
+            new_ids = current_ids - self._known_item_ids
+            if new_ids:
+                self.expanded_item_ids.update(new_ids)
+            self._known_item_ids = current_ids
+
         # Clear all but the trailing stretch.
         while self._host_layout.count() > 1:
             child = self._host_layout.takeAt(0)
@@ -402,21 +592,9 @@ class LessonBlueprint(QWidget):
         )
         return lbl
 
-    def _build_item_card(self, stage: dict[str, Any], item: dict[str, Any]) -> QuestionCard:
-        card = QuestionCard(self.adapter, item)
-        card.changed.connect(self.changed.emit)
-        card.delete_requested.connect(
-            lambda _c=False, st=stage, it=item: self._on_delete_item(st, it)
-        )
-        card.type_changed.connect(
-            lambda nt, st=stage, it=item: self._on_change_item_type(st, it, nt)
-        )
-        card.move_up_requested.connect(
-            lambda _c=False, st=stage, it=item: self._on_move_item(st, it, -1)
-        )
-        card.move_down_requested.connect(
-            lambda _c=False, st=stage, it=item: self._on_move_item(st, it, 1)
-        )
+    def _build_item_card(self, stage: dict[str, Any], item: dict[str, Any]) -> BlueprintItemCard:
+        is_expanded = item.get("id") in self.expanded_item_ids
+        card = BlueprintItemCard(self, stage, item, expanded=is_expanded)
         return card
 
     def _build_add_item_row(self, stage: dict[str, Any]) -> QHBoxLayout:

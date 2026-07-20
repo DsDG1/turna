@@ -1,0 +1,255 @@
+{
+  "version": 2,
+  "project_id": "未命名项目_22eb3a90",
+  "name": "未命名项目",
+  "created_at": "2026-07-20T13:48:18.039419+00:00",
+  "updated_at": "2026-07-20T13:48:18.114623+00:00",
+  "current_step": 4,
+  "source_path": "/tmp/tmpiqxiip4t.md",
+  "source_checksum": "d861f6c318dbb22c4bbb68f054fc4af9fe6b6f2a2399b3e2499e5d3dbcb5e7f4",
+  "markdown": "## 1 Merhaba\nmerhaba means hello\n\n## 2 Aile\naile means family\n",
+  "language": "Turkish",
+  "source_language": "Chinese",
+  "chapters": [
+    {
+      "chapter": {
+        "idx": 1,
+        "level": 2,
+        "title": "1 Merhaba",
+        "slug": "1-merhaba",
+        "markdown": "## 1 Merhaba\nmerhaba means hello\n\n"
+      },
+      "keep": true,
+      "knowledge": {
+        "words": [
+          {
+            "id": "w-merhaba",
+            "term": "merhaba",
+            "translation": "hello",
+            "pronunciation": "",
+            "tags": []
+          },
+          {
+            "id": "w-merhaba",
+            "term": "merhaba",
+            "translation": "hello",
+            "pronunciation": "",
+            "tags": []
+          }
+        ],
+        "expressions": [
+          {
+            "id": "e-selam",
+            "term": "Selam!",
+            "translation": "Hi!",
+            "pronunciation": "",
+            "tags": []
+          },
+          {
+            "id": "e-selam",
+            "term": "Selam!",
+            "translation": "Hi!",
+            "pronunciation": "",
+            "tags": []
+          }
+        ],
+        "grammarPoints": [
+          {
+            "id": "g-greetings",
+            "title": "Greetings",
+            "explanation": "hi",
+            "exampleExpressionIds": [],
+            "exampleSentenceIds": [],
+            "practiceItems": [],
+            "tags": []
+          },
+          {
+            "id": "g-greetings",
+            "title": "Greetings",
+            "explanation": "hi",
+            "exampleExpressionIds": [],
+            "exampleSentenceIds": [],
+            "practiceItems": [],
+            "tags": []
+          }
+        ]
+      },
+      "error": ""
+    },
+    {
+      "chapter": {
+        "idx": 2,
+        "level": 2,
+        "title": "2 Aile",
+        "slug": "2-aile",
+        "markdown": "## 2 Aile\naile means family\n"
+      },
+      "keep": true,
+      "knowledge": {
+        "words": [
+          {
+            "id": "w-merhaba",
+            "term": "merhaba",
+            "translation": "hello",
+            "pronunciation": "",
+            "tags": []
+          },
+          {
+            "id": "w-merhaba",
+            "term": "merhaba",
+            "translation": "hello",
+            "pronunciation": "",
+            "tags": []
+          }
+        ],
+        "expressions": [
+          {
+            "id": "e-selam",
+            "term": "Selam!",
+            "translation": "Hi!",
+            "pronunciation": "",
+            "tags": []
+          },
+          {
+            "id": "e-selam",
+            "term": "Selam!",
+            "translation": "Hi!",
+            "pronunciation": "",
+            "tags": []
+          }
+        ],
+        "grammarPoints": [
+          {
+            "id": "g-greetings",
+            "title": "Greetings",
+            "explanation": "hi",
+            "exampleExpressionIds": [],
+            "exampleSentenceIds": [],
+            "practiceItems": [],
+            "tags": []
+          },
+          {
+            "id": "g-greetings",
+            "title": "Greetings",
+            "explanation": "hi",
+            "exampleExpressionIds": [],
+            "exampleSentenceIds": [],
+            "practiceItems": [],
+            "tags": []
+          }
+        ]
+      },
+      "error": ""
+    }
+  ],
+  "imported_section_ids": [],
+  "resource_pool": {
+    "words": [
+      {
+        "id": "w-merhaba",
+        "term": "merhaba",
+        "translation": "hello",
+        "pronunciation": "",
+        "tags": []
+      },
+      {
+        "id": "w-merhaba",
+        "term": "merhaba",
+        "translation": "hello",
+        "pronunciation": "",
+        "tags": []
+      },
+      {
+        "id": "w-merhaba",
+        "term": "merhaba",
+        "translation": "hello",
+        "pronunciation": "",
+        "tags": []
+      },
+      {
+        "id": "w-merhaba",
+        "term": "merhaba",
+        "translation": "hello",
+        "pronunciation": "",
+        "tags": []
+      }
+    ],
+    "expressions": [
+      {
+        "id": "e-selam",
+        "term": "Selam!",
+        "translation": "Hi!",
+        "pronunciation": "",
+        "tags": []
+      },
+      {
+        "id": "e-selam",
+        "term": "Selam!",
+        "translation": "Hi!",
+        "pronunciation": "",
+        "tags": []
+      },
+      {
+        "id": "e-selam",
+        "term": "Selam!",
+        "translation": "Hi!",
+        "pronunciation": "",
+        "tags": []
+      },
+      {
+        "id": "e-selam",
+        "term": "Selam!",
+        "translation": "Hi!",
+        "pronunciation": "",
+        "tags": []
+      }
+    ],
+    "grammarPoints": [
+      {
+        "id": "g-greetings",
+        "title": "Greetings",
+        "explanation": "hi",
+        "exampleExpressionIds": [],
+        "exampleSentenceIds": [],
+        "practiceItems": [],
+        "tags": []
+      },
+      {
+        "id": "g-greetings",
+        "title": "Greetings",
+        "explanation": "hi",
+        "exampleExpressionIds": [],
+        "exampleSentenceIds": [],
+        "practiceItems": [],
+        "tags": []
+      },
+      {
+        "id": "g-greetings",
+        "title": "Greetings",
+        "explanation": "hi",
+        "exampleExpressionIds": [],
+        "exampleSentenceIds": [],
+        "practiceItems": [],
+        "tags": []
+      },
+      {
+        "id": "g-greetings",
+        "title": "Greetings",
+        "explanation": "hi",
+        "exampleExpressionIds": [],
+        "exampleSentenceIds": [],
+        "practiceItems": [],
+        "tags": []
+      }
+    ],
+    "updated_at": "2026-07-20T13:48:18.114618+00:00"
+  },
+  "design": {
+    "chat_history": [],
+    "params": {},
+    "draft_sections": [],
+    "explanation": ""
+  },
+  "import_map": {},
+  "ui_stage": null
+}

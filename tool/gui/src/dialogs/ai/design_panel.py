@@ -90,6 +90,15 @@ class DesignPanel(QWidget):
         self._stream_flush_timer.setSingleShot(True)
         self._stream_flush_timer.setInterval(120)
         self._stream_flush_timer.timeout.connect(self._flush_stream_views)
+        # P2: skip full JSON setPlainText while generating large drafts.
+        self._STREAM_JSON_LIVE_LIMIT = 8_192
+        self._generating = False
+        # P2: throttle disk autosave (especially around design_changed bursts).
+        self._autosave_timer = QTimer(self)
+        self._autosave_timer.setSingleShot(True)
+        self._autosave_timer.setInterval(2_000)
+        self._autosave_timer.timeout.connect(self._autosave_now)
+        self._autosave_dirty = False
         self.setAcceptDrops(True)
 
         if controller is None:
@@ -342,13 +351,31 @@ class DesignPanel(QWidget):
             )
 
     def _autosave(self) -> None:
+        """Schedule a throttled project write (P2); coalesce while generating."""
         if self._project is None or self._store is None:
             return
+        self._autosave_dirty = True
+        if self._generating:
+            # draft_ready / flush_autosave will force-write; skip timer chatter.
+            return
+        self._autosave_timer.start()
+
+    def _autosave_now(self) -> None:
+        if self._project is None or self._store is None:
+            return
+        self._autosave_dirty = False
         try:
             self._project.design = self._controller.to_design_dict()
             self._store.save_project(self._project)
         except Exception:
             pass  # autosave must never break the flow
+
+    def flush_autosave(self) -> None:
+        """Persist any pending design state immediately (workshop interrupt)."""
+        self._autosave_timer.stop()
+        if self._project is None or self._store is None:
+            return
+        self._autosave_now()
 
     # ------------------------------------------------------------------ rendering
     def _refresh_pool_summary(self) -> None:
@@ -389,7 +416,15 @@ class DesignPanel(QWidget):
                 self._controller.chat, self._chat_stream_buffer
             )
         if "draft" in dirty and self._stream_buffer:
-            self._json_editor.setPlainText(self._stream_buffer)
+            n = len(self._stream_buffer)
+            # P2: avoid O(n) full-document setPlainText for large streams.
+            # Small buffers still stream into the editor; large ones only update a summary.
+            if self._generating and n > self._STREAM_JSON_LIVE_LIMIT:
+                self._validate_label.setText(f"生成中… 已接收约 {n} 字符")
+            else:
+                self._json_editor.setPlainText(self._stream_buffer)
+                if self._generating:
+                    self._validate_label.setText(f"生成中… 已接收约 {n} 字符")
         if "explain" in dirty and self._explain_stream_buffer:
             self._render_explanation(self._explain_stream_buffer)
 
@@ -397,6 +432,7 @@ class DesignPanel(QWidget):
         self._cancel_stream_flush()
         self._last_raw_output = self._stream_buffer
         self._stream_buffer = ""
+        self._generating = False
         self._json_editor.set_json(section)
         self._validate_label.setText(
             f"✓ 已生成 · {len(section.get('units', []))} 单元 · "
@@ -406,6 +442,8 @@ class DesignPanel(QWidget):
             btn.setEnabled(True)
         self._restore_raw_btn.setEnabled(bool(self._last_raw_output))
         self.draft_ready.emit()
+        # Persist draft promptly after generation (bypass busy skip).
+        self.flush_autosave()
 
     def _on_draft_chunk(self, text: str) -> None:
         self._stream_buffer += text
@@ -419,10 +457,18 @@ class DesignPanel(QWidget):
         self._stage_label.setText(stage)
         self._send_btn.setEnabled(not busy)
         self._attach_btn.setEnabled(not busy)
+        # Treat "生成" / "重生" stages as generation for stream-summary mode.
+        # "重生课时…" / "重生育元…" (local regenerate) also stream large JSON.
+        if busy and ("生成" in (stage or "") or "重生" in (stage or "")):
+            self._generating = True
+        elif not busy:
+            self._generating = False
         if busy:
             self._cancel_stream_flush()
             self._stream_buffer = ""
             self._chat_stream_buffer = ""
+            if self._generating:
+                self._validate_label.setText("生成中…")
         self.busy_changed.emit(busy, stage)
 
     def _on_usage_update(self, usage: dict) -> None:
@@ -704,4 +750,18 @@ class DesignPanel(QWidget):
                 detail = "\n".join(p.get("message", "") for p in errors[:5])
                 QMessageBox.warning(self, "校验失败", f"请先修正：\n{detail}")
                 return
-        self.sections_ready.emit([data], "merge")
+        # Ask where to import: new section, into an existing section (as new
+        # units), or into an existing unit (as new lessons). The choice is
+        # encoded into the strategy string so the existing sections_ready
+        # signal chain carries it to MainWindow._on_textbook_sections.
+        from src.dialogs.import_target_dialog import ImportTargetDialog
+
+        target = ImportTargetDialog(self.adapter, parent=self).select()
+        if target is None:
+            return  # cancelled
+        if target.mode == "into_section":
+            self.sections_ready.emit([data], f"into_section:{target.section_id}")
+        elif target.mode == "into_unit":
+            self.sections_ready.emit([data], f"into_unit:{target.unit_id}")
+        else:
+            self.sections_ready.emit([data], "merge")

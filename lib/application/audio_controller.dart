@@ -10,6 +10,7 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
+import 'package:varnamala/application/accessibility_provider.dart';
 import 'package:varnamala/application/language_provider.dart';
 import 'package:varnamala/application/settings_provider.dart';
 import 'package:varnamala/domain/audio/vocab_audio_resolver.dart';
@@ -54,6 +55,7 @@ class AudioController {
   final FlutterTts _tts;
   final LanguageProvider _languageProvider;
   final SettingsProvider _settingsProvider;
+  final AccessibilityProvider _accessibilityProvider;
   final VocabAudioResolver _vocabAudioResolver;
   final TtsAvailabilityChecker? _ttsChecker;
   final Random _random = Random();
@@ -61,6 +63,7 @@ class AudioController {
   double _ttsSpeed = 1.0;
   double get ttsSpeed => _ttsSpeed;
   String? _lastTtsLanguage;
+  double? _lastTtsRate;
 
   TtsSpeakResult? _lastSpeakResult;
   TtsSpeakResult? get lastSpeakResult => _lastSpeakResult;
@@ -69,6 +72,7 @@ class AudioController {
     this._tts,
     this._languageProvider,
     this._settingsProvider,
+    this._accessibilityProvider,
     this._vocabAudioResolver, {
     @Named('audioPlayer') required AudioPlayer audioPlayer,
     @Named('speechPlayer') required AudioPlayer speechPlayer,
@@ -110,11 +114,17 @@ class AudioController {
   }
 
   void _triggerHaptic(HapticFeedbackType type) {
+    // Sensory-reduce silences non-essential haptics, independent of the
+    // explicit haptic toggle in SettingsProvider.
+    if (_accessibilityProvider.quietFeedback) return;
     _settingsProvider.triggerHaptic(type);
   }
 
   Future<void> _playSound(String assetPath) async {
+    // Sensory-reduce mutes non-essential sound effects (error / level-up
+    // cues), independent of the explicit sound-effects toggle.
     if (!_settingsProvider.soundEffectsEnabled) return;
+    if (_accessibilityProvider.quietFeedback) return;
     try {
       await _audioPlayer.play(
         AssetSource(normalizeAssetPath(assetPath)),
@@ -209,7 +219,10 @@ class AudioController {
   Future<void> _speakWithSystemTts(String text, double effectiveSpeed) async {
     await _ensureSystemTtsReady();
     final rate = mapUiSpeedToFlutterTtsRate(effectiveSpeed);
-    await _tts.setSpeechRate(rate);
+    if (_lastTtsRate != rate) {
+      await _tts.setSpeechRate(rate);
+      _lastTtsRate = rate;
+    }
     await _tts.stop();
     debugPrint(
       'TTS route: system (lang=$_lastTtsLanguage, '

@@ -141,10 +141,18 @@ class CourseLoader {
 
   static Future<CourseLoader> _loadFresh() async {
     final repo = CourseRepository(_db);
-    final shells = await repo.sectionShells();
-    final vocab = await repo.vocabulary();
-    final grammar = await repo.grammarPoints();
-    final expressions = await repo.expressions();
+    // The four lookups are independent — fan them out instead of awaiting
+    // four DB round-trips in series on the cold-start path.
+    final results = await Future.wait<dynamic>([
+      repo.sectionShells(),
+      repo.vocabulary(),
+      repo.grammarPoints(),
+      repo.expressions(),
+    ]);
+    final shells = results[0] as List<Section>;
+    final vocab = results[1] as List<WordEntry>;
+    final grammar = results[2] as List<GrammarPoint>;
+    final expressions = results[3] as List<Expression>;
     return CourseLoader(
       sectionShells: shells,
       vocabulary: vocab,

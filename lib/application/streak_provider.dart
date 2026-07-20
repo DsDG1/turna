@@ -87,6 +87,15 @@ class StreakProvider extends ChangeNotifier {
       return _lastStreakCheckResult;
     }
 
+    // No streak to break: a fresh install (or one where the user never
+    // practiced) seeds lastStreakDate=today with streak=0. Don't surface a
+    // "streak broken" notice for users who never built a streak.
+    if (streak == 0) {
+      _lastStreakCheckResult = StreakCheckResult.none;
+      notifyListeners();
+      return _lastStreakCheckResult;
+    }
+
     await Future.wait([
       appPrefs.preferences.setInt(LocalStateKeys.streak, 0),
       appPrefs.preferences.setBool(LocalStateKeys.streakWasBroken, true),

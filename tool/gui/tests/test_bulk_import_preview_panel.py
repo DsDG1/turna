@@ -5,27 +5,17 @@ import sys
 import unittest
 from pathlib import Path
 
-from PySide6.QtWidgets import QApplication
 
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
+from tests._qtapp import _App as _TestApp  # noqa: E402
 
 from src.backend.import_strategy import SectionImportPreview
 from src.widgets.bulk_import_preview_panel import (
     BulkImportPreviewPanel,
     action_label,
 )
-
-
-class _TestApp:
-    _app: QApplication | None = None
-
-    @classmethod
-    def get(cls) -> QApplication:
-        if cls._app is None:
-            cls._app = QApplication.instance() or QApplication([])
-        return cls._app
 
 
 def _preview(

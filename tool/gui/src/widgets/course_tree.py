@@ -34,9 +34,8 @@ from src.application.commands import (
     ReparentUnitCommand,
 )
 from src.backend.course_adapter import CourseAdapter
-from src.backend.lesson_content import TEMPLATE_LABELS
+from src.backend.lesson_content import TEMPLATE_COLORS, TEMPLATE_LABELS
 from src.theme import current_palette
-from src.widgets.course_overview import _TEMPLATE_COLORS
 
 
 class CourseTreeWidget(QTreeWidget):
@@ -127,7 +126,7 @@ class CourseTreeWidget(QTreeWidget):
                     label = lesson.get("name", lid)
                     if self._teacher_mode:
                         type_text = TEMPLATE_LABELS.get(tmpl, tmpl or "lesson")
-                        type_color = QColor(_TEMPLATE_COLORS.get(tmpl, _TEMPLATE_COLORS["legacy"]))
+                        type_color = QColor(TEMPLATE_COLORS.get(tmpl, TEMPLATE_COLORS["legacy"]))
                     else:
                         type_text = f"lesson ({tmpl})"
                         type_color = secondary

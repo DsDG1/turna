@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
     QLabel,
+    QLineEdit,
     QMessageBox,
     QPushButton,
     QTableWidget,
@@ -73,16 +74,21 @@ class ResourceTableWidget(QWidget):
         self.table.horizontalHeader().setSectionResizeMode(
             QHeaderView.ResizeMode.Stretch
         )
+        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.table.setSelectionMode(QTableWidget.SelectionMode.ExtendedSelection)
         self.table.itemChanged.connect(self._on_cell_changed)
         layout.addWidget(self.table)
 
         row = QHBoxLayout()
         self.add_btn = QPushButton("+ 添加行")
         self.del_btn = QPushButton("- 删除行")
+        self.batch_del_btn = QPushButton("批量删除")
+        self.batch_del_btn.setToolTip("删除所有选中的行")
         self.import_btn = QPushButton("导入 CSV")
         self.export_btn = QPushButton("导出 CSV")
         row.addWidget(self.add_btn)
         row.addWidget(self.del_btn)
+        row.addWidget(self.batch_del_btn)
         row.addStretch()
         row.addWidget(self.import_btn)
         row.addWidget(self.export_btn)
@@ -90,8 +96,24 @@ class ResourceTableWidget(QWidget):
 
         self.add_btn.clicked.connect(self._on_add)
         self.del_btn.clicked.connect(self._on_del)
+        self.batch_del_btn.clicked.connect(self._on_batch_del)
         self.import_btn.clicked.connect(self._on_import)
         self.export_btn.clicked.connect(self._on_export)
+
+    def apply_filter(self, text: str) -> None:
+        """Show only rows whose cells contain ``text`` (case-insensitive)."""
+        text = text.strip().lower()
+        for r in range(self.table.rowCount()):
+            if not text:
+                self.table.setRowHidden(r, False)
+                continue
+            match = False
+            for c in range(self.table.columnCount()):
+                item = self.table.item(r, c)
+                if item and text in item.text().lower():
+                    match = True
+                    break
+            self.table.setRowHidden(r, not match)
 
     def _refresh(self) -> None:
         self.table.blockSignals(True)
@@ -160,6 +182,35 @@ class ResourceTableWidget(QWidget):
         self._dirty = True
         self.adapter.notify_resources_changed()
 
+    def _on_batch_del(self) -> None:
+        """Delete all selected rows at once."""
+        rows = sorted(
+            {idx.row() for idx in self.table.selectedIndexes()},
+            reverse=True,
+        )
+        if not rows:
+            QMessageBox.information(self, "批量删除", "请先选中要删除的行。")
+            return
+        reply = QMessageBox.question(
+            self, "批量删除",
+            f"确认删除 {len(rows)} 行？保存时 validate 会校验悬空引用。",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        for r in rows:
+            item = self.table.item(r, 0)
+            if not item:
+                continue
+            entry_id = item.text()
+            try:
+                self.adapter.delete_resource_entry(self.row_type, entry_id)
+            except KeyError:
+                pass
+        self._refresh()
+        self._dirty = True
+        self.adapter.notify_resources_changed()
+
     def _on_import(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
             self, f"导入 {self.row_type} CSV", "", "CSV Files (*.csv)"
@@ -209,7 +260,7 @@ class ResourceEditorDialog(QWidget):
     def __init__(self, adapter: CourseAdapter, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("资源编辑")
-        self.resize(900, 520)
+        self.resize(900, 560)
         self.adapter = adapter
         self.tabs: list[ResourceTableWidget] = []
 
@@ -217,6 +268,30 @@ class ResourceEditorDialog(QWidget):
         hint = QLabel("编辑后关闭此窗口，再点工具栏「保存」落盘并校验。")
         hint.setStyleSheet("color: gray;")
         layout.addWidget(hint)
+
+        # Cross-tab search bar.
+        search_row = QHBoxLayout()
+        search_row.addWidget(QLabel("搜索:"))
+        self.search_edit = QLineEdit()
+        self.search_edit.setPlaceholderText("跨所有标签页过滤（输入即筛选）...")
+        self.search_edit.textChanged.connect(self._on_search_changed)
+        search_row.addWidget(self.search_edit, 1)
+
+        self.dupes_btn = QPushButton("查重")
+        self.dupes_btn.setToolTip("检测 vocab 和 expressions 之间的重复词条")
+        self.dupes_btn.clicked.connect(self._on_detect_dupes)
+        search_row.addWidget(self.dupes_btn)
+
+        self.pack_export_btn = QPushButton("导出资源包")
+        self.pack_export_btn.setToolTip("导出所有资源为单个 JSON 资源包")
+        self.pack_export_btn.clicked.connect(self._on_export_pack)
+        search_row.addWidget(self.pack_export_btn)
+
+        self.pack_import_btn = QPushButton("导入资源包")
+        self.pack_import_btn.setToolTip("从 JSON 资源包合并资源")
+        self.pack_import_btn.clicked.connect(self._on_import_pack)
+        search_row.addWidget(self.pack_import_btn)
+        layout.addLayout(search_row)
 
         self.tab_widget = QTabWidget()
         for rt in RESOURCE_TYPES:
@@ -227,3 +302,57 @@ class ResourceEditorDialog(QWidget):
 
     def is_dirty(self) -> bool:
         return any(tab.is_dirty() for tab in self.tabs)
+
+    def _on_search_changed(self, text: str) -> None:
+        for tab in self.tabs:
+            tab.apply_filter(text)
+
+    def _on_detect_dupes(self) -> None:
+        dupes = self.adapter.detect_duplicates()
+        if not dupes:
+            QMessageBox.information(self, "查重", "未发现重复词条。")
+            return
+        lines = [
+            f"发现 {len(dupes)} 个重复：\n"
+        ]
+        for d in dupes:
+            lines.append(f"  {d['type']} [{d['id']}] 「{d['term']}」 与 {d['duplicate_in']} 重复")
+        QMessageBox.information(self, "查重结果", "\n".join(lines))
+
+    def _on_export_pack(self) -> None:
+        path, _ = QFileDialog.getSaveFileName(
+            self, "导出资源包", "resource-pack.json", "JSON Files (*.json)"
+        )
+        if not path:
+            return
+        from pathlib import Path
+        try:
+            self.adapter.export_resource_pack(Path(path))
+            QMessageBox.information(self, "导出完成", f"资源包已写入 {path}")
+        except Exception as exc:
+            QMessageBox.warning(self, "导出失败", str(exc))
+
+    def _on_import_pack(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(
+            self, "导入资源包", "", "JSON Files (*.json)"
+        )
+        if not path:
+            return
+        from pathlib import Path
+        reply = QMessageBox.question(
+            self, "导入资源包",
+            "合并模式（是=合并去重，否=完全替换）？",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Yes,
+        )
+        if reply == QMessageBox.StandardButton.Cancel:
+            return
+        replace = reply == QMessageBox.StandardButton.No
+        try:
+            counts = self.adapter.import_resource_pack(Path(path), replace=replace)
+            detail = "\n".join(f"{k}: {v}" for k, v in counts.items())
+            for tab in self.tabs:
+                tab._refresh()
+            QMessageBox.information(self, "导入完成", f"已{'替换' if replace else '合并'}资源：\n{detail}")
+        except Exception as exc:
+            QMessageBox.warning(self, "导入失败", str(exc))

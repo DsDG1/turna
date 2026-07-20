@@ -8,15 +8,17 @@ from unittest.mock import MagicMock, patch
 
 from PySide6.QtCore import QSettings
 from PySide6.QtGui import QCloseEvent
-from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtWidgets import QMessageBox
 
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
+from tests._course_fixture import copy_turkish_course  # noqa: E402
 
 from src.app import MainWindow  # noqa: E402
 from src.backend.ai_generator import AiApiConfig  # noqa: E402
 from src.backend.course_adapter import SaveResult  # noqa: E402
+from tests._qtapp import _App as _TestApp  # noqa: E402
 
 
 def _build_main_window_with_ai_settings(ai_values: dict) -> MainWindow:
@@ -38,16 +40,6 @@ def _build_main_window_with_ai_settings(ai_values: dict) -> MainWindow:
     fake_settings.remove = _remove
     with patch("src.app.QSettings", return_value=fake_settings):
         return MainWindow(), fake_settings
-
-
-class _TestApp:
-    _app: QApplication | None = None
-
-    @classmethod
-    def get(cls) -> QApplication:
-        if cls._app is None:
-            cls._app = QApplication.instance() or QApplication([])
-        return cls._app
 
 
 def _build_main_window() -> MainWindow:
@@ -339,6 +331,296 @@ class TeacherModeToggleTest(unittest.TestCase):
         self.assertEqual(self.win.mode_action.text(), "教师模式")
         # Detail pane cleared the inline teacher widget (show_node -> clear).
         self.assertIsNone(self.win.detail._current_content_widget)
+
+
+class AiEditConflictTest(unittest.TestCase):
+    """_detect_ai_edit_conflicts + _on_ai_edit id-conflict three-way choice
+    (overwrite / rename-append / cancel) for unit and lesson edits."""
+
+    def setUp(self) -> None:
+        _TestApp.get()
+        import shutil
+        import tempfile
+
+        from PySide6.QtGui import QUndoStack
+
+        from src.backend.course_adapter import CourseAdapter
+
+        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_aiconf_"))
+        course_dir = self.tmp / "turkish"
+        copy_turkish_course(course_dir)
+        self.adapter = CourseAdapter()
+        self.adapter.load(course_dir)
+        self.win = _build_main_window()
+        self.win.adapter = self.adapter
+        self.win.course_dir = course_dir
+        self.win.undo_stack = QUndoStack()
+        self.section = self.adapter.sections[0]
+        self.unit = self.section["units"][0]
+        self.lesson = self.unit["lessons"][0]
+
+    def tearDown(self) -> None:
+        import shutil
+
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_detect_unit_no_conflict_when_id_preserved(self) -> None:
+        new_unit = dict(self.unit)
+        new_unit["name"] = "Edited"
+        conflicts = self.win._detect_ai_edit_conflicts(
+            "unit", self.unit["id"], new_unit
+        )
+        self.assertEqual(conflicts, [])
+
+    def test_detect_unit_conflict_when_ai_changed_id(self) -> None:
+        new_unit = dict(self.unit)
+        new_unit["id"] = "changed-by-ai"
+        conflicts = self.win._detect_ai_edit_conflicts(
+            "unit", self.unit["id"], new_unit
+        )
+        self.assertTrue(any(c[1] == "changed-by-ai" for c in conflicts))
+
+    def test_detect_lesson_conflict_when_ai_changed_id(self) -> None:
+        new_lesson = dict(self.lesson)
+        new_lesson["id"] = "changed-by-ai"
+        conflicts = self.win._detect_ai_edit_conflicts(
+            "lesson", self.lesson["id"], new_lesson
+        )
+        self.assertTrue(any(c[1] == "changed-by-ai" for c in conflicts))
+
+    def _patch_dialog(self, new_section):
+        patcher = patch("src.dialogs.ai_generator_dialog.AiGeneratorDialog")
+        mock = patcher.start()
+        mock.return_value.exec.return_value = True
+        mock.return_value.section_json.return_value = new_section
+        self.addCleanup(patcher.stop)
+        return mock
+
+    def test_on_ai_edit_unit_overwrite_pins_id_back(self) -> None:
+        new_section = {
+            "id": self.section["id"],
+            "name": self.section["name"],
+            "units": [dict(self.unit, id="changed-by-ai", name="Edited by AI")],
+        }
+        self._patch_dialog(new_section)
+        with patch.object(self.win, "_show_beta_warning_once"),                 patch.object(
+                    self.win, "_ask_ai_edit_conflict_resolution",
+                    return_value="overwrite"):
+            self.win._on_ai_edit("unit", self.unit["id"])
+        _s, u = self.adapter.find_unit(self.unit["id"])
+        self.assertEqual(u["id"], self.unit["id"])  # pinned back
+        self.assertEqual(u["name"], "Edited by AI")
+
+    def test_on_ai_edit_unit_rename_appends_copy(self) -> None:
+        before = len(self.section["units"])
+        new_section = {
+            "id": self.section["id"],
+            "name": self.section["name"],
+            "units": [dict(self.unit, id="changed-by-ai", name="Edited by AI")],
+        }
+        self._patch_dialog(new_section)
+        with patch.object(self.win, "_show_beta_warning_once"),                 patch.object(
+                    self.win, "_ask_ai_edit_conflict_resolution",
+                    return_value="rename"):
+            self.win._on_ai_edit("unit", self.unit["id"])
+        self.assertEqual(len(self.section["units"]), before + 1)
+        # Original unit unchanged.
+        _s, u = self.adapter.find_unit(self.unit["id"])
+        self.assertNotEqual(u["name"], "Edited by AI")
+
+    def test_on_ai_edit_unit_cancel_no_change(self) -> None:
+        before = len(self.section["units"])
+        new_section = {
+            "id": self.section["id"],
+            "name": self.section["name"],
+            "units": [dict(self.unit, id="changed-by-ai", name="Edited by AI")],
+        }
+        self._patch_dialog(new_section)
+        with patch.object(self.win, "_show_beta_warning_once"),                 patch.object(
+                    self.win, "_ask_ai_edit_conflict_resolution",
+                    return_value="cancel"):
+            self.win._on_ai_edit("unit", self.unit["id"])
+        self.assertEqual(len(self.section["units"]), before)
+
+    def test_on_ai_edit_lesson_rename_appends_copy(self) -> None:
+        unit = self.unit
+        before = len(unit["lessons"])
+        new_section = {
+            "id": self.section["id"],
+            "name": self.section["name"],
+            "units": [
+                dict(unit, lessons=[dict(self.lesson, id="changed-by-ai", name="Edited")])
+            ],
+        }
+        self._patch_dialog(new_section)
+        with patch.object(self.win, "_show_beta_warning_once"),                 patch.object(
+                    self.win, "_ask_ai_edit_conflict_resolution",
+                    return_value="rename"):
+            self.win._on_ai_edit("lesson", self.lesson["id"])
+        self.assertEqual(len(unit["lessons"]), before + 1)
+
+
+class WorkshopImportTargetTest(unittest.TestCase):
+    """Workshop 'import into existing section/unit' paths: draft units/lessons
+    are appended with fresh ids + resources merged (and rolled back on undo)."""
+
+    def setUp(self) -> None:
+        _TestApp.get()
+        import shutil
+        import tempfile
+
+        from PySide6.QtGui import QUndoStack
+
+        from src.backend.course_adapter import CourseAdapter
+
+        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_ws_"))
+        course_dir = self.tmp / "turkish"
+        copy_turkish_course(course_dir)
+        self.adapter = CourseAdapter()
+        self.adapter.load(course_dir)
+        self.win = _build_main_window()
+        self.win.adapter = self.adapter
+        self.win.course_dir = course_dir
+        self.win.undo_stack = QUndoStack()
+        self.section = self.adapter.sections[0]
+
+    def tearDown(self) -> None:
+        import shutil
+
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_import_draft_into_section_appends_units_and_resources(self) -> None:
+        sid = self.section["id"]
+        before = len(self.section["units"])
+        draft = {
+            "id": "draft",
+            "name": "Draft",
+            "units": [
+                {
+                    "id": "d-u1",
+                    "name": "DU1",
+                    "lessons": [
+                        {
+                            "id": "d-l1",
+                            "name": "DL1",
+                            "template": "intro",
+                            "content": {"subLessons": []},
+                        }
+                    ],
+                }
+            ],
+            "words": [
+                {"id": "w-draft", "term": "x", "translation": "y", "tags": []}
+            ],
+        }
+        self.win._import_draft_into_section(draft, sid)
+        self.assertEqual(len(self.section["units"]), before + 1)
+        self.assertIn("w-draft", {w.get("id") for w in self.adapter.vocab})
+        # Undo removes the appended unit + rolls back the merged resource.
+        self.win.undo_stack.undo()
+        self.assertEqual(len(self.section["units"]), before)
+        self.assertNotIn("w-draft", {w.get("id") for w in self.adapter.vocab})
+
+    def test_import_draft_into_unit_appends_lessons_and_resources(self) -> None:
+        unit = self.section["units"][0]
+        uid = unit["id"]
+        before = len(unit["lessons"])
+        draft = {
+            "id": "draft",
+            "name": "Draft",
+            "units": [
+                {
+                    "id": "d-u1",
+                    "lessons": [
+                        {
+                            "id": "d-l1",
+                            "name": "DL1",
+                            "template": "intro",
+                            "content": {"subLessons": []},
+                        }
+                    ],
+                }
+            ],
+            "expressions": [
+                {"id": "e-draft", "term": "x", "translation": "y", "tags": []}
+            ],
+        }
+        self.win._import_draft_into_unit(draft, uid)
+        self.assertEqual(len(unit["lessons"]), before + 1)
+        self.assertIn("e-draft", {e.get("id") for e in self.adapter.expressions})
+        self.win.undo_stack.undo()
+        self.assertEqual(len(unit["lessons"]), before)
+        self.assertNotIn("e-draft", {e.get("id") for e in self.adapter.expressions})
+
+    def test_import_draft_into_section_records_import_on_project(self) -> None:
+        """The draft-import paths must persist import state to the project so
+        the workshop's 已导入 checklist mark + locate button survive a close
+        + reopen (fix for the un-recorded draft-import bug)."""
+        sid = self.section["id"]
+        draft = {"id": "draft-src", "name": "Draft", "units": [
+            {"id": "d-u1", "name": "DU1", "lessons": []}
+        ]}
+        project = MagicMock()
+        project.imported_section_ids = []
+        project.import_map = {}
+        project.current_step = 0
+        workshop = MagicMock()
+        workshop.current_project.return_value = project
+        self.win._workshop_window = workshop
+        try:
+            self.win._import_draft_into_section(draft, sid)
+        finally:
+            self.win._workshop_window = None
+        self.assertIn(sid, project.imported_section_ids)
+        self.assertEqual(project.import_map.get("draft-src"), sid)
+
+    def test_import_draft_into_unit_records_import_on_project(self) -> None:
+        unit = self.section["units"][0]
+        uid = unit["id"]
+        sid = self.section["id"]
+        draft = {"id": "draft-src", "name": "Draft", "units": [
+            {"id": "d-u1", "lessons": [
+                {"id": "d-l1", "name": "DL1", "template": "intro",
+                 "content": {"subLessons": []}}
+            ]}
+        ]}
+        project = MagicMock()
+        project.imported_section_ids = []
+        project.import_map = {}
+        project.current_step = 0
+        workshop = MagicMock()
+        workshop.current_project.return_value = project
+        self.win._workshop_window = workshop
+        try:
+            self.win._import_draft_into_unit(draft, uid)
+        finally:
+            self.win._workshop_window = None
+        self.assertIn(sid, project.imported_section_ids)
+        self.assertEqual(project.import_map.get("draft-src"), sid)
+
+    def test_offer_teacher_after_import_skips_when_hidden(self) -> None:
+        """Headless/hidden window must not block on the post-import dialog."""
+        from PySide6.QtWidgets import QMessageBox
+
+        with unittest.mock.patch.object(QMessageBox, "question") as q:
+            self.win._offer_open_teacher_after_import(self.section["id"])
+            q.assert_not_called()
+
+    def test_offer_teacher_after_import_when_visible(self) -> None:
+        from PySide6.QtWidgets import QMessageBox
+
+        self.win.show()
+        try:
+            with unittest.mock.patch.object(
+                QMessageBox, "question", return_value=QMessageBox.StandardButton.Yes
+            ), unittest.mock.patch.object(
+                self.win, "_on_workshop_locate"
+            ) as locate:
+                self.win._offer_open_teacher_after_import(self.section["id"])
+                locate.assert_called_once_with(self.section["id"])
+            self.assertTrue(self.win.teacher_mode)
+        finally:
+            self.win.hide()
 
 
 if __name__ == "__main__":

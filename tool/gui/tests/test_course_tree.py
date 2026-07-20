@@ -14,22 +14,13 @@ from unittest.mock import MagicMock
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
+from tests._course_fixture import real_adapter_with_course  # noqa: E402
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QUndoStack
-from PySide6.QtWidgets import QApplication
 
 from src.widgets.course_tree import CourseTreeWidget
-
-
-class _App:
-    _app: QApplication | None = None
-
-    @classmethod
-    def get(cls) -> QApplication:
-        if cls._app is None:
-            cls._app = QApplication.instance() or QApplication([])
-        return cls._app
+from tests._qtapp import _App  # noqa: E402
 
 
 def _adapter_with_data():
@@ -270,19 +261,7 @@ class CourseTreeMoveTest(unittest.TestCase):
 def _real_adapter_with_course():
     """A real CourseAdapter loaded from the Turkish course for keyboard
     integration tests (duplicate/delete/move actually mutate the tree)."""
-    import shutil
-    import tempfile
-
-    from src.backend.course_adapter import CourseAdapter
-
-    repo = _GUI.parents[1]  # repo root (Varnamalaplus)
-    src = repo / "assets" / "courses" / "turkish"
-    tmp = Path(tempfile.mkdtemp(prefix="varnamala_tree_kb_"))
-    course_dir = tmp / "turkish"
-    shutil.copytree(src, course_dir)
-    adapter = CourseAdapter()
-    adapter.load(course_dir)
-    return adapter, tmp
+    return real_adapter_with_course(prefix="varnamala_tree_kb_")
 
 
 class CourseTreeKeyboardTest(unittest.TestCase):
@@ -492,13 +471,195 @@ class CourseTreeTeacherModeTest(unittest.TestCase):
         self.assertEqual(section.child(0).text(1), "")
 
     def test_teacher_mode_colors_lesson_badge(self) -> None:
-        from src.widgets.course_overview import _TEMPLATE_COLORS
+        from src.backend.lesson_content import TEMPLATE_COLORS
 
         self.tree.set_teacher_mode(True)
         lesson = self._lesson_item("s1-l1")
-        expected = QColor(_TEMPLATE_COLORS["intro"]).name()
+        expected = QColor(TEMPLATE_COLORS["intro"]).name()
         self.assertEqual(lesson.foreground(1).color().name(), expected)
 
+
+def _cross_tree_lookup_adapter():
+    """Adapter stub with real find/delete behavior for cross-tree move tests.
+
+    Layout:
+      section1: u-1 [l1a, l1b], u-2 [l2a]
+      section2: u-3 [l3a]
+    """
+    adapter = MagicMock()
+    adapter.sections = [
+        {"id": "section1", "name": "Section 1", "units": [
+            {"id": "u-1", "name": "Unit 1", "lessons": [
+                {"id": "l1a", "name": "L1a", "template": "intro"},
+                {"id": "l1b", "name": "L1b", "template": "practice"},
+            ]},
+            {"id": "u-2", "name": "Unit 2", "lessons": [
+                {"id": "l2a", "name": "L2a", "template": "intro"},
+            ]},
+        ]},
+        {"id": "section2", "name": "Section 2", "units": [
+            {"id": "u-3", "name": "Unit 3", "lessons": [
+                {"id": "l3a", "name": "L3a", "template": "intro"},
+            ]},
+        ]},
+    ]
+
+    def find_section(section_id):
+        for s in adapter.sections:
+            if s.get("id") == section_id:
+                return s
+        raise KeyError(section_id)
+
+    def find_unit(unit_id):
+        for s in adapter.sections:
+            for u in s.get("units", []):
+                if u.get("id") == unit_id:
+                    return s, u
+        raise KeyError(unit_id)
+
+    def find_lesson(lesson_id):
+        for s in adapter.sections:
+            for u in s.get("units", []):
+                for l in u.get("lessons", []):
+                    if l.get("id") == lesson_id:
+                        return s, u, l
+        raise KeyError(lesson_id)
+
+    def delete_lesson(lesson_id):
+        for s in adapter.sections:
+            for u in s.get("units", []):
+                lessons = u.get("lessons", [])
+                for i, l in enumerate(lessons):
+                    if l.get("id") == lesson_id:
+                        del lessons[i]
+                        return
+        raise KeyError(lesson_id)
+
+    def delete_unit(unit_id):
+        for s in adapter.sections:
+            units = s.get("units", [])
+            for i, u in enumerate(units):
+                if u.get("id") == unit_id:
+                    del units[i]
+                    return
+        raise KeyError(unit_id)
+
+    adapter.find_section.side_effect = find_section
+    adapter.find_unit.side_effect = find_unit
+    adapter.find_lesson.side_effect = find_lesson
+    adapter.delete_lesson.side_effect = delete_lesson
+    adapter.delete_unit.side_effect = delete_unit
+    return adapter
+
+
+class CourseTreeCrossTreeMoveTest(unittest.TestCase):
+    """Cross-tree move: lessons cross units/sections, units cross sections,
+    when an up/down move hits a sibling boundary (free-move)."""
+
+    def setUp(self) -> None:
+        _App.get()
+        self.tree = CourseTreeWidget()
+        self.adapter = _cross_tree_lookup_adapter()
+        self.tree.display(self.adapter)
+        self.stack = QUndoStack()
+        self.tree.undo_stack = self.stack
+
+    def _item_for(self, kind: str, node_id: str):
+        for top_idx in range(self.tree.topLevelItemCount()):
+            top = self.tree.topLevelItem(top_idx)
+            if top.data(0, 0x0100) == (kind, node_id):
+                return top
+            for i in range(top.childCount()):
+                child = top.child(i)
+                if child.data(0, 0x0100) == (kind, node_id):
+                    return child
+                for j in range(child.childCount()):
+                    grand = child.child(j)
+                    if grand.data(0, 0x0100) == (kind, node_id):
+                        return grand
+        return None
+
+    def _unit_lesson_ids(self, unit_id):
+        _s, unit = self.adapter.find_unit(unit_id)
+        return [l["id"] for l in unit.get("lessons", [])]
+
+    def _section_unit_ids(self, section_id):
+        s = self.adapter.find_section(section_id)
+        return [u["id"] for u in s.get("units", [])]
+
+    def test_lesson_crosses_unit_down(self):
+        # l1b is the last lesson of u-1; down crosses into u-2 at the top.
+        item = self._item_for("lesson", "l1b")
+        self.tree.setCurrentItem(item)
+        self.tree._move_current(1)
+        self.assertEqual(self._unit_lesson_ids("u-1"), ["l1a"])
+        self.assertEqual(self._unit_lesson_ids("u-2"), ["l1b", "l2a"])
+
+    def test_lesson_crosses_section_down(self):
+        # l2a is the last lesson of section1; down crosses into section2/u-3.
+        item = self._item_for("lesson", "l2a")
+        self.tree.setCurrentItem(item)
+        self.tree._move_current(1)
+        self.assertEqual(self._unit_lesson_ids("u-2"), [])
+        self.assertEqual(self._unit_lesson_ids("u-3"), ["l2a", "l3a"])
+
+    def test_lesson_crosses_unit_up(self):
+        # l2a is the first lesson of u-2; up crosses into u-1 at the end.
+        item = self._item_for("lesson", "l2a")
+        self.tree.setCurrentItem(item)
+        self.tree._move_current(-1)
+        self.assertEqual(self._unit_lesson_ids("u-1"), ["l1a", "l1b", "l2a"])
+        self.assertEqual(self._unit_lesson_ids("u-2"), [])
+
+    def test_unit_crosses_section_down(self):
+        # u-2 is the last unit of section1; down crosses into section2 at top.
+        item = self._item_for("unit", "u-2")
+        self.tree.setCurrentItem(item)
+        self.tree._move_current(1)
+        self.assertEqual(self._section_unit_ids("section1"), ["u-1"])
+        self.assertEqual(self._section_unit_ids("section2"), ["u-2", "u-3"])
+
+    def test_unit_crosses_section_up(self):
+        # u-3 is the first unit of section2; up crosses into section1 at end.
+        item = self._item_for("unit", "u-3")
+        self.tree.setCurrentItem(item)
+        self.tree._move_current(-1)
+        self.assertEqual(self._section_unit_ids("section1"), ["u-1", "u-2", "u-3"])
+        self.assertEqual(self._section_unit_ids("section2"), [])
+
+    def test_first_lesson_up_is_noop(self):
+        item = self._item_for("lesson", "l1a")
+        self.tree.setCurrentItem(item)
+        before = self._unit_lesson_ids("u-1")
+        self.tree._move_current(-1)
+        self.assertEqual(self._unit_lesson_ids("u-1"), before)
+        self.assertEqual(self.stack.count(), 0)
+
+    def test_last_lesson_down_is_noop(self):
+        item = self._item_for("lesson", "l3a")
+        self.tree.setCurrentItem(item)
+        before = self._unit_lesson_ids("u-3")
+        self.tree._move_current(1)
+        self.assertEqual(self._unit_lesson_ids("u-3"), before)
+        self.assertEqual(self.stack.count(), 0)
+
+    def test_undo_reverses_cross_tree_lesson_move(self):
+        item = self._item_for("lesson", "l1b")
+        self.tree.setCurrentItem(item)
+        self.tree._move_current(1)  # l1b -> u-2
+        self.assertEqual(self._unit_lesson_ids("u-2"), ["l1b", "l2a"])
+        self.stack.undo()
+        self.assertEqual(self._unit_lesson_ids("u-1"), ["l1a", "l1b"])
+        self.assertEqual(self._unit_lesson_ids("u-2"), ["l2a"])
+
+    def test_undo_reverses_cross_tree_unit_move(self):
+        item = self._item_for("unit", "u-2")
+        self.tree.setCurrentItem(item)
+        self.tree._move_current(1)  # u-2 -> section2
+        self.assertEqual(self._section_unit_ids("section2"), ["u-2", "u-3"])
+        self.stack.undo()
+        self.assertEqual(self._section_unit_ids("section1"), ["u-1", "u-2"])
+        self.assertEqual(self._section_unit_ids("section2"), ["u-3"])
 
 if __name__ == "__main__":
     unittest.main()

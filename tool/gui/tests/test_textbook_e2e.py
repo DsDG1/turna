@@ -11,7 +11,6 @@ import unittest
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtWidgets import QApplication
 
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
@@ -20,6 +19,7 @@ if str(_GUI) not in sys.path:
 from src.backend.ai_generator import AiApiConfig
 from src.backend.knowledge_schema import coerce_knowledge_points
 from src.dialogs.textbook_import_dialog import TextbookImportDialog
+from tests._qtapp import _App as _TestApp  # noqa: E402
 
 
 def _sample_md() -> str:
@@ -74,16 +74,6 @@ def _fake_worker_factory(file_text: str, kp: Any) -> Any:
         return _FakeWorker(kp)
 
     return factory
-
-
-class _TestApp:
-    _app: QApplication | None = None
-
-    @classmethod
-    def get(cls) -> QApplication:
-        if cls._app is None:
-            cls._app = QApplication.instance() or QApplication([])
-        return cls._app
 
 
 class TextbookImportE2ETest(unittest.TestCase):

@@ -11,18 +11,16 @@ from typing import Any
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
+from tests._course_fixture import copy_turkish_course  # noqa: E402
 
 from src.backend.course_adapter import CourseAdapter  # noqa: E402
-
-_REPO = _GUI.parents[1]
-COURSE_SRC = _REPO / "assets" / "courses" / "turkish"
 
 
 class CourseAdapterRoundTripTest(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_gui_"))
         self.course_dir = self.tmp / "turkish"
-        shutil.copytree(COURSE_SRC, self.course_dir)
+        copy_turkish_course(self.course_dir)
 
     def tearDown(self) -> None:
         shutil.rmtree(self.tmp, ignore_errors=True)
@@ -127,7 +125,7 @@ class PrereqEditTest(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_gui_"))
         self.course_dir = self.tmp / "turkish"
-        shutil.copytree(COURSE_SRC, self.course_dir)
+        copy_turkish_course(self.course_dir)
 
     def tearDown(self) -> None:
         shutil.rmtree(self.tmp, ignore_errors=True)
@@ -182,7 +180,7 @@ class ResourceEditTest(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_gui_"))
         self.course_dir = self.tmp / "turkish"
-        shutil.copytree(COURSE_SRC, self.course_dir)
+        copy_turkish_course(self.course_dir)
 
     def tearDown(self) -> None:
         shutil.rmtree(self.tmp, ignore_errors=True)
@@ -326,7 +324,7 @@ class PublishFlowTest(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_gui_"))
         self.course_dir = self.tmp / "turkish"
-        shutil.copytree(COURSE_SRC, self.course_dir)
+        copy_turkish_course(self.course_dir)
 
     def tearDown(self) -> None:
         shutil.rmtree(self.tmp, ignore_errors=True)
@@ -472,7 +470,7 @@ class ValidateSectionJsonTest(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_validate_"))
         self.course_dir = self.tmp / "turkish"
-        shutil.copytree(COURSE_SRC, self.course_dir)
+        copy_turkish_course(self.course_dir)
         self.adapter = CourseAdapter()
         self.adapter.load(self.course_dir)
 
@@ -650,6 +648,115 @@ class ValidateSectionJsonTest(unittest.TestCase):
             len(plan.added_lessons_by_unit.get(existing_unit["id"], [])),
             1,
         )
+
+
+class CourseAdapterResourcePackTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_gui_"))
+        self.course_dir = self.tmp / "turkish"
+        copy_turkish_course(self.course_dir)
+        self.adapter = CourseAdapter()
+        self.adapter.load(self.course_dir)
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_export_resource_pack(self) -> None:
+        pack_path = self.tmp / "pack.json"
+        result = self.adapter.export_resource_pack(pack_path)
+        self.assertTrue(result.is_file())
+        import json
+        data = json.loads(pack_path.read_text(encoding="utf-8"))
+        self.assertIn("vocab", data)
+        self.assertIn("expressions", data)
+        self.assertIn("grammar_points", data)
+
+    def test_import_resource_pack_merge(self) -> None:
+        # Export, add a new entry, re-import -> should merge.
+        pack_path = self.tmp / "pack.json"
+        self.adapter.export_resource_pack(pack_path)
+        import json
+        data = json.loads(pack_path.read_text(encoding="utf-8"))
+        data["vocab"].append({"id": "w_new_pack", "term": "newword", "translation": "新词"})
+        pack_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        counts = self.adapter.import_resource_pack(pack_path, replace=False)
+        self.assertEqual(counts["vocab"], 1)
+        ids = [e.get("id") for e in self.adapter.vocab]
+        self.assertIn("w_new_pack", ids)
+
+    def test_import_resource_pack_replace(self) -> None:
+        pack_path = self.tmp / "pack.json"
+        import json
+        data = {"vocab": [{"id": "w_only", "term": "only"}], "expressions": [], "grammar_points": []}
+        pack_path.write_text(json.dumps(data), encoding="utf-8")
+        counts = self.adapter.import_resource_pack(pack_path, replace=True)
+        self.assertEqual(counts["vocab"], 1)
+        self.assertEqual(len(self.adapter.vocab), 1)
+        self.assertEqual(self.adapter.vocab[0]["id"], "w_only")
+
+
+class CourseAdapterDuplicateTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_gui_"))
+        self.course_dir = self.tmp / "turkish"
+        copy_turkish_course(self.course_dir)
+        self.adapter = CourseAdapter()
+        self.adapter.load(self.course_dir)
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_detects_existing_duplicates(self) -> None:
+        """The Turkish course has a known cross-table duplicate (nasılsın?)."""
+        dupes = self.adapter.detect_duplicates()
+        # At least one duplicate should be found.
+        self.assertGreaterEqual(len(dupes), 1)
+        terms = [d["term"] for d in dupes]
+        self.assertIn("nasılsın?", terms)
+
+    def test_detects_cross_table_duplicate(self) -> None:
+        # Add a vocab entry and an expression with the same term.
+        self.adapter.vocab.append({"id": "w_dupe", "term": "hello", "translation": "你好"})
+        self.adapter.expressions.append({"id": "e_dupe", "source": "hello", "translation": "你好"})
+        dupes = self.adapter.detect_duplicates()
+        self.assertGreaterEqual(len(dupes), 1)
+        dupe_terms = [d["term"] for d in dupes]
+        self.assertIn("hello", dupe_terms)
+
+
+class CourseAdapterGitSyncTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_gui_"))
+        self.course_dir = self.tmp / "turkish"
+        copy_turkish_course(self.course_dir)
+        self.adapter = CourseAdapter()
+        self.adapter.load(self.course_dir)
+        self.git_dir = self.tmp / "gitclone"
+        self.git_dir.mkdir()
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_sync_merges_git_into_local(self) -> None:
+        import json
+        # Git dir has a vocab entry not in local.
+        git_vocab = [{"id": "w_from_git", "term": "gitword", "translation": "git词"}]
+        (self.git_dir / "vocab.json").write_text(
+            json.dumps(git_vocab, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        result = self.adapter.sync_resources_with_git(self.git_dir, "tr")
+        self.assertIn("vocab", result)
+        ids = [e.get("id") for e in self.adapter.vocab]
+        self.assertIn("w_from_git", ids)
+
+    def test_sync_writes_back_to_git(self) -> None:
+        import json
+        # Local has an entry not in git.
+        self.adapter.vocab.append({"id": "w_local_only", "term": "localword"})
+        self.adapter.sync_resources_with_git(self.git_dir, "tr")
+        git_vocab = json.loads((self.git_dir / "vocab.json").read_text(encoding="utf-8"))
+        git_ids = [e.get("id") for e in git_vocab]
+        self.assertIn("w_local_only", git_ids)
 
 
 if __name__ == "__main__":

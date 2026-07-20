@@ -48,6 +48,7 @@ from src.backend.lesson_presets import (
     build_preset_lesson,
     presets_for_template,
 )
+from src.theme import current_palette
 from src.widgets.lesson_blueprint import LessonBlueprint
 
 _PHASE_LABELS = {
@@ -165,7 +166,7 @@ class FunctionalLessonWizard(QDialog):
         form.addRow("模板预设：", self._preset_combo)
         self._preset_desc = QLabel("")
         self._preset_desc.setWordWrap(True)
-        self._preset_desc.setStyleSheet("color: #6B7280;")
+        self._preset_desc.setStyleSheet(f"color: {current_palette()['text_secondary']};")
         form.addRow("", self._preset_desc)
 
         initial = initial_template if initial_template in FUNCTIONAL_TEMPLATES else "listening"
@@ -233,7 +234,7 @@ class FunctionalLessonWizard(QDialog):
         v.setSpacing(8)
         hint = QLabel("为每个听力阶段命名并设置音频/转录文本；题目可在创建后的蓝图中编辑。")
         hint.setWordWrap(True)
-        hint.setStyleSheet("color: #6B7280;")
+        hint.setStyleSheet(f"color: {current_palette()['text_secondary']};")
         v.addWidget(hint)
 
         phases = self._lesson["content"].get("listeningPhases", [])
@@ -322,7 +323,7 @@ class FunctionalLessonWizard(QDialog):
         form.addRow("正文段落：", paras)
         hint = QLabel("理解题（选择/判断/简答）可在创建后的蓝图中编辑。")
         hint.setWordWrap(True)
-        hint.setStyleSheet("color: #6B7280;")
+        hint.setStyleSheet(f"color: {current_palette()['text_secondary']};")
         form.addRow("", hint)
         return wrap
 

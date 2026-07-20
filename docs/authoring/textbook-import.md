@@ -47,41 +47,40 @@
 
 ---
 
-## 3. 三阶段流程
+## 3. 在课程工坊中的位置（统一画布）
 
-入口：工具栏「**课程工坊**」（唯一入口，merge overhaul 起）：非 modal 工作台，项目库与
-导入流水线同窗，六阶段（项目/素材/知识/设计/审校/导入）侧栏导航可点击回跳；
-全程自动保存，随时关闭可续作（重开自动回到上次项目与阶段）。
-旧的「导入教材(Beta)」modal 入口已移除，教材导入即工坊的素材→知识→导入阶段。
+入口：工具栏「**课程工坊**」（唯一入口）：非 modal 工作台。  
+IA：**项目库** 选项目 → **创意画布** 三栏创作（不再使用六阶段侧栏门控）。  
+头栏 checklist：`素材 · 知识 · 草稿 · 导入`。全程自动保存，可随时关闭续作。
 
-（页面历经两次重组：「② 解析课本」独立页面已移除，解析预览并入素材页；随后素材（选文件+章节勾选）、
-知识（提取日志+审校）、导入三页定型。）
+旧的「导入教材(Beta)」modal 已移除。教材相关能力落在画布左栏与右栏「章节导入」：
 
-| 阶段 | 操作 | 关键代码 |
+| 画布位置 | 操作 | 关键代码 |
 |------|------|----------|
-| ① 素材 | 拖入/选择文件，内联预览前 2000 字；勾选章节，选**教材类型**与**并发数** | `TextbookImportController.load_file` + `set_chapter_kept` + `textbook_presets` |
-| ② 知识 | 上半提取日志（用量/成本），下半审校：红黄质量标记、批量删、AI 修复、重试/仅抽词汇/跳过 | `knowledge_extractor.extract_knowledge_points` + `ResourceReviewTable` + `extraction_quality` |
-| ③ 导入 | 选**导入策略**，预览冲突，确认导入 | `BulkImportPreviewPanel` + `SectionImportService` |
+| 左 · 教材与章节 | 拖入/选择文件，预览；勾选章节；**教材类型**与**并发数** | `TextbookImportController.load_file` + `set_chapter_kept` + `textbook_presets` |
+| 左 · 知识点审校 | 提取日志（用量/成本）；红黄质量标记、批量删、AI 修复、重试/仅抽词汇/跳过 | `knowledge_extractor` + `ResourceReviewTable` + `extraction_quality` |
+| 左 · 气泡池 | 勾选词可视化；可「加入轨道」或拖入中栏 AI 轨道 | `UnifiedWorkspaceWidget` + `KnowledgeBubble` |
+| 中 · AI 轨道 | 主题/模板/生成（Ctrl+Enter）；聚焦摘要 | `AiOrbitWidget` + `DesignController` |
+| 右 · 结构大纲 / 设计与草稿 | 试做、diff、AI 修复、局部重生成、JSON | `ReviewPanel` + `DesignPanel` |
+| 右 · 章节导入 | 导入策略、冲突预览、确认导入 | `BulkImportPreviewPanel` + `SectionImportService` |
 
-关闭对话框后,项目自动保存到 `tool/gui/var/textbooks/{project_id}/project.json`（v2 格式，
-含 resource_pool 快照与 import_map），可从「项目库」页重新打开继续(见 §8)。
+项目自动保存到 `tool/gui/var/textbooks/{project_id}/project.json`（v2：resource_pool、import_map、design）。  
+从项目库重开即可继续（见 §8）。
 
 ---
 
-## 3.1 设计阶段（课程工坊专属，Phase 3）
+## 3.1 设计与 Grounded 生成（画布中栏 + 右栏）
 
-知识页点「**AI 设计课程 →**」进入设计阶段：AI 以**资源池为词表**（grounded）编排课程——
-从池中按原 id 选词复制进 section，只负责单元/课时/模板/题目编排，不凭空造词
-（确需池外新词会打 `"new"` tag；资源池为空时退回自由生成）。
+AI 以**资源池为词表**（grounded）编排：从池中按原 id 选词复制进 section，不负责凭空造词  
+（池外词可打 `"new"` tag；资源池为空则自由生成）。
 
-- 左栏：主题/级别/单元数/模板/编排意图 + 许愿式对话（可多轮讨论后再「生成课程 ▶」）。
-- 右栏：草稿 JSON（可手改，导入以编辑器内容为准）+ 校验/试做/导入到课程。
-- 草稿、对话记录、参数全部持久化在项目 `design` 字段，关窗重开完整恢复。
-- 知识页改动资源池后再回设计页，会提示"资源池已更新，建议重新生成"。
-- 导入走与教材导入相同的 `SectionImportService` 管线（合并/冲突处理一致）。
+- **中栏 Orbit**：主题/级别/单元/模板 + 一键生成；聚焦条显示将使用的词量。
+- **右栏「设计与草稿」**：许愿聊天、附件、Prompt 模板、`[genre]`、JSON 真相源、通俗解释。
+- **右栏「结构大纲」**：教师主路径（结构树、人话校验、覆盖率、试做、导入）；右键课时/单元可局部重生成。
+- 状态在项目 `design` 字段；tab/splitter 按项目记在 QSettings。
+- 导入走共享 `SectionImportService`（与 AI 生成器一致）。
 
-关键代码：`src/dialogs/ai/design_controller.py`（纯逻辑）+ `src/dialogs/ai/design_panel.py`（视图）。
-
+关键代码：`design_controller.py` + `design_panel.py` + `review_panel.py` + `unified_workspace.py` + `grounded_stats.py`。
 ---
 
 ## 4. 导入策略(③)
@@ -173,7 +172,7 @@ LLM 抽取时每章用独立 id 前缀 `ch-{slug}-`,因此**同一术语在两�
 | 某章 LLM 抽取失败 | 审校页选「重试本章」→ 仍失败选「仅抽词汇」→ 或「跳过本章」 |
 | 导入预览显示 section id 冲突 | 选「作为新 section 追加」会自动改 id,或「跳过已存在」 |
 | 审校页红/黄标记 | 红色=错误(如 term 为空),黄色=警告(如与现有课程重复);可选中行点「AI 修复」 |
-| 大教材(50+ 章)抽取慢 | ② 步把「并发」调到 2–3(默认 1 串行);token 并发消耗会升高 |
+| 大教材(50+ 章)抽取慢 | 左栏「教材与章节」把并发调到 2–3(默认 1 串行);token 消耗会升高 |
 
 ---
 
@@ -181,17 +180,20 @@ LLM 抽取时每章用独立 id 前缀 `ch-{slug}-`,因此**同一术语在两�
 
 | 文件 | 作用 |
 |------|------|
-| `tool/gui/src/dialogs/workshop_window.py` | 课程工坊（非 modal 工作台，阶段导航可点击） |
-| `tool/gui/src/dialogs/textbook_import_dialog.py` | 3 页流水线视图（素材/知识/导入）+ 策略/预设/用量接线 |
+| `tool/gui/src/dialogs/workshop_window.py` | 课程工坊壳：项目库 + 画布 + checklist + 统一底栏 |
+| `tool/gui/src/widgets/unified_workspace.py` | 创意画布三栏布局、气泡池、引导 banner |
+| `tool/gui/src/widgets/ai_orbit.py` | 中栏 AI 轨道（生成 / 聚焦摘要） |
+| `tool/gui/src/dialogs/textbook_import_dialog.py` | 素材/知识/导入页（嵌入画布）+ 策略/预设/用量 |
 | `tool/gui/src/dialogs/textbook_import_controller.py` | 纯 Python 流水线控制器(并发/用量/预览) |
-| `tool/gui/src/application/section_import_service.py` | 共享导入执行管线（单条+批量,UI 回调注入） |
-| `tool/gui/src/widgets/bulk_merge_resolve_panel.py` | 多章冲突一次性批量合并决策 |
+| `tool/gui/src/dialogs/ai/design_controller.py` | Grounded 生成 / 局部重生成 / 草稿 checkpoint |
+| `tool/gui/src/dialogs/ai/design_panel.py` | 设计与草稿视图 |
+| `tool/gui/src/dialogs/ai/review_panel.py` | 结构大纲、覆盖率、试做/修复/导入 |
+| `tool/gui/src/application/section_import_service.py` | 共享导入执行管线 |
+| `tool/gui/src/backend/grounded_stats.py` | 池聚焦摘要与草稿覆盖率 |
 | `tool/gui/src/backend/knowledge_extractor.py` | 逐章 LLM 抽取 + 重试 |
-| `tool/gui/src/backend/knowledge_prompt.py` | 抽取 prompt + 按语言对模板库（可持久化覆盖） + 段落截断 |
 | `tool/gui/src/backend/knowledge_merger.py` | 项目内去重 + 课程碰撞对齐 |
 | `tool/gui/src/backend/import_strategy.py` | 导入策略 + 批量导入规划 |
 | `tool/gui/src/backend/textbook_presets.py` | 教材类型预设 |
-| `tool/gui/src/backend/extraction_quality.py` | 质量评分(coverage/duplicate/consistency/lang) |
 | `tool/gui/src/widgets/resource_review_table.py` | 审校表(搜索/过滤/批量/AI 修复) |
 | `tool/gui/src/widgets/bulk_import_preview_panel.py` | 导入前冲突预览 |
-| `tool/gui/bookplan2.md` | 功能规划与阶段记录 |
+| `tool/gui/README.md` | GUI 总览与工坊全流程（统一画布） |

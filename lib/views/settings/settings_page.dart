@@ -14,6 +14,7 @@ import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/routing/routing.gr.dart';
 import 'package:varnamala/service/export_service.dart';
 import 'package:varnamala/views/settings/widgets/settings_about_section.dart';
+import 'package:varnamala/views/settings/widgets/settings_accessibility_section.dart';
 import 'package:varnamala/views/settings/widgets/settings_account_section.dart';
 import 'package:varnamala/views/settings/widgets/settings_appearance_section.dart';
 import 'package:varnamala/views/settings/widgets/settings_common.dart';
@@ -35,7 +36,7 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  /// null = landing category list; 0..4 = the selected category sub-page.
+  /// null = landing category list; 0..6 = the selected category sub-page.
   int? _category;
 
   static const _categories = <_SettingsCategory>[
@@ -51,16 +52,26 @@ class _SettingsPageState extends State<SettingsPage> {
     ),
     _SettingsCategory(
       index: 2,
-      title: 'Audio & Display',
-      icon: Icons.tune_rounded,
+      title: 'Audio & Haptics',
+      icon: Icons.volume_up_rounded,
     ),
     _SettingsCategory(
       index: 3,
+      title: 'Accessibility',
+      icon: Icons.accessibility_new_rounded,
+    ),
+    _SettingsCategory(
+      index: 4,
+      title: 'AI Tools',
+      icon: Icons.auto_awesome_rounded,
+    ),
+    _SettingsCategory(
+      index: 5,
       title: 'Data',
       icon: Icons.storage_rounded,
     ),
     _SettingsCategory(
-      index: 4,
+      index: 6,
       title: 'About',
       icon: Icons.info_rounded,
     ),
@@ -167,29 +178,6 @@ class _SettingsPageState extends State<SettingsPage> {
               const SettingsTtsSpeedTile(),
               settingsTileDivider(context),
               const SettingsDailyReminderTile(),
-              settingsTileDivider(context),
-              SettingsActionTile(
-                icon: Icons.vpn_key,
-                title: 'AI API Configuration',
-                subtitle: 'Base URL, API key & model (not saved on exit)',
-                onTap: (context) => _openAiApiConfigSheet(context),
-              ),
-              settingsTileDivider(context),
-              SettingsActionTile(
-                icon: Icons.auto_awesome,
-                title: 'Design a course with AI',
-                subtitle: 'Open the AI design chat',
-                onTap: (context) =>
-                    context.router.push(const AiWishChatRoute()),
-              ),
-              settingsTileDivider(context),
-              SettingsActionTile(
-                icon: Icons.menu_book,
-                title: 'Import from Textbook',
-                subtitle: 'Convert a markdown/text file into course sections',
-                onTap: (context) =>
-                    context.router.push(const TextbookImportRoute()),
-              ),
             ],
           ),
           const SizedBox(height: 24),
@@ -217,11 +205,60 @@ class _SettingsPageState extends State<SettingsPage> {
               const SettingsTtsEngineTile(),
             ],
           ),
+          const SizedBox(height: 24),
+        ];
+      case 3:
+        return [
+          SettingsCard(
+            children: [
+              const SettingsTextScaleTile(),
+              settingsTileDivider(context),
+              const SettingsReducedMotionTile(),
+              settingsTileDivider(context),
+              const SettingsHighContrastTile(),
+              settingsTileDivider(context),
+              const SettingsDyslexiaFontTile(),
+              settingsTileDivider(context),
+              const SettingsSensoryReduceTile(),
+              settingsTileDivider(context),
+              const SettingsFocusModeTile(),
+            ],
+          ),
           const SizedBox(height: 8),
           const SettingsThemeSelector(),
           const SizedBox(height: 24),
         ];
-      case 3:
+      case 4:
+        return [
+          SettingsCard(
+            children: [
+              SettingsActionTile(
+                icon: Icons.vpn_key,
+                title: 'AI API Configuration',
+                subtitle: 'Base URL, API key & model (not saved on exit)',
+                onTap: (context) => _openAiApiConfigSheet(context),
+              ),
+              settingsTileDivider(context),
+              SettingsActionTile(
+                icon: Icons.auto_awesome,
+                title: 'Design a course with AI',
+                subtitle: 'Open the AI design chat',
+                onTap: (context) =>
+                    context.router.push(const AiWishChatRoute()),
+              ),
+              settingsTileDivider(context),
+              SettingsActionTile(
+                icon: Icons.menu_book,
+                title: 'Import from Textbook',
+                subtitle: 'Convert a markdown/text file into course sections',
+                onTap: (context) =>
+                    context.router.push(const TextbookImportRoute()),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+        ];
+      case 5:
         return [
           SettingsCard(
             children: [
@@ -256,7 +293,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const SizedBox(height: 24),
         ];
-      case 4:
+      case 6:
         return const [SettingsAboutSection(), SizedBox(height: 24)];
       default:
         return const [];

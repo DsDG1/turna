@@ -271,51 +271,55 @@ class WordListWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: ListView.builder(
-        itemCount: words.length,
-        itemBuilder: (context, index) {
-          final word = words[index];
-          final isMatched = matchedWords.contains(word);
-          final isSelected = selectedWord == word;
-          return GestureDetector(
-            onTap: isMatched ? null : () => onWordSelected(word),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeInOut,
-              margin: isMatched
-                  ? const EdgeInsets.symmetric(vertical: 1.0, horizontal: 36.0)
-                  : const EdgeInsets.symmetric(vertical: 6.0),
-              padding:
-                  isMatched ? const EdgeInsets.all(4.0) : const EdgeInsets.all(14.0),
-              height: isMatched ? 0 : 58,
-              decoration: BoxDecoration(
-                color: isSelected ? selectedColor : VarnamalaTheme.cardBg(context),
-                borderRadius: BorderRadius.circular(12.0),
-                border: Border.all(
-                  color: isSelected ? selectedColor : borderColor,
+      child: RepaintBoundary(
+        child: ListView.builder(
+          itemCount: words.length,
+          itemBuilder: (context, index) {
+            final word = words[index];
+            final isMatched = matchedWords.contains(word);
+            final isSelected = selectedWord == word;
+            return RepaintBoundary(
+              child: GestureDetector(
+                onTap: isMatched ? null : () => onWordSelected(word),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeInOut,
+                  margin: isMatched
+                      ? const EdgeInsets.symmetric(vertical: 1.0, horizontal: 36.0)
+                      : const EdgeInsets.symmetric(vertical: 6.0),
+                  padding:
+                      isMatched ? const EdgeInsets.all(4.0) : const EdgeInsets.all(14.0),
+                  height: isMatched ? 0 : 58,
+                  decoration: BoxDecoration(
+                    color: isSelected ? selectedColor : VarnamalaTheme.cardBg(context),
+                    borderRadius: BorderRadius.circular(12.0),
+                    border: Border.all(
+                      color: isSelected ? selectedColor : borderColor,
+                    ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      word,
+                      style: isSelected
+                          ? const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: VarnamalaTheme.textOnPrimary,
+                              fontSize: 17,
+                            )
+                          : TextStyle(
+                              color: isMatched
+                                  ? VarnamalaTheme.textHint
+                                  : VarnamalaTheme.textPrimaryColor(context),
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                    ),
+                  ),
                 ),
               ),
-              child: Center(
-                child: Text(
-                  word,
-                  style: isSelected
-                      ? const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: VarnamalaTheme.textOnPrimary,
-                          fontSize: 17,
-                        )
-                      : TextStyle(
-                          color: isMatched
-                              ? VarnamalaTheme.textHint
-                              : VarnamalaTheme.textPrimaryColor(context),
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
-                ),
-              ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }

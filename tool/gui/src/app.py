@@ -26,6 +26,10 @@ from PySide6.QtWidgets import (
 from src.application.commands import (
     AiEditLessonCommand,
     AiEditUnitCommand,
+    AppendLessonCommand,
+    AppendLessonsToUnitCommand,
+    AppendUnitCommand,
+    AppendUnitsToSectionCommand,
     MergeAiSectionCommand,
 )
 from src.application.settings import Settings
@@ -602,6 +606,7 @@ class MainWindow(QMainWindow):
         if self._overview_window is None:
             self._overview_window = CourseOverviewWindow(self.adapter, self)
             self._overview_window.lesson_selected.connect(self._on_overview_lesson_selected)
+            self._overview_window.validation_requested.connect(self._on_overview_validation)
             self._overview_window.destroyed.connect(self._on_overview_destroyed)
         self._overview_window.refresh()
         self._overview_window.show()
@@ -615,12 +620,24 @@ class MainWindow(QMainWindow):
         self.activateWindow()
         self.tree.select_lesson(lesson_id)
 
+    def _on_overview_validation(self, problems: list) -> None:
+        """Open the existing validation report with problems from the overview."""
+        self._show_validation_report(problems, title="课程结构总览 - 校验结果")
+
     def _on_overview_destroyed(self, *_args) -> None:
         self._overview_window = None
 
     def _on_textbook_sections(self, sections: list, strategy: str) -> None:
         if not self.course_dir:
             QMessageBox.warning(self, "未加载课程目录", "请先打开课程目录。")
+            return
+        # Workshop "import into existing section/unit" modes (encoded in the
+        # strategy string by ImportTargetDialog).
+        if strategy.startswith("into_section:"):
+            self._import_draft_into_section(sections[0], strategy.split(":", 1)[1])
+            return
+        if strategy.startswith("into_unit:"):
+            self._import_draft_into_unit(sections[0], strategy.split(":", 1)[1])
             return
         results, counts = self._import_service.import_bulk(sections, strategy=strategy)
         successful = [
@@ -664,6 +681,153 @@ class MainWindow(QMainWindow):
                     self._last_imported_section_id
                 )
         QMessageBox.information(self, "导入教材", summary)
+        if successful:
+            self._offer_open_teacher_after_import(self._last_imported_section_id)
+
+    def _offer_open_teacher_after_import(self, section_id: str | None) -> None:
+        """After workshop import, optionally switch to teacher mode and locate.
+
+        Skips the modal prompt when the main window is not visible (unit tests /
+        headless automation) so batch imports never hang on QMessageBox.
+        """
+        if not section_id:
+            return
+        if not self.isVisible():
+            return
+        reply = QMessageBox.question(
+            self,
+            "导入完成",
+            "要切换到教师模式并在课程树中定位该章节吗？",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        if not self.teacher_mode:
+            self.mode_action.setChecked(True)
+            # toggled signal may already fire; ensure mode is applied
+            if not self.teacher_mode:
+                self._on_mode_toggled(True)
+        self._on_workshop_locate(section_id)
+        # Prefer first lesson under the section for teacher surface.
+        try:
+            section = self.adapter.find_section(section_id)
+        except Exception:
+            return
+        for unit in section.get("units") or []:
+            for lesson in unit.get("lessons") or []:
+                lid = lesson.get("id")
+                if lid:
+                    self.tree.select_lesson(lid)
+                    return
+
+    def _import_draft_into_section(self, draft: dict, section_id: str) -> None:
+        """Append the draft's units into an existing section as new units.
+
+        Each unit is cloned with fresh ids (unit id + every lesson's structural
+        ids) so it cannot collide with the existing course. The draft's
+        top-level resources are merged (and rolled back on undo) so lesson
+        references resolve.
+        """
+        from src.backend.lesson_content import clone_unit_with_fresh_ids
+
+        try:
+            section = self.adapter.find_section(section_id)
+        except KeyError:
+            QMessageBox.warning(self, "找不到目标", f"目标 Section「{section_id}」不存在。")
+            return
+        units = [u for u in draft.get("units") or [] if isinstance(u, dict)]
+        if not units:
+            QMessageBox.information(self, "无可导入内容", "草稿中没有 Unit。")
+            return
+        fresh_units = [
+            clone_unit_with_fresh_ids(u, name=u.get("name", "新 Unit")) for u in units
+        ]
+        cmd = AppendUnitsToSectionCommand(
+            self.adapter, section_id, fresh_units, resource_section=draft
+        )
+        cmd.signals.changed.connect(self._on_ai_edit_applied)
+        self.undo_stack.push(cmd)
+        self.tree.refresh_incremental()
+        self.adapter.notify_resources_changed()
+        self.statusBar().showMessage(
+            f"已把 {len(fresh_units)} 个 Unit 追加到「{section.get('name', section_id)}」，记得保存",
+            8000,
+        )
+        self._record_draft_import(draft, section_id)
+        if self._workshop_window is not None:
+            self._workshop_window.on_import_finished(section_id)
+        self._offer_open_teacher_after_import(section_id)
+
+    def _record_draft_import(self, draft: dict, section_id: str | None) -> None:
+        """Persist a workshop draft-import back into the project so the
+        workshop's 已导入 checklist mark and locate button survive a close +
+        reopen (mirrors the bulk-import path in _on_textbook_sections)."""
+        if not section_id:
+            return
+        project = (
+            self._workshop_window.current_project()
+            if self._workshop_window is not None
+            else None
+        )
+        if project is None:
+            return
+        from src.backend.textbook_project_store import record_imported_sections
+
+        source_id = draft.get("id", "") if isinstance(draft, dict) else ""
+        record_imported_sections(
+            project,
+            [section_id],
+            id_pairs=[(source_id, section_id)] if source_id else None,
+        )
+
+    def _import_draft_into_unit(self, draft: dict, unit_id: str) -> None:
+        """Append the draft's lessons into an existing unit as new lessons.
+
+        Each lesson is cloned with fresh ids so it cannot collide with the
+        existing course. The draft's top-level resources are merged (and
+        rolled back on undo) so lesson references resolve.
+        """
+        from src.backend.lesson_content import clone_lesson_with_fresh_ids
+
+        try:
+            _s, unit = self.adapter.find_unit(unit_id)
+        except KeyError:
+            QMessageBox.warning(self, "找不到目标", f"目标 Unit「{unit_id}」不存在。")
+            return
+        lessons = [
+            lesson
+            for u in draft.get("units") or []
+            if isinstance(u, dict)
+            for lesson in u.get("lessons") or []
+            if isinstance(lesson, dict)
+        ]
+        if not lessons:
+            QMessageBox.information(self, "无可导入内容", "草稿中没有 Lesson。")
+            return
+        fresh_lessons = [
+            clone_lesson_with_fresh_ids(lesson, name=lesson.get("name", "新 Lesson"))
+            for lesson in lessons
+        ]
+        for lesson in fresh_lessons:
+            lesson["prerequisiteLessonIds"] = []
+        cmd = AppendLessonsToUnitCommand(
+            self.adapter, unit_id, fresh_lessons, resource_section=draft
+        )
+        cmd.signals.changed.connect(self._on_ai_edit_applied)
+        self.undo_stack.push(cmd)
+        self.tree.refresh_incremental()
+        self.adapter.notify_resources_changed()
+        self.statusBar().showMessage(
+            f"已把 {len(fresh_lessons)} 个 Lesson 追加到「{unit.get('name', unit_id)}」，记得保存",
+            8000,
+        )
+        section_id = _s.get("id") if isinstance(_s, dict) else None
+        self._record_draft_import(draft, section_id)
+        if section_id and self._workshop_window is not None:
+            self._workshop_window.on_import_finished(section_id)
+        if section_id:
+            self._offer_open_teacher_after_import(section_id)
 
     def _validate_node(self, kind: str, node_json: dict, *, check_existing_ids: bool = True) -> list[dict]:
         """Validate a section/unit/lesson node by wrapping it in a temp section."""
@@ -737,15 +901,42 @@ class MainWindow(QMainWindow):
         elif kind == "unit":
             new_unit = self._extract_unit(new_section, node_id)
             if new_unit is None:
-                QMessageBox.warning(
-                    self, "无法应用编辑", f"AI 返回的 JSON 中找不到 unit「{node_id}」。"
-                )
-                return
+                # AI did not return a unit with the same id - tolerate it by
+                # taking the first unit, then surface it as an id conflict.
+                units = new_section.get("units") or []
+                if units and isinstance(units[0], dict):
+                    new_unit = units[0]
+                else:
+                    QMessageBox.warning(
+                        self, "无法应用编辑", "AI 返回的 JSON 中找不到 unit。"
+                    )
+                    return
             problems = self._validate_node("unit", new_unit, check_existing_ids=False)
             errors = [p for p in problems if p.get("level") == "error"]
             if errors:
                 QMessageBox.warning(self, "AI 编辑校验失败", "\n".join(p["message"] for p in errors))
                 return
+            conflicts = self._detect_ai_edit_conflicts("unit", node_id, new_unit)
+            if conflicts:
+                choice = self._ask_ai_edit_conflict_resolution("unit", conflicts)
+                if choice == "cancel":
+                    return
+                if choice == "rename":
+                    from src.backend.lesson_content import clone_unit_with_fresh_ids
+
+                    fresh = clone_unit_with_fresh_ids(
+                        new_unit, name=f"{new_unit.get('name', '')} 副本"
+                    )
+                    cmd = AppendUnitCommand(self.adapter, sid, fresh)
+                    cmd.signals.changed.connect(self._on_ai_edit_applied)
+                    self.undo_stack.push(cmd)
+                    self.tree.refresh_incremental()
+                    telemetry.record_event(
+                        "ai.edit.conflict.rename", payload={"kind": "unit"}
+                    )
+                    return
+                # overwrite: pin the id back to node_id and replace in place.
+                new_unit["id"] = node_id
             cmd = AiEditUnitCommand(
                 self.adapter, sid, node_id, new_unit, resource_section=new_section
             )
@@ -755,15 +946,47 @@ class MainWindow(QMainWindow):
         elif kind == "lesson":
             new_lesson = self._extract_lesson(new_section, node_id)
             if new_lesson is None:
-                QMessageBox.warning(
-                    self, "无法应用编辑", f"AI 返回的 JSON 中找不到 lesson「{node_id}」。"
-                )
-                return
+                # AI did not return a lesson with the same id - tolerate it by
+                # taking the first lesson, then surface it as an id conflict.
+                for u in new_section.get("units") or []:
+                    if isinstance(u, dict):
+                        lessons = u.get("lessons") or []
+                        if lessons and isinstance(lessons[0], dict):
+                            new_lesson = lessons[0]
+                            break
+                if new_lesson is None:
+                    QMessageBox.warning(
+                        self, "无法应用编辑", "AI 返回的 JSON 中找不到 lesson。"
+                    )
+                    return
             problems = self._validate_node("lesson", new_lesson, check_existing_ids=False)
             errors = [p for p in problems if p.get("level") == "error"]
             if errors:
                 QMessageBox.warning(self, "AI 编辑校验失败", "\n".join(p["message"] for p in errors))
                 return
+            conflicts = self._detect_ai_edit_conflicts("lesson", node_id, new_lesson)
+            if conflicts:
+                choice = self._ask_ai_edit_conflict_resolution("lesson", conflicts)
+                if choice == "cancel":
+                    return
+                if choice == "rename":
+                    from src.backend.lesson_content import clone_lesson_with_fresh_ids
+
+                    fresh = clone_lesson_with_fresh_ids(
+                        new_lesson, name=f"{new_lesson.get('name', '')} 副本"
+                    )
+                    fresh["prerequisiteLessonIds"] = []
+                    _ls, _lu, _ll = self.adapter.find_lesson(node_id)
+                    cmd = AppendLessonCommand(self.adapter, _lu.get("id", ""), fresh)
+                    cmd.signals.changed.connect(self._on_ai_edit_applied)
+                    self.undo_stack.push(cmd)
+                    self.tree.refresh_incremental()
+                    telemetry.record_event(
+                        "ai.edit.conflict.rename", payload={"kind": "lesson"}
+                    )
+                    return
+                # overwrite: pin the id back to node_id and replace in place.
+                new_lesson["id"] = node_id
             cmd = AiEditLessonCommand(
                 self.adapter, node_id, new_lesson, resource_section=new_section
             )
@@ -777,6 +1000,69 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(
             f"已应用 AI 编辑（{kind}），记得保存", 8000
         )
+
+    def _detect_ai_edit_conflicts(
+        self, kind: str, node_id: str, new_node: dict
+    ) -> list[tuple[str, str, str]]:
+        """Return ``(id_type, id, detail)`` tuples for id conflicts between the
+        AI-edited node and the rest of the course.
+
+        A conflict exists when the AI changed the node's own id, or (for a
+        unit) a lesson inside the new unit reuses a lesson id that already
+        exists elsewhere in the course.
+        """
+        conflicts: list[tuple[str, str, str]] = []
+        new_id = new_node.get("id", "")
+        if new_id and new_id != node_id:
+            conflicts.append((kind, new_id, f"AI 把 {kind} id 改成了「{new_id}」"))
+        if kind == "unit":
+            from src.backend.lesson_content import all_lesson_ids
+
+            other_lesson_ids = all_lesson_ids(self.adapter.sections)
+            # Exclude lessons currently in the target unit - they get replaced.
+            try:
+                _s, cur_unit = self.adapter.find_unit(node_id)
+                cur_lesson_ids = {l.get("id") for l in cur_unit.get("lessons", [])}
+            except KeyError:
+                cur_lesson_ids = set()
+            other_lesson_ids -= cur_lesson_ids
+            for lesson in new_node.get("lessons", []):
+                if not isinstance(lesson, dict):
+                    continue
+                lid = lesson.get("id", "")
+                if lid and lid in other_lesson_ids:
+                    conflicts.append(
+                        ("lesson", lid, f"lesson id「{lid}」与课程其他位置冲突")
+                    )
+        return conflicts
+
+    def _ask_ai_edit_conflict_resolution(
+        self, kind: str, conflicts: list[tuple[str, str, str]]
+    ) -> str:
+        """Ask the user how to resolve an AI-edit id conflict.
+
+        Returns ``"overwrite"``, ``"rename"`` or ``"cancel"``.
+        """
+        detail = "\n".join(f"· {c[2]}" for c in conflicts)
+        msg = QMessageBox(self)
+        msg.setWindowTitle("ID 冲突")
+        msg.setIcon(QMessageBox.Icon.Warning)
+        msg.setText(f"AI 编辑的 {kind} 存在 id 冲突：\n\n{detail}")
+        msg.setInformativeText(
+            "覆盖：用 AI 内容替换原节点（保留原 id；unit 内子课时冲突仍可能导致保存时报错）\n"
+            "重命名追加：生成新 id 作为新节点追加到同级（原节点保留，避免冲突）\n"
+            "取消：放弃本次编辑"
+        )
+        overwrite = msg.addButton("覆盖", QMessageBox.ButtonRole.AcceptRole)
+        rename = msg.addButton("重命名追加", QMessageBox.ButtonRole.ActionRole)
+        msg.addButton("取消", QMessageBox.ButtonRole.RejectRole)
+        msg.exec()
+        clicked = msg.clickedButton()
+        if clicked == overwrite:
+            return "overwrite"
+        if clicked == rename:
+            return "rename"
+        return "cancel"
 
     def _on_ai_edit_applied(self) -> None:
         self.tree.refresh_incremental()
@@ -902,7 +1188,7 @@ class MainWindow(QMainWindow):
         from src.dialogs.git_library_dialog import GitLibraryDialog
 
         telemetry.record_event("git_library.open")
-        dlg = GitLibraryDialog(self.adapter, self)
+        dlg = GitLibraryDialog(self.adapter, self, settings=self._settings_obj)
         dlg.open_requested.connect(self._open_repo_path)
         dlg.exec()
         # After the dialog closes, if a clone dir was opened, reflect it.

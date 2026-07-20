@@ -13,6 +13,7 @@ import 'package:flutter_tts/flutter_tts.dart' as _i50;
 import 'package:get_it/get_it.dart' as _i174;
 import 'package:injectable/injectable.dart' as _i526;
 
+import '../application/accessibility_provider.dart' as _i977;
 import '../application/achievements_provider.dart' as _i143;
 import '../application/audio_controller.dart' as _i106;
 import '../application/character_provider.dart' as _i229;
@@ -110,6 +111,8 @@ extension GetItInjectableX on _i174.GetIt {
         () => _i73.VocabAudioResolverImpl());
     gh.lazySingleton<_i793.SettingsProvider>(
         () => _i793.SettingsProvider(gh<_i523.AppPrefs>()));
+    gh.lazySingleton<_i977.AccessibilityProvider>(
+        () => _i977.AccessibilityProvider(gh<_i523.AppPrefs>()));
     gh.lazySingleton<_i656.AudioPlayer>(
       () => audioModule.speechPlayer,
       instanceName: 'speechPlayer',
@@ -153,6 +156,18 @@ extension GetItInjectableX on _i174.GetIt {
           gh<_i409.LessonProgressProvider>(),
           gh<_i788.GameMilestoneProvider>(),
         ));
+    gh.lazySingleton<_i106.AudioController>(() => _i106.AudioController(
+          gh<_i50.FlutterTts>(),
+          gh<_i233.LanguageProvider>(),
+          gh<_i793.SettingsProvider>(),
+          gh<_i977.AccessibilityProvider>(),
+          gh<_i188.VocabAudioResolver>(),
+          audioPlayer: gh<_i656.AudioPlayer>(instanceName: 'audioPlayer'),
+          speechPlayer: gh<_i656.AudioPlayer>(instanceName: 'speechPlayer'),
+          ttsChecker: gh<_i307.TtsAvailabilityChecker>(),
+        ));
+    gh.factory<_i440.ShowWordRenderer>(
+        () => _i440.ShowWordRenderer(gh<_i106.AudioController>()));
     gh.lazySingleton<_i361.SrsProvider>(() => _i361.SrsProvider(
           gh<_i523.AppPrefs>(),
           gh<_i854.LessonLinkStore>(),
@@ -162,15 +177,6 @@ extension GetItInjectableX on _i174.GetIt {
               gh<_i523.AppPrefs>(),
               gh<_i854.LessonLinkStore>(),
             ));
-    gh.lazySingleton<_i106.AudioController>(() => _i106.AudioController(
-          gh<_i50.FlutterTts>(),
-          gh<_i233.LanguageProvider>(),
-          gh<_i793.SettingsProvider>(),
-          gh<_i188.VocabAudioResolver>(),
-          audioPlayer: gh<_i656.AudioPlayer>(instanceName: 'audioPlayer'),
-          speechPlayer: gh<_i656.AudioPlayer>(instanceName: 'speechPlayer'),
-          ttsChecker: gh<_i307.TtsAvailabilityChecker>(),
-        ));
     gh.lazySingleton<_i620.StudyStatsProvider>(() => _i620.StudyStatsProvider(
           gh<_i889.StudyLogRepository>(),
           gh<_i551.MistakeProvider>(),
@@ -186,18 +192,6 @@ extension GetItInjectableX on _i174.GetIt {
               gh<_i143.AchievementsProvider>(),
               gh<_i620.StudyStatsProvider>(),
             ));
-    gh.lazySingleton<_i740.ProgressProvider>(
-        () => _i740.ProgressProvider(gh<_i565.GameProvider>()));
-    gh.factory<_i440.ShowWordRenderer>(
-        () => _i440.ShowWordRenderer(gh<_i106.AudioController>()));
-    gh.lazySingleton<_i274.LessonViewModel>(() => _i274.LessonViewModel(
-          gh<_i1051.CourseProvider>(),
-          gh<_i106.AudioController>(),
-          gh<_i361.SrsProvider>(),
-          gh<_i551.MistakeProvider>(),
-          gh<_i1008.GrammarReviewProvider>(),
-          gh<_i495.LessonCompletionCoordinator>(),
-        ));
     gh.lazySingleton<Set<_i931.InteractionRenderer>>(
         () => rendererModule.renderers(
               gh<_i440.ShowWordRenderer>(),
@@ -213,6 +207,16 @@ extension GetItInjectableX on _i174.GetIt {
               gh<_i399.ReadingTrueFalseRenderer>(),
               gh<_i532.ReadingShortAnswerRenderer>(),
             ));
+    gh.lazySingleton<_i740.ProgressProvider>(
+        () => _i740.ProgressProvider(gh<_i565.GameProvider>()));
+    gh.lazySingleton<_i274.LessonViewModel>(() => _i274.LessonViewModel(
+          gh<_i1051.CourseProvider>(),
+          gh<_i106.AudioController>(),
+          gh<_i361.SrsProvider>(),
+          gh<_i551.MistakeProvider>(),
+          gh<_i1008.GrammarReviewProvider>(),
+          gh<_i495.LessonCompletionCoordinator>(),
+        ));
     return this;
   }
 }

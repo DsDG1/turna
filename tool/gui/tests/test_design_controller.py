@@ -12,6 +12,7 @@ from pathlib import Path
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
+from tests._course_samples import sample_section  # noqa: E402
 
 from src.backend.ai_generator import AiApiConfig, generate_from_chat  # noqa: E402
 from src.dialogs.ai.design_controller import DesignController  # noqa: E402
@@ -63,28 +64,6 @@ def _config() -> AiApiConfig:
     return AiApiConfig(base_url="http://localhost", api_key="k", model="m")
 
 
-def _section() -> dict:
-    return {
-        "id": "greetings",
-        "name": "Greetings",
-        "units": [
-            {
-                "id": "random-u",
-                "name": "U1",
-                "lessons": [
-                    {
-                        "id": "random-l",
-                        "name": "L1",
-                        "template": "intro",
-                        "content": {"subLessons": []},
-                    }
-                ],
-            }
-        ],
-        "words": [{"id": "w-1", "term": "merhaba", "translation": "hello"}],
-    }
-
-
 class DesignControllerChatTest(unittest.TestCase):
     def setUp(self) -> None:
         self.records: list = []
@@ -121,7 +100,7 @@ class DesignControllerChatTest(unittest.TestCase):
         self.assertEqual(len(ctrl.chat), 0)
 
     def test_generate_without_topic_errors(self) -> None:
-        ctrl = self._controller(_section())
+        ctrl = self._controller(sample_section(unit_id="random-u", lesson_id="random-l"))
         self.assertFalse(ctrl.generate())
         self.assertIn("主题", self.errors[-1])
 
@@ -132,7 +111,7 @@ class DesignControllerGenerateTest(unittest.TestCase):
         records: list = []
         ctrl = DesignController(
             ai_config_fn=_config,
-            worker_factory=_factory(records, _section()),
+            worker_factory=_factory(records, sample_section(unit_id="random-u", lesson_id="random-l")),
             on_draft_ready=drafts.append,
         )
         ctrl.send_chat("做问候课")  # first worker: alignment reply
@@ -152,7 +131,7 @@ class DesignControllerGenerateTest(unittest.TestCase):
         drafts: list = []
         ctrl = DesignController(
             ai_config_fn=_config,
-            worker_factory=_factory(records, _section()),
+            worker_factory=_factory(records, sample_section(unit_id="random-u", lesson_id="random-l")),
             on_draft_ready=drafts.append,
         )
         ctrl.set_params(topic="旅行")
@@ -167,7 +146,7 @@ class DesignControllerGenerateTest(unittest.TestCase):
         records: list = []
         ctrl = DesignController(
             ai_config_fn=_config,
-            worker_factory=_factory(records, _section()),
+            worker_factory=_factory(records, sample_section(unit_id="random-u", lesson_id="random-l")),
         )
         ctrl.set_resource_pool(
             [{"id": "w-1", "term": "merhaba", "translation": "hello"}]
@@ -212,7 +191,7 @@ class DesignControllerPersistenceTest(unittest.TestCase):
         )
         ctrl.set_params(topic="问候", unit_count=2, design_brief="brief")
         ctrl.send_chat("做问候课")
-        ctrl._on_draft_generated(_section())
+        ctrl._on_draft_generated(sample_section(unit_id="random-u", lesson_id="random-l"))
 
         data = ctrl.to_design_dict()
         self.assertEqual(len(data["chat_history"]), 2)
@@ -242,7 +221,7 @@ class DesignControllerPersistenceTest(unittest.TestCase):
         records: list = []
         ctrl = DesignController(
             ai_config_fn=_config,
-            worker_factory=_factory(records, _section()),
+            worker_factory=_factory(records, sample_section(unit_id="random-u", lesson_id="random-l")),
             on_usage_update=usages.append,
         )
         ctrl.set_params(topic="问候")
@@ -296,7 +275,7 @@ class DesignControllerPhaseCTest(unittest.TestCase):
         explanations: list[str] = []
         ctrl = DesignController(
             ai_config_fn=_config,
-            worker_factory=_factory(records, _section()),
+            worker_factory=_factory(records, sample_section(unit_id="random-u", lesson_id="random-l")),
             on_explanation=explanations.append,
         )
         ctrl.set_params(topic="问候")
@@ -325,7 +304,7 @@ class DesignControllerPhaseCTest(unittest.TestCase):
             if target is explain_course:
                 worker = _ErrorWorker(target, *args, **kwargs)
             else:
-                worker = _FakeWorker(target, *args, result=_section(), **kwargs)
+                worker = _FakeWorker(target, *args, result=sample_section(unit_id="random-u", lesson_id="random-l"), **kwargs)
             records.append(worker)
             return worker
 
@@ -351,7 +330,7 @@ class DesignControllerPhaseCTest(unittest.TestCase):
         records: list = []
         ctrl = DesignController(
             ai_config_fn=_config,
-            worker_factory=_factory(records, _section()),
+            worker_factory=_factory(records, sample_section(unit_id="random-u", lesson_id="random-l")),
             settings_fn=_Settings,
         )
         ctrl.set_params(topic="问候")
@@ -367,7 +346,7 @@ class DesignControllerPhaseCTest(unittest.TestCase):
         records: list = []
         ctrl = DesignController(
             ai_config_fn=_config,
-            worker_factory=_factory(records, _section()),
+            worker_factory=_factory(records, sample_section(unit_id="random-u", lesson_id="random-l")),
         )
         ctrl.set_params(topic="[listening] 机场对话", use_genre_batch=True)
         spec = ctrl.build_spec()
@@ -403,6 +382,49 @@ class DesignControllerPhaseCTest(unittest.TestCase):
         restored.apply_design_dict({"explanation": "这门课先学问候。"})
         self.assertEqual(restored.explanation, "这门课先学问候。")
         self.assertEqual(explanations, ["这门课先学问候。"])
+
+
+class DesignControllerLocalRegenTest(unittest.TestCase):
+    def test_regenerate_lesson_requires_draft(self) -> None:
+        errors: list[str] = []
+        ctrl = DesignController(
+            ai_config_fn=_config,
+            worker_factory=_factory([], None),
+            on_error=errors.append,
+        )
+        self.assertFalse(ctrl.regenerate_lesson("l1"))
+        self.assertTrue(errors)
+
+    def test_regenerate_lesson_starts_worker(self) -> None:
+        from src.backend.ai_generator import regenerate_lesson_in_section
+
+        records: list = []
+        section = sample_section(unit_id="random-u", lesson_id="random-l")
+        ctrl = DesignController(
+            ai_config_fn=_config,
+            worker_factory=_factory(records, section),
+        )
+        ctrl.set_draft(section)
+        self.assertTrue(ctrl.regenerate_lesson("random-l"))
+        # Fake worker completes immediately → explain chain may spawn a 2nd worker.
+        self.assertGreaterEqual(len(records), 1)
+        self.assertIs(records[0].target, regenerate_lesson_in_section)
+        self.assertIsNotNone(ctrl._draft_checkpoint)
+
+    def test_restore_draft_checkpoint(self) -> None:
+        drafts: list = []
+        ctrl = DesignController(
+            ai_config_fn=_config,
+            worker_factory=_factory([], None),
+            on_draft_ready=drafts.append,
+        )
+        original = sample_section(unit_id="random-u", lesson_id="random-l")
+        ctrl.set_draft(original)
+        ctrl._draft_checkpoint = original
+        ctrl.set_draft({"id": "other", "units": [], "words": []})
+        self.assertTrue(ctrl.restore_draft_checkpoint())
+        self.assertEqual(ctrl.draft["id"], "greetings")
+        self.assertTrue(drafts)
 
 
 if __name__ == "__main__":

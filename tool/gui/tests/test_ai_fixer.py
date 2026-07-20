@@ -26,6 +26,16 @@ class AiFixerTest(unittest.TestCase):
         self.assertIn("node_kind", prompt)
         self.assertIn("保持所有 id 不变", prompt)
 
+    def test_build_correction_prompt_contains_user_hint(self) -> None:
+        problems = [
+            {"level": "error", "message": "missing wordId", "path": "unit:u1/lesson:l1"},
+        ]
+        node = {"id": "l1", "name": "Lesson 1"}
+        context = {"node_kind": "lesson", "language": "en"}
+        prompt = build_correction_prompt(problems, node, context, user_hint="强制修改翻译")
+        self.assertIn("## 额外用户指引 (优先级高)", prompt)
+        self.assertIn("强制修改翻译", prompt)
+
     def test_extract_json_object_strips_markdown_fence(self) -> None:
         text = "```json\n{\"id\": \"x\"}\n```"
         result = extract_json_object(text)

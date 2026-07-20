@@ -9,8 +9,7 @@ from pathlib import Path
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
-
-from PySide6.QtWidgets import QApplication
+from tests._qtapp import qt_app  # noqa: E402
 
 from src.widgets.json_editor import JsonEditor
 
@@ -18,7 +17,7 @@ from src.widgets.json_editor import JsonEditor
 class TestJsonEditor(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.app = QApplication.instance() or QApplication([])
+        cls.app = qt_app()
 
     def _editor(self) -> JsonEditor:
         return JsonEditor()

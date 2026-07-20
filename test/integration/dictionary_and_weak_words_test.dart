@@ -6,6 +6,7 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:varnamala/application/achievements_provider.dart';
+import 'package:varnamala/application/accessibility_provider.dart';
 import 'package:varnamala/application/audio_controller.dart';
 import 'package:varnamala/application/course_provider.dart';
 import 'package:varnamala/application/dictionary_search.dart';
@@ -61,6 +62,7 @@ class _FakeAudioController extends AudioController {
           _FakeFlutterTts(),
           _FakeLanguageProvider(),
           getIt<SettingsProvider>(),
+          getIt<AccessibilityProvider>(),
           _PassthroughVocabResolver(),
           audioPlayer: _FakeAudioPlayer(),
           speechPlayer: _FakeAudioPlayer(),
@@ -109,6 +111,9 @@ void main() {
     getIt.registerLazySingleton<AppPrefs>(() => prefs);
     getIt.registerLazySingleton<SettingsProvider>(
       () => SettingsProvider(prefs),
+    );
+    getIt.registerLazySingleton<AccessibilityProvider>(
+      () => AccessibilityProvider(prefs),
     );
 
     vocabById

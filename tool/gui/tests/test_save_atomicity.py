@@ -11,18 +11,16 @@ from unittest.mock import patch
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
+from tests._course_fixture import copy_turkish_course  # noqa: E402
 
 from src.backend.course_adapter import CourseAdapter  # noqa: E402
-
-_REPO = _GUI.parents[1]
-COURSE_SRC = _REPO / "assets" / "courses" / "turkish"
 
 
 class SaveAtomicityTest(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_atomic_"))
         self.course_dir = self.tmp / "turkish"
-        shutil.copytree(COURSE_SRC, self.course_dir)
+        copy_turkish_course(self.course_dir)
 
     def tearDown(self) -> None:
         shutil.rmtree(self.tmp, ignore_errors=True)

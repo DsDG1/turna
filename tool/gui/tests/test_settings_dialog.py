@@ -13,11 +13,11 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from PySide6.QtWidgets import QApplication  # noqa: E402
 
 from src.application.settings import Settings  # noqa: E402
 from src.backend.ai_prompt_library import AiPromptLibrary  # noqa: E402
 from src.dialogs.settings_dialog import SettingsDialog  # noqa: E402
+from tests._qtapp import _App  # noqa: E402
 
 
 def _make_prompt_library() -> AiPromptLibrary:
@@ -29,16 +29,6 @@ def _make_prompt_library() -> AiPromptLibrary:
     qs.beginGroup = lambda _name: None
     qs.endGroup = lambda: None
     return AiPromptLibrary(qs)
-
-
-class _App:
-    _app = None
-
-    @classmethod
-    def get(cls) -> QApplication:
-        if cls._app is None:
-            cls._app = QApplication.instance() or QApplication([])
-        return cls._app
 
 
 def _make_qsettings() -> MagicMock:
@@ -61,8 +51,8 @@ class SettingsDialogOperationLogTest(unittest.TestCase):
         with patch("src.app.QSettings", return_value=_make_qsettings()):
             settings = Settings.load_from_qsettings(_make_qsettings())
         dlg = SettingsDialog(settings, prompt_library=_make_prompt_library())
-        self.assertEqual(dlg.tabs.tabText(5), "操作日志")
-        self.assertEqual(dlg.tabs.count(), 6)
+        self.assertEqual(dlg.tabs.tabText(6), "操作日志")
+        self.assertEqual(dlg.tabs.count(), 7)
         # Refresh / clear / open-dir buttons exist and are wired (no raise).
         dlg._refresh_operation_log()
         self.assertIsNotNone(dlg.oplog_view)

@@ -8,8 +8,8 @@ from pathlib import Path
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
+from tests._qtapp import _App  # noqa: E402
 
-from PySide6.QtWidgets import QApplication  # noqa: E402
 
 from src.backend.course_adapter import CourseAdapter  # noqa: E402
 from src.backend.lesson_content import CONTENT_BY_TEMPLATE  # noqa: E402
@@ -18,16 +18,6 @@ from src.dialogs.functional_lesson_wizard import (  # noqa: E402
     FunctionalLessonWizard,
     _empty_functional_lesson,
 )
-
-
-class _App:
-    _app: QApplication | None = None
-
-    @classmethod
-    def get(cls) -> QApplication:
-        if cls._app is None:
-            cls._app = QApplication.instance() or QApplication([])
-        return cls._app
 
 
 def _wrap_section(lesson):

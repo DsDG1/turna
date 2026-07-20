@@ -7,11 +7,12 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtWidgets import QMessageBox
 
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
+from tests._qtapp import qt_app  # noqa: E402
 
 from PySide6.QtCore import Qt
 
@@ -22,7 +23,7 @@ from src.dialogs.ai_generator_dialog import AiGeneratorDialog, AiRequestWorker
 class TestAiRequestWorker(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.app = QApplication.instance() or QApplication([])
+        cls.app = qt_app()
 
     @classmethod
     def _run_worker(cls, worker: AiRequestWorker) -> None:
@@ -107,7 +108,7 @@ class TestAiRequestWorker(unittest.TestCase):
 class TestAiGeneratorDialogAsync(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.app = QApplication.instance() or QApplication([])
+        cls.app = qt_app()
 
     def setUp(self) -> None:
         self._dialogs: list[AiGeneratorDialog] = []

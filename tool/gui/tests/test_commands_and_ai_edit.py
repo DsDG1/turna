@@ -16,6 +16,7 @@ from unittest.mock import patch
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
+from tests._course_fixture import copy_turkish_course  # noqa: E402
 
 from PySide6.QtGui import QUndoStack  # noqa: E402
 
@@ -28,6 +29,9 @@ from src.application.commands import (  # noqa: E402
     AiEditSectionCommand,
     AiEditUnitCommand,
     AppendLessonCommand,
+    AppendLessonsToUnitCommand,
+    AppendUnitCommand,
+    AppendUnitsToSectionCommand,
     DeleteItemCommand,
     DeleteListeningPhaseCommand,
     DeleteLessonCommand,
@@ -45,6 +49,8 @@ from src.application.commands import (  # noqa: E402
     MoveSubLessonCommand,
     MoveUnitCommand,
     NewLessonCommand,
+    ReparentLessonCommand,
+    ReparentUnitCommand,
     NewUnitCommand,
     RenameListeningPhaseCommand,
     RenameStageCommand,
@@ -63,13 +69,10 @@ from src.backend.ai_generator import (  # noqa: E402
 )
 from src.backend.course_adapter import CourseAdapter  # noqa: E402
 
-_REPO = _GUI.parents[1]
-COURSE_SRC = _REPO / "assets" / "courses" / "turkish"
-
 
 def _load_adapter(tmp: Path) -> CourseAdapter:
     course_dir = tmp / "turkish"
-    shutil.copytree(COURSE_SRC, course_dir)
+    copy_turkish_course(course_dir)
     adapter = CourseAdapter()
     adapter.load(course_dir)
     return adapter
@@ -1031,6 +1034,211 @@ class MergeAiSectionCommandTest(unittest.TestCase):
         self.stack.undo()
         self.assertEqual(len(self.adapter.vocab), before_vocab)
 
+
+class AppendUnitCommandTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_cmd_"))
+        self.adapter = _load_adapter(self.tmp)
+        self.stack = QUndoStack()
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_append_unit_undo_removes(self) -> None:
+        section = self.adapter.sections[0]
+        sid = section["id"]
+        before = len(section.get("units", []))
+        unit = {
+            "id": "appended-u1",
+            "name": "Appended Unit",
+            "description": "",
+            "prerequisiteUnitIds": [],
+            "lessons": [],
+        }
+        cmd = AppendUnitCommand(self.adapter, sid, unit)
+        cmd.signals.changed.connect(lambda: None)
+        self.stack.push(cmd)
+        self.assertEqual(len(section["units"]), before + 1)
+        self.stack.undo()
+        ids = {u.get("id") for u in section["units"]}
+        self.assertNotIn("appended-u1", ids)
+
+
+class CloneUnitFreshIdsTest(unittest.TestCase):
+    def test_clone_unit_regenerates_ids_and_clears_prereqs(self) -> None:
+        from src.backend.lesson_content import clone_unit_with_fresh_ids
+
+        unit = {
+            "id": "orig-u",
+            "name": "Orig",
+            "prerequisiteUnitIds": ["other-u"],
+            "lessons": [
+                {
+                    "id": "orig-l",
+                    "name": "L",
+                    "prerequisiteLessonIds": ["x"],
+                    "content": {
+                        "subLessons": [
+                            {
+                                "id": "sl1",
+                                "stages": [
+                                    {
+                                        "id": "st1",
+                                        "items": [
+                                            {"id": "it1", "runtimeType": "showWord", "wordId": "w-1"}
+                                        ],
+                                    }
+                                ],
+                            }
+                        ]
+                    },
+                }
+            ],
+        }
+        clone = clone_unit_with_fresh_ids(unit, name="Copy")
+        self.assertNotEqual(clone["id"], "orig-u")
+        self.assertEqual(clone["name"], "Copy")
+        self.assertEqual(clone["prerequisiteUnitIds"], [])
+        clone_lid = clone["lessons"][0]["id"]
+        self.assertNotEqual(clone_lid, "orig-l")
+        self.assertEqual(clone["lessons"][0]["prerequisiteLessonIds"], [])
+        # External reference preserved.
+        item = clone["lessons"][0]["content"]["subLessons"][0]["stages"][0]["items"][0]
+        self.assertEqual(item["wordId"], "w-1")
+        # Structural ids regenerated.
+        self.assertNotEqual(clone["lessons"][0]["content"]["subLessons"][0]["id"], "sl1")
+        self.assertNotEqual(item["id"], "it1")
+
+
+class ReparentCommandsTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_cmd_"))
+        self.adapter = _load_adapter(self.tmp)
+        self.stack = QUndoStack()
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_reparent_lesson_across_units_undo_restores(self) -> None:
+        # Find any two distinct units (across sections is fine).
+        all_units = [
+            (s, u) for s in self.adapter.sections for u in s.get("units", [])
+        ]
+        src_pair = next((p for p in all_units if p[1].get("lessons")), None)
+        if src_pair is None:
+            self.skipTest("need a unit with lessons")
+        _src_section, src_unit = src_pair
+        target_pair = next(
+            (p for p in all_units if p[1]["id"] != src_unit["id"]), None
+        )
+        if target_pair is None:
+            self.skipTest("need a second unit")
+        target_unit = target_pair[1]
+        lesson_id = src_unit["lessons"][0]["id"]
+        src_before = len(src_unit["lessons"])
+        tgt_before = len(target_unit["lessons"])
+        cmd = ReparentLessonCommand(self.adapter, lesson_id, target_unit["id"], 0)
+        cmd.signals.changed.connect(lambda: None)
+        self.stack.push(cmd)
+        # Lesson now in target unit.
+        self.assertIn(lesson_id, [l["id"] for l in target_unit["lessons"]])
+        self.assertEqual(len(target_unit["lessons"]), tgt_before + 1)
+        self.assertNotIn(lesson_id, [l["id"] for l in src_unit["lessons"]])
+        self.stack.undo()
+        self.assertIn(lesson_id, [l["id"] for l in src_unit["lessons"]])
+        self.assertEqual(len(src_unit["lessons"]), src_before)
+
+    def test_reparent_unit_across_sections_undo_restores(self) -> None:
+        if len(self.adapter.sections) < 2:
+            self.skipTest("need >=2 sections")
+        s1 = self.adapter.sections[0]
+        s2 = self.adapter.sections[1]
+        if not s1.get("units"):
+            self.skipTest("section1 needs a unit")
+        unit_id = s1["units"][0]["id"]
+        s1_before = len(s1["units"])
+        s2_before = len(s2["units"])
+        cmd = ReparentUnitCommand(self.adapter, unit_id, s2["id"], 0)
+        cmd.signals.changed.connect(lambda: None)
+        self.stack.push(cmd)
+        self.assertIn(unit_id, [u["id"] for u in s2["units"]])
+        self.assertEqual(len(s2["units"]), s2_before + 1)
+        self.assertEqual(len(s1["units"]), s1_before - 1)
+        self.stack.undo()
+        self.assertIn(unit_id, [u["id"] for u in s1["units"]])
+        self.assertEqual(len(s1["units"]), s1_before)
+
+
+class AppendUnitsToSectionCommandTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_cmd_"))
+        self.adapter = _load_adapter(self.tmp)
+        self.stack = QUndoStack()
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_append_units_with_resources_undo(self) -> None:
+        section = self.adapter.sections[0]
+        sid = section["id"]
+        before = len(section.get("units", []))
+        units = [{"id": "fresh-u1", "name": "U1", "lessons": []}]
+        draft = {
+            "words": [
+                {"id": "w-new", "term": "x", "translation": "y", "tags": []}
+            ],
+            "units": units,
+        }
+        cmd = AppendUnitsToSectionCommand(
+            self.adapter, sid, units, resource_section=draft
+        )
+        cmd.signals.changed.connect(lambda: None)
+        self.stack.push(cmd)
+        self.assertEqual(len(section["units"]), before + 1)
+        self.assertIn("w-new", {w.get("id") for w in self.adapter.vocab})
+        self.stack.undo()
+        self.assertNotIn("fresh-u1", {u.get("id") for u in section["units"]})
+        self.assertNotIn("w-new", {w.get("id") for w in self.adapter.vocab})
+
+
+class AppendLessonsToUnitCommandTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_cmd_"))
+        self.adapter = _load_adapter(self.tmp)
+        self.stack = QUndoStack()
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_append_lessons_with_resources_undo(self) -> None:
+        section = self.adapter.sections[0]
+        unit = section["units"][0]
+        uid = unit["id"]
+        before = len(unit.get("lessons", []))
+        lessons = [
+            {
+                "id": "fresh-l1",
+                "name": "L1",
+                "template": "intro",
+                "content": {"subLessons": []},
+            }
+        ]
+        draft = {
+            "expressions": [
+                {"id": "e-new", "term": "x", "translation": "y", "tags": []}
+            ],
+            "units": [{"id": "u", "lessons": lessons}],
+        }
+        cmd = AppendLessonsToUnitCommand(
+            self.adapter, uid, lessons, resource_section=draft
+        )
+        cmd.signals.changed.connect(lambda: None)
+        self.stack.push(cmd)
+        self.assertEqual(len(unit["lessons"]), before + 1)
+        self.assertIn("e-new", {e.get("id") for e in self.adapter.expressions})
+        self.stack.undo()
+        self.assertNotIn("fresh-l1", {l.get("id") for l in unit["lessons"]})
+        self.assertNotIn("e-new", {e.get("id") for e in self.adapter.expressions})
 
 if __name__ == "__main__":
     unittest.main()

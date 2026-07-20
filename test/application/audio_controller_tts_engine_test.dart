@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
+import 'package:varnamala/application/accessibility_provider.dart';
 import 'package:varnamala/application/audio_controller.dart';
 import 'package:varnamala/application/language_provider.dart';
 import 'package:varnamala/application/settings_provider.dart';
@@ -107,6 +108,7 @@ AudioController _buildController({
     tts,
     _FakeLanguageProvider(),
     settings,
+    getIt<AccessibilityProvider>(),
     _PassthroughVocabResolver(),
     audioPlayer: _FakeAudioPlayer(),
     speechPlayer: _FakeAudioPlayer(),
@@ -129,6 +131,9 @@ void main() {
     getIt.registerLazySingleton<AppPrefs>(() => prefs);
     settings = SettingsProvider(prefs);
     getIt.registerLazySingleton<SettingsProvider>(() => settings);
+    getIt.registerLazySingleton<AccessibilityProvider>(
+      () => AccessibilityProvider(prefs),
+    );
   });
 
   tearDown(() async {

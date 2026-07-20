@@ -11,7 +11,6 @@ import 'package:http/testing.dart';
 
 // Project imports:
 import 'package:varnamala/application/ai/ai_api_config.dart';
-import 'package:varnamala/application/ai/ai_course_service.dart';
 import 'package:varnamala/application/ai/ai_hint_provider.dart';
 
 http.Response _textResponse(String content) {

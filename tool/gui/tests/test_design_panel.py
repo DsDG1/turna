@@ -9,6 +9,7 @@ import os
 import sys
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -16,8 +17,8 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
+from tests._course_samples import sample_section  # noqa: E402
 
-from PySide6.QtWidgets import QApplication  # noqa: E402
 
 from src.backend.ai_generator import (  # noqa: E402
     AiApiConfig,
@@ -29,16 +30,7 @@ from src.backend.markdown_chopper import split_chapters  # noqa: E402
 from src.backend.textbook_project_store import TextbookProjectStore  # noqa: E402
 from src.dialogs.ai.design_controller import DesignController  # noqa: E402
 from src.dialogs.ai.design_panel import DesignPanel  # noqa: E402
-
-
-class _App:
-    _app = None
-
-    @classmethod
-    def get(cls) -> QApplication:
-        if cls._app is None:
-            cls._app = QApplication.instance() or QApplication([])
-        return cls._app
+from tests._qtapp import _App  # noqa: E402
 
 
 class _FakeSignal:
@@ -68,18 +60,6 @@ class _FakeWorker:
 
     def cancel(self) -> None:
         pass
-
-
-def _section() -> dict:
-    return {
-        "id": "greetings",
-        "name": "Greetings",
-        "units": [{"id": "u", "name": "U1", "lessons": [
-            {"id": "l", "name": "L1", "template": "intro",
-             "content": {"subLessons": []}},
-        ]}],
-        "words": [{"id": "w-1", "term": "merhaba", "translation": "hello"}],
-    }
 
 
 def _factory(results: dict):
@@ -113,7 +93,7 @@ class DesignPanelTest(unittest.TestCase):
             worker_factory=_factory(
                 {
                     request_alignment_reply: "建议先做问候主题。",
-                    generate_from_chat: _section(),
+                    generate_from_chat: sample_section(),
                 }
             ),
         )
@@ -145,7 +125,12 @@ class DesignPanelTest(unittest.TestCase):
 
         captured: list = []
         self.panel.sections_ready.connect(lambda s, st: captured.append((s, st)))
-        self.panel._on_import()
+        from src.dialogs.import_target_dialog import ImportTarget
+        with unittest.mock.patch(
+            "src.dialogs.import_target_dialog.ImportTargetDialog"
+        ) as MockDlg:
+            MockDlg.return_value.select.return_value = ImportTarget("new_section")
+            self.panel._on_import()
         self.assertEqual(len(captured), 1)
         sections, strategy = captured[0]
         self.assertEqual(sections[0]["id"], "greetings")
@@ -154,6 +139,8 @@ class DesignPanelTest(unittest.TestCase):
     def test_design_autosaved_to_project(self) -> None:
         self.panel._chat_input.setText("做问候课")
         self.panel._on_send_chat()
+        # P2: disk writes are throttled; flush for deterministic assert.
+        self.panel.flush_autosave()
         loaded = self.store.load_project(self.project.project_id)
         self.assertEqual(len(loaded.design["chat_history"]), 2)
         self.assertEqual(
@@ -204,7 +191,7 @@ class DesignPanelPhaseCTest(unittest.TestCase):
             worker_factory=_factory(
                 {
                     request_alignment_reply: "好的。",
-                    generate_from_chat: _section(),
+                    generate_from_chat: sample_section(),
                 }
             ),
         )
@@ -245,7 +232,7 @@ class DesignPanelPhaseCTest(unittest.TestCase):
 
     def test_restore_raw_output(self) -> None:
         self.panel._on_draft_chunk('{"id": "raw-partial"')
-        self.panel._on_draft_ready(_section())
+        self.panel._on_draft_ready(sample_section())
         self.assertTrue(self.panel._restore_raw_btn.isEnabled())
         self.panel._json_editor.setPlainText('{"id": "hand-edited"}')
         self.panel._on_restore_raw()
@@ -280,6 +267,56 @@ class DesignPanelPhaseCTest(unittest.TestCase):
         self.panel._on_explanation_error("网络错误")
         self.assertFalse(self.panel._explain_group.isHidden())
         self.assertIn("网络错误", self.panel._explain_browser.toPlainText())
+
+    def test_stream_large_draft_skips_setplaintext(self) -> None:
+        """P2: while generating a large draft, do not setPlainText every flush."""
+        self.panel._generating = True
+        self.panel._stream_buffer = "x" * (self.panel._STREAM_JSON_LIVE_LIMIT + 100)
+        self.panel._stream_dirty.add("draft")
+        with unittest.mock.patch.object(
+            self.panel._json_editor, "setPlainText"
+        ) as sp:
+            self.panel._flush_stream_views()
+            sp.assert_not_called()
+        self.assertIn("生成中", self.panel._validate_label.text())
+
+    def test_stream_small_draft_may_update_editor(self) -> None:
+        self.panel._generating = True
+        self.panel._stream_buffer = '{"id": "s"}'
+        self.panel._stream_dirty.add("draft")
+        self.panel._flush_stream_views()
+        self.assertIn("s", self.panel._json_editor.toPlainText())
+
+    def test_draft_ready_writes_json_once(self) -> None:
+        self.panel._generating = True
+        self.panel._stream_buffer = "partial..."
+        section = sample_section()
+        with unittest.mock.patch.object(
+            self.panel._json_editor, "set_json", wraps=self.panel._json_editor.set_json
+        ) as sj:
+            self.panel._on_draft_ready(section)
+            self.assertGreaterEqual(sj.call_count, 1)
+        self.assertFalse(self.panel._generating)
+        self.assertEqual(self.panel._json_editor.to_json()["id"], section["id"])
+
+    def test_regenerate_stage_sets_generating(self) -> None:
+        """Local regenerate stages ('重生课时…' / '重生育元…') must also turn on
+        stream-summary mode so a large unit regen does not setPlainText O(n²)."""
+        self.panel._generating = False
+        self.panel._on_busy_changed(True, "重生育元 u-x…")
+        self.assertTrue(self.panel._generating)
+        self.assertIn("生成中", self.panel._validate_label.text())
+
+    def test_regenerate_lesson_stage_sets_generating(self) -> None:
+        self.panel._generating = False
+        self.panel._on_busy_changed(True, "重生课时 l-y…")
+        self.assertTrue(self.panel._generating)
+
+    def test_explain_stage_does_not_set_generating(self) -> None:
+        """'通俗解释中…' is not a draft/regenerate stage — must stay False."""
+        self.panel._generating = False
+        self.panel._on_busy_changed(True, "通俗解释中…")
+        self.assertFalse(self.panel._generating)
 
 
 if __name__ == "__main__":

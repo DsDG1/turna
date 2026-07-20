@@ -17,21 +17,12 @@ if str(_GUI) not in sys.path:
 
 from PySide6.QtCore import QEvent, Qt  # noqa: E402
 from PySide6.QtGui import QMouseEvent  # noqa: E402
-from PySide6.QtWidgets import QApplication, QLineEdit, QPushButton  # noqa: E402
+from PySide6.QtWidgets import QLineEdit, QPushButton  # noqa: E402
 
 from src.infrastructure import user_action_filter as uaf_mod  # noqa: E402
 from src.infrastructure import operations_log  # noqa: E402
 from src.infrastructure.telemetry import Telemetry  # noqa: E402
-
-
-class _App:
-    _app = None
-
-    @classmethod
-    def get(cls) -> QApplication:
-        if cls._app is None:
-            cls._app = QApplication.instance() or QApplication([])
-        return cls._app
+from tests._qtapp import _App  # noqa: E402
 
 
 class UserActionFilterTest(unittest.TestCase):

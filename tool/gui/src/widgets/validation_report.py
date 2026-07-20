@@ -11,6 +11,7 @@ from __future__ import annotations
 from typing import Any
 
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -24,6 +25,7 @@ from PySide6.QtWidgets import (
 
 from src.backend.course_adapter import CourseAdapter
 from src.teacher.error_mapper import humanize_problem, problem_to_node_ref
+from src.theme import current_palette
 
 
 class ValidationReportWidget(QWidget):
@@ -50,7 +52,8 @@ class ValidationReportWidget(QWidget):
 
         header = QHBoxLayout()
         self.title = QLabel("校验结果")
-        self.title.setStyleSheet("font-weight: 700; color: #E74C3C;")
+        pal = current_palette()
+        self.title.setStyleSheet(f"font-weight: 700; color: {pal['error']};")
         header.addWidget(self.title)
         header.addStretch()
         self.ai_fix_btn = QPushButton("AI 自动修正")
@@ -67,7 +70,7 @@ class ValidationReportWidget(QWidget):
         layout.addWidget(self.list_widget)
 
         self._hint = QLabel("双击条目可跳转到对应节点；选中条目后点击「AI 自动修正」")
-        self._hint.setStyleSheet("color: #9CA3AF; font-size: 11px;")
+        self._hint.setStyleSheet(f"color: {current_palette()['text_secondary']}; font-size: 11px;")
         layout.addWidget(self._hint)
 
     def show_problems(self, problems: list[dict[str, Any]]) -> None:
@@ -79,10 +82,11 @@ class ValidationReportWidget(QWidget):
         self.title.setText(
             f"校验结果：{len(errors)} 个错误，{len(warnings)} 个警告"
         )
+        pal = current_palette()
         self.title.setStyleSheet(
-            "font-weight: 700; color: #E74C3C;" if errors
-            else "font-weight: 700; color: #FF9F43;" if warnings
-            else "font-weight: 700; color: #27AE60;"
+            f"font-weight: 700; color: {pal['error']};" if errors
+            else f"font-weight: 700; color: {pal['warning']};" if warnings
+            else f"font-weight: 700; color: {pal['success']};"
         )
         for problem in self._problems:
             level = problem.get("level", "error")
@@ -95,7 +99,7 @@ class ValidationReportWidget(QWidget):
             text = f"{tag} {human}{location}"
             item = QListWidgetItem(text)
             item.setData(Qt.ItemDataRole.UserRole, problem)
-            item.setForeground(Qt.GlobalColor.white)
+            item.setForeground(QColor(current_palette()['text']))
             item.setToolTip(problem.get("message", ""))
             self.list_widget.addItem(item)
         self._hint.setVisible(bool(self._problems))

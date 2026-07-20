@@ -461,6 +461,29 @@ class AppendLessonCommand(QUndoCommand):
         self.signals.changed.emit()
 
 
+class AppendUnitCommand(QUndoCommand):
+    """Append an externally-built unit to a section. Undo removes it."""
+
+    def __init__(self, adapter, section_id: str, unit: dict[str, Any]) -> None:
+        super().__init__("添加 Unit")
+        self.adapter = adapter
+        self.section_id = section_id
+        self.unit = deepcopy(unit)
+        self.unit_id: str = unit.get("id", "")
+        self.signals = _make_changed()
+
+    def redo(self) -> None:
+        section = self.adapter.find_section(self.section_id)
+        section.setdefault("units", []).append(deepcopy(self.unit))
+        self.signals.changed.emit()
+
+    def undo(self) -> None:
+        section = self.adapter.find_section(self.section_id)
+        units = section.get("units", [])
+        _remove_by_id(units, self.unit_id)
+        self.signals.changed.emit()
+
+
 class DeleteLessonCommand(QUndoCommand):
     """Delete a lesson. Undo restores it to its original position."""
 
@@ -609,6 +632,109 @@ class MoveLessonCommand(_MoveNodeCommand):
     def _list(self):
         _, unit = self.adapter.find_unit(self.container_id)
         return unit.setdefault("lessons", [])
+
+
+class ReparentLessonCommand(QUndoCommand):
+    """Move a lesson into a different unit (possibly in another section).
+
+    Cross-tree reorder: the lesson leaves its current unit and is inserted
+    at ``new_index`` inside ``new_unit_id``. ``new_index`` is clamped to the
+    target unit's lesson count. Reference ids (wordId/expressionId/...) are
+    preserved - only the lesson's location changes. Snapshot+remove+insert
+    mirrors ``BulkMoveLessonsCommand`` so undo restores the exact old spot.
+    """
+
+    def __init__(self, adapter, lesson_id: str, new_unit_id: str, new_index: int) -> None:
+        super().__init__("移动 Lesson 到其他 Unit")
+        self.adapter = adapter
+        self.lesson_id = lesson_id
+        self.new_unit_id = new_unit_id
+        self.new_index = new_index
+        self.old_unit_id: str | None = None
+        self.old_index: int = -1
+        self._snapshot: dict[str, Any] | None = None
+        self.signals = _make_changed()
+
+    def redo(self) -> None:
+        _section, unit, lesson = self.adapter.find_lesson(self.lesson_id)
+        self.old_unit_id = unit.get("id", "")
+        lessons = unit.get("lessons", [])
+        self.old_index = next(
+            (i for i, l in enumerate(lessons) if l.get("id") == self.lesson_id), -1
+        )
+        self._snapshot = deepcopy(lesson)
+        self.adapter.delete_lesson(self.lesson_id)
+        _s, new_unit = self.adapter.find_unit(self.new_unit_id)
+        target = new_unit.setdefault("lessons", [])
+        idx = self.new_index if 0 <= self.new_index <= len(target) else len(target)
+        target.insert(idx, deepcopy(self._snapshot))
+        self.signals.changed.emit()
+
+    def undo(self) -> None:
+        if self._snapshot is None or self.old_unit_id is None:
+            return
+        _s, new_unit = self.adapter.find_unit(self.new_unit_id)
+        new_lessons = new_unit.get("lessons", [])
+        for i, l in enumerate(new_lessons):
+            if l.get("id") == self.lesson_id:
+                del new_lessons[i]
+                break
+        _s, old_unit = self.adapter.find_unit(self.old_unit_id)
+        old_lessons = old_unit.setdefault("lessons", [])
+        idx = self.old_index if 0 <= self.old_index <= len(old_lessons) else len(old_lessons)
+        old_lessons.insert(idx, deepcopy(self._snapshot))
+        self.signals.changed.emit()
+
+
+class ReparentUnitCommand(QUndoCommand):
+    """Move a unit into a different section.
+
+    Cross-tree reorder: the unit leaves its current section and is inserted
+    at ``new_index`` inside ``new_section_id``. ``new_index`` is clamped to
+    the target section's unit count. Snapshot+remove+insert mirrors
+    ``ReparentLessonCommand`` so undo restores the exact old spot.
+    """
+
+    def __init__(self, adapter, unit_id: str, new_section_id: str, new_index: int) -> None:
+        super().__init__("移动 Unit 到其他 Section")
+        self.adapter = adapter
+        self.unit_id = unit_id
+        self.new_section_id = new_section_id
+        self.new_index = new_index
+        self.old_section_id: str | None = None
+        self.old_index: int = -1
+        self._snapshot: dict[str, Any] | None = None
+        self.signals = _make_changed()
+
+    def redo(self) -> None:
+        section, unit = self.adapter.find_unit(self.unit_id)
+        self.old_section_id = section.get("id", "")
+        units = section.get("units", [])
+        self.old_index = next(
+            (i for i, u in enumerate(units) if u.get("id") == self.unit_id), -1
+        )
+        self._snapshot = deepcopy(unit)
+        self.adapter.delete_unit(self.unit_id)
+        target_section = self.adapter.find_section(self.new_section_id)
+        target = target_section.setdefault("units", [])
+        idx = self.new_index if 0 <= self.new_index <= len(target) else len(target)
+        target.insert(idx, deepcopy(self._snapshot))
+        self.signals.changed.emit()
+
+    def undo(self) -> None:
+        if self._snapshot is None or self.old_section_id is None:
+            return
+        target_section = self.adapter.find_section(self.new_section_id)
+        target_units = target_section.get("units", [])
+        for i, u in enumerate(target_units):
+            if u.get("id") == self.unit_id:
+                del target_units[i]
+                break
+        old_section = self.adapter.find_section(self.old_section_id)
+        old_units = old_section.setdefault("units", [])
+        idx = self.old_index if 0 <= self.old_index <= len(old_units) else len(old_units)
+        old_units.insert(idx, deepcopy(self._snapshot))
+        self.signals.changed.emit()
 
 
 def _dedupe_preserve_order(ids: list[str]) -> list[str]:
@@ -1149,6 +1275,96 @@ class AiEditLessonCommand(_ResourceMergeMixin, QUndoCommand):
     def undo(self) -> None:
         if self.old_lesson is not None:
             self.adapter.replace_lesson(self.lesson_id, deepcopy(self.old_lesson))
+        self._rollback_resources()
+        self.signals.changed.emit()
+
+
+class AppendUnitsToSectionCommand(_ResourceMergeMixin, QUndoCommand):
+    """Append several fresh-id units to a section + merge draft resources.
+
+    Used by the workshop "import into existing section" path: each unit has
+    already been cloned with fresh ids by the caller, so it cannot collide
+    with the existing course. The draft's top-level words/expressions/
+    grammarPoints are merged on redo and rolled back on undo.
+    """
+
+    def __init__(
+        self,
+        adapter,
+        section_id: str,
+        units: list[dict[str, Any]],
+        resource_section: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__("添加 Unit（工坊导入）")
+        self.adapter = adapter
+        self.section_id = section_id
+        self.units = [deepcopy(u) for u in units]
+        self.resource_section = deepcopy(resource_section) if resource_section else None
+        self.appended_ids: list[str] = []
+        self.signals = _make_changed()
+        self._init_resource_tracking()
+
+    def redo(self) -> None:
+        if self.resource_section is not None:
+            self._merge_resources_from(self.resource_section)
+        section = self.adapter.find_section(self.section_id)
+        target = section.setdefault("units", [])
+        self.appended_ids = []
+        for unit in self.units:
+            target.append(deepcopy(unit))
+            self.appended_ids.append(unit.get("id", ""))
+        self.signals.changed.emit()
+
+    def undo(self) -> None:
+        section = self.adapter.find_section(self.section_id)
+        units = section.get("units", [])
+        for uid in self.appended_ids:
+            _remove_by_id(units, uid)
+        self._rollback_resources()
+        self.signals.changed.emit()
+
+
+class AppendLessonsToUnitCommand(_ResourceMergeMixin, QUndoCommand):
+    """Append several fresh-id lessons to a unit + merge draft resources.
+
+    Used by the workshop "import into existing unit" path: each lesson has
+    already been cloned with fresh ids by the caller. The draft's top-level
+    words/expressions/grammarPoints are merged on redo and rolled back on
+    undo.
+    """
+
+    def __init__(
+        self,
+        adapter,
+        unit_id: str,
+        lessons: list[dict[str, Any]],
+        resource_section: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__("添加 Lesson（工坊导入）")
+        self.adapter = adapter
+        self.unit_id = unit_id
+        self.lessons = [deepcopy(l) for l in lessons]
+        self.resource_section = deepcopy(resource_section) if resource_section else None
+        self.appended_ids: list[str] = []
+        self.signals = _make_changed()
+        self._init_resource_tracking()
+
+    def redo(self) -> None:
+        if self.resource_section is not None:
+            self._merge_resources_from(self.resource_section)
+        _s, unit = self.adapter.find_unit(self.unit_id)
+        target = unit.setdefault("lessons", [])
+        self.appended_ids = []
+        for lesson in self.lessons:
+            target.append(deepcopy(lesson))
+            self.appended_ids.append(lesson.get("id", ""))
+        self.signals.changed.emit()
+
+    def undo(self) -> None:
+        _s, unit = self.adapter.find_unit(self.unit_id)
+        lessons = unit.get("lessons", [])
+        for lid in self.appended_ids:
+            _remove_by_id(lessons, lid)
         self._rollback_resources()
         self.signals.changed.emit()
 

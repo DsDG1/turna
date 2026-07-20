@@ -359,6 +359,23 @@ class AiGeneratorDialog(QDialog):
         self._normal_template_slot = QVBoxLayout()
         self._normal_template_slot.setContentsMargins(0, 0, 0, 0)
         layout.addLayout(self._normal_template_slot)
+
+        if self._edit_mode is not None:
+            from PySide6.QtWidgets import QPlainTextEdit
+            scope = self._edit_mode.get("scope", "section")
+            scope_id = self._edit_mode.get("scope_id", "")
+            
+            info_lbl = QLabel(f"<b>正在编辑 {scope.upper()} : {scope_id}</b>")
+            from src.theme import current_palette as _cp
+            info_lbl.setStyleSheet(f"color: {_cp()['info']};")
+            layout.addWidget(info_lbl)
+            
+            layout.addWidget(QLabel("修改要求/指令 (例如：增加两个练习题，补充单词Merhaba)："))
+            self.edit_instruction_input = QPlainTextEdit()
+            self.edit_instruction_input.setPlaceholderText("你想对该节点做出什么具体的改变？AI 将根据此指令进行精确重写。")
+            self.edit_instruction_input.setMaximumHeight(80)
+            layout.addWidget(self.edit_instruction_input)
+
         layout.addWidget(self._build_topic_row())
         return widget
 
@@ -1465,6 +1482,11 @@ class AiGeneratorDialog(QDialog):
         scope = self._edit_mode.get("scope", "section")
         scope_id = self._edit_mode.get("scope_id", "")
         existing = self._edit_mode["existing_section"]
+
+        instruction = None
+        if hasattr(self, "edit_instruction_input"):
+            instruction = self.edit_instruction_input.toPlainText().strip() or None
+
         if scope == "lesson" and scope_id:
             return AiRequestWorker(
                 regenerate_lesson_in_section,
@@ -1472,6 +1494,7 @@ class AiGeneratorDialog(QDialog):
                 spec,
                 existing,
                 scope_id,
+                instruction=instruction,
                 **kwargs,
             )
         if scope == "unit" and scope_id:
@@ -1481,8 +1504,13 @@ class AiGeneratorDialog(QDialog):
                 spec,
                 existing,
                 scope_id,
+                instruction=instruction,
                 **kwargs,
             )
+
+        if instruction:
+            spec.extra_instructions = (spec.extra_instructions or "") + f"\n\n编辑指令：\n{instruction}"
+
         return AiRequestWorker(
             generate_edit,
             self._config,

@@ -98,6 +98,7 @@ from src.backend.lesson_content import (
 )
 from src.i18n.labels import interaction_label, layer_label
 from src.teacher.question_cards import QuestionCard
+from src.theme import current_palette
 from src.widgets.option_models import build_options_model
 
 
@@ -183,11 +184,11 @@ class LinearFlowWidget(QWidget):
             f"{self.section.get('name', '')} › {self.unit.get('name', '')} › "
             f"{self.lesson.get('name', '')}"
         )
-        breadcrumb.setStyleSheet("color: #9CA3AF; padding: 4px;")
+        breadcrumb.setStyleSheet(f"color: {current_palette()['text_secondary']}; padding: 4px;")
         layout.addWidget(breadcrumb)
 
         title = QLabel(self.lesson.get('name', ''))
-        title.setStyleSheet("font-size: 18px; font-weight: 700; color: #FFFFFF;")
+        title.setStyleSheet(f"font-size: 18px; font-weight: 700; color: {current_palette()['text']};")
         layout.addWidget(title)
 
         preview_btn = QPushButton("预览本课")
@@ -268,7 +269,7 @@ class LinearFlowWidget(QWidget):
         hlayout.setSpacing(6)
 
         title = QLabel(f"{layer_label('subLesson')}：{sl.get('name', sl.get('id', ''))}")
-        title.setStyleSheet("font-size: 15px; font-weight: 700; color: #E8EAF0;")
+        title.setStyleSheet(f"font-size: 15px; font-weight: 700; color: {current_palette()['text']};")
         hlayout.addWidget(title)
         hlayout.addStretch()
 
@@ -288,7 +289,7 @@ class LinearFlowWidget(QWidget):
 
     def _build_stage(self, stage: dict[str, Any], sl: dict[str, Any]) -> QWidget:
         widget = QWidget()
-        widget.setStyleSheet("QWidget { background-color: #232833; border-radius: 8px; }")
+        widget.setStyleSheet(f"QWidget {{ background-color: {current_palette()['bg_elevated']}; border-radius: 8px; }}")
         slayout = QVBoxLayout(widget)
         slayout.setSpacing(8)
         slayout.setContentsMargins(10, 10, 10, 10)
@@ -326,7 +327,7 @@ class LinearFlowWidget(QWidget):
         hlayout.setSpacing(6)
 
         title = QLabel(f"  {layer_label('stage')}：{stage.get('name', stage.get('id', ''))}")
-        title.setStyleSheet("font-weight: 600; color: #9CA3AF;")
+        title.setStyleSheet(f"font-weight: 600; color: {current_palette()['text_secondary']};")
         hlayout.addWidget(title)
         hlayout.addStretch()
 

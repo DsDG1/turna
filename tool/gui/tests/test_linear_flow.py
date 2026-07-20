@@ -18,16 +18,7 @@ if str(_GUI) not in sys.path:
 from src.backend.course_adapter import CourseAdapter  # noqa: E402
 from src.teacher.linear_flow import LinearFlowWidget  # noqa: E402
 from src.teacher.sublesson_flow import SubLessonFlowWidget  # noqa: E402
-
-
-class _TestApp:
-    _app: QApplication | None = None
-
-    @classmethod
-    def get(cls) -> QApplication:
-        if cls._app is None:
-            cls._app = QApplication.instance() or QApplication([])
-        return cls._app
+from tests._qtapp import _App as _TestApp  # noqa: E402
 
 
 def _sample_lesson() -> dict:

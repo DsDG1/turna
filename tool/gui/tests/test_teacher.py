@@ -14,6 +14,7 @@ from pathlib import Path
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
+from tests._course_fixture import copy_turkish_course  # noqa: E402
 
 from src.backend.course_adapter import CourseAdapter  # noqa: E402
 from src.teacher.error_mapper import (  # noqa: E402
@@ -23,14 +24,12 @@ from src.teacher.error_mapper import (  # noqa: E402
 )
 from src.backend.lesson_content import build_intro_lesson  # noqa: E402
 
-COURSE_SRC = Path(__file__).resolve().parents[3] / "assets" / "courses" / "turkish"
-
 
 class LessonWizardTest(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_wizard_"))
         self.course_dir = self.tmp / "turkish"
-        shutil.copytree(COURSE_SRC, self.course_dir)
+        copy_turkish_course(self.course_dir)
 
     def tearDown(self) -> None:
         shutil.rmtree(self.tmp, ignore_errors=True)

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
+import 'package:varnamala/application/accessibility_provider.dart';
 import 'package:varnamala/application/audio_controller.dart';
 import 'package:varnamala/application/language_provider.dart';
 import 'package:varnamala/application/match_provider.dart';
@@ -37,11 +38,12 @@ class _PassthroughVocabResolver implements VocabAudioResolver {
 }
 
 class _SilentAudioController extends AudioController {
-  _SilentAudioController(SettingsProvider settings)
+  _SilentAudioController(SettingsProvider settings, AccessibilityProvider acc)
       : super(
           _FakeFlutterTts(),
           _FakeLanguageProvider(),
           settings,
+          acc,
           _PassthroughVocabResolver(),
           audioPlayer: _FakeAudioPlayer(),
           speechPlayer: _FakeAudioPlayer(),
@@ -63,7 +65,8 @@ void main() {
     final sp = await StreamingSharedPreferences.instance;
     prefs = AppPrefs(sp);
     final settings = SettingsProvider(prefs);
-    provider = MatchProvider(_SilentAudioController(settings), prefs);
+    final acc = AccessibilityProvider(prefs);
+    provider = MatchProvider(_SilentAudioController(settings, acc), prefs);
   });
 
   tearDown(() {

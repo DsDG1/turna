@@ -12,20 +12,22 @@ from typing import Any
 from PySide6.QtWidgets import QTextBrowser
 
 # A fallback palette used until theme.py provides one (and by unit tests).
-# Keys mirror the ``ai_*`` palette keys added to theme.py in P5.4.
+# Keys mirror the ``ai_*`` palette keys in src/theme_tokens.py.
+# Values are kept in sync with the ``dark`` palette so chat rendering looks
+# correct before apply_theme() is called.
 DEFAULT_PALETTE: dict[str, str] = {
-    "ai_chat_bg": "#1A1D23",
-    "ai_bubble_bg": "#2C313C",
-    "ai_user_bubble": "#145A64",
-    "ai_card_bg": "#1F232C",
-    "ai_chip_bg": "#1F232C",
+    "ai_chat_bg": "#142624",
+    "ai_bubble_bg": "#1F3A36",
+    "ai_user_bubble": "#1F727E",
+    "ai_card_bg": "#1A2E2B",
+    "ai_chip_bg": "#142624",
     "ai_accent": "#46D1BF",
     "ai_accent_border": "#1F727E",
     "ai_beta_bg": "#664400",
     "ai_beta_text": "#FFD93D",
     "text": "#E8EAF0",
-    "text_secondary": "#9CA3AF",
-    "text_disabled": "#6B7280",
+    "text_secondary": "#B0CBC7",
+    "text_disabled": "#6B8A85",
     "success": "#27AE60",
     "error": "#E74C3C",
 }

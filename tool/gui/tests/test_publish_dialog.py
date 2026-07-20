@@ -16,9 +16,10 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from PySide6.QtWidgets import QApplication, QDialogButtonBox
+from PySide6.QtWidgets import QDialogButtonBox
 
 from src.widgets.publish_dialog import PublishDialog
+from tests._qtapp import _App  # noqa: E402
 
 
 def _adapter_with_report(*, ok: bool = True, errors=None):
@@ -45,16 +46,6 @@ def _adapter_with_report(*, ok: bool = True, errors=None):
         "validation": {"ok": ok, "errors": errors or [], "warnings": []},
     }
     return adapter
-
-
-class _App:
-    _app: QApplication | None = None
-
-    @classmethod
-    def get(cls) -> QApplication:
-        if cls._app is None:
-            cls._app = QApplication.instance() or QApplication([])
-        return cls._app
 
 
 class PublishDialogModeTest(unittest.TestCase):

@@ -19,9 +19,12 @@ class AboutVarnamalaPage extends StatelessWidget {
 
   static const String _upstreamUrl = 'https://github.com/rshrc/Varnamala';
   static const String _issuesUrl = 'https://github.com/rshrc/Varnamala/issues';
+  static const String _releasesUrl =
+      'https://github.com/rshrc/Varnamala/releases';
 
   @override
   Widget build(BuildContext context) {
+    final year = DateTime.now().year;
     return Scaffold(
       backgroundColor: VarnamalaTheme.scaffoldBg(context),
       appBar: AppBar(
@@ -82,6 +85,26 @@ class AboutVarnamalaPage extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 24),
+            _sectionTitle(
+                context, 'Privacy & local-first', Icons.lock_rounded),
+            _AboutCard(
+              child: Text(
+                'Everything you learn stays on this device. Varnamala has no '
+                'cloud backend, no account, and no tracking — your progress, '
+                'mistakes, and settings never leave your phone. Uninstalling '
+                'the app removes all of it. The only network access is optional '
+                '(opening external links or the AI tools you configure yourself).',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      height: 1.5,
+                      color: VarnamalaTheme.textSecondaryColor(context),
+                    ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            _sectionTitle(
+                context, 'Version & changelog', Icons.history_rounded),
+            const _VersionCard(),
+            const SizedBox(height: 24),
             _sectionTitle(context, 'Links', Icons.link_rounded),
             _AboutCard(
               child: Column(
@@ -123,6 +146,17 @@ class AboutVarnamalaPage extends StatelessWidget {
                     color: VarnamalaTheme.dividerBg(context),
                   ),
                   _LinkTile(
+                    icon: Icons.new_releases_rounded,
+                    title: 'View releases',
+                    subtitle: 'Changelog & downloads',
+                    onTap: () => _launchUrl(_releasesUrl),
+                  ),
+                  Divider(
+                    height: 1,
+                    indent: 48,
+                    color: VarnamalaTheme.dividerBg(context),
+                  ),
+                  _LinkTile(
                     icon: Icons.share_rounded,
                     title: 'Share Varnamala',
                     onTap: () => _shareApp(context),
@@ -146,6 +180,15 @@ class AboutVarnamalaPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   Text(
+                    'This build is a local-first fork with additional '
+                    'accessibility settings and a focused course-authoring tool.',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          height: 1.5,
+                          color: VarnamalaTheme.textSecondaryColor(context),
+                        ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
                     'Licensed under the GNU General Public License v3.0.',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: VarnamalaTheme.textHintColor(context),
@@ -157,7 +200,7 @@ class AboutVarnamalaPage extends StatelessWidget {
             const SizedBox(height: 32),
             Center(
               child: Text(
-                '© Varnamala Plus',
+                '© $year Varnamala',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: VarnamalaTheme.textHintColor(context),
                     ),
@@ -420,6 +463,117 @@ class _LinkTile extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Shows the installed version + build and an expandable changelog of the
+/// most recent milestones. Content is hard-coded so it works fully offline.
+class _VersionCard extends StatefulWidget {
+  const _VersionCard();
+
+  @override
+  State<_VersionCard> createState() => _VersionCardState();
+}
+
+class _VersionCardState extends State<_VersionCard> {
+  bool _expanded = false;
+  late final Future<PackageInfo> _packageInfo = PackageInfo.fromPlatform();
+
+  static const _milestones = <(String, String)>[
+    ('future4 framework', 'Completed clean-architecture framework: DI '
+        'consolidation, audio/content decoupling, SRS queue base class, '
+        'GameProvider facade, integration tests, release pipeline.'),
+    ('Swahili → Turkish pivot', 'Migrated the target language to Turkish and '
+        'filled Section 1 with a real greetings lesson (8 words + 2 expressions).'),
+    ('Accessibility settings', 'Added neurodiversity-friendly options: text '
+        'size, reduced motion, high contrast, dyslexia-friendly font, '
+        'sensory reduction, and focus mode.'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return _AboutCard(
+      child: FutureBuilder<PackageInfo>(
+        future: _packageInfo,
+        builder: (context, snapshot) {
+          final version = snapshot.data?.version ?? _fallbackVersion;
+          final buildNumber = snapshot.data?.buildNumber ?? '';
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    'Version $version',
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (buildNumber.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: Text(
+                        '($buildNumber)',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: VarnamalaTheme.textHintColor(context),
+                            ),
+                      ),
+                    ),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () =>
+                        setState(() => _expanded = !_expanded),
+                    child: Text(_expanded ? 'Hide' : 'Show changelog'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'For the full release history, see the GitHub releases page.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: VarnamalaTheme.textHintColor(context),
+                    ),
+              ),
+              AnimatedCrossFade(
+                duration: const Duration(milliseconds: 200),
+                crossFadeState: _expanded
+                    ? CrossFadeState.showSecond
+                    : CrossFadeState.showFirst,
+                firstChild: const SizedBox(width: double.infinity),
+                secondChild: Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (final entry in _milestones) ...[
+                        Text(
+                          entry.$1,
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: VarnamalaTheme.peacockTeal,
+                                  ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          entry.$2,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                height: 1.5,
+                                color:
+                                    VarnamalaTheme.textSecondaryColor(context),
+                              ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

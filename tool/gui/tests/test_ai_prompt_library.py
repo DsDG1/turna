@@ -9,22 +9,13 @@ from unittest.mock import MagicMock
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
+from tests._qsettings_mock import make_qsettings  # noqa: E402
 
 from src.backend.ai_generator import AiCourseSpec
 from src.backend.ai_prompt_library import (
     AiPromptLibrary,
     AiPromptTemplate,
 )
-
-
-def _make_qsettings() -> MagicMock:
-    store: dict[str, str] = {}
-    qs = MagicMock()
-    qs.value = lambda key, default="": store.get(key, default)
-    qs.setValue = lambda key, value: store.__setitem__(key, value)
-    qs.beginGroup = lambda _name: None
-    qs.endGroup = lambda: None
-    return qs
 
 
 class AiPromptTemplateTest(unittest.TestCase):
@@ -48,7 +39,7 @@ class AiPromptTemplateTest(unittest.TestCase):
 
 class AiPromptLibraryTest(unittest.TestCase):
     def test_save_and_list_templates(self) -> None:
-        qs = _make_qsettings()
+        qs = make_qsettings()
         lib = AiPromptLibrary(qs)
         tpl = AiPromptTemplate(name="test", topic="旅行")
         lib.save_template(tpl)
@@ -57,7 +48,7 @@ class AiPromptLibraryTest(unittest.TestCase):
         self.assertEqual(templates[0].name, "test")
 
     def test_save_overwrites_same_name(self) -> None:
-        qs = _make_qsettings()
+        qs = make_qsettings()
         lib = AiPromptLibrary(qs)
         lib.save_template(AiPromptTemplate(name="x", topic="a"))
         lib.save_template(AiPromptTemplate(name="x", topic="b"))
@@ -65,14 +56,14 @@ class AiPromptLibraryTest(unittest.TestCase):
         self.assertEqual(lib.list_templates()[0].topic, "b")
 
     def test_delete_template(self) -> None:
-        qs = _make_qsettings()
+        qs = make_qsettings()
         lib = AiPromptLibrary(qs)
         lib.save_template(AiPromptTemplate(name="x"))
         self.assertTrue(lib.delete_template("x"))
         self.assertFalse(lib.delete_template("x"))
 
     def test_record_history_deduplicates_and_caps(self) -> None:
-        qs = _make_qsettings()
+        qs = make_qsettings()
         lib = AiPromptLibrary(qs)
         spec = AiCourseSpec(topic="a")
         for _ in range(22):
@@ -80,7 +71,7 @@ class AiPromptLibraryTest(unittest.TestCase):
         self.assertEqual(len(lib.recent_history()), 1)
 
     def test_history_differentiated_by_fields(self) -> None:
-        qs = _make_qsettings()
+        qs = make_qsettings()
         lib = AiPromptLibrary(qs)
         lib.record_history(AiCourseSpec(topic="a"))
         lib.record_history(AiCourseSpec(topic="b"))

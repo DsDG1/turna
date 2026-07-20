@@ -49,6 +49,7 @@ from src.backend.lesson_content import (
 from src.dialogs.ai_lesson_helper_dialog import AiLessonHelperDialog
 from src.i18n.labels import interaction_label
 from src.teacher.question_cards import QuestionCard
+from src.theme import current_palette
 
 
 class TeacherTemplateWidget(QWidget):
@@ -313,7 +314,7 @@ class ListeningTeacherWidget(TeacherTemplateWidget):
             return
 
         title = QLabel(self.lesson.get('name', ''))
-        title.setStyleSheet("font-size: 18px; font-weight: 700; color: #FFFFFF;")
+        title.setStyleSheet(f"font-size: 18px; font-weight: 700; color: {current_palette()['text']};")
         layout.addWidget(title)
 
         phases = self.lesson.get("content", {}).get("listeningPhases", []) or []
@@ -327,7 +328,7 @@ class ListeningTeacherWidget(TeacherTemplateWidget):
 
     def _build_phase(self, phase: dict[str, Any]) -> QWidget:
         widget = QWidget()
-        widget.setStyleSheet("QWidget { background-color: #1F232C; border-radius: 10px; }")
+        widget.setStyleSheet(f"QWidget {{ background-color: {current_palette()['bg_elevated']}; border-radius: 10px; }}")
         playout = QVBoxLayout(widget)
         playout.setSpacing(10)
         playout.setContentsMargins(12, 12, 12, 12)
@@ -373,7 +374,7 @@ class ListeningTeacherWidget(TeacherTemplateWidget):
         hlayout.setSpacing(6)
 
         title = QLabel(phase.get('name', phase.get('id', '')))
-        title.setStyleSheet("font-size: 15px; font-weight: 700; color: #E8EAF0;")
+        title.setStyleSheet(f"font-size: 15px; font-weight: 700; color: {current_palette()['text']};")
         hlayout.addWidget(title)
         hlayout.addStretch()
 
@@ -474,7 +475,7 @@ class ReadingTeacherWidget(TeacherTemplateWidget):
             return
 
         title = QLabel(self.lesson.get('name', ''))
-        title.setStyleSheet("font-size: 18px; font-weight: 700; color: #FFFFFF;")
+        title.setStyleSheet(f"font-size: 18px; font-weight: 700; color: {current_palette()['text']};")
         layout.addWidget(title)
 
         passage = self.lesson.setdefault("content", {}).setdefault("readingPassage", {})
@@ -519,7 +520,7 @@ class MasteryTeacherWidget(TeacherTemplateWidget):
             return
 
         title = QLabel(self.lesson.get('name', ''))
-        title.setStyleSheet("font-size: 18px; font-weight: 700; color: #FFFFFF;")
+        title.setStyleSheet(f"font-size: 18px; font-weight: 700; color: {current_palette()['text']};")
         layout.addWidget(title)
 
         stage = self._stage()

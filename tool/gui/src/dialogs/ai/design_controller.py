@@ -23,12 +23,16 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
+import copy
+
 from src.backend.ai_generator import (
     AiCourseSpec,
     ChatMessage,
     apply_genre_to_spec,
     explain_course,
     generate_from_chat,
+    regenerate_lesson_in_section,
+    regenerate_unit_in_section,
     request_alignment_reply,
     request_course_with_retry,
 )
@@ -122,6 +126,7 @@ class DesignController:
             "template": "mixed",
             "use_genre_batch": False,
             "extra_instructions": "",
+            "dropped_bubbles": [],
         }
         self._design_brief = ""
         self._language = "Turkish"
@@ -129,6 +134,7 @@ class DesignController:
         self._resource_pool: list[dict] = []
         self._chat: list[ChatMessage] = []
         self._draft: dict[str, Any] | None = None
+        self._draft_checkpoint: dict[str, Any] | None = None
         self._explanation = ""
         self._worker: Any | None = None
         self._usage: UsageDict = {
@@ -263,6 +269,9 @@ class DesignController:
         if not getattr(config, "is_complete", False):
             self._on_error("请先在设置中配置 AI API（base_url / api_key / model）。")
             return False
+        # Checkpoint current draft so the author can restore after a bad regen.
+        if self._draft is not None:
+            self._draft_checkpoint = copy.deepcopy(self._draft)
         spec = self.build_spec()
         if self._chat:
             self._start_worker(
@@ -309,6 +318,79 @@ class DesignController:
         """Replace the draft (e.g. after manual JSON edits in the panel)."""
         self._draft = section
         self._on_design_changed()
+
+    def restore_draft_checkpoint(self) -> bool:
+        """Restore the pre-generation checkpoint if one exists."""
+        if self._draft_checkpoint is None:
+            return False
+        self._draft = copy.deepcopy(self._draft_checkpoint)
+        self._on_draft_ready(self._draft)
+        self._on_design_changed()
+        return True
+
+    def regenerate_lesson(self, lesson_id: str, instruction: str | None = None) -> bool:
+        """Locally regenerate one lesson inside the current draft (workshop P3)."""
+        return self._regenerate_local(
+            kind="lesson",
+            node_id=lesson_id,
+            instruction=instruction,
+        )
+
+    def regenerate_unit(self, unit_id: str, instruction: str | None = None) -> bool:
+        """Locally regenerate every lesson in a unit of the current draft."""
+        return self._regenerate_local(
+            kind="unit",
+            node_id=unit_id,
+            instruction=instruction,
+        )
+
+    def _regenerate_local(
+        self,
+        *,
+        kind: str,
+        node_id: str,
+        instruction: str | None,
+    ) -> bool:
+        if self.is_busy:
+            return False
+        if not isinstance(self._draft, dict):
+            self._on_error("还没有草稿，请先生成课程。")
+            return False
+        config = self._ai_config_fn()
+        if not getattr(config, "is_complete", False):
+            self._on_error("请先在设置中配置 AI API（base_url / api_key / model）。")
+            return False
+        self._draft_checkpoint = copy.deepcopy(self._draft)
+        spec = self.build_spec()
+        kwargs = self._ai_kwargs()
+        # regenerate_* accept timeout/temperature via kwargs; cancel via worker.
+        if kind == "lesson":
+            self._start_worker(
+                regenerate_lesson_in_section,
+                config,
+                spec,
+                copy.deepcopy(self._draft),
+                node_id,
+                instruction,
+                on_result=self._on_draft_generated,
+                on_chunk=self._on_stream_chunk,
+                stage=f"重生课时 {node_id}…",
+                **kwargs,
+            )
+        else:
+            self._start_worker(
+                regenerate_unit_in_section,
+                config,
+                spec,
+                copy.deepcopy(self._draft),
+                node_id,
+                instruction,
+                on_result=self._on_draft_generated,
+                on_chunk=self._on_stream_chunk,
+                stage=f"重生育元 {node_id}…",
+                **kwargs,
+            )
+        return True
 
     # ------------------------------------------------------------------ explain
     def _start_explain(self, section: dict) -> None:

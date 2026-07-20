@@ -15,15 +15,7 @@ from PySide6.QtWidgets import QApplication, QPushButton, QSizePolicy, QWidget
 from src.app import _ButtonSizePolicyFilter
 from src.widgets.flow_layout import FlowLayout
 
-
-class _App:
-    _app: QApplication | None = None
-
-    @classmethod
-    def get(cls) -> QApplication:
-        if cls._app is None:
-            cls._app = QApplication.instance() or QApplication([])
-        return cls._app
+from tests._qtapp import _App
 
 
 class ButtonSizePolicyFilterTest(unittest.TestCase):

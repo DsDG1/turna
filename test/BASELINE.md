@@ -15,7 +15,7 @@ Previous: tool-gui guiplan2 阶段 P1：AI 流式生成 + 真正可中断取消 
 Previous: tool-gui Phase 1+2+3+4：稳定层加固 + 教师视图覆盖全部 6 种模板 + AI 改写与易用性提升 + 稳定性加固。Phase 1：backend/api.py 隔离 CLI 内部函数、CourseAdapter 原子保存/备份/回滚、CSV None 容错、全局异常处理与日志。Phase 2：SubLessonFlowWidget 模板感知视图、intro/practice/review 一键生成助手、lesson_content 统一生成函数与测试。Phase 3：教师视图接入 AI 一键生成/改写/扩展题目；新增撤销/重做、sub-lesson 拖拽排序、实时预览。Phase 4：修复 widget 生命周期隐患、listening/reading/mastery 教师视图全面走 undo stack、wizard/AI 导入资源可撤销、AI API 配置持久化、异常不再静默吞掉
 
 ## Results
-- `flutter test`: **445 total** — all passed
+- `flutter test`: **451 total** — all passed
 - `flutter analyze`: only info-level lint (no errors/warnings from new code) — `DropdownButtonFormField.value` deprecation + `prefer_const` infos (pre-existing)
 - Python:
   - `python3 -m unittest discover -s test -p "*_cli_test.py"` — 7 passed
@@ -23,6 +23,32 @@ Previous: tool-gui Phase 1+2+3+4：稳定层加固 + 教师视图覆盖全部 6 
 - `tool/course_cli.py --course-dir assets/courses/turkish validate` passes
 
 ## Notes
+- 2026-07-20 Settings refactor — neurodiversity accessibility + hierarchy + About:
+  - New `AccessibilityProvider` (`lib/application/accessibility_provider.dart`) with 6
+    persisted flags: textScale (100–200%), reducedMotion, highContrast, dyslexiaFont,
+    sensoryReduce, focusMode. Keys added to `LocalStateKeys`.
+  - `lib/views/app.dart` rewired: single `_AppShell` watches ThemeProvider +
+    AccessibilityProvider, picks light/dark/high-contrast theme variants, swaps
+    text theme to Lexend when dyslexiaFont on, and injects a root `MediaQuery`
+    override (textScaler + disableAnimations/accessibleNavigation when reducedMotion).
+  - `lib/views/theme.dart` added `highContrastLightTheme` / `highContrastDarkTheme`
+    getters (copyWith of the base themes: pure black/white surfaces, stronger borders,
+    max-contrast text).
+  - `AudioController` gained an `AccessibilityProvider` dependency; `_playSound` and
+    `_triggerHaptic` early-return when `quietFeedback` (sensoryReduce) is on.
+  - Settings hierarchy expanded 5 → 7 categories: Account / Learning (trimmed to
+    language+TTS+reminder) / Audio & Haptics (sound+haptic+TTS engine) / Accessibility
+    (6 tiles + theme selector) / AI Tools (API config + design chat + textbook
+    import) / Data / About. New tiles in
+    `lib/views/settings/widgets/settings_accessibility_section.dart`.
+  - About page gained Privacy & local-first section, Version & changelog card
+    (expandable, hard-coded milestones + PackageInfo), and a "View releases" link;
+    credits now note the local-first fork; copyright footer uses `© <year> Varnamala`.
+  - Focus mode gates the `MalaWelcomes` rotating image timer (splash screen).
+  - Test wiring: 7 test files that subclass `AudioController` updated to pass the new
+    `AccessibilityProvider` positional arg and register it in `getIt`/setUp. New
+    `test/application/accessibility_provider_test.dart` (6 tests). `injection.config.dart`
+    regenerated via build_runner. 445 → 451.
 - `tool/gui` Phase 4 稳定性加固（方案 A）：
   - 修复 widget 生命周期：`DetailPanel.clear_content()` 与
     `TeacherTemplateWidget._clear_content()` 缓存 `widget = child.widget()`，

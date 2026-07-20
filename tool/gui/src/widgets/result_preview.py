@@ -11,10 +11,12 @@ from __future__ import annotations
 from typing import Any
 
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
+    QMenu,
     QPushButton,
     QTreeWidget,
     QTreeWidgetItem,
@@ -22,6 +24,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 from src.teacher.error_mapper import humanize_problem, parse_path
+from src.theme import current_palette
 
 
 class _StatCard(QFrame):
@@ -30,22 +33,23 @@ class _StatCard(QFrame):
     def __init__(self, label: str, value: str, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("statCard")
+        pal = current_palette()
         self.setStyleSheet(
-            "QFrame#statCard {"
-            "  background-color: #1F232C;"
-            "  border: 1px solid #2C313C;"
-            "  border-radius: 8px;"
-            "}"
+            f"QFrame#statCard {{"
+            f"  background-color: {pal['bg_elevated']};"
+            f"  border: 1px solid {pal['border']};"
+            f"  border-radius: 8px;"
+            f"}}"
         )
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 8, 10, 8)
         layout.setSpacing(2)
         value_label = QLabel(value)
-        value_label.setStyleSheet("color: #46D1BF; font-size: 16px; font-weight: 600; border: none;")
+        value_label.setStyleSheet(f"color: {pal['ai_accent']}; font-size: 16px; font-weight: 600; border: none;")
         value_label.setProperty("role", "value")
         layout.addWidget(value_label)
         caption = QLabel(label)
-        caption.setStyleSheet("color: #9CA3AF; font-size: 11px; border: none;")
+        caption.setStyleSheet(f"color: {pal['text_secondary']}; font-size: 11px; border: none;")
         layout.addWidget(caption)
         self._value_label = value_label
 
@@ -85,6 +89,8 @@ class ResultPreviewWidget(QWidget):
     # Emitted with a JSON-path string (e.g. "units/0/lessons/1") when the user
     # clicks a tree node, so the host can jump to the matching JSON line (P3.1).
     node_activated = Signal(str)
+    #: (kind, id) kind is ``lesson`` or ``unit`` — workshop local regenerate.
+    regenerate_requested = Signal(str, str)
 
     def __init__(self, adapter, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -125,7 +131,7 @@ class ResultPreviewWidget(QWidget):
         self.validate_btn.clicked.connect(self._on_validate)
         action_row.addWidget(self.validate_btn)
         self.status_label = QLabel("")
-        self.status_label.setStyleSheet("color: #9CA3AF; font-size: 12px;")
+        self.status_label.setStyleSheet(f"color: {current_palette()['text_secondary']}; font-size: 12px;")
         action_row.addWidget(self.status_label, 1)
         layout.addLayout(action_row)
 
@@ -141,7 +147,10 @@ class ResultPreviewWidget(QWidget):
         self.tree.setHeaderHidden(True)
         self.tree.setIndentation(16)
         self.tree.itemClicked.connect(self._on_tree_item_clicked)
+        self.tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.tree.customContextMenuRequested.connect(self._on_tree_context_menu)
         self.tree.setMaximumHeight(220)
+        self.tree.setToolTip("右键课时/单元可请求 AI 局部重生成")
         layout.addWidget(self.tree)
 
     def show_section(self, section: dict[str, Any]) -> None:
@@ -163,7 +172,7 @@ class ResultPreviewWidget(QWidget):
         self._clear_chips()
         self._build_tree(section)
         self.status_label.setText("点击「一键校验」检查结果。")
-        self.status_label.setStyleSheet("color: #9CA3AF; font-size: 12px;")
+        self.status_label.setStyleSheet(f"color: {current_palette()['text_secondary']}; font-size: 12px;")
 
     def _clear_cards(self) -> None:
         for card in (
@@ -186,9 +195,17 @@ class ResultPreviewWidget(QWidget):
                 w.setParent(None)
                 w.deleteLater()
 
-    def _add_chip(self, text: str, level: str) -> None:
-        chip = QLabel(text)
+    def _add_chip(self, problem: dict[str, Any], level: str) -> None:
+        """Show a humanized validation chip; click focuses the related tree node."""
+        human = humanize_problem(problem)
+        raw = str(problem.get("message") or "")
+        chip = QLabel(human)
         chip.setWordWrap(True)
+        chip.setCursor(Qt.CursorShape.PointingHandCursor)
+        if raw and raw != human:
+            chip.setToolTip(raw)
+        else:
+            chip.setToolTip("点击定位到大纲中的相关节点")
         if level == "error":
             color = "#E74C3C"
             bg = "rgba(231, 76, 60, 0.12)"
@@ -200,30 +217,59 @@ class ResultPreviewWidget(QWidget):
             "border-radius: 6px; padding: 3px 8px; font-size: 12px;"
         )
         chip.setMaximumWidth(560)
+        chip.mousePressEvent = (  # type: ignore[method-assign]
+            lambda _e, p=problem: self._on_chip_clicked(p)
+        )
         self.chip_row.addWidget(chip)
+
+    def _on_chip_clicked(self, problem: dict[str, Any]) -> None:
+        path = problem.get("path") or ""
+        parsed = parse_path(path) if path else {}
+        node = None
+        for kind in ("lesson", "unit"):
+            nid = parsed.get(kind)
+            if nid:
+                node = self._path_nodes.get(f"id:{nid}")
+                if node is not None:
+                    break
+        if node is None and path:
+            # Try structural path keys registered in _path_nodes.
+            node = self._path_nodes.get(str(path))
+        if node is not None:
+            self.tree.setCurrentItem(node)
+            self.tree.scrollToItem(node)
+            self._on_tree_item_clicked(node, 0)
+
+    def apply_validation(self, problems: list[dict[str, Any]]) -> None:
+        """Render chips/status from a precomputed problem list (silent refresh)."""
+        self._clear_chips()
+        pal = current_palette()
+        errors = [p for p in problems if p.get("level") == "error"]
+        warnings = [p for p in problems if p.get("level") == "warning"]
+        for p in problems:
+            self._add_chip(p, p.get("level", "error"))
+        self._highlight_problems(errors)
+        if not problems:
+            self.status_label.setText("✓ 校验通过，可以导入。")
+            self.status_label.setStyleSheet(f"color: {pal['success']}; font-size: 12px;")
+            self.validity_changed.emit(True)
+        elif not errors:
+            self.status_label.setText(f"⚠ {len(warnings)} 条警告，仍可导入。")
+            self.status_label.setStyleSheet(f"color: {pal['warning']}; font-size: 12px;")
+            self.validity_changed.emit(True)
+        else:
+            self.status_label.setText(f"✗ {len(errors)} 个错误，请修改后再导入。")
+            self.status_label.setStyleSheet(f"color: {pal['error']}; font-size: 12px;")
+            self.validity_changed.emit(False)
 
     def _on_validate(self) -> None:
         if self._section is None:
             return
+        if self.adapter is None:
+            self.status_label.setText("未加载课程，无法校验。")
+            return
         problems = self.adapter.validate_section_json(self._section)
-        self._clear_chips()
-        errors = [p for p in problems if p.get("level") == "error"]
-        warnings = [p for p in problems if p.get("level") == "warning"]
-        for p in problems:
-            self._add_chip(p.get("message", ""), p.get("level", "error"))
-        self._highlight_problems([p for p in problems if p.get("level") == "error"])
-        if not problems:
-            self.status_label.setText("✓ 校验通过，可以导入。")
-            self.status_label.setStyleSheet("color: #27AE60; font-size: 12px;")
-            self.validity_changed.emit(True)
-        elif not errors:
-            self.status_label.setText(f"⚠ {len(warnings)} 条警告，仍可导入。")
-            self.status_label.setStyleSheet("color: #FF9F43; font-size: 12px;")
-            self.validity_changed.emit(True)
-        else:
-            self.status_label.setText(f"✗ {len(errors)} 个错误，请修改后再导入。")
-            self.status_label.setStyleSheet("color: #E74C3C; font-size: 12px;")
-            self.validity_changed.emit(False)
+        self.apply_validation(problems)
 
     def section(self) -> dict[str, Any] | None:
         return self._section
@@ -332,6 +378,28 @@ class ResultPreviewWidget(QWidget):
             id_data = item.data(0, Qt.ItemDataRole.UserRole + 1)
             payload = f"id:{id_data}" if id_data else str(path)
             self.node_activated.emit(payload)
+
+    def _on_tree_context_menu(self, pos) -> None:
+        item = self.tree.itemAt(pos)
+        if item is None or self._section is None:
+            return
+        path = str(item.data(0, Qt.ItemDataRole.UserRole) or "")
+        node_id = item.data(0, Qt.ItemDataRole.UserRole + 1)
+        kind = None
+        if node_id and "/lessons/" in path:
+            kind = "lesson"
+        elif node_id and path.startswith("units/") and "/lessons/" not in path:
+            kind = "unit"
+        if kind is None or not node_id:
+            return
+        menu = QMenu(self)
+        label = "AI 重生成本课时" if kind == "lesson" else "AI 重生成该单元"
+        act = QAction(label, menu)
+        act.triggered.connect(
+            lambda _=False, k=kind, i=str(node_id): self.regenerate_requested.emit(k, i)
+        )
+        menu.addAction(act)
+        menu.exec(self.tree.viewport().mapToGlobal(pos))
 
     def _highlight_problems(self, problems: list[dict[str, Any]]) -> None:
         """Mark tree nodes whose unit/lesson id matches a problem path (P3.1)."""

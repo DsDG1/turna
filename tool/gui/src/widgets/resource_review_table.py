@@ -7,12 +7,15 @@ Replaces the ad-hoc ``QTableWidget`` used in the textbook import dialog with a
 """
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from typing import Any
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QMimeData, QPoint
+from PySide6.QtGui import QDrag, QPixmap, QPainter, QColor, QBrush
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QApplication,
     QComboBox,
     QHBoxLayout,
     QLineEdit,
@@ -24,6 +27,8 @@ from PySide6.QtWidgets import (
 )
 
 from src.backend.extraction_quality import QualityIssue
+from src.theme_tokens import resource_type_color
+
 
 
 @dataclass
@@ -106,6 +111,76 @@ class ResourceTableModel:
         return sorted(tags)
 
 
+class DraggableTableWidget(QTableWidget):
+    """Subclass of QTableWidget that supports dragging rows as knowledge points."""
+
+    def __init__(self, review_table: ResourceReviewTable, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.review_table = review_table
+        self._drag_start_pos = None
+
+    def mousePressEvent(self, event) -> None:  # noqa: N802
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._drag_start_pos = event.pos()
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event) -> None:  # noqa: N802
+        if not (event.buttons() & Qt.MouseButton.LeftButton):
+            return
+        if self._drag_start_pos is None:
+            return
+        if (event.pos() - self._drag_start_pos).manhattanLength() < QApplication.startDragDistance():
+            return
+
+        row = self.rowAt(event.pos().y())
+        if row < 0:
+            return
+
+        visible_rows = self.review_table._visible_rows()
+        if 0 <= row < len(visible_rows):
+            row_obj = visible_rows[row]
+            payload = {
+                "entry": row_obj.entry,
+                "resource_type": row_obj.resource_type,
+            }
+            
+            mime = QMimeData()
+            mime.setData("application/x-knowledge-point", json.dumps(payload, ensure_ascii=False).encode("utf-8"))
+            
+            drag = QDrag(self)
+            drag.setMimeData(mime)
+            
+            # Create a visual capsule pill representation for drag icon
+            term = row_obj.display_term()
+            pixmap = QPixmap(130, 26)
+            pixmap.fill(Qt.GlobalColor.transparent)
+            
+            painter = QPainter(pixmap)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            
+            # Pill bg color based on resource type (peacock-harmonized)
+            bg = resource_type_color(row_obj.resource_type)
+            
+            painter.setBrush(QBrush(QColor(bg)))
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.drawRoundedRect(pixmap.rect(), 13, 13)
+            
+            # Text
+            painter.setPen(Qt.GlobalColor.white)
+            font = painter.font()
+            font.setBold(True)
+            font.setPointSize(10)
+            painter.setFont(font)
+            painter.drawText(pixmap.rect(), Qt.AlignmentFlag.AlignCenter, term)
+            painter.end()
+            
+            drag.setPixmap(pixmap)
+            drag.setHotSpot(QPoint(65, 13))
+            
+            drag.exec(Qt.DropAction.CopyAction)
+            self._drag_start_pos = None
+
+
 class ResourceReviewTable(QWidget):
     """Review table with search, tag filter, batch ops, and AI-fix requests."""
 
@@ -157,7 +232,7 @@ class ResourceReviewTable(QWidget):
 
         layout.addLayout(toolbar)
 
-        self._table = QTableWidget()
+        self._table = DraggableTableWidget(self)
         self._table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self._table.itemChanged.connect(self._on_item_changed)
         layout.addWidget(self._table, 1)
@@ -217,6 +292,13 @@ class ResourceReviewTable(QWidget):
         self._refresh_table()
         self.rows_changed.emit()
 
+    def set_all_checked(self, checked: bool) -> None:
+        """Batch-check all model rows and emit ``rows_changed`` once (P2)."""
+        for row in self._model.rows:
+            row.checked = checked
+        self._refresh_table()
+        self.rows_changed.emit()
+
     # ------------------------------------------------------------------ events
 
     def _on_search_changed(self, text: str) -> None:
@@ -228,6 +310,7 @@ class ResourceReviewTable(QWidget):
         self._refresh_table()
 
     def _select_all(self) -> None:
+        # Model updates only; _refresh_table blocks itemChanged so one emit.
         for r in self._visible_rows():
             r.checked = True
         self._refresh_table()

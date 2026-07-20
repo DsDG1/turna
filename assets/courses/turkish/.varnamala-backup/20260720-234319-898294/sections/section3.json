@@ -1,0 +1,50 @@
+{
+  "id": "section3",
+  "name": "Section 3",
+  "description": "Basit konuşmalar yapabiliyorum",
+  "prerequisiteSectionIds": [
+    "section2"
+  ],
+  "units": [
+    {
+      "id": "s3-u1",
+      "name": "Small talk",
+      "description": "Simple everyday conversations.",
+      "prerequisiteUnitIds": [],
+      "lessons": [
+        {
+          "id": "s3-l1",
+          "name": "How are you?",
+          "description": "Placeholder lesson — Turkish content to be authored.",
+          "type": "normal",
+          "template": "legacy",
+          "prerequisiteLessonIds": [],
+          "content": {
+            "stages": [
+              {
+                "id": "stage-welcome",
+                "name": "Welcome",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-welcome",
+                    "prompt": "How do you ask \"How are you?\" in Turkish?",
+                    "options": [
+                      "Nasılsın?",
+                      "Hoşça kal",
+                      "Teşekkürler",
+                      "Günaydın"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

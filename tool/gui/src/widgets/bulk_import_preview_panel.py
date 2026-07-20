@@ -17,6 +17,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QLabel, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget
 
 from src.backend.import_strategy import SectionImportPreview
+from src.theme import current_palette
 
 _ACTION_LABELS = {
     "append": "新增",
@@ -49,7 +50,7 @@ class BulkImportPreviewPanel(QWidget):
         root.setContentsMargins(0, 0, 0, 0)
         self._summary = QLabel("")
         self._summary.setWordWrap(True)
-        self._summary.setStyleSheet("color: #46D1BF; font-size: 12px;")
+        self._summary.setStyleSheet(f"color: {current_palette()['ai_accent']}; font-size: 12px;")
         root.addWidget(self._summary)
 
         self._table = QTableWidget(0, len(_HEADERS))

@@ -16,35 +16,13 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
+from tests._course_samples import sample_section_from_chapter  # noqa: E402
 
-from PySide6.QtWidgets import QApplication  # noqa: E402
 from PySide6.QtGui import QUndoStack  # noqa: E402
 
 from src.application.section_import_service import SectionImportService  # noqa: E402
 from src.backend.course_adapter import CourseAdapter  # noqa: E402
-from src.backend.knowledge_schema import coerce_knowledge_points  # noqa: E402
-from src.backend.markdown_chopper import split_chapters  # noqa: E402
-from src.backend.textbook_to_course import build_section_from_chapter  # noqa: E402
-
-
-class _App:
-    _app = None
-
-    @classmethod
-    def get(cls) -> QApplication:
-        if cls._app is None:
-            cls._app = QApplication.instance() or QApplication([])
-        return cls._app
-
-
-def _section(suffix: str = "1") -> dict:
-    chapter = split_chapters("## 1 Merhaba\nhello\n")[0]
-    kp = coerce_knowledge_points(
-        {"words": [{"term": "merhaba", "translation": "hello"}]}
-    )
-    section = build_section_from_chapter(chapter, kp, 1)
-    section["id"] = f"sec-{suffix}"
-    return section
+from tests._qtapp import _App  # noqa: E402
 
 
 class SectionImportServiceTest(unittest.TestCase):
@@ -72,7 +50,7 @@ class SectionImportServiceTest(unittest.TestCase):
         )
 
     def test_append_new_section(self) -> None:
-        result = self.service.import_section(_section("a"))
+        result = self.service.import_section(sample_section_from_chapter(f"sec-a"))
         self.assertEqual(result.details["outcome"], "imported")
         self.assertEqual(result.details["section_id"], "sec-a")
         self.assertEqual(len(self.adapter.sections), 1)
@@ -85,33 +63,33 @@ class SectionImportServiceTest(unittest.TestCase):
         self.assertEqual(len(self.errors), 1)
 
     def test_validation_error_blocked(self) -> None:
-        bad = _section("bad")
+        bad = sample_section_from_chapter(f"sec-bad")
         del bad["units"]
         result = self.service.import_section(bad)
         self.assertEqual(result.details["outcome"], "blocked")
         self.assertTrue(self.errors)
 
     def test_skip_existing(self) -> None:
-        self.adapter.sections.append(_section("x"))
+        self.adapter.sections.append(sample_section_from_chapter(f"sec-x"))
         result = self.service.import_section(
-            _section("x"), strategy="skip_existing"
+            sample_section_from_chapter(f"sec-x"), strategy="skip_existing"
         )
         self.assertEqual(result.details["outcome"], "skipped")
         self.assertEqual(self.undo_stack.count(), 0)
 
     def test_force_replace(self) -> None:
-        self.adapter.sections.append(_section("x"))
+        self.adapter.sections.append(sample_section_from_chapter(f"sec-x"))
         result = self.service.import_section(
-            _section("x"), strategy="force_replace"
+            sample_section_from_chapter(f"sec-x"), strategy="force_replace"
         )
         self.assertEqual(result.details["outcome"], "replaced")
         self.assertEqual(self.pushed, ["sec-x"])
 
     def test_append_as_new_rewrites_id(self) -> None:
-        self.adapter.sections.append(_section("x"))
+        self.adapter.sections.append(sample_section_from_chapter(f"sec-x"))
         self.adapter.index = {"sections": [{"id": "sec-x"}]}
         result = self.service.import_section(
-            _section("x"), strategy="append_as_new"
+            sample_section_from_chapter(f"sec-x"), strategy="append_as_new"
         )
         self.assertEqual(result.details["outcome"], "imported")
         self.assertEqual(result.details["section_id"], "sec-x-2")
@@ -119,10 +97,10 @@ class SectionImportServiceTest(unittest.TestCase):
     def test_append_as_new_rewrites_nested_ids(self) -> None:
         # Nested unit/lesson ids derive from the section id; without rewriting
         # they collide with the original section and the course cannot save.
-        original = _section("x")
+        original = sample_section_from_chapter(f"sec-x")
         self.adapter.sections.append(original)
         self.adapter.index = {"sections": [{"id": "sec-x"}]}
-        draft = _section("x")
+        draft = sample_section_from_chapter(f"sec-x")
         draft_unit_ids = [u["id"] for u in draft["units"]]
         result = self.service.import_section(draft, strategy="append_as_new")
         self.assertEqual(result.details["outcome"], "imported")
@@ -141,21 +119,21 @@ class SectionImportServiceTest(unittest.TestCase):
         self.assertEqual([u["id"] for u in draft["units"]], draft_unit_ids)
 
     def test_merge_approved_by_resolver(self) -> None:
-        self.adapter.sections.append(_section("x"))
-        result = self.service.import_section(_section("x"), strategy="merge")
+        self.adapter.sections.append(sample_section_from_chapter(f"sec-x"))
+        result = self.service.import_section(sample_section_from_chapter(f"sec-x"), strategy="merge")
         self.assertEqual(result.details["outcome"], "merged")
         self.merge_resolver.assert_called_once()
 
     def test_merge_cancelled_by_resolver(self) -> None:
-        self.adapter.sections.append(_section("x"))
+        self.adapter.sections.append(sample_section_from_chapter(f"sec-x"))
         self.merge_resolver.side_effect = lambda _plan: None
-        result = self.service.import_section(_section("x"), strategy="merge")
+        result = self.service.import_section(sample_section_from_chapter(f"sec-x"), strategy="merge")
         self.assertEqual(result.details["outcome"], "skipped")
 
     def test_merge_without_resolver_skips(self) -> None:
         service = SectionImportService(self.adapter, self.undo_stack)
-        self.adapter.sections.append(_section("x"))
-        result = service.import_section(_section("x"), strategy="merge")
+        self.adapter.sections.append(sample_section_from_chapter(f"sec-x"))
+        result = service.import_section(sample_section_from_chapter(f"sec-x"), strategy="merge")
         self.assertEqual(result.details["outcome"], "skipped")
         self.assertIn("合并决策器", result.message)
 
@@ -176,7 +154,7 @@ class BulkImportTest(unittest.TestCase):
 
     def test_bulk_counts_and_source_id(self) -> None:
         results, counts = self.service.import_bulk(
-            [_section("a"), _section("b")], strategy="merge"
+            [sample_section_from_chapter(f"sec-a"), sample_section_from_chapter(f"sec-b")], strategy="merge"
         )
         self.assertEqual(counts["imported"], 2)
         self.assertEqual(counts["merged"], 0)
@@ -184,10 +162,10 @@ class BulkImportTest(unittest.TestCase):
         self.bulk_resolver.assert_not_called()
 
     def test_bulk_resolver_called_once_for_multiple_collisions(self) -> None:
-        self.adapter.sections.append(_section("a"))
-        self.adapter.sections.append(_section("b"))
+        self.adapter.sections.append(sample_section_from_chapter(f"sec-a"))
+        self.adapter.sections.append(sample_section_from_chapter(f"sec-b"))
         results, counts = self.service.import_bulk(
-            [_section("a"), _section("b")], strategy="merge"
+            [sample_section_from_chapter(f"sec-a"), sample_section_from_chapter(f"sec-b")], strategy="merge"
         )
         self.bulk_resolver.assert_called_once()
         plans_arg = self.bulk_resolver.call_args.args[0]
@@ -196,19 +174,19 @@ class BulkImportTest(unittest.TestCase):
         self.merge_resolver.assert_not_called()
 
     def test_bulk_resolver_cancel_skips_all_merges(self) -> None:
-        self.adapter.sections.append(_section("a"))
-        self.adapter.sections.append(_section("b"))
+        self.adapter.sections.append(sample_section_from_chapter(f"sec-a"))
+        self.adapter.sections.append(sample_section_from_chapter(f"sec-b"))
         self.bulk_resolver.side_effect = lambda _plans: None
         _results, counts = self.service.import_bulk(
-            [_section("a"), _section("b")], strategy="merge"
+            [sample_section_from_chapter(f"sec-a"), sample_section_from_chapter(f"sec-b")], strategy="merge"
         )
         self.assertEqual(counts["skipped"], 2)
         self.assertEqual(counts["merged"], 0)
 
     def test_single_collision_falls_back_to_per_section_resolver(self) -> None:
-        self.adapter.sections.append(_section("a"))
+        self.adapter.sections.append(sample_section_from_chapter(f"sec-a"))
         _results, counts = self.service.import_bulk(
-            [_section("a"), _section("new")], strategy="merge"
+            [sample_section_from_chapter(f"sec-a"), sample_section_from_chapter(f"sec-new")], strategy="merge"
         )
         self.bulk_resolver.assert_not_called()
         self.merge_resolver.assert_called_once()
@@ -216,10 +194,10 @@ class BulkImportTest(unittest.TestCase):
         self.assertEqual(counts["imported"], 1)
 
     def test_bulk_append_as_new_uses_planned_ids(self) -> None:
-        self.adapter.sections.append(_section("a"))
+        self.adapter.sections.append(sample_section_from_chapter(f"sec-a"))
         self.adapter.index = {"sections": [{"id": "sec-a"}]}
         results, counts = self.service.import_bulk(
-            [_section("a")], strategy="append_as_new"
+            [sample_section_from_chapter(f"sec-a")], strategy="append_as_new"
         )
         self.assertEqual(counts["imported"], 1)
         self.assertEqual(results[0].details["section_id"], "sec-a-2")
@@ -229,7 +207,7 @@ class BulkImportTest(unittest.TestCase):
         with unittest.mock.patch(
             "src.application.section_import_service.telemetry"
         ) as mock_tel:
-            self.service.import_bulk([_section("a")], strategy="merge")
+            self.service.import_bulk([sample_section_from_chapter(f"sec-a")], strategy="merge")
             events = [c.args[0] for c in mock_tel.record_event.call_args_list]
             self.assertIn("textbook.import.imported", events)
 

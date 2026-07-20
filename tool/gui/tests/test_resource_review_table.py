@@ -5,7 +5,6 @@ import sys
 import unittest
 from pathlib import Path
 
-from PySide6.QtWidgets import QApplication
 
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
@@ -13,16 +12,7 @@ if str(_GUI) not in sys.path:
 
 from src.backend.extraction_quality import QualityIssue
 from src.widgets.resource_review_table import ResourceReviewTable, ResourceRow
-
-
-class _TestApp:
-    _app: QApplication | None = None
-
-    @classmethod
-    def get(cls) -> QApplication:
-        if cls._app is None:
-            cls._app = QApplication.instance() or QApplication([])
-        return cls._app
+from tests._qtapp import _App as _TestApp  # noqa: E402
 
 
 class ResourceReviewTableTest(unittest.TestCase):
@@ -84,6 +74,20 @@ class ResourceReviewTableTest(unittest.TestCase):
         self.table.set_checked_by_term("Selam!", False)
         self.table._delete_selected()
         self.assertEqual(self.table.row_count(), 2)
+
+    def test_select_all_emits_rows_changed_once(self) -> None:
+        count = {"n": 0}
+        self.table.rows_changed.connect(lambda: count.__setitem__("n", count["n"] + 1))
+        self.table._select_all()
+        self.assertEqual(count["n"], 1)
+        self.assertTrue(all(r.checked for r in self.table._model.rows))
+
+    def test_set_all_checked_once(self) -> None:
+        count = {"n": 0}
+        self.table.rows_changed.connect(lambda: count.__setitem__("n", count["n"] + 1))
+        self.table.set_all_checked(False)
+        self.assertEqual(count["n"], 1)
+        self.assertTrue(all(not r.checked for r in self.table._model.rows))
 
     def test_edit_round_trips(self) -> None:
         # Simulate inline edit in the Qt table and read it back via kept_rows.

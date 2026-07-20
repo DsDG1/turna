@@ -14,6 +14,7 @@ import 'package:varnamala/application/lesson_viewmodel.dart';
 import 'package:varnamala/application/mistake_provider.dart';
 import 'package:varnamala/application/mistake_review_assembler.dart';
 import 'package:varnamala/di/injection.dart';
+import 'package:varnamala/domain/course/interaction.dart';
 import 'package:varnamala/routing/routing.gr.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:varnamala/views/lesson/components/lesson_dialogs.dart';
@@ -151,59 +152,110 @@ class _MistakeReviewPageState extends State<MistakeReviewPage> {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: _vm,
-      builder: (context, _) {
-        return Scaffold(
-          backgroundColor: VarnamalaTheme.scaffoldBg(context),
-          appBar: AppBar(
-            backgroundColor: VarnamalaTheme.surfaceColor(context),
-            elevation: 0,
-            leading: IconButton(
-              tooltip: 'Close',
-              icon: Icon(
-                Icons.close_rounded,
-                color: VarnamalaTheme.textPrimaryColor(context),
+    return Scaffold(
+      backgroundColor: VarnamalaTheme.scaffoldBg(context),
+      appBar: _buildAppBar(context),
+      body: _empty
+          ? _buildEmpty()
+          : Selector<LessonViewModel,
+              (Interaction?, InteractionState, String?, bool, bool)>(
+              selector: (context, vm) => (
+                vm.currentInteraction,
+                vm.currentInteractionState,
+                vm.currentStageName,
+                vm.hasSubmitted,
+                vm.isAnswerCorrect,
               ),
-              onPressed: () => Navigator.of(context).maybePop(),
-            ),
-            title: Text(
-              'Mistake Review',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: VarnamalaTheme.textPrimaryColor(context),
-              ),
-            ),
-            centerTitle: true,
-            actions: [
-              IconButton(
-                tooltip: 'View mistake list',
-                icon: Icon(
-                  Icons.list_rounded,
-                  color: VarnamalaTheme.textPrimaryColor(context),
-                ),
-                onPressed: () =>
-                    context.router.push(const MistakeListRoute()),
-              ),
-            ],
-            bottom: _empty
-                ? null
-                : PreferredSize(
-                    preferredSize: const Size.fromHeight(4),
-                    child: LinearProgressIndicator(
-                      value: _vm.progress,
-                      backgroundColor:
-                          VarnamalaTheme.error.withValues(alpha: 0.1),
-                      valueColor: const AlwaysStoppedAnimation<Color>(
-                        VarnamalaTheme.error,
+              builder: (context, selected, _) {
+                final vm = _vm;
+                final interaction = selected.$1;
+                if (interaction == null) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final renderer = lookupRenderer(_renderers, interaction);
+                final showCheck =
+                    selected.$4 && !renderer.autoAdvance;
+                return Column(
+                  children: [
+                    if (selected.$3 != null)
+                      LessonStageBanner(
+                        name: selected.$3!,
+                        accent: VarnamalaTheme.error,
+                      ),
+                    Expanded(
+                      child: renderer.build(
+                        interaction,
+                        selected.$2,
+                        (correct, {userAnswerText}) {
+                          vm.submitInteraction(correct,
+                              userAnswerText: userAnswerText);
+                        },
                       ),
                     ),
-                  ),
+                    if (showCheck)
+                      SafeArea(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                          child: LessonCheckButton(
+                            label: selected.$5 ? 'Continue' : 'Got it',
+                            enabled: true,
+                            onPressed: () => vm.advance(),
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
+    return AppBar(
+      backgroundColor: VarnamalaTheme.surfaceColor(context),
+      elevation: 0,
+      leading: IconButton(
+        tooltip: 'Close',
+        icon: Icon(
+          Icons.close_rounded,
+          color: VarnamalaTheme.textPrimaryColor(context),
+        ),
+        onPressed: () => Navigator.of(context).maybePop(),
+      ),
+      title: Text(
+        'Mistake Review',
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w700,
+          color: VarnamalaTheme.textPrimaryColor(context),
+        ),
+      ),
+      centerTitle: true,
+      actions: [
+        IconButton(
+          tooltip: 'View mistake list',
+          icon: Icon(
+            Icons.list_rounded,
+            color: VarnamalaTheme.textPrimaryColor(context),
           ),
-          body: _empty ? _buildEmpty() : _buildBody(_vm),
-        );
-      },
+          onPressed: () => context.router.push(const MistakeListRoute()),
+        ),
+      ],
+      bottom: _empty
+          ? null
+          : PreferredSize(
+              preferredSize: const Size.fromHeight(4),
+              child: Selector<LessonViewModel, double>(
+                selector: (context, vm) => vm.progress,
+                builder: (context, progress, _) => LinearProgressIndicator(
+                  value: progress,
+                  backgroundColor:
+                      VarnamalaTheme.error.withValues(alpha: 0.1),
+                  valueColor:
+                      const AlwaysStoppedAnimation<Color>(VarnamalaTheme.error),
+                ),
+              ),
+            ),
     );
   }
 
@@ -230,43 +282,6 @@ class _MistakeReviewPageState extends State<MistakeReviewPage> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildBody(LessonViewModel vm) {
-    final interaction = vm.currentInteraction;
-    if (interaction == null) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    final renderer = lookupRenderer(_renderers, interaction);
-    return Column(
-      children: [
-        if (vm.currentStageName != null)
-          LessonStageBanner(
-            name: vm.currentStageName!,
-            accent: VarnamalaTheme.error,
-          ),
-        Expanded(
-          child: renderer.build(
-            interaction,
-            vm.currentInteractionState,
-            (correct, {userAnswerText}) {
-              vm.submitInteraction(correct, userAnswerText: userAnswerText);
-            },
-          ),
-        ),
-        if (vm.hasSubmitted && !renderer.autoAdvance)
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-              child: LessonCheckButton(
-                label: vm.isAnswerCorrect ? 'Continue' : 'Got it',
-                enabled: true,
-                onPressed: () => vm.advance(),
-              ),
-            ),
-          ),
-      ],
     );
   }
 }

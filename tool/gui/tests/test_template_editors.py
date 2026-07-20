@@ -11,6 +11,7 @@ from unittest.mock import patch
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
+from tests._qtapp import _App as _TestApp  # noqa: E402
 
 from PySide6.QtGui import QUndoStack  # noqa: E402
 
@@ -21,16 +22,6 @@ from src.teacher.template_editors import (  # noqa: E402
     MasteryTeacherWidget,
     ReadingTeacherWidget,
 )
-
-
-class _TestApp:
-    _app: QApplication | None = None
-
-    @classmethod
-    def get(cls) -> QApplication:
-        if cls._app is None:
-            cls._app = QApplication.instance() or QApplication([])
-        return cls._app
 
 
 def _sample_lesson(template: str) -> dict:

@@ -1010,6 +1010,144 @@ class CourseAdapter:
         )
         api.write_csv_file(output_path, headers, rows)
 
+    def sync_resources_with_git(self, git_dir: Path, lang: str) -> str:
+        """Bidirectionally merge local resources with a git clone's resource JSON.
+
+        Reads ``vocab.json`` / ``expressions.json`` / ``grammar_points.json``
+        from ``git_dir`` (if present), merges by id (skipping duplicates) into
+        both the local course and the git clone, then writes both sides.
+
+        Returns a human-readable summary of what was merged.
+        """
+        git_dir = Path(git_dir)
+        mapping = {
+            "vocab": (self.vocab, "vocab.json"),
+            "expressions": (self.expressions, "expressions.json"),
+            "grammar_points": (self.grammar_points, "grammar_points.json"),
+        }
+        parts: list[str] = []
+        for row_type, (local_list, filename) in mapping.items():
+            git_file = git_dir / filename
+            git_list: list[dict[str, Any]] = []
+            if git_file.is_file():
+                try:
+                    git_list = json.loads(git_file.read_text(encoding="utf-8"))
+                    if not isinstance(git_list, list):
+                        git_list = []
+                except Exception:
+                    git_list = []
+            # Merge git -> local.
+            local_ids = {e.get("id") for e in local_list}
+            added_to_local = 0
+            for entry in git_list:
+                eid = entry.get("id")
+                if eid and eid not in local_ids:
+                    local_list.append(entry)
+                    local_ids.add(eid)
+                    added_to_local += 1
+            # Merge local -> git.
+            git_ids = {e.get("id") for e in git_list}
+            added_to_git = 0
+            for entry in local_list:
+                eid = entry.get("id")
+                if eid and eid not in git_ids:
+                    git_list.append(entry)
+                    git_ids.add(eid)
+                    added_to_git += 1
+            # Write back to git.
+            git_file.write_text(
+                json.dumps(git_list, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+            parts.append(f"{row_type}: 本地新增 {added_to_local}，Git 新增 {added_to_git}")
+        self.notify_resources_changed()
+        return "\n".join(parts)
+
+    def detect_duplicates(self) -> list[dict[str, str]]:
+        """Detect duplicate terms across vocab and expressions.
+
+        Returns a list of ``{type, id, term, duplicate_in}`` dicts.
+        """
+        seen: dict[str, str] = {}  # normalized term -> "type:id"
+        dupes: list[dict[str, str]] = []
+        for entry in self.vocab:
+            term = str(entry.get("term") or entry.get("source") or "").strip().lower()
+            if not term:
+                continue
+            if term in seen:
+                dupes.append({
+                    "type": "vocab",
+                    "id": str(entry.get("id", "")),
+                    "term": term,
+                    "duplicate_in": seen[term],
+                })
+            else:
+                seen[term] = f"vocab:{entry.get('id', '')}"
+        for entry in self.expressions:
+            term = str(entry.get("source") or entry.get("term") or "").strip().lower()
+            if not term:
+                continue
+            if term in seen:
+                dupes.append({
+                    "type": "expressions",
+                    "id": str(entry.get("id", "")),
+                    "term": term,
+                    "duplicate_in": seen[term],
+                })
+            else:
+                seen[term] = f"expressions:{entry.get('id', '')}"
+        return dupes
+
+    def export_resource_pack(self, output_path: Path) -> Path:
+        """Export all resource lists as a single JSON file (resource pack).
+
+        The pack format is ``{"vocab": [...], "expressions": [...],
+        "grammar_points": [...]}``.
+        """
+        output_path = Path(output_path)
+        data = {
+            "vocab": self.vocab,
+            "expressions": self.expressions,
+            "grammar_points": self.grammar_points,
+        }
+        output_path.write_text(
+            json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        return output_path
+
+    def import_resource_pack(self, pack_path: Path, *, replace: bool = False) -> dict[str, int]:
+        """Import a resource pack JSON file, merging by id.
+
+        If ``replace`` is True, fully replace each list instead of merging.
+
+        Returns counts: ``{"vocab": n, "expressions": n, "grammar_points": n}``.
+        """
+        pack_path = Path(pack_path)
+        data = json.loads(pack_path.read_text(encoding="utf-8"))
+        counts = {"vocab": 0, "expressions": 0, "grammar_points": 0}
+        mapping = {
+            "vocab": self.vocab,
+            "expressions": self.expressions,
+            "grammar_points": self.grammar_points,
+        }
+        for key, target in mapping.items():
+            incoming = data.get(key, [])
+            if replace:
+                target.clear()
+                target.extend(incoming)
+                counts[key] = len(incoming)
+            else:
+                existing_ids = {e.get("id") for e in target}
+                added = 0
+                for entry in incoming:
+                    eid = entry.get("id")
+                    if eid and eid not in existing_ids:
+                        target.append(entry)
+                        existing_ids.add(eid)
+                        added += 1
+                counts[key] = added
+        self.notify_resources_changed()
+        return counts
+
     def _state_hash(self, data: dict[str, Any]) -> int:
         """Return a stable hash for a state dict without deep-copying."""
         return hash(json.dumps(data, ensure_ascii=False, sort_keys=True))

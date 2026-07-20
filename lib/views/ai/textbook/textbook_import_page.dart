@@ -95,7 +95,7 @@ class _TextbookImportPageState extends State<TextbookImportPage> {
           children: [
             Expanded(
               child: DropdownButtonFormField<String>(
-                value: provider.language,
+                initialValue: provider.language,
                 decoration: const InputDecoration(
                   labelText: 'Target language',
                   isDense: true,
@@ -110,7 +110,7 @@ class _TextbookImportPageState extends State<TextbookImportPage> {
             const SizedBox(width: 8),
             Expanded(
               child: DropdownButtonFormField<String>(
-                value: provider.sourceLanguage,
+                initialValue: provider.sourceLanguage,
                 decoration: const InputDecoration(
                   labelText: 'Source language',
                   isDense: true,
@@ -125,7 +125,7 @@ class _TextbookImportPageState extends State<TextbookImportPage> {
             const SizedBox(width: 8),
             Expanded(
               child: DropdownButtonFormField<String>(
-                value: provider.level,
+                initialValue: provider.level,
                 decoration: const InputDecoration(
                   labelText: 'Level',
                   isDense: true,
@@ -141,7 +141,7 @@ class _TextbookImportPageState extends State<TextbookImportPage> {
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<ImportStrategy>(
-          value: provider.strategy,
+          initialValue: provider.strategy,
           decoration: const InputDecoration(
             labelText: 'Import strategy',
             isDense: true,

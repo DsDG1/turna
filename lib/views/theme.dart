@@ -518,6 +518,201 @@ class VarnamalaTheme {
           labelSmall: TextStyle(color: Color(0xFF6B8A85)),
         ),
       );
+
+  /// High-contrast variant of [lightTheme] for low-vision / sensory needs.
+  ///
+  /// Pure white surfaces, near-black text, stronger borders, and a heavier
+  /// focus ring — derived from [lightTheme] so only the contrast-relevant
+  /// tokens change.
+  static ThemeData get highContrastLightTheme => lightTheme.copyWith(
+        scaffoldBackgroundColor: Colors.white,
+        colorScheme: const ColorScheme.light(
+          primary: primaryDark,
+          primaryContainer: primary,
+          secondary: primaryDark,
+          secondaryContainer: primary,
+          surface: Colors.white,
+          error: errorDark,
+          onPrimary: Colors.white,
+          onSecondary: Colors.white,
+          onSurface: Colors.black,
+          onError: Colors.white,
+        ),
+        appBarTheme: const AppBarTheme(
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          centerTitle: true,
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black,
+          surfaceTintColor: Colors.transparent,
+          titleTextStyle: TextStyle(
+            color: Colors.black,
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.3,
+          ),
+          iconTheme: IconThemeData(color: primaryDark),
+        ),
+        cardTheme: CardThemeData(
+          elevation: 0,
+          color: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radiusLarge),
+            side: const BorderSide(color: Colors.black, width: 1.5),
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(radiusMedium),
+            borderSide: const BorderSide(color: Colors.black, width: 1.5),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(radiusMedium),
+            borderSide: const BorderSide(color: Colors.black, width: 1.5),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(radiusMedium),
+            borderSide: const BorderSide(color: primaryDark, width: 2.5),
+          ),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(radiusMedium),
+            borderSide: const BorderSide(color: errorDark, width: 2),
+          ),
+        ),
+        dividerTheme: const DividerThemeData(
+          color: Colors.black54,
+          thickness: 1,
+        ),
+        textTheme: const TextTheme(
+          displayLarge:
+              TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          displayMedium:
+              TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          displaySmall:
+              TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          headlineLarge:
+              TextStyle(color: Colors.black, fontWeight: FontWeight.w700),
+          headlineMedium:
+              TextStyle(color: Colors.black, fontWeight: FontWeight.w700),
+          headlineSmall:
+              TextStyle(color: Colors.black, fontWeight: FontWeight.w700),
+          titleLarge:
+              TextStyle(color: Colors.black, fontWeight: FontWeight.w700),
+          titleMedium:
+              TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
+          titleSmall:
+              TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
+          bodyLarge: TextStyle(color: Colors.black),
+          bodyMedium: TextStyle(color: Color(0xFF1A1A2E)),
+          bodySmall: TextStyle(color: Color(0xFF2D2D44)),
+          labelLarge:
+              TextStyle(color: Colors.black, fontWeight: FontWeight.w700),
+          labelMedium: TextStyle(color: Color(0xFF1A1A2E)),
+          labelSmall: TextStyle(color: Color(0xFF2D2D44)),
+        ),
+      );
+
+  /// High-contrast variant of [darkTheme] for low-vision / sensory needs.
+  ///
+  /// Near-black surfaces, pure white text, stronger borders — derived from
+  /// [darkTheme] so only the contrast-relevant tokens change.
+  static ThemeData get highContrastDarkTheme => darkTheme.copyWith(
+        scaffoldBackgroundColor: Colors.black,
+        colorScheme: const ColorScheme.dark(
+          primary: peacockTurquoise,
+          primaryContainer: peacockCyan,
+          secondary: peacockTurquoise,
+          secondaryContainer: peacockCyan,
+          surface: Colors.black,
+          error: errorLight,
+          onPrimary: Colors.black,
+          onSecondary: Colors.black,
+          onSurface: Colors.white,
+          onError: Colors.black,
+        ),
+        appBarTheme: const AppBarTheme(
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          centerTitle: true,
+          backgroundColor: Colors.black,
+          foregroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          titleTextStyle: TextStyle(
+            color: Colors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.3,
+          ),
+          iconTheme: IconThemeData(color: peacockTurquoise),
+        ),
+        cardTheme: CardThemeData(
+          elevation: 0,
+          color: Colors.black,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radiusLarge),
+            side: const BorderSide(color: Colors.white, width: 1.5),
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.black,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(radiusMedium),
+            borderSide: const BorderSide(color: Colors.white, width: 1.5),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(radiusMedium),
+            borderSide: const BorderSide(color: Colors.white, width: 1.5),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(radiusMedium),
+            borderSide: const BorderSide(color: peacockTurquoise, width: 2.5),
+          ),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(radiusMedium),
+            borderSide: const BorderSide(color: errorLight, width: 2),
+          ),
+        ),
+        dividerTheme: const DividerThemeData(
+          color: Colors.white54,
+          thickness: 1,
+        ),
+        textTheme: const TextTheme(
+          displayLarge:
+              TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          displayMedium:
+              TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          displaySmall:
+              TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          headlineLarge:
+              TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+          headlineMedium:
+              TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+          headlineSmall:
+              TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+          titleLarge:
+              TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+          titleMedium:
+              TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+          titleSmall:
+              TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+          bodyLarge: TextStyle(color: Colors.white),
+          bodyMedium: TextStyle(color: Color(0xFFE8E8F0)),
+          bodySmall: TextStyle(color: Color(0xFFCCCCCC)),
+          labelLarge:
+              TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+          labelMedium: TextStyle(color: Color(0xFFE8E8F0)),
+          labelSmall: TextStyle(color: Color(0xFFCCCCCC)),
+        ),
+      );
 }
 
 // LEGACY SUPPORT

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:varnamala/application/achievements_provider.dart';
+import 'package:varnamala/application/accessibility_provider.dart';
 import 'package:varnamala/application/ai/ai_course_provider.dart';
 import 'package:varnamala/application/ai/ai_grounded_resource_provider.dart';
 import 'package:varnamala/application/ai/ai_hint_provider.dart';
@@ -52,6 +53,9 @@ final providers = [
   ),
   ChangeNotifierProvider<SettingsProvider>(
     create: (_) => getIt<SettingsProvider>(),
+  ),
+  ChangeNotifierProvider<AccessibilityProvider>(
+    create: (_) => getIt<AccessibilityProvider>(),
   ),
   ChangeNotifierProvider<CharacterProvider>(
     create: (_) => getIt<CharacterProvider>(),

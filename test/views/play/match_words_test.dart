@@ -5,6 +5,7 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
+import 'package:varnamala/application/accessibility_provider.dart';
 import 'package:varnamala/application/audio_controller.dart';
 import 'package:varnamala/application/game_provider.dart';
 import 'package:varnamala/application/language_provider.dart';
@@ -39,11 +40,12 @@ class _PassthroughVocabResolver implements VocabAudioResolver {
 }
 
 class _SilentAudio extends AudioController {
-  _SilentAudio(SettingsProvider settings)
+  _SilentAudio(SettingsProvider settings, AccessibilityProvider acc)
       : super(
           _FakeFlutterTts(),
           _FakeLanguageProvider(),
           settings,
+          acc,
           _PassthroughVocabResolver(),
           audioPlayer: _FakeAudioPlayer(),
           speechPlayer: _FakeAudioPlayer(),
@@ -68,6 +70,9 @@ void main() {
     getIt.registerLazySingleton<SettingsProvider>(
       () => SettingsProvider(prefs),
     );
+    getIt.registerLazySingleton<AccessibilityProvider>(
+      () => AccessibilityProvider(prefs),
+    );
   });
 
   tearDown(() async {
@@ -87,7 +92,8 @@ void main() {
     addTearDown(() => FlutterError.onError = old);
 
     final settings = getIt<SettingsProvider>();
-    final match = MatchProvider(_SilentAudio(settings), prefs);
+    final acc = getIt<AccessibilityProvider>();
+    final match = MatchProvider(_SilentAudio(settings, acc), prefs);
     final game = GameProvider.forTesting(prefs);
 
     await tester.pumpWidget(

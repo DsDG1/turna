@@ -16,6 +16,7 @@ class SrsProvider extends SrsQueueProvider {
   List<SrsWord>? _cachedDueExpressions;
   DateTime? _cachedExpressionDueAt;
   int? _cachedExpressionDueCount;
+  Set<String>? _cachedDueWordIdSet;
 
   @override
   String get statePrefsKey => LocalStateKeys.srsState;
@@ -79,6 +80,15 @@ class SrsProvider extends SrsQueueProvider {
         now: now,
         usePrimaryCache: true,
       );
+
+  /// Stable identity set of due word ids — cached alongside the primary due
+  /// cache so `context.select` equality holds across notifies that don't
+  /// change the due set. Avoids rebuilding CourseTree on every SRS notify.
+  Set<String> get dueWordIdSet {
+    if (_cachedDueWordIdSet != null) return _cachedDueWordIdSet!;
+    _cachedDueWordIdSet = getDueWords().map((w) => w.wordId).toSet();
+    return _cachedDueWordIdSet!;
+  }
 
   /// Expressions whose `dueAt` is in the past or now (secondary cache).
   List<SrsWord> getDueExpressions([DateTime? now]) {
@@ -149,5 +159,6 @@ class SrsProvider extends SrsQueueProvider {
     _cachedDueExpressions = null;
     _cachedExpressionDueAt = null;
     _cachedExpressionDueCount = null;
+    _cachedDueWordIdSet = null;
   }
 }

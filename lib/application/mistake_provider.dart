@@ -27,9 +27,10 @@ class MistakeProvider extends ChangeNotifier {
   static const String _prefsKey = LocalStateKeys.mistakeLog;
 
   List<MistakeEntry>? _cached;
+  List<MistakeEntry>? _cachedView;
 
   List<MistakeEntry> get entries {
-    if (_cached != null) return List.unmodifiable(_cached!);
+    if (_cachedView != null) return _cachedView!;
 
     final raw = appPrefs.preferences
         .getString(_prefsKey, defaultValue: '[]')
@@ -42,7 +43,8 @@ class MistakeProvider extends ChangeNotifier {
     } catch (_) {
       _cached = <MistakeEntry>[];
     }
-    return List.unmodifiable(_cached!);
+    _cachedView = List.unmodifiable(_cached!);
+    return _cachedView!;
   }
 
   /// Number of mistakes currently stored.
@@ -99,6 +101,7 @@ class MistakeProvider extends ChangeNotifier {
     final encoded = jsonEncode(list.map((e) => e.toJson()).toList());
     await appPrefs.preferences.setString(_prefsKey, encoded);
     _cached = list;
+    _cachedView = null; // invalidate; next entries call rebuilds the view
     notifyListeners();
   }
 }

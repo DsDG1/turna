@@ -26,6 +26,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from src.theme import current_palette
+
 
 class ResultExpandWindow(QDialog):
     """Non-modal, resizable window hosting a reparented JSON editor."""
@@ -50,7 +52,7 @@ class ResultExpandWindow(QDialog):
         header = QHBoxLayout()
         header.setSpacing(8)
         hint = QLabel("可直接编辑 JSON；关闭窗口后编辑器回到生成页。")
-        hint.setStyleSheet("color: #9CA3AF; font-size: 12px;")
+        hint.setStyleSheet(f"color: {current_palette()['text_secondary']}; font-size: 12px;")
         header.addWidget(hint, 1)
         self.done_btn = QPushButton("收起（回到生成页）")
         self.done_btn.clicked.connect(self.close)

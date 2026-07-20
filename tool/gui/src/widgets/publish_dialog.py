@@ -209,7 +209,7 @@ class PublishDialog(QDialog):
             for r in missing:
                 lines.append(f"  • {r['asset_id']}")
             self.audio_label.setText("\n".join(lines))
-            self.audio_label.setStyleSheet("color: #E67E22;")
+            self.audio_label.setStyleSheet(f"color: {current_palette()['warning']};")
             return
         if not rows:
             self.audio_label.setText("（无 listening 资源引用）")
@@ -241,14 +241,14 @@ class PublishDialog(QDialog):
         if self.teacher_friendly:
             if v["ok"]:
                 self.validation_label.setText("✓ 校验通过，可以发布")
-                self.validation_label.setStyleSheet("color: #27AE60;")
+                self.validation_label.setStyleSheet(f"color: {current_palette()['success']};")
                 self.buttons.button(QDialogButtonBox.StandardButton.Ok).setEnabled(True)
             else:
                 lines = [f"✗ 校验未通过（{len(v['errors'])} 个问题），请先修复："]
                 for e in v["errors"]:
                     lines.append(f"  • {humanize_problem(e)}")
                 self.validation_label.setText("\n".join(lines))
-                self.validation_label.setStyleSheet("color: #E74C3C;")
+                self.validation_label.setStyleSheet(f"color: {current_palette()['error']};")
                 self.buttons.button(QDialogButtonBox.StandardButton.Ok).setEnabled(False)
             return
         if v["ok"]:

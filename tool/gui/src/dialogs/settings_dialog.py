@@ -16,9 +16,11 @@ from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QDoubleSpinBox,
+    QFileDialog,
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
     QLineEdit,
     QListWidget,
@@ -28,6 +30,8 @@ from PySide6.QtWidgets import (
     QPushButton,
     QSpinBox,
     QTabWidget,
+    QTableWidget,
+    QTableWidgetItem,
     QTextBrowser,
     QVBoxLayout,
     QWidget,
@@ -35,6 +39,8 @@ from PySide6.QtWidgets import (
 
 from src.application.settings import Settings
 from src.backend import ai_presets
+from src.backend import credential_store
+from src.backend import git_remote_catalog
 from src.backend.ai_generator import verify_connection
 from src.backend.ai_prompt_library import AiPromptLibrary
 from src.backend.knowledge_prompt import (
@@ -75,6 +81,7 @@ class SettingsDialog(QDialog):
         self.tabs.addTab(self._build_ai_usage_tab(), "AI 用量")
         self.tabs.addTab(self._build_extraction_prompt_tab(), "提取 Prompt")
         self.tabs.addTab(self._build_editor_tab(), "编辑器")
+        self.tabs.addTab(self._build_git_library_tab(), "Git 库")
         self.tabs.addTab(self._build_operation_log_tab(), "操作日志")
         layout.addWidget(self.tabs)
 
@@ -111,6 +118,8 @@ class SettingsDialog(QDialog):
         self.theme_combo = QComboBox()
         self.theme_combo.addItem("深色", "dark")
         self.theme_combo.addItem("浅色", "light")
+        self.theme_combo.addItem("高对比度-深", "high-contrast-dark")
+        self.theme_combo.addItem("高对比度-浅", "high-contrast-light")
         form.addRow("主题:", self.theme_combo)
 
         self.scale_combo = QComboBox()
@@ -416,6 +425,279 @@ class SettingsDialog(QDialog):
         layout.addWidget(history_group)
         return tab
 
+    def _build_git_library_tab(self) -> QWidget:
+        """Git library configuration: clone root, git bin, LAN defaults, saved remotes, credentials."""
+        tab, layout = self._make_tab()
+
+        # --- Basic config ---
+        basic_group = QGroupBox("基础配置")
+        basic_form = QFormLayout(basic_group)
+        basic_form.setSpacing(10)
+
+        clone_root_row = QHBoxLayout()
+        self.git_clone_root_edit = QLineEdit()
+        self.git_clone_root_edit.setPlaceholderText("默认克隆目录，如 ~/.varnamala/course-clones")
+        clone_root_row.addWidget(self.git_clone_root_edit, 1)
+        browse_clone = QPushButton("浏览...")
+        browse_clone.clicked.connect(lambda: self._pick_dir(self.git_clone_root_edit))
+        clone_root_row.addWidget(browse_clone)
+        basic_form.addRow("克隆根目录:", clone_root_row)
+
+        self.git_bin_edit = QLineEdit()
+        self.git_bin_edit.setPlaceholderText("留空则使用系统 git")
+        basic_form.addRow("Git 二进制路径:", self.git_bin_edit)
+
+        self.default_lang_edit = QLineEdit()
+        self.default_lang_edit.setPlaceholderText("如 tr / en / sw")
+        basic_form.addRow("默认语言代码:", self.default_lang_edit)
+
+        self.git_timeout_spin = QDoubleSpinBox()
+        self.git_timeout_spin.setRange(5.0, 600.0)
+        self.git_timeout_spin.setSuffix(" 秒")
+        self.git_timeout_spin.setDecimals(1)
+        basic_form.addRow("Git 操作超时:", self.git_timeout_spin)
+
+        assets_row = QHBoxLayout()
+        self.assets_repo_root_edit = QLineEdit()
+        self.assets_repo_root_edit.setPlaceholderText("留空则自动检测（项目根目录）")
+        assets_row.addWidget(self.assets_repo_root_edit, 1)
+        browse_assets = QPushButton("浏览...")
+        browse_assets.clicked.connect(lambda: self._pick_dir(self.assets_repo_root_edit))
+        assets_row.addWidget(browse_assets)
+        basic_form.addRow("Assets 仓库根目录:", assets_row)
+
+        layout.addWidget(basic_group)
+
+        # --- LAN server defaults ---
+        lan_group = QGroupBox("局域网协作默认")
+        lan_form = QFormLayout(lan_group)
+        lan_form.setSpacing(10)
+
+        self.lan_port_spin = QSpinBox()
+        self.lan_port_spin.setRange(1, 65535)
+        lan_form.addRow("默认端口:", self.lan_port_spin)
+
+        self.lan_bind_combo = QComboBox()
+        self.lan_bind_combo.addItem("所有网卡 (0.0.0.0)", "0.0.0.0")
+        self.lan_bind_combo.addItem("仅本机 (127.0.0.1)", "127.0.0.1")
+        lan_form.addRow("绑定地址:", self.lan_bind_combo)
+
+        self.lan_token_edit = QLineEdit()
+        self.lan_token_edit.setEchoMode(QLineEdit.EchoMode.Password)
+        self.lan_token_edit.setPlaceholderText("留空则不鉴权（局域网内任意可访问）")
+        lan_form.addRow("访问令牌:", self.lan_token_edit)
+
+        layout.addWidget(lan_group)
+
+        # --- SSH key ---
+        ssh_group = QGroupBox("SSH 密钥")
+        ssh_form = QFormLayout(ssh_group)
+        ssh_form.setSpacing(10)
+        ssh_row = QHBoxLayout()
+        self.ssh_key_edit = QLineEdit()
+        self.ssh_key_edit.setPlaceholderText("~/.ssh/id_ed25519")
+        ssh_row.addWidget(self.ssh_key_edit, 1)
+        browse_ssh = QPushButton("浏览...")
+        browse_ssh.clicked.connect(self._pick_ssh_key)
+        ssh_row.addWidget(browse_ssh)
+        ssh_form.addRow("私钥路径:", ssh_row)
+        layout.addWidget(ssh_group)
+
+        # --- Saved remotes ---
+        remotes_group = QGroupBox("已保存的远程仓库")
+        remotes_layout = QVBoxLayout(remotes_group)
+        remotes_layout.setSpacing(8)
+
+        self.remotes_table = QTableWidget(0, 4)
+        self.remotes_table.setHorizontalHeaderLabels(["名称", "URL", "本地目录", "语言"])
+        self.remotes_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.remotes_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.remotes_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.remotes_table.setFixedHeight(140)
+        remotes_layout.addWidget(self.remotes_table)
+
+        remotes_btn_row = QHBoxLayout()
+        remotes_btn_row.setSpacing(8)
+        self.add_remote_btn = QPushButton("添加...")
+        self.add_remote_btn.clicked.connect(self._on_add_remote)
+        remotes_btn_row.addWidget(self.add_remote_btn)
+        self.edit_remote_btn = QPushButton("编辑...")
+        self.edit_remote_btn.clicked.connect(self._on_edit_remote)
+        remotes_btn_row.addWidget(self.edit_remote_btn)
+        self.del_remote_btn = QPushButton("删除")
+        self.del_remote_btn.clicked.connect(self._on_del_remote)
+        remotes_btn_row.addWidget(self.del_remote_btn)
+        remotes_btn_row.addStretch(1)
+        remotes_layout.addLayout(remotes_btn_row)
+
+        layout.addWidget(remotes_group)
+
+        # --- Credentials ---
+        cred_group = QGroupBox("HTTPS 凭据")
+        cred_layout = QVBoxLayout(cred_group)
+        cred_layout.setSpacing(8)
+
+        self.keyring_status_label = QLabel("检测中...")
+        self.keyring_status_label.setObjectName("hintLabel")
+        self.keyring_status_label.setWordWrap(True)
+        cred_layout.addWidget(self.keyring_status_label)
+
+        cred_form = QFormLayout()
+        cred_form.setSpacing(8)
+        self.cred_url_combo = QComboBox()
+        self.cred_url_combo.setEditable(True)
+        cred_form.addRow("远程 URL:", self.cred_url_combo)
+        cred_row = QHBoxLayout()
+        self.set_token_btn = QPushButton("设置/更新令牌")
+        self.set_token_btn.clicked.connect(self._on_set_token)
+        cred_row.addWidget(self.set_token_btn)
+        self.del_token_btn = QPushButton("删除令牌")
+        self.del_token_btn.clicked.connect(self._on_del_token)
+        cred_row.addWidget(self.del_token_btn)
+        cred_row.addStretch(1)
+        cred_form.addRow(cred_row)
+        cred_layout.addLayout(cred_form)
+
+        layout.addWidget(cred_group)
+        layout.addStretch(1)
+        return tab
+
+    def _pick_dir(self, line_edit: QLineEdit) -> None:
+        chosen = QFileDialog.getExistingDirectory(self, "选择目录", line_edit.text() or "")
+        if chosen:
+            line_edit.setText(chosen)
+
+    def _pick_ssh_key(self) -> None:
+        from pathlib import Path
+        start = self.ssh_key_edit.text() or str(Path.home() / ".ssh")
+        chosen, _ = QFileDialog.getOpenFileName(self, "选择 SSH 私钥", start, "All Files (*)")
+        if chosen:
+            self.ssh_key_edit.setText(chosen)
+
+    def _populate_remotes_table(self) -> None:
+        remotes = git_remote_catalog.load_remotes()
+        self.remotes_table.setRowCount(len(remotes))
+        for row, r in enumerate(remotes):
+            self.remotes_table.setItem(row, 0, QTableWidgetItem(r.name))
+            self.remotes_table.setItem(row, 1, QTableWidgetItem(r.url))
+            self.remotes_table.setItem(row, 2, QTableWidgetItem(r.local_dir))
+            self.remotes_table.setItem(row, 3, QTableWidgetItem(r.lang))
+        # Also refresh the credential URL combo.
+        self.cred_url_combo.clear()
+        for r in remotes:
+            self.cred_url_combo.addItem(r.url)
+
+    def _refresh_keyring_status(self) -> None:
+        status = credential_store.keyring_status()
+        if status["available"]:
+            self.keyring_status_label.setText(
+                f"✓ keyring 可用（后端：{status['backend']}）。HTTPS 令牌将安全存储。"
+            )
+        else:
+            self.keyring_status_label.setText(
+                "⚠ keyring 后端不可用，令牌将回退到 QSettings 存储（安全性较低）。"
+            )
+
+    def _on_add_remote(self) -> None:
+        from PySide6.QtWidgets import QInputDialog
+        name, ok = QInputDialog.getText(self, "新建远程", "名称:")
+        if not ok or not name.strip():
+            return
+        name = name.strip()
+        remotes = git_remote_catalog.load_remotes()
+        if any(r.name == name for r in remotes):
+            QMessageBox.warning(self, "重名", f"已存在名为「{name}」的远程。")
+            return
+        remote = git_remote_catalog.SavedRemote(
+            name=name,
+            url="",
+            local_dir=self.git_clone_root_edit.text().strip(),
+            lang=self.default_lang_edit.text().strip(),
+        )
+        remotes = git_remote_catalog.add_remote(remote)
+        self._populate_remotes_table()
+        self._edit_remote_dialog(name)
+
+    def _on_edit_remote(self) -> None:
+        row = self.remotes_table.currentRow()
+        if row < 0:
+            QMessageBox.information(self, "编辑远程", "请先选中一个远程。")
+            return
+        name = self.remotes_table.item(row, 0).text()
+        self._edit_remote_dialog(name)
+
+    def _edit_remote_dialog(self, name: str) -> None:
+        remotes = git_remote_catalog.load_remotes()
+        target = next((r for r in remotes if r.name == name), None)
+        if target is None:
+            return
+        from PySide6.QtWidgets import QDialog, QDialogButtonBox
+        dlg = QDialog(self)
+        dlg.setWindowTitle(f"编辑远程：{name}")
+        form = QFormLayout(dlg)
+        name_edit = QLineEdit(target.name)
+        url_edit = QLineEdit(target.url)
+        url_edit.setPlaceholderText("https://github.com/you/repo.git")
+        dir_edit = QLineEdit(target.local_dir)
+        dir_edit.setPlaceholderText("本地克隆目录")
+        lang_edit = QLineEdit(target.lang)
+        lang_edit.setPlaceholderText("tr / en / sw")
+        form.addRow("名称:", name_edit)
+        form.addRow("URL:", url_edit)
+        form.addRow("本地目录:", dir_edit)
+        form.addRow("语言代码:", lang_edit)
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(dlg.accept)
+        buttons.rejected.connect(dlg.reject)
+        form.addRow(buttons)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            new_name = name_edit.text().strip()
+            git_remote_catalog.update_remote(
+                name,
+                new_name=new_name,
+                url=url_edit.text().strip(),
+                local_dir=dir_edit.text().strip(),
+                lang=lang_edit.text().strip(),
+            )
+            self._populate_remotes_table()
+
+    def _on_del_remote(self) -> None:
+        row = self.remotes_table.currentRow()
+        if row < 0:
+            return
+        name = self.remotes_table.item(row, 0).text()
+        if not self._confirm_clear("删除远程", f"确定要删除远程「{name}」吗？此操作不可撤销。"):
+            return
+        git_remote_catalog.remove_remote(name)
+        self._populate_remotes_table()
+
+    def _on_set_token(self) -> None:
+        from PySide6.QtWidgets import QInputDialog
+        url = self.cred_url_combo.currentText().strip()
+        if not url:
+            QMessageBox.warning(self, "缺少 URL", "请填写或选择远程 URL。")
+            return
+        existing = credential_store.get_git_token(url) or ""
+        token, ok = QInputDialog.getText(
+            self, "设置令牌", f"HTTPS 令牌 for {url}:",
+            text=existing, echo=QLineEdit.EchoMode.Password
+        )
+        if not ok:
+            return
+        credential_store.set_git_token(url, token)
+        QMessageBox.information(self, "已保存", "令牌已存储。")
+
+    def _on_del_token(self) -> None:
+        url = self.cred_url_combo.currentText().strip()
+        if not url:
+            return
+        if credential_store.delete_git_token(url):
+            QMessageBox.information(self, "已删除", "令牌已删除。")
+        else:
+            QMessageBox.information(self, "无令牌", "该 URL 没有已存储的令牌。")
+
     def _build_operation_log_tab(self) -> QWidget:
         """Detailed log of user actions, window durations, AI latency, errors."""
         tab = QWidget()
@@ -590,6 +872,21 @@ class SettingsDialog(QDialog):
         self.auto_save_check.setChecked(self._settings.auto_save_on_close)
         self.undo_spin.setValue(self._settings.undo_limit)
 
+        # Git library tab
+        self.git_clone_root_edit.setText(self._settings.git_clone_root)
+        self.git_bin_edit.setText(self._settings.git_bin)
+        self.default_lang_edit.setText(self._settings.default_lang_code)
+        self.git_timeout_spin.setValue(self._settings.git_timeout)
+        self.assets_repo_root_edit.setText(self._settings.assets_repo_root)
+        self.lan_port_spin.setValue(self._settings.lan_default_port)
+        lan_bind_idx = self.lan_bind_combo.findData(self._settings.lan_bind_address)
+        if lan_bind_idx >= 0:
+            self.lan_bind_combo.setCurrentIndex(lan_bind_idx)
+        self.lan_token_edit.setText(self._settings.lan_token)
+        self.ssh_key_edit.setText(credential_store.get_ssh_key_path())
+        self._populate_remotes_table()
+        self._refresh_keyring_status()
+
         self._populate_recent_list()
         self._refresh_ai_usage()
         self._refresh_operation_log()
@@ -618,6 +915,17 @@ class SettingsDialog(QDialog):
 
         self._settings.auto_save_on_close = self.auto_save_check.isChecked()
         self._settings.undo_limit = self.undo_spin.value()
+
+        # Git library tab
+        self._settings.git_clone_root = self.git_clone_root_edit.text().strip()
+        self._settings.git_bin = self.git_bin_edit.text().strip()
+        self._settings.default_lang_code = self.default_lang_edit.text().strip()
+        self._settings.git_timeout = self.git_timeout_spin.value()
+        self._settings.assets_repo_root = self.assets_repo_root_edit.text().strip()
+        self._settings.lan_default_port = self.lan_port_spin.value()
+        self._settings.lan_bind_address = self.lan_bind_combo.currentData()
+        self._settings.lan_token = self.lan_token_edit.text().strip()
+        credential_store.set_ssh_key_path(self.ssh_key_edit.text().strip())
 
     def _on_provider_changed(self, _index: int) -> None:
         """When a built-in provider is selected, fill its defaults.
@@ -762,6 +1070,14 @@ class SettingsDialog(QDialog):
         self._original.auto_save_on_close = self._settings.auto_save_on_close
         self._original.undo_limit = self._settings.undo_limit
         self._original.recent_repos = [dict(r) for r in self._settings.recent_repos]
+        self._original.git_clone_root = self._settings.git_clone_root
+        self._original.git_bin = self._settings.git_bin
+        self._original.default_lang_code = self._settings.default_lang_code
+        self._original.lan_default_port = self._settings.lan_default_port
+        self._original.lan_bind_address = self._settings.lan_bind_address
+        self._original.lan_token = self._settings.lan_token
+        self._original.git_timeout = self._settings.git_timeout
+        self._original.assets_repo_root = self._settings.assets_repo_root
         self.settings_changed.emit()
 
     def current_settings(self) -> Settings:

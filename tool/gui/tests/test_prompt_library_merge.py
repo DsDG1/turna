@@ -14,6 +14,7 @@ from unittest.mock import MagicMock
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
+from tests._qsettings_mock import make_qsettings  # noqa: E402
 
 from src.backend.ai_prompt_library import AiPromptLibrary, AiPromptTemplate
 from src.backend.knowledge_prompt import (
@@ -23,16 +24,6 @@ from src.backend.knowledge_prompt import (
     load_overrides_from,
 )
 from src.backend.markdown_chopper import split_chapters
-
-
-def _make_qsettings() -> MagicMock:
-    store: dict[str, str] = {}
-    qs = MagicMock()
-    qs.value = lambda key, default="": store.get(key, default)
-    qs.setValue = lambda key, value: store.__setitem__(key, value)
-    qs.beginGroup = lambda _name: None
-    qs.endGroup = lambda: None
-    return qs
 
 
 class TemplateKindTest(unittest.TestCase):
@@ -50,7 +41,7 @@ class TemplateKindTest(unittest.TestCase):
         self.assertEqual(restored.kind, "course_gen")
 
     def test_list_templates_filters_by_kind(self) -> None:
-        lib = AiPromptLibrary(_make_qsettings())
+        lib = AiPromptLibrary(make_qsettings())
         lib.save_template(AiPromptTemplate(name="a", kind="course_gen"))
         lib.save_template(AiPromptTemplate(name="b", kind="extraction"))
         self.assertEqual(len(lib.list_templates()), 2)
@@ -60,7 +51,7 @@ class TemplateKindTest(unittest.TestCase):
 
 class ExtractionOverrideStoreTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.lib = AiPromptLibrary(_make_qsettings())
+        self.lib = AiPromptLibrary(make_qsettings())
 
     def test_save_and_get(self) -> None:
         self.lib.save_extraction_override(
@@ -120,7 +111,7 @@ class LoadOverridesFromTest(unittest.TestCase):
         return split_chapters("## 1 Merhaba\nhello\n")[0]
 
     def test_loaded_override_is_used_in_messages(self) -> None:
-        lib = AiPromptLibrary(_make_qsettings())
+        lib = AiPromptLibrary(make_qsettings())
         lib.save_extraction_override("Turkish", "Chinese", {"intro": "覆盖引导语XYZ"})
         count = load_overrides_from(lib)
         self.assertEqual(count, 1)
@@ -128,7 +119,7 @@ class LoadOverridesFromTest(unittest.TestCase):
         self.assertIn("覆盖引导语XYZ", messages[1]["content"])
 
     def test_pair_without_override_uses_default(self) -> None:
-        lib = AiPromptLibrary(_make_qsettings())
+        lib = AiPromptLibrary(make_qsettings())
         lib.save_extraction_override("Turkish", "Chinese", {"intro": "覆盖引导语XYZ"})
         load_overrides_from(lib)
         messages = build_extraction_messages("Spanish", "English", self._chapter())
@@ -136,7 +127,7 @@ class LoadOverridesFromTest(unittest.TestCase):
         self.assertIn("Extract teachable knowledge points", messages[1]["content"])
 
     def test_in_memory_register_wins_over_persisted(self) -> None:
-        lib = AiPromptLibrary(_make_qsettings())
+        lib = AiPromptLibrary(make_qsettings())
         lib.save_extraction_override("Turkish", "Chinese", {"intro": "持久化"})
         load_overrides_from(lib)
         self._kp.DEFAULT_LIBRARY.register(
@@ -146,7 +137,7 @@ class LoadOverridesFromTest(unittest.TestCase):
         self.assertIn("内存版", messages[1]["content"])
 
     def test_unregister_persisted_restores_default(self) -> None:
-        lib = AiPromptLibrary(_make_qsettings())
+        lib = AiPromptLibrary(make_qsettings())
         lib.save_extraction_override("Turkish", "Chinese", {"intro": "持久化"})
         load_overrides_from(lib)
         self._kp.DEFAULT_LIBRARY.unregister_persisted("Turkish", "Chinese")

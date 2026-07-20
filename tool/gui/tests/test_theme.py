@@ -1,0 +1,179 @@
+"""Tests for the theme token tables and theme resolution helpers."""
+from __future__ import annotations
+
+import sys
+import unittest
+from pathlib import Path
+
+_GUI = Path(__file__).resolve().parents[1]
+if str(_GUI) not in sys.path:
+    sys.path.insert(0, str(_GUI))
+
+from src.theme_tokens import (  # noqa: E402
+    DEFAULT_THEME,
+    PALETTES,
+    TEMPLATE_BADGES,
+    VALID_THEMES,
+    is_dark,
+    is_high_contrast,
+    palette_for,
+    resource_type_color,
+    template_badge_color,
+    valid_themes,
+)
+
+# The old Tailwind blue accent that must no longer appear in any palette.
+_OLD_BLUE_ACCENTS = {"#3B82F6", "#2563EB", "#1D4ED8"}
+
+# Keys every palette must expose (sampled from the dark palette).
+_REQUIRED_KEYS = frozenset({
+    "bg", "bg_secondary", "bg_input", "bg_elevated", "bg_disabled",
+    "text", "text_secondary", "text_disabled",
+    "border", "border_hover",
+    "accent", "accent_hover", "accent_pressed", "accent_subtle", "accent_text",
+    "danger", "danger_hover", "success", "success_text",
+    "warning", "warning_text", "error", "error_text", "info",
+    "scrollbar", "scrollbar_hover",
+    "surface_elevated", "shadow", "glow",
+    "accent_gradient_start", "accent_gradient_end",
+    "toolbar_gradient_start", "toolbar_gradient_end",
+    "ai_orbit_glow",
+    "ai_chat_bg", "ai_bubble_bg", "ai_user_bubble", "ai_card_bg",
+    "ai_chip_bg", "ai_accent", "ai_accent_border",
+    "ai_beta_bg", "ai_beta_text",
+})
+
+
+class PaletteStructureTest(unittest.TestCase):
+    def test_four_themes_available(self) -> None:
+        self.assertEqual(
+            VALID_THEMES,
+            frozenset({"dark", "light", "high-contrast-dark", "high-contrast-light"}),
+        )
+
+    def test_default_theme_is_dark(self) -> None:
+        self.assertEqual(DEFAULT_THEME, "dark")
+
+    def test_all_palettes_share_required_keys(self) -> None:
+        for theme in VALID_THEMES:
+            p = palette_for(theme)
+            missing = _REQUIRED_KEYS - set(p.keys())
+            self.assertFalse(missing, f"{theme} missing keys: {missing}")
+
+    def test_all_palettes_have_identical_key_sets(self) -> None:
+        reference = set(palette_for("dark").keys())
+        for theme in VALID_THEMES:
+            self.assertEqual(
+                set(palette_for(theme).keys()),
+                reference,
+                f"{theme} has different keys than dark",
+            )
+
+
+class AccentColorTest(unittest.TestCase):
+    """The accent family must be peacock teal/cyan, not the old Tailwind blue."""
+
+    def test_no_old_blue_in_any_palette(self) -> None:
+        for theme in VALID_THEMES:
+            p = palette_for(theme)
+            for key, value in p.items():
+                self.assertNotIn(
+                    value.upper(),
+                    {c.upper() for c in _OLD_BLUE_ACCENTS},
+                    f"{theme}.{key} still uses old blue {value}",
+                )
+
+    def test_dark_accent_is_peacock_teal(self) -> None:
+        self.assertEqual(palette_for("dark")["accent"], "#1F727E")
+
+    def test_light_accent_is_peacock_teal(self) -> None:
+        self.assertEqual(palette_for("light")["accent"], "#1F727E")
+
+    def test_dark_accent_hover_is_peacock_cyan(self) -> None:
+        self.assertEqual(palette_for("dark")["accent_hover"], "#359CBB")
+
+    def test_ai_accent_is_peacock_turquoise(self) -> None:
+        self.assertEqual(palette_for("dark")["ai_accent"], "#46D1BF")
+
+    def test_gradient_tokens_present(self) -> None:
+        for theme in VALID_THEMES:
+            p = palette_for(theme)
+            self.assertTrue(p["accent_gradient_start"])
+            self.assertTrue(p["accent_gradient_end"])
+            self.assertNotEqual(
+                p["accent_gradient_start"],
+                p["accent_gradient_end"],
+                f"{theme} gradient is flat",
+            )
+
+
+class HighContrastTest(unittest.TestCase):
+    def test_is_high_contrast(self) -> None:
+        self.assertTrue(is_high_contrast("high-contrast-dark"))
+        self.assertTrue(is_high_contrast("high-contrast-light"))
+        self.assertFalse(is_high_contrast("dark"))
+        self.assertFalse(is_high_contrast("light"))
+
+    def test_is_dark(self) -> None:
+        self.assertTrue(is_dark("dark"))
+        self.assertTrue(is_dark("high-contrast-dark"))
+        self.assertFalse(is_dark("light"))
+        self.assertFalse(is_dark("high-contrast-light"))
+
+    def test_high_contrast_dark_has_pure_black_bg(self) -> None:
+        self.assertEqual(palette_for("high-contrast-dark")["bg"], "#000000")
+
+    def test_high_contrast_light_has_pure_white_bg(self) -> None:
+        self.assertEqual(palette_for("high-contrast-light")["bg"], "#FFFFFF")
+
+    def test_high_contrast_dark_text_is_white(self) -> None:
+        self.assertEqual(palette_for("high-contrast-dark")["text"], "#FFFFFF")
+
+    def test_high_contrast_light_text_is_black(self) -> None:
+        self.assertEqual(palette_for("high-contrast-light")["text"], "#000000")
+
+
+class PaletteForTest(unittest.TestCase):
+    def test_valid_themes_returned(self) -> None:
+        for theme in VALID_THEMES:
+            self.assertIs(palette_for(theme), PALETTES[theme])
+
+    def test_invalid_theme_falls_back_to_default(self) -> None:
+        self.assertIs(palette_for("neon"), PALETTES[DEFAULT_THEME])
+        self.assertIs(palette_for(""), PALETTES[DEFAULT_THEME])
+        self.assertIs(palette_for(None), PALETTES[DEFAULT_THEME])  # type: ignore[arg-type]
+
+
+class BadgeColorTest(unittest.TestCase):
+    def test_listening_badge_is_peacock_teal(self) -> None:
+        self.assertEqual(TEMPLATE_BADGES["listening"], "#1F727E")
+        self.assertEqual(template_badge_color("listening"), "#1F727E")
+
+    def test_all_templates_have_badge(self) -> None:
+        for template in ("listening", "reading", "mastery", "intro",
+                         "practice", "review", "legacy"):
+            self.assertIn(template, TEMPLATE_BADGES)
+            self.assertTrue(TEMPLATE_BADGES[template])
+
+    def test_unknown_template_uses_default(self) -> None:
+        self.assertEqual(template_badge_color("nonexistent"), "#6B7280")
+
+    def test_word_resource_is_peacock_teal(self) -> None:
+        self.assertEqual(resource_type_color("word"), "#1F727E")
+
+    def test_unknown_resource_uses_default(self) -> None:
+        self.assertEqual(resource_type_color("nonexistent"), "#6B7280")
+
+
+class ValidThemesTest(unittest.TestCase):
+    def test_valid_themes_is_frozenset(self) -> None:
+        self.assertIsInstance(valid_themes(), frozenset)
+
+    def test_valid_themes_immutable(self) -> None:
+        vt = valid_themes()
+        with self.assertRaises(AttributeError):
+            vt.add("neon")  # type: ignore[attr-defined]
+
+
+if __name__ == "__main__":
+    unittest.main()

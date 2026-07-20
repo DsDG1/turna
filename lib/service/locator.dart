@@ -157,6 +157,15 @@ class LocalStateKeys {
   static const String dailyReminderHour = 'settings.dailyReminderHour';
   static const String dailyReminderMinute = 'settings.dailyReminderMinute';
 
+  // Accessibility / neurodiversity settings — see AccessibilityProvider.
+  // textScale is an int percent (100 = 1.0, 200 = 2.0); the rest are bool flags.
+  static const String textScale = 'settings.textScale';
+  static const String reducedMotion = 'settings.reducedMotion';
+  static const String highContrast = 'settings.highContrast';
+  static const String dyslexiaFont = 'settings.dyslexiaFont';
+  static const String sensoryReduce = 'settings.sensoryReduce';
+  static const String focusMode = 'settings.focusMode';
+
   /// Last content version the user acknowledged via the content-update dialog
   /// (ADR 0002). When the bundled course content version changes and the user
   /// has existing progress, the dialog is shown; on dismissal (keep or reset)

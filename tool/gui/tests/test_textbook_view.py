@@ -11,8 +11,6 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from PySide6.QtWidgets import QApplication
-
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
@@ -22,6 +20,7 @@ from src.backend.knowledge_schema import coerce_knowledge_points
 from src.backend.markdown_chopper import split_chapters
 from src.backend.textbook_project import TextbookProject
 from src.dialogs.textbook_import_dialog import TextbookImportDialog
+from tests._qtapp import _App as _TestApp  # noqa: E402
 
 
 class _FakeAdapter:
@@ -50,16 +49,6 @@ def _sample_kp():
             "grammarPoints": [{"title": "Greetings", "explanation": "hi"}],
         }
     )
-
-
-class _TestApp:
-    _app: QApplication | None = None
-
-    @classmethod
-    def get(cls) -> QApplication:
-        if cls._app is None:
-            cls._app = QApplication.instance() or QApplication([])
-        return cls._app
 
 
 class _FakeSignal:

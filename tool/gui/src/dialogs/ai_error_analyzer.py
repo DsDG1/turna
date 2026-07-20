@@ -25,6 +25,7 @@ from src.app import current_ai_config
 from src.backend.ai_generator import request_chat
 from src.dialogs.ai_generator_dialog import AiRequestWorker
 from src.infrastructure.telemetry import telemetry
+from src.theme import current_palette
 
 
 def offer_ai_analysis(
@@ -108,7 +109,7 @@ class AiErrorAnalyzerDialog(QDialog):
             "日志中可能包含文件路径，请确认后再继续。"
         )
         hint.setWordWrap(True)
-        hint.setStyleSheet("color: #9CA3AF; font-size: 11px;")
+        hint.setStyleSheet(f"color: {current_palette()['text_secondary']}; font-size: 11px;")
         layout.addWidget(hint)
 
         self.api_status = QLabel(self._api_status_text())
@@ -122,8 +123,8 @@ class AiErrorAnalyzerDialog(QDialog):
         self.analyze_btn = QPushButton("AI 分析原因")
         self.analyze_btn.setDefault(True)
         self.analyze_btn.setStyleSheet(
-            "QPushButton { background-color: #145A64; color: #FFFFFF; border: none; border-radius: 6px; padding: 6px 12px; }"
-            "QPushButton:hover { background-color: #1F727E; }"
+            f"QPushButton {{ background-color: {current_palette()['accent_pressed']}; color: #FFFFFF; border: none; border-radius: 6px; padding: 6px 12px; }}"
+            f"QPushButton:hover {{ background-color: {current_palette()['accent']}; }}"
         )
         self.analyze_btn.clicked.connect(self._on_analyze)
         layout.addWidget(self.analyze_btn)

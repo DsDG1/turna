@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 
 from PySide6.QtGui import QStandardItemModel
-from PySide6.QtWidgets import QApplication, QComboBox, QLabel, QPushButton
+from PySide6.QtWidgets import QComboBox, QLabel, QPushButton
 
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
@@ -16,16 +16,7 @@ from src.backend.course_adapter import CourseAdapter  # noqa: E402
 from src.backend.lesson_content import ALLOWED_RUNTIME_TYPES, default_interaction  # noqa: E402
 from src.teacher.question_cards import QuestionCard, _OptionRow  # noqa: E402
 from src.widgets.option_models import build_options_model  # noqa: E402
-
-
-class _TestApp:
-    _app: QApplication | None = None
-
-    @classmethod
-    def get(cls) -> QApplication:
-        if cls._app is None:
-            cls._app = QApplication.instance() or QApplication([])
-        return cls._app
+from tests._qtapp import _App as _TestApp  # noqa: E402
 
 
 class OptionRowTest(unittest.TestCase):

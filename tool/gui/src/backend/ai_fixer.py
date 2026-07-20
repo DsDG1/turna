@@ -15,6 +15,7 @@ def build_correction_prompt(
     problems: list[dict[str, Any]],
     node_json: dict[str, Any],
     course_context: dict[str, Any],
+    user_hint: str | None = None,
 ) -> str:
     """Return a prompt that asks the model to fix ``node_json`` problems.
 
@@ -52,6 +53,11 @@ def build_correction_prompt(
         message = p.get("message", "")
         lines.append(f"- [{level}] {path}: {message}")
     lines.append("")
+    if user_hint:
+        lines.append("## 额外用户指引 (优先级高)")
+        lines.append("用户提供了以下修正指导/线索，请务必遵守并结合修正：")
+        lines.append(f"- {user_hint}")
+        lines.append("")
 
     lines.append("## 需要修正的 JSON 节点")
     lines.append(json.dumps(node_json, ensure_ascii=False, indent=2))

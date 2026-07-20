@@ -39,6 +39,7 @@ from src.backend.lesson_content import (
     allowed_content_keys,
     switch_template,
 )
+from src.theme import current_palette
 from src.widgets.interaction_forms import InteractionForm
 
 
@@ -233,7 +234,7 @@ class MasteryEditor(QWidget):
 
         layout = QVBoxLayout(self)
         info = QLabel("综合测验只能有一个教学步骤")
-        info.setStyleSheet("color: #145A64;")
+        info.setStyleSheet(f"color: {current_palette()['accent_pressed']};")
         layout.addWidget(info)
         self.item_panel = ItemListPanel(adapter)
         layout.addWidget(self.item_panel, 1)

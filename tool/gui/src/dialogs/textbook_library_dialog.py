@@ -97,6 +97,12 @@ class TextbookLibraryDialog(QDialog):
         self._new_blank_btn = QPushButton("空白 AI 项目")
         self._new_blank_btn.setToolTip("无教材，直接进入 AI 设计阶段自由生成课程")
         self._new_blank_btn.clicked.connect(self._on_new_blank)
+        self._from_git_btn = QPushButton("从 Git 库导入教材…")
+        self._from_git_btn.setToolTip("从已保存的 Git 远程仓库克隆并选择教材源文件")
+        self._from_git_btn.clicked.connect(self._on_import_from_git)
+        self._publish_git_btn = QPushButton("发布到 Git 库…")
+        self._publish_git_btn.setToolTip("将项目导出的 section JSON 推送到 Git 远程仓库")
+        self._publish_git_btn.clicked.connect(self._on_publish_to_git)
         self._continue_btn = QPushButton("继续")
         self._continue_btn.setEnabled(False)
         self._continue_btn.clicked.connect(self._on_continue)
@@ -105,6 +111,8 @@ class TextbookLibraryDialog(QDialog):
         self._delete_btn.clicked.connect(self._on_delete)
         btn_row.addWidget(self._new_btn)
         btn_row.addWidget(self._new_blank_btn)
+        btn_row.addWidget(self._from_git_btn)
+        btn_row.addWidget(self._publish_git_btn)
         btn_row.addStretch()
         btn_row.addWidget(self._continue_btn)
         btn_row.addWidget(self._delete_btn)
@@ -303,3 +311,121 @@ class TextbookLibraryDialog(QDialog):
         if reply == QMessageBox.StandardButton.Yes:
             self._store.delete_project(summary.project_id)
             self._refresh_list()
+
+    def _on_import_from_git(self) -> None:
+        """Clone a saved git remote and create a project from a textbook file within it."""
+        from src.backend import git_remote_catalog
+        from src.backend.git_library import GitLibrary
+
+        remotes = git_remote_catalog.load_remotes()
+        if not remotes:
+            QMessageBox.information(
+                self, "无已保存远程",
+                "请先在「资源库 ▸ Git 资源库」中保存一个远程仓库。",
+            )
+            return
+        # Pick a remote.
+        items = [f"{r.name} — {r.url}" for r in remotes]
+        from PySide6.QtWidgets import QInputDialog
+        choice, ok = QInputDialog.getItem(
+            self, "选择远程仓库", "选择要导入教材的 Git 远程：", items, 0, False
+        )
+        if not ok or not choice:
+            return
+        idx = items.index(choice)
+        remote = remotes[idx]
+        # Clone/pull.
+        git = GitLibrary()
+        local_dir = Path(remote.local_dir) if remote.local_dir else Path.home() / ".varnamala" / "course-clones" / remote.name
+        try:
+            git.clone(remote.url, local_dir)
+        except RuntimeError as exc:
+            QMessageBox.critical(self, "克隆失败", str(exc))
+            return
+        # Browse for a textbook file.
+        path, _ = QFileDialog.getOpenFileName(
+            self, "选择教材（从克隆的仓库中）", str(local_dir),
+            "教材 (*.md *.txt *.pdf);;所有文件 (*)",
+        )
+        if not path:
+            return
+        languages = self._pick_languages()
+        if languages is None:
+            return
+        source = Path(path)
+        name = source.stem
+        project = self._store.create_project(
+            name=name,
+            source_path=source,
+            language=languages[0],
+            source_language=languages[1],
+        )
+        git_remote_catalog.mark_synced(remote.name)
+        self.selected_project = project
+        self.project_selected.emit(project)
+        if not self._embedded:
+            self.accept()
+
+    def _on_publish_to_git(self) -> None:
+        """Export the selected project's section JSON to a git remote and push."""
+        summary = self._selected_summary()
+        if summary is None:
+            QMessageBox.information(self, "未选择项目", "请先选择一个项目。")
+            return
+        from src.backend import git_remote_catalog
+        from src.backend.git_library import GitLibrary
+
+        remotes = git_remote_catalog.load_remotes()
+        if not remotes:
+            QMessageBox.information(
+                self, "无已保存远程",
+                "请先在「资源库 ▸ Git 资源库」中保存一个远程仓库。",
+            )
+            return
+        items = [f"{r.name} — {r.url}" for r in remotes]
+        from PySide6.QtWidgets import QInputDialog
+        choice, ok = QInputDialog.getItem(
+            self, "选择远程仓库", "选择要发布到的 Git 远程：", items, 0, False
+        )
+        if not ok or not choice:
+            return
+        idx = items.index(choice)
+        remote = remotes[idx]
+        # Load the project.
+        project = self._store.load_project(summary.project_id)
+        if project is None:
+            QMessageBox.critical(self, "加载失败", "无法加载所选项目。")
+            return
+        # Clone/pull the remote.
+        git = GitLibrary()
+        local_dir = Path(remote.local_dir) if remote.local_dir else Path.home() / ".varnamala" / "course-clones" / remote.name
+        try:
+            git.clone(remote.url, local_dir)
+        except RuntimeError as exc:
+            QMessageBox.critical(self, "克隆失败", str(exc))
+            return
+        # Export section JSON files into the clone.
+        import json
+        sections_dir = local_dir / "sections"
+        sections_dir.mkdir(parents=True, exist_ok=True)
+        exported = 0
+        for section in project.sections or []:
+            sid = section.get("id", f"section{exported + 1}")
+            (sections_dir / f"{sid}.json").write_text(
+                json.dumps(section, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+            exported += 1
+        # Update index.json.
+        index_path = local_dir / "index.json"
+        index_data = {"version": 5, "language": project.language, "sections": project.sections or []}
+        index_path.write_text(json.dumps(index_data, ensure_ascii=False, indent=2), encoding="utf-8")
+        # Commit and push.
+        try:
+            git.commit_and_push(local_dir, f"发布教材项目: {summary.name} ({exported} sections)")
+            git_remote_catalog.mark_synced(remote.name)
+            QMessageBox.information(
+                self, "发布成功",
+                f"已将 {exported} 个 section 发布到 {remote.name}。\n仓库：{local_dir}",
+            )
+        except RuntimeError as exc:
+            QMessageBox.critical(self, "推送失败", str(exc))

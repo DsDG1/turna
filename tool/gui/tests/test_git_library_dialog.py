@@ -13,8 +13,9 @@ from typing import Any
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
+from tests._qtapp import qt_app  # noqa: E402
 
-from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtWidgets import QMessageBox
 
 from src.backend.course_adapter import CourseAdapter
 from src.dialogs import git_library_dialog
@@ -99,7 +100,7 @@ class _FakeGit:
 class GitLibraryDialogAsyncTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.app = QApplication.instance() or QApplication([])
+        cls.app = qt_app()
 
     def setUp(self) -> None:
         self.workers: list[_FakeWorker] = []

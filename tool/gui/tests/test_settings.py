@@ -251,5 +251,119 @@ class SettingsRecentRepoTest(unittest.TestCase):
         self.assertEqual(settings.recent_repos, [])
 
 
+class SettingsGitLibraryTest(unittest.TestCase):
+    def test_git_defaults_when_empty(self) -> None:
+        qs = _make_qsettings({"recent_repos": "[]"})
+        settings = Settings.load_from_qsettings(qs)
+        self.assertEqual(settings.git_clone_root, "")
+        self.assertEqual(settings.git_bin, "")
+        self.assertEqual(settings.default_lang_code, "")
+        self.assertEqual(settings.lan_default_port, 5000)
+        self.assertEqual(settings.lan_bind_address, "0.0.0.0")
+        self.assertEqual(settings.lan_token, "")
+        self.assertEqual(settings.git_timeout, 60.0)
+        self.assertEqual(settings.assets_repo_root, "")
+
+    def test_loads_git_fields(self) -> None:
+        qs = _make_qsettings({
+            "recent_repos": "[]",
+            "git/clone_root": "/tmp/clones",
+            "git/bin": "/usr/bin/git",
+            "git/default_lang": "tr",
+            "git/lan_port": 6000,
+            "git/lan_bind": "127.0.0.1",
+            "git/lan_token": "tok",
+            "git/timeout": 120.0,
+            "git/assets_root": "/tmp/assets",
+        })
+        settings = Settings.load_from_qsettings(qs)
+        self.assertEqual(settings.git_clone_root, "/tmp/clones")
+        self.assertEqual(settings.git_bin, "/usr/bin/git")
+        self.assertEqual(settings.default_lang_code, "tr")
+        self.assertEqual(settings.lan_default_port, 6000)
+        self.assertEqual(settings.lan_bind_address, "127.0.0.1")
+        self.assertEqual(settings.lan_token, "tok")
+        self.assertEqual(settings.git_timeout, 120.0)
+        self.assertEqual(settings.assets_repo_root, "/tmp/assets")
+
+    def test_persists_git_fields(self) -> None:
+        qs = _make_qsettings({"recent_repos": "[]"})
+        settings = Settings(
+            git_clone_root="/tmp/c",
+            git_bin="/usr/bin/git",
+            default_lang_code="en",
+            lan_default_port=7000,
+            lan_bind_address="127.0.0.1",
+            lan_token="secret",
+            git_timeout=90.0,
+            assets_repo_root="/tmp/a",
+        )
+        settings.save_to_qsettings(qs)
+        self.assertEqual(qs.value("git/clone_root"), "/tmp/c")
+        self.assertEqual(qs.value("git/bin"), "/usr/bin/git")
+        self.assertEqual(qs.value("git/default_lang"), "en")
+        self.assertEqual(qs.value("git/lan_port"), 7000)
+        self.assertEqual(qs.value("git/lan_bind"), "127.0.0.1")
+        self.assertEqual(qs.value("git/lan_token"), "secret")
+        self.assertEqual(qs.value("git/timeout"), 90.0)
+        self.assertEqual(qs.value("git/assets_root"), "/tmp/a")
+
+    def test_git_fields_round_trip(self) -> None:
+        qs = _make_qsettings({"recent_repos": "[]"})
+        original = Settings(
+            git_clone_root="/tmp/c",
+            git_bin="/usr/bin/git",
+            default_lang_code="tr",
+            lan_default_port=5500,
+            lan_bind_address="0.0.0.0",
+            lan_token="t",
+            git_timeout=45.0,
+            assets_repo_root="/tmp/a",
+        )
+        original.save_to_qsettings(qs)
+        loaded = Settings.load_from_qsettings(qs)
+        self.assertEqual(loaded.git_clone_root, original.git_clone_root)
+        self.assertEqual(loaded.git_bin, original.git_bin)
+        self.assertEqual(loaded.default_lang_code, original.default_lang_code)
+        self.assertEqual(loaded.lan_default_port, original.lan_default_port)
+        self.assertEqual(loaded.lan_bind_address, original.lan_bind_address)
+        self.assertEqual(loaded.lan_token, original.lan_token)
+        self.assertEqual(loaded.git_timeout, original.git_timeout)
+        self.assertEqual(loaded.assets_repo_root, original.assets_repo_root)
+
+    def test_clone_preserves_git_fields(self) -> None:
+        settings = Settings(
+            git_clone_root="/tmp/c",
+            git_bin="/usr/bin/git",
+            default_lang_code="tr",
+            lan_default_port=5500,
+            lan_bind_address="127.0.0.1",
+            lan_token="t",
+            git_timeout=45.0,
+            assets_repo_root="/tmp/a",
+        )
+        clone = settings.clone()
+        self.assertEqual(clone.git_clone_root, "/tmp/c")
+        self.assertEqual(clone.git_bin, "/usr/bin/git")
+        self.assertEqual(clone.default_lang_code, "tr")
+        self.assertEqual(clone.lan_default_port, 5500)
+        self.assertEqual(clone.lan_bind_address, "127.0.0.1")
+        self.assertEqual(clone.lan_token, "t")
+        self.assertEqual(clone.git_timeout, 45.0)
+        self.assertEqual(clone.assets_repo_root, "/tmp/a")
+
+    def test_clamps_lan_port(self) -> None:
+        qs = _make_qsettings({"recent_repos": "[]", "git/lan_port": 0})
+        self.assertEqual(Settings.load_from_qsettings(qs).lan_default_port, 1)
+        qs = _make_qsettings({"recent_repos": "[]", "git/lan_port": 99999})
+        self.assertEqual(Settings.load_from_qsettings(qs).lan_default_port, 65535)
+
+    def test_clamps_git_timeout(self) -> None:
+        qs = _make_qsettings({"recent_repos": "[]", "git/timeout": 1.0})
+        self.assertEqual(Settings.load_from_qsettings(qs).git_timeout, 5.0)
+        qs = _make_qsettings({"recent_repos": "[]", "git/timeout": 900.0})
+        self.assertEqual(Settings.load_from_qsettings(qs).git_timeout, 600.0)
+
+
 if __name__ == "__main__":
     unittest.main()

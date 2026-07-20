@@ -1,0 +1,243 @@
+{
+  "id": "section1",
+  "name": "Section 1",
+  "description": "Selamlamayı öğreniyorum",
+  "prerequisiteSectionIds": [],
+  "units": [
+    {
+      "id": "s1-u1",
+      "name": "Greetings",
+      "description": "How to say hello, thank you, and goodbye.",
+      "prerequisiteUnitIds": [],
+      "lessons": [
+        {
+          "id": "s1-l1",
+          "name": "Welcome",
+          "description": "",
+          "type": "normal",
+          "template": "legacy",
+          "prerequisiteLessonIds": [],
+          "content": {
+            "stages": [
+              {
+                "id": "stage-welcome",
+                "name": "Welcome",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-welcome",
+                    "prompt": "What does \"Merhaba\" mean?",
+                    "options": [
+                      "Hello",
+                      "Goodbye",
+                      "Thank you",
+                      "Yes"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              }
+            ],
+            "subLessons": []
+          }
+        },
+        {
+          "id": "s1-l2",
+          "name": "Merhaba",
+          "description": "Meet common Turkish greetings and produce them right away.",
+          "type": "normal",
+          "template": "intro",
+          "prerequisiteLessonIds": [
+            "s1-l1"
+          ],
+          "content": {
+            "subLessons": [
+              {
+                "id": "sl-merhaba",
+                "name": "Merhaba",
+                "stages": [
+                  {
+                    "id": "st-merhaba",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-merhaba",
+                        "wordId": "w-merhaba",
+                        "context": "Merhaba! — Hello!"
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-merhaba",
+                        "source": "Hello!",
+                        "expected": "Merhaba!",
+                        "hints": [
+                          "merhaba"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-merhaba",
+                        "sentence": "_____, nasılsın?",
+                        "answer": "Merhaba",
+                        "hint": "Hello"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-nasilsin",
+                "name": "Nasılsın",
+                "stages": [
+                  {
+                    "id": "st-nasilsin",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-nasilsin",
+                        "wordId": "w-merhaba",
+                        "context": "Nasılsın? — How are you?"
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-nasilsin",
+                        "source": "How are you?",
+                        "expected": "Nasılsın?",
+                        "hints": [
+                          "nasılsın"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-nasilsin",
+                        "sentence": "Merhaba, _____?",
+                        "answer": "nasılsın",
+                        "hint": "how are you?"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-iyiyim",
+                "name": "İyiyim",
+                "stages": [
+                  {
+                    "id": "st-iyiyim",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-iyiyim",
+                        "wordId": "w-iyiyim",
+                        "context": "İyiyim, teşekkürler. — I'm fine, thank you."
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-iyiyim",
+                        "source": "I'm fine, thank you.",
+                        "expected": "İyiyim, teşekkürler.",
+                        "hints": [
+                          "iyiyim",
+                          "teşekkürler"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-iyiyim",
+                        "sentence": "_____, teşekkürler.",
+                        "answer": "İyiyim",
+                        "hint": "I'm fine"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-tesekkurler",
+                "name": "Teşekkürler",
+                "stages": [
+                  {
+                    "id": "st-tesekkurler",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-tesekkurler",
+                        "wordId": "w-tesekkurler",
+                        "context": "Teşekkürler! — Thank you!"
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-tesekkurler",
+                        "source": "Thank you!",
+                        "expected": "Teşekkürler!",
+                        "hints": [
+                          "teşekkürler"
+                        ]
+                      },
+                      {
+                        "runtimeType": "typeTheWord",
+                        "id": "ttw-tesekkurler",
+                        "audioAsset": "w-tesekkurler",
+                        "prompt": "Type the word you hear",
+                        "expected": "teşekkürler"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-review",
+                "name": "Review",
+                "stages": [
+                  {
+                    "id": "st-review",
+                    "name": "Put it together",
+                    "items": [
+                      {
+                        "runtimeType": "reorderSentence",
+                        "id": "rs-greet-ali",
+                        "scrambled": [
+                          "Ali",
+                          "Merhaba",
+                          "nasılsın"
+                        ],
+                        "correct": [
+                          "Merhaba",
+                          "Ali",
+                          "nasılsın"
+                        ]
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-review-greet",
+                        "source": "Hello, how are you?",
+                        "expected": "Merhaba, nasılsın?",
+                        "hints": [
+                          "merhaba",
+                          "nasılsın"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-review-thanks",
+                        "sentence": "İyiyim, _____.",
+                        "answer": "teşekkürler",
+                        "hint": "thank you"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

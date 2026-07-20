@@ -11,7 +11,10 @@ from typing import Any
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QDialog,
+    QDialogButtonBox,
+    QHBoxLayout,
     QLabel,
+    QPushButton,
     QTreeWidget,
     QTreeWidgetItem,
     QVBoxLayout,
@@ -45,18 +48,26 @@ _CATEGORY_LABELS = {
 
 
 class SectionDiffView(QDialog):
-    """Modal dialog showing the structural diff between two sections."""
+    """Modal dialog showing the structural diff between two sections.
+
+    When ``confirm=True``, shows Apply/Cancel and returns Accepted only if
+    the user clicks Apply (used by workshop AI-fix preview).
+    """
 
     def __init__(
         self,
         existing: dict[str, Any],
         generated: dict[str, Any],
         parent: QWidget | None = None,
+        *,
+        confirm: bool = False,
+        title: str | None = None,
     ) -> None:
         super().__init__(parent)
-        self.setWindowTitle("编辑 diff（增 / 删 / 改）")
+        self.setWindowTitle(title or "编辑 diff（增 / 删 / 改）")
         self.resize(420, 480)
         self.diff = full_section_diff(existing, generated)
+        self._confirm = confirm
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -75,33 +86,60 @@ class SectionDiffView(QDialog):
         )
         if not any_change:
             layout.addWidget(QLabel("✓ 无结构差异（仅内容可能微调）。"))
-            return
+        else:
+            hint = QLabel("绿=新增  红=删除  黄=修改")
+            hint.setStyleSheet(
+                f"color: {pal.get('text_secondary', '#9CA3AF')}; font-size: 12px;"
+            )
+            layout.addWidget(hint)
 
-        hint = QLabel("绿=新增  红=删除  黄=修改")
-        hint.setStyleSheet(f"color: {pal.get('text_secondary', '#9CA3AF')}; font-size: 12px;")
-        layout.addWidget(hint)
-
-        tree = QTreeWidget()
-        tree.setHeaderHidden(True)
-        for category, kinds in self.diff.items():
-            total = len(kinds["added"]) + len(kinds["removed"]) + len(kinds["changed"])
-            if total == 0:
-                continue
-            cat_node = QTreeWidgetItem([f"{_CATEGORY_LABELS.get(category, category)} ({total})"])
-            tree.addTopLevelItem(cat_node)
-            for label, items, color, prefix in (
-                ("新增", kinds["added"], added_c, "+"),
-                ("删除", kinds["removed"], removed_c, "-"),
-                ("修改", kinds["changed"], changed_c, "~"),
-            ):
-                if not items:
+            tree = QTreeWidget()
+            tree.setHeaderHidden(True)
+            for category, kinds in self.diff.items():
+                total = (
+                    len(kinds["added"])
+                    + len(kinds["removed"])
+                    + len(kinds["changed"])
+                )
+                if total == 0:
                     continue
-                kind_node = QTreeWidgetItem([f"{label} ({len(items)})"])
-                kind_node.setForeground(0, color)
-                cat_node.addChild(kind_node)
-                for item_id in items:
-                    leaf = QTreeWidgetItem([f"{prefix} {item_id}"])
-                    leaf.setForeground(0, color)
-                    kind_node.addChild(leaf)
-            cat_node.setExpanded(True)
-        layout.addWidget(tree, 1)
+                cat_node = QTreeWidgetItem(
+                    [f"{_CATEGORY_LABELS.get(category, category)} ({total})"]
+                )
+                tree.addTopLevelItem(cat_node)
+                for label, items, color, prefix in (
+                    ("新增", kinds["added"], added_c, "+"),
+                    ("删除", kinds["removed"], removed_c, "-"),
+                    ("修改", kinds["changed"], changed_c, "~"),
+                ):
+                    if not items:
+                        continue
+                    kind_node = QTreeWidgetItem([f"{label} ({len(items)})"])
+                    kind_node.setForeground(0, color)
+                    cat_node.addChild(kind_node)
+                    for item_id in items:
+                        leaf = QTreeWidgetItem([f"{prefix} {item_id}"])
+                        leaf.setForeground(0, color)
+                        kind_node.addChild(leaf)
+                cat_node.setExpanded(True)
+            layout.addWidget(tree, 1)
+
+        if self._confirm:
+            buttons = QDialogButtonBox(
+                QDialogButtonBox.StandardButton.Apply
+                | QDialogButtonBox.StandardButton.Cancel
+            )
+            # QDialogButtonBox.Apply does not auto-accept; wire manually.
+            apply_btn = buttons.button(QDialogButtonBox.StandardButton.Apply)
+            if apply_btn is not None:
+                apply_btn.setText("应用修改")
+                apply_btn.clicked.connect(self.accept)
+            buttons.rejected.connect(self.reject)
+            layout.addWidget(buttons)
+        else:
+            close_row = QHBoxLayout()
+            close_row.addStretch(1)
+            close_btn = QPushButton("关闭")
+            close_btn.clicked.connect(self.accept)
+            close_row.addWidget(close_btn)
+            layout.addLayout(close_row)

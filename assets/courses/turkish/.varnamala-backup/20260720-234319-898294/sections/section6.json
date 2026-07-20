@@ -1,0 +1,50 @@
+{
+  "id": "section6",
+  "name": "Section 6",
+  "description": "Bağlama göre farklı görüş bildiriyorum",
+  "prerequisiteSectionIds": [
+    "section5"
+  ],
+  "units": [
+    {
+      "id": "s6-u1",
+      "name": "Opinions",
+      "description": "Expressing opinions in context.",
+      "prerequisiteUnitIds": [],
+      "lessons": [
+        {
+          "id": "s6-l1",
+          "name": "Agreeing and disagreeing",
+          "description": "Placeholder lesson — Turkish content to be authored.",
+          "type": "normal",
+          "template": "legacy",
+          "prerequisiteLessonIds": [],
+          "content": {
+            "stages": [
+              {
+                "id": "stage-welcome",
+                "name": "Welcome",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-welcome",
+                    "prompt": "Which Turkish phrase expresses agreement?",
+                    "options": [
+                      "Kesinlikle",
+                      "Hayır",
+                      "Hoşça kal",
+                      "Günaydın"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

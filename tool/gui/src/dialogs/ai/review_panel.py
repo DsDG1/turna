@@ -1,17 +1,17 @@
-"""Review stage panel for the workshop (merge overhaul Phase C).
+"""Review stage panel for the workshop (merge overhaul Phase C + P1 fluency).
 
 Read-side companion of the design stage: it renders the current draft from
 the ``DesignPanel``'s JSON editor (the single source of truth, B1) through
 the structured ``ResultPreviewWidget``, and offers the shared review
 actions — lesson preview (试做), diff against the existing course section,
-AI fix, and import. The draft itself is edited on the design page; this
-panel never forks the truth.
+AI fix (with confirm-diff), and import.
 """
 from __future__ import annotations
 
 from typing import Any
 
 from PySide6.QtWidgets import (
+    QDialog,
     QHBoxLayout,
     QLabel,
     QMessageBox,
@@ -20,8 +20,14 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from src.backend.grounded_stats import draft_coverage, format_coverage_line
 from src.theme import current_palette
 from src.widgets.result_preview import ResultPreviewWidget
+
+_EMPTY_HINT = (
+    "还没有草稿 — 在中间 AI 轨道点「开始设计课程」，"
+    "或打开「设计与草稿」对话生成。"
+)
 
 
 class ReviewPanel(QWidget):
@@ -42,6 +48,7 @@ class ReviewPanel(QWidget):
         lay.setSpacing(6)
 
         self._preview = ResultPreviewWidget(adapter, self)
+        self._preview.regenerate_requested.connect(self._on_regenerate_requested)
         lay.addWidget(self._preview, 1)
 
         self._hint_label = QLabel("")
@@ -49,6 +56,14 @@ class ReviewPanel(QWidget):
             f"color: {current_palette()['text_secondary']};"
         )
         lay.addWidget(self._hint_label)
+
+        self._coverage_label = QLabel("")
+        self._coverage_label.setWordWrap(True)
+        self._coverage_label.setStyleSheet(
+            f"color: {current_palette()['text_secondary']}; font-size: 11px;"
+        )
+        self._coverage_label.setVisible(False)
+        lay.addWidget(self._coverage_label)
 
         row = QHBoxLayout()
         self._try_btn = QPushButton("试做")
@@ -59,9 +74,13 @@ class ReviewPanel(QWidget):
         self._diff_btn.clicked.connect(self._on_diff)
         row.addWidget(self._diff_btn)
         self._fix_btn = QPushButton("AI 修复")
-        self._fix_btn.setToolTip("让 AI 修复校验发现的问题")
+        self._fix_btn.setToolTip("让 AI 修复校验发现的问题（应用前可查看 diff）")
         self._fix_btn.clicked.connect(self._on_fix)
         row.addWidget(self._fix_btn)
+        self._restore_btn = QPushButton("恢复上一版草稿")
+        self._restore_btn.setToolTip("恢复生成/局部重生成前的草稿检查点")
+        self._restore_btn.clicked.connect(self._on_restore_checkpoint)
+        row.addWidget(self._restore_btn)
         row.addStretch(1)
         self._import_btn = QPushButton("导入到课程 ↗")
         self._import_btn.setDefault(True)
@@ -88,10 +107,40 @@ class ReviewPanel(QWidget):
                 f"草稿「{draft.get('name', draft.get('id', ''))}」："
                 f"{len(units)} 单元 · {lessons} 课时 · {len(draft.get('words', []))} 词"
             )
+            pool = self._design_panel._controller.resource_pool
+            cov = draft_coverage(draft, pool)
+            cov_line = format_coverage_line(cov)
+            self._coverage_label.setText(cov_line)
+            self._coverage_label.setVisible(bool(cov_line))
+            self._silent_validate(draft)
         else:
-            self._hint_label.setText("还没有草稿 — 请先在「设计」阶段生成。")
+            self._hint_label.setText(_EMPTY_HINT)
+            self._coverage_label.setText("")
+            self._coverage_label.setVisible(False)
         for btn in (self._try_btn, self._diff_btn, self._fix_btn, self._import_btn):
             btn.setEnabled(has)
+        can_restore = bool(
+            getattr(self._design_panel._controller, "_draft_checkpoint", None)
+        )
+        self._restore_btn.setEnabled(can_restore)
+
+    def _silent_validate(self, draft: dict) -> None:
+        """Run validate when adapter is available; no dialogs."""
+        if self.adapter is None:
+            return
+        try:
+            problems = self.adapter.validate_section_json(
+                draft, check_existing_ids=False
+            )
+        except TypeError:
+            # Some adapters only accept section without kwargs.
+            try:
+                problems = self.adapter.validate_section_json(draft)
+            except Exception:
+                return
+        except Exception:
+            return
+        self._preview.apply_validation(problems)
 
     # ------------------------------------------------------------------ actions
     def _on_try(self) -> None:
@@ -115,6 +164,19 @@ class ReviewPanel(QWidget):
         from src.widgets.diff_view import SectionDiffView
 
         SectionDiffView(existing, draft, self).exec()
+
+    def _confirm_apply_fix(self, original: dict, corrected: dict) -> bool:
+        """Show structural diff; return True if user accepts the fix."""
+        from src.widgets.diff_view import SectionDiffView
+
+        dlg = SectionDiffView(
+            original,
+            corrected,
+            self,
+            confirm=True,
+            title="AI 修复预览 — 确认后应用",
+        )
+        return dlg.exec() == QDialog.DialogCode.Accepted
 
     def _on_fix(self) -> None:
         draft = self._draft()
@@ -145,12 +207,13 @@ class ReviewPanel(QWidget):
         from src.dialogs.ai_fix_dialog import AiFixDialog
 
         dlg = AiFixDialog(problems, draft, course_context, current_ai_config(), parent=self)
-        from PySide6.QtWidgets import QDialog
 
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         corrected = dlg.corrected_node()
         if corrected is None:
+            return
+        if not self._confirm_apply_fix(draft, corrected):
             return
         # Apply back into the single truth: the design page's JSON editor.
         self._design_panel._json_editor.set_json(corrected)
@@ -160,3 +223,33 @@ class ReviewPanel(QWidget):
     def _on_import(self) -> None:
         # Validation + emit lives on the design panel (single truth path).
         self._design_panel._on_import()
+
+    def _on_restore_checkpoint(self) -> None:
+        controller = self._design_panel._controller
+        if not controller.restore_draft_checkpoint():
+            QMessageBox.information(self, "恢复草稿", "没有可恢复的上一版草稿。")
+            return
+        # Push restored draft into the editor (controller only holds the model).
+        if controller.draft is not None:
+            self._design_panel._json_editor.set_json(controller.draft)
+        self.refresh()
+
+    def _on_regenerate_requested(self, kind: str, node_id: str) -> None:
+        controller = self._design_panel._controller
+        if controller.is_busy:
+            QMessageBox.information(self, "局部重生成", "当前有任务进行中，请稍候。")
+            return
+        label = "课时" if kind == "lesson" else "单元"
+        reply = QMessageBox.question(
+            self,
+            "局部重生成",
+            f"用 AI 重写该{label}（{node_id}）？生成前会自动保存当前草稿以便恢复。",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        if kind == "lesson":
+            controller.regenerate_lesson(node_id)
+        else:
+            controller.regenerate_unit(node_id)

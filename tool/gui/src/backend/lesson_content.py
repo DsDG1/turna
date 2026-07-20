@@ -74,6 +74,15 @@ TEMPLATE_LABELS: dict[str, str] = {
     "legacy": "基础题",
 }
 
+#: Soft badge color per functional template. Shared by the course tree and the
+#: overview window so they stay in sync. Keep here next to TEMPLATE_LABELS.
+#: Sourced from theme_tokens.TEMPLATE_BADGES so the brand palette stays in one
+#: place (listening = peacock teal, see ADR for theme redesign).
+from src.theme_tokens import TEMPLATE_BADGES as _TEMPLATE_BADGES
+from src.theme_tokens import TEMPLATE_BADGE_DEFAULT as _TEMPLATE_BADGE_DEFAULT
+TEMPLATE_COLORS: dict[str, str] = dict(_TEMPLATE_BADGES)
+TEMPLATE_COLOR_DEFAULT = _TEMPLATE_BADGE_DEFAULT
+
 
 @dataclass(frozen=True)
 class FieldSpec:
@@ -591,6 +600,33 @@ def clone_lesson_with_fresh_ids(
     for ph in content.get("listeningPhases", []):
         ph["id"] = short_id("lp")
         _renew_items(ph.get("items", []))
+    return clone
+
+
+def clone_unit_with_fresh_ids(
+    unit: dict[str, Any], name: str | None = None
+) -> dict[str, Any]:
+    """Deep-copy a unit and regenerate its id + every lesson's structural ids
+    so the copy can coexist with the original.
+
+    Regenerated: unit id, and (via ``clone_lesson_with_fresh_ids``) every
+    lesson's id + sub-lesson/stage/item/listeningPhase ids. Preserved (external
+    references): ``wordId``, ``expressionId``, ``grammarPointId``. Cleared:
+    ``prerequisiteUnitIds`` and each lesson's ``prerequisiteLessonIds`` - a
+    freshly-appended unit should not inherit the original's prerequisite chain.
+    """
+    import copy
+
+    clone = copy.deepcopy(unit)
+    clone["id"] = short_id("u")
+    if name is not None:
+        clone["name"] = name
+    clone["prerequisiteUnitIds"] = []
+    clone["lessons"] = [
+        clone_lesson_with_fresh_ids(l) for l in clone.get("lessons", [])
+    ]
+    for lesson in clone["lessons"]:
+        lesson["prerequisiteLessonIds"] = []
     return clone
 
 

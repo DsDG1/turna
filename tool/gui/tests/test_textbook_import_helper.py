@@ -11,7 +11,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from PySide6.QtWidgets import QApplication, QDialog
+from PySide6.QtWidgets import QDialog
 
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
@@ -21,6 +21,7 @@ from src.backend.course_adapter import CourseAdapter
 from src.backend.knowledge_schema import coerce_knowledge_points
 from src.backend.markdown_chopper import split_chapters
 from src.backend.textbook_to_course import build_section_from_chapter
+from tests._qtapp import _App as _TestApp  # noqa: E402
 
 
 def _sample_kp():
@@ -45,16 +46,6 @@ def _build_main_window():
     with patch("src.app.QSettings", return_value=fake_settings):
         win = MainWindow()
     return win
-
-
-class _TestApp:
-    _app: QApplication | None = None
-
-    @classmethod
-    def get(cls) -> QApplication:
-        if cls._app is None:
-            cls._app = QApplication.instance() or QApplication([])
-        return cls._app
 
 
 class ImportSectionDictTest(unittest.TestCase):

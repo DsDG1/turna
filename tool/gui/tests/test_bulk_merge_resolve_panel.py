@@ -11,39 +11,17 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
+from tests._course_samples import sample_section_from_chapter  # noqa: E402
 
-from PySide6.QtWidgets import QApplication  # noqa: E402
 
 from src.backend.course_adapter import CourseAdapter  # noqa: E402
-from src.backend.knowledge_schema import coerce_knowledge_points  # noqa: E402
-from src.backend.markdown_chopper import split_chapters  # noqa: E402
-from src.backend.textbook_to_course import build_section_from_chapter  # noqa: E402
 from src.widgets.bulk_merge_resolve_panel import BulkMergeResolveDialog  # noqa: E402
-
-
-class _App:
-    _app = None
-
-    @classmethod
-    def get(cls) -> QApplication:
-        if cls._app is None:
-            cls._app = QApplication.instance() or QApplication([])
-        return cls._app
-
-
-def _section(sid: str) -> dict:
-    chapter = split_chapters("## 1 Merhaba\nhello\n")[0]
-    kp = coerce_knowledge_points(
-        {"words": [{"term": "merhaba", "translation": "hello"}]}
-    )
-    section = build_section_from_chapter(chapter, kp, 1)
-    section["id"] = sid
-    return section
+from tests._qtapp import _App  # noqa: E402
 
 
 def _plans(adapter: CourseAdapter, sids: list[str]):
     return [
-        adapter.plan_section_merge(sid, _section(sid)) for sid in sids
+        adapter.plan_section_merge(sid, sample_section_from_chapter(sid)) for sid in sids
     ]
 
 
@@ -52,7 +30,7 @@ class BulkMergeResolveDialogTest(unittest.TestCase):
         _App.get()
         self.adapter = CourseAdapter()
         for sid in ("sec-a", "sec-b"):
-            self.adapter.sections.append(_section(sid))
+            self.adapter.sections.append(sample_section_from_chapter(sid))
         self.plans = _plans(self.adapter, ["sec-a", "sec-b"])
 
     def test_rows_render_with_counts(self) -> None:

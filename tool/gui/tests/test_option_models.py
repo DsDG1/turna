@@ -8,9 +8,10 @@ from pathlib import Path
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
+from tests._qtapp import qt_app  # noqa: E402
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QComboBox
+from PySide6.QtWidgets import QComboBox
 
 from src.widgets.option_models import build_options_model, select_by_id
 
@@ -18,7 +19,7 @@ from src.widgets.option_models import build_options_model, select_by_id
 class _QAppTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.app = QApplication.instance() or QApplication([])
+        cls.app = qt_app()
 
 
 class BuildOptionsModelTest(_QAppTestCase):

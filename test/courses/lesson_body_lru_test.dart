@@ -2,7 +2,6 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:varnamala/courses/course_loader.dart';
 import 'package:varnamala/data/course_database.dart' as db;
-import 'package:varnamala/data/course_repository.dart';
 import 'package:drift/drift.dart';
 
 import '../helpers/in_memory_course_db.dart';

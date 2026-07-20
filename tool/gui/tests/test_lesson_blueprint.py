@@ -8,23 +8,14 @@ from pathlib import Path
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
+from tests._course_fixture import real_adapter_with_course  # noqa: E402
 
-from PySide6.QtWidgets import QApplication  # noqa: E402
 
 from src.backend.course_adapter import CourseAdapter  # noqa: E402
 from src.backend.lesson_presets import FUNCTIONAL_PRESETS, build_preset_lesson  # noqa: E402
 from src.teacher.question_cards import QuestionCard  # noqa: E402
 from src.widgets.lesson_blueprint import LessonBlueprint  # noqa: E402
-
-
-class _App:
-    _app: QApplication | None = None
-
-    @classmethod
-    def get(cls) -> QApplication:
-        if cls._app is None:
-            cls._app = QApplication.instance() or QApplication([])
-        return cls._app
+from tests._qtapp import _App  # noqa: E402
 
 
 class _ComboStub:
@@ -126,19 +117,7 @@ class BlueprintEditTest(unittest.TestCase):
 
 
 def _real_adapter_with_course():
-    import shutil
-    import tempfile
-
-    from src.backend.course_adapter import CourseAdapter
-
-    repo = _GUI.parents[1]  # repo root (Varnamalaplus)
-    src = repo / "assets" / "courses" / "turkish"
-    tmp = Path(tempfile.mkdtemp(prefix="varnamala_bp_dp_"))
-    course_dir = tmp / "turkish"
-    shutil.copytree(src, course_dir)
-    adapter = CourseAdapter()
-    adapter.load(course_dir)
-    return adapter, tmp
+    return real_adapter_with_course(prefix="varnamala_bp_dp_")
 
 
 class DetailPanelLessonViewTest(unittest.TestCase):

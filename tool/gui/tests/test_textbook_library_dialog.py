@@ -7,7 +7,7 @@ import unittest
 import unittest.mock
 from pathlib import Path
 
-from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtWidgets import QMessageBox
 
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
@@ -15,16 +15,7 @@ if str(_GUI) not in sys.path:
 
 from src.backend.textbook_project_store import TextbookProjectStore
 from src.dialogs.textbook_library_dialog import TextbookLibraryDialog
-
-
-class _TestApp:
-    _app: QApplication | None = None
-
-    @classmethod
-    def get(cls) -> QApplication:
-        if cls._app is None:
-            cls._app = QApplication.instance() or QApplication([])
-        return cls._app
+from tests._qtapp import _App as _TestApp  # noqa: E402
 
 
 class TextbookLibraryDialogTest(unittest.TestCase):

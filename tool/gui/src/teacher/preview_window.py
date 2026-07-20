@@ -30,6 +30,7 @@ from PySide6.QtWidgets import (
 
 from src.backend.course_adapter import CourseAdapter
 from src.backend.lesson_content import listening_phase_has_items
+from src.theme import current_palette
 
 
 class _PreviewCard(QFrame):
@@ -77,7 +78,7 @@ class _PreviewCard(QFrame):
             or ""
         )
         title = QLabel(f"题目（{rt}）")
-        title.setStyleSheet("font-weight: 700; color: #E8EAF0;")
+        title.setStyleSheet(f"font-weight: 700; color: {current_palette()['text']};")
         layout.addWidget(title)
 
         if rt == "showWord":
@@ -256,10 +257,11 @@ class LessonPreviewDialog(QDialog):
         layout.setSpacing(10)
 
         title = QLabel(f"预览：{self.lesson.get('name', '')}")
-        title.setStyleSheet("font-size: 18px; font-weight: 700; color: #FFFFFF;")
+        pal = current_palette()
+        title.setStyleSheet(f"font-size: 18px; font-weight: 700; color: {pal['text']};")
         layout.addWidget(title)
         hint = QLabel("实际做题验证你的题目设置。改题后重新打开此窗口即刷新。")
-        hint.setStyleSheet("color: #9CA3AF; font-size: 11px;")
+        hint.setStyleSheet(f"color: {pal['text_secondary']}; font-size: 11px;")
         layout.addWidget(hint)
 
         count = 0

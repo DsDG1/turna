@@ -15,22 +15,13 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from PySide6.QtWidgets import QApplication, QDialog  # noqa: E402
+from PySide6.QtWidgets import QDialog  # noqa: E402
 
 from src.infrastructure import operations_log  # noqa: E402
 from src.infrastructure import window_usage as wu_mod  # noqa: E402
 from src.infrastructure.telemetry import Telemetry  # noqa: E402
 from src.infrastructure.window_usage import WindowUsageMixin  # noqa: E402
-
-
-class _App:
-    _app = None
-
-    @classmethod
-    def get(cls) -> QApplication:
-        if cls._app is None:
-            cls._app = QApplication.instance() or QApplication([])
-        return cls._app
+from tests._qtapp import _App  # noqa: E402
 
 
 class _SampleWindow(WindowUsageMixin, QDialog):

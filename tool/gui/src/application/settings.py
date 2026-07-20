@@ -53,6 +53,24 @@ class Settings:
     # Recent repositories (legacy JSON blob; kept as list[dict])
     recent_repos: list[dict[str, Any]] = field(default_factory=list)
 
+    # --- Git library configuration ---
+    # Default clone root directory for new git remotes.
+    git_clone_root: str = ""
+    # Path to the git binary (empty = use system "git").
+    git_bin: str = ""
+    # Default language code for copy-to-assets (e.g. "tr", "en").
+    default_lang_code: str = ""
+    # LAN collaboration server defaults.
+    lan_default_port: int = 5000
+    lan_bind_address: str = "0.0.0.0"
+    # LAN server auth token (empty = no auth). Stored in QSettings (not
+    # secret-grade; for LAN-only access control).
+    lan_token: str = ""
+    # Per-call git subprocess timeout (seconds).
+    git_timeout: float = 60.0
+    # Override for the assets repo root (empty = auto-detect via parents[4]).
+    assets_repo_root: str = ""
+
     @classmethod
     def load_from_qsettings(cls, qsettings: QSettings) -> "Settings":
         """Load a Settings instance from the supplied QSettings object."""
@@ -81,7 +99,7 @@ class Settings:
             qsettings.remove("ai/api_key")
 
         theme = _str_or_default(qsettings.value("appearance/theme", "dark"), "dark")
-        if theme not in {"dark", "light"}:
+        if theme not in {"dark", "light", "high-contrast-dark", "high-contrast-light"}:
             theme = "dark"
 
         scale = _int_or_default(qsettings.value("appearance/ui_scale_percent", 100), 100)
@@ -106,6 +124,22 @@ class Settings:
             qsettings.value("ai/supports_reasoning", False), False
         )
 
+        # Git library configuration
+        git_clone_root = _str_or_empty(qsettings.value("git/clone_root", ""))
+        git_bin = _str_or_empty(qsettings.value("git/bin", ""))
+        default_lang_code = _str_or_empty(qsettings.value("git/default_lang", ""))
+        lan_default_port = _int_or_default(
+            qsettings.value("git/lan_port", 5000), 5000
+        )
+        lan_default_port = max(1, min(65535, lan_default_port))
+        lan_bind_address = _str_or_default(
+            qsettings.value("git/lan_bind", "0.0.0.0"), "0.0.0.0"
+        )
+        lan_token = _str_or_empty(qsettings.value("git/lan_token", ""))
+        git_timeout = _float_or_default(qsettings.value("git/timeout", 60.0), 60.0)
+        git_timeout = max(5.0, min(600.0, git_timeout))
+        assets_repo_root = _str_or_empty(qsettings.value("git/assets_root", ""))
+
         return cls(
             theme=theme,
             ui_scale_percent=scale,
@@ -120,6 +154,14 @@ class Settings:
             auto_save_on_close=auto_save,
             undo_limit=undo_limit,
             recent_repos=recent_repos,
+            git_clone_root=git_clone_root,
+            git_bin=git_bin,
+            default_lang_code=default_lang_code,
+            lan_default_port=lan_default_port,
+            lan_bind_address=lan_bind_address,
+            lan_token=lan_token,
+            git_timeout=git_timeout,
+            assets_repo_root=assets_repo_root,
         )
 
     def save_to_qsettings(self, qsettings: QSettings) -> None:
@@ -145,6 +187,16 @@ class Settings:
             "recent_repos",
             json.dumps(self.recent_repos[:10], ensure_ascii=False),
         )
+
+        # Git library configuration
+        qsettings.setValue("git/clone_root", self.git_clone_root)
+        qsettings.setValue("git/bin", self.git_bin)
+        qsettings.setValue("git/default_lang", self.default_lang_code)
+        qsettings.setValue("git/lan_port", self.lan_default_port)
+        qsettings.setValue("git/lan_bind", self.lan_bind_address)
+        qsettings.setValue("git/lan_token", self.lan_token)
+        qsettings.setValue("git/timeout", self.git_timeout)
+        qsettings.setValue("git/assets_root", self.assets_repo_root)
 
     def add_recent_repo(self, path: Path | str) -> None:
         """Add a repository path to the top of the recent list."""
@@ -182,6 +234,14 @@ class Settings:
             auto_save_on_close=self.auto_save_on_close,
             undo_limit=self.undo_limit,
             recent_repos=[dict(r) for r in self.recent_repos],
+            git_clone_root=self.git_clone_root,
+            git_bin=self.git_bin,
+            default_lang_code=self.default_lang_code,
+            lan_default_port=self.lan_default_port,
+            lan_bind_address=self.lan_bind_address,
+            lan_token=self.lan_token,
+            git_timeout=self.git_timeout,
+            assets_repo_root=self.assets_repo_root,
         )
 
 

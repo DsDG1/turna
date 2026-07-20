@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from shiboken6 import isValid
 
 from src.backend.ai_generator import AiApiConfig
 from src.backend.course_adapter import CourseAdapter
@@ -34,6 +35,7 @@ from src.backend.lesson_content import (
 from src.dialogs.ai_lesson_helper_dialog import AiLessonHelperDialog
 from src.teacher.linear_flow import LinearFlowWidget
 from src.teacher.preview_window import _PreviewCard
+from src.theme import current_palette
 from src.widgets.option_models import build_options_model
 
 
@@ -110,7 +112,7 @@ class _WordSelectorDialog(QDialog):
         }
         if not self._selected_word_ids:
             self.summary.setText("⚠️ 请至少选择 1 个词")
-            self.summary.setStyleSheet("color: #E74C3C;")
+            self.summary.setStyleSheet(f"color: {current_palette()['error']};")
             return
         types = [
             rt
@@ -162,17 +164,29 @@ class SubLessonFlowWidget(LinearFlowWidget):
         )
         self.changed.connect(self._refresh_preview)
 
+    def _alive_preview(self) -> QWidget | None:
+        """Return preview container only if its C++ object is still alive."""
+        w = self._preview_container
+        if w is None or not isValid(w):
+            if w is not None:
+                self._preview_container = None
+            return None
+        return w
+
     def _on_toggle_preview(self, checked: bool) -> None:
         self._preview_visible = checked
-        if self._preview_container is not None:
-            self._preview_container.setVisible(checked)
-            if checked:
-                self._refresh_preview()
+        container = self._alive_preview()
+        if container is None:
+            return
+        container.setVisible(checked)
+        if checked:
+            self._refresh_preview()
 
     def _refresh_preview(self) -> None:
-        if self._preview_container is None or not self._preview_container.isVisible():
+        container = self._alive_preview()
+        if container is None or not container.isVisible():
             return
-        layout = self._preview_container.layout()
+        layout = container.layout()
         if layout is None:
             return
         while layout.count():
@@ -202,6 +216,7 @@ class SubLessonFlowWidget(LinearFlowWidget):
         from src.teacher.shell_header import build_teacher_header
 
         self._sub_lesson_frames.clear()
+        self._preview_container = None
         if self.layout() is not None:
             while self.layout().count():
                 child = self.layout().takeAt(0)
@@ -290,6 +305,9 @@ class SubLessonFlowWidget(LinearFlowWidget):
         self._content_layout.addStretch()
 
     def _clear_content(self) -> None:
+        # Drop Python refs before deleteLater so toggle/refresh cannot touch
+        # a destroyed C++ QWidget (shiboken RuntimeError).
+        self._preview_container = None
         if self._content_layout is None:
             return
         while self._content_layout.count():
@@ -304,6 +322,8 @@ class SubLessonFlowWidget(LinearFlowWidget):
 
         if self._advanced_btn is not None:
             self._advanced_btn.setText("返回教师视图" if checked else "高级编辑")
+        if checked:
+            self._preview_visible = False
         self._clear_content()
         if checked:
             editor = LessonEditor(self.adapter, self.lesson)

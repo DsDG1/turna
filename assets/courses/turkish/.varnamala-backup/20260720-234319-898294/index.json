@@ -1,0 +1,85 @@
+{
+  "version": 10,
+  "language": "tr",
+  "displayName": "Turkish",
+  "sections": [
+    {
+      "id": "section1",
+      "name": "Section 1",
+      "description": "Selamlamayı öğreniyorum",
+      "level": "A1",
+      "prerequisiteSectionIds": [],
+      "file": "sections/section1.json"
+    },
+    {
+      "id": "section2",
+      "name": "Section 2",
+      "description": "Temel kelimeleri öğreniyorum",
+      "level": "A1",
+      "prerequisiteSectionIds": [
+        "section1"
+      ],
+      "file": "sections/section2.json"
+    },
+    {
+      "id": "section3",
+      "name": "Section 3",
+      "description": "Basit konuşmalar yapabiliyorum",
+      "level": "A1",
+      "prerequisiteSectionIds": [
+        "section2"
+      ],
+      "file": "sections/section3.json"
+    },
+    {
+      "id": "section4",
+      "name": "Section 4",
+      "description": "Türkçeyi rahatça konuşabiliyorum",
+      "level": "A2",
+      "prerequisiteSectionIds": [
+        "section3"
+      ],
+      "file": "sections/section4.json"
+    },
+    {
+      "id": "section5",
+      "name": "Section 5",
+      "description": "Günlük konuşmalar yapabiliyorum",
+      "level": "B1",
+      "prerequisiteSectionIds": [
+        "section4"
+      ],
+      "file": "sections/section5.json"
+    },
+    {
+      "id": "section6",
+      "name": "Section 6",
+      "description": "Bağlama göre farklı görüş bildiriyorum",
+      "level": "B1",
+      "prerequisiteSectionIds": [
+        "section5"
+      ],
+      "file": "sections/section6.json"
+    },
+    {
+      "id": "section7",
+      "name": "Section 7",
+      "description": "Soyut konuları tartışabiliyorum",
+      "level": "B2",
+      "prerequisiteSectionIds": [
+        "section6"
+      ],
+      "file": "sections/section7.json"
+    },
+    {
+      "id": "section8",
+      "name": "Section 8",
+      "description": "Çeşitli konularda akıcı konuşabiliyorum",
+      "level": "B2",
+      "prerequisiteSectionIds": [
+        "section7"
+      ],
+      "file": "sections/section8.json"
+    }
+  ]
+}
