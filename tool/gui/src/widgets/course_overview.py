@@ -92,6 +92,15 @@ class CourseOverviewWindow(QWidget):
         self._scroll.setWidgetResizable(True)
         root.addWidget(self._scroll, 1)
 
+        # Persistent host widget: refresh() clears and refills its layout
+        # instead of allocating a new QWidget every time, so the scroll area
+        # doesn't hand the old host to GC on each tree change.
+        self._host = QWidget()
+        self._host_layout = QVBoxLayout(self._host)
+        self._host_layout.setContentsMargins(4, 4, 4, 4)
+        self._host_layout.setSpacing(12)
+        self._scroll.setWidget(self._host)
+
         self._load_geometry()
         self.refresh()
 
@@ -99,10 +108,14 @@ class CourseOverviewWindow(QWidget):
 
     def refresh(self) -> None:
         """Rebuild the overview from the adapter."""
-        host = QWidget()
-        layout = QVBoxLayout(host)
-        layout.setContentsMargins(4, 4, 4, 4)
-        layout.setSpacing(12)
+        layout = self._host_layout
+        # Tear down the previous render pass without reallocating the host.
+        while layout.count():
+            child = layout.takeAt(0)
+            widget = child.widget()
+            if widget is not None:
+                widget.setParent(None)
+                widget.deleteLater()
 
         sections = self.adapter.sections
         tmpl_counter: Counter[str] = Counter()
@@ -118,7 +131,6 @@ class CourseOverviewWindow(QWidget):
             layout.addSpacing(2)
 
         layout.addStretch()
-        self._scroll.setWidget(host)
 
         self._stats_label.setText(
             f"Sections: {len(sections)}   ·   Units: {unit_count}   ·   "
