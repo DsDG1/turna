@@ -125,6 +125,14 @@ class LinearFlowWidget(QWidget):
         self._content_layout: QVBoxLayout | None = None
         self._add_sub_btn: QPushButton | None = None
         self._sub_lesson_frames: dict[str, QFrame] = {}
+        # Cached reference option models + the fingerprint of the adapter
+        # resource lists they were built from. _build_ui reuses the models
+        # when the resource lists haven't changed, avoiding a full
+        # build_options_model (×3) on every rebuild.
+        self._vocab_model = None
+        self._expression_model = None
+        self._grammar_model = None
+        self._options_fp: tuple = ()
         self.setAcceptDrops(True)
         self.installEventFilter(_DragDropFilter(self, "container", ""))
         self._build_ui()
@@ -148,16 +156,28 @@ class LinearFlowWidget(QWidget):
         layout.setSpacing(12)
         layout.setContentsMargins(12, 12, 12, 12)
 
-        # Shared reference models for all cards in this render pass.
-        self._vocab_model = build_options_model(
-            self.adapter.vocab_options(), placeholder="(未选择)"
+        # Shared reference models for all cards in this render pass. Reuse
+        # the previous models when the resource lists are unchanged (same
+        # fingerprint of ids), so a rebuild pass driven by an unrelated
+        # change doesn't rebuild three QStandardItemModels. The id tuple
+        # captures add/remove/reorder; in-place label edits to an existing
+        # resource are rare and will refresh on the next structural change.
+        fp = (
+            tuple(w.get("id", "") for w in self.adapter.vocab),
+            tuple(e.get("id", "") for e in self.adapter.expressions),
+            tuple(g.get("id", "") for g in self.adapter.grammar_points),
         )
-        self._expression_model = build_options_model(
-            self.adapter.expression_options(), placeholder="(无)"
-        )
-        self._grammar_model = build_options_model(
-            self.adapter.grammar_options(), placeholder="(未关联)"
-        )
+        if fp != self._options_fp or self._vocab_model is None:
+            self._vocab_model = build_options_model(
+                self.adapter.vocab_options(), placeholder="(未选择)"
+            )
+            self._expression_model = build_options_model(
+                self.adapter.expression_options(), placeholder="(无)"
+            )
+            self._grammar_model = build_options_model(
+                self.adapter.grammar_options(), placeholder="(未关联)"
+            )
+            self._options_fp = fp
 
         breadcrumb = QLabel(
             f"{self.section.get('name', '')} › {self.unit.get('name', '')} › "
