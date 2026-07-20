@@ -17,7 +17,7 @@ continues uninterrupted (mirrors the "telemetry must never crash" invariant).
 """
 from __future__ import annotations
 
-from PySide6.QtCore import QEvent, QObject
+from PySide6.QtCore import QElapsedTimer, QEvent, QObject
 from PySide6.QtWidgets import (
     QApplication,
     QLineEdit,
@@ -31,6 +31,9 @@ _MAX_TEXT = 200
 _MAX_TARGET = 80
 _REDACTED = "<redacted>"
 _REDACTED_OBJECT_NAMES = {"ai_key_edit"}
+# Dedupe rapid repeat clicks on the same (window, target): a burst of clicks
+# within this window collapses to a single record. First click always records.
+_CLICK_DEBOUNCE_MS = 300
 
 
 def _window_name(widget: QWidget | None) -> str:
@@ -109,6 +112,11 @@ class UserActionFilter(QObject):
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
+        # Dedupe key: (window_name, target_name) -> elapsed ms of last record.
+        self._last_click: tuple[str, str] = ("", "")
+        self._last_click_ts: int = -_CLICK_DEBOUNCE_MS
+        self._click_clock = QElapsedTimer()
+        self._click_clock.start()
 
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:  # noqa: N802
         try:
@@ -116,10 +124,17 @@ class UserActionFilter(QObject):
             if etype == QEvent.Type.MouseButtonPress and isinstance(obj, QWidget):
                 target = _target_name(obj)
                 if target:
+                    window = _window_name(obj)
+                    key = (window, target)
+                    now = self._click_clock.elapsed()
+                    if key == self._last_click and (now - self._last_click_ts) < _CLICK_DEBOUNCE_MS:
+                        return False
+                    self._last_click = key
+                    self._last_click_ts = now
                     operations.record_action(
                         "click",
                         target,
-                        context={"window": _window_name(obj), "widget": type(obj).__name__},
+                        context={"window": window, "widget": type(obj).__name__},
                     )
             elif etype == QEvent.Type.FocusOut and isinstance(obj, (QLineEdit, QTextEdit)):
                 text = _committed_text(obj)
