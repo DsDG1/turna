@@ -30,6 +30,8 @@ from src.application.commands import (
     MoveUnitCommand,
     NewLessonCommand,
     NewUnitCommand,
+    ReparentLessonCommand,
+    ReparentUnitCommand,
 )
 from src.backend.course_adapter import CourseAdapter
 from src.backend.lesson_content import TEMPLATE_LABELS
@@ -46,11 +48,20 @@ class CourseTreeWidget(QTreeWidget):
     ai_fix_requested = Signal(str, str)  # (kind, id)
     rename_requested = Signal(str, str)  # (kind, id) - F2 rename hook
 
+    # Class-level icon cache: built once on first _populate, reused across
+    # every refresh so we don't re-resolve standardIcon for each row.
+    _section_icon: Any = None
+    _unit_icon: Any = None
+    _lesson_icon: Any = None
+
     def __init__(self) -> None:
         super().__init__()
         self.adapter: CourseAdapter | None = None
         self.undo_stack: QUndoStack | None = None
         self._teacher_mode: bool = False
+        # id -> QTreeWidgetItem index, rebuilt on every _populate so select_*
+        # is O(1) instead of an O(section*unit*lesson) tree walk.
+        self._id_index: dict[str, QTreeWidgetItem] = {}
         self.setHeaderLabels(["课程结构", "类型"])
         self.setColumnWidth(0, 280)
         self.setIndentation(20)
@@ -61,7 +72,7 @@ class CourseTreeWidget(QTreeWidget):
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self._on_context_menu)
         self.setToolTip(
-            "快捷键：Ctrl+D 复制 · Delete 删除 · F2 重命名 · Ctrl+↑/↓ 同级移动"
+            "快捷键：Ctrl+D 复制 · Delete 删除 · F2 重命名 · Ctrl+↑/↓ 移动（可跨 Unit/Section）"
             "（按住 Ctrl/Shift 多选后可批量操作）"
         )
 
@@ -83,15 +94,23 @@ class CourseTreeWidget(QTreeWidget):
         """Build all tree items from the adapter. Called after clear()."""
         style = self.style()
         secondary = QColor(current_palette()["text_secondary"])
-        section_icon = style.standardIcon(QStyle.StandardPixmap.SP_DirHomeIcon)
-        unit_icon = style.standardIcon(QStyle.StandardPixmap.SP_FileDialogContentsView)
-        lesson_icon = style.standardIcon(QStyle.StandardPixmap.SP_FileIcon)
+        if CourseTreeWidget._section_icon is None:
+            CourseTreeWidget._section_icon = style.standardIcon(QStyle.StandardPixmap.SP_DirHomeIcon)
+            CourseTreeWidget._unit_icon = style.standardIcon(QStyle.StandardPixmap.SP_FileDialogContentsView)
+            CourseTreeWidget._lesson_icon = style.standardIcon(QStyle.StandardPixmap.SP_FileIcon)
+        section_icon = CourseTreeWidget._section_icon
+        unit_icon = CourseTreeWidget._unit_icon
+        lesson_icon = CourseTreeWidget._lesson_icon
+        id_index = self._id_index
+        id_index.clear()
         for section in adapter.sections:
             sid = section.get("id", "")
             s_item = QTreeWidgetItem([section.get('name', sid), "" if self._teacher_mode else "section"])
             s_item.setData(0, 0x0100, ("section", sid))
             s_item.setIcon(0, section_icon)
             s_item.setForeground(1, secondary)
+            if sid:
+                id_index[sid] = s_item
             self.addTopLevelItem(s_item)
             for unit in section.get("units", []):
                 uid = unit.get("id", "")
@@ -99,6 +118,8 @@ class CourseTreeWidget(QTreeWidget):
                 u_item.setData(0, 0x0100, ("unit", uid))
                 u_item.setIcon(0, unit_icon)
                 u_item.setForeground(1, secondary)
+                if uid:
+                    id_index[uid] = u_item
                 s_item.addChild(u_item)
                 for lesson in unit.get("lessons", []):
                     lid = lesson.get("id", "")
@@ -114,6 +135,8 @@ class CourseTreeWidget(QTreeWidget):
                     l_item.setData(0, 0x0100, ("lesson", lid))
                     l_item.setIcon(0, lesson_icon)
                     l_item.setForeground(1, type_color)
+                    if lid:
+                        id_index[lid] = l_item
                     u_item.addChild(l_item)
 
     def _capture_state(self) -> dict[str, Any]:
@@ -269,27 +292,23 @@ class CourseTreeWidget(QTreeWidget):
 
     def select_lesson(self, lesson_id: str) -> None:
         """Find and select the lesson item across all sections, emitting node_selected."""
-        for top_idx in range(self.topLevelItemCount()):
-            section = self.topLevelItem(top_idx)
-            for i in range(section.childCount()):
-                unit = section.child(i)
-                for j in range(unit.childCount()):
-                    lesson = unit.child(j)
-                    ref = lesson.data(0, 0x0100)
-                    if ref and ref[0] == "lesson" and ref[1] == lesson_id:
-                        self.setCurrentItem(lesson)
-                        self.node_selected.emit(ref)
-                        return
+        item = self._id_index.get(lesson_id)
+        if item is None:
+            return
+        ref = item.data(0, 0x0100)
+        if ref is not None and ref[0] == "lesson":
+            self.setCurrentItem(item)
+            self.node_selected.emit(ref)
 
     def select_section(self, section_id: str) -> None:
         """Find and select the section item, emitting node_selected."""
-        for top_idx in range(self.topLevelItemCount()):
-            section = self.topLevelItem(top_idx)
-            ref = section.data(0, 0x0100)
-            if ref and ref[0] == "section" and ref[1] == section_id:
-                self.setCurrentItem(section)
-                self.node_selected.emit(ref)
-                return
+        item = self._id_index.get(section_id)
+        if item is None:
+            return
+        ref = item.data(0, 0x0100)
+        if ref is not None and ref[0] == "section":
+            self.setCurrentItem(item)
+            self.node_selected.emit(ref)
 
     def _on_clicked(self, item: QTreeWidgetItem) -> None:
         ref = item.data(0, 0x0100)
@@ -610,13 +629,13 @@ class CourseTreeWidget(QTreeWidget):
         bar.addWidget(QLabel("上下移动:"))
         self._move_up_btn = QToolButton()
         self._move_up_btn.setText("↑")
-        self._move_up_btn.setToolTip("上移（仅同级，不改变层级）")
+        self._move_up_btn.setToolTip("上移（可跨 Unit/Section）")
         self._move_up_btn.setEnabled(False)
         self._move_up_btn.clicked.connect(lambda: self._move_current(-1))
         bar.addWidget(self._move_up_btn)
         self._move_down_btn = QToolButton()
         self._move_down_btn.setText("↓")
-        self._move_down_btn.setToolTip("下移（仅同级，不改变层级）")
+        self._move_down_btn.setToolTip("下移（可跨 Unit/Section）")
         self._move_down_btn.setEnabled(False)
         self._move_down_btn.clicked.connect(lambda: self._move_current(1))
         bar.addWidget(self._move_down_btn)
@@ -663,11 +682,29 @@ class CourseTreeWidget(QTreeWidget):
                     return lessons, i, unit
         return None
 
-    def _update_move_buttons(self, *_args) -> None:
-        """Enable ↑/↓ based on whether the current item can move in-sibling.
+    def _flatten_lesson_positions(self) -> list[str]:
+        """Return every lesson id in course order (across all units/sections).
 
-        Move is single-item only (sibling reorder), so the buttons are
-        disabled entirely when more than one item is selected.
+        Used by ``_update_move_buttons`` to decide whether the current lesson
+        is the very first / very last lesson in the course - the only positions
+        where an up / down cross-tree move has nowhere to go.
+        """
+        result: list[str] = []
+        for section in self.adapter.sections:
+            for unit in section.get("units", []):
+                for lesson in unit.get("lessons", []):
+                    if lesson.get("id"):
+                        result.append(lesson["id"])
+        return result
+
+    def _update_move_buttons(self, *_args) -> None:
+        """Enable ↑/↓ based on whether the current item can move at all.
+
+        Single-item only - buttons are disabled when more than one item is
+        selected. With cross-tree moves enabled, an item can move as long as
+        there is somewhere to go: a lesson unless it is the very first (up) or
+        very last (down) lesson in the course; a unit unless first/last unit; a
+        section unless first/last section.
         """
         if not hasattr(self, "_move_up_btn"):
             return
@@ -677,40 +714,119 @@ class CourseTreeWidget(QTreeWidget):
             return
         current = self.currentItem()
         ref = current.data(0, 0x0100) if current is not None else None
-        info = self._sibling_index(ref) if ref is not None else None
-        if info is None:
+        if ref is None:
             self._move_up_btn.setEnabled(False)
             self._move_down_btn.setEnabled(False)
             return
-        siblings, idx, _parent = info
-        self._move_up_btn.setEnabled(idx > 0)
-        self._move_down_btn.setEnabled(idx < len(siblings) - 1)
+        kind, node_id = ref
+        if kind == "lesson":
+            flat = self._flatten_lesson_positions()
+            pos = next((i for i, lid in enumerate(flat) if lid == node_id), -1)
+            self._move_up_btn.setEnabled(pos > 0)
+            self._move_down_btn.setEnabled(0 <= pos < len(flat) - 1)
+        elif kind == "unit":
+            flat = self._flatten_units()
+            pos = next((i for i, (_, uid) in enumerate(flat) if uid == node_id), -1)
+            self._move_up_btn.setEnabled(pos > 0)
+            self._move_down_btn.setEnabled(0 <= pos < len(flat) - 1)
+        elif kind == "section":
+            sections = self.adapter.sections
+            pos = next((i for i, s in enumerate(sections) if s.get("id") == node_id), -1)
+            self._move_up_btn.setEnabled(pos > 0)
+            self._move_down_btn.setEnabled(0 <= pos < len(sections) - 1)
+        else:
+            self._move_up_btn.setEnabled(False)
+            self._move_down_btn.setEnabled(False)
+
+
+    def _flatten_units(self) -> list[tuple[str, str]]:
+        """Return ``(section_id, unit_id)`` for every unit in course order.
+
+        Used by ``_move_current`` to find the previous/next unit when a lesson
+        crosses a unit boundary (including across sections).
+        """
+        result: list[tuple[str, str]] = []
+        for section in self.adapter.sections:
+            sid = section.get("id", "")
+            for unit in section.get("units", []):
+                result.append((sid, unit.get("id", "")))
+        return result
 
     def _move_current(self, direction: int) -> None:
-        """Move the current item up (direction=-1) or down (+1) within its
-        sibling list. No-op at bounds or when nothing is selected — this
-        guarantees same-level-only reorder (hierarchy never changes)."""
+        """Move the current item up (direction=-1) or down (+1).
+
+        Same-parent reorder within the sibling list uses MoveSection/Unit/Lesson
+        (hierarchy preserved). At a sibling boundary the item crosses into the
+        adjacent parent: a lesson moves into the previous/next unit (across
+        sections if needed), a unit moves into the previous/next section. The
+        first lesson up / last lesson down (and likewise for units/sections) is
+        a no-op - there is nowhere further to go.
+        """
         if self.adapter is None:
             return
         current = self.currentItem()
         if current is None:
             return
         ref = current.data(0, 0x0100)
+        if ref is None:
+            return
+        kind, node_id = ref
         info = self._sibling_index(ref)
         if info is None:
             return
         siblings, idx, parent = info
         to_idx = idx + direction
-        if not (0 <= to_idx < len(siblings)):
-            return  # bounds — no-op, no command pushed
-        kind, node_id = ref
-        if kind == "section":
-            cmd: Any = MoveSectionCommand(self.adapter, idx, to_idx)
-        elif kind == "unit":
-            cmd = MoveUnitCommand(self.adapter, parent.get("id", ""), idx, to_idx)
-        elif kind == "lesson":
-            cmd = MoveLessonCommand(self.adapter, parent.get("id", ""), idx, to_idx)
-        else:
+        if 0 <= to_idx < len(siblings):
+            # Same-parent reorder (hierarchy preserved).
+            if kind == "section":
+                cmd: Any = MoveSectionCommand(self.adapter, idx, to_idx)
+            elif kind == "unit":
+                cmd = MoveUnitCommand(self.adapter, parent.get("id", ""), idx, to_idx)
+            elif kind == "lesson":
+                cmd = MoveLessonCommand(self.adapter, parent.get("id", ""), idx, to_idx)
+            else:
+                return
+            cmd.signals.changed.connect(self._on_command_changed)
+            self._push(cmd)
             return
+
+        # At sibling boundary -> cross into the adjacent parent (free move).
+        if kind == "lesson":
+            flat = self._flatten_units()
+            cur_unit_id = parent.get("id", "")
+            u_pos = next(
+                (i for i, (_, uid) in enumerate(flat) if uid == cur_unit_id), -1
+            )
+            if u_pos < 0:
+                return
+            target_pos = u_pos + direction
+            if not (0 <= target_pos < len(flat)):
+                return  # first lesson up / last lesson down - nowhere to go
+            _target_section_id, target_unit_id = flat[target_pos]
+            _ts, target_unit = self.adapter.find_unit(target_unit_id)
+            # Up into the previous unit -> append at end; down into the next
+            # unit -> insert at the top.
+            new_index = len(target_unit.get("lessons", [])) if direction < 0 else 0
+            cmd = ReparentLessonCommand(self.adapter, node_id, target_unit_id, new_index)
+        elif kind == "unit":
+            sections = self.adapter.sections
+            s_idx = next(
+                (i for i, s in enumerate(sections) if s.get("id") == parent.get("id", "")),
+                -1,
+            )
+            if s_idx < 0:
+                return
+            target_s = s_idx + direction
+            if not (0 <= target_s < len(sections)):
+                return  # first unit up / last unit down - nowhere to go
+            target_section = sections[target_s]
+            target_section_id = target_section.get("id", "")
+            # Up into the previous section -> append at end; down into the next
+            # section -> insert at the top.
+            new_index = len(target_section.get("units", [])) if direction < 0 else 0
+            cmd = ReparentUnitCommand(self.adapter, node_id, target_section_id, new_index)
+        else:
+            return  # section at top level - nowhere to cross
         cmd.signals.changed.connect(self._on_command_changed)
         self._push(cmd)
+
