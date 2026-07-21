@@ -100,6 +100,9 @@ class SectionStats:
     empty_lesson_count: int
     template_counts: Counter[str] = field(default_factory=Counter)
     interaction_counts: Counter[str] = field(default_factory=Counter)
+    # U2-2: advisory content quality (None when not computed).
+    quality_mean: float | None = None
+    quality_badge: str | None = None
 
 
 @dataclass(frozen=True)
@@ -143,6 +146,7 @@ def compute_overview_stats(
     adapter: Any,
     course_dir: Path | None = None,
     include_validation: bool = True,
+    include_quality: bool = True,
 ) -> OverviewStats:
     """Compute the full overview stats for an adapter.
 
@@ -150,6 +154,10 @@ def compute_overview_stats(
     ``include_validation`` is True (and ``course_dir`` is set), validation and
     lint problems are counted; this is the only potentially slow step (spawns
     the CLI). Rendering the window without validation first keeps it snappy.
+
+    When ``include_quality`` is True, each section gets an advisory content
+    quality mean/badge from ``content_quality.score_section`` (pure rules, no
+    network). Empty sections stay low; failures are ignored per section.
     """
     sections = list(adapter.sections or [])
     section_stats: list[SectionStats] = []
@@ -188,6 +196,23 @@ def compute_overview_stats(
                         referenced_expressions.add(rid)
                     else:
                         referenced_grammar.add(rid)
+        q_mean: float | None = None
+        q_badge: str | None = None
+        if include_quality:
+            try:
+                from src.backend.content_quality import score_section
+
+                level = str(
+                    section.get("level")
+                    or getattr(adapter, "index", {}).get("level")
+                    or "A1"
+                )
+                report = score_section(section, level=level)
+                q_mean = report.mean
+                q_badge = report.badge()
+            except Exception:
+                q_mean = None
+                q_badge = None
         section_stats.append(
             SectionStats(
                 section_id=str(section.get("id", "")),
@@ -198,6 +223,8 @@ def compute_overview_stats(
                 empty_lesson_count=s_empty,
                 template_counts=s_tmpl,
                 interaction_counts=s_inter,
+                quality_mean=q_mean,
+                quality_badge=q_badge,
             )
         )
         tmpl_total += s_tmpl

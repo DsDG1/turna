@@ -62,6 +62,9 @@ class AiRequestWorker(QThread):
     chunk_ready = Signal(str)
     # Final token-usage block extracted from the response (for cost display).
     usage_ready = Signal(object)
+    # Intermediate progress objects from pipeline-style targets (e.g.
+    # ``ai_pipeline.run_pipeline`` emits ``PipelineState`` after each step).
+    progress_ready = Signal(object)
 
     def __init__(self, target, *args, parent: QWidget | None = None, **kwargs) -> None:
         super().__init__(parent)
@@ -95,6 +98,10 @@ class AiRequestWorker(QThread):
         """Forward the final usage block to the UI thread."""
         self.usage_ready.emit(usage)
 
+    def _emit_progress(self, progress: object) -> None:
+        """Forward intermediate pipeline progress to the UI thread."""
+        self.progress_ready.emit(progress)
+
     @staticmethod
     def _target_accepts(target, name: str) -> bool:
         """True if ``target``'s signature declares ``name`` or accepts **kwargs."""
@@ -118,6 +125,7 @@ class AiRequestWorker(QThread):
                 ("cancel_check", self._check_cancel),
                 ("on_chunk", self._emit_chunk),
                 ("usage_callback", self._emit_usage),
+                ("on_progress", self._emit_progress),
             ):
                 if name not in kwargs and self._target_accepts(self._target, name):
                     kwargs[name] = inject
@@ -133,11 +141,16 @@ class AiRequestWorker(QThread):
             self.completed.emit()
 
 
+# Pre-compiled so the hot path (``_ensure_api_configured`` runs this on every
+# request) doesn't recompile/re-resolve the pattern per call. (M3)
+_HTTP_URL_RE = re.compile(r"^https?://[^\s]+$", re.IGNORECASE)
+
+
 def is_valid_http_url(url: str) -> bool:
     """True if ``url`` looks like an http(s) URL."""
     if not url:
         return False
-    return bool(re.match(r"^https?://[^\s]+$", url, re.IGNORECASE))
+    return bool(_HTTP_URL_RE.match(url))
 
 
 # Backwards-compat alias for the old private name.

@@ -25,7 +25,9 @@ from src.backend.ai_generator import (
     build_prompt,
     detect_genre_from_spec,
     explain_course,
+    fill_needs_review_resources,
     generate_from_chat,
+    generate_with_validate_loop,
     parse_completion,
     regenerate_lesson_in_section,
     regenerate_unit_in_section,
@@ -108,6 +110,68 @@ class TestAiApiConfig(unittest.TestCase):
         )
         self.assertTrue(forced.reasoning_enabled)
         self.assertFalse(suppressed.reasoning_enabled)
+
+
+class TestAiApiConfigAdvanced(unittest.TestCase):
+    """第三枪 批次①: dual-model + strict_schema on AiApiConfig."""
+
+    def test_select_model_falls_back_to_model_when_blank(self) -> None:
+        cfg = AiApiConfig(base_url="u", api_key="k", model="main-m")
+        self.assertEqual(cfg.select_model("chat"), "main-m")
+        self.assertEqual(cfg.select_model("json"), "main-m")
+        self.assertEqual(cfg.select_model("unknown"), "main-m")
+
+    def test_select_model_uses_specialised_models_when_set(self) -> None:
+        cfg = AiApiConfig(
+            base_url="u", api_key="k", model="main-m",
+            model_chat="chat-m", model_json="json-m",
+        )
+        self.assertEqual(cfg.select_model("chat"), "chat-m")
+        self.assertEqual(cfg.select_model("json"), "json-m")
+
+    def test_select_model_trims_whitespace(self) -> None:
+        cfg = AiApiConfig(
+            base_url="u", api_key="k", model="main-m",
+            model_chat="  ", model_json=" json-m ",
+        )
+        self.assertEqual(cfg.select_model("chat"), "main-m")
+        self.assertEqual(cfg.select_model("json"), "json-m")
+
+    def test_effective_strict_schema_explicit_on_and_off(self) -> None:
+        on = AiApiConfig(strict_schema="on")
+        off = AiApiConfig(strict_schema="off")
+        self.assertEqual(on.effective_strict_schema(), "on")
+        self.assertEqual(off.effective_strict_schema(), "off")
+
+    def test_effective_strict_schema_auto_first_call_tries_on(self) -> None:
+        auto = AiApiConfig(strict_schema="auto")
+        # Probe is None -> first call tries "on"
+        self.assertEqual(auto.effective_strict_schema(), "on")
+
+    def test_effective_strict_schema_auto_falls_back_after_mark(self) -> None:
+        auto = AiApiConfig(strict_schema="auto")
+        auto.mark_json_schema_unsupported()
+        self.assertEqual(auto.effective_strict_schema(), "off")
+
+    def test_effective_strict_schema_auto_stays_on_after_success_mark(self) -> None:
+        auto = AiApiConfig(strict_schema="auto")
+        auto.mark_json_schema_supported()
+        self.assertEqual(auto.effective_strict_schema(), "on")
+        # Marking unsupported later flips it back off
+        auto.mark_json_schema_unsupported()
+        self.assertEqual(auto.effective_strict_schema(), "off")
+
+    def test_strict_schema_marks_are_process_local_not_serialised(self) -> None:
+        from dataclasses import asdict
+        cfg = AiApiConfig(strict_schema="auto")
+        cfg.mark_json_schema_unsupported()
+        d = asdict(cfg)
+        # _json_schema_supported should not appear as a persisted key in the
+        # dataclass-as-dict round-trip if we filter private fields; it's an
+        # internal probe.
+        self.assertNotIn("_json_schema_supported", {
+            k for k in d.keys() if not k.startswith("_")
+        })
 
 
 class TestRequestChatReasoningPayload(unittest.TestCase):
@@ -470,6 +534,7 @@ class TestBuildPrompt(unittest.TestCase):
         # Free mode keeps the full resource schema.
         free = build_prompt(AiCourseSpec(topic="Greetings"))
         self.assertIn("顶层资源数组（与 units 同级", free)
+        self.assertIn("输出顺序", free)
 
     def test_grounded_prompt_pool_truncation_note(self) -> None:
         big_pool = [
@@ -620,7 +685,23 @@ class TestGenerateFromChat(unittest.TestCase):
 
         sig = inspect.signature(generate_from_chat)
         params = list(sig.parameters.keys())
-        self.assertEqual(params, ["config", "spec", "messages", "draft_json", "timeout", "temperature", "cancel_check", "on_chunk", "usage_callback"])
+        self.assertEqual(
+            params,
+            [
+                "config",
+                "spec",
+                "messages",
+                "draft_json",
+                "timeout",
+                "temperature",
+                "cancel_check",
+                "on_chunk",
+                "usage_callback",
+                "validator",
+                "max_retries",
+                "fill_needs_review",
+            ],
+        )
 
     def test_explain_course_signature(self) -> None:
         import inspect
@@ -1242,6 +1323,800 @@ class TestRequestCourseWithRetry(unittest.TestCase):
             )
         self.assertEqual(calls["n"], 1)
         self.assertEqual(result["id"], "s1")
+
+    def test_correction_includes_path_when_present(self) -> None:
+        bad = {"id": "s1", "name": "S", "units": []}
+        good = {"id": "s1", "name": "S", "units": [{"id": "u1", "lessons": []}]}
+        responses = [self._body(bad), self._body(good)]
+        captured: list[str] = []
+
+        def validator(section):
+            if not section.get("units"):
+                return [{"level": "error", "message": "units 不能为空", "path": "units"}]
+            return []
+
+        def fake_request_chat(config, messages, **kwargs):
+            last = messages[-1]
+            if last["role"] == "user" and "校验错误" in last["content"]:
+                captured.append(last["content"])
+            return responses.pop(0)
+
+        with mock.patch("src.backend.ai_generator.request_chat", side_effect=fake_request_chat):
+            request_course_with_retry(
+                self._chat_config(), self._spec(), validator, max_retries=1
+            )
+        self.assertEqual(len(captured), 1)
+        self.assertIn("units: units 不能为空", captured[0])
+
+
+class TestGenerateWithValidateLoop(unittest.TestCase):
+    def _cfg(self) -> AiApiConfig:
+        return AiApiConfig(
+            base_url="https://api.example.com/v1", api_key="sk-x", model="gpt-4o"
+        )
+
+    def _body(self, obj: dict) -> dict:
+        return {"choices": [{"message": {"content": json.dumps(obj, ensure_ascii=False)}}]}
+
+    def test_no_validator_single_shot(self) -> None:
+        good = {"id": "s1", "units": []}
+        with mock.patch(
+            "src.backend.ai_generator.request_chat",
+            return_value=self._body(good),
+        ) as m:
+            result = generate_with_validate_loop(
+                self._cfg(),
+                [{"role": "user", "content": "x"}],
+                None,
+                max_retries=3,
+            )
+        self.assertEqual(result["id"], "s1")
+        self.assertEqual(m.call_count, 1)
+
+    def test_max_retries_zero_skips_validate(self) -> None:
+        good = {"id": "s1", "units": []}
+        calls = {"v": 0}
+
+        def validator(_section):
+            calls["v"] += 1
+            return ["should not run"]
+
+        with mock.patch(
+            "src.backend.ai_generator.request_chat",
+            return_value=self._body(good),
+        ):
+            generate_with_validate_loop(
+                self._cfg(),
+                [{"role": "user", "content": "x"}],
+                validator,
+                max_retries=0,
+            )
+        self.assertEqual(calls["v"], 0)
+
+    def test_retries_until_clean(self) -> None:
+        bad = {"id": "s1", "units": []}
+        good = {"id": "s1", "units": [{"id": "u1", "lessons": []}]}
+        responses = [self._body(bad), self._body(good)]
+
+        def validator(section):
+            return ["empty"] if not section.get("units") else []
+
+        with mock.patch(
+            "src.backend.ai_generator.request_chat",
+            side_effect=lambda *a, **k: responses.pop(0),
+        ):
+            result = generate_with_validate_loop(
+                self._cfg(),
+                [{"role": "user", "content": "x"}],
+                validator,
+                max_retries=2,
+            )
+        self.assertEqual(result["units"][0]["id"], "u1")
+
+
+class TestGenerateWithValidateLoopCache(unittest.TestCase):
+    """第三枪 批次① Step 4: cache integration in generate_with_validate_loop."""
+
+    def _cfg(self) -> AiApiConfig:
+        return AiApiConfig(
+            base_url="https://api.example.com/v1", api_key="sk-x", model="gpt-4o"
+        )
+
+    def _body(self, obj: dict) -> dict:
+        return {"choices": [{"message": {"content": json.dumps(obj, ensure_ascii=False)}}]}
+
+    @staticmethod
+    def _passthrough_parse(body: dict) -> dict:
+        """Bypass parse_completion's section normalization for cache tests."""
+        import json as _json
+
+        content = body["choices"][0]["message"]["content"]
+        return _json.loads(content)
+
+    def test_cache_hit_skips_network_no_validator(self) -> None:
+        from src.backend.ai_cache import AiCache
+
+        cache = AiCache(maxsize=4, enabled=True)
+        good = {"id": "s1", "units": []}
+        rf = {"type": "json_object"}
+        # Pre-warm the cache
+        cache.put("gpt-4o", [{"role": "user", "content": "x"}], rf, good)
+        with mock.patch("src.backend.ai_generator.request_chat") as m:
+            result = generate_with_validate_loop(
+                self._cfg(),
+                [{"role": "user", "content": "x"}],
+                None,
+                max_retries=0,
+                cache=cache,
+                response_format=rf,
+                parse=self._passthrough_parse,
+            )
+        m.assert_not_called()
+        self.assertEqual(result, good)
+        self.assertEqual(cache.stats().hits, 1)
+
+    def test_cache_hit_with_validator_passes_skips_network(self) -> None:
+        from src.backend.ai_cache import AiCache
+
+        cache = AiCache(maxsize=4, enabled=True)
+        good = {"id": "s1", "units": [{"id": "u1", "lessons": []}]}
+        rf = {"type": "json_object"}
+        cache.put("gpt-4o", [{"role": "user", "content": "x"}], rf, good)
+
+        def validator(section):
+            return [] if section.get("units") else ["empty"]
+
+        with mock.patch("src.backend.ai_generator.request_chat") as m:
+            result = generate_with_validate_loop(
+                self._cfg(),
+                [{"role": "user", "content": "x"}],
+                validator,
+                max_retries=2,
+                cache=cache,
+                response_format=rf,
+                parse=self._passthrough_parse,
+            )
+        m.assert_not_called()
+        self.assertEqual(result["units"][0]["id"], "u1")
+
+    def test_cache_hit_with_invalid_cached_body_falls_through_to_live(self) -> None:
+        from src.backend.ai_cache import AiCache
+
+        cache = AiCache(maxsize=4, enabled=True)
+        # Cached body fails validator -> must issue live request
+        bad_cached = {"id": "s1", "units": []}
+        good_live = {"id": "s1", "units": [{"id": "u1", "lessons": []}]}
+        rf = {"type": "json_object"}
+        cache.put("gpt-4o", [{"role": "user", "content": "x"}], rf, bad_cached)
+
+        def validator(section):
+            return [] if section.get("units") else ["empty"]
+
+        with mock.patch(
+            "src.backend.ai_generator.request_chat",
+            return_value=self._body(good_live),
+        ) as m:
+            result = generate_with_validate_loop(
+                self._cfg(),
+                [{"role": "user", "content": "x"}],
+                validator,
+                max_retries=2,
+                cache=cache,
+                response_format=rf,
+                parse=self._passthrough_parse,
+            )
+        # Live request was issued because cached body failed validator
+        self.assertEqual(m.call_count, 1)
+        self.assertEqual(result["units"][0]["id"], "u1")
+
+    def test_cache_writes_back_on_success(self) -> None:
+        from src.backend.ai_cache import AiCache
+
+        cache = AiCache(maxsize=4, enabled=True)
+        good = {"id": "s1", "units": []}
+
+        with mock.patch(
+            "src.backend.ai_generator.request_chat",
+            return_value=self._body(good),
+        ):
+            result = generate_with_validate_loop(
+                self._cfg(),
+                [{"role": "user", "content": "x"}],
+                None,
+                max_retries=0,
+                cache=cache,
+                parse=self._passthrough_parse,
+            )
+        self.assertEqual(result, good)
+        self.assertEqual(cache.stats().entries, 1)
+        # Second call should hit cache
+        with mock.patch("src.backend.ai_generator.request_chat") as m:
+            generate_with_validate_loop(
+                self._cfg(),
+                [{"role": "user", "content": "x"}],
+                None,
+                max_retries=0,
+                cache=cache,
+                parse=self._passthrough_parse,
+            )
+        m.assert_not_called()
+        self.assertEqual(cache.stats().hits, 1)
+
+    def test_cache_does_not_write_invalid_retry_result(self) -> None:
+        from src.backend.ai_cache import AiCache
+
+        cache = AiCache(maxsize=4, enabled=True)
+        bad = {"id": "s1", "units": []}
+
+        def validator(section):
+            return ["always-bad"]
+
+        with mock.patch(
+            "src.backend.ai_generator.request_chat",
+            return_value=self._body(bad),
+        ):
+            generate_with_validate_loop(
+                self._cfg(),
+                [{"role": "user", "content": "x"}],
+                validator,
+                max_retries=1,
+                cache=cache,
+                parse=self._passthrough_parse,
+            )
+        # Invalid result must NOT be cached
+        self.assertEqual(cache.stats().entries, 0)
+
+    def test_disabled_cache_falls_through_to_live(self) -> None:
+        from src.backend.ai_cache import AiCache
+
+        cache = AiCache(maxsize=4, enabled=False)
+        good = {"id": "s1", "units": []}
+        with mock.patch(
+            "src.backend.ai_generator.request_chat",
+            return_value=self._body(good),
+        ) as m:
+            result = generate_with_validate_loop(
+                self._cfg(),
+                [{"role": "user", "content": "x"}],
+                None,
+                max_retries=0,
+                cache=cache,
+                parse=self._passthrough_parse,
+            )
+        self.assertEqual(m.call_count, 1)
+        self.assertEqual(result, good)
+        self.assertEqual(cache.stats().entries, 0)
+
+    def test_model_override_passes_to_request_chat(self) -> None:
+        good = {"id": "s1", "units": []}
+        with mock.patch(
+            "src.backend.ai_generator.request_chat",
+            return_value=self._body(good),
+        ) as m:
+            generate_with_validate_loop(
+                self._cfg(),
+                [{"role": "user", "content": "x"}],
+                None,
+                max_retries=0,
+                model="json-m",
+                parse=self._passthrough_parse,
+            )
+        # request_chat must be called with the model override
+        self.assertEqual(m.call_count, 1)
+        kwargs = m.call_args.kwargs
+        self.assertEqual(kwargs.get("model"), "json-m")
+
+    def test_cache_uses_model_override_for_key(self) -> None:
+        from src.backend.ai_cache import AiCache
+
+        cache = AiCache(maxsize=4, enabled=True)
+        good = {"id": "s1", "units": []}
+        rf = {"type": "json_object"}
+        # Pre-warm with model="json-m"
+        cache.put("json-m", [{"role": "user", "content": "x"}], rf, good)
+        with mock.patch("src.backend.ai_generator.request_chat") as m:
+            result = generate_with_validate_loop(
+                self._cfg(),
+                [{"role": "user", "content": "x"}],
+                None,
+                max_retries=0,
+                cache=cache,
+                model="json-m",
+                response_format=rf,
+                parse=self._passthrough_parse,
+            )
+        m.assert_not_called()
+        self.assertEqual(result, good)
+
+
+class TestDualModelRouting(unittest.TestCase):
+    """第三枪 批次① Step 5: dual-model routing (model_chat vs model_json)."""
+
+    def _cfg(self, *, model_chat: str = "", model_json: str = "") -> AiApiConfig:
+        return AiApiConfig(
+            base_url="https://api.example.com/v1",
+            api_key="sk-x",
+            model="main-m",
+            model_chat=model_chat,
+            model_json=model_json,
+        )
+
+    def _body(self, obj: dict | str) -> dict:
+        content = obj if isinstance(obj, str) else json.dumps(obj, ensure_ascii=False)
+        return {"choices": [{"message": {"content": content}}]}
+
+    def test_request_alignment_reply_uses_model_chat(self) -> None:
+        cfg = self._cfg(model_chat="chat-m")
+        with mock.patch(
+            "src.backend.ai_generator.request_chat",
+            return_value=self._body("hello"),
+        ) as m:
+            request_alignment_reply(
+                cfg,
+                AiCourseSpec(
+                    topic="t", language="Turkish", source_language="Chinese",
+                    level="A1", unit_count=1, lessons_per_unit=1, template="intro",
+                ),
+                [],
+            )
+        kwargs = m.call_args.kwargs
+        self.assertEqual(kwargs.get("model"), "chat-m")
+
+    def test_explain_course_uses_model_chat(self) -> None:
+        cfg = self._cfg(model_chat="chat-m")
+        with mock.patch(
+            "src.backend.ai_generator.request_chat",
+            return_value=self._body("explanation"),
+        ) as m:
+            explain_course(
+                cfg,
+                AiCourseSpec(
+                    topic="t", language="Turkish", source_language="Chinese",
+                    level="A1", unit_count=1, lessons_per_unit=1, template="intro",
+                ),
+                {"name": "n", "description": "d"},
+            )
+        kwargs = m.call_args.kwargs
+        self.assertEqual(kwargs.get("model"), "chat-m")
+
+    def test_request_course_with_retry_uses_model_json(self) -> None:
+        cfg = self._cfg(model_json="json-m")
+        good = {"id": "s1", "units": [], "words": [], "expressions": [], "grammarPoints": []}
+        with mock.patch(
+            "src.backend.ai_generator.request_chat",
+            return_value=self._body(good),
+        ) as m:
+            request_course_with_retry(
+                cfg,
+                AiCourseSpec(
+                    topic="t", language="Turkish", source_language="Chinese",
+                    level="A1", unit_count=1, lessons_per_unit=1, template="intro",
+                ),
+                validator=None,
+            )
+        kwargs = m.call_args.kwargs
+        self.assertEqual(kwargs.get("model"), "json-m")
+
+    def test_dual_model_falls_back_to_main_when_blank(self) -> None:
+        cfg = self._cfg()  # both model_chat and model_json empty
+        good = {"id": "s1", "units": [], "words": [], "expressions": [], "grammarPoints": []}
+        with mock.patch(
+            "src.backend.ai_generator.request_chat",
+            return_value=self._body(good),
+        ) as m:
+            request_course_with_retry(
+                cfg,
+                AiCourseSpec(
+                    topic="t", language="Turkish", source_language="Chinese",
+                    level="A1", unit_count=1, lessons_per_unit=1, template="intro",
+                ),
+                validator=None,
+            )
+        kwargs = m.call_args.kwargs
+        self.assertEqual(kwargs.get("model"), "main-m")
+
+    def test_request_correction_uses_model_json(self) -> None:
+        from src.backend.ai_generator import request_correction
+
+        cfg = self._cfg(model_json="json-m")
+        with mock.patch(
+            "src.backend.ai_generator.request_chat",
+            return_value=self._body('{"fixed": true}'),
+        ) as m:
+            request_correction(cfg, "fix this")
+        kwargs = m.call_args.kwargs
+        self.assertEqual(kwargs.get("model"), "json-m")
+
+
+class TestBuildResponseFormat(unittest.TestCase):
+    """第三枪 批次① Step 6: build_response_format resolution."""
+
+    def test_off_returns_json_object(self) -> None:
+        from src.backend.ai_generator import build_response_format
+
+        cfg = AiApiConfig(strict_schema="off")
+        self.assertEqual(build_response_format(cfg), {"type": "json_object"})
+
+    def test_on_returns_json_schema(self) -> None:
+        from src.backend.ai_generator import build_response_format
+
+        cfg = AiApiConfig(strict_schema="on")
+        rf = build_response_format(cfg)
+        self.assertEqual(rf["type"], "json_schema")
+        self.assertEqual(rf["json_schema"]["name"], "section")
+        self.assertTrue(rf["json_schema"]["strict"])
+        # Schema must be closed and require all top-level fields
+        schema = rf["json_schema"]["schema"]
+        self.assertFalse(schema["additionalProperties"])
+        self.assertIn("units", schema["required"])
+        self.assertIn("words", schema["required"])
+
+    def test_auto_first_call_returns_json_schema(self) -> None:
+        from src.backend.ai_generator import build_response_format
+
+        cfg = AiApiConfig(strict_schema="auto")  # probe is None
+        rf = build_response_format(cfg)
+        self.assertEqual(rf["type"], "json_schema")
+
+    def test_auto_after_unsupported_mark_returns_json_object(self) -> None:
+        from src.backend.ai_generator import build_response_format
+
+        cfg = AiApiConfig(strict_schema="auto")
+        cfg.mark_json_schema_unsupported()
+        self.assertEqual(build_response_format(cfg), {"type": "json_object"})
+
+    def test_auto_after_supported_mark_returns_json_schema(self) -> None:
+        from src.backend.ai_generator import build_response_format
+
+        cfg = AiApiConfig(strict_schema="auto")
+        cfg.mark_json_schema_supported()
+        self.assertEqual(build_response_format(cfg)["type"], "json_schema")
+
+    def test_use_schema_false_forces_json_object(self) -> None:
+        from src.backend.ai_generator import build_response_format
+
+        cfg = AiApiConfig(strict_schema="on")
+        self.assertEqual(
+            build_response_format(cfg, use_schema=False),
+            {"type": "json_object"},
+        )
+
+    def test_non_section_schema_name_uses_permissive_object_schema(self) -> None:
+        from src.backend.ai_generator import build_response_format
+
+        cfg = AiApiConfig(strict_schema="on")
+        rf = build_response_format(cfg, schema_name="lesson")
+        self.assertEqual(rf["json_schema"]["name"], "lesson")
+        # Permissive schema: additionalProperties True (no required list)
+        schema = rf["json_schema"]["schema"]
+        self.assertTrue(schema["additionalProperties"])
+        self.assertNotIn("required", schema)
+
+
+class TestJsonSchemaRejectionHeuristic(unittest.TestCase):
+    """第三枪 批次① Step 6: _looks_like_json_schema_rejection."""
+
+    def _http_error(self, code: int, body: str) -> "urllib.error.HTTPError":
+        import urllib.error
+        from io import BytesIO
+
+        return urllib.error.HTTPError(
+            url="https://x",
+            code=code,
+            msg="Bad Request",
+            hdrs=None,
+            fp=BytesIO(body.encode("utf-8")),
+        )
+
+    def test_matches_400_with_schema_marker(self) -> None:
+        from src.backend.ai_generator import _looks_like_json_schema_rejection
+
+        exc = self._http_error(400, '{"error":"response_format schema unsupported"}')
+        self.assertTrue(_looks_like_json_schema_rejection(exc, "response_format schema unsupported"))
+
+    def test_matches_400_with_unknown_field_marker(self) -> None:
+        from src.backend.ai_generator import _looks_like_json_schema_rejection
+
+        exc = self._http_error(400, "unknown field: json_schema")
+        self.assertTrue(_looks_like_json_schema_rejection(exc, "unknown field: json_schema"))
+
+    def test_does_not_match_400_without_schema_marker(self) -> None:
+        from src.backend.ai_generator import _looks_like_json_schema_rejection
+
+        exc = self._http_error(400, "invalid api key")
+        self.assertFalse(_looks_like_json_schema_rejection(exc, "invalid api key"))
+
+    def test_does_not_match_500(self) -> None:
+        from src.backend.ai_generator import _looks_like_json_schema_rejection
+
+        exc = self._http_error(500, "schema error")
+        self.assertFalse(_looks_like_json_schema_rejection(exc, "schema error"))
+
+
+class TestRequestChatAutoFallback(unittest.TestCase):
+    """第三枪 批次① Step 6: request_chat auto-fallback on json_schema rejection."""
+
+    def _make_urlopen_side_effect(self, responses):
+        """Build a side_effect that yields HTTPError or returns a context mgr.
+
+        ``responses`` is a list of either:
+        - ``("error", HTTPError_instance)`` -> raises the error
+        - ``("ok", body_str)`` -> returns a context manager whose read()
+          returns body bytes.
+        """
+        calls = {"i": 0}
+
+        def _side_effect(req, timeout=None):
+            i = calls["i"]
+            calls["i"] += 1
+            if i >= len(responses):
+                raise AssertionError(f"unexpected extra urlopen call #{i + 1}")
+            kind, payload = responses[i]
+            if kind == "error":
+                raise payload
+            # payload is a body string
+            return _FakeResp(payload)
+
+        return _side_effect
+
+    def test_auto_fallback_retries_with_json_object_after_400(self) -> None:
+        import urllib.error
+        from io import BytesIO
+
+        from src.backend.ai_generator import request_chat
+
+        cfg = AiApiConfig(
+            base_url="https://api.example.com/v1",
+            api_key="sk-x",
+            model="m",
+            strict_schema="auto",
+        )
+        # Probe is None -> first call sends json_schema
+        http_err = urllib.error.HTTPError(
+            url="https://x",
+            code=400,
+            msg="Bad Request",
+            hdrs=None,
+            fp=BytesIO(b'{"error":"response_format schema unsupported"}'),
+        )
+        ok_body = json.dumps(
+            {"choices": [{"message": {"content": '{"x": 1}'}}]}
+        )
+        side = self._make_urlopen_side_effect([
+            ("error", http_err),
+            ("ok", ok_body),
+        ])
+        with mock.patch("urllib.request.urlopen", side_effect=side):
+            body = request_chat(
+                cfg,
+                [{"role": "user", "content": "hi"}],
+                response_format={
+                    "type": "json_schema",
+                    "json_schema": {"name": "section", "schema": {}, "strict": True},
+                },
+            )
+        # Probe must be flipped to False
+        self.assertEqual(cfg.effective_strict_schema(), "off")
+        # And the call succeeded
+        self.assertEqual(body["choices"][0]["message"]["content"], '{"x": 1}')
+
+    def test_on_does_not_fallback_raises_runtime_error(self) -> None:
+        import urllib.error
+        from io import BytesIO
+
+        from src.backend.ai_generator import request_chat
+
+        cfg = AiApiConfig(
+            base_url="https://api.example.com/v1",
+            api_key="sk-x",
+            model="m",
+            strict_schema="on",
+        )
+        http_err = urllib.error.HTTPError(
+            url="https://x",
+            code=400,
+            msg="Bad Request",
+            hdrs=None,
+            fp=BytesIO(b'{"error":"response_format schema unsupported"}'),
+        )
+        with mock.patch("urllib.request.urlopen", side_effect=http_err):
+            with self.assertRaises(RuntimeError) as ctx:
+                request_chat(
+                    cfg,
+                    [{"role": "user", "content": "hi"}],
+                    response_format={
+                        "type": "json_schema",
+                        "json_schema": {"name": "section", "schema": {}, "strict": True},
+                    },
+                )
+        self.assertIn("HTTP 400", str(ctx.exception))
+        # Probe must NOT be flipped when strict_schema="on"
+        self.assertEqual(cfg.effective_strict_schema(), "on")
+
+    def test_non_schema_400_does_not_fallback(self) -> None:
+        import urllib.error
+        from io import BytesIO
+
+        from src.backend.ai_generator import request_chat
+
+        cfg = AiApiConfig(
+            base_url="https://api.example.com/v1",
+            api_key="sk-x",
+            model="m",
+            strict_schema="auto",
+        )
+        http_err = urllib.error.HTTPError(
+            url="https://x",
+            code=400,
+            msg="Bad Request",
+            hdrs=None,
+            fp=BytesIO(b'{"error":"invalid api key"}'),
+        )
+        with mock.patch("urllib.request.urlopen", side_effect=http_err):
+            with self.assertRaises(RuntimeError):
+                request_chat(
+                    cfg,
+                    [{"role": "user", "content": "hi"}],
+                    response_format={
+                        "type": "json_schema",
+                        "json_schema": {"name": "section", "schema": {}, "strict": True},
+                    },
+                )
+        # Probe untouched (still None -> "on")
+        self.assertEqual(cfg.effective_strict_schema(), "on")
+
+
+class _FakeResp:
+    """Minimal context-manager mock for urlopen's return value."""
+
+    def __init__(self, body: str) -> None:
+        self._body = body.encode("utf-8")
+
+    def __enter__(self) -> "_FakeResp":
+        return self
+
+    def __exit__(self, *args) -> None:
+        return None
+
+    def read(self, n: int | None = None) -> bytes:
+        if n is None:
+            return self._body
+        out = self._body[:n]
+        self._body = self._body[n:]
+        return out
+
+
+class TestFillNeedsReviewResources(unittest.TestCase):
+    def _cfg(self) -> AiApiConfig:
+        return AiApiConfig(
+            base_url="https://api.example.com/v1", api_key="sk-x", model="gpt-4o"
+        )
+
+    def test_no_targets_no_request(self) -> None:
+        section = {
+            "id": "s",
+            "words": [{"id": "w1", "term": "a", "translation": "b", "tags": []}],
+            "units": [],
+        }
+        with mock.patch("src.backend.ai_generator.request_chat") as m:
+            out = fill_needs_review_resources(self._cfg(), section)
+        m.assert_not_called()
+        self.assertEqual(out["words"][0]["translation"], "b")
+
+    def test_fills_placeholder(self) -> None:
+        section = {
+            "id": "s",
+            "words": [
+                {
+                    "id": "w-missing",
+                    "term": "merhaba",
+                    "translation": "[待补]",
+                    "tags": ["auto-fix", "needs-review"],
+                }
+            ],
+            "units": [],
+        }
+        reply = {
+            "choices": [
+                {
+                    "message": {
+                        "content": json.dumps(
+                            {
+                                "entries": [
+                                    {
+                                        "id": "w-missing",
+                                        "term": "Merhaba",
+                                        "translation": "你好",
+                                    }
+                                ]
+                            },
+                            ensure_ascii=False,
+                        )
+                    }
+                }
+            ]
+        }
+        with mock.patch("src.backend.ai_generator.request_chat", return_value=reply):
+            out = fill_needs_review_resources(self._cfg(), section)
+        w = out["words"][0]
+        self.assertEqual(w["translation"], "你好")
+        self.assertEqual(w["term"], "Merhaba")
+        self.assertNotIn("needs-review", w.get("tags", []))
+        self.assertNotIn("auto-fix", w.get("tags", []))
+
+    def test_request_failure_keeps_section(self) -> None:
+        section = {
+            "id": "s",
+            "words": [
+                {
+                    "id": "w-missing",
+                    "term": "x",
+                    "translation": "[待补]",
+                    "tags": ["needs-review"],
+                }
+            ],
+            "units": [],
+        }
+        with mock.patch(
+            "src.backend.ai_generator.request_chat",
+            side_effect=RuntimeError("network"),
+        ):
+            out = fill_needs_review_resources(self._cfg(), section)
+        self.assertEqual(out["words"][0]["translation"], "[待补]")
+
+    def test_course_retry_opt_in_fill(self) -> None:
+        good = {
+            "id": "s1",
+            "name": "S",
+            "words": [
+                {
+                    "id": "w1",
+                    "term": "a",
+                    "translation": "[待补]",
+                    "tags": ["needs-review"],
+                }
+            ],
+            "units": [{"id": "u1", "lessons": []}],
+        }
+        fill_reply = {
+            "choices": [
+                {
+                    "message": {
+                        "content": json.dumps(
+                            {
+                                "entries": [
+                                    {"id": "w1", "term": "A", "translation": "译"}
+                                ]
+                            },
+                            ensure_ascii=False,
+                        )
+                    }
+                }
+            ]
+        }
+        bodies = [
+            {"choices": [{"message": {"content": json.dumps(good, ensure_ascii=False)}}]},
+            fill_reply,
+        ]
+
+        def fake_request_chat(*a, **k):
+            return bodies.pop(0)
+
+        with mock.patch(
+            "src.backend.ai_generator.request_chat", side_effect=fake_request_chat
+        ):
+            result = request_course_with_retry(
+                AiApiConfig(
+                    base_url="https://api.example.com/v1",
+                    api_key="sk-x",
+                    model="gpt-4o",
+                ),
+                AiCourseSpec(language="Turkish", topic="t", level="A1"),
+                lambda _s: [],
+                max_retries=0,
+                fill_needs_review=True,
+            )
+        self.assertEqual(result["words"][0]["translation"], "译")
 
 
 class TestStructuralDiff(unittest.TestCase):

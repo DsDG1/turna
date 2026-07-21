@@ -34,6 +34,7 @@ from src.backend.ai_genre import (
     genre_to_template,
     template_label,
 )
+from src.backend.ai_pedagogy import pedagogy_prompt_block
 from src.backend import ai_stream, ai_usage
 
 
@@ -43,12 +44,28 @@ class AiApiConfig:
     api_key: str = ""
     model: str = "deepseek-v4-pro"
     # Whether the endpoint accepts ``reasoning_effort`` / ``thinking``. ``None``
-    # (the default) infers this from the host via ``is_deepseek`` — DeepSeek's
-    # documented behavior — so the common case needs no extra config. Set
+    # (the default) infers this from the host via ``is_deepseek`` - DeepSeek's
+    # documented behavior - so the common case needs no extra config. Set
     # explicitly to override: a reasoning-capable endpoint on a non-DeepSeek
     # host, or to suppress reasoning for a DeepSeek-host endpoint that
     # shouldn't use it. Mirrors the Dart ``AiApiConfig.supports_reasoning``.
     supports_reasoning: bool | None = None
+    # --- 第三枪 批次① advanced options ---
+    # Optional chat-side model (alignment / explanation / chat). Empty = use
+    # ``model``. Lets users route cheap conversational calls to a smaller model.
+    model_chat: str = ""
+    # Optional JSON-side model (course / lesson / item transform / correction
+    # / outline / extract). Empty = use ``model``.
+    model_json: str = ""
+    # ``auto`` (default) tries ``json_schema`` response format and falls back
+    # to ``json_object`` if the provider rejects it. ``on`` forces
+    # ``json_schema``; ``off`` forces ``json_object``. The auto-fallback flag
+    # is process-local (not persisted) so provider upgrades re-probe cleanly.
+    strict_schema: str = "auto"
+    # Process-local capability probe: when ``strict_schema == "auto"`` and the
+    # provider returns 400 / "schema" / "unsupported", this is flipped to
+    # ``False`` and subsequent calls skip ``json_schema``. Not serialised.
+    _json_schema_supported: bool | None = field(default=None, repr=False)
 
     @property
     def is_complete(self) -> bool:
@@ -88,6 +105,48 @@ class AiApiConfig:
         if self.supports_reasoning is not None:
             return self.supports_reasoning
         return self.is_deepseek
+
+    def select_model(self, kind: str) -> str:
+        """Return the model id to use for a given call kind.
+
+        ``kind`` is ``"chat"`` (alignment / explanation / chat) or ``"json"``
+        (course / lesson / item transform / correction / outline / extract).
+        Empty ``model_chat`` / ``model_json`` falls back to ``self.model`` so
+        the dual-model feature is strictly opt-in. Unknown kinds also fall
+        back to ``self.model``.
+        """
+        if kind == "chat":
+            return self.model_chat.strip() or self.model
+        if kind == "json":
+            return self.model_json.strip() or self.model
+        return self.model
+
+    def effective_strict_schema(self) -> str:
+        """Resolve the strict_schema setting to a concrete ``"on"`` / ``"off"``.
+
+        ``auto`` is resolved by consulting the in-process capability probe:
+        - first call (probe is ``None``) -> try ``"on"`` (caller must mark
+          ``mark_json_schema_unsupported`` on a 400 / "schema" error)
+        - probe ``False`` -> ``"off"``
+        - probe ``True`` -> ``"on"``
+        """
+        if self.strict_schema == "on":
+            return "on"
+        if self.strict_schema == "off":
+            return "off"
+        # auto
+        if self._json_schema_supported is None:
+            return "on"
+        return "on" if self._json_schema_supported else "off"
+
+    def mark_json_schema_unsupported(self) -> None:
+        """Record that the provider rejected ``json_schema`` (auto-fallback)."""
+        self._json_schema_supported = False
+
+    def mark_json_schema_supported(self) -> None:
+        """Record that the provider accepted ``json_schema``."""
+        self._json_schema_supported = True
+
 
 
 # --- Shared system prompts (P1-4) ------------------------------------------
@@ -204,13 +263,16 @@ def _resource_schema_block() -> str:
     contained, the AI is required to emit the resources it uses as top-level
     arrays; the importer merges them into the course resource files.
     """
-    return """顶层资源数组（与 units 同级，必须输出）：
+    return """顶层资源数组（与 units 同级，必须输出）。
+
+输出顺序（硬性）：JSON 对象中先写 words，再写 expressions，再写 grammarPoints，
+最后写 units。先定义资源，再在课时中引用，避免悬空 id。
 
 words: 本课程用到的所有生词。每个条目结构：
 {
   "id": "w-merhaba",            // 全局唯一，小写 kebab-case，建议前缀 w-
   "term": "Merhaba",            // 目标语言原文（如土耳其语单词）
-  "translation": "你好",         // 源语言译文（如中文）
+  "translation": "你好",         // 源语言译文（如中文）；禁止空字符串或占位符
   "pronunciation": null,        // 可选，音标或拉丁转写；没有就填 null
   "audioAsset": null,           // 可选，音频资源路径；没有就填 null
   "tags": ["greeting"]          // 可选标签数组
@@ -220,7 +282,7 @@ expressions: 本课程用到的所有惯用表达。每个条目结构：
 {
   "id": "e-ben-adim",           // 全局唯一，建议前缀 e-
   "term": "Adım ...",            // 目标语言原文
-  "translation": "我叫……",       // 源语言译文
+  "translation": "我叫……",       // 源语言译文；禁止空或「待补」
   "pronunciation": null,
   "audioAsset": null,
   "tags": []
@@ -242,6 +304,7 @@ grammarPoints: 本课程用到的所有语法点。每个条目结构：
 3. 任何 grammarPointId 必须出现在顶层 grammarPoints 数组的某个条目 id 中。
 4. 只输出本课程真正用到的资源，不要输出未被引用的条目。
 5. 资源 id 不能与现有词库冲突（导入时会自动跳过已存在的 id，但建议用 ai- / w-ai- 等前缀避免碰撞）。
+6. 每个 word/expression 必须有非空 term 与非空 translation（完整可教条目）。
 """
 
 
@@ -365,6 +428,114 @@ Rules:
 """
 
 
+def _build_section_json_schema() -> dict[str, Any]:
+    """Return a strict JSON Schema for a section (第三枪 批次① Step 6).
+
+    The schema is closed (``additionalProperties: false``) and lists every
+    top-level field the model must return. Array items are left as
+    ``{}`` (any object) so the model can fill in lessons/words/etc. without
+    hitting a deeply-nested strictness wall. This shape satisfies OpenAI's
+    ``json_schema`` strict-mode requirement (all properties required, no
+    extras) while staying permissive at the item level.
+    """
+    return {
+        "type": "object",
+        "properties": {
+            "id": {"type": "string"},
+            "name": {"type": "string"},
+            "description": {"type": "string"},
+            "prerequisiteSectionIds": {
+                "type": "array",
+                "items": {"type": "string"},
+            },
+            "words": {"type": "array", "items": {"type": "object"}},
+            "expressions": {"type": "array", "items": {"type": "object"}},
+            "grammarPoints": {"type": "array", "items": {"type": "object"}},
+            "units": {"type": "array", "items": {"type": "object"}},
+        },
+        "required": [
+            "id",
+            "name",
+            "description",
+            "prerequisiteSectionIds",
+            "words",
+            "expressions",
+            "grammarPoints",
+            "units",
+        ],
+        "additionalProperties": False,
+    }
+
+
+# Schemas for non-section JSON calls (lesson / item / correction / outline).
+# These are intentionally permissive (no properties declared, only ``object``
+# type) so the model has freedom over shape but the request still routes
+# through the ``json_schema`` response-format path when enabled.
+_PERMISSIVE_OBJECT_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": True,
+}
+
+
+def build_response_format(
+    config: AiApiConfig,
+    *,
+    schema_name: str = "section",
+    use_schema: bool = True,
+) -> dict[str, Any] | None:
+    """Resolve the ``response_format`` payload for an OpenAI-compatible call.
+
+    第三枪 批次① Step 6.
+
+    - When ``config.strict_schema == "off"`` (or ``use_schema=False``):
+      returns ``{"type": "json_object"}``.
+    - When ``"on"``: returns ``{"type": "json_schema", "json_schema": {...}}``
+      using the section schema (or a permissive object schema for non-section
+      calls).
+    - When ``"auto"``: consults the process-local capability probe
+      (``config.effective_strict_schema()``). First call tries ``json_schema``;
+      if the provider rejects it, ``request_chat`` marks the probe false and
+      subsequent calls fall back to ``json_object`` automatically.
+
+    ``schema_name`` selects which schema to send (``"section"`` for full-course
+    generation, anything else for permissive object output). ``use_schema=False``
+    forces ``json_object`` for callers that want JSON mode but no schema
+    constraint (e.g. chat replies that happen to be JSON).
+    """
+    if not use_schema:
+        return {"type": "json_object"}
+    resolved = config.effective_strict_schema()
+    if resolved == "off":
+        return {"type": "json_object"}
+    schema = _build_section_json_schema() if schema_name == "section" else _PERMISSIVE_OBJECT_SCHEMA
+    return {
+        "type": "json_schema",
+        "json_schema": {
+            "name": schema_name,
+            "schema": schema,
+            "strict": True,
+        },
+    }
+
+
+def _looks_like_json_schema_rejection(exc: urllib.error.HTTPError, detail: str) -> bool:
+    """Heuristic: does this HTTP error indicate the provider rejected
+    ``response_format.type == "json_schema"``?
+
+    Matches on:
+    - HTTP 400 (Bad Request)
+    - body contains any of: ``"schema"``, ``"response_format"``, ``"unsupported"``,
+      ``"unknown"`` (case-insensitive)
+    """
+    if exc.code != 400:
+        return False
+    lowered = detail.lower()
+    return any(
+        marker in lowered
+        for marker in ("schema", "response_format", "unsupported", "unknown field")
+    )
+
+
 def _course_context_block(spec: AiCourseSpec) -> str:
     """Render a compact summary of the course's existing resources (P0-5).
 
@@ -433,9 +604,11 @@ def _resource_pool_block(spec: AiCourseSpec) -> str:
         "编排规则（grounded 模式）：",
         "1. 从资源池挑选本课所需词条，按原 id / term / translation 原样复制到顶层 "
         "words / expressions / grammarPoints 数组（pronunciation/audioAsset 可填 null）。",
-        "2. 禁止修改资源池条目的 id 或内容；禁止编造与资源池无关的词条。",
-        "3. 确需池外新词时，在顶层数组定义完整条目并打上 \"new\" tag。",
+        "2. 禁止修改资源池条目的 id 或内容；禁止编造与资源池无关的半残引用。",
+        "3. 优先只使用池内 id。确需池外新词时：必须输出完整 term+translation，"
+        "并打上 \"new\" tag；禁止只有 id 没有释义。",
         "4. lesson 中的 wordId / expressionId / grammarPointId 必须引用顶层数组中已定义的 id。",
+        "5. 输出顺序：先完整写出 words/expressions/grammarPoints，再写 units。",
     ])
     return "\n".join(lines)
 
@@ -510,6 +683,12 @@ def build_prompt(spec: AiCourseSpec) -> str:
     parts.extend([
         "",
         _id_rules_block(),
+        "",
+        pedagogy_prompt_block(
+            level=spec.level,
+            language=spec.language,
+            template=spec.template,
+        ),
         "",
         _build_json_schema_example(spec),
     ])
@@ -609,8 +788,14 @@ def _chat_json(
     on_chunk: Callable[[str], None] | None,
     usage_callback: Callable[[dict[str, int]], None] | None,
     response_format: bool = True,
+    model: str | None = None,
 ) -> dict:
-    """request_chat with the standard streaming/usage kwargs (JSON mode by default)."""
+    """request_chat with the standard streaming/usage kwargs (JSON mode by default).
+
+    第三枪 批次①: ``model`` overrides ``config.model`` for dual-model routing
+    (``config.select_model("chat"|"json")``). When ``None``, falls back to
+    ``config.model``.
+    """
     return request_chat(
         config,
         messages,
@@ -621,6 +806,7 @@ def _chat_json(
         stream=on_chunk is not None,
         on_chunk=on_chunk,
         usage_callback=usage_callback,
+        model=model,
     )
 
 
@@ -848,6 +1034,7 @@ def request_chat(
     on_chunk: Callable[[str], None] | None = None,
     usage_callback: Callable[[dict[str, int]], None] | None = None,
     max_tokens: int | None = None,
+    model: str | None = None,
 ) -> dict:
     """Call the OpenAI-compatible endpoint and return the parsed JSON body.
 
@@ -872,12 +1059,17 @@ def request_chat(
     (``prompt_tokens``/``completion_tokens``/``total_tokens``) for cost display,
     whether or not streaming is used. Streaming endpoints that omit usage get a
     rough text-based estimate instead of zeros.
+
+    第三枪 批次①: ``model`` overrides ``config.model`` in the payload so the
+    caller can route chat/explain vs JSON generation to different models
+    (``AiApiConfig.select_model("chat"|"json")``). When ``None``, falls back
+    to ``config.model``.
     """
     if not config.is_complete:
         raise RuntimeError("API 配置不完整，请填写 Base URL / API Key / Model。")
 
     payload_obj: dict[str, Any] = {
-        "model": config.model,
+        "model": model or config.model,
         "messages": messages,
         "temperature": temperature,
     }
@@ -932,7 +1124,54 @@ def request_chat(
                 body = b"".join(chunks).decode("utf-8")
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")[:300]
-        raise RuntimeError(f"HTTP {exc.code}: {detail}") from exc
+        # 第三枪 批次① Step 6: auto-fallback when the provider rejects
+        # ``response_format.type == "json_schema"``. Only trigger on the
+        # strict_schema=auto path; explicit "on" surfaces the error to the
+        # user so they can fix their config.
+        if (
+            response_format is not None
+            and isinstance(response_format, dict)
+            and response_format.get("type") == "json_schema"
+            and config.strict_schema == "auto"
+            and _looks_like_json_schema_rejection(exc, detail)
+        ):
+            config.mark_json_schema_unsupported()
+            # Retry once with json_object (the loosest JSON mode).
+            payload_obj["response_format"] = {"type": "json_object"}
+            payload = json.dumps(payload_obj).encode("utf-8")
+            retry_req = urllib.request.Request(
+                config.chat_completions_url,
+                data=payload,
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {config.api_key}",
+                    "Accept-Encoding": "identity",
+                },
+                method="POST",
+            )
+            try:
+                with urllib.request.urlopen(retry_req, timeout=timeout) as resp:  # noqa: S310
+                    if streaming_requested:
+                        body = _read_streaming(resp, config, cancel_check, on_chunk)
+                    elif cancel_check is None:
+                        body = resp.read().decode("utf-8")
+                    else:
+                        chunks2: list[bytes] = []
+                        while True:
+                            if cancel_check():
+                                raise AiCancelled("用户取消了请求。")
+                            chunk2 = resp.read(65536)
+                            if not chunk2:
+                                break
+                            chunks2.append(chunk2)
+                        body = b"".join(chunks2).decode("utf-8")
+            except urllib.error.HTTPError as exc2:
+                detail2 = exc2.read().decode("utf-8", errors="replace")[:300]
+                raise RuntimeError(f"HTTP {exc2.code}: {detail2}") from exc2
+            except urllib.error.URLError as exc2:
+                raise RuntimeError(f"网络错误: {exc2.reason}") from exc2
+        else:
+            raise RuntimeError(f"HTTP {exc.code}: {detail}") from exc
     except urllib.error.URLError as exc:
         raise RuntimeError(f"网络错误: {exc.reason}") from exc
 
@@ -1018,9 +1257,17 @@ def _read_streaming(resp: Any, config: AiApiConfig, cancel_check, on_chunk) -> s
         # Non-SSE fallback: assemble the body from the first line plus the
         # remaining lines from the iterator (do NOT call resp.read(), which
         # would re-return the already-consumed first chunk on some fake
-        # responses and double the body).
-        remainder = "".join(line_iter)
-        full_body = first_line + remainder
+        # responses and double the body). Poll cancel_check between reads so
+        # a slow non-SSE endpoint can still be interrupted; without this, a
+        # user cancel during a slow bulk response would block until the
+        # server-side timeout because "".join(line_iter) consumes the whole
+        # iterator with no cancellation hook. (B18)
+        pieces: list[str] = [first_line]
+        for line in line_iter:
+            if cancel_check is not None and cancel_check():
+                raise AiCancelled("用户取消了请求。")
+            pieces.append(line)
+        full_body = "".join(pieces)
         # The whole body is a normal completion JSON; on_chunk gets the message
         # content so the UI still shows something, but callers parse the body.
         try:
@@ -1088,9 +1335,10 @@ def _coerce_problem_messages(items) -> list[str]:
 
     ``validate_section_json`` returns ``list[dict]`` (Problem dicts with
     ``level``/``message``/``path``), but the retry contract historically
-    documented ``list[str]``. Accept either: for a dict, take ``message`` and
-    only keep it when ``level`` is missing or ``"error"`` (warnings are not
-    re-fed to the model); for a plain string, treat it as an error.
+    documented ``list[str]``. Accept either: for a dict, take ``message``
+    (and ``path`` when present) and only keep it when ``level`` is missing
+    or ``"error"`` (warnings are not re-fed to the model); for a plain
+    string, treat it as an error.
     """
     messages: list[str] = []
     for item in items or []:
@@ -1099,11 +1347,282 @@ def _coerce_problem_messages(items) -> list[str]:
             if level and level != "error":
                 continue
             msg = item.get("message") or ""
-            if msg:
+            if not msg:
+                continue
+            path = item.get("path") or ""
+            if path:
+                messages.append(f"{path}: {msg}")
+            else:
                 messages.append(str(msg))
         elif item:
             messages.append(str(item))
     return messages
+
+
+def _build_correction_user_turn(errors: list[str]) -> str:
+    return (
+        "上一版有以下校验错误，请修正后只输出完整的修正 JSON：\n- "
+        + "\n- ".join(errors)
+    )
+
+
+def generate_with_validate_loop(
+    config: AiApiConfig,
+    messages: list[dict[str, Any]],
+    validator: Callable[[dict], Any] | None,
+    *,
+    max_retries: int = 1,
+    temperature: float = 0.4,
+    temperature_decay: float = 0.2,
+    timeout: float = 120.0,
+    cancel_check: Callable[[], bool] | None = None,
+    on_chunk: Callable[[str], None] | None = None,
+    usage_callback: Callable[[dict[str, int]], None] | None = None,
+    response_format: dict[str, Any] | None = None,
+    parse: Callable[[Any], dict] | None = None,
+    stream_first_only: bool = True,
+    cache: "AiCache | None" = None,
+    model: str | None = None,
+    max_tokens: int | None = None,
+) -> dict:
+    """Request JSON, parse, and re-prompt on validator errors (aiEnhance P1).
+
+    Shared by course generation, chat generation, edit, and lesson transform.
+    When ``validator`` is ``None`` or ``max_retries`` is 0, behaves as a single
+    request + parse. First attempt may stream; retries never stream when
+    ``stream_first_only`` is True.
+
+    第三枪 批次① additions:
+    - ``cache``: optional :class:`src.backend.ai_cache.AiCache`. When supplied
+      and enabled, the *first* attempt consults the cache before hitting the
+      network. A cache hit still runs ``validator`` so a stale-but-invalid
+      entry triggers the normal correction loop. Successful results are
+      written back to the cache. Retries (which carry a correction user turn)
+      never consult the cache.
+    - ``model``: explicit model id to send in the payload. When ``None``, the
+      caller's ``config.model`` is used (dual-model routing happens at the
+      call site, not here).
+    - ``max_tokens``: forwarded to every ``request_chat`` call. Used by
+      knowledge extraction (preset-capped responses).
+    """
+    parse_fn = parse or parse_completion
+    # Resolve the response_format. The caller may pass an explicit dict
+    # (takes precedence); otherwise we consult ``config.strict_schema`` via
+    # ``build_response_format`` so the loop respects the auto-fallback probe.
+    if response_format is not None:
+        fmt = response_format
+    else:
+        fmt = build_response_format(config, schema_name="section", use_schema=True)
+    # Mutate a local copy so callers can reuse their message list safely.
+    msgs: list[dict[str, Any]] = list(messages)
+
+    # Fall back to the process-wide default cache when the caller didn't supply
+    # one explicitly. Callers that want to disable caching can pass an
+    # explicitly-disabled ``AiCache(enabled=False)`` instance.
+    from src.backend.ai_cache import get_default_cache
+
+    effective_cache = cache if cache is not None else get_default_cache()
+
+    # --- Cache lookup (first attempt only) ---
+    cache_hit = False
+    if effective_cache is not None and effective_cache.enabled:
+        cached = effective_cache.get(model or config.model, msgs, fmt)
+        if cached is not None:
+            cache_hit = True
+            # Re-validate the cached body; if it passes (or there's no
+            # validator), skip the network entirely. If it fails, fall
+            # through to a live request so the correction loop can repair.
+            try:
+                result = parse_fn({"choices": [{"message": {"content": json.dumps(cached, ensure_ascii=False)}}]})
+            except Exception:
+                result = cached
+            if validator is None or max_retries <= 0:
+                return result
+            problems = list(validator(result) or [])
+            errors = _coerce_problem_messages(problems)
+            if not errors:
+                return result
+            # else: cached but invalid -> fall through and re-issue live
+
+    if not cache_hit:
+        body = request_chat(
+            config,
+            msgs,
+            temperature=temperature,
+            response_format=fmt,
+            timeout=timeout,
+            cancel_check=cancel_check,
+            stream=on_chunk is not None,
+            on_chunk=on_chunk,
+            usage_callback=usage_callback,
+            model=model,
+            max_tokens=max_tokens,
+        )
+        result = parse_fn(body)
+    # else: we already have `result` from the cache branch above.
+
+    if validator is None or max_retries <= 0:
+        if effective_cache is not None and effective_cache.enabled and not cache_hit:
+            effective_cache.put(model or config.model, list(messages), fmt, result)
+        return result
+
+    temp = temperature
+    for _ in range(max(0, max_retries)):
+        problems = list(validator(result) or [])
+        errors = _coerce_problem_messages(problems)
+        if not errors:
+            break
+        msgs.append(
+            {"role": "assistant", "content": json.dumps(result, ensure_ascii=False)}
+        )
+        msgs.append({"role": "user", "content": _build_correction_user_turn(errors)})
+        temp = max(0.0, temp - temperature_decay)
+        body = request_chat(
+            config,
+            msgs,
+            temperature=temp,
+            response_format=fmt,
+            timeout=timeout,
+            cancel_check=cancel_check,
+            stream=False if stream_first_only else on_chunk is not None,
+            on_chunk=None if stream_first_only else on_chunk,
+            usage_callback=usage_callback,
+            model=model,
+            max_tokens=max_tokens,
+        )
+        result = parse_fn(body)
+    else:
+        # Loop completed without `break` -> last attempt still had errors.
+        # Don't cache invalid results.
+        return result
+
+    # Loop broke with no errors -> cache the final valid result.
+    if effective_cache is not None and effective_cache.enabled and not cache_hit:
+        effective_cache.put(model or config.model, list(messages), fmt, result)
+    return result
+
+
+def _needs_review_entries(section: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
+    """Return (bucket, entry) pairs that need a second-pass fill."""
+    out: list[tuple[str, dict[str, Any]]] = []
+    for key in ("words", "expressions"):
+        for entry in section.get(key) or []:
+            if not isinstance(entry, dict):
+                continue
+            tags = {str(t).lower() for t in (entry.get("tags") or [])}
+            trans = (entry.get("translation") or "").strip()
+            if "needs-review" in tags or "auto-fix" in tags or trans in ("", "[待补]"):
+                out.append((key, entry))
+    for entry in section.get("grammarPoints") or []:
+        if not isinstance(entry, dict):
+            continue
+        tags = {str(t).lower() for t in (entry.get("tags") or [])}
+        expl = (entry.get("explanation") or "").strip()
+        if "needs-review" in tags or "auto-fix" in tags or not expl:
+            out.append(("grammarPoints", entry))
+    return out
+
+
+def fill_needs_review_resources(
+    config: AiApiConfig,
+    section: dict[str, Any],
+    *,
+    language: str = "Turkish",
+    source_language: str = "Chinese",
+    timeout: float = 60.0,
+    temperature: float = 0.2,
+    cancel_check: Callable[[], bool] | None = None,
+    usage_callback: Callable[[dict[str, int]], None] | None = None,
+) -> dict[str, Any]:
+    """Second-pass LLM fill for stub / needs-review resource entries.
+
+    Default callers leave this off (extra tokens). When enabled, only entries
+    tagged needs-review/auto-fix or carrying ``[待补]`` / empty glosses are
+    sent. On any failure the original section is returned unchanged.
+    """
+    targets = _needs_review_entries(section)
+    if not targets:
+        return section
+
+    payload = []
+    for key, entry in targets:
+        payload.append(
+            {
+                "bucket": key,
+                "id": entry.get("id", ""),
+                "term": entry.get("term") or entry.get("title") or "",
+                "translation": entry.get("translation") or "",
+                "explanation": entry.get("explanation") or "",
+                "title": entry.get("title") or "",
+            }
+        )
+    prompt = (
+        f"你是语言课程词条补全助手。目标语：{language}；释义语：{source_language}。\n"
+        "下列条目缺少可靠释义或带有待审标记。请为每一项补全可教的 term/translation"
+        "（grammarPoints 用 title/explanation）。\n"
+        "只返回 JSON 对象：{\"entries\":[{\"id\":\"...\",\"term\":\"...\","
+        "\"translation\":\"...\",\"title\":\"...\",\"explanation\":\"...\"}]}\n"
+        "要求：不要改 id；translation/explanation 禁止空或「[待补]」；"
+        "不要输出 markdown。\n\n"
+        f"{json.dumps({'entries': payload}, ensure_ascii=False)}"
+    )
+    try:
+        body = request_chat(
+            config,
+            [
+                {
+                    "role": "system",
+                    "content": (
+                        "You complete language-course glossary entries. "
+                        "Output ONLY valid JSON, no prose, no markdown fences."
+                    ),
+                },
+                {"role": "user", "content": prompt},
+            ],
+            temperature=temperature,
+            response_format={"type": "json_object"},
+            timeout=timeout,
+            cancel_check=cancel_check,
+            stream=False,
+            usage_callback=usage_callback,
+            model=config.select_model("json"),
+        )
+        content = _extract_content(body, strip=True)
+        parsed = _parse_json_obj(content)
+    except (ValueError, RuntimeError, AiCancelled, TypeError, KeyError):
+        return section
+
+    updates = parsed.get("entries") if isinstance(parsed, dict) else None
+    if not isinstance(updates, list):
+        return section
+
+    by_id: dict[str, dict[str, Any]] = {}
+    for item in updates:
+        if isinstance(item, dict) and item.get("id"):
+            by_id[str(item["id"])] = item
+
+    for key, entry in targets:
+        uid = str(entry.get("id") or "")
+        patch = by_id.get(uid)
+        if not patch:
+            continue
+        if key == "grammarPoints":
+            title = (patch.get("title") or entry.get("title") or uid).strip()
+            explanation = (patch.get("explanation") or patch.get("translation") or "").strip()
+            if explanation and explanation != "[待补]":
+                entry["title"] = title
+                entry["explanation"] = explanation
+                tags = [t for t in (entry.get("tags") or []) if str(t).lower() not in ("needs-review", "auto-fix")]
+                entry["tags"] = tags
+        else:
+            term = (patch.get("term") or entry.get("term") or uid).strip()
+            translation = (patch.get("translation") or "").strip()
+            if translation and translation != "[待补]":
+                entry["term"] = term
+                entry["translation"] = translation
+                tags = [t for t in (entry.get("tags") or []) if str(t).lower() not in ("needs-review", "auto-fix")]
+                entry["tags"] = tags
+    return section
 
 
 def request_course_with_retry(
@@ -1116,6 +1635,7 @@ def request_course_with_retry(
     cancel_check: Callable[[], bool] | None = None,
     on_chunk: Callable[[str], None] | None = None,
     usage_callback: Callable[[dict[str, int]], None] | None = None,
+    fill_needs_review: bool = False,
 ) -> dict:
     """Generate a course and, if ``validator(section_json)`` reports errors,
     re-prompt the model with those errors up to ``max_retries`` times (C3).
@@ -1126,6 +1646,9 @@ def request_course_with_retry(
     (e.g. warnings) are not re-fed to the model. The original generation is
     retried by appending an assistant turn (the last JSON) plus a correction
     turn to the conversation.
+
+    When ``fill_needs_review`` is True, a cheap second pass tries to replace
+    ``[待补]`` / needs-review stubs after a successful generate+validate loop.
     """
     messages = [
         {
@@ -1134,35 +1657,27 @@ def request_course_with_retry(
         },
         {"role": "user", "content": build_prompt(spec)},
     ]
-    section = parse_completion(
-        request_chat(
-            config, messages, temperature=temperature,
-            response_format={"type": "json_object"}, timeout=timeout,
-            cancel_check=cancel_check,
-            stream=on_chunk is not None, on_chunk=on_chunk,
-            usage_callback=usage_callback,
-        )
+    section = generate_with_validate_loop(
+        config,
+        messages,
+        validator,
+        max_retries=max_retries,
+        temperature=temperature,
+        timeout=timeout,
+        cancel_check=cancel_check,
+        on_chunk=on_chunk,
+        usage_callback=usage_callback,
+        model=config.select_model("json"),
     )
-    for _ in range(max(0, max_retries)):
-        problems = list(validator(section) or [])
-        errors = _coerce_problem_messages(problems)
-        if not errors:
-            break
-        correction = (
-            "上一版有以下校验错误，请修正后只输出完整的修正 JSON：\n- "
-            + "\n- ".join(errors)
-        )
-        assistant_turn = {"role": "assistant", "content": json.dumps(section, ensure_ascii=False)}
-        messages.append(assistant_turn)
-        messages.append({"role": "user", "content": correction})
-        section = parse_completion(
-            request_chat(
-                config, messages, temperature=max(0.0, temperature - 0.2),
-                response_format={"type": "json_object"}, timeout=timeout,
-                cancel_check=cancel_check,
-                # Only stream the first attempt; retries are usually short.
-                stream=False, on_chunk=None,
-            )
+    if fill_needs_review:
+        section = fill_needs_review_resources(
+            config,
+            section,
+            language=spec.language,
+            source_language=spec.source_language,
+            timeout=min(timeout, 90.0),
+            cancel_check=cancel_check,
+            usage_callback=usage_callback,
         )
     return section
 
@@ -1180,6 +1695,9 @@ def request_alignment_reply(
     """Get a plain-language alignment reply from the AI.
 
     ``messages`` must not include the system prompt; it will be prepended.
+
+    第三枪 批次①: routes through ``model_chat`` when configured (alignment is a
+    conversational call, not JSON generation).
     """
     api_messages = [
         {"role": "system", "content": build_alignment_prompt(spec)}
@@ -1188,6 +1706,7 @@ def request_alignment_reply(
         config, api_messages, temperature=temperature, timeout=timeout,
         cancel_check=cancel_check, on_chunk=on_chunk,
         usage_callback=usage_callback, response_format=False,
+        model=config.select_model("chat"),
     )
     content = _extract_content(body)
     return content.strip()
@@ -1203,11 +1722,18 @@ def generate_from_chat(
     cancel_check: Callable[[], bool] | None = None,
     on_chunk: Callable[[str], None] | None = None,
     usage_callback: Callable[[dict[str, int]], None] | None = None,
+    validator: Callable[[dict], Any] | None = None,
+    max_retries: int = 0,
+    fill_needs_review: bool = False,
 ) -> dict:
     """Generate the final course section JSON from the conversation history.
 
     If ``draft_json`` is provided, it is included as context so the model can
     produce a modified version of the course.
+
+    ``validator`` / ``max_retries`` default to off so existing callers keep
+    single-shot behaviour; pass a validator and ``max_retries>=1`` to enable
+    the shared validate loop.
     """
     generation_prompt = build_prompt(spec)
     if draft_json is not None:
@@ -1221,12 +1747,29 @@ def generate_from_chat(
     ] + [m.to_api_dict() for m in messages]
     api_messages.append({"role": "user", "content": generation_prompt})
 
-    body = _chat_json(
-        config, api_messages, temperature=temperature, timeout=timeout,
-        cancel_check=cancel_check, on_chunk=on_chunk,
+    section = generate_with_validate_loop(
+        config,
+        api_messages,
+        validator,
+        max_retries=max_retries,
+        temperature=temperature,
+        timeout=timeout,
+        cancel_check=cancel_check,
+        on_chunk=on_chunk,
         usage_callback=usage_callback,
+        model=config.select_model("json"),
     )
-    return parse_completion(body)
+    if fill_needs_review:
+        section = fill_needs_review_resources(
+            config,
+            section,
+            language=spec.language,
+            source_language=spec.source_language,
+            timeout=min(timeout, 90.0),
+            cancel_check=cancel_check,
+            usage_callback=usage_callback,
+        )
+    return section
 
 
 def explain_course(
@@ -1239,7 +1782,11 @@ def explain_course(
     on_chunk: Callable[[str], None] | None = None,
     usage_callback: Callable[[dict[str, int]], None] | None = None,
 ) -> str:
-    """Ask the AI to explain the generated course in plain language."""
+    """Ask the AI to explain the generated course in plain language.
+
+    第三枪 批次①: routes through ``model_chat`` when configured (explanation is
+    a conversational call, not JSON generation).
+    """
     prompt = (
         "你刚刚为一位没有技术背景的教师生成了以下课程。"
         "请用通俗易懂的中文简要解释这门课的教学目标、单元划分、重点词汇/句型，"
@@ -1258,6 +1805,7 @@ def explain_course(
         config, api_messages, temperature=temperature, timeout=timeout,
         cancel_check=cancel_check, on_chunk=on_chunk,
         usage_callback=usage_callback, response_format=False,
+        model=config.select_model("chat"),
     )
     content = _extract_content(body, strip=True, empty_msg="AI 未返回解释")
     if not content:
@@ -1417,6 +1965,8 @@ def generate_edit(
     cancel_check: Callable[[], bool] | None = None,
     on_chunk: Callable[[str], None] | None = None,
     usage_callback: Callable[[dict[str, int]], None] | None = None,
+    validator: Callable[[dict], Any] | None = None,
+    max_retries: int = 0,
 ) -> dict:
     """Generate an edited section JSON based on an existing section.
 
@@ -1424,6 +1974,9 @@ def generate_edit(
     turn. In wish mode the conversation history is prepended and the edit
     prompt is appended as the final user turn (so the model incorporates the
     teacher's latest instructions).
+
+    Optional ``validator`` / ``max_retries`` use the shared validate loop
+    (default off for backward-compatible single-shot edits).
     """
     edit_prompt = build_edit_prompt(spec, existing_section, edit_scope, scope_id)
     if draft_json is not None:
@@ -1439,12 +1992,18 @@ def generate_edit(
         api_messages += [m.to_api_dict() for m in messages]
     api_messages.append({"role": "user", "content": edit_prompt})
 
-    body = _chat_json(
-        config, api_messages, temperature=temperature, timeout=timeout,
-        cancel_check=cancel_check, on_chunk=on_chunk,
+    parsed = generate_with_validate_loop(
+        config,
+        api_messages,
+        validator,
+        max_retries=max_retries,
+        temperature=temperature,
+        timeout=timeout,
+        cancel_check=cancel_check,
+        on_chunk=on_chunk,
         usage_callback=usage_callback,
+        model=config.select_model("json"),
     )
-    parsed = parse_completion(body)
     # In edit mode the returned section must keep the same id.
     existing_id = existing_section.get("id", "")
     if existing_id and parsed.get("id") != existing_id:
@@ -1594,27 +2153,35 @@ def _splice_lesson(
     import copy
 
     section = copy.deepcopy(existing_section)
-    # Ensure the new lesson keeps its identity id.
+    _splice_lesson_in_place(section, lesson_id, new_lesson)
+    return section
+
+
+def _splice_lesson_in_place(
+    section: dict[str, Any], lesson_id: str, new_lesson: dict[str, Any]
+) -> bool:
+    """Replace the lesson with ``lesson_id`` inside ``section`` in place.
+
+    Mutates ``section`` directly (no copy). Returns True if an existing
+    lesson with that id was found and replaced, False if the new lesson was
+    appended to the first unit instead. The caller is responsible for
+    deep-copying ``section`` first if it needs to preserve the original.
+    """
     new_lesson = dict(new_lesson)
     new_lesson["id"] = lesson_id
     units = section.get("units") or []
-    replaced = False
     for unit in units:
         lessons = unit.get("lessons") or []
         for i, lesson in enumerate(lessons):
             if isinstance(lesson, dict) and lesson.get("id") == lesson_id:
                 lessons[i] = new_lesson
-                replaced = True
-                break
-        if replaced:
-            break
-    if not replaced:
-        first_unit = next((u for u in units if isinstance(u, dict)), None)
-        if first_unit is None:
-            first_unit = {"id": "u-ai", "lessons": []}
-            section.setdefault("units", []).append(first_unit)
-        first_unit.setdefault("lessons", []).append(new_lesson)
-    return section
+                return True
+    first_unit = next((u for u in units if isinstance(u, dict)), None)
+    if first_unit is None:
+        first_unit = {"id": "u-ai", "lessons": []}
+        section.setdefault("units", []).append(first_unit)
+    first_unit.setdefault("lessons", []).append(new_lesson)
+    return False
 
 
 def regenerate_lesson_in_section(
@@ -1679,8 +2246,26 @@ def regenerate_unit_in_section(
     if unit is None:
         raise ValueError(f"未找到单元「{unit_id}」。")
     instr = instruction or _build_local_regen_instruction(spec, "重写该单元内的课时")
-    section = existing_section
-    for lesson in list(unit.get("lessons") or []):
+    # Deep-copy once and mutate in place: the old loop called _splice_lesson
+    # (which deep-copies the whole section) per lesson, making unit regen
+    # O(L * len(section)) in memory/time. (P1)
+    import copy as _copy
+
+    section = _copy.deepcopy(existing_section)
+    target_unit = next(
+        (u for u in (section.get("units") or []) if isinstance(u, dict) and u.get("id") == unit_id),
+        None,
+    )
+    if target_unit is None:
+        # Defensive: unit vanished during copy (shouldn't happen) — fall back.
+        target_unit = next(
+            (u for u in (existing_section.get("units") or [])
+             if isinstance(u, dict) and u.get("id") == unit_id),
+            None,
+        )
+        if target_unit is None:
+            raise ValueError(f"未找到单元「{unit_id}」。")
+    for lesson in list(target_unit.get("lessons") or []):
         if not isinstance(lesson, dict) or not lesson.get("id"):
             continue
         if cancel_check and cancel_check():
@@ -1695,7 +2280,7 @@ def regenerate_unit_in_section(
             on_chunk=on_chunk,
             usage_callback=usage_callback,
         )
-        section = _splice_lesson(section, lesson["id"], new_lesson)
+        _splice_lesson_in_place(section, lesson["id"], new_lesson)
     return section
 
 
@@ -1720,6 +2305,7 @@ def request_lesson_transform(
     cancel_check: Callable[[], bool] | None = None,
     on_chunk: Callable[[str], None] | None = None,
     usage_callback: Callable[[dict[str, int]], None] | None = None,
+    max_retries: int = 1,
 ) -> dict[str, Any]:
     """Transform a single lesson in-place according to a teacher instruction.
 
@@ -1727,16 +2313,21 @@ def request_lesson_transform(
     unless the instruction explicitly asks to change the template. Content
     shape (subLessons / stages / listeningPhases / readingPassage) must remain
     valid for the template.
+
+    Uses the shared validate loop: structural lesson errors are re-fed to the
+    model up to ``max_retries`` times before raising.
     """
     from src.backend import api
 
     template = lesson.get("template", "legacy")
+    pedagogy = pedagogy_prompt_block(level="A1", language="Turkish", template=template)
     prompt = (
         "你是一位语言课程编辑助手。请根据教师的指令改写下面这门课。\n\n"
         f"课程模板：{template}\n"
         f"课程 id（必须保留）：{lesson.get('id', '')}\n"
         f"课程名称：{lesson.get('name', '')}\n"
         f"课程描述：{lesson.get('description', '')}\n\n"
+        f"{pedagogy}\n\n"
         "当前课程完整 JSON：\n"
         f"```json\n{json.dumps(lesson, ensure_ascii=False, indent=2)}\n```\n\n"
         "教师指令：\n"
@@ -1758,28 +2349,45 @@ def request_lesson_transform(
         },
         {"role": "user", "content": prompt},
     ]
-    body = _chat_json(
-        config, messages, temperature=temperature, timeout=timeout,
-        cancel_check=cancel_check, on_chunk=on_chunk,
-        usage_callback=usage_callback,
-    )
-    content = _extract_content(body)
-    parsed = _parse_json_obj(content)
-    if "content" not in parsed:
-        raise ValueError("模型输出不是合法的课程 JSON（缺少 content）。")
 
-    # Preserve identity fields.
-    for key in ("id", "name", "template", "prerequisiteLessonIds"):
-        if key in lesson:
-            parsed[key] = lesson[key]
+    def _parse_lesson_body(body: Any) -> dict:
+        if isinstance(body, str):
+            body = json.loads(body)
+        content = _extract_content(body)
+        parsed = _parse_json_obj(content)
+        if "content" not in parsed:
+            raise ValueError("模型输出不是合法的课程 JSON（缺少 content）。")
+        for key in ("id", "name", "template", "prerequisiteLessonIds"):
+            if key in lesson:
+                parsed[key] = lesson[key]
+        return parsed
 
-    # Basic lesson-level validation against empty resource sets; the caller
-    # can do a stronger validation with the actual course vocab/expressions.
-    problems = api.validate_lesson(parsed, set(), set(), set())
-    errors = [p.to_dict() for p in problems if p.level == "error"]
+    def _lesson_validator(parsed: dict) -> list[dict]:
+        problems = api.validate_lesson(parsed, set(), set(), set())
+        return [p.to_dict() for p in problems if p.level == "error"]
+
+    try:
+        parsed = generate_with_validate_loop(
+            config,
+            messages,
+            _lesson_validator,
+            max_retries=max_retries,
+            temperature=temperature,
+            timeout=timeout,
+            cancel_check=cancel_check,
+            on_chunk=on_chunk,
+            usage_callback=usage_callback,
+            parse=_parse_lesson_body,
+            model=config.select_model("json"),
+        )
+    except ValueError:
+        raise
+
+    errors = _lesson_validator(parsed)
     if errors:
         raise ValueError(
-            "AI 返回的课程校验失败：\n" + "\n".join(p["message"] for p in errors[:5])
+            "AI 返回的课程校验失败：\n"
+            + "\n".join(e.get("message", str(e)) for e in errors[:5])
         )
     return parsed
 
@@ -1832,6 +2440,7 @@ def request_item_transform(
         config, messages, temperature=temperature, timeout=timeout,
         cancel_check=cancel_check, on_chunk=on_chunk,
         usage_callback=usage_callback,
+        model=config.select_model("json"),
     )
     content = _extract_content(body)
     parsed = _parse_json_obj(content)
@@ -1887,6 +2496,7 @@ def request_correction(
         config, messages, temperature=temperature, timeout=timeout,
         cancel_check=cancel_check, on_chunk=on_chunk,
         usage_callback=usage_callback,
+        model=config.select_model("json"),
     )
     content = _extract_content(body)
     return extract_json_object(content)

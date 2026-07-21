@@ -19,6 +19,7 @@ bookplan2 Phase 5 adds:
 """
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -129,6 +130,40 @@ class KnowledgePromptTemplates:
         )
 
 
+# Built-in per-language-pair template packs (aiEnhance.md P4-3). These sit
+# between the library default and persisted/user overrides: lookup order in
+# ``KnowledgePromptLibrary.templates_for`` is in-memory ``register`` >
+# persisted overrides > these built-in packs > the library default. Pure
+# wording - the JSON schema block is never altered per pair.
+_TR_ZH_RULES_BLOCK = (
+    _RULES_BLOCK
+    + "\n- The target language is Turkish: when a word illustrates vowel "
+    "harmony (元音和谐) or politeness/honorific usage (敬语, e.g. sen vs "
+    "siz), keep the form that actually appears in the text and choose an "
+    "accurate tag for it.\n"
+    "- term/title must be Turkish only - never mix Chinese characters into "
+    "them.\n"
+    "- translation must be written in Simplified Chinese (简体中文)."
+)
+
+_TR_ZH_VOCAB_RULES_BLOCK = (
+    _VOCAB_ONLY_RULES_BLOCK
+    + "\n- term must be Turkish only - never mix Chinese characters into it.\n"
+    "- translation must be written in Simplified Chinese (简体中文).\n"
+    "- When a word illustrates vowel harmony (元音和谐) or is a politeness "
+    "form (敬语), keep the form used in the text."
+)
+
+#: Built-in language-pair packs keyed by ``(language, source_language)``,
+#: lower-case - same normalisation as ``KnowledgePromptLibrary._key``.
+BUILTIN_PAIR_TEMPLATES: dict[tuple[str, str], KnowledgePromptTemplates] = {
+    ("turkish", "chinese"): KnowledgePromptTemplates(
+        rules_block=_TR_ZH_RULES_BLOCK,
+        vocab_rules_block=_TR_ZH_VOCAB_RULES_BLOCK,
+    ),
+}
+
+
 @dataclass
 class KnowledgePromptLibrary:
     """Per-language-pair prompt-template overrides (bookplan2 Phase 5).
@@ -138,9 +173,10 @@ class KnowledgePromptLibrary:
     extraction wording (e.g. reading-heavy vs grammar-heavy phrasing) without
     forking the module. Language matching is case-insensitive.
 
-    Lookup order (connectplan P1-3): in-memory ``register`` overrides (tests)
-    win over persisted overrides loaded via ``load_overrides_from``, which in
-    turn win over the built-in defaults.
+    Lookup order (connectplan P1-3 + aiEnhance P4-3): in-memory ``register``
+    overrides (tests) win over persisted overrides loaded via
+    ``load_overrides_from``, which win over the built-in language-pair packs
+    (``BUILTIN_PAIR_TEMPLATES``), which win over the built-in defaults.
     """
 
     templates: KnowledgePromptTemplates = field(default_factory=KnowledgePromptTemplates)
@@ -183,6 +219,8 @@ class KnowledgePromptLibrary:
             return self._overrides[key]
         if key in self._persisted:
             return self._persisted[key]
+        if key in BUILTIN_PAIR_TEMPLATES:
+            return BUILTIN_PAIR_TEMPLATES[key]
         return self.templates
 
     def clear(self) -> None:
@@ -323,3 +361,84 @@ def build_correction_prompt(errors: list[str]) -> str:
         "上一版抽取结果有以下校验错误，请修正后只输出完整的修正 JSON：\n"
         f"{bullet}"
     )
+
+
+def build_targeted_reextract_messages(
+    language: str,
+    source_language: str,
+    chapter: Chapter,
+    kp: Any,
+    issues: list[Any],
+    *,
+    max_chars: int = _MAX_CHAPTER_CHARS,
+    library: KnowledgePromptLibrary | None = None,
+) -> list[dict[str, str]]:
+    """Build messages for a quality-driven targeted re-extraction (P4-4).
+
+    Feeds the current extraction (``kp``, a ``KnowledgePoints``) plus the
+    concrete quality ``issues`` (``QualityIssue``-shaped objects, read
+    duck-typed via ``getattr`` so this module stays decoupled from
+    ``extraction_quality``) back to the model - in the style of
+    ``build_correction_prompt`` - and asks for a COMPLETE corrected
+    knowledge-points JSON under the same schema as a fresh extraction, so the
+    result can replace the old one wholesale.
+    """
+    lib = library or DEFAULT_LIBRARY
+    tpl = lib.templates_for(language, source_language)
+    current_json = json.dumps(
+        {
+            "words": kp.words,
+            "expressions": kp.expressions,
+            "grammarPoints": kp.grammarPoints,
+        },
+        ensure_ascii=False,
+        indent=2,
+    )
+    issue_lines: list[str] = []
+    for issue in issues:
+        level = getattr(issue, "level", "warning")
+        kind = getattr(issue, "kind", "")
+        message = getattr(issue, "message", str(issue))
+        where_parts: list[str] = []
+        resource_type = getattr(issue, "resource_type", None)
+        resource_index = getattr(issue, "resource_index", None)
+        field_name = getattr(issue, "field", None)
+        if resource_type is not None:
+            where = str(resource_type)
+            if resource_index is not None:
+                where += f" #{resource_index}"
+            where_parts.append(where)
+        if field_name:
+            where_parts.append(f"field: {field_name}")
+        suffix = f"（{'，'.join(where_parts)}）" if where_parts else ""
+        issue_lines.append(f"- [{level}/{kind}] {message}{suffix}")
+    issues_block = "\n".join(issue_lines) or "- （无具体问题列表，请整体复查。）"
+
+    user_prompt = "\n".join(
+        [
+            "The previous extraction for this chapter has quality problems. "
+            "Produce a COMPLETE corrected knowledge-points JSON (same schema "
+            "as before) that fixes every issue below while keeping all valid "
+            "entries.",
+            "",
+            f"Target language (the language being taught): {language}",
+            f"Source / prompt language (for translations): {source_language}",
+            f"Chapter title: {chapter.title}",
+            "",
+            "Quality issues to fix:",
+            issues_block,
+            "",
+            "Current extraction (correct it and return it in full):",
+            current_json,
+            "",
+            tpl.schema_block,
+            tpl.rules_block,
+            "",
+            "Chapter Markdown:",
+            _truncate_markdown(chapter.markdown, max_chars),
+        ]
+    )
+    return [
+        {"role": "system", "content": tpl.system},
+        {"role": "user", "content": user_prompt},
+    ]

@@ -157,17 +157,21 @@ class UnifiedWorkspaceWidget(QWidget):
 
         self.right_tabs = QTabWidget()
         self.right_tabs.addTab(self.review_panel, "结构大纲")
-        self.right_tabs.addTab(self.design_panel, "设计与草稿")
+        self.right_tabs.addTab(self.design_panel, "对话与高级")
         self.import_panel._stack.removeWidget(self._import_page)
         self.right_tabs.addTab(self._import_page, "章节导入")
 
         right_lay.addWidget(self.right_tabs)
         self.splitter.addWidget(right_widget)
 
-        self.splitter.setStretchFactor(0, 2)
+        # L2-5: prefer center + right; left thinner (blank projects collapse further).
+        self.splitter.setStretchFactor(0, 1)
         self.splitter.setStretchFactor(1, 2)
         self.splitter.setStretchFactor(2, 3)
         layout.addWidget(self.splitter, 1)
+
+        self._left_collapsed = False
+        self._left_widget = left_widget
 
     def _build_banner(self) -> QFrame:
         banner = QFrame()
@@ -203,18 +207,7 @@ class UnifiedWorkspaceWidget(QWidget):
 
     def _init_orbit_params(self) -> None:
         params = self.design_panel._controller.params
-        self.orbit_widget.level_combo.setCurrentText(params.get("level", "A1"))
-        self.orbit_widget.unit_spin.setValue(int(params.get("unit_count", 1)))
-        self.orbit_widget.lessons_spin.setValue(int(params.get("lessons_per_unit", 3)))
-
-        idx = self.orbit_widget.template_combo.findData(params.get("template", "mixed"))
-        if idx >= 0:
-            self.orbit_widget.template_combo.setCurrentIndex(idx)
-
-        topic = params.get("topic", "") or ""
-        whisper = params.get("extra_instructions", "") or ""
-        self.orbit_widget.topic_edit.setText(topic)
-        self.orbit_widget.whisper_edit.setText(whisper)
+        self.orbit_widget.apply_params(params)
 
         for item in params.get("dropped_bubbles", []) or []:
             entry = item.get("entry")
@@ -225,8 +218,10 @@ class UnifiedWorkspaceWidget(QWidget):
         if self._blank:
             self.orbit_widget.set_empty_hint(
                 "空白项目：填写主题 → 点核心生成（Ctrl+Enter）\n"
-                "也可点下方打开对话 / 附件 / 模板"
+                "对话 / 附件 / 模板点「对话与高级…」"
             )
+            # L2-1: blank projects start with a narrow left column.
+            QTimer.singleShot(0, lambda: self.set_left_collapsed(True))
         self._update_focus_summary()
 
     # ------------------------------------------------------------------ focus / banner
@@ -238,10 +233,10 @@ class UnifiedWorkspaceWidget(QWidget):
 
         if self._blank:
             self.left_tabs.setCurrentIndex(2)
-            self.right_tabs.setCurrentIndex(1 if not has_draft else 0)
+            # L2-2: always prefer 结构大纲 on the right (empty state until draft).
+            self.right_tabs.setCurrentIndex(0)
             self._bubble_desc.setText(
-                "空白 AI 项目可直接在中间设定参数并生成；若稍后从教材提取知识点，"
-                "气泡会出现在这里供拖拽聚焦。"
+                "空白 AI 项目：在中间设参并生成；教材知识点提取后可拖入轨道聚焦。"
             )
             return
 
@@ -252,7 +247,8 @@ class UnifiedWorkspaceWidget(QWidget):
         else:
             self.left_tabs.setCurrentIndex(0)
 
-        self.right_tabs.setCurrentIndex(0 if has_draft else 1)
+        # Outline is the result surface; chat is opt-in via Orbit.
+        self.right_tabs.setCurrentIndex(0)
 
     def _tips_dismissed(self) -> bool:
         s = QSettings("Varnamala", "CourseEditor")
@@ -271,8 +267,8 @@ class UnifiedWorkspaceWidget(QWidget):
             return ""
         if self._blank:
             return (
-                "下一步：在中间填写「主题」，点圆形「AI 核心」生成课程；"
-                "需要多轮讨论时点「打开对话 / 附件 / 模板…」。"
+                "下一步：在中间填写「主题」，点「AI 核心」生成；"
+                "生成后右侧「结构大纲」审阅导入。需要对话时点「对话与高级…」。"
             )
         if self._chapter_count() == 0:
             return "下一步：在左侧选择或拖入教材文件，勾选章节后提取知识点。"
@@ -477,12 +473,14 @@ class UnifiedWorkspaceWidget(QWidget):
             self._update_focus_summary()
 
     def _on_generate_clicked(self) -> None:
-        level = self.orbit_widget.level_combo.currentText()
-        units = self.orbit_widget.unit_spin.value()
-        lessons = self.orbit_widget.lessons_spin.value()
-        template = self.orbit_widget.template_combo.currentData() or "mixed"
-        whisper = self.orbit_widget.whisper_edit.text().strip()
-        topic = self.orbit_widget.topic_edit.text().strip()
+        op = self.orbit_widget.params_dict()
+        topic = op["topic"]
+        level = op["level"]
+        units = op["unit_count"]
+        lessons = op["lessons_per_unit"]
+        template = op["template"]
+        whisper = op["extra_instructions"]
+        gen_mode = op["generation_mode"]
 
         controller = self.design_panel._controller
 
@@ -504,18 +502,32 @@ class UnifiedWorkspaceWidget(QWidget):
             if not topic:
                 topic = controller.params.get("topic") or "基础会话"
 
-        if hasattr(self.design_panel, "_topic_edit"):
-            self.design_panel._topic_edit.setText(topic)
-        if hasattr(self.design_panel, "_extra_edit"):
-            self.design_panel._extra_edit.setText(whisper)
-        if hasattr(self.design_panel, "_level_combo"):
-            self.design_panel._level_combo.setCurrentText(level)
-        if hasattr(self.design_panel, "_units_spin"):
-            self.design_panel._units_spin.setValue(units)
-        if hasattr(self.design_panel, "_lessons_spin"):
-            self.design_panel._lessons_spin.setValue(lessons)
-        if hasattr(self.design_panel, "_template_combo"):
-            self.design_panel._template_combo.setCurrentText(template)
+        # Keep design-panel hidden mirrors in sync (chat path / tests).
+        self.design_panel.apply_orbit_params(
+            {
+                "topic": topic,
+                "level": level,
+                "unit_count": units,
+                "lessons_per_unit": lessons,
+                "template": template,
+                "extra_instructions": whisper,
+                "generation_mode": gen_mode,
+            }
+        )
+
+        # Advanced panel fields (brief / skip / genre) still on design panel.
+        brief = ""
+        skip_fix = False
+        skip_explain = False
+        use_genre = False
+        if hasattr(self.design_panel, "_brief_edit"):
+            brief = self.design_panel._brief_edit.text().strip()
+        if hasattr(self.design_panel, "_skip_fix_check"):
+            skip_fix = self.design_panel._skip_fix_check.isChecked()
+        if hasattr(self.design_panel, "_skip_explain_check"):
+            skip_explain = self.design_panel._skip_explain_check.isChecked()
+        if hasattr(self.design_panel, "_template_bar"):
+            use_genre = bool(self.design_panel._template_bar.is_genre_enabled())
 
         controller.set_params(
             topic=topic,
@@ -524,6 +536,11 @@ class UnifiedWorkspaceWidget(QWidget):
             lessons_per_unit=lessons,
             template=template,
             extra_instructions=whisper,
+            design_brief=brief,
+            generation_mode=gen_mode,
+            pipeline_skip_fix=skip_fix,
+            pipeline_skip_explain=skip_explain,
+            use_genre_batch=use_genre,
             dropped_bubbles=list(self.orbit_widget.dropped_items),
         )
         controller.generate()
@@ -535,3 +552,38 @@ class UnifiedWorkspaceWidget(QWidget):
         self.review_panel.refresh()
         self.focus_outline()
         self._update_banner()
+
+    def set_left_collapsed(self, collapsed: bool) -> None:
+        """L2-1: shrink left column for blank projects (still reachable)."""
+        self._left_collapsed = collapsed
+        sizes = self.splitter.sizes()
+        if not sizes or len(sizes) < 3:
+            total = max(self.width(), 900)
+            if collapsed:
+                self.splitter.setSizes(
+                    [max(120, total // 10), total * 4 // 10, total * 5 // 10]
+                )
+            else:
+                self.splitter.setSizes(
+                    [total // 4, total * 3 // 8, total * 3 // 8]
+                )
+            return
+        total = sum(sizes) or 900
+        if collapsed:
+            self.splitter.setSizes(
+                [max(100, total // 12), total * 5 // 12, total // 2]
+            )
+        else:
+            self.splitter.setSizes(
+                [total // 4, total * 3 // 8, total * 3 // 8]
+            )
+
+    def focus_left_tab(self, index: int) -> None:
+        if self._left_collapsed:
+            self.set_left_collapsed(False)
+        if 0 <= index < self.left_tabs.count():
+            self.left_tabs.setCurrentIndex(index)
+
+    def focus_right_tab(self, index: int) -> None:
+        if 0 <= index < self.right_tabs.count():
+            self.right_tabs.setCurrentIndex(index)

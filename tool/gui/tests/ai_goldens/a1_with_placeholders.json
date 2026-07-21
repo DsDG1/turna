@@ -1,0 +1,53 @@
+{
+  "id": "ai-stub",
+  "name": "Stub section",
+  "words": [
+    {
+      "id": "w-missing",
+      "term": "merhaba",
+      "translation": "[待补]",
+      "tags": ["auto-fix", "needs-review"]
+    }
+  ],
+  "expressions": [
+    {
+      "id": "e-missing",
+      "term": "e-missing",
+      "translation": "[待补]",
+      "tags": ["auto-fix", "needs-review"]
+    }
+  ],
+  "grammarPoints": [],
+  "units": [
+    {
+      "id": "u1",
+      "name": "U1",
+      "lessons": [
+        {
+          "id": "l1",
+          "name": "L1",
+          "template": "intro",
+          "content": {
+            "subLessons": [
+              {
+                "id": "sl1",
+                "stages": [
+                  {
+                    "id": "st1",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "i1",
+                        "wordId": "w-missing"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

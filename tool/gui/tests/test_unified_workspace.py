@@ -74,12 +74,14 @@ class UnifiedWorkspaceTest(unittest.TestCase):
         self.assertEqual(self.ws.left_tabs.count(), 3)
         self.assertEqual(self.ws.right_tabs.count(), 3)
         self.assertEqual(self.ws.right_tabs.tabText(0), "结构大纲")
-        self.assertEqual(self.ws.right_tabs.tabText(1), "设计与草稿")
+        self.assertEqual(self.ws.right_tabs.tabText(1), "对话与高级")
         self.assertEqual(self.ws.right_tabs.tabText(2), "章节导入")
 
     def test_design_panel_chat_not_hidden(self) -> None:
+        # Chat stays visible; topic lives on Orbit (hidden mirror on design panel).
         self.assertFalse(self.design._chat_input.isHidden())
-        self.assertFalse(self.design._topic_edit.isHidden())
+        self.assertTrue(self.design._topic_edit.isHidden())
+        self.assertFalse(self.ws.orbit_widget.topic_edit.isHidden())
 
     def test_bubble_pool_from_checked_rows(self) -> None:
         # Resumed project has one word checked by default in review table?
@@ -139,8 +141,8 @@ class UnifiedWorkspaceTest(unittest.TestCase):
         self.design._on_draft_ready(draft)
         self.assertIs(self.ws.right_tabs.currentWidget(), self.review)
 
-    def test_blank_layout_prefers_design_tab(self) -> None:
-        # Need a fresh import panel — pages cannot be reparented twice.
+    def test_blank_layout_prefers_outline_tab(self) -> None:
+        # Blank projects: right defaults to 结构大纲; left on 气泡池.
         project = self.store.create_project(name="Blank", source_path=None)
         panel = TextbookImportDialog(
             None, None, project=project, store=self.store, embedded=True
@@ -152,7 +154,7 @@ class UnifiedWorkspaceTest(unittest.TestCase):
             None, panel, design, review, None, blank=True, project_id=project.project_id
         )
         try:
-            self.assertEqual(ws2.right_tabs.currentIndex(), 1)
+            self.assertEqual(ws2.right_tabs.currentIndex(), 0)
             self.assertEqual(ws2.left_tabs.currentIndex(), 2)
             self.assertIn("可选", ws2.left_tabs.tabText(0))
         finally:

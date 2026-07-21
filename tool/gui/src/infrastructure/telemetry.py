@@ -39,6 +39,10 @@ class Telemetry:
         self._logger = logging.getLogger(logger_name)
         self._logger.setLevel(logging.INFO)
         self._logger.propagate = False
+        # Track whether we've already warned the user that telemetry writes
+        # are failing, so a permanently-unwritable log (full disk, read-only
+        # home) doesn't spam stderr on every event. (M10)
+        self._write_failed_warned = False
         self._setup_handler()
 
     def _setup_handler(self) -> None:
@@ -87,8 +91,20 @@ class Telemetry:
         try:
             self._logger.info(json.dumps(line, ensure_ascii=False, sort_keys=True))
         except Exception:
-            # Telemetry must never crash the application.
-            pass
+            # Telemetry must never crash the application, but a permanently
+            # unwritable log (full disk, read-only home) would otherwise be
+            # completely invisible. Emit one stderr warning the first time a
+            # write fails so the user has a chance to notice and fix it.
+            if not self._write_failed_warned:
+                self._write_failed_warned = True
+                try:
+                    print(
+                        f"[varnamala] warning: telemetry log write failed "
+                        f"({self._log_file}); subsequent failures will be silent.",
+                        file=sys.stderr,
+                    )
+                except Exception:  # noqa: BLE001 — even stderr can fail in CI
+                    pass
 
     def start_session(self) -> None:
         """Record application/session start."""

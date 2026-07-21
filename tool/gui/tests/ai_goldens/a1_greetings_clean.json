@@ -1,0 +1,81 @@
+{
+  "id": "ai-greetings",
+  "name": "Greetings",
+  "description": "A1 greetings",
+  "words": [
+    {
+      "id": "w-merhaba",
+      "term": "Merhaba",
+      "translation": "你好",
+      "pronunciation": null,
+      "audioAsset": null,
+      "tags": ["greeting"]
+    },
+    {
+      "id": "w-gunaydin",
+      "term": "Günaydın",
+      "translation": "早上好",
+      "pronunciation": null,
+      "audioAsset": null,
+      "tags": ["greeting"]
+    }
+  ],
+  "expressions": [
+    {
+      "id": "e-nasilsin",
+      "term": "Nasılsın?",
+      "translation": "你好吗？",
+      "pronunciation": null,
+      "audioAsset": null,
+      "tags": []
+    }
+  ],
+  "grammarPoints": [],
+  "units": [
+    {
+      "id": "ai-greetings-u1",
+      "name": "Unit 1",
+      "lessons": [
+        {
+          "id": "ai-greetings-u1-l1",
+          "name": "Hello",
+          "template": "intro",
+          "content": {
+            "subLessons": [
+              {
+                "id": "ai-greetings-u1-l1-sl1",
+                "name": "Words",
+                "stages": [
+                  {
+                    "id": "ai-greetings-u1-l1-st1",
+                    "name": "Meet",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "ai-greetings-i1",
+                        "wordId": "w-merhaba"
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "ai-greetings-i2",
+                        "prompt": "「你好」怎么说？",
+                        "options": ["Merhaba", "Günaydın", "Teşekkürler", "Rica ederim"],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ai-greetings-i3",
+                        "source": "你好",
+                        "expected": "Merhaba"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -87,16 +87,20 @@ class AiLessonHelperDialog(QDialog):
         chips_layout = QHBoxLayout(chips)
         chips_layout.setContentsMargins(0, 0, 0, 0)
         chips_layout.setSpacing(8)
-        for text in (
-            "生成 3 道练习题",
-            "降低难度",
-            "增加干扰项",
-            "改成听力题型",
-            "润色题干",
+        from src.backend.ai_presets_ui import (
+            TEACHER_PRESET_INSTRUCTIONS,
+            TEACHER_PRESET_LABELS,
+        )
+
+        for label, instruction in zip(
+            TEACHER_PRESET_LABELS, TEACHER_PRESET_INSTRUCTIONS
         ):
-            btn = QPushButton(text)
+            btn = QPushButton(label)
             btn.setFlat(True)
-            btn.clicked.connect(lambda _c=False, t=text: self._append_instruction(t))
+            btn.setToolTip(instruction)
+            btn.clicked.connect(
+                lambda _c=False, t=instruction: self._append_instruction(t)
+            )
             chips_layout.addWidget(btn)
         chips_layout.addStretch()
         layout.addWidget(chips)
@@ -240,11 +244,16 @@ class AiLessonHelperDialog(QDialog):
         )
         if isinstance(result, dict):
             self._result = result
-            self.status_label.setText("生成成功，点击「应用」即可替换当前内容。")
+            undo_hint = (
+                "生成成功。预览如下，点「应用」写入；"
+                "写入后可用 Ctrl+Z 撤销（教师模式撤销栈）。"
+            )
+            self.status_label.setText(undo_hint)
             self.preview.setVisible(True)
             self.preview.setPlainText(
                 "生成结果预览（仅显示顶层结构）：\n"
                 + self._preview_text(result)
+                + "\n\n（应用前请确认；应用后 Ctrl+Z 可撤销）"
             )
             self._button_box.button(QDialogButtonBox.StandardButton.Apply).setEnabled(True)
         else:

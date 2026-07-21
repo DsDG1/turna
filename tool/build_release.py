@@ -53,12 +53,18 @@ def copy_artifact(src: Path, dst: Path) -> None:
 
 
 def copy_tree(src: Path, dst: Path) -> None:
+    """Copy a directory tree to ``dst``.
+
+    Uses ``dirs_exist_ok=True`` so the destination is merged in place rather
+    than removed-then-recreated — the old ``rmtree`` + ``copytree`` sequence
+    left no tree at all if the process was interrupted between the two calls
+    (M18).
+    """
     if not src.exists():
         print(f"error: expected artifact directory not found: {src}", file=sys.stderr)
         sys.exit(1)
-    if dst.exists():
-        shutil.rmtree(dst)
-    shutil.copytree(src, dst)
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(src, dst, dirs_exist_ok=True)
     print(f"-> {dst}")
 
 

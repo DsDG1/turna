@@ -54,9 +54,13 @@ class ReviewPanelTest(unittest.TestCase):
             self.review._try_btn,
             self.review._diff_btn,
             self.review._fix_btn,
+            self.review._quality_fix_btn,
+            self.review._fill_review_btn,
             self.review._import_btn,
         ):
             self.assertFalse(btn.isEnabled())
+        self.assertTrue(self.review._quality_label.isHidden())
+        self.assertTrue(self.review._summary_browser.isHidden())
 
     def test_refresh_with_draft(self) -> None:
         self.design._on_draft_ready(sample_section())
@@ -66,6 +70,16 @@ class ReviewPanelTest(unittest.TestCase):
         self.assertTrue(self.review._import_btn.isEnabled())
         # Structured preview received the section.
         self.assertEqual(self.review._preview.section()["id"], "greetings")
+        # Content quality chips (aiEnhance P2-5). Parent may not be shown in
+        # offscreen unit tests, so assert hidden flag + text rather than isVisible().
+        self.assertFalse(self.review._quality_label.isHidden())
+        self.assertIn("内容质量", self.review._quality_label.text())
+        self.assertIsNotNone(self.review._last_quality)
+        self.assertTrue(self.review._quality_fix_btn.isEnabled())
+        # U0-1 summary card + clickable dimension chips.
+        self.assertFalse(self.review._summary_browser.isHidden())
+        self.assertIn("生成摘要", self.review._summary_browser.toPlainText())
+        self.assertTrue(self.review._dim_buttons["coverage"].isEnabled())
 
     def test_manual_editor_edits_are_the_truth(self) -> None:
         """B1: the review reads the design editor, not a stale controller."""
@@ -133,11 +147,27 @@ class ReviewPanelTest(unittest.TestCase):
 
     def test_regenerate_requested_calls_controller(self) -> None:
         self.design._on_draft_ready(sample_section())
-        with unittest.mock.patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.Yes), unittest.mock.patch.object(
+        with unittest.mock.patch.object(
+            self.review,
+            "_prompt_regenerate_instruction",
+            return_value="加强干扰项",
+        ), unittest.mock.patch.object(
             self.design._controller, "regenerate_lesson", return_value=True
         ) as regen:
             self.review._on_regenerate_requested("lesson", "l")
-            regen.assert_called_once_with("l")
+            regen.assert_called_once_with("l", instruction="加强干扰项")
+
+    def test_regenerate_cancel_skips_controller(self) -> None:
+        self.design._on_draft_ready(sample_section())
+        with unittest.mock.patch.object(
+            self.review,
+            "_prompt_regenerate_instruction",
+            return_value=None,
+        ), unittest.mock.patch.object(
+            self.design._controller, "regenerate_lesson", return_value=True
+        ) as regen:
+            self.review._on_regenerate_requested("lesson", "l")
+            regen.assert_not_called()
 
 
 class ResultPreviewHumanizeTest(unittest.TestCase):

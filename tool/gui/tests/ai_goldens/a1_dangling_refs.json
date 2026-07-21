@@ -1,0 +1,32 @@
+{
+  "id": "ai-dangle",
+  "name": "Dangling",
+  "words": [],
+  "expressions": [],
+  "grammarPoints": [],
+  "units": [
+    {
+      "id": "u1",
+      "lessons": [
+        {
+          "id": "l1",
+          "template": "intro",
+          "content": {
+            "stages": [
+              {
+                "id": "st1",
+                "items": [
+                  {
+                    "runtimeType": "showWord",
+                    "id": "i1",
+                    "wordId": "w-not-defined"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

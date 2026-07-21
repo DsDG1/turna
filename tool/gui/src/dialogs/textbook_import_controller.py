@@ -28,7 +28,10 @@ from src.backend.extraction_quality import (
 )
 from src.backend.import_step_result import ImportStepResult
 from src.backend.import_strategy import SectionImportPreview, plan_bulk_import
-from src.backend.knowledge_extractor import extract_knowledge_points
+from src.backend.knowledge_extractor import (
+    extract_knowledge_points_windowed,
+    reextract_knowledge_targeted,
+)
 from src.backend.knowledge_merger import MergeReport, apply as merge_knowledge_points
 from src.backend.knowledge_schema import KnowledgePoints
 from src.backend.markdown_chopper import Chapter, split_chapters
@@ -87,6 +90,7 @@ class TextbookImportController:
         project_name: str = "",
         preset: TextbookPreset | None = None,
         max_concurrent: int = 1,
+        auto_cascade: bool = True,
     ) -> None:
         self._ai_config_fn = ai_config_fn
         self._worker_factory = worker_factory or self._default_worker_factory
@@ -102,6 +106,12 @@ class TextbookImportController:
         self._project_name = project_name
         self._preset = preset or preset_for("general")
         self._max_concurrent = max(1, int(max_concurrent))
+        # P4-2: when a ``standard`` extraction fails, automatically retry the
+        # chapter once with ``vocab_only`` (disable via the
+        # ``textbook/auto_cascade`` settings key).
+        self._auto_cascade = bool(auto_cascade)
+        # Strategies already tried per chapter (anti-loop guard for cascade).
+        self._attempted_strategies: dict[int, set[str]] = {}
 
         self._source_path: Path | None = None
         self._md: str = ""
@@ -151,6 +161,14 @@ class TextbookImportController:
     @autosave_enabled.setter
     def autosave_enabled(self, value: bool) -> None:
         self._autosave_enabled = value
+
+    @property
+    def auto_cascade(self) -> bool:
+        return self._auto_cascade
+
+    @auto_cascade.setter
+    def auto_cascade(self, value: bool) -> None:
+        self._auto_cascade = bool(value)
 
     @property
     def preset(self) -> TextbookPreset:
@@ -423,6 +441,7 @@ class TextbookImportController:
         self._completed_count = 0
         self._usage_by_chapter = {}
         self._project_usage = dict(_ZERO_USAGE)
+        self._attempted_strategies = {}
         self._emit_step(self.STEP_EXTRACT, ImportStepResult.success("extract", "开始提取知识点…"))
         self._extract_next()
         return ImportStepResult.success("extract", "开始提取知识点…")
@@ -481,12 +500,14 @@ class TextbookImportController:
 
         Shared by the batch path (``_start_worker``) and single-chapter retry.
         ``strategy`` overrides the preset's strategy so retry can request
-        ``vocab_only``. Other knobs (temperature/max_tokens/max_chars) come from
-        the active preset.
+        ``vocab_only``. Other knobs (temperature/max_tokens/max_chars/window
+        sizes) come from the active preset. The attempted strategy is recorded
+        per chapter so the P4-2 auto-cascade cannot loop.
         """
         cr = self._chapters[idx]
+        self._attempted_strategies.setdefault(idx, set()).add(strategy)
         worker = self._worker_factory(
-            extract_knowledge_points,
+            extract_knowledge_points_windowed,
             self._ai_config_fn(),
             self._language,
             self._source_language,
@@ -495,20 +516,37 @@ class TextbookImportController:
             temperature=self._preset.temperature,
             max_tokens=self._preset.max_tokens,
             max_chapter_chars=self._preset.max_chapter_chars,
+            max_window_chars=self._preset.window_chars,
+            overlap_chars=self._preset.overlap_chars,
             max_retries=1,
         )
-        # AiRequestWorker-compatible signal names. The worker identity is bound
-        # into every callback so signals arriving after this worker was dropped
-        # from ``_active_workers`` (cancelled run, superseded retry) can be
-        # recognised as stale and ignored.
+        self._connect_and_start(
+            idx,
+            worker,
+            on_ready=lambda kp, idx=idx, w=worker: self._on_extract_ready(idx, kp, w),
+            on_error=lambda msg, idx=idx, w=worker: self._on_extract_error(
+                idx, msg, w, strategy=strategy
+            ),
+        )
+
+    def _connect_and_start(
+        self,
+        idx: int,
+        worker: Any,
+        *,
+        on_ready: Callable[[Any], None],
+        on_error: Callable[[str], None],
+    ) -> None:
+        """Wire AiRequestWorker-compatible signals and start the worker.
+
+        The worker identity is bound into every callback so signals arriving
+        after this worker was dropped from ``_active_workers`` (cancelled run,
+        superseded retry) can be recognised as stale and ignored.
+        """
         if hasattr(worker, "result_ready"):
-            worker.result_ready.connect(
-                lambda kp, idx=idx, w=worker: self._on_extract_ready(idx, kp, w)
-            )
+            worker.result_ready.connect(on_ready)
         if hasattr(worker, "error_occurred"):
-            worker.error_occurred.connect(
-                lambda msg, idx=idx, w=worker: self._on_extract_error(idx, msg, w)
-            )
+            worker.error_occurred.connect(on_error)
         if hasattr(worker, "chunk_ready"):
             worker.chunk_ready.connect(self._on_extract_chunk)
         if hasattr(worker, "usage_ready"):
@@ -578,12 +616,42 @@ class TextbookImportController:
         self._autosave()
         self._finish_worker(idx)
 
-    def _on_extract_error(self, idx: int, message: str, worker: object) -> None:
+    def _on_extract_error(
+        self, idx: int, message: str, worker: object, *, strategy: str = "standard"
+    ) -> None:
         if not self._is_active(idx, worker):
             return  # stale worker from a cancelled/superseded run
+        if (
+            self._auto_cascade
+            and not self._cancelled
+            and strategy == "standard"
+            and "vocab_only" not in self._attempted_strategies.get(idx, set())
+        ):
+            # P4-2: standard extraction failed - automatically cascade to a
+            # vocab_only retry of the same chapter (once; usage accumulates
+            # under the same chapter index). Only a vocab_only failure leaves
+            # the chapter in the error state.
+            self._active_workers.pop(idx, None)
+            self._on_extract_log(
+                "\n  … 标准抽取失败，自动降级为仅词汇（vocab_only）重试本章…"
+            )
+            telemetry.record_event(
+                "textbook.extract.chapter.cascade",
+                payload={"chapter_index": idx, "from": "standard", "to": "vocab_only"},
+            )
+            self._launch_worker(idx, strategy="vocab_only")
+            return
         if 0 <= idx < len(self._chapters):
             self._chapters[idx].error = message
-            self._on_extract_log(f"\n  ✗ 失败：{message}（可在审校页选择重试/仅抽词汇/跳过）")
+            if strategy == "vocab_only":
+                self._on_extract_log(
+                    f"\n  ✗ 仅词汇抽取仍失败：{message}"
+                    "（建议在审校页跳过本章，或稍后人工重试）"
+                )
+            else:
+                self._on_extract_log(
+                    f"\n  ✗ 失败：{message}（可在审校页选择重试/仅抽词汇/跳过）"
+                )
             telemetry.record_event(
                 "textbook.extract.chapter.failure",
                 payload={"chapter_index": idx, "error": message},
@@ -666,6 +734,102 @@ class TextbookImportController:
         self._on_extract_log(f"\n- 重试第 {index + 1} 章：{cr.chapter.title}（{mode}） -")
         self._launch_worker(index, strategy=mode)
         return ImportStepResult.success("extract", "开始重试抽取…")
+
+    def reextract_chapter_targeted(self, index: int) -> ImportStepResult:
+        """Re-extract one chapter guided by its quality issues (P4-4).
+
+        The chapter must already hold extracted knowledge and the quality
+        report must list issues for it; the worker asks the model for a
+        complete corrected result which then replaces ``cr.knowledge`` and the
+        quality scores are recomputed. Returns a recoverable error (and
+        launches nothing) when there is nothing to fix.
+        """
+        if not (0 <= index < len(self._chapters)):
+            return ImportStepResult.error("extract", "章节索引无效。")
+        if index in self._active_workers:
+            return ImportStepResult.error(
+                "extract", "该章节已有提取任务进行中。", recoverable=True
+            )
+        cr = self._chapters[index]
+        if cr.knowledge is None:
+            return ImportStepResult.error(
+                "extract", "该章尚未成功抽取，无法按质量重抽。", recoverable=True
+            )
+        config = self._ai_config_fn()
+        if not getattr(config, "is_complete", False):
+            return ImportStepResult.error(
+                "extract",
+                "请先在设置中配置 AI API 后再重抽。",
+                recoverable=True,
+                recovery_options=["打开设置"],
+            )
+        report = self._quality_report or self.compute_quality_report(adapter=None)
+        chapter_quality = report.chapter_quality(index)
+        issues = chapter_quality.issues if chapter_quality else []
+        if not issues:
+            return ImportStepResult.error(
+                "extract", "该章没有质量问题，无需按质量重抽。", recoverable=True
+            )
+
+        self._cancelled = False
+        self._on_extract_log(
+            f"\n- 按质量重抽第 {index + 1} 章：{cr.chapter.title}"
+            f"（{len(issues)} 个质量问题） -"
+        )
+        telemetry.record_event(
+            "textbook.extract.chapter.targeted_reextract",
+            payload={"chapter_index": index, "issue_count": len(issues)},
+        )
+        worker = self._worker_factory(
+            reextract_knowledge_targeted,
+            config,
+            self._language,
+            self._source_language,
+            cr.chapter,
+            cr.knowledge,
+            issues,
+            temperature=self._preset.temperature,
+            max_tokens=self._preset.max_tokens,
+            max_retries=1,
+        )
+        self._connect_and_start(
+            index,
+            worker,
+            on_ready=lambda kp, idx=index, w=worker: self._on_reextract_ready(idx, kp, w),
+            on_error=lambda msg, idx=index, w=worker: self._on_reextract_error(idx, msg, w),
+        )
+        return ImportStepResult.success("extract", "开始按质量重抽…")
+
+    def _on_reextract_ready(self, idx: int, kp: KnowledgePoints, worker: object) -> None:
+        if not self._is_active(idx, worker):
+            return  # stale worker from a cancelled/superseded run
+        if 0 <= idx < len(self._chapters):
+            self._chapters[idx].knowledge = kp
+            self._chapters[idx].error = ""
+            w = len(kp.words)
+            e = len(kp.expressions)
+            g = len(kp.grammarPoints)
+            self._on_extract_log(f"\n  ✓ 按质量重抽完成：{w} 词 / {e} 表达 / {g} 语法点")
+            telemetry.record_event(
+                "textbook.extract.chapter.targeted_reextract.success",
+                payload={"chapter_index": idx},
+            )
+            # Recompute quality scores against the corrected extraction.
+            self.compute_quality_report(adapter=None)
+        self._autosave()
+        self._finish_worker(idx)
+
+    def _on_reextract_error(self, idx: int, message: str, worker: object) -> None:
+        if not self._is_active(idx, worker):
+            return  # stale worker from a cancelled/superseded run
+        # Keep the original extraction: a failed re-extract must not turn a
+        # merely low-quality chapter into a failed one.
+        self._on_extract_log(f"\n  ✗ 按质量重抽失败：{message}（已保留原抽取结果）")
+        telemetry.record_event(
+            "textbook.extract.chapter.targeted_reextract.failure",
+            payload={"chapter_index": idx, "error": message},
+        )
+        self._finish_worker(idx)
 
     def skip_chapter(self, index: int) -> None:
         """Mark a chapter as not imported (used after extraction failure)."""
@@ -845,6 +1009,7 @@ class TextbookImportController:
         self._cancelled = False
         self._autosave_dirty = False
         self._last_autosave_at = 0.0
+        self._attempted_strategies = {}
         # Notify the view so it can render the restored step.
         self._emit_step(project.current_step)
 
@@ -868,9 +1033,21 @@ class TextbookImportController:
         self._last_autosave_at = now
         try:
             self._on_autosave(self.to_project())
-        except Exception:
-            # Autosave must never break the workflow.
-            pass
+        except Exception as exc:
+            # Autosave must never break the workflow, but a permanently-failing
+            # autosave (disk full, read-only project dir) used to lose all
+            # extraction work silently. Record the error so the failure is at
+            # least observable in telemetry, and surface it once to the user
+            # via the status hook if available. (B9)
+            telemetry.record_error(
+                exc, context={"action": "textbook.autosave"}
+            )
+            try:
+                status_hook = getattr(self, "_status_hook", None)
+                if callable(status_hook):
+                    status_hook(f"自动保存失败：{exc}")
+            except Exception:  # noqa: BLE001 — never break on the error path
+                pass
 
     def flush_autosave(self) -> None:
         """Force-write any throttled autosave state (close/interrupt safety)."""

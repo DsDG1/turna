@@ -2,13 +2,175 @@
 
 > 记录 `tool/gui/tests/` 下的用例数与关键覆盖项，便于每轮变更后快速对比回归。
 
-## 当前基线
+ ## 当前基线
 
-- 日期：2026-07-20
-- 全量用例：1068 passed（skipped=2），命令：
+- 日期：2026-07-21
+- 全量用例：1276 passed（skipped=2），命令：
   ```bash
   QT_QPA_PLATFORM=offscreen python3 -m unittest discover -s tests -p "test_*.py"
   ```
+
+## 2026-07-21 课程工坊布局压缩（L1–L2）
+
+用例数保持 1276。去重中栏/右栏双参数、DesignPanel 改「对话与高级」、JSON/高级默认折叠、空白项目收窄左栏、生成后落结构大纲。
+
+| 项 | 内容 |
+|---|------|
+| `widgets/ai_orbit.py` | 紧凑参数条（含生成模式）为唯一主参；核心按钮 110px；「对话与高级…」 |
+| `dialogs/ai/design_panel.py` | 主参隐藏镜像；聊天为主；高级/JSON 可折叠；「按对话再生成」 |
+| `widgets/unified_workspace.py` | 右栏默认大纲；空白左栏收窄；`apply_orbit_params` 同步；tab 文案「对话与高级」 |
+| README | 五条路径与右栏说明更新 |
+
+## 2026-07-21 aiEnhance 感知增强（第四–六枪 U0–U4）
+
+用例数 1252 -> 1276（+24）。落地 `tool/gui/aiEnhance.md` 感知路线：生成摘要卡、可点质量维、校验多选批量修、共享预设、清待补、结构保护加强、作用域解析、ReadyImport 决策条、总览质量层、四步灯可点、分课并行 fill。
+
+| 项 | 内容 |
+|---|------|
+| `backend/ai_summary.py` | `GenerationSummary` / `build_generation_summary` / `format_summary_card` / `format_ai_status_line` |
+| `backend/ai_fix_batch.py` | `group_problems_for_fix` 按节点分批 |
+| `backend/ai_presets_ui.py` | 全局 `EDIT_PRESETS` + 教师预设 |
+| `backend/ai_scope.py` | 自然语言作用域解析（课序/MCQ/单元） |
+| `backend/content_quality.py` | `issues_for_dimension` / `build_quality_fix_hint_for_dimension` |
+| `dialogs/ai/review_panel.py` | 摘要卡、可点维修复、清待补、决策条、作用域提示 |
+| `widgets/validation_report.py` | ExtendedSelection + batch 信号 |
+| `app.py` | 批量修调度；section 级结构删除确认 |
+| `backend/ai_phased.py` | `max_parallel` 分课并行 splice |
+| `backend/ai_pipeline.py` | 透传 `max_parallel_lessons` |
+| `dialogs/workshop_window.py` | 四步灯可点 + 生成完成 CTA |
+| `widgets/course_overview.py` + `overview_stats.py` | section 质量均值/badge |
+| 测试 | `test_ai_summary` / `test_ai_fix_batch` / `test_ai_scope` / `test_validation_report` + 既有面板适配 |
+
+详见 `tool/gui/aiEnhance.md` §8 / §13。
+
+## 2026-07-21 aiEnhance 第三枪 批次③（Phase 4 教材抽取增强）
+
+用例数 1218 -> 1252（+34）。落地 `tool/gui/aiEnhance.md` Phase 4 的 P4-1/2/3/4/6（P4-5 原文 span 定位为可选项，本批不做）：超长章滑窗抽取 + 重叠去重、失败自动级联、内置语言对抽取模板、质量驱动定向重抽、OCR 文档化。
+
+| 项 | 内容 |
+|---|------|
+| `backend/markdown_chopper.py` | 新增 `split_chapter_windows(chapter, max_chars, overlap_chars)`：段落边界切窗、`{slug}#w{n}` 派生 slug、相邻窗重叠尾部段落、短章/不可分章单窗返回（行为零变化） |
+| `backend/knowledge_extractor.py` | 抽出 `_run_extraction_loop` 公共闭环；新增 `extract_knowledge_points_windowed`（短章/关闭时委托原函数；长章顺序逐窗、单窗失败容错、全失败 raise、`AiCancelled` 即传、usage 累加）、`merge_window_knowledge`（复用 `knowledge_merger.resource_key` 去重 + `coerce_knowledge_points` 按 `ch-{slug}-` 重建 id）、`reextract_knowledge_targeted`（P4-4，复用统一 loop） |
+| `backend/knowledge_prompt.py` | `BUILTIN_PAIR_TEMPLATES` 内置语言对包（内存 register > persisted > 内置包 > 默认），首发 tr↔zh 规则块（元音和谐/敬语、term 禁混中文、翻译简体中文，纯文案）；新增 `build_targeted_reextract_messages`（当前抽取 + issue 列表回灌，要求完整修正版 JSON） |
+| `backend/textbook_presets.py` | `TextbookPreset` 加 `window_chars`（默认 8000，reading 10000，0 关闭滑窗）/ `overlap_chars`（默认 500） |
+| `dialogs/textbook_import_controller.py` | `_launch_worker` 改走 `extract_knowledge_points_windowed` 并透传窗参数；信号接线抽为 `_connect_and_start`；`_on_extract_error` 自动级联 standard→vocab_only（`_attempted_strategies` 防循环、日志「自动降级」、vocab_only 再失败建议跳过/人工）；新增 `reextract_chapter_targeted` + `_on_reextract_ready/_on_reextract_error`（成功替换并重算质量分，失败保留原结果）；`auto_cascade` 构造参数（默认开） |
+| `dialogs/textbook_import_dialog.py` | 读 QSettings `textbook/auto_cascade` 传入 controller；审校页新增「按质量重抽」按钮（有知识且有 quality issue 时可见） |
+| `tests/test_chapter_windows.py`（**新建**） | 7 用例：短章单窗、禁用、段落边界切分、slug/title 派生、重叠/零重叠、单段超窗兜底 |
+| `tests/test_knowledge_extractor.py` | +18：合并去重/id 确定性、滑窗合并/id 前缀/单窗容错/全失败 raise/取消即传/usage 累计、tr↔zh 内置包命中与优先级、targeted prompt 内容、reextract 成功/失败路径 |
+| `tests/test_textbook_controller.py` | +9：自动级联成功/再失败/开关关闭/防循环、窗参数透传、定向重抽无知识/无 issue 跳过/成功替换重算/失败保留原结果 |
+| `tests/test_textbook_recovery.py` | `test_retry_chapter_after_failure` 显式 `auto_cascade=False` 保持「手动重试」原意图（级联为其前置消费第二个 worker） |
+| `README.md` | 教材抽取「滑窗 / 自动级联 / 按质量重抽」用户可见说明 + 语言对覆盖机制 + OCR 可选依赖小节（P4-6） |
+
+详见 `tool/gui/aiEnhance.md` §8 / §13。
+
+## 2026-07-21 aiEnhance 第三枪 批次②（Phase 5 智能工作流 Agent）
+
+用例数 1203 -> 1218（+15）。落地 `tool/gui/aiEnhance.md` Phase 5（P5-1..6）：精修流水线状态机 + 工坊 checklist UI + 中间态持久化续跑；导入仍人工确认，无自动写盘。
+
+| 项 | 内容 |
+|---|------|
+| `backend/ai_pipeline.py`（**新建**） | `PipelineStep`/`PipelineState`/`run_pipeline`：Plan→Extract?→Outline→Generate→Validate→QualityScore→Fix(loop)→Explain→ReadyImport；fast 模式薄包装 `request_course_with_retry`+validate+quality；refine 复用 `ai_phased.request_outline`/`fill_lessons_from_outline`；`on_progress`/`cancel_check`（优雅取消留部分态）/`usage_callback` 累计 `usage_total`；Fix 先规则修复（`_normalize_resources`/`_auto_fix_resources`/可选 `fill_needs_review`），LLM 只处理剩余 error，`structural_diff` 检删 id 即回滚；`resume_state` 续跑；Extract 步暂恒 skipped（待批次③） |
+| `dialogs/ai/worker.py` | `AiRequestWorker` 加 `progress_ready` 信号；target 接受 `on_progress` 时自动注入（Qt 线程 marshal） |
+| `dialogs/ai/design_controller.py` | 精修模式（phased/refine）改走 `run_pipeline`（快速模式 `request_course` 不变）；`_on_pipeline_progress` 逐步更新 + 取消时 finalize（worker 取消丢结果由 progress 兜底）；中间态持久化 `project.design["pipeline"]`（outline/skipped/usage/cancelled），重开项目续跑；`pipeline_skip_fix`/`pipeline_skip_explain` 参数；`generation_mode` 默认值从 `ai_pipeline_default_mode` 种子 |
+| `dialogs/ai/design_panel.py` | 步骤 checklist（七步 ○/…/✓/—/✗ 着色）；「跳过修复」「跳过解释」checkbox（仅精修可用，随项目参数持久化）；生成模式 tooltip 更新 |
+| Settings | 复用批次① `ai/pipeline_default_mode` 等键，无新增键 |
+| 测试 | `test_ai_pipeline`（10：fast/refine 状态转移、跳过、取消×2、usage 累计、Fix 只喂剩余 error、删 id 回滚、loop 上限、resume）；`test_design_controller.DesignControllerPipelineTest`（5：dispatch/skip 映射/取消快照续跑/失败弹错/progress finalize） |
+
+详见 `tool/gui/aiEnhance.md` §8 / §13。
+
+## 2026-07-21 aiEnhance 第三枪 批次①（基础设施：cache + 双模型 + strict_schema + 抽取统一 loop）
+
+用例数 1121 -> 1203（+82）。落地 `tool/gui/aiEnhance.md` 第三枪批次①主干：进程内 LRU 响应缓存、双模型分流、`json_schema` 严格模式 + auto 回退、教材抽取走统一 `generate_with_validate_loop`、Settings 高级区 UI、telemetry `ai.cache.stats` 事件。
+
+| 项 | 内容 |
+|---|------|
+| `application/settings.py` | 新增 7 个高级 AI 键：`ai_model_chat`/`ai_model_json`（空回退主模型）/`ai_strict_schema`(auto\|on\|off)/`ai_cache_enabled`/`ai_fill_needs_review`/`ai_max_parallel_lessons`(1..8)/`ai_pipeline_default_mode`(fast\|refine)；QSettings round-trip + clamp + enum 校验 + 旧 settings 兼容 |
+| `backend/ai_generator.py` `AiApiConfig` | 加 `model_chat`/`model_json`/`strict_schema`/`_json_schema_supported`(进程级 probe)；`select_model("chat"\|"json")` 双模型分流；`effective_strict_schema()` 解析 auto->on/off；`mark_json_schema_supported/unsupported()` |
+| `backend/ai_cache.py`（**新建**） | `AiCache`：内存 LRU(128) + 可选 disk；`key=sha256(model\|messages\|response_format)`；`get/put/clear/clear_disk/stats`；线程安全 Lock；**不含 key**；`AiCacheStats` 快照；`get_default_cache`/`set_default_cache` 进程级单例 |
+| `generate_with_validate_loop` | 加 `cache`/`model`/`max_tokens` 参数；首次查 cache 命中则跳过 LLM 但仍跑 validator 防脏；成功写回；retry 不查；`cache=None` 时 fallback 到 `get_default_cache()` |
+| `request_chat` | 加 `model` 参数（覆盖 `config.model`）；HTTP 400 + schema 相关错误 + `strict_schema="auto"` 时自动标记 `_json_schema_supported=False` 并用 `json_object` 重试一次 |
+| `build_response_format(config, *, schema_name, use_schema)` | 新建：on->`json_schema`（strict closed schema）；off->`json_object`；auto->`effective_strict_schema()` |
+| `_build_section_json_schema` | 新建：8 字段 closed schema（id/name/description/prerequisiteSectionIds/words/expressions/grammarPoints/units），`additionalProperties:false`，全部 `required` |
+| `_looks_like_json_schema_rejection` | 新建：HTTP 400 + body 含 schema/response_format/unsupported/unknown field 判定 |
+| 双模型分流接入 | `request_alignment_reply`/`explain_course` 走 `model_chat`；`request_course_with_retry`/`generate_from_chat`/`generate_edit`/`request_lesson_transform`/`request_item_transform`/`request_correction`/`fill_needs_review_resources`/`ai_phased.request_outline` 走 `model_json`；`_chat_json` 转发 `model` |
+| `backend/knowledge_extractor.py` | 重写：删除内联 retry 循环；改走 `generate_with_validate_loop`（P1-3 收尾）；`_make_parse_fn` + `_make_validator` 闭包；`response_format={"type":"json_object"}`（不走 section schema）；`max_tokens` 透传；`model=config.select_model("json")` |
+| `backend/knowledge_prompt.py` | `build_correction_prompt` 保留（不再被 extractor 直接调用，但测试覆盖） |
+| `dialogs/settings_dialog.py` | AI tab 加「高级」可折叠 QGroupBox：model_chat/model_json QLineEdit + strict_schema QComboBox + cache/fill_needs_review QCheckBox + max_parallel_lessons QSpinBox(1..8) + pipeline_default_mode QComboBox；`_load_values`/`_sync_to_settings` 接线 |
+| `dialogs/ai_generator_dialog.py` | 新建 `_record_cache_stats()`：每次 `ai.generate` 后记录 `ai.cache.stats` 事件（hits/misses/entries/disk_writes/disk_errors，不含 key） |
+| `app.py` | `_apply_ai_cache()`：启动 + 设置变更时按 `ai_cache_enabled` 安装/清除 `set_default_cache(AiCache(maxsize=128, enabled=True))` |
+| `app.current_ai_config()` | 注入 `model_chat`/`model_json`/`strict_schema` |
+| 测试 | `test_ai_cache`（25）、`test_settings.SettingsAdvancedAiTest`（9）、`test_ai_generator.TestAiApiConfigAdvanced`（8）、`TestGenerateWithValidateLoopCache`（8）、`TestDualModelRouting`（5）、`TestBuildResponseFormat`（7）、`TestJsonSchemaRejectionHeuristic`（4）、`TestRequestChatAutoFallback`（3）、`test_knowledge_extractor.ExtractKnowledgePointsLoopTest`（8）、`test_settings_dialog.SettingsDialogAdvancedAiTest`（4）、`test_telemetry`（+1） |
+
+详见 `tool/gui/aiEnhance.md` §8 / §13。
+
+## 2026-07-21 aiEnhance 第二枪（质量分 + 编辑效率 + 分阶段生成）
+
+用例数 1101 -> 1121（+20）。落地 `tool/gui/aiEnhance.md` 第二枪主干：
+
+| 项 | 内容 |
+|---|------|
+| `backend/content_quality.py` | 六维规则质量分：coverage / balance / distractor / level_fit / audio_ready / resource_hygiene；`score_section` + `to_problem_dicts` + `build_quality_fix_hint`；hygiene 复用 `ai_bench` |
+| `tests/test_content_quality.py` | 9 用例（goldens：clean / placeholders / dangling / mcq dup / listening / grounded） |
+| Review 质量 chips（P2-5） | `review_panel` 展示均值 + 维度分 + badge 着色；不阻断保存/导入 |
+| 按质量分修复（P2-6） | 「按质量分修复」→ 低分维度 issues + `AiFixDialog(initial_hint=…)` → merge 确认 |
+| 局部重生成指令（P3-6/P3-4） | Review 右键重生成弹出指令对话框 + 预设条（干扰项/transcript/敬语/复现/难度） |
+| `backend/ai_phased.py` | 大纲 prompt/校验/shell；`fill_lessons_from_outline` 锁 id/template；`request_course(mode=fast\|phased)` |
+| 工坊生成模式（P2-10） | DesignPanel「快速 / 精修」；`DesignController.generation_mode` → `request_course` |
+| `AiFixDialog` | 支持 `initial_hint` / `window_title` |
+| 测试 | `test_ai_phased`（10）、`test_content_quality`（9）、review/design 适配 |
+
+详见 `tool/gui/aiEnhance.md` §8 / §13。
+
+## 2026-07-21 aiEnhance 第一枪（Phase0 + 稳定性 + pedagogy）
+
+用例数 1075 -> 1101（+26）。落地 `tool/gui/aiEnhance.md` 第一枪：度量底座、统一校验闭环、资源顺序/Grounded 收紧、可选 needs-review 二趟补全、教学法 prompt 块。
+
+| 项 | 内容 |
+|---|------|
+| `backend/ai_bench.py` | 纯函数卫生探针：placeholder / needs-review / dangling refs / MCQ 重复选项 / grounded coverage；`score_section_hygiene` + `format_hygiene_line` |
+| `tests/ai_goldens/` | 6 个静态 section fixture + README（clean / placeholders / dangling / grounded pool / listening / mcq dup） |
+| `backend/ai_pedagogy.py` | CEFR 软约束、课型梯度、干扰项规则、Turkish 语言包；`pedagogy_prompt_block` |
+| `generate_with_validate_loop` | 从 `request_course_with_retry` 抽出公共 loop；error 回灌带 path；首次可 stream、retry 不 stream |
+| 调用方接入 | `request_course_with_retry` 走 loop；`generate_from_chat` / `generate_edit` 可选 validator+max_retries（默认 0=单次）；`request_lesson_transform` 默认 max_retries=1 |
+| `fill_needs_review_resources` | 可选二趟补全 `[待补]`/needs-review（默认关，`fill_needs_review=True` opt-in） |
+| Prompt | 资源数组强制输出顺序 words→expressions→grammarPoints→units；Grounded 要求池外完整字段+`new`；`build_prompt` 注入 pedagogy |
+| Fixture | `copy_turkish_course` 排除 `.varnamala-backup`，避免本地编辑残留污染 save-atomicity |
+| 测试 | `test_ai_bench`（9）、`test_ai_pedagogy`（9）、`test_ai_generator` 扩展 loop/fill/path（+8 量级） |
+
+详见 `tool/gui/aiEnhance.md` §8 / §11 / §13。
+
+## 2026-07-21 tool/gui 性能与缺陷全量整改（分批 A–F）
+
+用例数 1068 -> 1075（+7）。对 `tool/` 与 `tool/gui/` 全量代码做了一轮性能热点 + 缺陷修复，按风险/收益分 6 批提交，每批后跑全量回归。同时清理了误入仓库的 `assets/courses/turkish/.varnamala-backup/` 运行时产物并加 `.gitignore`，消除了 `test_save_atomicity` 长期 flaky。
+
+| 批次 | 项 | 内容 |
+|---|---|---|
+| A 性能热点 | `regenerate_unit_in_section` | 函数顶部深拷贝 `existing_section` 一次，循环内就地按索引替换；抽出 `_splice_lesson_in_place`。旧实现每个 lesson 调 `_splice_lesson`（每次 `copy.deepcopy` 整个 section），单元重建为 O(L·N)。（P1） |
+| A | `CourseAdapter` id 索引 | 新增 `_unit_index`/`_lesson_index`（懒重建 + `invalidate_node_index`）；`find_unit`/`find_lesson` 走索引，命中时用 `is` 校验节点仍挂在 `self.sections` 上，失败回退全扫。`load`/`_restore_from`/`save` 后失效。命令热路径（Move/Reparent/BulkMove）从 O(tree) 降到 O(1)。（P3） |
+| A | `app._jump_to_node` unit 分支 | 新增 `CourseTreeWidget.select_unit` 复用 `_id_index`，替换 O(sections·units) QTreeWidget 遍历。（P4） |
+| A | `_state_hash` 改 sha256 | 旧实现用 Python 内置 `hash()`（进程间随机盐），跨会话比较产生假阳性「已变更」。改 `hashlib.sha256` 稳定可复现，缓存默认值从 `-1` 改 `""`。（P5/B14） |
+| B 严重缺陷 | `export_content_inventory.render_markdown` | 依赖模块全局 `refs`，非 `main` 调用即 NameError；改为参数 `refs` 并在 `main` 显式传入。（B1） |
+| B | `git_library._read_body` chunked 解析 | 空行 `continue` 在关闭的 socket 上死循环；加 `empty_streak`（≤8）与 `max_iterations`（1e6）双兜底。（B7） |
+| B | `sync_resources_with_git` 包装格式 | git 资源文件实为 `{"version":1,"language":..,"words":[..]}` 对象；旧代码 `isinstance(list)` 恒为 False，把 git 侧当空集再写回裸 list，**破坏协作者仓库的 wrapper/版本/语言元数据**。改为识别 wrapper、保留 `version`/`language`、原子 tmp+`os.replace` 写回。新增 3 个往返测试（wrapped/legacy/双向）。（B10） |
+| B | git token URL-scoped | 旧 `_extra_args_for_https` 注入全局 `http.extraheader`，对 `http://` 与重定向目标泄漏 Bearer。改为仅 `https://`、`http.<scheme>://<host>/.extraheader` URL-scoped；新增 6 个单测覆盖 no-token/https/http/git@/scope/malformed。（B13） |
+| B | `split_course.py` vocab 重新包装 | 旧 `shutil.copyfile` 直接拷贝旧格式 `kannada_vocab.json`（可能是裸 list），loader 读 `data.get("words",[])` 会静默返回空。改为识别裸 list/dict、重新包装成 `{"version":1,"language":..,"words":[..]}` 并原子写。（B17/P8） |
+| B | `course_cli.load_sections` 缺键兜底 | `entry["file"]` 缺键即 KeyError 崩溃；改 `.get` 跳过损坏条目。（M17） |
+| C 信号/线程安全 | AI worker 关闭期信号 | `AiGeneratorDialog.reject/accept/closeEvent` 设 `_closing=True`、`_disconnect_worker_signals` 断开所有 worker 信号；所有 worker 槽首检 `self._closing` 早退。防止对话框销毁后 worker emit 命中已删除 QObject。（B6） |
+| C | `_run_git_async` 取消旧 worker | 启动新 git worker 前 `cancel()` + 断开旧 worker 信号，避免并发 git 操作在共享 clone 上竞争索引。（B5） |
+| C | `_on_start_share` 端口泄漏 | `thread.start()` 失败时旧代码置 `git_server_thread=None` 但已绑定的 socket 未关闭；异常分支显式 `thread.server.server_close()`。（B15） |
+| C | `_read_streaming` 非 SSE 取消 | 非 SSE 分支原 `"".join(line_iter)` 无 `cancel_check` 轮询，慢响应时取消挂起；改为逐行读取间轮询取消。（B18） |
+| D 非原子写 | `course_cli.save_json` | 改 tmp + `flush` + `os.fsync` + `os.replace`，崩溃不再留下截断的 JSON。（P7/B24） |
+| D | `export_content_inventory`/`split_course`/`_edit_or_delete_memo`/`sync_resources_with_git` | 全部统一 tmp + `os.replace` 原子写。（P8/B19） |
+| D | `_backup_json_files` 保留策略 | 新增 `_prune_old_backups(keep=20)`，按时间戳名排序裁剪最旧；`.varnamala-backup` 不再无界增长。（M11） |
+| D | `build_release.copy_tree` | `rmtree` + `copytree` 改 `dirs_exist_ok=True`，中断不再丢失整个目录。（M18） |
+| E 次要清理 | `generate_audio` 相对路径 | `Path("assets/courses/turkish")` 改 `Path(__file__).resolve().parent.parent / ...`，任意 cwd 可运行。（M7） |
+| E | `worker.is_valid_http_url` regex | 模块级 `re.compile` 缓存。（M3） |
+| E | `telemetry._write` 首次失败 stderr | 永久写失败的日志不再完全静默；首次失败 stderr 提醒一次。（M10） |
+| E | B3 表格 item null 守卫 | `_on_remote_double_click`/`_on_del_saved_remote`/`_on_history_context_menu` 对 `QTableWidget.item(row,c)` 返回 None 加守卫，避免 `.text()` AttributeError。（B3） |
+| E | B4/B9 错误可见化 | `_refresh_branches`/`_refresh_file_tree`/`_refresh_history` 的 `except Exception: pass` 改为 `status_label.setText` 显示失败原因；`textbook_import_controller._autosave` 改 `telemetry.record_error` + 可选 status hook。（B4/B9） |
+| F UI 性能 | `_find_line_for_path` | `splitlines()` 全列表 + 子串扫描改 `text.find` + `count("\n",0,idx)`，O(total_lines) → O(match_offset)。（P9） |
+| F | `git_library_dialog._poll_server_logs` | 日志轮询定时器原整个对话框生命周期 1s/tick；改为仅在 LAN tab 可见且 server 运行时启动，`_on_tab_changed`/`_on_start_share`/`_on_stop_share` 协同启停。（P2） |
+| 仓库清理 | `assets/courses/turkish/.varnamala-backup/` | 该目录是 GUI 运行时产物，被误提交到 git，导致 `test_save_atomicity` 长期 flaky（复制课程时把旧 backup 一起带进 tmp，计数+1）。`git rm -r` 并加 `.gitignore`。 |
 
 ## 2026-07-20 主题系统重设计：Peacock 品牌对齐 + 高对比度 + 渐变深度
 

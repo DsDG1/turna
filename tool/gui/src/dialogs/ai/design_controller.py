@@ -7,7 +7,12 @@ is reported via plain callbacks so the logic is unit-testable without a
 QApplication event loop.
 
 Generation paths:
-- No chat yet → one-shot ``request_course_with_retry`` (validate-and-repair).
+- No chat yet, mode ``fast`` → ``request_course`` single shot (validate-and-
+  repair loop).
+- No chat yet, mode ``phased``/``refine`` → ``ai_pipeline.run_pipeline``
+  (Plan→Outline→Generate→Validate→Quality→Fix→Explain→ReadyImport; Phase 5).
+  Per-step progress rides the worker's ``progress_ready`` signal; incomplete
+  snapshots persist into ``project.design["pipeline"]`` for resume.
 - Chat present → ``generate_from_chat`` with the running draft fed back so the
   model revises instead of starting over.
 
@@ -34,8 +39,9 @@ from src.backend.ai_generator import (
     regenerate_lesson_in_section,
     regenerate_unit_in_section,
     request_alignment_reply,
-    request_course_with_retry,
 )
+from src.backend.ai_phased import request_course
+from src.backend.ai_pipeline import PipelineState, PipelineStep, run_pipeline
 from src.backend.textbook_to_course import _rewrite_ids_deterministic
 
 #: Usage dict shape: {"prompt_tokens", "completion_tokens", "total_tokens"}.
@@ -101,6 +107,7 @@ class DesignController:
         on_explanation: Callable[[str], None] | None = None,
         on_explanation_chunk: Callable[[str], None] | None = None,
         on_explanation_error: Callable[[str], None] | None = None,
+        on_pipeline_step: Callable[[dict[str, str]], None] | None = None,
     ) -> None:
         self._ai_config_fn = ai_config_fn
         self._worker_factory = worker_factory or self._default_worker_factory
@@ -117,6 +124,7 @@ class DesignController:
         self._on_explanation = on_explanation or (lambda _t: None)
         self._on_explanation_chunk = on_explanation_chunk or (lambda _t: None)
         self._on_explanation_error = on_explanation_error or (lambda _m: None)
+        self._on_pipeline_step = on_pipeline_step or (lambda _s: None)
 
         self._params: dict[str, Any] = {
             "topic": "",
@@ -127,7 +135,18 @@ class DesignController:
             "use_genre_batch": False,
             "extra_instructions": "",
             "dropped_bubbles": [],
+            # aiEnhance P2-10: "fast" single-shot JSON vs "phased" outline→lessons
+            "generation_mode": "fast",
+            # aiEnhance Phase 5 (批次②): refine-pipeline step switches.
+            "pipeline_skip_fix": False,
+            "pipeline_skip_explain": False,
         }
+        # Settings default (ai/pipeline_default_mode, 批次①) seeds the mode for
+        # fresh projects; project params override it once persisted.
+        if settings_fn is not None:
+            default_mode = getattr(settings_fn(), "ai_pipeline_default_mode", "fast")
+            if default_mode == "refine":
+                self._params["generation_mode"] = "phased"
         self._design_brief = ""
         self._language = "Turkish"
         self._source_language = "Chinese"
@@ -137,11 +156,18 @@ class DesignController:
         self._draft_checkpoint: dict[str, Any] | None = None
         self._explanation = ""
         self._worker: Any | None = None
+        # Live pipeline snapshot (Phase 5): updated on every progress callback
+        # and persisted into ``project.design`` so a cancelled refine run can
+        # resume from its outline/draft after the project is reopened.
+        self._pipeline_live: PipelineState | None = None
         self._usage: UsageDict = {
             "prompt_tokens": 0,
             "completion_tokens": 0,
             "total_tokens": 0,
         }
+        # Perception U0-2: last generation's cache hit (delta of AiCache.hits).
+        self._last_cache_hit: bool = False
+        self._cache_hits_at_start: int = 0
 
     # ------------------------------------------------------------------ state
     @property
@@ -171,6 +197,10 @@ class DesignController:
     @property
     def usage(self) -> UsageDict:
         return dict(self._usage)
+
+    @property
+    def last_cache_hit(self) -> bool:
+        return bool(self._last_cache_hit)
 
     def set_languages(self, language: str, source_language: str) -> None:
         self._language = language or "Turkish"
@@ -289,15 +319,56 @@ class DesignController:
             if not spec.topic.strip():
                 self._on_error("请先填写主题，或先与 AI 对话描述课程。")
                 return False
+            mode = str(self._params.get("generation_mode") or "fast")
+            if mode in ("phased", "refine"):
+                # Phase 5 (批次②): the refine mode runs the full pipeline
+                # state machine (Plan→Outline→Generate→Validate→Quality→Fix
+                # →Explain→ReadyImport); fast mode keeps the single-shot path.
+                skip: list[str] = []
+                if self._params.get("pipeline_skip_fix"):
+                    skip.append(PipelineStep.FIX)
+                if self._params.get("pipeline_skip_explain"):
+                    skip.append(PipelineStep.EXPLAIN)
+                max_par = 1
+                if self._settings_fn is not None:
+                    max_par = int(
+                        getattr(self._settings_fn(), "ai_max_parallel_lessons", 1)
+                        or 1
+                    )
+                self._start_worker(
+                    run_pipeline,
+                    config,
+                    spec,
+                    mode="refine",
+                    validator=self._validator or (lambda _s: []),
+                    existing_section=(
+                        copy.deepcopy(self._draft)
+                        if isinstance(self._draft, dict)
+                        else None
+                    ),
+                    skip_steps=tuple(skip),
+                    max_fix_loops=1,
+                    fill_needs_review=self._fill_needs_review(),
+                    resume_state=self._pipeline_live,
+                    max_retries=self._retry_max(),
+                    max_parallel_lessons=max_par,
+                    on_result=self._on_pipeline_done,
+                    on_chunk=self._on_stream_chunk,
+                    stage="精修流水线（大纲→分课→校验→质量）…",
+                    **self._ai_kwargs(),
+                )
+                return True
+            stage = "生成课程中…"
             self._start_worker(
-                request_course_with_retry,
+                request_course,
                 config,
                 spec,
                 self._validator or (lambda _s: []),
+                mode=mode,
                 max_retries=self._retry_max(),
                 on_result=self._on_draft_generated,
                 on_chunk=self._on_stream_chunk,
-                stage="生成课程中…",
+                stage=stage,
                 **self._ai_kwargs(),
             )
         return True
@@ -317,6 +388,85 @@ class DesignController:
     def set_draft(self, section: dict | None) -> None:
         """Replace the draft (e.g. after manual JSON edits in the panel)."""
         self._draft = section
+        self._on_design_changed()
+
+    # ------------------------------------------------------------------ pipeline
+    @property
+    def pipeline_state(self) -> PipelineState | None:
+        """Latest refine-pipeline snapshot (live or restored; None if idle)."""
+        return self._pipeline_live
+
+    def _fill_needs_review(self) -> bool:
+        if self._settings_fn is None:
+            return False
+        return bool(getattr(self._settings_fn(), "ai_fill_needs_review", False))
+
+    def _on_pipeline_progress(self, state: Any) -> None:
+        """Handle per-step progress from ``run_pipeline`` (Phase 5 P5-2/P5-4).
+
+        Intermediate states are kept in ``_pipeline_live`` and surfaced via
+        ``on_design_changed`` so the panel's autosave persists them into the
+        project draft; a cancelled run can then resume from its outline.
+        Terminal states (ready_import / cancelled) finalize the run here
+        because the worker drops its result when the user cancelled.
+        """
+        if not isinstance(state, PipelineState):
+            return
+        self._pipeline_live = state
+        self._on_pipeline_step(dict(state.step_statuses))
+        self._on_design_changed()
+        if state.cancelled or state.step == PipelineStep.READY_IMPORT:
+            worker = self._worker
+            if worker is None:
+                return
+            self._worker = None
+            self._on_busy_changed(False, "")
+            self._finish_pipeline(state)
+
+    def _on_pipeline_done(self, state: Any) -> None:
+        """Worker result path (non-cancelled completion)."""
+        if not isinstance(state, PipelineState):
+            self._on_error("精修流水线返回了无法识别的结果。")
+            return
+        # If progress already finalized this run (cancel path), skip.
+        if self._pipeline_live is state and state.step == PipelineStep.READY_IMPORT:
+            return
+        self._pipeline_live = state
+        self._finish_pipeline(state)
+
+    def _finish_pipeline(self, state: PipelineState) -> None:
+        """Land the pipeline result: draft + explanation, or error surface.
+
+        Import is *never* automatic (P5-6): the draft lands in the editor and
+        the existing 导入 button flow (validate → target pick → merge preview)
+        stays the only way into the course.
+        """
+        self._on_pipeline_step(dict(state.step_statuses))
+        self._refresh_cache_hit_flag()
+        if isinstance(state.draft, dict):
+            sid = state.draft.get("id")
+            if sid:
+                _rewrite_ids_deterministic(state.draft, sid)
+            self._draft = state.draft
+            self._on_draft_ready(self._draft)
+            if state.explanation:
+                self._explanation = state.explanation
+                self._on_explanation(self._explanation)
+        if state.cancelled:
+            # Graceful stop: partial outline/draft stay in _pipeline_live for
+            # resume; no blocking popup (mirrors the fast-path cancel UX).
+            self._on_design_changed()
+            return
+        if state.errors and state.draft is None:
+            self._on_error("；".join(state.errors[:3]))
+        elif state.errors:
+            # Non-fatal step failures (e.g. fix rolled back) — draft still
+            # usable; surface as explanation-channel info, not a popup.
+            self._on_explanation_error("；".join(state.errors[:3]))
+        # A fully-finished run clears the resume snapshot; an incomplete one
+        # (errors but no draft) keeps it so the next generate() resumes.
+        if state.step == PipelineStep.READY_IMPORT and not state.errors:
+            self._pipeline_live = None
         self._on_design_changed()
 
     def restore_draft_checkpoint(self) -> bool:
@@ -473,9 +623,41 @@ class DesignController:
             worker.usage_ready.connect(
                 lambda usage: self._deliver_usage(worker, usage)
             )
+        if hasattr(worker, "progress_ready"):
+            worker.progress_ready.connect(
+                lambda progress: self._deliver_progress(worker, progress)
+            )
+        self._snapshot_cache_hits()
         self._worker = worker
         self._on_busy_changed(True, stage)
         worker.start()
+
+    def _snapshot_cache_hits(self) -> None:
+        """Record cache hit counter before a request (U0-2)."""
+        self._last_cache_hit = False
+        try:
+            from src.backend.ai_cache import get_default_cache
+
+            cache = get_default_cache()
+            if cache is not None and cache.enabled:
+                self._cache_hits_at_start = int(cache.stats().hits)
+            else:
+                self._cache_hits_at_start = 0
+        except Exception:
+            self._cache_hits_at_start = 0
+
+    def _refresh_cache_hit_flag(self) -> None:
+        try:
+            from src.backend.ai_cache import get_default_cache
+
+            cache = get_default_cache()
+            if cache is not None and cache.enabled:
+                hits = int(cache.stats().hits)
+                self._last_cache_hit = hits > self._cache_hits_at_start
+            else:
+                self._last_cache_hit = False
+        except Exception:
+            self._last_cache_hit = False
 
     def _deliver_chunk(
         self, worker: Any, on_chunk: Callable[[str], None], chunk: str
@@ -489,12 +671,19 @@ class DesignController:
         if worker is self._worker:
             self._accumulate_usage(usage)
 
+    def _deliver_progress(self, worker: Any, progress: Any) -> None:
+        # Late progress from a cancelled/superseded worker must not finalize
+        # or overwrite the new request's pipeline snapshot.
+        if worker is self._worker:
+            self._on_pipeline_progress(progress)
+
     def _finish_worker(
         self, worker: Any, on_result: Callable[[Any], None], result: Any
     ) -> None:
         if worker is not self._worker:
             return  # stale worker from a cancelled/superseded request
         self._worker = None
+        self._refresh_cache_hit_flag()
         self._on_busy_changed(False, "")
         on_result(result)
 
@@ -523,7 +712,7 @@ class DesignController:
     # ------------------------------------------------------------------ persistence
     def to_design_dict(self) -> dict[str, Any]:
         """Serialize into ``project.design`` (connectplan D4)."""
-        return {
+        data: dict[str, Any] = {
             "chat_history": [
                 {
                     "role": m.role,
@@ -536,6 +725,19 @@ class DesignController:
             "draft_sections": [self._draft] if self._draft else [],
             "explanation": self._explanation,
         }
+        # Phase 5 (P5-4): persist an incomplete pipeline snapshot so a
+        # cancelled refine run resumes from its outline/draft on reopen.
+        if self._pipeline_live is not None:
+            snap = self._pipeline_live
+            data["pipeline"] = {
+                "step": snap.step,
+                "mode": snap.mode,
+                "outline": snap.outline,
+                "skipped_steps": list(snap.skipped_steps),
+                "usage_total": dict(snap.usage_total),
+                "cancelled": snap.cancelled,
+            }
+        return data
 
     def apply_design_dict(self, data: dict[str, Any] | None) -> None:
         """Restore from ``project.design``; tolerates missing/partial data."""
@@ -557,6 +759,22 @@ class DesignController:
         drafts = data.get("draft_sections") or []
         self._draft = drafts[-1] if drafts and isinstance(drafts[-1], dict) else None
         self._explanation = data.get("explanation", "") or ""
+        pipeline = data.get("pipeline")
+        if isinstance(pipeline, dict) and (
+            pipeline.get("outline") or pipeline.get("step")
+        ):
+            self._pipeline_live = PipelineState(
+                step=str(pipeline.get("step") or PipelineStep.PLAN),
+                mode=str(pipeline.get("mode") or "refine"),
+                draft=self._draft,
+                outline=pipeline.get("outline"),
+                skipped_steps=list(pipeline.get("skipped_steps") or []),
+                usage_total=dict(pipeline.get("usage_total") or {}),
+                cancelled=bool(pipeline.get("cancelled")),
+            )
+            self._on_pipeline_step(dict(self._pipeline_live.step_statuses))
+        else:
+            self._pipeline_live = None
         self._on_chat_updated()
         if self._explanation:
             self._on_explanation(self._explanation)

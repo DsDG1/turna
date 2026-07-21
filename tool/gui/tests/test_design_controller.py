@@ -136,9 +136,9 @@ class DesignControllerGenerateTest(unittest.TestCase):
         )
         ctrl.set_params(topic="旅行")
         self.assertTrue(ctrl.generate())
-        from src.backend.ai_generator import request_course_with_retry
+        from src.backend.ai_phased import request_course
 
-        gen_workers = [r for r in records if r.target is request_course_with_retry]
+        gen_workers = [r for r in records if r.target is request_course]
         self.assertEqual(len(gen_workers), 1)
         self.assertEqual(len(drafts), 1)
 
@@ -153,9 +153,9 @@ class DesignControllerGenerateTest(unittest.TestCase):
         )
         ctrl.set_params(topic="问候", design_brief="两单元 intro")
         self.assertTrue(ctrl.generate())
-        from src.backend.ai_generator import request_course_with_retry
+        from src.backend.ai_phased import request_course
 
-        spec = [r for r in records if r.target is request_course_with_retry][-1].args[1]
+        spec = [r for r in records if r.target is request_course][-1].args[1]
         self.assertEqual(spec.resource_pool[0]["id"], "w-1")
         self.assertEqual(spec.design_brief, "两单元 intro")
 
@@ -226,9 +226,9 @@ class DesignControllerPersistenceTest(unittest.TestCase):
         )
         ctrl.set_params(topic="问候")
         ctrl.generate()
-        from src.backend.ai_generator import request_course_with_retry
+        from src.backend.ai_phased import request_course
 
-        worker = [r for r in records if r.target is request_course_with_retry][-1]
+        worker = [r for r in records if r.target is request_course][-1]
         # Real workers emit usage mid-flight (before the result); the fake
         # already delivered its result synchronously in start(), so re-mark
         # it as the active worker — usage from non-active workers is dropped.
@@ -320,7 +320,7 @@ class DesignControllerPhaseCTest(unittest.TestCase):
         self.assertEqual(errors, [])
 
     def test_settings_injected_into_worker_kwargs(self) -> None:
-        from src.backend.ai_generator import request_course_with_retry
+        from src.backend.ai_phased import request_course
 
         class _Settings:
             ai_timeout = 33.0
@@ -335,13 +335,13 @@ class DesignControllerPhaseCTest(unittest.TestCase):
         )
         ctrl.set_params(topic="问候")
         ctrl.generate()
-        worker = [r for r in records if r.target is request_course_with_retry][-1]
+        worker = [r for r in records if r.target is request_course][-1]
         self.assertEqual(worker.kwargs["timeout"], 33.0)
         self.assertEqual(worker.kwargs["temperature"], 0.5)
         self.assertEqual(worker.kwargs["max_retries"], 4)
 
     def test_genre_batch_replaces_template(self) -> None:
-        from src.backend.ai_generator import request_course_with_retry
+        from src.backend.ai_phased import request_course
 
         records: list = []
         ctrl = DesignController(
@@ -352,7 +352,7 @@ class DesignControllerPhaseCTest(unittest.TestCase):
         spec = ctrl.build_spec()
         self.assertEqual(spec.template, "listening")
         ctrl.generate()
-        sent = [r for r in records if r.target is request_course_with_retry][-1].args[1]
+        sent = [r for r in records if r.target is request_course][-1].args[1]
         self.assertEqual(sent.template, "listening")
 
     def test_design_dict_sanitizes_image_content(self) -> None:
@@ -425,6 +425,155 @@ class DesignControllerLocalRegenTest(unittest.TestCase):
         self.assertTrue(ctrl.restore_draft_checkpoint())
         self.assertEqual(ctrl.draft["id"], "greetings")
         self.assertTrue(drafts)
+
+
+class DesignControllerPipelineTest(unittest.TestCase):
+    """Phase 5 (批次②): refine mode runs the ai_pipeline state machine."""
+
+    def _pipeline_state(self, **kwargs) -> "PipelineState":
+        from src.backend.ai_pipeline import PipelineState, PipelineStep
+
+        kwargs.setdefault("step", PipelineStep.READY_IMPORT)
+        return PipelineState(**kwargs)
+
+    def test_refine_mode_dispatches_run_pipeline(self) -> None:
+        from src.backend.ai_generator import explain_course
+        from src.backend.ai_pipeline import run_pipeline
+
+        records: list = []
+        drafts: list = []
+        explanations: list[str] = []
+        state = self._pipeline_state(
+            draft=sample_section(unit_id="random-u", lesson_id="random-l"),
+            explanation="这门课先学问候。",
+        )
+        ctrl = DesignController(
+            ai_config_fn=_config,
+            worker_factory=_factory(records, state),
+            on_draft_ready=drafts.append,
+            on_explanation=explanations.append,
+        )
+        ctrl.set_params(topic="问候", generation_mode="phased")
+        self.assertTrue(ctrl.generate())
+        gen = [r for r in records if r.target is run_pipeline]
+        self.assertEqual(len(gen), 1)
+        self.assertEqual(gen[0].kwargs["mode"], "refine")
+        self.assertEqual(gen[0].args[1].topic, "问候")
+        # Draft landed through the normal ready channel; explanation came
+        # from the pipeline, so no separate explain worker was chained.
+        self.assertEqual(len(drafts), 1)
+        self.assertEqual(drafts[0]["units"][0]["id"], "greetings-u1")
+        self.assertEqual(explanations, ["这门课先学问候。"])
+        self.assertFalse([r for r in records if r.target is explain_course])
+        # Clean completion clears the resume snapshot.
+        self.assertIsNone(ctrl.pipeline_state)
+        self.assertNotIn("pipeline", ctrl.to_design_dict())
+
+    def test_refine_skip_switches_map_to_skip_steps(self) -> None:
+        from src.backend.ai_pipeline import run_pipeline
+
+        records: list = []
+        ctrl = DesignController(
+            ai_config_fn=_config,
+            worker_factory=_factory(records, self._pipeline_state()),
+        )
+        ctrl.set_params(
+            topic="问候",
+            generation_mode="phased",
+            pipeline_skip_fix=True,
+            pipeline_skip_explain=True,
+        )
+        self.assertTrue(ctrl.generate())
+        worker = [r for r in records if r.target is run_pipeline][-1]
+        self.assertEqual(worker.kwargs["skip_steps"], ("fix", "explain"))
+
+    def test_cancelled_pipeline_keeps_snapshot_for_resume(self) -> None:
+        from src.backend.ai_pipeline import PipelineStep
+
+        outline = {"id": "greetings", "units": []}
+        state = self._pipeline_state(
+            step=PipelineStep.GENERATE,
+            outline=outline,
+            cancelled=True,
+            errors=["请求已取消。"],
+        )
+        records: list = []
+        errors: list[str] = []
+        ctrl = DesignController(
+            ai_config_fn=_config,
+            worker_factory=_factory(records, state),
+            on_error=errors.append,
+        )
+        ctrl.set_params(topic="问候", generation_mode="phased")
+        self.assertTrue(ctrl.generate())
+        # Graceful cancel: no blocking error, snapshot persisted.
+        self.assertEqual(errors, [])
+        self.assertIsNotNone(ctrl.pipeline_state)
+        saved = ctrl.to_design_dict()
+        self.assertEqual(saved["pipeline"]["outline"], outline)
+        self.assertTrue(saved["pipeline"]["cancelled"])
+
+        # Reopen: the restored snapshot is offered as resume_state.
+        restored_records: list = []
+        restored = DesignController(
+            ai_config_fn=_config,
+            worker_factory=_factory(restored_records, self._pipeline_state()),
+        )
+        restored.apply_design_dict(saved)
+        self.assertIsNotNone(restored.pipeline_state)
+        restored.set_params(topic="问候", generation_mode="phased")
+        self.assertTrue(restored.generate())
+        from src.backend.ai_pipeline import run_pipeline
+
+        worker = [r for r in restored_records if r.target is run_pipeline][-1]
+        self.assertIsNotNone(worker.kwargs["resume_state"])
+        self.assertEqual(worker.kwargs["resume_state"].outline, outline)
+
+    def test_pipeline_failure_without_draft_surfaces_error(self) -> None:
+        state = self._pipeline_state(errors=["outline: 大纲仍无效：缺少 id"])
+        records: list = []
+        errors: list[str] = []
+        ctrl = DesignController(
+            ai_config_fn=_config,
+            worker_factory=_factory(records, state),
+            on_error=errors.append,
+        )
+        ctrl.set_params(topic="问候", generation_mode="phased")
+        self.assertTrue(ctrl.generate())
+        self.assertTrue(errors)
+        self.assertIn("大纲", errors[-1])
+
+    def test_pipeline_progress_finalizes_cancel_without_result(self) -> None:
+        """Real workers drop the result on cancel; progress must finalize."""
+        from src.backend.ai_pipeline import PipelineStep
+
+        records: list = []
+        busy: list[tuple[bool, str]] = []
+
+        class _HangingWorker(_FakeWorker):
+            def start(self) -> None:  # never emits a result
+                pass
+
+        def factory(target, *args, **kwargs):
+            worker = _HangingWorker(target, *args, **kwargs)
+            records.append(worker)
+            return worker
+
+        ctrl = DesignController(
+            ai_config_fn=_config,
+            worker_factory=factory,
+            on_busy_changed=lambda b, s: busy.append((b, s)),
+        )
+        ctrl.set_params(topic="问候", generation_mode="phased")
+        self.assertTrue(ctrl.generate())
+        self.assertTrue(ctrl.is_busy)
+        cancelled = self._pipeline_state(
+            step=PipelineStep.GENERATE, cancelled=True, errors=["请求已取消。"]
+        )
+        ctrl._on_pipeline_progress(cancelled)
+        self.assertFalse(ctrl.is_busy)
+        self.assertEqual(busy[-1], (False, ""))
+        self.assertIs(ctrl.pipeline_state, cancelled)
 
 
 if __name__ == "__main__":

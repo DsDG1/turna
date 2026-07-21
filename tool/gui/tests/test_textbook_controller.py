@@ -614,5 +614,166 @@ class ProjectSerializationTest(unittest.TestCase):
         self.assertEqual(saved, [])
 
 
+class AutoCascadeTest(unittest.TestCase):
+    """第三枪 批次③ P4-2: standard failure auto-cascades to vocab_only."""
+
+    def _controller(
+        self, *, auto_cascade: bool = True
+    ) -> tuple[_RecordingController, list]:
+        created: list[_DeferredFakeWorker] = []
+
+        def factory(_target, *_args, **kwargs):
+            w = _DeferredFakeWorker()
+            w.kwargs = kwargs
+            created.append(w)
+            return w
+
+        ctrl = _RecordingController(
+            ai_config_fn=lambda: AiApiConfig(base_url="http://x", api_key="k", model="m"),
+            worker_factory=factory,
+            auto_cascade=auto_cascade,
+        )
+        ctrl._md = "## 1 Merhaba\nmerhaba means hello\n"
+        ctrl._split_into_chapters()
+        return ctrl, created
+
+    def test_standard_failure_cascades_to_vocab_only(self) -> None:
+        ctrl, created = self._controller()
+        ctrl.start_extraction()
+        self.assertEqual(created[0].kwargs["strategy"], "standard")
+        created[0].error_occurred.emit("boom")
+        # The same chapter was relaunched as vocab_only, without an error yet.
+        self.assertEqual(len(created), 2)
+        self.assertEqual(created[1].kwargs["strategy"], "vocab_only")
+        self.assertFalse(ctrl.chapters[0].error)
+        self.assertTrue(any("自动降级" in m for m in ctrl.log_messages))
+        # The cascaded worker succeeds -> knowledge restored, usage same chapter.
+        created[1].emit_result(_sample_kp())
+        self.assertIsNotNone(ctrl.chapters[0].knowledge)
+        self.assertFalse(ctrl.chapters[0].error)
+
+    def test_vocab_only_failure_after_cascade_marks_error(self) -> None:
+        ctrl, created = self._controller()
+        ctrl.start_extraction()
+        created[0].error_occurred.emit("boom")
+        created[1].error_occurred.emit("boom2")
+        self.assertEqual(ctrl.chapters[0].error, "boom2")
+        self.assertTrue(any("跳过本章" in m for m in ctrl.log_messages))
+
+    def test_cascade_disabled_records_error_directly(self) -> None:
+        ctrl, created = self._controller(auto_cascade=False)
+        ctrl.start_extraction()
+        created[0].error_occurred.emit("boom")
+        self.assertEqual(len(created), 1)
+        self.assertEqual(ctrl.chapters[0].error, "boom")
+        self.assertFalse(any("自动降级" in m for m in ctrl.log_messages))
+
+    def test_cascade_does_not_loop_on_manual_retry(self) -> None:
+        ctrl, created = self._controller()
+        ctrl.start_extraction()
+        created[0].error_occurred.emit("boom")  # standard -> cascade
+        created[1].error_occurred.emit("boom2")  # vocab_only -> error state
+        self.assertEqual(ctrl.chapters[0].error, "boom2")
+        # Manual standard retry: vocab_only already attempted -> no cascade.
+        workers_before = len(created)
+        ctrl.retry_chapter(0, mode="standard")
+        self.assertEqual(created[-1].kwargs["strategy"], "standard")
+        created[-1].error_occurred.emit("boom3")
+        self.assertEqual(len(created), workers_before + 1)
+        self.assertEqual(ctrl.chapters[0].error, "boom3")
+
+    def test_window_params_forwarded_to_worker(self) -> None:
+        # P4-1: preset window sizes reach the extraction entry point.
+        ctrl, created = self._controller()
+        ctrl.start_extraction()
+        self.assertEqual(
+            created[0].kwargs["max_window_chars"], ctrl.preset.window_chars
+        )
+        self.assertEqual(
+            created[0].kwargs["overlap_chars"], ctrl.preset.overlap_chars
+        )
+        self.assertEqual(
+            created[0].kwargs["max_chapter_chars"], ctrl.preset.max_chapter_chars
+        )
+
+
+class TargetedReextractTest(unittest.TestCase):
+    """第三枪 批次③ P4-4: quality-driven targeted re-extraction."""
+
+    def _controller(self) -> tuple[_RecordingController, list]:
+        created: list[_DeferredFakeWorker] = []
+
+        def factory(_target, *_args, **kwargs):
+            w = _DeferredFakeWorker()
+            w.kwargs = kwargs
+            created.append(w)
+            return w
+
+        ctrl = _RecordingController(
+            ai_config_fn=lambda: AiApiConfig(base_url="http://x", api_key="k", model="m"),
+            worker_factory=factory,
+        )
+        ctrl._md = "## 1 Merhaba\nmerhaba means hello\n"
+        ctrl._split_into_chapters()
+        return ctrl, created
+
+    def _kp_with_empty_translation(self) -> KnowledgePoints:
+        return coerce_knowledge_points(
+            {"words": [{"term": "merhaba", "translation": ""}]}
+        )
+
+    def test_no_knowledge_returns_error_without_worker(self) -> None:
+        ctrl, created = self._controller()
+        result = ctrl.reextract_chapter_targeted(0)
+        self.assertEqual(result.outcome, "error")
+        self.assertEqual(created, [])
+
+    def test_no_issues_skips_reextract(self) -> None:
+        ctrl, created = self._controller()
+        ctrl._chapters[0].knowledge = _sample_kp()
+        ctrl.compute_quality_report()
+        result = ctrl.reextract_chapter_targeted(0)
+        self.assertEqual(result.outcome, "error")
+        self.assertIn("无需", result.message)
+        self.assertEqual(created, [])
+
+    def test_reextract_replaces_knowledge_and_recomputes_quality(self) -> None:
+        ctrl, created = self._controller()
+        ctrl._chapters[0].knowledge = self._kp_with_empty_translation()
+        ctrl.compute_quality_report()
+        # Empty translation -> a lang_check issue exists before the re-extract.
+        cq_before = ctrl.quality_report.chapter_quality(0)
+        self.assertTrue(
+            any(i.field == "translation" for i in cq_before.issues)
+        )
+        result = ctrl.reextract_chapter_targeted(0)
+        self.assertEqual(result.outcome, "success")
+        self.assertEqual(len(created), 1)
+        fixed = coerce_knowledge_points(
+            {"words": [{"term": "merhaba", "translation": "hello"}]},
+            id_prefix="ch-1-merhaba-",
+        )
+        created[0].emit_result(fixed)
+        self.assertEqual(
+            ctrl.chapters[0].knowledge.words[0]["translation"], "hello"
+        )
+        self.assertFalse(ctrl.chapters[0].error)
+        # Quality scores were recomputed against the corrected extraction.
+        cq_after = ctrl.quality_report.chapter_quality(0)
+        self.assertFalse(any(i.field == "translation" for i in cq_after.issues))
+
+    def test_reextract_failure_keeps_original_knowledge(self) -> None:
+        ctrl, created = self._controller()
+        original = self._kp_with_empty_translation()
+        ctrl._chapters[0].knowledge = original
+        ctrl.compute_quality_report()
+        ctrl.reextract_chapter_targeted(0)
+        created[0].error_occurred.emit("boom")
+        # A failed re-extract must not turn the chapter into a failed one.
+        self.assertIs(ctrl.chapters[0].knowledge, original)
+        self.assertFalse(ctrl.chapters[0].error)
+        self.assertTrue(any("保留原抽取结果" in m for m in ctrl.log_messages))
+
+
 if __name__ == "__main__":
     unittest.main()

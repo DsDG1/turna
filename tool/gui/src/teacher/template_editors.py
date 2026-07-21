@@ -176,6 +176,19 @@ class TeacherTemplateWidget(QWidget):
         item_id = item.get("id", "")
         if not item_id:
             return
+        # Light confirm: show before/after prompt snippet (U1-3).
+        before = str(item.get("prompt") or item.get("sentence") or item.get("id") or "")
+        after = str(result.get("prompt") or result.get("sentence") or result.get("id") or "")
+        if before != after:
+            reply = QMessageBox.question(
+                self,
+                "确认 AI 改题",
+                f"将替换本题内容：\n\n前：{before[:120]}\n后：{after[:120]}\n\n"
+                "确认应用？（之后可用 Ctrl+Z 撤销）",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            )
+            if reply != QMessageBox.StandardButton.Yes:
+                return
         if self.undo_stack is not None:
             cmd = ReplaceItemCommand(stage, item_id, result)
             cmd.signals.changed.connect(self._build_teacher_view)

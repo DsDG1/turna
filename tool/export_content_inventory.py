@@ -9,6 +9,7 @@ and where each is referenced inside lessons. Refresh with
 from __future__ import annotations
 
 import json
+import os
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
@@ -194,8 +195,10 @@ def render_markdown(
     grammar_rows: list[dict[str, Any]],
     audio_assets: set[str],
     section_stats: list[dict[str, Any]] | None = None,
+    refs: dict[str, dict[str, set[str]]] | None = None,
 ) -> str:
     section_stats = section_stats or []
+    refs = refs if refs is not None else defaultdict(lambda: defaultdict(set))
     total_units = sum(s["units"] for s in section_stats)
     total_lessons = sum(s["lessons"] for s in section_stats)
     lines = [
@@ -292,16 +295,19 @@ def main() -> None:
     audio_assets = set(refs["audio"].keys())
 
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT.write_text(
-        render_markdown(
-            word_rows,
-            expression_rows,
-            grammar_rows,
-            audio_assets,
-            section_stats=section_stats,
-        ),
-        encoding="utf-8",
+    rendered = render_markdown(
+        word_rows,
+        expression_rows,
+        grammar_rows,
+        audio_assets,
+        section_stats=section_stats,
+        refs=refs,
     )
+    # Atomic write: tmp + os.replace so a crash mid-write cannot truncate
+    # the inventory report (P8).
+    tmp = OUTPUT.with_suffix(OUTPUT.suffix + ".tmp")
+    tmp.write_text(rendered, encoding="utf-8")
+    os.replace(tmp, OUTPUT)
     print(f"Wrote content inventory to {OUTPUT}")
 
 

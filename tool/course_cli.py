@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 import sys
 from collections import defaultdict
 from dataclasses import dataclass
@@ -65,9 +66,35 @@ def load_json(path: Path) -> Any:
 
 
 def save_json(path: Path, data: Any) -> None:
-    with path.open("w", encoding="utf-8") as f:
+    """Write JSON to ``path`` atomically.
+
+    Writes to a sibling ``.tmp`` file, fsyncs it, then ``os.replace``s it
+    into place. This means a crash (power loss, OOM kill, disk-full) can
+    never leave a truncated JSON file at ``path`` — the destination is
+    only touched atomically by the rename. Previously a crash mid-write
+    could corrupt the file and the loader would then refuse to load the
+    whole course. (P7/B24)
+
+    On filesystems where ``os.replace`` is atomic (POSIX, and NTFS since
+    Python 3.3), this gives full crash durability for the file content.
+    The parent-directory fsync is skipped because it's expensive and the
+    worst case is a renamed-in file that survives a journal replay.
+    """
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    with tmp.open("w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
         f.write("\n")
+        f.flush()
+        try:
+            os.fsync(f.fileno())
+        except OSError:
+            # fsync may be unavailable on some platforms / in tests; the
+            # atomic rename still protects against the most common
+            # truncation case.
+            pass
+    os.replace(tmp, path)
 
 
 def load_vocab(course_dir: Path) -> list[dict[str, Any]]:
@@ -90,12 +117,22 @@ def load_index(course_dir: Path) -> dict[str, Any]:
 
 
 def load_sections(course_dir: Path) -> list[tuple[str, dict[str, Any]]]:
-    """Return list of (section_id, section_data) for every section in index."""
+    """Return list of (section_id, section_data) for every section in index.
+
+    Skips entries missing ``id`` or ``file`` (corrupt index) instead of
+    raising ``KeyError`` and aborting the whole load. (M17)
+    """
     index = load_index(course_dir)
     sections: list[tuple[str, dict[str, Any]]] = []
     for entry in index.get("sections", []):
-        section_file = course_dir / entry["file"]
-        sections.append((entry["id"], load_json(section_file)))
+        if not isinstance(entry, dict):
+            continue
+        sid = entry.get("id")
+        section_file_rel = entry.get("file")
+        if not sid or not section_file_rel:
+            continue
+        section_file = course_dir / section_file_rel
+        sections.append((sid, load_json(section_file)))
     return sections
 
 

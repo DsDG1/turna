@@ -10,7 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QSettings, Qt, Signal
 from PySide6.QtGui import QDragEnterEvent, QDropEvent
 from PySide6.QtWidgets import (
     QButtonGroup,
@@ -110,6 +110,11 @@ class TextbookImportDialog(QDialog):
         self.resize(720, 600)
         self.setAcceptDrops(True)
 
+        # P4-2 auto-cascade (standard -> vocab_only) is on by default; the
+        # ``textbook/auto_cascade`` QSettings key can turn it off.
+        auto_cascade = QSettings("Varnamala", "CourseEditor").value(
+            "textbook/auto_cascade", True, type=bool
+        )
         self._controller = TextbookImportController(
             ai_config_fn=self._ai_config,
             worker_factory=worker_factory,
@@ -123,6 +128,7 @@ class TextbookImportDialog(QDialog):
             language=project.language if project else "Turkish",
             source_language=project.source_language if project else "Chinese",
             project_name=project.name if project else "",
+            auto_cascade=auto_cascade,
         )
 
         self._build_ui()
@@ -290,6 +296,13 @@ class TextbookImportDialog(QDialog):
         log_lay = QVBoxLayout(log_box)
         log_lay.setContentsMargins(0, 0, 0, 0)
         log_lay.addWidget(QLabel("提取日志："))
+        # U0-6: extract status light (window progress / cascade / reextract).
+        self._extract_status_label = QLabel("抽取状态：空闲")
+        self._extract_status_label.setWordWrap(True)
+        self._extract_status_label.setStyleSheet(
+            f"color: {current_palette()['text_secondary']}; font-size: 11px; font-weight: 600;"
+        )
+        log_lay.addWidget(self._extract_status_label)
         self._extract_log = QTextEdit()
         self._extract_log.setReadOnly(True)
         log_lay.addWidget(self._extract_log)
@@ -330,7 +343,17 @@ class TextbookImportDialog(QDialog):
         )
         self._skip_btn = QPushButton("跳过本章")
         self._skip_btn.clicked.connect(self._on_skip_chapter)
-        for btn in (self._retry_btn, self._retry_vocab_btn, self._skip_btn):
+        self._reextract_btn = QPushButton("按质量重抽")
+        self._reextract_btn.setToolTip(
+            "把本章的质量问题回灌给 AI，重新抽取并替换本章知识点"
+        )
+        self._reextract_btn.clicked.connect(self._on_reextract_chapter)
+        for btn in (
+            self._retry_btn,
+            self._retry_vocab_btn,
+            self._skip_btn,
+            self._reextract_btn,
+        ):
             btn.setVisible(False)
             left_lay.addWidget(btn)
 
@@ -518,6 +541,46 @@ class TextbookImportDialog(QDialog):
     def _on_extract_log(self, message: str) -> None:
         self._extract_log.insertPlainText(message)
         self._extract_log.ensureCursorVisible()
+        self._update_extract_status_light(message)
+
+    def _update_extract_status_light(self, message: str) -> None:
+        """U0-6: surface slide-window / cascade / reextract in a status lamp."""
+        if not hasattr(self, "_extract_status_label"):
+            return
+        text = message or ""
+        low = text.lower()
+        if "自动降级" in text or "vocab_only" in low and "降级" in text:
+            self._extract_status_label.setText("抽取状态：已自动降级 → 仅词汇")
+            self._extract_status_label.setStyleSheet(
+                "color: #d97706; font-size: 11px; font-weight: 600;"
+            )
+        elif "滑窗" in text or "窗" in text and ("/" in text or "window" in low):
+            # Keep last window-ish line visible.
+            snippet = text.strip().splitlines()[-1][:120]
+            self._extract_status_label.setText(f"抽取状态：{snippet}")
+            self._extract_status_label.setStyleSheet(
+                "color: #0f766e; font-size: 11px; font-weight: 600;"
+            )
+        elif "按质量重抽完成" in text or "重抽完成" in text:
+            self._extract_status_label.setText("抽取状态：按质量重抽完成 · 已重算质量分")
+            self._extract_status_label.setStyleSheet(
+                "color: #16a34a; font-size: 11px; font-weight: 600;"
+            )
+        elif "按质量重抽失败" in text or "重抽失败" in text:
+            self._extract_status_label.setText("抽取状态：按质量重抽失败（已保留原结果）")
+            self._extract_status_label.setStyleSheet(
+                "color: #dc2626; font-size: 11px; font-weight: 600;"
+            )
+        elif "完成" in text and ("词" in text or "表达" in text):
+            self._extract_status_label.setText("抽取状态：本章完成")
+            self._extract_status_label.setStyleSheet(
+                "color: #16a34a; font-size: 11px; font-weight: 600;"
+            )
+        elif "失败" in text:
+            self._extract_status_label.setText("抽取状态：失败 — 见日志")
+            self._extract_status_label.setStyleSheet(
+                "color: #dc2626; font-size: 11px; font-weight: 600;"
+            )
 
     def _on_autosave(self, project: TextbookProject) -> None:
         """Persist project snapshot, preserving original identity and imports."""
@@ -540,6 +603,11 @@ class TextbookImportDialog(QDialog):
             text += f"，预计剩余 {remaining} 秒"
         self._stage_label.setText(text)
         self.stage_text_changed.emit(text)
+        if hasattr(self, "_extract_status_label"):
+            self._extract_status_label.setText(f"抽取状态：{text}")
+            self._extract_status_label.setStyleSheet(
+                "color: #0f766e; font-size: 11px; font-weight: 600;"
+            )
 
     def _on_quality_report_changed(self, report) -> None:
         self._refresh_quality_summary(report)
@@ -715,6 +783,12 @@ class TextbookImportDialog(QDialog):
         failed = bool(cr.error)
         for btn in (self._retry_btn, self._retry_vocab_btn, self._skip_btn):
             btn.setVisible(failed)
+        # 「按质量重抽」is offered on chapters that extracted successfully but
+        # still carry quality issues (P4-4).
+        report = self._controller.quality_report
+        chapter_quality = report.chapter_quality(ci) if report else None
+        has_issues = bool(chapter_quality and chapter_quality.issues)
+        self._reextract_btn.setVisible(cr.knowledge is not None and has_issues)
         if failed:
             self._chapter_recovery_label.setText(
                 f"第 {ci + 1} 章抽取失败：{cr.error}"
@@ -746,6 +820,17 @@ class TextbookImportDialog(QDialog):
         )
         self._controller.skip_chapter(self._selected_chapter_index)
         self._populate_review()
+
+    def _on_reextract_chapter(self) -> None:
+        if self._selected_chapter_index is None:
+            return
+        result = self._controller.reextract_chapter_targeted(
+            self._selected_chapter_index
+        )
+        if result.outcome == "error":
+            QMessageBox.warning(self, "按质量重抽", result.message)
+        else:
+            self._set_busy(True, "按质量重抽中…")
 
     def _on_review_rows_changed(self) -> None:
         telemetry.record_event("textbook.review.edit")

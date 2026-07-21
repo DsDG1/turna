@@ -46,6 +46,31 @@ class Settings:
     # this to True by default; custom preset leaves it to the user.
     ai_supports_reasoning: bool = False
 
+    # --- Advanced AI options (aiEnhance.md 第三枪 批次①) ---
+    # Optional chat-side model (alignment / explanation / chat). Empty = use
+    # ``ai_model``. Lets users route cheap conversational calls to a smaller
+    # model while JSON generation goes through ``ai_model_json`` (or ``ai_model``).
+    ai_model_chat: str = ""
+    # Optional JSON-side model (course / lesson / item transform / correction /
+    # outline / extract). Empty = use ``ai_model``.
+    ai_model_json: str = ""
+    # ``auto`` (default) tries ``json_schema`` response format and falls back to
+    # ``json_object`` if the provider returns 400 / "unsupported". ``on`` forces
+    # ``json_schema``; ``off`` forces ``json_object``.
+    ai_strict_schema: str = "auto"
+    # In-memory LRU cache of AI JSON responses (sha256 of model+messages). Off
+    # by default to preserve deterministic telemetry in tests.
+    ai_cache_enabled: bool = False
+    # Auto second-pass to fill ``[待补]`` / needs-review stubs after generation.
+    # Off by default; opt-in per aiEnhance.md P1-7/P1-10.
+    ai_fill_needs_review: bool = False
+    # Max parallel lesson-generation workers in phased / pipeline mode. 1 =
+    # sequential (safe default). Clamped to [1, 8].
+    ai_max_parallel_lessons: int = 1
+    # Default workshop generation mode when a new project is opened:
+    # ``fast`` (single-shot full section) or ``refine`` (outline -> per-lesson).
+    ai_pipeline_default_mode: str = "fast"
+
     # Editor behaviour
     auto_save_on_close: bool = False
     undo_limit: int = 100
@@ -124,6 +149,31 @@ class Settings:
             qsettings.value("ai/supports_reasoning", False), False
         )
 
+        # Advanced AI options (第三枪 批次①). All keys are tolerant of missing
+        # values so older installs upgrade cleanly.
+        ai_model_chat = _str_or_empty(qsettings.value("ai/model_chat", ""))
+        ai_model_json = _str_or_empty(qsettings.value("ai/model_json", ""))
+        ai_strict_schema = _str_or_default(
+            qsettings.value("ai/strict_schema", "auto"), "auto"
+        )
+        if ai_strict_schema not in {"auto", "on", "off"}:
+            ai_strict_schema = "auto"
+        ai_cache_enabled = _bool_or_default(
+            qsettings.value("ai/cache_enabled", False), False
+        )
+        ai_fill_needs_review = _bool_or_default(
+            qsettings.value("ai/fill_needs_review", False), False
+        )
+        ai_max_parallel_lessons = _int_or_default(
+            qsettings.value("ai/max_parallel_lessons", 1), 1
+        )
+        ai_max_parallel_lessons = max(1, min(8, ai_max_parallel_lessons))
+        ai_pipeline_default_mode = _str_or_default(
+            qsettings.value("ai/pipeline_default_mode", "fast"), "fast"
+        )
+        if ai_pipeline_default_mode not in {"fast", "refine"}:
+            ai_pipeline_default_mode = "fast"
+
         # Git library configuration
         git_clone_root = _str_or_empty(qsettings.value("git/clone_root", ""))
         git_bin = _str_or_empty(qsettings.value("git/bin", ""))
@@ -151,6 +201,13 @@ class Settings:
             ai_timeout=ai_timeout,
             ai_temperature=ai_temperature,
             ai_supports_reasoning=ai_supports_reasoning,
+            ai_model_chat=ai_model_chat,
+            ai_model_json=ai_model_json,
+            ai_strict_schema=ai_strict_schema,
+            ai_cache_enabled=ai_cache_enabled,
+            ai_fill_needs_review=ai_fill_needs_review,
+            ai_max_parallel_lessons=ai_max_parallel_lessons,
+            ai_pipeline_default_mode=ai_pipeline_default_mode,
             auto_save_on_close=auto_save,
             undo_limit=undo_limit,
             recent_repos=recent_repos,
@@ -179,6 +236,15 @@ class Settings:
         qsettings.setValue("ai/timeout", self.ai_timeout)
         qsettings.setValue("ai/temperature", self.ai_temperature)
         qsettings.setValue("ai/supports_reasoning", self.ai_supports_reasoning)
+
+        # Advanced AI options (第三枪 批次①)
+        qsettings.setValue("ai/model_chat", self.ai_model_chat)
+        qsettings.setValue("ai/model_json", self.ai_model_json)
+        qsettings.setValue("ai/strict_schema", self.ai_strict_schema)
+        qsettings.setValue("ai/cache_enabled", self.ai_cache_enabled)
+        qsettings.setValue("ai/fill_needs_review", self.ai_fill_needs_review)
+        qsettings.setValue("ai/max_parallel_lessons", self.ai_max_parallel_lessons)
+        qsettings.setValue("ai/pipeline_default_mode", self.ai_pipeline_default_mode)
 
         qsettings.setValue("editor/auto_save_on_close", self.auto_save_on_close)
         qsettings.setValue("editor/undo_limit", self.undo_limit)
@@ -231,6 +297,13 @@ class Settings:
             ai_timeout=self.ai_timeout,
             ai_temperature=self.ai_temperature,
             ai_supports_reasoning=self.ai_supports_reasoning,
+            ai_model_chat=self.ai_model_chat,
+            ai_model_json=self.ai_model_json,
+            ai_strict_schema=self.ai_strict_schema,
+            ai_cache_enabled=self.ai_cache_enabled,
+            ai_fill_needs_review=self.ai_fill_needs_review,
+            ai_max_parallel_lessons=self.ai_max_parallel_lessons,
+            ai_pipeline_default_mode=self.ai_pipeline_default_mode,
             auto_save_on_close=self.auto_save_on_close,
             undo_limit=self.undo_limit,
             recent_repos=[dict(r) for r in self.recent_repos],

@@ -97,6 +97,24 @@ class TelemetryTest(unittest.TestCase):
         self.telemetry.clear()
         self.assertEqual(self.log_file.read_text(encoding="utf-8"), "")
 
+    def test_record_event_accepts_cache_stats_payload(self) -> None:
+        """第三枪 批次① Step 9: ai.cache.stats events carry the AiCacheStats dict."""
+        stats = {
+            "hits": 3,
+            "misses": 7,
+            "entries": 2,
+            "disk_writes": 0,
+            "disk_errors": 0,
+        }
+        self.telemetry.record_event("ai.cache.stats", payload=stats)
+        data = self._last_line()
+        self.assertEqual(data["event"], "ai.cache.stats")
+        self.assertEqual(data["payload"]["hits"], 3)
+        self.assertEqual(data["payload"]["misses"], 7)
+        # No api key or messages leak into cache stats
+        self.assertNotIn("api_key", data["payload"])
+        self.assertNotIn("messages", data["payload"])
+
 
 if __name__ == "__main__":
     unittest.main()

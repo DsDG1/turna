@@ -98,3 +98,82 @@ def split_chapters(md: str, min_level: int = 2) -> list[Chapter]:
             )
         )
     return chapters
+
+
+def split_chapter_windows(
+    chapter: Chapter, max_chars: int, overlap_chars: int = 500
+) -> list[Chapter]:
+    """Split an over-long chapter into sliding windows at paragraph boundaries.
+
+    P4-1 of the textbook-extraction enhancements (aiEnhance.md): instead of
+    truncating a long chapter (and silently losing its tail), the extractor can
+    walk these windows and merge the per-window results.
+
+    - Chapters that already fit under ``max_chars`` (or a non-positive
+      ``max_chars``) are returned as a single window — the chapter itself — so
+      short-chapter behaviour is byte-for-byte unchanged.
+    - Longer chapters are packed into windows of at most ~``max_chars`` at
+      blank-line boundaries; every window after the first re-includes up to
+      ``overlap_chars`` of the previous window's trailing paragraphs, so
+      knowledge near a seam is seen twice and can be deduplicated downstream.
+    - A chapter whose single paragraph exceeds the cap cannot be split at a
+      paragraph boundary; it is returned whole (the extractor's truncation
+      fallback still applies, as before).
+
+    Window slugs are derived as ``{slug}#w{n}`` (1-based) and titles gain a
+    ``（第 n/N 部分）`` suffix so per-window extraction stays traceable in
+    prompts and logs; the merged result regenerates ids from the parent
+    chapter's slug (see ``knowledge_extractor.merge_window_knowledge``).
+    """
+    if max_chars <= 0 or len(chapter.markdown) <= max_chars:
+        return [chapter]
+
+    paragraphs = chapter.markdown.split("\n\n")
+    windows_md: list[str] = []
+    current = ""
+    for para in paragraphs:
+        candidate = para if not current else f"{current}\n\n{para}"
+        if current and len(candidate) > max_chars:
+            windows_md.append(current)
+            current = para
+        else:
+            current = candidate
+    if current:
+        windows_md.append(current)
+    if len(windows_md) <= 1:
+        return [chapter]
+
+    total = len(windows_md)
+    windows: list[Chapter] = []
+    for n, body in enumerate(windows_md, start=1):
+        if n > 1:
+            overlap = _trailing_overlap(windows_md[n - 2], overlap_chars)
+            if overlap:
+                body = f"{overlap}\n\n{body}"
+        windows.append(
+            Chapter(
+                idx=chapter.idx,
+                level=chapter.level,
+                title=f"{chapter.title}（第 {n}/{total} 部分）",
+                slug=f"{chapter.slug}#w{n}",
+                markdown=body,
+            )
+        )
+    return windows
+
+
+def _trailing_overlap(md: str, overlap_chars: int) -> str:
+    """Return trailing paragraphs of ``md`` totalling at most ~``overlap_chars``."""
+    if overlap_chars <= 0:
+        return ""
+    picked: list[str] = []
+    total = 0
+    for para in reversed(md.split("\n\n")):
+        added = len(para) + (2 if picked else 0)
+        if picked and total + added > overlap_chars:
+            break
+        picked.append(para)
+        total += added
+        if total >= overlap_chars:
+            break
+    return "\n\n".join(reversed(picked))

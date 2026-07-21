@@ -403,5 +403,43 @@ class GitLibraryTest(unittest.TestCase):
             thread.join(timeout=2.0)
 
 
+class HttpsTokenScopeTest(unittest.TestCase):
+    """Unit tests for the URL-scoped git token auth (B13).
+
+    These don't shell out to git; they just check the extra-args builder.
+    """
+
+    def test_no_token_yields_no_args(self) -> None:
+        lib = GitLibrary()
+        self.assertEqual(lib._extra_args_for_https("https://example.com/x.git"), [])
+
+    def test_https_url_is_url_scoped(self) -> None:
+        lib = GitLibrary(token="tkn")
+        args = lib._extra_args_for_https("https://example.com/x.git")
+        self.assertEqual(len(args), 2)
+        self.assertTrue(args[1].startswith("http.https://example.com/.extraheader="))
+        self.assertIn("Bearer tkn", args[1])
+
+    def test_cleartext_http_url_gets_no_token(self) -> None:
+        lib = GitLibrary(token="tkn")
+        self.assertEqual(lib._extra_args_for_https("http://example.com/x.git"), [])
+
+    def test_ssh_url_gets_no_token(self) -> None:
+        lib = GitLibrary(token="tkn")
+        self.assertEqual(lib._extra_args_for_https("git@example.com:x.git"), [])
+
+    def test_scope_is_host_specific_not_global(self) -> None:
+        lib = GitLibrary(token="tkn")
+        args = lib._extra_args_for_https("https://good.example.com/x.git")
+        # Must NOT be the unscaled http.extraheader form (which would leak to
+        # redirect/submodule hosts).
+        self.assertNotEqual(args[1].split("=", 1)[0], "http.extraheader")
+        self.assertIn("good.example.com", args[1])
+
+    def test_malformed_url_yields_no_args(self) -> None:
+        lib = GitLibrary(token="tkn")
+        self.assertEqual(lib._extra_args_for_https("not-a-url"), [])
+
+
 if __name__ == "__main__":
     unittest.main()

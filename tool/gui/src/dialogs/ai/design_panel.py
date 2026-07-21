@@ -1,16 +1,10 @@
-"""Embeddable grounded-design panel for the workshop (connectplan §4.2 / P3-3).
+"""Embeddable design / chat panel for the workshop.
 
-Left: resource-pool summary + orchestration params + prompt template bar +
-wish chat (with attachments). Right: the generated draft (JSON editor as the
-single source of truth, B1) with validate / preview / restore-raw / import
-actions and a collapsible plain-language explanation. All state lives in
-``DesignController``; the panel only renders and forwards. Emits
-``sections_ready`` so the host can push drafts through the shared
-``SectionImportService`` pipeline.
+Layout compression (L1): generation params live on the middle **Orbit** bar.
+This panel is the secondary surface — chat, attachments, prompt templates,
+pipeline switches, and optional JSON. Emits ``sections_ready`` for import.
 
-Phase C: ported attachments (temp-file lifecycle owned here, cleaned up on
-send/close — the legacy dialog leaked them), PromptTemplateBar, explain
-chain display, raw-output restore, and the lesson-picker preview.
+All state lives in ``DesignController``; the panel renders and forwards.
 """
 from __future__ import annotations
 
@@ -22,6 +16,7 @@ from typing import Any
 
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QFileDialog,
     QGroupBox,
@@ -43,6 +38,13 @@ from src.backend.ai_prompt_library import (
     AiPromptTemplate,
     prompt_library,
 )
+from src.backend.ai_pipeline import (
+    CHECKLIST_STEPS,
+    STATUS_DONE,
+    STATUS_FAILED,
+    STATUS_RUNNING,
+    STATUS_SKIPPED,
+)
 from src.backend.attachment_extractor import extract_attachment
 from src.dialogs.ai.attachment_bar import AttachmentBar
 from src.dialogs.ai.chat_view import ChatView
@@ -53,6 +55,23 @@ from src.widgets.json_editor import JsonEditor
 
 _TEMPLATES = ("mixed", "intro", "practice", "review", "listening", "reading", "mastery")
 _LEVELS = ("A1", "A2", "B1", "B2", "C1")
+
+#: Chinese labels / status marks for the refine-pipeline checklist (Phase 5).
+_STEP_LABELS = {
+    "plan": "规划",
+    "outline": "大纲",
+    "generate": "生成",
+    "validate": "校验",
+    "quality": "质量",
+    "fix": "修复",
+    "explain": "解释",
+}
+_STEP_MARKS = {
+    STATUS_RUNNING: "…",
+    STATUS_DONE: "✓",
+    STATUS_SKIPPED: "—",
+    STATUS_FAILED: "✗",
+}
 
 
 class DesignPanel(QWidget):
@@ -131,6 +150,7 @@ class DesignPanel(QWidget):
         c._on_explanation = self._on_explanation
         c._on_explanation_chunk = self._on_explanation_chunk
         c._on_explanation_error = self._on_explanation_error
+        c._on_pipeline_step = self._on_pipeline_step
 
     # ------------------------------------------------------------------ UI
     def _build_ui(self) -> None:
@@ -142,70 +162,54 @@ class DesignPanel(QWidget):
         self._pool_label.setStyleSheet("font-weight: 600;")
         layout.addWidget(self._pool_label)
 
-        splitter = QSplitter(Qt.Orientation.Horizontal)
+        self._param_hint = QLabel(
+            "主参数（主题 / 等级 / 规模 / 生成模式）在中间「AI 轨道」设置。"
+        )
+        self._param_hint.setWordWrap(True)
+        self._param_hint.setStyleSheet("font-size: 11px; opacity: 0.85;")
+        layout.addWidget(self._param_hint)
 
-        # Left: params + template bar + chat (with attachments).
-        left = QWidget()
-        left_lay = QVBoxLayout(left)
-        left_lay.setContentsMargins(0, 0, 0, 0)
-
-        row1 = QHBoxLayout()
-        row1.addWidget(QLabel("主题:"))
+        # Hidden mirrors kept for tests / set_project restore; not shown.
+        # Primary editing surface is Orbit when embedded in the workshop.
         self._topic_edit = QLineEdit()
-        self._topic_edit.setPlaceholderText("如：日常问候与自我介绍")
-        row1.addWidget(self._topic_edit, 1)
-        left_lay.addLayout(row1)
-
-        row2 = QHBoxLayout()
-        row2.addWidget(QLabel("级别:"))
+        self._topic_edit.setVisible(False)
         self._level_combo = QComboBox()
         self._level_combo.addItems(_LEVELS)
-        row2.addWidget(self._level_combo)
-        row2.addWidget(QLabel("单元:"))
+        self._level_combo.setVisible(False)
         self._units_spin = QSpinBox()
         self._units_spin.setRange(1, 5)
-        row2.addWidget(self._units_spin)
-        row2.addWidget(QLabel("课时/单元:"))
+        self._units_spin.setVisible(False)
         self._lessons_spin = QSpinBox()
         self._lessons_spin.setRange(1, 5)
         self._lessons_spin.setValue(3)
-        row2.addWidget(self._lessons_spin)
-        row2.addWidget(QLabel("模板:"))
+        self._lessons_spin.setVisible(False)
         self._template_combo = QComboBox()
         self._template_combo.addItems(_TEMPLATES)
-        row2.addWidget(self._template_combo)
-        row2.addStretch(1)
-        left_lay.addLayout(row2)
+        self._template_combo.setVisible(False)
+        self._gen_mode_combo = QComboBox()
+        self._gen_mode_combo.addItem("快速（整节）", "fast")
+        self._gen_mode_combo.addItem("精修（流水线）", "phased")
+        self._gen_mode_combo.setVisible(False)
+        self._gen_mode_combo.currentIndexChanged.connect(self._on_gen_mode_changed)
+        self._level_combo.currentTextChanged.connect(
+            lambda _t: self._refresh_pedagogy_badge()
+        )
+        for w in (
+            self._topic_edit,
+            self._level_combo,
+            self._units_spin,
+            self._lessons_spin,
+            self._template_combo,
+            self._gen_mode_combo,
+        ):
+            layout.addWidget(w)
 
-        row3 = QHBoxLayout()
-        row3.addWidget(QLabel("编排意图:"))
-        self._brief_edit = QLineEdit()
-        self._brief_edit.setPlaceholderText("可选，如：前两章做 intro，语法点单独一个 review 单元")
-        row3.addWidget(self._brief_edit, 1)
-        left_lay.addLayout(row3)
-
-        row4 = QHBoxLayout()
-        row4.addWidget(QLabel("额外指令:"))
-        self._extra_edit = QLineEdit()
-        self._extra_edit.setPlaceholderText("可选，附加给 AI 的要求；开启 [genre] 后可插入 [intro] 等标签")
-        row4.addWidget(self._extra_edit, 1)
-        left_lay.addLayout(row4)
-
-        # Prompt template bar (templates + genre toggle + history/save).
-        self._template_bar = PromptTemplateBar(self)
-        self._template_bar.set_library(prompt_library())
-        self._template_bar.template_applied.connect(self._on_template_applied)
-        self._template_bar.history_applied.connect(self._on_history_applied)
-        self._template_bar.template_changed.connect(self._on_bar_template_changed)
-        self._template_bar.genre_toggled.connect(self._on_genre_toggled)
-        self._template_combo.currentTextChanged.connect(self._on_combo_template_changed)
-        left_lay.addWidget(self._template_bar)
-
+        # --- Chat (primary content of this panel) ---
         self._chat_view = ChatView()
-        left_lay.addWidget(self._chat_view, 1)
+        layout.addWidget(self._chat_view, 1)
 
         self._attachment_bar = AttachmentBar(self)
-        left_lay.addWidget(self._attachment_bar)
+        layout.addWidget(self._attachment_bar)
 
         chat_row = QHBoxLayout()
         self._attach_btn = QPushButton("附件")
@@ -219,10 +223,13 @@ class DesignPanel(QWidget):
         self._send_btn = QPushButton("发送")
         self._send_btn.clicked.connect(self._on_send_chat)
         chat_row.addWidget(self._send_btn)
-        left_lay.addLayout(chat_row)
+        layout.addLayout(chat_row)
 
         gen_row = QHBoxLayout()
-        self._generate_btn = QPushButton("生成课程 ▶")
+        self._generate_btn = QPushButton("按对话再生成")
+        self._generate_btn.setToolTip(
+            "用当前聊天记录 + 中栏轨道参数生成/改写课程（无对话时等同中栏生成）"
+        )
         self._generate_btn.clicked.connect(self._on_generate)
         gen_row.addWidget(self._generate_btn)
         self._stage_label = QLabel("")
@@ -230,18 +237,86 @@ class DesignPanel(QWidget):
         gen_row.addStretch(1)
         self._usage_label = QLabel("")
         gen_row.addWidget(self._usage_label)
-        left_lay.addLayout(gen_row)
+        layout.addLayout(gen_row)
 
-        splitter.addWidget(left)
+        self._checklist_widget = QWidget()
+        checklist_row = QHBoxLayout(self._checklist_widget)
+        checklist_row.setContentsMargins(0, 0, 0, 0)
+        checklist_row.setSpacing(8)
+        self._checklist_labels: dict[str, QLabel] = {}
+        for step in CHECKLIST_STEPS:
+            label = QLabel()
+            label.setStyleSheet("color: gray;")
+            self._checklist_labels[step] = label
+            checklist_row.addWidget(label)
+        checklist_row.addStretch(1)
+        self._render_pipeline_checklist({})
+        self._checklist_widget.setVisible(False)
+        layout.addWidget(self._checklist_widget)
 
-        # Right: draft JSON + actions + explanation.
-        right = QWidget()
-        right_lay = QVBoxLayout(right)
-        right_lay.setContentsMargins(0, 0, 0, 0)
-        right_lay.addWidget(QLabel("草稿 JSON（可手动修改，导入以编辑器内容为准）："))
+        self._fast_progress_label = QLabel("")
+        self._fast_progress_label.setStyleSheet("color: gray; font-size: 11px;")
+        self._fast_progress_label.setVisible(False)
+        layout.addWidget(self._fast_progress_label)
+
+        # --- Advanced (collapsed): intent, extras, templates, pipeline skips ---
+        self._advanced_group = QGroupBox("高级：模板 · 意图 · 精修选项")
+        self._advanced_group.setCheckable(True)
+        self._advanced_group.setChecked(False)
+        self._advanced_group.setFlat(False)
+        adv_lay = QVBoxLayout(self._advanced_group)
+        adv_lay.setSpacing(6)
+
+        self._pedagogy_badge = QLabel("")
+        self._pedagogy_badge.setStyleSheet(
+            "color: #0f766e; font-size: 11px; font-weight: 600;"
+        )
+        adv_lay.addWidget(self._pedagogy_badge)
+        self._refresh_pedagogy_badge()
+
+        skip_row = QHBoxLayout()
+        self._skip_fix_check = QCheckBox("跳过修复")
+        self._skip_fix_check.setToolTip("精修流水线跳过 Fix 步")
+        self._skip_explain_check = QCheckBox("跳过解释")
+        self._skip_explain_check.setToolTip("精修流水线跳过 Explain 步")
+        skip_row.addWidget(self._skip_fix_check)
+        skip_row.addWidget(self._skip_explain_check)
+        skip_row.addStretch(1)
+        adv_lay.addLayout(skip_row)
+
+        brief_row = QHBoxLayout()
+        brief_row.addWidget(QLabel("编排意图:"))
+        self._brief_edit = QLineEdit()
+        self._brief_edit.setPlaceholderText("可选，如：前两章 intro，语法单独 review")
+        brief_row.addWidget(self._brief_edit, 1)
+        adv_lay.addLayout(brief_row)
+
+        extra_row = QHBoxLayout()
+        extra_row.addWidget(QLabel("额外指令:"))
+        self._extra_edit = QLineEdit()
+        self._extra_edit.setPlaceholderText("可选；开启 [genre] 后可插入 [intro] 等")
+        extra_row.addWidget(self._extra_edit, 1)
+        adv_lay.addLayout(extra_row)
+
+        self._template_bar = PromptTemplateBar(self)
+        self._template_bar.set_library(prompt_library())
+        self._template_bar.template_applied.connect(self._on_template_applied)
+        self._template_bar.history_applied.connect(self._on_history_applied)
+        self._template_bar.template_changed.connect(self._on_bar_template_changed)
+        self._template_bar.genre_toggled.connect(self._on_genre_toggled)
+        self._template_combo.currentTextChanged.connect(self._on_combo_template_changed)
+        adv_lay.addWidget(self._template_bar)
+
+        layout.addWidget(self._advanced_group)
+
+        # --- JSON (collapsed by default) ---
+        self._json_group = QGroupBox("高级：草稿 JSON")
+        self._json_group.setCheckable(True)
+        self._json_group.setChecked(False)
+        json_outer = QVBoxLayout(self._json_group)
         self._json_editor = JsonEditor()
-        right_lay.addWidget(self._json_editor, 1)
-
+        self._json_editor.setMinimumHeight(120)
+        json_outer.addWidget(self._json_editor, 1)
         action_row = QHBoxLayout()
         self._validate_btn = QPushButton("校验")
         self._validate_btn.clicked.connect(self._on_validate)
@@ -257,9 +332,10 @@ class DesignPanel(QWidget):
         self._import_btn = QPushButton("导入到课程 ↗")
         self._import_btn.clicked.connect(self._on_import)
         action_row.addWidget(self._import_btn)
-        right_lay.addLayout(action_row)
+        json_outer.addLayout(action_row)
         self._validate_label = QLabel("")
-        right_lay.addWidget(self._validate_label)
+        json_outer.addWidget(self._validate_label)
+        layout.addWidget(self._json_group)
 
         self._explain_group = QGroupBox("AI 通俗解释")
         self._explain_group.setCheckable(True)
@@ -267,18 +343,14 @@ class DesignPanel(QWidget):
         self._explain_group.setVisible(False)
         explain_lay = QVBoxLayout(self._explain_group)
         self._explain_browser = QTextBrowser()
-        self._explain_browser.setMaximumHeight(160)
+        self._explain_browser.setMaximumHeight(120)
         explain_lay.addWidget(self._explain_browser)
-        right_lay.addWidget(self._explain_group)
-
-        splitter.addWidget(right)
-        splitter.setStretchFactor(0, 1)
-        splitter.setStretchFactor(1, 1)
-        layout.addWidget(splitter, 1)
+        layout.addWidget(self._explain_group)
 
         for btn in (self._validate_btn, self._try_btn, self._import_btn):
             btn.setEnabled(False)
         self._restore_raw_btn.setEnabled(False)
+        self._on_gen_mode_changed(self._gen_mode_combo.currentIndex())
 
     # ------------------------------------------------------------------ project binding
     def has_draft(self) -> bool:
@@ -302,6 +374,24 @@ class DesignPanel(QWidget):
             pool.append({**e, "_kind": "grammar"})
         return pool
 
+    def apply_orbit_params(self, params: dict[str, Any]) -> None:
+        """Mirror orbit params into hidden widgets (chat path / tests)."""
+        self._topic_edit.setText(params.get("topic", "") or "")
+        self._level_combo.setCurrentText(params.get("level", "A1") or "A1")
+        self._units_spin.setValue(int(params.get("unit_count", 1) or 1))
+        self._lessons_spin.setValue(int(params.get("lessons_per_unit", 3) or 3))
+        tmpl = params.get("template", "mixed") or "mixed"
+        if tmpl in _TEMPLATES:
+            self._template_combo.setCurrentText(tmpl)
+        mode = str(params.get("generation_mode") or "fast")
+        idx = self._gen_mode_combo.findData(mode)
+        if idx < 0 and mode == "refine":
+            idx = self._gen_mode_combo.findData("phased")
+        self._gen_mode_combo.setCurrentIndex(idx if idx >= 0 else 0)
+        if "extra_instructions" in params:
+            self._extra_edit.setText(params.get("extra_instructions") or "")
+        self._refresh_pedagogy_badge()
+
     def set_project(self, project: Any, store: Any) -> None:
         """Bind to a textbook project: pool grounding + design persistence."""
         self._project = project
@@ -310,19 +400,24 @@ class DesignPanel(QWidget):
         self._controller.set_languages(project.language, project.source_language)
         self.refresh_pool_from_project()
         self._controller.apply_design_dict(project.design)
-        # Restore params into widgets.
+        # Restore params into mirrors + advanced fields.
         params = self._controller.params
-        self._topic_edit.setText(params.get("topic", ""))
+        self.apply_orbit_params(params)
         self._brief_edit.setText(params.get("design_brief", ""))
         self._extra_edit.setText(params.get("extra_instructions", ""))
-        self._units_spin.setValue(int(params.get("unit_count", 1)))
-        self._lessons_spin.setValue(int(params.get("lessons_per_unit", 3)))
-        self._level_combo.setCurrentText(params.get("level", "A1"))
-        self._template_combo.setCurrentText(params.get("template", "mixed"))
         self._template_bar.select_template(params.get("template", "mixed"), emit=False)
         self._template_bar.set_genre_enabled(bool(params.get("use_genre_batch", False)))
+        self._skip_fix_check.setChecked(bool(params.get("pipeline_skip_fix", False)))
+        self._skip_explain_check.setChecked(bool(params.get("pipeline_skip_explain", False)))
+        self._on_gen_mode_changed(self._gen_mode_combo.currentIndex())
         self._refresh_chat()
         self._render_explanation(self._controller.explanation)
+        # Expand JSON group if a draft already exists.
+        if self._controller.draft is not None:
+            self._json_group.setChecked(True)
+            self._json_editor.set_json(self._controller.draft)
+            for btn in (self._validate_btn, self._try_btn, self._import_btn):
+                btn.setEnabled(True)
 
     def refresh_pool_from_project(self) -> bool:
         """Re-read the project's resource pool (knowledge stage may have
@@ -434,16 +529,23 @@ class DesignPanel(QWidget):
         self._stream_buffer = ""
         self._generating = False
         self._json_editor.set_json(section)
+        # Keep JSON folded by default — outline is the primary result surface.
+        if not self._json_group.isChecked():
+            pass  # leave collapsed; user can expand for raw JSON
+        cache_note = " · 缓存✓" if self._controller.last_cache_hit else ""
         self._validate_label.setText(
             f"✓ 已生成 · {len(section.get('units', []))} 单元 · "
-            f"{len(section.get('words', []))} 词"
+            f"{len(section.get('words', []))} 词{cache_note} — 请看「结构大纲」摘要"
         )
+        self._set_fast_progress("done")
         for btn in (self._validate_btn, self._try_btn, self._import_btn):
             btn.setEnabled(True)
         self._restore_raw_btn.setEnabled(bool(self._last_raw_output))
         self.draft_ready.emit()
         # Persist draft promptly after generation (bypass busy skip).
         self.flush_autosave()
+        # Refresh status line with cache flag.
+        self._on_usage_update(self._controller.usage)
 
     def _on_draft_chunk(self, text: str) -> None:
         self._stream_buffer += text
@@ -469,14 +571,35 @@ class DesignPanel(QWidget):
             self._chat_stream_buffer = ""
             if self._generating:
                 self._validate_label.setText("生成中…")
+            if self._gen_mode_combo.currentData() != "phased":
+                self._set_fast_progress("生成")
+            else:
+                self._fast_progress_label.setVisible(False)
         self.busy_changed.emit(busy, stage)
 
     def _on_usage_update(self, usage: dict) -> None:
-        from src.backend.ai_usage import format_usage_line
         from src.app import current_ai_config
+        from src.backend.ai_summary import format_ai_status_line
 
-        model = getattr(current_ai_config(), "model", "")
-        text = format_usage_line(usage, model)
+        cfg = current_ai_config()
+        model_json = (
+            getattr(cfg, "model_json", None) or getattr(cfg, "model", "") or ""
+        )
+        model_chat = (
+            getattr(cfg, "model_chat", None) or getattr(cfg, "model", "") or ""
+        )
+        mode = str(self._controller.params.get("generation_mode") or "fast")
+        text = format_ai_status_line(
+            model_json=str(model_json),
+            model_chat=str(model_chat),
+            cache_hit=self._controller.last_cache_hit if not self._controller.is_busy else None,
+            usage=usage if isinstance(usage, dict) else None,
+            mode=mode,
+        )
+        if not text:
+            from src.backend.ai_usage import format_usage_line
+
+            text = format_usage_line(usage, model_json)
         self._usage_label.setText(text)
         self.usage_changed.emit(text)
 
@@ -505,6 +628,78 @@ class DesignPanel(QWidget):
             f"<span style='color:#dc2626'>解释生成失败：{html.escape(message)}</span>"
         )
         self._explain_group.setVisible(True)
+
+    # ------------------------------------------------------------------ pipeline checklist
+    def _on_gen_mode_changed(self, _index: int) -> None:
+        """Refine-only controls (skip switches, checklist) follow the mode."""
+        refine = self._gen_mode_combo.currentData() == "phased"
+        self._skip_fix_check.setEnabled(refine)
+        self._skip_explain_check.setEnabled(refine)
+        if not refine:
+            self._checklist_widget.setVisible(False)
+        self._refresh_pedagogy_badge()
+
+    def _refresh_pedagogy_badge(self) -> None:
+        """U0-5: show that CEFR/language pedagogy constraints are injected."""
+        level = self._level_combo.currentText() if hasattr(self, "_level_combo") else "A1"
+        lang = getattr(self._controller, "_language", None) or "Turkish"
+        # Short language code hint for badge.
+        code = "tr" if "turk" in str(lang).lower() or lang == "tr" else str(lang)[:8]
+        self._pedagogy_badge.setText(f"已注入 {code}·{level} 教学约束")
+        self._pedagogy_badge.setToolTip(
+            "生成 prompt 会注入 CEFR 软约束、干扰项规则与语言包（如 Turkish 元音和谐/敬语）。"
+        )
+
+    def _render_pipeline_checklist(self, statuses: dict[str, str]) -> None:
+        for step, label in self._checklist_labels.items():
+            status = statuses.get(step, "pending")
+            mark = _STEP_MARKS.get(status, "○")
+            label.setText(f"{mark}{_STEP_LABELS.get(step, step)}")
+            if status == STATUS_FAILED:
+                label.setStyleSheet("color: #dc2626; font-weight: 700;")
+                label.setToolTip(f"{_STEP_LABELS.get(step, step)} 失败")
+            elif status == STATUS_DONE:
+                label.setStyleSheet("color: #16a34a;")
+                label.setToolTip(f"{_STEP_LABELS.get(step, step)} 完成")
+            elif status == STATUS_RUNNING:
+                label.setStyleSheet("color: #d97706; font-weight: 700;")
+                label.setToolTip(f"{_STEP_LABELS.get(step, step)} 进行中…")
+            elif status == STATUS_SKIPPED:
+                label.setStyleSheet("color: gray;")
+                label.setToolTip(f"{_STEP_LABELS.get(step, step)} 已跳过")
+            else:
+                label.setStyleSheet("color: gray;")
+                label.setToolTip(f"{_STEP_LABELS.get(step, step)} 等待")
+
+    def _on_pipeline_step(self, statuses: dict[str, str]) -> None:
+        """Controller push: render step statuses (pending/running/done/...)."""
+        if self._gen_mode_combo.currentData() == "phased":
+            self._checklist_widget.setVisible(True)
+            self._fast_progress_label.setVisible(False)
+        self._render_pipeline_checklist(statuses)
+
+    def _set_fast_progress(self, phase: str) -> None:
+        """Mini three-state story for fast mode: 生成 / 校验 / 质量."""
+        order = ("生成", "校验", "质量")
+        if phase != "done" and phase not in order:
+            self._fast_progress_label.setVisible(False)
+            return
+        parts = []
+        if phase == "done":
+            parts = [f"✓{step}" for step in order]
+        else:
+            idx = order.index(phase)
+            for i, step in enumerate(order):
+                if i < idx:
+                    parts.append(f"✓{step}")
+                elif i == idx:
+                    parts.append(f"…{step}")
+                else:
+                    parts.append(f"○{step}")
+        self._fast_progress_label.setText(" · ".join(parts))
+        self._fast_progress_label.setVisible(
+            self._gen_mode_combo.currentData() != "phased"
+        )
 
     # ------------------------------------------------------------------ template bar
     def _on_bar_template_changed(self, template: str) -> None:
@@ -620,6 +815,9 @@ class DesignPanel(QWidget):
 
     # ------------------------------------------------------------------ actions
     def _sync_params(self) -> None:
+        mode = self._gen_mode_combo.currentData()
+        if mode is None:
+            mode = "fast"
         self._controller.set_params(
             topic=self._topic_edit.text().strip(),
             level=self._level_combo.currentText(),
@@ -629,6 +827,9 @@ class DesignPanel(QWidget):
             use_genre_batch=self._template_bar.is_genre_enabled(),
             extra_instructions=self._extra_edit.text().strip(),
             design_brief=self._brief_edit.text().strip(),
+            generation_mode=str(mode),
+            pipeline_skip_fix=self._skip_fix_check.isChecked(),
+            pipeline_skip_explain=self._skip_explain_check.isChecked(),
         )
 
     def _on_send_chat(self) -> None:

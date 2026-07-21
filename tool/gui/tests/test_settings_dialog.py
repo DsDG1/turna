@@ -104,5 +104,78 @@ class ExtractionPromptTabTest(unittest.TestCase):
             kp.DEFAULT_LIBRARY = old_library
 
 
+class SettingsDialogAdvancedAiTest(unittest.TestCase):
+    """第三枪 批次① Step 8: advanced AI options in the Settings dialog."""
+
+    def _make_dialog(self) -> "SettingsDialog":
+        _App.get()
+        with patch("src.app.QSettings", return_value=_make_qsettings()):
+            settings = Settings.load_from_qsettings(_make_qsettings())
+        dlg = SettingsDialog(settings, prompt_library=_make_prompt_library())
+        self.addCleanup(dlg.deleteLater)
+        return dlg
+
+    def test_advanced_group_exists_and_collapsed_by_default(self) -> None:
+        dlg = self._make_dialog()
+        # The advanced group must be checkable and start unchecked (collapsed).
+        self.assertTrue(dlg.ai_strict_schema_combo.findData("auto") >= 0)
+        self.assertTrue(dlg.ai_strict_schema_combo.findData("on") >= 0)
+        self.assertTrue(dlg.ai_strict_schema_combo.findData("off") >= 0)
+
+    def test_load_values_populates_advanced_fields(self) -> None:
+        dlg = self._make_dialog()
+        # Defaults
+        self.assertEqual(dlg.ai_model_chat_edit.text(), "")
+        self.assertEqual(dlg.ai_model_json_edit.text(), "")
+        self.assertEqual(dlg.ai_strict_schema_combo.currentData(), "auto")
+        self.assertFalse(dlg.ai_cache_check.isChecked())
+        self.assertFalse(dlg.ai_fill_needs_review_check.isChecked())
+        self.assertEqual(dlg.ai_max_parallel_lessons_spin.value(), 1)
+        self.assertEqual(dlg.ai_pipeline_default_mode_combo.currentData(), "fast")
+
+    def test_sync_to_settings_persists_advanced_fields(self) -> None:
+        dlg = self._make_dialog()
+        dlg.ai_model_chat_edit.setText("chat-m")
+        dlg.ai_model_json_edit.setText("json-m")
+        dlg.ai_strict_schema_combo.setCurrentIndex(
+            dlg.ai_strict_schema_combo.findData("on")
+        )
+        dlg.ai_cache_check.setChecked(True)
+        dlg.ai_fill_needs_review_check.setChecked(True)
+        dlg.ai_max_parallel_lessons_spin.setValue(4)
+        dlg.ai_pipeline_default_mode_combo.setCurrentIndex(
+            dlg.ai_pipeline_default_mode_combo.findData("refine")
+        )
+        dlg._sync_to_settings()
+        s = dlg._settings
+        self.assertEqual(s.ai_model_chat, "chat-m")
+        self.assertEqual(s.ai_model_json, "json-m")
+        self.assertEqual(s.ai_strict_schema, "on")
+        self.assertTrue(s.ai_cache_enabled)
+        self.assertTrue(s.ai_fill_needs_review)
+        self.assertEqual(s.ai_max_parallel_lessons, 4)
+        self.assertEqual(s.ai_pipeline_default_mode, "refine")
+
+    def test_round_trip_load_after_save(self) -> None:
+        dlg = self._make_dialog()
+        dlg.ai_model_chat_edit.setText("c")
+        dlg.ai_model_json_edit.setText("j")
+        dlg.ai_strict_schema_combo.setCurrentIndex(
+            dlg.ai_strict_schema_combo.findData("off")
+        )
+        dlg.ai_cache_check.setChecked(True)
+        dlg.ai_max_parallel_lessons_spin.setValue(3)
+        dlg._sync_to_settings()
+        # Simulate a dialog re-open with the same settings
+        dlg2 = SettingsDialog(dlg._settings, prompt_library=_make_prompt_library())
+        self.addCleanup(dlg2.deleteLater)
+        dlg2._load_values()
+        self.assertEqual(dlg2.ai_model_chat_edit.text(), "c")
+        self.assertEqual(dlg2.ai_model_json_edit.text(), "j")
+        self.assertEqual(dlg2.ai_strict_schema_combo.currentData(), "off")
+        self.assertTrue(dlg2.ai_cache_check.isChecked())
+        self.assertEqual(dlg2.ai_max_parallel_lessons_spin.value(), 3)
+
+
 if __name__ == "__main__":
     unittest.main()

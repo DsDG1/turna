@@ -1,0 +1,42 @@
+{
+  "version": 2,
+  "project_id": "未命名项目_9ae1e888",
+  "name": "未命名项目",
+  "created_at": "2026-07-21T05:28:56.543125+00:00",
+  "updated_at": "2026-07-21T05:30:48.346217+00:00",
+  "current_step": 0,
+  "source_path": null,
+  "source_checksum": null,
+  "markdown": "",
+  "language": "Turkish",
+  "source_language": "Chinese",
+  "chapters": [],
+  "imported_section_ids": [],
+  "resource_pool": {
+    "words": [],
+    "expressions": [],
+    "grammarPoints": [],
+    "updated_at": ""
+  },
+  "design": {
+    "chat_history": [],
+    "params": {
+      "topic": "基础会话",
+      "level": "A1",
+      "unit_count": 1,
+      "lessons_per_unit": 3,
+      "template": "mixed",
+      "use_genre_batch": false,
+      "extra_instructions": "",
+      "dropped_bubbles": [],
+      "generation_mode": "fast",
+      "pipeline_skip_fix": false,
+      "pipeline_skip_explain": false,
+      "design_brief": ""
+    },
+    "draft_sections": [],
+    "explanation": ""
+  },
+  "import_map": {},
+  "ui_stage": 1
+}

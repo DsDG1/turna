@@ -33,8 +33,8 @@ from typing import Any
 
 from course_cli import is_listening_lesson  # type: ignore
 
-COURSE_DIR = Path("assets/courses/turkish")
-SOUNDS_DIR = Path("assets/sounds/turkish")
+COURSE_DIR = Path(__file__).resolve().parent.parent / "assets" / "courses" / "turkish"
+SOUNDS_DIR = Path(__file__).resolve().parent.parent / "assets" / "sounds" / "turkish"
 
 MINIMAX_API_URL = os.environ.get("MINIMAX_API_URL", "https://api.minimax.io/v1/t2a_v2")
 DEFAULT_VOICE_ID = "female-tianmei"

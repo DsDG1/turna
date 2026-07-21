@@ -12,6 +12,7 @@ import os
 import shutil
 import tempfile
 import time
+import hashlib
 from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -81,6 +82,12 @@ class CourseAdapter:
         self._snapshot: dict[str, Any] | None = None
         self._hash_cache: dict[str, int] = {}
         self._resource_listeners: list = []
+        # id -> (section, unit) and id -> (section, unit, lesson) indexes
+        # used by find_unit/find_lesson to avoid full-tree scans on every
+        # command. Lazily rebuilt when ``_node_index_dirty`` is set.
+        self._unit_index: dict[str, tuple[dict[str, Any], dict[str, Any]]] = {}
+        self._lesson_index: dict[str, tuple[dict[str, Any], dict[str, Any], dict[str, Any]]] = {}
+        self._node_index_dirty: bool = True
 
     # --- Resource change notification (A3) --------------------------------
 
@@ -122,6 +129,7 @@ class CourseAdapter:
             self.expressions_version = bundle.expressions_version
             self._snapshot = self._deep_snapshot()
             self._refresh_hash_cache()
+            self.invalidate_node_index()
         except Exception:
             telemetry.record_error(
                 context={"action": "repo.load", "course_dir": str(self.course_dir)},
@@ -144,6 +152,38 @@ class CourseAdapter:
             "expressions": self._state_hash({"expressions": snap["expressions"]}),
             "grammar_points": self._state_hash({"grammar_points": snap["grammar_points"]}),
         }
+
+    def invalidate_node_index(self) -> None:
+        """Mark the id->node index as stale.
+
+        Call after any mutation that reorders, adds, removes, or replaces
+        entries in ``self.sections`` (or sub-lists). The next ``find_unit``
+        / ``find_lesson`` will rebuild lazily. Cheap if nothing queries.
+        """
+        self._node_index_dirty = True
+
+    def _rebuild_node_indexes(self) -> None:
+        """Rebuild ``_unit_index`` and ``_lesson_index`` from ``self.sections``."""
+        self._unit_index = {}
+        self._lesson_index = {}
+        for section in self.sections:
+            for unit in section.get("units") or []:
+                if not isinstance(unit, dict):
+                    continue
+                uid = unit.get("id")
+                if uid:
+                    self._unit_index[uid] = (section, unit)
+                for lesson in unit.get("lessons") or []:
+                    if not isinstance(lesson, dict):
+                        continue
+                    lid = lesson.get("id")
+                    if lid:
+                        self._lesson_index[lid] = (section, unit, lesson)
+        self._node_index_dirty = False
+
+    def _ensure_node_index(self) -> None:
+        if self._node_index_dirty:
+            self._rebuild_node_indexes()
 
     @staticmethod
     def is_course_dir(path: Path) -> bool:
@@ -423,17 +463,42 @@ class CourseAdapter:
         raise KeyError(f"unknown section: {section_id}")
 
     def find_unit(self, unit_id: str) -> tuple[dict[str, Any], dict[str, Any]]:
+        self._ensure_node_index()
+        hit = self._unit_index.get(unit_id)
+        if hit is not None:
+            section, unit = hit
+            # Validate: the cached (section, unit) must still be wired into
+            # self.sections. Commands that move lessons/units mutate lists
+            # in place, so a stale cache can point at a detached unit dict.
+            lessons = unit.get("lessons")
+            if any(section is s for s in self.sections) and any(unit is u for u in (section.get("units") or [])):
+                return section, unit
+            # Stale — drop and fall through to rescan.
+            self._unit_index.pop(unit_id, None)
         for section in self.sections:
-            for unit in section.get("units", []):
-                if unit.get("id") == unit_id:
+            for unit in section.get("units") or []:
+                if isinstance(unit, dict) and unit.get("id") == unit_id:
+                    self._unit_index[unit_id] = (section, unit)
                     return section, unit
         raise KeyError(f"unknown unit: {unit_id}")
 
     def find_lesson(self, lesson_id: str) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+        self._ensure_node_index()
+        hit = self._lesson_index.get(lesson_id)
+        if hit is not None:
+            section, unit, lesson = hit
+            if (
+                any(section is s for s in self.sections)
+                and any(unit is u for u in (section.get("units") or []))
+                and any(lesson is l for l in (unit.get("lessons") or []))
+            ):
+                return section, unit, lesson
+            self._lesson_index.pop(lesson_id, None)
         for section in self.sections:
-            for unit in section.get("units", []):
-                for lesson in unit.get("lessons", []):
-                    if lesson.get("id") == lesson_id:
+            for unit in section.get("units") or []:
+                for lesson in unit.get("lessons") or []:
+                    if isinstance(lesson, dict) and lesson.get("id") == lesson_id:
+                        self._lesson_index[lesson_id] = (section, unit, lesson)
                         return section, unit, lesson
         raise KeyError(f"unknown lesson: {lesson_id}")
 
@@ -1017,29 +1082,63 @@ class CourseAdapter:
         from ``git_dir`` (if present), merges by id (skipping duplicates) into
         both the local course and the git clone, then writes both sides.
 
+        The on-disk git resource format is the *wrapped* object form written
+        by ``api.save_course_bundle``:
+
+          vocab.json          -> ``{"version":1,"language":..,"words":[..]}``
+          expressions.json    -> ``{"version":N,"language":..,"expressions":[..]}``
+          grammar_points.json -> ``{"grammarPoints":[..]}``
+
+        Previous versions assumed a bare list on disk and always treated the
+        git side as empty, then wrote a bare list back — destroying the
+        wrapper, version and language metadata in the collaborator's repo.
+        (B10)
+
         Returns a human-readable summary of what was merged.
         """
         git_dir = Path(git_dir)
-        mapping = {
-            "vocab": (self.vocab, "vocab.json"),
-            "expressions": (self.expressions, "expressions.json"),
-            "grammar_points": (self.grammar_points, "grammar_points.json"),
+        # row_type -> (local_list, filename, wrapper_key, default_wrapper)
+        # wrapper_key is the dict key under which the list lives; for
+        # grammar_points the wrapper carries no version/language.
+        mapping: dict[str, tuple[list[dict[str, Any]], str, str, dict[str, Any]]] = {
+            "vocab": (self.vocab, "vocab.json", "words",
+                      {"version": 1, "language": lang, "words": []}),
+            "expressions": (self.expressions, "expressions.json", "expressions",
+                            {"version": self.expressions_version, "language": lang, "expressions": []}),
+            "grammar_points": (self.grammar_points, "grammar_points.json", "grammarPoints",
+                               {"grammarPoints": []}),
         }
         parts: list[str] = []
-        for row_type, (local_list, filename) in mapping.items():
+        for row_type, (local_list, filename, list_key, default_wrapper) in mapping.items():
             git_file = git_dir / filename
-            git_list: list[dict[str, Any]] = []
+            git_wrapper: dict[str, Any] = dict(default_wrapper)
             if git_file.is_file():
                 try:
-                    git_list = json.loads(git_file.read_text(encoding="utf-8"))
-                    if not isinstance(git_list, list):
-                        git_list = []
+                    raw = json.loads(git_file.read_text(encoding="utf-8"))
                 except Exception:
-                    git_list = []
+                    raw = None
+                if isinstance(raw, dict):
+                    # Preserve any existing version/language but ensure the
+                    # list key exists and is a list.
+                    git_wrapper.update(raw)
+                    existing_list = raw.get(list_key)
+                    if not isinstance(existing_list, list):
+                        existing_list = []
+                elif isinstance(raw, list):
+                    # Legacy bare-list format: wrap it, preserve entries.
+                    existing_list = raw
+                else:
+                    existing_list = []
+            else:
+                existing_list = []
+            git_list: list[dict[str, Any]] = existing_list
+
             # Merge git -> local.
             local_ids = {e.get("id") for e in local_list}
             added_to_local = 0
             for entry in git_list:
+                if not isinstance(entry, dict):
+                    continue
                 eid = entry.get("id")
                 if eid and eid not in local_ids:
                     local_list.append(entry)
@@ -1049,15 +1148,29 @@ class CourseAdapter:
             git_ids = {e.get("id") for e in git_list}
             added_to_git = 0
             for entry in local_list:
+                if not isinstance(entry, dict):
+                    continue
                 eid = entry.get("id")
                 if eid and eid not in git_ids:
                     git_list.append(entry)
                     git_ids.add(eid)
                     added_to_git += 1
-            # Write back to git.
-            git_file.write_text(
-                json.dumps(git_list, ensure_ascii=False, indent=2), encoding="utf-8"
+            # Write back to git preserving the wrapper object.
+            git_wrapper[list_key] = git_list
+            # Refresh language/version on the wrapper so the git copy stays
+            # consistent with the local course after the merge.
+            if "language" in git_wrapper:
+                git_wrapper["language"] = lang
+            if row_type == "expressions":
+                git_wrapper["version"] = self.expressions_version
+            # Atomic write: tmp + os.replace so a crash mid-write cannot
+            # corrupt the collaborator's resource file. (B10/P8)
+            tmp_file = git_file.with_suffix(git_file.suffix + ".tmp")
+            tmp_file.write_text(
+                json.dumps(git_wrapper, ensure_ascii=False, indent=2),
+                encoding="utf-8",
             )
+            os.replace(tmp_file, git_file)
             parts.append(f"{row_type}: 本地新增 {added_to_local}，Git 新增 {added_to_git}")
         self.notify_resources_changed()
         return "\n".join(parts)
@@ -1148,9 +1261,16 @@ class CourseAdapter:
         self.notify_resources_changed()
         return counts
 
-    def _state_hash(self, data: dict[str, Any]) -> int:
-        """Return a stable hash for a state dict without deep-copying."""
-        return hash(json.dumps(data, ensure_ascii=False, sort_keys=True))
+    def _state_hash(self, data: dict[str, Any]) -> str:
+        """Return a stable, salt-independent hash for a state dict.
+
+        Uses sha256 over the canonical JSON so the value is reproducible
+        across interpreter runs (Python's builtin ``hash`` is per-process
+        salted, which produced false-positive "changed" results whenever
+        the cache was rebuilt in a different session). (P5/B14)
+        """
+        payload = json.dumps(data, ensure_ascii=False, sort_keys=True).encode("utf-8")
+        return hashlib.sha256(payload).hexdigest()
 
     def detect_changes(self) -> dict[str, bool]:
         """Compare current in-memory state vs last-saved snapshot using cached hashes."""
@@ -1164,7 +1284,7 @@ class CourseAdapter:
         if not self._hash_cache:
             self._refresh_hash_cache()
         return {
-            key: self._state_hash({key: current[key]}) != self._hash_cache.get(key, -1)
+            key: self._state_hash({key: current[key]}) != self._hash_cache.get(key, "")
             for key in current
         }
 
@@ -1252,6 +1372,7 @@ class CourseAdapter:
         self.vocab = deepcopy(snapshot.get("vocab", self.vocab))
         self.expressions = deepcopy(snapshot.get("expressions", self.expressions))
         self.grammar_points = deepcopy(snapshot.get("grammar_points", self.grammar_points))
+        self.invalidate_node_index()
 
     def _write_files_to_dir(self, target_dir: Path) -> None:
         """Write all course files to ``target_dir`` mirroring the course layout."""
@@ -1286,6 +1407,9 @@ class CourseAdapter:
         """Copy every JSON file under ``src`` to ``dst`` preserving structure.
 
         Old backup directories are skipped so they do not recurse indefinitely.
+        After writing, prune the oldest sibling backups beyond a retention
+        cap (default 20) so ``.varnamala-backup`` does not grow without
+        bound. (M11)
         """
         for path in src.rglob("*.json"):
             rel = path.relative_to(src)
@@ -1294,6 +1418,33 @@ class CourseAdapter:
             target = dst / rel
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(path, target)
+        self._prune_old_backups(dst.parent, keep=20)
+
+    @staticmethod
+    def _prune_old_backups(backup_root: Path, keep: int = 20) -> None:
+        """Remove the oldest backup dirs under ``backup_root`` beyond ``keep``.
+
+        Backup dirs are named ``YYYYMMDD-HHMMSS-ffffff`` so lexicographic
+        sort matches chronological order. Silently no-ops if the dir is
+        missing or malformed.
+        """
+        if not backup_root.is_dir() or keep < 1:
+            return
+        try:
+            children = [
+                p for p in backup_root.iterdir()
+                if p.is_dir() and not p.name.startswith(".")
+            ]
+        except OSError:
+            return
+        if len(children) <= keep:
+            return
+        children.sort(key=lambda p: p.name)
+        for old in children[:-keep]:
+            try:
+                shutil.rmtree(old, ignore_errors=True)
+            except Exception:  # noqa: BLE001 — best-effort prune
+                pass
 
     def _replace_course_files_with(self, tmp_dir: Path, course_dir: Path) -> None:
         """Atomically replace course files with those in ``tmp_dir``.
@@ -1368,6 +1519,7 @@ class CourseAdapter:
             # pre-save state over the newer on-disk files.
             self._snapshot = self._deep_snapshot()
             self._refresh_hash_cache()
+            self.invalidate_node_index()
         except Exception as exc:
             self._restore_from(rollback)
             # Ensure on-disk state matches the restored snapshot so a partial

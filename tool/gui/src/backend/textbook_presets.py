@@ -29,7 +29,16 @@ class TextbookPreset:
       the provider default apply.
     - ``max_chapter_chars``: cap on the chapter markdown sent to the model;
       longer chapters are truncated at a paragraph boundary (see
-      ``knowledge_prompt._truncate_markdown``).
+      ``knowledge_prompt._truncate_markdown``). Also used as the single-shot
+      fallback cap for windowed extraction.
+    - ``window_chars``: sliding-window size for over-long chapters
+      (aiEnhance.md P4-1). Chapters longer than this are extracted in
+      paragraph-aligned windows and merged with overlap dedup instead of being
+      truncated; ``0`` disables windowing (old truncate-only behaviour).
+      Chapters within the cap take the single-shot path unchanged.
+    - ``overlap_chars``: how much of a window's tail is repeated at the start
+      of the next window so seam knowledge is seen twice (dedup handles the
+      repeats).
     - ``lesson_template``: lesson skeleton the imported section is built with.
       Only ``"intro"`` is meaningfully implemented today (it is the one builder
       that consumes extracted words); other values fall back to ``"intro"``.
@@ -42,6 +51,8 @@ class TextbookPreset:
     strategy: str = "standard"
     max_tokens: int | None = None
     max_chapter_chars: int = 8000
+    window_chars: int = 8000
+    overlap_chars: int = 500
     lesson_template: str = "intro"
 
 
@@ -82,6 +93,7 @@ BUILTIN_TEXTBOOK_PRESETS: dict[str, TextbookPreset] = {
         temperature=0.3,
         strategy="vocab_only",
         max_chapter_chars=10000,
+        window_chars=10000,
         lesson_template="intro",
     ),
 }

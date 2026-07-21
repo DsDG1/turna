@@ -1,0 +1,3 @@
+# Local backups written by the GUI CourseAdapter on every save.
+# These are runtime artifacts and must never be committed.
+.varnamala-backup/

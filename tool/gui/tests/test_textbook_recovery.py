@@ -61,12 +61,13 @@ class _FakeWorker:
 
 
 class TextbookRecoveryTest(unittest.TestCase):
-    def _controller(self, worker_factory) -> TextbookImportController:
+    def _controller(self, worker_factory, **kwargs) -> TextbookImportController:
         return TextbookImportController(
             ai_config_fn=lambda: AiApiConfig(
                 base_url="http://localhost", api_key="key", model="model"
             ),
             worker_factory=worker_factory,
+            **kwargs,
         )
 
     def test_retry_chapter_after_failure(self) -> None:
@@ -77,7 +78,9 @@ class TextbookRecoveryTest(unittest.TestCase):
         def factory(_target, *_args, **_kwargs):
             return next(factory_iter)
 
-        ctrl = self._controller(factory)
+        # Auto-cascade (P4-2) would consume the second worker as a vocab_only
+        # retry; this test targets the manual retry path, so disable it.
+        ctrl = self._controller(factory, auto_cascade=False)
         ctrl._md = "## 1 Merhaba\nhello\n"
         ctrl._split_into_chapters()
         ctrl._chapters[0].keep = True

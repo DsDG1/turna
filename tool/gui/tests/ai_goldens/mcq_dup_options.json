@@ -1,0 +1,41 @@
+{
+  "id": "ai-dup",
+  "name": "Dup MCQ",
+  "words": [
+    {
+      "id": "w-a",
+      "term": "a",
+      "translation": "a",
+      "tags": []
+    }
+  ],
+  "expressions": [],
+  "grammarPoints": [],
+  "units": [
+    {
+      "id": "u1",
+      "lessons": [
+        {
+          "id": "l1",
+          "template": "practice",
+          "content": {
+            "stages": [
+              {
+                "id": "st1",
+                "items": [
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "i1",
+                    "prompt": "pick",
+                    "options": ["yes", "yes", "no", "maybe"],
+                    "correctIndex": 0
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

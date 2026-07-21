@@ -299,6 +299,20 @@ class CourseTreeWidget(QTreeWidget):
             self.setCurrentItem(item)
             self.node_selected.emit(ref)
 
+    def select_unit(self, unit_id: str) -> None:
+        """Find and select the unit item, emitting node_selected.
+
+        Uses ``_id_index`` for O(1) lookup instead of walking every
+        top-level section and its children on every jump. (P4)
+        """
+        item = self._id_index.get(unit_id)
+        if item is None:
+            return
+        ref = item.data(0, 0x0100)
+        if ref is not None and ref[0] == "unit":
+            self.setCurrentItem(item)
+            self.node_selected.emit(ref)
+
     def select_section(self, section_id: str) -> None:
         """Find and select the section item, emitting node_selected."""
         item = self._id_index.get(section_id)

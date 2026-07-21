@@ -1,0 +1,56 @@
+{
+  "id": "ai-listen",
+  "name": "Listening",
+  "words": [
+    {
+      "id": "w-evet",
+      "term": "Evet",
+      "translation": "是",
+      "tags": []
+    }
+  ],
+  "expressions": [],
+  "grammarPoints": [],
+  "units": [
+    {
+      "id": "u1",
+      "lessons": [
+        {
+          "id": "l1",
+          "template": "listening",
+          "content": {
+            "listeningPhases": [
+              {
+                "id": "lp1",
+                "name": "Pairing",
+                "type": "wordPairing",
+                "items": [
+                  {
+                    "runtimeType": "listenAndPick",
+                    "id": "i1",
+                    "audioAsset": "",
+                    "prompt": "听到的是？",
+                    "options": ["Evet", "Hayır", "Belki", "Tamam"],
+                    "correctIndex": 0
+                  }
+                ]
+              },
+              {
+                "id": "lp2",
+                "name": "Dialogue",
+                "type": "dialogue",
+                "items": []
+              },
+              {
+                "id": "lp3",
+                "name": "Summary",
+                "type": "summary",
+                "items": []
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

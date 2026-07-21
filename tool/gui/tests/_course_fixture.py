@@ -21,8 +21,14 @@ def copy_turkish_course(dst: Path) -> Path:
     """Copy the built-in turkish course tree into ``dst`` and return ``dst``.
 
     ``dst``'s parent must exist (callers typically pass ``tmp / "turkish"``).
+    Runtime backup dirs (``.varnamala-backup``) are excluded so save-atomicity
+    tests are not polluted by local editor leftovers.
     """
-    shutil.copytree(COURSE_SRC, dst)
+    shutil.copytree(
+        COURSE_SRC,
+        dst,
+        ignore=shutil.ignore_patterns(".varnamala-backup", "__pycache__"),
+    )
     return dst
 
 

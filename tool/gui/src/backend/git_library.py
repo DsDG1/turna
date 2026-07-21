@@ -87,10 +87,25 @@ class GitHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         """
         if self.headers.get("Transfer-Encoding", "").lower() == "chunked":
             chunks: list[bytes] = []
+            # Guard against infinite loops on malformed input (e.g. a closed
+            # socket where readline() returns b"" forever, or a peer that
+            # spuriously interleaves empty lines). Cap consecutive empties
+            # and total iterations. (B7)
+            empty_streak = 0
+            max_empty_streak = 8
+            total_iterations = 0
+            max_iterations = 1_000_000
             while True:
+                total_iterations += 1
+                if total_iterations > max_iterations:
+                    break
                 size_line = self.rfile.readline().strip()
                 if not size_line:
+                    empty_streak += 1
+                    if empty_streak > max_empty_streak:
+                        break
                     continue
+                empty_streak = 0
                 try:
                     size = int(size_line, 16)
                 except ValueError:
@@ -332,12 +347,38 @@ class GitLibrary:
         return env
 
     def _extra_args_for_https(self, url: str | None = None) -> list[str]:
-        """Return -c http.extraheader args for HTTPS token auth, if configured."""
+        """Return URL-scoped -c http.<base>.extraheader args for HTTPS token auth.
+
+        Previously this injected a global ``http.extraheader`` that applied
+        to every HTTP request git made — including submodules, LFS, and
+        redirect targets — so a malicious repo could redirect
+        ``git-upload-pack`` to a third-party host and capture the bearer
+        token. It also fired for plain ``http://`` (non-TLS) URLs, leaking
+        the token in cleartext. (B13)
+
+        Now the header is URL-scoped to the *base* of the requested remote
+        (``http.<scheme>://<host>/.extraheader``), and only emitted for
+        ``https://`` URLs. SSH (``git@``) and non-HTTPS URLs are left alone.
+        """
         if not self._token:
             return []
-        if url and url.startswith("git@"):
+        if not url:
+            return []
+        if url.startswith("git@"):
             return []  # SSH URL, token doesn't apply
-        return ["-c", f"http.extraheader=Authorization: Bearer {self._token}"]
+        if not url.startswith("https://"):
+            return []  # Don't leak token over cleartext http:// or unknown schemes
+        # Derive the http.<base>.extraheader scope. Git matches the longest
+        # prefix, so the scheme://host/ form covers all paths under that host
+        # without matching other hosts. Strip a trailing slash to match git's
+        # own config-key normalization.
+        from urllib.parse import urlparse
+
+        parsed = urlparse(url)
+        if not parsed.scheme or not parsed.netloc:
+            return []
+        base = f"{parsed.scheme}://{parsed.netloc}/"
+        return ["-c", f"http.{base}.extraheader=Authorization: Bearer {self._token}"]
 
     # --- low-level helper ------------------------------------------------
 

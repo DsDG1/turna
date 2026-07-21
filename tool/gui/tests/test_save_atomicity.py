@@ -57,15 +57,16 @@ class SaveAtomicityTest(unittest.TestCase):
         original_index = adapter.index.get("displayName")
         adapter.index["displayName"] = "Should Not Persist"
 
-        calls = {"count": 0}
+        # Simulate a failure during the atomic file-replacement step
+        # (``_replace_course_files_with``). Previously this test counted
+        # ``os.replace`` calls across the whole save, but now ``save_json``
+        # itself does an atomic rename via ``os.replace`` per file, so a
+        # call-count threshold is fragile. Patch the replacement step
+        # directly so the failure lands exactly where we want it.
+        def boom(tmp_dir, course_dir):
+            raise OSError("simulated disk failure")
 
-        def failing_replace(src: str, dst: str) -> None:
-            calls["count"] += 1
-            if calls["count"] >= 2:
-                raise OSError("simulated disk failure")
-            return shutil.move(src, dst)
-
-        with patch("src.backend.course_adapter.os.replace", side_effect=failing_replace):
+        with patch.object(CourseAdapter, "_replace_course_files_with", side_effect=boom):
             result = adapter.save()
 
         self.assertFalse(result.ok)

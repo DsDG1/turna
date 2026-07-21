@@ -50,9 +50,12 @@ class AiFixDialog(QDialog):
         course_context: dict[str, Any],
         config,
         parent=None,
+        *,
+        initial_hint: str | None = None,
+        window_title: str | None = None,
     ) -> None:
         super().__init__(parent)
-        self.setWindowTitle("AI 自动修正")
+        self.setWindowTitle(window_title or "AI 自动修正")
         self.resize(960, 640)
         self._problems = problems
         self._node_json = node_json
@@ -61,7 +64,10 @@ class AiFixDialog(QDialog):
         self._corrected: dict[str, Any] | None = None
         self._worker: AiRequestWorker | None = None
         self._last_error_message: str = ""
+        self._initial_hint = (initial_hint or "").strip()
         self._build_ui()
+        if self._initial_hint:
+            self.fix_hint_edit.setText(self._initial_hint)
         self._run()
 
     def _build_ui(self) -> None:

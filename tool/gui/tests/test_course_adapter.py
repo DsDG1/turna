@@ -739,8 +739,11 @@ class CourseAdapterGitSyncTest(unittest.TestCase):
 
     def test_sync_merges_git_into_local(self) -> None:
         import json
-        # Git dir has a vocab entry not in local.
-        git_vocab = [{"id": "w_from_git", "term": "gitword", "translation": "git词"}]
+        # Git dir has a vocab entry not in local, in the wrapped on-disk format
+        # ({"version":1,"language":..,"words":[...]}). Sync must read the list
+        # out of the wrapper, not treat the whole object as an empty list.
+        git_vocab = {"version": 1, "language": "tr",
+                     "words": [{"id": "w_from_git", "term": "gitword", "translation": "git词"}]}
         (self.git_dir / "vocab.json").write_text(
             json.dumps(git_vocab, ensure_ascii=False, indent=2), encoding="utf-8"
         )
@@ -749,14 +752,35 @@ class CourseAdapterGitSyncTest(unittest.TestCase):
         ids = [e.get("id") for e in self.adapter.vocab]
         self.assertIn("w_from_git", ids)
 
-    def test_sync_writes_back_to_git(self) -> None:
+    def test_sync_writes_back_to_git_preserving_wrapper(self) -> None:
         import json
-        # Local has an entry not in git.
+        # Local has an entry not in git. After sync the git file must still
+        # be the wrapped object form with version/language metadata intact
+        # (regression guard for B10: previously the wrapper was destroyed
+        # and replaced with a bare list).
         self.adapter.vocab.append({"id": "w_local_only", "term": "localword"})
         self.adapter.sync_resources_with_git(self.git_dir, "tr")
-        git_vocab = json.loads((self.git_dir / "vocab.json").read_text(encoding="utf-8"))
-        git_ids = [e.get("id") for e in git_vocab]
+        git_data = json.loads((self.git_dir / "vocab.json").read_text(encoding="utf-8"))
+        self.assertIsInstance(git_data, dict)
+        self.assertEqual(git_data.get("version"), 1)
+        self.assertEqual(git_data.get("language"), "tr")
+        git_ids = [e.get("id") for e in git_data.get("words", [])]
         self.assertIn("w_local_only", git_ids)
+
+    def test_sync_accepts_legacy_bare_list_git_file(self) -> None:
+        import json
+        # Backward compat: a legacy bare-list vocab.json (pre-wrapper) must
+        # still be merged correctly and rewritten as the wrapped form.
+        git_vocab = [{"id": "w_legacy", "term": "legacyword"}]
+        (self.git_dir / "vocab.json").write_text(
+            json.dumps(git_vocab, ensure_ascii=False), encoding="utf-8"
+        )
+        self.adapter.sync_resources_with_git(self.git_dir, "tr")
+        ids = [e.get("id") for e in self.adapter.vocab]
+        self.assertIn("w_legacy", ids)
+        git_data = json.loads((self.git_dir / "vocab.json").read_text(encoding="utf-8"))
+        self.assertIsInstance(git_data, dict)
+        self.assertIn("w_legacy", [e.get("id") for e in git_data.get("words", [])])
 
 
 if __name__ == "__main__":

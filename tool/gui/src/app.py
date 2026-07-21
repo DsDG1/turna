@@ -123,6 +123,7 @@ class MainWindow(QMainWindow):
         # AI API config is managed centrally via the Settings panel. Base URL
         # and model are persisted; the API key is memory-only and cleared on exit.
         self._ai_config = self._load_ai_config()
+        self._apply_ai_cache()
 
         self.undo_stack = QUndoStack(self)
         self.undo_stack.setUndoLimit(self._settings_obj.undo_limit)
@@ -345,6 +346,9 @@ class MainWindow(QMainWindow):
             api_key=self._settings_obj.ai_api_key,
             model=self._settings_obj.ai_model,
             supports_reasoning=self._settings_obj.ai_supports_reasoning,
+            model_chat=self._settings_obj.ai_model_chat,
+            model_json=self._settings_obj.ai_model_json,
+            strict_schema=self._settings_obj.ai_strict_schema,
         )
 
     def _save_ai_config(self, config: AiApiConfig) -> None:
@@ -354,6 +358,22 @@ class MainWindow(QMainWindow):
         self._settings_obj.ai_model = config.model
         self._settings_obj.ai_supports_reasoning = config.supports_reasoning
         self._settings_obj.save_to_qsettings(self._settings)
+
+    def _apply_ai_cache(self) -> None:
+        """第三枪 批次① Step 9: install/clear the process-wide AI cache.
+
+        Called on startup and whenever the user toggles
+        ``ai_cache_enabled`` in Settings. When disabled, the default cache is
+        cleared so no stale entries survive a re-enable. Disk persistence is
+        not enabled in this build (memory-only LRU); a future iteration can
+        add a ``ai/cache_disk_dir`` setting.
+        """
+        from src.backend.ai_cache import AiCache, set_default_cache
+
+        if self._settings_obj.ai_cache_enabled:
+            set_default_cache(AiCache(maxsize=128, enabled=True))
+        else:
+            set_default_cache(None)
 
     def _maybe_open_last_repo(self) -> None:
         repos = self._load_recent_repos()
@@ -518,6 +538,7 @@ class MainWindow(QMainWindow):
         self._settings_obj.save_to_qsettings(self._settings)
         self._ai_config = self._load_ai_config()
         self.detail.ai_config = self._ai_config
+        self._apply_ai_cache()
         self.undo_stack.setUndoLimit(self._settings_obj.undo_limit)
         apply_theme(QApplication.instance(), self._settings_obj)
         self.statusBar().showMessage("设置已应用", 3000)
@@ -885,6 +906,40 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "无法应用编辑", str(exc))
             return
 
+        # U1-4: section-level apply-time structural guard. Unit/lesson edits
+        # intentionally return a *partial* section shell from the model, so a
+        # full-section structural_diff would false-positive every time; those
+        # scopes keep the dialog-side guard + id-conflict flow instead.
+        if kind == "section":
+            try:
+                from src.backend.ai_generator import structural_diff
+
+                diff = structural_diff(section, new_section)
+                removed = {
+                    k: v
+                    for k, v in diff.items()
+                    if str(k).startswith("removed_") and v
+                }
+                if removed:
+                    parts = [
+                        f"{k}: {', '.join(sorted(list(v))[:6])}"
+                        for k, v in removed.items()
+                    ]
+                    reply = QMessageBox.question(
+                        self,
+                        "结构保护",
+                        "应用前检测到删除：\n"
+                        + "\n".join(parts)
+                        + "\n\n建议改用局部重生成 / 教师改题。是否仍继续应用？",
+                        QMessageBox.StandardButton.Yes
+                        | QMessageBox.StandardButton.No,
+                        QMessageBox.StandardButton.No,
+                    )
+                    if reply != QMessageBox.StandardButton.Yes:
+                        return
+            except Exception:
+                pass
+
         sid = section.get("id", "")
         if kind == "section":
             plan = self.adapter.plan_section_merge(sid, new_section)
@@ -1089,7 +1144,9 @@ class MainWindow(QMainWindow):
         if not problems:
             QMessageBox.information(self, "无需修正", "当前节点没有检测到校验问题。")
             return
-        self._on_ai_fix_requested(problems[0], (kind, node_id))
+        # U1-2: pass *all* problems on this node (not only the first).
+        pairs = [(p, (kind, node_id)) for p in problems]
+        self._on_ai_batch_fix_requested(pairs)
 
     @staticmethod
     def _extract_unit(new_section: dict, unit_id: str) -> dict | None:
@@ -1233,7 +1290,10 @@ class MainWindow(QMainWindow):
         report = ValidationReportWidget(self.adapter, dlg)
         report.show_problems(problems)
         report.jump_to.connect(self._jump_to_node)
+        # Single-select uses legacy signal; multi-select uses batch (widget
+        # emits exactly one of the two per click).
         report.ai_fix_requested.connect(self._on_ai_fix_requested)
+        report.ai_batch_fix_requested.connect(self._on_ai_batch_fix_requested)
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         buttons.rejected.connect(dlg.reject)
         layout = QVBoxLayout(dlg)
@@ -1245,10 +1305,84 @@ class MainWindow(QMainWindow):
     def _on_ai_fix_requested(
         self, problem: dict[str, Any], node_ref: tuple[str, str] | None
     ) -> None:
-        """Handle AI auto-fix request from validation report or context menu."""
+        """Handle single AI auto-fix request (legacy signal)."""
         if node_ref is None:
             return
-        kind, node_id = node_ref
+        self._run_ai_fix_batch([(problem, node_ref)])
+
+    def _on_ai_batch_fix_requested(self, pairs: list) -> None:
+        """Handle multi-select AI fix from ValidationReport (U1-2)."""
+        if not pairs:
+            return
+        self._run_ai_fix_batch(list(pairs))
+
+    def _run_ai_fix_batch(
+        self,
+        pairs: list[tuple[dict[str, Any], tuple[str, str] | None]],
+    ) -> None:
+        """Group problems by node and run AiFixDialog once per node (sequential)."""
+        from src.backend.ai_fix_batch import group_problems_for_fix
+
+        problems = [p for p, _ref in pairs if isinstance(p, dict)]
+        # Prefer explicit refs from the UI when path mapping fails.
+        fallback: tuple[str, str] | None = None
+        for _p, ref in pairs:
+            if ref is not None:
+                fallback = ref
+                break
+        batches = group_problems_for_fix(
+            problems,
+            getattr(self.adapter, "sections", None) or [],
+            fallback_ref=fallback,
+        )
+        if not batches:
+            # Fall back: group by provided node_ref pairs.
+            by_ref: dict[tuple[str, str], list[dict[str, Any]]] = {}
+            order: list[tuple[str, str]] = []
+            for problem, ref in pairs:
+                if ref is None or not isinstance(problem, dict):
+                    continue
+                if ref not in by_ref:
+                    by_ref[ref] = []
+                    order.append(ref)
+                by_ref[ref].append(problem)
+            from src.backend.ai_fix_batch import FixBatch
+
+            batches = [
+                FixBatch(kind=k, node_id=i, problems=by_ref[(k, i)])
+                for k, i in order
+            ]
+        if not batches:
+            QMessageBox.information(
+                self, "AI 自动修正", "所选问题无法定位到课程节点，请双击跳转后从树菜单修复。"
+            )
+            return
+        if len(batches) > 1:
+            QMessageBox.information(
+                self,
+                "AI 批量修正",
+                f"已按节点分成 {len(batches)} 批，将依次修复（每批确认一次）。",
+            )
+        applied = 0
+        for batch in batches:
+            if self._apply_ai_fix_for_node(
+                batch.kind, batch.node_id, batch.problems
+            ):
+                applied += 1
+        if applied:
+            if self._current_node_ref is not None:
+                self._on_node_selected(self._current_node_ref)
+            self.statusBar().showMessage(
+                f"AI 自动修正已应用 {applied}/{len(batches)} 批，记得保存", 5000
+            )
+
+    def _apply_ai_fix_for_node(
+        self,
+        kind: str,
+        node_id: str,
+        problems: list[dict[str, Any]],
+    ) -> bool:
+        """Run one AiFixDialog + merge for a single node. Returns True if applied."""
         try:
             if kind == "section":
                 node_json = self.adapter.find_section(node_id)
@@ -1257,10 +1391,10 @@ class MainWindow(QMainWindow):
             elif kind == "lesson":
                 _section, _unit, node_json = self.adapter.find_lesson(node_id)
             else:
-                return
+                return False
         except KeyError:
             QMessageBox.warning(self, "无法定位节点", f"找不到节点：{kind}/{node_id}")
-            return
+            return False
 
         course_context = {
             "node_kind": kind,
@@ -1275,25 +1409,25 @@ class MainWindow(QMainWindow):
         from src.dialogs.ai_fix_dialog import AiFixDialog
 
         dlg = AiFixDialog(
-            [problem],
+            problems,
             node_json,
             course_context,
             self._ai_config,
             parent=self,
         )
         if dlg.exec() != QDialog.DialogCode.Accepted:
-            return
+            return False
         corrected = dlg.corrected_node()
         if corrected is None:
-            return
+            return False
 
         # Validate the corrected node locally before applying.
-        problems = self._validate_node(kind, corrected, check_existing_ids=False)
-        errors = [p for p in problems if p.get("level") == "error"]
+        post = self._validate_node(kind, corrected, check_existing_ids=False)
+        errors = [p for p in post if p.get("level") == "error"]
         if errors:
             detail = "\n".join(f"[{p['level']}] {p['message']}" for p in errors)
             QMessageBox.warning(self, "AI 修正后仍有问题", detail)
-            return
+            return False
 
         # Apply via undo stack.
         if kind == "section":
@@ -1302,8 +1436,11 @@ class MainWindow(QMainWindow):
 
             preview = AiMergePreviewDialog(plan, parent=self)
             if preview.exec() != QDialog.DialogCode.Accepted:
-                telemetry.record_event("ai.fix.merge.cancelled", payload={"kind": kind, "node_id": node_id})
-                return
+                telemetry.record_event(
+                    "ai.fix.merge.cancelled",
+                    payload={"kind": kind, "node_id": node_id},
+                )
+                return False
             cmd = MergeAiSectionCommand(self.adapter, preview.plan())
             cmd.signals.changed.connect(self._on_ai_edit_applied)
             self.undo_stack.push(cmd)
@@ -1311,7 +1448,11 @@ class MainWindow(QMainWindow):
         elif kind == "unit":
             section, _ = self.adapter.find_unit(node_id)
             cmd = AiEditUnitCommand(
-                self.adapter, section.get("id", ""), node_id, corrected, resource_section=corrected
+                self.adapter,
+                section.get("id", ""),
+                node_id,
+                corrected,
+                resource_section=corrected,
             )
             cmd.signals.changed.connect(self._on_ai_edit_applied)
             self.undo_stack.push(cmd)
@@ -1323,10 +1464,9 @@ class MainWindow(QMainWindow):
             cmd.signals.changed.connect(self._on_ai_edit_applied)
             self.undo_stack.push(cmd)
             self.tree.refresh_incremental()
-
-        if self._current_node_ref is not None:
-            self._on_node_selected(self._current_node_ref)
-        self.statusBar().showMessage("AI 自动修正已应用，记得保存", 5000)
+        else:
+            return False
+        return True
 
     def _jump_to_node(self, node_ref: tuple[str, str]) -> None:
         kind, node_id = node_ref
@@ -1335,15 +1475,7 @@ class MainWindow(QMainWindow):
         elif kind == "section":
             self.tree.select_section(node_id)
         elif kind == "unit":
-            for top_idx in range(self.tree.topLevelItemCount()):
-                section = self.tree.topLevelItem(top_idx)
-                for i in range(section.childCount()):
-                    unit = section.child(i)
-                    ref = unit.data(0, 0x0100)
-                    if ref and ref[0] == "unit" and ref[1] == node_id:
-                        self.tree.setCurrentItem(unit)
-                        self.tree.node_selected.emit(ref)
-                        return
+            self.tree.select_unit(node_id)
 
     def _clear_ai_key_on_exit(self) -> None:
         """Wipe the API key from memory and storage when the window closes.

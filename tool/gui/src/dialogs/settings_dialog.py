@@ -33,6 +33,7 @@ from PySide6.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
     QTextBrowser,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -202,6 +203,10 @@ class SettingsDialog(QDialog):
 
         layout.addWidget(params_group)
 
+        # --- 第三枪 批次①: Advanced AI options (collapsible) ---
+        adv_group, adv_form = self._build_ai_advanced_group()
+        layout.addWidget(adv_group)
+
         test_group = QGroupBox("连接测试")
         test_layout = QVBoxLayout(test_group)
         test_layout.setSpacing(10)
@@ -219,6 +224,90 @@ class SettingsDialog(QDialog):
         layout.addWidget(test_group)
         layout.addStretch(1)
         return tab
+
+    def _build_ai_advanced_group(self) -> tuple[QGroupBox, QFormLayout]:
+        """第三枪 批次① Step 8: collapsible advanced AI options.
+
+        Returns the group box (which the caller adds to the AI tab layout)
+        and its form layout (which the caller uses to read/write widgets).
+        The group is collapsed by default so non-technical users are not
+        overwhelmed.
+        """
+        group = QGroupBox("高级（双模型 / Schema / 缓存 / 流水线）")
+        group.setCheckable(True)
+        group.setChecked(False)
+        form = QFormLayout(group)
+        form.setSpacing(10)
+
+        self.ai_model_chat_edit = QLineEdit()
+        self.ai_model_chat_edit.setPlaceholderText("空 = 使用主模型；对话/解释走此模型")
+        self.ai_model_chat_edit.setToolTip(
+            "可选：用于 AI 对齐对话 / 课程解释的较小或更便宜模型。"
+            "留空则使用上面的主模型。"
+        )
+        form.addRow("对话模型 (model_chat):", self.ai_model_chat_edit)
+
+        self.ai_model_json_edit = QLineEdit()
+        self.ai_model_json_edit.setPlaceholderText("空 = 使用主模型；JSON 生成/修复走此模型")
+        self.ai_model_json_edit.setToolTip(
+            "可选：用于课程 / 课时 / 题目 JSON 生成与修复的模型。"
+            "留空则使用主模型。"
+        )
+        form.addRow("JSON 模型 (model_json):", self.ai_model_json_edit)
+
+        self.ai_strict_schema_combo = QComboBox()
+        self.ai_strict_schema_combo.addItem("自动探测（推荐）", "auto")
+        self.ai_strict_schema_combo.addItem("强制 json_schema", "on")
+        self.ai_strict_schema_combo.addItem("仅 json_object", "off")
+        self.ai_strict_schema_combo.setToolTip(
+            "json_schema 让模型严格按 section schema 输出 JSON。\n"
+            "「自动探测」首次尝试 json_schema，若供应商拒绝则自动回退到 json_object。\n"
+            "强制模式不会自动回退（出错请改回「自动」或「关闭」）。"
+        )
+        form.addRow("JSON Schema 严格度:", self.ai_strict_schema_combo)
+
+        self.ai_cache_check = QCheckBox("启用响应缓存（同模型+同 prompt 复用结果）")
+        self.ai_cache_check.setToolTip(
+            "进程内 LRU 缓存，键为 (model, messages, response_format) 的 SHA-256。\n"
+            "不存储 API Key 或原始 prompt；磁盘持久化可在配置文件中开启。\n"
+            "默认关闭以便测试稳定；启用后可显著降低重复请求成本。"
+        )
+        form.addRow(self.ai_cache_check)
+
+        self.ai_fill_needs_review_check = QCheckBox(
+            "生成后自动补全 [待补] / needs-review 词条（额外调用）"
+        )
+        self.ai_fill_needs_review_check.setToolTip(
+            "可选：生成 section 后再发一次 LLM 请求补全空翻译/释义。\n"
+            "默认关闭以节省 token；启用后可减少人工扫尾。"
+        )
+        form.addRow(self.ai_fill_needs_review_check)
+
+        self.ai_max_parallel_lessons_spin = QSpinBox()
+        self.ai_max_parallel_lessons_spin.setRange(1, 8)
+        self.ai_max_parallel_lessons_spin.setToolTip(
+            "精修模式（大纲->分课）下并行生成课时的最大并发数。"
+            "1 = 顺序（安全默认）。建议 2-4；超过 4 可能触发供应商速率限制。"
+        )
+        form.addRow("课时并行上限:", self.ai_max_parallel_lessons_spin)
+
+        self.ai_pipeline_default_mode_combo = QComboBox()
+        self.ai_pipeline_default_mode_combo.addItem("快速（整节一次生成）", "fast")
+        self.ai_pipeline_default_mode_combo.addItem("精修（大纲->分课）", "refine")
+        self.ai_pipeline_default_mode_combo.setToolTip(
+            "新建项目时工坊默认的生成模式。用户仍可在工坊中切换。"
+        )
+        form.addRow("默认生成模式:", self.ai_pipeline_default_mode_combo)
+
+        hint = QLabel(
+            "这些选项为进阶用户准备；多数情况下保持默认即可。"
+            "更改后下次 AI 请求生效。"
+        )
+        hint.setObjectName("hintLabel")
+        hint.setWordWrap(True)
+        form.addRow(hint)
+
+        return group, form
 
     def _build_ai_usage_tab(self) -> QWidget:
         tab, layout = self._make_tab()
@@ -869,6 +958,21 @@ class SettingsDialog(QDialog):
         self.ai_temperature_spin.setValue(self._settings.ai_temperature)
         self.ai_retry_spin.setValue(self._settings.ai_retry_max)
 
+        # 第三枪 批次①: advanced AI options
+        self.ai_model_chat_edit.setText(self._settings.ai_model_chat)
+        self.ai_model_json_edit.setText(self._settings.ai_model_json)
+        strict_idx = self.ai_strict_schema_combo.findData(self._settings.ai_strict_schema)
+        if strict_idx >= 0:
+            self.ai_strict_schema_combo.setCurrentIndex(strict_idx)
+        self.ai_cache_check.setChecked(self._settings.ai_cache_enabled)
+        self.ai_fill_needs_review_check.setChecked(self._settings.ai_fill_needs_review)
+        self.ai_max_parallel_lessons_spin.setValue(self._settings.ai_max_parallel_lessons)
+        pipe_idx = self.ai_pipeline_default_mode_combo.findData(
+            self._settings.ai_pipeline_default_mode
+        )
+        if pipe_idx >= 0:
+            self.ai_pipeline_default_mode_combo.setCurrentIndex(pipe_idx)
+
         self.auto_save_check.setChecked(self._settings.auto_save_on_close)
         self.undo_spin.setValue(self._settings.undo_limit)
 
@@ -913,6 +1017,15 @@ class SettingsDialog(QDialog):
         self._settings.ai_temperature = self.ai_temperature_spin.value()
         self._settings.ai_retry_max = self.ai_retry_spin.value()
 
+        # 第三枪 批次①: advanced AI options
+        self._settings.ai_model_chat = self.ai_model_chat_edit.text().strip()
+        self._settings.ai_model_json = self.ai_model_json_edit.text().strip()
+        self._settings.ai_strict_schema = self.ai_strict_schema_combo.currentData()
+        self._settings.ai_cache_enabled = self.ai_cache_check.isChecked()
+        self._settings.ai_fill_needs_review = self.ai_fill_needs_review_check.isChecked()
+        self._settings.ai_max_parallel_lessons = self.ai_max_parallel_lessons_spin.value()
+        self._settings.ai_pipeline_default_mode = self.ai_pipeline_default_mode_combo.currentData()
+
         self._settings.auto_save_on_close = self.auto_save_check.isChecked()
         self._settings.undo_limit = self.undo_spin.value()
 
@@ -950,6 +1063,9 @@ class SettingsDialog(QDialog):
             api_key=self._settings.ai_api_key,
             model=self._settings.ai_model,
             supports_reasoning=self._settings.ai_supports_reasoning,
+            model_chat=self._settings.ai_model_chat,
+            model_json=self._settings.ai_model_json,
+            strict_schema=self._settings.ai_strict_schema,
         )
         if not config.is_complete:
             self.ai_connection_status.setText(

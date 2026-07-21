@@ -91,6 +91,19 @@ from src.infrastructure.telemetry import telemetry
 from src.widgets.json_editor import JsonEditor
 
 
+def _record_cache_stats() -> None:
+    """第三枪 批次① Step 9: record AI cache stats to telemetry after each request.
+
+    Records ``ai.cache.stats`` with hits/misses/entries so cache effectiveness
+    is visible in the telemetry log. No-op when no default cache is configured.
+    """
+    from src.backend.ai_cache import get_default_cache
+
+    cache = get_default_cache()
+    if cache is not None:
+        telemetry.record_event("ai.cache.stats", payload=cache.stats().as_dict())
+
+
 class AiGeneratorDialog(QDialog):
     """AI course generator dialog with normal and wish modes.
 
@@ -127,6 +140,9 @@ class AiGeneratorDialog(QDialog):
         self._busy_wish = False
         self._chat_expand: QWidget | None = None
         self._json_window: QWidget | None = None
+        # Set True during reject()/closeEvent() so worker slots can bail out
+        # instead of touching destroyed widgets. (B6)
+        self._closing = False
         # ``_request_start`` is reset to a fresh perf_counter() before each
         # worker starts and cleared to ``None`` after it finishes (B7 fix),
         # so duration measurements never inherit a stale timestamp.
@@ -1327,6 +1343,28 @@ class AiGeneratorDialog(QDialog):
             worker.cancel()
             self._set_stage_label("正在取消…")
 
+    def _disconnect_worker_signals(self, worker: AiRequestWorker | None) -> None:
+        """Disconnect all dialog-side slots from a worker's signals.
+
+        Called from ``reject``/``closeEvent`` so a worker that is still
+        finishing its HTTP read cannot emit ``result_ready`` /
+        ``error_occurred`` into a dialog whose C++ side is being torn down
+        (which would either crash Qt or invoke a slot on a deleted
+        QObject). The worker itself is kept alive by ``_LIVE_WORKERS``
+        until its ``finished`` signal fires, so this is purely about
+        silencing the UI-bound signals. (B6)
+        """
+        if worker is None:
+            return
+        for sig_name in ("result_ready", "error_occurred", "completed", "chunk_ready", "usage_ready", "finished"):
+            try:
+                sig = getattr(worker, sig_name, None)
+                if sig is not None:
+                    sig.disconnect()
+            except (TypeError, RuntimeError):
+                # No connections or already disconnected — safe.
+                pass
+
     def _register_worker(self, worker: AiRequestWorker) -> None:
         """Remember the active worker and clear the reference when it finishes.
 
@@ -1346,6 +1384,8 @@ class AiGeneratorDialog(QDialog):
             self._current_worker = None
 
     def _on_worker_error(self, message: str) -> None:
+        if self._closing:
+            return
         duration_ms = self._duration_since_request_start()
         cancelled = "取消" in message or "cancelled" in message.lower()
         telemetry.record_duration(
@@ -1358,6 +1398,7 @@ class AiGeneratorDialog(QDialog):
                 "error": message if not cancelled else "cancelled",
             },
         )
+        _record_cache_stats()
         self._set_busy(False, normal=self._busy_normal)
         self._set_stage_label("")
         # Treat cancellation quietly (the user already knows they cancelled).
@@ -1566,22 +1607,29 @@ class AiGeneratorDialog(QDialog):
         worker.start()
 
     def _on_normal_generation_ready(self, parsed: object) -> None:
+        if self._closing:
+            return
         duration_ms = self._duration_since_request_start()
         telemetry.record_duration(
             "ai.generate",
             duration_ms,
             payload={"mode": "normal", "success": True, "edit_mode": self._edit_mode is not None},
         )
-        # Structural conservation guard (B3): in full-section edit mode, if the
-        # model silently dropped units/lessons/words, confirm before accepting.
+        _record_cache_stats()
+        # Structural conservation guard (B3 / U1-4): if the model silently
+        # dropped units/lessons/words (any edit scope), confirm before accepting.
         if (
             self._edit_mode is not None
-            and self._edit_mode.get("scope", "section") == "section"
             and isinstance(parsed, dict)
             and isinstance(self._edit_mode.get("existing_section"), dict)
         ):
             diff = structural_diff(self._edit_mode["existing_section"], parsed)
-            if any(diff.values()) and not self._confirm_structural_removal(diff):
+            removed_only = {
+                k: v
+                for k, v in diff.items()
+                if k.startswith("removed_") and v
+            }
+            if removed_only and not self._confirm_structural_removal(diff):
                 # Teacher rejected the removals: keep the current state intact.
                 self._set_busy(False, normal=True, stage="")
                 self._finish_stream()
@@ -1626,7 +1674,12 @@ class AiGeneratorDialog(QDialog):
                 parts.append(f"{label}：{preview}{more}")
         if not parts:
             return True
-        msg = "AI 在编辑中删除了以下内容，是否接受？\n\n" + "\n".join(parts)
+        msg = (
+            "AI 在编辑中删除了以下内容（结构保护）。\n"
+            "若只想改一两题，请改用教师模式「AI 改这题」或工坊局部重生成。\n\n"
+            + "\n".join(parts)
+            + "\n\n是否仍接受这些删除？"
+        )
         btn = QMessageBox.question(
             self,
             "AI 删除了内容",
@@ -1642,6 +1695,8 @@ class AiGeneratorDialog(QDialog):
         ``_request_start`` is reset here too (defensive fix for B7) so the next
         request's duration never inherits a stale timestamp.
         """
+        if self._closing:
+            return
         self._set_busy(False, normal=True, stage="")
         self._finish_stream()
         self._request_start = None
@@ -1770,14 +1825,21 @@ class AiGeneratorDialog(QDialog):
 
     def _find_line_for_path(self, text: str, path: str) -> int | None:
         """Return the 1-based line whose content contains the id in an
-        ``id:<id>`` path payload. Returns None for structural-only paths."""
+        ``id:<id>`` path payload. Returns None for structural-only paths.
+
+        Uses ``str.find`` + a newline count up to the match offset instead of
+        materializing the whole ``splitlines()`` list on every click — for a
+        5000-line generated course this is O(match_offset) string scans vs
+        the old O(total_lines) full-list allocation per click. (P9)
+        """
         if not path.startswith("id:"):
             return None
         target = f'"{path[3:]}"'
-        for i, line in enumerate(text.splitlines(), start=1):
-            if target in line:
-                return i
-        return None
+        idx = text.find(target)
+        if idx < 0:
+            return None
+        # 1-based line number = number of '\n' before idx + 1.
+        return text.count("\n", 0, idx) + 1
 
     # --- Wish mode actions -----------------------------------------------
 
@@ -1861,11 +1923,15 @@ class AiGeneratorDialog(QDialog):
 
     def _on_alignment_worker_done(self) -> None:
         """Finalize the alignment worker (clear busy + streaming state)."""
+        if self._closing:
+            return
         self._set_busy(False, stage="")
         self._finish_stream()
         self._request_start = None
 
     def _on_alignment_reply_ready(self, reply: object) -> None:
+        if self._closing:
+            return
         duration_ms = self._duration_since_request_start()
         telemetry.record_duration(
             "ai.alignment",
@@ -1965,12 +2031,15 @@ class AiGeneratorDialog(QDialog):
         worker.start()
 
     def _on_wish_generation_ready(self, parsed: object) -> None:
+        if self._closing:
+            return
         duration_ms = self._duration_since_request_start()
         telemetry.record_duration(
             "ai.generate",
             duration_ms,
             payload={"mode": "wish", "success": isinstance(parsed, dict), "edit_mode": self._edit_mode is not None},
         )
+        _record_cache_stats()
         self._generated = parsed
         self._draft_json = parsed
 
@@ -2020,11 +2089,15 @@ class AiGeneratorDialog(QDialog):
 
     def _on_explain_worker_done(self) -> None:
         """Finalize the explain worker (clear busy + streaming state)."""
+        if self._closing:
+            return
         self._set_busy(False, stage="")
         self._finish_stream()
         self._request_start = None
 
     def _on_explain_ready(self, explanation: object) -> None:
+        if self._closing:
+            return
         telemetry.record_event("ai.explain.done", payload={"mode": "wish"})
         text = str(explanation)
         safe = _escape_html(text)
@@ -2046,6 +2119,8 @@ class AiGeneratorDialog(QDialog):
 
     def _on_explain_error(self, message: str) -> None:
         """Handle explain-course failure without masking it (B11)."""
+        if self._closing:
+            return
         telemetry.record_event(
             "ai.explain.error",
             payload={"mode": "wish", "error": message},
@@ -2174,19 +2249,25 @@ class AiGeneratorDialog(QDialog):
             self._chat_expand = None
 
     def reject(self) -> None:
+        self._closing = True
         self._cancel_current_worker()
+        self._disconnect_worker_signals(self._current_worker)
         self._close_json_window()
         self._cleanup_attachments()
         super().reject()
 
     def accept(self) -> None:
+        self._closing = True
         self._cancel_current_worker()
+        self._disconnect_worker_signals(self._current_worker)
         self._close_json_window()
         self._cleanup_attachments()
         super().accept()
 
     def closeEvent(self, event) -> None:  # noqa: N802
+        self._closing = True
         self._cancel_current_worker()
+        self._disconnect_worker_signals(self._current_worker)
         self._close_json_window()
         self._cleanup_attachments()
         super().closeEvent(event)

@@ -226,6 +226,131 @@ class SettingsSaveTest(unittest.TestCase):
         self.assertEqual(clone.ai_supports_reasoning, False)
 
 
+class SettingsAdvancedAiTest(unittest.TestCase):
+    """第三枪 批次①: advanced AI keys (dual model / strict_schema / cache / etc)."""
+
+    def test_defaults_when_empty(self) -> None:
+        qs = _make_qsettings({"recent_repos": "[]"})
+        settings = Settings.load_from_qsettings(qs)
+        self.assertEqual(settings.ai_model_chat, "")
+        self.assertEqual(settings.ai_model_json, "")
+        self.assertEqual(settings.ai_strict_schema, "auto")
+        self.assertFalse(settings.ai_cache_enabled)
+        self.assertFalse(settings.ai_fill_needs_review)
+        self.assertEqual(settings.ai_max_parallel_lessons, 1)
+        self.assertEqual(settings.ai_pipeline_default_mode, "fast")
+
+    def test_loads_advanced_ai_fields(self) -> None:
+        qs = _make_qsettings({
+            "recent_repos": "[]",
+            "ai/model_chat": "deepseek-chat",
+            "ai/model_json": "deepseek-reasoner",
+            "ai/strict_schema": "on",
+            "ai/cache_enabled": True,
+            "ai/fill_needs_review": True,
+            "ai/max_parallel_lessons": 4,
+            "ai/pipeline_default_mode": "refine",
+        })
+        settings = Settings.load_from_qsettings(qs)
+        self.assertEqual(settings.ai_model_chat, "deepseek-chat")
+        self.assertEqual(settings.ai_model_json, "deepseek-reasoner")
+        self.assertEqual(settings.ai_strict_schema, "on")
+        self.assertTrue(settings.ai_cache_enabled)
+        self.assertTrue(settings.ai_fill_needs_review)
+        self.assertEqual(settings.ai_max_parallel_lessons, 4)
+        self.assertEqual(settings.ai_pipeline_default_mode, "refine")
+
+    def test_persists_advanced_ai_fields(self) -> None:
+        qs = _make_qsettings({"recent_repos": "[]"})
+        settings = Settings(
+            ai_model_chat="chat-m",
+            ai_model_json="json-m",
+            ai_strict_schema="off",
+            ai_cache_enabled=True,
+            ai_fill_needs_review=True,
+            ai_max_parallel_lessons=3,
+            ai_pipeline_default_mode="refine",
+        )
+        settings.save_to_qsettings(qs)
+        self.assertEqual(qs.value("ai/model_chat"), "chat-m")
+        self.assertEqual(qs.value("ai/model_json"), "json-m")
+        self.assertEqual(qs.value("ai/strict_schema"), "off")
+        self.assertEqual(qs.value("ai/cache_enabled"), True)
+        self.assertEqual(qs.value("ai/fill_needs_review"), True)
+        self.assertEqual(qs.value("ai/max_parallel_lessons"), 3)
+        self.assertEqual(qs.value("ai/pipeline_default_mode"), "refine")
+
+    def test_advanced_ai_fields_round_trip(self) -> None:
+        qs = _make_qsettings({"recent_repos": "[]"})
+        original = Settings(
+            ai_model_chat="c",
+            ai_model_json="j",
+            ai_strict_schema="on",
+            ai_cache_enabled=True,
+            ai_fill_needs_review=True,
+            ai_max_parallel_lessons=6,
+            ai_pipeline_default_mode="refine",
+        )
+        original.save_to_qsettings(qs)
+        loaded = Settings.load_from_qsettings(qs)
+        self.assertEqual(loaded.ai_model_chat, original.ai_model_chat)
+        self.assertEqual(loaded.ai_model_json, original.ai_model_json)
+        self.assertEqual(loaded.ai_strict_schema, original.ai_strict_schema)
+        self.assertEqual(loaded.ai_cache_enabled, original.ai_cache_enabled)
+        self.assertEqual(loaded.ai_fill_needs_review, original.ai_fill_needs_review)
+        self.assertEqual(loaded.ai_max_parallel_lessons, original.ai_max_parallel_lessons)
+        self.assertEqual(loaded.ai_pipeline_default_mode, original.ai_pipeline_default_mode)
+
+    def test_clone_preserves_advanced_ai_fields(self) -> None:
+        settings = Settings(
+            ai_model_chat="c",
+            ai_model_json="j",
+            ai_strict_schema="on",
+            ai_cache_enabled=True,
+            ai_fill_needs_review=True,
+            ai_max_parallel_lessons=5,
+            ai_pipeline_default_mode="refine",
+        )
+        clone = settings.clone()
+        self.assertEqual(clone.ai_model_chat, "c")
+        self.assertEqual(clone.ai_model_json, "j")
+        self.assertEqual(clone.ai_strict_schema, "on")
+        self.assertTrue(clone.ai_cache_enabled)
+        self.assertTrue(clone.ai_fill_needs_review)
+        self.assertEqual(clone.ai_max_parallel_lessons, 5)
+        self.assertEqual(clone.ai_pipeline_default_mode, "refine")
+
+    def test_clamps_max_parallel_lessons(self) -> None:
+        qs_low = _make_qsettings({"recent_repos": "[]", "ai/max_parallel_lessons": 0})
+        self.assertEqual(Settings.load_from_qsettings(qs_low).ai_max_parallel_lessons, 1)
+        qs_high = _make_qsettings({"recent_repos": "[]", "ai/max_parallel_lessons": 99})
+        self.assertEqual(Settings.load_from_qsettings(qs_high).ai_max_parallel_lessons, 8)
+
+    def test_invalid_strict_schema_defaults_to_auto(self) -> None:
+        qs = _make_qsettings({"recent_repos": "[]", "ai/strict_schema": "yes"})
+        self.assertEqual(Settings.load_from_qsettings(qs).ai_strict_schema, "auto")
+
+    def test_invalid_pipeline_mode_defaults_to_fast(self) -> None:
+        qs = _make_qsettings({"recent_repos": "[]", "ai/pipeline_default_mode": "turbo"})
+        self.assertEqual(Settings.load_from_qsettings(qs).ai_pipeline_default_mode, "fast")
+
+    def test_legacy_qsettings_without_advanced_keys_is_clean(self) -> None:
+        # Simulate an upgrade from a pre-第三枪 install: no ai/model_chat etc.
+        qs = _make_qsettings({
+            "recent_repos": "[]",
+            "ai/base_url": "https://x",
+            "ai/model": "legacy-m",
+        })
+        settings = Settings.load_from_qsettings(qs)
+        self.assertEqual(settings.ai_model_chat, "")
+        self.assertEqual(settings.ai_model_json, "")
+        self.assertEqual(settings.ai_strict_schema, "auto")
+        self.assertFalse(settings.ai_cache_enabled)
+        self.assertFalse(settings.ai_fill_needs_review)
+        self.assertEqual(settings.ai_max_parallel_lessons, 1)
+        self.assertEqual(settings.ai_pipeline_default_mode, "fast")
+
+
 class SettingsRecentRepoTest(unittest.TestCase):
     def test_add_recent_repo_moves_to_top(self) -> None:
         settings = Settings(recent_repos=[{"path": "/b"}, {"path": "/a"}])

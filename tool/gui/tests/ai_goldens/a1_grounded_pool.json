@@ -1,0 +1,66 @@
+{
+  "section": {
+    "id": "ai-pool",
+    "name": "Pool grounded",
+    "words": [
+      {
+        "id": "w-merhaba",
+        "term": "Merhaba",
+        "translation": "你好",
+        "tags": []
+      },
+      {
+        "id": "w-extra",
+        "term": "Kitap",
+        "translation": "书",
+        "tags": ["new"]
+      }
+    ],
+    "expressions": [],
+    "grammarPoints": [],
+    "units": [
+      {
+        "id": "u1",
+        "lessons": [
+          {
+            "id": "l1",
+            "template": "intro",
+            "content": {
+              "subLessons": [
+                {
+                  "id": "sl1",
+                  "stages": [
+                    {
+                      "id": "st1",
+                      "items": [
+                        {
+                          "runtimeType": "showWord",
+                          "id": "i1",
+                          "wordId": "w-merhaba"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "pool": [
+    {
+      "id": "w-merhaba",
+      "term": "Merhaba",
+      "translation": "你好",
+      "_kind": "word"
+    },
+    {
+      "id": "w-gunaydin",
+      "term": "Günaydın",
+      "translation": "早上好",
+      "_kind": "word"
+    }
+  ]
+}

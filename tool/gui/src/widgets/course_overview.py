@@ -291,8 +291,22 @@ class CourseOverviewWindow(QWidget):
         meta_parts = [f"{n_units} units · {n_lessons} lessons"]
         if sec_stat and sec_stat.empty_lesson_count:
             meta_parts.append(f"空 {sec_stat.empty_lesson_count}")
+        if sec_stat and sec_stat.quality_mean is not None:
+            # U2-2: advisory quality lamp on section cards.
+            badge = sec_stat.quality_badge or "ok"
+            meta_parts.append(f"质量 {sec_stat.quality_mean:.2f}({badge})")
         meta = QLabel(" · ".join(meta_parts))
-        meta.setStyleSheet(f"color: {_pal('text_secondary')};")
+        q_color = _pal("text_secondary")
+        if sec_stat and sec_stat.quality_badge == "error":
+            q_color = current_palette().get("error", "#dc2626")
+        elif sec_stat and sec_stat.quality_badge == "warning":
+            q_color = current_palette().get("warning", "#d97706")
+        meta.setStyleSheet(f"color: {q_color};")
+        meta.setToolTip(
+            "内容质量为建议性规则分，不阻断保存；低分可在工坊/校验处 AI 定向修。"
+            if sec_stat and sec_stat.quality_mean is not None
+            else ""
+        )
         header.addWidget(meta)
         v.addLayout(header)
 

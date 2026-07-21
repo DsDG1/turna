@@ -128,14 +128,28 @@ class WorkshopWindow(QDialog):
         )
         row.addWidget(self._lang_label)
         row.addStretch(1)
-        self._checklist_label = QLabel("")
-        self._checklist_label.setStyleSheet(
-            f"color: {current_palette()['text_secondary']}; letter-spacing: 1px;"
-        )
-        self._checklist_label.setToolTip(
-            "进度：素材（已加载章节）· 知识（资源池）· 草稿（AI 生成）· 导入（已写入课程）"
-        )
-        row.addWidget(self._checklist_label)
+        # U3-1: clickable four-step lamps (素材 · 知识 · 草稿 · 导入).
+        self._checklist_label = QLabel("")  # kept for tests / legacy text snapshot
+        self._checklist_label.setVisible(False)
+        self._checklist_btns: dict[str, QPushButton] = {}
+        self._checklist_row = QHBoxLayout()
+        self._checklist_row.setSpacing(4)
+        for key, title, tip in (
+            ("material", "素材", "跳到教材/章节"),
+            ("knowledge", "知识", "跳到知识点审校 / 气泡池"),
+            ("draft", "草稿", "跳到结构大纲 / 对话与高级"),
+            ("imported", "导入", "跳到导入页或定位已导入章节"),
+        ):
+            btn = QPushButton(f"○{title}")
+            btn.setFlat(True)
+            btn.setToolTip(tip + "（点击跳转）")
+            btn.setStyleSheet(
+                f"color: {current_palette()['text_secondary']}; letter-spacing: 1px;"
+            )
+            btn.clicked.connect(lambda _c=False, k=key: self._on_checklist_clicked(k))
+            self._checklist_btns[key] = btn
+            self._checklist_row.addWidget(btn)
+        row.addLayout(self._checklist_row)
         return header
 
     def _build_content(self) -> QVBoxLayout:
@@ -303,6 +317,62 @@ class WorkshopWindow(QDialog):
         ]
         return " · ".join(f"{'✓' if ok else '○'}{name}" for name, ok in parts)
 
+    def _refresh_checklist_buttons(self) -> None:
+        flags = self._checklist_flags()
+        titles = {
+            "material": "素材",
+            "knowledge": "知识",
+            "draft": "草稿",
+            "imported": "导入",
+        }
+        for key, btn in self._checklist_btns.items():
+            ok = bool(flags.get(key))
+            title = titles.get(key, key)
+            btn.setText(f"{'✓' if ok else '○'}{title}")
+            color = (
+                current_palette().get("success", "#16a34a")
+                if ok
+                else current_palette()["text_secondary"]
+            )
+            btn.setStyleSheet(f"color: {color}; letter-spacing: 1px; font-weight: 600;")
+            btn.setVisible(True)
+        self._checklist_label.setText(self._format_checklist())
+
+    def _on_checklist_clicked(self, key: str) -> None:
+        """U3-1: jump to the corresponding column/tab in the unified workspace."""
+        if not self._is_on_canvas() or self._unified_workspace is None:
+            return
+        # Best-effort: focus tabs if the workspace exposes helpers; else set stage text.
+        ws = self._unified_workspace
+        try:
+            if key == "material":
+                if hasattr(ws, "focus_left_tab"):
+                    ws.focus_left_tab(0)
+                elif hasattr(ws, "show_left"):
+                    ws.show_left()
+                self._ws_stage_label.setText("下一步：加载/切章教材")
+            elif key == "knowledge":
+                if hasattr(ws, "focus_left_tab"):
+                    ws.focus_left_tab(1)
+                self._ws_stage_label.setText("下一步：审校知识点并勾选入池")
+            elif key == "draft":
+                if hasattr(ws, "focus_right_tab"):
+                    ws.focus_right_tab(0)
+                elif hasattr(ws, "show_design"):
+                    ws.show_design()
+                self._ws_stage_label.setText("下一步：生成或审阅草稿")
+                if self._review_panel is not None:
+                    self._review_panel.refresh()
+            elif key == "imported":
+                if self._imported_section_id:
+                    self._on_locate()
+                else:
+                    if hasattr(ws, "focus_right_tab"):
+                        ws.focus_right_tab(2)
+                    self._ws_stage_label.setText("下一步：在结构大纲确认后导入")
+        except Exception:
+            self._ws_stage_label.setText(f"跳转：{key}")
+
     def _update_header(self) -> None:
         if self._project is not None:
             self._project_btn.setText(self._project.name)
@@ -316,13 +386,15 @@ class WorkshopWindow(QDialog):
         if self._is_on_canvas() and self._project is not None:
             self._page_title.setText(_CANVAS_TITLE)
             self._page_desc.setText(_CANVAS_DESC)
-            self._checklist_label.setText(self._format_checklist())
-            self._checklist_label.setVisible(True)
+            self._refresh_checklist_buttons()
+            for btn in self._checklist_btns.values():
+                btn.setVisible(True)
         else:
             self._page_title.setText(_LIBRARY_TITLE)
             self._page_desc.setText(_LIBRARY_DESC)
             self._checklist_label.setText("")
-            self._checklist_label.setVisible(False)
+            for btn in self._checklist_btns.values():
+                btn.setVisible(False)
 
     # ------------------------------------------------------------------ project
     def current_project(self) -> TextbookProject | None:
@@ -461,7 +533,10 @@ class WorkshopWindow(QDialog):
         self._persist_ui_stage(_UI_CANVAS)
 
     def _on_draft_ready(self) -> None:
-        self._ws_stage_label.setText("草稿已生成")
+        # U3-3: generation-complete CTA in stage line.
+        self._ws_stage_label.setText(
+            "草稿已生成 → 点「草稿」审阅质量 · 或在结构大纲「试做 / 导入」"
+        )
         self._update_header()
         if self._review_panel is not None:
             self._review_panel.refresh()

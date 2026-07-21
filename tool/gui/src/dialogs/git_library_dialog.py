@@ -87,9 +87,8 @@ class GitLibraryDialog(QDialog):
         self.log_timer = QTimer(self)
         self.log_timer.setInterval(1000)
         self.log_timer.timeout.connect(self._poll_server_logs)
-        self.log_timer.start()
-        # Length-based short-circuit so the common "no new logs" tick skips
-        # the join + toPlainText() comparison entirely.
+        # Don't start unconditionally: the LAN tab may not even be visible.
+        # _on_tab_changed / _on_start_share start it when appropriate.
         self._last_log_len = -1
 
         self._refresh_state()
@@ -405,6 +404,11 @@ class GitLibraryDialog(QDialog):
         memo_layout.addLayout(edit_row)
 
         self.tabs.addTab(self.memo_tab, "团队留言板")
+        # Pause the 1s log-poll timer whenever the LAN tab isn't visible so
+        # the (potentially large) join + toPlainText comparison doesn't run
+        # every second for the whole dialog lifetime while the user is on
+        # another tab. Restarted on tab switch if a server is running. (P2)
+        self.tabs.currentChanged.connect(self._on_tab_changed)
 
         layout.addWidget(self.tabs)
 
@@ -591,10 +595,16 @@ class GitLibraryDialog(QDialog):
         row = index.row()
         if row < 0:
             return
-        name = self.remotes_table.item(row, 0).text()
-        url = self.remotes_table.item(row, 1).text()
-        local_dir = self.remotes_table.item(row, 2).text()
-        lang = self.remotes_table.item(row, 3).text()
+        # QTableWidget.item(row, col) returns None if the cell was never
+        # populated (corrupt catalog); guard each lookup instead of crashing
+        # with AttributeError on .text(). (B3)
+        def _cell(col: int) -> str:
+            item = self.remotes_table.item(row, col)
+            return item.text() if item is not None else ""
+        name = _cell(0)
+        url = _cell(1)
+        local_dir = _cell(2)
+        lang = _cell(3)
         if url:
             self.url_edit.setText(url)
         if local_dir:
@@ -631,7 +641,10 @@ class GitLibraryDialog(QDialog):
         row = self.remotes_table.currentRow()
         if row < 0:
             return
-        name = self.remotes_table.item(row, 0).text()
+        item = self.remotes_table.item(row, 0)
+        if item is None:
+            return
+        name = item.text()
         git_remote_catalog.remove_remote(name)
         self._populate_saved_remotes()
 
@@ -649,8 +662,12 @@ class GitLibraryDialog(QDialog):
             idx = self.branch_combo.findText(current)
             if idx >= 0:
                 self.branch_combo.setCurrentIndex(idx)
-        except Exception:
-            pass
+        except Exception as exc:
+            # A broken repo (corrupted .git, missing HEAD) used to silently
+            # produce an empty branch list with no status update, so the user
+            # saw a blank combo and assumed the repo had no branches. Surface
+            # the failure instead. (B4)
+            self.status_label.setText(f"读取分支失败：{exc}")
 
     def _on_branch_changed(self, _index: int) -> None:
         pass  # selection only; switch happens on button click.
@@ -736,8 +753,10 @@ class GitLibraryDialog(QDialog):
                         nodes[key] = node
                     parent_key = key
             self.file_tree.expandItem(root_item)
-        except Exception:
-            pass
+        except Exception as exc:
+            # Same rationale as _refresh_branches: don't mask a broken repo
+            # as an empty tree. (B4)
+            self.status_label.setText(f"读取文件树失败：{exc}")
 
     def _on_file_tree_double_click(self, item) -> None:
         file_path = item.data(0, Qt.ItemDataRole.UserRole)
@@ -773,7 +792,10 @@ class GitLibraryDialog(QDialog):
         row = self.history_table.rowAt(position.y())
         if row < 0:
             return
-        ref = self.history_table.item(row, 0).text()
+        item = self.history_table.item(row, 0)
+        if item is None:
+            return
+        ref = item.text()
         menu = QMenu(self)
         menu.addAction(f"Reset --hard 到 {ref}", lambda: self._on_reset_to(ref, "hard"))
         menu.addAction(f"Reset --soft 到 {ref}", lambda: self._on_reset_to(ref, "soft"))
@@ -908,7 +930,12 @@ class GitLibraryDialog(QDialog):
             QMessageBox.warning(self, "未找到", f"未找到 ID 为 {memo_id} 的留言。")
             return
         data["messages"] = messages
-        memo_file.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        # Atomic write: tmp + os.replace so a crash mid-write cannot
+        # corrupt the collaborator's memo file (B19).
+        import os
+        tmp = memo_file.with_suffix(memo_file.suffix + ".tmp")
+        tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        os.replace(tmp, memo_file)
         self._refresh_memos()
         # Push.
         self._run_git_async(
@@ -943,6 +970,22 @@ class GitLibraryDialog(QDialog):
         # being torn down (QTimer is parented to self but deleteLater may lag).
         self.log_timer.stop()
         super().closeEvent(event)
+
+    def _on_tab_changed(self, index: int) -> None:
+        """Pause log polling unless the LAN tab is visible + a server runs. (P2)"""
+        lan_index = self.tabs.indexOf(self.lan_tab)
+        server_running = (
+            self.git_server_thread is not None
+            and getattr(self.git_server_thread, "server", None) is not None
+        )
+        if index == lan_index and server_running:
+            if not self.log_timer.isActive():
+                self.log_timer.start()
+            # Immediate refresh so switching to the tab shows current logs.
+            self._poll_server_logs()
+        else:
+            if self.log_timer.isActive():
+                self.log_timer.stop()
 
     def _poll_server_logs(self) -> None:
         thread = self.git_server_thread
@@ -986,8 +1029,11 @@ class GitLibraryDialog(QDialog):
                 self.history_table.setItem(row, 1, QTableWidgetItem(commit["author"]))
                 self.history_table.setItem(row, 2, QTableWidgetItem(commit["date"]))
                 self.history_table.setItem(row, 3, QTableWidgetItem(commit["message"]))
-        except Exception:
+        except Exception as exc:
             self.history_table.setRowCount(0)
+            # Surface the failure instead of leaving an empty table that
+            # looks like a repo with no commits. (B4)
+            self.status_label.setText(f"读取历史失败：{exc}")
 
     def _refresh_memos(self) -> None:
         if self._clone_dir is None:
@@ -1209,6 +1255,11 @@ class GitLibraryDialog(QDialog):
             app = QApplication.instance()
             if app is not None:
                 app.aboutToQuit.connect(self._stop_share_on_quit)
+            # Start the log-poll timer now that a server is running (only
+            # polls meaningfully while the LAN tab is visible — see
+            # _on_tab_changed). (P2)
+            if not self.log_timer.isActive():
+                self.log_timer.start()
             QMessageBox.information(
                 self,
                 "共享成功",
@@ -1218,6 +1269,15 @@ class GitLibraryDialog(QDialog):
                 f"窗口关闭后共享仍在后台运行。",
             )
         except Exception as exc:
+            # ``GitServerThread.__init__`` already bound the listening socket
+            # synchronously, so a failure in ``thread.start()`` would leak
+            # the bound port until process exit (B15): ``self.git_server_thread``
+            # is None so ``_on_stop_share`` would never close it. Close the
+            # server explicitly here.
+            try:
+                thread.server.server_close()
+            except Exception:  # noqa: BLE001 — best-effort cleanup
+                pass
             QMessageBox.critical(self, "启动失败", f"发生未知错误：\n{exc}")
             self.git_server_thread = None
 
@@ -1229,6 +1289,8 @@ class GitLibraryDialog(QDialog):
             thread.stop()
             thread.join(timeout=1.0)
             self.git_server_thread = None
+        # No server running -> no point polling. (P2)
+        self.log_timer.stop()
         self._refresh_state()
 
     def _stop_share_on_quit(self) -> None:
@@ -1275,7 +1337,28 @@ class GitLibraryDialog(QDialog):
         error_title: str = "",
         on_error=None,
     ) -> None:
-        """Run a synchronous git call in a background worker."""
+        """Run a synchronous git call in a background worker.
+
+        Cancels any still-running previous git worker before starting the new
+        one: without this, firing a second op while the first is in flight
+        would leave the old QThread running (its result is dropped by the
+        ``worker is not self._git_worker`` guard in ``_on_git_result``) and
+        could race on the shared git clone's index. (B5)
+        """
+        # Cancel and disconnect the previous worker so its late signals can't
+        # land in our slots after we've moved on.
+        prev = getattr(self, "_git_worker", None)
+        if prev is not None:
+            try:
+                if prev.isRunning():
+                    prev.cancel()
+                for sig_name in ("result_ready", "error_occurred", "completed", "finished"):
+                    try:
+                        getattr(prev, sig_name).disconnect()
+                    except (TypeError, RuntimeError, AttributeError):
+                        pass
+            except Exception:  # noqa: BLE001 — defensive; never block new op
+                pass
         self._set_git_busy(True, label)
         worker = AiRequestWorker(fn, *args)
         worker.result_ready.connect(
