@@ -12,7 +12,7 @@ part 'sub_lesson.g.dart';
 /// (3 sub-lessons), where each sub-lesson introduces or practices a small
 /// chunk of content and can be completed independently.
 @freezed
-class SubLesson with _$SubLesson {
+abstract class SubLesson with _$SubLesson {
   const factory SubLesson({
     required String id,
     required String name,

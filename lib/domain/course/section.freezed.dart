@@ -1,5 +1,5 @@
-// coverage:ignore-file
 // GENERATED CODE - DO NOT MODIFY BY HAND
+// coverage:ignore-file
 // ignore_for_file: type=lint
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
@@ -9,98 +9,64 @@ part of 'section.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// dart format off
 T _$identity<T>(T value) => value;
-
-final _privateConstructorUsedError = UnsupportedError(
-    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
-
-Section _$SectionFromJson(Map<String, dynamic> json) {
-  return _Section.fromJson(json);
-}
 
 /// @nodoc
 mixin _$Section {
-  String get id => throw _privateConstructorUsedError;
-  String get name => throw _privateConstructorUsedError;
-  String get description => throw _privateConstructorUsedError;
-  String? get level => throw _privateConstructorUsedError;
-  List<String> get prerequisiteSectionIds => throw _privateConstructorUsedError;
-  List<Unit> get units => throw _privateConstructorUsedError;
+  String get id;
+  String get name;
+  String get description;
+  String? get level;
+  List<String> get prerequisiteSectionIds;
+  List<Unit> get units;
 
-  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
-  $SectionCopyWith<Section> get copyWith => throw _privateConstructorUsedError;
-}
-
-/// @nodoc
-abstract class $SectionCopyWith<$Res> {
-  factory $SectionCopyWith(Section value, $Res Function(Section) then) =
-      _$SectionCopyWithImpl<$Res, Section>;
-  @useResult
-  $Res call(
-      {String id,
-      String name,
-      String description,
-      String? level,
-      List<String> prerequisiteSectionIds,
-      List<Unit> units});
-}
-
-/// @nodoc
-class _$SectionCopyWithImpl<$Res, $Val extends Section>
-    implements $SectionCopyWith<$Res> {
-  _$SectionCopyWithImpl(this._value, this._then);
-
-  // ignore: unused_field
-  final $Val _value;
-  // ignore: unused_field
-  final $Res Function($Val) _then;
-
+  /// Create a copy of Section
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @pragma('vm:prefer-inline')
+  $SectionCopyWith<Section> get copyWith =>
+      _$SectionCopyWithImpl<Section>(this as Section, _$identity);
+
+  /// Serializes this Section to a JSON map.
+  Map<String, dynamic> toJson();
+
   @override
-  $Res call({
-    Object? id = null,
-    Object? name = null,
-    Object? description = null,
-    Object? level = freezed,
-    Object? prerequisiteSectionIds = null,
-    Object? units = null,
-  }) {
-    return _then(_value.copyWith(
-      id: null == id
-          ? _value.id
-          : id // ignore: cast_nullable_to_non_nullable
-              as String,
-      name: null == name
-          ? _value.name
-          : name // ignore: cast_nullable_to_non_nullable
-              as String,
-      description: null == description
-          ? _value.description
-          : description // ignore: cast_nullable_to_non_nullable
-              as String,
-      level: freezed == level
-          ? _value.level
-          : level // ignore: cast_nullable_to_non_nullable
-              as String?,
-      prerequisiteSectionIds: null == prerequisiteSectionIds
-          ? _value.prerequisiteSectionIds
-          : prerequisiteSectionIds // ignore: cast_nullable_to_non_nullable
-              as List<String>,
-      units: null == units
-          ? _value.units
-          : units // ignore: cast_nullable_to_non_nullable
-              as List<Unit>,
-    ) as $Val);
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is Section &&
+            (identical(other.id, id) || other.id == id) &&
+            (identical(other.name, name) || other.name == name) &&
+            (identical(other.description, description) ||
+                other.description == description) &&
+            (identical(other.level, level) || other.level == level) &&
+            const DeepCollectionEquality()
+                .equals(other.prerequisiteSectionIds, prerequisiteSectionIds) &&
+            const DeepCollectionEquality().equals(other.units, units));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(
+      runtimeType,
+      id,
+      name,
+      description,
+      level,
+      const DeepCollectionEquality().hash(prerequisiteSectionIds),
+      const DeepCollectionEquality().hash(units));
+
+  @override
+  String toString() {
+    return 'Section(id: $id, name: $name, description: $description, level: $level, prerequisiteSectionIds: $prerequisiteSectionIds, units: $units)';
   }
 }
 
 /// @nodoc
-abstract class _$$SectionImplCopyWith<$Res> implements $SectionCopyWith<$Res> {
-  factory _$$SectionImplCopyWith(
-          _$SectionImpl value, $Res Function(_$SectionImpl) then) =
-      __$$SectionImplCopyWithImpl<$Res>;
-  @override
+abstract mixin class $SectionCopyWith<$Res> {
+  factory $SectionCopyWith(Section value, $Res Function(Section) _then) =
+      _$SectionCopyWithImpl;
   @useResult
   $Res call(
       {String id,
@@ -112,13 +78,14 @@ abstract class _$$SectionImplCopyWith<$Res> implements $SectionCopyWith<$Res> {
 }
 
 /// @nodoc
-class __$$SectionImplCopyWithImpl<$Res>
-    extends _$SectionCopyWithImpl<$Res, _$SectionImpl>
-    implements _$$SectionImplCopyWith<$Res> {
-  __$$SectionImplCopyWithImpl(
-      _$SectionImpl _value, $Res Function(_$SectionImpl) _then)
-      : super(_value, _then);
+class _$SectionCopyWithImpl<$Res> implements $SectionCopyWith<$Res> {
+  _$SectionCopyWithImpl(this._self, this._then);
 
+  final Section _self;
+  final $Res Function(Section) _then;
+
+  /// Create a copy of Section
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -129,39 +96,205 @@ class __$$SectionImplCopyWithImpl<$Res>
     Object? prerequisiteSectionIds = null,
     Object? units = null,
   }) {
-    return _then(_$SectionImpl(
+    return _then(_self.copyWith(
       id: null == id
-          ? _value.id
+          ? _self.id
           : id // ignore: cast_nullable_to_non_nullable
               as String,
       name: null == name
-          ? _value.name
+          ? _self.name
           : name // ignore: cast_nullable_to_non_nullable
               as String,
       description: null == description
-          ? _value.description
+          ? _self.description
           : description // ignore: cast_nullable_to_non_nullable
               as String,
       level: freezed == level
-          ? _value.level
+          ? _self.level
           : level // ignore: cast_nullable_to_non_nullable
               as String?,
       prerequisiteSectionIds: null == prerequisiteSectionIds
-          ? _value._prerequisiteSectionIds
+          ? _self.prerequisiteSectionIds
           : prerequisiteSectionIds // ignore: cast_nullable_to_non_nullable
               as List<String>,
       units: null == units
-          ? _value._units
+          ? _self.units
           : units // ignore: cast_nullable_to_non_nullable
               as List<Unit>,
     ));
   }
 }
 
+/// Adds pattern-matching-related methods to [Section].
+extension SectionPatterns on Section {
+  /// A variant of `map` that fallback to returning `orElse`.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case _:
+  ///     return orElse();
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>(
+    TResult Function(_Section value)? $default, {
+    required TResult orElse(),
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _Section() when $default != null:
+        return $default(_that);
+      case _:
+        return orElse();
+    }
+  }
+
+  /// A `switch`-like method, using callbacks.
+  ///
+  /// Callbacks receives the raw object, upcasted.
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case final Subclass2 value:
+  ///     return ...;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>(
+    TResult Function(_Section value) $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _Section():
+        return $default(_that);
+      case _:
+        throw StateError('Unexpected subclass');
+    }
+  }
+
+  /// A variant of `map` that fallback to returning `null`.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case _:
+  ///     return null;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>(
+    TResult? Function(_Section value)? $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _Section() when $default != null:
+        return $default(_that);
+      case _:
+        return null;
+    }
+  }
+
+  /// A variant of `when` that fallback to an `orElse` callback.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case _:
+  ///     return orElse();
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>(
+    TResult Function(String id, String name, String description, String? level,
+            List<String> prerequisiteSectionIds, List<Unit> units)?
+        $default, {
+    required TResult orElse(),
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _Section() when $default != null:
+        return $default(_that.id, _that.name, _that.description, _that.level,
+            _that.prerequisiteSectionIds, _that.units);
+      case _:
+        return orElse();
+    }
+  }
+
+  /// A `switch`-like method, using callbacks.
+  ///
+  /// As opposed to `map`, this offers destructuring.
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case Subclass2(:final field2):
+  ///     return ...;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>(
+    TResult Function(String id, String name, String description, String? level,
+            List<String> prerequisiteSectionIds, List<Unit> units)
+        $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _Section():
+        return $default(_that.id, _that.name, _that.description, _that.level,
+            _that.prerequisiteSectionIds, _that.units);
+      case _:
+        throw StateError('Unexpected subclass');
+    }
+  }
+
+  /// A variant of `when` that fallback to returning `null`
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case _:
+  ///     return null;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>(
+    TResult? Function(String id, String name, String description, String? level,
+            List<String> prerequisiteSectionIds, List<Unit> units)?
+        $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _Section() when $default != null:
+        return $default(_that.id, _that.name, _that.description, _that.level,
+            _that.prerequisiteSectionIds, _that.units);
+      case _:
+        return null;
+    }
+  }
+}
+
 /// @nodoc
 @JsonSerializable()
-class _$SectionImpl implements _Section {
-  const _$SectionImpl(
+class _Section implements Section {
+  const _Section(
       {required this.id,
       required this.name,
       this.description = '',
@@ -170,9 +303,8 @@ class _$SectionImpl implements _Section {
       required final List<Unit> units})
       : _prerequisiteSectionIds = prerequisiteSectionIds,
         _units = units;
-
-  factory _$SectionImpl.fromJson(Map<String, dynamic> json) =>
-      _$$SectionImplFromJson(json);
+  factory _Section.fromJson(Map<String, dynamic> json) =>
+      _$SectionFromJson(json);
 
   @override
   final String id;
@@ -201,16 +333,26 @@ class _$SectionImpl implements _Section {
     return EqualUnmodifiableListView(_units);
   }
 
+  /// Create a copy of Section
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  String toString() {
-    return 'Section(id: $id, name: $name, description: $description, level: $level, prerequisiteSectionIds: $prerequisiteSectionIds, units: $units)';
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  _$SectionCopyWith<_Section> get copyWith =>
+      __$SectionCopyWithImpl<_Section>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$SectionToJson(
+      this,
+    );
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$SectionImpl &&
+            other is _Section &&
             (identical(other.id, id) || other.id == id) &&
             (identical(other.name, name) || other.name == name) &&
             (identical(other.description, description) ||
@@ -221,7 +363,7 @@ class _$SectionImpl implements _Section {
             const DeepCollectionEquality().equals(other._units, _units));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
       runtimeType,
@@ -232,45 +374,73 @@ class _$SectionImpl implements _Section {
       const DeepCollectionEquality().hash(_prerequisiteSectionIds),
       const DeepCollectionEquality().hash(_units));
 
-  @JsonKey(ignore: true)
   @override
-  @pragma('vm:prefer-inline')
-  _$$SectionImplCopyWith<_$SectionImpl> get copyWith =>
-      __$$SectionImplCopyWithImpl<_$SectionImpl>(this, _$identity);
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$SectionImplToJson(
-      this,
-    );
+  String toString() {
+    return 'Section(id: $id, name: $name, description: $description, level: $level, prerequisiteSectionIds: $prerequisiteSectionIds, units: $units)';
   }
 }
 
-abstract class _Section implements Section {
-  const factory _Section(
-      {required final String id,
-      required final String name,
-      final String description,
-      final String? level,
-      final List<String> prerequisiteSectionIds,
-      required final List<Unit> units}) = _$SectionImpl;
-
-  factory _Section.fromJson(Map<String, dynamic> json) = _$SectionImpl.fromJson;
-
+/// @nodoc
+abstract mixin class _$SectionCopyWith<$Res> implements $SectionCopyWith<$Res> {
+  factory _$SectionCopyWith(_Section value, $Res Function(_Section) _then) =
+      __$SectionCopyWithImpl;
   @override
-  String get id;
-  @override
-  String get name;
-  @override
-  String get description;
-  @override
-  String? get level;
-  @override
-  List<String> get prerequisiteSectionIds;
-  @override
-  List<Unit> get units;
-  @override
-  @JsonKey(ignore: true)
-  _$$SectionImplCopyWith<_$SectionImpl> get copyWith =>
-      throw _privateConstructorUsedError;
+  @useResult
+  $Res call(
+      {String id,
+      String name,
+      String description,
+      String? level,
+      List<String> prerequisiteSectionIds,
+      List<Unit> units});
 }
+
+/// @nodoc
+class __$SectionCopyWithImpl<$Res> implements _$SectionCopyWith<$Res> {
+  __$SectionCopyWithImpl(this._self, this._then);
+
+  final _Section _self;
+  final $Res Function(_Section) _then;
+
+  /// Create a copy of Section
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? id = null,
+    Object? name = null,
+    Object? description = null,
+    Object? level = freezed,
+    Object? prerequisiteSectionIds = null,
+    Object? units = null,
+  }) {
+    return _then(_Section(
+      id: null == id
+          ? _self.id
+          : id // ignore: cast_nullable_to_non_nullable
+              as String,
+      name: null == name
+          ? _self.name
+          : name // ignore: cast_nullable_to_non_nullable
+              as String,
+      description: null == description
+          ? _self.description
+          : description // ignore: cast_nullable_to_non_nullable
+              as String,
+      level: freezed == level
+          ? _self.level
+          : level // ignore: cast_nullable_to_non_nullable
+              as String?,
+      prerequisiteSectionIds: null == prerequisiteSectionIds
+          ? _self._prerequisiteSectionIds
+          : prerequisiteSectionIds // ignore: cast_nullable_to_non_nullable
+              as List<String>,
+      units: null == units
+          ? _self._units
+          : units // ignore: cast_nullable_to_non_nullable
+              as List<Unit>,
+    ));
+  }
+}
+
+// dart format on

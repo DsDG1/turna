@@ -7,6 +7,7 @@ import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 // Project imports:
 import 'package:varnamala/core/extensions.dart';
 import 'package:varnamala/di/injection.dart';
+import 'package:varnamala/l10n/app_localizations.dart';
 import 'package:varnamala/service/locator.dart';
 import 'package:varnamala/views/theme.dart';
 
@@ -27,7 +28,8 @@ class CharactersAppBar extends StatelessWidget implements PreferredSizeWidget {
                   color: VarnamalaTheme.peacockTeal, size: 22),
               const SizedBox(width: 8),
               Text(
-                '${currentLanguage.toTitleCase} Script',
+                AppLocalizations.of(context)!
+                    .charactersScriptTitle(currentLanguage.toTitleCase),
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w700,
                     ),

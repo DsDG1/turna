@@ -1,0 +1,138 @@
+# 知识卡导出索引文件
+schema_version: 1
+locale: zh-CN
+branch: master
+nodes_managed: true
+exported_at: "2026-07-26T16:34:12Z"
+modules:
+    "":
+        dir_name: Varnamala Plus 多平台 Flutter 语言学习项目
+        title: Varnamala Plus 多平台 Flutter 语言学习项目
+        scope:
+            - README.md
+            - Makefile
+            - pubspec.yaml
+            - analysis_options.yaml
+            - build.yaml
+            - devtools_options.yaml
+            - .gitattributes
+            - .gitignore
+            - CLAUDE.md
+            - LICENSE
+            - pubspec.lock
+            - readmetest.md
+            - （过滤后）
+        source_files: []
+        children:
+            - assets
+            - cli_tools
+            - docs
+            - flutter_app
+            - platform_android
+            - platform_ios
+            - platform_linux
+            - platform_macos
+            - platform_windows
+            - tests
+        depends_on: []
+        related_to: []
+    assets:
+        dir_name: 课程与多媒体资源资产库
+        title: 课程与多媒体资源资产库
+        scope:
+            - assets/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: cli_tools
+            - path: flutter_app
+    cli_tools:
+        dir_name: 课程工具链与发布构建脚本
+        title: 课程工具链与发布构建脚本
+        scope:
+            - tool/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: assets
+            - path: tests
+    docs:
+        dir_name: 项目文档与决策记录（docs）
+        title: 项目文档与决策记录（docs）
+        scope:
+            - docs/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    flutter_app:
+        dir_name: Varnamala Flutter 应用主模块
+        title: Varnamala Flutter 应用主模块
+        scope:
+            - lib/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: assets
+            - path: platform_android
+            - path: tests
+    platform_android:
+        dir_name: Android 原生应用壳与平台通道
+        title: Android 原生应用壳与平台通道
+        scope:
+            - android/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: flutter_app
+    platform_ios:
+        dir_name: iOS 原生宿主应用与构建配置
+        title: iOS 原生宿主应用与构建配置
+        scope:
+            - ios/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    platform_linux:
+        dir_name: Linux 原生宿主应用（GTK + Flutter）
+        title: Linux 原生宿主应用（GTK + Flutter）
+        scope:
+            - linux/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    platform_macos:
+        dir_name: macOS 平台 Runner 应用与 Flutter 集成
+        title: macOS 平台 Runner 应用与 Flutter 集成
+        scope:
+            - macos/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    platform_windows:
+        dir_name: Windows 平台 Flutter Runner 宿主
+        title: Windows 平台 Flutter Runner 宿主
+        scope:
+            - windows/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    tests:
+        dir_name: 全量测试套件（Flutter 单测、Golden 截图、Python CLI_工具测试）
+        title: 全量测试套件（Flutter 单测、Golden 截图、Python CLI/工具测试）
+        scope:
+            - test/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: cli_tools
+            - path: flutter_app

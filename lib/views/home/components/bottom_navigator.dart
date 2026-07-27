@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
+import 'package:varnamala/l10n/app_localizations.dart';
 import 'package:varnamala/views/theme.dart';
 
 class BottomNavigator extends StatelessWidget {
@@ -37,25 +38,25 @@ class BottomNavigator extends StatelessWidget {
           children: [
             _NavItem(
               icon: Icons.school_rounded,
-              label: 'Learn',
+              label: AppLocalizations.of(context)!.commonNavLearn,
               isSelected: currentIndex == 0,
               onTap: () => onPress(0),
             ),
             _NavItem(
               icon: Icons.extension_rounded,
-              label: 'Play',
+              label: AppLocalizations.of(context)!.commonNavPlay,
               isSelected: currentIndex == 1,
               onTap: () => onPress(1),
             ),
             _NavItem(
               icon: Icons.person_rounded,
-              label: 'Profile',
+              label: AppLocalizations.of(context)!.commonNavProfile,
               isSelected: currentIndex == 2,
               onTap: () => onPress(2),
             ),
             _NavItem(
               icon: Icons.settings_rounded,
-              label: 'Settings',
+              label: AppLocalizations.of(context)!.commonNavSettings,
               isSelected: currentIndex == 3,
               onTap: () => onPress(3),
             ),

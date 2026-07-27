@@ -6,8 +6,8 @@ part of 'lesson_content.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-_$LessonContentImpl _$$LessonContentImplFromJson(Map<String, dynamic> json) =>
-    _$LessonContentImpl(
+_LessonContent _$LessonContentFromJson(Map<String, dynamic> json) =>
+    _LessonContent(
       stages: (json['stages'] as List<dynamic>?)
               ?.map((e) => Stage.fromJson(e as Map<String, dynamic>))
               .toList() ??
@@ -32,7 +32,7 @@ _$LessonContentImpl _$$LessonContentImplFromJson(Map<String, dynamic> json) =>
           const <String>[],
     );
 
-Map<String, dynamic> _$$LessonContentImplToJson(_$LessonContentImpl instance) =>
+Map<String, dynamic> _$LessonContentToJson(_LessonContent instance) =>
     <String, dynamic>{
       'stages': instance.stages,
       'subLessons': instance.subLessons,

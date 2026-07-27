@@ -115,6 +115,28 @@ class StudyStatsProvider extends ChangeNotifier {
     return all.values.fold<int>(0, (sum, d) => sum + d.reviewCount);
   }
 
+  /// Anki-specific stats — counts derived from the raw study logs by filtering
+  /// on the `lessonId` prefix `anki-`. Used by the profile stats panel to
+  /// surface Anki-deck activity separately from language-course lessons.
+  ///
+  /// Returns a map with keys `ankiLessons` and `ankiReviews` (ints). When no
+  /// logs carry an `anki-` lesson id, both are zero.
+  Future<Map<String, int>> getAnkiActivityCounts() async {
+    final logs = await _repository.readLogs();
+    var ankiLessons = 0;
+    var ankiReviews = 0;
+    for (final log in logs) {
+      final lid = log.lessonId;
+      if (lid == null || !lid.startsWith('anki-')) continue;
+      if (log.type == StudyActivityType.lessonComplete) {
+        ankiLessons++;
+      } else if (log.type == StudyActivityType.srsReview) {
+        ankiReviews++;
+      }
+    }
+    return {'ankiLessons': ankiLessons, 'ankiReviews': ankiReviews};
+  }
+
   /// Get weak words based on the mistake log. Aggregates by wordId (or
   /// grammarPointId when no word is available), looking up the display
   /// term/translation from the in-memory vocab tables. Sorted by mistake

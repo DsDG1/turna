@@ -20,6 +20,7 @@ import 'package:varnamala/core/enums.dart';
 import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/domain/course/interaction.dart';
 import 'package:varnamala/domain/course/lesson.dart';
+import 'package:varnamala/l10n/app_localizations.dart';
 import 'package:varnamala/routing/routing.gr.dart';
 import 'package:varnamala/service/tab_router.dart';
 import 'package:varnamala/views/lesson/components/ai_hint_sheet.dart';
@@ -205,20 +206,19 @@ class _NewLessonPageState extends State<NewLessonPage> {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('AI not configured'),
-        content: const Text('Please fill in Base URL / API Key / Model under '
-            'Settings → Learning → AI API Configuration before using AI hints.'),
+        title: Text(AppLocalizations.of(context)!.aiNotConfiguredTitle),
+        content: Text(AppLocalizations.of(context)!.aiNotConfiguredMessageLesson),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Later'),
+            child: Text(AppLocalizations.of(context)!.commonLater),
           ),
           FilledButton(
             onPressed: () {
               Navigator.of(dialogContext).pop();
               getIt<TabRouter>().switchTo(TabDestination.settings);
             },
-            child: const Text('Go to settings'),
+            child: Text(AppLocalizations.of(context)!.aiGoToSettings),
           ),
         ],
       ),
@@ -333,7 +333,7 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
     return Selector<LessonViewModel,
         ({String name, String? stage, bool complete, double progress, bool aiEligible})>(
       selector: (context, vm) => (
-        name: vm.lesson?.name ?? 'Lesson',
+        name: vm.lesson?.name ?? AppLocalizations.of(context)!.lessonLessonFallback,
         stage: vm.currentStageName,
         complete: vm.isComplete,
         progress: vm.progress,
@@ -343,7 +343,7 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
         backgroundColor: VarnamalaTheme.surfaceColor(context),
         elevation: 0,
         leading: IconButton(
-          tooltip: 'Close',
+          tooltip: AppLocalizations.of(context)!.commonClose,
           icon: Icon(
             Icons.close_rounded,
             color: VarnamalaTheme.textPrimaryColor(context),
@@ -377,7 +377,7 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
         centerTitle: true,
         actions: [
           IconButton(
-            tooltip: 'AI lesson helper',
+            tooltip: AppLocalizations.of(context)!.lessonAiHelperTooltip,
             icon: Icon(
               Icons.auto_fix_high,
               color: VarnamalaTheme.textPrimaryColor(context),
@@ -386,7 +386,7 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
           ),
           if (s.aiEligible)
             IconButton(
-              tooltip: 'AI hint',
+              tooltip: AppLocalizations.of(context)!.lessonAiHintTooltip,
               icon: Icon(
                 Icons.auto_awesome_rounded,
                 color: VarnamalaTheme.textPrimaryColor(context),
@@ -451,7 +451,7 @@ class _LessonBody extends StatelessWidget {
               const Icon(Icons.error_outline_rounded, size: 48),
               const SizedBox(height: 12),
               Text(
-                'Could not load lesson',
+                AppLocalizations.of(context)!.lessonCouldNotLoadLesson,
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 8),
@@ -462,7 +462,7 @@ class _LessonBody extends StatelessWidget {
               const SizedBox(height: 16),
               TextButton(
                 onPressed: onRetry,
-                child: const Text('Retry'),
+                child: Text(AppLocalizations.of(context)!.commonRetry),
               ),
             ],
           ),
@@ -499,7 +499,7 @@ class _LessonBody extends StatelessWidget {
         final interaction = selected.$1;
         final interactionState = selected.$2;
         if (interaction == null) {
-          return _emptyContent();
+          return _emptyContent(context);
         }
         final renderer = lookupRenderer(renderers, interaction);
         final readingPassage = lesson.content.readingPassage;
@@ -545,7 +545,7 @@ class _LessonBody extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
                   child: LessonCheckButton(
                     label:
-                        interactionState.correct == true ? 'CONTINUE' : 'GOT IT',
+                        interactionState.correct == true ? AppLocalizations.of(context)!.lessonContinueUpper : AppLocalizations.of(context)!.lessonGotItUpper,
                     enabled: true,
                     onPressed: onAdvance,
                   ),
@@ -557,7 +557,7 @@ class _LessonBody extends StatelessWidget {
     );
   }
 
-  Widget _emptyContent() {
+  Widget _emptyContent(BuildContext context) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -568,9 +568,9 @@ class _LessonBody extends StatelessWidget {
             color: VarnamalaTheme.textHint.withValues(alpha: 0.3),
           ),
           const SizedBox(height: 12),
-          const Text(
-            'No content',
-            style: TextStyle(
+          Text(
+            AppLocalizations.of(context)!.lessonNoContent,
+            style: const TextStyle(
               fontSize: 16,
               color: VarnamalaTheme.textHint,
             ),

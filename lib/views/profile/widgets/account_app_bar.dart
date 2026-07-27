@@ -9,6 +9,7 @@ import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:varnamala/application/theme_provider.dart';
 import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/domain/auth/local_user.dart';
+import 'package:varnamala/l10n/app_localizations.dart';
 import 'package:varnamala/service/locator.dart';
 import 'package:varnamala/views/theme.dart';
 
@@ -32,7 +33,8 @@ class AccountWidget extends StatelessWidget {
     return PreferenceBuilder<LocalUser>(
       preference: getIt<AppPrefs>().authUser,
       builder: (BuildContext context, LocalUser user) {
-        final displayName = user.displayName ?? 'Learner';
+        final displayName =
+            user.displayName ?? AppLocalizations.of(context)!.profileLearnerFallback;
         final email = user.email ?? '';
 
         return Container(
@@ -109,7 +111,7 @@ class _ThemeToggle extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                'Light',
+                AppLocalizations.of(context)!.settingsThemeLight,
                 style: TextStyle(
                   fontWeight: current == ThemeMode.light
                       ? FontWeight.w700
@@ -132,7 +134,7 @@ class _ThemeToggle extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                'Dark',
+                AppLocalizations.of(context)!.settingsThemeDark,
                 style: TextStyle(
                   fontWeight: current == ThemeMode.dark
                       ? FontWeight.w700
@@ -155,7 +157,7 @@ class _ThemeToggle extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                'System',
+                AppLocalizations.of(context)!.settingsThemeSystem,
                 style: TextStyle(
                   fontWeight: current == ThemeMode.system
                       ? FontWeight.w700

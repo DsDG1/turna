@@ -1,5 +1,5 @@
-// coverage:ignore-file
 // GENERATED CODE - DO NOT MODIFY BY HAND
+// coverage:ignore-file
 // ignore_for_file: type=lint
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
@@ -9,53 +9,88 @@ part of 'lesson_content.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// dart format off
 T _$identity<T>(T value) => value;
-
-final _privateConstructorUsedError = UnsupportedError(
-    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
-
-LessonContent _$LessonContentFromJson(Map<String, dynamic> json) {
-  return _LessonContent.fromJson(json);
-}
 
 /// @nodoc
 mixin _$LessonContent {
   /// Legacy / default flat stage list. Used by review, challenge, and
   /// reading-comprehension questions.
-  List<Stage> get stages => throw _privateConstructorUsedError;
+  List<Stage> get stages;
 
   /// Intro / practice lessons split their content into sub-lessons.
-  List<SubLesson> get subLessons => throw _privateConstructorUsedError;
+  List<SubLesson> get subLessons;
 
   /// Listening lessons divide into phases (word pairing, dialogue, summary).
-  List<ListeningPhase> get listeningPhases =>
-      throw _privateConstructorUsedError;
+  List<ListeningPhase> get listeningPhases;
 
   /// Structured reading passage for reading lessons.
-  ReadingPassage? get readingPassage => throw _privateConstructorUsedError;
+  ReadingPassage? get readingPassage;
 
   /// Deprecated: optional reading passage as a plain string. Kept for
   /// backward compatibility; prefer [readingPassage].
-  String get passage => throw _privateConstructorUsedError;
+  String get passage;
 
   /// Optional audio asset for listening lessons (legacy single-audio path).
-  String? get audioAsset => throw _privateConstructorUsedError;
+  String? get audioAsset;
 
   /// Grammar point ids this lesson teaches. Used to register grammar points
   /// into the grammar-review SRS queue when the lesson is opened.
-  List<String> get linkedGrammarPointIds => throw _privateConstructorUsedError;
+  List<String> get linkedGrammarPointIds;
 
-  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+  /// Create a copy of LessonContent
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
   $LessonContentCopyWith<LessonContent> get copyWith =>
-      throw _privateConstructorUsedError;
+      _$LessonContentCopyWithImpl<LessonContent>(
+          this as LessonContent, _$identity);
+
+  /// Serializes this LessonContent to a JSON map.
+  Map<String, dynamic> toJson();
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is LessonContent &&
+            const DeepCollectionEquality().equals(other.stages, stages) &&
+            const DeepCollectionEquality()
+                .equals(other.subLessons, subLessons) &&
+            const DeepCollectionEquality()
+                .equals(other.listeningPhases, listeningPhases) &&
+            (identical(other.readingPassage, readingPassage) ||
+                other.readingPassage == readingPassage) &&
+            (identical(other.passage, passage) || other.passage == passage) &&
+            (identical(other.audioAsset, audioAsset) ||
+                other.audioAsset == audioAsset) &&
+            const DeepCollectionEquality()
+                .equals(other.linkedGrammarPointIds, linkedGrammarPointIds));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(
+      runtimeType,
+      const DeepCollectionEquality().hash(stages),
+      const DeepCollectionEquality().hash(subLessons),
+      const DeepCollectionEquality().hash(listeningPhases),
+      readingPassage,
+      passage,
+      audioAsset,
+      const DeepCollectionEquality().hash(linkedGrammarPointIds));
+
+  @override
+  String toString() {
+    return 'LessonContent(stages: $stages, subLessons: $subLessons, listeningPhases: $listeningPhases, readingPassage: $readingPassage, passage: $passage, audioAsset: $audioAsset, linkedGrammarPointIds: $linkedGrammarPointIds)';
+  }
 }
 
 /// @nodoc
-abstract class $LessonContentCopyWith<$Res> {
+abstract mixin class $LessonContentCopyWith<$Res> {
   factory $LessonContentCopyWith(
-          LessonContent value, $Res Function(LessonContent) then) =
-      _$LessonContentCopyWithImpl<$Res, LessonContent>;
+          LessonContent value, $Res Function(LessonContent) _then) =
+      _$LessonContentCopyWithImpl;
   @useResult
   $Res call(
       {List<Stage> stages,
@@ -70,15 +105,15 @@ abstract class $LessonContentCopyWith<$Res> {
 }
 
 /// @nodoc
-class _$LessonContentCopyWithImpl<$Res, $Val extends LessonContent>
+class _$LessonContentCopyWithImpl<$Res>
     implements $LessonContentCopyWith<$Res> {
-  _$LessonContentCopyWithImpl(this._value, this._then);
+  _$LessonContentCopyWithImpl(this._self, this._then);
 
-  // ignore: unused_field
-  final $Val _value;
-  // ignore: unused_field
-  final $Res Function($Val) _then;
+  final LessonContent _self;
+  final $Res Function(LessonContent) _then;
 
+  /// Create a copy of LessonContent
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -90,128 +125,259 @@ class _$LessonContentCopyWithImpl<$Res, $Val extends LessonContent>
     Object? audioAsset = freezed,
     Object? linkedGrammarPointIds = null,
   }) {
-    return _then(_value.copyWith(
+    return _then(_self.copyWith(
       stages: null == stages
-          ? _value.stages
+          ? _self.stages
           : stages // ignore: cast_nullable_to_non_nullable
               as List<Stage>,
       subLessons: null == subLessons
-          ? _value.subLessons
+          ? _self.subLessons
           : subLessons // ignore: cast_nullable_to_non_nullable
               as List<SubLesson>,
       listeningPhases: null == listeningPhases
-          ? _value.listeningPhases
+          ? _self.listeningPhases
           : listeningPhases // ignore: cast_nullable_to_non_nullable
               as List<ListeningPhase>,
       readingPassage: freezed == readingPassage
-          ? _value.readingPassage
+          ? _self.readingPassage
           : readingPassage // ignore: cast_nullable_to_non_nullable
               as ReadingPassage?,
       passage: null == passage
-          ? _value.passage
+          ? _self.passage
           : passage // ignore: cast_nullable_to_non_nullable
               as String,
       audioAsset: freezed == audioAsset
-          ? _value.audioAsset
+          ? _self.audioAsset
           : audioAsset // ignore: cast_nullable_to_non_nullable
               as String?,
       linkedGrammarPointIds: null == linkedGrammarPointIds
-          ? _value.linkedGrammarPointIds
+          ? _self.linkedGrammarPointIds
           : linkedGrammarPointIds // ignore: cast_nullable_to_non_nullable
               as List<String>,
-    ) as $Val);
+    ));
   }
 
+  /// Create a copy of LessonContent
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $ReadingPassageCopyWith<$Res>? get readingPassage {
-    if (_value.readingPassage == null) {
+    if (_self.readingPassage == null) {
       return null;
     }
 
-    return $ReadingPassageCopyWith<$Res>(_value.readingPassage!, (value) {
-      return _then(_value.copyWith(readingPassage: value) as $Val);
+    return $ReadingPassageCopyWith<$Res>(_self.readingPassage!, (value) {
+      return _then(_self.copyWith(readingPassage: value));
     });
   }
 }
 
-/// @nodoc
-abstract class _$$LessonContentImplCopyWith<$Res>
-    implements $LessonContentCopyWith<$Res> {
-  factory _$$LessonContentImplCopyWith(
-          _$LessonContentImpl value, $Res Function(_$LessonContentImpl) then) =
-      __$$LessonContentImplCopyWithImpl<$Res>;
-  @override
-  @useResult
-  $Res call(
-      {List<Stage> stages,
-      List<SubLesson> subLessons,
-      List<ListeningPhase> listeningPhases,
-      ReadingPassage? readingPassage,
-      String passage,
-      String? audioAsset,
-      List<String> linkedGrammarPointIds});
+/// Adds pattern-matching-related methods to [LessonContent].
+extension LessonContentPatterns on LessonContent {
+  /// A variant of `map` that fallback to returning `orElse`.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case _:
+  ///     return orElse();
+  /// }
+  /// ```
 
-  @override
-  $ReadingPassageCopyWith<$Res>? get readingPassage;
-}
-
-/// @nodoc
-class __$$LessonContentImplCopyWithImpl<$Res>
-    extends _$LessonContentCopyWithImpl<$Res, _$LessonContentImpl>
-    implements _$$LessonContentImplCopyWith<$Res> {
-  __$$LessonContentImplCopyWithImpl(
-      _$LessonContentImpl _value, $Res Function(_$LessonContentImpl) _then)
-      : super(_value, _then);
-
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? stages = null,
-    Object? subLessons = null,
-    Object? listeningPhases = null,
-    Object? readingPassage = freezed,
-    Object? passage = null,
-    Object? audioAsset = freezed,
-    Object? linkedGrammarPointIds = null,
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>(
+    TResult Function(_LessonContent value)? $default, {
+    required TResult orElse(),
   }) {
-    return _then(_$LessonContentImpl(
-      stages: null == stages
-          ? _value._stages
-          : stages // ignore: cast_nullable_to_non_nullable
-              as List<Stage>,
-      subLessons: null == subLessons
-          ? _value._subLessons
-          : subLessons // ignore: cast_nullable_to_non_nullable
-              as List<SubLesson>,
-      listeningPhases: null == listeningPhases
-          ? _value._listeningPhases
-          : listeningPhases // ignore: cast_nullable_to_non_nullable
-              as List<ListeningPhase>,
-      readingPassage: freezed == readingPassage
-          ? _value.readingPassage
-          : readingPassage // ignore: cast_nullable_to_non_nullable
-              as ReadingPassage?,
-      passage: null == passage
-          ? _value.passage
-          : passage // ignore: cast_nullable_to_non_nullable
-              as String,
-      audioAsset: freezed == audioAsset
-          ? _value.audioAsset
-          : audioAsset // ignore: cast_nullable_to_non_nullable
-              as String?,
-      linkedGrammarPointIds: null == linkedGrammarPointIds
-          ? _value._linkedGrammarPointIds
-          : linkedGrammarPointIds // ignore: cast_nullable_to_non_nullable
-              as List<String>,
-    ));
+    final _that = this;
+    switch (_that) {
+      case _LessonContent() when $default != null:
+        return $default(_that);
+      case _:
+        return orElse();
+    }
+  }
+
+  /// A `switch`-like method, using callbacks.
+  ///
+  /// Callbacks receives the raw object, upcasted.
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case final Subclass2 value:
+  ///     return ...;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>(
+    TResult Function(_LessonContent value) $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _LessonContent():
+        return $default(_that);
+      case _:
+        throw StateError('Unexpected subclass');
+    }
+  }
+
+  /// A variant of `map` that fallback to returning `null`.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case _:
+  ///     return null;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>(
+    TResult? Function(_LessonContent value)? $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _LessonContent() when $default != null:
+        return $default(_that);
+      case _:
+        return null;
+    }
+  }
+
+  /// A variant of `when` that fallback to an `orElse` callback.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case _:
+  ///     return orElse();
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>(
+    TResult Function(
+            List<Stage> stages,
+            List<SubLesson> subLessons,
+            List<ListeningPhase> listeningPhases,
+            ReadingPassage? readingPassage,
+            String passage,
+            String? audioAsset,
+            List<String> linkedGrammarPointIds)?
+        $default, {
+    required TResult orElse(),
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _LessonContent() when $default != null:
+        return $default(
+            _that.stages,
+            _that.subLessons,
+            _that.listeningPhases,
+            _that.readingPassage,
+            _that.passage,
+            _that.audioAsset,
+            _that.linkedGrammarPointIds);
+      case _:
+        return orElse();
+    }
+  }
+
+  /// A `switch`-like method, using callbacks.
+  ///
+  /// As opposed to `map`, this offers destructuring.
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case Subclass2(:final field2):
+  ///     return ...;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>(
+    TResult Function(
+            List<Stage> stages,
+            List<SubLesson> subLessons,
+            List<ListeningPhase> listeningPhases,
+            ReadingPassage? readingPassage,
+            String passage,
+            String? audioAsset,
+            List<String> linkedGrammarPointIds)
+        $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _LessonContent():
+        return $default(
+            _that.stages,
+            _that.subLessons,
+            _that.listeningPhases,
+            _that.readingPassage,
+            _that.passage,
+            _that.audioAsset,
+            _that.linkedGrammarPointIds);
+      case _:
+        throw StateError('Unexpected subclass');
+    }
+  }
+
+  /// A variant of `when` that fallback to returning `null`
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case _:
+  ///     return null;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>(
+    TResult? Function(
+            List<Stage> stages,
+            List<SubLesson> subLessons,
+            List<ListeningPhase> listeningPhases,
+            ReadingPassage? readingPassage,
+            String passage,
+            String? audioAsset,
+            List<String> linkedGrammarPointIds)?
+        $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _LessonContent() when $default != null:
+        return $default(
+            _that.stages,
+            _that.subLessons,
+            _that.listeningPhases,
+            _that.readingPassage,
+            _that.passage,
+            _that.audioAsset,
+            _that.linkedGrammarPointIds);
+      case _:
+        return null;
+    }
   }
 }
 
 /// @nodoc
 @JsonSerializable()
-class _$LessonContentImpl implements _LessonContent {
-  const _$LessonContentImpl(
+class _LessonContent implements LessonContent {
+  const _LessonContent(
       {final List<Stage> stages = const <Stage>[],
       final List<SubLesson> subLessons = const <SubLesson>[],
       final List<ListeningPhase> listeningPhases = const <ListeningPhase>[],
@@ -223,9 +389,8 @@ class _$LessonContentImpl implements _LessonContent {
         _subLessons = subLessons,
         _listeningPhases = listeningPhases,
         _linkedGrammarPointIds = linkedGrammarPointIds;
-
-  factory _$LessonContentImpl.fromJson(Map<String, dynamic> json) =>
-      _$$LessonContentImplFromJson(json);
+  factory _LessonContent.fromJson(Map<String, dynamic> json) =>
+      _$LessonContentFromJson(json);
 
   /// Legacy / default flat stage list. Used by review, challenge, and
   /// reading-comprehension questions.
@@ -294,16 +459,26 @@ class _$LessonContentImpl implements _LessonContent {
     return EqualUnmodifiableListView(_linkedGrammarPointIds);
   }
 
+  /// Create a copy of LessonContent
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  String toString() {
-    return 'LessonContent(stages: $stages, subLessons: $subLessons, listeningPhases: $listeningPhases, readingPassage: $readingPassage, passage: $passage, audioAsset: $audioAsset, linkedGrammarPointIds: $linkedGrammarPointIds)';
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  _$LessonContentCopyWith<_LessonContent> get copyWith =>
+      __$LessonContentCopyWithImpl<_LessonContent>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$LessonContentToJson(
+      this,
+    );
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$LessonContentImpl &&
+            other is _LessonContent &&
             const DeepCollectionEquality().equals(other._stages, _stages) &&
             const DeepCollectionEquality()
                 .equals(other._subLessons, _subLessons) &&
@@ -318,7 +493,7 @@ class _$LessonContentImpl implements _LessonContent {
                 .equals(other._linkedGrammarPointIds, _linkedGrammarPointIds));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
       runtimeType,
@@ -330,66 +505,99 @@ class _$LessonContentImpl implements _LessonContent {
       audioAsset,
       const DeepCollectionEquality().hash(_linkedGrammarPointIds));
 
-  @JsonKey(ignore: true)
   @override
-  @pragma('vm:prefer-inline')
-  _$$LessonContentImplCopyWith<_$LessonContentImpl> get copyWith =>
-      __$$LessonContentImplCopyWithImpl<_$LessonContentImpl>(this, _$identity);
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$LessonContentImplToJson(
-      this,
-    );
+  String toString() {
+    return 'LessonContent(stages: $stages, subLessons: $subLessons, listeningPhases: $listeningPhases, readingPassage: $readingPassage, passage: $passage, audioAsset: $audioAsset, linkedGrammarPointIds: $linkedGrammarPointIds)';
   }
 }
 
-abstract class _LessonContent implements LessonContent {
-  const factory _LessonContent(
-      {final List<Stage> stages,
-      final List<SubLesson> subLessons,
-      final List<ListeningPhase> listeningPhases,
-      final ReadingPassage? readingPassage,
-      final String passage,
-      final String? audioAsset,
-      final List<String> linkedGrammarPointIds}) = _$LessonContentImpl;
-
-  factory _LessonContent.fromJson(Map<String, dynamic> json) =
-      _$LessonContentImpl.fromJson;
+/// @nodoc
+abstract mixin class _$LessonContentCopyWith<$Res>
+    implements $LessonContentCopyWith<$Res> {
+  factory _$LessonContentCopyWith(
+          _LessonContent value, $Res Function(_LessonContent) _then) =
+      __$LessonContentCopyWithImpl;
+  @override
+  @useResult
+  $Res call(
+      {List<Stage> stages,
+      List<SubLesson> subLessons,
+      List<ListeningPhase> listeningPhases,
+      ReadingPassage? readingPassage,
+      String passage,
+      String? audioAsset,
+      List<String> linkedGrammarPointIds});
 
   @override
-
-  /// Legacy / default flat stage list. Used by review, challenge, and
-  /// reading-comprehension questions.
-  List<Stage> get stages;
-  @override
-
-  /// Intro / practice lessons split their content into sub-lessons.
-  List<SubLesson> get subLessons;
-  @override
-
-  /// Listening lessons divide into phases (word pairing, dialogue, summary).
-  List<ListeningPhase> get listeningPhases;
-  @override
-
-  /// Structured reading passage for reading lessons.
-  ReadingPassage? get readingPassage;
-  @override
-
-  /// Deprecated: optional reading passage as a plain string. Kept for
-  /// backward compatibility; prefer [readingPassage].
-  String get passage;
-  @override
-
-  /// Optional audio asset for listening lessons (legacy single-audio path).
-  String? get audioAsset;
-  @override
-
-  /// Grammar point ids this lesson teaches. Used to register grammar points
-  /// into the grammar-review SRS queue when the lesson is opened.
-  List<String> get linkedGrammarPointIds;
-  @override
-  @JsonKey(ignore: true)
-  _$$LessonContentImplCopyWith<_$LessonContentImpl> get copyWith =>
-      throw _privateConstructorUsedError;
+  $ReadingPassageCopyWith<$Res>? get readingPassage;
 }
+
+/// @nodoc
+class __$LessonContentCopyWithImpl<$Res>
+    implements _$LessonContentCopyWith<$Res> {
+  __$LessonContentCopyWithImpl(this._self, this._then);
+
+  final _LessonContent _self;
+  final $Res Function(_LessonContent) _then;
+
+  /// Create a copy of LessonContent
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? stages = null,
+    Object? subLessons = null,
+    Object? listeningPhases = null,
+    Object? readingPassage = freezed,
+    Object? passage = null,
+    Object? audioAsset = freezed,
+    Object? linkedGrammarPointIds = null,
+  }) {
+    return _then(_LessonContent(
+      stages: null == stages
+          ? _self._stages
+          : stages // ignore: cast_nullable_to_non_nullable
+              as List<Stage>,
+      subLessons: null == subLessons
+          ? _self._subLessons
+          : subLessons // ignore: cast_nullable_to_non_nullable
+              as List<SubLesson>,
+      listeningPhases: null == listeningPhases
+          ? _self._listeningPhases
+          : listeningPhases // ignore: cast_nullable_to_non_nullable
+              as List<ListeningPhase>,
+      readingPassage: freezed == readingPassage
+          ? _self.readingPassage
+          : readingPassage // ignore: cast_nullable_to_non_nullable
+              as ReadingPassage?,
+      passage: null == passage
+          ? _self.passage
+          : passage // ignore: cast_nullable_to_non_nullable
+              as String,
+      audioAsset: freezed == audioAsset
+          ? _self.audioAsset
+          : audioAsset // ignore: cast_nullable_to_non_nullable
+              as String?,
+      linkedGrammarPointIds: null == linkedGrammarPointIds
+          ? _self._linkedGrammarPointIds
+          : linkedGrammarPointIds // ignore: cast_nullable_to_non_nullable
+              as List<String>,
+    ));
+  }
+
+  /// Create a copy of LessonContent
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $ReadingPassageCopyWith<$Res>? get readingPassage {
+    if (_self.readingPassage == null) {
+      return null;
+    }
+
+    return $ReadingPassageCopyWith<$Res>(_self.readingPassage!, (value) {
+      return _then(_self.copyWith(readingPassage: value));
+    });
+  }
+}
+
+// dart format on

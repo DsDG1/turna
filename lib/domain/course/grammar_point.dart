@@ -23,7 +23,7 @@ List<Map<String, dynamic>> _practiceItemsToJson(List<Interaction> items) =>
 /// to example expressions or sentences. Optional [practiceItems] are short
 /// drills shown during grammar review after the explanation card.
 @freezed
-class GrammarPoint with _$GrammarPoint {
+abstract class GrammarPoint with _$GrammarPoint {
   const factory GrammarPoint({
     required String id,
 

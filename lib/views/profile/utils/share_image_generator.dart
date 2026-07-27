@@ -27,7 +27,9 @@ class ShareProgressImageGenerator {
   GlobalKey get boundaryKey => _boundaryKey;
 
   /// Renders the capture target to a PNG and opens the platform share sheet.
-  Future<void> captureAndShare() async {
+  ///
+  /// [shareText] is the localized text passed to the platform share sheet.
+  Future<void> captureAndShare({required String shareText}) async {
     final boundary = _boundaryKey.currentContext?.findRenderObject()
         as RenderRepaintBoundary?;
 
@@ -64,7 +66,7 @@ class ShareProgressImageGenerator {
 
     await Share.shareXFiles(
       [XFile(file.path)],
-      text: 'Check out my progress on Varnamala!',
+      text: shareText,
     );
   }
 }

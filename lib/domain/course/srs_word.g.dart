@@ -6,8 +6,7 @@ part of 'srs_word.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-_$SrsWordImpl _$$SrsWordImplFromJson(Map<String, dynamic> json) =>
-    _$SrsWordImpl(
+_SrsWord _$SrsWordFromJson(Map<String, dynamic> json) => _SrsWord(
       wordId: json['wordId'] as String,
       dueAt: DateTime.parse(json['dueAt'] as String),
       intervalDays: (json['intervalDays'] as num?)?.toInt() ?? 1,
@@ -19,8 +18,7 @@ _$SrsWordImpl _$$SrsWordImplFromJson(Map<String, dynamic> json) =>
           SrsItemType.word,
     );
 
-Map<String, dynamic> _$$SrsWordImplToJson(_$SrsWordImpl instance) =>
-    <String, dynamic>{
+Map<String, dynamic> _$SrsWordToJson(_SrsWord instance) => <String, dynamic>{
       'wordId': instance.wordId,
       'dueAt': instance.dueAt.toIso8601String(),
       'intervalDays': instance.intervalDays,

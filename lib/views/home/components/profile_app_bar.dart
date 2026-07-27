@@ -10,6 +10,7 @@ import 'package:varnamala/application/gems_provider.dart';
 import 'package:varnamala/application/language_provider.dart';
 import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/domain/auth/local_user.dart';
+import 'package:varnamala/l10n/app_localizations.dart';
 import 'package:varnamala/service/locator.dart';
 import 'package:varnamala/views/profile/utils/share_image_generator.dart';
 import 'package:varnamala/views/profile/widgets/share_progress_card.dart';
@@ -26,7 +27,7 @@ class ProfileAppBar extends StatelessWidget implements PreferredSizeWidget {
     return AppBar(
       centerTitle: true,
       title: Text(
-        'Profile',
+        AppLocalizations.of(context)!.profileTitle,
         style: Theme.of(context).textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w700,
             ),
@@ -35,7 +36,7 @@ class ProfileAppBar extends StatelessWidget implements PreferredSizeWidget {
         IconButton(
           icon: const Icon(Icons.share_rounded,
               color: VarnamalaTheme.peacockTeal, size: 22),
-          tooltip: 'Share',
+          tooltip: AppLocalizations.of(context)!.profileShare,
           onPressed: () => _openShareSheet(context),
         ),
       ],
@@ -108,7 +109,7 @@ class _ShareProgressSheetState extends State<_ShareProgressSheet> {
                     ),
                     const SizedBox(height: 20),
                     Text(
-                      'Share your progress',
+                      AppLocalizations.of(context)!.profileShareYourProgress,
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.w800,
                           ),
@@ -152,7 +153,9 @@ class _ShareProgressSheetState extends State<_ShareProgressSheet> {
                                 ),
                               )
                             : const Icon(Icons.share_rounded),
-                        label: Text(_sharing ? 'Sharing...' : 'Share'),
+                        label: Text(_sharing
+                            ? AppLocalizations.of(context)!.profileSharing
+                            : AppLocalizations.of(context)!.profileShareButton),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -185,14 +188,18 @@ class _ShareProgressSheetState extends State<_ShareProgressSheet> {
   Future<void> _handleShare() async {
     setState(() => _sharing = true);
     try {
-      await _generator.captureAndShare();
+      await _generator.captureAndShare(
+        shareText: AppLocalizations.of(context)!.profileShareText,
+      );
       if (mounted) {
         Navigator.of(context).pop();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not share progress: $e')),
+          SnackBar(
+              content:
+                  Text(AppLocalizations.of(context)!.profileShareFailed(e))),
         );
       }
     } finally {

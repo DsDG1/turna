@@ -8,7 +8,7 @@ part 'section.g.dart';
 
 /// Top-level curriculum grouping (e.g. "A1 Basics").
 @freezed
-class Section with _$Section {
+abstract class Section with _$Section {
   const factory Section({
     required String id,
     required String name,

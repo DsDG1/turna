@@ -42,7 +42,6 @@ Future<void> main() async {
 
   WidgetsFlutterBinding.ensureInitialized();
   configureDependencies();
-  // AppRouter is registered via Injectable (@lazySingleton on AppRouter).
 
   // AppPrefs (and other async-native services) must be registered before the
   // first frame because MultiProvider creates ThemeProvider immediately.

@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:varnamala/application/ai/ai_hint_provider.dart';
+import 'package:varnamala/l10n/app_localizations.dart';
 import 'package:varnamala/views/theme.dart';
 
 /// Bottom sheet that pops up when the learner taps the AI button on a
@@ -55,14 +56,14 @@ class AiHintSheet extends StatelessWidget {
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            ctx == null ? 'AI hint' : 'AI hint · ${ctx.typeLabel}',
+            ctx == null ? AppLocalizations.of(context)!.aiHintTitle : AppLocalizations.of(context)!.aiHintTitleWithType(ctx.typeLabel),
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
           ),
         ),
         IconButton(
-          tooltip: 'Close',
+          tooltip: AppLocalizations.of(context)!.commonClose,
           icon: const Icon(Icons.close, size: 22),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
@@ -115,7 +116,9 @@ class AiHintSheet extends StatelessWidget {
         borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
       ),
       child: Text(
-        'Something went wrong: ${error ?? 'Unknown error'}',
+        error != null
+            ? AppLocalizations.of(context)!.aiHintError(error)
+            : AppLocalizations.of(context)!.aiHintErrorUnknown,
         style: const TextStyle(color: VarnamalaTheme.error),
       ),
     );
@@ -131,7 +134,7 @@ class AiHintSheet extends StatelessWidget {
               onEnterChat();
             },
             icon: const Icon(Icons.chat_outlined),
-            label: const Text('Open chat'),
+            label: Text(AppLocalizations.of(context)!.aiHintOpenChat),
           ),
         ),
       ],

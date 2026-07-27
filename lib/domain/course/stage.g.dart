@@ -6,7 +6,7 @@ part of 'stage.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-_$StageImpl _$$StageImplFromJson(Map<String, dynamic> json) => _$StageImpl(
+_Stage _$StageFromJson(Map<String, dynamic> json) => _Stage(
       id: json['id'] as String,
       name: json['name'] as String,
       description: json['description'] as String? ?? '',
@@ -19,8 +19,7 @@ _$StageImpl _$$StageImplFromJson(Map<String, dynamic> json) => _$StageImpl(
           .toList(),
     );
 
-Map<String, dynamic> _$$StageImplToJson(_$StageImpl instance) =>
-    <String, dynamic>{
+Map<String, dynamic> _$StageToJson(_Stage instance) => <String, dynamic>{
       'id': instance.id,
       'name': instance.name,
       'description': instance.description,

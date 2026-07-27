@@ -1,4 +1,5 @@
 // Flutter imports:
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 // Package imports:
@@ -15,6 +16,7 @@ import 'package:varnamala/application/weak_word_quiz_assembler.dart';
 import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/domain/course/lesson.dart';
 import 'package:varnamala/domain/course/unit.dart';
+import 'package:varnamala/l10n/app_localizations.dart';
 import 'package:varnamala/routing/routing.gr.dart';
 import 'package:varnamala/views/theme.dart';
 import 'components/section_switcher.dart';
@@ -60,8 +62,8 @@ class _CourseTreeState extends State<CourseTree> {
             if (courseState.isLoaded) {
               return _buildErrorMessage(
                 context,
-                title: 'Could not load course',
-                error: 'No course sections found.',
+                title: AppLocalizations.of(context)!.coursesCouldNotLoadCourse,
+                error: AppLocalizations.of(context)!.coursesNoSectionsFound,
                 onRetry: () => courseState.reloadCourse(),
               );
             }
@@ -120,7 +122,7 @@ class _CourseTreeState extends State<CourseTree> {
   Widget _buildUnitTree(CourseProvider courseState) {
     final section = courseState.currentSection;
     if (section == null) {
-      return _buildEmptyMessage();
+      return _buildEmptyMessage(context);
     }
 
     final loadState = courseState.sectionLoadState(section.id);
@@ -133,13 +135,14 @@ class _CourseTreeState extends State<CourseTree> {
     if (loadState == SectionLoadState.error) {
       return _buildErrorMessage(
         context,
+        title: AppLocalizations.of(context)!.coursesCouldNotLoadSection,
         error: courseState.sectionLoadError(section.id),
         onRetry: () => courseState.reloadSection(section.id),
       );
     }
 
     if (section.units.isEmpty) {
-      return _buildEmptyMessage();
+      return _buildEmptyMessage(context);
     }
 
     final progress = context.read<ProgressProvider>();
@@ -312,7 +315,7 @@ class _CourseTreeState extends State<CourseTree> {
     context.router.push(NewLessonRoute(lessonId: lesson.id));
   }
 
-  Widget _buildEmptyMessage() {
+  Widget _buildEmptyMessage(BuildContext context) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -324,7 +327,7 @@ class _CourseTreeState extends State<CourseTree> {
           ),
           const SizedBox(height: 16),
           Text(
-            'No units available',
+            AppLocalizations.of(context)!.coursesNoUnitsAvailable,
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
@@ -338,7 +341,7 @@ class _CourseTreeState extends State<CourseTree> {
 
   Widget _buildErrorMessage(
     BuildContext context, {
-    String title = 'Could not load section',
+    required String title,
     required Object? error,
     required VoidCallback onRetry,
   }) {
@@ -378,7 +381,7 @@ class _CourseTreeState extends State<CourseTree> {
             ElevatedButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Retry'),
+              label: Text(AppLocalizations.of(context)!.commonRetry),
               style: ElevatedButton.styleFrom(
                 backgroundColor: VarnamalaTheme.peacockTeal,
                 foregroundColor: VarnamalaTheme.textOnPrimary,
@@ -552,7 +555,10 @@ class _UnitHeader extends StatelessWidget {
                           BorderRadius.circular(VarnamalaTheme.radiusRound),
                     ),
                     child: Text(
-                      '$completedCount/${unit.lessons.length}',
+                      AppLocalizations.of(context)!.coursesUnitProgress(
+                        completedCount,
+                        unit.lessons.length,
+                      ),
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -706,7 +712,9 @@ class _LessonTile extends StatelessWidget {
                       BorderRadius.circular(VarnamalaTheme.radiusRound),
                 ),
                 child: Text(
-                  isPerfect ? 'Perfect' : _lessonTypeLabel(lesson.type),
+                  isPerfect
+                      ? AppLocalizations.of(context)!.coursesPerfect
+                      : _lessonTypeLabel(context, lesson.type),
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
@@ -749,13 +757,14 @@ class _LessonTile extends StatelessWidget {
     };
   }
 
-  static String _lessonTypeLabel(LessonType type) {
+  static String _lessonTypeLabel(BuildContext context, LessonType type) {
+    final l = AppLocalizations.of(context)!;
     return switch (type) {
-      LessonType.normal => 'Lesson',
-      LessonType.listening => 'Listening',
-      LessonType.reading => 'Reading',
-      LessonType.review => 'Review',
-      LessonType.challenge => 'Challenge',
+      LessonType.normal => l.coursesLessonTypeNormal,
+      LessonType.listening => l.coursesLessonTypeListening,
+      LessonType.reading => l.coursesLessonTypeReading,
+      LessonType.review => l.coursesLessonTypeReview,
+      LessonType.challenge => l.coursesLessonTypeChallenge,
     };
   }
 }
@@ -780,7 +789,7 @@ class _LoadingIndicator extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         Text(
-          'Loading courses...',
+          AppLocalizations.of(context)!.coursesLoadingCourses,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: VarnamalaTheme.textHintColor(context),
                 fontWeight: FontWeight.w500,

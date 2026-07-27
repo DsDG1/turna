@@ -6,8 +6,7 @@ part of 'word_entry.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-_$WordEntryImpl _$$WordEntryImplFromJson(Map<String, dynamic> json) =>
-    _$WordEntryImpl(
+_WordEntry _$WordEntryFromJson(Map<String, dynamic> json) => _WordEntry(
       id: json['id'] as String,
       term: json['term'] as String,
       translation: json['translation'] as String,
@@ -18,7 +17,7 @@ _$WordEntryImpl _$$WordEntryImplFromJson(Map<String, dynamic> json) =>
               const <String>[],
     );
 
-Map<String, dynamic> _$$WordEntryImplToJson(_$WordEntryImpl instance) =>
+Map<String, dynamic> _$WordEntryToJson(_WordEntry instance) =>
     <String, dynamic>{
       'id': instance.id,
       'term': instance.term,

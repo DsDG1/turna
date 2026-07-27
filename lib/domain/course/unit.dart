@@ -8,7 +8,7 @@ part 'unit.g.dart';
 
 /// Mid-level curriculum grouping inside a section (e.g. "Greetings").
 @freezed
-class Unit with _$Unit {
+abstract class Unit with _$Unit {
   const factory Unit({
     required String id,
     required String name,

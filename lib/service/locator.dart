@@ -15,6 +15,7 @@ import 'package:varnamala/core/logger.dart';
 import 'package:varnamala/core/verbose.dart';
 import 'package:varnamala/data/course_database.dart';
 import 'package:varnamala/data/course_database_seeder.dart';
+import 'package:varnamala/data/rdb_query_executor.dart';
 import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/domain/auth/local_user.dart';
 import 'package:varnamala/service/export_service.dart';
@@ -171,6 +172,9 @@ class LocalStateKeys {
   /// has existing progress, the dialog is shown; on dismissal (keep or reset)
   /// this is set to the current content version so it does not reappear.
   static const String contentVersionAcknowledged = 'contentUpdate.acknowledged';
+
+  // UI display locale (app interface language): 'en' | 'zh' | 'system'.
+  static const String uiLocale = 'settings.uiLocale';
 }
 
 /// Making AppPrefs injectable
@@ -192,6 +196,9 @@ Future<void> setupLocator() async {
   // content-version bump reseeds; subsequent cold starts skip when version
   // matches and sections exist. Registered as a singleton so [CourseLoader]
   // can resolve it synchronously.
+  //
+  // OHos (HarmonyOS): uses native RDB via MethodChannel bridge
+  // (HarmonyOsRdbExecutor). Android/iOS use sqlite3 FFI (NativeDatabase).
   final db = await _openAndSeedCourseDatabase();
   getIt.registerSingleton<CourseDatabase>(db);
 
@@ -203,19 +210,29 @@ Future<void> setupLocator() async {
 }
 
 /// Opens the on-device course database and seeds it from the bundled JSON
-/// assets when needed (version / empty-tree gate). Not supported on web
-/// (`NativeDatabase` needs native `sqlite3`); a future revision can swap in
-/// a WASM database for web.
+/// assets when needed (version / empty-tree gate).
+///
+/// - OHos: uses [HarmonyOsRdbExecutor] backed by native RDB.
+/// - Android/iOS: uses [NativeDatabase] backed by sqlite3 FFI.
+/// - Web: not supported (`NativeDatabase` requires native sqlite3).
 Future<CourseDatabase> _openAndSeedCourseDatabase() async {
-  if (kIsWeb) {
+  final CourseDatabase db;
+
+  if (defaultTargetPlatform == TargetPlatform.ohos) {
+    final executor = HarmonyOsRdbExecutor('course.db');
+    db = CourseDatabase(executor);
+    await executor.ensureOpen(db);
+  } else if (kIsWeb) {
     throw UnsupportedError(
       'CourseDatabase is not supported on web yet (NativeDatabase requires '
       'native sqlite3).',
     );
+  } else {
+    final dir = await getApplicationDocumentsDirectory();
+    final file = File(p.join(dir.path, 'course.db'));
+    db = CourseDatabase(NativeDatabase(file));
   }
-  final dir = await getApplicationDocumentsDirectory();
-  final file = File(p.join(dir.path, 'course.db'));
-  final db = CourseDatabase(NativeDatabase(file));
+
   try {
     await DatabaseSeeder(db).seedIfNeeded();
   } catch (e, st) {

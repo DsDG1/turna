@@ -6,8 +6,7 @@ part of 'sub_lesson.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-_$SubLessonImpl _$$SubLessonImplFromJson(Map<String, dynamic> json) =>
-    _$SubLessonImpl(
+_SubLesson _$SubLessonFromJson(Map<String, dynamic> json) => _SubLesson(
       id: json['id'] as String,
       name: json['name'] as String,
       description: json['description'] as String? ?? '',
@@ -18,7 +17,7 @@ _$SubLessonImpl _$$SubLessonImplFromJson(Map<String, dynamic> json) =>
           const <Stage>[],
     );
 
-Map<String, dynamic> _$$SubLessonImplToJson(_$SubLessonImpl instance) =>
+Map<String, dynamic> _$SubLessonToJson(_SubLesson instance) =>
     <String, dynamic>{
       'id': instance.id,
       'name': instance.name,

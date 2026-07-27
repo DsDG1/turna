@@ -88,6 +88,37 @@ abstract class SrsQueueProvider extends ChangeNotifier {
     if (changed) persist(current);
   }
 
+  /// Merge externally-migrated states (e.g. an Anki deck import) into the
+  /// queue. Existing ids are left untouched so re-imports stay idempotent —
+  /// the caller's per-id skip and this check together make double imports
+  /// harmless. Single persist for the whole batch.
+  @protected
+  Future<void> importStates(Map<String, SrsWord> incoming) async {
+    final current = state;
+    var changed = false;
+    for (final entry in incoming.entries) {
+      if (!current.containsKey(entry.key)) {
+        current[entry.key] = entry.value;
+        changed = true;
+      }
+    }
+    if (changed) await persist(current);
+  }
+
+  /// Remove every entry whose id starts with [prefix] (e.g. uninstalling an
+  /// imported Anki deck removes its `anki-<importId>-` entries).
+  @protected
+  Future<void> removeItemsByPrefix(String prefix) async {
+    final current = state;
+    final keys =
+        current.keys.where((k) => k.startsWith(prefix)).toList();
+    if (keys.isEmpty) return;
+    for (final key in keys) {
+      current.remove(key);
+    }
+    await persist(current);
+  }
+
   /// SM-2 review for [id]. Returns null if unknown.
   @protected
   Future<SrsWord?> reviewItem(String id, int quality) async {

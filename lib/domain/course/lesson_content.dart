@@ -20,7 +20,7 @@ part 'lesson_content.g.dart';
 /// All fields are optional so existing JSON keeps working and the loader can
 /// normalize flat `questions` into the appropriate structure.
 @freezed
-class LessonContent with _$LessonContent {
+abstract class LessonContent with _$LessonContent {
   const factory LessonContent({
     /// Legacy / default flat stage list. Used by review, challenge, and
     /// reading-comprehension questions.

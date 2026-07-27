@@ -7,6 +7,7 @@ import 'package:injectable/injectable.dart';
 // Project imports:
 import 'package:varnamala/core/text_styles.dart';
 import 'package:varnamala/domain/course/interaction.dart';
+import 'package:varnamala/l10n/app_localizations.dart';
 import 'package:varnamala/views/lesson/components/cached_asset_image.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
 
@@ -95,7 +96,7 @@ class _MultipleChoiceBodyState extends State<_MultipleChoiceBody> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SectionCaption('Multiple choice'),
+          SectionCaption(AppLocalizations.of(context)!.lessonMultipleChoiceCaption),
           Text(
             widget.prompt,
             style: AppTextStyles.promptLg(context).copyWith(
@@ -110,7 +111,7 @@ class _MultipleChoiceBodyState extends State<_MultipleChoiceBody> {
           ..._buildOptions(submitted, correct),
           const SizedBox(height: 20),
           LessonCheckButton(
-            label: submitted ? 'CHECKED' : 'CHECK',
+            label: submitted ? AppLocalizations.of(context)!.lessonChecked : AppLocalizations.of(context)!.lessonCheck,
             enabled: canSubmit,
             onPressed: canSubmit
                 ? () => widget.onSubmit(_picked == widget.correctIndex,

@@ -10,12 +10,17 @@ import 'package:auto_route/annotations.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
+import 'package:varnamala/application/anki/anki_deck_manager.dart';
 import 'package:varnamala/application/course_provider.dart';
 import 'package:varnamala/application/daily_challenge_assembler.dart';
 import 'package:varnamala/application/game_provider.dart';
 import 'package:varnamala/application/gems_provider.dart';
 import 'package:varnamala/application/lesson_viewmodel.dart';
+import 'package:varnamala/data/anki_import_dao.dart';
+import 'package:varnamala/data/course_database.dart';
+import 'package:varnamala/data/course_repository.dart';
 import 'package:varnamala/di/injection.dart';
+import 'package:varnamala/service/locator.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:varnamala/views/lesson/components/lesson_dialogs.dart';
 import 'package:varnamala/views/lesson/components/lesson_stage_widgets.dart';
@@ -57,11 +62,18 @@ class _DailyChallengePageState extends State<DailyChallengePage> {
 
   Future<void> _startChallenge() async {
     final courseProvider = context.read<CourseProvider>();
+    final includeAnki = AnkiDeckManager(
+      repo: CourseRepository(getIt<CourseDatabase>()),
+      srsProvider: getIt(),
+      importDao: AnkiImportDao(getIt<CourseDatabase>()),
+      appPrefs: getIt<AppPrefs>(),
+    ).dailyChallengeIncludesAnki;
     // Yield to the event loop so the loading spinner renders before the
     // potentially CPU-heavy assembly work runs on the UI thread.
     final lesson = await Future(() => DailyChallengeAssembler(courseProvider).assemble(
       count: kDailyChallengeCount,
       random: _random,
+      includeAnki: includeAnki,
     ));
     if (!mounted) return;
     final isEmpty = lesson.flattenedStages.isEmpty ||

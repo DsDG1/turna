@@ -16,6 +16,7 @@ import 'package:varnamala/application/game_provider.dart';
 import 'package:varnamala/application/gems_provider.dart';
 import 'package:varnamala/application/grammar_review_provider.dart';
 import 'package:varnamala/application/language_provider.dart';
+import 'package:varnamala/application/locale_provider.dart';
 import 'package:varnamala/application/lesson_viewmodel.dart';
 import 'package:varnamala/application/match_provider.dart';
 import 'package:varnamala/application/mistake_provider.dart';
@@ -62,6 +63,9 @@ final providers = [
   ),
   ChangeNotifierProvider<LanguageProvider>(
     create: (_) => getIt<LanguageProvider>(),
+  ),
+  ChangeNotifierProvider<LocaleProvider>(
+    create: (_) => getIt<LocaleProvider>(),
   ),
   ChangeNotifierProvider<CourseProvider>(
     create: (_) => getIt<CourseProvider>(),

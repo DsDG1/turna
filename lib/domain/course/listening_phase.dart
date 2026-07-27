@@ -20,7 +20,7 @@ enum ListeningPhaseType {
 
 /// One phase of a listening lesson.
 @freezed
-class ListeningPhase with _$ListeningPhase {
+abstract class ListeningPhase with _$ListeningPhase {
   const factory ListeningPhase({
     required String id,
     required String name,

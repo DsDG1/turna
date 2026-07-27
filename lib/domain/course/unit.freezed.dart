@@ -1,5 +1,5 @@
-// coverage:ignore-file
 // GENERATED CODE - DO NOT MODIFY BY HAND
+// coverage:ignore-file
 // ignore_for_file: type=lint
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
@@ -9,91 +9,61 @@ part of 'unit.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// dart format off
 T _$identity<T>(T value) => value;
-
-final _privateConstructorUsedError = UnsupportedError(
-    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
-
-Unit _$UnitFromJson(Map<String, dynamic> json) {
-  return _Unit.fromJson(json);
-}
 
 /// @nodoc
 mixin _$Unit {
-  String get id => throw _privateConstructorUsedError;
-  String get name => throw _privateConstructorUsedError;
-  String get description => throw _privateConstructorUsedError;
-  List<String> get prerequisiteUnitIds => throw _privateConstructorUsedError;
-  List<Lesson> get lessons => throw _privateConstructorUsedError;
+  String get id;
+  String get name;
+  String get description;
+  List<String> get prerequisiteUnitIds;
+  List<Lesson> get lessons;
 
-  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
-  $UnitCopyWith<Unit> get copyWith => throw _privateConstructorUsedError;
-}
-
-/// @nodoc
-abstract class $UnitCopyWith<$Res> {
-  factory $UnitCopyWith(Unit value, $Res Function(Unit) then) =
-      _$UnitCopyWithImpl<$Res, Unit>;
-  @useResult
-  $Res call(
-      {String id,
-      String name,
-      String description,
-      List<String> prerequisiteUnitIds,
-      List<Lesson> lessons});
-}
-
-/// @nodoc
-class _$UnitCopyWithImpl<$Res, $Val extends Unit>
-    implements $UnitCopyWith<$Res> {
-  _$UnitCopyWithImpl(this._value, this._then);
-
-  // ignore: unused_field
-  final $Val _value;
-  // ignore: unused_field
-  final $Res Function($Val) _then;
-
+  /// Create a copy of Unit
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @pragma('vm:prefer-inline')
+  $UnitCopyWith<Unit> get copyWith =>
+      _$UnitCopyWithImpl<Unit>(this as Unit, _$identity);
+
+  /// Serializes this Unit to a JSON map.
+  Map<String, dynamic> toJson();
+
   @override
-  $Res call({
-    Object? id = null,
-    Object? name = null,
-    Object? description = null,
-    Object? prerequisiteUnitIds = null,
-    Object? lessons = null,
-  }) {
-    return _then(_value.copyWith(
-      id: null == id
-          ? _value.id
-          : id // ignore: cast_nullable_to_non_nullable
-              as String,
-      name: null == name
-          ? _value.name
-          : name // ignore: cast_nullable_to_non_nullable
-              as String,
-      description: null == description
-          ? _value.description
-          : description // ignore: cast_nullable_to_non_nullable
-              as String,
-      prerequisiteUnitIds: null == prerequisiteUnitIds
-          ? _value.prerequisiteUnitIds
-          : prerequisiteUnitIds // ignore: cast_nullable_to_non_nullable
-              as List<String>,
-      lessons: null == lessons
-          ? _value.lessons
-          : lessons // ignore: cast_nullable_to_non_nullable
-              as List<Lesson>,
-    ) as $Val);
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is Unit &&
+            (identical(other.id, id) || other.id == id) &&
+            (identical(other.name, name) || other.name == name) &&
+            (identical(other.description, description) ||
+                other.description == description) &&
+            const DeepCollectionEquality()
+                .equals(other.prerequisiteUnitIds, prerequisiteUnitIds) &&
+            const DeepCollectionEquality().equals(other.lessons, lessons));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(
+      runtimeType,
+      id,
+      name,
+      description,
+      const DeepCollectionEquality().hash(prerequisiteUnitIds),
+      const DeepCollectionEquality().hash(lessons));
+
+  @override
+  String toString() {
+    return 'Unit(id: $id, name: $name, description: $description, prerequisiteUnitIds: $prerequisiteUnitIds, lessons: $lessons)';
   }
 }
 
 /// @nodoc
-abstract class _$$UnitImplCopyWith<$Res> implements $UnitCopyWith<$Res> {
-  factory _$$UnitImplCopyWith(
-          _$UnitImpl value, $Res Function(_$UnitImpl) then) =
-      __$$UnitImplCopyWithImpl<$Res>;
-  @override
+abstract mixin class $UnitCopyWith<$Res> {
+  factory $UnitCopyWith(Unit value, $Res Function(Unit) _then) =
+      _$UnitCopyWithImpl;
   @useResult
   $Res call(
       {String id,
@@ -104,12 +74,14 @@ abstract class _$$UnitImplCopyWith<$Res> implements $UnitCopyWith<$Res> {
 }
 
 /// @nodoc
-class __$$UnitImplCopyWithImpl<$Res>
-    extends _$UnitCopyWithImpl<$Res, _$UnitImpl>
-    implements _$$UnitImplCopyWith<$Res> {
-  __$$UnitImplCopyWithImpl(_$UnitImpl _value, $Res Function(_$UnitImpl) _then)
-      : super(_value, _then);
+class _$UnitCopyWithImpl<$Res> implements $UnitCopyWith<$Res> {
+  _$UnitCopyWithImpl(this._self, this._then);
 
+  final Unit _self;
+  final $Res Function(Unit) _then;
+
+  /// Create a copy of Unit
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -119,35 +91,201 @@ class __$$UnitImplCopyWithImpl<$Res>
     Object? prerequisiteUnitIds = null,
     Object? lessons = null,
   }) {
-    return _then(_$UnitImpl(
+    return _then(_self.copyWith(
       id: null == id
-          ? _value.id
+          ? _self.id
           : id // ignore: cast_nullable_to_non_nullable
               as String,
       name: null == name
-          ? _value.name
+          ? _self.name
           : name // ignore: cast_nullable_to_non_nullable
               as String,
       description: null == description
-          ? _value.description
+          ? _self.description
           : description // ignore: cast_nullable_to_non_nullable
               as String,
       prerequisiteUnitIds: null == prerequisiteUnitIds
-          ? _value._prerequisiteUnitIds
+          ? _self.prerequisiteUnitIds
           : prerequisiteUnitIds // ignore: cast_nullable_to_non_nullable
               as List<String>,
       lessons: null == lessons
-          ? _value._lessons
+          ? _self.lessons
           : lessons // ignore: cast_nullable_to_non_nullable
               as List<Lesson>,
     ));
   }
 }
 
+/// Adds pattern-matching-related methods to [Unit].
+extension UnitPatterns on Unit {
+  /// A variant of `map` that fallback to returning `orElse`.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case _:
+  ///     return orElse();
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>(
+    TResult Function(_Unit value)? $default, {
+    required TResult orElse(),
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _Unit() when $default != null:
+        return $default(_that);
+      case _:
+        return orElse();
+    }
+  }
+
+  /// A `switch`-like method, using callbacks.
+  ///
+  /// Callbacks receives the raw object, upcasted.
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case final Subclass2 value:
+  ///     return ...;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>(
+    TResult Function(_Unit value) $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _Unit():
+        return $default(_that);
+      case _:
+        throw StateError('Unexpected subclass');
+    }
+  }
+
+  /// A variant of `map` that fallback to returning `null`.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case _:
+  ///     return null;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>(
+    TResult? Function(_Unit value)? $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _Unit() when $default != null:
+        return $default(_that);
+      case _:
+        return null;
+    }
+  }
+
+  /// A variant of `when` that fallback to an `orElse` callback.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case _:
+  ///     return orElse();
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>(
+    TResult Function(String id, String name, String description,
+            List<String> prerequisiteUnitIds, List<Lesson> lessons)?
+        $default, {
+    required TResult orElse(),
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _Unit() when $default != null:
+        return $default(_that.id, _that.name, _that.description,
+            _that.prerequisiteUnitIds, _that.lessons);
+      case _:
+        return orElse();
+    }
+  }
+
+  /// A `switch`-like method, using callbacks.
+  ///
+  /// As opposed to `map`, this offers destructuring.
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case Subclass2(:final field2):
+  ///     return ...;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>(
+    TResult Function(String id, String name, String description,
+            List<String> prerequisiteUnitIds, List<Lesson> lessons)
+        $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _Unit():
+        return $default(_that.id, _that.name, _that.description,
+            _that.prerequisiteUnitIds, _that.lessons);
+      case _:
+        throw StateError('Unexpected subclass');
+    }
+  }
+
+  /// A variant of `when` that fallback to returning `null`
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case _:
+  ///     return null;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>(
+    TResult? Function(String id, String name, String description,
+            List<String> prerequisiteUnitIds, List<Lesson> lessons)?
+        $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _Unit() when $default != null:
+        return $default(_that.id, _that.name, _that.description,
+            _that.prerequisiteUnitIds, _that.lessons);
+      case _:
+        return null;
+    }
+  }
+}
+
 /// @nodoc
 @JsonSerializable()
-class _$UnitImpl implements _Unit {
-  const _$UnitImpl(
+class _Unit implements Unit {
+  const _Unit(
       {required this.id,
       required this.name,
       this.description = '',
@@ -155,9 +293,7 @@ class _$UnitImpl implements _Unit {
       required final List<Lesson> lessons})
       : _prerequisiteUnitIds = prerequisiteUnitIds,
         _lessons = lessons;
-
-  factory _$UnitImpl.fromJson(Map<String, dynamic> json) =>
-      _$$UnitImplFromJson(json);
+  factory _Unit.fromJson(Map<String, dynamic> json) => _$UnitFromJson(json);
 
   @override
   final String id;
@@ -184,16 +320,26 @@ class _$UnitImpl implements _Unit {
     return EqualUnmodifiableListView(_lessons);
   }
 
+  /// Create a copy of Unit
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  String toString() {
-    return 'Unit(id: $id, name: $name, description: $description, prerequisiteUnitIds: $prerequisiteUnitIds, lessons: $lessons)';
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  _$UnitCopyWith<_Unit> get copyWith =>
+      __$UnitCopyWithImpl<_Unit>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$UnitToJson(
+      this,
+    );
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$UnitImpl &&
+            other is _Unit &&
             (identical(other.id, id) || other.id == id) &&
             (identical(other.name, name) || other.name == name) &&
             (identical(other.description, description) ||
@@ -203,7 +349,7 @@ class _$UnitImpl implements _Unit {
             const DeepCollectionEquality().equals(other._lessons, _lessons));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
       runtimeType,
@@ -213,42 +359,67 @@ class _$UnitImpl implements _Unit {
       const DeepCollectionEquality().hash(_prerequisiteUnitIds),
       const DeepCollectionEquality().hash(_lessons));
 
-  @JsonKey(ignore: true)
   @override
-  @pragma('vm:prefer-inline')
-  _$$UnitImplCopyWith<_$UnitImpl> get copyWith =>
-      __$$UnitImplCopyWithImpl<_$UnitImpl>(this, _$identity);
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$UnitImplToJson(
-      this,
-    );
+  String toString() {
+    return 'Unit(id: $id, name: $name, description: $description, prerequisiteUnitIds: $prerequisiteUnitIds, lessons: $lessons)';
   }
 }
 
-abstract class _Unit implements Unit {
-  const factory _Unit(
-      {required final String id,
-      required final String name,
-      final String description,
-      final List<String> prerequisiteUnitIds,
-      required final List<Lesson> lessons}) = _$UnitImpl;
-
-  factory _Unit.fromJson(Map<String, dynamic> json) = _$UnitImpl.fromJson;
-
+/// @nodoc
+abstract mixin class _$UnitCopyWith<$Res> implements $UnitCopyWith<$Res> {
+  factory _$UnitCopyWith(_Unit value, $Res Function(_Unit) _then) =
+      __$UnitCopyWithImpl;
   @override
-  String get id;
-  @override
-  String get name;
-  @override
-  String get description;
-  @override
-  List<String> get prerequisiteUnitIds;
-  @override
-  List<Lesson> get lessons;
-  @override
-  @JsonKey(ignore: true)
-  _$$UnitImplCopyWith<_$UnitImpl> get copyWith =>
-      throw _privateConstructorUsedError;
+  @useResult
+  $Res call(
+      {String id,
+      String name,
+      String description,
+      List<String> prerequisiteUnitIds,
+      List<Lesson> lessons});
 }
+
+/// @nodoc
+class __$UnitCopyWithImpl<$Res> implements _$UnitCopyWith<$Res> {
+  __$UnitCopyWithImpl(this._self, this._then);
+
+  final _Unit _self;
+  final $Res Function(_Unit) _then;
+
+  /// Create a copy of Unit
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? id = null,
+    Object? name = null,
+    Object? description = null,
+    Object? prerequisiteUnitIds = null,
+    Object? lessons = null,
+  }) {
+    return _then(_Unit(
+      id: null == id
+          ? _self.id
+          : id // ignore: cast_nullable_to_non_nullable
+              as String,
+      name: null == name
+          ? _self.name
+          : name // ignore: cast_nullable_to_non_nullable
+              as String,
+      description: null == description
+          ? _self.description
+          : description // ignore: cast_nullable_to_non_nullable
+              as String,
+      prerequisiteUnitIds: null == prerequisiteUnitIds
+          ? _self._prerequisiteUnitIds
+          : prerequisiteUnitIds // ignore: cast_nullable_to_non_nullable
+              as List<String>,
+      lessons: null == lessons
+          ? _self._lessons
+          : lessons // ignore: cast_nullable_to_non_nullable
+              as List<Lesson>,
+    ));
+  }
+}
+
+// dart format on

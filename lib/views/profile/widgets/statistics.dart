@@ -9,6 +9,7 @@ import 'package:varnamala/application/game_provider.dart';
 import 'package:varnamala/application/gems_provider.dart';
 import 'package:varnamala/core/enums.dart';
 import 'package:varnamala/core/extensions.dart';
+import 'package:varnamala/l10n/app_localizations.dart';
 import 'package:varnamala/views/theme.dart';
 
 class Statistics extends StatelessWidget {
@@ -21,7 +22,9 @@ class Statistics extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionTitle(context, 'Statistics', Icons.bar_chart_rounded),
+          _sectionTitle(context,
+              AppLocalizations.of(context)!.profileStatisticsTitle,
+              Icons.bar_chart_rounded),
           // The StreamBuilders already react to state changes; wrapping them in
           // Consumers would just re-subscribe on every notifyListeners (XP
           // award, streak check, lesson completion) for no benefit.
@@ -50,13 +53,13 @@ class Statistics extends StatelessWidget {
                         icon: Icons.local_fire_department_rounded,
                         iconColor: VarnamalaTheme.warning,
                         value: streak.toString(),
-                        label: 'Day Streak',
+                        label: AppLocalizations.of(context)!.profileDayStreak,
                       ),
                       _StatCard(
                         icon: Icons.bolt_rounded,
                         iconColor: VarnamalaTheme.peacockTurquoise,
                         value: totalXp.toString(),
-                        label: 'Total XP',
+                        label: AppLocalizations.of(context)!.profileTotalXp,
                       ),
                       StreamBuilder<int>(
                         stream: context.read<GemsProvider>().getGemsStream(),
@@ -66,7 +69,7 @@ class Statistics extends StatelessWidget {
                             icon: Icons.diamond_rounded,
                             iconColor: VarnamalaTheme.error,
                             value: gems.toString(),
-                            label: 'Gems',
+                            label: AppLocalizations.of(context)!.profileGems,
                           );
                         },
                       ),

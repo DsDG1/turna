@@ -26,6 +26,13 @@ class $SectionsTable extends Sections with TableInfo<$SectionsTable, Section> {
       type: DriftSqlType.string,
       requiredDuringInsert: false,
       defaultValue: const Constant(''));
+  static const VerificationMeta _levelMeta = const VerificationMeta('level');
+  @override
+  late final GeneratedColumn<String> level = GeneratedColumn<String>(
+      'level', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
   static const VerificationMeta _prerequisiteSectionIdsMeta =
       const VerificationMeta('prerequisiteSectionIds');
   @override
@@ -44,7 +51,7 @@ class $SectionsTable extends Sections with TableInfo<$SectionsTable, Section> {
       defaultValue: const Constant(0));
   @override
   List<GeneratedColumn> get $columns =>
-      [id, name, description, prerequisiteSectionIds, sortOrder];
+      [id, name, description, level, prerequisiteSectionIds, sortOrder];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -72,6 +79,10 @@ class $SectionsTable extends Sections with TableInfo<$SectionsTable, Section> {
           description.isAcceptableOrUnknown(
               data['description']!, _descriptionMeta));
     }
+    if (data.containsKey('level')) {
+      context.handle(
+          _levelMeta, level.isAcceptableOrUnknown(data['level']!, _levelMeta));
+    }
     if (data.containsKey('prerequisite_section_ids')) {
       context.handle(
           _prerequisiteSectionIdsMeta,
@@ -97,6 +108,8 @@ class $SectionsTable extends Sections with TableInfo<$SectionsTable, Section> {
           .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
       description: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}description'])!,
+      level: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}level'])!,
       prerequisiteSectionIds: attachedDatabase.typeMapping.read(
           DriftSqlType.string,
           data['${effectivePrefix}prerequisite_section_ids'])!,
@@ -115,12 +128,14 @@ class Section extends DataClass implements Insertable<Section> {
   final String id;
   final String name;
   final String description;
+  final String level;
   final String prerequisiteSectionIds;
   final int sortOrder;
   const Section(
       {required this.id,
       required this.name,
       required this.description,
+      required this.level,
       required this.prerequisiteSectionIds,
       required this.sortOrder});
   @override
@@ -129,6 +144,7 @@ class Section extends DataClass implements Insertable<Section> {
     map['id'] = Variable<String>(id);
     map['name'] = Variable<String>(name);
     map['description'] = Variable<String>(description);
+    map['level'] = Variable<String>(level);
     map['prerequisite_section_ids'] = Variable<String>(prerequisiteSectionIds);
     map['sort_order'] = Variable<int>(sortOrder);
     return map;
@@ -139,6 +155,7 @@ class Section extends DataClass implements Insertable<Section> {
       id: Value(id),
       name: Value(name),
       description: Value(description),
+      level: Value(level),
       prerequisiteSectionIds: Value(prerequisiteSectionIds),
       sortOrder: Value(sortOrder),
     );
@@ -151,6 +168,7 @@ class Section extends DataClass implements Insertable<Section> {
       id: serializer.fromJson<String>(json['id']),
       name: serializer.fromJson<String>(json['name']),
       description: serializer.fromJson<String>(json['description']),
+      level: serializer.fromJson<String>(json['level']),
       prerequisiteSectionIds:
           serializer.fromJson<String>(json['prerequisiteSectionIds']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
@@ -163,6 +181,7 @@ class Section extends DataClass implements Insertable<Section> {
       'id': serializer.toJson<String>(id),
       'name': serializer.toJson<String>(name),
       'description': serializer.toJson<String>(description),
+      'level': serializer.toJson<String>(level),
       'prerequisiteSectionIds':
           serializer.toJson<String>(prerequisiteSectionIds),
       'sortOrder': serializer.toJson<int>(sortOrder),
@@ -173,12 +192,14 @@ class Section extends DataClass implements Insertable<Section> {
           {String? id,
           String? name,
           String? description,
+          String? level,
           String? prerequisiteSectionIds,
           int? sortOrder}) =>
       Section(
         id: id ?? this.id,
         name: name ?? this.name,
         description: description ?? this.description,
+        level: level ?? this.level,
         prerequisiteSectionIds:
             prerequisiteSectionIds ?? this.prerequisiteSectionIds,
         sortOrder: sortOrder ?? this.sortOrder,
@@ -189,6 +210,7 @@ class Section extends DataClass implements Insertable<Section> {
       name: data.name.present ? data.name.value : this.name,
       description:
           data.description.present ? data.description.value : this.description,
+      level: data.level.present ? data.level.value : this.level,
       prerequisiteSectionIds: data.prerequisiteSectionIds.present
           ? data.prerequisiteSectionIds.value
           : this.prerequisiteSectionIds,
@@ -202,6 +224,7 @@ class Section extends DataClass implements Insertable<Section> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('description: $description, ')
+          ..write('level: $level, ')
           ..write('prerequisiteSectionIds: $prerequisiteSectionIds, ')
           ..write('sortOrder: $sortOrder')
           ..write(')'))
@@ -209,8 +232,8 @@ class Section extends DataClass implements Insertable<Section> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, description, prerequisiteSectionIds, sortOrder);
+  int get hashCode => Object.hash(
+      id, name, description, level, prerequisiteSectionIds, sortOrder);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -218,6 +241,7 @@ class Section extends DataClass implements Insertable<Section> {
           other.id == this.id &&
           other.name == this.name &&
           other.description == this.description &&
+          other.level == this.level &&
           other.prerequisiteSectionIds == this.prerequisiteSectionIds &&
           other.sortOrder == this.sortOrder);
 }
@@ -226,6 +250,7 @@ class SectionsCompanion extends UpdateCompanion<Section> {
   final Value<String> id;
   final Value<String> name;
   final Value<String> description;
+  final Value<String> level;
   final Value<String> prerequisiteSectionIds;
   final Value<int> sortOrder;
   final Value<int> rowid;
@@ -233,6 +258,7 @@ class SectionsCompanion extends UpdateCompanion<Section> {
     this.id = const Value.absent(),
     this.name = const Value.absent(),
     this.description = const Value.absent(),
+    this.level = const Value.absent(),
     this.prerequisiteSectionIds = const Value.absent(),
     this.sortOrder = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -241,6 +267,7 @@ class SectionsCompanion extends UpdateCompanion<Section> {
     required String id,
     required String name,
     this.description = const Value.absent(),
+    this.level = const Value.absent(),
     this.prerequisiteSectionIds = const Value.absent(),
     this.sortOrder = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -250,6 +277,7 @@ class SectionsCompanion extends UpdateCompanion<Section> {
     Expression<String>? id,
     Expression<String>? name,
     Expression<String>? description,
+    Expression<String>? level,
     Expression<String>? prerequisiteSectionIds,
     Expression<int>? sortOrder,
     Expression<int>? rowid,
@@ -258,6 +286,7 @@ class SectionsCompanion extends UpdateCompanion<Section> {
       if (id != null) 'id': id,
       if (name != null) 'name': name,
       if (description != null) 'description': description,
+      if (level != null) 'level': level,
       if (prerequisiteSectionIds != null)
         'prerequisite_section_ids': prerequisiteSectionIds,
       if (sortOrder != null) 'sort_order': sortOrder,
@@ -269,6 +298,7 @@ class SectionsCompanion extends UpdateCompanion<Section> {
       {Value<String>? id,
       Value<String>? name,
       Value<String>? description,
+      Value<String>? level,
       Value<String>? prerequisiteSectionIds,
       Value<int>? sortOrder,
       Value<int>? rowid}) {
@@ -276,6 +306,7 @@ class SectionsCompanion extends UpdateCompanion<Section> {
       id: id ?? this.id,
       name: name ?? this.name,
       description: description ?? this.description,
+      level: level ?? this.level,
       prerequisiteSectionIds:
           prerequisiteSectionIds ?? this.prerequisiteSectionIds,
       sortOrder: sortOrder ?? this.sortOrder,
@@ -294,6 +325,9 @@ class SectionsCompanion extends UpdateCompanion<Section> {
     }
     if (description.present) {
       map['description'] = Variable<String>(description.value);
+    }
+    if (level.present) {
+      map['level'] = Variable<String>(level.value);
     }
     if (prerequisiteSectionIds.present) {
       map['prerequisite_section_ids'] =
@@ -314,6 +348,7 @@ class SectionsCompanion extends UpdateCompanion<Section> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('description: $description, ')
+          ..write('level: $level, ')
           ..write('prerequisiteSectionIds: $prerequisiteSectionIds, ')
           ..write('sortOrder: $sortOrder, ')
           ..write('rowid: $rowid')
@@ -2585,6 +2620,575 @@ class ExpressionsCompanion extends UpdateCompanion<ExpressionEntry> {
   }
 }
 
+class $AnkiImportsTable extends AnkiImports
+    with TableInfo<$AnkiImportsTable, AnkiImport> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AnkiImportsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _importIdMeta =
+      const VerificationMeta('importId');
+  @override
+  late final GeneratedColumn<String> importId = GeneratedColumn<String>(
+      'import_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _sourcePathMeta =
+      const VerificationMeta('sourcePath');
+  @override
+  late final GeneratedColumn<String> sourcePath = GeneratedColumn<String>(
+      'source_path', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _sourceHashMeta =
+      const VerificationMeta('sourceHash');
+  @override
+  late final GeneratedColumn<String> sourceHash = GeneratedColumn<String>(
+      'source_hash', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _importedAtMeta =
+      const VerificationMeta('importedAt');
+  @override
+  late final GeneratedColumn<int> importedAt = GeneratedColumn<int>(
+      'imported_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _deckCountMeta =
+      const VerificationMeta('deckCount');
+  @override
+  late final GeneratedColumn<int> deckCount = GeneratedColumn<int>(
+      'deck_count', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _noteCountMeta =
+      const VerificationMeta('noteCount');
+  @override
+  late final GeneratedColumn<int> noteCount = GeneratedColumn<int>(
+      'note_count', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _cardCountMeta =
+      const VerificationMeta('cardCount');
+  @override
+  late final GeneratedColumn<int> cardCount = GeneratedColumn<int>(
+      'card_count', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _mediaCountMeta =
+      const VerificationMeta('mediaCount');
+  @override
+  late final GeneratedColumn<int> mediaCount = GeneratedColumn<int>(
+      'media_count', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _notetypesJsonMeta =
+      const VerificationMeta('notetypesJson');
+  @override
+  late final GeneratedColumn<String> notetypesJson = GeneratedColumn<String>(
+      'notetypes_json', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('{}'));
+  static const VerificationMeta _aiEnhancedMeta =
+      const VerificationMeta('aiEnhanced');
+  @override
+  late final GeneratedColumn<bool> aiEnhanced = GeneratedColumn<bool>(
+      'ai_enhanced', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("ai_enhanced" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _versionMeta =
+      const VerificationMeta('version');
+  @override
+  late final GeneratedColumn<int> version = GeneratedColumn<int>(
+      'version', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(1));
+  @override
+  List<GeneratedColumn> get $columns => [
+        importId,
+        sourcePath,
+        sourceHash,
+        importedAt,
+        deckCount,
+        noteCount,
+        cardCount,
+        mediaCount,
+        notetypesJson,
+        aiEnhanced,
+        version
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'anki_imports';
+  @override
+  VerificationContext validateIntegrity(Insertable<AnkiImport> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('import_id')) {
+      context.handle(_importIdMeta,
+          importId.isAcceptableOrUnknown(data['import_id']!, _importIdMeta));
+    } else if (isInserting) {
+      context.missing(_importIdMeta);
+    }
+    if (data.containsKey('source_path')) {
+      context.handle(
+          _sourcePathMeta,
+          sourcePath.isAcceptableOrUnknown(
+              data['source_path']!, _sourcePathMeta));
+    } else if (isInserting) {
+      context.missing(_sourcePathMeta);
+    }
+    if (data.containsKey('source_hash')) {
+      context.handle(
+          _sourceHashMeta,
+          sourceHash.isAcceptableOrUnknown(
+              data['source_hash']!, _sourceHashMeta));
+    } else if (isInserting) {
+      context.missing(_sourceHashMeta);
+    }
+    if (data.containsKey('imported_at')) {
+      context.handle(
+          _importedAtMeta,
+          importedAt.isAcceptableOrUnknown(
+              data['imported_at']!, _importedAtMeta));
+    } else if (isInserting) {
+      context.missing(_importedAtMeta);
+    }
+    if (data.containsKey('deck_count')) {
+      context.handle(_deckCountMeta,
+          deckCount.isAcceptableOrUnknown(data['deck_count']!, _deckCountMeta));
+    }
+    if (data.containsKey('note_count')) {
+      context.handle(_noteCountMeta,
+          noteCount.isAcceptableOrUnknown(data['note_count']!, _noteCountMeta));
+    }
+    if (data.containsKey('card_count')) {
+      context.handle(_cardCountMeta,
+          cardCount.isAcceptableOrUnknown(data['card_count']!, _cardCountMeta));
+    }
+    if (data.containsKey('media_count')) {
+      context.handle(
+          _mediaCountMeta,
+          mediaCount.isAcceptableOrUnknown(
+              data['media_count']!, _mediaCountMeta));
+    }
+    if (data.containsKey('notetypes_json')) {
+      context.handle(
+          _notetypesJsonMeta,
+          notetypesJson.isAcceptableOrUnknown(
+              data['notetypes_json']!, _notetypesJsonMeta));
+    }
+    if (data.containsKey('ai_enhanced')) {
+      context.handle(
+          _aiEnhancedMeta,
+          aiEnhanced.isAcceptableOrUnknown(
+              data['ai_enhanced']!, _aiEnhancedMeta));
+    }
+    if (data.containsKey('version')) {
+      context.handle(_versionMeta,
+          version.isAcceptableOrUnknown(data['version']!, _versionMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {importId};
+  @override
+  AnkiImport map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AnkiImport(
+      importId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}import_id'])!,
+      sourcePath: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source_path'])!,
+      sourceHash: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source_hash'])!,
+      importedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}imported_at'])!,
+      deckCount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}deck_count'])!,
+      noteCount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}note_count'])!,
+      cardCount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}card_count'])!,
+      mediaCount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}media_count'])!,
+      notetypesJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}notetypes_json'])!,
+      aiEnhanced: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}ai_enhanced'])!,
+      version: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}version'])!,
+    );
+  }
+
+  @override
+  $AnkiImportsTable createAlias(String alias) {
+    return $AnkiImportsTable(attachedDatabase, alias);
+  }
+}
+
+class AnkiImport extends DataClass implements Insertable<AnkiImport> {
+  final String importId;
+  final String sourcePath;
+  final String sourceHash;
+  final int importedAt;
+  final int deckCount;
+  final int noteCount;
+  final int cardCount;
+  final int mediaCount;
+  final String notetypesJson;
+  final bool aiEnhanced;
+  final int version;
+  const AnkiImport(
+      {required this.importId,
+      required this.sourcePath,
+      required this.sourceHash,
+      required this.importedAt,
+      required this.deckCount,
+      required this.noteCount,
+      required this.cardCount,
+      required this.mediaCount,
+      required this.notetypesJson,
+      required this.aiEnhanced,
+      required this.version});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['import_id'] = Variable<String>(importId);
+    map['source_path'] = Variable<String>(sourcePath);
+    map['source_hash'] = Variable<String>(sourceHash);
+    map['imported_at'] = Variable<int>(importedAt);
+    map['deck_count'] = Variable<int>(deckCount);
+    map['note_count'] = Variable<int>(noteCount);
+    map['card_count'] = Variable<int>(cardCount);
+    map['media_count'] = Variable<int>(mediaCount);
+    map['notetypes_json'] = Variable<String>(notetypesJson);
+    map['ai_enhanced'] = Variable<bool>(aiEnhanced);
+    map['version'] = Variable<int>(version);
+    return map;
+  }
+
+  AnkiImportsCompanion toCompanion(bool nullToAbsent) {
+    return AnkiImportsCompanion(
+      importId: Value(importId),
+      sourcePath: Value(sourcePath),
+      sourceHash: Value(sourceHash),
+      importedAt: Value(importedAt),
+      deckCount: Value(deckCount),
+      noteCount: Value(noteCount),
+      cardCount: Value(cardCount),
+      mediaCount: Value(mediaCount),
+      notetypesJson: Value(notetypesJson),
+      aiEnhanced: Value(aiEnhanced),
+      version: Value(version),
+    );
+  }
+
+  factory AnkiImport.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AnkiImport(
+      importId: serializer.fromJson<String>(json['importId']),
+      sourcePath: serializer.fromJson<String>(json['sourcePath']),
+      sourceHash: serializer.fromJson<String>(json['sourceHash']),
+      importedAt: serializer.fromJson<int>(json['importedAt']),
+      deckCount: serializer.fromJson<int>(json['deckCount']),
+      noteCount: serializer.fromJson<int>(json['noteCount']),
+      cardCount: serializer.fromJson<int>(json['cardCount']),
+      mediaCount: serializer.fromJson<int>(json['mediaCount']),
+      notetypesJson: serializer.fromJson<String>(json['notetypesJson']),
+      aiEnhanced: serializer.fromJson<bool>(json['aiEnhanced']),
+      version: serializer.fromJson<int>(json['version']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'importId': serializer.toJson<String>(importId),
+      'sourcePath': serializer.toJson<String>(sourcePath),
+      'sourceHash': serializer.toJson<String>(sourceHash),
+      'importedAt': serializer.toJson<int>(importedAt),
+      'deckCount': serializer.toJson<int>(deckCount),
+      'noteCount': serializer.toJson<int>(noteCount),
+      'cardCount': serializer.toJson<int>(cardCount),
+      'mediaCount': serializer.toJson<int>(mediaCount),
+      'notetypesJson': serializer.toJson<String>(notetypesJson),
+      'aiEnhanced': serializer.toJson<bool>(aiEnhanced),
+      'version': serializer.toJson<int>(version),
+    };
+  }
+
+  AnkiImport copyWith(
+          {String? importId,
+          String? sourcePath,
+          String? sourceHash,
+          int? importedAt,
+          int? deckCount,
+          int? noteCount,
+          int? cardCount,
+          int? mediaCount,
+          String? notetypesJson,
+          bool? aiEnhanced,
+          int? version}) =>
+      AnkiImport(
+        importId: importId ?? this.importId,
+        sourcePath: sourcePath ?? this.sourcePath,
+        sourceHash: sourceHash ?? this.sourceHash,
+        importedAt: importedAt ?? this.importedAt,
+        deckCount: deckCount ?? this.deckCount,
+        noteCount: noteCount ?? this.noteCount,
+        cardCount: cardCount ?? this.cardCount,
+        mediaCount: mediaCount ?? this.mediaCount,
+        notetypesJson: notetypesJson ?? this.notetypesJson,
+        aiEnhanced: aiEnhanced ?? this.aiEnhanced,
+        version: version ?? this.version,
+      );
+  AnkiImport copyWithCompanion(AnkiImportsCompanion data) {
+    return AnkiImport(
+      importId: data.importId.present ? data.importId.value : this.importId,
+      sourcePath:
+          data.sourcePath.present ? data.sourcePath.value : this.sourcePath,
+      sourceHash:
+          data.sourceHash.present ? data.sourceHash.value : this.sourceHash,
+      importedAt:
+          data.importedAt.present ? data.importedAt.value : this.importedAt,
+      deckCount: data.deckCount.present ? data.deckCount.value : this.deckCount,
+      noteCount: data.noteCount.present ? data.noteCount.value : this.noteCount,
+      cardCount: data.cardCount.present ? data.cardCount.value : this.cardCount,
+      mediaCount:
+          data.mediaCount.present ? data.mediaCount.value : this.mediaCount,
+      notetypesJson: data.notetypesJson.present
+          ? data.notetypesJson.value
+          : this.notetypesJson,
+      aiEnhanced:
+          data.aiEnhanced.present ? data.aiEnhanced.value : this.aiEnhanced,
+      version: data.version.present ? data.version.value : this.version,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AnkiImport(')
+          ..write('importId: $importId, ')
+          ..write('sourcePath: $sourcePath, ')
+          ..write('sourceHash: $sourceHash, ')
+          ..write('importedAt: $importedAt, ')
+          ..write('deckCount: $deckCount, ')
+          ..write('noteCount: $noteCount, ')
+          ..write('cardCount: $cardCount, ')
+          ..write('mediaCount: $mediaCount, ')
+          ..write('notetypesJson: $notetypesJson, ')
+          ..write('aiEnhanced: $aiEnhanced, ')
+          ..write('version: $version')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      importId,
+      sourcePath,
+      sourceHash,
+      importedAt,
+      deckCount,
+      noteCount,
+      cardCount,
+      mediaCount,
+      notetypesJson,
+      aiEnhanced,
+      version);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AnkiImport &&
+          other.importId == this.importId &&
+          other.sourcePath == this.sourcePath &&
+          other.sourceHash == this.sourceHash &&
+          other.importedAt == this.importedAt &&
+          other.deckCount == this.deckCount &&
+          other.noteCount == this.noteCount &&
+          other.cardCount == this.cardCount &&
+          other.mediaCount == this.mediaCount &&
+          other.notetypesJson == this.notetypesJson &&
+          other.aiEnhanced == this.aiEnhanced &&
+          other.version == this.version);
+}
+
+class AnkiImportsCompanion extends UpdateCompanion<AnkiImport> {
+  final Value<String> importId;
+  final Value<String> sourcePath;
+  final Value<String> sourceHash;
+  final Value<int> importedAt;
+  final Value<int> deckCount;
+  final Value<int> noteCount;
+  final Value<int> cardCount;
+  final Value<int> mediaCount;
+  final Value<String> notetypesJson;
+  final Value<bool> aiEnhanced;
+  final Value<int> version;
+  final Value<int> rowid;
+  const AnkiImportsCompanion({
+    this.importId = const Value.absent(),
+    this.sourcePath = const Value.absent(),
+    this.sourceHash = const Value.absent(),
+    this.importedAt = const Value.absent(),
+    this.deckCount = const Value.absent(),
+    this.noteCount = const Value.absent(),
+    this.cardCount = const Value.absent(),
+    this.mediaCount = const Value.absent(),
+    this.notetypesJson = const Value.absent(),
+    this.aiEnhanced = const Value.absent(),
+    this.version = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AnkiImportsCompanion.insert({
+    required String importId,
+    required String sourcePath,
+    required String sourceHash,
+    required int importedAt,
+    this.deckCount = const Value.absent(),
+    this.noteCount = const Value.absent(),
+    this.cardCount = const Value.absent(),
+    this.mediaCount = const Value.absent(),
+    this.notetypesJson = const Value.absent(),
+    this.aiEnhanced = const Value.absent(),
+    this.version = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : importId = Value(importId),
+        sourcePath = Value(sourcePath),
+        sourceHash = Value(sourceHash),
+        importedAt = Value(importedAt);
+  static Insertable<AnkiImport> custom({
+    Expression<String>? importId,
+    Expression<String>? sourcePath,
+    Expression<String>? sourceHash,
+    Expression<int>? importedAt,
+    Expression<int>? deckCount,
+    Expression<int>? noteCount,
+    Expression<int>? cardCount,
+    Expression<int>? mediaCount,
+    Expression<String>? notetypesJson,
+    Expression<bool>? aiEnhanced,
+    Expression<int>? version,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (importId != null) 'import_id': importId,
+      if (sourcePath != null) 'source_path': sourcePath,
+      if (sourceHash != null) 'source_hash': sourceHash,
+      if (importedAt != null) 'imported_at': importedAt,
+      if (deckCount != null) 'deck_count': deckCount,
+      if (noteCount != null) 'note_count': noteCount,
+      if (cardCount != null) 'card_count': cardCount,
+      if (mediaCount != null) 'media_count': mediaCount,
+      if (notetypesJson != null) 'notetypes_json': notetypesJson,
+      if (aiEnhanced != null) 'ai_enhanced': aiEnhanced,
+      if (version != null) 'version': version,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AnkiImportsCompanion copyWith(
+      {Value<String>? importId,
+      Value<String>? sourcePath,
+      Value<String>? sourceHash,
+      Value<int>? importedAt,
+      Value<int>? deckCount,
+      Value<int>? noteCount,
+      Value<int>? cardCount,
+      Value<int>? mediaCount,
+      Value<String>? notetypesJson,
+      Value<bool>? aiEnhanced,
+      Value<int>? version,
+      Value<int>? rowid}) {
+    return AnkiImportsCompanion(
+      importId: importId ?? this.importId,
+      sourcePath: sourcePath ?? this.sourcePath,
+      sourceHash: sourceHash ?? this.sourceHash,
+      importedAt: importedAt ?? this.importedAt,
+      deckCount: deckCount ?? this.deckCount,
+      noteCount: noteCount ?? this.noteCount,
+      cardCount: cardCount ?? this.cardCount,
+      mediaCount: mediaCount ?? this.mediaCount,
+      notetypesJson: notetypesJson ?? this.notetypesJson,
+      aiEnhanced: aiEnhanced ?? this.aiEnhanced,
+      version: version ?? this.version,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (importId.present) {
+      map['import_id'] = Variable<String>(importId.value);
+    }
+    if (sourcePath.present) {
+      map['source_path'] = Variable<String>(sourcePath.value);
+    }
+    if (sourceHash.present) {
+      map['source_hash'] = Variable<String>(sourceHash.value);
+    }
+    if (importedAt.present) {
+      map['imported_at'] = Variable<int>(importedAt.value);
+    }
+    if (deckCount.present) {
+      map['deck_count'] = Variable<int>(deckCount.value);
+    }
+    if (noteCount.present) {
+      map['note_count'] = Variable<int>(noteCount.value);
+    }
+    if (cardCount.present) {
+      map['card_count'] = Variable<int>(cardCount.value);
+    }
+    if (mediaCount.present) {
+      map['media_count'] = Variable<int>(mediaCount.value);
+    }
+    if (notetypesJson.present) {
+      map['notetypes_json'] = Variable<String>(notetypesJson.value);
+    }
+    if (aiEnhanced.present) {
+      map['ai_enhanced'] = Variable<bool>(aiEnhanced.value);
+    }
+    if (version.present) {
+      map['version'] = Variable<int>(version.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AnkiImportsCompanion(')
+          ..write('importId: $importId, ')
+          ..write('sourcePath: $sourcePath, ')
+          ..write('sourceHash: $sourceHash, ')
+          ..write('importedAt: $importedAt, ')
+          ..write('deckCount: $deckCount, ')
+          ..write('noteCount: $noteCount, ')
+          ..write('cardCount: $cardCount, ')
+          ..write('mediaCount: $mediaCount, ')
+          ..write('notetypesJson: $notetypesJson, ')
+          ..write('aiEnhanced: $aiEnhanced, ')
+          ..write('version: $version, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$CourseDatabase extends GeneratedDatabase {
   _$CourseDatabase(QueryExecutor e) : super(e);
   $CourseDatabaseManager get managers => $CourseDatabaseManager(this);
@@ -2596,6 +3200,7 @@ abstract class _$CourseDatabase extends GeneratedDatabase {
   late final $GrammarPointsTable grammarPoints = $GrammarPointsTable(this);
   late final $CourseMetaTable courseMeta = $CourseMetaTable(this);
   late final $ExpressionsTable expressions = $ExpressionsTable(this);
+  late final $AnkiImportsTable ankiImports = $AnkiImportsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2608,7 +3213,8 @@ abstract class _$CourseDatabase extends GeneratedDatabase {
         vocabulary,
         grammarPoints,
         courseMeta,
-        expressions
+        expressions,
+        ankiImports
       ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules(
@@ -2642,6 +3248,7 @@ typedef $$SectionsTableCreateCompanionBuilder = SectionsCompanion Function({
   required String id,
   required String name,
   Value<String> description,
+  Value<String> level,
   Value<String> prerequisiteSectionIds,
   Value<int> sortOrder,
   Value<int> rowid,
@@ -2650,6 +3257,7 @@ typedef $$SectionsTableUpdateCompanionBuilder = SectionsCompanion Function({
   Value<String> id,
   Value<String> name,
   Value<String> description,
+  Value<String> level,
   Value<String> prerequisiteSectionIds,
   Value<int> sortOrder,
   Value<int> rowid,
@@ -2666,7 +3274,7 @@ final class $$SectionsTableReferences
 
   $$UnitsTableProcessedTableManager get unitsRefs {
     final manager = $$UnitsTableTableManager($_db, $_db.units)
-        .filter((f) => f.sectionId.id($_item.id));
+        .filter((f) => f.sectionId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_unitsRefsTable($_db));
     return ProcessedTableManager(
@@ -2691,6 +3299,9 @@ class $$SectionsTableFilterComposer
 
   ColumnFilters<String> get description => $composableBuilder(
       column: $table.description, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get level => $composableBuilder(
+      column: $table.level, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get prerequisiteSectionIds => $composableBuilder(
       column: $table.prerequisiteSectionIds,
@@ -2739,6 +3350,9 @@ class $$SectionsTableOrderingComposer
   ColumnOrderings<String> get description => $composableBuilder(
       column: $table.description, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get level => $composableBuilder(
+      column: $table.level, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get prerequisiteSectionIds => $composableBuilder(
       column: $table.prerequisiteSectionIds,
       builder: (column) => ColumnOrderings(column));
@@ -2764,6 +3378,9 @@ class $$SectionsTableAnnotationComposer
 
   GeneratedColumn<String> get description => $composableBuilder(
       column: $table.description, builder: (column) => column);
+
+  GeneratedColumn<String> get level =>
+      $composableBuilder(column: $table.level, builder: (column) => column);
 
   GeneratedColumn<String> get prerequisiteSectionIds => $composableBuilder(
       column: $table.prerequisiteSectionIds, builder: (column) => column);
@@ -2819,6 +3436,7 @@ class $$SectionsTableTableManager extends RootTableManager<
             Value<String> id = const Value.absent(),
             Value<String> name = const Value.absent(),
             Value<String> description = const Value.absent(),
+            Value<String> level = const Value.absent(),
             Value<String> prerequisiteSectionIds = const Value.absent(),
             Value<int> sortOrder = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -2827,6 +3445,7 @@ class $$SectionsTableTableManager extends RootTableManager<
             id: id,
             name: name,
             description: description,
+            level: level,
             prerequisiteSectionIds: prerequisiteSectionIds,
             sortOrder: sortOrder,
             rowid: rowid,
@@ -2835,6 +3454,7 @@ class $$SectionsTableTableManager extends RootTableManager<
             required String id,
             required String name,
             Value<String> description = const Value.absent(),
+            Value<String> level = const Value.absent(),
             Value<String> prerequisiteSectionIds = const Value.absent(),
             Value<int> sortOrder = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -2843,6 +3463,7 @@ class $$SectionsTableTableManager extends RootTableManager<
             id: id,
             name: name,
             description: description,
+            level: level,
             prerequisiteSectionIds: prerequisiteSectionIds,
             sortOrder: sortOrder,
             rowid: rowid,
@@ -2859,7 +3480,7 @@ class $$SectionsTableTableManager extends RootTableManager<
               getPrefetchedDataCallback: (items) async {
                 return [
                   if (unitsRefs)
-                    await $_getPrefetchedData(
+                    await $_getPrefetchedData<Section, $SectionsTable, Unit>(
                         currentTable: table,
                         referencedTable:
                             $$SectionsTableReferences._unitsRefsTable(db),
@@ -2914,10 +3535,11 @@ final class $$UnitsTableReferences
   static $SectionsTable _sectionIdTable(_$CourseDatabase db) => db.sections
       .createAlias($_aliasNameGenerator(db.units.sectionId, db.sections.id));
 
-  $$SectionsTableProcessedTableManager? get sectionId {
-    if ($_item.sectionId == null) return null;
+  $$SectionsTableProcessedTableManager get sectionId {
+    final $_column = $_itemColumn<String>('section_id')!;
+
     final manager = $$SectionsTableTableManager($_db, $_db.sections)
-        .filter((f) => f.id($_item.sectionId!));
+        .filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_sectionIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
@@ -2931,7 +3553,7 @@ final class $$UnitsTableReferences
 
   $$LessonsTableProcessedTableManager get lessonsRefs {
     final manager = $$LessonsTableTableManager($_db, $_db.lessons)
-        .filter((f) => f.unitId.id($_item.id));
+        .filter((f) => f.unitId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_lessonsRefsTable($_db));
     return ProcessedTableManager(
@@ -3212,7 +3834,7 @@ class $$UnitsTableTableManager extends RootTableManager<
               getPrefetchedDataCallback: (items) async {
                 return [
                   if (lessonsRefs)
-                    await $_getPrefetchedData(
+                    await $_getPrefetchedData<Unit, $UnitsTable, Lesson>(
                         currentTable: table,
                         referencedTable:
                             $$UnitsTableReferences._lessonsRefsTable(db),
@@ -3271,10 +3893,11 @@ final class $$LessonsTableReferences
   static $UnitsTable _unitIdTable(_$CourseDatabase db) => db.units
       .createAlias($_aliasNameGenerator(db.lessons.unitId, db.units.id));
 
-  $$UnitsTableProcessedTableManager? get unitId {
-    if ($_item.unitId == null) return null;
+  $$UnitsTableProcessedTableManager get unitId {
+    final $_column = $_itemColumn<String>('unit_id')!;
+
     final manager = $$UnitsTableTableManager($_db, $_db.units)
-        .filter((f) => f.id($_item.unitId!));
+        .filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_unitIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
@@ -3289,7 +3912,7 @@ final class $$LessonsTableReferences
 
   $$LessonContentsTableProcessedTableManager get lessonContentsRefs {
     final manager = $$LessonContentsTableTableManager($_db, $_db.lessonContents)
-        .filter((f) => f.lessonId.id($_item.id));
+        .filter((f) => f.lessonId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_lessonContentsRefsTable($_db));
     return ProcessedTableManager(
@@ -3599,7 +4222,8 @@ class $$LessonsTableTableManager extends RootTableManager<
               getPrefetchedDataCallback: (items) async {
                 return [
                   if (lessonContentsRefs)
-                    await $_getPrefetchedData(
+                    await $_getPrefetchedData<Lesson, $LessonsTable,
+                            LessonContent>(
                         currentTable: table,
                         referencedTable: $$LessonsTableReferences
                             ._lessonContentsRefsTable(db),
@@ -3651,10 +4275,11 @@ final class $$LessonContentsTableReferences extends BaseReferences<
       db.lessons.createAlias(
           $_aliasNameGenerator(db.lessonContents.lessonId, db.lessons.id));
 
-  $$LessonsTableProcessedTableManager? get lessonId {
-    if ($_item.lessonId == null) return null;
+  $$LessonsTableProcessedTableManager get lessonId {
+    final $_column = $_itemColumn<String>('lesson_id')!;
+
     final manager = $$LessonsTableTableManager($_db, $_db.lessons)
-        .filter((f) => f.id($_item.lessonId!));
+        .filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_lessonIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
@@ -4556,6 +5181,270 @@ typedef $$ExpressionsTableProcessedTableManager = ProcessedTableManager<
     ),
     ExpressionEntry,
     PrefetchHooks Function()>;
+typedef $$AnkiImportsTableCreateCompanionBuilder = AnkiImportsCompanion
+    Function({
+  required String importId,
+  required String sourcePath,
+  required String sourceHash,
+  required int importedAt,
+  Value<int> deckCount,
+  Value<int> noteCount,
+  Value<int> cardCount,
+  Value<int> mediaCount,
+  Value<String> notetypesJson,
+  Value<bool> aiEnhanced,
+  Value<int> version,
+  Value<int> rowid,
+});
+typedef $$AnkiImportsTableUpdateCompanionBuilder = AnkiImportsCompanion
+    Function({
+  Value<String> importId,
+  Value<String> sourcePath,
+  Value<String> sourceHash,
+  Value<int> importedAt,
+  Value<int> deckCount,
+  Value<int> noteCount,
+  Value<int> cardCount,
+  Value<int> mediaCount,
+  Value<String> notetypesJson,
+  Value<bool> aiEnhanced,
+  Value<int> version,
+  Value<int> rowid,
+});
+
+class $$AnkiImportsTableFilterComposer
+    extends Composer<_$CourseDatabase, $AnkiImportsTable> {
+  $$AnkiImportsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get importId => $composableBuilder(
+      column: $table.importId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sourcePath => $composableBuilder(
+      column: $table.sourcePath, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sourceHash => $composableBuilder(
+      column: $table.sourceHash, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get importedAt => $composableBuilder(
+      column: $table.importedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get deckCount => $composableBuilder(
+      column: $table.deckCount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get noteCount => $composableBuilder(
+      column: $table.noteCount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get cardCount => $composableBuilder(
+      column: $table.cardCount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get mediaCount => $composableBuilder(
+      column: $table.mediaCount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get notetypesJson => $composableBuilder(
+      column: $table.notetypesJson, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get aiEnhanced => $composableBuilder(
+      column: $table.aiEnhanced, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get version => $composableBuilder(
+      column: $table.version, builder: (column) => ColumnFilters(column));
+}
+
+class $$AnkiImportsTableOrderingComposer
+    extends Composer<_$CourseDatabase, $AnkiImportsTable> {
+  $$AnkiImportsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get importId => $composableBuilder(
+      column: $table.importId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sourcePath => $composableBuilder(
+      column: $table.sourcePath, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sourceHash => $composableBuilder(
+      column: $table.sourceHash, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get importedAt => $composableBuilder(
+      column: $table.importedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get deckCount => $composableBuilder(
+      column: $table.deckCount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get noteCount => $composableBuilder(
+      column: $table.noteCount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get cardCount => $composableBuilder(
+      column: $table.cardCount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get mediaCount => $composableBuilder(
+      column: $table.mediaCount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get notetypesJson => $composableBuilder(
+      column: $table.notetypesJson,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get aiEnhanced => $composableBuilder(
+      column: $table.aiEnhanced, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get version => $composableBuilder(
+      column: $table.version, builder: (column) => ColumnOrderings(column));
+}
+
+class $$AnkiImportsTableAnnotationComposer
+    extends Composer<_$CourseDatabase, $AnkiImportsTable> {
+  $$AnkiImportsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get importId =>
+      $composableBuilder(column: $table.importId, builder: (column) => column);
+
+  GeneratedColumn<String> get sourcePath => $composableBuilder(
+      column: $table.sourcePath, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceHash => $composableBuilder(
+      column: $table.sourceHash, builder: (column) => column);
+
+  GeneratedColumn<int> get importedAt => $composableBuilder(
+      column: $table.importedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get deckCount =>
+      $composableBuilder(column: $table.deckCount, builder: (column) => column);
+
+  GeneratedColumn<int> get noteCount =>
+      $composableBuilder(column: $table.noteCount, builder: (column) => column);
+
+  GeneratedColumn<int> get cardCount =>
+      $composableBuilder(column: $table.cardCount, builder: (column) => column);
+
+  GeneratedColumn<int> get mediaCount => $composableBuilder(
+      column: $table.mediaCount, builder: (column) => column);
+
+  GeneratedColumn<String> get notetypesJson => $composableBuilder(
+      column: $table.notetypesJson, builder: (column) => column);
+
+  GeneratedColumn<bool> get aiEnhanced => $composableBuilder(
+      column: $table.aiEnhanced, builder: (column) => column);
+
+  GeneratedColumn<int> get version =>
+      $composableBuilder(column: $table.version, builder: (column) => column);
+}
+
+class $$AnkiImportsTableTableManager extends RootTableManager<
+    _$CourseDatabase,
+    $AnkiImportsTable,
+    AnkiImport,
+    $$AnkiImportsTableFilterComposer,
+    $$AnkiImportsTableOrderingComposer,
+    $$AnkiImportsTableAnnotationComposer,
+    $$AnkiImportsTableCreateCompanionBuilder,
+    $$AnkiImportsTableUpdateCompanionBuilder,
+    (
+      AnkiImport,
+      BaseReferences<_$CourseDatabase, $AnkiImportsTable, AnkiImport>
+    ),
+    AnkiImport,
+    PrefetchHooks Function()> {
+  $$AnkiImportsTableTableManager(_$CourseDatabase db, $AnkiImportsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AnkiImportsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AnkiImportsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AnkiImportsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> importId = const Value.absent(),
+            Value<String> sourcePath = const Value.absent(),
+            Value<String> sourceHash = const Value.absent(),
+            Value<int> importedAt = const Value.absent(),
+            Value<int> deckCount = const Value.absent(),
+            Value<int> noteCount = const Value.absent(),
+            Value<int> cardCount = const Value.absent(),
+            Value<int> mediaCount = const Value.absent(),
+            Value<String> notetypesJson = const Value.absent(),
+            Value<bool> aiEnhanced = const Value.absent(),
+            Value<int> version = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AnkiImportsCompanion(
+            importId: importId,
+            sourcePath: sourcePath,
+            sourceHash: sourceHash,
+            importedAt: importedAt,
+            deckCount: deckCount,
+            noteCount: noteCount,
+            cardCount: cardCount,
+            mediaCount: mediaCount,
+            notetypesJson: notetypesJson,
+            aiEnhanced: aiEnhanced,
+            version: version,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String importId,
+            required String sourcePath,
+            required String sourceHash,
+            required int importedAt,
+            Value<int> deckCount = const Value.absent(),
+            Value<int> noteCount = const Value.absent(),
+            Value<int> cardCount = const Value.absent(),
+            Value<int> mediaCount = const Value.absent(),
+            Value<String> notetypesJson = const Value.absent(),
+            Value<bool> aiEnhanced = const Value.absent(),
+            Value<int> version = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AnkiImportsCompanion.insert(
+            importId: importId,
+            sourcePath: sourcePath,
+            sourceHash: sourceHash,
+            importedAt: importedAt,
+            deckCount: deckCount,
+            noteCount: noteCount,
+            cardCount: cardCount,
+            mediaCount: mediaCount,
+            notetypesJson: notetypesJson,
+            aiEnhanced: aiEnhanced,
+            version: version,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$AnkiImportsTableProcessedTableManager = ProcessedTableManager<
+    _$CourseDatabase,
+    $AnkiImportsTable,
+    AnkiImport,
+    $$AnkiImportsTableFilterComposer,
+    $$AnkiImportsTableOrderingComposer,
+    $$AnkiImportsTableAnnotationComposer,
+    $$AnkiImportsTableCreateCompanionBuilder,
+    $$AnkiImportsTableUpdateCompanionBuilder,
+    (
+      AnkiImport,
+      BaseReferences<_$CourseDatabase, $AnkiImportsTable, AnkiImport>
+    ),
+    AnkiImport,
+    PrefetchHooks Function()>;
 
 class $CourseDatabaseManager {
   final _$CourseDatabase _db;
@@ -4576,4 +5465,6 @@ class $CourseDatabaseManager {
       $$CourseMetaTableTableManager(_db, _db.courseMeta);
   $$ExpressionsTableTableManager get expressions =>
       $$ExpressionsTableTableManager(_db, _db.expressions);
+  $$AnkiImportsTableTableManager get ankiImports =>
+      $$AnkiImportsTableTableManager(_db, _db.ankiImports);
 }

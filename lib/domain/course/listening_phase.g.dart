@@ -6,8 +6,8 @@ part of 'listening_phase.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-_$ListeningPhaseImpl _$$ListeningPhaseImplFromJson(Map<String, dynamic> json) =>
-    _$ListeningPhaseImpl(
+_ListeningPhase _$ListeningPhaseFromJson(Map<String, dynamic> json) =>
+    _ListeningPhase(
       id: json['id'] as String,
       name: json['name'] as String,
       type: $enumDecodeNullable(_$ListeningPhaseTypeEnumMap, json['type']) ??
@@ -20,8 +20,7 @@ _$ListeningPhaseImpl _$$ListeningPhaseImplFromJson(Map<String, dynamic> json) =>
           const <Interaction>[],
     );
 
-Map<String, dynamic> _$$ListeningPhaseImplToJson(
-        _$ListeningPhaseImpl instance) =>
+Map<String, dynamic> _$ListeningPhaseToJson(_ListeningPhase instance) =>
     <String, dynamic>{
       'id': instance.id,
       'name': instance.name,

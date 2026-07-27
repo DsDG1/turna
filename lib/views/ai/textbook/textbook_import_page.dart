@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import 'package:varnamala/application/ai/ai_course_provider.dart';
 import 'package:varnamala/application/ai/textbook/knowledge_merger.dart';
 import 'package:varnamala/application/ai/textbook/textbook_import_provider.dart';
+import 'package:varnamala/l10n/app_localizations.dart';
 import 'package:varnamala/views/theme.dart';
 
 @RoutePage()
@@ -45,13 +46,13 @@ class _TextbookImportPageState extends State<TextbookImportPage> {
     await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('AI not configured'),
-        content: const Text(
-            'Please fill in Base URL / API Key / Model under Settings → AI API Configuration first.'),
+        title: Text(AppLocalizations.of(context)!.aiNotConfiguredTitle),
+        content: Text(
+            AppLocalizations.of(context)!.aiTextbookNotConfiguredMessage),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+            child: Text(AppLocalizations.of(context)!.commonOk),
           ),
         ],
       ),
@@ -63,7 +64,7 @@ class _TextbookImportPageState extends State<TextbookImportPage> {
     return Scaffold(
       backgroundColor: VarnamalaTheme.scaffoldBg(context),
       appBar: AppBar(
-        title: const Text('Import from Textbook'),
+        title: Text(AppLocalizations.of(context)!.aiTextbookImportTitle),
         backgroundColor: VarnamalaTheme.bottomNavBg(context),
       ),
       body: SafeArea(
@@ -95,11 +96,11 @@ class _TextbookImportPageState extends State<TextbookImportPage> {
           children: [
             Expanded(
               child: DropdownButtonFormField<String>(
-                initialValue: provider.language,
-                decoration: const InputDecoration(
-                  labelText: 'Target language',
+                value: provider.language,
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(context)!.aiTextbookTargetLanguageLabel,
                   isDense: true,
-                  border: OutlineInputBorder(),
+                  border: const OutlineInputBorder(),
                 ),
                 items: ['Turkish', 'English', 'Spanish']
                     .map((l) => DropdownMenuItem(value: l, child: Text(l)))
@@ -110,11 +111,11 @@ class _TextbookImportPageState extends State<TextbookImportPage> {
             const SizedBox(width: 8),
             Expanded(
               child: DropdownButtonFormField<String>(
-                initialValue: provider.sourceLanguage,
-                decoration: const InputDecoration(
-                  labelText: 'Source language',
+                value: provider.sourceLanguage,
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(context)!.aiTextbookSourceLanguageLabel,
                   isDense: true,
-                  border: OutlineInputBorder(),
+                  border: const OutlineInputBorder(),
                 ),
                 items: ['Chinese', 'English']
                     .map((l) => DropdownMenuItem(value: l, child: Text(l)))
@@ -125,11 +126,11 @@ class _TextbookImportPageState extends State<TextbookImportPage> {
             const SizedBox(width: 8),
             Expanded(
               child: DropdownButtonFormField<String>(
-                initialValue: provider.level,
-                decoration: const InputDecoration(
-                  labelText: 'Level',
+                value: provider.level,
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(context)!.aiTextbookLevelLabel,
                   isDense: true,
-                  border: OutlineInputBorder(),
+                  border: const OutlineInputBorder(),
                 ),
                 items: ['A1', 'A2', 'B1', 'B2']
                     .map((l) => DropdownMenuItem(value: l, child: Text(l)))
@@ -141,11 +142,11 @@ class _TextbookImportPageState extends State<TextbookImportPage> {
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<ImportStrategy>(
-          initialValue: provider.strategy,
-          decoration: const InputDecoration(
-            labelText: 'Import strategy',
+          value: provider.strategy,
+          decoration: InputDecoration(
+            labelText: AppLocalizations.of(context)!.aiTextbookImportStrategyLabel,
             isDense: true,
-            border: OutlineInputBorder(),
+            border: const OutlineInputBorder(),
           ),
           items: ImportStrategy.values
               .map((s) => DropdownMenuItem(
@@ -164,11 +165,11 @@ class _TextbookImportPageState extends State<TextbookImportPage> {
       case TextbookImportStep.pick:
         return _pickStep(provider);
       case TextbookImportStep.parse:
-        return _loadingStep('Parsing file…');
+        return _loadingStep(AppLocalizations.of(context)!.aiTextbookParsing);
       case TextbookImportStep.chapters:
         return _chaptersStep(provider);
       case TextbookImportStep.extract:
-        return _loadingStep('Extracting knowledge…');
+        return _loadingStep(AppLocalizations.of(context)!.aiTextbookExtracting);
       case TextbookImportStep.review:
         return _reviewStep(provider);
       case TextbookImportStep.importDone:
@@ -182,7 +183,7 @@ class _TextbookImportPageState extends State<TextbookImportPage> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            'Pick a markdown or text file to import as course sections.',
+            AppLocalizations.of(context)!.aiTextbookPickPrompt,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium,
           ),
@@ -190,11 +191,11 @@ class _TextbookImportPageState extends State<TextbookImportPage> {
           FilledButton.icon(
             onPressed: provider.isBusy ? null : provider.pickFile,
             icon: const Icon(Icons.file_open),
-            label: const Text('Pick file'),
+            label: Text(AppLocalizations.of(context)!.aiTextbookPickFile),
           ),
           if (provider.fileName.isNotEmpty) ...[
             const SizedBox(height: 8),
-            Text('Selected: ${provider.fileName}'),
+            Text(AppLocalizations.of(context)!.aiTextbookSelected(provider.fileName)),
           ],
         ],
       ),
@@ -219,7 +220,7 @@ class _TextbookImportPageState extends State<TextbookImportPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Review chapters',
+          AppLocalizations.of(context)!.aiTextbookReviewChapters,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
@@ -235,7 +236,7 @@ class _TextbookImportPageState extends State<TextbookImportPage> {
                 onChanged: (v) => provider.setChapterKept(i, v ?? true),
                 title: Text(r.chapter.title),
                 subtitle: Text(
-                  '${r.chapter.markdown.length} chars',
+                  AppLocalizations.of(context)!.aiTextbookChapterChars(r.chapter.markdown.length),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               );
@@ -252,7 +253,7 @@ class _TextbookImportPageState extends State<TextbookImportPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Review extracted knowledge',
+          AppLocalizations.of(context)!.aiTextbookReviewKnowledge,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
@@ -278,13 +279,13 @@ class _TextbookImportPageState extends State<TextbookImportPage> {
                       ),
                       if (r.error != null)
                         Text(
-                          'Error: ${r.error}',
+                          AppLocalizations.of(context)!.aiTextbookErrorFooter(r.error!),
                           style: const TextStyle(color: VarnamalaTheme.error),
                         ),
                       if (k != null) ...[
-                        Text('Words: ${k.words.length}'),
-                        Text('Expressions: ${k.expressions.length}'),
-                        Text('Grammar: ${k.grammarPoints.length}'),
+                        Text(AppLocalizations.of(context)!.aiTextbookWords(k.words.length)),
+                        Text(AppLocalizations.of(context)!.aiTextbookExpressions(k.expressions.length)),
+                        Text(AppLocalizations.of(context)!.aiTextbookGrammar(k.grammarPoints.length)),
                       ],
                     ],
                   ),
@@ -305,11 +306,11 @@ class _TextbookImportPageState extends State<TextbookImportPage> {
           const Icon(Icons.check_circle,
               color: VarnamalaTheme.success, size: 64),
           const SizedBox(height: 16),
-          const Text('Import complete!'),
+          Text(AppLocalizations.of(context)!.aiTextbookImportComplete),
           const SizedBox(height: 16),
           FilledButton(
             onPressed: () => context.router.maybePop(),
-            child: const Text('Done'),
+            child: Text(AppLocalizations.of(context)!.commonDone),
           ),
         ],
       ),
@@ -326,7 +327,7 @@ class _TextbookImportPageState extends State<TextbookImportPage> {
           borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
         ),
         child: Text(
-          'Error: ${provider.error}',
+          AppLocalizations.of(context)!.aiTextbookErrorFooter(provider.error!),
           style: const TextStyle(color: VarnamalaTheme.error),
         ),
       );
@@ -337,13 +338,13 @@ class _TextbookImportPageState extends State<TextbookImportPage> {
         return FilledButton.icon(
           onPressed: provider.isBusy ? null : _onExtract,
           icon: const Icon(Icons.auto_awesome),
-          label: const Text('Extract knowledge'),
+          label: Text(AppLocalizations.of(context)!.aiTextbookExtractKnowledge),
         );
       case TextbookImportStep.review:
         return FilledButton.icon(
           onPressed: provider.isBusy ? null : _onImport,
           icon: const Icon(Icons.save),
-          label: const Text('Import sections'),
+          label: Text(AppLocalizations.of(context)!.aiTextbookImportSections),
         );
       default:
         return const SizedBox.shrink();

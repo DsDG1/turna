@@ -1,0 +1,10 @@
+schema_version: 1
+module_path: tests
+title: 全量测试套件（Flutter 单测、Golden 截图、Python CLI/工具测试）
+scope:
+    - test/
+source_files: []
+depends_on: []
+related_to:
+    - path: cli_tools
+    - path: flutter_app

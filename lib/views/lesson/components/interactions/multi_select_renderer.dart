@@ -8,6 +8,7 @@ import 'package:injectable/injectable.dart';
 import 'package:varnamala/core/spacing.dart';
 import 'package:varnamala/core/text_styles.dart';
 import 'package:varnamala/domain/course/interaction.dart';
+import 'package:varnamala/l10n/app_localizations.dart';
 import 'package:varnamala/views/lesson/components/cached_asset_image.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:varnamala/views/theme.dart';
@@ -128,13 +129,14 @@ class _MultiSelectBodyState extends State<_MultiSelectBody> {
     final count = _picked.length;
     final min = widget.minSelections;
     final max = widget.maxSelections;
+    final l10n = AppLocalizations.of(context)!;
     if (max == 2147483647) {
-      return 'Select at least $min ($count selected)';
+      return l10n.lessonSelectAtLeast(min, count);
     }
     if (min == max) {
-      return 'Select $min ($count selected)';
+      return l10n.lessonSelectExact(min, count);
     }
-    return 'Select $min–$max ($count selected)';
+    return l10n.lessonSelectRange(min, max, count);
   }
 
   @override
@@ -146,7 +148,7 @@ class _MultiSelectBodyState extends State<_MultiSelectBody> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SectionCaption('Select all that apply'),
+          SectionCaption(AppLocalizations.of(context)!.lessonSelectAllCaption),
           Text(
             widget.prompt,
             style: AppTextStyles.promptLg(context).copyWith(
@@ -170,7 +172,7 @@ class _MultiSelectBodyState extends State<_MultiSelectBody> {
           ..._buildOptions(submitted, correct),
           const SizedBox(height: 20),
           LessonCheckButton(
-            label: submitted ? 'CHECKED' : 'CHECK',
+            label: submitted ? AppLocalizations.of(context)!.lessonChecked : AppLocalizations.of(context)!.lessonCheck,
             enabled: _canSubmit,
             onPressed: _canSubmit
                 ? () => widget.onSubmit(

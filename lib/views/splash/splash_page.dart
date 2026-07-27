@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 // Project imports:
 import 'package:varnamala/application/language_provider.dart';
 import 'package:varnamala/di/injection.dart';
+import 'package:varnamala/l10n/app_localizations.dart';
 import 'package:varnamala/service/locator.dart';
 import 'package:varnamala/service/tts_availability_checker.dart';
 import 'package:varnamala/views/theme.dart';
@@ -26,7 +27,7 @@ class _SplashPageState extends State<SplashPage> {
   @override
   void initState() {
     super.initState();
-    if (!kIsWeb) {
+    if (!kIsWeb && defaultTargetPlatform != TargetPlatform.ohos) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _checkTtsAvailability());
     }
   }
@@ -53,25 +54,19 @@ class _SplashPageState extends State<SplashPage> {
 
     final diag = await checker.diagnose(languageCode);
     if (!mounted) return;
+    final l10n = AppLocalizations.of(context)!;
     final (title, body) = switch (diag.preferredStatus) {
       TtsPreferredStatus.turkishVoiceMissing => (
-          'Turkish voice data missing',
-          'Google Text-to-speech is installed, but the Turkish voice pack '
-              'is not downloaded yet.\n\n'
-              'Open system TTS settings → preferred engine = Google → '
-              'install language data for Turkish (Türkçe).',
+          l10n.splashTurkishVoiceMissingTitle,
+          l10n.splashTurkishVoiceMissingBody,
         ),
       TtsPreferredStatus.googleMissing => (
-          'Google TTS not available',
-          'This device does not show Google Text-to-speech '
-              '(or package visibility blocked engine discovery).\n\n'
-              'Install "Speech Recognition & Synthesis from Google", set it '
-              'as the preferred engine, and download the Turkish voice.',
+          l10n.splashGoogleTtsMissingTitle,
+          l10n.splashGoogleTtsMissingBody,
         ),
       TtsPreferredStatus.ready => (
-          'Google TTS not available',
-          'Preferred system voice is not ready. Install Google TTS and '
-              'the Turkish voice pack.',
+          l10n.splashGoogleTtsNotReadyTitle,
+          l10n.splashGoogleTtsNotReadyBody,
         ),
     };
 
@@ -85,17 +80,17 @@ class _SplashPageState extends State<SplashPage> {
           TextButton(
             onPressed: () =>
                 Navigator.of(context).pop(_GoogleTtsPromptAction.keepSystem),
-            child: const Text('Keep current voice'),
+            child: Text(l10n.splashKeepCurrentVoice),
           ),
           TextButton(
             onPressed: () =>
                 Navigator.of(context).pop(_GoogleTtsPromptAction.openSettings),
-            child: const Text('TTS settings'),
+            child: Text(l10n.splashTtsSettings),
           ),
           TextButton(
             onPressed: () =>
                 Navigator.of(context).pop(_GoogleTtsPromptAction.installGoogle),
-            child: const Text('Install Google TTS'),
+            child: Text(l10n.splashInstallGoogleTts),
           ),
         ],
       ),
@@ -113,9 +108,9 @@ class _SplashPageState extends State<SplashPage> {
         final opened = await checker.openGoogleTtsInstallPage();
         if (!opened && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
               content: Text(
-                'Could not open the store. Install Google TTS manually.',
+                l10n.splashCouldNotOpenStore,
               ),
             ),
           );

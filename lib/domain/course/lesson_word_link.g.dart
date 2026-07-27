@@ -6,8 +6,8 @@ part of 'lesson_word_link.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-_$LessonWordLinkImpl _$$LessonWordLinkImplFromJson(Map<String, dynamic> json) =>
-    _$LessonWordLinkImpl(
+_LessonWordLink _$LessonWordLinkFromJson(Map<String, dynamic> json) =>
+    _LessonWordLink(
       wordId: json['wordId'] as String,
       lessonId: json['lessonId'] as String,
       lessonName: json['lessonName'] as String,
@@ -16,8 +16,7 @@ _$LessonWordLinkImpl _$$LessonWordLinkImplFromJson(Map<String, dynamic> json) =>
       firstSeenAt: DateTime.parse(json['firstSeenAt'] as String),
     );
 
-Map<String, dynamic> _$$LessonWordLinkImplToJson(
-        _$LessonWordLinkImpl instance) =>
+Map<String, dynamic> _$LessonWordLinkToJson(_LessonWordLink instance) =>
     <String, dynamic>{
       'wordId': instance.wordId,
       'lessonId': instance.lessonId,

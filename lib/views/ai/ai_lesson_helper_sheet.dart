@@ -9,6 +9,7 @@ import 'package:varnamala/application/ai/ai_course_provider.dart';
 import 'package:varnamala/application/ai/ai_lesson_helper_provider.dart';
 import 'package:varnamala/application/lesson_viewmodel.dart';
 import 'package:varnamala/domain/course/lesson.dart';
+import 'package:varnamala/l10n/app_localizations.dart';
 import 'package:varnamala/views/theme.dart';
 
 /// Bottom sheet for editing the current lesson with AI.
@@ -59,7 +60,7 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
       transformed = Lesson.fromJson(resultJson);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Invalid lesson JSON: $e')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.aiLessonHelperInvalidJson(e))),
       );
       return;
     }
@@ -69,7 +70,7 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
       await courseProvider.updateLessonInDb(transformed);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lesson updated.')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.aiLessonHelperLessonUpdated)),
       );
       Navigator.of(context).maybePop();
       // Ask the lesson viewmodel to reload so the new content appears.
@@ -78,7 +79,7 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Update failed: $e')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.aiLessonHelperUpdateFailed(e))),
       );
     }
   }
@@ -115,14 +116,14 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            'AI Lesson Helper',
+            AppLocalizations.of(context)!.aiLessonHelperTitle,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
           ),
         ),
         IconButton(
-          tooltip: 'Close',
+          tooltip: AppLocalizations.of(context)!.commonClose,
           icon: const Icon(Icons.close, size: 22),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
@@ -134,10 +135,10 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
     return TextField(
       controller: _instructionCtrl,
       maxLines: 2,
-      decoration: const InputDecoration(
-        hintText: 'e.g. "Make this easier" or "Add 3 more exercises"',
-        labelText: 'Instruction',
-        border: OutlineInputBorder(),
+      decoration: InputDecoration(
+        hintText: AppLocalizations.of(context)!.aiLessonHelperHint,
+        labelText: AppLocalizations.of(context)!.aiLessonHelperInstructionLabel,
+        border: const OutlineInputBorder(),
         isDense: true,
       ),
     );
@@ -194,7 +195,9 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
                     BorderRadius.circular(VarnamalaTheme.radiusMedium),
               ),
               child: Text(
-                'Something went wrong: ${error ?? 'Unknown error'}',
+                error != null
+                    ? AppLocalizations.of(context)!.aiLessonHelperError(error)
+                    : AppLocalizations.of(context)!.aiLessonHelperErrorUnknown,
                 style: const TextStyle(color: VarnamalaTheme.error),
               ),
             );
@@ -223,7 +226,7 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Preview',
+              AppLocalizations.of(context)!.aiLessonHelperPreviewTitle,
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -233,7 +236,7 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
               Text(explanation),
             ] else ...[
               const SizedBox(height: 8),
-              const Text('Transformation ready. Tap Apply to update the lesson.'),
+              Text(AppLocalizations.of(context)!.aiLessonHelperTransformationReady),
             ],
           ],
         ),
@@ -255,7 +258,7 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
               child: FilledButton.icon(
                 onPressed: busy ? null : _onTransform,
                 icon: const Icon(Icons.auto_awesome),
-                label: const Text('Transform'),
+                label: Text(AppLocalizations.of(context)!.aiLessonHelperTransform),
               ),
             ),
             if (ready) ...[
@@ -266,7 +269,7 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
                       ? null
                       : _onApply,
                   icon: const Icon(Icons.check),
-                  label: const Text('Apply'),
+                  label: Text(AppLocalizations.of(context)!.commonApply),
                 ),
               ),
             ],

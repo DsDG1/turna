@@ -1,0 +1,8 @@
+schema_version: 1
+module_path: platform_linux
+title: Linux 原生宿主应用（GTK + Flutter）
+scope:
+    - linux/
+source_files: []
+depends_on: []
+related_to: []

@@ -6,8 +6,7 @@ part of 'interaction.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-_$ShowWordImpl _$$ShowWordImplFromJson(Map<String, dynamic> json) =>
-    _$ShowWordImpl(
+ShowWord _$ShowWordFromJson(Map<String, dynamic> json) => ShowWord(
       id: json['id'] as String? ?? '',
       wordId: json['wordId'] as String,
       context: json['context'] as String?,
@@ -16,8 +15,7 @@ _$ShowWordImpl _$$ShowWordImplFromJson(Map<String, dynamic> json) =>
       $type: json['runtimeType'] as String?,
     );
 
-Map<String, dynamic> _$$ShowWordImplToJson(_$ShowWordImpl instance) =>
-    <String, dynamic>{
+Map<String, dynamic> _$ShowWordToJson(ShowWord instance) => <String, dynamic>{
       'id': instance.id,
       'wordId': instance.wordId,
       'context': instance.context,
@@ -26,8 +24,8 @@ Map<String, dynamic> _$$ShowWordImplToJson(_$ShowWordImpl instance) =>
       'runtimeType': instance.$type,
     };
 
-_$MultipleChoiceImpl _$$MultipleChoiceImplFromJson(Map<String, dynamic> json) =>
-    _$MultipleChoiceImpl(
+MultipleChoice _$MultipleChoiceFromJson(Map<String, dynamic> json) =>
+    MultipleChoice(
       id: json['id'] as String? ?? '',
       prompt: json['prompt'] as String,
       options:
@@ -38,8 +36,7 @@ _$MultipleChoiceImpl _$$MultipleChoiceImplFromJson(Map<String, dynamic> json) =>
       $type: json['runtimeType'] as String?,
     );
 
-Map<String, dynamic> _$$MultipleChoiceImplToJson(
-        _$MultipleChoiceImpl instance) =>
+Map<String, dynamic> _$MultipleChoiceToJson(MultipleChoice instance) =>
     <String, dynamic>{
       'id': instance.id,
       'prompt': instance.prompt,
@@ -50,8 +47,7 @@ Map<String, dynamic> _$$MultipleChoiceImplToJson(
       'runtimeType': instance.$type,
     };
 
-_$MultiSelectImpl _$$MultiSelectImplFromJson(Map<String, dynamic> json) =>
-    _$MultiSelectImpl(
+MultiSelect _$MultiSelectFromJson(Map<String, dynamic> json) => MultiSelect(
       id: json['id'] as String? ?? '',
       prompt: json['prompt'] as String,
       options:
@@ -66,7 +62,7 @@ _$MultiSelectImpl _$$MultiSelectImplFromJson(Map<String, dynamic> json) =>
       $type: json['runtimeType'] as String?,
     );
 
-Map<String, dynamic> _$$MultiSelectImplToJson(_$MultiSelectImpl instance) =>
+Map<String, dynamic> _$MultiSelectToJson(MultiSelect instance) =>
     <String, dynamic>{
       'id': instance.id,
       'prompt': instance.prompt,
@@ -79,8 +75,7 @@ Map<String, dynamic> _$$MultiSelectImplToJson(_$MultiSelectImpl instance) =>
       'runtimeType': instance.$type,
     };
 
-_$FillBlankImpl _$$FillBlankImplFromJson(Map<String, dynamic> json) =>
-    _$FillBlankImpl(
+FillBlank _$FillBlankFromJson(Map<String, dynamic> json) => FillBlank(
       id: json['id'] as String? ?? '',
       sentence: json['sentence'] as String,
       answer: json['answer'] as String,
@@ -89,8 +84,7 @@ _$FillBlankImpl _$$FillBlankImplFromJson(Map<String, dynamic> json) =>
       $type: json['runtimeType'] as String?,
     );
 
-Map<String, dynamic> _$$FillBlankImplToJson(_$FillBlankImpl instance) =>
-    <String, dynamic>{
+Map<String, dynamic> _$FillBlankToJson(FillBlank instance) => <String, dynamic>{
       'id': instance.id,
       'sentence': instance.sentence,
       'answer': instance.answer,
@@ -99,9 +93,8 @@ Map<String, dynamic> _$$FillBlankImplToJson(_$FillBlankImpl instance) =>
       'runtimeType': instance.$type,
     };
 
-_$TranslateSentenceImpl _$$TranslateSentenceImplFromJson(
-        Map<String, dynamic> json) =>
-    _$TranslateSentenceImpl(
+TranslateSentence _$TranslateSentenceFromJson(Map<String, dynamic> json) =>
+    TranslateSentence(
       id: json['id'] as String? ?? '',
       source: json['source'] as String,
       expected: json['expected'] as String,
@@ -112,8 +105,7 @@ _$TranslateSentenceImpl _$$TranslateSentenceImplFromJson(
       $type: json['runtimeType'] as String?,
     );
 
-Map<String, dynamic> _$$TranslateSentenceImplToJson(
-        _$TranslateSentenceImpl instance) =>
+Map<String, dynamic> _$TranslateSentenceToJson(TranslateSentence instance) =>
     <String, dynamic>{
       'id': instance.id,
       'source': instance.source,
@@ -123,8 +115,8 @@ Map<String, dynamic> _$$TranslateSentenceImplToJson(
       'runtimeType': instance.$type,
     };
 
-_$ListenAndPickImpl _$$ListenAndPickImplFromJson(Map<String, dynamic> json) =>
-    _$ListenAndPickImpl(
+ListenAndPick _$ListenAndPickFromJson(Map<String, dynamic> json) =>
+    ListenAndPick(
       id: json['id'] as String? ?? '',
       audioAsset: json['audioAsset'] as String,
       prompt: json['prompt'] as String,
@@ -135,7 +127,7 @@ _$ListenAndPickImpl _$$ListenAndPickImplFromJson(Map<String, dynamic> json) =>
       $type: json['runtimeType'] as String?,
     );
 
-Map<String, dynamic> _$$ListenAndPickImplToJson(_$ListenAndPickImpl instance) =>
+Map<String, dynamic> _$ListenAndPickToJson(ListenAndPick instance) =>
     <String, dynamic>{
       'id': instance.id,
       'audioAsset': instance.audioAsset,
@@ -146,8 +138,7 @@ Map<String, dynamic> _$$ListenAndPickImplToJson(_$ListenAndPickImpl instance) =>
       'runtimeType': instance.$type,
     };
 
-_$TypeTheWordImpl _$$TypeTheWordImplFromJson(Map<String, dynamic> json) =>
-    _$TypeTheWordImpl(
+TypeTheWord _$TypeTheWordFromJson(Map<String, dynamic> json) => TypeTheWord(
       id: json['id'] as String? ?? '',
       audioAsset: json['audioAsset'] as String,
       prompt: json['prompt'] as String,
@@ -156,7 +147,7 @@ _$TypeTheWordImpl _$$TypeTheWordImplFromJson(Map<String, dynamic> json) =>
       $type: json['runtimeType'] as String?,
     );
 
-Map<String, dynamic> _$$TypeTheWordImplToJson(_$TypeTheWordImpl instance) =>
+Map<String, dynamic> _$TypeTheWordToJson(TypeTheWord instance) =>
     <String, dynamic>{
       'id': instance.id,
       'audioAsset': instance.audioAsset,
@@ -166,8 +157,7 @@ Map<String, dynamic> _$$TypeTheWordImplToJson(_$TypeTheWordImpl instance) =>
       'runtimeType': instance.$type,
     };
 
-_$ListenOnlyImpl _$$ListenOnlyImplFromJson(Map<String, dynamic> json) =>
-    _$ListenOnlyImpl(
+ListenOnly _$ListenOnlyFromJson(Map<String, dynamic> json) => ListenOnly(
       id: json['id'] as String? ?? '',
       audioAsset: json['audioAsset'] as String?,
       transcript: json['transcript'] as String? ?? '',
@@ -176,7 +166,7 @@ _$ListenOnlyImpl _$$ListenOnlyImplFromJson(Map<String, dynamic> json) =>
       $type: json['runtimeType'] as String?,
     );
 
-Map<String, dynamic> _$$ListenOnlyImplToJson(_$ListenOnlyImpl instance) =>
+Map<String, dynamic> _$ListenOnlyToJson(ListenOnly instance) =>
     <String, dynamic>{
       'id': instance.id,
       'audioAsset': instance.audioAsset,
@@ -186,9 +176,8 @@ Map<String, dynamic> _$$ListenOnlyImplToJson(_$ListenOnlyImpl instance) =>
       'runtimeType': instance.$type,
     };
 
-_$ReorderSentenceImpl _$$ReorderSentenceImplFromJson(
-        Map<String, dynamic> json) =>
-    _$ReorderSentenceImpl(
+ReorderSentence _$ReorderSentenceFromJson(Map<String, dynamic> json) =>
+    ReorderSentence(
       id: json['id'] as String? ?? '',
       scrambled:
           (json['scrambled'] as List<dynamic>).map((e) => e as String).toList(),
@@ -198,8 +187,7 @@ _$ReorderSentenceImpl _$$ReorderSentenceImplFromJson(
       $type: json['runtimeType'] as String?,
     );
 
-Map<String, dynamic> _$$ReorderSentenceImplToJson(
-        _$ReorderSentenceImpl instance) =>
+Map<String, dynamic> _$ReorderSentenceToJson(ReorderSentence instance) =>
     <String, dynamic>{
       'id': instance.id,
       'scrambled': instance.scrambled,
@@ -208,8 +196,7 @@ Map<String, dynamic> _$$ReorderSentenceImplToJson(
       'runtimeType': instance.$type,
     };
 
-_$ReadingMcqImpl _$$ReadingMcqImplFromJson(Map<String, dynamic> json) =>
-    _$ReadingMcqImpl(
+ReadingMcq _$ReadingMcqFromJson(Map<String, dynamic> json) => ReadingMcq(
       id: json['id'] as String? ?? '',
       prompt: json['prompt'] as String,
       options:
@@ -219,7 +206,7 @@ _$ReadingMcqImpl _$$ReadingMcqImplFromJson(Map<String, dynamic> json) =>
       $type: json['runtimeType'] as String?,
     );
 
-Map<String, dynamic> _$$ReadingMcqImplToJson(_$ReadingMcqImpl instance) =>
+Map<String, dynamic> _$ReadingMcqToJson(ReadingMcq instance) =>
     <String, dynamic>{
       'id': instance.id,
       'prompt': instance.prompt,
@@ -229,9 +216,8 @@ Map<String, dynamic> _$$ReadingMcqImplToJson(_$ReadingMcqImpl instance) =>
       'runtimeType': instance.$type,
     };
 
-_$ReadingTrueFalseImpl _$$ReadingTrueFalseImplFromJson(
-        Map<String, dynamic> json) =>
-    _$ReadingTrueFalseImpl(
+ReadingTrueFalse _$ReadingTrueFalseFromJson(Map<String, dynamic> json) =>
+    ReadingTrueFalse(
       id: json['id'] as String? ?? '',
       statement: json['statement'] as String,
       answer: json['answer'] as bool,
@@ -239,8 +225,7 @@ _$ReadingTrueFalseImpl _$$ReadingTrueFalseImplFromJson(
       $type: json['runtimeType'] as String?,
     );
 
-Map<String, dynamic> _$$ReadingTrueFalseImplToJson(
-        _$ReadingTrueFalseImpl instance) =>
+Map<String, dynamic> _$ReadingTrueFalseToJson(ReadingTrueFalse instance) =>
     <String, dynamic>{
       'id': instance.id,
       'statement': instance.statement,
@@ -249,9 +234,8 @@ Map<String, dynamic> _$$ReadingTrueFalseImplToJson(
       'runtimeType': instance.$type,
     };
 
-_$ReadingShortAnswerImpl _$$ReadingShortAnswerImplFromJson(
-        Map<String, dynamic> json) =>
-    _$ReadingShortAnswerImpl(
+ReadingShortAnswer _$ReadingShortAnswerFromJson(Map<String, dynamic> json) =>
+    ReadingShortAnswer(
       id: json['id'] as String? ?? '',
       prompt: json['prompt'] as String,
       expectedAnswer: json['expectedAnswer'] as String,
@@ -259,12 +243,39 @@ _$ReadingShortAnswerImpl _$$ReadingShortAnswerImplFromJson(
       $type: json['runtimeType'] as String?,
     );
 
-Map<String, dynamic> _$$ReadingShortAnswerImplToJson(
-        _$ReadingShortAnswerImpl instance) =>
+Map<String, dynamic> _$ReadingShortAnswerToJson(ReadingShortAnswer instance) =>
     <String, dynamic>{
       'id': instance.id,
       'prompt': instance.prompt,
       'expectedAnswer': instance.expectedAnswer,
       'grammarPointId': instance.grammarPointId,
+      'runtimeType': instance.$type,
+    };
+
+AnkiCard _$AnkiCardFromJson(Map<String, dynamic> json) => AnkiCard(
+      id: json['id'] as String? ?? '',
+      front: json['front'] as String,
+      back: json['back'] as String,
+      audioAssets: (json['audioAssets'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const <String>[],
+      imageAssets: (json['imageAssets'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const <String>[],
+      hint: json['hint'] as String?,
+      sourceNoteId: json['sourceNoteId'] as String?,
+      $type: json['runtimeType'] as String?,
+    );
+
+Map<String, dynamic> _$AnkiCardToJson(AnkiCard instance) => <String, dynamic>{
+      'id': instance.id,
+      'front': instance.front,
+      'back': instance.back,
+      'audioAssets': instance.audioAssets,
+      'imageAssets': instance.imageAssets,
+      'hint': instance.hint,
+      'sourceNoteId': instance.sourceNoteId,
       'runtimeType': instance.$type,
     };

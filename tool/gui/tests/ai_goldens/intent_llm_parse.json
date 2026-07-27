@@ -1,0 +1,27 @@
+[
+  {
+    "raw": "{\"action_id\":\"validate.open_and_fix\",\"confidence\":0.91,\"label\":\"修错\"}",
+    "allowed": ["validate.open_and_fix", "lesson.fill_empty"],
+    "expect_action": "validate.open_and_fix"
+  },
+  {
+    "raw": "```json\n{\"action_id\":\"lesson.fill_empty\",\"confidence\":0.7}\n```",
+    "allowed": ["validate.open_and_fix", "lesson.fill_empty"],
+    "expect_action": "lesson.fill_empty"
+  },
+  {
+    "raw": "{\"action_id\":\"unknown.skill\",\"confidence\":0.99}",
+    "allowed": ["validate.open_and_fix"],
+    "expect_action": null
+  },
+  {
+    "raw": "{\"action_id\":\"validate.open_and_fix\",\"confidence\":0.4}",
+    "allowed": ["validate.open_and_fix"],
+    "expect_action": null
+  },
+  {
+    "raw": "sorry I cannot help",
+    "allowed": ["validate.open_and_fix"],
+    "expect_action": null
+  }
+]

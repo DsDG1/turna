@@ -6,7 +6,7 @@ part 'reading_passage.g.dart';
 
 /// A structured reading passage used by reading lessons.
 @freezed
-class ReadingPassage with _$ReadingPassage {
+abstract class ReadingPassage with _$ReadingPassage {
   const factory ReadingPassage({
     /// Passage title.
     required String title,

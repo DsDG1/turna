@@ -6,8 +6,8 @@ part of 'mistake_entry.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-_$MistakeEntryImpl _$$MistakeEntryImplFromJson(Map<String, dynamic> json) =>
-    _$MistakeEntryImpl(
+_MistakeEntry _$MistakeEntryFromJson(Map<String, dynamic> json) =>
+    _MistakeEntry(
       id: json['id'] as String,
       lessonId: json['lessonId'] as String,
       stageId: json['stageId'] as String,
@@ -23,7 +23,7 @@ _$MistakeEntryImpl _$$MistakeEntryImplFromJson(Map<String, dynamic> json) =>
       rewriteCount: (json['rewriteCount'] as num?)?.toInt() ?? 0,
     );
 
-Map<String, dynamic> _$$MistakeEntryImplToJson(_$MistakeEntryImpl instance) =>
+Map<String, dynamic> _$MistakeEntryToJson(_MistakeEntry instance) =>
     <String, dynamic>{
       'id': instance.id,
       'lessonId': instance.lessonId,

@@ -1,5 +1,5 @@
-// coverage:ignore-file
 // GENERATED CODE - DO NOT MODIFY BY HAND
+// coverage:ignore-file
 // ignore_for_file: type=lint
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
@@ -9,103 +9,74 @@ part of 'reading_passage.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// dart format off
 T _$identity<T>(T value) => value;
-
-final _privateConstructorUsedError = UnsupportedError(
-    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
-
-ReadingPassage _$ReadingPassageFromJson(Map<String, dynamic> json) {
-  return _ReadingPassage.fromJson(json);
-}
 
 /// @nodoc
 mixin _$ReadingPassage {
   /// Passage title.
-  String get title => throw _privateConstructorUsedError;
+  String get title;
 
   /// Paragraphs of the passage.
-  List<String> get paragraphs => throw _privateConstructorUsedError;
+  List<String> get paragraphs;
 
   /// Approximate CEFR difficulty: 1=A1, 2=A2, 3=B1, 4=B2, etc.
-  int get difficulty => throw _privateConstructorUsedError;
+  int get difficulty;
 
   /// IDs of words introduced or highlighted in this passage.
-  List<String> get linkedWordIds => throw _privateConstructorUsedError;
+  List<String> get linkedWordIds;
 
   /// IDs of expressions highlighted in this passage.
-  List<String> get linkedExpressionIds => throw _privateConstructorUsedError;
+  List<String> get linkedExpressionIds;
 
-  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
-  $ReadingPassageCopyWith<ReadingPassage> get copyWith =>
-      throw _privateConstructorUsedError;
-}
-
-/// @nodoc
-abstract class $ReadingPassageCopyWith<$Res> {
-  factory $ReadingPassageCopyWith(
-          ReadingPassage value, $Res Function(ReadingPassage) then) =
-      _$ReadingPassageCopyWithImpl<$Res, ReadingPassage>;
-  @useResult
-  $Res call(
-      {String title,
-      List<String> paragraphs,
-      int difficulty,
-      List<String> linkedWordIds,
-      List<String> linkedExpressionIds});
-}
-
-/// @nodoc
-class _$ReadingPassageCopyWithImpl<$Res, $Val extends ReadingPassage>
-    implements $ReadingPassageCopyWith<$Res> {
-  _$ReadingPassageCopyWithImpl(this._value, this._then);
-
-  // ignore: unused_field
-  final $Val _value;
-  // ignore: unused_field
-  final $Res Function($Val) _then;
-
+  /// Create a copy of ReadingPassage
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @pragma('vm:prefer-inline')
+  $ReadingPassageCopyWith<ReadingPassage> get copyWith =>
+      _$ReadingPassageCopyWithImpl<ReadingPassage>(
+          this as ReadingPassage, _$identity);
+
+  /// Serializes this ReadingPassage to a JSON map.
+  Map<String, dynamic> toJson();
+
   @override
-  $Res call({
-    Object? title = null,
-    Object? paragraphs = null,
-    Object? difficulty = null,
-    Object? linkedWordIds = null,
-    Object? linkedExpressionIds = null,
-  }) {
-    return _then(_value.copyWith(
-      title: null == title
-          ? _value.title
-          : title // ignore: cast_nullable_to_non_nullable
-              as String,
-      paragraphs: null == paragraphs
-          ? _value.paragraphs
-          : paragraphs // ignore: cast_nullable_to_non_nullable
-              as List<String>,
-      difficulty: null == difficulty
-          ? _value.difficulty
-          : difficulty // ignore: cast_nullable_to_non_nullable
-              as int,
-      linkedWordIds: null == linkedWordIds
-          ? _value.linkedWordIds
-          : linkedWordIds // ignore: cast_nullable_to_non_nullable
-              as List<String>,
-      linkedExpressionIds: null == linkedExpressionIds
-          ? _value.linkedExpressionIds
-          : linkedExpressionIds // ignore: cast_nullable_to_non_nullable
-              as List<String>,
-    ) as $Val);
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is ReadingPassage &&
+            (identical(other.title, title) || other.title == title) &&
+            const DeepCollectionEquality()
+                .equals(other.paragraphs, paragraphs) &&
+            (identical(other.difficulty, difficulty) ||
+                other.difficulty == difficulty) &&
+            const DeepCollectionEquality()
+                .equals(other.linkedWordIds, linkedWordIds) &&
+            const DeepCollectionEquality()
+                .equals(other.linkedExpressionIds, linkedExpressionIds));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(
+      runtimeType,
+      title,
+      const DeepCollectionEquality().hash(paragraphs),
+      difficulty,
+      const DeepCollectionEquality().hash(linkedWordIds),
+      const DeepCollectionEquality().hash(linkedExpressionIds));
+
+  @override
+  String toString() {
+    return 'ReadingPassage(title: $title, paragraphs: $paragraphs, difficulty: $difficulty, linkedWordIds: $linkedWordIds, linkedExpressionIds: $linkedExpressionIds)';
   }
 }
 
 /// @nodoc
-abstract class _$$ReadingPassageImplCopyWith<$Res>
-    implements $ReadingPassageCopyWith<$Res> {
-  factory _$$ReadingPassageImplCopyWith(_$ReadingPassageImpl value,
-          $Res Function(_$ReadingPassageImpl) then) =
-      __$$ReadingPassageImplCopyWithImpl<$Res>;
-  @override
+abstract mixin class $ReadingPassageCopyWith<$Res> {
+  factory $ReadingPassageCopyWith(
+          ReadingPassage value, $Res Function(ReadingPassage) _then) =
+      _$ReadingPassageCopyWithImpl;
   @useResult
   $Res call(
       {String title,
@@ -116,13 +87,15 @@ abstract class _$$ReadingPassageImplCopyWith<$Res>
 }
 
 /// @nodoc
-class __$$ReadingPassageImplCopyWithImpl<$Res>
-    extends _$ReadingPassageCopyWithImpl<$Res, _$ReadingPassageImpl>
-    implements _$$ReadingPassageImplCopyWith<$Res> {
-  __$$ReadingPassageImplCopyWithImpl(
-      _$ReadingPassageImpl _value, $Res Function(_$ReadingPassageImpl) _then)
-      : super(_value, _then);
+class _$ReadingPassageCopyWithImpl<$Res>
+    implements $ReadingPassageCopyWith<$Res> {
+  _$ReadingPassageCopyWithImpl(this._self, this._then);
 
+  final ReadingPassage _self;
+  final $Res Function(ReadingPassage) _then;
+
+  /// Create a copy of ReadingPassage
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -132,35 +105,201 @@ class __$$ReadingPassageImplCopyWithImpl<$Res>
     Object? linkedWordIds = null,
     Object? linkedExpressionIds = null,
   }) {
-    return _then(_$ReadingPassageImpl(
+    return _then(_self.copyWith(
       title: null == title
-          ? _value.title
+          ? _self.title
           : title // ignore: cast_nullable_to_non_nullable
               as String,
       paragraphs: null == paragraphs
-          ? _value._paragraphs
+          ? _self.paragraphs
           : paragraphs // ignore: cast_nullable_to_non_nullable
               as List<String>,
       difficulty: null == difficulty
-          ? _value.difficulty
+          ? _self.difficulty
           : difficulty // ignore: cast_nullable_to_non_nullable
               as int,
       linkedWordIds: null == linkedWordIds
-          ? _value._linkedWordIds
+          ? _self.linkedWordIds
           : linkedWordIds // ignore: cast_nullable_to_non_nullable
               as List<String>,
       linkedExpressionIds: null == linkedExpressionIds
-          ? _value._linkedExpressionIds
+          ? _self.linkedExpressionIds
           : linkedExpressionIds // ignore: cast_nullable_to_non_nullable
               as List<String>,
     ));
   }
 }
 
+/// Adds pattern-matching-related methods to [ReadingPassage].
+extension ReadingPassagePatterns on ReadingPassage {
+  /// A variant of `map` that fallback to returning `orElse`.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case _:
+  ///     return orElse();
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>(
+    TResult Function(_ReadingPassage value)? $default, {
+    required TResult orElse(),
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _ReadingPassage() when $default != null:
+        return $default(_that);
+      case _:
+        return orElse();
+    }
+  }
+
+  /// A `switch`-like method, using callbacks.
+  ///
+  /// Callbacks receives the raw object, upcasted.
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case final Subclass2 value:
+  ///     return ...;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>(
+    TResult Function(_ReadingPassage value) $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _ReadingPassage():
+        return $default(_that);
+      case _:
+        throw StateError('Unexpected subclass');
+    }
+  }
+
+  /// A variant of `map` that fallback to returning `null`.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case _:
+  ///     return null;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>(
+    TResult? Function(_ReadingPassage value)? $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _ReadingPassage() when $default != null:
+        return $default(_that);
+      case _:
+        return null;
+    }
+  }
+
+  /// A variant of `when` that fallback to an `orElse` callback.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case _:
+  ///     return orElse();
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>(
+    TResult Function(String title, List<String> paragraphs, int difficulty,
+            List<String> linkedWordIds, List<String> linkedExpressionIds)?
+        $default, {
+    required TResult orElse(),
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _ReadingPassage() when $default != null:
+        return $default(_that.title, _that.paragraphs, _that.difficulty,
+            _that.linkedWordIds, _that.linkedExpressionIds);
+      case _:
+        return orElse();
+    }
+  }
+
+  /// A `switch`-like method, using callbacks.
+  ///
+  /// As opposed to `map`, this offers destructuring.
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case Subclass2(:final field2):
+  ///     return ...;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>(
+    TResult Function(String title, List<String> paragraphs, int difficulty,
+            List<String> linkedWordIds, List<String> linkedExpressionIds)
+        $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _ReadingPassage():
+        return $default(_that.title, _that.paragraphs, _that.difficulty,
+            _that.linkedWordIds, _that.linkedExpressionIds);
+      case _:
+        throw StateError('Unexpected subclass');
+    }
+  }
+
+  /// A variant of `when` that fallback to returning `null`
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case _:
+  ///     return null;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>(
+    TResult? Function(String title, List<String> paragraphs, int difficulty,
+            List<String> linkedWordIds, List<String> linkedExpressionIds)?
+        $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _ReadingPassage() when $default != null:
+        return $default(_that.title, _that.paragraphs, _that.difficulty,
+            _that.linkedWordIds, _that.linkedExpressionIds);
+      case _:
+        return null;
+    }
+  }
+}
+
 /// @nodoc
 @JsonSerializable()
-class _$ReadingPassageImpl implements _ReadingPassage {
-  const _$ReadingPassageImpl(
+class _ReadingPassage implements ReadingPassage {
+  const _ReadingPassage(
       {required this.title,
       final List<String> paragraphs = const <String>[],
       this.difficulty = 1,
@@ -169,9 +308,8 @@ class _$ReadingPassageImpl implements _ReadingPassage {
       : _paragraphs = paragraphs,
         _linkedWordIds = linkedWordIds,
         _linkedExpressionIds = linkedExpressionIds;
-
-  factory _$ReadingPassageImpl.fromJson(Map<String, dynamic> json) =>
-      _$$ReadingPassageImplFromJson(json);
+  factory _ReadingPassage.fromJson(Map<String, dynamic> json) =>
+      _$ReadingPassageFromJson(json);
 
   /// Passage title.
   @override
@@ -219,16 +357,26 @@ class _$ReadingPassageImpl implements _ReadingPassage {
     return EqualUnmodifiableListView(_linkedExpressionIds);
   }
 
+  /// Create a copy of ReadingPassage
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  String toString() {
-    return 'ReadingPassage(title: $title, paragraphs: $paragraphs, difficulty: $difficulty, linkedWordIds: $linkedWordIds, linkedExpressionIds: $linkedExpressionIds)';
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  _$ReadingPassageCopyWith<_ReadingPassage> get copyWith =>
+      __$ReadingPassageCopyWithImpl<_ReadingPassage>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$ReadingPassageToJson(
+      this,
+    );
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$ReadingPassageImpl &&
+            other is _ReadingPassage &&
             (identical(other.title, title) || other.title == title) &&
             const DeepCollectionEquality()
                 .equals(other._paragraphs, _paragraphs) &&
@@ -240,7 +388,7 @@ class _$ReadingPassageImpl implements _ReadingPassage {
                 .equals(other._linkedExpressionIds, _linkedExpressionIds));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
       runtimeType,
@@ -250,54 +398,70 @@ class _$ReadingPassageImpl implements _ReadingPassage {
       const DeepCollectionEquality().hash(_linkedWordIds),
       const DeepCollectionEquality().hash(_linkedExpressionIds));
 
-  @JsonKey(ignore: true)
   @override
-  @pragma('vm:prefer-inline')
-  _$$ReadingPassageImplCopyWith<_$ReadingPassageImpl> get copyWith =>
-      __$$ReadingPassageImplCopyWithImpl<_$ReadingPassageImpl>(
-          this, _$identity);
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$ReadingPassageImplToJson(
-      this,
-    );
+  String toString() {
+    return 'ReadingPassage(title: $title, paragraphs: $paragraphs, difficulty: $difficulty, linkedWordIds: $linkedWordIds, linkedExpressionIds: $linkedExpressionIds)';
   }
 }
 
-abstract class _ReadingPassage implements ReadingPassage {
-  const factory _ReadingPassage(
-      {required final String title,
-      final List<String> paragraphs,
-      final int difficulty,
-      final List<String> linkedWordIds,
-      final List<String> linkedExpressionIds}) = _$ReadingPassageImpl;
-
-  factory _ReadingPassage.fromJson(Map<String, dynamic> json) =
-      _$ReadingPassageImpl.fromJson;
-
+/// @nodoc
+abstract mixin class _$ReadingPassageCopyWith<$Res>
+    implements $ReadingPassageCopyWith<$Res> {
+  factory _$ReadingPassageCopyWith(
+          _ReadingPassage value, $Res Function(_ReadingPassage) _then) =
+      __$ReadingPassageCopyWithImpl;
   @override
-
-  /// Passage title.
-  String get title;
-  @override
-
-  /// Paragraphs of the passage.
-  List<String> get paragraphs;
-  @override
-
-  /// Approximate CEFR difficulty: 1=A1, 2=A2, 3=B1, 4=B2, etc.
-  int get difficulty;
-  @override
-
-  /// IDs of words introduced or highlighted in this passage.
-  List<String> get linkedWordIds;
-  @override
-
-  /// IDs of expressions highlighted in this passage.
-  List<String> get linkedExpressionIds;
-  @override
-  @JsonKey(ignore: true)
-  _$$ReadingPassageImplCopyWith<_$ReadingPassageImpl> get copyWith =>
-      throw _privateConstructorUsedError;
+  @useResult
+  $Res call(
+      {String title,
+      List<String> paragraphs,
+      int difficulty,
+      List<String> linkedWordIds,
+      List<String> linkedExpressionIds});
 }
+
+/// @nodoc
+class __$ReadingPassageCopyWithImpl<$Res>
+    implements _$ReadingPassageCopyWith<$Res> {
+  __$ReadingPassageCopyWithImpl(this._self, this._then);
+
+  final _ReadingPassage _self;
+  final $Res Function(_ReadingPassage) _then;
+
+  /// Create a copy of ReadingPassage
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? title = null,
+    Object? paragraphs = null,
+    Object? difficulty = null,
+    Object? linkedWordIds = null,
+    Object? linkedExpressionIds = null,
+  }) {
+    return _then(_ReadingPassage(
+      title: null == title
+          ? _self.title
+          : title // ignore: cast_nullable_to_non_nullable
+              as String,
+      paragraphs: null == paragraphs
+          ? _self._paragraphs
+          : paragraphs // ignore: cast_nullable_to_non_nullable
+              as List<String>,
+      difficulty: null == difficulty
+          ? _self.difficulty
+          : difficulty // ignore: cast_nullable_to_non_nullable
+              as int,
+      linkedWordIds: null == linkedWordIds
+          ? _self._linkedWordIds
+          : linkedWordIds // ignore: cast_nullable_to_non_nullable
+              as List<String>,
+      linkedExpressionIds: null == linkedExpressionIds
+          ? _self._linkedExpressionIds
+          : linkedExpressionIds // ignore: cast_nullable_to_non_nullable
+              as List<String>,
+    ));
+  }
+}
+
+// dart format on

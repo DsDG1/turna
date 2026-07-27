@@ -13,7 +13,7 @@ enum LinkType {
 
 /// Records where a word, expression, or grammar point was first encountered.
 @freezed
-class LessonWordLink with _$LessonWordLink {
+abstract class LessonWordLink with _$LessonWordLink {
   const factory LessonWordLink({
     required String wordId,
     required String lessonId,

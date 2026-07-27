@@ -26,6 +26,7 @@ import 'package:varnamala/views/play/play_hub_screen.dart';
 import 'package:varnamala/views/profile/profile_screen.dart';
 import 'package:varnamala/views/settings/settings_app_bar.dart';
 import 'package:varnamala/views/settings/settings_page.dart';
+import 'package:varnamala/l10n/app_localizations.dart';
 import 'package:varnamala/views/theme.dart';
 
 @RoutePage()
@@ -83,8 +84,8 @@ class _HomePageState extends State<HomePage> {
     if (!mounted) return;
     if (streakResult == StreakCheckResult.broken) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Your streak was broken. Start again today.'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.homeStreakBroken),
           backgroundColor: VarnamalaTheme.error,
         ),
       );

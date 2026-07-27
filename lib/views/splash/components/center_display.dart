@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 
-// Package imports:
-import 'package:google_fonts/google_fonts.dart';
-
 // Project imports:
+import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/views/app_fonts.dart';
 import 'package:varnamala/views/home/mala_welcomes.dart';
 import 'package:varnamala/views/theme.dart';
 
@@ -19,26 +18,8 @@ class _CenterDisplayState extends State<CenterDisplay>
   late final AnimationController _controller;
   int _currentIndex = 0;
 
-  final List<_TextItem> _texts = [
-    _TextItem(
-      'Reclaiming Language Learning',
-      FontWeight.w600,
-      (context) => VarnamalaTheme.textSecondaryColor(context),
-      const Duration(milliseconds: 1000),
-    ),
-    _TextItem(
-      'Learn Turkish \u2022 T\u00fcrk\u00e7e \u00f6\u011fren',
-      FontWeight.w600,
-      (context) => VarnamalaTheme.textSecondaryColor(context),
-      const Duration(milliseconds: 1000),
-    ),
-    _TextItem(
-      'Free. Forever.',
-      FontWeight.w700,
-      (_) => VarnamalaTheme.error,
-      const Duration(milliseconds: 2500),
-    ),
-  ];
+  late final List<_TextItem> _texts;
+  bool _textsInitialized = false;
 
   @override
   void initState() {
@@ -47,6 +28,34 @@ class _CenterDisplayState extends State<CenterDisplay>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_textsInitialized) return;
+    _textsInitialized = true;
+    final l10n = AppLocalizations.of(context)!;
+    _texts = [
+      _TextItem(
+        l10n.splashReclaiming,
+        FontWeight.w600,
+        (context) => VarnamalaTheme.textSecondaryColor(context),
+        const Duration(milliseconds: 1000),
+      ),
+      _TextItem(
+        l10n.splashLearnTurkish,
+        FontWeight.w600,
+        (context) => VarnamalaTheme.textSecondaryColor(context),
+        const Duration(milliseconds: 1000),
+      ),
+      _TextItem(
+        l10n.splashFreeForever,
+        FontWeight.w700,
+        (_) => VarnamalaTheme.error,
+        const Duration(milliseconds: 2500),
+      ),
+    ];
     _startCycle();
   }
 
@@ -79,8 +88,8 @@ class _CenterDisplayState extends State<CenterDisplay>
           const RepaintBoundary(child: MalaWelcomes()),
           const SizedBox(height: 24),
           Text(
-            'Varnamala',
-            style: GoogleFonts.nunito(
+            AppLocalizations.of(context)!.splashAppName,
+            style: AppFonts.nunito(
               fontSize: 36,
               fontWeight: FontWeight.w800,
               color: VarnamalaTheme.peacockTeal,
@@ -95,7 +104,7 @@ class _CenterDisplayState extends State<CenterDisplay>
                 opacity: _controller,
                 child: Text(
                   item.text,
-                  style: GoogleFonts.nunito(
+                  style: AppFonts.nunito(
                     fontSize: 18,
                     fontWeight: item.weight,
                     color: item.color(context),
@@ -108,9 +117,9 @@ class _CenterDisplayState extends State<CenterDisplay>
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 40.0),
             child: Text(
-              "No hearts to lose. No energy to refill.\nJust pure learning.",
+              AppLocalizations.of(context)!.splashSubtitle,
               textAlign: TextAlign.center,
-              style: GoogleFonts.nunito(
+              style: AppFonts.nunito(
                 fontSize: 16,
                 color: VarnamalaTheme.textHintColor(context),
                 height: 1.5,

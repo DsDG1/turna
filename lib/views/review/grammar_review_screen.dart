@@ -17,6 +17,7 @@ import 'package:varnamala/domain/course/grammar_point.dart';
 import 'package:varnamala/domain/course/interaction.dart';
 import 'package:varnamala/domain/course/srs_word.dart';
 import 'package:varnamala/domain/study/study_log.dart';
+import 'package:varnamala/l10n/app_localizations.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:varnamala/views/review/components/review_components.dart';
 import 'package:varnamala/views/theme.dart';
@@ -445,8 +446,8 @@ class _GrammarCard extends StatelessWidget {
                           grammar.getLessonNameForGrammarPoint(word.wordId);
                       return Text(
                         lessonName != null
-                            ? 'Learned in: $lessonName'
-                            : 'First seen: ${word.wordId}',
+                            ? AppLocalizations.of(context)!.reviewGrammarLearnedIn(lessonName)
+                            : AppLocalizations.of(context)!.reviewGrammarFirstSeen(word.wordId),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: VarnamalaTheme.textHintColor(context),
                             ),
@@ -455,7 +456,7 @@ class _GrammarCard extends StatelessWidget {
                   ),
                 ] else ...[
                   Text(
-                    'Tap to reveal explanation',
+                    AppLocalizations.of(context)!.reviewGrammarTapToReveal,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: VarnamalaTheme.textHintColor(context),
                         ),
@@ -472,7 +473,7 @@ class _GrammarCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Grammar point not found',
+                  AppLocalizations.of(context)!.reviewGrammarPointNotFound,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: VarnamalaTheme.textHintColor(context),
                       ),

@@ -7,6 +7,7 @@ import 'package:injectable/injectable.dart';
 // Project imports:
 import 'package:varnamala/core/text_styles.dart';
 import 'package:varnamala/domain/course/interaction.dart';
+import 'package:varnamala/l10n/app_localizations.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:varnamala/views/theme.dart';
 
@@ -89,7 +90,7 @@ class _ReadingShortAnswerBodyState extends State<_ReadingShortAnswerBody> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SectionCaption('Short answer'),
+          SectionCaption(AppLocalizations.of(context)!.lessonShortAnswerCaption),
           Text(widget.prompt, style: AppTextStyles.promptMd(context)),
           const SizedBox(height: 24),
           TextField(
@@ -101,7 +102,7 @@ class _ReadingShortAnswerBodyState extends State<_ReadingShortAnswerBody> {
               color: VarnamalaTheme.textPrimaryColor(context),
             ),
             decoration: InputDecoration(
-              hintText: 'Type your answer...',
+              hintText: AppLocalizations.of(context)!.lessonTypeYourAnswer,
               filled: true,
               fillColor: submitted
                   ? (correct == true
@@ -114,7 +115,7 @@ class _ReadingShortAnswerBodyState extends State<_ReadingShortAnswerBody> {
           if (submitted && correct == false) ...[
             const SizedBox(height: 16),
             LessonCorrectAnswerBanner(
-              label: 'Correct answer',
+              label: AppLocalizations.of(context)!.lessonCorrectAnswer,
               answer: widget.expectedAnswer,
             ),
           ],
@@ -125,7 +126,7 @@ class _ReadingShortAnswerBodyState extends State<_ReadingShortAnswerBody> {
               builder: (context, value, _) {
                 final canSubmit = value.text.trim().isNotEmpty;
                 return LessonCheckButton(
-                  label: 'CHECK',
+                  label: AppLocalizations.of(context)!.lessonCheck,
                   enabled: canSubmit,
                   onPressed: canSubmit ? _trySubmit : null,
                 );

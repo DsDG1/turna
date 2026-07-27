@@ -1,10 +1,9 @@
 // Flutter imports:
 import 'package:flutter/material.dart';
 
-// Package imports:
-import 'package:google_fonts/google_fonts.dart';
-
 // Project imports:
+import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/views/app_fonts.dart';
 import 'package:varnamala/views/theme.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -88,9 +87,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           ),
                         ),
                         child: Text(
-                          'Reclaiming Language Learning',
+                          AppLocalizations.of(context)!.onboardingReclaimingTitle,
                           textAlign: TextAlign.center,
-                          style: GoogleFonts.nunito(
+                          style: AppFonts.nunito(
                             fontSize: 28,
                             fontWeight: FontWeight.bold,
                             color: VarnamalaTheme.textPrimaryColor(context),
@@ -116,9 +115,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           ),
                         ),
                         child: Text(
-                          'Remember when learning was about knowledge, not maximizing ad revenue? No hearts. No energy. No pay-to-win. Just pure, open-source education.',
+                          AppLocalizations.of(context)!.onboardingBody,
                           textAlign: TextAlign.center,
-                          style: GoogleFonts.nunito(
+                          style: AppFonts.nunito(
                             fontSize: 18,
                             color: VarnamalaTheme.textSecondaryColor(context),
                             height: 1.5,
@@ -148,9 +147,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  child: const Text(
-                    'Start Learning',
-                    style: TextStyle(
+                  child: Text(
+                    AppLocalizations.of(context)!.onboardingStartLearning,
+                    style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: VarnamalaTheme.peacockTeal,

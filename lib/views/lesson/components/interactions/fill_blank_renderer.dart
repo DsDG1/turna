@@ -7,6 +7,7 @@ import 'package:injectable/injectable.dart';
 // Project imports:
 import 'package:varnamala/core/text_styles.dart';
 import 'package:varnamala/domain/course/interaction.dart';
+import 'package:varnamala/l10n/app_localizations.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:varnamala/views/theme.dart';
 
@@ -111,7 +112,7 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SizedBox(height: 8),
-          const SectionCaption('Fill in the blank'),
+          SectionCaption(AppLocalizations.of(context)!.lessonFillBlankCaption),
           RichText(
             textAlign: TextAlign.center,
             text: TextSpan(
@@ -145,12 +146,12 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
                         autofocus: !submitted,
                         textAlign: TextAlign.center,
                         style: AppTextStyles.promptMd(context).copyWith(fontSize: 18),
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           border: InputBorder.none,
                           isDense: true,
                           contentPadding: EdgeInsets.zero,
                           filled: false,
-                          hintText: '___',
+                          hintText: AppLocalizations.of(context)!.lessonFillBlankHint,
                         ),
                         // No setState on keystroke — CHECK enabled-state is
                         // driven by ValueListenableBuilder below.
@@ -170,7 +171,7 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
           if (submitted && correct == false) ...[
             const SizedBox(height: 16),
             LessonCorrectAnswerBanner(
-                label: 'Correct answer', answer: widget.answer, showBorder: true),
+                label: AppLocalizations.of(context)!.lessonCorrectAnswer, answer: widget.answer, showBorder: true),
           ],
           const SizedBox(height: 24),
           ValueListenableBuilder<TextEditingValue>(
@@ -179,7 +180,7 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
               final canSubmit =
                   !submitted && value.text.trim().isNotEmpty;
               return LessonCheckButton(
-                label: submitted ? 'CHECKED' : 'CHECK',
+                label: submitted ? AppLocalizations.of(context)!.lessonChecked : AppLocalizations.of(context)!.lessonCheck,
                 enabled: canSubmit,
                 onPressed: canSubmit ? _trySubmit : null,
               );

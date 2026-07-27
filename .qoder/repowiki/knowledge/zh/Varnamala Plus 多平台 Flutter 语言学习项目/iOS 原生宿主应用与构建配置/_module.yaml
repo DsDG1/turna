@@ -1,0 +1,8 @@
+schema_version: 1
+module_path: platform_ios
+title: iOS 原生宿主应用与构建配置
+scope:
+    - ios/
+source_files: []
+depends_on: []
+related_to: []

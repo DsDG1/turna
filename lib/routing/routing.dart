@@ -39,5 +39,9 @@ class AppRouter extends RootStackRouter {
             page: MistakeReviewRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(page: DictionaryRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(page: WeakWordsRoute.page, guards: [_courseReadyGuard]),
+        AutoRoute(page: AnkiImportRoute.page),
+        AutoRoute(page: AnkiReviewRoute.page, guards: [_courseReadyGuard]),
+        AutoRoute(
+            page: AnkiReviewSessionRoute.page, guards: [_courseReadyGuard]),
       ];
 }

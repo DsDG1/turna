@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import 'package:varnamala/application/ai/ai_api_config.dart';
 import 'package:varnamala/application/ai/ai_course_provider.dart';
 import 'package:varnamala/application/ai/ai_hint_provider.dart';
+import 'package:varnamala/l10n/app_localizations.dart';
 import 'package:varnamala/views/ai/chat_bubble.dart';
 import 'package:varnamala/views/theme.dart';
 
@@ -91,7 +92,7 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
       backgroundColor: VarnamalaTheme.scaffoldBg(context),
       appBar: AppBar(
         title: Text(
-          ctx == null ? 'AI Tutor' : 'AI Tutor · ${ctx.typeLabel}',
+          ctx == null ? AppLocalizations.of(context)!.aiTutorTitle : AppLocalizations.of(context)!.aiTutorTitleWithType(ctx.typeLabel),
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
@@ -176,7 +177,7 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Text(
-          'AI is preparing an explanation for this question…',
+          AppLocalizations.of(context)!.aiEmptyHintTutor,
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodyMedium,
         ),
@@ -207,7 +208,7 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
             ),
             const SizedBox(width: 8),
             Text(
-              'AI is thinking…',
+              AppLocalizations.of(context)!.aiThinking,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ],
@@ -227,7 +228,7 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
           borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
         ),
         child: Text(
-          'Error: $error',
+          AppLocalizations.of(context)!.aiErrorBubble(error),
           style: const TextStyle(color: VarnamalaTheme.error),
         ),
       ),
@@ -243,9 +244,9 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
             child: TextField(
               controller: _inputCtrl,
               enabled: !busy,
-              decoration: const InputDecoration(
-                hintText: 'Ask more…',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                hintText: AppLocalizations.of(context)!.aiAskMore,
+                border: const OutlineInputBorder(),
                 isDense: true,
               ),
               onSubmitted: (_) => _onSend(),
@@ -255,7 +256,7 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
           IconButton(
             onPressed: busy ? null : _onSend,
             icon: const Icon(Icons.send),
-            tooltip: 'Send',
+            tooltip: AppLocalizations.of(context)!.commonSend,
           ),
         ],
       ),

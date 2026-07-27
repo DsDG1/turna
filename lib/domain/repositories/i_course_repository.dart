@@ -1,4 +1,5 @@
 // Project imports:
+import 'package:varnamala/data/course_database.dart' as db;
 import 'package:varnamala/domain/course/expression.dart';
 import 'package:varnamala/domain/course/grammar_point.dart';
 import 'package:varnamala/domain/course/lesson.dart';
@@ -35,4 +36,28 @@ abstract class ICourseRepository {
   Future<GrammarPoint?> grammarPointById(String id);
   Future<List<Expression>> expressions();
   Future<Expression?> expressionById(String id);
+
+  /// Bulk-write a full section tree (units + lessons + lesson contents) in a
+  /// single transaction, upserting by id. Used by importers (Anki decks);
+  /// language courses still flow through the seeder.
+  Future<void> bulkInsertCourseTree(Section section);
+
+  /// Bulk-write vocabulary entries (upsert by id). Used by importers.
+  Future<void> bulkInsertVocabulary(List<WordEntry> words);
+
+  /// Delete vocabulary entries whose tags contain [tag] (exact list-element
+  /// match on the JSON-encoded tags column). Returns the number of rows
+  /// removed. Used to uninstall imported decks (`anki:<importId>` tag).
+  Future<int> deleteByTag(String tag);
+
+  /// Delete a section and its whole tree (units, lessons, lesson contents).
+  Future<void> deleteSection(String sectionId);
+
+  /// Record a completed Anki deck import in the `anki_imports` table so
+  /// re-imports can detect incremental updates and the user can see what
+  /// has been imported.
+  Future<void> recordAnkiImport(db.AnkiImportsCompanion companion);
+
+  /// List all recorded Anki imports, most recent first.
+  Future<List<db.AnkiImport>> ankiImports();
 }

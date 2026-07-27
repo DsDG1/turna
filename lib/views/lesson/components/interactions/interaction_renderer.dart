@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:varnamala/core/spacing.dart';
 import 'package:varnamala/core/text_styles.dart';
 import 'package:varnamala/domain/course/interaction.dart';
+import 'package:varnamala/l10n/app_localizations.dart';
 import 'package:varnamala/views/theme.dart';
 
 /// Snapshot of how the parent ([LessonViewModel]) wants the renderer to look.
@@ -137,6 +138,7 @@ Type _handlesTypeFor(Interaction interaction) {
     ReadingMcq() => ReadingMcq,
     ReadingTrueFalse() => ReadingTrueFalse,
     ReadingShortAnswer() => ReadingShortAnswer,
+    AnkiCard() => AnkiCard,
   };
 }
 
@@ -341,9 +343,9 @@ class SpeakerButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: 'Play audio',
+      label: AppLocalizations.of(context)!.lessonPlayAudioLabel,
       child: Tooltip(
-        message: 'Play audio',
+        message: AppLocalizations.of(context)!.lessonPlayAudioLabel,
         child: Material(
           color: VarnamalaTheme.peacockTeal,
           shape: const CircleBorder(),

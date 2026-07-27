@@ -1,5 +1,5 @@
-// coverage:ignore-file
 // GENERATED CODE - DO NOT MODIFY BY HAND
+// coverage:ignore-file
 // ignore_for_file: type=lint
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
@@ -9,111 +9,70 @@ part of 'expression.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// dart format off
 T _$identity<T>(T value) => value;
-
-final _privateConstructorUsedError = UnsupportedError(
-    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
-
-Expression _$ExpressionFromJson(Map<String, dynamic> json) {
-  return _Expression.fromJson(json);
-}
 
 /// @nodoc
 mixin _$Expression {
-  String get id => throw _privateConstructorUsedError;
+  String get id;
 
   /// The expression in the target language, e.g. "habari za asubuhi".
-  String get term => throw _privateConstructorUsedError;
+  String get term;
 
   /// English translation, e.g. "good morning".
-  String get translation => throw _privateConstructorUsedError;
+  String get translation;
 
   /// Optional pronunciation hint.
-  String? get pronunciation => throw _privateConstructorUsedError;
+  String? get pronunciation;
 
   /// Optional pre-recorded audio asset; falls back to TTS if absent.
-  String? get audioAsset => throw _privateConstructorUsedError;
+  String? get audioAsset;
 
   /// Optional tags for grouping/filtering (e.g. "greeting", "travel").
-  List<String> get tags => throw _privateConstructorUsedError;
+  List<String> get tags;
 
-  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
-  $ExpressionCopyWith<Expression> get copyWith =>
-      throw _privateConstructorUsedError;
-}
-
-/// @nodoc
-abstract class $ExpressionCopyWith<$Res> {
-  factory $ExpressionCopyWith(
-          Expression value, $Res Function(Expression) then) =
-      _$ExpressionCopyWithImpl<$Res, Expression>;
-  @useResult
-  $Res call(
-      {String id,
-      String term,
-      String translation,
-      String? pronunciation,
-      String? audioAsset,
-      List<String> tags});
-}
-
-/// @nodoc
-class _$ExpressionCopyWithImpl<$Res, $Val extends Expression>
-    implements $ExpressionCopyWith<$Res> {
-  _$ExpressionCopyWithImpl(this._value, this._then);
-
-  // ignore: unused_field
-  final $Val _value;
-  // ignore: unused_field
-  final $Res Function($Val) _then;
-
+  /// Create a copy of Expression
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @pragma('vm:prefer-inline')
+  $ExpressionCopyWith<Expression> get copyWith =>
+      _$ExpressionCopyWithImpl<Expression>(this as Expression, _$identity);
+
+  /// Serializes this Expression to a JSON map.
+  Map<String, dynamic> toJson();
+
   @override
-  $Res call({
-    Object? id = null,
-    Object? term = null,
-    Object? translation = null,
-    Object? pronunciation = freezed,
-    Object? audioAsset = freezed,
-    Object? tags = null,
-  }) {
-    return _then(_value.copyWith(
-      id: null == id
-          ? _value.id
-          : id // ignore: cast_nullable_to_non_nullable
-              as String,
-      term: null == term
-          ? _value.term
-          : term // ignore: cast_nullable_to_non_nullable
-              as String,
-      translation: null == translation
-          ? _value.translation
-          : translation // ignore: cast_nullable_to_non_nullable
-              as String,
-      pronunciation: freezed == pronunciation
-          ? _value.pronunciation
-          : pronunciation // ignore: cast_nullable_to_non_nullable
-              as String?,
-      audioAsset: freezed == audioAsset
-          ? _value.audioAsset
-          : audioAsset // ignore: cast_nullable_to_non_nullable
-              as String?,
-      tags: null == tags
-          ? _value.tags
-          : tags // ignore: cast_nullable_to_non_nullable
-              as List<String>,
-    ) as $Val);
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is Expression &&
+            (identical(other.id, id) || other.id == id) &&
+            (identical(other.term, term) || other.term == term) &&
+            (identical(other.translation, translation) ||
+                other.translation == translation) &&
+            (identical(other.pronunciation, pronunciation) ||
+                other.pronunciation == pronunciation) &&
+            (identical(other.audioAsset, audioAsset) ||
+                other.audioAsset == audioAsset) &&
+            const DeepCollectionEquality().equals(other.tags, tags));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(runtimeType, id, term, translation,
+      pronunciation, audioAsset, const DeepCollectionEquality().hash(tags));
+
+  @override
+  String toString() {
+    return 'Expression(id: $id, term: $term, translation: $translation, pronunciation: $pronunciation, audioAsset: $audioAsset, tags: $tags)';
   }
 }
 
 /// @nodoc
-abstract class _$$ExpressionImplCopyWith<$Res>
-    implements $ExpressionCopyWith<$Res> {
-  factory _$$ExpressionImplCopyWith(
-          _$ExpressionImpl value, $Res Function(_$ExpressionImpl) then) =
-      __$$ExpressionImplCopyWithImpl<$Res>;
-  @override
+abstract mixin class $ExpressionCopyWith<$Res> {
+  factory $ExpressionCopyWith(
+          Expression value, $Res Function(Expression) _then) =
+      _$ExpressionCopyWithImpl;
   @useResult
   $Res call(
       {String id,
@@ -125,13 +84,14 @@ abstract class _$$ExpressionImplCopyWith<$Res>
 }
 
 /// @nodoc
-class __$$ExpressionImplCopyWithImpl<$Res>
-    extends _$ExpressionCopyWithImpl<$Res, _$ExpressionImpl>
-    implements _$$ExpressionImplCopyWith<$Res> {
-  __$$ExpressionImplCopyWithImpl(
-      _$ExpressionImpl _value, $Res Function(_$ExpressionImpl) _then)
-      : super(_value, _then);
+class _$ExpressionCopyWithImpl<$Res> implements $ExpressionCopyWith<$Res> {
+  _$ExpressionCopyWithImpl(this._self, this._then);
 
+  final Expression _self;
+  final $Res Function(Expression) _then;
+
+  /// Create a copy of Expression
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -142,39 +102,205 @@ class __$$ExpressionImplCopyWithImpl<$Res>
     Object? audioAsset = freezed,
     Object? tags = null,
   }) {
-    return _then(_$ExpressionImpl(
+    return _then(_self.copyWith(
       id: null == id
-          ? _value.id
+          ? _self.id
           : id // ignore: cast_nullable_to_non_nullable
               as String,
       term: null == term
-          ? _value.term
+          ? _self.term
           : term // ignore: cast_nullable_to_non_nullable
               as String,
       translation: null == translation
-          ? _value.translation
+          ? _self.translation
           : translation // ignore: cast_nullable_to_non_nullable
               as String,
       pronunciation: freezed == pronunciation
-          ? _value.pronunciation
+          ? _self.pronunciation
           : pronunciation // ignore: cast_nullable_to_non_nullable
               as String?,
       audioAsset: freezed == audioAsset
-          ? _value.audioAsset
+          ? _self.audioAsset
           : audioAsset // ignore: cast_nullable_to_non_nullable
               as String?,
       tags: null == tags
-          ? _value._tags
+          ? _self.tags
           : tags // ignore: cast_nullable_to_non_nullable
               as List<String>,
     ));
   }
 }
 
+/// Adds pattern-matching-related methods to [Expression].
+extension ExpressionPatterns on Expression {
+  /// A variant of `map` that fallback to returning `orElse`.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case _:
+  ///     return orElse();
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>(
+    TResult Function(_Expression value)? $default, {
+    required TResult orElse(),
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _Expression() when $default != null:
+        return $default(_that);
+      case _:
+        return orElse();
+    }
+  }
+
+  /// A `switch`-like method, using callbacks.
+  ///
+  /// Callbacks receives the raw object, upcasted.
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case final Subclass2 value:
+  ///     return ...;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>(
+    TResult Function(_Expression value) $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _Expression():
+        return $default(_that);
+      case _:
+        throw StateError('Unexpected subclass');
+    }
+  }
+
+  /// A variant of `map` that fallback to returning `null`.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case _:
+  ///     return null;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>(
+    TResult? Function(_Expression value)? $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _Expression() when $default != null:
+        return $default(_that);
+      case _:
+        return null;
+    }
+  }
+
+  /// A variant of `when` that fallback to an `orElse` callback.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case _:
+  ///     return orElse();
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>(
+    TResult Function(String id, String term, String translation,
+            String? pronunciation, String? audioAsset, List<String> tags)?
+        $default, {
+    required TResult orElse(),
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _Expression() when $default != null:
+        return $default(_that.id, _that.term, _that.translation,
+            _that.pronunciation, _that.audioAsset, _that.tags);
+      case _:
+        return orElse();
+    }
+  }
+
+  /// A `switch`-like method, using callbacks.
+  ///
+  /// As opposed to `map`, this offers destructuring.
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case Subclass2(:final field2):
+  ///     return ...;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>(
+    TResult Function(String id, String term, String translation,
+            String? pronunciation, String? audioAsset, List<String> tags)
+        $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _Expression():
+        return $default(_that.id, _that.term, _that.translation,
+            _that.pronunciation, _that.audioAsset, _that.tags);
+      case _:
+        throw StateError('Unexpected subclass');
+    }
+  }
+
+  /// A variant of `when` that fallback to returning `null`
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case _:
+  ///     return null;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>(
+    TResult? Function(String id, String term, String translation,
+            String? pronunciation, String? audioAsset, List<String> tags)?
+        $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _Expression() when $default != null:
+        return $default(_that.id, _that.term, _that.translation,
+            _that.pronunciation, _that.audioAsset, _that.tags);
+      case _:
+        return null;
+    }
+  }
+}
+
 /// @nodoc
 @JsonSerializable()
-class _$ExpressionImpl implements _Expression {
-  const _$ExpressionImpl(
+class _Expression implements Expression {
+  const _Expression(
       {required this.id,
       required this.term,
       required this.translation,
@@ -182,9 +308,8 @@ class _$ExpressionImpl implements _Expression {
       this.audioAsset,
       final List<String> tags = const <String>[]})
       : _tags = tags;
-
-  factory _$ExpressionImpl.fromJson(Map<String, dynamic> json) =>
-      _$$ExpressionImplFromJson(json);
+  factory _Expression.fromJson(Map<String, dynamic> json) =>
+      _$ExpressionFromJson(json);
 
   @override
   final String id;
@@ -217,16 +342,26 @@ class _$ExpressionImpl implements _Expression {
     return EqualUnmodifiableListView(_tags);
   }
 
+  /// Create a copy of Expression
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  String toString() {
-    return 'Expression(id: $id, term: $term, translation: $translation, pronunciation: $pronunciation, audioAsset: $audioAsset, tags: $tags)';
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  _$ExpressionCopyWith<_Expression> get copyWith =>
+      __$ExpressionCopyWithImpl<_Expression>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$ExpressionToJson(
+      this,
+    );
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$ExpressionImpl &&
+            other is _Expression &&
             (identical(other.id, id) || other.id == id) &&
             (identical(other.term, term) || other.term == term) &&
             (identical(other.translation, translation) ||
@@ -238,61 +373,80 @@ class _$ExpressionImpl implements _Expression {
             const DeepCollectionEquality().equals(other._tags, _tags));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, id, term, translation,
       pronunciation, audioAsset, const DeepCollectionEquality().hash(_tags));
 
-  @JsonKey(ignore: true)
   @override
-  @pragma('vm:prefer-inline')
-  _$$ExpressionImplCopyWith<_$ExpressionImpl> get copyWith =>
-      __$$ExpressionImplCopyWithImpl<_$ExpressionImpl>(this, _$identity);
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$ExpressionImplToJson(
-      this,
-    );
+  String toString() {
+    return 'Expression(id: $id, term: $term, translation: $translation, pronunciation: $pronunciation, audioAsset: $audioAsset, tags: $tags)';
   }
 }
 
-abstract class _Expression implements Expression {
-  const factory _Expression(
-      {required final String id,
-      required final String term,
-      required final String translation,
-      final String? pronunciation,
-      final String? audioAsset,
-      final List<String> tags}) = _$ExpressionImpl;
-
-  factory _Expression.fromJson(Map<String, dynamic> json) =
-      _$ExpressionImpl.fromJson;
-
+/// @nodoc
+abstract mixin class _$ExpressionCopyWith<$Res>
+    implements $ExpressionCopyWith<$Res> {
+  factory _$ExpressionCopyWith(
+          _Expression value, $Res Function(_Expression) _then) =
+      __$ExpressionCopyWithImpl;
   @override
-  String get id;
-  @override
-
-  /// The expression in the target language, e.g. "habari za asubuhi".
-  String get term;
-  @override
-
-  /// English translation, e.g. "good morning".
-  String get translation;
-  @override
-
-  /// Optional pronunciation hint.
-  String? get pronunciation;
-  @override
-
-  /// Optional pre-recorded audio asset; falls back to TTS if absent.
-  String? get audioAsset;
-  @override
-
-  /// Optional tags for grouping/filtering (e.g. "greeting", "travel").
-  List<String> get tags;
-  @override
-  @JsonKey(ignore: true)
-  _$$ExpressionImplCopyWith<_$ExpressionImpl> get copyWith =>
-      throw _privateConstructorUsedError;
+  @useResult
+  $Res call(
+      {String id,
+      String term,
+      String translation,
+      String? pronunciation,
+      String? audioAsset,
+      List<String> tags});
 }
+
+/// @nodoc
+class __$ExpressionCopyWithImpl<$Res> implements _$ExpressionCopyWith<$Res> {
+  __$ExpressionCopyWithImpl(this._self, this._then);
+
+  final _Expression _self;
+  final $Res Function(_Expression) _then;
+
+  /// Create a copy of Expression
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? id = null,
+    Object? term = null,
+    Object? translation = null,
+    Object? pronunciation = freezed,
+    Object? audioAsset = freezed,
+    Object? tags = null,
+  }) {
+    return _then(_Expression(
+      id: null == id
+          ? _self.id
+          : id // ignore: cast_nullable_to_non_nullable
+              as String,
+      term: null == term
+          ? _self.term
+          : term // ignore: cast_nullable_to_non_nullable
+              as String,
+      translation: null == translation
+          ? _self.translation
+          : translation // ignore: cast_nullable_to_non_nullable
+              as String,
+      pronunciation: freezed == pronunciation
+          ? _self.pronunciation
+          : pronunciation // ignore: cast_nullable_to_non_nullable
+              as String?,
+      audioAsset: freezed == audioAsset
+          ? _self.audioAsset
+          : audioAsset // ignore: cast_nullable_to_non_nullable
+              as String?,
+      tags: null == tags
+          ? _self._tags
+          : tags // ignore: cast_nullable_to_non_nullable
+              as List<String>,
+    ));
+  }
+}
+
+// dart format on

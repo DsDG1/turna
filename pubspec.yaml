@@ -6,20 +6,22 @@ environment:
 description: Varnamala - Local-first language learning (Turkish)
 dependencies:
   audioplayers: ^6.0.0
-  auto_route: 9.2.2
+  auto_route: ^11.1.0
   cupertino_icons: ^1.0.2
-  drift: ^2.16.0
+  drift: ^2.22.1
   file_picker: ^8.1.4
   flutter:
     sdk: flutter
-  flutter_local_notifications: ^22.0.1
+  flutter_localizations:
+    sdk: flutter
+  flutter_local_notifications: ^19.5.0
   flutter_tts: ^4.0.2
-  freezed_annotation: ^2.4.1
-  get_it: ^7.7.0
-  google_fonts: ^6.2.0
+  freezed_annotation: ^3.1.0
+  get_it: ^9.2.1
+  google_fonts: ^8.1.0
   http: ^1.2.0
-  injectable: ^2.4.2
-  intl: ^0.19.0
+  injectable: ^3.0.0
+  intl: ^0.20.2
   json_annotation: ^4.9.0
   logger: ^2.4.0
   package_info_plus: ^9.0.1
@@ -29,26 +31,63 @@ dependencies:
   share_plus: ^10.0.0
   sqlite3_flutter_libs: ^0.5.24
   streaming_shared_preferences: ^2.0.0
-  timezone: ^0.11.1
   url_launcher: ^6.3.2
 dev_dependencies:
-  auto_route_generator: ^9.0.0
+  auto_route_generator: ^10.5.0
   build_runner: ^2.4.12
-  drift_dev: ^2.16.0
-  freezed: ^2.5.2
-  flutter_gen: 5.8.0
-  flutter_gen_runner: 5.8.0
+  drift_dev: ^2.22.1
+  freezed: ^3.2.5
+  flutter_gen: ^5.15.0
+  flutter_gen_runner: ^5.15.0
   flutter_launcher_icons: ^0.14.1
-  flutter_lints: ^2.0.0
+  flutter_lints: ^6.0.0
   flutter_test:
     sdk: flutter
   import_sorter: ^4.6.0
-  injectable_generator: ^2.6.1
+  injectable_generator: ^3.0.2
   json_serializable: ^6.8.0
   pubspec_dependency_sorter: ^1.0.5
   shared_preferences: ^2.2.3
   sqlite3: ^2.4.0
+dependency_overrides:
+  # OHos (HarmonyOS) platform implementations from openharmony-tpc community.
+  # See https://juejin.cn/post/7651831144142897178 for the adaptation catalog.
+  shared_preferences:
+    git:
+      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+      path: packages/shared_preferences/shared_preferences
+      ref: br_shared_preferences-v2.5.3_ohos
+  path_provider:
+    git:
+      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+      path: packages/path_provider/path_provider
+      ref: br_path_provider-v2.1.5_ohos
+  url_launcher:
+    git:
+      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+      path: packages/url_launcher/url_launcher
+      ref: br_url_launcher-v6.3.2_ohos
+  package_info_plus:
+    git:
+      url: https://gitcode.com/openharmony-sig/flutter_plus_plugins.git
+      path: packages/package_info_plus/package_info_plus
+  share_plus:
+    git:
+      url: https://gitcode.com/openharmony-sig/flutter_plus_plugins.git
+      path: packages/share_plus/share_plus
+  file_picker:
+    git:
+      url: https://gitcode.com/openharmony-sig/fluttertpc_file_picker.git
+  flutter_local_notifications:
+    git:
+      url: https://gitcode.com/openharmony-sig/fluttertpc_flutter_local_notifications.git
+      path: flutter_local_notifications
+  # win32 3.x+ uses UnmodifiableUint8ListView, which the OHos Flutter SDK's
+  # Dart 3.6.2 runtime is missing from dart:typed_data. Pin to 2.7.0 which
+  # predates that API. Only needed on Windows host for native build helpers.
+  win32: 2.7.0
 flutter:
+  generate: true
   uses-material-design: true
   assets:
     - assets/sounds/

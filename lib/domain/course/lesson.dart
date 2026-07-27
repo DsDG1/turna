@@ -53,7 +53,7 @@ enum LessonTemplate {
 /// reading lessons, the passage). All lesson types use the same
 /// [LessonContent] model.
 @freezed
-class Lesson with _$Lesson {
+abstract class Lesson with _$Lesson {
   const factory Lesson({
     required String id,
     required String name,

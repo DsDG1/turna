@@ -6,6 +6,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
+import 'package:varnamala/application/anki/anki_review_assembler.dart';
 import 'package:varnamala/application/game_provider.dart';
 import 'package:varnamala/application/grammar_review_provider.dart';
 import 'package:varnamala/application/mistake_provider.dart';
@@ -25,6 +26,12 @@ class PlayHubScreen extends StatelessWidget {
         WeakWordQuizAssembler.aggregateWeakWords(mistakes).length;
     final srsDue = context.select((SrsProvider p) => p.dueCount);
     final grammarDue = context.select((GrammarReviewProvider p) => p.dueCount);
+    final ankiDue = context.select(
+      (SrsProvider p) => p
+          .getDueWords()
+          .where((w) => w.wordId.startsWith(AnkiReviewAssembler.ankiPrefix))
+          .length,
+    );
 
     return CustomScrollView(
       physics: const BouncingScrollPhysics(),
@@ -88,6 +95,22 @@ class PlayHubScreen extends StatelessWidget {
               accentColor: VarnamalaTheme.peacockTeal,
               badge: grammarDue > 0 ? '$grammarDue' : null,
               onTap: () => context.router.push(const GrammarReviewRoute()),
+            ),
+          ),
+        ),
+        const SliverToBoxAdapter(child: SizedBox(height: 16)),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: _PlayHubCard(
+              title: 'Anki Review',
+              subtitle: ankiDue > 0
+                  ? '$ankiDue imported cards due'
+                  : 'Review imported Anki decks',
+              icon: Icons.style_rounded,
+              accentColor: VarnamalaTheme.peacockCyan,
+              badge: ankiDue > 0 ? '$ankiDue' : null,
+              onTap: () => context.router.push(const AnkiReviewRoute()),
             ),
           ),
         ),

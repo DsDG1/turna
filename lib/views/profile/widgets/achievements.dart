@@ -9,6 +9,7 @@ import 'package:varnamala/application/achievements_provider.dart';
 import 'package:varnamala/application/game_provider.dart';
 import 'package:varnamala/domain/achievement.dart';
 import 'package:varnamala/domain/game/user_game_state.dart';
+import 'package:varnamala/l10n/app_localizations.dart';
 import 'package:varnamala/views/theme.dart';
 
 class Achievements extends StatefulWidget {
@@ -41,7 +42,9 @@ class _AchievementsState extends State<Achievements> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _sectionTitle(
-                  context, 'Achievements', Icons.military_tech_rounded),
+                      context,
+                      AppLocalizations.of(context)!.profileAchievementsTitle,
+                      Icons.military_tech_rounded),
               const SizedBox(height: 8),
               Container(
                 decoration: BoxDecoration(
@@ -97,7 +100,8 @@ class _AchievementsState extends State<Achievements> {
                             child: Row(
                               children: [
                                 Text(
-                                  'View $remainingCount more',
+                                  AppLocalizations.of(context)!
+                                      .profileViewMore(remainingCount),
                                   style: Theme.of(context)
                                       .textTheme
                                       .titleSmall
@@ -135,7 +139,7 @@ class _AchievementsState extends State<Achievements> {
                             child: Row(
                               children: [
                                 Text(
-                                  'Show less',
+                                  AppLocalizations.of(context)!.profileShowLess,
                                   style: Theme.of(context)
                                       .textTheme
                                       .titleSmall
@@ -244,7 +248,8 @@ class _AchievementTile extends StatelessWidget {
                 Icon(icon, color: iconColor, size: 24),
                 if (!isCompleted)
                   Text(
-                    'Lv.$level',
+                    AppLocalizations.of(context)!
+                        .profileAchievementLevel(level),
                     style: TextStyle(
                       fontSize: 9,
                       fontWeight: FontWeight.w700,
@@ -292,7 +297,8 @@ class _AchievementTile extends StatelessWidget {
                     ),
                     const SizedBox(width: 10),
                     Text(
-                      '$current/$displayTarget',
+                      AppLocalizations.of(context)!
+                          .profileAchievementProgress(current, displayTarget),
                       style:
                           Theme.of(context).textTheme.bodySmall?.copyWith(
                                 color: VarnamalaTheme.textHint,

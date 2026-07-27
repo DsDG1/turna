@@ -8,6 +8,7 @@ import 'package:injectable/injectable.dart';
 import 'package:varnamala/application/audio_controller.dart';
 import 'package:varnamala/courses/languages/vocab.dart';
 import 'package:varnamala/domain/course/interaction.dart';
+import 'package:varnamala/l10n/app_localizations.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:varnamala/views/theme.dart';
 
@@ -110,7 +111,7 @@ class _ShowWordCard extends StatelessWidget {
                   // of the card's "continue" tap.
                   Semantics(
                     button: true,
-                    label: 'Speak $term',
+                    label: AppLocalizations.of(context)!.lessonSpeakTerm(term),
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       onTap: () => audioController.speak(term),
@@ -149,7 +150,7 @@ class _ShowWordCard extends StatelessWidget {
                     const SizedBox(height: 20),
                     Semantics(
                       button: true,
-                      label: 'Speak context sentence',
+                      label: AppLocalizations.of(context)!.lessonSpeakContextSentence,
                       child: GestureDetector(
                         behavior: HitTestBehavior.opaque,
                         onTap: () => audioController.speak(
@@ -193,7 +194,7 @@ class _ShowWordCard extends StatelessWidget {
                   ],
                   const SizedBox(height: 32),
                   Text(
-                    'Tap to continue',
+                    AppLocalizations.of(context)!.lessonTapToContinue,
                     style: TextStyle(
                       fontSize: 13,
                       color: VarnamalaTheme.textHintColor(context)
@@ -257,7 +258,7 @@ class _UnknownItemCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'This item could not be loaded.',
+                    AppLocalizations.of(context)!.lessonItemNotLoaded,
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 16,
@@ -266,7 +267,7 @@ class _UnknownItemCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 24),
                   Text(
-                    'Tap to continue',
+                    AppLocalizations.of(context)!.lessonTapToContinue,
                     style: TextStyle(
                       fontSize: 13,
                       color: VarnamalaTheme.textHintColor(context)

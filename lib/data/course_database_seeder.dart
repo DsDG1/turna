@@ -210,6 +210,7 @@ class DatabaseSeeder {
                 id: Value(section.id),
                 name: Value(section.name),
                 description: Value(section.description),
+                level: Value(section.level ?? ''),
                 prerequisiteSectionIds:
                     Value(jsonEncode(section.prerequisiteSectionIds)),
                 sortOrder: Value(sOrder),

@@ -40,6 +40,14 @@ class SrsProvider extends SrsQueueProvider {
   void registerAllExpressions(Iterable<String> expressionIds) =>
       registerAllItems(expressionIds, type: SrsItemType.expression);
 
+  /// Bulk-import externally-migrated SRS states (Anki deck import). Existing
+  /// ids are skipped so re-imports are idempotent.
+  Future<void> bulkImportStates(Map<String, SrsWord> states) =>
+      importStates(states);
+
+  /// Remove all entries whose id starts with [prefix] (Anki deck uninstall).
+  Future<void> removeByPrefix(String prefix) => removeItemsByPrefix(prefix);
+
   /// Persist first-seen lesson links for words/expressions.
   Future<void> recordLessonLinks({
     required Iterable<String> wordIds,

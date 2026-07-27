@@ -13,6 +13,7 @@ import 'package:varnamala/core/enums.dart';
 import 'package:varnamala/core/utils.dart';
 import 'package:varnamala/courses/alphabets/alphabets.dart';
 import 'package:varnamala/di/injection.dart';
+import 'package:varnamala/l10n/app_localizations.dart';
 import 'package:varnamala/routing/routing.gr.dart';
 import 'package:varnamala/views/theme.dart';
 
@@ -53,8 +54,9 @@ class _CharacterPracticeScreenState extends State<CharacterPracticeScreen> {
         // Vowels section
         SliverToBoxAdapter(
           child: _SectionHeader(
-            title: 'Vowels',
-            subtitle: '${vowels.length} characters',
+            title: AppLocalizations.of(context)!.charactersVowelsTitle,
+            subtitle:
+                AppLocalizations.of(context)!.charactersVowelsSubtitle(vowels.length),
             icon: Icons.record_voice_over_rounded,
           ),
         ),
@@ -83,8 +85,9 @@ class _CharacterPracticeScreenState extends State<CharacterPracticeScreen> {
         // Consonants section
         SliverToBoxAdapter(
           child: _SectionHeader(
-            title: 'Consonants',
-            subtitle: '${consonants.length} characters',
+            title: AppLocalizations.of(context)!.charactersConsonantsTitle,
+            subtitle: AppLocalizations.of(context)!
+                .charactersConsonantsSubtitle(consonants.length),
             icon: Icons.abc_rounded,
           ),
         ),
@@ -118,7 +121,7 @@ class _CharacterPracticeScreenState extends State<CharacterPracticeScreen> {
               children: [
                 const SizedBox(height: 8),
                 _PracticeButton(
-                  label: 'Learn Vowels',
+                  label: AppLocalizations.of(context)!.charactersLearnVowels,
                   icon: Icons.record_voice_over_rounded,
                   color: VarnamalaTheme.peacockTeal,
                   onTap: () => context.router.push(
@@ -127,7 +130,7 @@ class _CharacterPracticeScreenState extends State<CharacterPracticeScreen> {
                 ),
                 const SizedBox(height: 10),
                 _PracticeButton(
-                  label: 'Learn Consonants',
+                  label: AppLocalizations.of(context)!.charactersLearnConsonants,
                   icon: Icons.abc_rounded,
                   color: VarnamalaTheme.leagueAmethyst,
                   onTap: () => context.router.push(
@@ -136,7 +139,7 @@ class _CharacterPracticeScreenState extends State<CharacterPracticeScreen> {
                 ),
                 const SizedBox(height: 10),
                 _PracticeButton(
-                  label: 'Random Practice',
+                  label: AppLocalizations.of(context)!.charactersRandomPractice,
                   icon: Icons.shuffle_rounded,
                   color: VarnamalaTheme.peacockCyan,
                   onTap: () => context.router.push(
@@ -484,7 +487,7 @@ class _VowelAndConsonantLearningPageState
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          _getModeTitle(),
+          _getModeTitle(context),
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w600,
               ),
@@ -578,14 +581,15 @@ class _VowelAndConsonantLearningPageState
                           VarnamalaTheme.radiusMedium),
                     ),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text('Next',
-                          style: TextStyle(
+                      Text(
+                          AppLocalizations.of(context)!.charactersNext,
+                          style: const TextStyle(
                               fontSize: 18, fontWeight: FontWeight.w700)),
-                      SizedBox(width: 8),
-                      Icon(Icons.arrow_forward_rounded, size: 22),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.arrow_forward_rounded, size: 22),
                     ],
                   ),
                 ),
@@ -598,14 +602,15 @@ class _VowelAndConsonantLearningPageState
     );
   }
 
-  String _getModeTitle() {
+  String _getModeTitle(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     switch (widget.mode) {
       case CharacterLearningMode.vowels:
-        return 'Vowels';
+        return l10n.charactersVowelsModeTitle;
       case CharacterLearningMode.consonants:
-        return 'Consonants';
+        return l10n.charactersConsonantsModeTitle;
       case CharacterLearningMode.random:
-        return 'Random Practice';
+        return l10n.charactersRandomModeTitle;
     }
   }
 }

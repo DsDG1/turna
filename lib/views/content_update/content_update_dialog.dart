@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
+import 'package:varnamala/l10n/app_localizations.dart';
 import 'package:varnamala/views/theme.dart';
 
 /// User choice for the content-update prompt (ADR 0002).
@@ -24,22 +25,21 @@ class ContentUpdateDialog extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
       ),
-      title: const Text('Course updated'),
-      content: const Text(
-        'The Turkish course has been updated with new words and lessons. '
-        'You can start over or continue with your current progress.',
+      title: Text(AppLocalizations.of(context)!.contentUpdateTitle),
+      content: Text(
+        AppLocalizations.of(context)!.contentUpdateMessage,
       ),
       actions: [
         TextButton(
           onPressed: () =>
               Navigator.of(context).pop(ContentUpdateChoice.keepProgress),
-          child: const Text('Keep progress'),
+          child: Text(AppLocalizations.of(context)!.contentUpdateKeepProgress),
         ),
         TextButton(
           onPressed: () =>
               Navigator.of(context).pop(ContentUpdateChoice.resetProgress),
           style: TextButton.styleFrom(foregroundColor: VarnamalaTheme.error),
-          child: const Text('Reset progress'),
+          child: Text(AppLocalizations.of(context)!.contentUpdateResetProgress),
         ),
       ],
     );

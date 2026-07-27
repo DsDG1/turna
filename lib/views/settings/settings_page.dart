@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 
 // Package imports:
 import 'package:auto_route/auto_route.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
@@ -21,6 +20,7 @@ import 'package:varnamala/views/settings/widgets/settings_common.dart';
 import 'package:varnamala/views/settings/widgets/settings_learning_section.dart';
 import 'package:varnamala/views/settings/widgets/settings_reminder_section.dart';
 import 'package:varnamala/views/settings/widgets/settings_sound_section.dart';
+import 'package:varnamala/utils/ohos_file_picker.dart';
 import 'package:varnamala/views/theme.dart';
 
 /// Settings is organized as a category list that pushes a sub-page per
@@ -173,11 +173,19 @@ class _SettingsPageState extends State<SettingsPage> {
         return [
           SettingsCard(
             children: [
+              const SettingsUiLocaleTile(),
+              settingsTileDivider(context),
               const SettingsLanguageSelectorTile(),
               settingsTileDivider(context),
               const SettingsTtsSpeedTile(),
               settingsTileDivider(context),
               const SettingsDailyReminderTile(),
+              settingsTileDivider(context),
+              const SettingsAnkiNewLimitTile(),
+              settingsTileDivider(context),
+              const SettingsAnkiReviewLimitTile(),
+              settingsTileDivider(context),
+              const SettingsDailyChallengeAnkiTile(),
             ],
           ),
           const SizedBox(height: 24),
@@ -372,9 +380,8 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _importData(BuildContext context) async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['json'],
+    final result = await OhosFilePicker.pickFiles(
+      allowedExtensions: const ['json'],
     );
     final pickedPath = result?.files.single.path;
     if (pickedPath == null) return; // user cancelled

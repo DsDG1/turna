@@ -1,0 +1,20 @@
+schema_version: 1
+module_path: ""
+title: Varnamala Plus 多平台 Flutter 语言学习项目
+scope:
+    - README.md
+    - Makefile
+    - pubspec.yaml
+    - analysis_options.yaml
+    - build.yaml
+    - devtools_options.yaml
+    - .gitattributes
+    - .gitignore
+    - CLAUDE.md
+    - LICENSE
+    - pubspec.lock
+    - readmetest.md
+    - （过滤后）
+source_files: []
+depends_on: []
+related_to: []

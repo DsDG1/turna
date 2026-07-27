@@ -1,5 +1,5 @@
-// coverage:ignore-file
 // GENERATED CODE - DO NOT MODIFY BY HAND
+// coverage:ignore-file
 // ignore_for_file: type=lint
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
@@ -9,94 +9,59 @@ part of 'lesson_word_link.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// dart format off
 T _$identity<T>(T value) => value;
-
-final _privateConstructorUsedError = UnsupportedError(
-    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
-
-LessonWordLink _$LessonWordLinkFromJson(Map<String, dynamic> json) {
-  return _LessonWordLink.fromJson(json);
-}
 
 /// @nodoc
 mixin _$LessonWordLink {
-  String get wordId => throw _privateConstructorUsedError;
-  String get lessonId => throw _privateConstructorUsedError;
-  String get lessonName => throw _privateConstructorUsedError;
-  LinkType get type => throw _privateConstructorUsedError;
-  DateTime get firstSeenAt => throw _privateConstructorUsedError;
+  String get wordId;
+  String get lessonId;
+  String get lessonName;
+  LinkType get type;
+  DateTime get firstSeenAt;
 
-  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
-  $LessonWordLinkCopyWith<LessonWordLink> get copyWith =>
-      throw _privateConstructorUsedError;
-}
-
-/// @nodoc
-abstract class $LessonWordLinkCopyWith<$Res> {
-  factory $LessonWordLinkCopyWith(
-          LessonWordLink value, $Res Function(LessonWordLink) then) =
-      _$LessonWordLinkCopyWithImpl<$Res, LessonWordLink>;
-  @useResult
-  $Res call(
-      {String wordId,
-      String lessonId,
-      String lessonName,
-      LinkType type,
-      DateTime firstSeenAt});
-}
-
-/// @nodoc
-class _$LessonWordLinkCopyWithImpl<$Res, $Val extends LessonWordLink>
-    implements $LessonWordLinkCopyWith<$Res> {
-  _$LessonWordLinkCopyWithImpl(this._value, this._then);
-
-  // ignore: unused_field
-  final $Val _value;
-  // ignore: unused_field
-  final $Res Function($Val) _then;
-
+  /// Create a copy of LessonWordLink
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @pragma('vm:prefer-inline')
+  $LessonWordLinkCopyWith<LessonWordLink> get copyWith =>
+      _$LessonWordLinkCopyWithImpl<LessonWordLink>(
+          this as LessonWordLink, _$identity);
+
+  /// Serializes this LessonWordLink to a JSON map.
+  Map<String, dynamic> toJson();
+
   @override
-  $Res call({
-    Object? wordId = null,
-    Object? lessonId = null,
-    Object? lessonName = null,
-    Object? type = null,
-    Object? firstSeenAt = null,
-  }) {
-    return _then(_value.copyWith(
-      wordId: null == wordId
-          ? _value.wordId
-          : wordId // ignore: cast_nullable_to_non_nullable
-              as String,
-      lessonId: null == lessonId
-          ? _value.lessonId
-          : lessonId // ignore: cast_nullable_to_non_nullable
-              as String,
-      lessonName: null == lessonName
-          ? _value.lessonName
-          : lessonName // ignore: cast_nullable_to_non_nullable
-              as String,
-      type: null == type
-          ? _value.type
-          : type // ignore: cast_nullable_to_non_nullable
-              as LinkType,
-      firstSeenAt: null == firstSeenAt
-          ? _value.firstSeenAt
-          : firstSeenAt // ignore: cast_nullable_to_non_nullable
-              as DateTime,
-    ) as $Val);
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is LessonWordLink &&
+            (identical(other.wordId, wordId) || other.wordId == wordId) &&
+            (identical(other.lessonId, lessonId) ||
+                other.lessonId == lessonId) &&
+            (identical(other.lessonName, lessonName) ||
+                other.lessonName == lessonName) &&
+            (identical(other.type, type) || other.type == type) &&
+            (identical(other.firstSeenAt, firstSeenAt) ||
+                other.firstSeenAt == firstSeenAt));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode =>
+      Object.hash(runtimeType, wordId, lessonId, lessonName, type, firstSeenAt);
+
+  @override
+  String toString() {
+    return 'LessonWordLink(wordId: $wordId, lessonId: $lessonId, lessonName: $lessonName, type: $type, firstSeenAt: $firstSeenAt)';
   }
 }
 
 /// @nodoc
-abstract class _$$LessonWordLinkImplCopyWith<$Res>
-    implements $LessonWordLinkCopyWith<$Res> {
-  factory _$$LessonWordLinkImplCopyWith(_$LessonWordLinkImpl value,
-          $Res Function(_$LessonWordLinkImpl) then) =
-      __$$LessonWordLinkImplCopyWithImpl<$Res>;
-  @override
+abstract mixin class $LessonWordLinkCopyWith<$Res> {
+  factory $LessonWordLinkCopyWith(
+          LessonWordLink value, $Res Function(LessonWordLink) _then) =
+      _$LessonWordLinkCopyWithImpl;
   @useResult
   $Res call(
       {String wordId,
@@ -107,13 +72,15 @@ abstract class _$$LessonWordLinkImplCopyWith<$Res>
 }
 
 /// @nodoc
-class __$$LessonWordLinkImplCopyWithImpl<$Res>
-    extends _$LessonWordLinkCopyWithImpl<$Res, _$LessonWordLinkImpl>
-    implements _$$LessonWordLinkImplCopyWith<$Res> {
-  __$$LessonWordLinkImplCopyWithImpl(
-      _$LessonWordLinkImpl _value, $Res Function(_$LessonWordLinkImpl) _then)
-      : super(_value, _then);
+class _$LessonWordLinkCopyWithImpl<$Res>
+    implements $LessonWordLinkCopyWith<$Res> {
+  _$LessonWordLinkCopyWithImpl(this._self, this._then);
 
+  final LessonWordLink _self;
+  final $Res Function(LessonWordLink) _then;
+
+  /// Create a copy of LessonWordLink
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -123,43 +90,208 @@ class __$$LessonWordLinkImplCopyWithImpl<$Res>
     Object? type = null,
     Object? firstSeenAt = null,
   }) {
-    return _then(_$LessonWordLinkImpl(
+    return _then(_self.copyWith(
       wordId: null == wordId
-          ? _value.wordId
+          ? _self.wordId
           : wordId // ignore: cast_nullable_to_non_nullable
               as String,
       lessonId: null == lessonId
-          ? _value.lessonId
+          ? _self.lessonId
           : lessonId // ignore: cast_nullable_to_non_nullable
               as String,
       lessonName: null == lessonName
-          ? _value.lessonName
+          ? _self.lessonName
           : lessonName // ignore: cast_nullable_to_non_nullable
               as String,
       type: null == type
-          ? _value.type
+          ? _self.type
           : type // ignore: cast_nullable_to_non_nullable
               as LinkType,
       firstSeenAt: null == firstSeenAt
-          ? _value.firstSeenAt
+          ? _self.firstSeenAt
           : firstSeenAt // ignore: cast_nullable_to_non_nullable
               as DateTime,
     ));
   }
 }
 
+/// Adds pattern-matching-related methods to [LessonWordLink].
+extension LessonWordLinkPatterns on LessonWordLink {
+  /// A variant of `map` that fallback to returning `orElse`.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case _:
+  ///     return orElse();
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>(
+    TResult Function(_LessonWordLink value)? $default, {
+    required TResult orElse(),
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _LessonWordLink() when $default != null:
+        return $default(_that);
+      case _:
+        return orElse();
+    }
+  }
+
+  /// A `switch`-like method, using callbacks.
+  ///
+  /// Callbacks receives the raw object, upcasted.
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case final Subclass2 value:
+  ///     return ...;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>(
+    TResult Function(_LessonWordLink value) $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _LessonWordLink():
+        return $default(_that);
+      case _:
+        throw StateError('Unexpected subclass');
+    }
+  }
+
+  /// A variant of `map` that fallback to returning `null`.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case _:
+  ///     return null;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>(
+    TResult? Function(_LessonWordLink value)? $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _LessonWordLink() when $default != null:
+        return $default(_that);
+      case _:
+        return null;
+    }
+  }
+
+  /// A variant of `when` that fallback to an `orElse` callback.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case _:
+  ///     return orElse();
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>(
+    TResult Function(String wordId, String lessonId, String lessonName,
+            LinkType type, DateTime firstSeenAt)?
+        $default, {
+    required TResult orElse(),
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _LessonWordLink() when $default != null:
+        return $default(_that.wordId, _that.lessonId, _that.lessonName,
+            _that.type, _that.firstSeenAt);
+      case _:
+        return orElse();
+    }
+  }
+
+  /// A `switch`-like method, using callbacks.
+  ///
+  /// As opposed to `map`, this offers destructuring.
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case Subclass2(:final field2):
+  ///     return ...;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>(
+    TResult Function(String wordId, String lessonId, String lessonName,
+            LinkType type, DateTime firstSeenAt)
+        $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _LessonWordLink():
+        return $default(_that.wordId, _that.lessonId, _that.lessonName,
+            _that.type, _that.firstSeenAt);
+      case _:
+        throw StateError('Unexpected subclass');
+    }
+  }
+
+  /// A variant of `when` that fallback to returning `null`
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case _:
+  ///     return null;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>(
+    TResult? Function(String wordId, String lessonId, String lessonName,
+            LinkType type, DateTime firstSeenAt)?
+        $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _LessonWordLink() when $default != null:
+        return $default(_that.wordId, _that.lessonId, _that.lessonName,
+            _that.type, _that.firstSeenAt);
+      case _:
+        return null;
+    }
+  }
+}
+
 /// @nodoc
 @JsonSerializable()
-class _$LessonWordLinkImpl implements _LessonWordLink {
-  const _$LessonWordLinkImpl(
+class _LessonWordLink implements LessonWordLink {
+  const _LessonWordLink(
       {required this.wordId,
       required this.lessonId,
       required this.lessonName,
       this.type = LinkType.word,
       required this.firstSeenAt});
-
-  factory _$LessonWordLinkImpl.fromJson(Map<String, dynamic> json) =>
-      _$$LessonWordLinkImplFromJson(json);
+  factory _LessonWordLink.fromJson(Map<String, dynamic> json) =>
+      _$LessonWordLinkFromJson(json);
 
   @override
   final String wordId;
@@ -173,16 +305,26 @@ class _$LessonWordLinkImpl implements _LessonWordLink {
   @override
   final DateTime firstSeenAt;
 
+  /// Create a copy of LessonWordLink
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  String toString() {
-    return 'LessonWordLink(wordId: $wordId, lessonId: $lessonId, lessonName: $lessonName, type: $type, firstSeenAt: $firstSeenAt)';
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  _$LessonWordLinkCopyWith<_LessonWordLink> get copyWith =>
+      __$LessonWordLinkCopyWithImpl<_LessonWordLink>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$LessonWordLinkToJson(
+      this,
+    );
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$LessonWordLinkImpl &&
+            other is _LessonWordLink &&
             (identical(other.wordId, wordId) || other.wordId == wordId) &&
             (identical(other.lessonId, lessonId) ||
                 other.lessonId == lessonId) &&
@@ -193,49 +335,75 @@ class _$LessonWordLinkImpl implements _LessonWordLink {
                 other.firstSeenAt == firstSeenAt));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode =>
       Object.hash(runtimeType, wordId, lessonId, lessonName, type, firstSeenAt);
 
-  @JsonKey(ignore: true)
   @override
-  @pragma('vm:prefer-inline')
-  _$$LessonWordLinkImplCopyWith<_$LessonWordLinkImpl> get copyWith =>
-      __$$LessonWordLinkImplCopyWithImpl<_$LessonWordLinkImpl>(
-          this, _$identity);
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$LessonWordLinkImplToJson(
-      this,
-    );
+  String toString() {
+    return 'LessonWordLink(wordId: $wordId, lessonId: $lessonId, lessonName: $lessonName, type: $type, firstSeenAt: $firstSeenAt)';
   }
 }
 
-abstract class _LessonWordLink implements LessonWordLink {
-  const factory _LessonWordLink(
-      {required final String wordId,
-      required final String lessonId,
-      required final String lessonName,
-      final LinkType type,
-      required final DateTime firstSeenAt}) = _$LessonWordLinkImpl;
-
-  factory _LessonWordLink.fromJson(Map<String, dynamic> json) =
-      _$LessonWordLinkImpl.fromJson;
-
+/// @nodoc
+abstract mixin class _$LessonWordLinkCopyWith<$Res>
+    implements $LessonWordLinkCopyWith<$Res> {
+  factory _$LessonWordLinkCopyWith(
+          _LessonWordLink value, $Res Function(_LessonWordLink) _then) =
+      __$LessonWordLinkCopyWithImpl;
   @override
-  String get wordId;
-  @override
-  String get lessonId;
-  @override
-  String get lessonName;
-  @override
-  LinkType get type;
-  @override
-  DateTime get firstSeenAt;
-  @override
-  @JsonKey(ignore: true)
-  _$$LessonWordLinkImplCopyWith<_$LessonWordLinkImpl> get copyWith =>
-      throw _privateConstructorUsedError;
+  @useResult
+  $Res call(
+      {String wordId,
+      String lessonId,
+      String lessonName,
+      LinkType type,
+      DateTime firstSeenAt});
 }
+
+/// @nodoc
+class __$LessonWordLinkCopyWithImpl<$Res>
+    implements _$LessonWordLinkCopyWith<$Res> {
+  __$LessonWordLinkCopyWithImpl(this._self, this._then);
+
+  final _LessonWordLink _self;
+  final $Res Function(_LessonWordLink) _then;
+
+  /// Create a copy of LessonWordLink
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? wordId = null,
+    Object? lessonId = null,
+    Object? lessonName = null,
+    Object? type = null,
+    Object? firstSeenAt = null,
+  }) {
+    return _then(_LessonWordLink(
+      wordId: null == wordId
+          ? _self.wordId
+          : wordId // ignore: cast_nullable_to_non_nullable
+              as String,
+      lessonId: null == lessonId
+          ? _self.lessonId
+          : lessonId // ignore: cast_nullable_to_non_nullable
+              as String,
+      lessonName: null == lessonName
+          ? _self.lessonName
+          : lessonName // ignore: cast_nullable_to_non_nullable
+              as String,
+      type: null == type
+          ? _self.type
+          : type // ignore: cast_nullable_to_non_nullable
+              as LinkType,
+      firstSeenAt: null == firstSeenAt
+          ? _self.firstSeenAt
+          : firstSeenAt // ignore: cast_nullable_to_non_nullable
+              as DateTime,
+    ));
+  }
+}
+
+// dart format on

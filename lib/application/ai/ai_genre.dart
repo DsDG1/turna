@@ -1,6 +1,8 @@
 // Dart imports:
 import 'dart:convert';
 
+import 'package:varnamala/l10n/app_localizations.dart';
+
 /// Genre tag → lesson template metadata. Mirrors
 /// `tool/gui/src/backend/ai_genre.py:GENRE_TEMPLATES`.
 class GenreMeta {
@@ -114,7 +116,33 @@ String genreToTemplate(String genre) {
 }
 
 /// Return the human-readable label for a template.
-String templateLabel(String template) => templateLabels[template] ?? template;
+///
+/// When [l10n] is null (e.g. AI prompt builders that must stay English for the
+/// model), the hardcoded English label from [templateLabels] is returned.
+/// When [l10n] is supplied (UI call sites with a [BuildContext]), a localized
+/// label is returned instead. Unknown templates fall back to [template]
+/// itself in both cases.
+String templateLabel(String template, {AppLocalizations? l10n}) {
+  if (l10n != null) {
+    switch (template) {
+      case 'intro':
+        return l10n.aiTemplateIntro;
+      case 'practice':
+        return l10n.aiTemplatePractice;
+      case 'review':
+        return l10n.aiTemplateReview;
+      case 'listening':
+        return l10n.aiTemplateListening;
+      case 'reading':
+        return l10n.aiTemplateReading;
+      case 'mastery':
+        return l10n.aiTemplateMastery;
+      case 'mixed':
+        return l10n.aiTemplateMixed;
+    }
+  }
+  return templateLabels[template] ?? template;
+}
 
 /// Return the first recognized genre tag from [text], or null.
 String? parseGenreTag(String? text) {

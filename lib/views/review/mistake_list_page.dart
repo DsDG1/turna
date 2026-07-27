@@ -12,6 +12,7 @@ import 'package:varnamala/courses/languages/dictionary.dart';
 import 'package:varnamala/courses/languages/grammar_points.dart';
 import 'package:varnamala/courses/languages/vocab.dart';
 import 'package:varnamala/domain/course/mistake_entry.dart';
+import 'package:varnamala/l10n/app_localizations.dart';
 import 'package:varnamala/routing/routing.gr.dart';
 import 'package:varnamala/views/theme.dart';
 
@@ -24,7 +25,7 @@ class MistakeListPage extends StatelessWidget {
     final mistakes = context.select((MistakeProvider p) => p.entries);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('My Mistakes')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.reviewMyMistakesTitle)),
       body: mistakes.isEmpty
           ? const _EmptyState()
           : CustomScrollView(
@@ -67,14 +68,14 @@ class _EmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           Text(
-            'No mistakes recorded',
+            AppLocalizations.of(context)!.reviewNoMistakesRecorded,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.w800,
                 ),
           ),
           const SizedBox(height: 8),
           Text(
-            'Keep it up!',
+            AppLocalizations.of(context)!.reviewKeepItUp,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: VarnamalaTheme.textSecondary,
                 ),
@@ -109,7 +110,7 @@ class _MistakesStatsHeader extends StatelessWidget {
             icon: Icons.error_outline_rounded,
             iconColor: VarnamalaTheme.error,
             value: mistakes.length.toString(),
-            label: 'Mistakes',
+            label: AppLocalizations.of(context)!.reviewMistakesLabel,
           ),
           Container(
             width: 1,
@@ -120,7 +121,7 @@ class _MistakesStatsHeader extends StatelessWidget {
             icon: Icons.translate_rounded,
             iconColor: VarnamalaTheme.peacockTeal,
             value: wordCount.toString(),
-            label: 'Words',
+            label: AppLocalizations.of(context)!.reviewWordsLabel,
           ),
           Container(
             width: 1,
@@ -131,7 +132,7 @@ class _MistakesStatsHeader extends StatelessWidget {
             icon: Icons.school_rounded,
             iconColor: VarnamalaTheme.leagueAmethyst,
             value: grammarCount.toString(),
-            label: 'Grammar',
+            label: AppLocalizations.of(context)!.reviewGrammarLabel,
           ),
         ],
       ),
@@ -193,7 +194,7 @@ class _MistakeCard extends StatelessWidget {
     final displayQuestion = word?.term ??
         (mistake.interactionId.isNotEmpty
             ? mistake.interactionId
-            : 'Unknown question');
+            : AppLocalizations.of(context)!.reviewUnknownQuestion);
     final correctAnswer = word?.translation ?? mistake.correctAnswer;
     final resolvedMeaning = word == null && correctAnswer.isNotEmpty
         ? getWordMeaning(correctAnswer)
@@ -280,7 +281,7 @@ class _MistakeCard extends StatelessWidget {
                 if (mistake.grammarPointId != null)
                   _TextActionButton(
                     icon: Icons.menu_book_rounded,
-                    label: 'Review grammar',
+                    label: AppLocalizations.of(context)!.reviewReviewGrammar,
                     onTap: () async {
                       await context
                           .read<GrammarReviewProvider>()
@@ -293,7 +294,7 @@ class _MistakeCard extends StatelessWidget {
                 const Spacer(),
                 _TextActionButton(
                   icon: Icons.check_circle_outline_rounded,
-                  label: 'I got it now',
+                  label: AppLocalizations.of(context)!.reviewGotItNow,
                   onTap: () => context
                       .read<MistakeProvider>()
                       .recordRewrite(mistake.id),
@@ -357,7 +358,7 @@ class _GrammarChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        'Grammar: $title',
+        AppLocalizations.of(context)!.reviewGrammarChip(title),
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
               color: VarnamalaTheme.peacockTeal,
               fontWeight: FontWeight.w700,
@@ -379,7 +380,7 @@ class _PracticeButton extends StatelessWidget {
         MistakePracticeRoute(entry: mistake),
       ),
       icon: const Icon(Icons.play_arrow_rounded, size: 18),
-      label: const Text('Practice'),
+      label: Text(AppLocalizations.of(context)!.commonPractice),
       style: ElevatedButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         textStyle: const TextStyle(
@@ -412,8 +413,8 @@ class _AnswerComparison extends StatelessWidget {
         children: [
           Expanded(
             child: _AnswerBlock(
-              label: 'Your answer',
-              value: userAnswer.isEmpty ? '—' : userAnswer,
+              label: AppLocalizations.of(context)!.reviewYourAnswer,
+              value: userAnswer.isEmpty ? AppLocalizations.of(context)!.reviewDash : userAnswer,
               valueColor: VarnamalaTheme.error,
             ),
           ),
@@ -427,8 +428,8 @@ class _AnswerComparison extends StatelessWidget {
           ),
           Expanded(
             child: _AnswerBlock(
-              label: 'Correct answer',
-              value: correctAnswer.isEmpty ? '—' : correctAnswer,
+              label: AppLocalizations.of(context)!.reviewCorrectAnswer,
+              value: correctAnswer.isEmpty ? AppLocalizations.of(context)!.reviewDash : correctAnswer,
               valueColor: VarnamalaTheme.peacockTeal,
             ),
           ),

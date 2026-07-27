@@ -16,7 +16,7 @@ class AiGroundedResourceProvider extends ChangeNotifier {
   AiGroundedResourceProvider({CourseRepository? repository})
       : _repository = repository ?? CourseRepository(getIt<db.CourseDatabase>());
 
-  final CourseRepository _repository;
+  final CourseRepository? _repository;
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -46,13 +46,18 @@ class AiGroundedResourceProvider extends ChangeNotifier {
   /// Loads resources from the DB. Safe to call multiple times; it will refresh
   /// the cached snapshot.
   Future<void> load({List<String>? scope}) async {
+    if (_repository == null) {
+      _error = 'CourseDatabase unavailable on this platform';
+      notifyListeners();
+      return;
+    }
     final requestedScope = scope ?? const ['words', 'expressions', 'grammarPoints'];
     _isLoading = true;
     _error = null;
     notifyListeners();
     try {
       if (requestedScope.contains('words')) {
-        final rows = await _repository.vocabulary();
+        final rows = await _repository!.vocabulary();
         _words = [
           for (final w in rows)
             {
@@ -68,7 +73,7 @@ class AiGroundedResourceProvider extends ChangeNotifier {
       }
 
       if (requestedScope.contains('expressions')) {
-        final rows = await _repository.expressions();
+        final rows = await _repository!.expressions();
         _expressions = [
           for (final e in rows)
             {
@@ -84,7 +89,7 @@ class AiGroundedResourceProvider extends ChangeNotifier {
       }
 
       if (requestedScope.contains('grammarPoints')) {
-        final rows = await _repository.grammarPoints();
+        final rows = await _repository!.grammarPoints();
         _grammarPoints = [
           for (final g in rows)
             {

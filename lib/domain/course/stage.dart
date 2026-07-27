@@ -11,7 +11,7 @@ part 'stage.g.dart';
 /// `makeCollectionsUnmodifiable: false` lets callers mutate `items` if
 /// needed; the loader is the only writer in practice.
 @Freezed(makeCollectionsUnmodifiable: false)
-class Stage with _$Stage {
+abstract class Stage with _$Stage {
   const factory Stage({
     required String id,
     required String name,

@@ -6,8 +6,8 @@ part of 'grammar_point.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-_$GrammarPointImpl _$$GrammarPointImplFromJson(Map<String, dynamic> json) =>
-    _$GrammarPointImpl(
+_GrammarPoint _$GrammarPointFromJson(Map<String, dynamic> json) =>
+    _GrammarPoint(
       id: json['id'] as String,
       title: json['title'] as String,
       explanation: json['explanation'] as String? ?? '',
@@ -24,7 +24,7 @@ _$GrammarPointImpl _$$GrammarPointImplFromJson(Map<String, dynamic> json) =>
           : _practiceItemsFromJson(json['practiceItems']),
     );
 
-Map<String, dynamic> _$$GrammarPointImplToJson(_$GrammarPointImpl instance) =>
+Map<String, dynamic> _$GrammarPointToJson(_GrammarPoint instance) =>
     <String, dynamic>{
       'id': instance.id,
       'title': instance.title,

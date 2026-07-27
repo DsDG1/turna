@@ -9,7 +9,7 @@ part 'expression.g.dart';
 /// Expressions are tracked separately from single [WordEntry]s because they
 /// need their own SRS state, origin-lesson tracking, and TTS playback.
 @freezed
-class Expression with _$Expression {
+abstract class Expression with _$Expression {
   const factory Expression({
     required String id,
 

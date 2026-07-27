@@ -6,6 +6,7 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:varnamala/domain/course/interaction.dart';
+import 'package:varnamala/l10n/app_localizations.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:varnamala/views/theme.dart';
 
@@ -104,10 +105,10 @@ class _ReorderBodyState extends State<_ReorderBody> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SectionCaption('Arrange the words'),
-          const Text(
-            'Tap the words in the right order',
-            style: TextStyle(
+          SectionCaption(AppLocalizations.of(context)!.lessonArrangeWordsCaption),
+          Text(
+            AppLocalizations.of(context)!.lessonTapRightOrder,
+            style: const TextStyle(
               fontSize: 13,
               color: VarnamalaTheme.textHint,
             ),
@@ -122,9 +123,9 @@ class _ReorderBodyState extends State<_ReorderBody> {
           const SizedBox(height: 24),
           const Divider(),
           const SizedBox(height: 12),
-          const Text(
-            'Word bank',
-            style: TextStyle(
+          Text(
+            AppLocalizations.of(context)!.lessonWordBank,
+            style: const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
               color: VarnamalaTheme.textHint,
@@ -140,11 +141,11 @@ class _ReorderBodyState extends State<_ReorderBody> {
           if (submitted && correct == false) ...[
             const SizedBox(height: 16),
             LessonCorrectAnswerBanner(
-                label: 'Correct order', answer: widget.correct.join(' ')),
+                label: AppLocalizations.of(context)!.lessonCorrectOrder, answer: widget.correct.join(' ')),
           ],
           const SizedBox(height: 24),
           LessonCheckButton(
-            label: submitted ? 'CHECKED' : 'CHECK',
+            label: submitted ? AppLocalizations.of(context)!.lessonChecked : AppLocalizations.of(context)!.lessonCheck,
             enabled: canSubmit,
             onPressed: canSubmit
                 ? () => widget.onSubmit(_matches(),
@@ -199,7 +200,7 @@ class _AnswerRow extends StatelessWidget {
       child: tokens.isEmpty
           ? Center(
               child: Text(
-                'Tap a word below to start',
+                AppLocalizations.of(context)!.lessonTapWordToStart,
                 style: TextStyle(
                   color: VarnamalaTheme.textHint.withValues(alpha: 0.7),
                   fontSize: 14,

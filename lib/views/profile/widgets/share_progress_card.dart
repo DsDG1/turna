@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:varnamala/core/enums.dart';
 import 'package:varnamala/core/extensions.dart';
 import 'package:varnamala/domain/auth/local_user.dart';
+import 'package:varnamala/l10n/app_localizations.dart';
 import 'package:varnamala/views/theme.dart';
 
 /// A brand-styled progress card designed to be captured and shared.
@@ -95,9 +96,9 @@ class ShareProgressCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 12),
-                      const Text(
-                        'Varnamala',
-                        style: TextStyle(
+                      Text(
+                        AppLocalizations.of(context)!.aboutBrandName,
+                        style: const TextStyle(
                           color: VarnamalaTheme.textOnPrimary,
                           fontSize: 24,
                           fontWeight: FontWeight.w800,
@@ -109,7 +110,10 @@ class ShareProgressCard extends StatelessWidget {
                   const SizedBox(height: 32),
                   // User greeting
                   Text(
-                    '${user.displayName ?? 'Learner'} is learning',
+                    AppLocalizations.of(context)!.profileShareCardLearning(
+                      user.displayName ??
+                          AppLocalizations.of(context)!.profileLearnerFallback,
+                    ),
                     style: TextStyle(
                       color: VarnamalaTheme.textOnPrimary.withValues(alpha: 0.85),
                       fontSize: 16,
@@ -133,7 +137,8 @@ class ShareProgressCard extends StatelessWidget {
                         child: _StatBox(
                           icon: Icons.local_fire_department_rounded,
                           value: streak.toString(),
-                          label: 'Day Streak',
+                          label: AppLocalizations.of(context)!
+                              .profileShareCardDayStreak,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -141,7 +146,8 @@ class ShareProgressCard extends StatelessWidget {
                         child: _StatBox(
                           icon: Icons.bolt_rounded,
                           value: totalXp.toString(),
-                          label: 'Total XP',
+                          label:
+                              AppLocalizations.of(context)!.profileShareCardTotalXp,
                         ),
                       ),
                     ],
@@ -153,7 +159,7 @@ class ShareProgressCard extends StatelessWidget {
                         child: _StatBox(
                           icon: Icons.diamond_rounded,
                           value: gems.toString(),
-                          label: 'Gems',
+                          label: AppLocalizations.of(context)!.profileShareCardGems,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -161,7 +167,8 @@ class ShareProgressCard extends StatelessWidget {
                         child: _StatBox(
                           icon: Icons.check_circle_rounded,
                           value: completedLessons.toString(),
-                          label: 'Lessons',
+                          label:
+                              AppLocalizations.of(context)!.profileShareCardLessons,
                         ),
                       ),
                     ],
@@ -176,10 +183,10 @@ class ShareProgressCard extends StatelessWidget {
                       borderRadius:
                           BorderRadius.circular(VarnamalaTheme.radiusMedium),
                     ),
-                    child: const Text(
-                      'Join me on Varnamala!',
+                    child: Text(
+                      AppLocalizations.of(context)!.profileShareCardJoinMe,
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: VarnamalaTheme.textOnPrimary,
                         fontSize: 15,
                         fontWeight: FontWeight.w700,

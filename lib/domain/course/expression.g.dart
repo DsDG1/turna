@@ -6,8 +6,7 @@ part of 'expression.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-_$ExpressionImpl _$$ExpressionImplFromJson(Map<String, dynamic> json) =>
-    _$ExpressionImpl(
+_Expression _$ExpressionFromJson(Map<String, dynamic> json) => _Expression(
       id: json['id'] as String,
       term: json['term'] as String,
       translation: json['translation'] as String,
@@ -18,7 +17,7 @@ _$ExpressionImpl _$$ExpressionImplFromJson(Map<String, dynamic> json) =>
               const <String>[],
     );
 
-Map<String, dynamic> _$$ExpressionImplToJson(_$ExpressionImpl instance) =>
+Map<String, dynamic> _$ExpressionToJson(_Expression instance) =>
     <String, dynamic>{
       'id': instance.id,
       'term': instance.term,

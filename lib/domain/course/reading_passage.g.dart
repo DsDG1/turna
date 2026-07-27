@@ -6,8 +6,8 @@ part of 'reading_passage.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-_$ReadingPassageImpl _$$ReadingPassageImplFromJson(Map<String, dynamic> json) =>
-    _$ReadingPassageImpl(
+_ReadingPassage _$ReadingPassageFromJson(Map<String, dynamic> json) =>
+    _ReadingPassage(
       title: json['title'] as String,
       paragraphs: (json['paragraphs'] as List<dynamic>?)
               ?.map((e) => e as String)
@@ -24,8 +24,7 @@ _$ReadingPassageImpl _$$ReadingPassageImplFromJson(Map<String, dynamic> json) =>
           const <String>[],
     );
 
-Map<String, dynamic> _$$ReadingPassageImplToJson(
-        _$ReadingPassageImpl instance) =>
+Map<String, dynamic> _$ReadingPassageToJson(_ReadingPassage instance) =>
     <String, dynamic>{
       'title': instance.title,
       'paragraphs': instance.paragraphs,

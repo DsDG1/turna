@@ -10,7 +10,7 @@ enum SrsItemType { word, expression }
 /// Spaced-repetition state for a [WordEntry] or [Expression]. Persisted per-id.
 /// Uses SM-2 algorithm fields: interval, ease, repetitions, lapses.
 @freezed
-class SrsWord with _$SrsWord {
+abstract class SrsWord with _$SrsWord {
   const factory SrsWord({
     required String wordId,
     required DateTime dueAt,

@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:varnamala/application/study_stats_provider.dart';
 import 'package:varnamala/domain/study/daily_stats.dart';
+import 'package:varnamala/l10n/app_localizations.dart';
 import 'package:varnamala/views/theme.dart';
 
 /// Displays today's learning summary and recent activity trends.
@@ -66,12 +67,15 @@ class _LearningStatsState extends State<LearningStats> {
     final accuracy = await provider.getOverallAccuracy();
     final totalLessons = await provider.getTotalRecordedLessons();
     final totalReviews = await provider.getTotalRecordedReviews();
+    final anki = await provider.getAnkiActivityCounts();
 
     return {
       'totalMinutes': totalMinutes,
       'accuracy': accuracy,
       'totalLessons': totalLessons,
       'totalReviews': totalReviews,
+      'ankiLessons': anki['ankiLessons'] ?? 0,
+      'ankiReviews': anki['ankiReviews'] ?? 0,
     };
   }
 
@@ -82,7 +86,9 @@ class _LearningStatsState extends State<LearningStats> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionTitle(context, 'Learning Stats', Icons.insights_rounded),
+          _sectionTitle(context,
+              AppLocalizations.of(context)!.profileLearningStatsTitle,
+              Icons.insights_rounded),
           const SizedBox(height: 8),
           FutureBuilder<DailyStudyStats>(
             future: _todayFuture,
@@ -104,6 +110,22 @@ class _LearningStatsState extends State<LearningStats> {
             builder: (context, snapshot) {
               final data = snapshot.data ?? {};
               return _OverallStatsGrid(data: data);
+            },
+          ),
+          const SizedBox(height: 16),
+          FutureBuilder<Map<String, dynamic>>(
+            future: _overallFuture,
+            builder: (context, snapshot) {
+              final data = snapshot.data ?? {};
+              final ankiLessons = (data['ankiLessons'] as num?)?.toInt() ?? 0;
+              final ankiReviews = (data['ankiReviews'] as num?)?.toInt() ?? 0;
+              if (ankiLessons == 0 && ankiReviews == 0) {
+                return const SizedBox.shrink();
+              }
+              return _AnkiStatsCard(
+                ankiLessons: ankiLessons,
+                ankiReviews: ankiReviews,
+              );
             },
           ),
         ],
@@ -140,7 +162,9 @@ class _TodaySummary extends StatelessWidget {
     final s = stats;
     final xp = s?.totalXp ?? 0;
     final minutes = ((s?.totalDurationSeconds ?? 0) / 60).ceil();
-    final accuracy = s != null ? (s.accuracy * 100).toStringAsFixed(0) : '0';
+    final accuracy = s != null
+        ? int.parse((s.accuracy * 100).toStringAsFixed(0))
+        : 0;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -156,21 +180,21 @@ class _TodaySummary extends StatelessWidget {
             icon: Icons.bolt_rounded,
             iconColor: VarnamalaTheme.peacockTurquoise,
             value: xp.toString(),
-            label: 'XP Today',
+            label: AppLocalizations.of(context)!.profileXpToday,
           ),
           Container(width: 1, height: 40, color: VarnamalaTheme.dividerBg(context)),
           _TodayItem(
             icon: Icons.timer_rounded,
             iconColor: VarnamalaTheme.leagueAmethyst,
-            value: '$minutes\'',
-            label: 'Study Time',
+            value: AppLocalizations.of(context)!.profileStudyTimeValue(minutes),
+            label: AppLocalizations.of(context)!.profileStudyTime,
           ),
           Container(width: 1, height: 40, color: VarnamalaTheme.dividerBg(context)),
           _TodayItem(
             icon: Icons.percent_rounded,
             iconColor: VarnamalaTheme.successDark,
-            value: '$accuracy%',
-            label: 'Accuracy',
+            value: AppLocalizations.of(context)!.profileAccuracyValue(accuracy),
+            label: AppLocalizations.of(context)!.profileAccuracy,
           ),
         ],
       ),
@@ -239,7 +263,7 @@ class _WeeklyXpBars extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Last 7 Days',
+            AppLocalizations.of(context)!.profileLast7Days,
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
@@ -301,8 +325,9 @@ class _OverallStatsGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final totalMinutes = (data['totalMinutes'] as num?)?.toInt() ?? 0;
-    final accuracy = (((data['accuracy'] as num?) ?? 0.0).toDouble() * 100)
-        .toStringAsFixed(0);
+    final accuracy = int.parse((((data['accuracy'] as num?) ?? 0.0)
+            .toDouble() * 100)
+        .toStringAsFixed(0));
     final totalLessons = (data['totalLessons'] as num?)?.toInt() ?? 0;
     final totalReviews = (data['totalReviews'] as num?)?.toInt() ?? 0;
 
@@ -317,28 +342,92 @@ class _OverallStatsGrid extends StatelessWidget {
         _StatCard(
           icon: Icons.timer_rounded,
           iconColor: VarnamalaTheme.leagueAmethyst,
-          value: '${totalMinutes}m',
-          label: 'Total Study Time',
+          value: AppLocalizations.of(context)!
+              .profileTotalStudyTimeValue(totalMinutes),
+          label: AppLocalizations.of(context)!.profileTotalStudyTime,
         ),
         _StatCard(
           icon: Icons.percent_rounded,
           iconColor: VarnamalaTheme.successDark,
-          value: '$accuracy%',
-          label: 'Overall Accuracy',
+          value:
+              AppLocalizations.of(context)!.profileOverallAccuracyValue(accuracy),
+          label: AppLocalizations.of(context)!.profileOverallAccuracy,
         ),
         _StatCard(
           icon: Icons.school_rounded,
           iconColor: VarnamalaTheme.peacockCyan,
           value: totalLessons.toString(),
-          label: 'Lessons Done',
+          label: AppLocalizations.of(context)!.profileLessonsDone,
         ),
         _StatCard(
           icon: Icons.repeat_rounded,
           iconColor: VarnamalaTheme.leagueGold,
           value: totalReviews.toString(),
-          label: 'Reviews Done',
+          label: AppLocalizations.of(context)!.profileReviewsDone,
         ),
       ],
+    );
+  }
+}
+
+/// Breakdown card showing Anki-deck activity separately from language-course
+/// lessons. Only renders when there is non-zero Anki activity.
+class _AnkiStatsCard extends StatelessWidget {
+  final int ankiLessons;
+  final int ankiReviews;
+
+  const _AnkiStatsCard({
+    required this.ankiLessons,
+    required this.ankiReviews,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: VarnamalaTheme.cardBg(context),
+        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+        border: Border.all(color: VarnamalaTheme.statCardBorder(context)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.layers_rounded,
+                  color: VarnamalaTheme.peacockTeal, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Anki Decks',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _TodayItem(
+                icon: Icons.school_rounded,
+                iconColor: VarnamalaTheme.peacockCyan,
+                value: ankiLessons.toString(),
+                label: 'Anki lessons',
+              ),
+              Container(
+                  width: 1, height: 40, color: VarnamalaTheme.dividerBg(context)),
+              _TodayItem(
+                icon: Icons.repeat_rounded,
+                iconColor: VarnamalaTheme.leagueGold,
+                value: ankiReviews.toString(),
+                label: 'Anki reviews',
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

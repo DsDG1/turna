@@ -1,0 +1,453 @@
+[
+ {
+  "text": "/validate",
+  "action_id": "validate.open_and_fix",
+  "confidence": 1.0
+ },
+ {
+  "text": "/fill",
+  "action_id": "lesson.fill_empty",
+  "confidence": 1.0
+ },
+ {
+  "text": "/stubs",
+  "action_id": "resource.fill_stubs",
+  "confidence": 1.0
+ },
+ {
+  "text": "/why",
+  "action_id": "app.why",
+  "confidence": 1.0
+ },
+ {
+  "text": "/pin",
+  "action_id": "app.pin",
+  "confidence": 1.0
+ },
+ {
+  "text": "/save",
+  "action_id": "app.save",
+  "confidence": 1.0
+ },
+ {
+  "text": "/undo",
+  "action_id": "app.undo",
+  "confidence": 1.0
+ },
+ {
+  "text": "/help",
+  "action_id": "app.help",
+  "confidence": 1.0
+ },
+ {
+  "text": "/listening",
+  "action_id": "listening.fill_gaps",
+  "confidence": 1.0
+ },
+ {
+  "text": "/soft",
+  "action_id": "soft.preview_hygiene",
+  "confidence": 1.0
+ },
+ {
+  "text": "/resources",
+  "action_id": "resource.open_hygiene",
+  "confidence": 1.0
+ },
+ {
+  "text": "/attachments",
+  "action_id": "attachment.open_in_workshop",
+  "confidence": 1.0
+ },
+ {
+  "text": "帮我修错",
+  "action_id": "validate.open_and_fix"
+ },
+ {
+  "text": "校验一下",
+  "action_id": "validate.open_and_fix"
+ },
+ {
+  "text": "修全部错误",
+  "action_id": "validate.open_and_fix"
+ },
+ {
+  "text": "修复错误",
+  "action_id": "validate.open_and_fix"
+ },
+ {
+  "text": "填充空课",
+  "action_id": "lesson.fill_empty"
+ },
+ {
+  "text": "这节课是空课",
+  "action_id": "lesson.fill_empty"
+ },
+ {
+  "text": "清理待补词条",
+  "action_id": "resource.fill_stubs"
+ },
+ {
+  "text": "补全词条",
+  "action_id": "resource.fill_stubs"
+ },
+ {
+  "text": "补全听力缺口",
+  "action_id": "listening.fill_gaps"
+ },
+ {
+  "text": "这节听力课没题目",
+  "action_id": "listening.fill_gaps"
+ },
+ {
+  "text": "听力",
+  "action_id": "listening.fill_gaps"
+ },
+ {
+  "text": "为什么错了",
+  "action_id": "app.why"
+ },
+ {
+  "text": "解释错误",
+  "action_id": "app.why"
+ },
+ {
+  "text": "钉住这个节点",
+  "action_id": "app.pin"
+ },
+ {
+  "text": "保存",
+  "action_id": "app.save"
+ },
+ {
+  "text": "撤销上一步",
+  "action_id": "app.undo"
+ },
+ {
+  "text": "",
+  "action_id": null
+ },
+ {
+  "text": "   ",
+  "action_id": null
+ },
+ {
+  "text": "今天天气不错",
+  "action_id": null
+ },
+ {
+  "text": "xyz",
+  "action_id": null
+ },
+ {
+  "text": "please fix all errors 修错",
+  "action_id": "validate.open_and_fix"
+ },
+ {
+  "text": "填充",
+  "action_id": "lesson.fill_empty"
+ },
+ {
+  "text": "待补",
+  "action_id": "resource.fill_stubs"
+ },
+ {
+  "text": "为何",
+  "action_id": "app.why"
+ },
+ {
+  "text": "固定选中",
+  "action_id": "app.pin"
+ },
+ {
+  "text": "怎么错了呢",
+  "action_id": "app.why"
+ },
+ {
+  "text": "修全部",
+  "action_id": "validate.open_and_fix"
+ },
+ {
+  "text": "listening 补一下",
+  "action_id": "listening.fill_gaps"
+ },
+ {
+  "text": "规则规范化",
+  "action_id": "soft.preview_hygiene"
+ },
+ {
+  "text": "去空白",
+  "action_id": "soft.preview_hygiene"
+ },
+ {
+  "text": "打开资源",
+  "action_id": "resource.open_hygiene"
+ },
+ {
+  "text": "仅看待补",
+  "action_id": "resource.open_hygiene"
+ },
+ {
+  "text": "/regenerate",
+  "action_id": "lesson.regenerate",
+  "confidence": 1.0
+ },
+ {
+  "text": "重生成这节课",
+  "action_id": "lesson.regenerate"
+ },
+ {
+  "text": "重新生成",
+  "action_id": "lesson.regenerate"
+ },
+ {
+  "text": "/balance",
+  "action_id": "lesson.balance",
+  "confidence": 1.0
+ },
+ {
+  "text": "题型配比",
+  "action_id": "lesson.balance"
+ },
+ {
+  "text": "这节课题型单一",
+  "action_id": "lesson.balance"
+ },
+ {
+  "text": "/distractors",
+  "action_id": "item.distractor_boost",
+  "confidence": 1.0
+ },
+ {
+  "text": "换干扰",
+  "action_id": "item.distractor_boost"
+ },
+ {
+  "text": "/compare",
+  "action_id": "course.compare_sections",
+  "confidence": 1.0
+ },
+ {
+  "text": "对比两节",
+  "action_id": "course.compare_sections"
+ },
+ {
+  "text": "比较章节",
+  "action_id": "course.compare_sections"
+ },
+ {
+  "text": "/goal",
+  "action_id": "goal.plan",
+  "confidence": 1.0
+ },
+ {
+  "text": "/goal-expand",
+  "action_id": "goal.expand",
+  "confidence": 1.0
+ },
+ {
+  "text": "/goal-run",
+  "action_id": "goal.run",
+  "confidence": 1.0
+ },
+ {
+  "text": "/publish",
+  "action_id": "publish.brief",
+  "confidence": 1.0
+ },
+ {
+  "text": "/commit-message",
+  "action_id": "git.commit_message",
+  "confidence": 1.0
+ },
+ {
+  "text": "/explain-diff",
+  "action_id": "git.explain_diff",
+  "confidence": 1.0
+ },
+ {
+  "text": "目标规划",
+  "action_id": "goal.plan"
+ },
+ {
+  "text": "加深规划",
+  "action_id": "goal.expand"
+ },
+ {
+  "text": "沙箱合并",
+  "action_id": "goal.run"
+ },
+ {
+  "text": "生成提交信息",
+  "action_id": "git.commit_message"
+ },
+ {
+  "text": "解释 diff",
+  "action_id": "git.explain_diff"
+ },
+ {
+  "text": "/spiral",
+  "action_id": "unit.spiral_vocab",
+  "confidence": 1.0
+ },
+ {
+  "text": "/screenshot-explain",
+  "action_id": "app.screenshot_explain",
+  "confidence": 1.0
+ },
+ {
+  "text": "/ocr",
+  "action_id": "textbook.ocr_suggest",
+  "confidence": 1.0
+ },
+ {
+  "text": "/pos-align",
+  "action_id": "resource.align_pos_tags",
+  "confidence": 1.0
+ },
+ {
+  "text": "/conflicts",
+  "action_id": "resource.resolve_term_conflicts",
+  "confidence": 1.0
+ },
+ {
+  "text": "/polish",
+  "action_id": "resource.batch_polish",
+  "confidence": 1.0
+ },
+ {
+  "text": "/fill-stubs",
+  "action_id": "resource.fill_stubs_batch",
+  "confidence": 1.0
+ },
+ {
+  "text": "/transcript-gap",
+  "action_id": "listening.transcript_gap",
+  "confidence": 1.0
+ },
+ {
+  "text": "/to-listening",
+  "action_id": "item.to_listening",
+  "confidence": 1.0
+ },
+ {
+  "text": "/reading-gen",
+  "action_id": "reading.passages_gen",
+  "confidence": 1.0
+ },
+ {
+  "text": "/clear-profile",
+  "action_id": "memory.clear_author",
+  "confidence": 1.0
+ },
+ {
+  "text": "帮助",
+  "action_id": "app.help",
+  "confidence": 0.6
+ },
+ {
+  "text": "OCR",
+  "action_id": "textbook.ocr_suggest",
+  "confidence": 0.6
+ },
+ {
+  "text": "查看附件",
+  "action_id": "attachment.open_in_workshop",
+  "confidence": 0.6
+ },
+ {
+  "text": "清除画像",
+  "action_id": "memory.clear_author",
+  "confidence": 0.6
+ },
+ {
+  "text": "/batch-regen",
+  "action_id": "lesson.batch_regenerate",
+  "confidence": 1.0
+ },
+ {
+  "text": "批量重生成",
+  "action_id": "lesson.batch_regenerate",
+  "confidence": 0.6
+ },
+ {
+  "text": "/unit-batch-regen",
+  "action_id": "unit.batch_regenerate",
+  "confidence": 1.0
+ },
+ {
+  "text": "/ai-edit",
+  "action_id": "lesson.edit",
+  "confidence": 1.0
+ },
+ {
+  "text": "AI 编辑",
+  "action_id": "lesson.edit",
+  "confidence": 0.6
+ },
+ {
+  "text": "编辑本课",
+  "action_id": "lesson.edit",
+  "confidence": 0.6
+ },
+ {
+  "text": "/similar",
+  "action_id": "item.similar",
+  "confidence": 1.0
+ },
+ {
+  "text": "相似题",
+  "action_id": "item.similar",
+  "confidence": 0.6
+ },
+ {
+  "text": "出相似题",
+  "action_id": "item.similar",
+  "confidence": 0.6
+ },
+ {
+  "text": "批量重生成单元",
+  "action_id": "unit.batch_regenerate",
+  "confidence": 0.6
+ },
+ {
+  "text": "多单元重生成",
+  "action_id": "unit.batch_regenerate",
+  "confidence": 0.6
+ },
+ {
+  "text": "/workshop",
+  "action_id": "textbook.open_workshop",
+  "confidence": 1.0
+ },
+ {
+  "text": "/import-draft",
+  "action_id": "textbook.import_draft",
+  "confidence": 1.0
+ },
+ {
+  "text": "打开工坊",
+  "action_id": "textbook.open_workshop",
+  "confidence": 0.6
+ },
+ {
+  "text": "导入草稿",
+  "action_id": "textbook.import_draft",
+  "confidence": 0.6
+ },
+ {
+  "text": "/outline",
+  "action_id": "course.outline_shells",
+  "confidence": 1.0
+ },
+ {
+  "text": "课程大纲",
+  "action_id": "course.outline_shells",
+  "confidence": 0.6
+ },
+ {
+  "text": "大纲生成课壳",
+  "action_id": "course.outline_shells",
+  "confidence": 0.6
+ }
+]

@@ -8,6 +8,7 @@ import 'package:auto_route/annotations.dart';
 import 'package:varnamala/application/audio_controller.dart';
 import 'package:varnamala/application/dictionary_search.dart';
 import 'package:varnamala/di/injection.dart';
+import 'package:varnamala/l10n/app_localizations.dart';
 import 'package:varnamala/views/theme.dart';
 
 @RoutePage()
@@ -49,7 +50,7 @@ class _DictionaryPageState extends State<DictionaryPage> {
       backgroundColor: VarnamalaTheme.scaffoldBg(context),
       appBar: AppBar(
         title: Text(
-          'Dictionary',
+          AppLocalizations.of(context)!.dictionaryTitle,
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
@@ -63,7 +64,7 @@ class _DictionaryPageState extends State<DictionaryPage> {
               controller: _controller,
               onChanged: _onQueryChanged,
               decoration: InputDecoration(
-                hintText: 'Search Turkish or English…',
+                hintText: AppLocalizations.of(context)!.dictionarySearchHint,
                 prefixIcon: const Icon(Icons.search_rounded),
                 filled: true,
                 fillColor: VarnamalaTheme.inputFillColor(context),
@@ -80,8 +81,8 @@ class _DictionaryPageState extends State<DictionaryPage> {
                 ? Center(
                     child: Text(
                       _controller.text.trim().isEmpty
-                          ? 'Search vocabulary, expressions, and grammar'
-                          : 'No matches',
+                          ? AppLocalizations.of(context)!.dictionarySearchEmpty
+                          : AppLocalizations.of(context)!.dictionaryNoMatches,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: VarnamalaTheme.textHintColor(context),
                           ),
@@ -113,14 +114,15 @@ class _DictionaryTile extends StatelessWidget {
 
   const _DictionaryTile({required this.hit, required this.onSpeak});
 
-  String get _kindLabel {
+  String _kindLabel(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     switch (hit.kind) {
       case DictionaryHitKind.vocab:
-        return 'Word';
+        return l10n.dictionaryKindWord;
       case DictionaryHitKind.expression:
-        return 'Phrase';
+        return l10n.dictionaryKindPhrase;
       case DictionaryHitKind.grammar:
-        return 'Grammar';
+        return l10n.dictionaryKindGrammar;
     }
   }
 
@@ -138,7 +140,7 @@ class _DictionaryTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _kindLabel,
+                    _kindLabel(context),
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           color: VarnamalaTheme.peacockTeal,
                           fontWeight: FontWeight.w700,
@@ -175,7 +177,7 @@ class _DictionaryTile extends StatelessWidget {
               ),
             ),
             IconButton(
-              tooltip: 'Play pronunciation',
+              tooltip: AppLocalizations.of(context)!.dictionaryPlayPronunciation,
               onPressed: onSpeak,
               icon: const Icon(
                 Icons.volume_up_rounded,

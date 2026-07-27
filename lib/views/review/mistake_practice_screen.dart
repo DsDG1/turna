@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import 'package:varnamala/application/mistake_provider.dart';
 import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/domain/course/mistake_entry.dart';
+import 'package:varnamala/l10n/app_localizations.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:varnamala/views/theme.dart';
 
@@ -35,9 +36,9 @@ class _MistakePracticePageState extends State<MistakePracticePage> {
 
     if (interaction == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Practice')),
-        body: const Center(
-          child: Text('This mistake cannot be practiced.'),
+        appBar: AppBar(title: Text(AppLocalizations.of(context)!.reviewPracticeTitle)),
+        body: Center(
+          child: Text(AppLocalizations.of(context)!.reviewCannotPractice),
         ),
       );
     }
@@ -53,7 +54,7 @@ class _MistakePracticePageState extends State<MistakePracticePage> {
           color: VarnamalaTheme.textPrimaryColor(context),
         ),
         title: Text(
-          'Practice Mistake',
+          AppLocalizations.of(context)!.reviewPracticeMistakeTitle,
           style: TextStyle(
             color: VarnamalaTheme.textPrimaryColor(context),
             fontSize: 16,
@@ -91,7 +92,7 @@ class _MistakePracticePageState extends State<MistakePracticePage> {
               if (_submitted) ...[
                 const SizedBox(height: 16),
                 LessonCheckButton(
-                  label: 'CONTINUE',
+                  label: AppLocalizations.of(context)!.lessonContinueUpper,
                   enabled: true,
                   onPressed: () => Navigator.of(context).pop(),
                 ),

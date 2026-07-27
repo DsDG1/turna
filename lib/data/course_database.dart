@@ -15,11 +15,14 @@ part 'course_database.g.dart';
 /// and vocabulary `tags` are stored as JSON-encoded `TEXT` (small lists; v1
 /// trade-off — can be promoted to join tables in a future schema bump).
 
-/// `sections` index rows — one per [Section].
+/// `sections` index rows — one per [Section]. `level` stores the CEFR tag
+/// ("A1"…"B2") or the "Anki" marker for imported decks (empty = unknown;
+/// added in v6 — older rows read back as `null`).
 class Sections extends Table {
   TextColumn get id => text()();
   TextColumn get name => text()();
   TextColumn get description => text().withDefault(const Constant(''))();
+  TextColumn get level => text().withDefault(const Constant(''))();
   TextColumn get prerequisiteSectionIds =>
       text().withDefault(const Constant('[]'))();
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
@@ -128,6 +131,30 @@ class Expressions extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+/// `anki_imports` — one row per imported Anki deck (.apkg/.colpkg).
+/// `notetypesJson` stores the original notetype definitions plus the mapping
+/// decisions made at import time so re-imports can reuse them.
+/// `sourceHash` (sha256 of the package file) powers incremental-update
+/// detection; `importedAt` is epoch seconds.
+class AnkiImports extends Table {
+  TextColumn get importId => text()();
+  TextColumn get sourcePath => text()();
+  TextColumn get sourceHash => text()();
+  IntColumn get importedAt => integer()();
+  IntColumn get deckCount => integer().withDefault(const Constant(0))();
+  IntColumn get noteCount => integer().withDefault(const Constant(0))();
+  IntColumn get cardCount => integer().withDefault(const Constant(0))();
+  IntColumn get mediaCount => integer().withDefault(const Constant(0))();
+  TextColumn get notetypesJson =>
+      text().withDefault(const Constant('{}'))();
+  BoolColumn get aiEnhanced =>
+      boolean().withDefault(const Constant(false))();
+  IntColumn get version => integer().withDefault(const Constant(1))();
+
+  @override
+  Set<Column> get primaryKey => {importId};
+}
+
 @DriftDatabase(
   tables: [
     Sections,
@@ -138,13 +165,14 @@ class Expressions extends Table {
     GrammarPoints,
     CourseMeta,
     Expressions,
+    AnkiImports,
   ],
 )
 class CourseDatabase extends _$CourseDatabase {
   CourseDatabase(QueryExecutor e) : super(e);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -169,6 +197,7 @@ class CourseDatabase extends _$CourseDatabase {
               'grammar_points',
               'expressions',
               'course_meta',
+              'anki_imports',
             ]) {
               await m.deleteTable(tableName);
             }
@@ -199,6 +228,12 @@ class CourseDatabase extends _$CourseDatabase {
           if (from < 5) {
             // v5: expression table for phrase-level SRS.
             await m.createTable(expressions);
+          }
+          if (from < 6) {
+            // v6: Anki deck import metadata + persisted section level (CEFR /
+            // "Anki") so level-based filtering survives restarts.
+            await m.createTable(ankiImports);
+            await m.addColumn(sections, sections.level);
           }
         },
       );

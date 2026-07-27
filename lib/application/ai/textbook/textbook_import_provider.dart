@@ -5,7 +5,6 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 // Package imports:
-import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 
 // Project imports:
@@ -21,6 +20,7 @@ import 'package:varnamala/core/logger.dart';
 import 'package:varnamala/data/course_database.dart' as db;
 import 'package:varnamala/data/course_repository.dart';
 import 'package:varnamala/di/injection.dart';
+import 'package:varnamala/utils/ohos_file_picker.dart';
 
 /// Steps in the textbook import flow.
 enum TextbookImportStep { pick, parse, chapters, extract, review, importDone }
@@ -39,7 +39,7 @@ class TextbookImportProvider extends ChangeNotifier {
         _builder = const TextbookToCourse();
 
   final AiCourseService _service;
-  final CourseRepository _repository;
+  final CourseRepository? _repository;
   final MarkdownChopper _chopper;
   final KnowledgeMerger _merger;
   final TextbookToCourse _builder;
@@ -100,9 +100,8 @@ class TextbookImportProvider extends ChangeNotifier {
   /// Picks a file and parses it into chapters.
   Future<void> pickFile() async {
     _error = null;
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['md', 'txt'],
+    final result = await OhosFilePicker.pickFiles(
+      allowedExtensions: const ['md', 'txt'],
     );
     if (result == null || result.files.isEmpty) return;
 
@@ -194,12 +193,19 @@ class TextbookImportProvider extends ChangeNotifier {
     _isBusy = true;
     notifyListeners();
 
+    if (_repository == null) {
+      _error = 'CourseDatabase unavailable on this platform';
+      _isBusy = false;
+      notifyListeners();
+      return;
+    }
+
     try {
-      final existingWords = (await _repository.vocabulary()).map((w) => w.id).toSet();
+      final existingWords = (await _repository!.vocabulary()).map((w) => w.id).toSet();
       final existingExpressions =
-          (await _repository.expressions()).map((e) => e.id).toSet();
+          (await _repository!.expressions()).map((e) => e.id).toSet();
       final existingGrammar =
-          (await _repository.grammarPoints()).map((g) => g.id).toSet();
+          (await _repository!.grammarPoints()).map((g) => g.id).toSet();
 
       _merger.apply(
         _results,

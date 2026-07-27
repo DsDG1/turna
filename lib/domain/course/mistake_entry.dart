@@ -17,7 +17,7 @@ Object? _interactionSnapshotToJson(Interaction? interaction) =>
 
 /// A recorded wrong answer that the user can later revisit.
 @freezed
-class MistakeEntry with _$MistakeEntry {
+abstract class MistakeEntry with _$MistakeEntry {
   const factory MistakeEntry({
     required String id,
 

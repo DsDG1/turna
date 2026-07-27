@@ -6,8 +6,7 @@ part of 'section.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-_$SectionImpl _$$SectionImplFromJson(Map<String, dynamic> json) =>
-    _$SectionImpl(
+_Section _$SectionFromJson(Map<String, dynamic> json) => _Section(
       id: json['id'] as String,
       name: json['name'] as String,
       description: json['description'] as String? ?? '',
@@ -21,8 +20,7 @@ _$SectionImpl _$$SectionImplFromJson(Map<String, dynamic> json) =>
           .toList(),
     );
 
-Map<String, dynamic> _$$SectionImplToJson(_$SectionImpl instance) =>
-    <String, dynamic>{
+Map<String, dynamic> _$SectionToJson(_Section instance) => <String, dynamic>{
       'id': instance.id,
       'name': instance.name,
       'description': instance.description,

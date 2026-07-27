@@ -1,5 +1,5 @@
-// coverage:ignore-file
 // GENERATED CODE - DO NOT MODIFY BY HAND
+// coverage:ignore-file
 // ignore_for_file: type=lint
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
@@ -9,91 +9,61 @@ part of 'stage.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// dart format off
 T _$identity<T>(T value) => value;
-
-final _privateConstructorUsedError = UnsupportedError(
-    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
-
-Stage _$StageFromJson(Map<String, dynamic> json) {
-  return _Stage.fromJson(json);
-}
 
 /// @nodoc
 mixin _$Stage {
-  String get id => throw _privateConstructorUsedError;
-  String get name => throw _privateConstructorUsedError;
-  String get description => throw _privateConstructorUsedError;
-  List<String> get prerequisiteStageIds => throw _privateConstructorUsedError;
-  List<Interaction> get items => throw _privateConstructorUsedError;
+  String get id;
+  String get name;
+  String get description;
+  List<String> get prerequisiteStageIds;
+  List<Interaction> get items;
 
-  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
-  $StageCopyWith<Stage> get copyWith => throw _privateConstructorUsedError;
-}
-
-/// @nodoc
-abstract class $StageCopyWith<$Res> {
-  factory $StageCopyWith(Stage value, $Res Function(Stage) then) =
-      _$StageCopyWithImpl<$Res, Stage>;
-  @useResult
-  $Res call(
-      {String id,
-      String name,
-      String description,
-      List<String> prerequisiteStageIds,
-      List<Interaction> items});
-}
-
-/// @nodoc
-class _$StageCopyWithImpl<$Res, $Val extends Stage>
-    implements $StageCopyWith<$Res> {
-  _$StageCopyWithImpl(this._value, this._then);
-
-  // ignore: unused_field
-  final $Val _value;
-  // ignore: unused_field
-  final $Res Function($Val) _then;
-
+  /// Create a copy of Stage
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @pragma('vm:prefer-inline')
+  $StageCopyWith<Stage> get copyWith =>
+      _$StageCopyWithImpl<Stage>(this as Stage, _$identity);
+
+  /// Serializes this Stage to a JSON map.
+  Map<String, dynamic> toJson();
+
   @override
-  $Res call({
-    Object? id = null,
-    Object? name = null,
-    Object? description = null,
-    Object? prerequisiteStageIds = null,
-    Object? items = null,
-  }) {
-    return _then(_value.copyWith(
-      id: null == id
-          ? _value.id
-          : id // ignore: cast_nullable_to_non_nullable
-              as String,
-      name: null == name
-          ? _value.name
-          : name // ignore: cast_nullable_to_non_nullable
-              as String,
-      description: null == description
-          ? _value.description
-          : description // ignore: cast_nullable_to_non_nullable
-              as String,
-      prerequisiteStageIds: null == prerequisiteStageIds
-          ? _value.prerequisiteStageIds
-          : prerequisiteStageIds // ignore: cast_nullable_to_non_nullable
-              as List<String>,
-      items: null == items
-          ? _value.items
-          : items // ignore: cast_nullable_to_non_nullable
-              as List<Interaction>,
-    ) as $Val);
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is Stage &&
+            (identical(other.id, id) || other.id == id) &&
+            (identical(other.name, name) || other.name == name) &&
+            (identical(other.description, description) ||
+                other.description == description) &&
+            const DeepCollectionEquality()
+                .equals(other.prerequisiteStageIds, prerequisiteStageIds) &&
+            const DeepCollectionEquality().equals(other.items, items));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(
+      runtimeType,
+      id,
+      name,
+      description,
+      const DeepCollectionEquality().hash(prerequisiteStageIds),
+      const DeepCollectionEquality().hash(items));
+
+  @override
+  String toString() {
+    return 'Stage(id: $id, name: $name, description: $description, prerequisiteStageIds: $prerequisiteStageIds, items: $items)';
   }
 }
 
 /// @nodoc
-abstract class _$$StageImplCopyWith<$Res> implements $StageCopyWith<$Res> {
-  factory _$$StageImplCopyWith(
-          _$StageImpl value, $Res Function(_$StageImpl) then) =
-      __$$StageImplCopyWithImpl<$Res>;
-  @override
+abstract mixin class $StageCopyWith<$Res> {
+  factory $StageCopyWith(Stage value, $Res Function(Stage) _then) =
+      _$StageCopyWithImpl;
   @useResult
   $Res call(
       {String id,
@@ -104,13 +74,14 @@ abstract class _$$StageImplCopyWith<$Res> implements $StageCopyWith<$Res> {
 }
 
 /// @nodoc
-class __$$StageImplCopyWithImpl<$Res>
-    extends _$StageCopyWithImpl<$Res, _$StageImpl>
-    implements _$$StageImplCopyWith<$Res> {
-  __$$StageImplCopyWithImpl(
-      _$StageImpl _value, $Res Function(_$StageImpl) _then)
-      : super(_value, _then);
+class _$StageCopyWithImpl<$Res> implements $StageCopyWith<$Res> {
+  _$StageCopyWithImpl(this._self, this._then);
 
+  final Stage _self;
+  final $Res Function(Stage) _then;
+
+  /// Create a copy of Stage
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -120,43 +91,207 @@ class __$$StageImplCopyWithImpl<$Res>
     Object? prerequisiteStageIds = null,
     Object? items = null,
   }) {
-    return _then(_$StageImpl(
+    return _then(_self.copyWith(
       id: null == id
-          ? _value.id
+          ? _self.id
           : id // ignore: cast_nullable_to_non_nullable
               as String,
       name: null == name
-          ? _value.name
+          ? _self.name
           : name // ignore: cast_nullable_to_non_nullable
               as String,
       description: null == description
-          ? _value.description
+          ? _self.description
           : description // ignore: cast_nullable_to_non_nullable
               as String,
       prerequisiteStageIds: null == prerequisiteStageIds
-          ? _value.prerequisiteStageIds
+          ? _self.prerequisiteStageIds
           : prerequisiteStageIds // ignore: cast_nullable_to_non_nullable
               as List<String>,
       items: null == items
-          ? _value.items
+          ? _self.items
           : items // ignore: cast_nullable_to_non_nullable
               as List<Interaction>,
     ));
   }
 }
 
+/// Adds pattern-matching-related methods to [Stage].
+extension StagePatterns on Stage {
+  /// A variant of `map` that fallback to returning `orElse`.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case _:
+  ///     return orElse();
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>(
+    TResult Function(_Stage value)? $default, {
+    required TResult orElse(),
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _Stage() when $default != null:
+        return $default(_that);
+      case _:
+        return orElse();
+    }
+  }
+
+  /// A `switch`-like method, using callbacks.
+  ///
+  /// Callbacks receives the raw object, upcasted.
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case final Subclass2 value:
+  ///     return ...;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>(
+    TResult Function(_Stage value) $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _Stage():
+        return $default(_that);
+      case _:
+        throw StateError('Unexpected subclass');
+    }
+  }
+
+  /// A variant of `map` that fallback to returning `null`.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case _:
+  ///     return null;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>(
+    TResult? Function(_Stage value)? $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _Stage() when $default != null:
+        return $default(_that);
+      case _:
+        return null;
+    }
+  }
+
+  /// A variant of `when` that fallback to an `orElse` callback.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case _:
+  ///     return orElse();
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>(
+    TResult Function(String id, String name, String description,
+            List<String> prerequisiteStageIds, List<Interaction> items)?
+        $default, {
+    required TResult orElse(),
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _Stage() when $default != null:
+        return $default(_that.id, _that.name, _that.description,
+            _that.prerequisiteStageIds, _that.items);
+      case _:
+        return orElse();
+    }
+  }
+
+  /// A `switch`-like method, using callbacks.
+  ///
+  /// As opposed to `map`, this offers destructuring.
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case Subclass2(:final field2):
+  ///     return ...;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>(
+    TResult Function(String id, String name, String description,
+            List<String> prerequisiteStageIds, List<Interaction> items)
+        $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _Stage():
+        return $default(_that.id, _that.name, _that.description,
+            _that.prerequisiteStageIds, _that.items);
+      case _:
+        throw StateError('Unexpected subclass');
+    }
+  }
+
+  /// A variant of `when` that fallback to returning `null`
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case _:
+  ///     return null;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>(
+    TResult? Function(String id, String name, String description,
+            List<String> prerequisiteStageIds, List<Interaction> items)?
+        $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _Stage() when $default != null:
+        return $default(_that.id, _that.name, _that.description,
+            _that.prerequisiteStageIds, _that.items);
+      case _:
+        return null;
+    }
+  }
+}
+
 /// @nodoc
 @JsonSerializable()
-class _$StageImpl implements _Stage {
-  const _$StageImpl(
+class _Stage implements Stage {
+  const _Stage(
       {required this.id,
       required this.name,
       this.description = '',
       this.prerequisiteStageIds = const <String>[],
       required this.items});
-
-  factory _$StageImpl.fromJson(Map<String, dynamic> json) =>
-      _$$StageImplFromJson(json);
+  factory _Stage.fromJson(Map<String, dynamic> json) => _$StageFromJson(json);
 
   @override
   final String id;
@@ -171,16 +306,26 @@ class _$StageImpl implements _Stage {
   @override
   final List<Interaction> items;
 
+  /// Create a copy of Stage
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  String toString() {
-    return 'Stage(id: $id, name: $name, description: $description, prerequisiteStageIds: $prerequisiteStageIds, items: $items)';
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  _$StageCopyWith<_Stage> get copyWith =>
+      __$StageCopyWithImpl<_Stage>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$StageToJson(
+      this,
+    );
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$StageImpl &&
+            other is _Stage &&
             (identical(other.id, id) || other.id == id) &&
             (identical(other.name, name) || other.name == name) &&
             (identical(other.description, description) ||
@@ -190,7 +335,7 @@ class _$StageImpl implements _Stage {
             const DeepCollectionEquality().equals(other.items, items));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
       runtimeType,
@@ -200,42 +345,67 @@ class _$StageImpl implements _Stage {
       const DeepCollectionEquality().hash(prerequisiteStageIds),
       const DeepCollectionEquality().hash(items));
 
-  @JsonKey(ignore: true)
   @override
-  @pragma('vm:prefer-inline')
-  _$$StageImplCopyWith<_$StageImpl> get copyWith =>
-      __$$StageImplCopyWithImpl<_$StageImpl>(this, _$identity);
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$StageImplToJson(
-      this,
-    );
+  String toString() {
+    return 'Stage(id: $id, name: $name, description: $description, prerequisiteStageIds: $prerequisiteStageIds, items: $items)';
   }
 }
 
-abstract class _Stage implements Stage {
-  const factory _Stage(
-      {required final String id,
-      required final String name,
-      final String description,
-      final List<String> prerequisiteStageIds,
-      required final List<Interaction> items}) = _$StageImpl;
-
-  factory _Stage.fromJson(Map<String, dynamic> json) = _$StageImpl.fromJson;
-
+/// @nodoc
+abstract mixin class _$StageCopyWith<$Res> implements $StageCopyWith<$Res> {
+  factory _$StageCopyWith(_Stage value, $Res Function(_Stage) _then) =
+      __$StageCopyWithImpl;
   @override
-  String get id;
-  @override
-  String get name;
-  @override
-  String get description;
-  @override
-  List<String> get prerequisiteStageIds;
-  @override
-  List<Interaction> get items;
-  @override
-  @JsonKey(ignore: true)
-  _$$StageImplCopyWith<_$StageImpl> get copyWith =>
-      throw _privateConstructorUsedError;
+  @useResult
+  $Res call(
+      {String id,
+      String name,
+      String description,
+      List<String> prerequisiteStageIds,
+      List<Interaction> items});
 }
+
+/// @nodoc
+class __$StageCopyWithImpl<$Res> implements _$StageCopyWith<$Res> {
+  __$StageCopyWithImpl(this._self, this._then);
+
+  final _Stage _self;
+  final $Res Function(_Stage) _then;
+
+  /// Create a copy of Stage
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? id = null,
+    Object? name = null,
+    Object? description = null,
+    Object? prerequisiteStageIds = null,
+    Object? items = null,
+  }) {
+    return _then(_Stage(
+      id: null == id
+          ? _self.id
+          : id // ignore: cast_nullable_to_non_nullable
+              as String,
+      name: null == name
+          ? _self.name
+          : name // ignore: cast_nullable_to_non_nullable
+              as String,
+      description: null == description
+          ? _self.description
+          : description // ignore: cast_nullable_to_non_nullable
+              as String,
+      prerequisiteStageIds: null == prerequisiteStageIds
+          ? _self.prerequisiteStageIds
+          : prerequisiteStageIds // ignore: cast_nullable_to_non_nullable
+              as List<String>,
+      items: null == items
+          ? _self.items
+          : items // ignore: cast_nullable_to_non_nullable
+              as List<Interaction>,
+    ));
+  }
+}
+
+// dart format on

@@ -28,8 +28,20 @@ class DailyChallengeAssembler {
   /// interactions sampled (without replacement) from the loaded course tree.
   /// If fewer than [count] gradable items exist, all of them are used — the
   /// challenge is never padded with synthetic questions.
-  Lesson assemble({required int count, required Random random}) {
-    final pool = collectGradableInteractions(_courseProvider);
+  ///
+  /// [includeAnki] controls whether imported Anki sections (level == 'Anki')
+  /// contribute cards to the challenge pool. Defaults to `true`; the daily
+  /// challenge settings toggle flips this off for users who want only
+  /// language-course questions.
+  Lesson assemble({
+    required int count,
+    required Random random,
+    bool includeAnki = true,
+  }) {
+    final pool = collectGradableInteractions(
+      _courseProvider,
+      includeAnki: includeAnki,
+    );
     final selected = pickChallengeItems(pool, count, random);
     // Stamp each picked item with a stable per-position id so the viewmodel's
     // interactionItemId keys are unique even when the source items carried
@@ -61,11 +73,15 @@ class DailyChallengeAssembler {
   /// a full course load. [ShowWord] (display card, no answer) and
   /// [ListenOnly] (no grading) are excluded — they would stall the
   /// graded challenge flow.
+  ///
+  /// [includeAnki] filters out sections whose `level == 'Anki'` when `false`.
   static List<Interaction> collectGradableInteractions(
-    CourseProvider courseProvider,
-  ) {
+    CourseProvider courseProvider, {
+    bool includeAnki = true,
+  }) {
     final pool = <Interaction>[];
     for (final section in courseProvider.sections) {
+      if (!includeAnki && section.level == 'Anki') continue;
       for (final unit in section.units) {
         for (final lesson in unit.lessons) {
           for (final stage in lesson.flattenedStages) {

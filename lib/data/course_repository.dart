@@ -17,6 +17,7 @@ import 'package:varnamala/domain/course/lesson_content.dart';
 import 'package:varnamala/domain/course/section.dart';
 import 'package:varnamala/domain/course/unit.dart';
 import 'package:varnamala/domain/course/word_entry.dart';
+import 'package:injectable/injectable.dart';
 import 'package:varnamala/domain/repositories/i_course_repository.dart';
 
 /// Reads course content from [CourseDatabase] and reconstructs the existing
@@ -28,6 +29,7 @@ import 'package:varnamala/domain/repositories/i_course_repository.dart';
 /// via join) and **do not** load `lesson_contents` — that keeps opening a
 /// section with ~1800 lessons free of giant `IN` lists and mass JSON decode.
 /// Full bodies are loaded only via [lessonById] (L2).
+@LazySingleton(as: ICourseRepository)
 class CourseRepository implements ICourseRepository {
   final db.CourseDatabase database;
   CourseRepository(this.database);
@@ -45,6 +47,7 @@ class CourseRepository implements ICourseRepository {
           id: r.id,
           name: r.name,
           description: r.description,
+          level: r.level.isEmpty ? null : r.level,
           prerequisiteSectionIds:
               _decodeStringList(r.prerequisiteSectionIds),
           units: const <Unit>[],
@@ -198,6 +201,7 @@ class CourseRepository implements ICourseRepository {
       id: sectionRow.id,
       name: sectionRow.name,
       description: sectionRow.description,
+      level: sectionRow.level.isEmpty ? null : sectionRow.level,
       prerequisiteSectionIds:
           _decodeStringList(sectionRow.prerequisiteSectionIds),
       units: units,
@@ -241,6 +245,148 @@ class CourseRepository implements ICourseRepository {
     final rows = await query.get();
     if (rows.isEmpty) return null;
     return rows.first.readTable(database.units).sectionId;
+  }
+
+  /// Bulk-write a full [Section] tree (section + units + lessons + lesson
+  /// contents) in one transaction, upserting by id. Mirrors the write pattern
+  /// of `AiCourseProvider._writeSectionToDb`; used by the Anki importer.
+  @override
+  Future<void> bulkInsertCourseTree(Section section) async {
+    final sectionRows = await database.select(database.sections).get();
+    final nextOrder = sectionRows.isEmpty
+        ? 0
+        : sectionRows
+                .map((r) => r.sortOrder)
+                .fold<int>(0, (a, b) => a > b ? a : b) +
+            1;
+
+    await database.transaction(() async {
+      await database.into(database.sections).insertOnConflictUpdate(
+            db.SectionsCompanion(
+              id: Value(section.id),
+              name: Value(section.name),
+              description: Value(section.description),
+              level: Value(section.level ?? ''),
+              prerequisiteSectionIds:
+                  Value(jsonEncode(section.prerequisiteSectionIds)),
+              sortOrder: Value(nextOrder),
+            ),
+          );
+
+      for (var uOrder = 0; uOrder < section.units.length; uOrder++) {
+        final u = section.units[uOrder];
+        await database.into(database.units).insertOnConflictUpdate(
+              db.UnitsCompanion(
+                id: Value(u.id),
+                sectionId: Value(section.id),
+                name: Value(u.name),
+                description: Value(u.description),
+                prerequisiteUnitIds:
+                    Value(jsonEncode(u.prerequisiteUnitIds)),
+                sortOrder: Value(uOrder),
+              ),
+            );
+        for (var lOrder = 0; lOrder < u.lessons.length; lOrder++) {
+          final l = u.lessons[lOrder];
+          await database.into(database.lessons).insertOnConflictUpdate(
+                db.LessonsCompanion(
+                  id: Value(l.id),
+                  unitId: Value(u.id),
+                  name: Value(l.name),
+                  description: Value(l.description),
+                  type: Value(l.type.name),
+                  template: Value(l.template.name),
+                  prerequisiteLessonIds:
+                      Value(jsonEncode(l.prerequisiteLessonIds)),
+                  sortOrder: Value(lOrder),
+                ),
+              );
+          await database.into(database.lessonContents).insertOnConflictUpdate(
+                db.LessonContentsCompanion(
+                  lessonId: Value(l.id),
+                  contentJson: Value(jsonEncode(l.content.toJson())),
+                ),
+              );
+        }
+      }
+    });
+  }
+
+  /// Bulk-upsert vocabulary entries in one transaction (Anki importer).
+  @override
+  Future<void> bulkInsertVocabulary(List<WordEntry> words) async {
+    await database.transaction(() async {
+      for (final w in words) {
+        await database.into(database.vocabulary).insertOnConflictUpdate(
+              db.VocabularyCompanion(
+                id: Value(w.id),
+                term: Value(w.term),
+                translation: Value(w.translation),
+                pronunciation: Value(w.pronunciation),
+                audioAsset: Value(w.audioAsset),
+                tags: Value(jsonEncode(w.tags)),
+              ),
+            );
+      }
+    });
+  }
+
+  /// Delete vocabulary entries whose JSON-encoded tags contain [tag] as an
+  /// exact list element (`%"tag"%` LIKE match — the quotes keep `anki:x`
+  /// from matching `anki:xyz`).
+  @override
+  Future<int> deleteByTag(String tag) async {
+    return (database.delete(database.vocabulary)
+          ..where((t) => t.tags.like('%"$tag"%')))
+        .go();
+  }
+
+  /// Delete a section and its whole tree. Done manually (contents → lessons
+  /// → units → section) instead of relying on the `ON DELETE CASCADE`
+  /// constraints, which only fire when SQLite foreign-key enforcement is on.
+  @override
+  Future<void> deleteSection(String sectionId) async {
+    await database.transaction(() async {
+      final unitIds = await (database.select(database.units)
+            ..where((t) => t.sectionId.equals(sectionId)))
+          .map((u) => u.id)
+          .get();
+      if (unitIds.isNotEmpty) {
+        final lessonIds = await (database.select(database.lessons)
+              ..where((t) => t.unitId.isIn(unitIds)))
+            .map((l) => l.id)
+            .get();
+        if (lessonIds.isNotEmpty) {
+          await (database.delete(database.lessonContents)
+                ..where((t) => t.lessonId.isIn(lessonIds)))
+              .go();
+        }
+        await (database.delete(database.lessons)
+              ..where((t) => t.unitId.isIn(unitIds)))
+            .go();
+      }
+      await (database.delete(database.units)
+            ..where((t) => t.sectionId.equals(sectionId)))
+          .go();
+      await (database.delete(database.sections)
+            ..where((t) => t.id.equals(sectionId)))
+          .go();
+    });
+  }
+
+  /// Record a completed Anki deck import in the `anki_imports` table.
+  @override
+  Future<void> recordAnkiImport(db.AnkiImportsCompanion companion) async {
+    await database.into(database.ankiImports).insertOnConflictUpdate(companion);
+  }
+
+  /// List all recorded Anki imports, most recent first.
+  @override
+  Future<List<db.AnkiImport>> ankiImports() async {
+    final rows = await (database.select(database.ankiImports)
+          ..orderBy([(t) => OrderingTerm.desc(t.importedAt)]))
+        .get();
+    return rows;
   }
 
   /// The stored course content version (composite `index+expressions`, written

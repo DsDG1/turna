@@ -7,7 +7,7 @@ part 'word_entry.g.dart';
 /// Global vocabulary pool entry. Decoupled from lessons — [ShowWord]
 /// interactions reference words by id.
 @freezed
-class WordEntry with _$WordEntry {
+abstract class WordEntry with _$WordEntry {
   const factory WordEntry({
     required String id,
     required String term,

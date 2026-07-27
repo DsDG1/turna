@@ -1,5 +1,5 @@
-// coverage:ignore-file
 // GENERATED CODE - DO NOT MODIFY BY HAND
+// coverage:ignore-file
 // ignore_for_file: type=lint
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
@@ -9,97 +9,60 @@ part of 'sub_lesson.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// dart format off
 T _$identity<T>(T value) => value;
-
-final _privateConstructorUsedError = UnsupportedError(
-    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
-
-SubLesson _$SubLessonFromJson(Map<String, dynamic> json) {
-  return _SubLesson.fromJson(json);
-}
 
 /// @nodoc
 mixin _$SubLesson {
-  String get id => throw _privateConstructorUsedError;
-  String get name => throw _privateConstructorUsedError;
-  String get description => throw _privateConstructorUsedError;
+  String get id;
+  String get name;
+  String get description;
 
   /// Ordering index within the parent lesson.
-  int get sortOrder => throw _privateConstructorUsedError;
+  int get sortOrder;
 
   /// The interactions that make up this sub-lesson.
-  List<Stage> get stages => throw _privateConstructorUsedError;
+  List<Stage> get stages;
 
-  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
-  $SubLessonCopyWith<SubLesson> get copyWith =>
-      throw _privateConstructorUsedError;
-}
-
-/// @nodoc
-abstract class $SubLessonCopyWith<$Res> {
-  factory $SubLessonCopyWith(SubLesson value, $Res Function(SubLesson) then) =
-      _$SubLessonCopyWithImpl<$Res, SubLesson>;
-  @useResult
-  $Res call(
-      {String id,
-      String name,
-      String description,
-      int sortOrder,
-      List<Stage> stages});
-}
-
-/// @nodoc
-class _$SubLessonCopyWithImpl<$Res, $Val extends SubLesson>
-    implements $SubLessonCopyWith<$Res> {
-  _$SubLessonCopyWithImpl(this._value, this._then);
-
-  // ignore: unused_field
-  final $Val _value;
-  // ignore: unused_field
-  final $Res Function($Val) _then;
-
+  /// Create a copy of SubLesson
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @pragma('vm:prefer-inline')
+  $SubLessonCopyWith<SubLesson> get copyWith =>
+      _$SubLessonCopyWithImpl<SubLesson>(this as SubLesson, _$identity);
+
+  /// Serializes this SubLesson to a JSON map.
+  Map<String, dynamic> toJson();
+
   @override
-  $Res call({
-    Object? id = null,
-    Object? name = null,
-    Object? description = null,
-    Object? sortOrder = null,
-    Object? stages = null,
-  }) {
-    return _then(_value.copyWith(
-      id: null == id
-          ? _value.id
-          : id // ignore: cast_nullable_to_non_nullable
-              as String,
-      name: null == name
-          ? _value.name
-          : name // ignore: cast_nullable_to_non_nullable
-              as String,
-      description: null == description
-          ? _value.description
-          : description // ignore: cast_nullable_to_non_nullable
-              as String,
-      sortOrder: null == sortOrder
-          ? _value.sortOrder
-          : sortOrder // ignore: cast_nullable_to_non_nullable
-              as int,
-      stages: null == stages
-          ? _value.stages
-          : stages // ignore: cast_nullable_to_non_nullable
-              as List<Stage>,
-    ) as $Val);
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is SubLesson &&
+            (identical(other.id, id) || other.id == id) &&
+            (identical(other.name, name) || other.name == name) &&
+            (identical(other.description, description) ||
+                other.description == description) &&
+            (identical(other.sortOrder, sortOrder) ||
+                other.sortOrder == sortOrder) &&
+            const DeepCollectionEquality().equals(other.stages, stages));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(runtimeType, id, name, description, sortOrder,
+      const DeepCollectionEquality().hash(stages));
+
+  @override
+  String toString() {
+    return 'SubLesson(id: $id, name: $name, description: $description, sortOrder: $sortOrder, stages: $stages)';
   }
 }
 
 /// @nodoc
-abstract class _$$SubLessonImplCopyWith<$Res>
-    implements $SubLessonCopyWith<$Res> {
-  factory _$$SubLessonImplCopyWith(
-          _$SubLessonImpl value, $Res Function(_$SubLessonImpl) then) =
-      __$$SubLessonImplCopyWithImpl<$Res>;
-  @override
+abstract mixin class $SubLessonCopyWith<$Res> {
+  factory $SubLessonCopyWith(SubLesson value, $Res Function(SubLesson) _then) =
+      _$SubLessonCopyWithImpl;
   @useResult
   $Res call(
       {String id,
@@ -110,13 +73,14 @@ abstract class _$$SubLessonImplCopyWith<$Res>
 }
 
 /// @nodoc
-class __$$SubLessonImplCopyWithImpl<$Res>
-    extends _$SubLessonCopyWithImpl<$Res, _$SubLessonImpl>
-    implements _$$SubLessonImplCopyWith<$Res> {
-  __$$SubLessonImplCopyWithImpl(
-      _$SubLessonImpl _value, $Res Function(_$SubLessonImpl) _then)
-      : super(_value, _then);
+class _$SubLessonCopyWithImpl<$Res> implements $SubLessonCopyWith<$Res> {
+  _$SubLessonCopyWithImpl(this._self, this._then);
 
+  final SubLesson _self;
+  final $Res Function(SubLesson) _then;
+
+  /// Create a copy of SubLesson
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -126,44 +90,209 @@ class __$$SubLessonImplCopyWithImpl<$Res>
     Object? sortOrder = null,
     Object? stages = null,
   }) {
-    return _then(_$SubLessonImpl(
+    return _then(_self.copyWith(
       id: null == id
-          ? _value.id
+          ? _self.id
           : id // ignore: cast_nullable_to_non_nullable
               as String,
       name: null == name
-          ? _value.name
+          ? _self.name
           : name // ignore: cast_nullable_to_non_nullable
               as String,
       description: null == description
-          ? _value.description
+          ? _self.description
           : description // ignore: cast_nullable_to_non_nullable
               as String,
       sortOrder: null == sortOrder
-          ? _value.sortOrder
+          ? _self.sortOrder
           : sortOrder // ignore: cast_nullable_to_non_nullable
               as int,
       stages: null == stages
-          ? _value._stages
+          ? _self.stages
           : stages // ignore: cast_nullable_to_non_nullable
               as List<Stage>,
     ));
   }
 }
 
+/// Adds pattern-matching-related methods to [SubLesson].
+extension SubLessonPatterns on SubLesson {
+  /// A variant of `map` that fallback to returning `orElse`.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case _:
+  ///     return orElse();
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>(
+    TResult Function(_SubLesson value)? $default, {
+    required TResult orElse(),
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _SubLesson() when $default != null:
+        return $default(_that);
+      case _:
+        return orElse();
+    }
+  }
+
+  /// A `switch`-like method, using callbacks.
+  ///
+  /// Callbacks receives the raw object, upcasted.
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case final Subclass2 value:
+  ///     return ...;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>(
+    TResult Function(_SubLesson value) $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _SubLesson():
+        return $default(_that);
+      case _:
+        throw StateError('Unexpected subclass');
+    }
+  }
+
+  /// A variant of `map` that fallback to returning `null`.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case _:
+  ///     return null;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>(
+    TResult? Function(_SubLesson value)? $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _SubLesson() when $default != null:
+        return $default(_that);
+      case _:
+        return null;
+    }
+  }
+
+  /// A variant of `when` that fallback to an `orElse` callback.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case _:
+  ///     return orElse();
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>(
+    TResult Function(String id, String name, String description, int sortOrder,
+            List<Stage> stages)?
+        $default, {
+    required TResult orElse(),
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _SubLesson() when $default != null:
+        return $default(_that.id, _that.name, _that.description,
+            _that.sortOrder, _that.stages);
+      case _:
+        return orElse();
+    }
+  }
+
+  /// A `switch`-like method, using callbacks.
+  ///
+  /// As opposed to `map`, this offers destructuring.
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case Subclass2(:final field2):
+  ///     return ...;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>(
+    TResult Function(String id, String name, String description, int sortOrder,
+            List<Stage> stages)
+        $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _SubLesson():
+        return $default(_that.id, _that.name, _that.description,
+            _that.sortOrder, _that.stages);
+      case _:
+        throw StateError('Unexpected subclass');
+    }
+  }
+
+  /// A variant of `when` that fallback to returning `null`
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case _:
+  ///     return null;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>(
+    TResult? Function(String id, String name, String description, int sortOrder,
+            List<Stage> stages)?
+        $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _SubLesson() when $default != null:
+        return $default(_that.id, _that.name, _that.description,
+            _that.sortOrder, _that.stages);
+      case _:
+        return null;
+    }
+  }
+}
+
 /// @nodoc
 @JsonSerializable()
-class _$SubLessonImpl implements _SubLesson {
-  const _$SubLessonImpl(
+class _SubLesson implements SubLesson {
+  const _SubLesson(
       {required this.id,
       required this.name,
       this.description = '',
       this.sortOrder = 0,
       final List<Stage> stages = const <Stage>[]})
       : _stages = stages;
-
-  factory _$SubLessonImpl.fromJson(Map<String, dynamic> json) =>
-      _$$SubLessonImplFromJson(json);
+  factory _SubLesson.fromJson(Map<String, dynamic> json) =>
+      _$SubLessonFromJson(json);
 
   @override
   final String id;
@@ -190,16 +319,26 @@ class _$SubLessonImpl implements _SubLesson {
     return EqualUnmodifiableListView(_stages);
   }
 
+  /// Create a copy of SubLesson
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  String toString() {
-    return 'SubLesson(id: $id, name: $name, description: $description, sortOrder: $sortOrder, stages: $stages)';
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  _$SubLessonCopyWith<_SubLesson> get copyWith =>
+      __$SubLessonCopyWithImpl<_SubLesson>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$SubLessonToJson(
+      this,
+    );
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$SubLessonImpl &&
+            other is _SubLesson &&
             (identical(other.id, id) || other.id == id) &&
             (identical(other.name, name) || other.name == name) &&
             (identical(other.description, description) ||
@@ -209,52 +348,74 @@ class _$SubLessonImpl implements _SubLesson {
             const DeepCollectionEquality().equals(other._stages, _stages));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, id, name, description, sortOrder,
       const DeepCollectionEquality().hash(_stages));
 
-  @JsonKey(ignore: true)
   @override
-  @pragma('vm:prefer-inline')
-  _$$SubLessonImplCopyWith<_$SubLessonImpl> get copyWith =>
-      __$$SubLessonImplCopyWithImpl<_$SubLessonImpl>(this, _$identity);
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$SubLessonImplToJson(
-      this,
-    );
+  String toString() {
+    return 'SubLesson(id: $id, name: $name, description: $description, sortOrder: $sortOrder, stages: $stages)';
   }
 }
 
-abstract class _SubLesson implements SubLesson {
-  const factory _SubLesson(
-      {required final String id,
-      required final String name,
-      final String description,
-      final int sortOrder,
-      final List<Stage> stages}) = _$SubLessonImpl;
-
-  factory _SubLesson.fromJson(Map<String, dynamic> json) =
-      _$SubLessonImpl.fromJson;
-
+/// @nodoc
+abstract mixin class _$SubLessonCopyWith<$Res>
+    implements $SubLessonCopyWith<$Res> {
+  factory _$SubLessonCopyWith(
+          _SubLesson value, $Res Function(_SubLesson) _then) =
+      __$SubLessonCopyWithImpl;
   @override
-  String get id;
-  @override
-  String get name;
-  @override
-  String get description;
-  @override
-
-  /// Ordering index within the parent lesson.
-  int get sortOrder;
-  @override
-
-  /// The interactions that make up this sub-lesson.
-  List<Stage> get stages;
-  @override
-  @JsonKey(ignore: true)
-  _$$SubLessonImplCopyWith<_$SubLessonImpl> get copyWith =>
-      throw _privateConstructorUsedError;
+  @useResult
+  $Res call(
+      {String id,
+      String name,
+      String description,
+      int sortOrder,
+      List<Stage> stages});
 }
+
+/// @nodoc
+class __$SubLessonCopyWithImpl<$Res> implements _$SubLessonCopyWith<$Res> {
+  __$SubLessonCopyWithImpl(this._self, this._then);
+
+  final _SubLesson _self;
+  final $Res Function(_SubLesson) _then;
+
+  /// Create a copy of SubLesson
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? id = null,
+    Object? name = null,
+    Object? description = null,
+    Object? sortOrder = null,
+    Object? stages = null,
+  }) {
+    return _then(_SubLesson(
+      id: null == id
+          ? _self.id
+          : id // ignore: cast_nullable_to_non_nullable
+              as String,
+      name: null == name
+          ? _self.name
+          : name // ignore: cast_nullable_to_non_nullable
+              as String,
+      description: null == description
+          ? _self.description
+          : description // ignore: cast_nullable_to_non_nullable
+              as String,
+      sortOrder: null == sortOrder
+          ? _self.sortOrder
+          : sortOrder // ignore: cast_nullable_to_non_nullable
+              as int,
+      stages: null == stages
+          ? _self._stages
+          : stages // ignore: cast_nullable_to_non_nullable
+              as List<Stage>,
+    ));
+  }
+}
+
+// dart format on

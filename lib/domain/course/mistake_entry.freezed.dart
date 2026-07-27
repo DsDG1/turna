@@ -1,5 +1,5 @@
-// coverage:ignore-file
 // GENERATED CODE - DO NOT MODIFY BY HAND
+// coverage:ignore-file
 // ignore_for_file: type=lint
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
@@ -9,67 +9,117 @@ part of 'mistake_entry.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// dart format off
 T _$identity<T>(T value) => value;
-
-final _privateConstructorUsedError = UnsupportedError(
-    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
-
-MistakeEntry _$MistakeEntryFromJson(Map<String, dynamic> json) {
-  return _MistakeEntry.fromJson(json);
-}
 
 /// @nodoc
 mixin _$MistakeEntry {
-  String get id => throw _privateConstructorUsedError;
+  String get id;
 
   /// The lesson this mistake happened in.
-  String get lessonId => throw _privateConstructorUsedError;
+  String get lessonId;
 
   /// The stage id within the lesson (or sub-lesson id if applicable).
-  String get stageId => throw _privateConstructorUsedError;
+  String get stageId;
 
   /// The interaction id within the stage.
-  String get interactionId => throw _privateConstructorUsedError;
+  String get interactionId;
 
   /// Related word id, if this mistake was tied to a vocabulary word.
-  String? get wordId => throw _privateConstructorUsedError;
+  String? get wordId;
 
   /// Related expression id, if this mistake was tied to an expression.
-  String? get expressionId => throw _privateConstructorUsedError;
+  String? get expressionId;
 
   /// Related grammar point id for cross-routing into grammar review.
-  String? get grammarPointId => throw _privateConstructorUsedError;
+  String? get grammarPointId;
 
   /// A snapshot of the interaction that produced this mistake, used to
   /// recreate it for practice.
   @JsonKey(
       fromJson: _interactionSnapshotFromJson,
       toJson: _interactionSnapshotToJson)
-  Interaction? get interactionSnapshot => throw _privateConstructorUsedError;
+  Interaction? get interactionSnapshot;
 
   /// What the user answered.
-  String get userAnswer => throw _privateConstructorUsedError;
+  String get userAnswer;
 
   /// The correct answer.
-  String get correctAnswer => throw _privateConstructorUsedError;
+  String get correctAnswer;
 
   /// When the mistake was made.
-  DateTime get timestamp => throw _privateConstructorUsedError;
+  DateTime get timestamp;
 
   /// How many times the user has rewritten this mistake correctly.
-  int get rewriteCount => throw _privateConstructorUsedError;
+  int get rewriteCount;
 
-  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
+  /// Create a copy of MistakeEntry
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
   $MistakeEntryCopyWith<MistakeEntry> get copyWith =>
-      throw _privateConstructorUsedError;
+      _$MistakeEntryCopyWithImpl<MistakeEntry>(
+          this as MistakeEntry, _$identity);
+
+  /// Serializes this MistakeEntry to a JSON map.
+  Map<String, dynamic> toJson();
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is MistakeEntry &&
+            (identical(other.id, id) || other.id == id) &&
+            (identical(other.lessonId, lessonId) ||
+                other.lessonId == lessonId) &&
+            (identical(other.stageId, stageId) || other.stageId == stageId) &&
+            (identical(other.interactionId, interactionId) ||
+                other.interactionId == interactionId) &&
+            (identical(other.wordId, wordId) || other.wordId == wordId) &&
+            (identical(other.expressionId, expressionId) ||
+                other.expressionId == expressionId) &&
+            (identical(other.grammarPointId, grammarPointId) ||
+                other.grammarPointId == grammarPointId) &&
+            (identical(other.interactionSnapshot, interactionSnapshot) ||
+                other.interactionSnapshot == interactionSnapshot) &&
+            (identical(other.userAnswer, userAnswer) ||
+                other.userAnswer == userAnswer) &&
+            (identical(other.correctAnswer, correctAnswer) ||
+                other.correctAnswer == correctAnswer) &&
+            (identical(other.timestamp, timestamp) ||
+                other.timestamp == timestamp) &&
+            (identical(other.rewriteCount, rewriteCount) ||
+                other.rewriteCount == rewriteCount));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(
+      runtimeType,
+      id,
+      lessonId,
+      stageId,
+      interactionId,
+      wordId,
+      expressionId,
+      grammarPointId,
+      interactionSnapshot,
+      userAnswer,
+      correctAnswer,
+      timestamp,
+      rewriteCount);
+
+  @override
+  String toString() {
+    return 'MistakeEntry(id: $id, lessonId: $lessonId, stageId: $stageId, interactionId: $interactionId, wordId: $wordId, expressionId: $expressionId, grammarPointId: $grammarPointId, interactionSnapshot: $interactionSnapshot, userAnswer: $userAnswer, correctAnswer: $correctAnswer, timestamp: $timestamp, rewriteCount: $rewriteCount)';
+  }
 }
 
 /// @nodoc
-abstract class $MistakeEntryCopyWith<$Res> {
+abstract mixin class $MistakeEntryCopyWith<$Res> {
   factory $MistakeEntryCopyWith(
-          MistakeEntry value, $Res Function(MistakeEntry) then) =
-      _$MistakeEntryCopyWithImpl<$Res, MistakeEntry>;
+          MistakeEntry value, $Res Function(MistakeEntry) _then) =
+      _$MistakeEntryCopyWithImpl;
   @useResult
   $Res call(
       {String id,
@@ -92,15 +142,14 @@ abstract class $MistakeEntryCopyWith<$Res> {
 }
 
 /// @nodoc
-class _$MistakeEntryCopyWithImpl<$Res, $Val extends MistakeEntry>
-    implements $MistakeEntryCopyWith<$Res> {
-  _$MistakeEntryCopyWithImpl(this._value, this._then);
+class _$MistakeEntryCopyWithImpl<$Res> implements $MistakeEntryCopyWith<$Res> {
+  _$MistakeEntryCopyWithImpl(this._self, this._then);
 
-  // ignore: unused_field
-  final $Val _value;
-  // ignore: unused_field
-  final $Res Function($Val) _then;
+  final MistakeEntry _self;
+  final $Res Function(MistakeEntry) _then;
 
+  /// Create a copy of MistakeEntry
+  /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
@@ -117,181 +166,318 @@ class _$MistakeEntryCopyWithImpl<$Res, $Val extends MistakeEntry>
     Object? timestamp = null,
     Object? rewriteCount = null,
   }) {
-    return _then(_value.copyWith(
+    return _then(_self.copyWith(
       id: null == id
-          ? _value.id
+          ? _self.id
           : id // ignore: cast_nullable_to_non_nullable
               as String,
       lessonId: null == lessonId
-          ? _value.lessonId
+          ? _self.lessonId
           : lessonId // ignore: cast_nullable_to_non_nullable
               as String,
       stageId: null == stageId
-          ? _value.stageId
+          ? _self.stageId
           : stageId // ignore: cast_nullable_to_non_nullable
               as String,
       interactionId: null == interactionId
-          ? _value.interactionId
+          ? _self.interactionId
           : interactionId // ignore: cast_nullable_to_non_nullable
               as String,
       wordId: freezed == wordId
-          ? _value.wordId
+          ? _self.wordId
           : wordId // ignore: cast_nullable_to_non_nullable
               as String?,
       expressionId: freezed == expressionId
-          ? _value.expressionId
+          ? _self.expressionId
           : expressionId // ignore: cast_nullable_to_non_nullable
               as String?,
       grammarPointId: freezed == grammarPointId
-          ? _value.grammarPointId
+          ? _self.grammarPointId
           : grammarPointId // ignore: cast_nullable_to_non_nullable
               as String?,
       interactionSnapshot: freezed == interactionSnapshot
-          ? _value.interactionSnapshot
+          ? _self.interactionSnapshot
           : interactionSnapshot // ignore: cast_nullable_to_non_nullable
               as Interaction?,
       userAnswer: null == userAnswer
-          ? _value.userAnswer
+          ? _self.userAnswer
           : userAnswer // ignore: cast_nullable_to_non_nullable
               as String,
       correctAnswer: null == correctAnswer
-          ? _value.correctAnswer
+          ? _self.correctAnswer
           : correctAnswer // ignore: cast_nullable_to_non_nullable
               as String,
       timestamp: null == timestamp
-          ? _value.timestamp
+          ? _self.timestamp
           : timestamp // ignore: cast_nullable_to_non_nullable
               as DateTime,
       rewriteCount: null == rewriteCount
-          ? _value.rewriteCount
+          ? _self.rewriteCount
           : rewriteCount // ignore: cast_nullable_to_non_nullable
               as int,
-    ) as $Val);
+    ));
   }
 
+  /// Create a copy of MistakeEntry
+  /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $InteractionCopyWith<$Res>? get interactionSnapshot {
-    if (_value.interactionSnapshot == null) {
+    if (_self.interactionSnapshot == null) {
       return null;
     }
 
-    return $InteractionCopyWith<$Res>(_value.interactionSnapshot!, (value) {
-      return _then(_value.copyWith(interactionSnapshot: value) as $Val);
+    return $InteractionCopyWith<$Res>(_self.interactionSnapshot!, (value) {
+      return _then(_self.copyWith(interactionSnapshot: value));
     });
   }
 }
 
-/// @nodoc
-abstract class _$$MistakeEntryImplCopyWith<$Res>
-    implements $MistakeEntryCopyWith<$Res> {
-  factory _$$MistakeEntryImplCopyWith(
-          _$MistakeEntryImpl value, $Res Function(_$MistakeEntryImpl) then) =
-      __$$MistakeEntryImplCopyWithImpl<$Res>;
-  @override
-  @useResult
-  $Res call(
-      {String id,
-      String lessonId,
-      String stageId,
-      String interactionId,
-      String? wordId,
-      String? expressionId,
-      String? grammarPointId,
-      @JsonKey(
-          fromJson: _interactionSnapshotFromJson,
-          toJson: _interactionSnapshotToJson)
-      Interaction? interactionSnapshot,
-      String userAnswer,
-      String correctAnswer,
-      DateTime timestamp,
-      int rewriteCount});
+/// Adds pattern-matching-related methods to [MistakeEntry].
+extension MistakeEntryPatterns on MistakeEntry {
+  /// A variant of `map` that fallback to returning `orElse`.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case _:
+  ///     return orElse();
+  /// }
+  /// ```
 
-  @override
-  $InteractionCopyWith<$Res>? get interactionSnapshot;
-}
-
-/// @nodoc
-class __$$MistakeEntryImplCopyWithImpl<$Res>
-    extends _$MistakeEntryCopyWithImpl<$Res, _$MistakeEntryImpl>
-    implements _$$MistakeEntryImplCopyWith<$Res> {
-  __$$MistakeEntryImplCopyWithImpl(
-      _$MistakeEntryImpl _value, $Res Function(_$MistakeEntryImpl) _then)
-      : super(_value, _then);
-
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? id = null,
-    Object? lessonId = null,
-    Object? stageId = null,
-    Object? interactionId = null,
-    Object? wordId = freezed,
-    Object? expressionId = freezed,
-    Object? grammarPointId = freezed,
-    Object? interactionSnapshot = freezed,
-    Object? userAnswer = null,
-    Object? correctAnswer = null,
-    Object? timestamp = null,
-    Object? rewriteCount = null,
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>(
+    TResult Function(_MistakeEntry value)? $default, {
+    required TResult orElse(),
   }) {
-    return _then(_$MistakeEntryImpl(
-      id: null == id
-          ? _value.id
-          : id // ignore: cast_nullable_to_non_nullable
-              as String,
-      lessonId: null == lessonId
-          ? _value.lessonId
-          : lessonId // ignore: cast_nullable_to_non_nullable
-              as String,
-      stageId: null == stageId
-          ? _value.stageId
-          : stageId // ignore: cast_nullable_to_non_nullable
-              as String,
-      interactionId: null == interactionId
-          ? _value.interactionId
-          : interactionId // ignore: cast_nullable_to_non_nullable
-              as String,
-      wordId: freezed == wordId
-          ? _value.wordId
-          : wordId // ignore: cast_nullable_to_non_nullable
-              as String?,
-      expressionId: freezed == expressionId
-          ? _value.expressionId
-          : expressionId // ignore: cast_nullable_to_non_nullable
-              as String?,
-      grammarPointId: freezed == grammarPointId
-          ? _value.grammarPointId
-          : grammarPointId // ignore: cast_nullable_to_non_nullable
-              as String?,
-      interactionSnapshot: freezed == interactionSnapshot
-          ? _value.interactionSnapshot
-          : interactionSnapshot // ignore: cast_nullable_to_non_nullable
-              as Interaction?,
-      userAnswer: null == userAnswer
-          ? _value.userAnswer
-          : userAnswer // ignore: cast_nullable_to_non_nullable
-              as String,
-      correctAnswer: null == correctAnswer
-          ? _value.correctAnswer
-          : correctAnswer // ignore: cast_nullable_to_non_nullable
-              as String,
-      timestamp: null == timestamp
-          ? _value.timestamp
-          : timestamp // ignore: cast_nullable_to_non_nullable
-              as DateTime,
-      rewriteCount: null == rewriteCount
-          ? _value.rewriteCount
-          : rewriteCount // ignore: cast_nullable_to_non_nullable
-              as int,
-    ));
+    final _that = this;
+    switch (_that) {
+      case _MistakeEntry() when $default != null:
+        return $default(_that);
+      case _:
+        return orElse();
+    }
+  }
+
+  /// A `switch`-like method, using callbacks.
+  ///
+  /// Callbacks receives the raw object, upcasted.
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case final Subclass2 value:
+  ///     return ...;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>(
+    TResult Function(_MistakeEntry value) $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _MistakeEntry():
+        return $default(_that);
+      case _:
+        throw StateError('Unexpected subclass');
+    }
+  }
+
+  /// A variant of `map` that fallback to returning `null`.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case _:
+  ///     return null;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>(
+    TResult? Function(_MistakeEntry value)? $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _MistakeEntry() when $default != null:
+        return $default(_that);
+      case _:
+        return null;
+    }
+  }
+
+  /// A variant of `when` that fallback to an `orElse` callback.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case _:
+  ///     return orElse();
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>(
+    TResult Function(
+            String id,
+            String lessonId,
+            String stageId,
+            String interactionId,
+            String? wordId,
+            String? expressionId,
+            String? grammarPointId,
+            @JsonKey(
+                fromJson: _interactionSnapshotFromJson,
+                toJson: _interactionSnapshotToJson)
+            Interaction? interactionSnapshot,
+            String userAnswer,
+            String correctAnswer,
+            DateTime timestamp,
+            int rewriteCount)?
+        $default, {
+    required TResult orElse(),
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _MistakeEntry() when $default != null:
+        return $default(
+            _that.id,
+            _that.lessonId,
+            _that.stageId,
+            _that.interactionId,
+            _that.wordId,
+            _that.expressionId,
+            _that.grammarPointId,
+            _that.interactionSnapshot,
+            _that.userAnswer,
+            _that.correctAnswer,
+            _that.timestamp,
+            _that.rewriteCount);
+      case _:
+        return orElse();
+    }
+  }
+
+  /// A `switch`-like method, using callbacks.
+  ///
+  /// As opposed to `map`, this offers destructuring.
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case Subclass2(:final field2):
+  ///     return ...;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>(
+    TResult Function(
+            String id,
+            String lessonId,
+            String stageId,
+            String interactionId,
+            String? wordId,
+            String? expressionId,
+            String? grammarPointId,
+            @JsonKey(
+                fromJson: _interactionSnapshotFromJson,
+                toJson: _interactionSnapshotToJson)
+            Interaction? interactionSnapshot,
+            String userAnswer,
+            String correctAnswer,
+            DateTime timestamp,
+            int rewriteCount)
+        $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _MistakeEntry():
+        return $default(
+            _that.id,
+            _that.lessonId,
+            _that.stageId,
+            _that.interactionId,
+            _that.wordId,
+            _that.expressionId,
+            _that.grammarPointId,
+            _that.interactionSnapshot,
+            _that.userAnswer,
+            _that.correctAnswer,
+            _that.timestamp,
+            _that.rewriteCount);
+      case _:
+        throw StateError('Unexpected subclass');
+    }
+  }
+
+  /// A variant of `when` that fallback to returning `null`
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case _:
+  ///     return null;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>(
+    TResult? Function(
+            String id,
+            String lessonId,
+            String stageId,
+            String interactionId,
+            String? wordId,
+            String? expressionId,
+            String? grammarPointId,
+            @JsonKey(
+                fromJson: _interactionSnapshotFromJson,
+                toJson: _interactionSnapshotToJson)
+            Interaction? interactionSnapshot,
+            String userAnswer,
+            String correctAnswer,
+            DateTime timestamp,
+            int rewriteCount)?
+        $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _MistakeEntry() when $default != null:
+        return $default(
+            _that.id,
+            _that.lessonId,
+            _that.stageId,
+            _that.interactionId,
+            _that.wordId,
+            _that.expressionId,
+            _that.grammarPointId,
+            _that.interactionSnapshot,
+            _that.userAnswer,
+            _that.correctAnswer,
+            _that.timestamp,
+            _that.rewriteCount);
+      case _:
+        return null;
+    }
   }
 }
 
 /// @nodoc
 @JsonSerializable()
-class _$MistakeEntryImpl implements _MistakeEntry {
-  const _$MistakeEntryImpl(
+class _MistakeEntry implements MistakeEntry {
+  const _MistakeEntry(
       {required this.id,
       required this.lessonId,
       required this.stageId,
@@ -307,9 +493,8 @@ class _$MistakeEntryImpl implements _MistakeEntry {
       this.correctAnswer = '',
       required this.timestamp,
       this.rewriteCount = 0});
-
-  factory _$MistakeEntryImpl.fromJson(Map<String, dynamic> json) =>
-      _$$MistakeEntryImplFromJson(json);
+  factory _MistakeEntry.fromJson(Map<String, dynamic> json) =>
+      _$MistakeEntryFromJson(json);
 
   @override
   final String id;
@@ -365,16 +550,26 @@ class _$MistakeEntryImpl implements _MistakeEntry {
   @JsonKey()
   final int rewriteCount;
 
+  /// Create a copy of MistakeEntry
+  /// with the given fields replaced by the non-null parameter values.
   @override
-  String toString() {
-    return 'MistakeEntry(id: $id, lessonId: $lessonId, stageId: $stageId, interactionId: $interactionId, wordId: $wordId, expressionId: $expressionId, grammarPointId: $grammarPointId, interactionSnapshot: $interactionSnapshot, userAnswer: $userAnswer, correctAnswer: $correctAnswer, timestamp: $timestamp, rewriteCount: $rewriteCount)';
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  _$MistakeEntryCopyWith<_MistakeEntry> get copyWith =>
+      __$MistakeEntryCopyWithImpl<_MistakeEntry>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$MistakeEntryToJson(
+      this,
+    );
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$MistakeEntryImpl &&
+            other is _MistakeEntry &&
             (identical(other.id, id) || other.id == id) &&
             (identical(other.lessonId, lessonId) ||
                 other.lessonId == lessonId) &&
@@ -398,7 +593,7 @@ class _$MistakeEntryImpl implements _MistakeEntry {
                 other.rewriteCount == rewriteCount));
   }
 
-  @JsonKey(ignore: true)
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
       runtimeType,
@@ -415,93 +610,132 @@ class _$MistakeEntryImpl implements _MistakeEntry {
       timestamp,
       rewriteCount);
 
-  @JsonKey(ignore: true)
   @override
-  @pragma('vm:prefer-inline')
-  _$$MistakeEntryImplCopyWith<_$MistakeEntryImpl> get copyWith =>
-      __$$MistakeEntryImplCopyWithImpl<_$MistakeEntryImpl>(this, _$identity);
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$MistakeEntryImplToJson(
-      this,
-    );
+  String toString() {
+    return 'MistakeEntry(id: $id, lessonId: $lessonId, stageId: $stageId, interactionId: $interactionId, wordId: $wordId, expressionId: $expressionId, grammarPointId: $grammarPointId, interactionSnapshot: $interactionSnapshot, userAnswer: $userAnswer, correctAnswer: $correctAnswer, timestamp: $timestamp, rewriteCount: $rewriteCount)';
   }
 }
 
-abstract class _MistakeEntry implements MistakeEntry {
-  const factory _MistakeEntry(
-      {required final String id,
-      required final String lessonId,
-      required final String stageId,
-      required final String interactionId,
-      final String? wordId,
-      final String? expressionId,
-      final String? grammarPointId,
+/// @nodoc
+abstract mixin class _$MistakeEntryCopyWith<$Res>
+    implements $MistakeEntryCopyWith<$Res> {
+  factory _$MistakeEntryCopyWith(
+          _MistakeEntry value, $Res Function(_MistakeEntry) _then) =
+      __$MistakeEntryCopyWithImpl;
+  @override
+  @useResult
+  $Res call(
+      {String id,
+      String lessonId,
+      String stageId,
+      String interactionId,
+      String? wordId,
+      String? expressionId,
+      String? grammarPointId,
       @JsonKey(
           fromJson: _interactionSnapshotFromJson,
           toJson: _interactionSnapshotToJson)
-      final Interaction? interactionSnapshot,
-      final String userAnswer,
-      final String correctAnswer,
-      required final DateTime timestamp,
-      final int rewriteCount}) = _$MistakeEntryImpl;
-
-  factory _MistakeEntry.fromJson(Map<String, dynamic> json) =
-      _$MistakeEntryImpl.fromJson;
+      Interaction? interactionSnapshot,
+      String userAnswer,
+      String correctAnswer,
+      DateTime timestamp,
+      int rewriteCount});
 
   @override
-  String get id;
-  @override
-
-  /// The lesson this mistake happened in.
-  String get lessonId;
-  @override
-
-  /// The stage id within the lesson (or sub-lesson id if applicable).
-  String get stageId;
-  @override
-
-  /// The interaction id within the stage.
-  String get interactionId;
-  @override
-
-  /// Related word id, if this mistake was tied to a vocabulary word.
-  String? get wordId;
-  @override
-
-  /// Related expression id, if this mistake was tied to an expression.
-  String? get expressionId;
-  @override
-
-  /// Related grammar point id for cross-routing into grammar review.
-  String? get grammarPointId;
-  @override
-
-  /// A snapshot of the interaction that produced this mistake, used to
-  /// recreate it for practice.
-  @JsonKey(
-      fromJson: _interactionSnapshotFromJson,
-      toJson: _interactionSnapshotToJson)
-  Interaction? get interactionSnapshot;
-  @override
-
-  /// What the user answered.
-  String get userAnswer;
-  @override
-
-  /// The correct answer.
-  String get correctAnswer;
-  @override
-
-  /// When the mistake was made.
-  DateTime get timestamp;
-  @override
-
-  /// How many times the user has rewritten this mistake correctly.
-  int get rewriteCount;
-  @override
-  @JsonKey(ignore: true)
-  _$$MistakeEntryImplCopyWith<_$MistakeEntryImpl> get copyWith =>
-      throw _privateConstructorUsedError;
+  $InteractionCopyWith<$Res>? get interactionSnapshot;
 }
+
+/// @nodoc
+class __$MistakeEntryCopyWithImpl<$Res>
+    implements _$MistakeEntryCopyWith<$Res> {
+  __$MistakeEntryCopyWithImpl(this._self, this._then);
+
+  final _MistakeEntry _self;
+  final $Res Function(_MistakeEntry) _then;
+
+  /// Create a copy of MistakeEntry
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? id = null,
+    Object? lessonId = null,
+    Object? stageId = null,
+    Object? interactionId = null,
+    Object? wordId = freezed,
+    Object? expressionId = freezed,
+    Object? grammarPointId = freezed,
+    Object? interactionSnapshot = freezed,
+    Object? userAnswer = null,
+    Object? correctAnswer = null,
+    Object? timestamp = null,
+    Object? rewriteCount = null,
+  }) {
+    return _then(_MistakeEntry(
+      id: null == id
+          ? _self.id
+          : id // ignore: cast_nullable_to_non_nullable
+              as String,
+      lessonId: null == lessonId
+          ? _self.lessonId
+          : lessonId // ignore: cast_nullable_to_non_nullable
+              as String,
+      stageId: null == stageId
+          ? _self.stageId
+          : stageId // ignore: cast_nullable_to_non_nullable
+              as String,
+      interactionId: null == interactionId
+          ? _self.interactionId
+          : interactionId // ignore: cast_nullable_to_non_nullable
+              as String,
+      wordId: freezed == wordId
+          ? _self.wordId
+          : wordId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      expressionId: freezed == expressionId
+          ? _self.expressionId
+          : expressionId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      grammarPointId: freezed == grammarPointId
+          ? _self.grammarPointId
+          : grammarPointId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      interactionSnapshot: freezed == interactionSnapshot
+          ? _self.interactionSnapshot
+          : interactionSnapshot // ignore: cast_nullable_to_non_nullable
+              as Interaction?,
+      userAnswer: null == userAnswer
+          ? _self.userAnswer
+          : userAnswer // ignore: cast_nullable_to_non_nullable
+              as String,
+      correctAnswer: null == correctAnswer
+          ? _self.correctAnswer
+          : correctAnswer // ignore: cast_nullable_to_non_nullable
+              as String,
+      timestamp: null == timestamp
+          ? _self.timestamp
+          : timestamp // ignore: cast_nullable_to_non_nullable
+              as DateTime,
+      rewriteCount: null == rewriteCount
+          ? _self.rewriteCount
+          : rewriteCount // ignore: cast_nullable_to_non_nullable
+              as int,
+    ));
+  }
+
+  /// Create a copy of MistakeEntry
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $InteractionCopyWith<$Res>? get interactionSnapshot {
+    if (_self.interactionSnapshot == null) {
+      return null;
+    }
+
+    return $InteractionCopyWith<$Res>(_self.interactionSnapshot!, (value) {
+      return _then(_self.copyWith(interactionSnapshot: value));
+    });
+  }
+}
+
+// dart format on

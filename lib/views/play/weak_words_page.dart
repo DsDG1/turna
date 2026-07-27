@@ -61,6 +61,7 @@ class _WeakWordsPageState extends State<WeakWordsPage> {
     }
     final lesson = WeakWordQuizAssembler.assembleFromWeakWords(
       weak,
+      mistakeEntries: mistakes,
       random: _random,
     );
     if (!mounted) return;

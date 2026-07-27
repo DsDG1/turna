@@ -17,7 +17,13 @@ part 'interaction.g.dart';
 ///
 /// Optional [grammarPointId] links an exercise to a grammar point for
 /// mistake → grammar-review cross-routing.
-@freezed
+///
+/// `@Freezed(fromJson/toJson: true)` is required (not just `@freezed`):
+/// freezed 2.x only auto-enables json generation when the `fromJson` factory
+/// has an expression body, and ours intentionally uses a block body (the
+/// try/catch below that degrades unknown runtimeTypes to a sentinel ShowWord
+/// instead of throwing).
+@Freezed(fromJson: true, toJson: true)
 sealed class Interaction with _$Interaction {
   /// Show a vocabulary item, optionally with context sentence.
   const factory Interaction.showWord({
@@ -136,6 +142,23 @@ sealed class Interaction with _$Interaction {
     String? grammarPointId,
   }) = ReadingShortAnswer;
 
+  /// Anki-style flip card: show [front], user reveals [back], then grades
+  /// Again/Hard/Good/Easy (mapped to SM-2 quality by the renderer).
+  ///
+  /// Unlike vocabulary-driven variants, the front/back carry no language
+  /// semantics — they are generic card faces from an imported Anki deck, so
+  /// they are deliberately kept out of the dictionary index. [sourceNoteId]
+  /// traces back to the originating Anki note.
+  const factory Interaction.ankiCard({
+    @Default('') String id,
+    required String front,
+    required String back,
+    @Default(<String>[]) List<String> audioAssets,
+    @Default(<String>[]) List<String> imageAssets,
+    String? hint,
+    String? sourceNoteId,
+  }) = AnkiCard;
+
   factory Interaction.fromJson(Map<String, dynamic> json) {
     try {
       return _$InteractionFromJson(json);
@@ -177,6 +200,7 @@ String? interactionGrammarPointId(Interaction interaction) {
     ReadingMcq(:final grammarPointId) => grammarPointId,
     ReadingTrueFalse(:final grammarPointId) => grammarPointId,
     ReadingShortAnswer(:final grammarPointId) => grammarPointId,
+    AnkiCard() => null,
   };
 }
 
@@ -200,6 +224,7 @@ bool interactionAiHintEligible(Interaction interaction) {
     ReadingMcq() => true,
     ReadingTrueFalse() => true,
     ReadingShortAnswer() => true,
+    AnkiCard() => true,
   };
 }
 
@@ -220,6 +245,7 @@ String? interactionCorrectAnswerLabel(Interaction interaction) {
     ReadingMcq(:final options, :final correctIndex) => options[correctIndex],
     ReadingTrueFalse(:final answer) => answer.toString(),
     ReadingShortAnswer(:final expectedAnswer) => expectedAnswer,
+    AnkiCard(:final back) => back,
   };
 }
 
@@ -240,6 +266,7 @@ String interactionPromptLabel(Interaction interaction) {
     ReadingMcq(:final prompt) => prompt,
     ReadingTrueFalse(:final statement) => statement,
     ReadingShortAnswer(:final prompt) => prompt,
+    AnkiCard(:final front) => front,
   };
 }
 
@@ -259,6 +286,7 @@ String interactionTypeLabel(Interaction interaction) {
     ReadingMcq() => 'Reading MCQ',
     ReadingTrueFalse() => 'Reading True/False',
     ReadingShortAnswer() => 'Reading Short Answer',
+    AnkiCard() => 'Flip Card',
   };
 }
 
@@ -281,5 +309,6 @@ String? interactionOptionsLabel(Interaction interaction) {
     ListenOnly() => null,
     ReadingTrueFalse() => null,
     ReadingShortAnswer() => null,
+    AnkiCard() => null,
   };
 }
