@@ -15,13 +15,10 @@ import 'package:varnamala/application/game_provider.dart';
 import 'package:varnamala/application/gems_provider.dart';
 import 'package:varnamala/application/lesson_viewmodel.dart';
 import 'package:varnamala/application/srs_provider.dart';
-import 'package:varnamala/data/anki_import_dao.dart';
-import 'package:varnamala/data/course_database.dart';
-import 'package:varnamala/data/course_repository.dart';
+import 'package:varnamala/core/sm2.dart';
 import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/l10n/app_localizations.dart';
-import 'package:varnamala/service/locator.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:varnamala/views/lesson/components/lesson_dialogs.dart';
 import 'package:varnamala/views/lesson/components/lesson_stage_widgets.dart';
@@ -31,9 +28,13 @@ import 'package:varnamala/views/theme.dart';
 /// [sectionId]) into a synthetic in-memory [Lesson] and plays it through the
 /// shared [LessonViewModel]. Mirrors [MistakeReviewPage] in structure.
 ///
-/// `recordMistakes` is `false` — wrong answers here must not create fresh
-/// mistake entries (would pollute the mistake log). SRS grading still runs
-/// via [LessonViewModel]'s submit path.
+/// `recordMistakes` is `false` at the lesson level — but the submit callback
+/// re-enables mistake recording per item for objectively-graded interactions
+/// (MCQ / FillBlank / listening), so genuine errors reach the mistake book
+/// while self-graded flip cards (`AnkiCard`) stay out of it. SRS grading
+/// runs through [SrsProvider.reviewWithQuality] in the submit callback below
+/// (the [LessonViewModel] submit path itself only tracks session
+/// correctness).
 @RoutePage()
 class AnkiReviewSessionPage extends StatefulWidget {
   /// Restrict the review to cards belonging to this Anki section, or `null`
@@ -66,12 +67,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
     super.initState();
     _vm = context.read<LessonViewModel>();
     _vm.addListener(_onVmChanged);
-    _deckManager = AnkiDeckManager(
-      repo: CourseRepository(getIt<CourseDatabase>()),
-      srsProvider: context.read<SrsProvider>(),
-      importDao: AnkiImportDao(getIt<CourseDatabase>()),
-      appPrefs: getIt<AppPrefs>(),
-    );
+    _deckManager = getIt<AnkiDeckManager>();
     WidgetsBinding.instance.addPostFrameCallback((_) => _start());
   }
 
@@ -85,6 +81,14 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
     final courseProvider = context.read<CourseProvider>();
     final srsProvider = context.read<SrsProvider>();
     final assembler = AnkiReviewAssembler(srsProvider, courseProvider);
+
+    // Load the target sections' lesson bodies and index their card
+    // Interactions — without this a freshly imported deck (shells only,
+    // metadata-only lessons) finds no Interactions and the session wrongly
+    // reports "no cards due" while the hub shows a pending count.
+    await assembler.preloadInteractions(sectionId: widget.sectionId);
+    if (!mounted) return;
+
     final lesson = assembler.assembleBatch(
       sectionId: widget.sectionId,
       maxNew: _deckManager.newRemainingToday,
@@ -118,6 +122,17 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
     unawaited(_deckManager.recordCardReviewed(
       isNewCard: _newCardInteractionIds.contains(interaction.id),
     ));
+  }
+
+  /// Push the binary grade into the SM-2 scheduler so the card's
+  /// dueAt/interval/ease actually advance. Interaction ids are
+  /// `anki-review-` + wordId; cards live in the 'srs' queue via [SrsProvider].
+  void _applySrsReview(Interaction interaction, bool correct) {
+    final wordId = interaction.id.replaceFirst('anki-review-', '');
+    unawaited(context.read<SrsProvider>().reviewWithQuality(
+          wordId,
+          correct ? ReviewGrade.known : ReviewGrade.unknown,
+        ));
   }
 
   void _onVmChanged() {
@@ -213,8 +228,18 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
                         selected.$2,
                         (correct, {userAnswerText}) {
                           _recordReview(interaction);
-                          vm.submitInteraction(correct,
-                              userAnswerText: userAnswerText);
+                          _applySrsReview(interaction, correct);
+                          // Objectively-graded cards (MCQ/FillBlank/listening)
+                          // feed the mistake log; self-graded flip cards stay
+                          // out of it (their grade is a memory judgement, not
+                          // an objective error).
+                          vm.submitInteraction(
+                            correct,
+                            userAnswerText: userAnswerText,
+                            recordMistake: interaction is! AnkiCard,
+                            mistakeWordId: interaction.id
+                                .replaceFirst('anki-review-', ''),
+                          );
                         },
                       ),
                     ),
@@ -224,8 +249,8 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
                           padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
                           child: LessonCheckButton(
                             label: selected.$5
-                                ? AppLocalizations.of(context)!.commonContinue
-                                : AppLocalizations.of(context)!.commonGotIt,
+                                ? AppStrings.commonContinue
+                                : AppStrings.commonGotIt,
                             enabled: true,
                             onPressed: () => vm.advance(),
                           ),
@@ -243,7 +268,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
       backgroundColor: VarnamalaTheme.surfaceColor(context),
       elevation: 0,
       leading: IconButton(
-        tooltip: AppLocalizations.of(context)!.commonClose,
+        tooltip: AppStrings.commonClose,
         icon: Icon(
           Icons.close_rounded,
           color: VarnamalaTheme.textPrimaryColor(context),
@@ -251,7 +276,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
         onPressed: () => Navigator.of(context).maybePop(),
       ),
       title: Text(
-        AppLocalizations.of(context)!.ankiReviewTitle,
+        AppStrings.ankiReviewTitle,
         style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w700,
@@ -291,7 +316,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
             ),
             const SizedBox(height: 16),
             Text(
-              AppLocalizations.of(context)!.ankiNoCardsDue,
+              AppStrings.ankiNoCardsDue,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: VarnamalaTheme.textSecondaryColor(context),
@@ -300,7 +325,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
             const SizedBox(height: 16),
             TextButton(
               onPressed: () => Navigator.of(context).maybePop(),
-              child: Text(AppLocalizations.of(context)!.commonBack),
+              child: Text(AppStrings.commonBack),
             ),
           ],
         ),

@@ -23,7 +23,36 @@ abstract class AnkiCollection with _$AnkiCollection {
 
     /// Path to the extracted media directory (temporary)
     @Default('') String mediaDir,
+
+    /// SHA-256 of the source `.apkg`/`.colpkg` bytes, computed once during
+    /// parsing so callers (e.g. the import wizard) can detect re-imports
+    /// without re-reading the whole file.
+    @Default('') String sourceHash,
+
+    /// Review log entries (rows from the Anki `revlog` table), used to
+    /// backfill per-card review history so the memory-curve features have data
+    /// immediately after import. Empty when the package has no revlog.
+    @Default(<AnkiRevlogEntry>[]) List<AnkiRevlogEntry> revlog,
   }) = _AnkiCollection;
+}
+
+/// A single card template of an Anki notetype (one entry in the `tmpls`
+/// array). [qfmt] / [afmt] hold the raw question/answer-side HTML templates
+/// with `{{Field}}` placeholders, rendered by `AnkiTemplateRenderer`.
+@freezed
+abstract class AnkiTemplate with _$AnkiTemplate {
+  const factory AnkiTemplate({
+    required String name,
+
+    /// Question-side HTML template (`qfmt`)
+    @Default('') String qfmt,
+
+    /// Answer-side HTML template (`afmt`)
+    @Default('') String afmt,
+  }) = _AnkiTemplate;
+
+  factory AnkiTemplate.fromJson(Map<String, dynamic> json) =>
+      _$AnkiTemplateFromJson(json);
 }
 
 /// Anki notetype (model) definition — field names + card templates.
@@ -38,6 +67,11 @@ abstract class AnkiNotetype with _$AnkiNotetype {
 
     /// Card template names (e.g. ["Card 1", "Card 2 (reverse)"])
     @Default(<String>[]) List<String> templateNames,
+
+    /// Full card templates (aligned with [templateNames] by index; a card's
+    /// `ord` selects which template renders it). Empty for imports parsed
+    /// before template bodies were captured.
+    @Default(<AnkiTemplate>[]) List<AnkiTemplate> templates,
 
     /// Whether this is a Cloze notetype
     @Default(false) bool isCloze,
@@ -132,4 +166,38 @@ abstract class AnkiCardData with _$AnkiCardData {
     /// Number of times forgotten
     @Default(0) int lapses,
   }) = _AnkiCardData;
+}
+
+/// A single review-log entry (row in the Anki `revlog` table). Used to
+/// backfill per-card review history for the memory-curve features.
+@freezed
+abstract class AnkiRevlogEntry with _$AnkiRevlogEntry {
+  const factory AnkiRevlogEntry({
+    /// Review id = epoch milliseconds of the review (the row's primary key).
+    required int id,
+
+    /// Card id this review belongs to (references [AnkiCardData.id]).
+    required int cid,
+
+    @Default(0) int usn,
+
+    /// Button pressed: 1=again, 2=hard, 3=good, 4=easy (0 for manual/unset).
+    @Default(0) int ease,
+
+    /// New interval after this review (days for review cards; negative =
+    /// seconds for learning steps).
+    @Default(0) int ivl,
+
+    /// Previous interval before this review (same unit rules as [ivl]).
+    @Default(0) int lastIvl,
+
+    /// New ease factor × 1000 (e.g. 2500 = 2.5).
+    @Default(0) int factor,
+
+    /// Time taken to answer, in milliseconds (not the review timestamp).
+    @Default(0) int time,
+
+    /// Review type: 0=learning, 1=review, 2=relearning, 3=cram.
+    @Default(0) int type,
+  }) = _AnkiRevlogEntry;
 }

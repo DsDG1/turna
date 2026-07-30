@@ -1,6 +1,3 @@
-// Dart imports:
-import 'dart:async';
-
 // Flutter imports:
 import 'package:flutter/material.dart';
 
@@ -10,13 +7,10 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:varnamala/application/game_provider.dart';
-import 'package:varnamala/application/language_provider.dart';
-import 'package:varnamala/core/enums.dart';
 import 'package:varnamala/routing/routing.gr.dart';
-import 'package:varnamala/service/anki_import_service.dart';
 import 'package:varnamala/views/theme.dart';
 import 'package:varnamala/views/widgets/gems_display.dart';
-import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/widgets/loader.dart';
 
 class StatAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -54,7 +48,7 @@ class StatAppBar extends StatelessWidget implements PreferredSizeWidget {
             color: VarnamalaTheme.peacockTeal,
             size: 22,
           ),
-          tooltip: AppLocalizations.of(context)!.homeAiCourseDesigner,
+          tooltip: AppStrings.homeAiCourseDesigner,
           onPressed: () => context.router.push(const AiWishChatRoute()),
         ),
       ],
@@ -62,212 +56,22 @@ class StatAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 }
 
-/// Menu key for the "Import Anki" action.
-const _kImportAnki = 'import_anki';
-
-/// Menu key for the "New Language" action.
-const _kNewLanguage = 'new_language';
-
-class LanguageSwitch extends StatefulWidget {
+/// Globe button in the Learn-tab app bar. Opens the course-management page
+/// (switch / reorder / add / delete courses) — it used to be an inline
+/// popup menu, now all of that lives in [CourseManagementPage].
+class LanguageSwitch extends StatelessWidget {
   const LanguageSwitch({super.key});
 
   @override
-  State<LanguageSwitch> createState() => _LanguageSwitchState();
-}
-
-class _LanguageSwitchState extends State<LanguageSwitch> {
-  bool _importing = false;
-
-  @override
   Widget build(BuildContext context) {
-    final current = context.select((LanguageProvider p) => p.selectedLanguage);
-
-    return PopupMenuButton<String>(
-      onSelected: _onMenuSelected,
-      itemBuilder: (context) {
-        final items = <PopupMenuEntry<String>>[];
-
-        // Language selection items.
-        for (final lang in TargetLanguage.values) {
-          items.add(
-            PopupMenuItem<String>(
-              value: 'lang_${lang.name}',
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.language_rounded,
-                    size: 18,
-                    color: lang == current
-                        ? VarnamalaTheme.peacockTeal
-                        : VarnamalaTheme.textHint,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    lang.displayName,
-                    style: TextStyle(
-                      fontWeight:
-                          lang == current ? FontWeight.w700 : FontWeight.w400,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
-
-        // Divider before actions.
-        items.add(const PopupMenuDivider());
-
-        // Import Anki action.
-        items.add(
-          PopupMenuItem<String>(
-            value: _kImportAnki,
-            enabled: !_importing,
-            child: Row(
-              children: [
-                Icon(
-                  Icons.upload_file_rounded,
-                  size: 18,
-                  color: VarnamalaTheme.textHint,
-                ),
-                const SizedBox(width: 8),
-                _importing
-                    ? const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Text(AppLocalizations.of(context)!.homeFromAnki),
-              ],
-            ),
-          ),
-        );
-
-        // New Language action.
-        items.add(
-          PopupMenuItem<String>(
-            value: _kNewLanguage,
-            child: Row(
-              children: [
-                Icon(
-                  Icons.add_circle_outline_rounded,
-                  size: 18,
-                  color: VarnamalaTheme.textHint,
-                ),
-                const SizedBox(width: 8),
-                Text(AppLocalizations.of(context)!.homeNewCourse),
-              ],
-            ),
-          ),
-        );
-
-        return items;
-      },
-      child: const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 8),
-        child: Icon(
-          Icons.language_rounded,
-          size: 22,
-          color: VarnamalaTheme.peacockTeal,
-        ),
+    return IconButton(
+      tooltip: AppStrings.courseManagementTitle,
+      icon: const Icon(
+        Icons.language_rounded,
+        size: 22,
+        color: VarnamalaTheme.peacockTeal,
       ),
-    );
-  }
-
-  void _onMenuSelected(String value) {
-    if (value.startsWith('lang_')) {
-      final langName = value.substring(5);
-      final lang = TargetLanguage.values.firstWhere(
-        (e) => e.name == langName,
-        orElse: () => TargetLanguage.turkish,
-      );
-      context.read<LanguageProvider>().setLanguage(lang);
-      unawaited(context.read<LanguageProvider>().cacheLanguage());
-      return;
-    }
-
-    switch (value) {
-      case _kImportAnki:
-        _startAnkiImport();
-        break;
-      case _kNewLanguage:
-        _showNewLanguageDialog();
-        break;
-    }
-  }
-
-  void _startAnkiImport() async {
-    setState(() => _importing = true);
-    try {
-      final service = AnkiImportService();
-      final count = await service.importFromCsv();
-      if (!context.mounted) return;
-      _showSnackBar(
-        AppLocalizations.of(context)!.ankiImportSuccess(count),
-        VarnamalaTheme.success,
-      );
-    } on ImportCancelledException {
-      // User cancelled — no feedback needed.
-    } on ImportEmptyException catch (e) {
-      if (!context.mounted) return;
-      _showSnackBar(e.toString(), VarnamalaTheme.error);
-    } catch (e) {
-      if (!context.mounted) return;
-      _showSnackBar(AppLocalizations.of(context)!.ankiImportError, VarnamalaTheme.error);
-    } finally {
-      if (context.mounted) setState(() => _importing = false);
-    }
-  }
-
-  void _showSnackBar(String message, Color bgColor) {
-    // Use addPostFrameCallback to avoid "deactivated widget" errors when
-    // the SnackBar is shown immediately after a dialog/menu dismiss.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!context.mounted) return;
-      try {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            backgroundColor: bgColor,
-          ),
-        );
-      } catch (_) {
-        // ScaffoldMessenger lookup failed — widget tree is being torn down.
-      }
-    });
-  }
-
-  void _showNewLanguageDialog() {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.homeNewCourse),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(AppLocalizations.of(context)!.homeNewCourseComingSoon),
-            const SizedBox(height: 12),
-            Text(
-              AppLocalizations.of(context)!.homeNewCourseUseAi,
-              style: const TextStyle(fontStyle: FontStyle.italic),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(_),
-            child: Text(AppLocalizations.of(context)!.dialogClose),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(_);
-              context.router.push(const AiWishChatRoute());
-            },
-            child: Text(AppLocalizations.of(context)!.homeDesignWithAi),
-          ),
-        ],
-      ),
+      onPressed: () => context.router.push(const CourseManagementRoute()),
     );
   }
 }

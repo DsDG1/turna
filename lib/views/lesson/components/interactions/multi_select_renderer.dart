@@ -8,7 +8,7 @@ import 'package:injectable/injectable.dart';
 import 'package:varnamala/core/spacing.dart';
 import 'package:varnamala/core/text_styles.dart';
 import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/lesson/components/cached_asset_image.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:varnamala/views/theme.dart';
@@ -129,14 +129,14 @@ class _MultiSelectBodyState extends State<_MultiSelectBody> {
     final count = _picked.length;
     final min = widget.minSelections;
     final max = widget.maxSelections;
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppStrings;
     if (max == 2147483647) {
-      return l10n.lessonSelectAtLeast(min, count);
+      return AppStrings.lessonSelectAtLeast(min, count);
     }
     if (min == max) {
-      return l10n.lessonSelectExact(min, count);
+      return AppStrings.lessonSelectExact(min, count);
     }
-    return l10n.lessonSelectRange(min, max, count);
+    return AppStrings.lessonSelectRange(min, max, count);
   }
 
   @override
@@ -148,7 +148,7 @@ class _MultiSelectBodyState extends State<_MultiSelectBody> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SectionCaption(AppLocalizations.of(context)!.lessonSelectAllCaption),
+          SectionCaption(AppStrings.lessonSelectAllCaption),
           Text(
             widget.prompt,
             style: AppTextStyles.promptLg(context).copyWith(
@@ -172,7 +172,7 @@ class _MultiSelectBodyState extends State<_MultiSelectBody> {
           ..._buildOptions(submitted, correct),
           const SizedBox(height: 20),
           LessonCheckButton(
-            label: submitted ? AppLocalizations.of(context)!.lessonChecked : AppLocalizations.of(context)!.lessonCheck,
+            label: submitted ? AppStrings.lessonChecked : AppStrings.lessonCheck,
             enabled: _canSubmit,
             onPressed: _canSubmit
                 ? () => widget.onSubmit(

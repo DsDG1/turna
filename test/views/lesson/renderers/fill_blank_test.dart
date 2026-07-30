@@ -54,7 +54,7 @@ void main() {
     await tester.pumpWidget(harness.build(renderer, interaction));
 
     ElevatedButton checkButton() =>
-        tester.widget(find.widgetWithText(ElevatedButton, 'CHECK'));
+        tester.widget(find.widgetWithText(ElevatedButton, '核对'));
 
     // Empty input → CHECK disabled (onPressed null).
     expect(checkButton().onPressed, isNull);

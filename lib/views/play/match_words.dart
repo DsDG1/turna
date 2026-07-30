@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 import 'package:varnamala/application/game_provider.dart';
 import 'package:varnamala/application/match_provider.dart';
 import 'package:varnamala/core/utils.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/theme.dart';
 
 @RoutePage()
@@ -90,7 +91,7 @@ class _MatchWordsPageState extends State<MatchWordsPage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Match Madness',
+                  AppStrings.playMatchMadness,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.w700,
                         color: VarnamalaTheme.leagueAmethyst,
@@ -129,12 +130,12 @@ class _MatchWordsPageState extends State<MatchWordsPage> {
                       children: [
                         _TopChip(
                           icon: Icons.bolt_rounded,
-                          label: '${matchProvider.sessionScore} XP',
+                          label: AppStrings.playXpLabel(matchProvider.sessionScore),
                           color: VarnamalaTheme.peacockTeal,
                         ),
                         _TopChip(
                           icon: Icons.auto_awesome_rounded,
-                          label: 'Round ${matchProvider.roundsCompleted + 1}',
+                          label: AppStrings.playRoundLabel(matchProvider.roundsCompleted + 1),
                           color: VarnamalaTheme.leagueAmethyst,
                         ),
                       ],
@@ -165,7 +166,7 @@ class _MatchWordsPageState extends State<MatchWordsPage> {
                     ),
                     const SizedBox(height: 14),
                     Text(
-                      'Infinite rounds. New words appear after each perfect board.',
+                      AppStrings.playInfiniteRoundsNote,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: VarnamalaTheme.textHintColor(context),
                           ),
@@ -232,14 +233,14 @@ class _RoundCompleteOverlayState extends State<_RoundCompleteOverlay>
             border: Border.all(color: VarnamalaTheme.statCardBorder(context)),
             boxShadow: VarnamalaTheme.cardShadow,
           ),
-          child: const Row(
+          child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(Icons.celebration_rounded,
                   color: VarnamalaTheme.peacockTeal),
               SizedBox(width: 8),
               Text(
-                'Round complete! Loading new words...',
+                AppStrings.playRoundComplete,
                 style: TextStyle(fontWeight: FontWeight.w700),
               ),
             ],
@@ -344,7 +345,7 @@ class MatchCounter extends StatelessWidget {
           return ScaleTransition(scale: animation, child: child);
         },
         child: Text(
-          '$matchedCount / $totalCount',
+          AppStrings.playMatchCount(matchedCount, totalCount),
           key: ValueKey<int>(matchedCount),
           style: TextStyle(
             fontSize: 20,
@@ -462,7 +463,7 @@ class _MatchGameOverDialogState extends State<_MatchGameOverDialog>
             ),
             const SizedBox(height: 8),
             Text(
-              'Time up! You completed ${widget.roundsCompleted} rounds and earned ${widget.score} XP.',
+              AppStrings.playTimeUp(widget.roundsCompleted, widget.score),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
@@ -471,13 +472,13 @@ class _MatchGameOverDialogState extends State<_MatchGameOverDialog>
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: widget.onPlayAgain,
-                child: const Text('Play Again'),
+                child: Text(AppStrings.playPlayAgain),
               ),
             ),
             const SizedBox(height: 8),
             TextButton(
               onPressed: widget.onClose,
-              child: const Text('Back'),
+              child: Text(AppStrings.commonBack),
             ),
           ],
         ),
@@ -488,11 +489,11 @@ class _MatchGameOverDialogState extends State<_MatchGameOverDialog>
   (IconData, Color, String) _celebrationStyle(MatchCelebrationType type) {
     switch (type) {
       case MatchCelebrationType.sparkles:
-        return (Icons.auto_awesome_rounded, VarnamalaTheme.leagueAmethyst, 'Brilliant Run!');
+        return (Icons.auto_awesome_rounded, VarnamalaTheme.leagueAmethyst, AppStrings.playBrilliantRun);
       case MatchCelebrationType.trophy:
-        return (Icons.emoji_events_rounded, VarnamalaTheme.successDark, 'Champion Energy!');
+        return (Icons.emoji_events_rounded, VarnamalaTheme.successDark, AppStrings.playChampionEnergy);
       case MatchCelebrationType.lightning:
-        return (Icons.bolt_rounded, VarnamalaTheme.peacockTeal, 'Lightning Fast!');
+        return (Icons.bolt_rounded, VarnamalaTheme.peacockTeal, AppStrings.playLightningFast);
     }
   }
 }

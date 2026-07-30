@@ -10,6 +10,8 @@ void main() {
     ContentUpdateChoice? result;
     await tester.pumpWidget(
       MaterialApp(
+        
+        
         home: Builder(
           builder: (context) => ElevatedButton(
             onPressed: () async {
@@ -35,7 +37,7 @@ void main() {
     testWidgets('Keep progress returns keepProgress', (tester) async {
       final choice = await pumpAndAwaitChoice(
         tester,
-        performTap: (b) => tester.tap(find.text('Keep progress')),
+        performTap: (b) => tester.tap(find.text('保留进度')),
       );
       expect(choice, ContentUpdateChoice.keepProgress);
     });
@@ -43,7 +45,7 @@ void main() {
     testWidgets('Reset progress returns resetProgress', (tester) async {
       final choice = await pumpAndAwaitChoice(
         tester,
-        performTap: (b) => tester.tap(find.text('Reset progress')),
+        performTap: (b) => tester.tap(find.text('重置进度')),
       );
       expect(choice, ContentUpdateChoice.resetProgress);
     });
@@ -52,6 +54,8 @@ void main() {
         (tester) async {
       await tester.pumpWidget(
         MaterialApp(
+          
+          
           home: Builder(
             builder: (context) => ElevatedButton(
               onPressed: () => showDialog<ContentUpdateChoice>(
@@ -70,13 +74,15 @@ void main() {
       // Tap the barrier (outside the dialog). Dialog must stay.
       await tester.tapAt(const Offset(10, 10));
       await tester.pumpAndSettle();
-      expect(find.text('Course updated'), findsOneWidget);
+      expect(find.text('课程已更新'), findsOneWidget);
     });
 
     testWidgets('renders both options and the ADR 0002 body text',
         (tester) async {
       await tester.pumpWidget(
         MaterialApp(
+          
+          
           home: Builder(
             builder: (context) => ElevatedButton(
               onPressed: () => showDialog<ContentUpdateChoice>(
@@ -92,10 +98,10 @@ void main() {
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Course updated'), findsOneWidget);
-      expect(find.text('Keep progress'), findsOneWidget);
-      expect(find.text('Reset progress'), findsOneWidget);
-      expect(find.textContaining('start over'), findsOneWidget);
+      expect(find.text('课程已更新'), findsOneWidget);
+      expect(find.text('保留进度'), findsOneWidget);
+      expect(find.text('重置进度'), findsOneWidget);
+      expect(find.textContaining('重新开始'), findsOneWidget);
     });
   });
 }

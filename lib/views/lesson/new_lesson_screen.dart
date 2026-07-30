@@ -4,15 +4,17 @@ import 'dart:math';
 
 // Flutter imports:
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 // Package imports:
 import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/ai/ai_course_provider.dart';
 import 'package:varnamala/application/ai/ai_hint_provider.dart';
 import 'package:varnamala/application/ai/ai_lesson_helper_provider.dart';
+import 'package:varnamala/application/ai/engine/ai_engine_config_holder.dart';
+import 'package:varnamala/application/fun_provider.dart';
 import 'package:varnamala/application/game_provider.dart';
 import 'package:varnamala/application/gems_provider.dart';
 import 'package:varnamala/application/lesson_viewmodel.dart';
@@ -20,9 +22,11 @@ import 'package:varnamala/core/enums.dart';
 import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/domain/course/interaction.dart';
 import 'package:varnamala/domain/course/lesson.dart';
-import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/routing/routing.gr.dart';
+import 'package:varnamala/application/settings_provider.dart';
 import 'package:varnamala/service/tab_router.dart';
+import 'package:varnamala/service/xiaoyi_service.dart';
 import 'package:varnamala/views/lesson/components/ai_hint_sheet.dart';
 import 'package:varnamala/views/ai/ai_lesson_helper_sheet.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
@@ -46,6 +50,7 @@ class _NewLessonPageState extends State<NewLessonPage> {
       getIt<Set<InteractionRenderer>>();
   final Random _random = Random();
   bool _autoAdvanceScheduled = false;
+  bool _autoSubmitScheduled = false;
   bool _dialogShown = false;
   /// Once the completion dialog has been shown for this lesson pass, never
   /// re-show it on a subsequent VM notify (the VM stays `isComplete` until a
@@ -91,6 +96,17 @@ class _NewLessonPageState extends State<NewLessonPage> {
       _showMasteryRetryDialog();
       return;
     }
+
+    // —— 破解模式：自动提交正确答案 + 强制自动推进 ——
+    if (context.read<FunProvider>().autoAnswer) {
+      if (!vm.hasSubmitted) {
+        _scheduleAutoSubmit(vm);
+      } else {
+        _handleAutoAdvance(vm, force: true);
+      }
+      return;
+    }
+
     _handleAutoAdvance(vm);
   }
 
@@ -134,7 +150,51 @@ class _NewLessonPageState extends State<NewLessonPage> {
     final interaction = vm.currentInteraction;
     if (interaction == null) return;
 
-    final config = context.read<AiCourseProvider>().config;
+    // Capture ScaffoldMessenger before any await that may background the app
+    // (startAbility deactivates the widget tree; looking it up afterwards
+    // throws "deactivated widget's ancestor is unsafe").
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final settings = context.read<SettingsProvider>();
+
+    // HarmonyOS 小艺 branch: when the learner enabled "用小艺解答" and the
+    // native XiaoyiPlugin is present, hand the question to 小艺 and return —
+    // no API key required. On Android/Web, XiaoyiService.isSupported is
+    // false (channel missing), so the original DeepSeek flow below runs
+    // unchanged.
+    try {
+      final xiaoyi = getIt<XiaoyiService>();
+      final useXiaoyi = settings.useXiaoyiHint && await xiaoyi.isSupported;
+      if (useXiaoyi) {
+        final ctx = AiQuestionContext(
+          language: TargetLanguage.turkish.displayName,
+          typeLabel: interactionTypeLabel(interaction),
+          promptLabel: interactionPromptLabel(interaction),
+          optionsLabel: interactionOptionsLabel(interaction),
+          correctLabel: interactionCorrectAnswerLabel(interaction),
+          userAnswer: vm.currentInteractionState.userAnswerText,
+        );
+        // Unfocus before handing off to 小艺: startAbility backgrounds the
+        // app and deactivates the widget tree, which would otherwise leave
+        // the tapped IconButton's InkResponse querying MediaQuery on a
+        // deactivated element ("Looking up a deactivated widget's ancestor
+        // is unsafe").
+        FocusScope.of(context).unfocus();
+        await xiaoyi.ask(buildXiaoyiPrompt(ctx));
+        return;
+      }
+    } on PlatformException catch (e) {
+      // 小艺 launch failed (e.g. not installed / action unsupported). Only
+      // surface a SnackBar if the messenger is still usable; never touch
+      // `context` here — it may be deactivated by the backgrounding.
+      if (messenger != null) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(e.message ?? '无法拉起小艺')),
+        );
+      }
+      return;
+    }
+
+    final config = context.read<AiEngineConfigHolder>().config;
     if (!config.isComplete) {
       await _showAiConfigPrompt(context);
       return;
@@ -176,7 +236,7 @@ class _NewLessonPageState extends State<NewLessonPage> {
   }
 
   Future<void> _openAiHelper(BuildContext context, LessonViewModel vm) async {
-    final config = context.read<AiCourseProvider>().config;
+    final config = context.read<AiEngineConfigHolder>().config;
     if (!config.isComplete) {
       await _showAiConfigPrompt(context);
       return;
@@ -206,32 +266,47 @@ class _NewLessonPageState extends State<NewLessonPage> {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.aiNotConfiguredTitle),
-        content: Text(AppLocalizations.of(context)!.aiNotConfiguredMessageLesson),
+        title: Text(AppStrings.aiNotConfiguredTitle),
+        content: Text(AppStrings.aiNotConfiguredMessageLesson),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(AppLocalizations.of(context)!.commonLater),
+            child: Text(AppStrings.commonLater),
           ),
           FilledButton(
             onPressed: () {
               Navigator.of(dialogContext).pop();
               getIt<TabRouter>().switchTo(TabDestination.settings);
             },
-            child: Text(AppLocalizations.of(context)!.aiGoToSettings),
+            child: Text(AppStrings.aiGoToSettings),
           ),
         ],
       ),
     );
   }
 
-  void _handleAutoAdvance(LessonViewModel vm) {
+  /// Auto-submit the correct answer after a short delay so the user sees
+  /// the question flash by. Only runs in cheat mode (FunProvider.autoAnswer).
+  void _scheduleAutoSubmit(LessonViewModel vm) {
+    if (_autoSubmitScheduled) return;
+    _autoSubmitScheduled = true;
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (!mounted) return;
+      _autoSubmitScheduled = false;
+      final interaction = vm.currentInteraction;
+      if (interaction == null || vm.hasSubmitted) return;
+      final correctAnswer = interactionCorrectAnswerLabel(interaction) ?? '';
+      vm.submitInteraction(true, userAnswerText: correctAnswer);
+    });
+  }
+
+  void _handleAutoAdvance(LessonViewModel vm, {bool force = false}) {
     if (_autoAdvanceScheduled) return;
     if (!vm.hasSubmitted) return;
     final interaction = vm.currentInteraction;
     if (interaction == null) return;
     final renderer = lookupRenderer(_renderers, interaction);
-    if (!renderer.autoAdvance) return;
+    if (!force && !renderer.autoAdvance) return;
 
     _autoAdvanceScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -333,7 +408,7 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
     return Selector<LessonViewModel,
         ({String name, String? stage, bool complete, double progress, bool aiEligible})>(
       selector: (context, vm) => (
-        name: vm.lesson?.name ?? AppLocalizations.of(context)!.lessonLessonFallback,
+        name: vm.lesson?.name ?? AppStrings.lessonLessonFallback,
         stage: vm.currentStageName,
         complete: vm.isComplete,
         progress: vm.progress,
@@ -343,7 +418,7 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
         backgroundColor: VarnamalaTheme.surfaceColor(context),
         elevation: 0,
         leading: IconButton(
-          tooltip: AppLocalizations.of(context)!.commonClose,
+          tooltip: AppStrings.commonClose,
           icon: Icon(
             Icons.close_rounded,
             color: VarnamalaTheme.textPrimaryColor(context),
@@ -372,12 +447,31 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
                 ),
               ),
             ],
+            if (context.select<FunProvider, bool>((p) => p.autoAnswer)) ...[
+              const SizedBox(height: 2),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: VarnamalaTheme.error.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '破解模式',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: VarnamalaTheme.error,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
         centerTitle: true,
         actions: [
           IconButton(
-            tooltip: AppLocalizations.of(context)!.lessonAiHelperTooltip,
+            tooltip: AppStrings.lessonAiHelperTooltip,
             icon: Icon(
               Icons.auto_fix_high,
               color: VarnamalaTheme.textPrimaryColor(context),
@@ -386,7 +480,7 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
           ),
           if (s.aiEligible)
             IconButton(
-              tooltip: AppLocalizations.of(context)!.lessonAiHintTooltip,
+              tooltip: AppStrings.lessonAiHintTooltip,
               icon: Icon(
                 Icons.auto_awesome_rounded,
                 color: VarnamalaTheme.textPrimaryColor(context),
@@ -451,7 +545,7 @@ class _LessonBody extends StatelessWidget {
               const Icon(Icons.error_outline_rounded, size: 48),
               const SizedBox(height: 12),
               Text(
-                AppLocalizations.of(context)!.lessonCouldNotLoadLesson,
+                AppStrings.lessonCouldNotLoadLesson,
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 8),
@@ -462,7 +556,7 @@ class _LessonBody extends StatelessWidget {
               const SizedBox(height: 16),
               TextButton(
                 onPressed: onRetry,
-                child: Text(AppLocalizations.of(context)!.commonRetry),
+                child: Text(AppStrings.commonRetry),
               ),
             ],
           ),
@@ -545,7 +639,7 @@ class _LessonBody extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
                   child: LessonCheckButton(
                     label:
-                        interactionState.correct == true ? AppLocalizations.of(context)!.lessonContinueUpper : AppLocalizations.of(context)!.lessonGotItUpper,
+                        interactionState.correct == true ? AppStrings.lessonContinueUpper : AppStrings.lessonGotItUpper,
                     enabled: true,
                     onPressed: onAdvance,
                   ),
@@ -569,7 +663,7 @@ class _LessonBody extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            AppLocalizations.of(context)!.lessonNoContent,
+            AppStrings.lessonNoContent,
             style: const TextStyle(
               fontSize: 16,
               color: VarnamalaTheme.textHint,

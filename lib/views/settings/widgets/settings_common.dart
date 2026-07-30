@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/theme.dart';
 
 Widget settingsTileDivider(BuildContext context) => Divider(
@@ -10,6 +11,24 @@ Widget settingsTileDivider(BuildContext context) => Divider(
       endIndent: 16,
       color: VarnamalaTheme.dividerBg(context),
     );
+
+/// Shared peacock-teal adaptive switch used across settings toggle tiles.
+Widget settingsAdaptiveSwitch({
+  required bool value,
+  required ValueChanged<bool>? onChanged,
+}) {
+  return Switch.adaptive(
+    value: value,
+    activeTrackColor: VarnamalaTheme.peacockTeal,
+    thumbColor: WidgetStateProperty.resolveWith((states) {
+      if (states.contains(WidgetState.selected)) {
+        return VarnamalaTheme.peacockTeal;
+      }
+      return null;
+    }),
+    onChanged: onChanged,
+  );
+}
 
 class SettingsSectionTitle extends StatelessWidget {
   final String title;
@@ -170,12 +189,14 @@ class SettingsActionTile extends StatelessWidget {
 class SettingsNavigationTile extends StatelessWidget {
   final IconData icon;
   final String title;
+  final String? subtitle;
   final void Function(BuildContext) onTap;
 
   const SettingsNavigationTile({
     super.key,
     required this.icon,
     required this.title,
+    this.subtitle,
     required this.onTap,
   });
 
@@ -184,6 +205,7 @@ class SettingsNavigationTile extends StatelessWidget {
     return SettingsTile(
       icon: icon,
       title: title,
+      subtitle: subtitle,
       onTap: () => onTap(context),
       trailing: const Icon(
         Icons.chevron_right_rounded,
@@ -216,7 +238,7 @@ class SettingsConfirmDialog extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Cancel'),
+          child: Text(AppStrings.commonCancel),
         ),
         TextButton(
           onPressed: () => Navigator.of(context).pop(true),

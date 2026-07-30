@@ -6,10 +6,10 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/ai/ai_api_config.dart';
-import 'package:varnamala/application/ai/ai_course_provider.dart';
 import 'package:varnamala/application/ai/ai_hint_provider.dart';
-import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/application/ai/engine/ai_engine_config.dart';
+import 'package:varnamala/application/ai/engine/ai_engine_config_holder.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/ai/chat_bubble.dart';
 import 'package:varnamala/views/theme.dart';
 
@@ -43,7 +43,7 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
     super.dispose();
   }
 
-  AiApiConfig _config() => context.read<AiCourseProvider>().config;
+  AiEngineConfig _config() => context.read<AiEngineConfigHolder>().config;
 
   /// If opened without a prior explanation (e.g. routed directly), seed the
   /// first explanation turn. When opened from the hint sheet the provider
@@ -92,7 +92,7 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
       backgroundColor: VarnamalaTheme.scaffoldBg(context),
       appBar: AppBar(
         title: Text(
-          ctx == null ? AppLocalizations.of(context)!.aiTutorTitle : AppLocalizations.of(context)!.aiTutorTitleWithType(ctx.typeLabel),
+          ctx == null ? AppStrings.aiTutorTitle : AppStrings.aiTutorTitleWithType(ctx.typeLabel),
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
@@ -177,7 +177,7 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Text(
-          AppLocalizations.of(context)!.aiEmptyHintTutor,
+          AppStrings.aiEmptyHintTutor,
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodyMedium,
         ),
@@ -208,7 +208,7 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
             ),
             const SizedBox(width: 8),
             Text(
-              AppLocalizations.of(context)!.aiThinking,
+              AppStrings.aiThinking,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ],
@@ -228,7 +228,7 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
           borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
         ),
         child: Text(
-          AppLocalizations.of(context)!.aiErrorBubble(error),
+          AppStrings.aiErrorBubble(error),
           style: const TextStyle(color: VarnamalaTheme.error),
         ),
       ),
@@ -245,7 +245,7 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
               controller: _inputCtrl,
               enabled: !busy,
               decoration: InputDecoration(
-                hintText: AppLocalizations.of(context)!.aiAskMore,
+                hintText: AppStrings.aiAskMore,
                 border: const OutlineInputBorder(),
                 isDense: true,
               ),
@@ -256,7 +256,7 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
           IconButton(
             onPressed: busy ? null : _onSend,
             icon: const Icon(Icons.send),
-            tooltip: AppLocalizations.of(context)!.commonSend,
+            tooltip: AppStrings.commonSend,
           ),
         ],
       ),

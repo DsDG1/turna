@@ -13,8 +13,10 @@ import 'package:varnamala/views/theme.dart';
 class SectionVisuals {
   const SectionVisuals._();
 
-  /// Thematic icon for [sectionId]. Unknown ids fall back to a book icon.
+  /// Thematic icon for [sectionId]. Unknown ids fall back to a book icon;
+  /// imported Anki decks (id prefix 'anki-') get a dedicated card-stack icon.
   static IconData iconFor(String sectionId) {
+    if (sectionId.startsWith('anki-')) return Icons.style_rounded;
     return switch (sectionId) {
       'section1' => Icons.waving_hand_rounded,
       'section2' => Icons.pets_rounded,
@@ -29,7 +31,14 @@ class SectionVisuals {
   }
 
   /// Soft background + icon tint for [sectionId], cycling the app palette.
+  /// Imported Anki decks (id prefix 'anki-') share one fixed pairing.
   static ({Color background, Color foreground}) colorsFor(String sectionId) {
+    if (sectionId.startsWith('anki-')) {
+      return (
+        background: VarnamalaTheme.leagueAmethyst.withValues(alpha: 0.18),
+        foreground: VarnamalaTheme.leagueAmethyst,
+      );
+    }
     return switch (sectionId) {
       'section1' => (
           background: VarnamalaTheme.success.withValues(alpha: 0.18),

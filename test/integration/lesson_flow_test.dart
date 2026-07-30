@@ -14,6 +14,7 @@ import 'package:varnamala/application/game_provider.dart';
 import 'package:varnamala/application/gems_provider.dart';
 import 'package:varnamala/application/grammar_review_provider.dart';
 import 'package:varnamala/application/language_provider.dart';
+import '../helpers/in_memory_course_db.dart';
 import 'package:varnamala/application/lesson_completion_coordinator.dart';
 import 'package:varnamala/application/lesson_link_store.dart';
 import 'package:varnamala/application/lesson_viewmodel.dart';
@@ -154,9 +155,10 @@ void main() {
     final lesson = _mcqLesson();
     final game = GameProvider.forTesting(prefs);
     final link = LessonLinkStore(prefs);
-    final srs = SrsProvider(prefs, link);
+    final srsDao = emptySrsStateDao();
+    final srs = SrsProvider(prefs, link, srsDao);
     final mistakes = MistakeProvider(prefs);
-    final grammar = GrammarReviewProvider(prefs, link);
+    final grammar = GrammarReviewProvider(prefs, link, srsDao);
     final study = _FakeStudyStats(prefs);
     final coordinator = LessonCompletionCoordinator(
       game,

@@ -29,12 +29,12 @@ Future<void> tapOption(WidgetTester tester, String label) async {
 }
 
 Future<void> tapCheck(WidgetTester tester) async {
-  await tester.tap(find.widgetWithText(ElevatedButton, 'CHECK'));
+  await tester.tap(find.widgetWithText(ElevatedButton, '核对'));
   await tester.pumpAndSettle();
 }
 
 Future<void> tapContinue(WidgetTester tester) async {
-  await tester.tap(find.widgetWithText(ElevatedButton, 'CONTINUE'));
+  await tester.tap(find.widgetWithText(ElevatedButton, '继续'));
   await tester.pumpAndSettle();
 }
 

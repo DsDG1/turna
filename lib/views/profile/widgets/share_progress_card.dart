@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:varnamala/core/enums.dart';
 import 'package:varnamala/core/extensions.dart';
 import 'package:varnamala/domain/auth/local_user.dart';
-import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/theme.dart';
 
-/// A brand-styled progress card designed to be captured and shared.
+/// A brand-styled progress poster designed to be captured and shared.
 ///
 /// This widget is intentionally self-contained (it does not depend on the
 /// surrounding theme) so it renders consistently when captured from an
@@ -39,7 +39,7 @@ class ShareProgressCard extends StatelessWidget {
       data: VarnamalaTheme.lightTheme,
       child: Container(
         width: 360,
-        height: 480,
+        height: 600,
         decoration: const BoxDecoration(
           gradient: VarnamalaTheme.peacockGradient,
           borderRadius: BorderRadius.all(
@@ -73,102 +73,121 @@ class ShareProgressCard extends StatelessWidget {
                 ),
               ),
             ),
+            // Sparkles
+            Positioned(
+              top: 90,
+              left: 28,
+              child: Icon(
+                Icons.auto_awesome,
+                size: 14,
+                color: VarnamalaTheme.textOnPrimary.withValues(alpha: 0.45),
+              ),
+            ),
+            Positioned(
+              top: 64,
+              right: 36,
+              child: Icon(
+                Icons.star_rounded,
+                size: 16,
+                color: VarnamalaTheme.textOnPrimary.withValues(alpha: 0.5),
+              ),
+            ),
+            Positioned(
+              top: 210,
+              right: 24,
+              child: Icon(
+                Icons.auto_awesome,
+                size: 12,
+                color: VarnamalaTheme.textOnPrimary.withValues(alpha: 0.35),
+              ),
+            ),
             Padding(
-              padding: const EdgeInsets.all(28),
+              padding: const EdgeInsets.fromLTRB(24, 26, 24, 22),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // App brand
-                  Row(
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: VarnamalaTheme.textOnPrimary.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(
-                              VarnamalaTheme.radiusMedium),
-                        ),
-                        child: const Icon(
-                          Icons.school_rounded,
-                          color: VarnamalaTheme.textOnPrimary,
-                          size: 24,
-                        ),
+                  // Title (no logo)
+                  ShaderMask(
+                    shaderCallback: (bounds) => const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0xFFEAFBF5), Color(0xFF8FE8D3)],
+                    ).createShader(bounds),
+                    child: Text(
+                      AppStrings.profileShareCardJourneyTitle,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 30,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.2,
                       ),
-                      const SizedBox(width: 12),
-                      Text(
-                        AppLocalizations.of(context)!.aboutBrandName,
-                        style: const TextStyle(
-                          color: VarnamalaTheme.textOnPrimary,
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 32),
-                  // User greeting
-                  Text(
-                    AppLocalizations.of(context)!.profileShareCardLearning(
-                      user.displayName ??
-                          AppLocalizations.of(context)!.profileLearnerFallback,
-                    ),
-                    style: TextStyle(
-                      color: VarnamalaTheme.textOnPrimary.withValues(alpha: 0.85),
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
                     ),
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    targetLanguage.name.toTitleCase,
-                    style: const TextStyle(
-                      color: VarnamalaTheme.textOnPrimary,
-                      fontSize: 32,
-                      fontWeight: FontWeight.w800,
+                    AppStrings.profileShareCardJourneySubtitle,
+                    style: TextStyle(
+                      color:
+                          VarnamalaTheme.textOnPrimary.withValues(alpha: 0.8),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0.5,
                     ),
                   ),
-                  const SizedBox(height: 32),
-                  // Stats grid
-                  Row(
+                  const SizedBox(height: 14),
+                  // Mascot overlapping the stats card
+                  Stack(
+                    clipBehavior: Clip.none,
+                    alignment: Alignment.topCenter,
                     children: [
-                      Expanded(
-                        child: _StatBox(
-                          icon: Icons.local_fire_department_rounded,
-                          value: streak.toString(),
-                          label: AppLocalizations.of(context)!
-                              .profileShareCardDayStreak,
-                        ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 42),
+                        child: _buildStatsCard(),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _StatBox(
-                          icon: Icons.bolt_rounded,
-                          value: totalXp.toString(),
-                          label:
-                              AppLocalizations.of(context)!.profileShareCardTotalXp,
+                      Positioned(
+                        top: -4,
+                        child: Image.asset(
+                          'assets/images/mala/mala_reading.png',
+                          height: 88,
+                          fit: BoxFit.contain,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
+                  // Quote with waving mascot
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Expanded(
-                        child: _StatBox(
-                          icon: Icons.diamond_rounded,
-                          value: gems.toString(),
-                          label: AppLocalizations.of(context)!.profileShareCardGems,
-                        ),
+                      Image.asset(
+                        'assets/images/mala/mala_waving.png',
+                        height: 76,
+                        fit: BoxFit.contain,
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: _StatBox(
-                          icon: Icons.check_circle_rounded,
-                          value: completedLessons.toString(),
-                          label:
-                              AppLocalizations.of(context)!.profileShareCardLessons,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '“${AppStrings.profileShareCardQuote}”',
+                              style: const TextStyle(
+                                color: VarnamalaTheme.textOnPrimary,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                height: 1.35,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              AppStrings.profileShareCardQuoteSub,
+                              style: TextStyle(
+                                color: VarnamalaTheme.textOnPrimary
+                                    .withValues(alpha: 0.75),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -177,20 +196,37 @@ class ShareProgressCard extends StatelessWidget {
                   // Footer
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 10, horizontal: 14),
                     decoration: BoxDecoration(
-                      color: VarnamalaTheme.textOnPrimary.withValues(alpha: 0.12),
+                      color:
+                          VarnamalaTheme.textOnPrimary.withValues(alpha: 0.12),
                       borderRadius:
                           BorderRadius.circular(VarnamalaTheme.radiusMedium),
                     ),
-                    child: Text(
-                      AppLocalizations.of(context)!.profileShareCardJoinMe,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: VarnamalaTheme.textOnPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    child: Column(
+                      children: [
+                        Text(
+                          AppStrings.profileShareCardFooterTitle,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: VarnamalaTheme.textOnPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          AppStrings.profileShareCardFooterSub,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: VarnamalaTheme.textOnPrimary
+                                .withValues(alpha: 0.8),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -201,15 +237,140 @@ class ShareProgressCard extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildStatsCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 48, 16, 14),
+      decoration: BoxDecoration(
+        color: VarnamalaTheme.textOnPrimary.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+        border: Border.all(
+          color: VarnamalaTheme.textOnPrimary.withValues(alpha: 0.18),
+        ),
+      ),
+      child: Column(
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Language
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      targetLanguage.name.toTitleCase,
+                      style: const TextStyle(
+                        color: VarnamalaTheme.textOnPrimary,
+                        fontSize: 26,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      AppStrings.profileShareCardLearnerTag,
+                      style: TextStyle(
+                        color: VarnamalaTheme.textOnPrimary
+                            .withValues(alpha: 0.8),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Total XP
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        AppStrings.profileShareCardTotalXp,
+                        style: TextStyle(
+                          color: VarnamalaTheme.textOnPrimary
+                              .withValues(alpha: 0.8),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(
+                        Icons.bolt_rounded,
+                        color: Color(0xFFFFD54F),
+                        size: 16,
+                      ),
+                    ],
+                  ),
+                  Text(
+                    totalXp.toString(),
+                    style: const TextStyle(
+                      color: VarnamalaTheme.textOnPrimary,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  Text(
+                    'XP',
+                    style: TextStyle(
+                      color:
+                          VarnamalaTheme.textOnPrimary.withValues(alpha: 0.7),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _StatBox(
+                  icon: Icons.local_fire_department_rounded,
+                  iconColor: const Color(0xFFFF9D5C),
+                  value: streak.toString(),
+                  label: AppStrings.profileShareCardDayStreak,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _StatBox(
+                  icon: Icons.diamond_rounded,
+                  iconColor: const Color(0xFF8FD8F0),
+                  value: gems.toString(),
+                  label: AppStrings.profileShareCardGems,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _StatBox(
+                  icon: Icons.check_circle_rounded,
+                  iconColor: const Color(0xFF9CE8A8),
+                  value: completedLessons.toString(),
+                  label: AppStrings.profileShareCardLessons,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _StatBox extends StatelessWidget {
   final IconData icon;
+  final Color iconColor;
   final String value;
   final String label;
 
   const _StatBox({
     required this.icon,
+    required this.iconColor,
     required this.value,
     required this.label,
   });
@@ -217,29 +378,30 @@ class _StatBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
       decoration: BoxDecoration(
         color: VarnamalaTheme.textOnPrimary.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
       ),
       child: Column(
         children: [
-          Icon(icon, color: VarnamalaTheme.textOnPrimary, size: 24),
-          const SizedBox(height: 8),
+          Icon(icon, color: iconColor, size: 20),
+          const SizedBox(height: 4),
           Text(
             value,
             style: const TextStyle(
               color: VarnamalaTheme.textOnPrimary,
-              fontSize: 22,
+              fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
             label,
+            textAlign: TextAlign.center,
             style: TextStyle(
               color: VarnamalaTheme.textOnPrimary.withValues(alpha: 0.85),
-              fontSize: 12,
+              fontSize: 10,
               fontWeight: FontWeight.w600,
             ),
           ),

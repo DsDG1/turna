@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:varnamala/core/spacing.dart';
 import 'package:varnamala/core/text_styles.dart';
 import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/theme.dart';
 
 /// Snapshot of how the parent ([LessonViewModel]) wants the renderer to look.
@@ -209,7 +209,7 @@ class InteractionBody extends StatelessWidget {
 // ──────────────────────────────────────────────────────────────
 
 /// Selectable option tile for MCQ / pick-from-list interactions.
-class InteractionOptionTile extends StatelessWidget {
+class InteractionOptionTile extends StatefulWidget {
   final String label;
   final bool isSelected;
   final bool isCorrect;
@@ -226,54 +226,72 @@ class InteractionOptionTile extends StatelessWidget {
   });
 
   @override
+  State<InteractionOptionTile> createState() => _InteractionOptionTileState();
+}
+
+class _InteractionOptionTileState extends State<InteractionOptionTile> {
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
     Color border = VarnamalaTheme.borderMuted;
     Color background = VarnamalaTheme.cardBg(context);
     Widget? trailing;
 
-    if (isCorrect) {
+    if (widget.isCorrect) {
       border = VarnamalaTheme.success;
       background = VarnamalaTheme.success.withValues(alpha: 0.10);
       trailing =
           const Icon(Icons.check_circle, color: VarnamalaTheme.success);
-    } else if (isWrong) {
+    } else if (widget.isWrong) {
       border = VarnamalaTheme.error;
       background = VarnamalaTheme.error.withValues(alpha: 0.08);
       trailing = const Icon(Icons.cancel, color: VarnamalaTheme.error);
-    } else if (isSelected) {
+    } else if (widget.isSelected) {
       border = VarnamalaTheme.peacockTeal;
       background = VarnamalaTheme.peacockTeal.withValues(alpha: 0.06);
     }
 
     return Semantics(
       button: true,
-      label: label,
-      selected: isSelected,
-      child: Material(
-        color: background,
-        shape: RoundedRectangleBorder(
-          side: BorderSide(color: border, width: 2),
-          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
-        ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: VarnamalaTheme.textPrimaryColor(context),
+      label: widget.label,
+      selected: widget.isSelected,
+      // 按下时缩放至 0.97, 与 InkWell 涟漪叠加, 选项条有"被按下"的物理反馈.
+      child: AnimatedScale(
+        scale: _pressed ? 0.97 : 1.0,
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOut,
+        child: Material(
+          color: background,
+          shape: RoundedRectangleBorder(
+            side: BorderSide(color: border, width: 2),
+            borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+          ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+            onTap: widget.onTap,
+            onHighlightChanged: (v) {
+              // 涟漪的按下状态与缩放联动, 但只有 tile 可点时才有按下效果.
+              if (widget.onTap == null) return;
+              setState(() => _pressed = v);
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.label,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: VarnamalaTheme.textPrimaryColor(context),
+                      ),
                     ),
                   ),
-                ),
-                if (trailing != null) trailing,
-              ],
+                  if (trailing != null) trailing,
+                ],
+              ),
             ),
           ),
         ),
@@ -343,9 +361,9 @@ class SpeakerButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: AppLocalizations.of(context)!.lessonPlayAudioLabel,
+      label: AppStrings.lessonPlayAudioLabel,
       child: Tooltip(
-        message: AppLocalizations.of(context)!.lessonPlayAudioLabel,
+        message: AppStrings.lessonPlayAudioLabel,
         child: Material(
           color: VarnamalaTheme.peacockTeal,
           shape: const CircleBorder(),

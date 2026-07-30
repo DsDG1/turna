@@ -1,9 +1,11 @@
 // Project imports:
 import 'package:varnamala/application/course_provider.dart';
 import 'package:varnamala/application/srs_provider.dart';
+import 'package:varnamala/courses/course_loader.dart';
 import 'package:varnamala/domain/course/interaction.dart';
 import 'package:varnamala/domain/course/lesson.dart';
 import 'package:varnamala/domain/course/lesson_content.dart';
+import 'package:varnamala/domain/course/section.dart';
 import 'package:varnamala/domain/course/srs_word.dart';
 import 'package:varnamala/domain/course/stage.dart';
 
@@ -23,6 +25,62 @@ class AnkiReviewAssembler {
   static const String ankiPrefix = 'anki-';
 
   AnkiReviewAssembler(this._srsProvider, this._courseProvider);
+
+  /// Interactions indexed by Anki word id, populated by
+  /// [preloadInteractions]. [assembleBatch] consults this map before
+  /// falling back to scanning the in-memory section trees.
+  final Map<String, Interaction> _preloadedInteractions = {};
+
+  /// Load the card Interactions for the target Anki section(s).
+  ///
+  /// [assembleBatch] is synchronous and previously scanned
+  /// [CourseProvider.allSections] — but those are shells (units empty) until
+  /// [CourseProvider.ensureSectionLoaded] runs, and even then lessons carry
+  /// metadata only (empty content) until their bodies are loaded via
+  /// [CourseLoader.loadLessonById]. A freshly imported deck has neither, so
+  /// every due card missed its Interaction and the review session wrongly
+  /// reported "no cards due". Call this before [assembleBatch].
+  Future<void> preloadInteractions({String? sectionId}) async {
+    final targetImportId =
+        sectionId == null ? null : importIdFromSectionId(sectionId);
+
+    bool targets(Section section) =>
+        section.id.startsWith(ankiPrefix) &&
+        (targetImportId == null ||
+            importIdFromSectionId(section.id) == targetImportId);
+
+    // Load each target section's L1 tree straight from the loader (not via
+    // CourseProvider.ensureSectionLoaded, which only resolves sections in
+    // the active scope), then load every lesson body and index its items by
+    // word id. Both loads are cached by CourseLoader, so repeat reviews of
+    // the same deck are cheap.
+    for (final shell in _courseProvider.allSections) {
+      if (!targets(shell)) continue;
+      final importId = importIdFromSectionId(shell.id);
+      final l1 = await CourseLoader.loadSection(shell.id);
+      for (final unit in l1.units) {
+        for (final lesson in unit.lessons) {
+          final full = await CourseLoader.loadLessonById(lesson.id);
+          for (final stage in full.flattenedStages) {
+            for (final item in stage.items) {
+              // Interaction ids are "${wordId}-c${ord}" — index by word id.
+              final cIdx = item.id.lastIndexOf('-c');
+              if (cIdx > 0) {
+                _preloadedInteractions[item.id.substring(0, cIdx)] = item;
+              }
+              // Anki cards also match by source note id — mirror the
+              // fallback in [_findInteractionForWord].
+              if (item is AnkiCard &&
+                  (item.sourceNoteId?.isNotEmpty ?? false)) {
+                _preloadedInteractions[
+                    'anki-$importId-n${item.sourceNoteId}'] = item;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
 
   /// Collect all due Anki cards, optionally filtered by [sectionId].
   ///
@@ -92,7 +150,8 @@ class AnkiReviewAssembler {
     // Collect interactions for this batch by looking up lesson content
     final interactions = <Interaction>[];
     for (final srsWord in batch) {
-      final interaction = _findInteractionForWord(srsWord.wordId);
+      final interaction = _preloadedInteractions[srsWord.wordId] ??
+          _findInteractionForWord(srsWord.wordId);
       if (interaction != null) {
         interactions.add(interaction.copyWith(id: 'anki-review-${srsWord.wordId}'));
       }
@@ -136,10 +195,15 @@ class AnkiReviewAssembler {
 
   // ─── Private helpers ───────────────────────────────────────────────
 
-  /// Find the Interaction for a given Anki word id by searching loaded sections.
+  /// Fallback interaction lookup: find the Interaction for a given Anki word
+  /// id by searching sections whose lesson bodies happen to be loaded in
+  /// memory. The primary path is [_preloadedInteractions] (populated by
+  /// [preloadInteractions]); this scan stays for callers that never preload.
   Interaction? _findInteractionForWord(String wordId) {
-    // The interaction id is "${wordId}-c${ord}" — search by prefix
-    for (final section in _courseProvider.sections) {
+    // The interaction id is "${wordId}-c${ord}" — search by prefix.
+    // allSections: review must find cards even when the course scope hides
+    // Anki decks from the Learn-page tree.
+    for (final section in _courseProvider.allSections) {
       if (!section.id.startsWith('anki-')) continue;
       for (final unit in section.units) {
         for (final lesson in unit.lessons) {

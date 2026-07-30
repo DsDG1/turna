@@ -11,6 +11,8 @@ import 'package:varnamala/application/srs_provider.dart';
 import 'package:varnamala/service/locator.dart';
 import 'package:varnamala/views/play/play_hub_screen.dart';
 
+import '../../helpers/in_memory_course_db.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -22,10 +24,11 @@ void main() {
     prefs = AppPrefs(sp);
   });
 
-  testWidgets('renders play hub cards and stats section', (tester) async {
+  testWidgets('renders play hub sections', (tester) async {
     await tester.binding.setSurfaceSize(const Size(400, 1600));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
+    final srsDao = emptySrsStateDao();
     await tester.pumpWidget(
       MultiProvider(
         providers: [
@@ -33,10 +36,11 @@ void main() {
             create: (_) => MistakeProvider(prefs),
           ),
           ChangeNotifierProvider(
-            create: (_) => SrsProvider(prefs, LessonLinkStore(prefs)),
+            create: (_) => SrsProvider(prefs, LessonLinkStore(prefs), srsDao),
           ),
           ChangeNotifierProvider(
-            create: (_) => GrammarReviewProvider(prefs, LessonLinkStore(prefs)),
+            create: (_) =>
+                GrammarReviewProvider(prefs, LessonLinkStore(prefs), srsDao),
           ),
           ChangeNotifierProvider(
             create: (_) => GameProvider.forTesting(prefs),
@@ -49,14 +53,23 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Quick Play'), findsOneWidget);
-    expect(find.text('Mistake Review'), findsOneWidget);
-    expect(find.text('Review'), findsOneWidget);
-    expect(find.text('Grammar Review'), findsOneWidget);
-    expect(find.text('Daily Challenge'), findsOneWidget);
-    expect(find.text('Weak Words'), findsOneWidget);
-    expect(find.text('Dictionary'), findsOneWidget);
-    expect(find.text('Your Best'), findsOneWidget);
-    expect(find.text('Total XP'), findsOneWidget);
+    expect(find.text('快速练习'), findsOneWidget);
+    expect(find.text('今日重点'), findsOneWidget);
+    expect(find.text('复习中心'), findsOneWidget);
+    expect(find.text('工具'), findsOneWidget);
+    expect(find.text('错题复习'), findsOneWidget);
+    expect(find.text('复习'), findsNWidgets(2));
+    expect(find.text('语法复习'), findsOneWidget);
+    expect(find.text('薄弱单词'), findsOneWidget);
+    expect(find.text('Anki 复习'), findsOneWidget);
+    expect(find.text('词典'), findsOneWidget);
+    expect(find.byType(PageView), findsOneWidget);
+    expect(find.text('你的最佳'), findsNothing);
+    expect(find.text('总经验值'), findsNothing);
+
+    // 第三张今日重点卡需要左滑才会构建
+    await tester.drag(find.byType(PageView), const Offset(-300, 0));
+    await tester.pumpAndSettle();
+    expect(find.text('每日挑战'), findsOneWidget);
   });
 }

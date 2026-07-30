@@ -1,5 +1,6 @@
 // Flutter imports:
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
@@ -10,18 +11,17 @@ import 'package:injectable/injectable.dart';
 // Project imports:
 import 'package:varnamala/domain/audio/anki_audio_resolver.dart';
 import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:varnamala/views/lesson/components/lesson_practice_card.dart';
 import 'package:varnamala/views/theme.dart';
 
 /// Anki-style flip card renderer. Shows the front, user taps "Show Answer",
-/// then grades with Again/Hard/Good/Easy buttons (SM-2 quality 1/3/4/5).
+/// then grades with two buttons: 忘了 / 记住 (Don't know / Know it).
 ///
-/// Correctness mapping for the LessonViewModel:
-/// - Again (quality 1) → correct = false
-/// - Hard (quality 3) → correct = true
-/// - Good (quality 4) → correct = true
-/// - Easy (quality 5) → correct = true
+/// Correctness mapping for the LessonViewModel and the SM-2 scheduler:
+/// - Don't know → correct = false → [ReviewGrade.unknown]
+/// - Know it   → correct = true  → [ReviewGrade.known]
 @injectable
 class AnkiCardRenderer extends InteractionRenderer {
   @override
@@ -88,11 +88,15 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
   void initState() {
     super.initState();
     _flipController = AnimationController(
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 380),
       vsync: this,
     );
     _flipAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _flipController, curve: Curves.easeInOut),
+      CurvedAnimation(
+        parent: _flipController,
+        // Material 标准曲线, 收尾更柔, 避免 easeInOut 在中点的"顿一下".
+        curve: const Cubic(0.4, 0.0, 0.2, 1.0),
+      ),
     );
     _resolveMedia();
   }
@@ -134,20 +138,8 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
     _flipController.forward();
   }
 
-  void _grade(int quality) {
-    // quality >= 3 is considered correct (Hard/Good/Easy)
-    final correct = quality >= 3;
-    widget.onSubmit(correct, userAnswerText: _gradeLabel(quality));
-  }
-
-  String _gradeLabel(int quality) {
-    return switch (quality) {
-      1 => 'Again',
-      3 => 'Hard',
-      4 => 'Good',
-      5 => 'Easy',
-      _ => 'Good',
-    };
+  void _grade({required bool correct, required String label}) {
+    widget.onSubmit(correct, userAnswerText: label);
   }
 
   @override
@@ -156,13 +148,13 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SectionCaption(AppLocalizations.of(context)!.lessonFlipCardCaption),
+          SectionCaption(AppStrings.lessonFlipCardCaption),
           // Front / Back card area
           AnimatedBuilder(
             animation: _flipAnimation,
             builder: (context, child) {
-              final angle = _flipAnimation.value * 3.14159;
-              final showFront = angle < 1.5708; // pi/2
+              final angle = _flipAnimation.value * math.pi;
+              final showFront = angle < math.pi / 2;
               return Transform(
                 alignment: Alignment.center,
                 transform: Matrix4.identity()
@@ -170,9 +162,23 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
                   ..rotateY(angle),
                 child: showFront
                     ? _buildFront(context)
-                    : Transform(
-                        alignment: Alignment.center,
-                        transform: Matrix4.identity()..rotateY(3.14159),
+                    // 背面在中点之后淡入, 避免旋转过中点后内容"啪"地出现.
+                    : AnimatedBuilder(
+                        animation: _flipAnimation,
+                        builder: (ctx, child) {
+                          final backProgress = ((angle - math.pi / 2)
+                                  .clamp(0.0, math.pi / 2)) /
+                              (math.pi / 2);
+                          return Opacity(
+                            opacity: backProgress,
+                            child: Transform(
+                              alignment: Alignment.center,
+                              transform:
+                                  Matrix4.identity()..rotateY(math.pi),
+                              child: child,
+                            ),
+                          );
+                        },
                         child: _buildBack(context),
                       ),
               );
@@ -213,7 +219,7 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
           if (!widget.state.submitted) ...[
             if (!_revealed)
               LessonCheckButton(
-                label: AppLocalizations.of(context)!.lessonShowAnswer,
+                label: AppStrings.lessonShowAnswer,
                 enabled: true,
                 onPressed: _reveal,
               )
@@ -226,24 +232,9 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
   }
 
   Widget _buildFront(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minHeight: 200),
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: VarnamalaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-        border: Border.all(
-          color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.3),
-          width: 2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+    return LessonPracticeCard(
+      variant: LessonPracticeCardVariant.front,
+      appearAnimation: false,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -264,7 +255,7 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
           _buildMedia(context),
           const SizedBox(height: 12),
           Text(
-            AppLocalizations.of(context)!.lessonTapToReveal,
+            AppStrings.lessonTapToReveal,
             style: const TextStyle(
               fontSize: 13,
               color: VarnamalaTheme.textHint,
@@ -276,24 +267,9 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
   }
 
   Widget _buildBack(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minHeight: 200),
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-        border: Border.all(
-          color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.5),
-          width: 2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.12),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+    return LessonPracticeCard(
+      variant: LessonPracticeCardVariant.back,
+      appearAnimation: false,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -347,7 +323,7 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
                   IconButton(
                     icon: const Icon(Icons.volume_up_rounded),
                     color: VarnamalaTheme.peacockTeal,
-                    tooltip: 'Play audio ${i + 1}',
+                    tooltip: '${AppStrings.lessonPlayAudioLabel} ${i + 1}',
                     onPressed: () => _playMedia(_audioPaths[i]),
                   ),
               ],
@@ -358,10 +334,11 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
   }
 
   Widget _buildGradeButtons(BuildContext context) {
+    final l10n = AppStrings;
     return Column(
       children: [
         Text(
-          AppLocalizations.of(context)!.lessonHowWellDidYouKnow,
+          AppStrings.lessonHowWellDidYouKnow,
           style: TextStyle(
             fontSize: 14,
             color: VarnamalaTheme.textSecondaryColor(context),
@@ -372,33 +349,19 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
           children: [
             Expanded(
               child: _GradeButton(
-                label: AppLocalizations.of(context)!.lessonAgain,
+                label: AppStrings.reviewDontKnow,
                 color: VarnamalaTheme.error,
-                onPressed: () => _grade(1),
+                onPressed: () =>
+                    _grade(correct: false, label: AppStrings.reviewDontKnow),
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 12),
             Expanded(
               child: _GradeButton(
-                label: AppLocalizations.of(context)!.lessonHard,
-                color: VarnamalaTheme.warning,
-                onPressed: () => _grade(3),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _GradeButton(
-                label: AppLocalizations.of(context)!.lessonGood,
+                label: AppStrings.reviewKnowIt,
                 color: VarnamalaTheme.success,
-                onPressed: () => _grade(4),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _GradeButton(
-                label: AppLocalizations.of(context)!.lessonEasy,
-                color: VarnamalaTheme.peacockTeal,
-                onPressed: () => _grade(5),
+                onPressed: () =>
+                    _grade(correct: true, label: AppStrings.reviewKnowIt),
               ),
             ),
           ],

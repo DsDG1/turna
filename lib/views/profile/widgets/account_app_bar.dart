@@ -6,10 +6,12 @@ import 'package:provider/provider.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 
 // Project imports:
+import 'package:varnamala/application/language_provider.dart';
 import 'package:varnamala/application/theme_provider.dart';
+import 'package:varnamala/core/extensions.dart';
 import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/domain/auth/local_user.dart';
-import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/service/locator.dart';
 import 'package:varnamala/views/theme.dart';
 
@@ -25,34 +27,72 @@ class AccountAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 }
 
+/// Hero-style profile header: avatar, name, language chip, theme + share actions.
 class AccountWidget extends StatelessWidget {
-  const AccountWidget({Key? key}) : super(key: key);
+  final VoidCallback? onShare;
+
+  const AccountWidget({Key? key, this.onShare}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final languageName = context
+        .select((LanguageProvider p) => p.selectedLanguage.displayName)
+        .toTitleCase;
+
     return PreferenceBuilder<LocalUser>(
       preference: getIt<AppPrefs>().authUser,
       builder: (BuildContext context, LocalUser user) {
         final displayName =
-            user.displayName ?? AppLocalizations.of(context)!.profileLearnerFallback;
+            user.displayName ?? AppStrings.profileLearnerFallback;
         final email = user.email ?? '';
+        final bio = user.bio?.trim() ?? '';
 
         return Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(18, 18, 14, 18),
           decoration: BoxDecoration(
-            color: VarnamalaTheme.cardBg(context),
-            borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-            border: Border.all(color: VarnamalaTheme.statCardBorder(context)),
+            borderRadius: BorderRadius.circular(VarnamalaTheme.radiusXLarge),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: isDark
+                  ? [
+                      VarnamalaTheme.peacockTeal.withValues(alpha: 0.35),
+                      VarnamalaTheme.peacockDeep.withValues(alpha: 0.45),
+                    ]
+                  : [
+                      VarnamalaTheme.peacockTeal.withValues(alpha: 0.12),
+                      VarnamalaTheme.peacockCyan.withValues(alpha: 0.18),
+                    ],
+            ),
+            border: Border.all(
+              color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.18),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.08),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
           ),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircleAvatar(
-                radius: 28,
-                backgroundColor:
-                    VarnamalaTheme.peacockTeal.withValues(alpha: 0.1),
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.15),
+                  border: Border.all(
+                    color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.35),
+                    width: 2,
+                  ),
+                ),
                 child: const Icon(
                   Icons.person_rounded,
-                  size: 28,
+                  size: 32,
                   color: VarnamalaTheme.peacockTeal,
                 ),
               ),
@@ -63,27 +103,112 @@ class AccountWidget extends StatelessWidget {
                   children: [
                     Text(
                       displayName,
-                      style:
-                          Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
                     ),
-                    const SizedBox(height: 2),
-                    if (email.isNotEmpty)
+                    if (email.isNotEmpty) ...[
+                      const SizedBox(height: 2),
                       Text(
                         email,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: VarnamalaTheme.textHint,
+                              color: VarnamalaTheme.textHintColor(context),
                             ),
                       ),
+                    ],
+                    if (bio.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        bio,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: VarnamalaTheme.textSecondaryColor(context),
+                            ),
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: VarnamalaTheme.cardBg(context).withValues(
+                              alpha: isDark ? 0.35 : 0.85,
+                            ),
+                        borderRadius:
+                            BorderRadius.circular(VarnamalaTheme.radiusRound),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.language_rounded,
+                            size: 14,
+                            color: VarnamalaTheme.peacockTeal,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            languageName,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: VarnamalaTheme.peacockTeal,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
-              _ThemeToggle(),
+              Column(
+                children: [
+                  _ThemeToggle(),
+                  if (onShare != null) ...[
+                    const SizedBox(height: 8),
+                    _HeroIconButton(
+                      icon: Icons.share_rounded,
+                      tooltip: AppStrings.profileShare,
+                      onTap: onShare!,
+                    ),
+                  ],
+                ],
+              ),
             ],
           ),
         );
       },
+    );
+  }
+}
+
+class _HeroIconButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  const _HeroIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: VarnamalaTheme.cardBg(context).withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusRound),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusRound),
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Icon(icon, size: 20, color: VarnamalaTheme.peacockTeal),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -111,7 +236,7 @@ class _ThemeToggle extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                AppLocalizations.of(context)!.settingsThemeLight,
+                AppStrings.settingsThemeLight,
                 style: TextStyle(
                   fontWeight: current == ThemeMode.light
                       ? FontWeight.w700
@@ -134,7 +259,7 @@ class _ThemeToggle extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                AppLocalizations.of(context)!.settingsThemeDark,
+                AppStrings.settingsThemeDark,
                 style: TextStyle(
                   fontWeight: current == ThemeMode.dark
                       ? FontWeight.w700
@@ -157,7 +282,7 @@ class _ThemeToggle extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                AppLocalizations.of(context)!.settingsThemeSystem,
+                AppStrings.settingsThemeSystem,
                 style: TextStyle(
                   fontWeight: current == ThemeMode.system
                       ? FontWeight.w700
@@ -169,9 +294,9 @@ class _ThemeToggle extends StatelessWidget {
         ),
       ],
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.08),
+          color: VarnamalaTheme.cardBg(context).withValues(alpha: 0.7),
           borderRadius: BorderRadius.circular(VarnamalaTheme.radiusRound),
         ),
         child: Icon(

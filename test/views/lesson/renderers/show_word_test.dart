@@ -33,7 +33,7 @@ void main() {
     await tester.pumpWidget(harness.build(renderer, interaction));
     expect(find.text('Habari'), findsOneWidget);
 
-    await tester.tap(find.text('Tap to continue'));
+    await tester.tap(find.text('点击继续'));
     await tester.pumpAndSettle();
 
     expect(harness.submissions, [(true, null)]);

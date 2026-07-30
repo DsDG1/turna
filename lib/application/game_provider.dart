@@ -9,9 +9,11 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:varnamala/application/game_milestone_provider.dart';
+import 'package:varnamala/application/gems_provider.dart';
 import 'package:varnamala/application/lesson_progress_provider.dart';
 import 'package:varnamala/application/score_provider.dart';
 import 'package:varnamala/application/streak_provider.dart';
+import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/domain/game/user_game_state.dart';
 import 'package:varnamala/service/locator.dart';
 
@@ -99,6 +101,9 @@ class GameProvider extends ChangeNotifier {
 
   Future<UserGameState> getUserGameStateOnce() async => _readState();
 
+  /// Synchronous snapshot of the current game counters (prefs-backed).
+  UserGameState get currentUserGameState => _readState();
+
   Future<void> ensureUserGameFields() async {
     if (_readBool(LocalStateKeys.initialized, false)) {
       return;
@@ -184,6 +189,42 @@ class GameProvider extends ChangeNotifier {
 
   Future<void> resetLessonProgress() async {
     await lessonProgress.resetLessonProgress();
+    notifyListeners();
+    _emitState();
+  }
+
+  /// Reset score, streak, gems, achievements, and lesson progress in one
+  /// ordered pass, then emit a **single** consistent [UserGameState].
+  ///
+  /// Prefer this over writing prefs keys from the UI in parallel with
+  /// [resetLessonProgress] (which used to race and notify with stale score).
+  Future<void> resetAccountGameState() async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    // Order: clear counters first, then lesson ids, then one facade notify.
+    await scoreProvider.setScore(0);
+    await Future.wait([
+      appPrefs.preferences.setInt(LocalStateKeys.streak, 0),
+      appPrefs.preferences.setString(
+        LocalStateKeys.lastStreakDate,
+        today.toIso8601String(),
+      ),
+      appPrefs.preferences.setBool(LocalStateKeys.streakWasBroken, false),
+      appPrefs.preferences
+          .setStringList(LocalStateKeys.achievements, const <String>[]),
+    ]);
+
+    // Prefer GemsProvider so its stream emits; unit tests without GetIt
+    // fall back to a direct prefs write.
+    if (getIt.isRegistered<GemsProvider>()) {
+      await getIt<GemsProvider>().setGems(0);
+    } else {
+      await appPrefs.preferences.setInt(LocalStateKeys.gems, 0);
+    }
+
+    await lessonProgress.resetLessonProgress();
+
     notifyListeners();
     _emitState();
   }

@@ -2,12 +2,16 @@
 import 'package:flutter/material.dart';
 
 // Package imports:
+import 'package:auto_route/auto_route.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
+import 'package:varnamala/application/memory_curve_provider.dart';
 import 'package:varnamala/application/study_stats_provider.dart';
 import 'package:varnamala/domain/study/daily_stats.dart';
-import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/l10n/app_strings.dart';
+import 'package:varnamala/routing/routing.gr.dart';
 import 'package:varnamala/views/theme.dart';
 
 /// Displays today's learning summary and recent activity trends.
@@ -27,6 +31,7 @@ class _LearningStatsState extends State<LearningStats> {
   Future<DailyStudyStats>? _todayFuture;
   Future<List<DailyStudyStats>>? _weekFuture;
   Future<Map<String, dynamic>>? _overallFuture;
+  Future<MemoryCurveSnapshot>? _curveFuture;
 
   @override
   void didChangeDependencies() {
@@ -58,6 +63,13 @@ class _LearningStatsState extends State<LearningStats> {
     _todayFuture = studyStats.getTodayStats();
     _weekFuture = studyStats.getLastNDays(7);
     _overallFuture = _loadOverallStats(studyStats);
+    // The memory-curve card is a non-critical enhancement; skip it silently
+    // when no MemoryCurveProvider is in scope (e.g. focused unit tests).
+    try {
+      _curveFuture = context.read<MemoryCurveProvider>().snapshot();
+    } catch (_) {
+      _curveFuture = null;
+    }
   }
 
   Future<Map<String, dynamic>> _loadOverallStats(
@@ -87,8 +99,8 @@ class _LearningStatsState extends State<LearningStats> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _sectionTitle(context,
-              AppLocalizations.of(context)!.profileLearningStatsTitle,
-              Icons.insights_rounded),
+              AppStrings.profileLearningStatsTitle,
+              Icons.bar_chart_rounded),
           const SizedBox(height: 8),
           FutureBuilder<DailyStudyStats>(
             future: _todayFuture,
@@ -102,6 +114,15 @@ class _LearningStatsState extends State<LearningStats> {
             builder: (context, snapshot) {
               final days = snapshot.data ?? [];
               return _WeeklyXpBars(days: days);
+            },
+          ),
+          const SizedBox(height: 16),
+          FutureBuilder<MemoryCurveSnapshot>(
+            future: _curveFuture,
+            builder: (context, snapshot) {
+              final data = snapshot.data;
+              if (data == null) return const SizedBox.shrink();
+              return _MemoryCurveCard(snapshot: data);
             },
           ),
           const SizedBox(height: 16),
@@ -180,21 +201,21 @@ class _TodaySummary extends StatelessWidget {
             icon: Icons.bolt_rounded,
             iconColor: VarnamalaTheme.peacockTurquoise,
             value: xp.toString(),
-            label: AppLocalizations.of(context)!.profileXpToday,
+            label: AppStrings.profileXpToday,
           ),
           Container(width: 1, height: 40, color: VarnamalaTheme.dividerBg(context)),
           _TodayItem(
             icon: Icons.timer_rounded,
             iconColor: VarnamalaTheme.leagueAmethyst,
-            value: AppLocalizations.of(context)!.profileStudyTimeValue(minutes),
-            label: AppLocalizations.of(context)!.profileStudyTime,
+            value: AppStrings.profileStudyTimeValue(minutes),
+            label: AppStrings.profileStudyTime,
           ),
           Container(width: 1, height: 40, color: VarnamalaTheme.dividerBg(context)),
           _TodayItem(
             icon: Icons.percent_rounded,
             iconColor: VarnamalaTheme.successDark,
-            value: AppLocalizations.of(context)!.profileAccuracyValue(accuracy),
-            label: AppLocalizations.of(context)!.profileAccuracy,
+            value: AppStrings.profileAccuracyValue(accuracy),
+            label: AppStrings.profileAccuracy,
           ),
         ],
       ),
@@ -250,7 +271,11 @@ class _WeeklyXpBars extends StatelessWidget {
     if (days.isEmpty) return const SizedBox.shrink();
 
     final maxXp = days.map((d) => d.totalXp).fold<int>(1, (a, b) => a > b ? a : b);
-    final dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    final dayLabels = [
+    AppStrings.dayMon, AppStrings.dayTue, AppStrings.dayWed,
+    AppStrings.dayThu, AppStrings.dayFri, AppStrings.daySat,
+    AppStrings.daySun,
+  ];
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -263,7 +288,7 @@ class _WeeklyXpBars extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            AppLocalizations.of(context)!.profileLast7Days,
+            AppStrings.profileLast7Days,
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
@@ -342,28 +367,28 @@ class _OverallStatsGrid extends StatelessWidget {
         _StatCard(
           icon: Icons.timer_rounded,
           iconColor: VarnamalaTheme.leagueAmethyst,
-          value: AppLocalizations.of(context)!
+          value: AppStrings
               .profileTotalStudyTimeValue(totalMinutes),
-          label: AppLocalizations.of(context)!.profileTotalStudyTime,
+          label: AppStrings.profileTotalStudyTime,
         ),
         _StatCard(
           icon: Icons.percent_rounded,
           iconColor: VarnamalaTheme.successDark,
           value:
-              AppLocalizations.of(context)!.profileOverallAccuracyValue(accuracy),
-          label: AppLocalizations.of(context)!.profileOverallAccuracy,
+              AppStrings.profileOverallAccuracyValue(accuracy),
+          label: AppStrings.profileOverallAccuracy,
         ),
         _StatCard(
           icon: Icons.school_rounded,
           iconColor: VarnamalaTheme.peacockCyan,
           value: totalLessons.toString(),
-          label: AppLocalizations.of(context)!.profileLessonsDone,
+          label: AppStrings.profileLessonsDone,
         ),
         _StatCard(
           icon: Icons.repeat_rounded,
           iconColor: VarnamalaTheme.leagueGold,
           value: totalReviews.toString(),
-          label: AppLocalizations.of(context)!.profileReviewsDone,
+          label: AppStrings.profileReviewsDone,
         ),
       ],
     );
@@ -399,7 +424,7 @@ class _AnkiStatsCard extends StatelessWidget {
                   color: VarnamalaTheme.peacockTeal, size: 20),
               const SizedBox(width: 8),
               Text(
-                'Anki Decks',
+                AppStrings.profileAnkiDecks,
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w700,
                     ),
@@ -414,7 +439,7 @@ class _AnkiStatsCard extends StatelessWidget {
                 icon: Icons.school_rounded,
                 iconColor: VarnamalaTheme.peacockCyan,
                 value: ankiLessons.toString(),
-                label: 'Anki lessons',
+                label: AppStrings.profileAnkiLessons,
               ),
               Container(
                   width: 1, height: 40, color: VarnamalaTheme.dividerBg(context)),
@@ -422,7 +447,7 @@ class _AnkiStatsCard extends StatelessWidget {
                 icon: Icons.repeat_rounded,
                 iconColor: VarnamalaTheme.leagueGold,
                 value: ankiReviews.toString(),
-                label: 'Anki reviews',
+                label: AppStrings.profileAnkiReviews,
               ),
             ],
           ),
@@ -483,6 +508,303 @@ class _StatCard extends StatelessWidget {
                     fontWeight: FontWeight.w500,
                   ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Memory-curve dashboard card: current retention %, an empirical
+/// retention-by-interval line chart (from review history), an upcoming-review
+/// forecast, and a card-maturity breakdown.
+class _MemoryCurveCard extends StatelessWidget {
+  final MemoryCurveSnapshot snapshot;
+
+  const _MemoryCurveCard({required this.snapshot});
+
+  @override
+  Widget build(BuildContext context) {
+    final retentionPct = (snapshot.currentRetention * 100).round();
+    final curve = snapshot.retentionByInterval;
+    final hasCurve = curve.isNotEmpty;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: VarnamalaTheme.cardBg(context),
+        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+        border: Border.all(color: VarnamalaTheme.statCardBorder(context)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.show_chart_rounded,
+                  color: VarnamalaTheme.peacockTeal, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                AppStrings.profileMemoryCurveTitle,
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const Spacer(),
+              TextButton(
+                onPressed: () =>
+                    context.router.push(const ReviewProgressRoute()),
+                child: Text(AppStrings.reviewProgressSeeDetail),
+              ),
+              Text(
+                AppStrings.profileRetentionValue(retentionPct),
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: VarnamalaTheme.peacockTeal,
+                    ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Text(
+            '${AppStrings.profileRetention} · ${AppStrings.profileReviewsCount(snapshot.totalReviews)}',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: VarnamalaTheme.textHintColor(context),
+                ),
+          ),
+          const SizedBox(height: 12),
+          if (hasCurve)
+            SizedBox(height: 140, child: _curveChart(context, curve))
+          else
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 28),
+              child: Center(
+                child: Text(
+                  AppStrings.profileMemoryCurveEmpty,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: VarnamalaTheme.textHintColor(context),
+                      ),
+                ),
+              ),
+            ),
+          const SizedBox(height: 12),
+          Text(
+            AppStrings.profileForecastTitle,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              _miniStat(context, snapshot.forecast.dueToday, AppStrings.profileDueToday),
+              _miniStat(context, snapshot.forecast.due7Days, AppStrings.profileDue7Days),
+              _miniStat(context, snapshot.forecast.due30Days, AppStrings.profileDue30Days),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            AppStrings.profileMasteryTitle,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            AppStrings.profileMasteryValue(
+              (snapshot.meanMastery * 100).round().clamp(0, 100),
+            ),
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: VarnamalaTheme.primary,
+                ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            AppStrings.profileMaturityTitle,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _maturityChip(context, AppStrings.profileMaturityNew,
+                  snapshot.maturity.newCards, VarnamalaTheme.textHintColor(context)),
+              _maturityChip(context, AppStrings.profileMaturityYoung,
+                  snapshot.maturity.young, VarnamalaTheme.primaryLight),
+              _maturityChip(context, AppStrings.profileMaturityMature,
+                  snapshot.maturity.mature, VarnamalaTheme.success),
+              _maturityChip(context, AppStrings.profileMaturityLeech,
+                  snapshot.maturity.leech, VarnamalaTheme.error),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _curveChart(BuildContext context, List<RetentionPoint> curve) {
+    final spots = [
+      for (var i = 0; i < curve.length; i++)
+        FlSpot(i.toDouble(), curve[i].retention),
+    ];
+    final lineColor = VarnamalaTheme.peacockTeal;
+    return LineChart(
+      LineChartData(
+        minY: 0,
+        maxY: 1,
+        minX: 0,
+        maxX: (curve.length - 1).toDouble(),
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          horizontalInterval: 0.25,
+          getDrawingHorizontalLine: (v) => FlLine(
+            color: VarnamalaTheme.dividerBg(context),
+            strokeWidth: 1,
+          ),
+        ),
+        titlesData: FlTitlesData(
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              interval: 0.25,
+              reservedSize: 30,
+              getTitlesWidget: (v, _) => Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: Text('${(v * 100).round()}%',
+                    style: TextStyle(
+                        fontSize: 10,
+                        color: VarnamalaTheme.textHintColor(context))),
+              ),
+            ),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 22,
+              interval: 1,
+              getTitlesWidget: (i, _) {
+                final idx = i.toInt();
+                if (idx < 0 || idx >= curve.length) {
+                  return const SizedBox.shrink();
+                }
+                return Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text('${curve[idx].intervalBucketDays}d',
+                      style: TextStyle(
+                          fontSize: 10,
+                          color: VarnamalaTheme.textHintColor(context))),
+                );
+              },
+            ),
+          ),
+        ),
+        borderData: FlBorderData(show: false),
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            isCurved: true,
+            gradient: LinearGradient(
+              colors: [lineColor, lineColor],
+            ),
+            barWidth: 3,
+            dotData: FlDotData(show: curve.length <= 6),
+            belowBarData: BarAreaData(
+              show: true,
+              gradient: LinearGradient(
+                colors: [
+                  lineColor.withOpacity(0.12),
+                  lineColor.withOpacity(0.02),
+                ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+            ),
+          ),
+        ],
+        lineTouchData: LineTouchData(
+          touchTooltipData: LineTouchTooltipData(
+            getTooltipItems: (touchedSpots) {
+              return [
+                for (final s in touchedSpots)
+                  if (s.spotIndex >= 0 && s.spotIndex < curve.length)
+                    LineTooltipItem(
+                      '${(curve[s.spotIndex].retention * 100).round()}%',
+                      TextStyle(color: lineColor, fontWeight: FontWeight.w700),
+                    ),
+              ];
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _miniStat(BuildContext context, int value, String label) {
+    return Expanded(
+      child: Container(
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+        decoration: BoxDecoration(
+          color: VarnamalaTheme.inputFillColor(context),
+          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+        ),
+        child: Column(
+          children: [
+            Text(
+              '$value',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: VarnamalaTheme.textHintColor(context),
+                  ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _maturityChip(
+      BuildContext context, String label, int count, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            '$count',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w700,
+                ),
           ),
         ],
       ),

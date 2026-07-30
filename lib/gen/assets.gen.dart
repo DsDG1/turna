@@ -40,6 +40,14 @@ class $AssetsImagesGen {
   AssetGenImage get appLogo =>
       const AssetGenImage('assets/images/app_logo.png');
 
+  /// File path: assets/images/app_logo_store_1024.png
+  AssetGenImage get appLogoStore1024 =>
+      const AssetGenImage('assets/images/app_logo_store_1024.png');
+
+  /// File path: assets/images/app_logo_store_216.png
+  AssetGenImage get appLogoStore216 =>
+      const AssetGenImage('assets/images/app_logo_store_216.png');
+
   /// File path: assets/images/badge_amethyst.png
   AssetGenImage get badgeAmethyst =>
       const AssetGenImage('assets/images/badge_amethyst.png');
@@ -291,6 +299,8 @@ class $AssetsImagesGen {
         airplane,
         ant,
         appLogo,
+        appLogoStore1024,
+        appLogoStore216,
         badgeAmethyst,
         badgeBronzeBlank,
         badgeDiamondBlank,
@@ -450,9 +460,17 @@ class $AssetsImagesMalaGen {
   AssetGenImage get malaLusty =>
       const AssetGenImage('assets/images/mala/mala_lusty.png');
 
+  /// File path: assets/images/mala/mala_reading.png
+  AssetGenImage get malaReading =>
+      const AssetGenImage('assets/images/mala/mala_reading.png');
+
   /// File path: assets/images/mala/mala_wave.png
   AssetGenImage get malaWave =>
       const AssetGenImage('assets/images/mala/mala_wave.png');
+
+  /// File path: assets/images/mala/mala_waving.png
+  AssetGenImage get malaWaving =>
+      const AssetGenImage('assets/images/mala/mala_waving.png');
 
   /// List of all assets
   List<AssetGenImage> get values => [
@@ -462,7 +480,9 @@ class $AssetsImagesMalaGen {
         malaDoubtful,
         malaExcited,
         malaLusty,
-        malaWave
+        malaReading,
+        malaWave,
+        malaWaving
       ];
 }
 

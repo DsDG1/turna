@@ -4,19 +4,22 @@ import 'dart:convert';
 // Flutter imports:
 import 'package:flutter/foundation.dart';
 
+// Package imports:
+import 'package:injectable/injectable.dart';
+
 // Project imports:
-import 'package:varnamala/data/course_database.dart' as db;
-import 'package:varnamala/data/course_repository.dart';
 import 'package:varnamala/di/injection.dart';
+import 'package:varnamala/domain/repositories/i_course_repository.dart';
 
 /// Loads existing course resources so the AI can be grounded to reuse them.
 ///
 /// Mirrors the resource-pool grounding used by tool-gui's design panel.
+@lazySingleton
 class AiGroundedResourceProvider extends ChangeNotifier {
-  AiGroundedResourceProvider({CourseRepository? repository})
-      : _repository = repository ?? CourseRepository(getIt<db.CourseDatabase>());
+  AiGroundedResourceProvider({ICourseRepository? repository})
+      : _repository = repository ?? getIt<ICourseRepository>();
 
-  final CourseRepository? _repository;
+  final ICourseRepository? _repository;
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;

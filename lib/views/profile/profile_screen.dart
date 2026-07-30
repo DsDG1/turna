@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
+import 'package:varnamala/views/home/components/profile_app_bar.dart';
 import 'package:varnamala/views/profile/widgets/learning_stats.dart';
 import 'package:varnamala/views/profile/widgets/widgets.dart';
 
@@ -10,21 +11,25 @@ class ProfilePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const CustomScrollView(
-      physics: BouncingScrollPhysics(),
+    return CustomScrollView(
+      physics: const BouncingScrollPhysics(),
       slivers: [
         SliverToBoxAdapter(
           child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: AccountWidget(),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: AccountWidget(
+              onShare: () => ProfileAppBar.openShareSheet(context),
+            ),
           ),
         ),
-        SliverToBoxAdapter(child: SizedBox(height: 8)),
-        SliverToBoxAdapter(child: Statistics()),
-        SliverToBoxAdapter(child: SizedBox(height: 8)),
-        SliverToBoxAdapter(child: LearningStats()),
-        SliverToBoxAdapter(child: Achievements()),
-        SliverPadding(padding: EdgeInsets.only(bottom: 24)),
+        const SliverToBoxAdapter(child: SizedBox(height: 16)),
+        const SliverToBoxAdapter(child: Statistics()),
+        const SliverToBoxAdapter(child: SizedBox(height: 16)),
+        const SliverToBoxAdapter(child: ProfileQuickActions()),
+        const SliverToBoxAdapter(child: SizedBox(height: 8)),
+        const SliverToBoxAdapter(child: LearningStats()),
+        const SliverToBoxAdapter(child: Achievements()),
+        const SliverPadding(padding: EdgeInsets.only(bottom: 24)),
       ],
     );
   }

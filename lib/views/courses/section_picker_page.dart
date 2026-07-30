@@ -8,7 +8,7 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:varnamala/application/course_provider.dart';
 import 'package:varnamala/domain/course/section.dart';
-import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/courses/components/section_visuals.dart';
 import 'package:varnamala/views/theme.dart';
 
@@ -22,7 +22,7 @@ class SectionPickerPage extends StatelessWidget {
       backgroundColor: VarnamalaTheme.scaffoldBg(context),
       appBar: AppBar(
         title: Text(
-          AppLocalizations.of(context)!.coursesChooseSection,
+          AppStrings.coursesChooseSection,
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w700,
               ),

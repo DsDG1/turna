@@ -54,7 +54,7 @@ void main() {
 
     await tester.pumpWidget(harness.build(renderer, interaction));
     ElevatedButton checkButton() =>
-        tester.widget(find.widgetWithText(ElevatedButton, 'CHECK'));
+        tester.widget(find.widgetWithText(ElevatedButton, '核对'));
     expect(checkButton().onPressed, isNull);
     await tester.enterText(find.byType(TextField), 'Hello');
     await tester.pump();

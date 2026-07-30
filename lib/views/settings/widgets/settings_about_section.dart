@@ -6,8 +6,16 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 // Project imports:
 import 'package:varnamala/views/settings/about_varnamala_page.dart';
+import 'package:varnamala/views/settings/changelog_page.dart';
 import 'package:varnamala/views/settings/widgets/settings_common.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/theme.dart';
+
+/// Cached once per process — About footer and license page share this.
+Future<PackageInfo>? _packageInfoFuture;
+
+Future<PackageInfo> _loadPackageInfo() =>
+    _packageInfoFuture ??= PackageInfo.fromPlatform();
 
 class SettingsAboutSection extends StatelessWidget {
   const SettingsAboutSection({super.key});
@@ -18,7 +26,7 @@ class SettingsAboutSection extends StatelessWidget {
       children: [
         SettingsNavigationTile(
           icon: Icons.school_rounded,
-          title: 'About Varnamala',
+          title: AppStrings.settingsAboutVarnamala,
           onTap: (context) => Navigator.of(context).push(
             MaterialPageRoute(
               builder: (_) => const AboutVarnamalaPage(),
@@ -27,13 +35,27 @@ class SettingsAboutSection extends StatelessWidget {
         ),
         settingsTileDivider(context),
         SettingsNavigationTile(
-          icon: Icons.code_rounded,
-          title: 'Open source licenses',
-          onTap: (context) => showLicensePage(
-            context: context,
-            applicationName: 'Varnamala',
-            applicationVersion: '1.0.0',
+          icon: Icons.history_edu_rounded,
+          title: AppStrings.changelogTitle,
+          onTap: (context) => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const ChangelogPage(),
+            ),
           ),
+        ),
+        settingsTileDivider(context),
+        SettingsNavigationTile(
+          icon: Icons.code_rounded,
+          title: AppStrings.settingsOpenSourceLicenses,
+          onTap: (context) async {
+            final info = await _loadPackageInfo();
+            if (!context.mounted) return;
+            showLicensePage(
+              context: context,
+              applicationName: 'Varnamala',
+              applicationVersion: info.version,
+            );
+          },
         ),
         settingsTileDivider(context),
         const SettingsVersionFooter(),
@@ -48,12 +70,13 @@ class SettingsVersionFooter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<PackageInfo>(
-      future: PackageInfo.fromPlatform(),
+      future: _loadPackageInfo(),
       builder: (context, snapshot) {
         final version = snapshot.data?.version ?? '1.0.0';
         final build = snapshot.data?.buildNumber ?? '';
-        final label =
-            build.isEmpty ? 'Version $version' : 'Version $version ($build)';
+        final label = build.isEmpty
+            ? AppStrings.settingsVersionFooter(version)
+            : AppStrings.settingsVersionFooterWithBuild(version, build);
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Row(

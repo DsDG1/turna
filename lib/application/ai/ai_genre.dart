@@ -1,7 +1,7 @@
 // Dart imports:
 import 'dart:convert';
 
-import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 
 /// Genre tag → lesson template metadata. Mirrors
 /// `tool/gui/src/backend/ai_genre.py:GENRE_TEMPLATES`.
@@ -119,26 +119,26 @@ String genreToTemplate(String genre) {
 ///
 /// When [l10n] is null (e.g. AI prompt builders that must stay English for the
 /// model), the hardcoded English label from [templateLabels] is returned.
-/// When [l10n] is supplied (UI call sites with a [BuildContext]), a localized
-/// label is returned instead. Unknown templates fall back to [template]
-/// itself in both cases.
-String templateLabel(String template, {AppLocalizations? l10n}) {
+/// When [l10n] is supplied ([AppStrings] instance), a Chinese label is
+/// returned instead. Unknown templates fall back to [template] itself in both
+/// cases.
+String templateLabel(String template, {AppStrings? l10n}) {
   if (l10n != null) {
     switch (template) {
       case 'intro':
-        return l10n.aiTemplateIntro;
+        return AppStrings.aiTemplateIntro;
       case 'practice':
-        return l10n.aiTemplatePractice;
+        return AppStrings.aiTemplatePractice;
       case 'review':
-        return l10n.aiTemplateReview;
+        return AppStrings.aiTemplateReview;
       case 'listening':
-        return l10n.aiTemplateListening;
+        return AppStrings.aiTemplateListening;
       case 'reading':
-        return l10n.aiTemplateReading;
+        return AppStrings.aiTemplateReading;
       case 'mastery':
-        return l10n.aiTemplateMastery;
+        return AppStrings.aiTemplateMastery;
       case 'mixed':
-        return l10n.aiTemplateMixed;
+        return AppStrings.aiTemplateMixed;
     }
   }
   return templateLabels[template] ?? template;

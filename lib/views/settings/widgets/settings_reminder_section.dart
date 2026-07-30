@@ -10,6 +10,7 @@ import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/service/local_reminder_service.dart';
 import 'package:varnamala/views/settings/widgets/settings_common.dart';
 import 'package:varnamala/views/settings/widgets/settings_sound_section.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/theme.dart';
 
 class SettingsDailyReminderTile extends StatelessWidget {
@@ -24,18 +25,23 @@ class SettingsDailyReminderTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final settings = context.watch<SettingsProvider>();
-    final enabled = settings.dailyReminderEnabled;
-    final time = settings.dailyReminderTime;
-    final timeLabel =
-        '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+    // Narrow selects: avoid rebuilding this whole block on unrelated settings
+    // (e.g. TTS speed) while still showing/hiding the time row correctly.
+    final enabled = context.select<SettingsProvider, bool>(
+      (p) => p.dailyReminderEnabled,
+    );
+    final timeLabel = context.select<SettingsProvider, String>((p) {
+      final t = p.dailyReminderTime;
+      return '${t.hour.toString().padLeft(2, '0')}:'
+          '${t.minute.toString().padLeft(2, '0')}';
+    });
 
     return Column(
       children: [
         SettingsToggleTile(
           icon: Icons.notifications_active_outlined,
-          title: 'Daily reminder',
-          subtitle: 'Gentle nudge to review — no streaks or penalties',
+          title: AppStrings.settingsDailyReminderTitle,
+          subtitle: AppStrings.settingsDailyReminderSubtitle,
           valueSelector: (p) => p.dailyReminderEnabled,
           onChanged: (p, value) async {
             await p.setDailyReminderEnabled(value);
@@ -46,8 +52,8 @@ class SettingsDailyReminderTile extends StatelessWidget {
           settingsTileDivider(context),
           SettingsTile(
             icon: Icons.schedule_rounded,
-            title: 'Reminder time',
-            subtitle: 'Currently $timeLabel',
+            title: AppStrings.settingsReminderTimeTitle,
+            subtitle: AppStrings.settingsReminderTimeSubtitle(timeLabel),
             trailing: Text(
               timeLabel,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -56,9 +62,10 @@ class SettingsDailyReminderTile extends StatelessWidget {
                   ),
             ),
             onTap: () async {
+              final settings = context.read<SettingsProvider>();
               final picked = await showTimePicker(
                 context: context,
-                initialTime: time,
+                initialTime: settings.dailyReminderTime,
               );
               if (picked == null) return;
               await settings.setDailyReminderTime(picked);

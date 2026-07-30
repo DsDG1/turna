@@ -2,10 +2,11 @@
 import 'dart:convert';
 
 // Project imports:
-import 'package:varnamala/application/ai/ai_api_config.dart';
-import 'package:varnamala/application/ai/ai_course_service.dart';
 import 'package:varnamala/application/ai/ai_resource_consistency.dart';
+import 'package:varnamala/application/ai/engine/ai_engine.dart';
+import 'package:varnamala/application/ai/engine/ai_engine_config.dart';
 import 'package:varnamala/core/logger.dart';
+import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/domain/course/interaction.dart';
 import 'package:varnamala/domain/course/lesson.dart';
 import 'package:varnamala/domain/course/lesson_content.dart';
@@ -31,9 +32,9 @@ class EnhancementResult {
 
 /// Enhances Anki cards using AI transformations.
 ///
-/// Reuses [AiCourseService.requestLessonTransform] pipeline:
-/// wraps AnkiCard list as a temporary Lesson JSON, sends to LLM with
-/// user instruction, parses + autoFixResources for self-consistency.
+/// Routes through [AiEngine.chat]: wraps AnkiCard list as a temporary
+/// Lesson JSON, sends to LLM with user instruction, parses +
+/// autoFixResources for self-consistency.
 ///
 /// Enhancement types:
 /// - Generate distractors → AnkiCard → MultipleChoice
@@ -41,10 +42,9 @@ class EnhancementResult {
 /// - Cloze → FillBlank conversion
 /// - Extract keywords → MatchWords generation
 class AnkiCardEnhancer {
-  final AiCourseService _service;
+  final AiEngine _engine;
 
-  AnkiCardEnhancer({AiCourseService? service})
-      : _service = service ?? const AiCourseService();
+  AnkiCardEnhancer({AiEngine? engine}) : _engine = engine ?? getIt<AiEngine>();
 
   /// Enhance a batch of AnkiCard interactions using AI.
   ///
@@ -53,7 +53,7 @@ class AnkiCardEnhancer {
   ///   (e.g. "Generate 3 distractors for each card to make multiple-choice questions").
   /// [resourceIds] provides grounded resource IDs for consistency.
   Future<EnhancementResult> enhance({
-    required AiApiConfig config,
+    required AiEngineConfig config,
     required List<Interaction> ankiCards,
     required String instruction,
     Set<String> resourceIds = const {},
@@ -85,10 +85,10 @@ Lesson JSON:
 $lessonJson
 ''';
 
-      final reply = await _service.requestTextReply(
+      final result = await _engine.chat(
         config: config,
-        systemPrompt: systemPrompt,
         messages: [
+          {'role': 'system', 'content': systemPrompt},
           {'role': 'user', 'content': userMessage},
         ],
         temperature: 0.5,
@@ -96,7 +96,7 @@ $lessonJson
       );
 
       // Parse the transformed lesson
-      final transformed = _parseTransformedLesson(reply);
+      final transformed = _parseTransformedLesson(result.content);
       if (transformed == null) {
         return EnhancementResult(
           interactions: ankiCards,
@@ -127,7 +127,7 @@ $lessonJson
 
   /// Quick enhancement: generate distractors for AnkiCards → MultipleChoice.
   Future<EnhancementResult> generateDistractors({
-    required AiApiConfig config,
+    required AiEngineConfig config,
     required List<Interaction> ankiCards,
   }) {
     return enhance(
@@ -143,7 +143,7 @@ $lessonJson
 
   /// Quick enhancement: add example sentences to AnkiCard hints.
   Future<EnhancementResult> addExampleSentences({
-    required AiApiConfig config,
+    required AiEngineConfig config,
     required List<Interaction> ankiCards,
   }) {
     return enhance(

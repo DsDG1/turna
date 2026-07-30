@@ -9,7 +9,6 @@ import 'package:varnamala/application/accessibility_provider.dart';
 import 'package:varnamala/application/providers.dart';
 import 'package:varnamala/application/theme_provider.dart';
 import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/l10n/app_localizations.dart';
 import 'package:varnamala/routing/routing.dart';
 import 'package:varnamala/views/app_fonts.dart';
 import 'package:varnamala/views/theme.dart';
@@ -82,8 +81,6 @@ class _AppShellState extends State<_AppShell> {
       darkTheme: darkTheme,
       themeMode: themeMode,
       routerConfig: _routeConfig,
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
       builder: (context, child) {
         // Apply the accessibility MediaQuery overrides at the root so every
         // descendant inherits them: text magnification and (when reduced

@@ -8,13 +8,18 @@ import 'package:varnamala/domain/course/lesson_word_link.dart';
 import 'package:varnamala/domain/course/srs_word.dart';
 import 'package:varnamala/service/locator.dart';
 
-/// Parallel SRS queue for grammar points ([LocalStateKeys.grammarReviewState]).
+/// Parallel SRS queue for grammar points (queue `'grammar'` in the
+/// `srs_states` SQLite table; migrated from [LocalStateKeys.grammarReviewState]
+/// in schema v7).
 @lazySingleton
 class GrammarReviewProvider extends SrsQueueProvider {
-  GrammarReviewProvider(super.appPrefs, super.linkStore);
+  GrammarReviewProvider(super.appPrefs, super.linkStore, super.srsDao);
 
   @override
   String get statePrefsKey => LocalStateKeys.grammarReviewState;
+
+  @override
+  String get queueId => 'grammar';
 
   @override
   String get logTag => 'GrammarReviewProvider';
@@ -54,7 +59,7 @@ class GrammarReviewProvider extends SrsQueueProvider {
       reviewItem(id, quality);
 
   Future<SrsWord?> reviewWithQuality(String id, ReviewGrade grade) =>
-      reviewGrammarPoint(id, grade.sm2);
+      reviewWithOutcome(id, grade.outcome);
 
   List<SrsWord> getDueGrammarPoints([DateTime? now]) => getDueItems(now: now);
 

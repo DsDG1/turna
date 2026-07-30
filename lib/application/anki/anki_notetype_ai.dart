@@ -2,22 +2,22 @@
 import 'dart:convert';
 
 // Project imports:
-import 'package:varnamala/application/ai/ai_api_config.dart';
-import 'package:varnamala/application/ai/ai_course_service.dart';
+import 'package:varnamala/application/ai/engine/ai_engine.dart';
+import 'package:varnamala/application/ai/engine/ai_engine_config.dart';
 import 'package:varnamala/application/anki/anki_card_adapter.dart';
 import 'package:varnamala/application/anki/anki_models.dart';
 import 'package:varnamala/core/logger.dart';
+import 'package:varnamala/di/injection.dart';
 
 /// Uses LLM to intelligently identify how an Anki notetype should map
 /// to Varnamala card types. Falls back to heuristic on failure.
 ///
-/// Reuses [AiCourseService.requestTextReply] with a system/user message pair
-/// (same pattern as KnowledgePrompt.buildExtractionMessages).
+/// Routes through [AiEngine.chat] with a system/user message pair (same
+/// pattern as KnowledgePrompt.buildExtractionMessages).
 class AnkiNotetypeAI {
-  final AiCourseService _service;
+  final AiEngine _engine;
 
-  AnkiNotetypeAI({AiCourseService? service})
-      : _service = service ?? const AiCourseService();
+  AnkiNotetypeAI({AiEngine? engine}) : _engine = engine ?? getIt<AiEngine>();
 
   static const _systemPrompt = '''
 You are an Anki deck analysis assistant. Given an Anki notetype's field definitions (field name list), determine which Varnamala card type it best maps to:
@@ -43,7 +43,7 @@ Rules:
   /// Returns the AI-identified mapping, or falls back to heuristic
   /// if the LLM call fails.
   Future<NotetypeMapping> identify({
-    required AiApiConfig config,
+    required AiEngineConfig config,
     required AnkiNotetype notetype,
   }) async {
     if (!config.isComplete) {
@@ -53,17 +53,17 @@ Rules:
 
     try {
       final userMessage = _buildUserMessage(notetype);
-      final reply = await _service.requestTextReply(
+      final result = await _engine.chat(
         config: config,
-        systemPrompt: _systemPrompt,
         messages: [
+          {'role': 'system', 'content': _systemPrompt},
           {'role': 'user', 'content': userMessage},
         ],
         temperature: 0.2,
         timeout: const Duration(seconds: 30),
       );
 
-      return _parseReply(reply, notetype);
+      return _parseReply(result.content, notetype);
     } catch (e) {
       logger.w('AnkiNotetypeAI LLM failed, falling back to heuristic: $e');
       return AnkiCardAdapter.inferMapping(notetype);
@@ -72,7 +72,7 @@ Rules:
 
   /// Batch-identify all notetypes in a collection.
   Future<Map<int, NotetypeMapping>> identifyAll({
-    required AiApiConfig config,
+    required AiEngineConfig config,
     required Map<int, AnkiNotetype> notetypes,
   }) async {
     final result = <int, NotetypeMapping>{};

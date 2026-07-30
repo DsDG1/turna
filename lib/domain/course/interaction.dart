@@ -35,12 +35,17 @@ sealed class Interaction with _$Interaction {
   }) = ShowWord;
 
   /// Choose one option out of N.
+  ///
+  /// [audioAssets] holds optional prompt-side audio references (e.g.
+  /// `anki://<importId>/<file>` from imported Anki decks); the renderer shows
+  /// a play button for each.
   const factory Interaction.multipleChoice({
     @Default('') String id,
     required String prompt,
     required List<String> options,
     required int correctIndex,
     String? imageAsset,
+    @Default(<String>[]) List<String> audioAssets,
     String? grammarPointId,
   }) = MultipleChoice;
 
@@ -62,11 +67,16 @@ sealed class Interaction with _$Interaction {
   }) = MultiSelect;
 
   /// Fill in the blanked word(s) in a sentence.
+  ///
+  /// [audioAssets] / [imageAssets] hold optional prompt-side media references
+  /// (e.g. `anki://<importId>/<file>` from imported Anki decks).
   const factory Interaction.fillBlank({
     @Default('') String id,
     required String sentence,
     required String answer,
     String? hint,
+    @Default(<String>[]) List<String> audioAssets,
+    @Default(<String>[]) List<String> imageAssets,
     String? grammarPointId,
   }) = FillBlank;
 
@@ -143,7 +153,8 @@ sealed class Interaction with _$Interaction {
   }) = ReadingShortAnswer;
 
   /// Anki-style flip card: show [front], user reveals [back], then grades
-  /// Again/Hard/Good/Easy (mapped to SM-2 quality by the renderer).
+  /// with two buttons (Don't know / Know it, mapped to SM-2 quality by the
+  /// renderer).
   ///
   /// Unlike vocabulary-driven variants, the front/back carry no language
   /// semantics — they are generic card faces from an imported Anki deck, so

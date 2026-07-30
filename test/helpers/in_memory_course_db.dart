@@ -12,19 +12,25 @@
 import 'dart:ffi';
 import 'dart:io';
 
+import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqlite3/src/ffi/load_library.dart' show OperatingSystem, open;
 import 'package:varnamala/courses/course_loader.dart';
 import 'package:varnamala/data/course_database.dart';
 import 'package:varnamala/data/course_database_seeder.dart';
+import 'package:varnamala/data/review_history_dao.dart';
+import 'package:varnamala/data/srs_state_dao.dart';
 
 bool _sqliteOverrideApplied = false;
 
 /// Ensures sqlite3 loads on Linux test hosts where the unversioned
-/// `libsqlite3.so` is missing. Safe to call multiple times.
+/// `libsqlite3.so` is missing. Safe to call multiple times. Also silences
+/// Drift's "multiple databases" warning - tests intentionally create a fresh
+/// in-memory DB per case (no shared executor, so no real race).
 void ensureSqliteLibForTestHost() {
   if (_sqliteOverrideApplied) return;
+  driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
   if (!Platform.isLinux) {
     _sqliteOverrideApplied = true;
     return;
@@ -50,4 +56,32 @@ Future<CourseDatabase> seedInMemoryCourseDb() async {
   await DatabaseSeeder(db).seedIfNeeded();
   CourseLoader.overrideDatabase(() => db);
   return db;
+}
+
+/// An [SrsStateDao] backed by a fresh empty in-memory [CourseDatabase] (no
+/// asset seeding). The DAO retains the DB for its lifetime. Reuse one DAO
+/// across provider instances when a test needs SRS state to survive
+/// reconstruction (the in-memory DB is shared that way).
+SrsStateDao emptySrsStateDao() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  ensureSqliteLibForTestHost();
+  final db = CourseDatabase(NativeDatabase.memory());
+  return SrsStateDao(db);
+}
+
+/// A [ReviewHistoryDao] backed by a fresh empty in-memory [CourseDatabase].
+ReviewHistoryDao emptyReviewHistoryDao() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  ensureSqliteLibForTestHost();
+  final db = CourseDatabase(NativeDatabase.memory());
+  return ReviewHistoryDao(db);
+}
+
+/// A fresh empty in-memory [CourseDatabase] (no asset seeding), for tests
+/// that need to register a DB singleton in GetIt (e.g. provider-identity
+/// tests where lazy DAOs resolve it transitively).
+CourseDatabase emptyInMemoryCourseDatabase() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  ensureSqliteLibForTestHost();
+  return CourseDatabase(NativeDatabase.memory());
 }

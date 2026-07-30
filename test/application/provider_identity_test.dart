@@ -14,16 +14,20 @@ import 'package:varnamala/application/mistake_provider.dart';
 import 'package:varnamala/application/providers.dart';
 import 'package:varnamala/application/srs_provider.dart';
 import 'package:varnamala/application/theme_provider.dart';
+import 'package:varnamala/data/course_database.dart';
 import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/service/locator.dart';
+
+import '../helpers/in_memory_course_db.dart';
 
 Future<void> _bootstrapDi() async {
   await getIt.reset();
   SharedPreferences.setMockInitialValues({});
   final prefs = await StreamingSharedPreferences.instance;
   configureDependencies();
-  // AppPrefs / FlutterTts are registered in setupLocator() in production;
-  // register the same way for tests so lazySingletons can resolve.
+  // AppPrefs / FlutterTts / CourseDatabase are registered in setupLocator()
+  // in production; register the same way for tests so lazySingletons (e.g.
+  // SrsProvider -> SrsStateDao -> CourseDatabase) can resolve.
   if (getIt.isRegistered<AppPrefs>()) {
     await getIt.unregister<AppPrefs>();
   }
@@ -32,6 +36,8 @@ Future<void> _bootstrapDi() async {
   }
   getIt.registerLazySingleton<AppPrefs>(() => AppPrefs(prefs));
   getIt.registerLazySingleton<FlutterTts>(() => FlutterTts());
+  ensureSqliteLibForTestHost();
+  getIt.registerSingleton<CourseDatabase>(emptyInMemoryCourseDatabase());
 }
 
 void main() {

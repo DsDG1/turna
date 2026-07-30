@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:varnamala/application/theme_provider.dart';
 import 'package:varnamala/views/settings/widgets/settings_common.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/theme.dart';
 
 class SettingsThemeSelector extends StatelessWidget {
@@ -21,21 +22,21 @@ class SettingsThemeSelector extends StatelessWidget {
       children: [
         _ThemeOption(
           icon: Icons.light_mode_rounded,
-          label: 'Light',
+          label: AppStrings.settingsThemeLight,
           isSelected: current == ThemeMode.light,
           onTap: () => themeProvider.setThemeMode(ThemeMode.light),
         ),
         settingsTileDivider(context),
         _ThemeOption(
           icon: Icons.dark_mode_rounded,
-          label: 'Dark',
+          label: AppStrings.settingsThemeDark,
           isSelected: current == ThemeMode.dark,
           onTap: () => themeProvider.setThemeMode(ThemeMode.dark),
         ),
         settingsTileDivider(context),
         _ThemeOption(
           icon: Icons.settings_suggest_rounded,
-          label: 'System',
+          label: AppStrings.settingsThemeSystem,
           isSelected: current == ThemeMode.system,
           onTap: () => themeProvider.setThemeMode(ThemeMode.system),
         ),

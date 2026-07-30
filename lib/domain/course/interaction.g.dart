@@ -32,6 +32,10 @@ MultipleChoice _$MultipleChoiceFromJson(Map<String, dynamic> json) =>
           (json['options'] as List<dynamic>).map((e) => e as String).toList(),
       correctIndex: (json['correctIndex'] as num).toInt(),
       imageAsset: json['imageAsset'] as String?,
+      audioAssets: (json['audioAssets'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const <String>[],
       grammarPointId: json['grammarPointId'] as String?,
       $type: json['runtimeType'] as String?,
     );
@@ -43,6 +47,7 @@ Map<String, dynamic> _$MultipleChoiceToJson(MultipleChoice instance) =>
       'options': instance.options,
       'correctIndex': instance.correctIndex,
       'imageAsset': instance.imageAsset,
+      'audioAssets': instance.audioAssets,
       'grammarPointId': instance.grammarPointId,
       'runtimeType': instance.$type,
     };
@@ -80,6 +85,14 @@ FillBlank _$FillBlankFromJson(Map<String, dynamic> json) => FillBlank(
       sentence: json['sentence'] as String,
       answer: json['answer'] as String,
       hint: json['hint'] as String?,
+      audioAssets: (json['audioAssets'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const <String>[],
+      imageAssets: (json['imageAssets'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const <String>[],
       grammarPointId: json['grammarPointId'] as String?,
       $type: json['runtimeType'] as String?,
     );
@@ -89,6 +102,8 @@ Map<String, dynamic> _$FillBlankToJson(FillBlank instance) => <String, dynamic>{
       'sentence': instance.sentence,
       'answer': instance.answer,
       'hint': instance.hint,
+      'audioAssets': instance.audioAssets,
+      'imageAssets': instance.imageAssets,
       'grammarPointId': instance.grammarPointId,
       'runtimeType': instance.$type,
     };

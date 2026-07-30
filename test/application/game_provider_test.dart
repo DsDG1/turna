@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:varnamala/application/game_provider.dart';
+import 'package:varnamala/domain/game/user_game_state.dart';
 import 'package:varnamala/service/locator.dart';
 
 void main() {
@@ -110,6 +111,51 @@ void main() {
       expect(game.completedLessonIds, isEmpty);
       expect(game.perfectLessonIds, isEmpty);
       expect(game.isLessonCompleted('l-1'), isFalse);
+    });
+  });
+
+  group('resetAccountGameState', () {
+    test('zeros score, streak, gems, lessons and emits consistent state',
+        () async {
+      await game.awardXP(XPEvent.lessonComplete);
+      await game.recordLessonCompletion(lessonId: 'l-1', wasPerfect: true);
+      await prefs.preferences.setInt(LocalStateKeys.streak, 5);
+      await prefs.preferences.setInt(LocalStateKeys.gems, 40);
+      await prefs.preferences.setStringList(
+        LocalStateKeys.achievements,
+        const ['xp_1000'],
+      );
+
+      final emitted = <UserGameState>[];
+      final sub = game.getUserGameStateStream().listen(emitted.add);
+
+      await game.resetAccountGameState();
+      await Future<void>.delayed(Duration.zero);
+      await sub.cancel();
+
+      final state = game.currentUserGameState;
+      expect(state.score, 0);
+      expect(state.streak, 0);
+      expect(state.gems, 0);
+      expect(state.lessonsCompleted, 0);
+      expect(state.perfectLessons, 0);
+      expect(state.completedLessonIds, isEmpty);
+      expect(state.achievements, isEmpty);
+      expect(readScore(), 0);
+      expect(
+        prefs.preferences
+            .getInt(LocalStateKeys.gems, defaultValue: -1)
+            .getValue(),
+        0,
+      );
+
+      // Final stream snapshot must also be fully zeroed (no partial race).
+      expect(emitted, isNotEmpty);
+      final last = emitted.last;
+      expect(last.score, 0);
+      expect(last.streak, 0);
+      expect(last.gems, 0);
+      expect(last.lessonsCompleted, 0);
     });
   });
 

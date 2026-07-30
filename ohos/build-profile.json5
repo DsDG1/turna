@@ -7,11 +7,11 @@
         "material": {
           "certpath": "C:\\Users\\DsDogs\\.ohos\\config\\default_ohos_U-yPhYTmv738USr7vsmJhROeydx8aAgKhx_-SXBMFhE=.cer",
           "keyAlias": "debugKey",
-          "keyPassword": "0000001B9A2E201920AA320279FEF2F67B817ABB7FA963412EF405C86F5B801473031FFDE11A8C7B3097BD",
+          "keyPassword": "0000001BFD3EA7D08B7FECB2A928B3C18D650F0118E36384130C4531586D323B1E66574BD212F169C77900",
           "profile": "C:\\Users\\DsDogs\\.ohos\\config\\default_ohos_U-yPhYTmv738USr7vsmJhROeydx8aAgKhx_-SXBMFhE=.p7b",
           "signAlg": "SHA256withECDSA",
           "storeFile": "C:\\Users\\DsDogs\\.ohos\\config\\default_ohos_U-yPhYTmv738USr7vsmJhROeydx8aAgKhx_-SXBMFhE=.p12",
-          "storePassword": "0000001B2C93A1A1055A4B931264B90B9AC215A881B3F42C1F9FAD33583F2B86F42A609F49D6E29941B06B"
+          "storePassword": "0000001BCF43C55AF407CAF82F9A6DABE02CDEF3E135F08B3E03625CF42794C795A1B51A43C0EBD8AE5381"
         }
       }
     ],

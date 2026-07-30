@@ -8,10 +8,11 @@ import 'package:varnamala/domain/course/lesson_word_link.dart';
 import 'package:varnamala/domain/course/srs_word.dart';
 import 'package:varnamala/service/locator.dart';
 
-/// Manages word + expression SRS state in one prefs blob ([LocalStateKeys.srsState]).
+/// Manages word + expression SRS state in the `srs_states` SQLite table
+/// (queue `'srs'`; migrated from [LocalStateKeys.srsState] in schema v7).
 @lazySingleton
 class SrsProvider extends SrsQueueProvider {
-  SrsProvider(super.appPrefs, super.linkStore);
+  SrsProvider(super.appPrefs, super.linkStore, super.srsDao);
 
   List<SrsWord>? _cachedDueExpressions;
   DateTime? _cachedExpressionDueAt;
@@ -20,6 +21,9 @@ class SrsProvider extends SrsQueueProvider {
 
   @override
   String get statePrefsKey => LocalStateKeys.srsState;
+
+  @override
+  String get queueId => 'srs';
 
   @override
   String get logTag => 'SrsProvider';
@@ -71,7 +75,11 @@ class SrsProvider extends SrsQueueProvider {
       reviewItem(wordId, quality);
 
   Future<SrsWord?> reviewWithQuality(String wordId, ReviewGrade grade) =>
-      reviewWord(wordId, grade.sm2);
+      reviewWithOutcome(wordId, grade.outcome);
+
+  /// Binary pass/fail for a word (记住·做对 / 没记住·做错).
+  Future<SrsWord?> reviewWordOutcome(String wordId, ReviewOutcome outcome) =>
+      reviewWithOutcome(wordId, outcome);
 
   Future<SrsWord?> reviewExpression(String expressionId, int quality) =>
       reviewItem(expressionId, quality);
@@ -80,7 +88,13 @@ class SrsProvider extends SrsQueueProvider {
     String expressionId,
     ReviewGrade grade,
   ) =>
-      reviewExpression(expressionId, grade.sm2);
+      reviewWithOutcome(expressionId, grade.outcome);
+
+  Future<SrsWord?> reviewExpressionOutcome(
+    String expressionId,
+    ReviewOutcome outcome,
+  ) =>
+      reviewWithOutcome(expressionId, outcome);
 
   /// Words whose `dueAt` is in the past or now (primary due cache).
   List<SrsWord> getDueWords([DateTime? now]) => getDueItems(

@@ -23,6 +23,23 @@ mixin _$SrsWord {
   bool get isLeech;
   SrsItemType get type;
 
+  /// Wall-clock time of the most recent review (null for never-reviewed
+  /// cards). Used with [stability] for \(R(t)\) without a DB join.
+  DateTime? get lastReviewedAt;
+
+  /// FSRS memory stability \(S\) (days until predicted R ≈ 90%). Null until
+  /// first FSRS review or SM-2→FSRS migration seed.
+  double? get stability;
+
+  /// FSRS difficulty \(D\) in \[1, 10\]. Null until seeded.
+  double? get difficulty;
+
+  /// FSRS learning state value: 1=learning, 2=review, 3=relearning.
+  int get fsrsState;
+
+  /// FSRS learning/relearning step index (null when in pure review state).
+  int? get learningStep;
+
   /// Create a copy of SrsWord
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -46,17 +63,40 @@ mixin _$SrsWord {
             (identical(other.reps, reps) || other.reps == reps) &&
             (identical(other.lapses, lapses) || other.lapses == lapses) &&
             (identical(other.isLeech, isLeech) || other.isLeech == isLeech) &&
-            (identical(other.type, type) || other.type == type));
+            (identical(other.type, type) || other.type == type) &&
+            (identical(other.lastReviewedAt, lastReviewedAt) ||
+                other.lastReviewedAt == lastReviewedAt) &&
+            (identical(other.stability, stability) ||
+                other.stability == stability) &&
+            (identical(other.difficulty, difficulty) ||
+                other.difficulty == difficulty) &&
+            (identical(other.fsrsState, fsrsState) ||
+                other.fsrsState == fsrsState) &&
+            (identical(other.learningStep, learningStep) ||
+                other.learningStep == learningStep));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, wordId, dueAt, intervalDays,
-      ease, reps, lapses, isLeech, type);
+  int get hashCode => Object.hash(
+      runtimeType,
+      wordId,
+      dueAt,
+      intervalDays,
+      ease,
+      reps,
+      lapses,
+      isLeech,
+      type,
+      lastReviewedAt,
+      stability,
+      difficulty,
+      fsrsState,
+      learningStep);
 
   @override
   String toString() {
-    return 'SrsWord(wordId: $wordId, dueAt: $dueAt, intervalDays: $intervalDays, ease: $ease, reps: $reps, lapses: $lapses, isLeech: $isLeech, type: $type)';
+    return 'SrsWord(wordId: $wordId, dueAt: $dueAt, intervalDays: $intervalDays, ease: $ease, reps: $reps, lapses: $lapses, isLeech: $isLeech, type: $type, lastReviewedAt: $lastReviewedAt, stability: $stability, difficulty: $difficulty, fsrsState: $fsrsState, learningStep: $learningStep)';
   }
 }
 
@@ -73,7 +113,12 @@ abstract mixin class $SrsWordCopyWith<$Res> {
       int reps,
       int lapses,
       bool isLeech,
-      SrsItemType type});
+      SrsItemType type,
+      DateTime? lastReviewedAt,
+      double? stability,
+      double? difficulty,
+      int fsrsState,
+      int? learningStep});
 }
 
 /// @nodoc
@@ -96,6 +141,11 @@ class _$SrsWordCopyWithImpl<$Res> implements $SrsWordCopyWith<$Res> {
     Object? lapses = null,
     Object? isLeech = null,
     Object? type = null,
+    Object? lastReviewedAt = freezed,
+    Object? stability = freezed,
+    Object? difficulty = freezed,
+    Object? fsrsState = null,
+    Object? learningStep = freezed,
   }) {
     return _then(_self.copyWith(
       wordId: null == wordId
@@ -130,6 +180,26 @@ class _$SrsWordCopyWithImpl<$Res> implements $SrsWordCopyWith<$Res> {
           ? _self.type
           : type // ignore: cast_nullable_to_non_nullable
               as SrsItemType,
+      lastReviewedAt: freezed == lastReviewedAt
+          ? _self.lastReviewedAt
+          : lastReviewedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      stability: freezed == stability
+          ? _self.stability
+          : stability // ignore: cast_nullable_to_non_nullable
+              as double?,
+      difficulty: freezed == difficulty
+          ? _self.difficulty
+          : difficulty // ignore: cast_nullable_to_non_nullable
+              as double?,
+      fsrsState: null == fsrsState
+          ? _self.fsrsState
+          : fsrsState // ignore: cast_nullable_to_non_nullable
+              as int,
+      learningStep: freezed == learningStep
+          ? _self.learningStep
+          : learningStep // ignore: cast_nullable_to_non_nullable
+              as int?,
     ));
   }
 }
@@ -227,16 +297,40 @@ extension SrsWordPatterns on SrsWord {
 
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>(
-    TResult Function(String wordId, DateTime dueAt, int intervalDays,
-            double ease, int reps, int lapses, bool isLeech, SrsItemType type)?
+    TResult Function(
+            String wordId,
+            DateTime dueAt,
+            int intervalDays,
+            double ease,
+            int reps,
+            int lapses,
+            bool isLeech,
+            SrsItemType type,
+            DateTime? lastReviewedAt,
+            double? stability,
+            double? difficulty,
+            int fsrsState,
+            int? learningStep)?
         $default, {
     required TResult orElse(),
   }) {
     final _that = this;
     switch (_that) {
       case _SrsWord() when $default != null:
-        return $default(_that.wordId, _that.dueAt, _that.intervalDays,
-            _that.ease, _that.reps, _that.lapses, _that.isLeech, _that.type);
+        return $default(
+            _that.wordId,
+            _that.dueAt,
+            _that.intervalDays,
+            _that.ease,
+            _that.reps,
+            _that.lapses,
+            _that.isLeech,
+            _that.type,
+            _that.lastReviewedAt,
+            _that.stability,
+            _that.difficulty,
+            _that.fsrsState,
+            _that.learningStep);
       case _:
         return orElse();
     }
@@ -257,15 +351,39 @@ extension SrsWordPatterns on SrsWord {
 
   @optionalTypeArgs
   TResult when<TResult extends Object?>(
-    TResult Function(String wordId, DateTime dueAt, int intervalDays,
-            double ease, int reps, int lapses, bool isLeech, SrsItemType type)
+    TResult Function(
+            String wordId,
+            DateTime dueAt,
+            int intervalDays,
+            double ease,
+            int reps,
+            int lapses,
+            bool isLeech,
+            SrsItemType type,
+            DateTime? lastReviewedAt,
+            double? stability,
+            double? difficulty,
+            int fsrsState,
+            int? learningStep)
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _SrsWord():
-        return $default(_that.wordId, _that.dueAt, _that.intervalDays,
-            _that.ease, _that.reps, _that.lapses, _that.isLeech, _that.type);
+        return $default(
+            _that.wordId,
+            _that.dueAt,
+            _that.intervalDays,
+            _that.ease,
+            _that.reps,
+            _that.lapses,
+            _that.isLeech,
+            _that.type,
+            _that.lastReviewedAt,
+            _that.stability,
+            _that.difficulty,
+            _that.fsrsState,
+            _that.learningStep);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -285,15 +403,39 @@ extension SrsWordPatterns on SrsWord {
 
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>(
-    TResult? Function(String wordId, DateTime dueAt, int intervalDays,
-            double ease, int reps, int lapses, bool isLeech, SrsItemType type)?
+    TResult? Function(
+            String wordId,
+            DateTime dueAt,
+            int intervalDays,
+            double ease,
+            int reps,
+            int lapses,
+            bool isLeech,
+            SrsItemType type,
+            DateTime? lastReviewedAt,
+            double? stability,
+            double? difficulty,
+            int fsrsState,
+            int? learningStep)?
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _SrsWord() when $default != null:
-        return $default(_that.wordId, _that.dueAt, _that.intervalDays,
-            _that.ease, _that.reps, _that.lapses, _that.isLeech, _that.type);
+        return $default(
+            _that.wordId,
+            _that.dueAt,
+            _that.intervalDays,
+            _that.ease,
+            _that.reps,
+            _that.lapses,
+            _that.isLeech,
+            _that.type,
+            _that.lastReviewedAt,
+            _that.stability,
+            _that.difficulty,
+            _that.fsrsState,
+            _that.learningStep);
       case _:
         return null;
     }
@@ -311,7 +453,12 @@ class _SrsWord implements SrsWord {
       this.reps = 0,
       this.lapses = 0,
       this.isLeech = false,
-      this.type = SrsItemType.word});
+      this.type = SrsItemType.word,
+      this.lastReviewedAt,
+      this.stability,
+      this.difficulty,
+      this.fsrsState = 1,
+      this.learningStep});
   factory _SrsWord.fromJson(Map<String, dynamic> json) =>
       _$SrsWordFromJson(json);
 
@@ -337,6 +484,29 @@ class _SrsWord implements SrsWord {
   @override
   @JsonKey()
   final SrsItemType type;
+
+  /// Wall-clock time of the most recent review (null for never-reviewed
+  /// cards). Used with [stability] for \(R(t)\) without a DB join.
+  @override
+  final DateTime? lastReviewedAt;
+
+  /// FSRS memory stability \(S\) (days until predicted R ≈ 90%). Null until
+  /// first FSRS review or SM-2→FSRS migration seed.
+  @override
+  final double? stability;
+
+  /// FSRS difficulty \(D\) in \[1, 10\]. Null until seeded.
+  @override
+  final double? difficulty;
+
+  /// FSRS learning state value: 1=learning, 2=review, 3=relearning.
+  @override
+  @JsonKey()
+  final int fsrsState;
+
+  /// FSRS learning/relearning step index (null when in pure review state).
+  @override
+  final int? learningStep;
 
   /// Create a copy of SrsWord
   /// with the given fields replaced by the non-null parameter values.
@@ -366,17 +536,40 @@ class _SrsWord implements SrsWord {
             (identical(other.reps, reps) || other.reps == reps) &&
             (identical(other.lapses, lapses) || other.lapses == lapses) &&
             (identical(other.isLeech, isLeech) || other.isLeech == isLeech) &&
-            (identical(other.type, type) || other.type == type));
+            (identical(other.type, type) || other.type == type) &&
+            (identical(other.lastReviewedAt, lastReviewedAt) ||
+                other.lastReviewedAt == lastReviewedAt) &&
+            (identical(other.stability, stability) ||
+                other.stability == stability) &&
+            (identical(other.difficulty, difficulty) ||
+                other.difficulty == difficulty) &&
+            (identical(other.fsrsState, fsrsState) ||
+                other.fsrsState == fsrsState) &&
+            (identical(other.learningStep, learningStep) ||
+                other.learningStep == learningStep));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, wordId, dueAt, intervalDays,
-      ease, reps, lapses, isLeech, type);
+  int get hashCode => Object.hash(
+      runtimeType,
+      wordId,
+      dueAt,
+      intervalDays,
+      ease,
+      reps,
+      lapses,
+      isLeech,
+      type,
+      lastReviewedAt,
+      stability,
+      difficulty,
+      fsrsState,
+      learningStep);
 
   @override
   String toString() {
-    return 'SrsWord(wordId: $wordId, dueAt: $dueAt, intervalDays: $intervalDays, ease: $ease, reps: $reps, lapses: $lapses, isLeech: $isLeech, type: $type)';
+    return 'SrsWord(wordId: $wordId, dueAt: $dueAt, intervalDays: $intervalDays, ease: $ease, reps: $reps, lapses: $lapses, isLeech: $isLeech, type: $type, lastReviewedAt: $lastReviewedAt, stability: $stability, difficulty: $difficulty, fsrsState: $fsrsState, learningStep: $learningStep)';
   }
 }
 
@@ -394,7 +587,12 @@ abstract mixin class _$SrsWordCopyWith<$Res> implements $SrsWordCopyWith<$Res> {
       int reps,
       int lapses,
       bool isLeech,
-      SrsItemType type});
+      SrsItemType type,
+      DateTime? lastReviewedAt,
+      double? stability,
+      double? difficulty,
+      int fsrsState,
+      int? learningStep});
 }
 
 /// @nodoc
@@ -417,6 +615,11 @@ class __$SrsWordCopyWithImpl<$Res> implements _$SrsWordCopyWith<$Res> {
     Object? lapses = null,
     Object? isLeech = null,
     Object? type = null,
+    Object? lastReviewedAt = freezed,
+    Object? stability = freezed,
+    Object? difficulty = freezed,
+    Object? fsrsState = null,
+    Object? learningStep = freezed,
   }) {
     return _then(_SrsWord(
       wordId: null == wordId
@@ -451,6 +654,26 @@ class __$SrsWordCopyWithImpl<$Res> implements _$SrsWordCopyWith<$Res> {
           ? _self.type
           : type // ignore: cast_nullable_to_non_nullable
               as SrsItemType,
+      lastReviewedAt: freezed == lastReviewedAt
+          ? _self.lastReviewedAt
+          : lastReviewedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      stability: freezed == stability
+          ? _self.stability
+          : stability // ignore: cast_nullable_to_non_nullable
+              as double?,
+      difficulty: freezed == difficulty
+          ? _self.difficulty
+          : difficulty // ignore: cast_nullable_to_non_nullable
+              as double?,
+      fsrsState: null == fsrsState
+          ? _self.fsrsState
+          : fsrsState // ignore: cast_nullable_to_non_nullable
+              as int,
+      learningStep: freezed == learningStep
+          ? _self.learningStep
+          : learningStep // ignore: cast_nullable_to_non_nullable
+              as int?,
     ));
   }
 }

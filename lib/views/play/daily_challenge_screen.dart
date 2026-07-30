@@ -10,17 +10,13 @@ import 'package:auto_route/annotations.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/anki/anki_deck_manager.dart';
 import 'package:varnamala/application/course_provider.dart';
 import 'package:varnamala/application/daily_challenge_assembler.dart';
 import 'package:varnamala/application/game_provider.dart';
 import 'package:varnamala/application/gems_provider.dart';
 import 'package:varnamala/application/lesson_viewmodel.dart';
-import 'package:varnamala/data/anki_import_dao.dart';
-import 'package:varnamala/data/course_database.dart';
-import 'package:varnamala/data/course_repository.dart';
 import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/service/locator.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:varnamala/views/lesson/components/lesson_dialogs.dart';
 import 'package:varnamala/views/lesson/components/lesson_stage_widgets.dart';
@@ -62,18 +58,11 @@ class _DailyChallengePageState extends State<DailyChallengePage> {
 
   Future<void> _startChallenge() async {
     final courseProvider = context.read<CourseProvider>();
-    final includeAnki = AnkiDeckManager(
-      repo: CourseRepository(getIt<CourseDatabase>()),
-      srsProvider: getIt(),
-      importDao: AnkiImportDao(getIt<CourseDatabase>()),
-      appPrefs: getIt<AppPrefs>(),
-    ).dailyChallengeIncludesAnki;
     // Yield to the event loop so the loading spinner renders before the
     // potentially CPU-heavy assembly work runs on the UI thread.
     final lesson = await Future(() => DailyChallengeAssembler(courseProvider).assemble(
       count: kDailyChallengeCount,
       random: _random,
-      includeAnki: includeAnki,
     ));
     if (!mounted) return;
     final isEmpty = lesson.flattenedStages.isEmpty ||
@@ -125,12 +114,12 @@ class _DailyChallengePageState extends State<DailyChallengePage> {
     final vm = _vm;
     final total = vm.totalInteractionCount;
     final current = vm.currentQuestionNumber;
-    final subtitle = total > 0 ? 'Question $current of $total' : 'Daily Challenge';
+    final subtitle = total > 0 ? AppStrings.playDailyQuestion(current, total) : AppStrings.playDailyChallengeFallback;
     return AppBar(
       backgroundColor: VarnamalaTheme.surfaceColor(context),
       elevation: 0,
       leading: IconButton(
-        tooltip: 'Close',
+        tooltip: AppStrings.commonClose,
         icon: Icon(
           Icons.close_rounded,
           color: VarnamalaTheme.textPrimaryColor(context),
@@ -140,7 +129,7 @@ class _DailyChallengePageState extends State<DailyChallengePage> {
       title: Column(
         children: [
           Text(
-            'Daily Challenge',
+            AppStrings.playDailyTitle,
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,
@@ -201,7 +190,7 @@ class _DailyChallengePageState extends State<DailyChallengePage> {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
               child: LessonCheckButton(
-                label: vm.isAnswerCorrect ? 'CONTINUE' : 'GOT IT',
+                label: vm.isAnswerCorrect ? AppStrings.playDailyContinue : AppStrings.playDailyGotIt,
                 enabled: true,
                 onPressed: () => vm.advance(),
               ),
@@ -225,13 +214,13 @@ class _DailyChallengePageState extends State<DailyChallengePage> {
             ),
             const SizedBox(height: 12),
             Text(
-              'No challenge questions available yet',
+              AppStrings.playDailyNoQuestions,
               style: Theme.of(context).textTheme.titleMedium,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
-              'Complete a few lessons first to build up the question pool.',
+              AppStrings.playDailyCompleteFewLessons,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: VarnamalaTheme.textSecondaryColor(context),
                   ),
@@ -240,7 +229,7 @@ class _DailyChallengePageState extends State<DailyChallengePage> {
             const SizedBox(height: 16),
             TextButton(
               onPressed: () => Navigator.of(context).maybePop(),
-              child: const Text('Back'),
+              child: Text(AppStrings.commonBack),
             ),
           ],
         ),

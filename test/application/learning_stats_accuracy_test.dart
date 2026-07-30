@@ -24,6 +24,8 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        
+        
         home: Scaffold(
           body: ChangeNotifierProvider<StudyStatsProvider>.value(
             value: fake,
@@ -41,12 +43,12 @@ void main() {
   testWidgets('accuracy 0.75 is rendered as "75%"', (tester) async {
     await pumpOverallGrid(tester, 0.75);
     expect(find.text('75%'), findsOneWidget);
-    expect(find.text('Overall Accuracy'), findsOneWidget);
+    expect(find.text('总正确率'), findsOneWidget);
   });
 
   testWidgets('accuracy 0.0 is rendered as "0%"', (tester) async {
     await pumpOverallGrid(tester, 0.0);
-    expect(find.text('Overall Accuracy'), findsOneWidget);
+    expect(find.text('总正确率'), findsOneWidget);
   });
 
   testWidgets('accuracy 1.0 is rendered as "100%"', (tester) async {

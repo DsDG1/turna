@@ -10,7 +10,7 @@ import 'package:varnamala/application/gems_provider.dart';
 import 'package:varnamala/application/language_provider.dart';
 import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/domain/auth/local_user.dart';
-import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/service/locator.dart';
 import 'package:varnamala/views/profile/utils/share_image_generator.dart';
 import 'package:varnamala/views/profile/widgets/share_progress_card.dart';
@@ -22,33 +22,27 @@ class ProfileAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Size get preferredSize => const Size.fromHeight(56);
 
-  @override
-  Widget build(BuildContext context) {
-    return AppBar(
-      centerTitle: true,
-      title: Text(
-        AppLocalizations.of(context)!.profileTitle,
-        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-      ),
-      actions: <Widget>[
-        IconButton(
-          icon: const Icon(Icons.share_rounded,
-              color: VarnamalaTheme.peacockTeal, size: 22),
-          tooltip: AppLocalizations.of(context)!.profileShare,
-          onPressed: () => _openShareSheet(context),
-        ),
-      ],
-    );
-  }
-
-  void _openShareSheet(BuildContext context) {
+  /// Opens the share-progress bottom sheet (also used from the profile hero).
+  static void openShareSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => const _ShareProgressSheet(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppBar(
+      centerTitle: true,
+      title: Text(
+        AppStrings.profileTitle,
+        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+      ),
+      // Share lives on the hero card; keep AppBar clean.
     );
   }
 }
@@ -96,8 +90,9 @@ class _ShareProgressSheetState extends State<_ShareProgressSheet> {
                 ),
               ),
               child: SafeArea(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
                       width: 40,
@@ -109,7 +104,7 @@ class _ShareProgressSheetState extends State<_ShareProgressSheet> {
                     ),
                     const SizedBox(height: 20),
                     Text(
-                      AppLocalizations.of(context)!.profileShareYourProgress,
+                      AppStrings.profileShareYourProgress,
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.w800,
                           ),
@@ -154,12 +149,13 @@ class _ShareProgressSheetState extends State<_ShareProgressSheet> {
                               )
                             : const Icon(Icons.share_rounded),
                         label: Text(_sharing
-                            ? AppLocalizations.of(context)!.profileSharing
-                            : AppLocalizations.of(context)!.profileShareButton),
+                            ? AppStrings.profileSharing
+                            : AppStrings.profileShareButton),
                       ),
                     ),
                     const SizedBox(height: 8),
                   ],
+                  ),
                 ),
               ),
             );
@@ -189,7 +185,7 @@ class _ShareProgressSheetState extends State<_ShareProgressSheet> {
     setState(() => _sharing = true);
     try {
       await _generator.captureAndShare(
-        shareText: AppLocalizations.of(context)!.profileShareText,
+        shareText: AppStrings.profileShareText,
       );
       if (mounted) {
         Navigator.of(context).pop();
@@ -199,7 +195,7 @@ class _ShareProgressSheetState extends State<_ShareProgressSheet> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content:
-                  Text(AppLocalizations.of(context)!.profileShareFailed(e))),
+                  Text(AppStrings.profileShareFailed(e))),
         );
       }
     } finally {

@@ -95,8 +95,8 @@ void main() {
     for (final interaction in samples) {
       final renderer = lookupRenderer(renderers, interaction);
       expect(renderer.handlesType, isNotNull);
-      // Must not throw; runtimeType is the private impl.
-      expect(interaction.runtimeType.toString(), contains(r'_$'));
+      // Must not throw. (freezed 3.x names variant classes after the public
+      // alias, e.g. `ShowWord`, so we only assert a successful lookup here.)
     }
   });
 

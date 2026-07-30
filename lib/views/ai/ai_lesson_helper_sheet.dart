@@ -7,9 +7,10 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:varnamala/application/ai/ai_course_provider.dart';
 import 'package:varnamala/application/ai/ai_lesson_helper_provider.dart';
+import 'package:varnamala/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:varnamala/application/lesson_viewmodel.dart';
 import 'package:varnamala/domain/course/lesson.dart';
-import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/theme.dart';
 
 /// Bottom sheet for editing the current lesson with AI.
@@ -45,7 +46,7 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
     final instruction = _instructionCtrl.text.trim();
     if (instruction.isEmpty) return;
     await context.read<AiLessonHelperProvider>().transform(
-          config: context.read<AiCourseProvider>().config,
+          config: context.read<AiEngineConfigHolder>().config,
           instruction: instruction,
         );
   }
@@ -60,7 +61,7 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
       transformed = Lesson.fromJson(resultJson);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.aiLessonHelperInvalidJson(e))),
+        SnackBar(content: Text(AppStrings.aiLessonHelperInvalidJson(e))),
       );
       return;
     }
@@ -70,7 +71,7 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
       await courseProvider.updateLessonInDb(transformed);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.aiLessonHelperLessonUpdated)),
+        SnackBar(content: Text(AppStrings.aiLessonHelperLessonUpdated)),
       );
       Navigator.of(context).maybePop();
       // Ask the lesson viewmodel to reload so the new content appears.
@@ -79,7 +80,7 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.aiLessonHelperUpdateFailed(e))),
+        SnackBar(content: Text(AppStrings.aiLessonHelperUpdateFailed(e))),
       );
     }
   }
@@ -116,14 +117,14 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            AppLocalizations.of(context)!.aiLessonHelperTitle,
+            AppStrings.aiLessonHelperTitle,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
           ),
         ),
         IconButton(
-          tooltip: AppLocalizations.of(context)!.commonClose,
+          tooltip: AppStrings.commonClose,
           icon: const Icon(Icons.close, size: 22),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
@@ -136,8 +137,8 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
       controller: _instructionCtrl,
       maxLines: 2,
       decoration: InputDecoration(
-        hintText: AppLocalizations.of(context)!.aiLessonHelperHint,
-        labelText: AppLocalizations.of(context)!.aiLessonHelperInstructionLabel,
+        hintText: AppStrings.aiLessonHelperHint,
+        labelText: AppStrings.aiLessonHelperInstructionLabel,
         border: const OutlineInputBorder(),
         isDense: true,
       ),
@@ -196,8 +197,8 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
               ),
               child: Text(
                 error != null
-                    ? AppLocalizations.of(context)!.aiLessonHelperError(error)
-                    : AppLocalizations.of(context)!.aiLessonHelperErrorUnknown,
+                    ? AppStrings.aiLessonHelperError(error)
+                    : AppStrings.aiLessonHelperErrorUnknown,
                 style: const TextStyle(color: VarnamalaTheme.error),
               ),
             );
@@ -226,7 +227,7 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              AppLocalizations.of(context)!.aiLessonHelperPreviewTitle,
+              AppStrings.aiLessonHelperPreviewTitle,
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -236,7 +237,7 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
               Text(explanation),
             ] else ...[
               const SizedBox(height: 8),
-              Text(AppLocalizations.of(context)!.aiLessonHelperTransformationReady),
+              Text(AppStrings.aiLessonHelperTransformationReady),
             ],
           ],
         ),
@@ -258,7 +259,7 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
               child: FilledButton.icon(
                 onPressed: busy ? null : _onTransform,
                 icon: const Icon(Icons.auto_awesome),
-                label: Text(AppLocalizations.of(context)!.aiLessonHelperTransform),
+                label: Text(AppStrings.aiLessonHelperTransform),
               ),
             ),
             if (ready) ...[
@@ -269,7 +270,7 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
                       ? null
                       : _onApply,
                   icon: const Icon(Icons.check),
-                  label: Text(AppLocalizations.of(context)!.commonApply),
+                  label: Text(AppStrings.commonApply),
                 ),
               ),
             ],

@@ -6,6 +6,20 @@ part of 'anki_models.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
+_AnkiTemplate _$AnkiTemplateFromJson(Map<String, dynamic> json) =>
+    _AnkiTemplate(
+      name: json['name'] as String,
+      qfmt: json['qfmt'] as String? ?? '',
+      afmt: json['afmt'] as String? ?? '',
+    );
+
+Map<String, dynamic> _$AnkiTemplateToJson(_AnkiTemplate instance) =>
+    <String, dynamic>{
+      'name': instance.name,
+      'qfmt': instance.qfmt,
+      'afmt': instance.afmt,
+    };
+
 _AnkiNotetype _$AnkiNotetypeFromJson(Map<String, dynamic> json) =>
     _AnkiNotetype(
       id: (json['id'] as num).toInt(),
@@ -17,6 +31,10 @@ _AnkiNotetype _$AnkiNotetypeFromJson(Map<String, dynamic> json) =>
               ?.map((e) => e as String)
               .toList() ??
           const <String>[],
+      templates: (json['templates'] as List<dynamic>?)
+              ?.map((e) => AnkiTemplate.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const <AnkiTemplate>[],
       isCloze: json['isCloze'] as bool? ?? false,
     );
 
@@ -26,6 +44,7 @@ Map<String, dynamic> _$AnkiNotetypeToJson(_AnkiNotetype instance) =>
       'name': instance.name,
       'fieldNames': instance.fieldNames,
       'templateNames': instance.templateNames,
+      'templates': instance.templates,
       'isCloze': instance.isCloze,
     };
 

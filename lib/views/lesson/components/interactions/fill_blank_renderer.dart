@@ -7,7 +7,8 @@ import 'package:injectable/injectable.dart';
 // Project imports:
 import 'package:varnamala/core/text_styles.dart';
 import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/l10n/app_strings.dart';
+import 'package:varnamala/views/lesson/components/anki_media_strip.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:varnamala/views/theme.dart';
 
@@ -30,6 +31,8 @@ class FillBlankRenderer extends InteractionRenderer {
       sentence: i.sentence,
       answer: i.answer,
       hint: i.hint,
+      audioAssets: i.audioAssets,
+      imageAssets: i.imageAssets,
       state: state,
       onSubmit: onSubmit,
     );
@@ -40,6 +43,8 @@ class _FillBlankBody extends StatefulWidget {
   final String sentence;
   final String answer;
   final String? hint;
+  final List<String> audioAssets;
+  final List<String> imageAssets;
   final InteractionState state;
   final OnInteractionSubmit onSubmit;
 
@@ -47,6 +52,8 @@ class _FillBlankBody extends StatefulWidget {
     required this.sentence,
     required this.answer,
     required this.hint,
+    required this.audioAssets,
+    required this.imageAssets,
     required this.state,
     required this.onSubmit,
   });
@@ -112,7 +119,17 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SizedBox(height: 8),
-          SectionCaption(AppLocalizations.of(context)!.lessonFillBlankCaption),
+          SectionCaption(AppStrings.lessonFillBlankCaption),
+          if (widget.audioAssets.isNotEmpty ||
+              widget.imageAssets.isNotEmpty) ...[
+            Center(
+              child: AnkiMediaStrip(
+                audioAssets: widget.audioAssets,
+                imageAssets: widget.imageAssets,
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
           RichText(
             textAlign: TextAlign.center,
             text: TextSpan(
@@ -151,7 +168,7 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
                           isDense: true,
                           contentPadding: EdgeInsets.zero,
                           filled: false,
-                          hintText: AppLocalizations.of(context)!.lessonFillBlankHint,
+                          hintText: AppStrings.lessonFillBlankHint,
                         ),
                         // No setState on keystroke — CHECK enabled-state is
                         // driven by ValueListenableBuilder below.
@@ -171,7 +188,7 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
           if (submitted && correct == false) ...[
             const SizedBox(height: 16),
             LessonCorrectAnswerBanner(
-                label: AppLocalizations.of(context)!.lessonCorrectAnswer, answer: widget.answer, showBorder: true),
+                label: AppStrings.lessonCorrectAnswer, answer: widget.answer, showBorder: true),
           ],
           const SizedBox(height: 24),
           ValueListenableBuilder<TextEditingValue>(
@@ -180,7 +197,7 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
               final canSubmit =
                   !submitted && value.text.trim().isNotEmpty;
               return LessonCheckButton(
-                label: submitted ? AppLocalizations.of(context)!.lessonChecked : AppLocalizations.of(context)!.lessonCheck,
+                label: submitted ? AppStrings.lessonChecked : AppStrings.lessonCheck,
                 enabled: canSubmit,
                 onPressed: canSubmit ? _trySubmit : null,
               );

@@ -10,13 +10,9 @@ import 'package:varnamala/application/anki/anki_deck_manager.dart';
 import 'package:varnamala/application/anki/anki_review_assembler.dart';
 import 'package:varnamala/application/course_provider.dart';
 import 'package:varnamala/application/srs_provider.dart';
-import 'package:varnamala/data/anki_import_dao.dart';
-import 'package:varnamala/data/course_database.dart';
-import 'package:varnamala/data/course_repository.dart';
 import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/routing/routing.gr.dart';
-import 'package:varnamala/service/locator.dart';
 import 'package:varnamala/views/theme.dart';
 
 /// Anki review hub — lists imported Anki sections with due counts,
@@ -29,7 +25,7 @@ class AnkiReviewPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.ankiReviewScreenTitle),
+        title: Text(AppStrings.ankiReviewScreenTitle),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.router.maybePop(),
@@ -37,8 +33,8 @@ class AnkiReviewPage extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.file_upload_outlined),
-            tooltip: AppLocalizations.of(context)!.ankiImportNewDeck,
-            onPressed: () => context.router.push(const AnkiImportRoute()),
+            tooltip: AppStrings.ankiImportNewDeck,
+            onPressed: () => context.router.push(AnkiImportRoute()),
           ),
         ],
       ),
@@ -55,8 +51,9 @@ class _AnkiReviewBody extends StatelessWidget {
     final courseProvider = context.watch<CourseProvider>();
     final srsProvider = context.watch<SrsProvider>();
 
-    // Find Anki sections
-    final ankiSections = courseProvider.sections
+    // Find Anki sections (allSections: the review hub lists decks even when
+    // the course scope hides them from the Learn-page tree).
+    final ankiSections = courseProvider.allSections
         .where((s) => s.level == 'Anki')
         .toList();
 
@@ -66,15 +63,9 @@ class _AnkiReviewBody extends StatelessWidget {
 
     final assembler = AnkiReviewAssembler(srsProvider, courseProvider);
     final totalDue = assembler.totalAnkiDueCount;
-    final deckManager = AnkiDeckManager(
-      repo: CourseRepository(getIt<CourseDatabase>()),
-      srsProvider: srsProvider,
-      importDao: AnkiImportDao(getIt<CourseDatabase>()),
-      appPrefs: getIt<AppPrefs>(),
-    );
+    final deckManager = getIt<AnkiDeckManager>();
     final newLeft = deckManager.newRemainingToday;
     final reviewLeft = deckManager.reviewRemainingToday;
-    final l10n = AppLocalizations.of(context)!;
 
     return ListView(
       padding: const EdgeInsets.all(20),
@@ -101,8 +92,8 @@ class _AnkiReviewBody extends StatelessWidget {
               Expanded(
                 child: Text(
                   (newLeft == 0 && reviewLeft == 0)
-                      ? l10n.ankiQuotaExhausted
-                      : l10n.ankiQuotaRemaining(newLeft, reviewLeft),
+                      ? AppStrings.ankiQuotaExhausted
+                      : AppStrings.ankiQuotaRemaining(newLeft, reviewLeft),
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -130,7 +121,7 @@ class _AnkiReviewBody extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    AppLocalizations.of(context)!.ankiCardsDueReview(totalDue),
+                    AppStrings.ankiCardsDueReview(totalDue),
                     style: const TextStyle(
                       fontWeight: FontWeight.w600,
                       color: VarnamalaTheme.peacockTeal,
@@ -143,7 +134,7 @@ class _AnkiReviewBody extends StatelessWidget {
                     backgroundColor: VarnamalaTheme.peacockTeal,
                     foregroundColor: VarnamalaTheme.textOnPrimary,
                   ),
-                  child: Text(AppLocalizations.of(context)!.ankiReviewAll),
+                  child: Text(AppStrings.ankiReviewAll),
                 ),
               ],
             ),
@@ -172,23 +163,22 @@ class _AnkiReviewBody extends StatelessWidget {
     required String sectionId,
     required String sectionName,
   }) async {
-    final l10n = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(l10n.ankiUninstallConfirmTitle),
-        content: Text('$sectionName\n\n${l10n.ankiUninstallConfirmBody}'),
+        title: Text(AppStrings.ankiUninstallConfirmTitle),
+        content: Text('$sectionName\n\n${AppStrings.ankiUninstallConfirmBody}'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(l10n.commonCancel),
+            child: Text(AppStrings.commonCancel),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: VarnamalaTheme.error,
             ),
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(l10n.ankiUninstallDeck),
+            child: Text(AppStrings.ankiUninstallDeck),
           ),
         ],
       ),
@@ -197,18 +187,19 @@ class _AnkiReviewBody extends StatelessWidget {
 
     final importId = AnkiReviewAssembler.importIdFromSectionId(sectionId);
     if (importId.isEmpty) return;
-    final deckManager = AnkiDeckManager(
-      repo: CourseRepository(getIt<CourseDatabase>()),
-      srsProvider: context.read<SrsProvider>(),
-      importDao: AnkiImportDao(getIt<CourseDatabase>()),
-      appPrefs: getIt<AppPrefs>(),
-    );
-    await deckManager.uninstallDeck(importId);
+    await getIt<AnkiDeckManager>().uninstallDeck(importId);
     if (!context.mounted) return;
-    await context.read<CourseProvider>().reloadCourse();
+    final courseProvider = context.read<CourseProvider>();
+    if (courseProvider.courseScope == 'anki:$importId') {
+      // The active scope pointed at the removed deck — fall back to the
+      // built-in course (setCourseScope reloads the tree itself).
+      await courseProvider.setCourseScope('');
+    } else {
+      await courseProvider.reloadCourse();
+    }
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l10n.ankiDeckRemoved)),
+      SnackBar(content: Text(AppStrings.ankiDeckRemoved)),
     );
   }
 
@@ -226,23 +217,23 @@ class _AnkiReviewBody extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             Text(
-              AppLocalizations.of(context)!.ankiNoDecksTitle,
+              AppStrings.ankiNoDecksTitle,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
             ),
             const SizedBox(height: 12),
             Text(
-              AppLocalizations.of(context)!.ankiNoDecksSubtitle,
+              AppStrings.ankiNoDecksSubtitle,
               style: TextStyle(
                 color: VarnamalaTheme.textSecondaryColor(context),
               ),
             ),
             const SizedBox(height: 32),
             ElevatedButton.icon(
-              onPressed: () => context.router.push(const AnkiImportRoute()),
+              onPressed: () => context.router.push(AnkiImportRoute()),
               icon: const Icon(Icons.add),
-              label: Text(AppLocalizations.of(context)!.ankiImportDeck),
+              label: Text(AppStrings.ankiImportDeck),
               style: ElevatedButton.styleFrom(
                 backgroundColor: VarnamalaTheme.peacockTeal,
                 foregroundColor: VarnamalaTheme.textOnPrimary,
@@ -399,7 +390,7 @@ class _UninstallMenuButton extends StatelessWidget {
                 color: VarnamalaTheme.error,
               ),
               const SizedBox(width: 12),
-              Text(AppLocalizations.of(context)!.ankiUninstallDeck),
+              Text(AppStrings.ankiUninstallDeck),
             ],
           ),
         ),

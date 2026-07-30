@@ -9,7 +9,7 @@ import 'package:varnamala/application/audio_controller.dart';
 import 'package:varnamala/core/text_styles.dart';
 import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
 
 /// Play audio (TTS) and pick the matching option. The [Interaction.audioAsset]
@@ -100,7 +100,7 @@ class _ListenAndPickBodyState extends State<_ListenAndPickBody> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SectionCaption(AppLocalizations.of(context)!.lessonListenAndPickCaption),
+          SectionCaption(AppStrings.lessonListenAndPickCaption),
           Center(
             child: SpeakerButton(onPressed: _speak),
           ),
@@ -125,7 +125,7 @@ class _ListenAndPickBodyState extends State<_ListenAndPickBody> {
           ],
           const SizedBox(height: 24),
           LessonCheckButton(
-            label: submitted ? AppLocalizations.of(context)!.lessonChecked : AppLocalizations.of(context)!.lessonCheck,
+            label: submitted ? AppStrings.lessonChecked : AppStrings.lessonCheck,
             enabled: canSubmit,
             onPressed: canSubmit
                 ? () => widget.onSubmit(_picked == widget.correctIndex,

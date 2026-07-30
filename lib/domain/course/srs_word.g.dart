@@ -16,6 +16,13 @@ _SrsWord _$SrsWordFromJson(Map<String, dynamic> json) => _SrsWord(
       isLeech: json['isLeech'] as bool? ?? false,
       type: $enumDecodeNullable(_$SrsItemTypeEnumMap, json['type']) ??
           SrsItemType.word,
+      lastReviewedAt: json['lastReviewedAt'] == null
+          ? null
+          : DateTime.parse(json['lastReviewedAt'] as String),
+      stability: (json['stability'] as num?)?.toDouble(),
+      difficulty: (json['difficulty'] as num?)?.toDouble(),
+      fsrsState: (json['fsrsState'] as num?)?.toInt() ?? 1,
+      learningStep: (json['learningStep'] as num?)?.toInt(),
     );
 
 Map<String, dynamic> _$SrsWordToJson(_SrsWord instance) => <String, dynamic>{
@@ -27,6 +34,11 @@ Map<String, dynamic> _$SrsWordToJson(_SrsWord instance) => <String, dynamic>{
       'lapses': instance.lapses,
       'isLeech': instance.isLeech,
       'type': _$SrsItemTypeEnumMap[instance.type]!,
+      'lastReviewedAt': instance.lastReviewedAt?.toIso8601String(),
+      'stability': instance.stability,
+      'difficulty': instance.difficulty,
+      'fsrsState': instance.fsrsState,
+      'learningStep': instance.learningStep,
     };
 
 const _$SrsItemTypeEnumMap = {

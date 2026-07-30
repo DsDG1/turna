@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 
 // Project imports:
 import 'package:varnamala/application/course_provider.dart';
+import 'package:varnamala/application/grammar_review_provider.dart';
+import 'package:varnamala/application/srs_provider.dart';
 import 'package:varnamala/courses/languages/expressions.dart';
 import 'package:varnamala/courses/languages/grammar_points.dart';
 import 'package:varnamala/courses/languages/vocab.dart';
@@ -63,6 +65,12 @@ Future<void> main() async {
     await loadVocabulary();
     await loadGrammarPoints();
     await loadExpressions();
+
+    // Hydrate SRS state from SQLite before any screen reads due counts. This
+    // also runs the one-time prefs->SQLite migration (schema v7) on first boot
+    // after upgrade. Idempotent.
+    await getIt<SrsProvider>().ensureLoaded();
+    await getIt<GrammarReviewProvider>().ensureLoaded();
 
     await getIt<CourseProvider>().load();
 

@@ -28,10 +28,12 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: AiWishChatRoute.page),
         AutoRoute(page: AiHintChatRoute.page),
         AutoRoute(page: TextbookImportRoute.page),
+        AutoRoute(page: AiHubRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(page: VowelAndConsonantLearningRoute.page),
         AutoRoute(page: MatchWordsRoute.page),
         AutoRoute(page: DailyChallengeRoute.page),
         AutoRoute(page: SrsReviewRoute.page),
+        AutoRoute(page: ReviewProgressRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(page: GrammarReviewRoute.page),
         AutoRoute(page: MistakeListRoute.page),
         AutoRoute(page: MistakePracticeRoute.page),
@@ -43,5 +45,7 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: AnkiReviewRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(
             page: AnkiReviewSessionRoute.page, guards: [_courseReadyGuard]),
+        AutoRoute(
+            page: CourseManagementRoute.page, guards: [_courseReadyGuard]),
       ];
 }

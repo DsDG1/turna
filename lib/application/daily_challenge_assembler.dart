@@ -80,7 +80,9 @@ class DailyChallengeAssembler {
     bool includeAnki = true,
   }) {
     final pool = <Interaction>[];
-    for (final section in courseProvider.sections) {
+    // allSections: the challenge pool stays scope-independent — an active
+    // deck scope must not shrink (or Anki-exclude) the mix.
+    for (final section in courseProvider.allSections) {
       if (!includeAnki && section.level == 'Anki') continue;
       for (final unit in section.units) {
         for (final lesson in unit.lessons) {

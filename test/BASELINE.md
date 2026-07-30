@@ -1,6 +1,8 @@
 # Test Baseline
 
-Generated: 2026-07-17 (tool-gui workshop2：主课程编辑器功能课向导 + 可视化蓝图 + 批量/快捷键 + 课程总览。P1 预设库 `backend/lesson_presets.py`（FUNCTIONAL_PRESETS：听力三阶段/阅读三类题/综合测验/认识新词三步/巩固练习 + `build_preset_lesson`/`apply_preset_to_lesson`）+ `clone_lesson_with_fresh_ids` + `CourseAdapter.duplicate_lesson` + 新命令 `DuplicateLessonCommand`/`BulkDelete/Duplicate/Move/ApplyPreset`；课程树 `ExtendedSelection` + `keyPressEvent`（Ctrl+D 复制 · Delete 删除 · F2 重命名 · Ctrl+↑/↓ 同级移动）+ 批量菜单（复制/移动/套用预设/删除）。P3 `widgets/lesson_blueprint.py`（LessonBlueprint 卡片流蓝图，只读预览 + 命令化就地编辑），`DetailPanel` 加「蓝图/高级编辑」切换，功能课型默认蓝图。P2 `dialogs/functional_lesson_wizard.py`（3 步向导：选类型+预设 -> 配置 -> 蓝图预览，`NewLessonDialog` 加「向导创建」入口 + 单元右键「功能课向导…」）。P4 `widgets/course_overview.py`（CourseOverviewWindow 非模态总览，Section/Unit/Lesson 芯片 + 课型 badge + 统计，点击定位）。P5 批量套用预设/批量移动。新增测试 `test_lesson_presets` 13、`test_commands_bulk` 12、`test_lesson_blueprint` 12、`test_functional_lesson_wizard` 6、`test_course_overview` 4、`test_course_tree` 增键盘+批量 7。)
+Generated: 2026-07-29 (play_hub 半拟物彩色玻璃 + 轻微悬浮。`lib/views/play/play_hub_screen.dart` 加极光底层 `_AuroraBackground`（3 个 `RadialGradient` 光斑：左上 peacockTeal、右上 peacockCyan、底部中央 leagueAmethyst，浅深色 alpha 自动分支）+ 单层 `BackdropFilter(ImageFilter.blur(sigma 18))` + `RepaintBoundary` 隔离滚动；4 类卡片（_PlayHubCard / _FocusCard / _ReviewCell / _CountBadge）统一走新增私有 `_GlassCard` 容器，组合 4 层：基座（白霜/深色玻璃底 + 1px 描边 + 分层阴影）+ `ClipRRect` 圆角 + accent 着色渐变 + 顶部白色高光条。`PageController` 提升为 `_PlayHubScreenState` 的 `late final`，消除每次 build 重建；`PlayHubScreen` 由 `StatelessWidget` 改 `StatefulWidget`。`lib/views/theme.dart` 新增 6 个静态 helper：`glassSurface` / `glassHighlight` / `glassBorder` / `glassAccentFill` / `glassShadow` / `glassBadgeFill`，全部基于 `_isDark(context)` 自动切深浅。重新生成 `play_hub_light.png` / `play_hub_dark.png` 两个 golden 基线。无新增/删除测试。)
+
+Previous: 2026-07-17 (tool-gui workshop2：主课程编辑器功能课向导 + 可视化蓝图 + 批量/快捷键 + 课程总览。P1 预设库 `backend/lesson_presets.py`（FUNCTIONAL_PRESETS：听力三阶段/阅读三类题/综合测验/认识新词三步/巩固练习 + `build_preset_lesson`/`apply_preset_to_lesson`）+ `clone_lesson_with_fresh_ids` + `CourseAdapter.duplicate_lesson` + 新命令 `DuplicateLessonCommand`/`BulkDelete/Duplicate/Move/ApplyPreset`；课程树 `ExtendedSelection` + `keyPressEvent`（Ctrl+D 复制 · Delete 删除 · F2 重命名 · Ctrl+↑/↓ 同级移动）+ 批量菜单（复制/移动/套用预设/删除）。P3 `widgets/lesson_blueprint.py`（LessonBlueprint 卡片流蓝图，只读预览 + 命令化就地编辑），`DetailPanel` 加「蓝图/高级编辑」切换，功能课型默认蓝图。P2 `dialogs/functional_lesson_wizard.py`（3 步向导：选类型+预设 -> 配置 -> 蓝图预览，`NewLessonDialog` 加「向导创建」入口 + 单元右键「功能课向导…」）。P4 `widgets/course_overview.py`（CourseOverviewWindow 非模态总览，Section/Unit/Lesson 芯片 + 课型 badge + 统计，点击定位）。P5 批量套用预设/批量移动。新增测试 `test_lesson_presets` 13、`test_commands_bulk` 12、`test_lesson_blueprint` 12、`test_functional_lesson_wizard` 6、`test_course_overview` 4、`test_course_tree` 增键盘+批量 7。)
 
 Previous: 2026-07-16 (Flutter app i18n + 分层 Settings。Task 1：把 lib/ 内中文 UI 文案与 AI prompt 脚手架全部改英文（AI 回复仍按 source language；ai_prompt_builder/ai_course_service 加 "reply in source language" 指令保输出语言）。改 `interactionTypeLabel`、`ai_genre` 的 label/description/`templateLabels` 与 `genrePromptBlock`、`ai_resource_consistency` 校验信息、`ai_course_service` 异常信息与 prompt、`ai_hint_provider` 讲解 prompt。UI 文案：play_hub/ai_hint_chat/new_lesson/ai_hint_sheet/mistake_review/review_components/srs_review/grammar_review/mistake_review_assembler。Task 2：`SettingsPage` 由单页改 StatefulWidget + 页内状态导航（`_category`：null=分类列表，0..4=Account/Learning/Audio & Display/Data/About 子页），复用现有 tile 与 bottom sheet；`SettingsAppBar` 降为零高度 stub，避免双层 AppBar；不走 AutoRoute，"去设置" TabRouter 切 tab 行为不变。同步更新 `ai_genre_test`/`ai_prompt_builder_test`/`ai_hint_provider_test`/`play_hub_screen_test` 的中文断言，重新生成 play_hub light/dark golden。）
 
@@ -15,14 +17,81 @@ Previous: tool-gui guiplan2 阶段 P1：AI 流式生成 + 真正可中断取消 
 Previous: tool-gui Phase 1+2+3+4：稳定层加固 + 教师视图覆盖全部 6 种模板 + AI 改写与易用性提升 + 稳定性加固。Phase 1：backend/api.py 隔离 CLI 内部函数、CourseAdapter 原子保存/备份/回滚、CSV None 容错、全局异常处理与日志。Phase 2：SubLessonFlowWidget 模板感知视图、intro/practice/review 一键生成助手、lesson_content 统一生成函数与测试。Phase 3：教师视图接入 AI 一键生成/改写/扩展题目；新增撤销/重做、sub-lesson 拖拽排序、实时预览。Phase 4：修复 widget 生命周期隐患、listening/reading/mastery 教师视图全面走 undo stack、wizard/AI 导入资源可撤销、AI API 配置持久化、异常不再静默吞掉
 
 ## Results
-- `flutter test`: **451 total** — all passed
-- `flutter analyze`: only info-level lint (no errors/warnings from new code) — `DropdownButtonFormField.value` deprecation + `prefer_const` infos (pre-existing)
+- `flutter test`: **624 passed / 3 failed** — play_hub widget + golden tests
+  green after regenerating `play_hub_light.png` / `play_hub_dark.png`; remaining
+  failure is a pre-existing regression in `anki_srs_migrator_test.dart`
+  (`revlog backfill migrates revlog entries into review events` expects 5 but
+  gets 4), unrelated to this round
+- `flutter analyze`: 0 new warnings/errors on changed files
+  (`lib/views/play/play_hub_screen.dart`, `lib/views/theme.dart`); pre-existing
+  info-level lint in unrelated test files is untouched
 - Python:
   - `python3 -m unittest discover -s test -p "*_cli_test.py"` — 7 passed
   - `tool/gui` suite (from repo root: `python3 -m unittest discover -s tool/gui/tests -p "test_*.py"`) — **804 passed** (workshop2：功能课向导+蓝图+总览+批量/快捷键；新增 test_lesson_presets/test_commands_bulk/test_lesson_blueprint/test_functional_lesson_wizard/test_course_overview + test_course_tree 键盘与批量用例)。全量 GUI 套件 offscreen 本机可跑（~39s）。
 - `tool/course_cli.py --course-dir assets/courses/turkish validate` passes
 
 ## Notes
+- 2026-07-28 Anki smart organization + SRS SQLite (memory-curve round):
+  - **SRS state prefs→SQLite (schema v6→v7 part 1)**: new `SrsStates` table
+    (wordId PK, queue, dueAt, intervalDays, ease, reps, lapses, isLeech, type,
+    lastReviewedAt). `SrsStateDao` (lazySingleton) load/upsert/upsertBatch/delete/
+    deleteByPrefix/clearQueue. `SrsQueueProvider` rewritten to a synchronous
+    in-memory cache hydrated from SQLite via `ensureLoaded()` + write-through
+    persist, preserving all sync consumers (`state`, `dueCount`, `getDueWords`).
+    Self-migration in `ensureLoaded()` parses the old prefs blob once, backfills
+    the DB, sets `srs.migratedToSqlite.$queueId` flag, then never reads prefs again.
+    `SrsWord` gained `lastReviewedAt` (powers forgetting curve without a DB join).
+  - **Review history + accuracy fix (schema v7 part 2)**: new `ReviewEvents`
+    table (autoincrement, cardId, queue, reviewedAt, quality, prev/next
+    intervalDays, prev/nextEase, reps, lapses, type) with `@TableIndex` on
+    cardId + reviewedAt. `ReviewHistoryDao` (lazySingleton) insertEvent/
+    insertBatch/eventsForCard/recentEvents/allEvents/count/deleteByCardPrefix.
+    `reviewItem` now writes a `ReviewEventRecord`. Lazy GetIt resolution
+    (`GetIt.instance<ReviewHistoryDao>()` + `@visibleForTesting` setter) avoids
+    re-churning ~25 test call sites. Fixed SRS review screen accuracy bug:
+    `_grantSessionRewards` now passes real correct/incorrect counts instead of
+    `correctCount: reviewedCount, incorrectCount: 0`.
+  - **Memory curve model + visualization**: `MemoryCurveProvider.snapshot()`
+    computes currentRetention (mean R=exp(-Δt/S) over reviewed cards), forecast
+    (dueToday/7Days/30Days), maturity (new/young/mature/leech), and an empirical
+    retention-by-interval curve (recall rate bucketed by prevIntervalDays into
+    [1,4,7,14,21,30,60,90,180]). `learning_stats.dart` gained a `_MemoryCurveCard`
+    (fl_chart LineChart + forecast mini-stats + maturity chips). MemoryCurveProvider
+    is optional in the widget tree (try/catch on `context.read`).
+  - **Anki smart organization**: `AnkiOrganizationResolver` extracts unit/lesson
+    keys from notetype field names (unit/chapter/section/单元/章;
+    lesson/topic/subunit/课/节) then tags (unit::/unit:/chapter::/chapter:/
+    单元::/单元:; lesson::/lesson:/课::/课:); field takes priority, HTML stripped.
+    `anki_deck_assembler.assemble(smartGrouping:)` groups cards into Units→Lessons
+    by those keys (deck name fallback); multi-chunk (>20) lessons named
+    `"$lessonKey #N"`. Zero-metadata path is byte-identical to the old chunking.
+    Import screen shows an organization preview + smart-grouping switch.
+  - **Anki revlog parse + migrate**: `AnkiRevlogEntry` model; `_parseRevlog`
+    (paginated, table-missing-safe, best-effort) added to `AnkiImporter`.
+    `AnkiSrsMigrator.migrate()` now takes `revlog` + optional `ReviewHistoryDao`
+    and backfills `ReviewEventRecord`s (revlog ease 1→1/2→3/3→4/4→5).
+  - New tests: srs_state_dao (8), review_history_dao (9),
+    memory_curve_provider (5), anki_organization_resolver (10); updated
+    srs_provider / grammar_review / srs_review_flow / anki_srs_migrator /
+    anki_deck_assembler / sm2 / schema_migration / provider_identity / golden /
+    learning_stats. Suite went 484 → 528 all pass.
+- 2026-07-28 Test-suite repair (pre-existing failures, independent of the
+  5-fix code-review round): widget tests that pump `MaterialApp` forgot to
+  add `localizationsDelegates`/`supportedLocales` after the 07-16 i18n round,
+  so every l10n widget threw `Null check operator` and rendered an error
+  widget. Added delegates to `renderer_test_helper`, `course_tree_test`,
+  `content_update_dialog_test`, `dark_mode_text_contrast_test`,
+  `learning_stats_*_test`, `lesson_dialogs_test`, and the `play_hub` +
+  `dictionary` golden tests. Other fixes: deleted obsolete `widget_test`
+  (`MyApp`) and `course_database_pos_test` (`WordEntry.pos` was removed);
+  added `getAnkiActivityCounts` to `FakeStudyStatsProvider`; updated
+  `lesson_dialogs_test` for localized celebration titles / `CONTINUE` /
+  `2m 5s`; dropped the stale `_$` freezed-impl assertion in
+  `renderer_lookup_test`; fixed `schema_migration_test` (v1-v4 now create a
+  pre-v6 `sections` table without `level` so the v6 `addColumn` is meaningful;
+  the downgrade test uses a hypothetical v7); regenerated the 8 golden
+  baselines on the OHos Flutter 3.35 fork. Suite went 418 pass / 63 fail ->
+  484 all pass.
 - 2026-07-20 Settings refactor — neurodiversity accessibility + hierarchy + About:
   - New `AccessibilityProvider` (`lib/application/accessibility_provider.dart`) with 6
     persisted flags: textScale (100–200%), reducedMotion, highContrast, dyslexiaFont,

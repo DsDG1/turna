@@ -11,6 +11,7 @@ import 'package:varnamala/application/game_provider.dart';
 import 'package:varnamala/application/gems_provider.dart';
 import 'package:varnamala/application/srs_provider.dart';
 import 'package:varnamala/application/study_stats_provider.dart';
+import 'package:varnamala/core/fsrs_engine.dart';
 import 'package:varnamala/core/sm2.dart';
 import 'package:varnamala/courses/languages/expressions.dart';
 import 'package:varnamala/courses/languages/vocab.dart';
@@ -19,6 +20,7 @@ import 'package:varnamala/domain/course/expression.dart';
 import 'package:varnamala/domain/course/srs_word.dart';
 import 'package:varnamala/domain/course/word_entry.dart';
 import 'package:varnamala/domain/study/study_log.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/review/components/review_components.dart';
 import 'package:varnamala/views/theme.dart';
 
@@ -150,9 +152,9 @@ class _SrsReviewPageState extends State<SrsReviewPage> {
       return ReviewEmptyState(
         onRefresh: _loadQueue,
         dueCount: dueCount,
-        title: 'Review',
-        emptyMessage: 'You\'ve reviewed everything for now.',
-        dueMessage: 'words are already due — pull to refresh',
+        title: AppStrings.reviewSrsTitle,
+        emptyMessage: AppStrings.reviewEmptyMessage,
+        dueMessage: AppStrings.reviewDueMessage,
       );
     }
 
@@ -164,8 +166,8 @@ class _SrsReviewPageState extends State<SrsReviewPage> {
         gemsEarned: _gemsEarned,
         onDone: () => Navigator.of(context).pop(),
         onReviewMore: _loadQueue,
-        title: 'Session Complete!',
-        completionMessage: 'You reviewed $_sessionCount items.',
+        title: AppStrings.reviewSrsSessionComplete,
+        completionMessage: AppStrings.reviewSrsCompletionMessage(_sessionCount),
       );
     }
 
@@ -180,24 +182,24 @@ class _SrsReviewPageState extends State<SrsReviewPage> {
     return Scaffold(
       backgroundColor: VarnamalaTheme.scaffoldBg(context),
       appBar: AppBar(
-        title: const Text('Review'),
+        title: Text(AppStrings.reviewSrsAppBarTitle),
         actions: [
           IconButton(
             icon: Text(
-              '${_audioController.ttsSpeed.toStringAsFixed(1)}x',
+              AppStrings.reviewSrsTtsSpeed(_audioController.ttsSpeed.toStringAsFixed(1)),
               style: const TextStyle(
                 fontWeight: FontWeight.w700,
                 fontSize: 14,
               ),
             ),
-            tooltip: 'TTS speed',
+            tooltip: AppStrings.reviewSrsTtsSpeedTooltip,
             onPressed: _cycleSpeed,
           ),
           Center(
             child: Padding(
               padding: const EdgeInsets.only(right: 16),
               child: Text(
-                '${_currentIndex + 1} / ${_queue.length}',
+                AppStrings.reviewSrsProgress(_currentIndex + 1, _queue.length),
                 style: const TextStyle(fontWeight: FontWeight.w700),
               ),
             ),
@@ -221,9 +223,37 @@ class _SrsReviewPageState extends State<SrsReviewPage> {
               ),
               const SizedBox(height: 24),
               if (_showAnswer) ...[
+                if (word.isLeech) ...[
+                  Text(
+                    AppStrings.reviewLeechHint,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: VarnamalaTheme.error,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
                 ReviewRatingBar(
+                  failPreview: () {
+                    final eng = context.read<SrsProvider>().engine;
+                    if (eng is FsrsEngine) {
+                      final mins = eng.previewFailMinutes(word);
+                      if (mins <= 0) return AppStrings.srsPreviewTomorrow;
+                      return AppStrings.srsPreviewFailMinutes(mins);
+                    }
+                    return AppStrings.srsPreviewUnknown;
+                  }(),
+                  passPreview: () {
+                    final days = context
+                        .read<SrsProvider>()
+                        .previewOutcomeDays(word, ReviewOutcome.pass);
+                    return days <= 0
+                        ? AppStrings.srsPreviewUnknown
+                        : AppStrings.srsPreviewKnown(days);
+                  }(),
                   onRate: _onRate,
-                  prompt: 'Do you know this word?',
+                  prompt: AppStrings.reviewDoYouKnow,
                 ),
               ] else ...[
                 SizedBox(
@@ -239,9 +269,9 @@ class _SrsReviewPageState extends State<SrsReviewPage> {
                             BorderRadius.circular(VarnamalaTheme.radiusMedium),
                       ),
                     ),
-                    child: const Text(
-                      'Show Answer',
-                      style: TextStyle(
+                    child: Text(
+                      AppStrings.reviewSrsShowAnswer,
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                       ),
@@ -312,7 +342,7 @@ class _FlashCard extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               IconButton(
-                tooltip: 'Play pronunciation',
+                tooltip: AppStrings.reviewSrsPlayPronunciation,
                 onPressed: onSpeak,
                 icon: const Icon(Icons.volume_up_rounded),
                 iconSize: 32,
@@ -347,8 +377,8 @@ class _FlashCard extends StatelessWidget {
                         : srs.getLessonNameForWord(word.wordId);
                     return Text(
                       lessonName != null
-                          ? 'Learned in: $lessonName'
-                          : 'First seen: ${word.wordId}',
+                          ? AppStrings.reviewSrsLearnedIn(lessonName)
+                          : AppStrings.reviewSrsFirstSeen(word.wordId),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: VarnamalaTheme.textHintColor(context),
                           ),
@@ -357,7 +387,7 @@ class _FlashCard extends StatelessWidget {
                 ),
               ] else ...[
                 Text(
-                  'Tap to reveal meaning',
+                  AppStrings.reviewSrsTapToReveal,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: VarnamalaTheme.textHintColor(context),
                       ),
@@ -372,7 +402,7 @@ class _FlashCard extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                'Entry not found',
+                AppStrings.reviewSrsEntryNotFound,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: VarnamalaTheme.textHintColor(context),
                     ),

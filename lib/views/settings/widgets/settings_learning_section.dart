@@ -11,13 +11,13 @@ import 'package:provider/provider.dart';
 import 'package:varnamala/application/anki/anki_deck_manager.dart';
 import 'package:varnamala/application/audio_controller.dart';
 import 'package:varnamala/application/language_provider.dart';
-import 'package:varnamala/application/locale_provider.dart';
 import 'package:varnamala/application/settings_provider.dart';
 import 'package:varnamala/core/enums.dart';
 import 'package:varnamala/core/extensions.dart';
+import 'package:varnamala/core/fsrs_optimizer.dart';
+import 'package:varnamala/data/review_history_dao.dart';
 import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/l10n/app_localizations.dart';
-import 'package:varnamala/service/locator.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/settings/widgets/settings_common.dart';
 import 'package:varnamala/views/theme.dart';
 
@@ -26,13 +26,14 @@ class SettingsLanguageSelectorTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final languageProvider = context.watch<LanguageProvider>();
-    final current = languageProvider.selectedLanguage;
-    final l10n = AppLocalizations.of(context)!;
+    final current = context.select<LanguageProvider, TargetLanguage>(
+      (p) => p.selectedLanguage,
+    );
 
     return PopupMenuButton<TargetLanguage>(
       initialValue: current,
       onSelected: (value) {
+        final languageProvider = context.read<LanguageProvider>();
         languageProvider.setLanguage(value);
         unawaited(languageProvider.cacheLanguage());
       },
@@ -64,8 +65,8 @@ class SettingsLanguageSelectorTile extends StatelessWidget {
           .toList(),
       child: SettingsTile(
         icon: Icons.language_rounded,
-        title: l10n.settingsLearningLanguageTitle,
-        subtitle: l10n.settingsLearningLanguageSubtitle,
+        title: AppStrings.settingsLearningLanguageTitle,
+        subtitle: AppStrings.settingsLearningLanguageSubtitle,
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -88,151 +89,22 @@ class SettingsLanguageSelectorTile extends StatelessWidget {
   }
 }
 
-/// UI display language selector (app interface language). Independent of
-/// [SettingsLanguageSelectorTile] which selects the *target* learning language.
-class SettingsUiLocaleTile extends StatelessWidget {
-  const SettingsUiLocaleTile({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final localeProvider = context.watch<LocaleProvider>();
-    final l10n = AppLocalizations.of(context)!;
-
-    // null = follow system; otherwise the chosen Locale.
-    final current = localeProvider.locale;
-
-    String label(BuildContext context, Locale? locale) {
-      if (locale == null) return l10n.settingsUiLanguageSystem;
-      switch (locale.languageCode) {
-        case 'zh':
-          return '中文';
-        case 'en':
-        default:
-          return 'English';
-      }
-    }
-
-    return PopupMenuButton<String>(
-      initialValue: current?.languageCode ?? 'system',
-      onSelected: (value) {
-        final Locale? locale;
-        switch (value) {
-          case 'en':
-            locale = const Locale('en');
-            break;
-          case 'zh':
-            locale = const Locale('zh');
-            break;
-          case 'system':
-          default:
-            locale = null;
-        }
-        localeProvider.setLocale(locale);
-      },
-      itemBuilder: (context) => [
-        PopupMenuItem(
-          value: 'system',
-          child: Row(
-            children: [
-              Icon(
-                Icons.settings_suggest_outlined,
-                size: 18,
-                color: current == null
-                    ? VarnamalaTheme.peacockTeal
-                    : VarnamalaTheme.textHint,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                l10n.settingsUiLanguageSystem,
-                style: TextStyle(
-                  fontWeight: current == null
-                      ? FontWeight.w700
-                      : FontWeight.w400,
-                ),
-              ),
-            ],
-          ),
-        ),
-        PopupMenuItem(
-          value: 'en',
-          child: Row(
-            children: [
-              Icon(
-                Icons.language_rounded,
-                size: 18,
-                color: current?.languageCode == 'en'
-                    ? VarnamalaTheme.peacockTeal
-                    : VarnamalaTheme.textHint,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'English',
-                style: TextStyle(
-                  fontWeight: current?.languageCode == 'en'
-                      ? FontWeight.w700
-                      : FontWeight.w400,
-                ),
-              ),
-            ],
-          ),
-        ),
-        PopupMenuItem(
-          value: 'zh',
-          child: Row(
-            children: [
-              Icon(
-                Icons.language_rounded,
-                size: 18,
-                color: current?.languageCode == 'zh'
-                    ? VarnamalaTheme.peacockTeal
-                    : VarnamalaTheme.textHint,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '中文',
-                style: TextStyle(
-                  fontWeight: current?.languageCode == 'zh'
-                      ? FontWeight.w700
-                      : FontWeight.w400,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-      child: SettingsTile(
-        icon: Icons.translate_rounded,
-        title: l10n.settingsUiLanguageTitle,
-        subtitle: l10n.settingsUiLanguageSubtitle,
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              label(context, current),
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: VarnamalaTheme.peacockTeal,
-                    fontWeight: FontWeight.w700,
-                  ),
-            ),
-            const SizedBox(width: 4),
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: VarnamalaTheme.textHint,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class SettingsTtsSpeedTile extends StatelessWidget {
+/// TTS speed slider. Uses local state while dragging so we do not write
+/// SharedPreferences or call [SettingsProvider.notifyListeners] on every frame.
+class SettingsTtsSpeedTile extends StatefulWidget {
   const SettingsTtsSpeedTile({super.key});
 
   @override
+  State<SettingsTtsSpeedTile> createState() => _SettingsTtsSpeedTileState();
+}
+
+class _SettingsTtsSpeedTileState extends State<SettingsTtsSpeedTile> {
+  double? _dragValue;
+
+  @override
   Widget build(BuildContext context) {
-    final settings = context.watch<SettingsProvider>();
-    final l10n = AppLocalizations.of(context)!;
+    final persisted = context.select<SettingsProvider, double>((p) => p.ttsSpeed);
+    final value = _dragValue ?? persisted;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
@@ -261,13 +133,13 @@ class SettingsTtsSpeedTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      l10n.settingsTtsSpeedTitle,
+                      AppStrings.settingsTtsSpeedTitle,
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
                     ),
                     Text(
-                      l10n.settingsTtsSpeedSubtitle,
+                      AppStrings.settingsTtsSpeedSubtitle,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: VarnamalaTheme.textHintColor(context),
                           ),
@@ -276,8 +148,7 @@ class SettingsTtsSpeedTile extends StatelessWidget {
                 ),
               ),
               Text(
-                l10n.settingsTtsSpeedValue(
-                    settings.ttsSpeed.toStringAsFixed(1)),
+                AppStrings.settingsTtsSpeedValue(value.toStringAsFixed(1)),
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       color: VarnamalaTheme.peacockTeal,
                       fontWeight: FontWeight.w700,
@@ -289,15 +160,238 @@ class SettingsTtsSpeedTile extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(left: 52),
             child: Slider.adaptive(
-              value: settings.ttsSpeed,
+              value: value,
               min: 0.5,
               max: 2.0,
               divisions: 15,
               activeColor: VarnamalaTheme.peacockTeal,
               inactiveColor: VarnamalaTheme.dividerBg(context),
-              onChanged: (value) {
-                settings.setTtsSpeed(value);
-                getIt<AudioController>().setTtsSpeed(value);
+              onChanged: (v) {
+                setState(() => _dragValue = v);
+                // Preview immediately without prefs write / provider notify.
+                getIt<AudioController>().setTtsSpeed(v);
+              },
+              onChangeEnd: (v) async {
+                await context.read<SettingsProvider>().setTtsSpeed(v);
+                if (mounted) setState(() => _dragValue = null);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Local FSRS weight fit + reset (ADR 0029). Binary scoring only.
+class SettingsSrsWeightsTile extends StatefulWidget {
+  const SettingsSrsWeightsTile({super.key});
+
+  @override
+  State<SettingsSrsWeightsTile> createState() => _SettingsSrsWeightsTileState();
+}
+
+class _SettingsSrsWeightsTileState extends State<SettingsSrsWeightsTile> {
+  bool _busy = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = context.watch<SettingsProvider>();
+    final custom = settings.hasCustomFsrsWeights;
+    final subtitle = custom
+        ? AppStrings.settingsSrsWeightsCustom(settings.fsrsOptimizedReviews)
+        : AppStrings.settingsSrsWeightsDefault;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.08),
+                  borderRadius:
+                      BorderRadius.circular(VarnamalaTheme.radiusMedium),
+                ),
+                child: const Icon(
+                  Icons.auto_graph_rounded,
+                  color: VarnamalaTheme.peacockTeal,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      AppStrings.settingsSrsWeightsTitle,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: VarnamalaTheme.textHintColor(context),
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(0, 0, 0, 8),
+            child: Text(
+              AppStrings.settingsSrsOptimizeHint,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: VarnamalaTheme.textHintColor(context),
+                  ),
+            ),
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton(
+                  onPressed: _busy ? null : () => _optimize(context),
+                  child: Text(
+                    _busy
+                        ? AppStrings.settingsSrsOptimizing
+                        : AppStrings.settingsSrsOptimize,
+                  ),
+                ),
+              ),
+              if (custom) ...[
+                const SizedBox(width: 8),
+                TextButton(
+                  onPressed: _busy
+                      ? null
+                      : () => context.read<SettingsProvider>().clearFsrsParameters(),
+                  child: Text(AppStrings.settingsSrsResetWeights),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _optimize(BuildContext context) async {
+    setState(() => _busy = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final dao = getIt<ReviewHistoryDao>();
+      final events = await dao.allEvents();
+      final result = await Future<FsrsOptimizeResult>(() {
+        return FsrsLiteOptimizer().optimize(events);
+      });
+      if (!context.mounted) return;
+      if (result.message == 'need_more_reviews') {
+        messenger.showSnackBar(
+          SnackBar(content: Text(AppStrings.settingsSrsOptimizeNeedMore)),
+        );
+      } else if (result.accepted) {
+        await context.read<SettingsProvider>().applyFsrsParameters(
+              result.parameters,
+              reviewCount: result.reviewCount,
+            );
+        if (!context.mounted) return;
+        messenger.showSnackBar(
+          SnackBar(content: Text(AppStrings.settingsSrsOptimizeAccepted)),
+        );
+      } else {
+        messenger.showSnackBar(
+          SnackBar(content: Text(AppStrings.settingsSrsOptimizeRejected)),
+        );
+      }
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('$e')));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+}
+
+/// FSRS target retention (binary scoring only — not a four-grade UI).
+class SettingsSrsRetentionTile extends StatefulWidget {
+  const SettingsSrsRetentionTile({super.key});
+
+  @override
+  State<SettingsSrsRetentionTile> createState() =>
+      _SettingsSrsRetentionTileState();
+}
+
+class _SettingsSrsRetentionTileState extends State<SettingsSrsRetentionTile> {
+  double? _dragValue;
+
+  @override
+  Widget build(BuildContext context) {
+    final stored = context.select<SettingsProvider, double>(
+      (p) => p.srsDesiredRetention,
+    );
+    final value = _dragValue ?? stored;
+    final percent = (value * 100).round();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.08),
+                  borderRadius:
+                      BorderRadius.circular(VarnamalaTheme.radiusMedium),
+                ),
+                child: const Icon(
+                  Icons.psychology_rounded,
+                  color: VarnamalaTheme.peacockTeal,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  AppStrings.settingsSrsRetentionTitle,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ),
+              Text(
+                AppStrings.settingsSrsRetentionValue(percent),
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: VarnamalaTheme.peacockTeal,
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.only(left: 52),
+            child: Slider.adaptive(
+              value: value,
+              min: 0.80,
+              max: 0.95,
+              divisions: 15,
+              activeColor: VarnamalaTheme.peacockTeal,
+              inactiveColor: VarnamalaTheme.dividerBg(context),
+              onChanged: (v) => setState(() => _dragValue = v),
+              onChangeEnd: (v) async {
+                await context.read<SettingsProvider>().setSrsDesiredRetention(v);
+                if (mounted) setState(() => _dragValue = null);
               },
             ),
           ),
@@ -320,20 +414,15 @@ class SettingsAnkiNewLimitTile extends StatefulWidget {
 }
 
 class _SettingsAnkiNewLimitTileState extends State<SettingsAnkiNewLimitTile> {
-  late final AnkiDeckManager _manager = AnkiDeckManager(
-    repo: getIt(),
-    srsProvider: getIt(),
-    importDao: getIt(),
-    appPrefs: getIt<AppPrefs>(),
-  );
+  late final AnkiDeckManager _manager = getIt<AnkiDeckManager>();
 
   @override
   Widget build(BuildContext context) {
     return _AnkiLimitSlider(
       manager: _manager,
       icon: Icons.add_card_outlined,
-      title: 'Anki: Daily new cards',
-      subtitle: 'Max new Anki cards introduced per day',
+      title: AppStrings.settingsAnkiNewCardsTitle,
+      subtitle: AppStrings.settingsAnkiNewCardsSubtitle,
       min: 0,
       max: 100,
       divisions: 20,
@@ -353,20 +442,15 @@ class SettingsAnkiReviewLimitTile extends StatefulWidget {
 }
 
 class _SettingsAnkiReviewLimitTileState extends State<SettingsAnkiReviewLimitTile> {
-  late final AnkiDeckManager _manager = AnkiDeckManager(
-    repo: getIt(),
-    srsProvider: getIt(),
-    importDao: getIt(),
-    appPrefs: getIt<AppPrefs>(),
-  );
+  late final AnkiDeckManager _manager = getIt<AnkiDeckManager>();
 
   @override
   Widget build(BuildContext context) {
     return _AnkiLimitSlider(
       manager: _manager,
       icon: Icons.refresh_rounded,
-      title: 'Anki: Daily review cards',
-      subtitle: 'Max Anki review cards per day',
+      title: AppStrings.settingsAnkiReviewCardsTitle,
+      subtitle: AppStrings.settingsAnkiReviewCardsSubtitle,
       min: 0,
       max: 500,
       divisions: 50,
@@ -500,23 +584,17 @@ class SettingsDailyChallengeAnkiTile extends StatefulWidget {
 
 class _SettingsDailyChallengeAnkiTileState
     extends State<SettingsDailyChallengeAnkiTile> {
-  late final AnkiDeckManager _manager = AnkiDeckManager(
-    repo: getIt(),
-    srsProvider: getIt(),
-    importDao: getIt(),
-    appPrefs: getIt<AppPrefs>(),
-  );
+  late final AnkiDeckManager _manager = getIt<AnkiDeckManager>();
   late bool _value = _manager.dailyChallengeIncludesAnki;
 
   @override
   Widget build(BuildContext context) {
     return SettingsTile(
       icon: Icons.emoji_events_outlined,
-      title: 'Anki cards in Daily Challenge',
-      subtitle: 'Include imported Anki cards in the daily challenge pool',
-      trailing: Switch.adaptive(
+      title: AppStrings.settingsAnkiDailyChallengeTitle,
+      subtitle: AppStrings.settingsAnkiDailyChallengeSubtitle,
+      trailing: settingsAdaptiveSwitch(
         value: _value,
-        activeTrackColor: VarnamalaTheme.peacockTeal,
         onChanged: (newValue) {
           setState(() => _value = newValue);
           _manager.setDailyChallengeIncludesAnki(newValue);

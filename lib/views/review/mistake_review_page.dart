@@ -15,7 +15,7 @@ import 'package:varnamala/application/mistake_provider.dart';
 import 'package:varnamala/application/mistake_review_assembler.dart';
 import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/routing/routing.gr.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:varnamala/views/lesson/components/lesson_dialogs.dart';
@@ -198,7 +198,7 @@ class _MistakeReviewPageState extends State<MistakeReviewPage> {
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
                           child: LessonCheckButton(
-                            label: selected.$5 ? AppLocalizations.of(context)!.commonContinue : AppLocalizations.of(context)!.commonGotIt,
+                            label: selected.$5 ? AppStrings.commonContinue : AppStrings.commonGotIt,
                             enabled: true,
                             onPressed: () => vm.advance(),
                           ),
@@ -216,7 +216,7 @@ class _MistakeReviewPageState extends State<MistakeReviewPage> {
       backgroundColor: VarnamalaTheme.surfaceColor(context),
       elevation: 0,
       leading: IconButton(
-        tooltip: AppLocalizations.of(context)!.commonClose,
+        tooltip: AppStrings.commonClose,
         icon: Icon(
           Icons.close_rounded,
           color: VarnamalaTheme.textPrimaryColor(context),
@@ -224,7 +224,7 @@ class _MistakeReviewPageState extends State<MistakeReviewPage> {
         onPressed: () => Navigator.of(context).maybePop(),
       ),
       title: Text(
-        AppLocalizations.of(context)!.reviewMistakeReviewTitle,
+        AppStrings.reviewMistakeReviewTitle,
         style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w700,
@@ -234,7 +234,7 @@ class _MistakeReviewPageState extends State<MistakeReviewPage> {
       centerTitle: true,
       actions: [
         IconButton(
-          tooltip: AppLocalizations.of(context)!.reviewViewMistakeList,
+          tooltip: AppStrings.reviewViewMistakeList,
           icon: Icon(
             Icons.list_rounded,
             color: VarnamalaTheme.textPrimaryColor(context),
@@ -268,7 +268,7 @@ class _MistakeReviewPageState extends State<MistakeReviewPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              AppLocalizations.of(context)!.reviewNoMistakes,
+              AppStrings.reviewNoMistakes,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: VarnamalaTheme.textSecondaryColor(context),
@@ -277,7 +277,7 @@ class _MistakeReviewPageState extends State<MistakeReviewPage> {
             const SizedBox(height: 16),
             TextButton(
               onPressed: () => Navigator.of(context).maybePop(),
-              child: Text(AppLocalizations.of(context)!.commonBack),
+              child: Text(AppStrings.commonBack),
             ),
           ],
         ),

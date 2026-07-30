@@ -6,8 +6,10 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:varnamala/core/text_styles.dart';
+import 'package:varnamala/domain/audio/anki_audio_resolver.dart';
 import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/l10n/app_strings.dart';
+import 'package:varnamala/views/lesson/components/anki_media_strip.dart';
 import 'package:varnamala/views/lesson/components/cached_asset_image.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
 
@@ -30,6 +32,7 @@ class MultipleChoiceRenderer extends InteractionRenderer {
       options: i.options,
       correctIndex: i.correctIndex,
       imageAsset: i.imageAsset,
+      audioAssets: i.audioAssets,
       state: state,
       onSubmit: onSubmit,
     );
@@ -41,6 +44,7 @@ class _MultipleChoiceBody extends StatefulWidget {
   final List<String> options;
   final int correctIndex;
   final String? imageAsset;
+  final List<String> audioAssets;
   final InteractionState state;
   final OnInteractionSubmit onSubmit;
 
@@ -49,6 +53,7 @@ class _MultipleChoiceBody extends StatefulWidget {
     required this.options,
     required this.correctIndex,
     required this.imageAsset,
+    required this.audioAssets,
     required this.state,
     required this.onSubmit,
   });
@@ -96,22 +101,36 @@ class _MultipleChoiceBodyState extends State<_MultipleChoiceBody> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SectionCaption(AppLocalizations.of(context)!.lessonMultipleChoiceCaption),
+          SectionCaption(AppStrings.lessonMultipleChoiceCaption),
           Text(
             widget.prompt,
             style: AppTextStyles.promptLg(context).copyWith(
               fontWeight: FontWeight.w600,
             ),
           ),
-          if (widget.imageAsset != null) ...[
+          if (widget.imageAsset != null &&
+              !AnkiAudioResolver.isAnkiAsset(widget.imageAsset)) ...[
             const SizedBox(height: 16),
             RoundedCachedAssetImage(asset: widget.imageAsset!),
+          ],
+          if (widget.audioAssets.isNotEmpty ||
+              AnkiAudioResolver.isAnkiAsset(widget.imageAsset)) ...[
+            const SizedBox(height: 16),
+            Center(
+              child: AnkiMediaStrip(
+                audioAssets: widget.audioAssets,
+                imageAssets: [
+                  if (AnkiAudioResolver.isAnkiAsset(widget.imageAsset))
+                    widget.imageAsset!,
+                ],
+              ),
+            ),
           ],
           const SizedBox(height: 24),
           ..._buildOptions(submitted, correct),
           const SizedBox(height: 20),
           LessonCheckButton(
-            label: submitted ? AppLocalizations.of(context)!.lessonChecked : AppLocalizations.of(context)!.lessonCheck,
+            label: submitted ? AppStrings.lessonChecked : AppStrings.lessonCheck,
             enabled: canSubmit,
             onPressed: canSubmit
                 ? () => widget.onSubmit(_picked == widget.correctIndex,

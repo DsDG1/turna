@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 
 // Project imports:
 import 'package:varnamala/application/lesson_viewmodel.dart';
-import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/home/components/stat_app_bar.dart';
 import 'package:varnamala/views/theme.dart';
 
@@ -169,18 +169,18 @@ class _LessonCompletionSummary extends StatelessWidget {
     bool perfect,
   ) {
     final theme = Theme.of(context);
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppStrings;
     final title = switch (style.styleIndex) {
-      0 => l10n.lessonCompleteTitle1,
-      1 => l10n.lessonCompleteTitle2,
-      2 => l10n.lessonCompleteTitle3,
-      _ => l10n.lessonCompleteTitle1,
+      0 => AppStrings.lessonCompleteTitle1,
+      1 => AppStrings.lessonCompleteTitle2,
+      2 => AppStrings.lessonCompleteTitle3,
+      _ => AppStrings.lessonCompleteTitle1,
     };
     final subtitle = switch (style.styleIndex) {
-      0 => l10n.lessonCompleteSubtitle1,
-      1 => l10n.lessonCompleteSubtitle2,
-      2 => l10n.lessonCompleteSubtitle3,
-      _ => l10n.lessonCompleteSubtitle1,
+      0 => AppStrings.lessonCompleteSubtitle1,
+      1 => AppStrings.lessonCompleteSubtitle2,
+      2 => AppStrings.lessonCompleteSubtitle3,
+      _ => AppStrings.lessonCompleteSubtitle1,
     };
 
     return Column(
@@ -219,7 +219,7 @@ class _LessonCompletionSummary extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          perfect ? l10n.lessonPerfectLesson : subtitle,
+          perfect ? AppStrings.lessonPerfectLesson : subtitle,
           style: theme.textTheme.bodyMedium,
           textAlign: TextAlign.center,
         ),
@@ -234,30 +234,30 @@ class _LessonCompletionSummary extends StatelessWidget {
       crossAxisCount: 2,
       crossAxisSpacing: 10,
       mainAxisSpacing: 10,
-      childAspectRatio: 2.4,
+      childAspectRatio: 2.0,
       children: [
         _StatChip(
           icon: Icons.check_circle_rounded,
           iconColor: VarnamalaTheme.success,
-          label: AppLocalizations.of(context)!.lessonCorrect,
+          label: AppStrings.lessonCorrect,
           value: correctCount,
         ),
         _StatChip(
           icon: Icons.cancel_rounded,
           iconColor: VarnamalaTheme.error,
-          label: AppLocalizations.of(context)!.lessonWrong,
+          label: AppStrings.lessonWrong,
           value: incorrectCount,
         ),
         _StatChip(
           icon: Icons.timer_rounded,
           iconColor: VarnamalaTheme.peacockCyan,
-          label: AppLocalizations.of(context)!.lessonTime,
+          label: AppStrings.lessonTime,
           valueText: _formatDuration(context, durationSeconds),
         ),
         _StatChip(
           icon: Icons.stars_rounded,
           iconColor: VarnamalaTheme.warning,
-          label: AppLocalizations.of(context)!.lessonXp,
+          label: AppStrings.lessonXp,
           value: xpEarned,
         ),
       ],
@@ -274,14 +274,14 @@ class _LessonCompletionSummary extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         Text(
-          AppLocalizations.of(context)!.lessonAnswerBreakdown,
+          AppStrings.lessonAnswerBreakdown,
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
         ),
         const Spacer(),
         Text(
-          AppLocalizations.of(context)!.lessonResultsCount(correctCount, totalCount),
+          AppStrings.lessonResultsCount(correctCount, totalCount),
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: VarnamalaTheme.textHint,
                 fontWeight: FontWeight.w600,
@@ -303,7 +303,7 @@ class _LessonCompletionSummary extends StatelessWidget {
           child: ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
             child: Text(
-              AppLocalizations.of(context)!.lessonContinueUpper,
+              AppStrings.lessonContinueUpper,
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
             ),
           ),
@@ -312,7 +312,7 @@ class _LessonCompletionSummary extends StatelessWidget {
         TextButton(
           onPressed: () => Navigator.of(context).pop(true),
           child: Text(
-            AppLocalizations.of(context)!.lessonBackToCourses,
+            AppStrings.lessonBackToCourses,
             style: theme.textTheme.bodyMedium?.copyWith(
                   color: VarnamalaTheme.textHint,
                   fontWeight: FontWeight.w500,
@@ -326,9 +326,9 @@ class _LessonCompletionSummary extends StatelessWidget {
   String _formatDuration(BuildContext context, int seconds) {
     final m = seconds ~/ 60;
     final s = seconds % 60;
-    final l10n = AppLocalizations.of(context)!;
-    if (m == 0) return l10n.lessonDurationSeconds(s);
-    return l10n.lessonDurationMinutes(m, s);
+    final l10n = AppStrings;
+    if (m == 0) return AppStrings.lessonDurationSeconds(s);
+    return AppStrings.lessonDurationMinutes(m, s);
   }
 }
 
@@ -363,14 +363,14 @@ class _AccuracyRing extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  AppLocalizations.of(context)!.lessonPercentValue(percent),
+                  AppStrings.lessonPercentValue(percent),
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                         fontWeight: FontWeight.w800,
                         color: ringColor,
                       ),
                 ),
                 Text(
-                  AppLocalizations.of(context)!.lessonAccuracy,
+                  AppStrings.lessonAccuracy,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: VarnamalaTheme.textHint,
                         fontWeight: FontWeight.w600,
@@ -405,7 +405,7 @@ class _StatChip extends StatelessWidget {
     final displayValue = value ?? 0;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: VarnamalaTheme.cardBg(context),
         borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
@@ -413,24 +413,27 @@ class _StatChip extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(icon, color: iconColor, size: 22),
-          const SizedBox(width: 10),
+          Icon(icon, color: iconColor, size: 20),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 if (valueText != null)
                   Text(
                     valueText!,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w700,
                         ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   )
                 else
                   AnimatedCounter(
                     target: displayValue,
-                    style: Theme.of(context).textTheme.titleMedium!.copyWith(
+                    style: Theme.of(context).textTheme.titleSmall!.copyWith(
                           fontWeight: FontWeight.w700,
                         ),
                   ),
@@ -440,6 +443,8 @@ class _StatChip extends StatelessWidget {
                         color: VarnamalaTheme.textHintColor(context),
                         fontWeight: FontWeight.w500,
                       ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -495,7 +500,7 @@ class _QuestionResultTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  AppLocalizations.of(context)!.lessonQuestionResult(index, result.prompt),
+                  AppStrings.lessonQuestionResult(index, result.prompt),
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w500,
                       ),
@@ -506,7 +511,7 @@ class _QuestionResultTile extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
                     child: Text(
-                      AppLocalizations.of(context)!.lessonQuestionAnswer(result.correctAnswer!),
+                      AppStrings.lessonQuestionAnswer(result.correctAnswer!),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: VarnamalaTheme.textHint,
                           ),
@@ -565,13 +570,13 @@ Future<MasteryDialogResult?> showMasteryRetryDialog({
             ),
             const SizedBox(height: 20),
             Text(
-              AppLocalizations.of(ctx)!.lessonNotYet,
+              AppStrings.lessonNotYet,
               style: theme.textTheme.headlineSmall
                   ?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             Text(
-              AppLocalizations.of(ctx)!.lessonMasteryMessage(correct, total, accuracyPercent),
+              AppStrings.lessonMasteryMessage(correct, total, accuracyPercent),
               style: theme.textTheme.bodyMedium,
               textAlign: TextAlign.center,
             ),
@@ -583,7 +588,7 @@ Future<MasteryDialogResult?> showMasteryRetryDialog({
                 onPressed: () =>
                     Navigator.of(ctx).pop(MasteryDialogResult.retry),
                 child: Text(
-                  AppLocalizations.of(ctx)!.lessonTryAgain,
+                  AppStrings.lessonTryAgain,
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                 ),
               ),
@@ -592,7 +597,7 @@ Future<MasteryDialogResult?> showMasteryRetryDialog({
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(MasteryDialogResult.back),
               child: Text(
-                AppLocalizations.of(ctx)!.lessonBackToCourses,
+                AppStrings.lessonBackToCourses,
                 style: theme.textTheme.bodyMedium?.copyWith(
                       color: VarnamalaTheme.textHint,
                       fontWeight: FontWeight.w500,

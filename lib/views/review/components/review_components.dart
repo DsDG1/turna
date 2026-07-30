@@ -1,16 +1,23 @@
 import 'package:flutter/material.dart';
 
 import 'package:varnamala/core/sm2.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/theme.dart';
 
+/// Binary rating bar only: 不认识 / 认识.
+/// Optional [failPreview] / [passPreview] show FSRS interval chips (ADR 0028).
 class ReviewRatingBar extends StatelessWidget {
   final ValueChanged<ReviewGrade> onRate;
   final String prompt;
+  final String? failPreview;
+  final String? passPreview;
 
   const ReviewRatingBar({
     super.key,
     required this.onRate,
     this.prompt = 'Do you know this word?',
+    this.failPreview,
+    this.passPreview,
   });
 
   @override
@@ -21,7 +28,8 @@ class ReviewRatingBar extends StatelessWidget {
           children: [
             Expanded(
               child: _RateButton(
-                label: "Don't know",
+                label: AppStrings.reviewDontKnow,
+                subtitle: failPreview ?? AppStrings.srsPreviewUnknown,
                 color: VarnamalaTheme.error,
                 onTap: () => onRate(ReviewGrade.unknown),
               ),
@@ -29,7 +37,8 @@ class ReviewRatingBar extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: _RateButton(
-                label: 'Know it',
+                label: AppStrings.reviewKnowIt,
+                subtitle: passPreview,
                 color: VarnamalaTheme.success,
                 onTap: () => onRate(ReviewGrade.known),
               ),
@@ -50,6 +59,7 @@ class ReviewRatingBar extends StatelessWidget {
 
 class _RateButton extends StatelessWidget {
   final String label;
+  final String? subtitle;
   final Color color;
   final VoidCallback onTap;
 
@@ -57,6 +67,7 @@ class _RateButton extends StatelessWidget {
     required this.label,
     required this.color,
     required this.onTap,
+    this.subtitle,
   });
 
   @override
@@ -68,15 +79,31 @@ class _RateButton extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 14),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
           alignment: Alignment.center,
-          child: Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.w800,
-              fontSize: 14,
-            ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                ),
+              ),
+              if (subtitle != null && subtitle!.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  subtitle!,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: color.withValues(alpha: 0.9),
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ],
+            ],
           ),
         ),
       ),
@@ -96,7 +123,7 @@ class ReviewEmptyState extends StatelessWidget {
     required this.onRefresh,
     required this.dueCount,
     this.title = 'Review',
-    this.emptyMessage = 'You\'ve reviewed everything for now.',
+    this.emptyMessage = "You've reviewed everything for now.",
     this.dueMessage = 'words are already due — pull to refresh',
   });
 
@@ -115,7 +142,7 @@ class ReviewEmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'No items due for review',
+              AppStrings.reviewEmptyTitle,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w800,
                   ),
@@ -123,8 +150,9 @@ class ReviewEmptyState extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               dueCount > 0
-                  ? '$dueCount $dueMessage'
+                  ? AppStrings.reviewDueCountMessage(dueCount, dueMessage)
                   : emptyMessage,
+              textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: VarnamalaTheme.textSecondaryColor(context),
                   ),
@@ -133,7 +161,7 @@ class ReviewEmptyState extends StatelessWidget {
             ElevatedButton.icon(
               onPressed: onRefresh,
               icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Refresh'),
+              label: Text(AppStrings.commonRefresh),
             ),
           ],
         ),
@@ -167,7 +195,7 @@ class ReviewCompletionState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Review')),
+      appBar: AppBar(title: Text(AppStrings.reviewEmptyTitle)),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -197,7 +225,7 @@ class ReviewCompletionState extends StatelessWidget {
                 [
                   if (xpEarned > 0) '+$xpEarned XP',
                   if (gemsEarned > 0) '+$gemsEarned Gems',
-                ].join('  \u00B7  '),
+                ].join('  ·  '),
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w800,
                       color: VarnamalaTheme.peacockTeal,
@@ -210,14 +238,14 @@ class ReviewCompletionState extends StatelessWidget {
               children: [
                 ElevatedButton(
                   onPressed: onDone,
-                  child: const Text('Done'),
+                  child: Text(AppStrings.commonDone),
                 ),
                 const SizedBox(width: 12),
                 if (dueCount > 0)
                   ElevatedButton.icon(
                     onPressed: onReviewMore,
                     icon: const Icon(Icons.refresh_rounded),
-                    label: const Text('Review More'),
+                    label: Text(AppStrings.commonRefresh),
                   ),
               ],
             ),

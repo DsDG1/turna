@@ -8,6 +8,8 @@ import 'package:varnamala/application/srs_provider.dart';
 import 'package:varnamala/service/locator.dart';
 import 'package:varnamala/views/theme.dart';
 
+import '../helpers/in_memory_course_db.dart';
+
 /// Lightweight empty-state stand-in for SRS review (full page needs AudioController DI).
 class _SrsEmptyReviewBody extends StatelessWidget {
   const _SrsEmptyReviewBody();
@@ -43,9 +45,10 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(400, 600));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
+    final srsDao = emptySrsStateDao();
     await tester.pumpWidget(
       ChangeNotifierProvider(
-        create: (_) => SrsProvider(prefs, LessonLinkStore(prefs)),
+        create: (_) => SrsProvider(prefs, LessonLinkStore(prefs), srsDao),
         child: MaterialApp(
           theme: VarnamalaTheme.lightTheme,
           darkTheme: VarnamalaTheme.darkTheme,

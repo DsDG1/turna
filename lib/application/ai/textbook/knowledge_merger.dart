@@ -4,13 +4,46 @@ import 'package:varnamala/application/ai/textbook/knowledge_schema.dart';
 /// Collision resolution strategies when importing a textbook section.
 enum ImportStrategy { merge, skipExisting, forceReplace, appendAsNew }
 
+/// Structured collision report for UI / previews.
+class CollisionReport {
+  const CollisionReport({
+    this.newWords = 0,
+    this.newExpressions = 0,
+    this.newGrammar = 0,
+    this.duplicateWords = 0,
+    this.duplicateExpressions = 0,
+    this.duplicateGrammar = 0,
+  });
+
+  final int newWords;
+  final int newExpressions;
+  final int newGrammar;
+  final int duplicateWords;
+  final int duplicateExpressions;
+  final int duplicateGrammar;
+
+  int get totalNew => newWords + newExpressions + newGrammar;
+  int get totalDuplicates =>
+      duplicateWords + duplicateExpressions + duplicateGrammar;
+
+  /// Legacy map shape (for older call sites).
+  Map<String, int> toMap() => {
+        'newWords': newWords,
+        'newExpressions': newExpressions,
+        'newGrammar': newGrammar,
+        'duplicateWords': duplicateWords,
+        'duplicateExpressions': duplicateExpressions,
+        'duplicateGrammar': duplicateGrammar,
+      };
+}
+
 /// Analyzes and resolves collisions between extracted textbook knowledge and
 /// existing course resources. Mirrors `tool/gui/src/backend/knowledge_merger.py`.
 class KnowledgeMerger {
   const KnowledgeMerger();
 
   /// Returns a collision report without mutating [results].
-  Map<String, int> analyze(
+  CollisionReport analyze(
     List<ChapterResult> results, {
     required Set<String> existingWordIds,
     required Set<String> existingExpressionIds,
@@ -28,6 +61,7 @@ class KnowledgeMerger {
       final k = result.knowledge!;
       for (final w in k.words) {
         final id = w['id']?.toString() ?? '';
+        if (id.isEmpty) continue;
         if (existingWordIds.contains(id)) {
           duplicateWords++;
         } else {
@@ -36,6 +70,7 @@ class KnowledgeMerger {
       }
       for (final e in k.expressions) {
         final id = e['id']?.toString() ?? '';
+        if (id.isEmpty) continue;
         if (existingExpressionIds.contains(id)) {
           duplicateExpressions++;
         } else {
@@ -44,6 +79,7 @@ class KnowledgeMerger {
       }
       for (final g in k.grammarPoints) {
         final id = g['id']?.toString() ?? '';
+        if (id.isEmpty) continue;
         if (existingGrammarIds.contains(id)) {
           duplicateGrammar++;
         } else {
@@ -52,18 +88,22 @@ class KnowledgeMerger {
       }
     }
 
-    return {
-      'newWords': newWords,
-      'newExpressions': newExpressions,
-      'newGrammar': newGrammar,
-      'duplicateWords': duplicateWords,
-      'duplicateExpressions': duplicateExpressions,
-      'duplicateGrammar': duplicateGrammar,
-    };
+    return CollisionReport(
+      newWords: newWords,
+      newExpressions: newExpressions,
+      newGrammar: newGrammar,
+      duplicateWords: duplicateWords,
+      duplicateExpressions: duplicateExpressions,
+      duplicateGrammar: duplicateGrammar,
+    );
   }
 
-  /// Applies [strategy] to [results]. For the MVP, only [merge] and
-  /// [appendAsNew] are fully implemented.
+  /// Applies [strategy] to [results] (mutates knowledge maps in place).
+  ///
+  /// - [ImportStrategy.skipExisting]: drop resources whose ids already exist.
+  /// - [ImportStrategy.appendAsNew]: suffix all resource ids for uniqueness.
+  /// - [ImportStrategy.merge] / [ImportStrategy.forceReplace]: keep ids; DB
+  ///   upsert handles overwrites for forceReplace at section level.
   void apply(
     List<ChapterResult> results, {
     required ImportStrategy strategy,
@@ -116,7 +156,6 @@ class KnowledgeMerger {
       return;
     }
 
-    // merge and forceReplace keep IDs as-is; DB insertOnConflictUpdate handles
-    // overwrites for forceReplace.
+    // merge and forceReplace keep IDs as-is; section-level plan decides write.
   }
 }

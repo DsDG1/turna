@@ -32,6 +32,8 @@ import 'package:varnamala/domain/course/stage.dart';
 import 'package:varnamala/domain/study/study_log.dart';
 import 'package:varnamala/service/locator.dart';
 
+import '../helpers/in_memory_course_db.dart';
+
 class _PassthroughVocabResolver implements VocabAudioResolver {
   @override
   ResolvedVocabAudio resolve(String wordId) =>
@@ -138,6 +140,7 @@ Lesson _masteryLesson() {
 
 LessonViewModel _harness(AppPrefs prefs, Lesson lesson) {
   final linkStore = LessonLinkStore(prefs);
+  final srsDao = emptySrsStateDao();
   final gameProvider = GameProvider.forTesting(prefs);
   final gemsProvider = GemsProvider(prefs);
   final achievementsProvider = _FakeAchievementsProvider();
@@ -145,9 +148,9 @@ LessonViewModel _harness(AppPrefs prefs, Lesson lesson) {
   return LessonViewModel(
     _FakeCourseProvider(lesson),
     _FakeAudioController(),
-    SrsProvider(prefs, linkStore),
+    SrsProvider(prefs, linkStore, srsDao),
     MistakeProvider(prefs),
-    GrammarReviewProvider(prefs, linkStore),
+    GrammarReviewProvider(prefs, linkStore, srsDao),
     LessonCompletionCoordinator(
       gameProvider,
       gemsProvider,

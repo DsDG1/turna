@@ -34,6 +34,10 @@ class FakeStudyStatsProvider extends ChangeNotifier
   Future<int> getTotalRecordedReviews() async => 0;
 
   @override
+  Future<Map<String, int>> getAnkiActivityCounts() async =>
+      {'ankiLessons': 0, 'ankiReviews': 0};
+
+  @override
   Future<List<WeakWord>> getWeakWords({int limit = 10}) async => const [];
 
   @override

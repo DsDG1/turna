@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:varnamala/application/accessibility_provider.dart';
 import 'package:varnamala/views/settings/widgets/settings_common.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/theme.dart';
 
 /// A switch tile bound to [AccessibilityProvider], mirroring
@@ -37,15 +38,8 @@ class AccessibilityToggleTile extends StatelessWidget {
       icon: icon,
       title: title,
       subtitle: subtitle,
-      trailing: Switch.adaptive(
+      trailing: settingsAdaptiveSwitch(
         value: value,
-        activeTrackColor: VarnamalaTheme.peacockTeal,
-        thumbColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return VarnamalaTheme.peacockTeal;
-          }
-          return null;
-        }),
         onChanged: (newValue) =>
             onChanged(context.read<AccessibilityProvider>(), newValue),
       ),
@@ -54,13 +48,24 @@ class AccessibilityToggleTile extends StatelessWidget {
 }
 
 /// Slider tile (100%–200%, 5 steps) controlling [AccessibilityProvider.textScale].
-/// Mirrors [SettingsTtsSpeedTile]'s layout.
-class SettingsTextScaleTile extends StatelessWidget {
+///
+/// Local drag state avoids writing prefs and rebuilding [MaterialApp] on every
+/// frame (root shell watches [AccessibilityProvider.textScaler]).
+class SettingsTextScaleTile extends StatefulWidget {
   const SettingsTextScaleTile({super.key});
 
   @override
+  State<SettingsTextScaleTile> createState() => _SettingsTextScaleTileState();
+}
+
+class _SettingsTextScaleTileState extends State<SettingsTextScaleTile> {
+  int? _dragValue;
+
+  @override
   Widget build(BuildContext context) {
-    final acc = context.watch<AccessibilityProvider>();
+    final persisted =
+        context.select<AccessibilityProvider, int>((p) => p.textScale);
+    final value = _dragValue ?? persisted;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
@@ -89,13 +94,13 @@ class SettingsTextScaleTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Text size',
+                      AppStrings.settingsTextSizeTitle,
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
                     ),
                     Text(
-                      'Magnify text app-wide',
+                      AppStrings.settingsTextSizeSubtitle,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: VarnamalaTheme.textHintColor(context),
                           ),
@@ -104,7 +109,7 @@ class SettingsTextScaleTile extends StatelessWidget {
                 ),
               ),
               Text(
-                '${acc.textScale}%',
+                '$value%',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       color: VarnamalaTheme.peacockTeal,
                       fontWeight: FontWeight.w700,
@@ -116,13 +121,19 @@ class SettingsTextScaleTile extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(left: 52),
             child: Slider.adaptive(
-              value: acc.textScale.toDouble(),
+              value: value.toDouble(),
               min: 100,
               max: 200,
               divisions: 5,
               activeColor: VarnamalaTheme.peacockTeal,
               inactiveColor: VarnamalaTheme.dividerBg(context),
-              onChanged: (value) => acc.setTextScale(value.round()),
+              onChanged: (v) => setState(() => _dragValue = v.round()),
+              onChangeEnd: (v) async {
+                await context
+                    .read<AccessibilityProvider>()
+                    .setTextScale(v.round());
+                if (mounted) setState(() => _dragValue = null);
+              },
             ),
           ),
         ],
@@ -137,8 +148,8 @@ class SettingsReducedMotionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) => AccessibilityToggleTile(
         icon: Icons.animation_rounded,
-        title: 'Reduce motion',
-        subtitle: 'Shorten or disable animations and transitions',
+        title: AppStrings.settingsReduceMotionTitle,
+        subtitle: AppStrings.settingsReduceMotionSubtitle,
         valueSelector: (p) => p.reducedMotion,
         onChanged: (p, v) => p.setReducedMotion(v),
       );
@@ -150,8 +161,8 @@ class SettingsHighContrastTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) => AccessibilityToggleTile(
         icon: Icons.contrast_rounded,
-        title: 'High contrast',
-        subtitle: 'Use a high-contrast color theme',
+        title: AppStrings.settingsHighContrastTitle,
+        subtitle: AppStrings.settingsHighContrastSubtitle,
         valueSelector: (p) => p.highContrast,
         onChanged: (p, v) => p.setHighContrast(v),
       );
@@ -163,8 +174,8 @@ class SettingsDyslexiaFontTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) => AccessibilityToggleTile(
         icon: Icons.text_fields_rounded,
-        title: 'Dyslexia-friendly font',
-        subtitle: 'Switch to the Lexend typeface for easier reading',
+        title: AppStrings.settingsDyslexiaFontTitle,
+        subtitle: AppStrings.settingsDyslexiaFontSubtitle,
         valueSelector: (p) => p.dyslexiaFont,
         onChanged: (p, v) => p.setDyslexiaFont(v),
       );
@@ -176,8 +187,8 @@ class SettingsSensoryReduceTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) => AccessibilityToggleTile(
         icon: Icons.graphic_eq_rounded,
-        title: 'Reduce sensory input',
-        subtitle: 'Mute non-essential sounds and haptics',
+        title: AppStrings.settingsSensoryReduceTitle,
+        subtitle: AppStrings.settingsSensoryReduceSubtitle,
         valueSelector: (p) => p.sensoryReduce,
         onChanged: (p, v) => p.setSensoryReduce(v),
       );
@@ -189,8 +200,8 @@ class SettingsFocusModeTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) => AccessibilityToggleTile(
         icon: Icons.center_focus_strong_rounded,
-        title: 'Focus mode',
-        subtitle: 'Hide the rotating welcome animation on the home screen',
+        title: AppStrings.settingsFocusModeTitle,
+        subtitle: AppStrings.settingsFocusModeSubtitle,
         valueSelector: (p) => p.focusMode,
         onChanged: (p, v) => p.setFocusMode(v),
       );

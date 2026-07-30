@@ -27,4 +27,8 @@ const _$NotetypeMappingTypeEnumMap = {
   NotetypeMappingType.wordEntry: 'wordEntry',
   NotetypeMappingType.expression: 'expression',
   NotetypeMappingType.cloze: 'cloze',
+  NotetypeMappingType.multipleChoice: 'multipleChoice',
+  NotetypeMappingType.fillBlank: 'fillBlank',
+  NotetypeMappingType.typeAnswer: 'typeAnswer',
+  NotetypeMappingType.listenPick: 'listenPick',
 };

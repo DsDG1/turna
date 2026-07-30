@@ -7,13 +7,14 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/ai/ai_api_config.dart';
 import 'package:varnamala/application/ai/ai_course_provider.dart';
 import 'package:varnamala/application/ai/ai_course_spec.dart';
 import 'package:varnamala/application/ai/ai_genre.dart';
 import 'package:varnamala/application/ai/ai_wish_provider.dart';
+import 'package:varnamala/application/ai/engine/ai_engine_config.dart';
+import 'package:varnamala/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:varnamala/application/course_provider.dart';
-import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/ai/chat_bubble.dart';
 import 'package:varnamala/views/theme.dart';
 
@@ -63,7 +64,7 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
     super.dispose();
   }
 
-  AiApiConfig _config() => context.read<AiCourseProvider>().config;
+  AiEngineConfig _config() => context.read<AiEngineConfigHolder>().config;
 
   AiCourseSpec _buildSpec() => AiCourseSpec(
         language: _languageCtrl.text.trim().isEmpty
@@ -117,13 +118,13 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
       await context.read<CourseProvider>().reloadCourse();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.aiCourseSaved)),
+        SnackBar(content: Text(AppStrings.aiCourseSaved)),
       );
       context.router.maybePop();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.aiSaveFailed(e))),
+        SnackBar(content: Text(AppStrings.aiSaveFailed(e))),
       );
     }
   }
@@ -168,7 +169,7 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
                   Row(
                     children: [
                       Text(
-                        AppLocalizations.of(innerContext)!.aiCourseParametersTitle,
+                        AppStrings.aiCourseParametersTitle,
                         style: Theme.of(innerContext).textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w700,
                             ),
@@ -176,7 +177,7 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
                       const Spacer(),
                       IconButton(
                         icon: const Icon(Icons.close, size: 22),
-                        tooltip: AppLocalizations.of(innerContext)!.commonClose,
+                        tooltip: AppStrings.commonClose,
                         onPressed: () => Navigator.of(sheetContext).maybePop(),
                       ),
                     ],
@@ -198,7 +199,7 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
       backgroundColor: VarnamalaTheme.scaffoldBg(context),
       appBar: AppBar(
         title: Text(
-          AppLocalizations.of(context)!.aiCourseDesignerTitle,
+          AppStrings.aiCourseDesignerTitle,
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
@@ -207,7 +208,7 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.settings, size: 22),
-            tooltip: AppLocalizations.of(context)!.aiCourseParametersTooltip,
+            tooltip: AppStrings.aiCourseParametersTooltip,
             onPressed: _openCourseParamsSheet,
           ),
         ],
@@ -290,7 +291,7 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
               child: TextField(
                 controller: _languageCtrl,
                 decoration: InputDecoration(
-                  labelText: AppLocalizations.of(context)!.aiTargetLanguageLabel,
+                  labelText: AppStrings.aiTargetLanguageLabel,
                   isDense: true,
                   border: const OutlineInputBorder(),
                 ),
@@ -301,7 +302,7 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
               child: TextField(
                 controller: _sourceLanguageCtrl,
                 decoration: InputDecoration(
-                  labelText: AppLocalizations.of(context)!.aiSourceLanguageLabel,
+                  labelText: AppStrings.aiSourceLanguageLabel,
                   isDense: true,
                   border: const OutlineInputBorder(),
                 ),
@@ -313,7 +314,7 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
         TextField(
           controller: _topicCtrl,
           decoration: InputDecoration(
-            labelText: AppLocalizations.of(context)!.aiTopicLabel,
+            labelText: AppStrings.aiTopicLabel,
             isDense: true,
             border: const OutlineInputBorder(),
           ),
@@ -325,7 +326,7 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
               child: DropdownButtonFormField<String>(
                 value: _level,
                 decoration: InputDecoration(
-                  labelText: AppLocalizations.of(context)!.aiLevelLabel,
+                  labelText: AppStrings.aiLevelLabel,
                   isDense: true,
                   border: const OutlineInputBorder(),
                 ),
@@ -340,7 +341,7 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
               child: DropdownButtonFormField<int>(
                 value: _unitCount,
                 decoration: InputDecoration(
-                  labelText: AppLocalizations.of(context)!.aiUnitsLabel,
+                  labelText: AppStrings.aiUnitsLabel,
                   isDense: true,
                   border: const OutlineInputBorder(),
                 ),
@@ -355,7 +356,7 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
               child: DropdownButtonFormField<int>(
                 value: _lessonsPerUnit,
                 decoration: InputDecoration(
-                  labelText: AppLocalizations.of(context)!.aiLessonsPerUnitLabel,
+                  labelText: AppStrings.aiLessonsPerUnitLabel,
                   isDense: true,
                   border: const OutlineInputBorder(),
                 ),
@@ -376,7 +377,7 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
           value: _template,
           isExpanded: true,
           decoration: InputDecoration(
-            labelText: AppLocalizations.of(context)!.aiTemplateLabel,
+            labelText: AppStrings.aiTemplateLabel,
             isDense: true,
             border: const OutlineInputBorder(),
           ),
@@ -384,7 +385,7 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
               .map((t) => DropdownMenuItem(
                     value: t,
                     child: Text(
-                        '$t (${templateLabel(t, l10n: AppLocalizations.of(context))})',
+                        '$t (${templateLabel(t, l10n: AppStrings.instance)})',
                         overflow: TextOverflow.ellipsis),
                   ))
               .toList(),
@@ -401,11 +402,11 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(AppLocalizations.of(context)!.aiGenreBatchTitle,
+                    Text(AppStrings.aiGenreBatchTitle,
                         style: const TextStyle(fontWeight: FontWeight.w500)),
                     const SizedBox(height: 2),
                     Text(
-                      AppLocalizations.of(context)!.aiGenreBatchSubtitle,
+                      AppStrings.aiGenreBatchSubtitle,
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
@@ -428,11 +429,11 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(AppLocalizations.of(context)!.aiGroundedGenerationTitle,
+                    Text(AppStrings.aiGroundedGenerationTitle,
                         style: const TextStyle(fontWeight: FontWeight.w500)),
                     const SizedBox(height: 2),
                     Text(
-                      AppLocalizations.of(context)!.aiGroundedGenerationSubtitle,
+                      AppStrings.aiGroundedGenerationSubtitle,
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
@@ -450,7 +451,7 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
           controller: _extraCtrl,
           maxLines: 2,
           decoration: InputDecoration(
-            labelText: AppLocalizations.of(context)!.aiExtraInstructionsLabel,
+            labelText: AppStrings.aiExtraInstructionsLabel,
             isDense: true,
             border: const OutlineInputBorder(),
           ),
@@ -464,7 +465,7 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Text(
-          AppLocalizations.of(context)!.aiEmptyHintWish,
+          AppStrings.aiEmptyHintWish,
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodyMedium,
         ),
@@ -483,7 +484,7 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
           borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
         ),
         child: Text(
-          AppLocalizations.of(context)!.aiErrorBubble(error),
+          AppStrings.aiErrorBubble(error),
           style: const TextStyle(color: VarnamalaTheme.error),
         ),
       ),
@@ -499,14 +500,14 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            AppLocalizations.of(context)!.aiCourseGenerated,
+            AppStrings.aiCourseGenerated,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
           ),
           if (explanation != null && explanation.isNotEmpty) ...[
             const SizedBox(height: 8),
-            Text(AppLocalizations.of(context)!.aiAiExplanation(explanation)),
+            Text(AppStrings.aiAiExplanation(explanation)),
           ],
           const SizedBox(height: 8),
           Row(
@@ -515,7 +516,7 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
                 child: FilledButton.icon(
                   onPressed: _onSave,
                   icon: const Icon(Icons.save),
-                  label: Text(AppLocalizations.of(context)!.aiSaveToCourseTree),
+                  label: Text(AppStrings.aiSaveToCourseTree),
                 ),
               ),
             ],
@@ -538,7 +539,7 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
                   controller: _inputCtrl,
                   enabled: !busy && !generated,
                   decoration: InputDecoration(
-                    hintText: AppLocalizations.of(context)!.aiTypeIdea,
+                    hintText: AppStrings.aiTypeIdea,
                     border: const OutlineInputBorder(),
                     isDense: true,
                   ),
@@ -549,7 +550,7 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
               IconButton(
                 onPressed: busy || generated ? null : _onSend,
                 icon: const Icon(Icons.send),
-                tooltip: AppLocalizations.of(context)!.commonSend,
+                tooltip: AppStrings.commonSend,
               ),
             ],
           ),
@@ -679,7 +680,7 @@ class _SwipeConfirmBarState extends State<_SwipeConfirmBar>
                     // Centered label.
                     Center(
                       child: Text(
-                        atThreshold ? AppLocalizations.of(context)!.aiReleaseToFinalize : AppLocalizations.of(context)!.aiSwipeToFinalize,
+                        atThreshold ? AppStrings.aiReleaseToFinalize : AppStrings.aiSwipeToFinalize,
                         style: TextStyle(
                           color: _fraction > 0.5
                               ? Colors.white

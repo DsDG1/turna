@@ -312,8 +312,14 @@ extension InteractionPatterns on Interaction {
     TResult Function(String id, String wordId, String? context,
             String? grammarPointId, String? expressionId)?
         showWord,
-    TResult Function(String id, String prompt, List<String> options,
-            int correctIndex, String? imageAsset, String? grammarPointId)?
+    TResult Function(
+            String id,
+            String prompt,
+            List<String> options,
+            int correctIndex,
+            String? imageAsset,
+            List<String> audioAssets,
+            String? grammarPointId)?
         multipleChoice,
     TResult Function(
             String id,
@@ -325,7 +331,13 @@ extension InteractionPatterns on Interaction {
             String? imageAsset,
             String? grammarPointId)?
         multiSelect,
-    TResult Function(String id, String sentence, String answer, String? hint,
+    TResult Function(
+            String id,
+            String sentence,
+            String answer,
+            String? hint,
+            List<String> audioAssets,
+            List<String> imageAssets,
             String? grammarPointId)?
         fillBlank,
     TResult Function(String id, String source, String expected,
@@ -369,8 +381,14 @@ extension InteractionPatterns on Interaction {
         return showWord(_that.id, _that.wordId, _that.context,
             _that.grammarPointId, _that.expressionId);
       case MultipleChoice() when multipleChoice != null:
-        return multipleChoice(_that.id, _that.prompt, _that.options,
-            _that.correctIndex, _that.imageAsset, _that.grammarPointId);
+        return multipleChoice(
+            _that.id,
+            _that.prompt,
+            _that.options,
+            _that.correctIndex,
+            _that.imageAsset,
+            _that.audioAssets,
+            _that.grammarPointId);
       case MultiSelect() when multiSelect != null:
         return multiSelect(
             _that.id,
@@ -383,7 +401,7 @@ extension InteractionPatterns on Interaction {
             _that.grammarPointId);
       case FillBlank() when fillBlank != null:
         return fillBlank(_that.id, _that.sentence, _that.answer, _that.hint,
-            _that.grammarPointId);
+            _that.audioAssets, _that.imageAssets, _that.grammarPointId);
       case TranslateSentence() when translateSentence != null:
         return translateSentence(_that.id, _that.source, _that.expected,
             _that.hints, _that.grammarPointId);
@@ -434,8 +452,14 @@ extension InteractionPatterns on Interaction {
     required TResult Function(String id, String wordId, String? context,
             String? grammarPointId, String? expressionId)
         showWord,
-    required TResult Function(String id, String prompt, List<String> options,
-            int correctIndex, String? imageAsset, String? grammarPointId)
+    required TResult Function(
+            String id,
+            String prompt,
+            List<String> options,
+            int correctIndex,
+            String? imageAsset,
+            List<String> audioAssets,
+            String? grammarPointId)
         multipleChoice,
     required TResult Function(
             String id,
@@ -447,8 +471,14 @@ extension InteractionPatterns on Interaction {
             String? imageAsset,
             String? grammarPointId)
         multiSelect,
-    required TResult Function(String id, String sentence, String answer,
-            String? hint, String? grammarPointId)
+    required TResult Function(
+            String id,
+            String sentence,
+            String answer,
+            String? hint,
+            List<String> audioAssets,
+            List<String> imageAssets,
+            String? grammarPointId)
         fillBlank,
     required TResult Function(String id, String source, String expected,
             List<String> hints, String? grammarPointId)
@@ -490,8 +520,14 @@ extension InteractionPatterns on Interaction {
         return showWord(_that.id, _that.wordId, _that.context,
             _that.grammarPointId, _that.expressionId);
       case MultipleChoice():
-        return multipleChoice(_that.id, _that.prompt, _that.options,
-            _that.correctIndex, _that.imageAsset, _that.grammarPointId);
+        return multipleChoice(
+            _that.id,
+            _that.prompt,
+            _that.options,
+            _that.correctIndex,
+            _that.imageAsset,
+            _that.audioAssets,
+            _that.grammarPointId);
       case MultiSelect():
         return multiSelect(
             _that.id,
@@ -504,7 +540,7 @@ extension InteractionPatterns on Interaction {
             _that.grammarPointId);
       case FillBlank():
         return fillBlank(_that.id, _that.sentence, _that.answer, _that.hint,
-            _that.grammarPointId);
+            _that.audioAssets, _that.imageAssets, _that.grammarPointId);
       case TranslateSentence():
         return translateSentence(_that.id, _that.source, _that.expected,
             _that.hints, _that.grammarPointId);
@@ -552,8 +588,14 @@ extension InteractionPatterns on Interaction {
     TResult? Function(String id, String wordId, String? context,
             String? grammarPointId, String? expressionId)?
         showWord,
-    TResult? Function(String id, String prompt, List<String> options,
-            int correctIndex, String? imageAsset, String? grammarPointId)?
+    TResult? Function(
+            String id,
+            String prompt,
+            List<String> options,
+            int correctIndex,
+            String? imageAsset,
+            List<String> audioAssets,
+            String? grammarPointId)?
         multipleChoice,
     TResult? Function(
             String id,
@@ -565,7 +607,13 @@ extension InteractionPatterns on Interaction {
             String? imageAsset,
             String? grammarPointId)?
         multiSelect,
-    TResult? Function(String id, String sentence, String answer, String? hint,
+    TResult? Function(
+            String id,
+            String sentence,
+            String answer,
+            String? hint,
+            List<String> audioAssets,
+            List<String> imageAssets,
             String? grammarPointId)?
         fillBlank,
     TResult? Function(String id, String source, String expected,
@@ -608,8 +656,14 @@ extension InteractionPatterns on Interaction {
         return showWord(_that.id, _that.wordId, _that.context,
             _that.grammarPointId, _that.expressionId);
       case MultipleChoice() when multipleChoice != null:
-        return multipleChoice(_that.id, _that.prompt, _that.options,
-            _that.correctIndex, _that.imageAsset, _that.grammarPointId);
+        return multipleChoice(
+            _that.id,
+            _that.prompt,
+            _that.options,
+            _that.correctIndex,
+            _that.imageAsset,
+            _that.audioAssets,
+            _that.grammarPointId);
       case MultiSelect() when multiSelect != null:
         return multiSelect(
             _that.id,
@@ -622,7 +676,7 @@ extension InteractionPatterns on Interaction {
             _that.grammarPointId);
       case FillBlank() when fillBlank != null:
         return fillBlank(_that.id, _that.sentence, _that.answer, _that.hint,
-            _that.grammarPointId);
+            _that.audioAssets, _that.imageAssets, _that.grammarPointId);
       case TranslateSentence() when translateSentence != null:
         return translateSentence(_that.id, _that.source, _that.expected,
             _that.hints, _that.grammarPointId);
@@ -788,9 +842,11 @@ class MultipleChoice implements Interaction {
       required final List<String> options,
       required this.correctIndex,
       this.imageAsset,
+      final List<String> audioAssets = const <String>[],
       this.grammarPointId,
       final String? $type})
       : _options = options,
+        _audioAssets = audioAssets,
         $type = $type ?? 'multipleChoice';
   factory MultipleChoice.fromJson(Map<String, dynamic> json) =>
       _$MultipleChoiceFromJson(json);
@@ -808,6 +864,14 @@ class MultipleChoice implements Interaction {
 
   final int correctIndex;
   final String? imageAsset;
+  final List<String> _audioAssets;
+  @JsonKey()
+  List<String> get audioAssets {
+    if (_audioAssets is EqualUnmodifiableListView) return _audioAssets;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_audioAssets);
+  }
+
   final String? grammarPointId;
 
   @JsonKey(name: 'runtimeType')
@@ -840,6 +904,8 @@ class MultipleChoice implements Interaction {
                 other.correctIndex == correctIndex) &&
             (identical(other.imageAsset, imageAsset) ||
                 other.imageAsset == imageAsset) &&
+            const DeepCollectionEquality()
+                .equals(other._audioAssets, _audioAssets) &&
             (identical(other.grammarPointId, grammarPointId) ||
                 other.grammarPointId == grammarPointId));
   }
@@ -853,11 +919,12 @@ class MultipleChoice implements Interaction {
       const DeepCollectionEquality().hash(_options),
       correctIndex,
       imageAsset,
+      const DeepCollectionEquality().hash(_audioAssets),
       grammarPointId);
 
   @override
   String toString() {
-    return 'Interaction.multipleChoice(id: $id, prompt: $prompt, options: $options, correctIndex: $correctIndex, imageAsset: $imageAsset, grammarPointId: $grammarPointId)';
+    return 'Interaction.multipleChoice(id: $id, prompt: $prompt, options: $options, correctIndex: $correctIndex, imageAsset: $imageAsset, audioAssets: $audioAssets, grammarPointId: $grammarPointId)';
   }
 }
 
@@ -875,6 +942,7 @@ abstract mixin class $MultipleChoiceCopyWith<$Res>
       List<String> options,
       int correctIndex,
       String? imageAsset,
+      List<String> audioAssets,
       String? grammarPointId});
 }
 
@@ -896,6 +964,7 @@ class _$MultipleChoiceCopyWithImpl<$Res>
     Object? options = null,
     Object? correctIndex = null,
     Object? imageAsset = freezed,
+    Object? audioAssets = null,
     Object? grammarPointId = freezed,
   }) {
     return _then(MultipleChoice(
@@ -919,6 +988,10 @@ class _$MultipleChoiceCopyWithImpl<$Res>
           ? _self.imageAsset
           : imageAsset // ignore: cast_nullable_to_non_nullable
               as String?,
+      audioAssets: null == audioAssets
+          ? _self._audioAssets
+          : audioAssets // ignore: cast_nullable_to_non_nullable
+              as List<String>,
       grammarPointId: freezed == grammarPointId
           ? _self.grammarPointId
           : grammarPointId // ignore: cast_nullable_to_non_nullable
@@ -1113,9 +1186,13 @@ class FillBlank implements Interaction {
       required this.sentence,
       required this.answer,
       this.hint,
+      final List<String> audioAssets = const <String>[],
+      final List<String> imageAssets = const <String>[],
       this.grammarPointId,
       final String? $type})
-      : $type = $type ?? 'fillBlank';
+      : _audioAssets = audioAssets,
+        _imageAssets = imageAssets,
+        $type = $type ?? 'fillBlank';
   factory FillBlank.fromJson(Map<String, dynamic> json) =>
       _$FillBlankFromJson(json);
 
@@ -1125,6 +1202,22 @@ class FillBlank implements Interaction {
   final String sentence;
   final String answer;
   final String? hint;
+  final List<String> _audioAssets;
+  @JsonKey()
+  List<String> get audioAssets {
+    if (_audioAssets is EqualUnmodifiableListView) return _audioAssets;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_audioAssets);
+  }
+
+  final List<String> _imageAssets;
+  @JsonKey()
+  List<String> get imageAssets {
+    if (_imageAssets is EqualUnmodifiableListView) return _imageAssets;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_imageAssets);
+  }
+
   final String? grammarPointId;
 
   @JsonKey(name: 'runtimeType')
@@ -1155,18 +1248,29 @@ class FillBlank implements Interaction {
                 other.sentence == sentence) &&
             (identical(other.answer, answer) || other.answer == answer) &&
             (identical(other.hint, hint) || other.hint == hint) &&
+            const DeepCollectionEquality()
+                .equals(other._audioAssets, _audioAssets) &&
+            const DeepCollectionEquality()
+                .equals(other._imageAssets, _imageAssets) &&
             (identical(other.grammarPointId, grammarPointId) ||
                 other.grammarPointId == grammarPointId));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, id, sentence, answer, hint, grammarPointId);
+  int get hashCode => Object.hash(
+      runtimeType,
+      id,
+      sentence,
+      answer,
+      hint,
+      const DeepCollectionEquality().hash(_audioAssets),
+      const DeepCollectionEquality().hash(_imageAssets),
+      grammarPointId);
 
   @override
   String toString() {
-    return 'Interaction.fillBlank(id: $id, sentence: $sentence, answer: $answer, hint: $hint, grammarPointId: $grammarPointId)';
+    return 'Interaction.fillBlank(id: $id, sentence: $sentence, answer: $answer, hint: $hint, audioAssets: $audioAssets, imageAssets: $imageAssets, grammarPointId: $grammarPointId)';
   }
 }
 
@@ -1182,6 +1286,8 @@ abstract mixin class $FillBlankCopyWith<$Res>
       String sentence,
       String answer,
       String? hint,
+      List<String> audioAssets,
+      List<String> imageAssets,
       String? grammarPointId});
 }
 
@@ -1201,6 +1307,8 @@ class _$FillBlankCopyWithImpl<$Res> implements $FillBlankCopyWith<$Res> {
     Object? sentence = null,
     Object? answer = null,
     Object? hint = freezed,
+    Object? audioAssets = null,
+    Object? imageAssets = null,
     Object? grammarPointId = freezed,
   }) {
     return _then(FillBlank(
@@ -1220,6 +1328,14 @@ class _$FillBlankCopyWithImpl<$Res> implements $FillBlankCopyWith<$Res> {
           ? _self.hint
           : hint // ignore: cast_nullable_to_non_nullable
               as String?,
+      audioAssets: null == audioAssets
+          ? _self._audioAssets
+          : audioAssets // ignore: cast_nullable_to_non_nullable
+              as List<String>,
+      imageAssets: null == imageAssets
+          ? _self._imageAssets
+          : imageAssets // ignore: cast_nullable_to_non_nullable
+              as List<String>,
       grammarPointId: freezed == grammarPointId
           ? _self.grammarPointId
           : grammarPointId // ignore: cast_nullable_to_non_nullable

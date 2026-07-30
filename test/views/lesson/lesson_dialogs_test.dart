@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:varnamala/application/lesson_viewmodel.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/lesson/components/lesson_dialogs.dart';
 
 void main() {
@@ -22,6 +23,8 @@ void main() {
     }) async {
       await tester.pumpWidget(
         MaterialApp(
+          
+          
           home: Builder(
             builder: (context) {
               return Scaffold(
@@ -58,7 +61,13 @@ void main() {
     testWidgets('shows a celebration title', (tester) async {
       await openDialog(tester);
 
-      final titles = lessonCelebrationStyles.map((s) => s.title).toList();
+      // Celebration titles are localized (keyed off styleIndex) rather than
+      // stored on LessonCelebrationStyle, so resolve them via AppStrings.
+      final titles = [
+        AppStrings.lessonCompleteTitle1,
+        AppStrings.lessonCompleteTitle2,
+        AppStrings.lessonCompleteTitle3,
+      ];
       expect(
         titles.any((t) => find.text(t).evaluate().isNotEmpty),
         isTrue,
@@ -75,13 +84,13 @@ void main() {
         xpEarned: 10,
       );
 
-      expect(find.text('Correct'), findsOneWidget);
-      expect(find.text('Wrong'), findsOneWidget);
-      expect(find.text('Time'), findsOneWidget);
-      expect(find.text('XP'), findsOneWidget);
+      expect(find.text('正确'), findsOneWidget);
+      expect(find.text('错误'), findsOneWidget);
+      expect(find.text('用时'), findsOneWidget);
+      expect(find.text('经验值'), findsOneWidget);
       expect(find.text('7'), findsOneWidget);
       expect(find.text('3'), findsOneWidget);
-      expect(find.text('2m 05s'), findsOneWidget);
+      expect(find.text('2分5秒'), findsOneWidget);
       expect(find.text('10'), findsOneWidget);
     });
 
@@ -94,7 +103,7 @@ void main() {
       );
 
       expect(find.text('80%'), findsOneWidget);
-      expect(find.text('accuracy'), findsOneWidget);
+      expect(find.text('正确率'), findsOneWidget);
     });
 
     testWidgets('shows perfect badge when wasPerfect is true', (tester) async {
@@ -106,7 +115,7 @@ void main() {
         wasPerfect: true,
       );
 
-      expect(find.text('Perfect lesson! All answers correct.'), findsOneWidget);
+      expect(find.text('完美！全部答对。'), findsOneWidget);
     });
 
     testWidgets('lists question results with correct status', (tester) async {
@@ -126,21 +135,21 @@ void main() {
         ],
       );
 
-      expect(find.text('Answer breakdown'), findsOneWidget);
+      expect(find.text('答题明细'), findsOneWidget);
       expect(find.text('1. Habari'), findsOneWidget);
       expect(find.text('2. Asante'), findsOneWidget);
       expect(find.text('3. Jambo'), findsOneWidget);
-      expect(find.text('Answer: Asante sana'), findsOneWidget);
+      expect(find.text('答案：Asante sana'), findsOneWidget);
     });
 
     testWidgets('dismisses on Continue tap', (tester) async {
       await openDialog(tester);
 
-      expect(find.text('Continue'), findsOneWidget);
-      await tester.tap(find.text('Continue'));
+      expect(find.text('继续'), findsOneWidget);
+      await tester.tap(find.text('继续'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Continue'), findsNothing);
+      expect(find.text('继续'), findsNothing);
     });
   });
 }

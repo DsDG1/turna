@@ -147,6 +147,8 @@ class _FakeCourseProvider extends CourseProvider {
 void main() {
   Widget pumpTree(CourseProvider courseProvider) {
     return MaterialApp(
+      
+      
       home: MultiProvider(
         providers: [
           ChangeNotifierProvider<CourseProvider>.value(value: courseProvider),
@@ -169,9 +171,9 @@ void main() {
 
       await tester.pumpWidget(pumpTree(provider));
 
-      expect(find.text('Loading courses...'), findsOneWidget);
-      expect(find.text('No units available'), findsNothing);
-      expect(find.text('Retry'), findsNothing);
+      expect(find.text('正在加载课程…'), findsOneWidget);
+      expect(find.text('暂无可用单元'), findsNothing);
+      expect(find.text('重试'), findsNothing);
       // loading is not initial — defensive ensure must not fire
       await tester.pump();
       expect(provider.ensureCalledFor, isEmpty);
@@ -186,9 +188,9 @@ void main() {
 
       await tester.pumpWidget(pumpTree(provider));
 
-      expect(find.text('No units available'), findsOneWidget);
-      expect(find.text('Loading courses...'), findsNothing);
-      expect(find.text('Retry'), findsNothing);
+      expect(find.text('暂无可用单元'), findsOneWidget);
+      expect(find.text('正在加载课程…'), findsNothing);
+      expect(find.text('重试'), findsNothing);
     });
 
     testWidgets('shows an error retry button when loading failed',
@@ -201,10 +203,10 @@ void main() {
 
       await tester.pumpWidget(pumpTree(provider));
 
-      expect(find.text('Could not load section'), findsOneWidget);
-      expect(find.text('Retry'), findsOneWidget);
-      expect(find.text('No units available'), findsNothing);
-      expect(find.text('Loading courses...'), findsNothing);
+      expect(find.text('无法加载章节'), findsOneWidget);
+      expect(find.text('重试'), findsOneWidget);
+      expect(find.text('暂无可用单元'), findsNothing);
+      expect(find.text('正在加载课程…'), findsNothing);
     });
 
     testWidgets(
@@ -218,12 +220,12 @@ void main() {
 
       await tester.pumpWidget(pumpTree(provider));
 
-      expect(find.text('Could not load course'), findsOneWidget);
-      expect(find.text('No course sections found.'), findsOneWidget);
-      expect(find.text('Retry'), findsOneWidget);
-      expect(find.text('Loading courses...'), findsNothing);
+      expect(find.text('无法加载课程'), findsOneWidget);
+      expect(find.text('未找到课程章节。'), findsOneWidget);
+      expect(find.text('重试'), findsOneWidget);
+      expect(find.text('正在加载课程…'), findsNothing);
 
-      await tester.tap(find.text('Retry'));
+      await tester.tap(find.text('重试'));
       await tester.pump();
       expect(provider.reloadCourseCalls, 1);
     });
@@ -239,8 +241,8 @@ void main() {
 
       await tester.pumpWidget(pumpTree(provider));
 
-      expect(find.text('Loading courses...'), findsOneWidget);
-      expect(find.text('Could not load course'), findsNothing);
+      expect(find.text('正在加载课程…'), findsOneWidget);
+      expect(find.text('无法加载课程'), findsNothing);
     });
 
     testWidgets(
@@ -252,7 +254,7 @@ void main() {
       );
 
       await tester.pumpWidget(pumpTree(provider));
-      expect(find.text('Loading courses...'), findsOneWidget);
+      expect(find.text('正在加载课程…'), findsOneWidget);
       // pumpWidget completes a frame, so the post-frame ensure may already
       // have run; an extra pump covers bindings that defer it.
       await tester.pump();
@@ -294,7 +296,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Unit One'), findsOneWidget);
-      expect(find.text('No units available'), findsNothing);
+      expect(find.text('暂无可用单元'), findsNothing);
     });
 
     testWidgets(

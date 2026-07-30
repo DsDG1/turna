@@ -7,8 +7,9 @@ import 'package:injectable/injectable.dart';
 // Project imports:
 import 'package:varnamala/core/text_styles.dart';
 import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:varnamala/views/lesson/components/lesson_practice_card.dart';
 import 'package:varnamala/views/theme.dart';
 
 /// Free-text translation. User types the translation of a source sentence.
@@ -115,13 +116,10 @@ class _TranslateBodyState extends State<_TranslateBody> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SectionCaption(AppLocalizations.of(context)!.lessonTranslateCaption),
-          Container(
+          SectionCaption(AppStrings.lessonTranslateCaption),
+          LessonPracticeCard(
+            variant: LessonPracticeCardVariant.surface,
             padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: VarnamalaTheme.tintLight,
-              borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-            ),
             child: Text(
               widget.source,
               style: AppTextStyles.promptLg(context).copyWith(
@@ -137,7 +135,7 @@ class _TranslateBodyState extends State<_TranslateBody> {
             minLines: 1,
             style: TextStyle(fontSize: 18, color: VarnamalaTheme.textPrimaryColor(context)),
             decoration: InputDecoration(
-              hintText: AppLocalizations.of(context)!.lessonTypeTranslation,
+              hintText: AppStrings.lessonTypeTranslation,
               filled: true,
               fillColor: submitted
                   ? (correct == true
@@ -174,7 +172,7 @@ class _TranslateBodyState extends State<_TranslateBody> {
           if (submitted && correct == false) ...[
             const SizedBox(height: 16),
             LessonCorrectAnswerBanner(
-                label: AppLocalizations.of(context)!.lessonCorrectTranslation, answer: widget.expected),
+                label: AppStrings.lessonCorrectTranslation, answer: widget.expected),
           ],
           const SizedBox(height: 24),
           ValueListenableBuilder<TextEditingValue>(
@@ -183,7 +181,7 @@ class _TranslateBodyState extends State<_TranslateBody> {
               final canSubmit =
                   !submitted && value.text.trim().isNotEmpty;
               return LessonCheckButton(
-                label: submitted ? AppLocalizations.of(context)!.lessonChecked : AppLocalizations.of(context)!.lessonCheck,
+                label: submitted ? AppStrings.lessonChecked : AppStrings.lessonCheck,
                 enabled: canSubmit,
                 onPressed: canSubmit ? _trySubmit : null,
               );

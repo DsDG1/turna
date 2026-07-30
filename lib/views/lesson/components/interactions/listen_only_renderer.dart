@@ -9,7 +9,7 @@ import 'package:varnamala/application/audio_controller.dart';
 import 'package:varnamala/core/text_styles.dart';
 import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:varnamala/views/theme.dart';
 
@@ -85,10 +85,10 @@ class _ListenOnlyBodyState extends State<_ListenOnlyBody> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SectionCaption(AppLocalizations.of(context)!.lessonSummaryCaption),
+          SectionCaption(AppStrings.lessonSummaryCaption),
           const SizedBox(height: 8),
           Text(
-            widget.prompt.isEmpty ? AppLocalizations.of(context)!.lessonListenToSummary : widget.prompt,
+            widget.prompt.isEmpty ? AppStrings.lessonListenToSummary : widget.prompt,
             style: AppTextStyles.promptMd(context),
             textAlign: TextAlign.center,
           ),
@@ -98,7 +98,7 @@ class _ListenOnlyBodyState extends State<_ListenOnlyBody> {
           ),
           const SizedBox(height: 12),
           Text(
-            _hasPlayed ? AppLocalizations.of(context)!.lessonTapToReplay : AppLocalizations.of(context)!.lessonTapToListen,
+            _hasPlayed ? AppStrings.lessonTapToReplay : AppStrings.lessonTapToListen,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: VarnamalaTheme.textHintColor(context),
                 ),
@@ -125,7 +125,7 @@ class _ListenOnlyBodyState extends State<_ListenOnlyBody> {
           ],
           const SizedBox(height: 28),
           LessonCheckButton(
-            label: submitted ? AppLocalizations.of(context)!.commonDone : AppLocalizations.of(context)!.lessonContinueUpper,
+            label: submitted ? AppStrings.commonDone : AppStrings.lessonContinueUpper,
             enabled: !submitted,
             onPressed: submitted
                 ? null

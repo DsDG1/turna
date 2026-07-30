@@ -11,6 +11,7 @@ import 'package:varnamala/application/settings_provider.dart';
 import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/service/tts_availability_checker.dart';
 import 'package:varnamala/views/settings/widgets/settings_common.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/theme.dart';
 
 class SettingsToggleTile extends StatelessWidget {
@@ -39,16 +40,10 @@ class SettingsToggleTile extends StatelessWidget {
       icon: icon,
       title: title,
       subtitle: subtitle,
-      trailing: Switch.adaptive(
+      trailing: settingsAdaptiveSwitch(
         value: value,
-        activeTrackColor: VarnamalaTheme.peacockTeal,
-        thumbColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return VarnamalaTheme.peacockTeal;
-          }
-          return null;
-        }),
-        onChanged: (newValue) => onChanged(context.read<SettingsProvider>(), newValue),
+        onChanged: (newValue) =>
+            onChanged(context.read<SettingsProvider>(), newValue),
       ),
     );
   }
@@ -85,21 +80,21 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
 
   String _subtitle() {
     if (_loading || _diagnostics == null) {
-      return 'Checking device TTS engines…';
+      return AppStrings.settingsTtsChecking;
     }
     final d = _diagnostics!;
     switch (d.preferredStatus) {
       case TtsPreferredStatus.ready:
         final locale = d.resolvedLocale ?? 'tr';
-        return 'Google TTS ready ($locale) — recommended for learning';
+        return AppStrings.settingsTtsReady(locale);
       case TtsPreferredStatus.turkishVoiceMissing:
         if (d.hasGoogleEngine) {
-          return 'Google installed — download Turkish voice data in system TTS settings';
+          return AppStrings.settingsTtsGoogleInstalledMissingVoice;
         }
-        return 'Turkish voice not ready — open system TTS settings';
+        return AppStrings.settingsTtsTurkishVoiceMissing;
       case TtsPreferredStatus.googleMissing:
         final oem = d.engines.isEmpty ? 'none listed' : d.engines.join(', ');
-        return 'Google TTS not detected (engines: $oem)';
+        return AppStrings.settingsTtsGoogleMissing(oem);
     }
   }
 
@@ -107,7 +102,7 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
   Widget build(BuildContext context) {
     return SettingsTile(
       icon: Icons.record_voice_over_rounded,
-      title: 'Voice source',
+      title: AppStrings.settingsVoiceSourceTitle,
       subtitle: _subtitle(),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
@@ -120,7 +115,7 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
             )
           else
             Text(
-              'System TTS',
+              AppStrings.settingsSystemTts,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: VarnamalaTheme.peacockTeal,
                     fontWeight: FontWeight.w700,
@@ -141,11 +136,11 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
     final selected = await showDialog<Object>(
       context: context,
       builder: (context) => SimpleDialog(
-        title: const Text('Voice source'),
+        title: Text(AppStrings.settingsVoiceSourceDialogTitle),
         children: [
           SimpleDialogOption(
             onPressed: () => Navigator.of(context).pop('preview'),
-            child: const Text('Play sample (Merhaba)…'),
+            child: Text(AppStrings.settingsPlaySample),
           ),
           SimpleDialogOption(
             onPressed: () async {
@@ -153,7 +148,7 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
               await getIt<TtsAvailabilityChecker>().openSystemTtsSettings();
               await _refreshDiagnostics();
             },
-            child: const Text('Open system TTS settings…'),
+            child: Text(AppStrings.settingsOpenSystemTts),
           ),
           SimpleDialogOption(
             onPressed: () async {
@@ -161,7 +156,7 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
               await getIt<TtsAvailabilityChecker>().openGoogleTtsInstallPage();
               await _refreshDiagnostics();
             },
-            child: const Text('Install / open Google TTS…'),
+            child: Text(AppStrings.settingsInstallGoogleTts),
           ),
         ],
       ),
@@ -183,10 +178,11 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
 
       String message;
       if (result.source == TtsSpeakSource.failed) {
-        message =
-            'No voice played. ${result.error ?? "Check logcat for TTS errors."}';
+        message = result.error != null
+            ? AppStrings.settingsTtsNoVoicePlayed(result.error!)
+            : AppStrings.settingsTtsNoVoicePlayedFallback;
       } else {
-        message = 'Playing: ${result.userLabel}';
+        message = AppStrings.settingsTtsPlaying(result.userLabel);
       }
       _showMessage(message.trim());
     } finally {

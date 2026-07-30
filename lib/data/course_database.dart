@@ -155,6 +155,61 @@ class AnkiImports extends Table {
   Set<Column> get primaryKey => {importId};
 }
 
+/// `srs_states` - one row per tracked SRS item ([SrsWord]), keyed by `wordId`.
+/// The durable store for SRS scheduling state (migrated from the old
+/// `StreamingSharedPreferences` JSON blob in v7). `queue` discriminates the
+/// owning queue (`'srs'` for words/expressions, `'grammar'` for grammar
+/// points) so the two [SrsQueueProvider] subclasses share one table while
+/// keeping their data isolated, mirroring the old separate prefs blobs.
+/// `dueAt` / `lastReviewedAt` are epoch milliseconds; `type` is the
+/// [SrsItemType] name (`'word'` / `'expression'`).
+class SrsStates extends Table {
+  TextColumn get wordId => text()();
+  TextColumn get queue => text()();
+  IntColumn get dueAt => integer()();
+  IntColumn get intervalDays => integer().withDefault(const Constant(1))();
+  RealColumn get ease => real().withDefault(const Constant(2.5))();
+  IntColumn get reps => integer().withDefault(const Constant(0))();
+  IntColumn get lapses => integer().withDefault(const Constant(0))();
+  BoolColumn get isLeech => boolean().withDefault(const Constant(false))();
+  TextColumn get type => text().withDefault(const Constant('word'))();
+  IntColumn get lastReviewedAt => integer().nullable()();
+  // FSRS continuous memory fields (ADR 0028 / schema v8). Nullable so rows
+  // created under SM-2 migrate lazily on first review.
+  RealColumn get stability => real().nullable()();
+  RealColumn get difficulty => real().nullable()();
+  IntColumn get fsrsState => integer().withDefault(const Constant(1))();
+  IntColumn get learningStep => integer().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {wordId};
+}
+
+/// `review_events` - one row per SRS review (the per-card history that powers
+/// the memory-curve / retention features). Written from
+/// [SrsQueueProvider.reviewItem] on every grade. `cardId` matches the
+/// `srs_states.wordId`; `queue` matches [SrsQueueProvider.queueId];
+/// `reviewedAt` is epoch milliseconds; `quality` is the SM-2 grade (0..5);
+/// `prev*`/`next*` capture the interval/ease transition; `type` is the
+/// [SrsItemType] name. Not purged - the forgetting-curve model needs full
+/// history.
+@TableIndex(name: 'review_events_card_idx', columns: {#cardId})
+@TableIndex(name: 'review_events_time_idx', columns: {#reviewedAt})
+class ReviewEvents extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get cardId => text()();
+  TextColumn get queue => text()();
+  IntColumn get reviewedAt => integer()();
+  IntColumn get quality => integer()();
+  IntColumn get prevIntervalDays => integer()();
+  IntColumn get nextIntervalDays => integer()();
+  RealColumn get prevEase => real()();
+  RealColumn get nextEase => real()();
+  IntColumn get reps => integer()();
+  IntColumn get lapses => integer()();
+  TextColumn get type => text().withDefault(const Constant('word'))();
+}
+
 @DriftDatabase(
   tables: [
     Sections,
@@ -166,13 +221,15 @@ class AnkiImports extends Table {
     CourseMeta,
     Expressions,
     AnkiImports,
+    SrsStates,
+    ReviewEvents,
   ],
 )
 class CourseDatabase extends _$CourseDatabase {
   CourseDatabase(QueryExecutor e) : super(e);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -198,6 +255,8 @@ class CourseDatabase extends _$CourseDatabase {
               'expressions',
               'course_meta',
               'anki_imports',
+              'srs_states',
+              'review_events',
             ]) {
               await m.deleteTable(tableName);
             }
@@ -234,6 +293,27 @@ class CourseDatabase extends _$CourseDatabase {
             // "Anki") so level-based filtering survives restarts.
             await m.createTable(ankiImports);
             await m.addColumn(sections, sections.level);
+          }
+          if (from < 7) {
+            // v7: SRS scheduling state moves from a SharedPreferences JSON blob
+            // to SQLite (`srs_states`), and a per-card review-history table
+            // (`review_events`) is added to power the memory-curve features.
+            // Both start empty; SRS state is backfilled from the old prefs keys
+            // by `SrsQueueProvider.ensureLoaded` (one-time, per queue).
+            await m.createTable(srsStates);
+            await m.createTable(reviewEvents);
+          }
+          if (from < 8) {
+            // v8: FSRS continuous memory fields on srs_states (ADR 0028).
+            // Only alter tables that already existed at v7. Upgrades from
+            // from < 7 create `srs_states` via createTable with the *current*
+            // table definition (already includes these columns).
+            if (from >= 7) {
+              await m.addColumn(srsStates, srsStates.stability);
+              await m.addColumn(srsStates, srsStates.difficulty);
+              await m.addColumn(srsStates, srsStates.fsrsState);
+              await m.addColumn(srsStates, srsStates.learningStep);
+            }
           }
         },
       );

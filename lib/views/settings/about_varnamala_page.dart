@@ -7,6 +7,8 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 // Project imports:
+import 'package:varnamala/l10n/app_strings.dart';
+import 'package:varnamala/views/settings/changelog_page.dart';
 import 'package:varnamala/views/theme.dart';
 
 /// Dedicated About page for Varnamala.
@@ -29,7 +31,7 @@ class AboutVarnamalaPage extends StatelessWidget {
       backgroundColor: VarnamalaTheme.scaffoldBg(context),
       appBar: AppBar(
         title: Text(
-          'About Varnamala',
+          AppStrings.aboutTitle,
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
@@ -42,13 +44,10 @@ class AboutVarnamalaPage extends StatelessWidget {
           children: [
             _BrandHeader(),
             const SizedBox(height: 24),
-            _sectionTitle(context, 'What is Varnamala', Icons.lightbulb_rounded),
+            _sectionTitle(context, AppStrings.aboutWhatIsTitle, Icons.lightbulb_rounded),
             _AboutCard(
               child: Text(
-                'Varnamala is a free, open-source language learning app focused '
-                'on helping you build real vocabulary and grammar skills — one '
-                'small step at a time. It keeps learning offline, distraction-free, '
-                'and under your control.',
+                AppStrings.aboutWhatIsBody,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       height: 1.5,
                       color: VarnamalaTheme.textSecondaryColor(context),
@@ -56,44 +55,40 @@ class AboutVarnamalaPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-            _sectionTitle(context, 'Highlights', Icons.auto_awesome_rounded),
-            const Row(
+            _sectionTitle(context, AppStrings.aboutHighlightsTitle, Icons.auto_awesome_rounded),
+            Row(
               children: [
                 Expanded(
                   child: _HighlightCard(
                     icon: Icons.cloud_off_rounded,
-                    title: 'Offline first',
-                    subtitle: 'Learn anywhere',
+                    title: AppStrings.aboutHighlightOfflineTitle,
+                    subtitle: AppStrings.aboutHighlightOfflineSubtitle,
                   ),
                 ),
-                SizedBox(width: 12),
+                const SizedBox(width: 12),
                 Expanded(
                   child: _HighlightCard(
                     icon: Icons.psychology_rounded,
-                    title: 'SRS review',
-                    subtitle: 'Remember more',
+                    title: AppStrings.aboutHighlightSrsTitle,
+                    subtitle: AppStrings.aboutHighlightSrsSubtitle,
                   ),
                 ),
-                SizedBox(width: 12),
+                const SizedBox(width: 12),
                 Expanded(
                   child: _HighlightCard(
                     icon: Icons.quiz_rounded,
-                    title: '11 interactions',
-                    subtitle: 'Practice all skills',
+                    title: AppStrings.aboutHighlightInteractionsTitle,
+                    subtitle: AppStrings.aboutHighlightInteractionsSubtitle,
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 24),
             _sectionTitle(
-                context, 'Privacy & local-first', Icons.lock_rounded),
+                context, AppStrings.aboutPrivacyTitle, Icons.lock_rounded),
             _AboutCard(
               child: Text(
-                'Everything you learn stays on this device. Varnamala has no '
-                'cloud backend, no account, and no tracking — your progress, '
-                'mistakes, and settings never leave your phone. Uninstalling '
-                'the app removes all of it. The only network access is optional '
-                '(opening external links or the AI tools you configure yourself).',
+                AppStrings.aboutPrivacyBody,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       height: 1.5,
                       color: VarnamalaTheme.textSecondaryColor(context),
@@ -102,16 +97,16 @@ class AboutVarnamalaPage extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             _sectionTitle(
-                context, 'Version & changelog', Icons.history_rounded),
-            const _VersionCard(),
+                context, AppStrings.aboutVersionTitle, Icons.history_rounded),
+            _VersionCard(),
             const SizedBox(height: 24),
-            _sectionTitle(context, 'Links', Icons.link_rounded),
+            _sectionTitle(context, AppStrings.aboutLinksTitle, Icons.link_rounded),
             _AboutCard(
               child: Column(
                 children: [
                   _LinkTile(
                     icon: Icons.code_rounded,
-                    title: 'Open source licenses',
+                    title: AppStrings.settingsOpenSourceLicenses,
                     onTap: () => showLicensePage(
                       context: context,
                       applicationName: 'Varnamala',
@@ -125,8 +120,8 @@ class AboutVarnamalaPage extends StatelessWidget {
                   ),
                   _LinkTile(
                     icon: Icons.open_in_new_rounded,
-                    title: 'Upstream project',
-                    subtitle: 'github.com/rshrc/Varnamala',
+                    title: AppStrings.aboutUpstreamTitle,
+                    subtitle: AppStrings.aboutUpstreamSubtitle,
                     onTap: () => _launchUrl(_upstreamUrl),
                   ),
                   Divider(
@@ -136,8 +131,8 @@ class AboutVarnamalaPage extends StatelessWidget {
                   ),
                   _LinkTile(
                     icon: Icons.bug_report_rounded,
-                    title: 'Report an issue',
-                    subtitle: 'GitHub Issues',
+                    title: AppStrings.aboutReportIssueTitle,
+                    subtitle: AppStrings.aboutReportIssueSubtitle,
                     onTap: () => _launchUrl(_issuesUrl),
                   ),
                   Divider(
@@ -147,8 +142,8 @@ class AboutVarnamalaPage extends StatelessWidget {
                   ),
                   _LinkTile(
                     icon: Icons.new_releases_rounded,
-                    title: 'View releases',
-                    subtitle: 'Changelog & downloads',
+                    title: AppStrings.aboutViewReleasesTitle,
+                    subtitle: AppStrings.aboutViewReleasesSubtitle,
                     onTap: () => _launchUrl(_releasesUrl),
                   ),
                   Divider(
@@ -158,21 +153,20 @@ class AboutVarnamalaPage extends StatelessWidget {
                   ),
                   _LinkTile(
                     icon: Icons.share_rounded,
-                    title: 'Share Varnamala',
+                    title: AppStrings.aboutShareTitle,
                     onTap: () => _shareApp(context),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 24),
-            _sectionTitle(context, 'Credits', Icons.favorite_rounded),
+            _sectionTitle(context, AppStrings.aboutCreditsTitle, Icons.favorite_rounded),
             _AboutCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Original framework by Rishi Banerjee and the Varnamala '
-                    'open-source community.',
+                    AppStrings.aboutCreditsOriginal,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           height: 1.5,
                           color: VarnamalaTheme.textSecondaryColor(context),
@@ -180,8 +174,7 @@ class AboutVarnamalaPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'This build is a local-first fork with additional '
-                    'accessibility settings and a focused course-authoring tool.',
+                    AppStrings.aboutCreditsFork,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           height: 1.5,
                           color: VarnamalaTheme.textSecondaryColor(context),
@@ -189,7 +182,7 @@ class AboutVarnamalaPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Licensed under the GNU General Public License v3.0.',
+                    AppStrings.aboutLicense,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: VarnamalaTheme.textHintColor(context),
                         ),
@@ -200,7 +193,7 @@ class AboutVarnamalaPage extends StatelessWidget {
             const SizedBox(height: 32),
             Center(
               child: Text(
-                '© $year Varnamala',
+                AppStrings.aboutCopyright(year.toString()),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: VarnamalaTheme.textHintColor(context),
                     ),
@@ -240,10 +233,7 @@ class AboutVarnamalaPage extends StatelessWidget {
   }
 
   Future<void> _shareApp(BuildContext context) async {
-    const String text =
-        'Check out Varnamala — a free, open-source language learning app! '
-        'https://github.com/rshrc/Varnamala';
-    await Share.share(text);
+    await Share.share(AppStrings.aboutShareText);
   }
 }
 
@@ -258,8 +248,8 @@ class _BrandHeader extends StatelessWidget {
         final version = snapshot.data?.version ?? _fallbackVersion;
         final buildNumber = snapshot.data?.buildNumber ?? '';
         final displayVersion = buildNumber.isEmpty
-            ? 'Version $version'
-            : 'Version $version ($buildNumber)';
+            ? AppStrings.aboutVersionLabel(version)
+            : AppStrings.aboutVersionWithBuild(version, buildNumber);
 
         return Container(
           width: double.infinity,
@@ -287,9 +277,9 @@ class _BrandHeader extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Varnamala',
-                style: TextStyle(
+              Text(
+                AppStrings.aboutBrandName,
+                style: const TextStyle(
                   color: VarnamalaTheme.textOnPrimary,
                   fontSize: 28,
                   fontWeight: FontWeight.w800,
@@ -298,7 +288,7 @@ class _BrandHeader extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'Learn languages, one step at a time.',
+                AppStrings.aboutTagline,
                 style: TextStyle(
                   color: VarnamalaTheme.textOnPrimary.withValues(alpha: 0.85),
                   fontSize: 14,
@@ -468,35 +458,15 @@ class _LinkTile extends StatelessWidget {
   }
 }
 
-/// Shows the installed version + build and an expandable changelog of the
-/// most recent milestones. Content is hard-coded so it works fully offline.
-class _VersionCard extends StatefulWidget {
+/// Shows the installed version + build and a link to the full offline changelog.
+class _VersionCard extends StatelessWidget {
   const _VersionCard();
-
-  @override
-  State<_VersionCard> createState() => _VersionCardState();
-}
-
-class _VersionCardState extends State<_VersionCard> {
-  bool _expanded = false;
-  late final Future<PackageInfo> _packageInfo = PackageInfo.fromPlatform();
-
-  static const _milestones = <(String, String)>[
-    ('future4 framework', 'Completed clean-architecture framework: DI '
-        'consolidation, audio/content decoupling, SRS queue base class, '
-        'GameProvider facade, integration tests, release pipeline.'),
-    ('Swahili → Turkish pivot', 'Migrated the target language to Turkish and '
-        'filled Section 1 with a real greetings lesson (8 words + 2 expressions).'),
-    ('Accessibility settings', 'Added neurodiversity-friendly options: text '
-        'size, reduced motion, high contrast, dyslexia-friendly font, '
-        'sensory reduction, and focus mode.'),
-  ];
 
   @override
   Widget build(BuildContext context) {
     return _AboutCard(
       child: FutureBuilder<PackageInfo>(
-        future: _packageInfo,
+        future: PackageInfo.fromPlatform(),
         builder: (context, snapshot) {
           final version = snapshot.data?.version ?? _fallbackVersion;
           final buildNumber = snapshot.data?.buildNumber ?? '';
@@ -506,68 +476,38 @@ class _VersionCardState extends State<_VersionCard> {
               Row(
                 children: [
                   Text(
-                    'Version $version',
+                    AppStrings.aboutVersionShort(version),
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           fontWeight: FontWeight.w700,
-                    ),
+                        ),
                   ),
                   if (buildNumber.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(left: 8),
                       child: Text(
-                        '($buildNumber)',
+                        AppStrings.aboutVersionBuild(buildNumber),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: VarnamalaTheme.textHintColor(context),
                             ),
                       ),
                     ),
-                  const Spacer(),
-                  TextButton(
-                    onPressed: () =>
-                        setState(() => _expanded = !_expanded),
-                    child: Text(_expanded ? 'Hide' : 'Show changelog'),
-                  ),
                 ],
               ),
               const SizedBox(height: 4),
               Text(
-                'For the full release history, see the GitHub releases page.',
+                AppStrings.aboutReleasesNote,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: VarnamalaTheme.textHintColor(context),
                     ),
               ),
-              AnimatedCrossFade(
-                duration: const Duration(milliseconds: 200),
-                crossFadeState: _expanded
-                    ? CrossFadeState.showSecond
-                    : CrossFadeState.showFirst,
-                firstChild: const SizedBox(width: double.infinity),
-                secondChild: Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      for (final entry in _milestones) ...[
-                        Text(
-                          entry.$1,
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                    color: VarnamalaTheme.peacockTeal,
-                                  ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          entry.$2,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                height: 1.5,
-                                color:
-                                    VarnamalaTheme.textSecondaryColor(context),
-                              ),
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-                    ],
+              const SizedBox(height: 8),
+              _LinkTile(
+                icon: Icons.history_edu_rounded,
+                title: AppStrings.aboutOpenChangelog,
+                subtitle: AppStrings.aboutOpenChangelogSubtitle,
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const ChangelogPage(),
                   ),
                 ),
               ),

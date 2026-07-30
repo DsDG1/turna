@@ -145,6 +145,30 @@ class VarnamalaTheme {
         ),
       ];
 
+  /// 「半拟物质感」大卡片: Anki / ShowWord / Reading 主卡专用.
+  /// 双层阴影 (远大 + 近小) 模拟光照下的悬浮磨砂面.
+  static List<BoxShadow> get elevatedCardShadow => [
+        BoxShadow(
+          color: peacockTeal.withValues(alpha: 0.10),
+          blurRadius: 24,
+          offset: const Offset(0, 10),
+        ),
+        BoxShadow(
+          color: peacockTeal.withValues(alpha: 0.06),
+          blurRadius: 4,
+          offset: const Offset(0, 2),
+        ),
+      ];
+
+  /// 选项条 / 输入框 / 副卡: 浅短阴影.
+  static List<BoxShadow> get raisedCardShadow => [
+        BoxShadow(
+          color: peacockTeal.withValues(alpha: 0.08),
+          blurRadius: 14,
+          offset: const Offset(0, 6),
+        ),
+      ];
+
   // BORDER RADIUS
   static const double radiusSmall = 8.0;
   static const double radiusMedium = 12.0;
@@ -159,6 +183,63 @@ class VarnamalaTheme {
   static final Color tintSoft = peacockTeal.withValues(alpha: 0.08);
   static final Color tintMedium = peacockTeal.withValues(alpha: 0.12);
   static final Color borderMuted = textHint.withValues(alpha: 0.25);
+
+  // FROSTED GLASS TOKENS
+  // 半拟物彩色玻璃质感所需的主题感知 helper。
+  // 调用方按 context 读取，自动适配浅/深色。
+  // light: 用高 alpha 白底保持亮堂；dark: 改为低 alpha 白底以避免死白。
+
+  /// 玻璃卡片底层白色霜面。
+  static Color glassSurface(BuildContext context) => _isDark(context)
+      ? Colors.white.withValues(alpha: 0.08)
+      : Colors.white.withValues(alpha: 0.55);
+
+  /// 玻璃卡片顶边白色高光。
+  static Color glassHighlight(BuildContext context) => _isDark(context)
+      ? Colors.white.withValues(alpha: 0.18)
+      : Colors.white.withValues(alpha: 0.70);
+
+  /// 玻璃卡片 1px 描边颜色。
+  static Color glassBorder(BuildContext context) => _isDark(context)
+      ? Colors.white.withValues(alpha: 0.15)
+      : Colors.white.withValues(alpha: 0.50);
+
+  /// 玻璃着色层：accent × 低 alpha，让每张卡读作对应色玻璃。
+  /// 浅深色均使用 0.22 alpha，深色模式下整体暗调由 [glassSurface] 和
+  /// [glassHighlight] 的深色分支承担，避免此处再分叉。
+  static Color glassAccentFill(Color accent) =>
+      accent.withValues(alpha: 0.22);
+
+  /// 玻璃阴影：双层（accent + 黑色微影），按深浅微调 alpha。
+  static List<BoxShadow> glassShadow(BuildContext context, Color accent) =>
+      _isDark(context)
+          ? [
+              BoxShadow(
+                color: accent.withValues(alpha: 0.22),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ]
+          : [
+              BoxShadow(
+                color: accent.withValues(alpha: 0.18),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ];
+
+  /// 玻璃徽章实色填充：badge 仍走 accent 实色，仅加 1px 高光描边和小阴影。
+  static Color glassBadgeFill(Color accent) => accent;
 
   // THEME-AWARE COLOR HELPERS
   // Use these instead of hard-coded Colors.white / Color(0xFF...) so widgets

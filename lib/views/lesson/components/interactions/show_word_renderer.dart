@@ -8,8 +8,9 @@ import 'package:injectable/injectable.dart';
 import 'package:varnamala/application/audio_controller.dart';
 import 'package:varnamala/courses/languages/vocab.dart';
 import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:varnamala/views/lesson/components/lesson_practice_card.dart';
 import 'package:varnamala/views/theme.dart';
 
 /// Flashcard introducing a vocabulary word.
@@ -92,14 +93,12 @@ class _ShowWordCard extends StatelessWidget {
         // already exposes a tap action; the speak buttons below carry their
         // own Semantics so they surface as distinct, labeled actions.
         child: Material(
-          color: VarnamalaTheme.cardBg(context),
-          elevation: 2,
-          shadowColor: VarnamalaTheme.peacockTeal.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+          color: Colors.transparent,
           child: InkWell(
             borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
             onTap: onTap,
-            child: Padding(
+            child: LessonPracticeCard(
+              variant: LessonPracticeCardVariant.surface,
               padding: const EdgeInsets.symmetric(
                   horizontal: 28, vertical: 48),
               child: Column(
@@ -111,7 +110,7 @@ class _ShowWordCard extends StatelessWidget {
                   // of the card's "continue" tap.
                   Semantics(
                     button: true,
-                    label: AppLocalizations.of(context)!.lessonSpeakTerm(term),
+                    label: AppStrings.lessonSpeakTerm(term),
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       onTap: () => audioController.speak(term),
@@ -150,7 +149,7 @@ class _ShowWordCard extends StatelessWidget {
                     const SizedBox(height: 20),
                     Semantics(
                       button: true,
-                      label: AppLocalizations.of(context)!.lessonSpeakContextSentence,
+                      label: AppStrings.lessonSpeakContextSentence,
                       child: GestureDetector(
                         behavior: HitTestBehavior.opaque,
                         onTap: () => audioController.speak(
@@ -194,7 +193,7 @@ class _ShowWordCard extends StatelessWidget {
                   ],
                   const SizedBox(height: 32),
                   Text(
-                    AppLocalizations.of(context)!.lessonTapToContinue,
+                    AppStrings.lessonTapToContinue,
                     style: TextStyle(
                       fontSize: 13,
                       color: VarnamalaTheme.textHintColor(context)
@@ -238,14 +237,12 @@ class _UnknownItemCard extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         child: Material(
-          color: VarnamalaTheme.cardBg(context),
-          elevation: 2,
-          shadowColor: VarnamalaTheme.peacockTeal.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+          color: Colors.transparent,
           child: InkWell(
             borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
             onTap: onTap,
-            child: Padding(
+            child: LessonPracticeCard(
+              variant: LessonPracticeCardVariant.surface,
               padding: const EdgeInsets.symmetric(
                   horizontal: 28, vertical: 48),
               child: Column(
@@ -258,7 +255,7 @@ class _UnknownItemCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    AppLocalizations.of(context)!.lessonItemNotLoaded,
+                    AppStrings.lessonItemNotLoaded,
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 16,
@@ -267,7 +264,7 @@ class _UnknownItemCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 24),
                   Text(
-                    AppLocalizations.of(context)!.lessonTapToContinue,
+                    AppStrings.lessonTapToContinue,
                     style: TextStyle(
                       fontSize: 13,
                       color: VarnamalaTheme.textHintColor(context)

@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 
 // Package imports:
 import 'package:archive/archive.dart';
+import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqlite3/sqlite3.dart' as sql;
 
@@ -63,6 +64,10 @@ class AnkiImporter {
     if (!dir.existsSync()) dir.createSync(recursive: true);
 
     final bytes = file.readAsBytesSync();
+    // Hash the source bytes once here - they are already in memory for ZIP
+    // extraction - so callers can detect re-imports without a second full
+    // synchronous read of a potentially huge file on the main isolate.
+    final sourceHash = sha256.convert(bytes).toString();
     final archive = ZipDecoder().decodeBytes(bytes);
 
     for (final entry in archive) {
@@ -117,6 +122,15 @@ class AnkiImporter {
         label: 'cards',
       );
 
+      // Parse review log (paginated). Optional - some packages may lack the
+      // table; a missing table degrades to an empty list (no history migration).
+      final revlog = _parseRevlog(
+        db,
+        onProgress: onProgress,
+        isCancelled: isCancelled,
+        label: 'revlog',
+      );
+
       // Compute deck card counts
       final deckCounts = <int, int>{};
       for (final card in cards) {
@@ -134,6 +148,8 @@ class AnkiImporter {
         cards: cards,
         media: media,
         mediaDir: extractDir,
+        sourceHash: sourceHash,
+        revlog: revlog,
       );
     } finally {
       db.dispose();
@@ -220,11 +236,22 @@ class AnkiImporter {
             .map((f) => (f as Map<String, dynamic>)['name']?.toString() ?? '')
             .toList();
 
-        // Parse template names
+        // Parse template names + question/answer bodies (qfmt/afmt). The
+        // bodies drive direction-correct rendering (e.g. "Basic (and
+        // reversed)") and per-card question-type detection in the adapter.
         final tmpls = modelData['tmpls'] as List<dynamic>? ?? [];
-        final templateNames = tmpls
-            .map((t) => (t as Map<String, dynamic>)['name']?.toString() ?? '')
-            .toList();
+        final templateNames = <String>[];
+        final templates = <AnkiTemplate>[];
+        for (final t in tmpls) {
+          final td = t as Map<String, dynamic>;
+          final tName = td['name']?.toString() ?? '';
+          templateNames.add(tName);
+          templates.add(AnkiTemplate(
+            name: tName,
+            qfmt: td['qfmt']?.toString() ?? '',
+            afmt: td['afmt']?.toString() ?? '',
+          ));
+        }
 
         // Detect Cloze type (type == 1 in Anki)
         final isCloze = (modelData['type'] as int? ?? 0) == 1;
@@ -234,6 +261,7 @@ class AnkiImporter {
           name: name,
           fieldNames: fieldNames,
           templateNames: templateNames,
+          templates: templates,
           isCloze: isCloze,
         );
       }
@@ -338,6 +366,63 @@ class AnkiImporter {
     }
 
     return cards;
+  }
+
+  /// Parse the `revlog` (review log) table with pagination. Returns an empty
+  /// list when the table is absent (older/trimmed packages) so revlog migration
+  /// is best-effort and never blocks import.
+  List<AnkiRevlogEntry> _parseRevlog(
+    sql.Database db, {
+    void Function(double, String)? onProgress,
+    bool Function()? isCancelled,
+    String label = 'revlog',
+  }) {
+    final total = (() {
+      try {
+        return db.select('SELECT COUNT(*) AS c FROM revlog').first['c'] as int;
+      } catch (_) {
+        return 0; // table missing
+      }
+    })();
+    if (total == 0) return const [];
+
+    final entries = <AnkiRevlogEntry>[];
+    var offset = 0;
+
+    while (true) {
+      if (isCancelled != null && isCancelled()) {
+        throw const AnkiImportCancelled();
+      }
+      final rows = db.select(
+        'SELECT id, cid, usn, ease, ivl, lastIvl, factor, time, type '
+        'FROM revlog ORDER BY id LIMIT $_pageSize OFFSET $offset',
+      );
+
+      if (rows.isEmpty) break;
+
+      for (final row in rows) {
+        entries.add(AnkiRevlogEntry(
+          id: row['id'] as int,
+          cid: row['cid'] as int,
+          usn: row['usn'] as int? ?? 0,
+          ease: row['ease'] as int? ?? 0,
+          ivl: row['ivl'] as int? ?? 0,
+          lastIvl: row['lastIvl'] as int? ?? 0,
+          factor: row['factor'] as int? ?? 0,
+          time: row['time'] as int? ?? 0,
+          type: row['type'] as int? ?? 0,
+        ));
+      }
+
+      offset += _pageSize;
+      if (onProgress != null && total > 0) {
+        final p = (offset / total).clamp(0.0, 1.0);
+        onProgress(p, 'Parsing $label… $offset / $total');
+      }
+      if (rows.length < _pageSize) break;
+    }
+
+    return entries;
   }
 }
 

@@ -2,6 +2,9 @@
 import 'dart:async';
 import 'dart:math';
 
+// Package imports:
+import 'package:injectable/injectable.dart';
+
 // Project imports:
 import 'package:varnamala/application/anki/anki_models.dart';
 import 'package:varnamala/application/anki/anki_review_assembler.dart';
@@ -19,6 +22,7 @@ import 'package:varnamala/service/locator.dart';
 /// - Incremental update detection (source_hash comparison)
 /// - Review limits (daily new/review caps)
 /// - SRS state partitioning (per-import prefs keys)
+@lazySingleton
 class AnkiDeckManager {
   final ICourseRepository _repo;
   final SrsProvider _srsProvider;
@@ -83,6 +87,14 @@ class AnkiDeckManager {
 
   Future<void> setDailyChallengeIncludesAnki(bool value) async {
     await _appPrefs.preferences.setBool(_dailyChallengeAnkiKey, value);
+  }
+
+  /// Restore Anki learning prefs to factory defaults (new/review limits +
+  /// daily-challenge inclusion). Does not uninstall decks or clear SRS.
+  Future<void> resetLearningDefaults() async {
+    await setDailyNewLimit(defaultDailyNewLimit);
+    await setDailyReviewLimit(defaultDailyReviewLimit);
+    await setDailyChallengeIncludesAnki(true);
   }
 
   // ─── Daily Counters ─────────────────────────────────────────────────

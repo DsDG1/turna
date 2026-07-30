@@ -7,11 +7,10 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:varnamala/application/game_provider.dart';
 import 'package:varnamala/application/gems_provider.dart';
-import 'package:varnamala/core/enums.dart';
-import 'package:varnamala/core/extensions.dart';
-import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/theme.dart';
 
+/// Compact 4-metric strip: streak, total XP, gems, lessons completed.
 class Statistics extends StatelessWidget {
   const Statistics({Key? key}) : super(key: key);
 
@@ -22,60 +21,62 @@ class Statistics extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionTitle(context,
-              AppLocalizations.of(context)!.profileStatisticsTitle,
-              Icons.bar_chart_rounded),
-          // The StreamBuilders already react to state changes; wrapping them in
-          // Consumers would just re-subscribe on every notifyListeners (XP
-          // award, streak check, lesson completion) for no benefit.
+          _sectionTitle(context, AppStrings.profileKeyMetricsTitle),
+          const SizedBox(height: 10),
           StreamBuilder(
             stream: context.read<GameProvider>().getUserGameStateStream(),
             builder: (context, snapshot) {
               final data = snapshot.data;
               final streak = data?.streak ?? 0;
               final totalXp = data?.score ?? 0;
-              final currentLanguage = TargetLanguage.turkish.displayName;
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 8),
-                  _LanguageChip(language: currentLanguage.toTitleCase),
-                  const SizedBox(height: 12),
-                  GridView.count(
-                    primary: false,
-                    shrinkWrap: true,
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                    childAspectRatio: 2.2,
-                    children: [
-                      _StatCard(
-                        icon: Icons.local_fire_department_rounded,
-                        iconColor: VarnamalaTheme.warning,
-                        value: streak.toString(),
-                        label: AppLocalizations.of(context)!.profileDayStreak,
-                      ),
-                      _StatCard(
-                        icon: Icons.bolt_rounded,
-                        iconColor: VarnamalaTheme.peacockTurquoise,
-                        value: totalXp.toString(),
-                        label: AppLocalizations.of(context)!.profileTotalXp,
-                      ),
-                      StreamBuilder<int>(
-                        stream: context.read<GemsProvider>().getGemsStream(),
-                        builder: (context, snap) {
-                          final gems = snap.data ?? 0;
-                          return _StatCard(
-                            icon: Icons.diamond_rounded,
-                            iconColor: VarnamalaTheme.error,
-                            value: gems.toString(),
-                            label: AppLocalizations.of(context)!.profileGems,
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ],
+              final lessons = data?.lessonsCompleted ?? 0;
+              return StreamBuilder<int>(
+                stream: context.read<GemsProvider>().getGemsStream(),
+                builder: (context, gemsSnap) {
+                  final gems = gemsSnap.data ?? 0;
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: VarnamalaTheme.cardBg(context),
+                      borderRadius:
+                          BorderRadius.circular(VarnamalaTheme.radiusLarge),
+                      border: Border.all(
+                          color: VarnamalaTheme.statCardBorder(context)),
+                    ),
+                    child: Row(
+                      children: [
+                        _MetricCell(
+                          icon: Icons.local_fire_department_rounded,
+                          iconColor: VarnamalaTheme.warning,
+                          value: streak.toString(),
+                          label: AppStrings.profileDayStreak,
+                        ),
+                        _vDivider(context),
+                        _MetricCell(
+                          icon: Icons.bolt_rounded,
+                          iconColor: VarnamalaTheme.peacockTurquoise,
+                          value: totalXp.toString(),
+                          label: AppStrings.profileTotalXp,
+                        ),
+                        _vDivider(context),
+                        _MetricCell(
+                          icon: Icons.diamond_rounded,
+                          iconColor: VarnamalaTheme.error,
+                          value: gems.toString(),
+                          label: AppStrings.profileGems,
+                        ),
+                        _vDivider(context),
+                        _MetricCell(
+                          icon: Icons.school_rounded,
+                          iconColor: VarnamalaTheme.peacockCyan,
+                          value: lessons.toString(),
+                          label: AppStrings.profileLessonsShort,
+                        ),
+                      ],
+                    ),
+                  );
+                },
               );
             },
           ),
@@ -84,63 +85,38 @@ class Statistics extends StatelessWidget {
     );
   }
 
-  Widget _sectionTitle(BuildContext context, String text, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 20, bottom: 8),
-      child: Row(
-        children: [
-          Icon(icon, color: VarnamalaTheme.peacockTeal, size: 22),
-          const SizedBox(width: 8),
-          Text(
-            text,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LanguageChip extends StatelessWidget {
-  final String language;
-  const _LanguageChip({required this.language});
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 6,
+  Widget _sectionTitle(BuildContext context, String text) {
+    return Row(
       children: [
-        Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(VarnamalaTheme.radiusRound),
-          ),
-          child: Text(
-            language,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: VarnamalaTheme.peacockTeal,
-            ),
-          ),
+        const Icon(Icons.insights_rounded,
+            color: VarnamalaTheme.peacockTeal, size: 20),
+        const SizedBox(width: 8),
+        Text(
+          text,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
         ),
       ],
     );
   }
+
+  Widget _vDivider(BuildContext context) {
+    return Container(
+      width: 1,
+      height: 40,
+      color: VarnamalaTheme.dividerBg(context),
+    );
+  }
 }
 
-class _StatCard extends StatelessWidget {
+class _MetricCell extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
   final String value;
   final String label;
 
-  const _StatCard({
+  const _MetricCell({
     required this.icon,
     required this.iconColor,
     required this.value,
@@ -149,42 +125,28 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: VarnamalaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
-        border: Border.all(color: VarnamalaTheme.statCardBorder(context)),
-      ),
+    return Expanded(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Row(
-            children: [
-              Icon(icon, color: iconColor, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  value,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
+          Icon(icon, color: iconColor, size: 20),
           const SizedBox(height: 4),
-          Padding(
-            padding: const EdgeInsets.only(left: 28),
-            child: Text(
-              label,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: VarnamalaTheme.textHintColor(context),
-                    fontWeight: FontWeight.w500,
-                  ),
-            ),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: VarnamalaTheme.textHintColor(context),
+                  fontWeight: FontWeight.w500,
+                  fontSize: 11,
+                ),
           ),
         ],
       ),

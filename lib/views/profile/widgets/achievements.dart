@@ -9,7 +9,7 @@ import 'package:varnamala/application/achievements_provider.dart';
 import 'package:varnamala/application/game_provider.dart';
 import 'package:varnamala/domain/achievement.dart';
 import 'package:varnamala/domain/game/user_game_state.dart';
-import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/theme.dart';
 
 class Achievements extends StatefulWidget {
@@ -43,7 +43,7 @@ class _AchievementsState extends State<Achievements> {
             children: [
               _sectionTitle(
                       context,
-                      AppLocalizations.of(context)!.profileAchievementsTitle,
+                      AppStrings.profileAchievementsTitle,
                       Icons.military_tech_rounded),
               const SizedBox(height: 8),
               Container(
@@ -100,7 +100,7 @@ class _AchievementsState extends State<Achievements> {
                             child: Row(
                               children: [
                                 Text(
-                                  AppLocalizations.of(context)!
+                                  AppStrings
                                       .profileViewMore(remainingCount),
                                   style: Theme.of(context)
                                       .textTheme
@@ -139,7 +139,7 @@ class _AchievementsState extends State<Achievements> {
                             child: Row(
                               children: [
                                 Text(
-                                  AppLocalizations.of(context)!.profileShowLess,
+                                  AppStrings.profileShowLess,
                                   style: Theme.of(context)
                                       .textTheme
                                       .titleSmall
@@ -248,7 +248,7 @@ class _AchievementTile extends StatelessWidget {
                 Icon(icon, color: iconColor, size: 24),
                 if (!isCompleted)
                   Text(
-                    AppLocalizations.of(context)!
+                    AppStrings
                         .profileAchievementLevel(level),
                     style: TextStyle(
                       fontSize: 9,
@@ -297,7 +297,7 @@ class _AchievementTile extends StatelessWidget {
                     ),
                     const SizedBox(width: 10),
                     Text(
-                      AppLocalizations.of(context)!
+                      AppStrings
                           .profileAchievementProgress(current, displayTarget),
                       style:
                           Theme.of(context).textTheme.bodySmall?.copyWith(

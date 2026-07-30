@@ -6,7 +6,8 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:varnamala/application/ai/ai_hint_provider.dart';
-import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/l10n/app_strings.dart';
+import 'package:varnamala/views/lesson/components/ai_depth_tutor_sheet.dart';
 import 'package:varnamala/views/theme.dart';
 
 /// Bottom sheet that pops up when the learner taps the AI button on a
@@ -56,14 +57,14 @@ class AiHintSheet extends StatelessWidget {
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            ctx == null ? AppLocalizations.of(context)!.aiHintTitle : AppLocalizations.of(context)!.aiHintTitleWithType(ctx.typeLabel),
+            ctx == null ? AppStrings.aiHintTitle : AppStrings.aiHintTitleWithType(ctx.typeLabel),
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
           ),
         ),
         IconButton(
-          tooltip: AppLocalizations.of(context)!.commonClose,
+          tooltip: AppStrings.commonClose,
           icon: const Icon(Icons.close, size: 22),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
@@ -117,8 +118,8 @@ class AiHintSheet extends StatelessWidget {
       ),
       child: Text(
         error != null
-            ? AppLocalizations.of(context)!.aiHintError(error)
-            : AppLocalizations.of(context)!.aiHintErrorUnknown,
+            ? AppStrings.aiHintError(error)
+            : AppStrings.aiHintErrorUnknown,
         style: const TextStyle(color: VarnamalaTheme.error),
       ),
     );
@@ -128,13 +129,31 @@ class AiHintSheet extends StatelessWidget {
     return Row(
       children: [
         Expanded(
+          child: OutlinedButton.icon(
+            onPressed: () => showModalBottomSheet<void>(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: VarnamalaTheme.cardBg(context),
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(VarnamalaTheme.radiusXLarge),
+                ),
+              ),
+              builder: (_) => const AiDepthTutorSheet(),
+            ),
+            icon: const Icon(Icons.auto_awesome_outlined),
+            label: Text(AppStrings.aiDepthTutorTitle),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
           child: FilledButton.icon(
             onPressed: () {
               Navigator.of(context).maybePop();
               onEnterChat();
             },
             icon: const Icon(Icons.chat_outlined),
-            label: Text(AppLocalizations.of(context)!.aiHintOpenChat),
+            label: Text(AppStrings.aiHintOpenChat),
           ),
         ),
       ],

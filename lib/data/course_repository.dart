@@ -374,12 +374,6 @@ class CourseRepository implements ICourseRepository {
     });
   }
 
-  /// Record a completed Anki deck import in the `anki_imports` table.
-  @override
-  Future<void> recordAnkiImport(db.AnkiImportsCompanion companion) async {
-    await database.into(database.ankiImports).insertOnConflictUpdate(companion);
-  }
-
   /// List all recorded Anki imports, most recent first.
   @override
   Future<List<db.AnkiImport>> ankiImports() async {

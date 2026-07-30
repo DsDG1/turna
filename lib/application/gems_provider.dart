@@ -67,6 +67,17 @@ class GemsProvider extends ChangeNotifier {
     });
   }
 
+  /// Absolute set (used by account reset). Still goes through [_writeChain]
+  /// so it cannot interleave with a concurrent [addGems].
+  Future<void> setGems(int value) async {
+    final next = value < 0 ? 0 : value;
+    await _enqueueWrite(() async {
+      await appPrefs.preferences.setInt(LocalStateKeys.gems, next);
+      _emit(next);
+      notifyListeners();
+    });
+  }
+
   Future<void> _enqueueWrite(Future<void> Function() op) {
     _writeChain = _writeChain.then((_) => op()).catchError((Object e) {
       assert(() {

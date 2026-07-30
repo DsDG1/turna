@@ -13,6 +13,7 @@ import 'package:injectable/injectable.dart';
 import 'package:varnamala/application/accessibility_provider.dart';
 import 'package:varnamala/application/language_provider.dart';
 import 'package:varnamala/application/settings_provider.dart';
+import 'package:varnamala/domain/audio/anki_audio_resolver.dart';
 import 'package:varnamala/domain/audio/vocab_audio_resolver.dart';
 import 'package:varnamala/gen/assets.gen.dart';
 import 'package:varnamala/service/tts_availability_checker.dart';
@@ -57,6 +58,7 @@ class AudioController {
   final SettingsProvider _settingsProvider;
   final AccessibilityProvider _accessibilityProvider;
   final VocabAudioResolver _vocabAudioResolver;
+  final AnkiAudioResolver _ankiMediaResolver = AnkiAudioResolver();
   final TtsAvailabilityChecker? _ttsChecker;
   final Random _random = Random();
 
@@ -314,9 +316,16 @@ class AudioController {
   /// Speak a vocabulary word. Prefers the offline [audioAsset] if present,
   /// otherwise falls back to TTS of the word term.
   ///
+  /// `anki://<importId>/<file>` references (Anki deck media) are resolved to
+  /// the on-disk copy and played directly — never sent to TTS.
+  ///
   /// Content lookup goes through [VocabAudioResolver] so this class does not
   /// import language-specific vocab maps.
   Future<void> speakWord(String wordId) async {
+    if (AnkiAudioResolver.isAnkiAsset(wordId)) {
+      await _playAnkiMedia(wordId);
+      return;
+    }
     final resolved = _vocabAudioResolver.resolve(wordId);
     final asset = resolved.audioAsset;
     if (asset != null && asset.isNotEmpty) {
@@ -324,6 +333,20 @@ class AudioController {
       return;
     }
     await speak(resolved.speakText);
+  }
+
+  /// Play an Anki deck media file (`anki://` reference) from its persistent
+  /// copy. Missing files degrade silently (the reference may predate the
+  /// media copy or the deck may have been uninstalled).
+  Future<void> _playAnkiMedia(String ref) async {
+    try {
+      final path = await _ankiMediaResolver.resolveMediaPath(ref);
+      if (path == null) return;
+      await _speechPlayer.stop();
+      await _speechPlayer.play(DeviceFileSource(path));
+    } catch (e) {
+      debugPrint('Error playing Anki media: $e');
+    }
   }
 
   /// Listen-only / mixed content helper: [audioAsset] may be an asset path or

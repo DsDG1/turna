@@ -16,7 +16,7 @@ import 'package:varnamala/application/weak_word_quiz_assembler.dart';
 import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/domain/course/lesson.dart';
 import 'package:varnamala/domain/course/unit.dart';
-import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/routing/routing.gr.dart';
 import 'package:varnamala/views/theme.dart';
 import 'components/section_switcher.dart';
@@ -62,8 +62,8 @@ class _CourseTreeState extends State<CourseTree> {
             if (courseState.isLoaded) {
               return _buildErrorMessage(
                 context,
-                title: AppLocalizations.of(context)!.coursesCouldNotLoadCourse,
-                error: AppLocalizations.of(context)!.coursesNoSectionsFound,
+                title: AppStrings.coursesCouldNotLoadCourse,
+                error: AppStrings.coursesNoSectionsFound,
                 onRetry: () => courseState.reloadCourse(),
               );
             }
@@ -135,7 +135,7 @@ class _CourseTreeState extends State<CourseTree> {
     if (loadState == SectionLoadState.error) {
       return _buildErrorMessage(
         context,
-        title: AppLocalizations.of(context)!.coursesCouldNotLoadSection,
+        title: AppStrings.coursesCouldNotLoadSection,
         error: courseState.sectionLoadError(section.id),
         onRetry: () => courseState.reloadSection(section.id),
       );
@@ -327,7 +327,7 @@ class _CourseTreeState extends State<CourseTree> {
           ),
           const SizedBox(height: 16),
           Text(
-            AppLocalizations.of(context)!.coursesNoUnitsAvailable,
+            AppStrings.coursesNoUnitsAvailable,
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
@@ -381,7 +381,7 @@ class _CourseTreeState extends State<CourseTree> {
             ElevatedButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh_rounded),
-              label: Text(AppLocalizations.of(context)!.commonRetry),
+              label: Text(AppStrings.commonRetry),
               style: ElevatedButton.styleFrom(
                 backgroundColor: VarnamalaTheme.peacockTeal,
                 foregroundColor: VarnamalaTheme.textOnPrimary,
@@ -555,7 +555,7 @@ class _UnitHeader extends StatelessWidget {
                           BorderRadius.circular(VarnamalaTheme.radiusRound),
                     ),
                     child: Text(
-                      AppLocalizations.of(context)!.coursesUnitProgress(
+                      AppStrings.coursesUnitProgress(
                         completedCount,
                         unit.lessons.length,
                       ),
@@ -713,7 +713,7 @@ class _LessonTile extends StatelessWidget {
                 ),
                 child: Text(
                   isPerfect
-                      ? AppLocalizations.of(context)!.coursesPerfect
+                      ? AppStrings.coursesPerfect
                       : _lessonTypeLabel(context, lesson.type),
                   style: TextStyle(
                     fontSize: 11,
@@ -758,13 +758,12 @@ class _LessonTile extends StatelessWidget {
   }
 
   static String _lessonTypeLabel(BuildContext context, LessonType type) {
-    final l = AppLocalizations.of(context)!;
     return switch (type) {
-      LessonType.normal => l.coursesLessonTypeNormal,
-      LessonType.listening => l.coursesLessonTypeListening,
-      LessonType.reading => l.coursesLessonTypeReading,
-      LessonType.review => l.coursesLessonTypeReview,
-      LessonType.challenge => l.coursesLessonTypeChallenge,
+      LessonType.normal => AppStrings.coursesLessonTypeNormal,
+      LessonType.listening => AppStrings.coursesLessonTypeListening,
+      LessonType.reading => AppStrings.coursesLessonTypeReading,
+      LessonType.review => AppStrings.coursesLessonTypeReview,
+      LessonType.challenge => AppStrings.coursesLessonTypeChallenge,
     };
   }
 }
@@ -789,7 +788,7 @@ class _LoadingIndicator extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         Text(
-          AppLocalizations.of(context)!.coursesLoadingCourses,
+          AppStrings.coursesLoadingCourses,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: VarnamalaTheme.textHintColor(context),
                 fontWeight: FontWeight.w500,

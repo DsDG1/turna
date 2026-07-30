@@ -1,6 +1,7 @@
-// Unit tests for SrsProvider: SM-2 scheduling, due computation, and the
-// word/expression dual-track registration. Uses the same prefs-mock pattern
-// as test/application/race_condition_test.dart.
+// Unit tests for SrsProvider plumbing: registration, due computation, and the
+// word/expression dual-track. Scheduling assertions use SM-2 via
+// [setSchedulerForTesting] so intervals stay deterministic; production default
+// is FSRS (ADR 0028, covered by test/core/fsrs_engine_test.dart).
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -8,14 +9,18 @@ import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:varnamala/application/lesson_link_store.dart';
 import 'package:varnamala/application/srs_provider.dart';
 import 'package:varnamala/core/sm2.dart';
+import 'package:varnamala/data/srs_state_dao.dart';
 import 'package:varnamala/domain/course/srs_word.dart';
 import 'package:varnamala/service/locator.dart';
+
+import '../helpers/in_memory_course_db.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late AppPrefs prefs;
   late LessonLinkStore linkStore;
+  late SrsStateDao dao;
   late SrsProvider srs;
 
   setUp(() async {
@@ -27,7 +32,10 @@ void main() {
     prefs = AppPrefs(sp);
     await prefs.preferences.setString(LocalStateKeys.srsState, '{}');
     linkStore = LessonLinkStore(prefs);
-    srs = SrsProvider(prefs, linkStore);
+    dao = emptySrsStateDao();
+    srs = SrsProvider(prefs, linkStore, dao);
+    // Keep provider tests on SM-2 so interval expectations stay fixed.
+    srs.setSchedulerForTesting(const Sm2Engine());
   });
 
   SrsWord registeredWord(String id) => srs.state[id]!;
@@ -91,14 +99,19 @@ void main() {
       expect(updated.intervalDays, 4);
     });
 
-    test('a failed review resets reps, counts a lapse, and re-dues tomorrow',
+    test('a failed review counts a lapse and re-dues for same-day relearn',
         () async {
       srs.registerWord('w-1');
       await srs.reviewWord('w-1', ReviewGrade.known.sm2);
       final updated = await srs.reviewWord('w-1', ReviewGrade.unknown.sm2);
-      expect(updated!.reps, 0);
+      // reps counts total successes and is preserved across lapses.
+      expect(updated!.reps, 1);
       expect(updated.lapses, 1);
       expect(updated.intervalDays, 1);
+      // Failed cards reappear in ~10 minutes, not tomorrow.
+      expect(updated.dueAt.isAfter(DateTime.now()), isTrue);
+      final diff = updated.dueAt.difference(DateTime.now());
+      expect(diff.inMinutes, lessThanOrEqualTo(Sm2Engine.relearnDelayMinutes));
     });
 
     test('reviewWord on an unknown id returns null', () async {
@@ -192,13 +205,14 @@ void main() {
   });
 
   group('persistence', () {
-    test('state survives a new SrsProvider reading the same prefs', () async {
+    test('state survives a new SrsProvider reading the same DB', () async {
       srs.registerWord('w-1');
       await srs.reviewWord('w-1', ReviewGrade.known.sm2);
       final before = srs.state['w-1']!;
 
-      // A new instance backed by the same prefs should reload the state.
-      final reloaded = SrsProvider(prefs, LessonLinkStore(prefs));
+      // A new instance backed by the same DAO/DB should reload the state.
+      final reloaded = SrsProvider(prefs, LessonLinkStore(prefs), dao);
+      await reloaded.ensureLoaded();
       final after = reloaded.state['w-1']!;
       expect(after.reps, before.reps);
       expect(after.intervalDays, before.intervalDays);
@@ -207,7 +221,9 @@ void main() {
     test('a corrupted srsState JSON degrades to an empty map, not a crash',
         () async {
       await prefs.preferences.setString(LocalStateKeys.srsState, 'not-json');
-      final corrupted = SrsProvider(prefs, LessonLinkStore(prefs));
+      final corrupted =
+          SrsProvider(prefs, LessonLinkStore(prefs), emptySrsStateDao());
+      await corrupted.ensureLoaded();
       expect(corrupted.state, isEmpty);
     });
   });
@@ -274,20 +290,20 @@ void main() {
       expect(second.intervalDays, 4);
     });
 
-    test('a lapse resets reps and schedules the word one day out', () async {
+    test('a lapse keeps reps and re-schedules for same-day relearn', () async {
       srs.registerWord('w-1');
       await srs.reviewWord('w-1', ReviewGrade.known.sm2);
       await srs.reviewWord('w-1', ReviewGrade.known.sm2);
       final lapsed = await srs.reviewWord('w-1', ReviewGrade.unknown.sm2);
 
-      expect(lapsed!.reps, 0);
+      // reps counts total successes and is preserved across lapses.
+      expect(lapsed!.reps, 2);
       expect(lapsed.intervalDays, 1);
       expect(lapsed.lapses, 1);
       expect(lapsed.dueAt.isAfter(DateTime.now()), isTrue);
-      // The word is scheduled roughly one day from the review moment.
+      // The word reappears in ~10 minutes (same-day relearn).
       final diff = lapsed.dueAt.difference(DateTime.now());
-      expect(diff.inHours, greaterThanOrEqualTo(23));
-      expect(diff.inHours, lessThanOrEqualTo(25));
+      expect(diff.inMinutes, lessThanOrEqualTo(Sm2Engine.relearnDelayMinutes));
     });
   });
 }

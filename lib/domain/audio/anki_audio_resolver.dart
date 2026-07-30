@@ -2,6 +2,7 @@
 import 'dart:io';
 
 // Package imports:
+import 'package:injectable/injectable.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -15,6 +16,7 @@ import 'package:varnamala/domain/audio/vocab_audio_resolver.dart';
 ///
 /// Implements [VocabAudioResolver] so it integrates with the existing
 /// [AudioController] pipeline.
+@lazySingleton
 class AnkiAudioResolver implements VocabAudioResolver {
   /// Base directory for all Anki media files.
   static const String _mediaBaseDir = 'anki_media';

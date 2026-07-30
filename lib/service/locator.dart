@@ -37,10 +37,18 @@ class AppPrefs {
             serializer: _serializeUser,
             deserializer: _deserializeUser,
           ),
+        ),
+        courseScope = preferences.getString(
+          PrefsConstants.courseScope,
+          defaultValue: '',
         );
 
   final Preference<LocalUser> authUser;
   final Preference<String> currentLanguage;
+
+  /// Active course scope: '' = built-in course, 'anki:<importId>' = one
+  /// imported Anki deck. See [CourseProvider.courseScope].
+  final Preference<String> courseScope;
 
   Future<bool> setBool(String key, {required bool value}) async {
     printBefore(value: value, key: key);
@@ -97,6 +105,11 @@ class AppPrefs {
 class PrefsConstants {
   static const String authUser = 'authUser';
   static const String currentLanguage = 'currentLanguage';
+  static const String courseScope = 'courseScope';
+
+  /// Persisted course order for the course-management page: a list of course
+  /// scopes ('' = built-in course, 'anki:<importId>' = one deck).
+  static const String courseOrder = 'courseOrder';
 }
 
 /// Local user state keys — single source of truth for all game progression.
@@ -129,6 +142,15 @@ class LocalStateKeys {
 
   // SRS — JSON-serialized Map<String, SrsWord> keyed by wordId.
   static const String srsState = 'srs.state';
+  /// Target retention for FSRS (0.80–0.95). Binary scoring only; no grade UI.
+  static const String srsDesiredRetention = 'srs.desiredRetention';
+  /// JSON list of 21 FSRS weights; empty = package defaults.
+  static const String srsFsrsParameters = 'srs.fsrsParameters';
+  /// ISO timestamp of last successful local weight fit (empty if never).
+  static const String srsFsrsOptimizedAt = 'srs.fsrsOptimizedAt';
+  /// Review sample count used in last successful optimization.
+  static const String srsFsrsOptimizedReviews = 'srs.fsrsOptimizedReviews';
+
 
   // Lesson word links — JSON-serialized Map<String, LessonWordLink> keyed by
   // wordId / grammarPointId (disambiguated by LinkType).
@@ -158,6 +180,9 @@ class LocalStateKeys {
   static const String dailyReminderHour = 'settings.dailyReminderHour';
   static const String dailyReminderMinute = 'settings.dailyReminderMinute';
 
+  // HarmonyOS 小艺 AI hint switch (no-op on other platforms).
+  static const String useXiaoyiHint = 'settings.useXiaoyiHint';
+
   // Accessibility / neurodiversity settings — see AccessibilityProvider.
   // textScale is an int percent (100 = 1.0, 200 = 2.0); the rest are bool flags.
   static const String textScale = 'settings.textScale';
@@ -175,6 +200,9 @@ class LocalStateKeys {
 
   // UI display locale (app interface language): 'en' | 'zh' | 'system'.
   static const String uiLocale = 'settings.uiLocale';
+
+  // Fun / cheat settings — see FunProvider.
+  static const String funAutoAnswer = 'fun.autoAnswer';
 }
 
 /// Making AppPrefs injectable

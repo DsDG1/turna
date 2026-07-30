@@ -17,7 +17,7 @@ import 'package:varnamala/domain/course/grammar_point.dart';
 import 'package:varnamala/domain/course/interaction.dart';
 import 'package:varnamala/domain/course/srs_word.dart';
 import 'package:varnamala/domain/study/study_log.dart';
-import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:varnamala/views/review/components/review_components.dart';
 import 'package:varnamala/views/theme.dart';
@@ -194,9 +194,9 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
       return ReviewEmptyState(
         onRefresh: _loadQueue,
         dueCount: dueCount,
-        title: 'Grammar Review',
-        emptyMessage: 'You\'ve reviewed everything for now.',
-        dueMessage: 'points are already due — refresh to load them',
+        title: AppStrings.reviewGrammarReviewTitle,
+        emptyMessage: AppStrings.reviewGrammarEmptyMessage,
+        dueMessage: AppStrings.reviewGrammarDueMessage,
       );
     }
 
@@ -208,8 +208,8 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
         gemsEarned: _gemsEarned,
         onDone: () => Navigator.of(context).pop(),
         onReviewMore: _loadQueue,
-        title: 'Session Complete!',
-        completionMessage: 'You reviewed $_sessionCount grammar points.',
+        title: AppStrings.reviewGrammarSessionComplete,
+        completionMessage: AppStrings.reviewGrammarCompletionMessage(_sessionCount),
       );
     }
 
@@ -220,13 +220,13 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
     return Scaffold(
       backgroundColor: VarnamalaTheme.scaffoldBg(context),
       appBar: AppBar(
-        title: const Text('Grammar Review'),
+        title: Text(AppStrings.reviewGrammarAppBarTitle),
         actions: [
           Center(
             child: Padding(
               padding: const EdgeInsets.only(right: 16),
               child: Text(
-                '${_currentIndex + 1} / ${_queue.length}',
+                AppStrings.reviewGrammarProgress(_currentIndex + 1, _queue.length),
                 style: const TextStyle(fontWeight: FontWeight.w700),
               ),
             ),
@@ -248,7 +248,7 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
                         correct: _practiceCorrect,
                         onSubmit: _onPracticeSubmit,
                         progressLabel:
-                            'Practice ${_practiceIndex + 1} / ${practiceItems.length}',
+                            AppStrings.reviewGrammarPracticeLabel(_practiceIndex + 1, practiceItems.length),
                       )
                     : _GrammarCard(
                         word: item,
@@ -260,8 +260,17 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
               const SizedBox(height: 24),
               if (_phase == _GrammarCardPhase.rate) ...[
                 ReviewRatingBar(
+                  failPreview: AppStrings.srsPreviewUnknown,
+                  passPreview: () {
+                    final days = context
+                        .read<GrammarReviewProvider>()
+                        .previewOutcomeDays(item, ReviewOutcome.pass);
+                    return days <= 0
+                        ? AppStrings.srsPreviewUnknown
+                        : AppStrings.srsPreviewKnown(days);
+                  }(),
                   onRate: _onRate,
-                  prompt: 'Do you understand this grammar point?',
+                  prompt: AppStrings.reviewGrammarDoYouUnderstand,
                 ),
               ] else if (_phase == _GrammarCardPhase.practice &&
                   _practiceSubmitted) ...[
@@ -280,8 +289,8 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
                     ),
                     child: Text(
                       _practiceIndex + 1 < practiceItems.length
-                          ? 'Next practice'
-                          : 'Rate this grammar point',
+                          ? AppStrings.reviewGrammarNextPractice
+                          : AppStrings.reviewGrammarRateGrammar,
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
@@ -303,9 +312,9 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
                             BorderRadius.circular(VarnamalaTheme.radiusMedium),
                       ),
                     ),
-                    child: const Text(
-                      'Show Explanation',
-                      style: TextStyle(
+                    child: Text(
+                      AppStrings.reviewGrammarShowExplanation,
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                       ),
@@ -446,8 +455,8 @@ class _GrammarCard extends StatelessWidget {
                           grammar.getLessonNameForGrammarPoint(word.wordId);
                       return Text(
                         lessonName != null
-                            ? AppLocalizations.of(context)!.reviewGrammarLearnedIn(lessonName)
-                            : AppLocalizations.of(context)!.reviewGrammarFirstSeen(word.wordId),
+                            ? AppStrings.reviewGrammarLearnedIn(lessonName)
+                            : AppStrings.reviewGrammarFirstSeen(word.wordId),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: VarnamalaTheme.textHintColor(context),
                             ),
@@ -456,7 +465,7 @@ class _GrammarCard extends StatelessWidget {
                   ),
                 ] else ...[
                   Text(
-                    AppLocalizations.of(context)!.reviewGrammarTapToReveal,
+                    AppStrings.reviewGrammarTapToReveal,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: VarnamalaTheme.textHintColor(context),
                         ),
@@ -473,7 +482,7 @@ class _GrammarCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  AppLocalizations.of(context)!.reviewGrammarPointNotFound,
+                  AppStrings.reviewGrammarPointNotFound,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: VarnamalaTheme.textHintColor(context),
                       ),

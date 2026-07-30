@@ -16,9 +16,20 @@ import 'package:injectable/injectable.dart' as _i526;
 
 import '../application/accessibility_provider.dart' as _i977;
 import '../application/achievements_provider.dart' as _i143;
+import '../application/ai/ai_course_provider.dart' as _i859;
+import '../application/ai/ai_grounded_resource_provider.dart' as _i1068;
+import '../application/ai/ai_lesson_helper_provider.dart' as _i872;
+import '../application/ai/ai_wish_provider.dart' as _i561;
+import '../application/ai/engine/ai_cache.dart' as _i423;
+import '../application/ai/engine/ai_engine.dart' as _i717;
+import '../application/ai/engine/ai_engine_config_holder.dart' as _i691;
+import '../application/ai/engine/ai_http_client.dart' as _i518;
+import '../application/ai/engine/ai_recent_tasks_provider.dart' as _i687;
+import '../application/anki/anki_deck_manager.dart' as _i1045;
 import '../application/audio_controller.dart' as _i106;
 import '../application/character_provider.dart' as _i229;
 import '../application/course_provider.dart' as _i1051;
+import '../application/fun_provider.dart' as _i648;
 import '../application/game_milestone_provider.dart' as _i788;
 import '../application/game_provider.dart' as _i565;
 import '../application/gems_provider.dart' as _i417;
@@ -28,13 +39,15 @@ import '../application/lesson_completion_coordinator.dart' as _i495;
 import '../application/lesson_link_store.dart' as _i854;
 import '../application/lesson_progress_provider.dart' as _i409;
 import '../application/lesson_viewmodel.dart' as _i274;
-import '../application/locale_provider.dart' as _i649;
 import '../application/match_provider.dart' as _i9;
+import '../application/memory_curve_provider.dart' as _i257;
 import '../application/mistake_provider.dart' as _i551;
 import '../application/progress_provider.dart' as _i740;
+import '../application/review_progress_provider.dart' as _i706;
 import '../application/score_provider.dart' as _i166;
 import '../application/settings_provider.dart' as _i793;
 import '../application/srs_provider.dart' as _i361;
+import '../application/srs_tutor_provider.dart' as _i669;
 import '../application/streak_provider.dart' as _i927;
 import '../application/study_stats_provider.dart' as _i620;
 import '../application/theme_provider.dart' as _i151;
@@ -42,7 +55,10 @@ import '../courses/languages/vocab_audio_resolver.dart' as _i73;
 import '../data/anki_import_dao.dart' as _i151;
 import '../data/course_database.dart' as _i604;
 import '../data/course_repository.dart' as _i848;
+import '../data/review_history_dao.dart' as _i68;
+import '../data/srs_state_dao.dart' as _i336;
 import '../data/study_log_repository.dart' as _i889;
+import '../domain/audio/anki_audio_resolver.dart' as _i180;
 import '../domain/audio/vocab_audio_resolver.dart' as _i188;
 import '../domain/repositories/i_course_repository.dart' as _i876;
 import '../routing/course_ready_guard.dart' as _i579;
@@ -50,6 +66,7 @@ import '../routing/routing.dart' as _i936;
 import '../service/local_reminder_service.dart' as _i711;
 import '../service/locator.dart' as _i523;
 import '../service/tts_availability_checker.dart' as _i307;
+import '../service/xiaoyi_service.dart' as _i274;
 import '../views/lesson/components/interactions/anki_card_renderer.dart'
     as _i940;
 import '../views/lesson/components/interactions/fill_blank_renderer.dart'
@@ -112,10 +129,17 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i767.TranslateSentenceRenderer>(
         () => _i767.TranslateSentenceRenderer());
     gh.factory<_i757.TypeTheWordRenderer>(() => _i757.TypeTheWordRenderer());
+    gh.lazySingleton<_i423.AiCache>(() => _i423.AiCache());
+    gh.lazySingleton<_i691.AiEngineConfigHolder>(
+        () => _i691.AiEngineConfigHolder());
+    gh.lazySingleton<_i518.AiHttpClient>(() => _i518.AiHttpClient());
+    gh.lazySingleton<_i687.AiRecentTasksProvider>(
+        () => _i687.AiRecentTasksProvider());
     gh.lazySingleton<_i229.CharacterProvider>(() => _i229.CharacterProvider());
-    gh.lazySingleton<_i1051.CourseProvider>(() => _i1051.CourseProvider());
+    gh.lazySingleton<_i180.AnkiAudioResolver>(() => _i180.AnkiAudioResolver());
     gh.lazySingleton<_i711.LocalReminderService>(
         () => _i711.LocalReminderService());
+    gh.lazySingleton<_i274.XiaoyiService>(() => _i274.XiaoyiService());
     gh.lazySingleton<_i188.VocabAudioResolver>(
         () => _i73.VocabAudioResolverImpl());
     gh.lazySingleton<_i656.AudioPlayer>(
@@ -126,16 +150,24 @@ extension GetItInjectableX on _i174.GetIt {
       () => audioModule.audioPlayer,
       instanceName: 'audioPlayer',
     );
+    gh.lazySingleton<_i717.AiEngine>(() => _i717.AiEngine(
+          gh<_i518.AiHttpClient>(),
+          gh<_i423.AiCache>(),
+        ));
     gh.lazySingleton<_i307.TtsAvailabilityChecker>(
         () => _i307.TtsAvailabilityChecker(gh<_i50.FlutterTts>()));
     gh.lazySingleton<_i977.AccessibilityProvider>(
         () => _i977.AccessibilityProvider(gh<_i523.AppPrefs>()));
-    gh.lazySingleton<_i649.LocaleProvider>(
-        () => _i649.LocaleProvider(gh<_i523.AppPrefs>()));
+    gh.lazySingleton<_i1051.CourseProvider>(
+        () => _i1051.CourseProvider(gh<_i523.AppPrefs>()));
     gh.lazySingleton<_i793.SettingsProvider>(
         () => _i793.SettingsProvider(gh<_i523.AppPrefs>()));
     gh.lazySingleton<_i151.AnkiImportDao>(
         () => _i151.AnkiImportDao(gh<_i604.CourseDatabase>()));
+    gh.lazySingleton<_i68.ReviewHistoryDao>(
+        () => _i68.ReviewHistoryDao(gh<_i604.CourseDatabase>()));
+    gh.lazySingleton<_i336.SrsStateDao>(
+        () => _i336.SrsStateDao(gh<_i604.CourseDatabase>()));
     gh.lazySingleton<_i143.AchievementsProvider>(
         () => _i143.AchievementsProvider(gh<_i523.AppPrefs>()));
     gh.lazySingleton<_i788.GameMilestoneProvider>(
@@ -160,6 +192,9 @@ extension GetItInjectableX on _i174.GetIt {
         () => _i889.StudyLogRepository(gh<_i523.AppPrefs>()));
     gh.lazySingleton<_i579.CourseReadyGuard>(
         () => _i579.CourseReadyGuard(gh<_i1051.CourseProvider>()));
+    gh.lazySingleton<_i1068.AiGroundedResourceProvider>(() =>
+        _i1068.AiGroundedResourceProvider(
+            repository: gh<_i876.ICourseRepository>()));
     gh.lazySingleton<_i106.AudioController>(() => _i106.AudioController(
           gh<_i50.FlutterTts>(),
           gh<_i233.LanguageProvider>(),
@@ -170,6 +205,25 @@ extension GetItInjectableX on _i174.GetIt {
           speechPlayer: gh<_i656.AudioPlayer>(instanceName: 'speechPlayer'),
           ttsChecker: gh<_i307.TtsAvailabilityChecker>(),
         ));
+    gh.lazySingleton<_i859.AiCourseProvider>(() => _i859.AiCourseProvider(
+          engine: gh<_i717.AiEngine>(),
+          groundedProvider: gh<_i1068.AiGroundedResourceProvider>(),
+        ));
+    gh.lazySingleton<_i872.AiLessonHelperProvider>(
+        () => _i872.AiLessonHelperProvider(
+              engine: gh<_i717.AiEngine>(),
+              groundedProvider: gh<_i1068.AiGroundedResourceProvider>(),
+            ));
+    gh.lazySingleton<_i561.AiWishProvider>(() => _i561.AiWishProvider(
+          engine: gh<_i717.AiEngine>(),
+          groundedProvider: gh<_i1068.AiGroundedResourceProvider>(),
+        ));
+    gh.lazySingleton<_i669.SrsTutorProvider>(() => _i669.SrsTutorProvider(
+          engine: gh<_i717.AiEngine>(),
+          courseProvider: gh<_i859.AiCourseProvider>(),
+          mistakeProvider: gh<_i551.MistakeProvider>(),
+          srsDao: gh<_i336.SrsStateDao>(),
+        ));
     gh.lazySingleton<_i876.ICourseRepository>(
         () => _i848.CourseRepository(gh<_i604.CourseDatabase>()));
     gh.lazySingleton<_i620.StudyStatsProvider>(() => _i620.StudyStatsProvider(
@@ -178,15 +232,6 @@ extension GetItInjectableX on _i174.GetIt {
         ));
     gh.factory<_i440.ShowWordRenderer>(
         () => _i440.ShowWordRenderer(gh<_i106.AudioController>()));
-    gh.lazySingleton<_i1008.GrammarReviewProvider>(
-        () => _i1008.GrammarReviewProvider(
-              gh<_i523.AppPrefs>(),
-              gh<_i854.LessonLinkStore>(),
-            ));
-    gh.lazySingleton<_i361.SrsProvider>(() => _i361.SrsProvider(
-          gh<_i523.AppPrefs>(),
-          gh<_i854.LessonLinkStore>(),
-        ));
     gh.lazySingleton<_i565.GameProvider>(() => _i565.GameProvider(
           gh<_i523.AppPrefs>(),
           gh<_i166.ScoreProvider>(),
@@ -201,6 +246,17 @@ extension GetItInjectableX on _i174.GetIt {
               gh<_i143.AchievementsProvider>(),
               gh<_i620.StudyStatsProvider>(),
             ));
+    gh.lazySingleton<_i1008.GrammarReviewProvider>(
+        () => _i1008.GrammarReviewProvider(
+              gh<_i523.AppPrefs>(),
+              gh<_i854.LessonLinkStore>(),
+              gh<_i336.SrsStateDao>(),
+            ));
+    gh.lazySingleton<_i361.SrsProvider>(() => _i361.SrsProvider(
+          gh<_i523.AppPrefs>(),
+          gh<_i854.LessonLinkStore>(),
+          gh<_i336.SrsStateDao>(),
+        ));
     gh.lazySingleton<_i9.MatchProvider>(() => _i9.MatchProvider(
           gh<_i106.AudioController>(),
           gh<_i523.AppPrefs>(),
@@ -214,6 +270,13 @@ extension GetItInjectableX on _i174.GetIt {
           gh<_i551.MistakeProvider>(),
           gh<_i1008.GrammarReviewProvider>(),
           gh<_i495.LessonCompletionCoordinator>(),
+        ));
+    gh.lazySingleton<_i1045.AnkiDeckManager>(() => _i1045.AnkiDeckManager(
+          repo: gh<_i876.ICourseRepository>(),
+          srsProvider: gh<_i361.SrsProvider>(),
+          importDao: gh<_i151.AnkiImportDao>(),
+          appPrefs: gh<_i523.AppPrefs>(),
+          audioResolver: gh<_i180.AnkiAudioResolver>(),
         ));
     gh.lazySingleton<Set<_i931.InteractionRenderer>>(
         () => rendererModule.renderers(
@@ -231,6 +294,22 @@ extension GetItInjectableX on _i174.GetIt {
               gh<_i532.ReadingShortAnswerRenderer>(),
               gh<_i940.AnkiCardRenderer>(),
             ));
+    gh.lazySingleton<_i648.FunProvider>(() => _i648.FunProvider(
+          gh<_i523.AppPrefs>(),
+          gh<_i565.GameProvider>(),
+        ));
+    gh.lazySingleton<_i706.ReviewProgressProvider>(
+        () => _i706.ReviewProgressProvider(
+              gh<_i68.ReviewHistoryDao>(),
+              gh<_i361.SrsProvider>(),
+              gh<_i1008.GrammarReviewProvider>(),
+              gh<_i151.AnkiImportDao>(),
+            ));
+    gh.lazySingleton<_i257.MemoryCurveProvider>(() => _i257.MemoryCurveProvider(
+          gh<_i68.ReviewHistoryDao>(),
+          gh<_i361.SrsProvider>(),
+          gh<_i1008.GrammarReviewProvider>(),
+        ));
     gh.lazySingleton<_i740.ProgressProvider>(
         () => _i740.ProgressProvider(gh<_i565.GameProvider>()));
     return this;

@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/app_fonts.dart';
 import 'package:varnamala/views/theme.dart';
 
@@ -87,7 +87,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           ),
                         ),
                         child: Text(
-                          AppLocalizations.of(context)!.onboardingReclaimingTitle,
+                          AppStrings.onboardingReclaimingTitle,
                           textAlign: TextAlign.center,
                           style: AppFonts.nunito(
                             fontSize: 28,
@@ -115,7 +115,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           ),
                         ),
                         child: Text(
-                          AppLocalizations.of(context)!.onboardingBody,
+                          AppStrings.onboardingBody,
                           textAlign: TextAlign.center,
                           style: AppFonts.nunito(
                             fontSize: 18,
@@ -148,7 +148,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     ),
                   ),
                   child: Text(
-                    AppLocalizations.of(context)!.onboardingStartLearning,
+                    AppStrings.onboardingStartLearning,
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,

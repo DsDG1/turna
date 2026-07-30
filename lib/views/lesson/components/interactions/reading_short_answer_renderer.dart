@@ -7,7 +7,7 @@ import 'package:injectable/injectable.dart';
 // Project imports:
 import 'package:varnamala/core/text_styles.dart';
 import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:varnamala/views/theme.dart';
 
@@ -90,7 +90,7 @@ class _ReadingShortAnswerBodyState extends State<_ReadingShortAnswerBody> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SectionCaption(AppLocalizations.of(context)!.lessonShortAnswerCaption),
+          SectionCaption(AppStrings.lessonShortAnswerCaption),
           Text(widget.prompt, style: AppTextStyles.promptMd(context)),
           const SizedBox(height: 24),
           TextField(
@@ -102,7 +102,7 @@ class _ReadingShortAnswerBodyState extends State<_ReadingShortAnswerBody> {
               color: VarnamalaTheme.textPrimaryColor(context),
             ),
             decoration: InputDecoration(
-              hintText: AppLocalizations.of(context)!.lessonTypeYourAnswer,
+              hintText: AppStrings.lessonTypeYourAnswer,
               filled: true,
               fillColor: submitted
                   ? (correct == true
@@ -115,7 +115,7 @@ class _ReadingShortAnswerBodyState extends State<_ReadingShortAnswerBody> {
           if (submitted && correct == false) ...[
             const SizedBox(height: 16),
             LessonCorrectAnswerBanner(
-              label: AppLocalizations.of(context)!.lessonCorrectAnswer,
+              label: AppStrings.lessonCorrectAnswer,
               answer: widget.expectedAnswer,
             ),
           ],
@@ -126,7 +126,7 @@ class _ReadingShortAnswerBodyState extends State<_ReadingShortAnswerBody> {
               builder: (context, value, _) {
                 final canSubmit = value.text.trim().isNotEmpty;
                 return LessonCheckButton(
-                  label: AppLocalizations.of(context)!.lessonCheck,
+                  label: AppStrings.lessonCheck,
                   enabled: canSubmit,
                   onPressed: canSubmit ? _trySubmit : null,
                 );

@@ -7,7 +7,7 @@ import 'package:injectable/injectable.dart';
 // Project imports:
 import 'package:varnamala/core/text_styles.dart';
 import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:varnamala/views/theme.dart';
 
@@ -90,7 +90,7 @@ class _ReadingTrueFalseBodyState extends State<_ReadingTrueFalseBody> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SectionCaption(AppLocalizations.of(context)!.lessonTrueFalseCaption),
+          SectionCaption(AppStrings.lessonTrueFalseCaption),
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(20),
@@ -106,7 +106,7 @@ class _ReadingTrueFalseBodyState extends State<_ReadingTrueFalseBody> {
             children: [
               Expanded(
                 child: InteractionOptionTile(
-                  label: AppLocalizations.of(context)!.lessonTrue,
+                  label: AppStrings.lessonTrue,
                   isSelected: _selectedBool == true,
                   isCorrect: submitted && widget.answer == true,
                   isWrong:
@@ -119,7 +119,7 @@ class _ReadingTrueFalseBodyState extends State<_ReadingTrueFalseBody> {
               const SizedBox(width: 12),
               Expanded(
                 child: InteractionOptionTile(
-                  label: AppLocalizations.of(context)!.lessonFalse,
+                  label: AppStrings.lessonFalse,
                   isSelected: _selectedBool == false,
                   isCorrect: submitted && widget.answer == false,
                   isWrong: submitted &&
@@ -135,7 +135,7 @@ class _ReadingTrueFalseBodyState extends State<_ReadingTrueFalseBody> {
           const SizedBox(height: 24),
           if (!submitted)
             LessonCheckButton(
-              label: AppLocalizations.of(context)!.lessonCheck,
+              label: AppStrings.lessonCheck,
               enabled: _selectedBool != null,
               onPressed: _selectedBool != null
                   ? () => widget.onSubmit(

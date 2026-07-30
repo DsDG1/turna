@@ -11,6 +11,7 @@ import 'package:varnamala/courses/languages/course_lookup.dart';
 import 'package:varnamala/domain/course/section.dart';
 import 'package:varnamala/domain/course/unit.dart';
 import 'package:varnamala/domain/course/lesson.dart';
+import 'package:varnamala/service/locator.dart';
 
 /// Explicit state for per-section body loading.
 ///
@@ -33,12 +34,28 @@ enum SectionLoadState { initial, loading, loaded, error }
 /// so this is behavior-preserving.
 @lazySingleton
 class CourseProvider extends ChangeNotifier {
+  CourseProvider([this._appPrefs]);
+
+  /// Prefs backing for [courseScope] persistence. Optional so tests can
+  /// construct the provider without a prefs store (scope then stays '').
+  final AppPrefs? _appPrefs;
+
   // --- Section hierarchy ---
   List<Section> _sections = const [];
+
+  /// Unfiltered section shells/bodies (built-in course + imported Anki
+  /// decks). [_sections] is the [courseScope]-filtered view of this list;
+  /// consumers that must stay scope-independent (Anki review hub, daily
+  /// challenge) read [allSections] instead.
+  List<Section> _allSections = const [];
   String? _currentSectionId;
   String? _selectedUnitId;
   String? _selectedLessonId;
   bool _isLoaded = false;
+
+  /// Active course scope: '' = built-in course (Anki decks hidden),
+  /// 'anki:<importId>' = only that imported deck's sections.
+  String _courseScope = '';
 
   /// Ids of sections whose full body (units/lessons) has been loaded.
   final Set<String> _loadedSectionIds = {};
@@ -64,7 +81,99 @@ class CourseProvider extends ChangeNotifier {
 
   /// Immutable view of the section shells (and any loaded bodies). Order is
   /// the on-disk order. Shells have empty `units` until loaded.
+  ///
+  /// This is the [courseScope]-filtered view — see [allSections] for the
+  /// unfiltered list.
   List<Section> get sections => List.unmodifiable(_sections);
+
+  /// Unfiltered view of every section (built-in course + all imported Anki
+  /// decks), regardless of [courseScope].
+  List<Section> get allSections => List.unmodifiable(_allSections);
+
+  /// The active course scope: '' = built-in course, 'anki:<importId>' = a
+  /// single imported Anki deck.
+  String get courseScope => _courseScope;
+
+  /// One entry per imported Anki deck (importId + display name), computed
+  /// from the unfiltered section list so the language menu can list all
+  /// decks regardless of the current [courseScope].
+  List<({String importId, String name})> get ankiDeckEntries {
+    final seen = <String>{};
+    final entries = <({String importId, String name})>[];
+    for (final s in _allSections) {
+      if (s.level != 'Anki') continue;
+      final importId = _importIdFromSectionId(s.id);
+      if (importId.isEmpty || !seen.add(importId)) continue;
+      entries.add((importId: importId, name: s.name));
+    }
+    return List.unmodifiable(entries);
+  }
+
+  /// Extract the import id from an Anki section id
+  /// ('anki-<importId>-s<deckId>' → importId). Import ids are dash-free
+  /// (base36 timestamps), so the first dash-delimited segment after the
+  /// 'anki-' prefix is the import id.
+  static String _importIdFromSectionId(String sectionId) {
+    if (!sectionId.startsWith('anki-')) return '';
+    return sectionId.substring(5).split('-').first;
+  }
+
+  /// One entry per manageable course: the built-in course (scope `''`, marked
+  /// `isBuiltin`, never deletable) plus one per imported Anki deck. Ordered
+  /// by the persisted course order ([PrefsConstants.courseOrder]); decks
+  /// missing from the stored order are appended at the end, and stored ids
+  /// without a matching deck are dropped.
+  ///
+  /// The built-in entry's `name` is empty — its display name belongs to the
+  /// language layer (`TargetLanguage`), so UI resolves it.
+  List<({String scope, String name, bool isBuiltin})> get courseEntries {
+    final decks = ankiDeckEntries;
+    final nameByScope = <String, String>{
+      for (final d in decks) 'anki:${d.importId}': d.name,
+    };
+    final stored = _appPrefs?.preferences
+            .getStringList(PrefsConstants.courseOrder,
+                defaultValue: const [''])
+            .getValue() ??
+        const [''];
+
+    final ordered = <({String scope, String name, bool isBuiltin})>[];
+    final seen = <String>{};
+    for (final scope in stored) {
+      if (!seen.add(scope)) continue;
+      if (scope.isEmpty) {
+        ordered.add((scope: '', name: '', isBuiltin: true));
+      } else {
+        final name = nameByScope[scope];
+        if (name != null) {
+          ordered.add((scope: scope, name: name, isBuiltin: false));
+        }
+      }
+    }
+    // The built-in course always exists, even if absent from the stored list.
+    if (seen.add('')) {
+      ordered.insert(0, (scope: '', name: '', isBuiltin: true));
+    }
+    // New decks not yet in the stored order go last.
+    for (final d in decks) {
+      final scope = 'anki:${d.importId}';
+      if (seen.add(scope)) {
+        ordered.add((scope: scope, name: d.name, isBuiltin: false));
+      }
+    }
+    return List.unmodifiable(ordered);
+  }
+
+  /// Persist the course order shown in the course-management page and
+  /// notify listeners so [courseEntries] re-resolves. [scopes] uses the same
+  /// encoding as [courseScope]: `''` for the built-in course,
+  /// `anki:<importId>` for a deck.
+  Future<void> persistCourseOrder(List<String> scopes) async {
+    final prefs = _appPrefs;
+    if (prefs == null) return;
+    await prefs.setStringList(PrefsConstants.courseOrder, scopes);
+    notifyListeners();
+  }
 
   /// Whether [load] has completed at least once.
   bool get isLoaded => _isLoaded;
@@ -166,7 +275,19 @@ class CourseProvider extends ChangeNotifier {
       return;
     }
     logger.w('CourseProvider.load: first load, fetching from DB');
-    _sections = await loadSectionShells();
+    _restoreScopeFromPrefs();
+    _allSections = await loadSectionShells();
+    _sections = _applyScopeFilter(_allSections);
+    if (_courseScope.isNotEmpty && _sections.isEmpty) {
+      // The scoped deck was uninstalled — fall back to the built-in course.
+      logger.w(
+        'CourseProvider.load: scope "$_courseScope" matches no sections, '
+        'falling back to built-in course',
+      );
+      _courseScope = '';
+      await _persistScope();
+      _sections = _applyScopeFilter(_allSections);
+    }
     _currentSectionId = _sections.isNotEmpty ? _sections.first.id : null;
     _selectedUnitId = null;
     _selectedLessonId = null;
@@ -237,19 +358,26 @@ class CourseProvider extends ChangeNotifier {
   }
 
   void _replaceSection(Section full) {
-    for (var i = 0; i < _sections.length; i++) {
-      if (_sections[i].id == full.id) {
-        final updated = List<Section>.of(_sections);
+    _allSections = _replacedIn(_allSections, full);
+    _sections = _replacedIn(_sections, full);
+  }
+
+  /// Return a copy of [list] with the section matching [full]'s id replaced,
+  /// refreshing the lesson cache when a replacement happened.
+  List<Section> _replacedIn(List<Section> list, Section full) {
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].id == full.id) {
+        final updated = List<Section>.of(list);
         updated[i] = full;
-        _sections = List.unmodifiable(updated);
         for (final unit in full.units) {
           for (final lesson in unit.lessons) {
             _lessonCache[lesson.id] = lesson;
           }
         }
-        return;
+        return List.unmodifiable(updated);
       }
     }
+    return list;
   }
 
   /// Clear any cached error/state for [id] and reload its body from scratch.
@@ -271,6 +399,7 @@ class CourseProvider extends ChangeNotifier {
     logger.w('CourseProvider.reloadCourse: resetting and reloading shells');
     _isLoaded = false;
     _sections = const [];
+    _allSections = const [];
     _currentSectionId = null;
     _selectedUnitId = null;
     _selectedLessonId = null;
@@ -281,6 +410,47 @@ class CourseProvider extends ChangeNotifier {
     _sectionLoadErrors.clear();
     notifyListeners();
     await load();
+  }
+
+  // --- Course scope ('' = built-in course, 'anki:<importId>' = one deck) ---
+
+  /// Switch the course scope and reload the tree. Persists the choice so it
+  /// survives restarts; [load] falls back to '' when the scoped deck no
+  /// longer exists (e.g. after an uninstall that didn't go through here).
+  Future<void> setCourseScope(String scope) async {
+    if (scope == _courseScope && _isLoaded) return;
+    _courseScope = scope;
+    await _persistScope();
+    CourseLoader.invalidateCaches();
+    await reloadCourse();
+  }
+
+  /// Keep only the sections belonging to the active scope: built-in course
+  /// (everything except Anki decks) or a single deck's `anki-<importId>-`
+  /// id prefix.
+  List<Section> _applyScopeFilter(List<Section> shells) {
+    if (_courseScope.isEmpty) {
+      return shells.where((s) => s.level != 'Anki').toList(growable: false);
+    }
+    if (_courseScope.startsWith('anki:')) {
+      final prefix = 'anki-${_courseScope.substring(5)}-';
+      return shells.where((s) => s.id.startsWith(prefix)).toList(
+            growable: false,
+          );
+    }
+    return shells;
+  }
+
+  void _restoreScopeFromPrefs() {
+    final prefs = _appPrefs;
+    if (prefs == null) return;
+    _courseScope = prefs.courseScope.getValue();
+  }
+
+  Future<void> _persistScope() async {
+    final prefs = _appPrefs;
+    if (prefs == null) return;
+    await prefs.setString(PrefsConstants.courseScope, _courseScope);
   }
 
   // --- Selection (all id-based, so middle-of-tree inserts are safe) ---

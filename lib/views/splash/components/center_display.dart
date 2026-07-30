@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/app_fonts.dart';
 import 'package:varnamala/views/home/mala_welcomes.dart';
 import 'package:varnamala/views/theme.dart';
@@ -35,22 +35,22 @@ class _CenterDisplayState extends State<CenterDisplay>
     super.didChangeDependencies();
     if (_textsInitialized) return;
     _textsInitialized = true;
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppStrings;
     _texts = [
       _TextItem(
-        l10n.splashReclaiming,
+        AppStrings.splashReclaiming,
         FontWeight.w600,
         (context) => VarnamalaTheme.textSecondaryColor(context),
         const Duration(milliseconds: 1000),
       ),
       _TextItem(
-        l10n.splashLearnTurkish,
+        AppStrings.splashLearnTurkish,
         FontWeight.w600,
         (context) => VarnamalaTheme.textSecondaryColor(context),
         const Duration(milliseconds: 1000),
       ),
       _TextItem(
-        l10n.splashFreeForever,
+        AppStrings.splashFreeForever,
         FontWeight.w700,
         (_) => VarnamalaTheme.error,
         const Duration(milliseconds: 2500),
@@ -88,7 +88,7 @@ class _CenterDisplayState extends State<CenterDisplay>
           const RepaintBoundary(child: MalaWelcomes()),
           const SizedBox(height: 24),
           Text(
-            AppLocalizations.of(context)!.splashAppName,
+            AppStrings.splashAppName,
             style: AppFonts.nunito(
               fontSize: 36,
               fontWeight: FontWeight.w800,
@@ -117,7 +117,7 @@ class _CenterDisplayState extends State<CenterDisplay>
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 40.0),
             child: Text(
-              AppLocalizations.of(context)!.splashSubtitle,
+              AppStrings.splashSubtitle,
               textAlign: TextAlign.center,
               style: AppFonts.nunito(
                 fontSize: 16,

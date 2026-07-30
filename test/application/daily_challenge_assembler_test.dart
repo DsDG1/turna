@@ -19,6 +19,8 @@ class _StubCourseProvider extends CourseProvider {
   _StubCourseProvider(this._sections);
   @override
   List<Section> get sections => _sections;
+  @override
+  List<Section> get allSections => _sections;
 }
 
 Lesson _lessonWith(List<Interaction> items) => Lesson(

@@ -9,6 +9,8 @@ class KnowledgePrompt {
     required String chapterTitle,
     required String chapterMarkdown,
     int maxChars = 8000,
+    /// `standard` or `vocab_only` (from [TextbookPreset.strategy]).
+    String extractionStrategy = 'standard',
   }) {
     final truncated = _truncateAtParagraph(chapterMarkdown, maxChars);
     return [
@@ -24,6 +26,7 @@ class KnowledgePrompt {
           sourceLanguage: sourceLanguage,
           chapterTitle: chapterTitle,
           chapterMarkdown: truncated,
+          vocabOnly: extractionStrategy == 'vocab_only',
         ),
       },
     ];
@@ -34,10 +37,17 @@ class KnowledgePrompt {
     required String sourceLanguage,
     required String chapterTitle,
     required String chapterMarkdown,
+    bool vocabOnly = false,
   }) {
+    final focus = vocabOnly
+        ? 'Focus ONLY on vocabulary (words). Leave expressions and grammarPoints as empty arrays.'
+        : 'Extract words, expressions, and grammar points that are taught or illustrated.';
+
     return '''Extract teachable knowledge points from the following $language textbook chapter.
 
 The chapter title is: "$chapterTitle".
+
+$focus
 
 Return STRICT JSON with this top-level shape:
 {
@@ -78,7 +88,7 @@ Rules:
 2. term/title must be in $language; translation/explanation must be in $sourceLanguage.
 3. ids are globally unique, lower kebab-case. Use a short slug derived from the chapter title as a prefix.
 4. Output JSON only — no markdown fences, no prose.
-
+${vocabOnly ? '5. expressions and grammarPoints MUST be empty arrays [].\n' : ''}
 Chapter content:
 $chapterMarkdown
 ''';

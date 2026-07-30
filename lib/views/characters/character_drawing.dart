@@ -13,7 +13,7 @@ import 'package:varnamala/core/enums.dart';
 import 'package:varnamala/core/utils.dart';
 import 'package:varnamala/courses/alphabets/alphabets.dart';
 import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/routing/routing.gr.dart';
 import 'package:varnamala/views/theme.dart';
 
@@ -54,9 +54,9 @@ class _CharacterPracticeScreenState extends State<CharacterPracticeScreen> {
         // Vowels section
         SliverToBoxAdapter(
           child: _SectionHeader(
-            title: AppLocalizations.of(context)!.charactersVowelsTitle,
+            title: AppStrings.charactersVowelsTitle,
             subtitle:
-                AppLocalizations.of(context)!.charactersVowelsSubtitle(vowels.length),
+                AppStrings.charactersVowelsSubtitle(vowels.length),
             icon: Icons.record_voice_over_rounded,
           ),
         ),
@@ -85,8 +85,8 @@ class _CharacterPracticeScreenState extends State<CharacterPracticeScreen> {
         // Consonants section
         SliverToBoxAdapter(
           child: _SectionHeader(
-            title: AppLocalizations.of(context)!.charactersConsonantsTitle,
-            subtitle: AppLocalizations.of(context)!
+            title: AppStrings.charactersConsonantsTitle,
+            subtitle: AppStrings
                 .charactersConsonantsSubtitle(consonants.length),
             icon: Icons.abc_rounded,
           ),
@@ -121,7 +121,7 @@ class _CharacterPracticeScreenState extends State<CharacterPracticeScreen> {
               children: [
                 const SizedBox(height: 8),
                 _PracticeButton(
-                  label: AppLocalizations.of(context)!.charactersLearnVowels,
+                  label: AppStrings.charactersLearnVowels,
                   icon: Icons.record_voice_over_rounded,
                   color: VarnamalaTheme.peacockTeal,
                   onTap: () => context.router.push(
@@ -130,7 +130,7 @@ class _CharacterPracticeScreenState extends State<CharacterPracticeScreen> {
                 ),
                 const SizedBox(height: 10),
                 _PracticeButton(
-                  label: AppLocalizations.of(context)!.charactersLearnConsonants,
+                  label: AppStrings.charactersLearnConsonants,
                   icon: Icons.abc_rounded,
                   color: VarnamalaTheme.leagueAmethyst,
                   onTap: () => context.router.push(
@@ -139,7 +139,7 @@ class _CharacterPracticeScreenState extends State<CharacterPracticeScreen> {
                 ),
                 const SizedBox(height: 10),
                 _PracticeButton(
-                  label: AppLocalizations.of(context)!.charactersRandomPractice,
+                  label: AppStrings.charactersRandomPractice,
                   icon: Icons.shuffle_rounded,
                   color: VarnamalaTheme.peacockCyan,
                   onTap: () => context.router.push(
@@ -585,7 +585,7 @@ class _VowelAndConsonantLearningPageState
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                          AppLocalizations.of(context)!.charactersNext,
+                          AppStrings.charactersNext,
                           style: const TextStyle(
                               fontSize: 18, fontWeight: FontWeight.w700)),
                       const SizedBox(width: 8),
@@ -603,14 +603,14 @@ class _VowelAndConsonantLearningPageState
   }
 
   String _getModeTitle(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppStrings;
     switch (widget.mode) {
       case CharacterLearningMode.vowels:
-        return l10n.charactersVowelsModeTitle;
+        return AppStrings.charactersVowelsModeTitle;
       case CharacterLearningMode.consonants:
-        return l10n.charactersConsonantsModeTitle;
+        return AppStrings.charactersConsonantsModeTitle;
       case CharacterLearningMode.random:
-        return l10n.charactersRandomModeTitle;
+        return AppStrings.charactersRandomModeTitle;
     }
   }
 }

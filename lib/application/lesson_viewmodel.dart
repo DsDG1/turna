@@ -4,6 +4,9 @@ import 'package:flutter/foundation.dart';
 // Package imports:
 import 'package:injectable/injectable.dart';
 
+// Dart imports:
+import 'dart:async';
+
 // Project imports:
 import 'package:varnamala/application/audio_controller.dart';
 import 'package:varnamala/application/course_provider.dart';
@@ -11,6 +14,7 @@ import 'package:varnamala/application/grammar_review_provider.dart';
 import 'package:varnamala/application/lesson_completion_coordinator.dart';
 import 'package:varnamala/application/mistake_provider.dart';
 import 'package:varnamala/application/srs_provider.dart';
+import 'package:varnamala/core/sm2.dart';
 import 'package:varnamala/courses/course_loader.dart';
 import 'package:varnamala/domain/course/interaction.dart';
 import 'package:varnamala/domain/course/lesson.dart';
@@ -18,6 +22,23 @@ import 'package:varnamala/domain/course/lesson_word_link.dart';
 import 'package:varnamala/domain/course/mistake_entry.dart';
 import 'package:varnamala/domain/course/stage.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
+
+/// Derive the SRS wordId from an Anki card interaction id.
+///
+/// Id conventions (see AnkiCardAdapter / AnkiReviewAssembler):
+/// - Course lessons: '<wordId>-c<ord>' where wordId = 'anki-<importId>-n<noteId>'
+/// - Review sessions: 'anki-review-<wordId>'
+///
+/// Returns the wordId ('anki-<importId>-n<noteId>') in both cases; ids that
+/// match neither convention are returned unchanged.
+String ankiWordIdFromInteractionId(String interactionId) {
+  final id = interactionId.replaceFirst('anki-review-', '');
+  final cIdx = id.lastIndexOf('-c');
+  if (cIdx > 0 && int.tryParse(id.substring(cIdx + 2)) != null) {
+    return id.substring(0, cIdx);
+  }
+  return id;
+}
 
 /// Describes the UI state after an answer is submitted.
 enum AnswerState {
@@ -339,14 +360,28 @@ class LessonViewModel extends ChangeNotifier {
   }
 
   /// Submit the current interaction with a correctness verdict.
-  void submitInteraction(bool correct, {String? userAnswerText}) {
+  ///
+  /// [recordMistake] overrides the lesson-level `recordMistakes` flag for
+  /// this one submission — sessions that load with `recordMistakes: false`
+  /// (e.g. Anki review) can still opt objectively-graded items into the
+  /// mistake log while keeping self-graded flip cards out of it.
+  /// [mistakeWordId] attaches a word id to the mistake entry when the
+  /// interaction itself does not carry one (Anki cards are not ShowWords).
+  void submitInteraction(
+    bool correct, {
+    String? userAnswerText,
+    bool? recordMistake,
+    String? mistakeWordId,
+  }) {
     if (_lesson == null) return;
 
     if (!correct) {
       _totalMistakes++;
       _incorrectAnswers++;
       _audioController.playRandomErrorSound();
-      if (_recordsMistakes) _recordMistake(userAnswerText);
+      if (recordMistake ?? _recordsMistakes) {
+        _recordMistake(userAnswerText, wordId: mistakeWordId);
+      }
     } else {
       _correctAnswers++;
       _audioController.playRandomLevelUpSound();
@@ -383,9 +418,64 @@ class LessonViewModel extends ChangeNotifier {
           correctAnswer: interactionCorrectAnswerLabel(interaction),
         ),
       );
+      // Binary SRS signal: 做对/做错 → pass/fail (same pipeline as flashcards).
+      _applySrsOutcome(
+        correct: correct,
+        wordId: mistakeWordId,
+        interaction: interaction,
+      );
     }
 
     notifyListeners();
+  }
+
+  /// Feed lesson exercise grades into FSRS as binary pass/fail (ADR 0028).
+  /// Only runs when a concrete word/expression id is known; skips intro-only
+  /// ShowWord sentinel ids and unregistered phantoms.
+  void _applySrsOutcome({
+    required bool correct,
+    String? wordId,
+    required Interaction interaction,
+  }) {
+    final outcome = ReviewOutcome.fromCorrect(correct);
+
+    String? effectiveWordId = wordId;
+    String? expressionId;
+    if (interaction is ShowWord) {
+      if (effectiveWordId == null || effectiveWordId.isEmpty) {
+        effectiveWordId = interaction.wordId;
+      }
+      expressionId = interaction.expressionId;
+    } else if (interaction is AnkiCard) {
+      // Flip cards studied through the standard lesson path: the assembler
+      // ids the interaction '<wordId>-c<ord>' (review sessions re-id them
+      // 'anki-review-<wordId>'), so the SRS wordId is recoverable from the
+      // interaction id. Without this branch a course-path flip card would
+      // never reach the FSRS queue.
+      if (effectiveWordId == null || effectiveWordId.isEmpty) {
+        effectiveWordId = ankiWordIdFromInteractionId(interaction.id);
+      }
+    }
+
+    if (effectiveWordId != null &&
+        effectiveWordId.isNotEmpty &&
+        !effectiveWordId.startsWith(unknownInteractionWordIdPrefix)) {
+      // Ensure the card exists then grade it (register is idempotent).
+      _srsProvider.registerWord(effectiveWordId);
+      unawaited(_srsProvider.reviewWordOutcome(effectiveWordId, outcome));
+    }
+
+    if (expressionId != null && expressionId.isNotEmpty) {
+      _srsProvider.registerExpression(expressionId);
+      unawaited(_srsProvider.reviewExpressionOutcome(expressionId, outcome));
+    }
+
+    // Grammar points use the same binary pass/fail FSRS path.
+    final gp = interactionGrammarPointId(interaction);
+    if (gp != null && gp.isNotEmpty) {
+      _grammarReviewProvider.registerGrammarPoint(gp);
+      unawaited(_grammarReviewProvider.reviewWithOutcome(gp, outcome));
+    }
   }
 
   /// Advance to the next interaction (or stage). Called after the user
@@ -542,7 +632,11 @@ class LessonViewModel extends ChangeNotifier {
   }
 
   /// Record a wrong answer in the mistake log.
-  void _recordMistake(String? userAnswerText) {
+  ///
+  /// [wordId] overrides the id derived from the interaction — Anki review
+  /// sessions pass the card's SRS word id so weak-word aggregation can see
+  /// the mistake (their interactions are not ShowWords).
+  void _recordMistake(String? userAnswerText, {String? wordId}) {
     final lesson = _lesson;
     final stage = currentStage;
     final interaction = currentInteraction;
@@ -550,8 +644,8 @@ class LessonViewModel extends ChangeNotifier {
 
     final correctAnswer = interactionCorrectAnswerLabel(interaction);
 
-    String? wordId;
-    if (interaction is ShowWord) wordId = interaction.wordId;
+    var effectiveWordId = wordId;
+    if (interaction is ShowWord) effectiveWordId ??= interaction.wordId;
 
     // Prefer an explicit link on the interaction; fall back to a single
     // lesson-level linked grammar point when unambiguous.
@@ -566,7 +660,7 @@ class LessonViewModel extends ChangeNotifier {
       lessonId: lesson.id,
       stageId: stage.id,
       interactionId: interaction.id,
-      wordId: wordId,
+      wordId: effectiveWordId,
       grammarPointId: grammarPointId,
       interactionSnapshot: interaction,
       userAnswer: userAnswerText ?? '',
@@ -576,8 +670,13 @@ class LessonViewModel extends ChangeNotifier {
 
     _mistakeProvider.record(entry);
 
-    if (grammarPointId != null && grammarPointId.isNotEmpty) {
-      _grammarReviewProvider.markDueNow(grammarPointId);
+    // Grammar due-now on mistake is handled in [_applySrsOutcome] when the
+    // interaction carries a grammar link; keep markDue for ambiguous
+    // lesson-level single grammar fallback above.
+    if (grammarPointId != null &&
+        grammarPointId.isNotEmpty &&
+        interactionGrammarPointId(interaction) == null) {
+      unawaited(_grammarReviewProvider.markDueNow(grammarPointId));
     }
   }
 

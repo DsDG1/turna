@@ -50,6 +50,15 @@ class MistakeProvider extends ChangeNotifier {
   /// Number of mistakes currently stored.
   int get count => entries.length;
 
+  /// Most recent [max] mistakes (FIFO tail — newest last). Used by the
+  /// personalized tutor ([SrsTutorProvider]) to assemble context.
+  List<MistakeEntry> recentMistakes({int max = 20}) {
+    if (max <= 0) return const <MistakeEntry>[];
+    final list = entries;
+    if (list.length <= max) return list;
+    return list.sublist(list.length - max);
+  }
+
   /// Add a new mistake. If the log exceeds [maxEntries], the oldest entry is
   /// removed.
   Future<void> record(MistakeEntry entry) async {

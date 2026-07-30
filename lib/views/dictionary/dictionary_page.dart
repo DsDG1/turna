@@ -8,7 +8,7 @@ import 'package:auto_route/annotations.dart';
 import 'package:varnamala/application/audio_controller.dart';
 import 'package:varnamala/application/dictionary_search.dart';
 import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/theme.dart';
 
 @RoutePage()
@@ -50,7 +50,7 @@ class _DictionaryPageState extends State<DictionaryPage> {
       backgroundColor: VarnamalaTheme.scaffoldBg(context),
       appBar: AppBar(
         title: Text(
-          AppLocalizations.of(context)!.dictionaryTitle,
+          AppStrings.dictionaryTitle,
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
@@ -64,7 +64,7 @@ class _DictionaryPageState extends State<DictionaryPage> {
               controller: _controller,
               onChanged: _onQueryChanged,
               decoration: InputDecoration(
-                hintText: AppLocalizations.of(context)!.dictionarySearchHint,
+                hintText: AppStrings.dictionarySearchHint,
                 prefixIcon: const Icon(Icons.search_rounded),
                 filled: true,
                 fillColor: VarnamalaTheme.inputFillColor(context),
@@ -81,8 +81,8 @@ class _DictionaryPageState extends State<DictionaryPage> {
                 ? Center(
                     child: Text(
                       _controller.text.trim().isEmpty
-                          ? AppLocalizations.of(context)!.dictionarySearchEmpty
-                          : AppLocalizations.of(context)!.dictionaryNoMatches,
+                          ? AppStrings.dictionarySearchEmpty
+                          : AppStrings.dictionaryNoMatches,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: VarnamalaTheme.textHintColor(context),
                           ),
@@ -115,14 +115,14 @@ class _DictionaryTile extends StatelessWidget {
   const _DictionaryTile({required this.hit, required this.onSpeak});
 
   String _kindLabel(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppStrings;
     switch (hit.kind) {
       case DictionaryHitKind.vocab:
-        return l10n.dictionaryKindWord;
+        return AppStrings.dictionaryKindWord;
       case DictionaryHitKind.expression:
-        return l10n.dictionaryKindPhrase;
+        return AppStrings.dictionaryKindPhrase;
       case DictionaryHitKind.grammar:
-        return l10n.dictionaryKindGrammar;
+        return AppStrings.dictionaryKindGrammar;
     }
   }
 
@@ -177,7 +177,7 @@ class _DictionaryTile extends StatelessWidget {
               ),
             ),
             IconButton(
-              tooltip: AppLocalizations.of(context)!.dictionaryPlayPronunciation,
+              tooltip: AppStrings.dictionaryPlayPronunciation,
               onPressed: onSpeak,
               icon: const Icon(
                 Icons.volume_up_rounded,

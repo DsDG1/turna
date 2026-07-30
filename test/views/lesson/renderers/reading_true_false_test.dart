@@ -21,7 +21,7 @@ void main() {
     );
 
     await tester.pumpWidget(harness.build(renderer, interaction));
-    await tapOption(tester, 'True');
+    await tapOption(tester, '正确');
     await tapCheck(tester);
 
     expect(harness.submissions, [(true, 'True')]);
@@ -37,7 +37,7 @@ void main() {
     );
 
     await tester.pumpWidget(harness.build(renderer, interaction));
-    await tapOption(tester, 'False');
+    await tapOption(tester, '错误');
     await tapCheck(tester);
 
     expect(harness.submissions, [(false, 'False')]);

@@ -31,6 +31,8 @@ import 'package:varnamala/domain/course/stage.dart';
 import 'package:varnamala/domain/study/study_log.dart';
 import 'package:varnamala/service/locator.dart';
 
+import '../helpers/in_memory_course_db.dart';
+
 class _PassthroughVocabResolver implements VocabAudioResolver {
   @override
   ResolvedVocabAudio resolve(String wordId) =>
@@ -220,9 +222,10 @@ _ViewModelHarness _buildHarness({
   final achievementsProvider = _FakeAchievementsProvider();
   final audioController = _FakeAudioController();
   final linkStore = LessonLinkStore(appPrefs);
-  final srsProvider = SrsProvider(appPrefs, linkStore);
+  final srsDao = emptySrsStateDao();
+  final srsProvider = SrsProvider(appPrefs, linkStore, srsDao);
   final mistakeProvider = MistakeProvider(appPrefs);
-  final grammarProvider = GrammarReviewProvider(appPrefs, linkStore);
+  final grammarProvider = GrammarReviewProvider(appPrefs, linkStore, srsDao);
   final studyStatsProvider = _FakeStudyStatsProvider(appPrefs);
   final completionCoordinator = LessonCompletionCoordinator(
     gameProvider,
@@ -552,6 +555,45 @@ void main() {
 
       expect(harness.grammarProvider.dueCount, 1);
       expect(harness.grammarProvider.state.containsKey('gp.present-a'), isTrue);
+    });
+
+    test('anki flip card submit derives wordId and grades SRS state', () async {
+      // Course-path AnkiCard interactions are id'd '<wordId>-c<ord>' by the
+      // deck assembler; submitting one must register + grade the word in the
+      // SRS queue just like a ShowWord would.
+      final lesson = _buildLegacyLesson(
+        items: [
+          const Interaction.ankiCard(
+            id: 'anki-imp1-n42-c0',
+            front: 'Front side',
+            back: 'Back side',
+          ),
+        ],
+      );
+      final harness = _buildHarness(lesson: lesson, appPrefs: appPrefs);
+      final vm = harness.vm;
+
+      await vm.loadLesson(lesson.id);
+      vm.submitInteraction(true);
+      await pumpEventQueue();
+
+      final word = harness.srsProvider.state['anki-imp1-n42'];
+      expect(word, isNotNull,
+          reason: 'flip card wordId should be registered in the SRS queue');
+      expect(word!.reps, greaterThan(0),
+          reason: 'a passing grade should advance the card');
+    });
+
+    test('ankiWordIdFromInteractionId strips review prefix and card ordinal',
+        () {
+      expect(ankiWordIdFromInteractionId('anki-imp1-n42-c0'), 'anki-imp1-n42');
+      expect(ankiWordIdFromInteractionId('anki-imp1-n42-c12'), 'anki-imp1-n42');
+      expect(
+        ankiWordIdFromInteractionId('anki-review-anki-imp1-n42'),
+        'anki-imp1-n42',
+      );
+      // Ids that match neither convention pass through unchanged.
+      expect(ankiWordIdFromInteractionId('mcq-1'), 'mcq-1');
     });
   });
 }

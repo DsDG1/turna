@@ -129,6 +129,8 @@ void main() {
           theme: VarnamalaTheme.darkTheme,
           darkTheme: VarnamalaTheme.darkTheme,
           themeMode: ThemeMode.dark,
+          
+          
           home: MultiProvider(
             providers: [
               ChangeNotifierProvider<CourseProvider>.value(

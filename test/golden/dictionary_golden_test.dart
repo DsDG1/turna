@@ -32,6 +32,8 @@ void main() {
         theme: VarnamalaTheme.lightTheme,
         darkTheme: VarnamalaTheme.darkTheme,
         themeMode: mode,
+        
+        
         home: const DictionaryPage(),
       ),
     );

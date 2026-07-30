@@ -16,6 +16,7 @@ import 'package:varnamala/application/mistake_provider.dart';
 import 'package:varnamala/application/weak_word_quiz_assembler.dart';
 import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/domain/course/interaction.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:varnamala/views/lesson/components/lesson_dialogs.dart';
 import 'package:varnamala/views/lesson/components/lesson_stage_widgets.dart';
@@ -61,7 +62,6 @@ class _WeakWordsPageState extends State<WeakWordsPage> {
     }
     final lesson = WeakWordQuizAssembler.assembleFromWeakWords(
       weak,
-      mistakeEntries: mistakes,
       random: _random,
     );
     if (!mounted) return;
@@ -173,7 +173,7 @@ class _WeakWordsPageState extends State<WeakWordsPage> {
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
                           child: LessonCheckButton(
-                            label: selected.$5 ? 'CONTINUE' : 'GOT IT',
+                            label: selected.$5 ? AppStrings.lessonContinueUpper : AppStrings.lessonGotItUpper,
                             enabled: true,
                             onPressed: () => vm.advance(),
                           ),
@@ -191,7 +191,7 @@ class _WeakWordsPageState extends State<WeakWordsPage> {
       backgroundColor: VarnamalaTheme.surfaceColor(context),
       elevation: 0,
       leading: IconButton(
-        tooltip: 'Close',
+        tooltip: AppStrings.commonClose,
         icon: Icon(
           Icons.close_rounded,
           color: VarnamalaTheme.textPrimaryColor(context),
@@ -199,7 +199,7 @@ class _WeakWordsPageState extends State<WeakWordsPage> {
         onPressed: () => Navigator.of(context).maybePop(),
       ),
       title: Text(
-        'Weak Words',
+        AppStrings.playWeakWordsTitleAppBar,
         style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w700,
@@ -233,8 +233,7 @@ class _WeakWordsPageState extends State<WeakWordsPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              'Keep practicing — no weak words yet.\n'
-              'Words you miss twice in 30 days will show up here.',
+              AppStrings.playWeakWordsEmpty,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: VarnamalaTheme.textSecondaryColor(context),
@@ -243,7 +242,7 @@ class _WeakWordsPageState extends State<WeakWordsPage> {
             const SizedBox(height: 16),
             TextButton(
               onPressed: () => Navigator.of(context).maybePop(),
-              child: const Text('Back'),
+              child: Text(AppStrings.commonBack),
             ),
           ],
         ),

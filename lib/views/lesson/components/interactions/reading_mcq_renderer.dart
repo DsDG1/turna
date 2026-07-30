@@ -7,7 +7,7 @@ import 'package:injectable/injectable.dart';
 // Project imports:
 import 'package:varnamala/core/text_styles.dart';
 import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
 
 /// Renderer for [Interaction.readingMcq].
@@ -92,7 +92,7 @@ class _ReadingMcqBodyState extends State<_ReadingMcqBody> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SectionCaption(AppLocalizations.of(context)!.lessonReadingComprehensionCaption),
+          SectionCaption(AppStrings.lessonReadingComprehensionCaption),
           Text(widget.prompt, style: AppTextStyles.promptMd(context)),
           const SizedBox(height: 20),
           for (var idx = 0; idx < widget.options.length; idx++) ...[
@@ -110,7 +110,7 @@ class _ReadingMcqBodyState extends State<_ReadingMcqBody> {
           const SizedBox(height: 24),
           if (!submitted)
             LessonCheckButton(
-              label: AppLocalizations.of(context)!.lessonCheck,
+              label: AppStrings.lessonCheck,
               enabled: _selectedIndex != null,
               onPressed: _selectedIndex != null
                   ? () => widget.onSubmit(

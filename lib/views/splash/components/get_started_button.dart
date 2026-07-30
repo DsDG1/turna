@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:varnamala/application/game_provider.dart';
 import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/routing/routing.gr.dart';
 import 'package:varnamala/views/theme.dart';
 
@@ -38,7 +38,7 @@ class GetStartedButton extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              AppLocalizations.of(context)!.splashGetStarted,
+              AppStrings.splashGetStarted,
               style: const TextStyle(
                 color: VarnamalaTheme.textOnPrimary,
                 fontSize: 18,

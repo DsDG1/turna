@@ -8,7 +8,14 @@ part 'srs_word.g.dart';
 enum SrsItemType { word, expression }
 
 /// Spaced-repetition state for a [WordEntry] or [Expression]. Persisted per-id.
-/// Uses SM-2 algorithm fields: interval, ease, repetitions, lapses.
+///
+/// Scheduling is FSRS by default (ADR 0028): [stability] / [difficulty] are
+/// the continuous memory parameters. Legacy SM-2 fields ([intervalDays],
+/// [ease], [reps], [lapses]) are retained for display, exports, and migration.
+///
+/// **Mastery is not a discrete stage**: UI should use retrievability / mastery
+/// score, not “passed box 4”.
+/// [reps] counts total successful recalls (it is NOT reset on a lapse).
 @freezed
 abstract class SrsWord with _$SrsWord {
   const factory SrsWord({
@@ -20,6 +27,23 @@ abstract class SrsWord with _$SrsWord {
     @Default(0) int lapses,
     @Default(false) bool isLeech,
     @Default(SrsItemType.word) SrsItemType type,
+
+    /// Wall-clock time of the most recent review (null for never-reviewed
+    /// cards). Used with [stability] for \(R(t)\) without a DB join.
+    DateTime? lastReviewedAt,
+
+    /// FSRS memory stability \(S\) (days until predicted R ≈ 90%). Null until
+    /// first FSRS review or SM-2→FSRS migration seed.
+    double? stability,
+
+    /// FSRS difficulty \(D\) in \[1, 10\]. Null until seeded.
+    double? difficulty,
+
+    /// FSRS learning state value: 1=learning, 2=review, 3=relearning.
+    @Default(1) int fsrsState,
+
+    /// FSRS learning/relearning step index (null when in pure review state).
+    int? learningStep,
   }) = _SrsWord;
 
   factory SrsWord.fromJson(Map<String, dynamic> json) =>

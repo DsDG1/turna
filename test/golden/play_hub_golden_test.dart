@@ -12,6 +12,8 @@ import 'package:varnamala/service/locator.dart';
 import 'package:varnamala/views/play/play_hub_screen.dart';
 import 'package:varnamala/views/theme.dart';
 
+import '../helpers/in_memory_course_db.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -24,18 +26,20 @@ void main() {
   });
 
   Future<void> pumpHub(WidgetTester tester, ThemeMode mode) async {
-    await tester.binding.setSurfaceSize(const Size(400, 900));
+    await tester.binding.setSurfaceSize(const Size(400, 1400));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
+    final srsDao = emptySrsStateDao();
     await tester.pumpWidget(
       MultiProvider(
         providers: [
           ChangeNotifierProvider(create: (_) => MistakeProvider(prefs)),
           ChangeNotifierProvider(
-            create: (_) => SrsProvider(prefs, LessonLinkStore(prefs)),
+            create: (_) => SrsProvider(prefs, LessonLinkStore(prefs), srsDao),
           ),
           ChangeNotifierProvider(
-            create: (_) => GrammarReviewProvider(prefs, LessonLinkStore(prefs)),
+            create: (_) =>
+                GrammarReviewProvider(prefs, LessonLinkStore(prefs), srsDao),
           ),
           ChangeNotifierProvider(create: (_) => GameProvider.forTesting(prefs)),
         ],
@@ -43,6 +47,8 @@ void main() {
           theme: VarnamalaTheme.lightTheme,
           darkTheme: VarnamalaTheme.darkTheme,
           themeMode: mode,
+          
+          
           home: const Scaffold(body: PlayHubScreen()),
         ),
       ),

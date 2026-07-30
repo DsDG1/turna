@@ -53,11 +53,6 @@ abstract class ICourseRepository {
   /// Delete a section and its whole tree (units, lessons, lesson contents).
   Future<void> deleteSection(String sectionId);
 
-  /// Record a completed Anki deck import in the `anki_imports` table so
-  /// re-imports can detect incremental updates and the user can see what
-  /// has been imported.
-  Future<void> recordAnkiImport(db.AnkiImportsCompanion companion);
-
   /// List all recorded Anki imports, most recent first.
   Future<List<db.AnkiImport>> ankiImports();
 }

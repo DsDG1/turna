@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 // Project imports:
 import 'package:varnamala/application/language_provider.dart';
 import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/l10n/app_localizations.dart';
+import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/service/locator.dart';
 import 'package:varnamala/service/tts_availability_checker.dart';
 import 'package:varnamala/views/theme.dart';
@@ -54,19 +54,19 @@ class _SplashPageState extends State<SplashPage> {
 
     final diag = await checker.diagnose(languageCode);
     if (!mounted) return;
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppStrings;
     final (title, body) = switch (diag.preferredStatus) {
       TtsPreferredStatus.turkishVoiceMissing => (
-          l10n.splashTurkishVoiceMissingTitle,
-          l10n.splashTurkishVoiceMissingBody,
+          AppStrings.splashTurkishVoiceMissingTitle,
+          AppStrings.splashTurkishVoiceMissingBody,
         ),
       TtsPreferredStatus.googleMissing => (
-          l10n.splashGoogleTtsMissingTitle,
-          l10n.splashGoogleTtsMissingBody,
+          AppStrings.splashGoogleTtsMissingTitle,
+          AppStrings.splashGoogleTtsMissingBody,
         ),
       TtsPreferredStatus.ready => (
-          l10n.splashGoogleTtsNotReadyTitle,
-          l10n.splashGoogleTtsNotReadyBody,
+          AppStrings.splashGoogleTtsNotReadyTitle,
+          AppStrings.splashGoogleTtsNotReadyBody,
         ),
     };
 
@@ -80,17 +80,17 @@ class _SplashPageState extends State<SplashPage> {
           TextButton(
             onPressed: () =>
                 Navigator.of(context).pop(_GoogleTtsPromptAction.keepSystem),
-            child: Text(l10n.splashKeepCurrentVoice),
+            child: Text(AppStrings.splashKeepCurrentVoice),
           ),
           TextButton(
             onPressed: () =>
                 Navigator.of(context).pop(_GoogleTtsPromptAction.openSettings),
-            child: Text(l10n.splashTtsSettings),
+            child: Text(AppStrings.splashTtsSettings),
           ),
           TextButton(
             onPressed: () =>
                 Navigator.of(context).pop(_GoogleTtsPromptAction.installGoogle),
-            child: Text(l10n.splashInstallGoogleTts),
+            child: Text(AppStrings.splashInstallGoogleTts),
           ),
         ],
       ),
@@ -110,7 +110,7 @@ class _SplashPageState extends State<SplashPage> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                l10n.splashCouldNotOpenStore,
+                AppStrings.splashCouldNotOpenStore,
               ),
             ),
           );

@@ -1,6 +1,8 @@
 // Project imports:
 import 'package:varnamala/application/anki/anki_models.dart';
 import 'package:varnamala/application/srs_provider.dart';
+import 'package:varnamala/core/logger.dart';
+import 'package:varnamala/data/review_history_dao.dart';
 import 'package:varnamala/domain/course/srs_word.dart';
 
 /// Migrates Anki card scheduling state into Varnamala's [SrsWord] format
@@ -21,10 +23,14 @@ class AnkiSrsMigrator {
   /// [cards] is the list of Anki cards from the parsed collection.
   /// [importId] is used to generate stable word ids.
   /// [srsProvider] is the target SRS queue.
+  /// [revlog] is the parsed review log (may be empty).
+  /// [reviewHistoryDao] is the optional sink for backfilled review events.
   Future<void> migrate({
     required List<AnkiCardData> cards,
     required String importId,
     required SrsProvider srsProvider,
+    List<AnkiRevlogEntry> revlog = const [],
+    ReviewHistoryDao? reviewHistoryDao,
   }) async {
     final now = DateTime.now();
     final srsWords = <String, SrsWord>{};
@@ -39,11 +45,82 @@ class AnkiSrsMigrator {
       srsWords[wordId] = srsWord;
     }
 
-    if (srsWords.isEmpty) return;
+    if (srsWords.isNotEmpty) {
+      // Batch register into SRS provider via public API
+      await srsProvider.bulkImportStates(srsWords);
+    }
 
-    // Batch register into SRS provider via public API
-    await srsProvider.bulkImportStates(srsWords);
+    await _migrateRevlog(
+      cards: cards,
+      revlog: revlog,
+      importId: importId,
+      reviewHistoryDao: reviewHistoryDao,
+    );
   }
+
+  /// Backfill Anki's review log into `review_events` (best-effort).
+  Future<void> _migrateRevlog({
+    required List<AnkiCardData> cards,
+    required List<AnkiRevlogEntry> revlog,
+    required String importId,
+    ReviewHistoryDao? reviewHistoryDao,
+  }) async {
+    if (reviewHistoryDao == null || revlog.isEmpty) return;
+
+    // cid -> wordId (via the card's note id).
+    final cidToWordId = <int, String>{
+      for (final card in cards) card.id: 'anki-$importId-n${card.nid}',
+    };
+
+    final events = <ReviewEventRecord>[];
+    for (final r in revlog) {
+      final wordId = cidToWordId[r.cid];
+      if (wordId == null) continue;
+      final ease = r.factor / 1000.0;
+      final clampedEase = ease < 1.3 ? 1.3 : ease;
+      events.add(ReviewEventRecord(
+        cardId: wordId,
+        queue: 'srs',
+        reviewedAt: DateTime.fromMillisecondsSinceEpoch(r.id),
+        quality: _revlogEaseToQuality(r.ease),
+        prevIntervalDays: _toDays(r.lastIvl),
+        nextIntervalDays: _toDays(r.ivl),
+        prevEase: clampedEase,
+        nextEase: clampedEase,
+        reps: 0,
+        lapses: 0,
+        type: SrsItemType.word,
+      ));
+    }
+
+    if (events.isEmpty) return;
+    try {
+      await reviewHistoryDao.insertBatch(events);
+    } catch (e, st) {
+      logger.w('AnkiSrsMigrator revlog insert failed: $e', stackTrace: st);
+    }
+  }
+
+  /// Map an Anki revlog `ease` button (1=again..4=easy) to stored quality.
+  /// Hard/Good/Easy collapse to **pass** (quality 4); Again → **fail** (1).
+  /// UI never exposes four grades (ADR 0028 binary lock).
+  static int _revlogEaseToQuality(int ease) {
+    switch (ease) {
+      case 1:
+        return 1; // again → fail
+      case 2: // hard
+      case 3: // good
+      case 4: // easy
+        return 4; // pass
+      default:
+        return 1;
+    }
+  }
+
+  /// Convert an Anki revlog interval to whole days. Positive values are days;
+  /// negative values (learning steps in seconds) and zero collapse to 0 (which
+  /// buckets to the 1-day bucket in the memory-curve model).
+  static int _toDays(int ivl) => ivl > 0 ? ivl : 0;
 
   /// Convert a single Anki card's scheduling state to [SrsWord].
   SrsWord _convertCard(AnkiCardData card, String wordId, DateTime now) {

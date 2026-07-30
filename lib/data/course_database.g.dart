@@ -3189,6 +3189,1274 @@ class AnkiImportsCompanion extends UpdateCompanion<AnkiImport> {
   }
 }
 
+class $SrsStatesTable extends SrsStates
+    with TableInfo<$SrsStatesTable, SrsState> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SrsStatesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _wordIdMeta = const VerificationMeta('wordId');
+  @override
+  late final GeneratedColumn<String> wordId = GeneratedColumn<String>(
+      'word_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _queueMeta = const VerificationMeta('queue');
+  @override
+  late final GeneratedColumn<String> queue = GeneratedColumn<String>(
+      'queue', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _dueAtMeta = const VerificationMeta('dueAt');
+  @override
+  late final GeneratedColumn<int> dueAt = GeneratedColumn<int>(
+      'due_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _intervalDaysMeta =
+      const VerificationMeta('intervalDays');
+  @override
+  late final GeneratedColumn<int> intervalDays = GeneratedColumn<int>(
+      'interval_days', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(1));
+  static const VerificationMeta _easeMeta = const VerificationMeta('ease');
+  @override
+  late final GeneratedColumn<double> ease = GeneratedColumn<double>(
+      'ease', aliasedName, false,
+      type: DriftSqlType.double,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(2.5));
+  static const VerificationMeta _repsMeta = const VerificationMeta('reps');
+  @override
+  late final GeneratedColumn<int> reps = GeneratedColumn<int>(
+      'reps', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _lapsesMeta = const VerificationMeta('lapses');
+  @override
+  late final GeneratedColumn<int> lapses = GeneratedColumn<int>(
+      'lapses', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _isLeechMeta =
+      const VerificationMeta('isLeech');
+  @override
+  late final GeneratedColumn<bool> isLeech = GeneratedColumn<bool>(
+      'is_leech', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_leech" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+      'type', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('word'));
+  static const VerificationMeta _lastReviewedAtMeta =
+      const VerificationMeta('lastReviewedAt');
+  @override
+  late final GeneratedColumn<int> lastReviewedAt = GeneratedColumn<int>(
+      'last_reviewed_at', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _stabilityMeta =
+      const VerificationMeta('stability');
+  @override
+  late final GeneratedColumn<double> stability = GeneratedColumn<double>(
+      'stability', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _difficultyMeta =
+      const VerificationMeta('difficulty');
+  @override
+  late final GeneratedColumn<double> difficulty = GeneratedColumn<double>(
+      'difficulty', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _fsrsStateMeta =
+      const VerificationMeta('fsrsState');
+  @override
+  late final GeneratedColumn<int> fsrsState = GeneratedColumn<int>(
+      'fsrs_state', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(1));
+  static const VerificationMeta _learningStepMeta =
+      const VerificationMeta('learningStep');
+  @override
+  late final GeneratedColumn<int> learningStep = GeneratedColumn<int>(
+      'learning_step', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns => [
+        wordId,
+        queue,
+        dueAt,
+        intervalDays,
+        ease,
+        reps,
+        lapses,
+        isLeech,
+        type,
+        lastReviewedAt,
+        stability,
+        difficulty,
+        fsrsState,
+        learningStep
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'srs_states';
+  @override
+  VerificationContext validateIntegrity(Insertable<SrsState> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('word_id')) {
+      context.handle(_wordIdMeta,
+          wordId.isAcceptableOrUnknown(data['word_id']!, _wordIdMeta));
+    } else if (isInserting) {
+      context.missing(_wordIdMeta);
+    }
+    if (data.containsKey('queue')) {
+      context.handle(
+          _queueMeta, queue.isAcceptableOrUnknown(data['queue']!, _queueMeta));
+    } else if (isInserting) {
+      context.missing(_queueMeta);
+    }
+    if (data.containsKey('due_at')) {
+      context.handle(
+          _dueAtMeta, dueAt.isAcceptableOrUnknown(data['due_at']!, _dueAtMeta));
+    } else if (isInserting) {
+      context.missing(_dueAtMeta);
+    }
+    if (data.containsKey('interval_days')) {
+      context.handle(
+          _intervalDaysMeta,
+          intervalDays.isAcceptableOrUnknown(
+              data['interval_days']!, _intervalDaysMeta));
+    }
+    if (data.containsKey('ease')) {
+      context.handle(
+          _easeMeta, ease.isAcceptableOrUnknown(data['ease']!, _easeMeta));
+    }
+    if (data.containsKey('reps')) {
+      context.handle(
+          _repsMeta, reps.isAcceptableOrUnknown(data['reps']!, _repsMeta));
+    }
+    if (data.containsKey('lapses')) {
+      context.handle(_lapsesMeta,
+          lapses.isAcceptableOrUnknown(data['lapses']!, _lapsesMeta));
+    }
+    if (data.containsKey('is_leech')) {
+      context.handle(_isLeechMeta,
+          isLeech.isAcceptableOrUnknown(data['is_leech']!, _isLeechMeta));
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+          _typeMeta, type.isAcceptableOrUnknown(data['type']!, _typeMeta));
+    }
+    if (data.containsKey('last_reviewed_at')) {
+      context.handle(
+          _lastReviewedAtMeta,
+          lastReviewedAt.isAcceptableOrUnknown(
+              data['last_reviewed_at']!, _lastReviewedAtMeta));
+    }
+    if (data.containsKey('stability')) {
+      context.handle(_stabilityMeta,
+          stability.isAcceptableOrUnknown(data['stability']!, _stabilityMeta));
+    }
+    if (data.containsKey('difficulty')) {
+      context.handle(
+          _difficultyMeta,
+          difficulty.isAcceptableOrUnknown(
+              data['difficulty']!, _difficultyMeta));
+    }
+    if (data.containsKey('fsrs_state')) {
+      context.handle(_fsrsStateMeta,
+          fsrsState.isAcceptableOrUnknown(data['fsrs_state']!, _fsrsStateMeta));
+    }
+    if (data.containsKey('learning_step')) {
+      context.handle(
+          _learningStepMeta,
+          learningStep.isAcceptableOrUnknown(
+              data['learning_step']!, _learningStepMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {wordId};
+  @override
+  SrsState map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SrsState(
+      wordId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}word_id'])!,
+      queue: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}queue'])!,
+      dueAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}due_at'])!,
+      intervalDays: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}interval_days'])!,
+      ease: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}ease'])!,
+      reps: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}reps'])!,
+      lapses: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}lapses'])!,
+      isLeech: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_leech'])!,
+      type: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}type'])!,
+      lastReviewedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}last_reviewed_at']),
+      stability: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}stability']),
+      difficulty: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}difficulty']),
+      fsrsState: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}fsrs_state'])!,
+      learningStep: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}learning_step']),
+    );
+  }
+
+  @override
+  $SrsStatesTable createAlias(String alias) {
+    return $SrsStatesTable(attachedDatabase, alias);
+  }
+}
+
+class SrsState extends DataClass implements Insertable<SrsState> {
+  final String wordId;
+  final String queue;
+  final int dueAt;
+  final int intervalDays;
+  final double ease;
+  final int reps;
+  final int lapses;
+  final bool isLeech;
+  final String type;
+  final int? lastReviewedAt;
+  final double? stability;
+  final double? difficulty;
+  final int fsrsState;
+  final int? learningStep;
+  const SrsState(
+      {required this.wordId,
+      required this.queue,
+      required this.dueAt,
+      required this.intervalDays,
+      required this.ease,
+      required this.reps,
+      required this.lapses,
+      required this.isLeech,
+      required this.type,
+      this.lastReviewedAt,
+      this.stability,
+      this.difficulty,
+      required this.fsrsState,
+      this.learningStep});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['word_id'] = Variable<String>(wordId);
+    map['queue'] = Variable<String>(queue);
+    map['due_at'] = Variable<int>(dueAt);
+    map['interval_days'] = Variable<int>(intervalDays);
+    map['ease'] = Variable<double>(ease);
+    map['reps'] = Variable<int>(reps);
+    map['lapses'] = Variable<int>(lapses);
+    map['is_leech'] = Variable<bool>(isLeech);
+    map['type'] = Variable<String>(type);
+    if (!nullToAbsent || lastReviewedAt != null) {
+      map['last_reviewed_at'] = Variable<int>(lastReviewedAt);
+    }
+    if (!nullToAbsent || stability != null) {
+      map['stability'] = Variable<double>(stability);
+    }
+    if (!nullToAbsent || difficulty != null) {
+      map['difficulty'] = Variable<double>(difficulty);
+    }
+    map['fsrs_state'] = Variable<int>(fsrsState);
+    if (!nullToAbsent || learningStep != null) {
+      map['learning_step'] = Variable<int>(learningStep);
+    }
+    return map;
+  }
+
+  SrsStatesCompanion toCompanion(bool nullToAbsent) {
+    return SrsStatesCompanion(
+      wordId: Value(wordId),
+      queue: Value(queue),
+      dueAt: Value(dueAt),
+      intervalDays: Value(intervalDays),
+      ease: Value(ease),
+      reps: Value(reps),
+      lapses: Value(lapses),
+      isLeech: Value(isLeech),
+      type: Value(type),
+      lastReviewedAt: lastReviewedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastReviewedAt),
+      stability: stability == null && nullToAbsent
+          ? const Value.absent()
+          : Value(stability),
+      difficulty: difficulty == null && nullToAbsent
+          ? const Value.absent()
+          : Value(difficulty),
+      fsrsState: Value(fsrsState),
+      learningStep: learningStep == null && nullToAbsent
+          ? const Value.absent()
+          : Value(learningStep),
+    );
+  }
+
+  factory SrsState.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SrsState(
+      wordId: serializer.fromJson<String>(json['wordId']),
+      queue: serializer.fromJson<String>(json['queue']),
+      dueAt: serializer.fromJson<int>(json['dueAt']),
+      intervalDays: serializer.fromJson<int>(json['intervalDays']),
+      ease: serializer.fromJson<double>(json['ease']),
+      reps: serializer.fromJson<int>(json['reps']),
+      lapses: serializer.fromJson<int>(json['lapses']),
+      isLeech: serializer.fromJson<bool>(json['isLeech']),
+      type: serializer.fromJson<String>(json['type']),
+      lastReviewedAt: serializer.fromJson<int?>(json['lastReviewedAt']),
+      stability: serializer.fromJson<double?>(json['stability']),
+      difficulty: serializer.fromJson<double?>(json['difficulty']),
+      fsrsState: serializer.fromJson<int>(json['fsrsState']),
+      learningStep: serializer.fromJson<int?>(json['learningStep']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'wordId': serializer.toJson<String>(wordId),
+      'queue': serializer.toJson<String>(queue),
+      'dueAt': serializer.toJson<int>(dueAt),
+      'intervalDays': serializer.toJson<int>(intervalDays),
+      'ease': serializer.toJson<double>(ease),
+      'reps': serializer.toJson<int>(reps),
+      'lapses': serializer.toJson<int>(lapses),
+      'isLeech': serializer.toJson<bool>(isLeech),
+      'type': serializer.toJson<String>(type),
+      'lastReviewedAt': serializer.toJson<int?>(lastReviewedAt),
+      'stability': serializer.toJson<double?>(stability),
+      'difficulty': serializer.toJson<double?>(difficulty),
+      'fsrsState': serializer.toJson<int>(fsrsState),
+      'learningStep': serializer.toJson<int?>(learningStep),
+    };
+  }
+
+  SrsState copyWith(
+          {String? wordId,
+          String? queue,
+          int? dueAt,
+          int? intervalDays,
+          double? ease,
+          int? reps,
+          int? lapses,
+          bool? isLeech,
+          String? type,
+          Value<int?> lastReviewedAt = const Value.absent(),
+          Value<double?> stability = const Value.absent(),
+          Value<double?> difficulty = const Value.absent(),
+          int? fsrsState,
+          Value<int?> learningStep = const Value.absent()}) =>
+      SrsState(
+        wordId: wordId ?? this.wordId,
+        queue: queue ?? this.queue,
+        dueAt: dueAt ?? this.dueAt,
+        intervalDays: intervalDays ?? this.intervalDays,
+        ease: ease ?? this.ease,
+        reps: reps ?? this.reps,
+        lapses: lapses ?? this.lapses,
+        isLeech: isLeech ?? this.isLeech,
+        type: type ?? this.type,
+        lastReviewedAt:
+            lastReviewedAt.present ? lastReviewedAt.value : this.lastReviewedAt,
+        stability: stability.present ? stability.value : this.stability,
+        difficulty: difficulty.present ? difficulty.value : this.difficulty,
+        fsrsState: fsrsState ?? this.fsrsState,
+        learningStep:
+            learningStep.present ? learningStep.value : this.learningStep,
+      );
+  SrsState copyWithCompanion(SrsStatesCompanion data) {
+    return SrsState(
+      wordId: data.wordId.present ? data.wordId.value : this.wordId,
+      queue: data.queue.present ? data.queue.value : this.queue,
+      dueAt: data.dueAt.present ? data.dueAt.value : this.dueAt,
+      intervalDays: data.intervalDays.present
+          ? data.intervalDays.value
+          : this.intervalDays,
+      ease: data.ease.present ? data.ease.value : this.ease,
+      reps: data.reps.present ? data.reps.value : this.reps,
+      lapses: data.lapses.present ? data.lapses.value : this.lapses,
+      isLeech: data.isLeech.present ? data.isLeech.value : this.isLeech,
+      type: data.type.present ? data.type.value : this.type,
+      lastReviewedAt: data.lastReviewedAt.present
+          ? data.lastReviewedAt.value
+          : this.lastReviewedAt,
+      stability: data.stability.present ? data.stability.value : this.stability,
+      difficulty:
+          data.difficulty.present ? data.difficulty.value : this.difficulty,
+      fsrsState: data.fsrsState.present ? data.fsrsState.value : this.fsrsState,
+      learningStep: data.learningStep.present
+          ? data.learningStep.value
+          : this.learningStep,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SrsState(')
+          ..write('wordId: $wordId, ')
+          ..write('queue: $queue, ')
+          ..write('dueAt: $dueAt, ')
+          ..write('intervalDays: $intervalDays, ')
+          ..write('ease: $ease, ')
+          ..write('reps: $reps, ')
+          ..write('lapses: $lapses, ')
+          ..write('isLeech: $isLeech, ')
+          ..write('type: $type, ')
+          ..write('lastReviewedAt: $lastReviewedAt, ')
+          ..write('stability: $stability, ')
+          ..write('difficulty: $difficulty, ')
+          ..write('fsrsState: $fsrsState, ')
+          ..write('learningStep: $learningStep')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      wordId,
+      queue,
+      dueAt,
+      intervalDays,
+      ease,
+      reps,
+      lapses,
+      isLeech,
+      type,
+      lastReviewedAt,
+      stability,
+      difficulty,
+      fsrsState,
+      learningStep);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SrsState &&
+          other.wordId == this.wordId &&
+          other.queue == this.queue &&
+          other.dueAt == this.dueAt &&
+          other.intervalDays == this.intervalDays &&
+          other.ease == this.ease &&
+          other.reps == this.reps &&
+          other.lapses == this.lapses &&
+          other.isLeech == this.isLeech &&
+          other.type == this.type &&
+          other.lastReviewedAt == this.lastReviewedAt &&
+          other.stability == this.stability &&
+          other.difficulty == this.difficulty &&
+          other.fsrsState == this.fsrsState &&
+          other.learningStep == this.learningStep);
+}
+
+class SrsStatesCompanion extends UpdateCompanion<SrsState> {
+  final Value<String> wordId;
+  final Value<String> queue;
+  final Value<int> dueAt;
+  final Value<int> intervalDays;
+  final Value<double> ease;
+  final Value<int> reps;
+  final Value<int> lapses;
+  final Value<bool> isLeech;
+  final Value<String> type;
+  final Value<int?> lastReviewedAt;
+  final Value<double?> stability;
+  final Value<double?> difficulty;
+  final Value<int> fsrsState;
+  final Value<int?> learningStep;
+  final Value<int> rowid;
+  const SrsStatesCompanion({
+    this.wordId = const Value.absent(),
+    this.queue = const Value.absent(),
+    this.dueAt = const Value.absent(),
+    this.intervalDays = const Value.absent(),
+    this.ease = const Value.absent(),
+    this.reps = const Value.absent(),
+    this.lapses = const Value.absent(),
+    this.isLeech = const Value.absent(),
+    this.type = const Value.absent(),
+    this.lastReviewedAt = const Value.absent(),
+    this.stability = const Value.absent(),
+    this.difficulty = const Value.absent(),
+    this.fsrsState = const Value.absent(),
+    this.learningStep = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SrsStatesCompanion.insert({
+    required String wordId,
+    required String queue,
+    required int dueAt,
+    this.intervalDays = const Value.absent(),
+    this.ease = const Value.absent(),
+    this.reps = const Value.absent(),
+    this.lapses = const Value.absent(),
+    this.isLeech = const Value.absent(),
+    this.type = const Value.absent(),
+    this.lastReviewedAt = const Value.absent(),
+    this.stability = const Value.absent(),
+    this.difficulty = const Value.absent(),
+    this.fsrsState = const Value.absent(),
+    this.learningStep = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : wordId = Value(wordId),
+        queue = Value(queue),
+        dueAt = Value(dueAt);
+  static Insertable<SrsState> custom({
+    Expression<String>? wordId,
+    Expression<String>? queue,
+    Expression<int>? dueAt,
+    Expression<int>? intervalDays,
+    Expression<double>? ease,
+    Expression<int>? reps,
+    Expression<int>? lapses,
+    Expression<bool>? isLeech,
+    Expression<String>? type,
+    Expression<int>? lastReviewedAt,
+    Expression<double>? stability,
+    Expression<double>? difficulty,
+    Expression<int>? fsrsState,
+    Expression<int>? learningStep,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (wordId != null) 'word_id': wordId,
+      if (queue != null) 'queue': queue,
+      if (dueAt != null) 'due_at': dueAt,
+      if (intervalDays != null) 'interval_days': intervalDays,
+      if (ease != null) 'ease': ease,
+      if (reps != null) 'reps': reps,
+      if (lapses != null) 'lapses': lapses,
+      if (isLeech != null) 'is_leech': isLeech,
+      if (type != null) 'type': type,
+      if (lastReviewedAt != null) 'last_reviewed_at': lastReviewedAt,
+      if (stability != null) 'stability': stability,
+      if (difficulty != null) 'difficulty': difficulty,
+      if (fsrsState != null) 'fsrs_state': fsrsState,
+      if (learningStep != null) 'learning_step': learningStep,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SrsStatesCompanion copyWith(
+      {Value<String>? wordId,
+      Value<String>? queue,
+      Value<int>? dueAt,
+      Value<int>? intervalDays,
+      Value<double>? ease,
+      Value<int>? reps,
+      Value<int>? lapses,
+      Value<bool>? isLeech,
+      Value<String>? type,
+      Value<int?>? lastReviewedAt,
+      Value<double?>? stability,
+      Value<double?>? difficulty,
+      Value<int>? fsrsState,
+      Value<int?>? learningStep,
+      Value<int>? rowid}) {
+    return SrsStatesCompanion(
+      wordId: wordId ?? this.wordId,
+      queue: queue ?? this.queue,
+      dueAt: dueAt ?? this.dueAt,
+      intervalDays: intervalDays ?? this.intervalDays,
+      ease: ease ?? this.ease,
+      reps: reps ?? this.reps,
+      lapses: lapses ?? this.lapses,
+      isLeech: isLeech ?? this.isLeech,
+      type: type ?? this.type,
+      lastReviewedAt: lastReviewedAt ?? this.lastReviewedAt,
+      stability: stability ?? this.stability,
+      difficulty: difficulty ?? this.difficulty,
+      fsrsState: fsrsState ?? this.fsrsState,
+      learningStep: learningStep ?? this.learningStep,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (wordId.present) {
+      map['word_id'] = Variable<String>(wordId.value);
+    }
+    if (queue.present) {
+      map['queue'] = Variable<String>(queue.value);
+    }
+    if (dueAt.present) {
+      map['due_at'] = Variable<int>(dueAt.value);
+    }
+    if (intervalDays.present) {
+      map['interval_days'] = Variable<int>(intervalDays.value);
+    }
+    if (ease.present) {
+      map['ease'] = Variable<double>(ease.value);
+    }
+    if (reps.present) {
+      map['reps'] = Variable<int>(reps.value);
+    }
+    if (lapses.present) {
+      map['lapses'] = Variable<int>(lapses.value);
+    }
+    if (isLeech.present) {
+      map['is_leech'] = Variable<bool>(isLeech.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (lastReviewedAt.present) {
+      map['last_reviewed_at'] = Variable<int>(lastReviewedAt.value);
+    }
+    if (stability.present) {
+      map['stability'] = Variable<double>(stability.value);
+    }
+    if (difficulty.present) {
+      map['difficulty'] = Variable<double>(difficulty.value);
+    }
+    if (fsrsState.present) {
+      map['fsrs_state'] = Variable<int>(fsrsState.value);
+    }
+    if (learningStep.present) {
+      map['learning_step'] = Variable<int>(learningStep.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SrsStatesCompanion(')
+          ..write('wordId: $wordId, ')
+          ..write('queue: $queue, ')
+          ..write('dueAt: $dueAt, ')
+          ..write('intervalDays: $intervalDays, ')
+          ..write('ease: $ease, ')
+          ..write('reps: $reps, ')
+          ..write('lapses: $lapses, ')
+          ..write('isLeech: $isLeech, ')
+          ..write('type: $type, ')
+          ..write('lastReviewedAt: $lastReviewedAt, ')
+          ..write('stability: $stability, ')
+          ..write('difficulty: $difficulty, ')
+          ..write('fsrsState: $fsrsState, ')
+          ..write('learningStep: $learningStep, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ReviewEventsTable extends ReviewEvents
+    with TableInfo<$ReviewEventsTable, ReviewEvent> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ReviewEventsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _cardIdMeta = const VerificationMeta('cardId');
+  @override
+  late final GeneratedColumn<String> cardId = GeneratedColumn<String>(
+      'card_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _queueMeta = const VerificationMeta('queue');
+  @override
+  late final GeneratedColumn<String> queue = GeneratedColumn<String>(
+      'queue', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _reviewedAtMeta =
+      const VerificationMeta('reviewedAt');
+  @override
+  late final GeneratedColumn<int> reviewedAt = GeneratedColumn<int>(
+      'reviewed_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _qualityMeta =
+      const VerificationMeta('quality');
+  @override
+  late final GeneratedColumn<int> quality = GeneratedColumn<int>(
+      'quality', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _prevIntervalDaysMeta =
+      const VerificationMeta('prevIntervalDays');
+  @override
+  late final GeneratedColumn<int> prevIntervalDays = GeneratedColumn<int>(
+      'prev_interval_days', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _nextIntervalDaysMeta =
+      const VerificationMeta('nextIntervalDays');
+  @override
+  late final GeneratedColumn<int> nextIntervalDays = GeneratedColumn<int>(
+      'next_interval_days', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _prevEaseMeta =
+      const VerificationMeta('prevEase');
+  @override
+  late final GeneratedColumn<double> prevEase = GeneratedColumn<double>(
+      'prev_ease', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _nextEaseMeta =
+      const VerificationMeta('nextEase');
+  @override
+  late final GeneratedColumn<double> nextEase = GeneratedColumn<double>(
+      'next_ease', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _repsMeta = const VerificationMeta('reps');
+  @override
+  late final GeneratedColumn<int> reps = GeneratedColumn<int>(
+      'reps', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _lapsesMeta = const VerificationMeta('lapses');
+  @override
+  late final GeneratedColumn<int> lapses = GeneratedColumn<int>(
+      'lapses', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+      'type', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('word'));
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        cardId,
+        queue,
+        reviewedAt,
+        quality,
+        prevIntervalDays,
+        nextIntervalDays,
+        prevEase,
+        nextEase,
+        reps,
+        lapses,
+        type
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'review_events';
+  @override
+  VerificationContext validateIntegrity(Insertable<ReviewEvent> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('card_id')) {
+      context.handle(_cardIdMeta,
+          cardId.isAcceptableOrUnknown(data['card_id']!, _cardIdMeta));
+    } else if (isInserting) {
+      context.missing(_cardIdMeta);
+    }
+    if (data.containsKey('queue')) {
+      context.handle(
+          _queueMeta, queue.isAcceptableOrUnknown(data['queue']!, _queueMeta));
+    } else if (isInserting) {
+      context.missing(_queueMeta);
+    }
+    if (data.containsKey('reviewed_at')) {
+      context.handle(
+          _reviewedAtMeta,
+          reviewedAt.isAcceptableOrUnknown(
+              data['reviewed_at']!, _reviewedAtMeta));
+    } else if (isInserting) {
+      context.missing(_reviewedAtMeta);
+    }
+    if (data.containsKey('quality')) {
+      context.handle(_qualityMeta,
+          quality.isAcceptableOrUnknown(data['quality']!, _qualityMeta));
+    } else if (isInserting) {
+      context.missing(_qualityMeta);
+    }
+    if (data.containsKey('prev_interval_days')) {
+      context.handle(
+          _prevIntervalDaysMeta,
+          prevIntervalDays.isAcceptableOrUnknown(
+              data['prev_interval_days']!, _prevIntervalDaysMeta));
+    } else if (isInserting) {
+      context.missing(_prevIntervalDaysMeta);
+    }
+    if (data.containsKey('next_interval_days')) {
+      context.handle(
+          _nextIntervalDaysMeta,
+          nextIntervalDays.isAcceptableOrUnknown(
+              data['next_interval_days']!, _nextIntervalDaysMeta));
+    } else if (isInserting) {
+      context.missing(_nextIntervalDaysMeta);
+    }
+    if (data.containsKey('prev_ease')) {
+      context.handle(_prevEaseMeta,
+          prevEase.isAcceptableOrUnknown(data['prev_ease']!, _prevEaseMeta));
+    } else if (isInserting) {
+      context.missing(_prevEaseMeta);
+    }
+    if (data.containsKey('next_ease')) {
+      context.handle(_nextEaseMeta,
+          nextEase.isAcceptableOrUnknown(data['next_ease']!, _nextEaseMeta));
+    } else if (isInserting) {
+      context.missing(_nextEaseMeta);
+    }
+    if (data.containsKey('reps')) {
+      context.handle(
+          _repsMeta, reps.isAcceptableOrUnknown(data['reps']!, _repsMeta));
+    } else if (isInserting) {
+      context.missing(_repsMeta);
+    }
+    if (data.containsKey('lapses')) {
+      context.handle(_lapsesMeta,
+          lapses.isAcceptableOrUnknown(data['lapses']!, _lapsesMeta));
+    } else if (isInserting) {
+      context.missing(_lapsesMeta);
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+          _typeMeta, type.isAcceptableOrUnknown(data['type']!, _typeMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ReviewEvent map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ReviewEvent(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      cardId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}card_id'])!,
+      queue: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}queue'])!,
+      reviewedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}reviewed_at'])!,
+      quality: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}quality'])!,
+      prevIntervalDays: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}prev_interval_days'])!,
+      nextIntervalDays: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}next_interval_days'])!,
+      prevEase: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}prev_ease'])!,
+      nextEase: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}next_ease'])!,
+      reps: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}reps'])!,
+      lapses: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}lapses'])!,
+      type: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}type'])!,
+    );
+  }
+
+  @override
+  $ReviewEventsTable createAlias(String alias) {
+    return $ReviewEventsTable(attachedDatabase, alias);
+  }
+}
+
+class ReviewEvent extends DataClass implements Insertable<ReviewEvent> {
+  final int id;
+  final String cardId;
+  final String queue;
+  final int reviewedAt;
+  final int quality;
+  final int prevIntervalDays;
+  final int nextIntervalDays;
+  final double prevEase;
+  final double nextEase;
+  final int reps;
+  final int lapses;
+  final String type;
+  const ReviewEvent(
+      {required this.id,
+      required this.cardId,
+      required this.queue,
+      required this.reviewedAt,
+      required this.quality,
+      required this.prevIntervalDays,
+      required this.nextIntervalDays,
+      required this.prevEase,
+      required this.nextEase,
+      required this.reps,
+      required this.lapses,
+      required this.type});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['card_id'] = Variable<String>(cardId);
+    map['queue'] = Variable<String>(queue);
+    map['reviewed_at'] = Variable<int>(reviewedAt);
+    map['quality'] = Variable<int>(quality);
+    map['prev_interval_days'] = Variable<int>(prevIntervalDays);
+    map['next_interval_days'] = Variable<int>(nextIntervalDays);
+    map['prev_ease'] = Variable<double>(prevEase);
+    map['next_ease'] = Variable<double>(nextEase);
+    map['reps'] = Variable<int>(reps);
+    map['lapses'] = Variable<int>(lapses);
+    map['type'] = Variable<String>(type);
+    return map;
+  }
+
+  ReviewEventsCompanion toCompanion(bool nullToAbsent) {
+    return ReviewEventsCompanion(
+      id: Value(id),
+      cardId: Value(cardId),
+      queue: Value(queue),
+      reviewedAt: Value(reviewedAt),
+      quality: Value(quality),
+      prevIntervalDays: Value(prevIntervalDays),
+      nextIntervalDays: Value(nextIntervalDays),
+      prevEase: Value(prevEase),
+      nextEase: Value(nextEase),
+      reps: Value(reps),
+      lapses: Value(lapses),
+      type: Value(type),
+    );
+  }
+
+  factory ReviewEvent.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ReviewEvent(
+      id: serializer.fromJson<int>(json['id']),
+      cardId: serializer.fromJson<String>(json['cardId']),
+      queue: serializer.fromJson<String>(json['queue']),
+      reviewedAt: serializer.fromJson<int>(json['reviewedAt']),
+      quality: serializer.fromJson<int>(json['quality']),
+      prevIntervalDays: serializer.fromJson<int>(json['prevIntervalDays']),
+      nextIntervalDays: serializer.fromJson<int>(json['nextIntervalDays']),
+      prevEase: serializer.fromJson<double>(json['prevEase']),
+      nextEase: serializer.fromJson<double>(json['nextEase']),
+      reps: serializer.fromJson<int>(json['reps']),
+      lapses: serializer.fromJson<int>(json['lapses']),
+      type: serializer.fromJson<String>(json['type']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'cardId': serializer.toJson<String>(cardId),
+      'queue': serializer.toJson<String>(queue),
+      'reviewedAt': serializer.toJson<int>(reviewedAt),
+      'quality': serializer.toJson<int>(quality),
+      'prevIntervalDays': serializer.toJson<int>(prevIntervalDays),
+      'nextIntervalDays': serializer.toJson<int>(nextIntervalDays),
+      'prevEase': serializer.toJson<double>(prevEase),
+      'nextEase': serializer.toJson<double>(nextEase),
+      'reps': serializer.toJson<int>(reps),
+      'lapses': serializer.toJson<int>(lapses),
+      'type': serializer.toJson<String>(type),
+    };
+  }
+
+  ReviewEvent copyWith(
+          {int? id,
+          String? cardId,
+          String? queue,
+          int? reviewedAt,
+          int? quality,
+          int? prevIntervalDays,
+          int? nextIntervalDays,
+          double? prevEase,
+          double? nextEase,
+          int? reps,
+          int? lapses,
+          String? type}) =>
+      ReviewEvent(
+        id: id ?? this.id,
+        cardId: cardId ?? this.cardId,
+        queue: queue ?? this.queue,
+        reviewedAt: reviewedAt ?? this.reviewedAt,
+        quality: quality ?? this.quality,
+        prevIntervalDays: prevIntervalDays ?? this.prevIntervalDays,
+        nextIntervalDays: nextIntervalDays ?? this.nextIntervalDays,
+        prevEase: prevEase ?? this.prevEase,
+        nextEase: nextEase ?? this.nextEase,
+        reps: reps ?? this.reps,
+        lapses: lapses ?? this.lapses,
+        type: type ?? this.type,
+      );
+  ReviewEvent copyWithCompanion(ReviewEventsCompanion data) {
+    return ReviewEvent(
+      id: data.id.present ? data.id.value : this.id,
+      cardId: data.cardId.present ? data.cardId.value : this.cardId,
+      queue: data.queue.present ? data.queue.value : this.queue,
+      reviewedAt:
+          data.reviewedAt.present ? data.reviewedAt.value : this.reviewedAt,
+      quality: data.quality.present ? data.quality.value : this.quality,
+      prevIntervalDays: data.prevIntervalDays.present
+          ? data.prevIntervalDays.value
+          : this.prevIntervalDays,
+      nextIntervalDays: data.nextIntervalDays.present
+          ? data.nextIntervalDays.value
+          : this.nextIntervalDays,
+      prevEase: data.prevEase.present ? data.prevEase.value : this.prevEase,
+      nextEase: data.nextEase.present ? data.nextEase.value : this.nextEase,
+      reps: data.reps.present ? data.reps.value : this.reps,
+      lapses: data.lapses.present ? data.lapses.value : this.lapses,
+      type: data.type.present ? data.type.value : this.type,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReviewEvent(')
+          ..write('id: $id, ')
+          ..write('cardId: $cardId, ')
+          ..write('queue: $queue, ')
+          ..write('reviewedAt: $reviewedAt, ')
+          ..write('quality: $quality, ')
+          ..write('prevIntervalDays: $prevIntervalDays, ')
+          ..write('nextIntervalDays: $nextIntervalDays, ')
+          ..write('prevEase: $prevEase, ')
+          ..write('nextEase: $nextEase, ')
+          ..write('reps: $reps, ')
+          ..write('lapses: $lapses, ')
+          ..write('type: $type')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      cardId,
+      queue,
+      reviewedAt,
+      quality,
+      prevIntervalDays,
+      nextIntervalDays,
+      prevEase,
+      nextEase,
+      reps,
+      lapses,
+      type);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ReviewEvent &&
+          other.id == this.id &&
+          other.cardId == this.cardId &&
+          other.queue == this.queue &&
+          other.reviewedAt == this.reviewedAt &&
+          other.quality == this.quality &&
+          other.prevIntervalDays == this.prevIntervalDays &&
+          other.nextIntervalDays == this.nextIntervalDays &&
+          other.prevEase == this.prevEase &&
+          other.nextEase == this.nextEase &&
+          other.reps == this.reps &&
+          other.lapses == this.lapses &&
+          other.type == this.type);
+}
+
+class ReviewEventsCompanion extends UpdateCompanion<ReviewEvent> {
+  final Value<int> id;
+  final Value<String> cardId;
+  final Value<String> queue;
+  final Value<int> reviewedAt;
+  final Value<int> quality;
+  final Value<int> prevIntervalDays;
+  final Value<int> nextIntervalDays;
+  final Value<double> prevEase;
+  final Value<double> nextEase;
+  final Value<int> reps;
+  final Value<int> lapses;
+  final Value<String> type;
+  const ReviewEventsCompanion({
+    this.id = const Value.absent(),
+    this.cardId = const Value.absent(),
+    this.queue = const Value.absent(),
+    this.reviewedAt = const Value.absent(),
+    this.quality = const Value.absent(),
+    this.prevIntervalDays = const Value.absent(),
+    this.nextIntervalDays = const Value.absent(),
+    this.prevEase = const Value.absent(),
+    this.nextEase = const Value.absent(),
+    this.reps = const Value.absent(),
+    this.lapses = const Value.absent(),
+    this.type = const Value.absent(),
+  });
+  ReviewEventsCompanion.insert({
+    this.id = const Value.absent(),
+    required String cardId,
+    required String queue,
+    required int reviewedAt,
+    required int quality,
+    required int prevIntervalDays,
+    required int nextIntervalDays,
+    required double prevEase,
+    required double nextEase,
+    required int reps,
+    required int lapses,
+    this.type = const Value.absent(),
+  })  : cardId = Value(cardId),
+        queue = Value(queue),
+        reviewedAt = Value(reviewedAt),
+        quality = Value(quality),
+        prevIntervalDays = Value(prevIntervalDays),
+        nextIntervalDays = Value(nextIntervalDays),
+        prevEase = Value(prevEase),
+        nextEase = Value(nextEase),
+        reps = Value(reps),
+        lapses = Value(lapses);
+  static Insertable<ReviewEvent> custom({
+    Expression<int>? id,
+    Expression<String>? cardId,
+    Expression<String>? queue,
+    Expression<int>? reviewedAt,
+    Expression<int>? quality,
+    Expression<int>? prevIntervalDays,
+    Expression<int>? nextIntervalDays,
+    Expression<double>? prevEase,
+    Expression<double>? nextEase,
+    Expression<int>? reps,
+    Expression<int>? lapses,
+    Expression<String>? type,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (cardId != null) 'card_id': cardId,
+      if (queue != null) 'queue': queue,
+      if (reviewedAt != null) 'reviewed_at': reviewedAt,
+      if (quality != null) 'quality': quality,
+      if (prevIntervalDays != null) 'prev_interval_days': prevIntervalDays,
+      if (nextIntervalDays != null) 'next_interval_days': nextIntervalDays,
+      if (prevEase != null) 'prev_ease': prevEase,
+      if (nextEase != null) 'next_ease': nextEase,
+      if (reps != null) 'reps': reps,
+      if (lapses != null) 'lapses': lapses,
+      if (type != null) 'type': type,
+    });
+  }
+
+  ReviewEventsCompanion copyWith(
+      {Value<int>? id,
+      Value<String>? cardId,
+      Value<String>? queue,
+      Value<int>? reviewedAt,
+      Value<int>? quality,
+      Value<int>? prevIntervalDays,
+      Value<int>? nextIntervalDays,
+      Value<double>? prevEase,
+      Value<double>? nextEase,
+      Value<int>? reps,
+      Value<int>? lapses,
+      Value<String>? type}) {
+    return ReviewEventsCompanion(
+      id: id ?? this.id,
+      cardId: cardId ?? this.cardId,
+      queue: queue ?? this.queue,
+      reviewedAt: reviewedAt ?? this.reviewedAt,
+      quality: quality ?? this.quality,
+      prevIntervalDays: prevIntervalDays ?? this.prevIntervalDays,
+      nextIntervalDays: nextIntervalDays ?? this.nextIntervalDays,
+      prevEase: prevEase ?? this.prevEase,
+      nextEase: nextEase ?? this.nextEase,
+      reps: reps ?? this.reps,
+      lapses: lapses ?? this.lapses,
+      type: type ?? this.type,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (cardId.present) {
+      map['card_id'] = Variable<String>(cardId.value);
+    }
+    if (queue.present) {
+      map['queue'] = Variable<String>(queue.value);
+    }
+    if (reviewedAt.present) {
+      map['reviewed_at'] = Variable<int>(reviewedAt.value);
+    }
+    if (quality.present) {
+      map['quality'] = Variable<int>(quality.value);
+    }
+    if (prevIntervalDays.present) {
+      map['prev_interval_days'] = Variable<int>(prevIntervalDays.value);
+    }
+    if (nextIntervalDays.present) {
+      map['next_interval_days'] = Variable<int>(nextIntervalDays.value);
+    }
+    if (prevEase.present) {
+      map['prev_ease'] = Variable<double>(prevEase.value);
+    }
+    if (nextEase.present) {
+      map['next_ease'] = Variable<double>(nextEase.value);
+    }
+    if (reps.present) {
+      map['reps'] = Variable<int>(reps.value);
+    }
+    if (lapses.present) {
+      map['lapses'] = Variable<int>(lapses.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReviewEventsCompanion(')
+          ..write('id: $id, ')
+          ..write('cardId: $cardId, ')
+          ..write('queue: $queue, ')
+          ..write('reviewedAt: $reviewedAt, ')
+          ..write('quality: $quality, ')
+          ..write('prevIntervalDays: $prevIntervalDays, ')
+          ..write('nextIntervalDays: $nextIntervalDays, ')
+          ..write('prevEase: $prevEase, ')
+          ..write('nextEase: $nextEase, ')
+          ..write('reps: $reps, ')
+          ..write('lapses: $lapses, ')
+          ..write('type: $type')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$CourseDatabase extends GeneratedDatabase {
   _$CourseDatabase(QueryExecutor e) : super(e);
   $CourseDatabaseManager get managers => $CourseDatabaseManager(this);
@@ -3201,6 +4469,12 @@ abstract class _$CourseDatabase extends GeneratedDatabase {
   late final $CourseMetaTable courseMeta = $CourseMetaTable(this);
   late final $ExpressionsTable expressions = $ExpressionsTable(this);
   late final $AnkiImportsTable ankiImports = $AnkiImportsTable(this);
+  late final $SrsStatesTable srsStates = $SrsStatesTable(this);
+  late final $ReviewEventsTable reviewEvents = $ReviewEventsTable(this);
+  late final Index reviewEventsCardIdx = Index('review_events_card_idx',
+      'CREATE INDEX review_events_card_idx ON review_events (card_id)');
+  late final Index reviewEventsTimeIdx = Index('review_events_time_idx',
+      'CREATE INDEX review_events_time_idx ON review_events (reviewed_at)');
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3214,7 +4488,11 @@ abstract class _$CourseDatabase extends GeneratedDatabase {
         grammarPoints,
         courseMeta,
         expressions,
-        ankiImports
+        ankiImports,
+        srsStates,
+        reviewEvents,
+        reviewEventsCardIdx,
+        reviewEventsTimeIdx
       ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules(
@@ -5445,6 +6723,586 @@ typedef $$AnkiImportsTableProcessedTableManager = ProcessedTableManager<
     ),
     AnkiImport,
     PrefetchHooks Function()>;
+typedef $$SrsStatesTableCreateCompanionBuilder = SrsStatesCompanion Function({
+  required String wordId,
+  required String queue,
+  required int dueAt,
+  Value<int> intervalDays,
+  Value<double> ease,
+  Value<int> reps,
+  Value<int> lapses,
+  Value<bool> isLeech,
+  Value<String> type,
+  Value<int?> lastReviewedAt,
+  Value<double?> stability,
+  Value<double?> difficulty,
+  Value<int> fsrsState,
+  Value<int?> learningStep,
+  Value<int> rowid,
+});
+typedef $$SrsStatesTableUpdateCompanionBuilder = SrsStatesCompanion Function({
+  Value<String> wordId,
+  Value<String> queue,
+  Value<int> dueAt,
+  Value<int> intervalDays,
+  Value<double> ease,
+  Value<int> reps,
+  Value<int> lapses,
+  Value<bool> isLeech,
+  Value<String> type,
+  Value<int?> lastReviewedAt,
+  Value<double?> stability,
+  Value<double?> difficulty,
+  Value<int> fsrsState,
+  Value<int?> learningStep,
+  Value<int> rowid,
+});
+
+class $$SrsStatesTableFilterComposer
+    extends Composer<_$CourseDatabase, $SrsStatesTable> {
+  $$SrsStatesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get wordId => $composableBuilder(
+      column: $table.wordId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get queue => $composableBuilder(
+      column: $table.queue, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get dueAt => $composableBuilder(
+      column: $table.dueAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get intervalDays => $composableBuilder(
+      column: $table.intervalDays, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get ease => $composableBuilder(
+      column: $table.ease, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get reps => $composableBuilder(
+      column: $table.reps, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get lapses => $composableBuilder(
+      column: $table.lapses, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isLeech => $composableBuilder(
+      column: $table.isLeech, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get type => $composableBuilder(
+      column: $table.type, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get lastReviewedAt => $composableBuilder(
+      column: $table.lastReviewedAt,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get stability => $composableBuilder(
+      column: $table.stability, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get difficulty => $composableBuilder(
+      column: $table.difficulty, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get fsrsState => $composableBuilder(
+      column: $table.fsrsState, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get learningStep => $composableBuilder(
+      column: $table.learningStep, builder: (column) => ColumnFilters(column));
+}
+
+class $$SrsStatesTableOrderingComposer
+    extends Composer<_$CourseDatabase, $SrsStatesTable> {
+  $$SrsStatesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get wordId => $composableBuilder(
+      column: $table.wordId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get queue => $composableBuilder(
+      column: $table.queue, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get dueAt => $composableBuilder(
+      column: $table.dueAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get intervalDays => $composableBuilder(
+      column: $table.intervalDays,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get ease => $composableBuilder(
+      column: $table.ease, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get reps => $composableBuilder(
+      column: $table.reps, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get lapses => $composableBuilder(
+      column: $table.lapses, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isLeech => $composableBuilder(
+      column: $table.isLeech, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get type => $composableBuilder(
+      column: $table.type, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get lastReviewedAt => $composableBuilder(
+      column: $table.lastReviewedAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get stability => $composableBuilder(
+      column: $table.stability, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get difficulty => $composableBuilder(
+      column: $table.difficulty, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get fsrsState => $composableBuilder(
+      column: $table.fsrsState, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get learningStep => $composableBuilder(
+      column: $table.learningStep,
+      builder: (column) => ColumnOrderings(column));
+}
+
+class $$SrsStatesTableAnnotationComposer
+    extends Composer<_$CourseDatabase, $SrsStatesTable> {
+  $$SrsStatesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get wordId =>
+      $composableBuilder(column: $table.wordId, builder: (column) => column);
+
+  GeneratedColumn<String> get queue =>
+      $composableBuilder(column: $table.queue, builder: (column) => column);
+
+  GeneratedColumn<int> get dueAt =>
+      $composableBuilder(column: $table.dueAt, builder: (column) => column);
+
+  GeneratedColumn<int> get intervalDays => $composableBuilder(
+      column: $table.intervalDays, builder: (column) => column);
+
+  GeneratedColumn<double> get ease =>
+      $composableBuilder(column: $table.ease, builder: (column) => column);
+
+  GeneratedColumn<int> get reps =>
+      $composableBuilder(column: $table.reps, builder: (column) => column);
+
+  GeneratedColumn<int> get lapses =>
+      $composableBuilder(column: $table.lapses, builder: (column) => column);
+
+  GeneratedColumn<bool> get isLeech =>
+      $composableBuilder(column: $table.isLeech, builder: (column) => column);
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<int> get lastReviewedAt => $composableBuilder(
+      column: $table.lastReviewedAt, builder: (column) => column);
+
+  GeneratedColumn<double> get stability =>
+      $composableBuilder(column: $table.stability, builder: (column) => column);
+
+  GeneratedColumn<double> get difficulty => $composableBuilder(
+      column: $table.difficulty, builder: (column) => column);
+
+  GeneratedColumn<int> get fsrsState =>
+      $composableBuilder(column: $table.fsrsState, builder: (column) => column);
+
+  GeneratedColumn<int> get learningStep => $composableBuilder(
+      column: $table.learningStep, builder: (column) => column);
+}
+
+class $$SrsStatesTableTableManager extends RootTableManager<
+    _$CourseDatabase,
+    $SrsStatesTable,
+    SrsState,
+    $$SrsStatesTableFilterComposer,
+    $$SrsStatesTableOrderingComposer,
+    $$SrsStatesTableAnnotationComposer,
+    $$SrsStatesTableCreateCompanionBuilder,
+    $$SrsStatesTableUpdateCompanionBuilder,
+    (SrsState, BaseReferences<_$CourseDatabase, $SrsStatesTable, SrsState>),
+    SrsState,
+    PrefetchHooks Function()> {
+  $$SrsStatesTableTableManager(_$CourseDatabase db, $SrsStatesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SrsStatesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SrsStatesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SrsStatesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> wordId = const Value.absent(),
+            Value<String> queue = const Value.absent(),
+            Value<int> dueAt = const Value.absent(),
+            Value<int> intervalDays = const Value.absent(),
+            Value<double> ease = const Value.absent(),
+            Value<int> reps = const Value.absent(),
+            Value<int> lapses = const Value.absent(),
+            Value<bool> isLeech = const Value.absent(),
+            Value<String> type = const Value.absent(),
+            Value<int?> lastReviewedAt = const Value.absent(),
+            Value<double?> stability = const Value.absent(),
+            Value<double?> difficulty = const Value.absent(),
+            Value<int> fsrsState = const Value.absent(),
+            Value<int?> learningStep = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              SrsStatesCompanion(
+            wordId: wordId,
+            queue: queue,
+            dueAt: dueAt,
+            intervalDays: intervalDays,
+            ease: ease,
+            reps: reps,
+            lapses: lapses,
+            isLeech: isLeech,
+            type: type,
+            lastReviewedAt: lastReviewedAt,
+            stability: stability,
+            difficulty: difficulty,
+            fsrsState: fsrsState,
+            learningStep: learningStep,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String wordId,
+            required String queue,
+            required int dueAt,
+            Value<int> intervalDays = const Value.absent(),
+            Value<double> ease = const Value.absent(),
+            Value<int> reps = const Value.absent(),
+            Value<int> lapses = const Value.absent(),
+            Value<bool> isLeech = const Value.absent(),
+            Value<String> type = const Value.absent(),
+            Value<int?> lastReviewedAt = const Value.absent(),
+            Value<double?> stability = const Value.absent(),
+            Value<double?> difficulty = const Value.absent(),
+            Value<int> fsrsState = const Value.absent(),
+            Value<int?> learningStep = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              SrsStatesCompanion.insert(
+            wordId: wordId,
+            queue: queue,
+            dueAt: dueAt,
+            intervalDays: intervalDays,
+            ease: ease,
+            reps: reps,
+            lapses: lapses,
+            isLeech: isLeech,
+            type: type,
+            lastReviewedAt: lastReviewedAt,
+            stability: stability,
+            difficulty: difficulty,
+            fsrsState: fsrsState,
+            learningStep: learningStep,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$SrsStatesTableProcessedTableManager = ProcessedTableManager<
+    _$CourseDatabase,
+    $SrsStatesTable,
+    SrsState,
+    $$SrsStatesTableFilterComposer,
+    $$SrsStatesTableOrderingComposer,
+    $$SrsStatesTableAnnotationComposer,
+    $$SrsStatesTableCreateCompanionBuilder,
+    $$SrsStatesTableUpdateCompanionBuilder,
+    (SrsState, BaseReferences<_$CourseDatabase, $SrsStatesTable, SrsState>),
+    SrsState,
+    PrefetchHooks Function()>;
+typedef $$ReviewEventsTableCreateCompanionBuilder = ReviewEventsCompanion
+    Function({
+  Value<int> id,
+  required String cardId,
+  required String queue,
+  required int reviewedAt,
+  required int quality,
+  required int prevIntervalDays,
+  required int nextIntervalDays,
+  required double prevEase,
+  required double nextEase,
+  required int reps,
+  required int lapses,
+  Value<String> type,
+});
+typedef $$ReviewEventsTableUpdateCompanionBuilder = ReviewEventsCompanion
+    Function({
+  Value<int> id,
+  Value<String> cardId,
+  Value<String> queue,
+  Value<int> reviewedAt,
+  Value<int> quality,
+  Value<int> prevIntervalDays,
+  Value<int> nextIntervalDays,
+  Value<double> prevEase,
+  Value<double> nextEase,
+  Value<int> reps,
+  Value<int> lapses,
+  Value<String> type,
+});
+
+class $$ReviewEventsTableFilterComposer
+    extends Composer<_$CourseDatabase, $ReviewEventsTable> {
+  $$ReviewEventsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get cardId => $composableBuilder(
+      column: $table.cardId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get queue => $composableBuilder(
+      column: $table.queue, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get reviewedAt => $composableBuilder(
+      column: $table.reviewedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get quality => $composableBuilder(
+      column: $table.quality, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get prevIntervalDays => $composableBuilder(
+      column: $table.prevIntervalDays,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get nextIntervalDays => $composableBuilder(
+      column: $table.nextIntervalDays,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get prevEase => $composableBuilder(
+      column: $table.prevEase, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get nextEase => $composableBuilder(
+      column: $table.nextEase, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get reps => $composableBuilder(
+      column: $table.reps, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get lapses => $composableBuilder(
+      column: $table.lapses, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get type => $composableBuilder(
+      column: $table.type, builder: (column) => ColumnFilters(column));
+}
+
+class $$ReviewEventsTableOrderingComposer
+    extends Composer<_$CourseDatabase, $ReviewEventsTable> {
+  $$ReviewEventsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get cardId => $composableBuilder(
+      column: $table.cardId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get queue => $composableBuilder(
+      column: $table.queue, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get reviewedAt => $composableBuilder(
+      column: $table.reviewedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get quality => $composableBuilder(
+      column: $table.quality, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get prevIntervalDays => $composableBuilder(
+      column: $table.prevIntervalDays,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get nextIntervalDays => $composableBuilder(
+      column: $table.nextIntervalDays,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get prevEase => $composableBuilder(
+      column: $table.prevEase, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get nextEase => $composableBuilder(
+      column: $table.nextEase, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get reps => $composableBuilder(
+      column: $table.reps, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get lapses => $composableBuilder(
+      column: $table.lapses, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get type => $composableBuilder(
+      column: $table.type, builder: (column) => ColumnOrderings(column));
+}
+
+class $$ReviewEventsTableAnnotationComposer
+    extends Composer<_$CourseDatabase, $ReviewEventsTable> {
+  $$ReviewEventsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get cardId =>
+      $composableBuilder(column: $table.cardId, builder: (column) => column);
+
+  GeneratedColumn<String> get queue =>
+      $composableBuilder(column: $table.queue, builder: (column) => column);
+
+  GeneratedColumn<int> get reviewedAt => $composableBuilder(
+      column: $table.reviewedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get quality =>
+      $composableBuilder(column: $table.quality, builder: (column) => column);
+
+  GeneratedColumn<int> get prevIntervalDays => $composableBuilder(
+      column: $table.prevIntervalDays, builder: (column) => column);
+
+  GeneratedColumn<int> get nextIntervalDays => $composableBuilder(
+      column: $table.nextIntervalDays, builder: (column) => column);
+
+  GeneratedColumn<double> get prevEase =>
+      $composableBuilder(column: $table.prevEase, builder: (column) => column);
+
+  GeneratedColumn<double> get nextEase =>
+      $composableBuilder(column: $table.nextEase, builder: (column) => column);
+
+  GeneratedColumn<int> get reps =>
+      $composableBuilder(column: $table.reps, builder: (column) => column);
+
+  GeneratedColumn<int> get lapses =>
+      $composableBuilder(column: $table.lapses, builder: (column) => column);
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+}
+
+class $$ReviewEventsTableTableManager extends RootTableManager<
+    _$CourseDatabase,
+    $ReviewEventsTable,
+    ReviewEvent,
+    $$ReviewEventsTableFilterComposer,
+    $$ReviewEventsTableOrderingComposer,
+    $$ReviewEventsTableAnnotationComposer,
+    $$ReviewEventsTableCreateCompanionBuilder,
+    $$ReviewEventsTableUpdateCompanionBuilder,
+    (
+      ReviewEvent,
+      BaseReferences<_$CourseDatabase, $ReviewEventsTable, ReviewEvent>
+    ),
+    ReviewEvent,
+    PrefetchHooks Function()> {
+  $$ReviewEventsTableTableManager(_$CourseDatabase db, $ReviewEventsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ReviewEventsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ReviewEventsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ReviewEventsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String> cardId = const Value.absent(),
+            Value<String> queue = const Value.absent(),
+            Value<int> reviewedAt = const Value.absent(),
+            Value<int> quality = const Value.absent(),
+            Value<int> prevIntervalDays = const Value.absent(),
+            Value<int> nextIntervalDays = const Value.absent(),
+            Value<double> prevEase = const Value.absent(),
+            Value<double> nextEase = const Value.absent(),
+            Value<int> reps = const Value.absent(),
+            Value<int> lapses = const Value.absent(),
+            Value<String> type = const Value.absent(),
+          }) =>
+              ReviewEventsCompanion(
+            id: id,
+            cardId: cardId,
+            queue: queue,
+            reviewedAt: reviewedAt,
+            quality: quality,
+            prevIntervalDays: prevIntervalDays,
+            nextIntervalDays: nextIntervalDays,
+            prevEase: prevEase,
+            nextEase: nextEase,
+            reps: reps,
+            lapses: lapses,
+            type: type,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required String cardId,
+            required String queue,
+            required int reviewedAt,
+            required int quality,
+            required int prevIntervalDays,
+            required int nextIntervalDays,
+            required double prevEase,
+            required double nextEase,
+            required int reps,
+            required int lapses,
+            Value<String> type = const Value.absent(),
+          }) =>
+              ReviewEventsCompanion.insert(
+            id: id,
+            cardId: cardId,
+            queue: queue,
+            reviewedAt: reviewedAt,
+            quality: quality,
+            prevIntervalDays: prevIntervalDays,
+            nextIntervalDays: nextIntervalDays,
+            prevEase: prevEase,
+            nextEase: nextEase,
+            reps: reps,
+            lapses: lapses,
+            type: type,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$ReviewEventsTableProcessedTableManager = ProcessedTableManager<
+    _$CourseDatabase,
+    $ReviewEventsTable,
+    ReviewEvent,
+    $$ReviewEventsTableFilterComposer,
+    $$ReviewEventsTableOrderingComposer,
+    $$ReviewEventsTableAnnotationComposer,
+    $$ReviewEventsTableCreateCompanionBuilder,
+    $$ReviewEventsTableUpdateCompanionBuilder,
+    (
+      ReviewEvent,
+      BaseReferences<_$CourseDatabase, $ReviewEventsTable, ReviewEvent>
+    ),
+    ReviewEvent,
+    PrefetchHooks Function()>;
 
 class $CourseDatabaseManager {
   final _$CourseDatabase _db;
@@ -5467,4 +7325,8 @@ class $CourseDatabaseManager {
       $$ExpressionsTableTableManager(_db, _db.expressions);
   $$AnkiImportsTableTableManager get ankiImports =>
       $$AnkiImportsTableTableManager(_db, _db.ankiImports);
+  $$SrsStatesTableTableManager get srsStates =>
+      $$SrsStatesTableTableManager(_db, _db.srsStates);
+  $$ReviewEventsTableTableManager get reviewEvents =>
+      $$ReviewEventsTableTableManager(_db, _db.reviewEvents);
 }

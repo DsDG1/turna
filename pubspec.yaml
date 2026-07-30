@@ -7,16 +7,17 @@ description: Varnamala - Local-first language learning (Turkish)
 dependencies:
   audioplayers: ^6.0.0
   auto_route: ^11.1.0
+  crypto: ^3.0.7
   cupertino_icons: ^1.0.2
   drift: ^2.22.1
   file_picker: ^8.1.4
+  fl_chart: ^0.69.0
   flutter:
-    sdk: flutter
-  flutter_localizations:
     sdk: flutter
   flutter_local_notifications: ^19.5.0
   flutter_tts: ^4.0.2
   freezed_annotation: ^3.1.0
+  fsrs: ^2.0.1
   get_it: ^9.2.1
   google_fonts: ^8.1.0
   http: ^1.2.0
@@ -87,7 +88,6 @@ dependency_overrides:
   # predates that API. Only needed on Windows host for native build helpers.
   win32: 2.7.0
 flutter:
-  generate: true
   uses-material-design: true
   assets:
     - assets/sounds/

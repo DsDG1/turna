@@ -109,7 +109,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
-    expect(find.text('Match Madness'), findsOneWidget);
+    expect(find.text('匹配狂热'), findsOneWidget);
     match.pauseTimer();
   });
 }

@@ -65,9 +65,6 @@ class MockCourseRepository implements ICourseRepository {
   Future<Expression?> expressionById(String id) async => null;
 
   @override
-  Future<void> recordAnkiImport(db.AnkiImportsCompanion companion) async {}
-
-  @override
   Future<List<db.AnkiImport>> ankiImports() async => [];
 }
 
@@ -237,6 +234,122 @@ void main() {
 
       expect(repo.writtenSections, isEmpty);
       expect(summary.cardCount, 0);
+    });
+
+    AnkiCollection _buildTaggedCollection(List<({String tags, int id})> entries) {
+      final notes = <AnkiNote>[];
+      final cards = <AnkiCardData>[];
+      for (final e in entries) {
+        notes.add(AnkiNote(
+          id: e.id,
+          mid: 1,
+          fields: ['Q${e.id}', 'A${e.id}'],
+          tags: e.tags,
+        ));
+        cards.add(AnkiCardData(id: 2000 + e.id, nid: e.id, did: 10, queue: 0));
+      }
+      return AnkiCollection(
+        notetypes: {
+          1: const AnkiNotetype(
+            id: 1,
+            name: 'Basic',
+            fieldNames: ['Front', 'Back'],
+          ),
+        },
+        decks: {
+          10: const AnkiDeckInfo(id: 10, name: 'Flat Deck', cardCount: 4),
+        },
+        notes: notes,
+        cards: cards,
+      );
+    }
+
+    test('smart grouping splits lessons by lesson:: tags', () async {
+      final collection = _buildTaggedCollection([
+        (tags: 'lesson::A', id: 1),
+        (tags: 'lesson::A', id: 2),
+        (tags: 'lesson::B', id: 3),
+        (tags: 'lesson::B', id: 4),
+      ]);
+
+      await assembler.assemble(
+        collection: collection,
+        importId: 'smart',
+        repo: repo,
+      );
+
+      final unit = repo.writtenSections.first.units.first;
+      expect(unit.name, 'Flat Deck');
+      expect(unit.lessons.map((l) => l.name).toSet(), {'A', 'B'});
+      final byName = {for (final l in unit.lessons) l.name: l.flattenedStages.length};
+      expect(byName['A'], 2);
+      expect(byName['B'], 2);
+    });
+
+    test('smart grouping splits units by unit:: tags', () async {
+      final collection = _buildTaggedCollection([
+        (tags: 'unit::1', id: 1),
+        (tags: 'unit::1', id: 2),
+        (tags: 'unit::2', id: 3),
+        (tags: 'unit::2', id: 4),
+      ]);
+
+      await assembler.assemble(
+        collection: collection,
+        importId: 'units',
+        repo: repo,
+      );
+
+      final section = repo.writtenSections.first;
+      expect(section.units.map((u) => u.name).toSet(), {'1', '2'});
+      // No lesson tags -> each unit gets one fallback chunk lesson.
+      for (final u in section.units) {
+        expect(u.lessons.length, 1);
+        expect(u.lessons.first.flattenedStages.length, 2);
+      }
+    });
+
+    test('smartGrouping disabled keeps flat chunking even with tags', () async {
+      final collection = _buildTaggedCollection([
+        (tags: 'lesson::A', id: 1),
+        (tags: 'lesson::B', id: 2),
+        (tags: 'lesson::A', id: 3),
+        (tags: 'lesson::B', id: 4),
+      ]);
+
+      await assembler.assemble(
+        collection: collection,
+        importId: 'flat',
+        repo: repo,
+        smartGrouping: false,
+      );
+
+      final unit = repo.writtenSections.first.units.first;
+      // 4 cards, no smart grouping -> one flat chunk lesson.
+      expect(unit.lessons.length, 1);
+      expect(unit.lessons.first.name, 'Flat Deck #1');
+      expect(unit.lessons.first.flattenedStages.length, 4);
+    });
+
+    test('a lesson:: group larger than 20 splits into #N chunks', () async {
+      // 22 cards all in lesson::Big -> two chunks: 'Big' and 'Big #2'.
+      final entries = [
+        for (var i = 0; i < 22; i++) (tags: 'lesson::Big', id: i + 1),
+      ];
+      final collection = _buildTaggedCollection(entries);
+
+      await assembler.assemble(
+        collection: collection,
+        importId: 'big',
+        repo: repo,
+      );
+
+      final unit = repo.writtenSections.first.units.first;
+      expect(unit.lessons.length, 2);
+      expect(unit.lessons[0].name, 'Big #1');
+      expect(unit.lessons[0].flattenedStages.length, 20);
+      expect(unit.lessons[1].name, 'Big #2');
+      expect(unit.lessons[1].flattenedStages.length, 2);
     });
   });
 }

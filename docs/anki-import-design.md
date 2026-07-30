@@ -233,6 +233,29 @@ const factory Interaction.ankiCard({
 
 为什么不在 `WordEntry` 上硬塞正反面：`WordEntry` 的 `term/translation` 是为语言学习语义设计的（会被词典、TTS、弱词回顾按 `term` 检索）。Anki 通用卡片的「正反面」没有语言语义，强行复用会污染词典索引。新增 `AnkiCard` 让两类内容在领域模型上清晰隔离，但在 SRS / 错题 / 统计层面共享同一套 id 机制。
 
+### 5.2.1 客观题型双轨（已实现）
+
+翻面卡只应承接「无法客观判分」的卡片。适配层（`AnkiCardAdapter.adapt`）按双轨输出：
+
+- **客观轨**：卡片有可验证答案时，直接生成既有客观 `Interaction`（`MultipleChoice` / `FillBlank` / `ListenAndPick` / `TypeTheWord`），复用现有渲染器、`submitInteraction(bool)` 判分、错题本、SM-2 调度全链路，不引入第二条刷题流水线；
+- **主观轨**：长答案（>60 字符或含换行）、空答案的卡片保留 `AnkiCard` 翻面卡 + 「忘了/记住」二元自评。
+
+`NotetypeMappingType` 扩展为 `ankiCard / wordEntry / expression / cloze / multipleChoice / fillBlank / typeAnswer / listenPick`。其中 `ankiCard` 是「自动决策」而非「强制翻面」——逐卡决策顺序：
+
+1. 正面含 `{{c\d+::` 挖空标记 → `FillBlank`；
+2. 正面含音频且答案短 → `ListenAndPick`（deck 内 ≥3 个不同干扰项）或 `TypeTheWord`（不足时）；
+3. 答案短且干扰项 ≥3 → `MultipleChoice`（不再用「—」占位，不足则降级）；
+4. 答案短但干扰项不足 → 输入判定 `FillBlank`（正面 + `_____`，大小写不敏感 trim 比较）；
+5. 其余 → `AnkiCard` 翻面卡兜底。
+
+**模板渲染**：`AnkiNotetype.templates` 现在保存完整的 `qfmt`/`afmt`，由最小渲染器 `AnkiTemplateRenderer`（`lib/application/anki/anki_template_renderer.dart`）渲染：支持 `{{Field}}`、`{{#Field}}/{{^Field}}` 条件块、`{{FrontSide}}`、`{{cloze:Field}}`；`{{hint:}}` 丢弃、未知滤镜降级为字段值、特殊字段（`{{Tags}}` 等）渲染为空。每张卡按其 `ord` 对应模板渲染正反面（`afmt` 渲染时 `FrontSide` 置空以隔离答案部分），Basic (and reversed) 等卡组方向正确；同一张 note 的不同 ord 可走不同轨道。无模板体的导入（旧数据）回退到字段索引映射，行为不变。
+
+**媒体透传**：`MultipleChoice` 增加 `audioAssets`，`FillBlank` 增加 `audioAssets`/`imageAssets`（均向后兼容的可选字段），渲染器通过共享组件 `AnkiMediaStrip`（`lib/views/lesson/components/anki_media_strip.dart`）展示音频播放按钮与图片；`AudioController.speakWord` 识别 `anki://` 引用并解析到本地文件直接播放（不进 TTS），因此 `ListenAndPick`/`TypeTheWord` 渲染器零改动即可播放 Anki 音频。
+
+**错题接线**：`LessonViewModel.submitInteraction` 增加按题覆盖参数 `recordMistake` / `mistakeWordId`。Anki 复习会话（`AnkiReviewSessionPage`）仍然 `loadLessonInstance(recordMistakes: false)`，但提交回调对客观题传 `recordMistake: true`（附带 SRS wordId，弱词聚合可见），翻面卡自评不进错题本。评分粒度保持对错二元（correct→`ReviewGrade.known`，wrong→`ReviewGrade.unknown`），SM-2 引擎零改动。
+
+**干扰项池**：组装器（`AnkiDeckAssembler`）现在为 `wordEntry / ankiCard / multipleChoice / listenPick` 映射同时收集正面值池与背面值池；适配器按「答案来自哪一面」选择对应池（反向卡的答案是正面字段，干扰项应同语言）。
+
 ### 5.3 导入元数据表
 
 在 SQLite 中新增一张 `anki_imports` 表，记录每次导入的元信息，支持增量更新与卸载：
@@ -920,6 +943,8 @@ Anki 牌组的媒体文件可能数百 MB（图片/音频）。导入时不全�
 | `lib/views/anki/anki_review_screen.dart` | 复习入口 UI | 一 |
 | `lib/application/anki/anki_notetype_ai.dart` | AI notetype 识别 | 二 |
 | `lib/application/anki/anki_card_enhancer.dart` | AI 卡片增强 | 二 |
+| `lib/application/anki/anki_template_renderer.dart` | qfmt/afmt 最小模板渲染器（客观题型双轨引入） | 一 |
+| `lib/views/lesson/components/anki_media_strip.dart` | 客观题干的 Anki 音频/图片展示组件 | 一 |
 | `lib/domain/audio/anki_audio_resolver.dart` | Anki 媒体解析 | 三 |
 | `test/anki/anki_importer_test.dart` | 解析层测试 | 一 |
 | `test/anki/anki_card_adapter_test.dart` | 适配层测试 | 一 |

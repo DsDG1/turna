@@ -3,6 +3,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 
 // Project imports:
 import 'package:varnamala/application/anki/anki_models.dart';
+import 'package:varnamala/application/anki/anki_template_renderer.dart';
 import 'package:varnamala/domain/course/interaction.dart';
 import 'package:varnamala/domain/course/word_entry.dart';
 
@@ -11,7 +12,9 @@ part 'anki_card_adapter.g.dart';
 
 /// How an Anki notetype maps to Varnamala card types.
 enum NotetypeMappingType {
-  /// Generic flip card (AnkiCard interaction)
+  /// Generic flip card (AnkiCard interaction). At adapt time the adapter
+  /// auto-upgrades objectively-gradable cards (short answer, audio, cloze)
+  /// to the matching graded interaction — see [AnkiCardAdapter.adapt].
   ankiCard,
 
   /// Vocabulary card → WordEntry + MultipleChoice
@@ -22,6 +25,20 @@ enum NotetypeMappingType {
 
   /// Cloze deletion → FillBlank
   cloze,
+
+  /// Force a multiple-choice question (answer = back face, distractors from
+  /// the deck)
+  multipleChoice,
+
+  /// Force a type-the-answer fill-in-the-blank (answer = back face)
+  fillBlank,
+
+  /// Alias of [fillBlank] — type the back face as the answer.
+  typeAnswer,
+
+  /// Force a listening question (audio on the front face drives
+  /// ListenAndPick / TypeTheWord)
+  listenPick,
 }
 
 /// Configurable mapping decision for a single Anki notetype.
@@ -99,24 +116,45 @@ class AnkiCardAdapter {
   ///
   /// [importId] is the UUID for this import session (used in id generation).
   /// [mapping] is the notetype mapping decision (from heuristic or AI).
-  /// [distractors] provides other terms in the same deck for MCQ generation.
+  /// [notetype] provides the card templates — when it carries a template for
+  /// [card]'s `ord`, the front/back faces are rendered from `qfmt`/`afmt`
+  /// (direction-correct for reversed/multi-template cards); otherwise the
+  /// mapping's field indexes are used as before.
+  /// [distractors] provides other back-face values in the same deck for MCQ
+  /// generation; [frontDistractors] does the same for front-face values
+  /// (reversed cards answer with the front face).
+  ///
+  /// When [mapping] is [NotetypeMappingType.ankiCard] the adapter auto-decides
+  /// per card: cloze markers → FillBlank, front-face audio + short answer →
+  /// ListenAndPick/TypeTheWord, short answer + enough distractors →
+  /// MultipleChoice, short answer alone → type-the-answer FillBlank, and only
+  /// cards without an objectively gradable answer stay flip cards.
   AnkiAdaptResult adapt(
     AnkiNote note,
     AnkiCardData card, {
     required String importId,
     required NotetypeMapping mapping,
+    AnkiNotetype? notetype,
     List<String> distractors = const [],
+    List<String> frontDistractors = const [],
   }) {
     final wordId = 'anki-$importId-n${note.id}';
     final interactionId = '$wordId-c${card.ord}';
 
-    // Get field values safely (raw first for media extraction, then stripped)
-    final rawFront = _getRawField(note, mapping.frontFieldIndex);
-    final rawBack = _getRawField(note, mapping.backFieldIndex);
+    // Render the card faces. Templates take precedence (direction-correct);
+    // the field-index mapping is the fallback for imports without template
+    // bodies.
+    final (rawFront, rawBack) = _renderFaces(note, card, mapping, notetype);
     final front = _stripHtml(rawFront);
     final back = _stripHtml(rawBack);
     final frontMedia = extractMedia(rawFront, importId);
     final backMedia = extractMedia(rawBack, importId);
+
+    // Pick the distractor pool matching the face the answer came from:
+    // forward cards answer with the back field, reversed cards with the
+    // front field.
+    final backFieldValue = _stripHtml(_getRawField(note, mapping.backFieldIndex));
+    final answerPool = back == backFieldValue ? distractors : frontDistractors;
 
     switch (mapping.type) {
       case NotetypeMappingType.wordEntry:
@@ -127,9 +165,10 @@ class AnkiCardAdapter {
           front: front,
           back: back,
           importId: importId,
-          distractors: distractors,
-          audioAsset:
-              frontMedia.audios.isNotEmpty ? frontMedia.audios.first : null,
+          distractors: answerPool,
+          audioAssets: frontMedia.audios,
+          imageAsset:
+              frontMedia.images.isNotEmpty ? frontMedia.images.first : null,
         );
 
       case NotetypeMappingType.expression:
@@ -138,6 +177,8 @@ class AnkiCardAdapter {
           interactionId: interactionId,
           front: front,
           back: back,
+          audioAssets: frontMedia.audios,
+          imageAssets: frontMedia.images,
         );
 
       case NotetypeMappingType.cloze:
@@ -147,8 +188,83 @@ class AnkiCardAdapter {
           text: front,
         );
 
+      case NotetypeMappingType.multipleChoice:
+        return _adaptMcq(
+          wordId: wordId,
+          interactionId: interactionId,
+          front: front,
+          back: back,
+          distractors: answerPool,
+          audioAssets: frontMedia.audios,
+          imageAsset:
+              frontMedia.images.isNotEmpty ? frontMedia.images.first : null,
+          fallback: () => _adaptTypeAnswer(
+            wordId: wordId,
+            interactionId: interactionId,
+            front: front,
+            back: back,
+            audioAssets: frontMedia.audios,
+            imageAssets: frontMedia.images,
+          ),
+        );
+
+      case NotetypeMappingType.fillBlank:
+      case NotetypeMappingType.typeAnswer:
+        return _adaptTypeAnswer(
+          wordId: wordId,
+          interactionId: interactionId,
+          front: front,
+          back: back,
+          audioAssets: frontMedia.audios,
+          imageAssets: frontMedia.images,
+        );
+
+      case NotetypeMappingType.listenPick:
+        return _adaptListen(
+          wordId: wordId,
+          interactionId: interactionId,
+          back: back,
+          audios: frontMedia.audios,
+          distractors: answerPool,
+          fallback: () => _adaptAnkiCard(
+            note: note,
+            wordId: wordId,
+            interactionId: interactionId,
+            front: front,
+            back: back,
+            audioAssets: [...frontMedia.audios, ...backMedia.audios],
+            imageAssets: [...frontMedia.images, ...backMedia.images],
+          ),
+        );
+
       case NotetypeMappingType.ankiCard:
-        return _adaptAnkiCard(
+        return _autoDecide(
+          note: note,
+          wordId: wordId,
+          interactionId: interactionId,
+          front: front,
+          back: back,
+          frontMedia: frontMedia,
+          backMedia: backMedia,
+          distractors: answerPool,
+        );
+    }
+  }
+
+  /// Auto-decide the interaction type for a card whose notetype mapped to
+  /// the generic flip card. Only cards with no objectively gradable answer
+  /// (long/empty back face) remain flip cards.
+  AnkiAdaptResult _autoDecide({
+    required AnkiNote note,
+    required String wordId,
+    required String interactionId,
+    required String front,
+    required String back,
+    required ({List<String> images, List<String> audios}) frontMedia,
+    required ({List<String> images, List<String> audios}) backMedia,
+    required List<String> distractors,
+  }) {
+    AnkiAdaptResult flip() => _adaptAnkiCard(
           note: note,
           wordId: wordId,
           interactionId: interactionId,
@@ -157,7 +273,53 @@ class AnkiCardAdapter {
           audioAssets: [...frontMedia.audios, ...backMedia.audios],
           imageAssets: [...frontMedia.images, ...backMedia.images],
         );
+
+    if (back.isEmpty) return flip();
+
+    // Cloze markers in the front → fill-in-the-blank.
+    if (_clozeRegex.hasMatch(front)) {
+      return _adaptCloze(
+        wordId: wordId,
+        interactionId: interactionId,
+        text: front,
+      );
     }
+
+    if (!_isShortAnswer(back)) return flip();
+
+    // Front-face audio + short answer → listening question (the front may be
+    // audio-only, i.e. no text at all).
+    if (frontMedia.audios.isNotEmpty) {
+      return _adaptListen(
+        wordId: wordId,
+        interactionId: interactionId,
+        back: back,
+        audios: frontMedia.audios,
+        distractors: distractors,
+        fallback: flip,
+      );
+    }
+
+    if (front.isEmpty) return flip();
+
+    // Short answer + enough distractors → MCQ; otherwise type the answer.
+    return _adaptMcq(
+      wordId: wordId,
+      interactionId: interactionId,
+      front: front,
+      back: back,
+      distractors: distractors,
+      audioAssets: frontMedia.audios,
+      imageAsset: frontMedia.images.isNotEmpty ? frontMedia.images.first : null,
+      fallback: () => _adaptTypeAnswer(
+        wordId: wordId,
+        interactionId: interactionId,
+        front: front,
+        back: back,
+        audioAssets: frontMedia.audios,
+        imageAssets: frontMedia.images,
+      ),
+    );
   }
 
   /// Infer a NotetypeMapping from field names using heuristics.
@@ -247,6 +409,64 @@ class AnkiCardAdapter {
 
   // ─── Private helpers ───────────────────────────────────────────────
 
+  /// Maximum answer length eligible for objective grading (typing or picking
+  /// a long answer is not practical — those cards stay flip cards).
+  static const int shortAnswerMaxLength = 60;
+
+  /// Render the (rawFront, rawBack) faces for a card. When the notetype has
+  /// a template body for [card]'s `ord`, `qfmt` renders the front and `afmt`
+  /// (with `{{FrontSide}}` dropped) renders the back — this keeps reversed
+  /// and multi-template cards direction-correct. Falls back to the mapping's
+  /// field indexes when no template body is available.
+  (String, String) _renderFaces(
+    AnkiNote note,
+    AnkiCardData card,
+    NotetypeMapping mapping,
+    AnkiNotetype? notetype,
+  ) {
+    final templates = notetype?.templates ?? const <AnkiTemplate>[];
+    if (notetype != null &&
+        card.ord >= 0 &&
+        card.ord < templates.length &&
+        (templates[card.ord].qfmt.isNotEmpty ||
+            templates[card.ord].afmt.isNotEmpty)) {
+      final fields = <String, String>{
+        for (var i = 0; i < notetype.fieldNames.length; i++)
+          notetype.fieldNames[i]: _getRawField(note, i),
+      };
+      final template = templates[card.ord];
+      final rawFront = AnkiTemplateRenderer.render(template.qfmt, fields);
+      // `afmt` typically embeds `{{FrontSide}}` — drop it so the back face
+      // carries only the answer portion.
+      final rawBack =
+          AnkiTemplateRenderer.render(template.afmt, fields, frontSide: '');
+      if (rawFront.trim().isNotEmpty) return (rawFront, rawBack);
+    }
+    return (
+      _getRawField(note, mapping.frontFieldIndex),
+      _getRawField(note, mapping.backFieldIndex),
+    );
+  }
+
+  /// Whether [answer] is short enough to grade objectively (typed or picked).
+  static bool _isShortAnswer(String answer) {
+    return answer.isNotEmpty &&
+        answer.length <= shortAnswerMaxLength &&
+        !answer.contains('\n');
+  }
+
+  /// Unique distractor values excluding the correct [answer].
+  static List<String> _usableDistractors(List<String> pool, String answer) {
+    final seen = <String>{answer};
+    final result = <String>[];
+    for (final d in pool) {
+      if (d.isEmpty || seen.contains(d)) continue;
+      seen.add(d);
+      result.add(d);
+    }
+    return result;
+  }
+
   String _getRawField(AnkiNote note, int index) {
     if (index < 0 || index >= note.fields.length) return '';
     return note.fields[index];
@@ -254,6 +474,16 @@ class AnkiCardAdapter {
 
   /// Strip basic HTML tags from Anki field content.
   static String stripHtmlPublic(String html) => _stripHtml(html);
+
+  /// Split Anki's space-separated `tags` string into a clean list.
+  static List<String> splitTags(String tags) {
+    if (tags.isEmpty) return const [];
+    return tags
+        .split(' ')
+        .map((t) => t.trim())
+        .where((t) => t.isNotEmpty)
+        .toList();
+  }
 
   static String _stripHtml(String html) {
     return html
@@ -285,14 +515,15 @@ class AnkiCardAdapter {
     required String back,
     required String importId,
     required List<String> distractors,
-    String? audioAsset,
+    List<String> audioAssets = const [],
+    String? imageAsset,
   }) {
     final wordEntry = WordEntry(
       id: wordId,
       term: front,
       translation: back,
-      audioAsset: audioAsset,
-      tags: ['anki:$importId'],
+      audioAsset: audioAssets.isNotEmpty ? audioAssets.first : null,
+      tags: ['anki:$importId', ...splitTags(note.tags)],
     );
 
     // Build MultipleChoice with distractors
@@ -313,6 +544,8 @@ class AnkiCardAdapter {
       prompt: front,
       options: options,
       correctIndex: correctIndex,
+      imageAsset: imageAsset,
+      audioAssets: audioAssets,
     );
 
     return AnkiAdaptResult(
@@ -322,11 +555,117 @@ class AnkiCardAdapter {
     );
   }
 
+  /// Generic multiple-choice question (prompt = front face, answer = back
+  /// face). Falls back to [fallback] when the deck cannot supply at least 3
+  /// distinct distractors — no '—' padding here, a degraded question is
+  /// worse than an honest type-the-answer one.
+  AnkiAdaptResult _adaptMcq({
+    required String wordId,
+    required String interactionId,
+    required String front,
+    required String back,
+    required List<String> distractors,
+    required AnkiAdaptResult Function() fallback,
+    List<String> audioAssets = const [],
+    String? imageAsset,
+  }) {
+    if (front.isEmpty || !_isShortAnswer(back)) return fallback();
+
+    final usable = _usableDistractors(distractors, back)..shuffle();
+    if (usable.length < 3) return fallback();
+
+    final options = <String>[back, ...usable.take(3)]..shuffle();
+    final interaction = Interaction.multipleChoice(
+      id: interactionId,
+      prompt: front,
+      options: options,
+      correctIndex: options.indexOf(back),
+      imageAsset: imageAsset,
+      audioAssets: audioAssets,
+    );
+
+    return AnkiAdaptResult(interaction: interaction, wordId: wordId);
+  }
+
+  /// Type-the-answer question: the front face is the prompt, the user types
+  /// the back face. Rendered as a [FillBlank] whose sentence carries an
+  /// explicit `_____` marker when the front has none.
+  AnkiAdaptResult _adaptTypeAnswer({
+    required String wordId,
+    required String interactionId,
+    required String front,
+    required String back,
+    List<String> audioAssets = const [],
+    List<String> imageAssets = const [],
+  }) {
+    if (front.isEmpty || !_isShortAnswer(back)) {
+      return _adaptAnkiCard(
+        note: null,
+        wordId: wordId,
+        interactionId: interactionId,
+        front: front,
+        back: back,
+        audioAssets: audioAssets,
+        imageAssets: imageAssets,
+      );
+    }
+    final interaction = Interaction.fillBlank(
+      id: interactionId,
+      sentence: front.contains('_____') ? front : '$front\n_____',
+      answer: back,
+      audioAssets: audioAssets,
+      imageAssets: imageAssets,
+    );
+
+    return AnkiAdaptResult(interaction: interaction, wordId: wordId);
+  }
+
+  /// Listening question driven by the front-face audio: pick the heard
+  /// answer among distractors, or type it when the deck is too small.
+  /// Falls back to [fallback] (usually the flip card) when there is no audio
+  /// or the answer is not short.
+  AnkiAdaptResult _adaptListen({
+    required String wordId,
+    required String interactionId,
+    required String back,
+    required List<String> audios,
+    required List<String> distractors,
+    required AnkiAdaptResult Function() fallback,
+  }) {
+    if (audios.isEmpty || !_isShortAnswer(back)) return fallback();
+
+    final audio = audios.first;
+    final usable = _usableDistractors(distractors, back)..shuffle();
+
+    final Interaction interaction;
+    if (usable.length >= 3) {
+      final options = <String>[back, ...usable.take(3)]..shuffle();
+      interaction = Interaction.listenAndPick(
+        id: interactionId,
+        audioAsset: audio,
+        prompt: '',
+        options: options,
+        correctIndex: options.indexOf(back),
+      );
+    } else {
+      interaction = Interaction.typeTheWord(
+        id: interactionId,
+        audioAsset: audio,
+        prompt: '',
+        expected: back,
+      );
+    }
+
+    return AnkiAdaptResult(interaction: interaction, wordId: wordId);
+  }
+
   AnkiAdaptResult _adaptExpression({
     required String wordId,
     required String interactionId,
     required String front,
     required String back,
+    List<String> audioAssets = const [],
+    List<String> imageAssets = const [],
   }) {
     // Create a fill-in-the-blank from the expression
     // Use the back (meaning) as the answer, front as the sentence context
@@ -335,6 +674,8 @@ class AnkiCardAdapter {
       sentence: front,
       answer: back,
       hint: 'Translate this expression',
+      audioAssets: audioAssets,
+      imageAssets: imageAssets,
     );
 
     return AnkiAdaptResult(
