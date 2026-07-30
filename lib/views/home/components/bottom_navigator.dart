@@ -60,12 +60,6 @@ class BottomNavigator extends StatelessWidget {
               isSelected: currentIndex == 3,
               onTap: () => onPress(3),
             ),
-            _NavItem(
-              icon: Icons.auto_awesome_rounded,
-              label: AppStrings.commonNavAiHub,
-              isSelected: currentIndex == 4,
-              onTap: () => onPress(4),
-            ),
           ],
         ),
       ),

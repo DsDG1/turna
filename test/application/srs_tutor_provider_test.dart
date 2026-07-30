@@ -25,8 +25,10 @@ import 'package:varnamala/application/ai/engine/ai_provider_preset.dart';
 import 'package:varnamala/application/mistake_provider.dart';
 import 'package:varnamala/application/srs_tutor_provider.dart';
 import 'package:varnamala/data/course_database.dart' as db;
+import 'package:varnamala/data/course_repository.dart';
 import 'package:varnamala/data/srs_state_dao.dart';
 import 'package:varnamala/di/injection.dart';
+import 'package:varnamala/domain/repositories/i_course_repository.dart';
 import 'package:varnamala/domain/course/interaction.dart';
 import 'package:varnamala/domain/course/mistake_entry.dart';
 import 'package:varnamala/domain/course/srs_word.dart';
@@ -168,11 +170,17 @@ void main() {
     mistakes = MistakeProvider(prefs);
     srsDao = _FakeSrsStateDao(<SrsWord>[]);
     // SrsTutorProvider -> AiCourseProvider -> AiGroundedResourceProvider
-    // pulls CourseDatabase from GetIt; register an in-memory one for tests.
+    // resolves ICourseRepository from GetIt; register an in-memory DB +
+    // repository (mirrors injection.config.dart) so construction succeeds.
     if (getIt.isRegistered<db.CourseDatabase>()) {
       await getIt.unregister<db.CourseDatabase>();
     }
-    getIt.registerSingleton<db.CourseDatabase>(emptyInMemoryCourseDatabase());
+    final courseDb = emptyInMemoryCourseDatabase();
+    getIt.registerSingleton<db.CourseDatabase>(courseDb);
+    if (getIt.isRegistered<ICourseRepository>()) {
+      await getIt.unregister<ICourseRepository>();
+    }
+    getIt.registerSingleton<ICourseRepository>(CourseRepository(courseDb));
   });
 
   Future<({SrsTutorProvider provider, AiEngine engine})> _buildProvider({

@@ -3,6 +3,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 // Project imports:
 import 'package:varnamala/application/course_provider.dart';
@@ -26,8 +27,8 @@ void _installGlobalErrorHandlers() {
   // Framework errors that the Flutter framework would otherwise print to
   // the console in debug and swallow in release.
   FlutterError.onError = (FlutterErrorDetails details) {
-    logger.e('Uncaught framework error', error: details.exception,
-        stackTrace: details.stack);
+    logger.e('Uncaught framework error',
+        error: details.exception, stackTrace: details.stack);
     FlutterError.presentError(details);
   };
 
@@ -48,6 +49,15 @@ Future<void> main() async {
   // AppPrefs (and other async-native services) must be registered before the
   // first frame because MultiProvider creates ThemeProvider immediately.
   await setupLocator();
+
+  // Lock the app to portrait unless the user has enabled auto-rotation in
+  // Settings (default off). Applied before the first frame so the splash is
+  // already portrait; the live toggle is handled by _OrientationController.
+  await SystemChrome.setPreferredOrientations(
+    getIt<SettingsProvider>().autoRotateEnabled
+        ? []
+        : [DeviceOrientation.portraitUp],
+  );
 
   // Kick off the course load on the first frame instead of blocking before
   // runApp. CourseTree renders its own loading indicator until the shells

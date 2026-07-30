@@ -18,8 +18,6 @@ import 'package:varnamala/data/study_log_repository.dart';
 import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/service/locator.dart';
 import 'package:varnamala/service/tab_router.dart';
-import 'package:varnamala/views/ai/ai_hub_page.dart';
-import 'package:varnamala/views/ai/components/ai_hub_app_bar.dart';
 import 'package:varnamala/views/content_update/content_update_dialog.dart';
 import 'package:varnamala/views/courses/course_tree.dart';
 import 'package:varnamala/views/home/components/components.dart';
@@ -50,7 +48,6 @@ class _HomePageState extends State<HomePage> {
     const PlayHubScreen(),
     const ProfilePage(),
     const SettingsPage(),
-    const AiHubPage(),
   ];
 
   @override
@@ -153,7 +150,6 @@ class _HomePageState extends State<HomePage> {
     const PlayAppBar(),
     const ProfileAppBar(),
     const SettingsAppBar(),
-    const AiHubAppBar(),
   ];
 
   @override

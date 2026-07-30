@@ -6,6 +6,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 // Project imports:
 import 'package:varnamala/views/settings/about_varnamala_page.dart';
+import 'package:varnamala/views/settings/beginner_guide_page.dart';
 import 'package:varnamala/views/settings/changelog_page.dart';
 import 'package:varnamala/views/settings/widgets/settings_common.dart';
 import 'package:varnamala/l10n/app_strings.dart';
@@ -24,6 +25,17 @@ class SettingsAboutSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return SettingsCard(
       children: [
+        SettingsNavigationTile(
+          icon: Icons.menu_book_rounded,
+          title: AppStrings.beginnerGuideEntry,
+          subtitle: AppStrings.beginnerGuideEntrySubtitle,
+          onTap: (context) => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const BeginnerGuidePage(),
+            ),
+          ),
+        ),
+        settingsTileDivider(context),
         SettingsNavigationTile(
           icon: Icons.school_rounded,
           title: AppStrings.settingsAboutVarnamala,

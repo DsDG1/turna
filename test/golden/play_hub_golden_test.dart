@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
+import 'package:varnamala/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:varnamala/application/game_provider.dart';
 import 'package:varnamala/application/grammar_review_provider.dart';
 import 'package:varnamala/application/lesson_link_store.dart';
@@ -42,13 +43,16 @@ void main() {
                 GrammarReviewProvider(prefs, LessonLinkStore(prefs), srsDao),
           ),
           ChangeNotifierProvider(create: (_) => GameProvider.forTesting(prefs)),
+          ChangeNotifierProvider<AiEngineConfigHolder>(
+            create: (_) => AiEngineConfigHolder(),
+          ),
         ],
         child: MaterialApp(
           theme: VarnamalaTheme.lightTheme,
           darkTheme: VarnamalaTheme.darkTheme,
           themeMode: mode,
-          
-          
+
+
           home: const Scaffold(body: PlayHubScreen()),
         ),
       ),

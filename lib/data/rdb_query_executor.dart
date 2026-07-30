@@ -202,6 +202,51 @@ class HarmonyOsRdbExecutor extends QueryExecutor implements TransactionExecutor 
         PRIMARY KEY(import_id)
       )
     ''');
+
+    // srs_states table (v7) - one row per tracked SRS item
+    await runCustom('''
+      CREATE TABLE IF NOT EXISTS srs_states (
+        word_id TEXT NOT NULL,
+        queue TEXT NOT NULL,
+        due_at INTEGER NOT NULL,
+        interval_days INTEGER NOT NULL DEFAULT 1,
+        ease REAL NOT NULL DEFAULT 2.5,
+        reps INTEGER NOT NULL DEFAULT 0,
+        lapses INTEGER NOT NULL DEFAULT 0,
+        is_leech INTEGER NOT NULL DEFAULT 0,
+        type TEXT NOT NULL DEFAULT 'word',
+        last_reviewed_at INTEGER,
+        stability REAL,
+        difficulty REAL,
+        fsrs_state INTEGER NOT NULL DEFAULT 1,
+        learning_step INTEGER,
+        PRIMARY KEY(word_id)
+      )
+    ''');
+
+    // review_events table (v7) - one row per SRS review
+    await runCustom('''
+      CREATE TABLE IF NOT EXISTS review_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        card_id TEXT NOT NULL,
+        queue TEXT NOT NULL,
+        reviewed_at INTEGER NOT NULL,
+        quality INTEGER NOT NULL,
+        prev_interval_days INTEGER NOT NULL,
+        next_interval_days INTEGER NOT NULL,
+        prev_ease REAL NOT NULL,
+        next_ease REAL NOT NULL,
+        reps INTEGER NOT NULL,
+        lapses INTEGER NOT NULL,
+        type TEXT NOT NULL DEFAULT 'word'
+      )
+    ''');
+
+    // Indexes for review_events
+    await runCustom(
+        'CREATE INDEX IF NOT EXISTS review_events_card_idx ON review_events (card_id)');
+    await runCustom(
+        'CREATE INDEX IF NOT EXISTS review_events_time_idx ON review_events (reviewed_at)');
   }
 
   @override

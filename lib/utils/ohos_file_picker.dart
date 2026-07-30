@@ -4,9 +4,11 @@
 // helper routes `pickFiles` calls to a native ArkTS plugin via MethodChannel
 // when running on OHos, and falls through to `FilePicker` on other platforms.
 //
-// Native channel: 'com.varnamala/file_picker' -> method 'pickFile'.
-// The native side opens DocumentViewPicker, copies the picked file into the
-// app sandbox, and returns the sandbox file path (or null if cancelled).
+// Native channel: 'com.varnamala/file_picker' -> methods 'pickFile',
+// 'scanForFiles', 'importFromPath'. The native side opens DocumentViewPicker
+// (preferred), scans well-known directories, or opens a path the user
+// supplies, copies the picked file into the app sandbox, and returns the
+// sandbox file path (or null if cancelled).
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -63,6 +65,84 @@ class OhosFilePicker {
 
     final name = path.split('/').last;
     return FilePickerResult([PlatformFile(path: path, name: name, size: 0)]);
+  }
+
+  /// Scan well-known locations for files matching [allowedExtensions].
+  ///
+  /// OHos-only. Returns at most ~200 matches (the native side caps the scan
+  /// depth and total). Returns an empty list when the scan completes but no
+  /// matches are found, or the platform is not OHos.
+  ///
+  /// This is the recovery path for environments where the system FilePicker
+  /// sheet (`com.huawei.hmos.security.pickersheet`) is missing — e.g.
+  /// trimmed emulator ROMs and some test devices. The native side walks
+  /// `filesDir`, `cacheDir`, and any 'Download' sub-folders.
+  static Future<List<PlatformFile>> scanForFiles({
+    required List<String> allowedExtensions,
+  }) async {
+    if (defaultTargetPlatform != TargetPlatform.ohos) {
+      return const <PlatformFile>[];
+    }
+    final raw = await _channel.invokeMethod<List<Object?>>(
+      'scanForFiles',
+      <String, dynamic>{
+        'extensions': allowedExtensions
+            .map((e) => e.startsWith('.') ? e : '.$e')
+            .toList(),
+      },
+    );
+    if (raw == null) return const <PlatformFile>[];
+    return raw.map((e) {
+      final m = (e as Map).cast<String, Object?>();
+      return PlatformFile(
+        path: m['path'] as String?,
+        name: m['name'] as String? ?? '',
+        size: (m['size'] as num?)?.toInt() ?? 0,
+      );
+    }).toList();
+  }
+
+  /// Import a file by absolute [path].
+  ///
+  /// OHos-only. Used as a fully manual fallback: the user types or pastes
+  /// a full path (e.g. copied out of a file manager) and we open it
+  /// directly, after verifying the path exists, is a regular file, and has
+  /// one of [allowedExtensions] (suffix check, case-insensitive).
+  ///
+  /// Returns the matching [PlatformFile] on success. Throws a
+  /// [PlatformException] with a code from the native side on failure
+  /// (`EMPTY_PATH`, `BAD_EXTENSION`, `NOT_FOUND`, `NOT_A_FILE`,
+  /// `ACCESS_ERROR`).
+  static Future<PlatformFile> importFromPath({
+    required String path,
+    required List<String> allowedExtensions,
+  }) async {
+    if (defaultTargetPlatform != TargetPlatform.ohos) {
+      throw PlatformException(
+        code: 'UNSUPPORTED_PLATFORM',
+        message: 'importFromPath is only supported on OpenHarmony',
+      );
+    }
+    final raw = await _channel.invokeMapMethod<String, Object?>(
+      'importFromPath',
+      <String, dynamic>{
+        'path': path,
+        'extensions': allowedExtensions
+            .map((e) => e.startsWith('.') ? e : '.$e')
+            .toList(),
+      },
+    );
+    if (raw == null) {
+      throw PlatformException(
+        code: 'NO_RESULT',
+        message: 'native side returned no result',
+      );
+    }
+    return PlatformFile(
+      path: raw['path'] as String?,
+      name: raw['name'] as String? ?? '',
+      size: (raw['size'] as num?)?.toInt() ?? 0,
+    );
   }
 
   /// Normalize extensions to a set of lowercase suffixes with a leading dot

@@ -1,11 +1,13 @@
 // Flutter imports:
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 // Package imports:
 import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:varnamala/application/accessibility_provider.dart';
+import 'package:varnamala/application/settings_provider.dart';
 import 'package:varnamala/application/providers.dart';
 import 'package:varnamala/application/theme_provider.dart';
 import 'package:varnamala/di/injection.dart';
@@ -74,32 +76,84 @@ class _AppShellState extends State<_AppShell> {
         ? dark.copyWith(textTheme: AppFonts.lexendTextTheme(dark.textTheme))
         : dark;
 
-    return MaterialApp.router(
-      debugShowCheckedModeBanner: false,
-      title: 'Varnamala',
-      theme: theme,
-      darkTheme: darkTheme,
-      themeMode: themeMode,
-      routerConfig: _routeConfig,
-      builder: (context, child) {
-        // Apply the accessibility MediaQuery overrides at the root so every
-        // descendant inherits them: text magnification and (when reduced
-        // motion is on) Flutter's accessibleNavigation / disableAnimations
-        // flags, which make AnimatedSwitcher / page transitions resolve
-        // instantly.
-        final mq = MediaQuery.of(context);
-        return MediaQuery(
-          data: mq.copyWith(
-            textScaler: acc.textScaler,
-            accessibleNavigation: acc.reducedMotion || mq.accessibleNavigation,
-            disableAnimations:
-                acc.reducedMotion ? true : mq.disableAnimations,
-          ),
-          child: child!,
-        );
-      },
+    return _OrientationController(
+      child: MaterialApp.router(
+        debugShowCheckedModeBanner: false,
+        title: 'Varnamala',
+        theme: theme,
+        darkTheme: darkTheme,
+        themeMode: themeMode,
+        routerConfig: _routeConfig,
+        builder: (context, child) {
+          // Apply the accessibility MediaQuery overrides at the root so every
+          // descendant inherits them: text magnification and (when reduced
+          // motion is on) Flutter's accessibleNavigation / disableAnimations
+          // flags, which make AnimatedSwitcher / page transitions resolve
+          // instantly.
+          final mq = MediaQuery.of(context);
+          return MediaQuery(
+            data: mq.copyWith(
+              textScaler: acc.textScaler,
+              accessibleNavigation:
+                  acc.reducedMotion || mq.accessibleNavigation,
+              disableAnimations:
+                  acc.reducedMotion ? true : mq.disableAnimations,
+            ),
+            child: child!,
+          );
+        },
+      ),
     );
   }
+}
+
+/// Applies the user's auto-rotation preference at runtime.
+///
+/// [main] locks orientation before the first frame; this controller keeps it
+/// in sync when the user toggles the setting (Settings > 外观 > 自动旋转屏幕).
+/// Default off = portrait-only; on = follow device orientation.
+class _OrientationController extends StatefulWidget {
+  final Widget child;
+
+  const _OrientationController({required this.child});
+
+  @override
+  State<_OrientationController> createState() => _OrientationControllerState();
+}
+
+class _OrientationControllerState extends State<_OrientationController> {
+  late bool _autoRotate;
+
+  @override
+  void initState() {
+    super.initState();
+    final settings = context.read<SettingsProvider>();
+    _autoRotate = settings.autoRotateEnabled;
+    settings.addListener(_onSettingsChanged);
+    _apply();
+  }
+
+  void _onSettingsChanged() {
+    final settings = context.read<SettingsProvider>();
+    if (settings.autoRotateEnabled == _autoRotate) return;
+    _autoRotate = settings.autoRotateEnabled;
+    _apply();
+  }
+
+  void _apply() {
+    SystemChrome.setPreferredOrientations(
+      _autoRotate ? [] : [DeviceOrientation.portraitUp],
+    );
+  }
+
+  @override
+  void dispose() {
+    context.read<SettingsProvider>().removeListener(_onSettingsChanged);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 class _AccSnapshot {

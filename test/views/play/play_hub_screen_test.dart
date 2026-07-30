@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
+import 'package:varnamala/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:varnamala/application/game_provider.dart';
 import 'package:varnamala/application/grammar_review_provider.dart';
 import 'package:varnamala/application/lesson_link_store.dart';
@@ -45,6 +46,9 @@ void main() {
           ChangeNotifierProvider(
             create: (_) => GameProvider.forTesting(prefs),
           ),
+          ChangeNotifierProvider<AiEngineConfigHolder>(
+            create: (_) => AiEngineConfigHolder(),
+          ),
         ],
         child: const MaterialApp(
           home: Scaffold(body: PlayHubScreen()),
@@ -63,13 +67,17 @@ void main() {
     expect(find.text('薄弱单词'), findsOneWidget);
     expect(find.text('Anki 复习'), findsOneWidget);
     expect(find.text('词典'), findsOneWidget);
-    expect(find.byType(PageView), findsOneWidget);
+
+    // AI 助手 分区（快捷入口 + 引擎状态行）。
+    expect(find.text('AI 助手'), findsOneWidget);
+    expect(find.text('设计课程（AI）'), findsOneWidget);
+    expect(find.text('导入教材'), findsOneWidget);
+    expect(find.text('全部 AI 功能'), findsOneWidget);
+    // 默认空配置 -> 引擎未就绪。
+    expect(find.text('未配置'), findsOneWidget);
+
+    expect(find.byType(PageView), findsNothing);
     expect(find.text('你的最佳'), findsNothing);
     expect(find.text('总经验值'), findsNothing);
-
-    // 第三张今日重点卡需要左滑才会构建
-    await tester.drag(find.byType(PageView), const Offset(-300, 0));
-    await tester.pumpAndSettle();
-    expect(find.text('每日挑战'), findsOneWidget);
   });
 }

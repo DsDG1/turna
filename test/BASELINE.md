@@ -159,7 +159,7 @@ Previous: tool-gui Phase 1+2+3+4：稳定层加固 + 教师视图覆盖全部 6 
   `ai_genre.py`）对齐：完整模板/题型/资源 schema prompt、genre 标签批量、
   资源自洽校验与 autoFix、`validateSection` + 1 次自愈重试、许愿模式（独立聊天页
   `AiWishChatPage` 多轮对齐 + 滑动确认条「Swipe to finalize」生成 + 通俗解释）。
-  入口已从 Learn 右下 FAB 迁到 `StatAppBar` 右上 `auto_awesome` 图标直进聊天页，
+  入口已从 Learn 右下 FAB 迁到 `StatAppBar` 右上 `auto_awesome` 图标直进聊天页（后已移除，现入口为 设置 > AI 工具 / 练习 Hub），
   课程参数移到页面 AppBar 齿轮按钮的底部弹层；普通模式/编辑模式与可编辑 JSON 已移除
   （`AiCourseGeneratorPage` 删除）；API 配置移到 Settings 页 AI 区块。不含编辑模式。
 - 资源持久化：AI 生成的顶层 `words` / `expressions` / `grammarPoints` 现随 section

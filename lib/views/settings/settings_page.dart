@@ -114,9 +114,8 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget build(BuildContext context) {
     final isList = _category == null;
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    final titleIcon = isList
-        ? Icons.settings_rounded
-        : _categoryByIndex(_category!).icon;
+    final titleIcon =
+        isList ? Icons.settings_rounded : _categoryByIndex(_category!).icon;
     final titleText =
         isList ? AppStrings.settingsTitle : _categoryByIndex(_category!).title;
 
@@ -164,9 +163,8 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ),
         body: AnimatedSwitcher(
-          duration: reduceMotion
-              ? Duration.zero
-              : const Duration(milliseconds: 220),
+          duration:
+              reduceMotion ? Duration.zero : const Duration(milliseconds: 220),
           switchInCurve: Curves.easeOutCubic,
           switchOutCurve: Curves.easeInCubic,
           // Top-align the cross-fade so short sub-pages don't jump after the
@@ -376,6 +374,18 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const SizedBox(height: 8),
           const SettingsThemeSelector(),
+          const SizedBox(height: 8),
+          SettingsCard(
+            children: [
+              SettingsToggleTile(
+                icon: Icons.screen_rotation_rounded,
+                title: AppStrings.settingsAutoRotateTitle,
+                subtitle: AppStrings.settingsAutoRotateSubtitle,
+                valueSelector: (p) => p.autoRotateEnabled,
+                onChanged: (p, value) => p.setAutoRotateEnabled(value),
+              ),
+            ],
+          ),
           const SizedBox(height: 24),
         ];
       case 4:
@@ -566,7 +576,10 @@ class _SettingsPageState extends State<SettingsPage> {
     try {
       pickedPath = (await OhosFilePicker.pickFiles(
         allowedExtensions: const ['json'],
-      ))?.files.single.path;
+      ))
+          ?.files
+          .single
+          .path;
     } on OhosFilePickerInvalidExtension {
       return; // user picked a non-json file; ignore
     }
@@ -723,7 +736,9 @@ class _ExportSheetState extends State<_ExportSheet> {
                       ),
                     )
                   : const Icon(Icons.ios_share_rounded),
-              label: Text(_exporting ? AppStrings.settingsExporting : AppStrings.settingsExportButton),
+              label: Text(_exporting
+                  ? AppStrings.settingsExporting
+                  : AppStrings.settingsExportButton),
             ),
           ),
         ],

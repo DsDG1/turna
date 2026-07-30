@@ -29,6 +29,9 @@ class VarnamalaTheme {
   static const Color warningLight = Color(0xFFFFBE76);
   static const Color info = peacockCyan;
 
+  // JEWEL TONES - distinct accents for feature surfaces (e.g. AI).
+  static const Color amethystLeague = Color(0xFF9B59B6);
+
   // BACKGROUND COLORS
   static const Color background = Color(0xFFF8FFFE);
   static const Color surface = Colors.white;
@@ -238,8 +241,87 @@ class VarnamalaTheme {
               ),
             ];
 
+  /// 按钮整体羽化光晕：练习卡 SoftCard 外层散出的白色柔光。
+  /// 深色分支用「负 spread + 大模糊」：阴影形状向内收缩后由模糊主导，
+  /// 形成弥散光晕而不是贴着边缘的亮环（贴边亮环会在圆角处堆出亮角）。
+  /// 用法：加到 SoftCard Ink 的 boxShadow 列表里（与现有 softCardShadow 叠加）。
+  static List<BoxShadow> featheredButtonGlow(BuildContext context) =>
+      _isDark(context)
+          ? [
+              BoxShadow(
+                color: Colors.white.withValues(alpha: 0.10),
+                blurRadius: 48,
+                spreadRadius: -14,
+              ),
+              BoxShadow(
+                color: Colors.white.withValues(alpha: 0.06),
+                blurRadius: 40,
+                spreadRadius: -10,
+                offset: const Offset(0, 14),
+              ),
+            ]
+          : [
+              BoxShadow(
+                color: Colors.white.withValues(alpha: 0.45),
+                blurRadius: 14,
+                offset: const Offset(0, 2),
+              ),
+              BoxShadow(
+                color: Colors.white.withValues(alpha: 0.20),
+                blurRadius: 32,
+                offset: const Offset(0, 8),
+              ),
+            ];
+
   /// 玻璃徽章实色填充：badge 仍走 accent 实色，仅加 1px 高光描边和小阴影。
   static Color glassBadgeFill(Color accent) => accent;
+
+  // SOFT TINTED TOKENS
+  // 「轻量着色卡」所需的主题感知 helper：底色 + 内侧晕染 + 文字提亮。
+  // 浅色用低 alpha accent（≈ 0.10）罩白底；深色改为「不透明暗面 + accent
+  // 罩染」，避免半透明色叠在深色渐变背景上发灰发浑。
+  // 用法：SoftCard 的 fill 直接传 accent，外部按 context 自动适配。
+
+  /// tinted 卡片底色：浅色为 accent @ 0.10 罩白；深色为 accent @ 0.10
+  /// 不透明罩染在抬升暗面上——只留淡淡色相，接近「学习」section 卡的
+  /// 中性暗面质感，色彩由 icon chip 与提亮文字承载。
+  static Color softTint(BuildContext context, Color accent) => _isDark(context)
+      ? Color.alphaBlend(
+          accent.withValues(alpha: 0.10),
+          const Color(0xFF1D3330),
+        )
+      : Color.alphaBlend(
+          accent.withValues(alpha: 0.10),
+          Colors.white,
+        );
+
+  /// 着色卡内侧顶部白色晕染：模拟光照打在霜面上的高光。
+  /// 用法：SoftCard 在 ClipRRect 内用 DecoratedBox 叠加在 child 之下。
+  static LinearGradient softCardSheen(BuildContext context) => LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          Colors.white.withValues(alpha: _isDark(context) ? 0.07 : 0.20),
+          Colors.white.withValues(alpha: 0.0),
+        ],
+        stops: const [0.0, 0.5],
+      );
+
+  /// 着色卡上的 accent 文字/图标色：浅色直接用 accent；深色向白色提亮
+  /// 35%，保证 teal/cyan 这类深 accent 在暗底上可读。
+  static Color accentOnCard(BuildContext context, Color accent) =>
+      _isDark(context) ? Color.lerp(accent, Colors.white, 0.35)! : accent;
+
+  /// tinted 卡片柔和阴影：浅色 accent @ 0.10 向下投影；深色负 spread +
+  /// 大模糊弥散，避免贴边亮环在圆角处堆出亮角。
+  static List<BoxShadow> softCardShadow(BuildContext context, Color accent) => [
+        BoxShadow(
+          color: accent.withValues(alpha: _isDark(context) ? 0.12 : 0.10),
+          blurRadius: _isDark(context) ? 24 : 12,
+          spreadRadius: _isDark(context) ? -6 : 0,
+          offset: _isDark(context) ? Offset.zero : const Offset(0, 4),
+        ),
+      ];
 
   // THEME-AWARE COLOR HELPERS
   // Use these instead of hard-coded Colors.white / Color(0xFF...) so widgets

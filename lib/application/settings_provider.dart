@@ -26,6 +26,7 @@ class SettingsProvider extends ChangeNotifier {
   int _dailyReminderHour = 19;
   int _dailyReminderMinute = 0;
   bool _useXiaoyiHint = false;
+  bool _autoRotateEnabled = false;
   double _srsDesiredRetention = 0.9;
   bool _hasCustomFsrsWeights = false;
   String _fsrsOptimizedAt = '';
@@ -42,6 +43,10 @@ class SettingsProvider extends ChangeNotifier {
   int get dailyReminderHour => _dailyReminderHour;
   int get dailyReminderMinute => _dailyReminderMinute;
   bool get useXiaoyiHint => _useXiaoyiHint;
+
+  /// Screen auto-rotation. false (default) locks portrait; true follows device.
+  bool get autoRotateEnabled => _autoRotateEnabled;
+
   /// FSRS target retention (0.80–0.95). Binary scoring only — not a grade UI.
   double get srsDesiredRetention => _srsDesiredRetention;
   bool get hasCustomFsrsWeights => _hasCustomFsrsWeights;
@@ -72,6 +77,9 @@ class SettingsProvider extends ChangeNotifier {
         .getValue();
     _useXiaoyiHint = _appPrefs.preferences
         .getBool(LocalStateKeys.useXiaoyiHint, defaultValue: false)
+        .getValue();
+    _autoRotateEnabled = _appPrefs.preferences
+        .getBool(LocalStateKeys.autoRotate, defaultValue: false)
         .getValue();
     _srsDesiredRetention = _appPrefs.preferences
         .getDouble(LocalStateKeys.srsDesiredRetention, defaultValue: 0.9)
@@ -125,6 +133,12 @@ class SettingsProvider extends ChangeNotifier {
   Future<void> setUseXiaoyiHint(bool value) async {
     _useXiaoyiHint = value;
     await _appPrefs.setBool(LocalStateKeys.useXiaoyiHint, value: value);
+    notifyListeners();
+  }
+
+  Future<void> setAutoRotateEnabled(bool value) async {
+    _autoRotateEnabled = value;
+    await _appPrefs.setBool(LocalStateKeys.autoRotate, value: value);
     notifyListeners();
   }
 

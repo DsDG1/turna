@@ -74,6 +74,8 @@ class AppStrings {
   static String get settingsSoundEffectsSubtitle => '为错误和升级播放音效';
   static String get settingsHapticFeedbackTitle => '触感反馈';
   static String get settingsHapticFeedbackSubtitle => '关键操作时振动';
+  static String get settingsAutoRotateTitle => '自动旋转屏幕';
+  static String get settingsAutoRotateSubtitle => '关闭时锁定竖屏；开启后跟随设备方向';
   static String get settingsAiApiConfigTitle => 'AI API 配置';
   static String get settingsAiApiConfigSubtitle => 'Base URL、API 密钥和模型（退出时不保存）';
   static String get settingsDesignCourseAiTitle => '用 AI 设计课程';
@@ -88,6 +90,37 @@ class AppStrings {
   static String get settingsClearMistakeLogSubtitle => '删除所有已保存的错题';
   static String get settingsResetProgressTitle => '重置课程进度';
   static String get settingsResetProgressSubtitle => '将所有课程标记为未完成';
+
+  // ── Beginner guide ──
+  static String get beginnerGuideTitle => '新手指南';
+  static String get beginnerGuideEntry => '新手指南';
+  static String get beginnerGuideEntrySubtitle => '了解核心功能与使用方法';
+  static String get beginnerGuideIntro =>
+      '欢迎来到 Varnamala！这里快速介绍应用的核心功能，点击任意功能卡即可跳转体验。';
+  static String get beginnerGuideSectionLearn => '学习';
+  static String get beginnerGuideSectionPractice => '练习与复习';
+  static String get beginnerGuideSectionTools => '工具';
+  static String get beginnerGuideSectionProfile => '我的';
+  static String get beginnerGuideTryNow => '去体验';
+  static String get beginnerGuideLearnTitle => '学习课程';
+  static String get beginnerGuideLearnDesc =>
+      '从问候语开始，按 CEFR 等级循序渐进地学习土耳其语词汇、表达与语法。';
+  static String get beginnerGuideCourseMgmtTitle => '课程管理';
+  static String get beginnerGuideCourseMgmtDesc => '切换、添加或重排所学语言课程。';
+  static String get beginnerGuidePlayTitle => '练习中心';
+  static String get beginnerGuidePlayDesc => '配对小游戏与每日挑战，轻松巩固所学。';
+  static String get beginnerGuideSrsTitle => '间隔复习';
+  static String get beginnerGuideSrsDesc => '基于 FSRS 算法的智能复习队列，让记忆更持久。';
+  static String get beginnerGuideMistakesTitle => '错题本';
+  static String get beginnerGuideMistakesDesc => '自动记录做错的题目，针对性重练薄弱点。';
+  static String get beginnerGuideWeakWordsTitle => '弱词专项';
+  static String get beginnerGuideWeakWordsDesc => '从近期错题生成 10 题小测，集中攻克易错词。';
+  static String get beginnerGuideDictionaryTitle => '词典';
+  static String get beginnerGuideDictionaryDesc => '搜索词汇、表达与语法点，点击播放发音。';
+  static String get beginnerGuideAiTitle => 'AI 助手';
+  static String get beginnerGuideAiDesc => '用 AI 设计课程、导入教材，或对错题进行深度讲解。';
+  static String get beginnerGuideStatsTitle => '学习统计';
+  static String get beginnerGuideStatsDesc => '查看每日 XP、学习时长与准确率趋势，追踪进度。';
   static String get settingsResetLearningDefaultsTitle => '重置为默认';
   static String get settingsResetLearningDefaultsSubtitle =>
       '恢复语速、提醒、小艺与 Anki 限额等学习偏好';
@@ -101,11 +134,13 @@ class AppStrings {
   static String get settingsClearMistakeConfirm => '清除';
   static String get settingsMistakeLogCleared => '错题记录已清除';
   static String get settingsResetProgressDialogTitle => '重置课程进度？';
-  static String get settingsResetProgressDialogMessage => '所有课程完成记录和满分记录都将被清除。此操作无法撤销。';
+  static String get settingsResetProgressDialogMessage =>
+      '所有课程完成记录和满分记录都将被清除。此操作无法撤销。';
   static String get settingsResetProgressConfirm => '重置';
   static String get settingsProgressReset => '课程进度已重置';
   static String get settingsImportDataDialogTitle => '导入数据？';
-  static String get settingsImportDataDialogMessage => '这将用文件内容覆盖当前进度。此操作无法撤销。建议先导出。';
+  static String get settingsImportDataDialogMessage =>
+      '这将用文件内容覆盖当前进度。此操作无法撤销。建议先导出。';
   static String get settingsImportDataConfirm => '导入';
   static String get settingsCourseSavedRestart => '课程内容已保存；重启后生效';
   static String get settingsProgressRestoredRestart => '进度已恢复——重启应用以生效';
@@ -132,7 +167,8 @@ class AppStrings {
   static String get settingsAboutVarnamala => '关于 Varnamala';
   static String get settingsOpenSourceLicenses => '开源许可证';
   static String settingsVersionFooter(String version) => '版本 $version';
-  static String settingsVersionFooterWithBuild(String version, String build) => '版本 $version ($build)';
+  static String settingsVersionFooterWithBuild(String version, String build) =>
+      '版本 $version ($build)';
   static String get settingsAccountLearnerFallback => '学习者';
   static String get settingsThemeLight => '浅色';
   static String get settingsThemeDark => '深色';
@@ -153,23 +189,25 @@ class AppStrings {
   static String get settingsSrsOptimize => '根据学习记录优化';
   static String get settingsSrsOptimizeHint =>
       '用本机复习历史微调 FSRS（需至少 300 次复习）。不会增加评分档。';
-  static String get settingsSrsOptimizeNeedMore =>
-      '复习记录不足 300 次，暂无法优化';
+  static String get settingsSrsOptimizeNeedMore => '复习记录不足 300 次，暂无法优化';
   static String get settingsSrsOptimizeAccepted => '已应用个性化权重';
-  static String get settingsSrsOptimizeRejected =>
-      '优化未带来稳定提升，仍使用原权重';
+  static String get settingsSrsOptimizeRejected => '优化未带来稳定提升，仍使用原权重';
   static String get settingsSrsResetWeights => '恢复默认权重';
   static String get settingsSrsOptimizing => '正在优化…';
   static String srsPreviewFailMinutes(int minutes) => '约 $minutes 分钟';
   static String get srsPreviewTomorrow => '明天';
 
   static String get settingsReminderTimeTitle => '提醒时间';
-  static String settingsReminderTimeSubtitle(String timeLabel) => '当前 $timeLabel';
+  static String settingsReminderTimeSubtitle(String timeLabel) =>
+      '当前 $timeLabel';
   static String get settingsTtsChecking => '正在检查设备 TTS 引擎…';
-  static String settingsTtsReady(String locale) => 'Google TTS 就绪（$locale）——推荐用于学习';
-  static String get settingsTtsGoogleInstalledMissingVoice => 'Google 已安装——请在系统 TTS 设置中下载土耳其语语音数据';
+  static String settingsTtsReady(String locale) =>
+      'Google TTS 就绪（$locale）——推荐用于学习';
+  static String get settingsTtsGoogleInstalledMissingVoice =>
+      'Google 已安装——请在系统 TTS 设置中下载土耳其语语音数据';
   static String get settingsTtsTurkishVoiceMissing => '土耳其语语音未就绪——打开系统 TTS 设置';
-  static String settingsTtsGoogleMissing(Object oem) => '未检测到 Google TTS（引擎：$oem）';
+  static String settingsTtsGoogleMissing(Object oem) =>
+      '未检测到 Google TTS（引擎：$oem）';
   static String get settingsVoiceSourceTitle => '语音来源';
   static String get settingsSystemTts => '系统 TTS';
   static String get settingsVoiceSourceDialogTitle => '语音来源';
@@ -177,7 +215,8 @@ class AppStrings {
   static String get settingsOpenSystemTts => '打开系统 TTS 设置…';
   static String get settingsInstallGoogleTts => '安装/打开 Google TTS…';
   static String settingsTtsNoVoicePlayed(Object error) => '未播放语音。$error';
-  static String get settingsTtsNoVoicePlayedFallback => '未播放语音。请检查 logcat 中的 TTS 错误。';
+  static String get settingsTtsNoVoicePlayedFallback =>
+      '未播放语音。请检查 logcat 中的 TTS 错误。';
   static String settingsTtsPlaying(String userLabel) => '正在播放：$userLabel';
   static String get settingsTextSizeTitle => '文字大小';
   static String get settingsTextSizeSubtitle => '全局放大文字';
@@ -222,14 +261,16 @@ class AppStrings {
   static String get accountResetTitle => '重置账户';
   static String get accountResetSubtitle => '清除所有学习数据并重新开始';
   static String get accountResetDialogTitle => '重置账户？';
-  static String get accountResetDialogMessage => '所有学习进度、SRS 数据、错题记录和成就都将被清除。此操作无法撤销。强烈建议先导出数据。';
+  static String get accountResetDialogMessage =>
+      '所有学习进度、SRS 数据、错题记录和成就都将被清除。此操作无法撤销。强烈建议先导出数据。';
   static String get accountResetConfirm => '重置';
   static String get accountResetDone => '账户已重置';
 
   // ── About ──
   static String get aboutTitle => '关于 Varnamala';
   static String get aboutWhatIsTitle => '什么是 Varnamala';
-  static String get aboutWhatIsBody => 'Varnamala 是一款免费、开源的语言学习应用，专注于帮助你一步步建立真实的词汇和语法能力。它让学习保持离线、无干扰，并由你掌控。';
+  static String get aboutWhatIsBody =>
+      'Varnamala 是一款免费、开源的语言学习应用，专注于帮助你一步步建立真实的词汇和语法能力。它让学习保持离线、无干扰，并由你掌控。';
   static String get aboutHighlightsTitle => '亮点';
   static String get aboutHighlightOfflineTitle => '离线优先';
   static String get aboutHighlightOfflineSubtitle => '随时随地学习';
@@ -238,7 +279,8 @@ class AppStrings {
   static String get aboutHighlightInteractionsTitle => '11 种交互';
   static String get aboutHighlightInteractionsSubtitle => '练习所有技能';
   static String get aboutPrivacyTitle => '隐私与本地优先';
-  static String get aboutPrivacyBody => '你学习的一切都保留在本设备上。Varnamala 没有云端后端、没有账户、没有追踪——你的进度、错题和设置永不离开手机。卸载应用会删除所有数据。唯一的网络访问是可选的（打开外部链接或你自己配置的 AI 工具）。';
+  static String get aboutPrivacyBody =>
+      '你学习的一切都保留在本设备上。Varnamala 没有云端后端、没有账户、没有追踪——你的进度、错题和设置永不离开手机。卸载应用会删除所有数据。唯一的网络访问是可选的（打开外部链接或你自己配置的 AI 工具）。';
   static String get aboutVersionTitle => '版本与更新日志';
   static String get aboutLinksTitle => '链接';
   static String get aboutUpstreamTitle => '上游项目';
@@ -249,15 +291,18 @@ class AppStrings {
   static String get aboutViewReleasesSubtitle => '更新日志与下载';
   static String get aboutShareTitle => '分享 Varnamala';
   static String get aboutCreditsTitle => '致谢';
-  static String get aboutCreditsOriginal => '原始框架由 Rishi Banerjee 和 Varnamala 开源社区构建。';
+  static String get aboutCreditsOriginal =>
+      '原始框架由 Rishi Banerjee 和 Varnamala 开源社区构建。';
   static String get aboutCreditsFork => '本构建是一个本地优先的分叉版本，增加了无障碍设置和课程创作工具。';
   static String get aboutLicense => '基于 GNU 通用公共许可证 v3.0 授权。';
   static String aboutCopyright(String year) => '© $year Varnamala';
   static String get aboutBrandName => 'Varnamala';
   static String get aboutTagline => '学习语言，一步步来。';
   static String aboutVersionLabel(String version) => '版本 $version';
-  static String aboutVersionWithBuild(String version, String buildNumber) => '版本 $version（$buildNumber）';
-  static String get aboutShareText => '看看 Varnamala——一款免费、开源的语言学习应用！https://github.com/rshrc/Varnamala';
+  static String aboutVersionWithBuild(String version, String buildNumber) =>
+      '版本 $version（$buildNumber）';
+  static String get aboutShareText =>
+      '看看 Varnamala——一款免费、开源的语言学习应用！https://github.com/rshrc/Varnamala';
   static String aboutVersionShort(String version) => '版本 $version';
   static String aboutVersionBuild(String buildNumber) => '（$buildNumber）';
   static String get aboutHideChangelog => '隐藏';
@@ -266,16 +311,21 @@ class AppStrings {
   static String get aboutOpenChangelogSubtitle => '版本里程碑与功能摘要';
   static String get aboutReleasesNote => '完整的发布历史，请查看 GitHub 发布页面。';
   static String get aboutMilestone1Title => 'future4 框架';
-  static String get aboutMilestone1Body => '完成整洁架构框架：依赖注入整合、音频/内容解耦、SRS 队列基类、GameProvider 外观模式、集成测试、发布流水线。';
+  static String get aboutMilestone1Body =>
+      '完成整洁架构框架：依赖注入整合、音频/内容解耦、SRS 队列基类、GameProvider 外观模式、集成测试、发布流水线。';
   static String get aboutMilestone2Title => '斯瓦希里语 → 土耳其语转向';
-  static String get aboutMilestone2Body => '将目标语言迁移到土耳其语，并在第 1 章填充了真实的问候语课程（8 个单词 + 2 个表达）。';
+  static String get aboutMilestone2Body =>
+      '将目标语言迁移到土耳其语，并在第 1 章填充了真实的问候语课程（8 个单词 + 2 个表达）。';
   static String get aboutMilestone3Title => '无障碍设置';
-  static String get aboutMilestone3Body => '添加了神经多样性友好选项：文字大小、减弱动态效果、高对比度、阅读障碍友好字体、感官减弱、专注模式。';
+  static String get aboutMilestone3Body =>
+      '添加了神经多样性友好选项：文字大小、减弱动态效果、高对比度、阅读障碍友好字体、感官减弱、专注模式。';
 
   // ── Changelog ──
   static String get changelogTitle => '更新日志';
-  static String get changelogIntro => '以下为 Varnamala Plus 主要版本与功能里程碑，条目为简要摘要，便于快速了解近期改动。';
-  static String get changelogFooterNote => '更详细的工程说明见仓库 docs/decisions/ 与 README。';
+  static String get changelogIntro =>
+      '以下为 Varnamala Plus 主要版本与功能里程碑，条目为简要摘要，便于快速了解近期改动。';
+  static String get changelogFooterNote =>
+      '更详细的工程说明见仓库 docs/decisions/ 与 README。';
 
   // ── Home ──
   static String get homeAiCourseDesigner => 'AI 课程设计器';
@@ -307,18 +357,21 @@ class AppStrings {
   static String get playQuickPlayTitle => '快速练习';
   static String get playQuickPlaySubtitle => '尽快匹配单词';
   static String get playMistakeReviewTitle => '错题复习';
-  static String playMistakeReviewSubtitleWithCount(int mistakesCount) => '$mistakesCount 个错题——最多练习 10 个';
+  static String playMistakeReviewSubtitleWithCount(int mistakesCount) =>
+      '$mistakesCount 个错题——最多练习 10 个';
   static String get playMistakeReviewSubtitleEmpty => '暂无错题记录';
   static String get playReviewTitle => '复习';
   static String playReviewSubtitleWithDue(int srsDue) => '$srsDue 个单词待复习';
   static String get playReviewSubtitleEmpty => '暂无待复习单词';
   static String get playGrammarReviewTitle => '语法复习';
-  static String playGrammarReviewSubtitleWithDue(int grammarDue) => '$grammarDue 个语法点待复习';
+  static String playGrammarReviewSubtitleWithDue(int grammarDue) =>
+      '$grammarDue 个语法点待复习';
   static String get playGrammarReviewSubtitleEmpty => '暂无待复习语法';
   static String get playDailyChallengeTitle => '每日挑战';
   static String get playDailyChallengeSubtitle => '随机 15 题——测试你的土耳其语';
   static String get playWeakWordsTitle => '薄弱单词';
-  static String playWeakWordsSubtitleWithCount(int weakCount) => '$weakCount 个单词在过去 30 天内错过两次';
+  static String playWeakWordsSubtitleWithCount(int weakCount) =>
+      '$weakCount 个单词在过去 30 天内错过两次';
   static String get playWeakWordsSubtitleEmpty => '暂无薄弱单词';
   static String get playAnkiReviewTitle => 'Anki 复习';
   static String get playAnkiReviewSubtitle => '复习导入的 Anki 牌组';
@@ -328,7 +381,12 @@ class AppStrings {
   static String get playReviewCenterTitle => '复习中心';
   static String get playToolsTitle => '工具';
   static String get playStartAction => '开始';
-  static String playMistakeFocusCount(int mistakesCount) => '$mistakesCount 个错题';
+  static String get playAiAssistantTitle => 'AI 助手';
+  static String get playAiEngineReady => '引擎就绪';
+  static String get playAiEngineNotConfigured => '未配置';
+  static String get playAiViewAll => '全部 AI 功能';
+  static String playMistakeFocusCount(int mistakesCount) =>
+      '$mistakesCount 个错题';
   static String get playMistakeFocusEmpty => '暂无错题';
   static String playReviewFocusCount(int srsDue) => '$srsDue 个待复习';
   static String get playReviewFocusEmpty => '暂无待复习';
@@ -339,21 +397,25 @@ class AppStrings {
   static String playRoundLabel(int roundsCompleted) => '第 $roundsCompleted 轮';
   static String get playInfiniteRoundsNote => '无限轮次。每次完美完成板后出现新单词。';
   static String get playRoundComplete => '本轮完成！正在加载新单词…';
-  static String playTimeUp(int roundsCompleted, int score) => '时间到！你完成了 $roundsCompleted 轮，获得 $score XP。';
+  static String playTimeUp(int roundsCompleted, int score) =>
+      '时间到！你完成了 $roundsCompleted 轮，获得 $score XP。';
   static String get playPlayAgain => '再玩一次';
   static String get playBrilliantRun => '精彩发挥！';
   static String get playChampionEnergy => '冠军之能！';
   static String get playLightningFast => '闪电速度！';
-  static String playMatchCount(int matchedCount, int totalCount) => '$matchedCount / $totalCount';
+  static String playMatchCount(int matchedCount, int totalCount) =>
+      '$matchedCount / $totalCount';
   static String get playDailyClose => '关闭';
   static String get playDailyTitle => '每日挑战';
-  static String playDailyQuestion(int current, int total) => '第 $current 题，共 $total 题';
+  static String playDailyQuestion(int current, int total) =>
+      '第 $current 题，共 $total 题';
   static String get playDailyChallengeFallback => '每日挑战';
   static String get playDailyContinue => '继续';
   static String get playDailyGotIt => '知道了';
   static String get playDailyNoQuestions => '暂无挑战题目';
   static String get playDailyCompleteFewLessons => '先完成几节课以充实题库。';
-  static String get playWeakWordsEmpty => '继续练习——暂无薄弱单词。\n过去 30 天内错过两次的单词会出现在这里。';
+  static String get playWeakWordsEmpty =>
+      '继续练习——暂无薄弱单词。\n过去 30 天内错过两次的单词会出现在这里。';
   static String get playWeakWordsTitleAppBar => '薄弱单词';
 
   // ── Review ──
@@ -367,7 +429,8 @@ class AppStrings {
   static String get reviewEmptyMessage => '你已经全部复习完了。';
   static String get reviewDueMessage => '个单词已到期——下拉刷新';
   static String get reviewNoItemsDue => '暂无待复习项';
-  static String reviewDueCountMessage(int dueCount, String dueMessage) => '$dueCount $dueMessage';
+  static String reviewDueCountMessage(int dueCount, String dueMessage) =>
+      '$dueCount $dueMessage';
   static String get reviewCompletionTitle => '本轮完成！';
   static String get reviewCompletionMessage => '你已复习全部内容。';
   static String get reviewReviewAppBarTitle => '复习';
@@ -376,18 +439,21 @@ class AppStrings {
   static String get reviewReviewMore => '继续复习';
   static String get reviewSrsTitle => '复习';
   static String get reviewSrsSessionComplete => '本轮完成！';
-  static String reviewSrsCompletionMessage(int sessionCount) => '你复习了 $sessionCount 项。';
+  static String reviewSrsCompletionMessage(int sessionCount) =>
+      '你复习了 $sessionCount 项。';
   static String get reviewSrsAppBarTitle => '复习';
   static String reviewSrsTtsSpeed(String ttsSpeed) => '$ttsSpeed x';
   static String get reviewSrsTtsSpeedTooltip => 'TTS 语速';
-  static String reviewSrsProgress(int currentIndex, int queueLength) => '$currentIndex / $queueLength';
+  static String reviewSrsProgress(int currentIndex, int queueLength) =>
+      '$currentIndex / $queueLength';
   static String get reviewSrsShowAnswer => '显示答案';
   static String get reviewSrsPlayPronunciation => '播放发音';
   static String get reviewSrsTapToReveal => '点击显示含义';
   static String reviewSrsLearnedIn(String lessonName) => '所学课程：$lessonName';
   static String reviewSrsFirstSeen(String wordId) => '首次出现：$wordId';
   static String get reviewSrsEntryNotFound => '未找到条目';
-  static String reviewSrsPronunciation(String pronunciation) => '/$pronunciation/';
+  static String reviewSrsPronunciation(String pronunciation) =>
+      '/$pronunciation/';
   static String get reviewMistakeReviewTitle => '错题复习';
   static String get reviewViewMistakeList => '查看错题列表';
   static String get reviewNoMistakes => '暂无错题可复习。\n错题会自动记录在此处；每次最多练习 10 个。';
@@ -411,10 +477,14 @@ class AppStrings {
   static String get reviewGrammarEmptyMessage => '你已经全部复习完了。';
   static String get reviewGrammarDueMessage => '个语法点已到期——刷新以加载';
   static String get reviewGrammarSessionComplete => '本轮完成！';
-  static String reviewGrammarCompletionMessage(int sessionCount) => '你复习了 $sessionCount 个语法点。';
+  static String reviewGrammarCompletionMessage(int sessionCount) =>
+      '你复习了 $sessionCount 个语法点。';
   static String get reviewGrammarAppBarTitle => '语法复习';
-  static String reviewGrammarProgress(int currentIndex, int queueLength) => '$currentIndex / $queueLength';
-  static String reviewGrammarPracticeLabel(int practiceIndex, int practiceLength) => '练习 $practiceIndex / $practiceLength';
+  static String reviewGrammarProgress(int currentIndex, int queueLength) =>
+      '$currentIndex / $queueLength';
+  static String reviewGrammarPracticeLabel(
+          int practiceIndex, int practiceLength) =>
+      '练习 $practiceIndex / $practiceLength';
   static String get reviewGrammarDoYouUnderstand => '你理解这个语法点吗？';
   static String get reviewGrammarNextPractice => '下一个练习';
   static String get reviewGrammarRateGrammar => '为这个语法点评分';
@@ -440,9 +510,12 @@ class AppStrings {
   static String get lessonTapToListen => '点击喇叭收听';
   static String get lessonMultipleChoiceCaption => '多项选择';
   static String get lessonSelectAllCaption => '选择所有适用项';
-  static String lessonSelectAtLeast(int min, int count) => '至少选择 $min 项（已选 $count 项）';
-  static String lessonSelectExact(int min, int count) => '选择 $min 项（已选 $count 项）';
-  static String lessonSelectRange(int min, int max, int count) => '选择 $min–$max 项（已选 $count 项）';
+  static String lessonSelectAtLeast(int min, int count) =>
+      '至少选择 $min 项（已选 $count 项）';
+  static String lessonSelectExact(int min, int count) =>
+      '选择 $min 项（已选 $count 项）';
+  static String lessonSelectRange(int min, int max, int count) =>
+      '选择 $min–$max 项（已选 $count 项）';
   static String get lessonReadingComprehensionCaption => '阅读理解';
   static String get lessonShortAnswerCaption => '简答题';
   static String get lessonTypeYourAnswer => '输入你的答案…';
@@ -475,17 +548,23 @@ class AppStrings {
   static String get lessonTime => '用时';
   static String get lessonXp => '经验值';
   static String get lessonAnswerBreakdown => '答题明细';
-  static String lessonResultsCount(int correctCount, int totalCount) => '$correctCount / $totalCount';
+  static String lessonResultsCount(int correctCount, int totalCount) =>
+      '$correctCount / $totalCount';
   static String get lessonBackToCourses => '返回课程';
   static String get lessonAccuracy => '正确率';
   static String lessonPercentValue(int percent) => '${percent}%';
-  static String lessonQuestionResult(int index, String prompt) => '$index. $prompt';
-  static String lessonQuestionAnswer(String correctAnswer) => '答案：$correctAnswer';
+  static String lessonQuestionResult(int index, String prompt) =>
+      '$index. $prompt';
+  static String lessonQuestionAnswer(String correctAnswer) =>
+      '答案：$correctAnswer';
   static String get lessonNotYet => '还未通过';
-  static String lessonMasteryMessage(int correct, int total, int accuracyPercent) => '你答对 $correct / $total（$accuracyPercent%）。需要 80% 才能通过。再试一次！';
+  static String lessonMasteryMessage(
+          int correct, int total, int accuracyPercent) =>
+      '你答对 $correct / $total（$accuracyPercent%）。需要 80% 才能通过。再试一次！';
   static String get lessonTryAgain => '再试一次';
   static String lessonDurationSeconds(int seconds) => '${seconds}秒';
-  static String lessonDurationMinutes(int minutes, int seconds) => '${minutes}分${seconds}秒';
+  static String lessonDurationMinutes(int minutes, int seconds) =>
+      '${minutes}分${seconds}秒';
   static String get lessonAiHelperTooltip => 'AI 课程助手';
   static String get lessonAiHintTooltip => 'AI 提示';
   static String get lessonNoContent => '无内容';
@@ -494,7 +573,8 @@ class AppStrings {
 
   // ── AI ──
   static String get aiNotConfiguredTitle => 'AI 未配置';
-  static String get aiNotConfiguredMessageLesson => '在使用 AI 提示前，请在 设置 → 学习 → AI API 配置 中填写 Base URL / API 密钥 / 模型。';
+  static String get aiNotConfiguredMessageLesson =>
+      '在使用 AI 提示前，请在 设置 → 学习 → AI API 配置 中填写 Base URL / API 密钥 / 模型。';
   static String get aiGoToSettings => '前往设置';
   static String get aiCourseDesignerTitle => 'AI 课程设计器';
   static String get aiCourseParametersTooltip => '课程参数';
@@ -511,7 +591,8 @@ class AppStrings {
   static String get aiGroundedGenerationTitle => '基于已有内容生成';
   static String get aiGroundedGenerationSubtitle => '复用现有的词汇、表达和语法点';
   static String get aiExtraInstructionsLabel => '额外说明（可选）';
-  static String get aiEmptyHintWish => '告诉 AI 你想要什么课程。例如：\n「我想教土耳其语旅行用语——问候和点餐。」';
+  static String get aiEmptyHintWish =>
+      '告诉 AI 你想要什么课程。例如：\n「我想教土耳其语旅行用语——问候和点餐。」';
   static String aiErrorBubble(Object error) => '错误：$error';
   static String get aiCourseGenerated => '课程已生成';
   static String aiAiExplanation(String explanation) => 'AI 说明：$explanation';
@@ -522,7 +603,8 @@ class AppStrings {
   static String get aiCourseSaved => '课程已保存到数据库。';
   static String aiSaveFailed(Object error) => '保存失败：$error';
   static String get aiTextbookImportTitle => '从教材导入';
-  static String get aiTextbookNotConfiguredMessage => '请先在 设置 → AI API 配置 中填写 Base URL / API 密钥 / 模型。';
+  static String get aiTextbookNotConfiguredMessage =>
+      '请先在 设置 → AI API 配置 中填写 Base URL / API 密钥 / 模型。';
   static String get aiTextbookTargetLanguageLabel => '目标语言';
   static String get aiTextbookSourceLanguageLabel => '源语言';
   static String get aiTextbookLevelLabel => '级别';
@@ -647,6 +729,8 @@ class AppStrings {
   static String get aiHubStartTutorMistakes => '按错题复习';
   static String get aiHubStartTutorWeak => '弱词专项';
   static String get aiHubStartDepthTutor => '深度讲解当前题';
+  static String get aiHubDepthTutorSubtitleOn => '基于当前题目深度讲解';
+  static String get aiHubDepthTutorSubtitleOff => '请先在课程中打开一道题';
   static String get aiHubTools => '工具';
   static String get aiHubToolsTestConnection => '测试连接';
   static String aiHubToolsTestConnectionOk(int latencyMs) =>
@@ -664,14 +748,21 @@ class AppStrings {
   static String get aiHubFieldStrictSchema => '严格 JSON 模式';
   static String get aiHubFieldCacheEnabled => '启用缓存';
   static String get aiHubFieldCacheEnabledHint => '关闭后每次都会重新请求模型';
-  static String aiHubFieldCacheStats(int entries, int hits, int misses, int diskWrites) =>
+  static String aiHubFieldCacheStats(
+          int entries, int hits, int misses, int diskWrites) =>
       '缓存: $entries 条 / 命中 $hits / 未命中 $misses / 落盘 $diskWrites';
+
+  // ── AI config sheet 分组标题 ──
+  static String get aiConfigGroupConnection => '连接';
+  static String get aiConfigGroupModels => '密钥与模型';
+  static String get aiConfigGroupAdvanced => '高级';
 
   // ── Anki ──
   static String get ankiImportTitle => '导入 Anki 牌组';
   static String get ankiImportDialogTitle => '导入 Anki 牌组';
   static String get ankiImportSelectTitle => '导入 Anki 牌组';
-  static String get ankiImportSelectSubtitle => '选择从 Anki 导出的 .apkg 或 .colpkg 文件';
+  static String get ankiImportSelectSubtitle =>
+      '选择从 Anki 导出的 .apkg 或 .colpkg 文件';
   static String get ankiChooseFile => '选择文件';
   static String get ankiParsing => '正在解析 Anki 集合…';
   static String get ankiCollectionSummary => '集合概要';
@@ -698,7 +789,8 @@ class AppStrings {
   static String get ankiStartLearning => '立即学习';
   static String ankiCardsImported(int cardCount) => '已导入 $cardCount 张卡片';
   static String ankiLessonsCreated(int lessonCount) => '已创建 $lessonCount 节课';
-  static String ankiVocabAdded(int wordEntryCount) => '已添加 $wordEntryCount 个词汇条目';
+  static String ankiVocabAdded(int wordEntryCount) =>
+      '已添加 $wordEntryCount 个词汇条目';
   static String get ankiPickFileError => '请选择 .apkg 或 .colpkg 文件。';
   static String ankiPickFileFailed(Object error) => '选择文件失败：$error';
   static String ankiParseFailed(Object error) => '解析失败：$error';
@@ -707,6 +799,18 @@ class AppStrings {
   static String get ankiMigratingSrs => '正在迁移 SRS 状态…';
   static String get ankiSavingMetadata => '正在保存导入元数据…';
   static String ankiImportFailed(Object error) => '导入失败：$error';
+  // Fallback file-import flows used when the system FilePicker is unavailable
+  // (e.g. trimmed emulator ROMs without the pickersheet bundle).
+  static String get ankiFallbackScanTitle => '从已下载文件中选择';
+  static String get ankiFallbackScanSubtitle => '扫描应用可见的目录（例如下载目录、缓存目录）';
+  static String get ankiFallbackScanEmpty => '未在已知目录找到 .apkg / .colpkg 文件。';
+  static String get ankiFallbackScanFailed => '扫描失败：';
+  static String get ankiFallbackPathTitle => '输入文件路径';
+  static String get ankiFallbackPathSubtitle => '从文件管理器复制完整路径后粘贴进来';
+  static String get ankiFallbackPathHint => '例如：/storage/.../deck.apkg';
+  static String get ankiFallbackPathAction => '导入此文件';
+  static String get ankiFallbackNoResult => '未找到匹配的文件';
+  static String get ankiFallbackPickFileFirst => '系统文件选择器不可用，请尝试其他方式：';
   static String get ankiStrategyMerge => '合并';
   static String get ankiStrategySkipExisting => '跳过已存在';
   static String get ankiStrategyForceReplace => '强制替换';
@@ -724,7 +828,8 @@ class AppStrings {
   static String get ankiNoDecksTitle => '未导入 Anki 牌组';
   static String get ankiNoDecksSubtitle => '导入 .apkg 文件以开始复习';
   static String get ankiImportDeck => '导入牌组';
-  static String ankiQuotaRemaining(int newLeft, int reviewLeft) => '今日剩余：新卡 $newLeft 张，复习 $reviewLeft 张';
+  static String ankiQuotaRemaining(int newLeft, int reviewLeft) =>
+      '今日剩余：新卡 $newLeft 张，复习 $reviewLeft 张';
   static String get ankiQuotaExhausted => '已达今日上限 — 明天再来';
   static String get ankiUninstallDeck => '移除牌组';
   static String get ankiUninstallConfirmTitle => '移除此牌组？';
@@ -743,7 +848,8 @@ class AppStrings {
   static String get coursesLessonTypeReview => '复习';
   static String get coursesLessonTypeChallenge => '挑战';
   static String get coursesPerfect => '完美';
-  static String coursesUnitProgress(int completedCount, int lessonsCount) => '$completedCount/$lessonsCount';
+  static String coursesUnitProgress(int completedCount, int lessonsCount) =>
+      '$completedCount/$lessonsCount';
   static String get coursesChooseSection => '选择章节';
 
   // ── Dictionary ──
@@ -758,7 +864,8 @@ class AppStrings {
 
   // ── Onboarding ──
   static String get onboardingReclaimingTitle => '重拾语言学习';
-  static String get onboardingBody => '还记得学习是为了知识，而不是最大化广告收入吗？没有生命值，没有体力，没有付费取胜。纯粹的开源教育。';
+  static String get onboardingBody =>
+      '还记得学习是为了知识，而不是最大化广告收入吗？没有生命值，没有体力，没有付费取胜。纯粹的开源教育。';
   static String get onboardingStartLearning => '开始学习';
 
   // ── Profile ──
@@ -773,7 +880,8 @@ class AppStrings {
   static String profileViewMore(int remainingCount) => '查看另外 $remainingCount 项';
   static String get profileShowLess => '收起';
   static String profileAchievementLevel(int level) => 'Lv.$level';
-  static String profileAchievementProgress(int current, int displayTarget) => '$current/$displayTarget';
+  static String profileAchievementProgress(int current, int displayTarget) =>
+      '$current/$displayTarget';
   static String get profileLearningStatsTitle => '学习统计';
   static String get profileXpToday => '今日经验';
   static String get profileStudyTime => '学习时长';
@@ -795,6 +903,7 @@ class AppStrings {
     final short = id.length > 8 ? id.substring(0, 8) : id;
     return 'Anki · $short';
   }
+
   static String reviewProgressSourceAnkiNamed(String name) => 'Anki · $name';
   static String get reviewProgressFilterType => '类型';
   static String get reviewProgressFilterMaturity => '阶段';
@@ -833,6 +942,7 @@ class AppStrings {
   static String get profileDueToday => '今日到期';
   static String get profileDue7Days => '7 天内';
   static String get profileDue30Days => '30 天内';
+
   /// Workload buckets only — not a four-stage “mastered” graduation (ADR 0028).
   static String get profileMaturityTitle => '复习阶段';
   static String get profileMaturityNew => '新卡';
@@ -847,7 +957,8 @@ class AppStrings {
   static String get profileMemoryCurveEmpty => '复习一些卡片即可查看记忆曲线。';
   static String srsPreviewKnown(int days) => '认识 · 约 ${days}天';
   static String get srsPreviewUnknown => '不认识 · 10 分钟';
-  static String profileTotalStudyTimeValue(int totalMinutes) => '${totalMinutes}分';
+  static String profileTotalStudyTimeValue(int totalMinutes) =>
+      '${totalMinutes}分';
   static String profileOverallAccuracyValue(int accuracy) => '${accuracy}%';
   static String get profileStatisticsTitle => '统计';
   static String get profileDayStreak => '连续天数';
@@ -867,7 +978,8 @@ class AppStrings {
   static String get profileShareText => '看看我在 Varnamala 上的进度！';
 
   // ── Characters ──
-  static String charactersScriptTitle(String currentLanguage) => '$currentLanguage 字母表';
+  static String charactersScriptTitle(String currentLanguage) =>
+      '$currentLanguage 字母表';
   static String get charactersVowelsTitle => '元音';
   static String charactersVowelsSubtitle(int count) => '$count 个字符';
   static String get charactersConsonantsTitle => '辅音';
@@ -894,11 +1006,14 @@ class AppStrings {
   static String get splashSubtitle => '没有会失去的生命值，没有要补充的体力。\n纯粹的学习。';
   static String get splashGetStarted => '开始使用';
   static String get splashTurkishVoiceMissingTitle => '缺少土耳其语语音数据';
-  static String get splashTurkishVoiceMissingBody => '已安装 Google 文字转语音，但尚未下载土耳其语语音包。\n\n打开系统 TTS 设置 → 首选引擎 = Google → 安装土耳其语（Türkçe）语音数据。';
+  static String get splashTurkishVoiceMissingBody =>
+      '已安装 Google 文字转语音，但尚未下载土耳其语语音包。\n\n打开系统 TTS 设置 → 首选引擎 = Google → 安装土耳其语（Türkçe）语音数据。';
   static String get splashGoogleTtsMissingTitle => 'Google TTS 不可用';
-  static String get splashGoogleTtsMissingBody => '此设备未显示 Google 文字转语音（或包可见性阻止了引擎发现）。\n\n安装「Google 语音识别与合成」，设为首选引擎，并下载土耳其语语音。';
+  static String get splashGoogleTtsMissingBody =>
+      '此设备未显示 Google 文字转语音（或包可见性阻止了引擎发现）。\n\n安装「Google 语音识别与合成」，设为首选引擎，并下载土耳其语语音。';
   static String get splashGoogleTtsNotReadyTitle => 'Google TTS 不可用';
-  static String get splashGoogleTtsNotReadyBody => '首选系统语音未就绪。请安装 Google TTS 和土耳其语语音包。';
+  static String get splashGoogleTtsNotReadyBody =>
+      '首选系统语音未就绪。请安装 Google TTS 和土耳其语语音包。';
   static String get splashKeepCurrentVoice => '保持当前语音';
   static String get splashTtsSettings => 'TTS 设置';
   static String get splashInstallGoogleTts => '安装 Google TTS';
@@ -922,8 +1037,7 @@ class AppStrings {
   static String get settingsAnkiDailyChallengeSubtitle => '在每日挑战中包括导入的 Anki 卡片';
 
   // ── Settings Fun Lab ──
-  static String get settingsFunWarning =>
-      '趣味实验室\n以下功能仅供娱乐，请勿用于正常学习。';
+  static String get settingsFunWarning => '趣味实验室\n以下功能仅供娱乐，请勿用于正常学习。';
   static String get settingsFunAutoAnswerTitle => '破解版（自动出答案）';
   static String get settingsFunAutoAnswerSubtitle => '上课时自动选择正确答案并提交';
   static String get settingsFunAutoAnswerOn => '🎮 破解模式已开启 — 上课时将自动答题';

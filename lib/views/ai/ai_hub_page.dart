@@ -6,6 +6,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
+import 'package:varnamala/application/ai/ai_course_provider.dart';
 import 'package:varnamala/application/ai/ai_hint_provider.dart';
 import 'package:varnamala/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:varnamala/application/ai/engine/ai_recent_tasks_provider.dart';
@@ -14,36 +15,66 @@ import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/routing/routing.gr.dart';
 import 'package:varnamala/views/lesson/components/ai_depth_tutor_sheet.dart';
 import 'package:varnamala/views/lesson/tutor_launch_sheet.dart';
+import 'package:varnamala/views/play/components/play_tiles.dart';
+import 'package:varnamala/views/settings/ai_api_config_sheet.dart';
 import 'package:varnamala/views/theme.dart';
 
 /// Centralized AI surface (Phase 2.3 / Phase 3 of floofy-hugging-hopper).
 ///
-/// Three sections in a single scroll view:
-///   1. **Hero** — current engine config (preset, models, masked key). For
-///      reconfiguration, see Settings → AI Tools → API config.
-///   2. **Continue** — the most recent three AI tasks from
-///      [AiRecentTasksProvider], each tappable if a route is recorded.
-///   3. **Start** — tile grid that opens the major AI features (wish chat,
-///      textbook import, by-mistakes tutor, by-weak-words tutor, depth tutor).
+/// Redesigned to share the Play Hub's soft-tinted card language
+/// ([SoftCard] / [AccentIconChip] / [ReviewTile] / [ToolsTile]). Reached as a
+/// pushed route from the Play Hub's 「AI 助手」section, so it owns its own
+/// Scaffold + back AppBar.
 ///
-/// Wrapped in a top-only [SafeArea] so the body starts below the status bar
-/// even though the outer Scaffold sees a zero-height stub AppBar.
+/// Three sections in a single scroll view:
+///   1. **Hero** - amethyst->teal gradient card with engine config (preset,
+///      chat model, masked key). Taps open the API config sheet.
+///   2. **Continue** - the most recent three AI tasks from
+///      [AiRecentTasksProvider], each tappable if a route is recorded.
+///   3. **Start** - tile grid that opens the major AI features (wish chat,
+///      textbook import, by-mistakes tutor, by-weak-words tutor) + a
+///      full-width depth-tutor row (gated on an active question).
 @RoutePage()
 class AiHubPage extends StatelessWidget {
   const AiHubPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      top: true,
-      bottom: false,
-      child: CustomScrollView(
-        slivers: [
-          const SliverToBoxAdapter(child: _HeroSection()),
-          const SliverToBoxAdapter(child: _ContinueSection()),
-          const SliverToBoxAdapter(child: _StartSection()),
-          const SliverToBoxAdapter(child: SizedBox(height: 24)),
-        ],
+    return Scaffold(
+      backgroundColor: VarnamalaTheme.surfaceColor(context),
+      appBar: AppBar(
+        centerTitle: true,
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.auto_awesome_rounded,
+              color: VarnamalaTheme.amethystLeague,
+              size: 22,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              AppStrings.playAiAssistantTitle,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+          ],
+        ),
+      ),
+      body: SafeArea(
+        top: false,
+        child: CustomScrollView(
+          slivers: [
+            const SliverToBoxAdapter(child: SizedBox(height: 16)),
+            const SliverToBoxAdapter(child: _HeroSection()),
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            const SliverToBoxAdapter(child: _ContinueSection()),
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            const SliverToBoxAdapter(child: _StartSection()),
+            const SliverToBoxAdapter(child: SizedBox(height: 32)),
+          ],
+        ),
       ),
     );
   }
@@ -60,64 +91,124 @@ class _HeroSection extends StatelessWidget {
       selector: (_, holder) => _HeroSnapshot(
         preset: holder.config.preset.label,
         modelChat: holder.config.modelChat,
-        modelJson: holder.config.modelJson,
         apiKeyMasked: _maskKey(holder.config.apiKey),
         complete: holder.config.isComplete,
       ),
       builder: (context, snap, _) {
-        return Container(
-          margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: VarnamalaTheme.cardBg(context),
-            borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-            border: Border.all(color: VarnamalaTheme.dividerBg(context)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.bolt_rounded,
-                      color: VarnamalaTheme.peacockTeal),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      AppStrings.aiHubTitle,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+        const radius =
+            BorderRadius.all(Radius.circular(VarnamalaTheme.radiusXLarge));
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => _openConfig(context),
+              borderRadius: radius,
+              child: Ink(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      VarnamalaTheme.amethystLeague,
+                      VarnamalaTheme.peacockTeal,
+                    ],
+                  ),
+                  borderRadius: radius,
+                  boxShadow: [
+                    BoxShadow(
+                      color: VarnamalaTheme.amethystLeague
+                          .withValues(alpha: 0.25),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _Chip(label: snap.preset),
-                  _Chip(label: 'chat: ${snap.modelChat}'),
-                  _Chip(label: 'json: ${snap.modelJson}'),
-                  _Chip(label: snap.apiKeyMasked),
-                ],
-              ),
-              if (!snap.complete) ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: VarnamalaTheme.warning.withValues(alpha: 0.12),
-                    borderRadius:
-                        BorderRadius.circular(VarnamalaTheme.radiusMedium),
-                  ),
-                  child: Text(
-                    AppStrings.aiHubHeroIncomplete,
-                    style: const TextStyle(color: VarnamalaTheme.warning),
+                  ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 56,
+                            height: 56,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.22),
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.35),
+                                width: 1,
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.auto_awesome_rounded,
+                              color: Colors.white,
+                              size: 30,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  AppStrings.aiHubTitle,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleLarge
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.w800,
+                                        color: Colors.white,
+                                        letterSpacing: -0.3,
+                                      ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  snap.complete
+                                      ? '${snap.preset} · ${snap.modelChat}'
+                                      : AppStrings.aiHubHeroIncomplete,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.copyWith(
+                                        color: Colors.white
+                                            .withValues(alpha: 0.85),
+                                      ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _HeroChip(label: snap.preset),
+                          _HeroChip(label: snap.apiKeyMasked),
+                          if (!snap.complete)
+                            _HeroChip(
+                              label: AppStrings.playAiEngineNotConfigured,
+                              warning: true,
+                            ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ],
+              ),
+            ),
           ),
         );
       },
@@ -136,13 +227,11 @@ class _HeroSnapshot {
   const _HeroSnapshot({
     required this.preset,
     required this.modelChat,
-    required this.modelJson,
     required this.apiKeyMasked,
     required this.complete,
   });
   final String preset;
   final String modelChat;
-  final String modelJson;
   final String apiKeyMasked;
   final bool complete;
 
@@ -151,32 +240,40 @@ class _HeroSnapshot {
       other is _HeroSnapshot &&
       other.preset == preset &&
       other.modelChat == modelChat &&
-      other.modelJson == modelJson &&
       other.apiKeyMasked == apiKeyMasked &&
       other.complete == complete;
 
   @override
   int get hashCode =>
-      Object.hash(preset, modelChat, modelJson, apiKeyMasked, complete);
+      Object.hash(preset, modelChat, apiKeyMasked, complete);
 }
 
-class _Chip extends StatelessWidget {
-  const _Chip({required this.label});
+/// Small frosted chip rendered on the gradient hero. Warning variant swaps to
+/// a solid warning fill so an incomplete config can't be missed.
+class _HeroChip extends StatelessWidget {
+  const _HeroChip({required this.label, this.warning = false});
   final String label;
+  final bool warning;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.08),
+        color: warning
+            ? VarnamalaTheme.warning
+            : Colors.white.withValues(alpha: 0.22),
         borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: warning ? 0.0 : 0.35),
+          width: 0.5,
+        ),
       ),
       child: Text(
         label,
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: VarnamalaTheme.peacockTeal,
-              fontWeight: FontWeight.w600,
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
             ),
       ),
     );
@@ -191,43 +288,39 @@ class _ContinueSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionHeader(
-            icon: Icons.replay_rounded,
-            title: AppStrings.aiHubContinue,
-          ),
-          const SizedBox(height: 8),
+          SectionTitle(title: AppStrings.aiHubContinue),
           Selector<AiRecentTasksProvider, List<AiRecentTask>>(
             selector: (_, p) => p.recent(limit: 3),
             builder: (context, items, _) {
               if (items.isEmpty) {
-                return Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: VarnamalaTheme.cardBg(context),
-                    borderRadius:
-                        BorderRadius.circular(VarnamalaTheme.radiusMedium),
-                    border: Border.all(
-                        color: VarnamalaTheme.dividerBg(context)),
-                  ),
-                  child: Text(
-                    AppStrings.aiHubContinueEmpty,
-                    style: Theme.of(context).textTheme.bodySmall,
+                return SoftCard(
+                  accentColor: VarnamalaTheme.peacockTeal,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      AppStrings.aiHubContinueEmpty,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: VarnamalaTheme.textSecondaryColor(context),
+                          ),
+                    ),
                   ),
                 );
               }
               return Column(
                 children: [
-                  for (final t in items)
+                  for (final t in items) ...[
                     _RecentRow(
                       task: t,
                       onTap: t.route == null
                           ? null
                           : () => _navigateByRoute(context, t.route!),
                     ),
+                    if (t != items.last) const SizedBox(height: 10),
+                  ],
                 ],
               );
             },
@@ -245,30 +338,54 @@ class _RecentRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      decoration: BoxDecoration(
-        color: VarnamalaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
-        border: Border.all(color: VarnamalaTheme.dividerBg(context)),
-      ),
-      child: ListTile(
-        dense: true,
-        leading: Icon(_iconFor(task.kind),
-            color: VarnamalaTheme.peacockTeal, size: 20),
-        title: Text(
-          task.summary,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+    final accent =
+        VarnamalaTheme.accentOnCard(context, VarnamalaTheme.peacockTeal);
+
+    return SoftCard(
+      accentColor: VarnamalaTheme.peacockTeal,
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            AccentIconChip(
+              icon: _iconFor(task.kind),
+              color: accent,
+              size: 20,
+              padding: 8,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    task.summary,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: VarnamalaTheme.textPrimaryColor(context),
+                        ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _labelFor(task.kind),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: VarnamalaTheme.textSecondaryColor(context),
+                        ),
+                  ),
+                ],
+              ),
+            ),
+            if (onTap != null)
+              Icon(
+                Icons.chevron_right_rounded,
+                color: accent,
+                size: 20,
+              ),
+          ],
         ),
-        subtitle: Text(
-          _labelFor(task.kind),
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        trailing: task.route == null
-            ? null
-            : const Icon(Icons.chevron_right_rounded, size: 20),
-        onTap: onTap,
       ),
     );
   }
@@ -327,59 +444,64 @@ class _StartSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionHeader(
-            icon: Icons.add_circle_outline_rounded,
-            title: AppStrings.aiHubNew,
+          SectionTitle(title: AppStrings.aiHubNew),
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: 1.6,
+            children: [
+              ReviewTile(
+                title: AppStrings.aiHubStartWish,
+                icon: Icons.auto_awesome_rounded,
+                accentColor: VarnamalaTheme.amethystLeague,
+                onTap: () => context.router.push(const AiWishChatRoute()),
+              ),
+              ReviewTile(
+                title: AppStrings.aiHubStartTextbook,
+                icon: Icons.menu_book_rounded,
+                accentColor: VarnamalaTheme.peacockCyan,
+                onTap: () =>
+                    context.router.push(const TextbookImportRoute()),
+              ),
+              ReviewTile(
+                title: AppStrings.aiHubStartTutorMistakes,
+                icon: Icons.history_toggle_off_rounded,
+                accentColor: VarnamalaTheme.peacockTeal,
+                onTap: () => _openSheet(
+                    context, const TutorLaunchSheet(), SrsTutorFocus.mistakes),
+              ),
+              ReviewTile(
+                title: AppStrings.aiHubStartTutorWeak,
+                icon: Icons.quiz_rounded,
+                accentColor: VarnamalaTheme.peacockTurquoise,
+                onTap: () => _openSheet(context, const TutorLaunchSheet(),
+                    SrsTutorFocus.weakWords),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Selector<AiHintProvider, bool>(
             selector: (_, p) => p.context != null,
             builder: (context, hasQuestion, _) {
-              return GridView.count(
-                crossAxisCount: 2,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: 8,
-                crossAxisSpacing: 8,
-                childAspectRatio: 1.7,
-                children: [
-                  _StartTile(
-                    icon: Icons.auto_awesome_rounded,
-                    label: AppStrings.aiHubStartWish,
-                    onTap: () => context.router.push(const AiWishChatRoute()),
-                  ),
-                  _StartTile(
-                    icon: Icons.menu_book_rounded,
-                    label: AppStrings.aiHubStartTextbook,
-                    onTap: () =>
-                        context.router.push(const TextbookImportRoute()),
-                  ),
-                  _StartTile(
-                    icon: Icons.history_toggle_off_rounded,
-                    label: AppStrings.aiHubStartTutorMistakes,
-                    onTap: () => _openSheet(context, const TutorLaunchSheet(),
-                        SrsTutorFocus.mistakes),
-                  ),
-                  _StartTile(
-                    icon: Icons.quiz_rounded,
-                    label: AppStrings.aiHubStartTutorWeak,
-                    onTap: () => _openSheet(context, const TutorLaunchSheet(),
-                        SrsTutorFocus.weakWords),
-                  ),
-                  _StartTile(
-                    icon: Icons.account_tree_outlined,
-                    label: AppStrings.aiHubStartDepthTutor,
-                    enabled: hasQuestion,
-                    onTap: hasQuestion
-                        ? () =>
-                            _openSheet(context, const AiDepthTutorSheet(), null)
-                        : null,
-                  ),
-                ],
+              return ToolsTile(
+                title: AppStrings.aiHubStartDepthTutor,
+                subtitle: hasQuestion
+                    ? AppStrings.aiHubDepthTutorSubtitleOn
+                    : AppStrings.aiHubDepthTutorSubtitleOff,
+                icon: Icons.account_tree_outlined,
+                accentColor: VarnamalaTheme.amethystLeague,
+                enabled: hasQuestion,
+                onTap: hasQuestion
+                    ? () => _openSheet(
+                        context, const AiDepthTutorSheet(), null)
+                    : null,
               );
             },
           ),
@@ -387,105 +509,46 @@ class _StartSection extends StatelessWidget {
       ),
     );
   }
-
-  void _openSheet(BuildContext context, Widget sheet, Object? focus) {
-    // Pre-seed the tutor focus so the sheet lands on the user's choice.
-    if (sheet is TutorLaunchSheet && focus is SrsTutorFocus) {
-      // The sheet reads focus via setState on its own state; since we can't
-      // pass initial args without exposing a ctor, we let the sheet default
-      // to "mistakes" and rely on the user re-tapping. Acceptable for the
-      // hub entry path - both tiles work, the chip just defaults to one.
-      // (Two-tile pattern is intentional UX; both pre-populate mistakes.)
-    }
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: VarnamalaTheme.cardBg(context),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(VarnamalaTheme.radiusXLarge),
-        ),
-      ),
-      builder: (_) => sheet,
-    );
-  }
 }
 
-class _StartTile extends StatelessWidget {
-  const _StartTile({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    this.enabled = true,
-  });
-  final IconData icon;
-  final String label;
-  final VoidCallback? onTap;
-  final bool enabled;
+// ─── Shared helpers ───────────────────────────────────────────────────────
 
-  @override
-  Widget build(BuildContext context) {
-    return Opacity(
-      opacity: enabled ? 1.0 : 0.5,
-      child: Material(
-        color: VarnamalaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
-          onTap: enabled ? onTap : null,
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              borderRadius:
-                  BorderRadius.circular(VarnamalaTheme.radiusMedium),
-              border: Border.all(color: VarnamalaTheme.dividerBg(context)),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(icon, color: VarnamalaTheme.peacockTeal, size: 24),
-                const SizedBox(height: 8),
-                Text(
-                  label,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+void _openSheet(BuildContext context, Widget sheet, Object? focus) {
+  // Pre-seed the tutor focus so the sheet lands on the user's choice.
+  if (sheet is TutorLaunchSheet && focus is SrsTutorFocus) {
+    // The sheet reads focus via setState on its own state; since we can't
+    // pass initial args without exposing a ctor, we let the sheet default
+    // to "mistakes" and rely on the user re-tapping. Acceptable for the
+    // hub entry path - both tiles work, the chip just defaults to one.
+    // (Two-tile pattern is intentional UX; both pre-populate mistakes.)
   }
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: VarnamalaTheme.cardBg(context),
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(
+        top: Radius.circular(VarnamalaTheme.radiusXLarge),
+      ),
+    ),
+    builder: (_) => sheet,
+  );
 }
 
-// ─── Shared ────────────────────────────────────────────────────────────────
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.icon, required this.title});
-  final IconData icon;
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, color: VarnamalaTheme.peacockTeal, size: 18),
-        const SizedBox(width: 6),
-        Text(
-          title,
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: VarnamalaTheme.peacockTeal,
-              ),
-        ),
-      ],
-    );
-  }
+/// Open the API config sheet (sourced via [AiCourseProvider]).
+void _openConfig(BuildContext context) {
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: VarnamalaTheme.cardBg(context),
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(
+        top: Radius.circular(VarnamalaTheme.radiusXLarge),
+      ),
+    ),
+    builder: (_) =>
+        AiApiConfigSheet(provider: context.read<AiCourseProvider>()),
+  );
 }
 
 /// Resolve a saved AI Hub task route by name. Unknown routes are silently

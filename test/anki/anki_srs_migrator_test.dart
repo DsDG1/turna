@@ -222,7 +222,7 @@ void main() {
 
         final events502 = await reviewDao.eventsForCard('anki-imp-n200');
         expect(events502, hasLength(1));
-        expect(events502.single.quality, 5); // easy -> 5
+        expect(events502.single.quality, 4); // easy -> 4 (pass, ADR 0028 binary lock)
         expect(events502.single.recalled, isTrue);
 
         // Unknown cid 999 produced no event.

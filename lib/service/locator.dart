@@ -142,15 +142,18 @@ class LocalStateKeys {
 
   // SRS — JSON-serialized Map<String, SrsWord> keyed by wordId.
   static const String srsState = 'srs.state';
+
   /// Target retention for FSRS (0.80–0.95). Binary scoring only; no grade UI.
   static const String srsDesiredRetention = 'srs.desiredRetention';
+
   /// JSON list of 21 FSRS weights; empty = package defaults.
   static const String srsFsrsParameters = 'srs.fsrsParameters';
+
   /// ISO timestamp of last successful local weight fit (empty if never).
   static const String srsFsrsOptimizedAt = 'srs.fsrsOptimizedAt';
+
   /// Review sample count used in last successful optimization.
   static const String srsFsrsOptimizedReviews = 'srs.fsrsOptimizedReviews';
-
 
   // Lesson word links — JSON-serialized Map<String, LessonWordLink> keyed by
   // wordId / grammarPointId (disambiguated by LinkType).
@@ -164,7 +167,8 @@ class LocalStateKeys {
   static const String mistakeLog = 'mistake.log';
 
   // Settings
-  static const String themeMode = 'settings.themeMode'; // 'light' | 'dark' | 'system'
+  static const String themeMode =
+      'settings.themeMode'; // 'light' | 'dark' | 'system'
   static const String soundEffects = 'settings.soundEffects';
   static const String haptic = 'settings.haptic';
   static const String ttsSpeed = 'settings.ttsSpeed';
@@ -182,6 +186,9 @@ class LocalStateKeys {
 
   // HarmonyOS 小艺 AI hint switch (no-op on other platforms).
   static const String useXiaoyiHint = 'settings.useXiaoyiHint';
+
+  // Screen auto-rotation: false (default) = lock portrait, true = follow device.
+  static const String autoRotate = 'settings.autoRotate';
 
   // Accessibility / neurodiversity settings — see AccessibilityProvider.
   // textScale is an int percent (100 = 1.0, 200 = 2.0); the rest are bool flags.
@@ -214,7 +221,8 @@ Future<void> setupLocator() async {
   // route (e.g. lesson dialog) can resolve it synchronously.
   getIt.registerLazySingleton<TabRouter>(() => TabRouter());
 
-  getIt.registerLazySingleton<ExportService>(() => ExportService(getIt<AppPrefs>()));
+  getIt.registerLazySingleton<ExportService>(
+      () => ExportService(getIt<AppPrefs>()));
 
   if (!kIsWeb) {
     getIt.registerLazySingleton<FlutterTts>(() => FlutterTts());
@@ -270,8 +278,7 @@ Future<CourseDatabase> _openAndSeedCourseDatabase() async {
   return db;
 }
 
-Map<String, dynamic> _serializeUser(LocalUser user) =>
-    user.toJson();
+Map<String, dynamic> _serializeUser(LocalUser user) => user.toJson();
 
 LocalUser _deserializeUser(dynamic value) =>
     LocalUser.fromJson(value as Map<String, dynamic>);

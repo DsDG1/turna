@@ -3,7 +3,10 @@ import 'dart:async';
 import 'dart:convert';
 
 // Flutter imports:
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 // Package imports:
 import 'package:auto_route/auto_route.dart';
@@ -35,6 +38,9 @@ enum ImportStrategy { merge, skipExisting, forceReplace, appendAsNew }
 /// File extensions accepted by the Anki import wizard. Single source of truth
 /// shared with [OhosFilePicker.pickFiles] for its suffix filter.
 const _ankiExtensions = ['apkg', 'colpkg'];
+
+/// User choice in the fallback bottom sheet.
+enum _AnkiFallbackChoice { scan, path }
 
 /// Anki import wizard screen. Guides the user through:
 /// 1. File selection
@@ -134,80 +140,148 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
   // ─── Step 0: File Selection ─────────────────────────────────────────
 
   Widget _buildSelectStep() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.upload_file_rounded,
-              size: 80,
-              color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.6),
+    // Wrap in SafeArea + a constrained scroll view so the column stays
+    // vertically centered when there is enough room, and becomes scrollable
+    // (instead of overflowing with a yellow "BOTTOM OVERFLOWED" stripe) when
+    // the IME or a small viewport reduces the available height. Without this,
+    // opening "输入文件路径" on HarmonyOS pushed the bottom buttons off-screen
+    // by ~158 px on the narrow phones we target.
+    //
+    // We use Center (not stretch) around the Column so that children stay
+    // horizontally centered by content width (matching the pre-fix look),
+    // and ConstrainedBox(minHeight: maxHeight) so the Center box fills the
+    // viewport when the column is short — letting `mainAxisAlignment:
+    // center` actually center the column vertically.
+    return SafeArea(
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          padding: EdgeInsets.zero,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: constraints.maxHeight,
+              minWidth: constraints.maxWidth,
             ),
-            const SizedBox(height: 24),
-            Text(
-              AppStrings.ankiImportSelectTitle,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              AppStrings.ankiImportSelectSubtitle,
-              style: TextStyle(
-                color: VarnamalaTheme.textSecondaryColor(context),
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 32),
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Text(
-                  _error!,
-                  style: const TextStyle(color: VarnamalaTheme.error),
-                  textAlign: TextAlign.center,
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.upload_file_rounded,
+                      size: 80,
+                      color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.6),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      AppStrings.ankiImportSelectTitle,
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      AppStrings.ankiImportSelectSubtitle,
+                      style: TextStyle(
+                        color: VarnamalaTheme.textSecondaryColor(context),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 32),
+                    if (_error != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: Text(
+                          _error!,
+                          style: const TextStyle(color: VarnamalaTheme.error),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ElevatedButton.icon(
+                      onPressed: _pickFile,
+                      icon: const Icon(Icons.folder_open),
+                      label: Text(AppStrings.ankiChooseFile),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: VarnamalaTheme.peacockTeal,
+                        foregroundColor: VarnamalaTheme.textOnPrimary,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 32, vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                    // Manual fallbacks. Always available on OHos (where the
+                    // system file picker may be missing), and on every
+                    // platform the user can still prefer a direct path if
+                    // they copied it elsewhere.
+                    if (defaultTargetPlatform == TargetPlatform.ohos) ...[
+                      const SizedBox(height: 16),
+                      Text(
+                        AppStrings.ankiFallbackPickFileFirst,
+                        style: TextStyle(
+                          color: VarnamalaTheme.textHintColor(context),
+                          fontSize: 12,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      OutlinedButton.icon(
+                        onPressed: _showScanResults,
+                        icon: const Icon(Icons.search),
+                        label: Text(AppStrings.ankiFallbackScanTitle),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: VarnamalaTheme.peacockTeal,
+                          side:
+                              const BorderSide(color: VarnamalaTheme.peacockTeal),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextButton.icon(
+                        onPressed: _showPathInputDialog,
+                        icon: const Icon(Icons.edit_note, size: 18),
+                        label: Text(AppStrings.ankiFallbackPathTitle),
+                        style: TextButton.styleFrom(
+                          foregroundColor: VarnamalaTheme.peacockTeal,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    OutlinedButton.icon(
+                      onPressed: _loadSampleDeck,
+                      icon: const Icon(Icons.auto_awesome_rounded),
+                      label: Text(AppStrings.ankiTrySample),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: VarnamalaTheme.peacockTeal,
+                        side:
+                            const BorderSide(color: VarnamalaTheme.peacockTeal),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 28, vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      AppStrings.ankiSampleHint,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: VarnamalaTheme.textHintColor(context),
+                          ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ),
               ),
-            ElevatedButton.icon(
-              onPressed: _pickFile,
-              icon: const Icon(Icons.folder_open),
-              label: Text(AppStrings.ankiChooseFile),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: VarnamalaTheme.peacockTeal,
-                foregroundColor: VarnamalaTheme.textOnPrimary,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 32, vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
             ),
-            const SizedBox(height: 16),
-            OutlinedButton.icon(
-              onPressed: _loadSampleDeck,
-              icon: const Icon(Icons.auto_awesome_rounded),
-              label: Text(AppStrings.ankiTrySample),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: VarnamalaTheme.peacockTeal,
-                side: const BorderSide(color: VarnamalaTheme.peacockTeal),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 28, vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              AppStrings.ankiSampleHint,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: VarnamalaTheme.textHintColor(context),
-                  ),
-              textAlign: TextAlign.center,
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -521,7 +595,141 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         _error = AppStrings.ankiPickFileFailed(e);
         _step = 0;
       });
+      // On OHos, picker failures are usually device-level (missing
+      // pickersheet). Offer the manual fallbacks so the user isn't stuck.
+      if (defaultTargetPlatform == TargetPlatform.ohos) {
+        await _showFallbackSheet();
+      }
     }
+  }
+
+  /// Show a bottom sheet with two fallback flows: scan well-known
+  /// directories, or accept a manually-pasted path. Used when the system
+  /// file picker failed (e.g. trimmed emulator ROMs).
+  Future<void> _showFallbackSheet() async {
+    if (!mounted) return;
+    final choice = await showModalBottomSheet<_AnkiFallbackChoice>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+              child: Text(
+                AppStrings.ankiFallbackPickFileFirst,
+                style: Theme.of(ctx).textTheme.titleMedium,
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.search),
+              title: Text(AppStrings.ankiFallbackScanTitle),
+              subtitle: Text(AppStrings.ankiFallbackScanSubtitle),
+              onTap: () => Navigator.of(ctx).pop(_AnkiFallbackChoice.scan),
+            ),
+            ListTile(
+              leading: const Icon(Icons.edit_note),
+              title: Text(AppStrings.ankiFallbackPathTitle),
+              subtitle: Text(AppStrings.ankiFallbackPathSubtitle),
+              onTap: () => Navigator.of(ctx).pop(_AnkiFallbackChoice.path),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || choice == null) return;
+    if (choice == _AnkiFallbackChoice.scan) {
+      await _showScanResults();
+    } else {
+      await _showPathInputDialog();
+    }
+  }
+
+  /// Scan the app sandbox + cached/known directories for .apkg/.colpkg and
+  /// show them in a simple chooser dialog.
+  Future<void> _showScanResults() async {
+    if (!mounted) return;
+    setState(() => _error = null);
+    List<PlatformFile> hits;
+    try {
+      hits = await OhosFilePicker.scanForFiles(allowedExtensions: _ankiExtensions);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = '${AppStrings.ankiFallbackScanFailed}$e');
+      return;
+    }
+    if (!mounted) return;
+    if (hits.isEmpty) {
+      setState(() => _error = AppStrings.ankiFallbackScanEmpty);
+      return;
+    }
+    final picked = await showDialog<PlatformFile>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text(AppStrings.ankiFallbackScanTitle),
+        children: [
+          for (final f in hits)
+            SimpleDialogOption(
+              onPressed: () => Navigator.of(ctx).pop(f),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(f.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  Text(
+                    f.path ?? '',
+                    style: Theme.of(ctx).textTheme.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+    if (picked?.path == null) return;
+    await _proceedWithPath(picked!.path!);
+  }
+
+  /// Open a dialog with a text field where the user pastes a full path.
+  ///
+  /// The dialog body is its own [StatefulWidget] ([_AnkiPathInputDialog]) so
+  /// the [TextEditingController] is owned and disposed by the dialog's
+  /// [State], not by this method's outer scope. Disposing the controller
+  /// manually *after* `showDialog` returned (the previous implementation)
+  /// raced with `TextField`/`EditableText` unmount and tripped the Flutter
+  /// framework assertion `_dependents.isEmpty` at `widgets/framework.dart`
+  /// ~line 6171, crashing the app on any Cancel/Confirm tap.
+  Future<void> _showPathInputDialog() async {
+    if (!mounted) return;
+    final path = await showDialog<String>(
+      context: context,
+      builder: (ctx) => const _AnkiPathInputDialog(),
+    );
+    final trimmed = path?.trim();
+    if (trimmed == null || trimmed.isEmpty) return;
+    try {
+      await OhosFilePicker.importFromPath(
+        path: trimmed,
+        allowedExtensions: _ankiExtensions,
+      );
+      await _proceedWithPath(trimmed);
+    } on PlatformException catch (e) {
+      if (!mounted) return;
+      setState(() => _error = '${AppStrings.ankiPickFileFailed(e.message ?? e.code)}');
+    }
+  }
+
+  /// Common post-pick path: same as [OhosFilePicker.pickFiles] success path.
+  Future<void> _proceedWithPath(String path) async {
+    setState(() {
+      _filePath = path;
+      _error = null;
+      _step = 1;
+    });
+    await _parseFile(path);
   }
 
   Future<void> _loadSampleDeck() async {
@@ -813,6 +1021,63 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
 }
 
 // ─── Shared widgets ─────────────────────────────────────────────────
+
+/// Body of the manual-path input dialog used by [_showPathInputDialog].
+///
+/// Extracted into its own [StatefulWidget] so the [TextEditingController] is
+/// created in [State.initState] and disposed in [State.dispose]. This keeps
+/// the controller lifetime aligned with the [TextField]'s `EditableText`
+/// element, which is what the Flutter framework requires for its
+/// `_dependents.isEmpty` invariant during `Element.unmount`.
+class _AnkiPathInputDialog extends StatefulWidget {
+  const _AnkiPathInputDialog();
+
+  @override
+  State<_AnkiPathInputDialog> createState() => _AnkiPathInputDialogState();
+}
+
+class _AnkiPathInputDialogState extends State<_AnkiPathInputDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(AppStrings.ankiFallbackPathTitle),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        decoration: InputDecoration(
+          labelText: AppStrings.ankiFallbackPathHint,
+          hintText: AppStrings.ankiFallbackPathHint,
+        ),
+        maxLines: 3,
+        minLines: 1,
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('取消'),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.of(context).pop(_controller.text),
+          child: Text(AppStrings.ankiFallbackPathAction),
+        ),
+      ],
+    );
+  }
+}
 
 class _InfoCard extends StatelessWidget {
   final String title;

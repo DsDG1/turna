@@ -41,17 +41,7 @@ class StatAppBar extends StatelessWidget implements PreferredSizeWidget {
           ],
         ),
       ),
-      actions: [
-        IconButton(
-          icon: const Icon(
-            Icons.auto_awesome,
-            color: VarnamalaTheme.peacockTeal,
-            size: 22,
-          ),
-          tooltip: AppStrings.homeAiCourseDesigner,
-          onPressed: () => context.router.push(const AiWishChatRoute()),
-        ),
-      ],
+      actions: const [],
     );
   }
 }
@@ -132,7 +122,8 @@ class ScoreCard extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.stars_rounded, color: VarnamalaTheme.scoreChipText(context), size: 20),
+          Icon(Icons.stars_rounded,
+              color: VarnamalaTheme.scoreChipText(context), size: 20),
           const SizedBox(width: 4),
           StreamBuilder<int>(
             stream: context.read<GameProvider>().getUserScoreStream(),
