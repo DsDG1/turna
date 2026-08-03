@@ -92,13 +92,12 @@ class _TranslateBodyState extends State<_TranslateBody> {
 
   void _applyHint(String hint) {
     final current = _controller.text;
-    final needsSpace = current.isNotEmpty &&
-        !current.endsWith(' ') &&
-        !hint.startsWith(' ');
+    final needsSpace =
+        current.isNotEmpty && !current.endsWith(' ') && !hint.startsWith(' ');
     // Updating the controller notifies ValueListenableBuilder — no setState.
     _controller.text = current + (needsSpace ? ' ' : '') + hint;
-    _controller.selection = TextSelection.collapsed(
-        offset: _controller.text.length);
+    _controller.selection =
+        TextSelection.collapsed(offset: _controller.text.length);
   }
 
   void _trySubmit() {
@@ -133,7 +132,8 @@ class _TranslateBodyState extends State<_TranslateBody> {
             enabled: !submitted,
             maxLines: 3,
             minLines: 1,
-            style: TextStyle(fontSize: 18, color: VarnamalaTheme.textPrimaryColor(context)),
+            style: TextStyle(
+                fontSize: 18, color: VarnamalaTheme.textPrimaryColor(context)),
             decoration: InputDecoration(
               hintText: AppStrings.lessonTypeTranslation,
               filled: true,
@@ -154,8 +154,8 @@ class _TranslateBodyState extends State<_TranslateBody> {
                   ActionChip(
                     label: Text(h),
                     onPressed: submitted ? null : () => _applyHint(h),
-                    backgroundColor: VarnamalaTheme.peacockCyan
-                        .withValues(alpha: 0.12),
+                    backgroundColor:
+                        VarnamalaTheme.peacockCyan.withValues(alpha: 0.12),
                     labelStyle: const TextStyle(
                       color: VarnamalaTheme.peacockDeep,
                       fontWeight: FontWeight.w600,
@@ -172,16 +172,18 @@ class _TranslateBodyState extends State<_TranslateBody> {
           if (submitted && correct == false) ...[
             const SizedBox(height: 16),
             LessonCorrectAnswerBanner(
-                label: AppStrings.lessonCorrectTranslation, answer: widget.expected),
+                label: AppStrings.lessonCorrectTranslation,
+                answer: widget.expected),
           ],
           const SizedBox(height: 24),
           ValueListenableBuilder<TextEditingValue>(
             valueListenable: _controller,
             builder: (context, value, _) {
-              final canSubmit =
-                  !submitted && value.text.trim().isNotEmpty;
+              final canSubmit = !submitted && value.text.trim().isNotEmpty;
               return LessonCheckButton(
-                label: submitted ? AppStrings.lessonChecked : AppStrings.lessonCheck,
+                label: submitted
+                    ? AppStrings.lessonChecked
+                    : AppStrings.lessonCheck,
                 enabled: canSubmit,
                 onPressed: canSubmit ? _trySubmit : null,
               );

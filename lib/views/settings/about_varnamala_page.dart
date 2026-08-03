@@ -1,5 +1,6 @@
 // Flutter imports:
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 // Package imports:
 import 'package:package_info_plus/package_info_plus.dart';
@@ -8,204 +9,27 @@ import 'package:url_launcher/url_launcher.dart';
 
 // Project imports:
 import 'package:varnamala/l10n/app_strings.dart';
+import 'package:varnamala/views/settings/beginner_guide_page.dart';
 import 'package:varnamala/views/settings/changelog_page.dart';
 import 'package:varnamala/views/theme.dart';
 
 /// Dedicated About page for Varnamala.
+///
+/// Three tabs in a single Scaffold:
+///   - **关于** (`_AboutTab`): brand header, highlights, privacy, version,
+///     links, credits. Same content as the legacy single-page About.
+///   - **更新日志** (`ChangelogFromAsset`): reads `assets/changelog.md`
+///     and renders release cards. One-tap copy from the AppBar action.
+///   - **使用指南** (`QuickStartFromAsset`): reads `assets/quick_start.md`
+///     and renders section cards.
 ///
 /// Visual style mirrors the learning (course tree) page:
 ///   - mint gradient background (`courseTreeGradientFor`)
 ///   - white/dark cards with soft shadow + 1px border
 ///   - peacockTeal-tinted icon tiles and version pill
 ///   - section headers rendered as a short teal bar + title (UnitHeader rhythm)
-/// No `peacockGradient` banner; brand area is a compact section-switcher-
-/// style card so the page reads as part of the learning experience.
 class AboutVarnamalaPage extends StatelessWidget {
   const AboutVarnamalaPage({super.key});
-
-  static const String _upstreamUrl = 'https://github.com/rshrc/Varnamala';
-  static const String _issuesUrl = 'https://github.com/rshrc/Varnamala/issues';
-  static const String _releasesUrl =
-      'https://github.com/rshrc/Varnamala/releases';
-
-  @override
-  Widget build(BuildContext context) {
-    final year = DateTime.now().year;
-    return Scaffold(
-      backgroundColor: VarnamalaTheme.scaffoldBg(context),
-      appBar: AppBar(
-        title: Text(
-          AppStrings.aboutTitle,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-        ),
-      ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: VarnamalaTheme.courseTreeGradientFor(context),
-        ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const _BrandHeader(),
-              const SizedBox(height: 20),
-              _SectionHeader(text: AppStrings.aboutWhatIsTitle),
-              const SizedBox(height: 10),
-              _AboutCard(
-                child: Text(
-                  AppStrings.aboutWhatIsBody,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        height: 1.5,
-                        color: VarnamalaTheme.textSecondaryColor(context),
-                      ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              _SectionHeader(text: AppStrings.aboutHighlightsTitle),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: _HighlightCard(
-                      icon: Icons.cloud_off_rounded,
-                      title: AppStrings.aboutHighlightOfflineTitle,
-                      subtitle: AppStrings.aboutHighlightOfflineSubtitle,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _HighlightCard(
-                      icon: Icons.psychology_rounded,
-                      title: AppStrings.aboutHighlightSrsTitle,
-                      subtitle: AppStrings.aboutHighlightSrsSubtitle,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _HighlightCard(
-                      icon: Icons.quiz_rounded,
-                      title: AppStrings.aboutHighlightInteractionsTitle,
-                      subtitle: AppStrings.aboutHighlightInteractionsSubtitle,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              _SectionHeader(text: AppStrings.aboutPrivacyTitle),
-              const SizedBox(height: 10),
-              _AboutCard(
-                child: Text(
-                  AppStrings.aboutPrivacyBody,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        height: 1.5,
-                        color: VarnamalaTheme.textSecondaryColor(context),
-                      ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              _SectionHeader(text: AppStrings.aboutVersionTitle),
-              const SizedBox(height: 10),
-              const _VersionCard(),
-              const SizedBox(height: 20),
-              _SectionHeader(text: AppStrings.aboutLinksTitle),
-              const SizedBox(height: 10),
-              _AboutCard(
-                padding: EdgeInsets.zero,
-                child: Column(
-                  children: [
-                    _LinkTile(
-                      icon: Icons.code_rounded,
-                      title: AppStrings.settingsOpenSourceLicenses,
-                      onTap: () => showLicensePage(
-                        context: context,
-                        applicationName: 'Varnamala',
-                        applicationVersion: _fallbackVersion,
-                      ),
-                    ),
-                    _LinkDivider(),
-                    _LinkTile(
-                      icon: Icons.open_in_new_rounded,
-                      title: AppStrings.aboutUpstreamTitle,
-                      subtitle: AppStrings.aboutUpstreamSubtitle,
-                      onTap: () => _launchUrl(_upstreamUrl),
-                    ),
-                    _LinkDivider(),
-                    _LinkTile(
-                      icon: Icons.bug_report_rounded,
-                      title: AppStrings.aboutReportIssueTitle,
-                      subtitle: AppStrings.aboutReportIssueSubtitle,
-                      onTap: () => _launchUrl(_issuesUrl),
-                    ),
-                    _LinkDivider(),
-                    _LinkTile(
-                      icon: Icons.new_releases_rounded,
-                      title: AppStrings.aboutViewReleasesTitle,
-                      subtitle: AppStrings.aboutViewReleasesSubtitle,
-                      onTap: () => _launchUrl(_releasesUrl),
-                    ),
-                    _LinkDivider(),
-                    _LinkTile(
-                      icon: Icons.share_rounded,
-                      title: AppStrings.aboutShareTitle,
-                      onTap: () => _shareApp(context),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              _SectionHeader(text: AppStrings.aboutCreditsTitle),
-              const SizedBox(height: 10),
-              _AboutCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      AppStrings.aboutCreditsOriginal,
-                      style:
-                          Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                height: 1.5,
-                                color: VarnamalaTheme.textSecondaryColor(
-                                    context),
-                              ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      AppStrings.aboutCreditsFork,
-                      style:
-                          Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                height: 1.5,
-                                color: VarnamalaTheme.textSecondaryColor(
-                                    context),
-                              ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      AppStrings.aboutLicense,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: VarnamalaTheme.textHintColor(context),
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 28),
-              Center(
-                child: Text(
-                  AppStrings.aboutCopyright(year.toString()),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: VarnamalaTheme.textHintColor(context),
-                      ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   Future<void> _launchUrl(String url) async {
     final uri = Uri.parse(url);
@@ -216,6 +40,257 @@ class AboutVarnamalaPage extends StatelessWidget {
 
   Future<void> _shareApp(BuildContext context) async {
     await Share.share(AppStrings.aboutShareText);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 3,
+      child: Scaffold(
+        backgroundColor: VarnamalaTheme.scaffoldBg(context),
+        appBar: AppBar(
+          title: Text(
+            AppStrings.aboutTitle,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(48),
+            child: Container(
+              color: VarnamalaTheme.scaffoldBg(context),
+              child: TabBar(
+                indicatorColor: VarnamalaTheme.peacockTeal,
+                indicatorWeight: 3,
+                labelColor: VarnamalaTheme.peacockTeal,
+                unselectedLabelColor: VarnamalaTheme.textHintColor(context),
+                labelStyle: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                tabs: const [
+                  Tab(text: '关于'),
+                  Tab(text: '更新日志'),
+                  Tab(text: '使用指南'),
+                ],
+              ),
+            ),
+          ),
+        ),
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: VarnamalaTheme.courseTreeGradientFor(context),
+          ),
+          child: TabBarView(
+            children: [
+              _AboutTab(
+                onLaunchUrl: _launchUrl,
+                onShare: _shareApp,
+              ),
+              Builder(
+                builder: (innerContext) {
+                  final controller = DefaultTabController.of(innerContext);
+                  return ChangelogFromAsset(
+                    onCopyText: (text) async {
+                      await Clipboard.setData(ClipboardData(text: text));
+                      if (!innerContext.mounted) return;
+                      ScaffoldMessenger.of(innerContext).showSnackBar(
+                        SnackBar(
+                          content: Text(AppStrings.changelogCopied),
+                          behavior: SnackBarBehavior.floating,
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                      controller.index = 0;
+                    },
+                  );
+                },
+              ),
+              const SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(16, 8, 16, 24),
+                child: QuickStartFromAsset(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// "关于"Tab 内容。原 AboutVarnamalaPage 主体内容抽到此处,
+/// 顺序与样式不变,仅外层换为 Column(由 TabBarView 嵌入)。
+class _AboutTab extends StatelessWidget {
+  final Future<void> Function(String url) onLaunchUrl;
+  final Future<void> Function(BuildContext) onShare;
+
+  const _AboutTab({
+    required this.onLaunchUrl,
+    required this.onShare,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final year = DateTime.now().year;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _BrandHeader(),
+          const SizedBox(height: 20),
+          _SectionHeader(text: AppStrings.aboutWhatIsTitle),
+          const SizedBox(height: 10),
+          _AboutCard(
+            child: Text(
+              AppStrings.aboutWhatIsBody,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    height: 1.5,
+                    color: VarnamalaTheme.textSecondaryColor(context),
+                  ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          _SectionHeader(text: AppStrings.aboutHighlightsTitle),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _HighlightCard(
+                  icon: Icons.cloud_off_rounded,
+                  title: AppStrings.aboutHighlightOfflineTitle,
+                  subtitle: AppStrings.aboutHighlightOfflineSubtitle,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _HighlightCard(
+                  icon: Icons.psychology_rounded,
+                  title: AppStrings.aboutHighlightSrsTitle,
+                  subtitle: AppStrings.aboutHighlightSrsSubtitle,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _HighlightCard(
+                  icon: Icons.quiz_rounded,
+                  title: AppStrings.aboutHighlightInteractionsTitle,
+                  subtitle: AppStrings.aboutHighlightInteractionsSubtitle,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          _SectionHeader(text: AppStrings.aboutPrivacyTitle),
+          const SizedBox(height: 10),
+          _AboutCard(
+            child: Text(
+              AppStrings.aboutPrivacyBody,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    height: 1.5,
+                    color: VarnamalaTheme.textSecondaryColor(context),
+                  ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          _SectionHeader(text: AppStrings.aboutVersionTitle),
+          const SizedBox(height: 10),
+          const _VersionCard(),
+          const SizedBox(height: 20),
+          _SectionHeader(text: AppStrings.aboutLinksTitle),
+          const SizedBox(height: 10),
+          _AboutCard(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                _LinkTile(
+                  icon: Icons.code_rounded,
+                  title: AppStrings.settingsOpenSourceLicenses,
+                  onTap: () => showLicensePage(
+                    context: context,
+                    applicationName: 'Varnamala',
+                    applicationVersion: _fallbackVersion,
+                  ),
+                ),
+                _LinkDivider(),
+                _LinkTile(
+                  icon: Icons.open_in_new_rounded,
+                  title: AppStrings.aboutUpstreamTitle,
+                  subtitle: AppStrings.aboutUpstreamSubtitle,
+                  onTap: () => onLaunchUrl(
+                    'https://github.com/rshrc/Varnamala',
+                  ),
+                ),
+                _LinkDivider(),
+                _LinkTile(
+                  icon: Icons.bug_report_rounded,
+                  title: AppStrings.aboutReportIssueTitle,
+                  subtitle: AppStrings.aboutReportIssueSubtitle,
+                  onTap: () => onLaunchUrl(
+                    'https://github.com/rshrc/Varnamala/issues',
+                  ),
+                ),
+                _LinkDivider(),
+                _LinkTile(
+                  icon: Icons.new_releases_rounded,
+                  title: AppStrings.aboutViewReleasesTitle,
+                  subtitle: AppStrings.aboutViewReleasesSubtitle,
+                  onTap: () => onLaunchUrl(
+                    'https://github.com/rshrc/Varnamala/releases',
+                  ),
+                ),
+                _LinkDivider(),
+                _LinkTile(
+                  icon: Icons.share_rounded,
+                  title: AppStrings.aboutShareTitle,
+                  onTap: () => onShare(context),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          _SectionHeader(text: AppStrings.aboutCreditsTitle),
+          const SizedBox(height: 10),
+          _AboutCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  AppStrings.aboutCreditsOriginal,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        height: 1.5,
+                        color: VarnamalaTheme.textSecondaryColor(context),
+                      ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  AppStrings.aboutCreditsFork,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        height: 1.5,
+                        color: VarnamalaTheme.textSecondaryColor(context),
+                      ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  AppStrings.aboutLicense,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: VarnamalaTheme.textHintColor(context),
+                      ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 28),
+          Center(
+            child: Text(
+              AppStrings.aboutCopyright(year.toString()),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: VarnamalaTheme.textHintColor(context),
+                  ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

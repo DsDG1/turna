@@ -96,10 +96,10 @@ class _ReadingTrueFalseBodyState extends State<_ReadingTrueFalseBody> {
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: VarnamalaTheme.tintLight,
-              borderRadius:
-                  BorderRadius.circular(VarnamalaTheme.radiusLarge),
+              borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
             ),
-            child: Text(widget.statement, style: AppTextStyles.promptMd(context)),
+            child:
+                Text(widget.statement, style: AppTextStyles.promptMd(context)),
           ),
           const SizedBox(height: 24),
           Row(
@@ -122,9 +122,8 @@ class _ReadingTrueFalseBodyState extends State<_ReadingTrueFalseBody> {
                   label: AppStrings.lessonFalse,
                   isSelected: _selectedBool == false,
                   isCorrect: submitted && widget.answer == false,
-                  isWrong: submitted &&
-                      correct == false &&
-                      _selectedBool == false,
+                  isWrong:
+                      submitted && correct == false && _selectedBool == false,
                   onTap: submitted
                       ? null
                       : () => setState(() => _selectedBool = false),

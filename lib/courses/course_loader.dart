@@ -220,6 +220,26 @@ class CourseLoader {
     return future;
   }
 
+  /// Load lesson bodies whose content contains any of [needles] (substring).
+  ///
+  /// Results are also inserted into the L2 LRU so a subsequent
+  /// [loadLessonById] for the same id is free. Used by Anki review to
+  /// resolve a small batch of word ids without walking the whole deck.
+  static Future<List<Lesson>> loadLessonsContainingAny(
+    Iterable<String> needles,
+  ) async {
+    final lessons = await CourseRepository(_db).lessonsContainingAny(needles);
+    for (final lesson in lessons) {
+      // Touch / insert into L2 LRU as a completed future.
+      _lessonLoads.remove(lesson.id);
+      _lessonLoads[lesson.id] = Future.value(lesson);
+    }
+    while (_lessonLoads.length > lessonBodyCacheCap) {
+      _lessonLoads.remove(_lessonLoads.keys.first);
+    }
+    return lessons;
+  }
+
   /// Owning section id for a unit, or `null` if unknown. Used by
   /// [CourseProvider.selectUnit] to load only the needed L1 tree.
   static Future<String?> sectionIdForUnit(String unitId) =>

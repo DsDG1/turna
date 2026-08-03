@@ -14,7 +14,6 @@ abstract class AnkiCollection with _$AnkiCollection {
 
     /// did → deck definition
     required Map<int, AnkiDeckInfo> decks,
-
     required List<AnkiNote> notes,
     required List<AnkiCardData> cards,
 
@@ -33,6 +32,15 @@ abstract class AnkiCollection with _$AnkiCollection {
     /// backfill per-card review history so the memory-curve features have data
     /// immediately after import. Empty when the package has no revlog.
     @Default(<AnkiRevlogEntry>[]) List<AnkiRevlogEntry> revlog,
+
+    /// Collection creation time (`col.crt`, Unix seconds). Anki review-card
+    /// due values are day offsets from this clock, not offsets from import
+    /// time.
+    @Default(0) int collectionCreationTime,
+
+    /// Raw deck configuration (`col.dconf`) retained for traceability and
+    /// future scheduler-specific migrations.
+    @Default(<String, dynamic>{}) Map<String, dynamic> deckConfigs,
   }) = _AnkiCollection;
 }
 
@@ -75,6 +83,12 @@ abstract class AnkiNotetype with _$AnkiNotetype {
 
     /// Whether this is a Cloze notetype
     @Default(false) bool isCloze,
+
+    /// Notetype-level CSS (the `css` key of an Anki model), injected into the
+    /// fidelity-track WebView document so rendered cards match the Anki desktop
+    /// preview (deep-adaptation plan §5.1). Empty for imports parsed before css
+    /// capture was added.
+    @Default('') String css,
   }) = _AnkiNotetype;
 
   factory AnkiNotetype.fromJson(Map<String, dynamic> json) =>
@@ -165,6 +179,21 @@ abstract class AnkiCardData with _$AnkiCardData {
 
     /// Number of times forgotten
     @Default(0) int lapses,
+
+    /// Remaining learning repetitions/steps encoded by Anki's `left` field.
+    @Default(0) int left,
+
+    /// Original due value retained for filtered/suspended cards.
+    @Default(0) int odue,
+
+    /// Original deck id retained when a card was temporarily moved by Anki.
+    @Default(0) int odid,
+
+    /// Anki card flags (including user flag bits).
+    @Default(0) int flags,
+
+    /// Scheduler-specific opaque card data.
+    @Default('') String data,
   }) = _AnkiCardData;
 }
 
@@ -178,7 +207,6 @@ abstract class AnkiRevlogEntry with _$AnkiRevlogEntry {
 
     /// Card id this review belongs to (references [AnkiCardData.id]).
     required int cid,
-
     @Default(0) int usn,
 
     /// Button pressed: 1=again, 2=hard, 3=good, 4=easy (0 for manual/unset).

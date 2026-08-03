@@ -268,6 +268,14 @@ class MainWindow(QMainWindow):
         self.publish_action.triggered.connect(self._on_publish)
         toolbar.addAction(self.publish_action)
 
+        self.generate_audio_action = QAction("生成听力音频", self)
+        self.generate_audio_action.setEnabled(False)
+        self.generate_audio_action.setToolTip(
+            "扫描课程中的听力阶段，用 MiniMax TTS 生成 audioAsset 对应的 MP3"
+        )
+        self.generate_audio_action.triggered.connect(self._on_generate_audio)
+        toolbar.addAction(self.generate_audio_action)
+
         toolbar.addSeparator()
 
         self.mode_action = QAction("教师模式", self)
@@ -437,6 +445,7 @@ class MainWindow(QMainWindow):
         self.overview_action.setEnabled(True)
         self.resources_menu_btn.setEnabled(True)
         self.publish_action.setEnabled(True)
+        self.generate_audio_action.setEnabled(True)
 
     # --- Toolbar actions -------------------------------------------------
 
@@ -1263,6 +1272,119 @@ class MainWindow(QMainWindow):
             if not self.teacher_mode and self._current_node_ref is not None:
                 self.detail.show_node(self.adapter, self._current_node_ref)
             self.statusBar().showMessage("发布成功", 5000)
+
+    def _on_generate_audio(self) -> None:
+        """Generate listening-lesson audio (MiniMax TTS) for the loaded course."""
+        from PySide6.QtCore import Qt
+        from PySide6.QtWidgets import QMessageBox, QProgressDialog
+
+        from src.backend import generate_audio_client
+        from src.backend.generate_audio_worker import GenerateAudioWorker
+        from src.dialogs.generate_audio_dialog import GenerateAudioDialog
+
+        if not self.course_dir:
+            QMessageBox.warning(self, "生成听力音频", "请先打开课程目录。")
+            return
+
+        # Save first so collect_entries reads the latest transcripts.
+        try:
+            result = self.adapter.save()
+            if not result.ok:
+                QMessageBox.warning(
+                    self, "生成听力音频", "课程保存失败，已取消生成。"
+                )
+                return
+        except Exception:
+            pass
+
+        sounds_dir = generate_audio_client.sounds_dir_for(
+            self.course_dir, self._settings_obj
+        )
+        preview = generate_audio_client.preview_generation(
+            self.course_dir, self._settings_obj
+        )
+        telemetry.record_event(
+            "tts.open",
+            payload={
+                "total": int(preview.get("total", 0)),
+                "existing": int(preview.get("existing", 0)),
+                "sounds_dir": str(sounds_dir),
+            },
+        )
+        dlg = GenerateAudioDialog(self._settings_obj, preview, parent=self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        opts = generate_audio_client.TtsOptions(
+            voice_id=dlg.voice_id(),
+            model=dlg.model(),
+            speed=dlg.speed(),
+            force=dlg.force(),
+        )
+        if not dlg.api_key():
+            QMessageBox.warning(self, "生成听力音频", "请填写 MiniMax API Key。")
+            return
+        self._settings_obj.save_to_qsettings(self._settings)
+
+        worker = GenerateAudioWorker(
+            self.course_dir, sounds_dir, opts, dlg.api_key(), parent=self
+        )
+
+        progress = QProgressDialog("正在生成听力音频…", "取消", 0, 0, self)
+        progress.setWindowModality(Qt.WindowModality.NonModal)
+        progress.setWindowTitle("生成听力音频")
+        progress.setValue(0)
+
+        # Duck-typed job tray: absent on some MainWindow variants — guard it.
+        tray = getattr(self, "job_tray", None)
+        try:
+            if tray is not None:
+                tray.start_job("tts-generate", "生成听力音频…")
+        except Exception:
+            tray = None
+
+        def _on_progress(done: int, total: int) -> None:
+            if total > 0:
+                progress.setMaximum(total)
+                progress.setValue(done)
+                progress.setLabelText(f"正在生成听力音频… {done}/{total}")
+
+        def _on_finished_ok(generated: int, skipped: int, total: int) -> None:
+            progress.close()
+            try:
+                if tray is not None:
+                    tray.finish_job("tts-generate")
+            except Exception:
+                pass
+            self.tree.refresh()
+            telemetry.record_event(
+                "tts.generate",
+                payload={"generated": generated, "skipped": skipped, "total": total},
+            )
+            QMessageBox.information(
+                self,
+                "生成听力音频",
+                f"完成：生成 {generated} 条，跳过 {skipped} 条，共 {total} 条。",
+            )
+
+        def _on_failed(msg: str) -> None:
+            progress.close()
+            try:
+                if tray is not None:
+                    tray.finish_job("tts-generate")
+            except Exception:
+                pass
+            telemetry.record_error(
+                RuntimeError(msg), context={"event": "tts.generate_failed"}
+            )
+            QMessageBox.warning(self, "生成听力音频失败", msg)
+
+        progress.canceled.connect(worker.cancel)
+        worker.progress.connect(_on_progress)
+        worker.finished_ok.connect(_on_finished_ok)
+        worker.failed.connect(_on_failed)
+        self._generate_worker = worker  # keep strong ref until finished
+        worker.start()
 
     def _on_save(self) -> None:
         telemetry.record_event("repo.save.triggered")

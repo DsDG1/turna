@@ -19,8 +19,6 @@ void main() {
   }) async {
     await tester.pumpWidget(
       MaterialApp(
-        
-        
         home: Scaffold(
           body: AnkiCardRenderer().build(
             interaction,
@@ -36,39 +34,60 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('shows exactly two grade buttons (binary grading)', (
+  testWidgets('shows Anki four-grade buttons', (
     tester,
   ) async {
-    await pumpCard(tester, onSubmit: (_, {userAnswerText}) {});
-
-    expect(find.text('不认识'), findsOneWidget);
-    expect(find.text('认识'), findsOneWidget);
-    // No remnants of the old 4-button grading.
-    expect(find.text('Again'), findsNothing);
-    expect(find.text('Hard'), findsNothing);
-    expect(find.text('Good'), findsNothing);
-    expect(find.text('Easy'), findsNothing);
-  });
-
-  testWidgets('"Know it" submits correct = true', (tester) async {
-    final results = <bool>[];
     await pumpCard(
       tester,
-      onSubmit: (correct, {userAnswerText}) => results.add(correct),
+      onSubmit: (_, {userAnswerText, reviewQuality}) {},
     );
 
-    await tester.tap(find.text('认识'));
-    expect(results, [true]);
+    expect(find.text('重来'), findsOneWidget);
+    expect(find.text('困难'), findsOneWidget);
+    expect(find.text('良好'), findsOneWidget);
+    expect(find.text('简单'), findsOneWidget);
   });
 
-  testWidgets('"Don\'t know" submits correct = false', (tester) async {
-    final results = <bool>[];
+  testWidgets('Hard submits success with distinct quality 3', (tester) async {
+    final results = <(bool, int?)>[];
     await pumpCard(
       tester,
-      onSubmit: (correct, {userAnswerText}) => results.add(correct),
+      onSubmit: (correct, {userAnswerText, reviewQuality}) =>
+          results.add((correct, reviewQuality)),
     );
 
-    await tester.tap(find.text('不认识'));
-    expect(results, [false]);
+    await tester.tap(find.text('困难'));
+    expect(results, [(true, 3)]);
+  });
+
+  testWidgets('Again submits failure with quality 1', (tester) async {
+    final results = <(bool, int?)>[];
+    await pumpCard(
+      tester,
+      onSubmit: (correct, {userAnswerText, reviewQuality}) =>
+          results.add((correct, reviewQuality)),
+    );
+
+    await tester.tap(find.text('重来'));
+    expect(results, [(false, 1)]);
+  });
+
+  testWidgets('tapping the revealed card flips back to the front',
+      (tester) async {
+    final results = <(bool, int?)>[];
+    await pumpCard(
+      tester,
+      onSubmit: (correct, {userAnswerText, reviewQuality}) =>
+          results.add((correct, reviewQuality)),
+    );
+    expect(find.text('Back side'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('anki-flip-card-surface')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Front side'), findsOneWidget);
+    expect(find.text('Back side'), findsNothing);
+    expect(find.text('显示答案'), findsOneWidget);
+    expect(results, isEmpty);
   });
 }

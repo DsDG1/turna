@@ -25,6 +25,14 @@ abstract class ICourseRepository {
   /// L2: single lesson with full [LessonContent].
   Future<Lesson> lessonById(String id);
 
+  /// Load full lesson bodies whose `content_json` contains any of [needles]
+  /// (substring match). Used by Anki review to resolve a small batch of
+  /// word ids without loading an entire multi-thousand-card deck.
+  ///
+  /// Returns at most one [Lesson] per matching `lesson_id`. Empty [needles]
+  /// yields an empty list.
+  Future<List<Lesson>> lessonsContainingAny(Iterable<String> needles);
+
   /// Owning section id for [unitId], or `null` if the unit is unknown.
   Future<String?> sectionIdForUnit(String unitId);
 

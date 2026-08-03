@@ -141,6 +141,11 @@ abstract class SrsQueueProvider extends ChangeNotifier {
   int? _cachedDueCount;
   bool _loaded = false;
 
+  /// Ids with a grade currently in flight (between [reviewItem] start and the
+  /// completion of its DB persists). [undoReview] refuses while a grade is in
+  /// flight so the grade can't overwrite an undo restored mid-grade.
+  final Set<String> _gradesInFlight = {};
+
   ReviewHistoryDao? _reviewDao;
   bool _reviewDaoResolved = false;
 
@@ -202,8 +207,9 @@ abstract class SrsQueueProvider extends ChangeNotifier {
     }
   }
 
-  bool _migrationDone() =>
-      appPrefs.preferences.getBool(_migratedFlag, defaultValue: false).getValue();
+  bool _migrationDone() => appPrefs.preferences
+      .getBool(_migratedFlag, defaultValue: false)
+      .getValue();
 
   /// One-time migration of the legacy prefs blob into SQLite. Returns the
   /// parsed map (empty on parse failure). Always marks the migration done so a
@@ -283,11 +289,10 @@ abstract class SrsQueueProvider extends ChangeNotifier {
   Future<void> removeItemsByPrefix(String prefix) async {
     final current = state;
     final keys = current.keys.where((k) => k.startsWith(prefix)).toList();
-    if (keys.isEmpty) return;
     for (final key in keys) {
       current.remove(key);
     }
-    _commit(current);
+    if (keys.isNotEmpty) _commit(current);
     try {
       await srsDao.deleteByPrefix(prefix);
     } catch (e, st) {
@@ -295,12 +300,25 @@ abstract class SrsQueueProvider extends ChangeNotifier {
     }
   }
 
-  /// Schedule a review for [id]. Returns null if unknown. Records
-  /// [lastReviewedAt] and appends a row to `review_events` (when a
-  /// [ReviewHistoryDao] is available) so the memory-curve features have
-  /// per-card history. Uses [engine] (FSRS by default).
+  /// Schedule a review for [id], gated against concurrent undo. The UI enables
+  /// Undo as soon as a grade is submitted (before this writes); without the
+  /// gate, an undo fired during the fail-path await would be overwritten when
+  /// this resumes. See [_gradesInFlight].
   @protected
   Future<SrsWord?> reviewItem(String id, int quality) async {
+    _gradesInFlight.add(id);
+    try {
+      return await _doReviewItem(id, quality);
+    } finally {
+      _gradesInFlight.remove(id);
+    }
+  }
+
+  /// Returns null if unknown. Records [lastReviewedAt] and appends a row to
+  /// `review_events` (when a [ReviewHistoryDao] is available) so the
+  /// memory-curve features have per-card history. Uses [engine] (FSRS by
+  /// default).
+  Future<SrsWord?> _doReviewItem(String id, int quality) async {
     final current = state;
     final word = current[id];
     if (word == null) return null;
@@ -311,8 +329,7 @@ abstract class SrsQueueProvider extends ChangeNotifier {
     final reviewDao = _effectiveReviewDao;
     if (quality < 3 && reviewDao != null) {
       try {
-        sameDayFails =
-            await reviewDao.countFailsOnLocalDay(id, reviewedAt);
+        sameDayFails = await reviewDao.countFailsOnLocalDay(id, reviewedAt);
       } catch (_) {
         sameDayFails = 0;
       }
@@ -360,6 +377,71 @@ abstract class SrsQueueProvider extends ChangeNotifier {
     return updated;
   }
 
+  /// Roll back a known set of newly imported ids without touching older
+  /// states that share the same import prefix.
+  @protected
+  Future<void> removeImportedItems(Iterable<String> ids) async {
+    final uniqueIds = ids.toSet();
+    if (uniqueIds.isEmpty) return;
+    final current = state;
+    var changed = false;
+    for (final id in uniqueIds) {
+      changed = current.remove(id) != null || changed;
+    }
+    if (changed) _commit(current);
+    for (final id in uniqueIds) {
+      await srsDao.delete(id);
+    }
+  }
+
+  /// Restore the state captured immediately before the latest review of [id]
+  /// and remove that review event. The caller owns the one-step undo stack.
+  ///
+  /// Returns false (without restoring) if a grade for [id] is still in flight
+  /// - the UI enables Undo before [reviewItem] writes, so refusing here
+  /// prevents the in-flight grade from overwriting the restored state when it
+  /// resumes. The caller leaves the undo entry in place and retries once the
+  /// grade completes.
+  @protected
+  Future<bool> undoReview(String id, SrsWord previous) async {
+    if (_gradesInFlight.contains(id)) return false;
+    final reviewDao = _effectiveReviewDao;
+    // The review write and its history event are persisted independently, so
+    // the user can reach Undo before the event insert finishes. Restoring the
+    // captured state is still safe; deleting the event is best-effort.
+    if (reviewDao != null) await reviewDao.deleteLatestForCard(id);
+    state[id] = previous;
+    _commit(state);
+    try {
+      await srsDao.upsert(queueId, previous);
+    } catch (e, st) {
+      logger.w('$logTag undo persist failed: $e', stackTrace: st);
+    }
+    return true;
+  }
+
+  /// Update imported Anki flags while preserving all scheduling fields.
+  @protected
+  Future<void> setItemFlags(
+    String id, {
+    bool? suspended,
+    bool? buried,
+  }) async {
+    final current = state[id];
+    if (current == null) return;
+    final updated = current.copyWith(
+      isSuspended: suspended ?? current.isSuspended,
+      isBuried: buried ?? current.isBuried,
+    );
+    state[id] = updated;
+    _commit(state);
+    try {
+      await srsDao.upsert(queueId, updated);
+    } catch (e, st) {
+      logger.w('$logTag flag persist failed: $e', stackTrace: st);
+    }
+  }
+
   /// Due items, optionally filtered by [typeFilter]. Uses the primary due
   /// cache when [typeFilter] is null or when the subclass reuses this cache
   /// for a single type (grammar / words).
@@ -380,6 +462,8 @@ abstract class SrsQueueProvider extends ChangeNotifier {
         .where(
           (w) =>
               (typeFilter == null || w.type == typeFilter) &&
+              !w.isSuspended &&
+              !w.isBuried &&
               !w.dueAt.isAfter(cutoff),
         )
         .toList()

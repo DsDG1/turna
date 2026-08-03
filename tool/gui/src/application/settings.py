@@ -96,6 +96,16 @@ class Settings:
     # Override for the assets repo root (empty = auto-detect via parents[4]).
     assets_repo_root: str = ""
 
+    # --- MiniMax TTS (listening audio generation) ---
+    # Non-secret tuning is persisted; tts_api_key is memory-only and never
+    # written to disk (mirrors ai_api_key). The API key is forwarded to the
+    # generate_audio subprocess via the environment, not argv.
+    tts_voice_id: str = "female-tianmei"
+    tts_model: str = "speech-2.8-hd"
+    tts_speed: float = 0.9  # clamped to 0.5..2.0
+    tts_force: bool = False
+    tts_api_key: str = ""  # memory-only
+
     @classmethod
     def load_from_qsettings(cls, qsettings: QSettings) -> "Settings":
         """Load a Settings instance from the supplied QSettings object."""
@@ -190,6 +200,18 @@ class Settings:
         git_timeout = max(5.0, min(600.0, git_timeout))
         assets_repo_root = _str_or_empty(qsettings.value("git/assets_root", ""))
 
+        # MiniMax TTS config. API key is memory-only (never loaded from disk);
+        # we actively remove any stale value like ai_api_key.
+        tts_voice_id = _str_or_default(qsettings.value("tts/voice_id", ""), "female-tianmei")
+        tts_voice_id = tts_voice_id or "female-tianmei"
+        tts_model = _str_or_default(qsettings.value("tts/model", ""), "speech-2.8-hd")
+        tts_model = tts_model or "speech-2.8-hd"
+        tts_speed = _float_or_default(qsettings.value("tts/speed", 0.9), 0.9)
+        tts_speed = max(0.5, min(2.0, tts_speed))
+        tts_force = _bool_or_default(qsettings.value("tts/force", False), False)
+        if qsettings.contains("tts/api_key"):
+            qsettings.remove("tts/api_key")
+
         return cls(
             theme=theme,
             ui_scale_percent=scale,
@@ -219,6 +241,11 @@ class Settings:
             lan_token=lan_token,
             git_timeout=git_timeout,
             assets_repo_root=assets_repo_root,
+            tts_voice_id=tts_voice_id,
+            tts_model=tts_model,
+            tts_speed=tts_speed,
+            tts_force=tts_force,
+            tts_api_key="",  # Memory-only: never restore from storage.
         )
 
     def save_to_qsettings(self, qsettings: QSettings) -> None:
@@ -263,6 +290,15 @@ class Settings:
         qsettings.setValue("git/lan_token", self.lan_token)
         qsettings.setValue("git/timeout", self.git_timeout)
         qsettings.setValue("git/assets_root", self.assets_repo_root)
+
+        # MiniMax TTS config. tts/api_key is never persisted; ensure any legacy
+        # value is gone.
+        qsettings.setValue("tts/voice_id", self.tts_voice_id)
+        qsettings.setValue("tts/model", self.tts_model)
+        qsettings.setValue("tts/speed", self.tts_speed)
+        qsettings.setValue("tts/force", self.tts_force)
+        if qsettings.contains("tts/api_key"):
+            qsettings.remove("tts/api_key")
 
     def add_recent_repo(self, path: Path | str) -> None:
         """Add a repository path to the top of the recent list."""
@@ -315,6 +351,11 @@ class Settings:
             lan_token=self.lan_token,
             git_timeout=self.git_timeout,
             assets_repo_root=self.assets_repo_root,
+            tts_voice_id=self.tts_voice_id,
+            tts_model=self.tts_model,
+            tts_speed=self.tts_speed,
+            tts_force=self.tts_force,
+            tts_api_key=self.tts_api_key,
         )
 
 

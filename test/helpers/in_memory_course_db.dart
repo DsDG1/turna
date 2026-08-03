@@ -15,6 +15,7 @@ import 'dart:io';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:sqlite3/src/ffi/load_library.dart' show OperatingSystem, open;
 import 'package:varnamala/courses/course_loader.dart';
 import 'package:varnamala/data/course_database.dart';
@@ -23,6 +24,19 @@ import 'package:varnamala/data/review_history_dao.dart';
 import 'package:varnamala/data/srs_state_dao.dart';
 
 bool _sqliteOverrideApplied = false;
+bool _pathProviderMockApplied = false;
+
+class _TestPathProvider extends PathProviderPlatform {
+  @override
+  Future<String?> getApplicationDocumentsPath() async =>
+      Directory.systemTemp.path;
+}
+
+void ensurePathProviderMockForTest() {
+  if (_pathProviderMockApplied) return;
+  PathProviderPlatform.instance = _TestPathProvider();
+  _pathProviderMockApplied = true;
+}
 
 /// Ensures sqlite3 loads on Linux test hosts where the unversioned
 /// `libsqlite3.so` is missing. Safe to call multiple times. Also silences

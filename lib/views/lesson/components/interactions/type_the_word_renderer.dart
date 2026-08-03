@@ -137,10 +137,11 @@ class _TypeTheWordBodyState extends State<_TypeTheWordBody> {
           ValueListenableBuilder<TextEditingValue>(
             valueListenable: _controller,
             builder: (context, value, _) {
-              final canSubmit =
-                  !submitted && value.text.trim().isNotEmpty;
+              final canSubmit = !submitted && value.text.trim().isNotEmpty;
               return LessonCheckButton(
-                label: submitted ? AppStrings.lessonChecked : AppStrings.lessonCheck,
+                label: submitted
+                    ? AppStrings.lessonChecked
+                    : AppStrings.lessonCheck,
                 enabled: canSubmit,
                 onPressed: canSubmit ? _trySubmit : null,
               );

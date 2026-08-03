@@ -235,5 +235,38 @@ void main() {
             'decks missing from the stored order are appended at the end',
       );
     });
+
+    test('reloadCourse sees a newly imported Anki deck without manual '
+        'invalidateCaches (import-path regression)', () async {
+      final db = await seedInMemoryCourseDb();
+      final writeRepo = CourseRepository(db);
+      await writeRepo.bulkInsertCourseTree(_ankiDeckSection('deckaa', 'Deck A'));
+      await writeRepo.bulkInsertCourseTree(_ankiDeckSection('deckbb', 'Deck B'));
+      CourseLoader.invalidateCaches();
+
+      final provider = CourseProvider(appPrefs);
+      await provider.load();
+      expect(
+        provider.ankiDeckEntries.map((e) => e.importId),
+        containsAll(['deckaa', 'deckbb']),
+      );
+      expect(
+        provider.ankiDeckEntries.map((e) => e.importId),
+        isNot(contains('deckcc')),
+      );
+
+      // Simulate Anki import writing a section while CourseLoader shells
+      // are still memoized. reloadCourse itself must drop that memo — the
+      // caller must not need a separate invalidateCaches().
+      await writeRepo.bulkInsertCourseTree(_ankiDeckSection('deckcc', 'Deck C'));
+      await provider.reloadCourse();
+
+      expect(
+        provider.ankiDeckEntries.map((e) => e.importId),
+        containsAll(['deckaa', 'deckbb', 'deckcc']),
+        reason: 'reloadCourse must invalidate CourseLoader so new imports '
+            'appear as course entries without an app restart',
+      );
+    });
   });
 }

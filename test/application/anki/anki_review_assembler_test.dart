@@ -1,9 +1,9 @@
-// Regression tests for AnkiReviewAssembler.assembleBatch: the batch builder
-// finds card Interactions inside Anki section *bodies*, which are only
-// populated after CourseProvider.ensureSectionLoaded runs. Under the default
-// built-in course scope Anki sections stay shells (units empty), so a review
-// started without loading the deck body finds nothing and wrongly reports
-// "no cards due" even though the SRS queue has due cards.
+// Regression tests for AnkiReviewAssembler.assembleBatch / assembleBatchAsync:
+// the batch builder finds card Interactions inside Anki lesson bodies. Under
+// the default built-in course scope Anki sections stay shells (units empty),
+// so a review started without loading interactions finds nothing. The async
+// path loads only the lessons that contain the batch's word ids (not the
+// whole deck).
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -18,46 +18,56 @@ import 'package:varnamala/domain/course/interaction.dart';
 import 'package:varnamala/domain/course/lesson.dart';
 import 'package:varnamala/domain/course/lesson_content.dart';
 import 'package:varnamala/domain/course/section.dart';
+import 'package:varnamala/domain/course/srs_word.dart';
 import 'package:varnamala/domain/course/stage.dart';
 import 'package:varnamala/domain/course/unit.dart';
 import 'package:varnamala/service/locator.dart';
 
 import '../../helpers/in_memory_course_db.dart';
 
-Section _ankiDeckSection(String importId, String name) {
+Section _ankiDeckSection(String importId, String name, {int cardCount = 1}) {
+  final lessons = <Lesson>[];
+  // 20 cards per lesson (matches AnkiDeckAssembler.cardsPerLesson).
+  const perLesson = 20;
+  final lessonCount = (cardCount + perLesson - 1) ~/ perLesson;
+  for (var li = 0; li < lessonCount; li++) {
+    final start = li * perLesson;
+    final end = (start + perLesson).clamp(0, cardCount);
+    final stages = <Stage>[
+      for (var i = start; i < end; i++)
+        Stage(
+          id: 'anki-$importId-u10-0-l$li-s$i',
+          name: 'Card ${i + 1}',
+          items: [
+            Interaction.ankiCard(
+              id: 'anki-$importId-c${i + 1}-c0',
+              front: 'Front ${i + 1}',
+              back: 'Back ${i + 1}',
+              sourceNoteId: '${i + 1}',
+            ),
+          ],
+        ),
+    ];
+    lessons.add(Lesson(
+      id: 'anki-$importId-u10-0-l$li',
+      name: '$name #${li + 1}',
+      type: LessonType.normal,
+      template: LessonTemplate.legacy,
+      content: LessonContent(stages: stages),
+    ));
+  }
+
   return Section(
     id: 'anki-$importId-s10',
     name: name,
-    description: 'Imported from Anki (1 cards)',
+    description: 'Imported from Anki ($cardCount cards)',
     level: 'Anki',
     prerequisiteSectionIds: const [],
     units: [
       Unit(
         id: 'anki-$importId-u10-0',
         name: name,
-        lessons: [
-          Lesson(
-            id: 'anki-$importId-u10-0-l0',
-            name: '$name #1',
-            type: LessonType.normal,
-            template: LessonTemplate.legacy,
-            content: LessonContent(
-              stages: [
-                Stage(
-                  id: 'anki-$importId-u10-0-l0-s0',
-                  name: 'Card 1',
-                  items: [
-                    Interaction.ankiCard(
-                      id: 'anki-$importId-n1-c0',
-                      front: 'Front',
-                      back: 'Back',
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
+        lessons: lessons,
       ),
     ],
   );
@@ -87,9 +97,9 @@ void main() {
     await courseProvider.load();
   });
 
-  test('due Anki card counts as due but batch is null while the deck body '
-      'is still an unloaded shell (root cause reproduction)', () {
-    srs.registerWord('anki-deckaa-n1');
+  test('due Anki card counts as due but sync batch is null while interactions '
+      'are not loaded (root cause reproduction)', () {
+    srs.registerWord('anki-deckaa-c1');
     final assembler = AnkiReviewAssembler(srs, courseProvider);
 
     expect(assembler.totalAnkiDueCount, 1,
@@ -102,12 +112,12 @@ void main() {
       reason: 'default scope leaves Anki sections as shells',
     );
     expect(assembler.assembleBatch(), isNull,
-        reason: 'without the section body no Interaction can be found');
+        reason: 'without preloaded Interactions the sync path finds nothing');
   });
 
   test('assembleBatch returns a lesson once interactions are preloaded',
       () async {
-    srs.registerWord('anki-deckaa-n1');
+    srs.registerWord('anki-deckaa-c1');
     final assembler = AnkiReviewAssembler(srs, courseProvider);
     await assembler.preloadInteractions();
 
@@ -116,16 +126,78 @@ void main() {
     expect(lesson, isNotNull);
     final items = lesson!.flattenedStages.expand((s) => s.items).toList();
     expect(items, hasLength(1));
-    expect(items.single.id, 'anki-review-anki-deckaa-n1');
+    expect(items.single.id, 'anki-review-anki-deckaa-c1');
   });
 
-  test('section-scoped preload and batch only pick cards from that deck',
+  test('assembleBatchAsync loads only the batch without full-deck preload',
       () async {
-    srs.registerWord('anki-deckaa-n1');
+    srs.registerWord('anki-deckaa-c1');
     final assembler = AnkiReviewAssembler(srs, courseProvider);
-    await assembler.preloadInteractions(sectionId: 'anki-deckaa-s10');
 
-    expect(assembler.assembleBatch(sectionId: 'anki-deckaa-s10'), isNotNull);
-    expect(assembler.assembleBatch(sectionId: 'anki-other-s10'), isNull);
+    final lesson = await assembler.assembleBatchAsync();
+
+    expect(lesson, isNotNull);
+    final items = lesson!.flattenedStages.expand((s) => s.items).toList();
+    expect(items, hasLength(1));
+    expect(items.single.id, 'anki-review-anki-deckaa-c1');
+  });
+
+  test('section-scoped async batch only picks cards from that deck', () async {
+    srs.registerWord('anki-deckaa-c1');
+    final assembler = AnkiReviewAssembler(srs, courseProvider);
+
+    expect(
+      await assembler.assembleBatchAsync(sectionId: 'anki-deckaa-s10'),
+      isNotNull,
+    );
+    expect(
+      await assembler.assembleBatchAsync(sectionId: 'anki-other-s10'),
+      isNull,
+    );
+  });
+
+  test('assembleBatchAsync scales to a multi-lesson deck without loading all',
+      () async {
+    // Replace the small deck with 60 cards across 3 lessons (simulates a
+    // slice of a multi-thousand deck). Only 1 due card should still assemble.
+    final db = await seedInMemoryCourseDb();
+    final repo = CourseRepository(db);
+    await repo.bulkInsertCourseTree(
+      _ankiDeckSection('bigdeck', 'Big Deck', cardCount: 60),
+    );
+    CourseLoader.invalidateCaches();
+    await courseProvider.reloadCourse();
+
+    srs.registerWord('anki-bigdeck-c42');
+    final assembler = AnkiReviewAssembler(srs, courseProvider);
+    final lesson = await assembler.assembleBatchAsync();
+
+    expect(lesson, isNotNull);
+    final items = lesson!.flattenedStages.expand((s) => s.items).toList();
+    expect(items, hasLength(1));
+    expect(items.single.id, 'anki-review-anki-bigdeck-c42');
+  });
+
+  test('dueSnapshot counts due Anki cards in one pass by import id', () async {
+    srs.registerWord('anki-deckaa-c1');
+    // Future due — must not count.
+    await srs.bulkImportStates({
+      'anki-deckaa-c99': SrsWord(
+        wordId: 'anki-deckaa-c99',
+        dueAt: DateTime.now().add(const Duration(days: 30)),
+        intervalDays: 30,
+        ease: 2.5,
+        reps: 1,
+        lapses: 0,
+      ),
+    });
+    // Non-Anki due card — must not count.
+    srs.registerWord('tr-hello');
+
+    final assembler = AnkiReviewAssembler(srs, courseProvider);
+    final snap = assembler.dueSnapshot();
+    expect(snap.total, 1);
+    expect(snap.byImportId['deckaa'], 1);
+    expect(snap.byImportId.containsKey('other'), isFalse);
   });
 }

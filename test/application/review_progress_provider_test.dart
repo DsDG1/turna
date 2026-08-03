@@ -37,7 +37,7 @@ void main() {
 
   test('importIdFromWordId parses anki ids', () {
     expect(
-      ReviewProgressProvider.importIdFromWordId('anki-abc123-n42'),
+      ReviewProgressProvider.importIdFromWordId('anki-abc123-c42'),
       'abc123',
     );
     expect(ReviewProgressProvider.importIdFromWordId('merhaba'), isNull);
@@ -45,8 +45,8 @@ void main() {
 
   test('snapshot groups course vs anki vs grammar', () async {
     srs.registerWord('merhaba');
-    srs.registerWord('anki-deck1-n1');
-    srs.registerWord('anki-deck1-n2');
+    srs.registerWord('anki-deck1-c1');
+    srs.registerWord('anki-deck1-c2');
     grammar.registerGrammarPoint('gp-1');
 
     final snap = await progress.snapshot();
@@ -65,7 +65,7 @@ void main() {
 
   test('source filter limits cards', () async {
     srs.registerWord('merhaba');
-    srs.registerWord('anki-x-n1');
+    srs.registerWord('anki-x-c1');
     grammar.registerGrammarPoint('gp-1');
 
     final courseOnly = await progress.snapshot(const ReviewProgressFilter(

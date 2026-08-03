@@ -12,6 +12,7 @@ import 'package:provider/provider.dart';
 import 'package:varnamala/application/anki/anki_deck_manager.dart';
 import 'package:varnamala/application/course_provider.dart';
 import 'package:varnamala/application/language_provider.dart';
+import 'package:varnamala/application/settings_provider.dart';
 import 'package:varnamala/core/enums.dart';
 import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/l10n/app_strings.dart';
@@ -78,6 +79,13 @@ class _CourseManagementBody extends StatelessWidget {
                   index: i,
                   isActive: entries[i].scope == activeScope,
                   onTap: () => _selectCourse(context, entries[i]),
+                  onSettings: () => _showTtsSettings(
+                    context,
+                    entries[i].scope,
+                    entries[i].isBuiltin
+                        ? TargetLanguage.turkish.displayName
+                        : entries[i].name,
+                  ),
                   onDelete: entries[i].isBuiltin
                       ? null
                       : () => _confirmDelete(context, entries[i]),
@@ -240,6 +248,25 @@ class _CourseManagementBody extends StatelessWidget {
       ),
     );
   }
+
+  /// Per-course TTS settings (auto-read toggle + translation/native language).
+  void _showTtsSettings(BuildContext context, String scope, String name) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: VarnamalaTheme.cardBg(context),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(VarnamalaTheme.radiusLarge),
+        ),
+      ),
+      builder: (_) => _CourseTtsSettingsSheet(
+        scope: scope,
+        name: name,
+        settings: getIt<SettingsProvider>(),
+      ),
+    );
+  }
 }
 
 class _CourseCard extends StatelessWidget {
@@ -247,6 +274,7 @@ class _CourseCard extends StatelessWidget {
   final int index;
   final bool isActive;
   final VoidCallback onTap;
+  final VoidCallback onSettings;
   final VoidCallback? onDelete;
 
   const _CourseCard({
@@ -255,6 +283,7 @@ class _CourseCard extends StatelessWidget {
     required this.index,
     required this.isActive,
     required this.onTap,
+    required this.onSettings,
     required this.onDelete,
   });
 
@@ -354,6 +383,14 @@ class _CourseCard extends StatelessWidget {
                     ],
                   ),
                 ),
+                IconButton(
+                  icon: const Icon(
+                    Icons.record_voice_over_rounded,
+                    color: VarnamalaTheme.peacockTeal,
+                  ),
+                  tooltip: AppStrings.courseTtsSettingsTitle,
+                  onPressed: onSettings,
+                ),
                 if (onDelete != null)
                   IconButton(
                     icon: const Icon(
@@ -427,6 +464,134 @@ class _AddCourseTile extends StatelessWidget {
         ),
       ),
       onTap: onTap,
+    );
+  }
+}
+
+/// Bottom sheet for a single course's smart-TTS settings: the auto-read
+/// toggle and the translation/native language used as the Latin-text fallback.
+class _CourseTtsSettingsSheet extends StatefulWidget {
+  final String scope;
+  final String name;
+  final SettingsProvider settings;
+
+  const _CourseTtsSettingsSheet({
+    required this.scope,
+    required this.name,
+    required this.settings,
+  });
+
+  @override
+  State<_CourseTtsSettingsSheet> createState() =>
+      _CourseTtsSettingsSheetState();
+}
+
+class _CourseTtsSettingsSheetState extends State<_CourseTtsSettingsSheet> {
+  static const _nativeLangOptions = <({String code, String label})>[
+    (code: 'en', label: '英语'),
+    (code: 'zh', label: '中文'),
+    (code: 'tr', label: '土耳其语'),
+    (code: 'ru', label: '俄语'),
+    (code: 'ar', label: '阿拉伯语'),
+    (code: 'es', label: '西班牙语'),
+    (code: 'fr', label: '法语'),
+    (code: 'de', label: '德语'),
+    (code: 'ja', label: '日语'),
+    (code: 'ko', label: '韩语'),
+    (code: 'pt', label: '葡萄牙语'),
+    (code: 'it', label: '意大利语'),
+    (code: 'vi', label: '越南语'),
+    (code: 'id', label: '印尼语'),
+  ];
+
+  late bool _autoRead;
+  late String _nativeLang;
+
+  @override
+  void initState() {
+    super.initState();
+    _autoRead = widget.settings.autoReadOnTapFor(widget.scope);
+    _nativeLang = widget.settings.nativeLanguageCodeFor(widget.scope);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          16,
+          20,
+          20 + MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              '${AppStrings.courseTtsSettingsTitle} · ${widget.name}',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+            const SizedBox(height: 16),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(AppStrings.courseTtsAutoReadTitle),
+              subtitle: Text(
+                AppStrings.courseTtsAutoReadSubtitle,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: VarnamalaTheme.textSecondaryColor(context),
+                ),
+              ),
+              value: _autoRead,
+              onChanged: (value) async {
+                setState(() => _autoRead = value);
+                await widget.settings.setAutoReadOnTapFor(widget.scope, value);
+              },
+            ),
+            const SizedBox(height: 8),
+            Text(
+              AppStrings.courseTtsNativeLangTitle,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            Text(
+              AppStrings.courseTtsNativeLangSubtitle,
+              style: TextStyle(
+                fontSize: 12,
+                color: VarnamalaTheme.textSecondaryColor(context),
+              ),
+            ),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              initialValue: _nativeLang,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              items: [
+                for (final opt in _nativeLangOptions)
+                  DropdownMenuItem(
+                    value: opt.code,
+                    child: Text(opt.label),
+                  ),
+              ],
+              onChanged: (value) async {
+                if (value == null) return;
+                setState(() => _nativeLang = value);
+                await widget.settings
+                    .setNativeLanguageCodeFor(widget.scope, value);
+              },
+            ),
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(AppStrings.dialogClose),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

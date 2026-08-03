@@ -294,3 +294,35 @@ Map<String, dynamic> _$AnkiCardToJson(AnkiCard instance) => <String, dynamic>{
       'sourceNoteId': instance.sourceNoteId,
       'runtimeType': instance.$type,
     };
+
+AnkiHtmlCard _$AnkiHtmlCardFromJson(Map<String, dynamic> json) => AnkiHtmlCard(
+      id: json['id'] as String? ?? '',
+      frontHtml: json['frontHtml'] as String,
+      backHtml: json['backHtml'] as String,
+      css: json['css'] as String? ?? '',
+      mediaBasePath: json['mediaBasePath'] as String? ?? '',
+      allowJs: json['allowJs'] as bool? ?? false,
+      audioAssets: (json['audioAssets'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const <String>[],
+      sourceNoteId: json['sourceNoteId'] as String?,
+      sourceCardId: json['sourceCardId'] as String?,
+      wordId: json['wordId'] as String?,
+      $type: json['runtimeType'] as String?,
+    );
+
+Map<String, dynamic> _$AnkiHtmlCardToJson(AnkiHtmlCard instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'frontHtml': instance.frontHtml,
+      'backHtml': instance.backHtml,
+      'css': instance.css,
+      'mediaBasePath': instance.mediaBasePath,
+      'allowJs': instance.allowJs,
+      'audioAssets': instance.audioAssets,
+      'sourceNoteId': instance.sourceNoteId,
+      'sourceCardId': instance.sourceCardId,
+      'wordId': instance.wordId,
+      'runtimeType': instance.$type,
+    };

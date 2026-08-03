@@ -170,6 +170,32 @@ sealed class Interaction with _$Interaction {
     String? sourceNoteId,
   }) = AnkiCard;
 
+  /// Fidelity-track flip card: show [frontHtml], user reveals [backHtml],
+  /// then grades via the app's SRS buttons (no in-page JS grading). The HTML
+  /// is the rendered Anki template output (qfmt/afmt with fields substituted)
+  /// and [css] is the notetype's stylesheet - both produced by
+  /// `AnkiCardHtmlRenderer` from the NoteStore (deep-adaptation plan §5).
+  /// [allowJs] gates the WebView's javascriptMode (decision 3: default off +
+  /// container isolation when the notetype's templates contain `<script>`).
+  /// [mediaBasePath] is the import's extracted media dir, used to resolve
+  /// relative `<img src>` / `<audio>` URLs inside the HTML.
+  ///
+  /// Unlike [AnkiCard] (plain-text flip), this preserves the original Anki
+  /// card's HTML/CSS so complex templates (cloze, embedded options, images)
+  /// render close to the Anki desktop preview.
+  const factory Interaction.ankiHtmlCard({
+    @Default('') String id,
+    required String frontHtml,
+    required String backHtml,
+    @Default('') String css,
+    @Default('') String mediaBasePath,
+    @Default(false) bool allowJs,
+    @Default(<String>[]) List<String> audioAssets,
+    String? sourceNoteId,
+    String? sourceCardId,
+    String? wordId,
+  }) = AnkiHtmlCard;
+
   factory Interaction.fromJson(Map<String, dynamic> json) {
     try {
       return _$InteractionFromJson(json);
@@ -212,6 +238,7 @@ String? interactionGrammarPointId(Interaction interaction) {
     ReadingTrueFalse(:final grammarPointId) => grammarPointId,
     ReadingShortAnswer(:final grammarPointId) => grammarPointId,
     AnkiCard() => null,
+    AnkiHtmlCard() => null,
   };
 }
 
@@ -236,6 +263,7 @@ bool interactionAiHintEligible(Interaction interaction) {
     ReadingTrueFalse() => true,
     ReadingShortAnswer() => true,
     AnkiCard() => true,
+    AnkiHtmlCard() => false,
   };
 }
 
@@ -257,6 +285,7 @@ String? interactionCorrectAnswerLabel(Interaction interaction) {
     ReadingTrueFalse(:final answer) => answer.toString(),
     ReadingShortAnswer(:final expectedAnswer) => expectedAnswer,
     AnkiCard(:final back) => back,
+    AnkiHtmlCard(:final backHtml) => backHtml,
   };
 }
 
@@ -278,6 +307,7 @@ String interactionPromptLabel(Interaction interaction) {
     ReadingTrueFalse(:final statement) => statement,
     ReadingShortAnswer(:final prompt) => prompt,
     AnkiCard(:final front) => front,
+    AnkiHtmlCard(:final frontHtml) => frontHtml,
   };
 }
 
@@ -298,6 +328,7 @@ String interactionTypeLabel(Interaction interaction) {
     ReadingTrueFalse() => 'Reading True/False',
     ReadingShortAnswer() => 'Reading Short Answer',
     AnkiCard() => 'Flip Card',
+    AnkiHtmlCard() => 'HTML Card',
   };
 }
 
@@ -321,5 +352,6 @@ String? interactionOptionsLabel(Interaction interaction) {
     ReadingTrueFalse() => null,
     ReadingShortAnswer() => null,
     AnkiCard() => null,
+    AnkiHtmlCard() => null,
   };
 }

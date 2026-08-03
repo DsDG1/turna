@@ -11,6 +11,7 @@ import 'package:varnamala/application/ai/engine/ai_engine_config.dart';
 import 'package:varnamala/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/ai/chat_bubble.dart';
+import 'package:varnamala/views/ai/components/ai_sheet_widgets.dart';
 import 'package:varnamala/views/theme.dart';
 
 @RoutePage()
@@ -244,18 +245,17 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
             child: TextField(
               controller: _inputCtrl,
               enabled: !busy,
-              decoration: InputDecoration(
-                hintText: AppStrings.aiAskMore,
-                border: const OutlineInputBorder(),
-                isDense: true,
+              decoration: aiSheetInputDecoration(
+                context,
+                hint: AppStrings.aiAskMore,
               ),
               onSubmitted: (_) => _onSend(),
             ),
           ),
           const SizedBox(width: 8),
-          IconButton(
+          IconButton.filled(
             onPressed: busy ? null : _onSend,
-            icon: const Icon(Icons.send),
+            icon: const Icon(Icons.send_rounded),
             tooltip: AppStrings.commonSend,
           ),
         ],

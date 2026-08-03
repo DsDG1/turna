@@ -187,8 +187,30 @@ class LocalStateKeys {
   // HarmonyOS 小艺 AI hint switch (no-op on other platforms).
   static const String useXiaoyiHint = 'settings.useXiaoyiHint';
 
+  // AI engine config (JSON): preset, API key, models, strictSchema, cache.
+  // Persisted so the user's AI setup (including the key) survives an app
+  // restart. Written through the raw StreamingSharedPreferences to avoid
+  // logging the secret (see AiEngineConfigHolder._persist).
+  static const String aiEngineConfig = 'ai.engineConfig';
+
   // Screen auto-rotation: false (default) = lock portrait, true = follow device.
   static const String autoRotate = 'settings.autoRotate';
+
+  // Per-course smart-TTS settings, keyed by course scope ('' = built-in
+  // course, 'anki:<importId>' = imported deck). See SettingsProvider.
+  // autoReadOnTap: whether tapping an option / revealing a card auto-reads it.
+  // nativeLang: BCP-47 base code of the translation/native language, used as
+  // the TTS fallback voice for plain-Latin text.
+  static String autoReadOnTapKey(String scope) =>
+      'settings.autoReadOnTap.${scope.isEmpty ? 'builtin' : scope}';
+  static String nativeLanguageKey(String scope) =>
+      'settings.nativeLang.${scope.isEmpty ? 'builtin' : scope}';
+
+  // Anki advanced settings (deep-adaptation plan) - see SettingsProvider.
+  static const String ankiPreRenderEnabled = 'anki.preRenderEnabled';
+  static const String ankiCaptureDelaySec = 'anki.captureDelaySec';
+  static const String ankiLiteThreshold = 'anki.liteThreshold';
+  static const String ankiForceDisableJs = 'anki.forceDisableJs';
 
   // Accessibility / neurodiversity settings — see AccessibilityProvider.
   // textScale is an int percent (100 = 1.0, 200 = 2.0); the rest are bool flags.

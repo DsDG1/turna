@@ -237,8 +237,9 @@ class AiHintProvider extends ChangeNotifier {
   /// included - the assistant explains the knowledge point and reasoning
   /// rather than revealing the answer, to keep it a learning aid.
   String _buildSystemPrompt(AiQuestionContext ctx) {
-    return 'You are a ${ctx.language} language-learning tutor who explains '
-        'practice questions to the learner in plain Chinese.\n'
+    return 'You are a language-learning tutor. The learner is practicing '
+        '${ctx.language}. Explain practice questions to the learner in plain '
+        'Chinese.\n'
         'Requirements:\n'
         '- First state what this question is testing (grammar point, word '
         'meaning, sentence pattern, etc.).\n'
@@ -311,10 +312,11 @@ class AiHintProvider extends ChangeNotifier {
     return _typedChat<GrammarExplanation>(
       config: config,
       cancelToken: cancelToken,
-      systemPrompt: 'You are a $language grammar tutor. Explain grammar '
-          'points in plain Chinese. Respond with ONLY a JSON object (no '
-          'markdown fences): {"explanation": string, "relatedExamples": '
-          '[string], "contrastWith": [string]}.',
+      systemPrompt: 'You are a language-learning tutor. The learner is '
+          'practicing $language. Explain grammar points in plain Chinese. '
+          'Respond with ONLY a JSON object (no markdown fences): '
+          '{"explanation": string, "relatedExamples": [string], '
+          '"contrastWith": [string]}.',
       userPrompt: 'Grammar point: $grammarPoint\n'
           'Sentence illustrating it: $sentence\n'
           'Explain the point. relatedExamples: 2-3 example sentences in '
@@ -335,11 +337,11 @@ class AiHintProvider extends ChangeNotifier {
     return _typedChat<SynonymComparison>(
       config: config,
       cancelToken: cancelToken,
-      systemPrompt: 'You are a $language vocabulary tutor. Compare '
-          'near-synonymous words in plain Chinese. Respond with ONLY a JSON '
-          'object (no markdown fences): {"pairs": [{"a": string, "b": string, '
-          '"nuance": string, "whenToUseA": string, "whenToUseB": string, '
-          '"examples": [string]}]}.',
+      systemPrompt: 'You are a language-learning tutor. The learner is '
+          'practicing $language. Compare near-synonymous words in plain '
+          'Chinese. Respond with ONLY a JSON object (no markdown fences): '
+          '{"pairs": [{"a": string, "b": string, "nuance": string, '
+          '"whenToUseA": string, "whenToUseB": string, "examples": [string]}]}.',
       userPrompt: 'Compare these $language words and explain the nuances:\n'
           '$wordList\n'
           'Produce one pair entry per meaningful contrast; examples should be '
@@ -359,11 +361,11 @@ class AiHintProvider extends ChangeNotifier {
     return _typedChat<SentenceBreakdown>(
       config: config,
       cancelToken: cancelToken,
-      systemPrompt: 'You are a $language syntax tutor. Decompose sentences '
-          'token by token. Respond with ONLY a JSON object (no markdown '
-          'fences): {"tokens": [{"surface": string, "lemma": string|null, '
-          '"gloss": string, "role": string}], "structure": string}. Glosses '
-          'and roles in Chinese.',
+      systemPrompt: 'You are a language-learning tutor. The learner is '
+          'practicing $language. Decompose sentences token by token. Respond '
+          'with ONLY a JSON object (no markdown fences): {"tokens": [{"surface": '
+          'string, "lemma": string|null, "gloss": string, "role": string}], '
+          '"structure": string}. Glosses and roles in Chinese.',
       userPrompt: 'Decompose this $language sentence:\n$sentence\n'
           'One token per entry; "structure" is a one-line Chinese summary of '
           'the sentence pattern.',
@@ -384,10 +386,11 @@ class AiHintProvider extends ChangeNotifier {
     return _typedChat<WhyWrongExplanation>(
       config: config,
       cancelToken: cancelToken,
-      systemPrompt: 'You are a $language tutor. Help a learner understand a '
-          'mistake. Respond with ONLY a JSON object (no markdown fences): '
-          '{"whyWrong": string, "whatYouProbablyThought": string, '
-          '"howToRemember": string}. All fields in Chinese.',
+      systemPrompt: 'You are a language-learning tutor. The learner is '
+          'practicing $language. Help the learner understand a mistake. '
+          'Respond with ONLY a JSON object (no markdown fences): {"whyWrong": '
+          'string, "whatYouProbablyThought": string, "howToRemember": string}. '
+          'All fields in Chinese.',
       userPrompt: 'Question: $questionContext\n'
           'My answer: $userAnswer\n'
           'Correct answer: $correctAnswer\n'

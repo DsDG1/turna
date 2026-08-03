@@ -19,12 +19,16 @@ class FakeAudioController implements AudioController {
   Future<void> playRandomLevelUpSound() async {}
 
   @override
-  Future<void> speak(String text, {double? speed}) async {
+  Future<void> speak(String text, {double? speed, String? languageCode}) async {
     spoken.add(text);
   }
 
   @override
-  Future<TtsSpeakResult> speakWithResult(String text, {double? speed}) async {
+  Future<TtsSpeakResult> speakWithResult(
+    String text, {
+    double? speed,
+    String? languageCode,
+  }) async {
     spoken.add(text);
     return const TtsSpeakResult(source: TtsSpeakSource.system);
   }

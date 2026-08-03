@@ -623,5 +623,116 @@ class WorkshopImportTargetTest(unittest.TestCase):
             self.win.hide()
 
 
+class GenerateAudioTest(unittest.TestCase):
+    """_on_generate_audio: guards + worker spawn + tray finish."""
+
+    def setUp(self) -> None:
+        _TestApp.get()
+        import tempfile
+
+        from src.backend.course_adapter import CourseAdapter
+
+        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_tts_"))
+        course_dir = self.tmp / "turkish"
+        copy_turkish_course(course_dir)
+        self.adapter = CourseAdapter()
+        self.adapter.load(course_dir)
+        self.win = _build_main_window()
+        self.win.adapter = self.adapter
+        self.win.course_dir = course_dir
+        self.win.undo_stack = MagicMock()
+
+    def tearDown(self) -> None:
+        import shutil
+
+        shutil.rmtree(self.tmp, ignore_errors=True)
+        self.win.hide()
+
+    def test_warns_when_no_course(self) -> None:
+        self.win.course_dir = None
+        with patch.object(QMessageBox, "warning") as warn:
+            self.win._on_generate_audio()
+        warn.assert_called_once()
+
+    def test_spawns_worker_and_finishes_tray_job(self) -> None:
+        from PySide6.QtWidgets import QDialog
+
+        class _Signal:
+            def __init__(self, owner, kind):
+                self._owner = owner
+                self._kind = kind
+
+            def connect(self, cb):
+                self._owner._cbs.setdefault(self._kind, []).append(cb)
+
+        class _FakeWorker:
+            def __init__(self, *a, **kw):
+                self._cbs = {}
+                self.progress = _Signal(self, "progress")
+                self.finished_ok = _Signal(self, "ok")
+                self.failed = _Signal(self, "failed")
+                self.started = False
+
+            def start(self, *_a, **_k):
+                self.started = True
+                # Emit a success synchronously so the tray finish runs.
+                for cb in self._cbs.get("ok", []):
+                    cb(2, 1, 3)
+
+            def cancel(self):
+                pass
+
+        fake_worker = _FakeWorker()
+        tray = MagicMock()
+
+        class _FakeDialog:
+            def __init__(self, settings, preview, parent=None):
+                pass
+
+            @staticmethod
+            def exec():
+                return QDialog.DialogCode.Accepted
+
+            @staticmethod
+            def voice_id():
+                return "female-tianmei"
+
+            @staticmethod
+            def model():
+                return "speech-2.8-hd"
+
+            @staticmethod
+            def speed():
+                return 0.9
+
+            @staticmethod
+            def force():
+                return False
+
+            @staticmethod
+            def api_key():
+                return "sk-test"
+
+        self.win.job_tray = tray
+
+        # The method binds these via local imports, so patch the source modules.
+        with patch(
+            "src.backend.generate_audio_worker.GenerateAudioWorker",
+            return_value=fake_worker,
+        ), patch(
+            "src.dialogs.generate_audio_dialog.GenerateAudioDialog",
+            _FakeDialog,
+        ), patch(
+            "src.backend.generate_audio_client.preview_generation",
+            return_value={"total": 3, "existing": 1},
+        ), patch.object(QMessageBox, "information"):
+            self.win._on_generate_audio()
+
+        self.assertTrue(fake_worker.started)
+        tray.finish_job.assert_called_once_with("tts-generate")
+        # Strong reference kept so the worker survives past the handler.
+        self.assertIs(self.win._generate_worker, fake_worker)
+
+
 if __name__ == "__main__":
     unittest.main()

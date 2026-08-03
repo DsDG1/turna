@@ -1,27 +1,29 @@
 // Flutter imports:
-import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
 // Package imports:
-import 'package:audioplayers/audioplayers.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/domain/audio/anki_audio_resolver.dart';
+import 'package:varnamala/application/audio_controller.dart';
+import 'package:varnamala/application/smart_speech.dart';
+import 'package:varnamala/core/language_detector.dart';
+import 'package:varnamala/core/sm2.dart';
+import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/domain/course/interaction.dart';
 import 'package:varnamala/l10n/app_strings.dart';
+import 'package:varnamala/views/lesson/components/anki_media_strip.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:varnamala/views/lesson/components/lesson_practice_card.dart';
 import 'package:varnamala/views/theme.dart';
 
 /// Anki-style flip card renderer. Shows the front, user taps "Show Answer",
-/// then grades with two buttons: 忘了 / 记住 (Don't know / Know it).
+/// then grades with Anki's four answer buttons: Again / Hard / Good / Easy.
 ///
-/// Correctness mapping for the LessonViewModel and the SM-2 scheduler:
-/// - Don't know → correct = false → [ReviewGrade.unknown]
-/// - Know it   → correct = true  → [ReviewGrade.known]
+/// Again is an unsuccessful recall; Hard, Good and Easy are successful
+/// recalls with distinct scheduler qualities.
 @injectable
 class AnkiCardRenderer extends InteractionRenderer {
   @override
@@ -75,14 +77,9 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
   late AnimationController _flipController;
   late Animation<double> _flipAnimation;
 
-  final AnkiAudioResolver _mediaResolver = AnkiAudioResolver();
-  AudioPlayer? _mediaPlayer;
-
-  /// Local file paths of media that actually exists on disk. `anki://`
-  /// references whose file was never copied (or failed) degrade silently to
-  /// text-only rendering.
-  List<String> _imagePaths = const [];
-  List<String> _audioPaths = const [];
+  /// Resolved TTS languages for the front/back pair (computed lazily). Null
+  /// until the first speak / auto-speak call.
+  ({String front, String back})? _pair;
 
   @override
   void initState() {
@@ -98,48 +95,84 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
         curve: const Cubic(0.4, 0.0, 0.2, 1.0),
       ),
     );
-    _resolveMedia();
+    _maybeAutoSpeakFront();
   }
 
-  Future<void> _resolveMedia() async {
-    Future<List<String>> resolveAll(List<String> assets) async {
-      final paths = <String>[];
-      for (final asset in assets) {
-        final path = await _mediaResolver.resolveMediaPath(asset);
-        if (path != null) paths.add(path);
-      }
-      return paths;
-    }
+  /// Resolve the front/back TTS languages from the card text + active course.
+  void _ensurePair() {
+    if (_pair != null) return;
+    final langs = currentSpeechLanguages();
+    _pair = const LanguageDetector().detectCardPair(
+      widget.front,
+      widget.back,
+      targetLanguage: langs.target,
+      nativeLanguage: langs.native,
+    );
+  }
 
-    final images = await resolveAll(widget.imageAssets);
-    final audios = await resolveAll(widget.audioAssets);
-    if (!mounted) return;
-    setState(() {
-      _imagePaths = images;
-      _audioPaths = audios;
+  void _speakFace(String text, String? lang) {
+    if (text.trim().isEmpty) return;
+    getIt<AudioController>().speak(text, languageCode: lang);
+  }
+
+  void _speakFront() {
+    _ensurePair();
+    _speakFace(widget.front, _pair?.front);
+  }
+
+  void _speakBack() {
+    _ensurePair();
+    _speakFace(widget.back, _pair?.back);
+  }
+
+  /// Auto-read the front face when the card first appears, if the course's
+  /// auto-read toggle is on.
+  void _maybeAutoSpeakFront() {
+    if (!autoReadOnTapForActiveCourse()) return;
+    _ensurePair();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _speakFace(widget.front, _pair?.front);
     });
-  }
-
-  Future<void> _playMedia(String path) async {
-    final player = _mediaPlayer ??= AudioPlayer();
-    await player.stop();
-    await player.play(DeviceFileSource(path));
   }
 
   @override
   void dispose() {
-    _mediaPlayer?.dispose();
     _flipController.dispose();
     super.dispose();
   }
 
   void _reveal() {
-    setState(() => _revealed = true);
-    _flipController.forward();
+    if (_revealed || _flipController.isAnimating) return;
+    _toggleFace();
   }
 
-  void _grade({required bool correct, required String label}) {
-    widget.onSubmit(correct, userAnswerText: label);
+  void _toggleFace() {
+    if (_flipController.isAnimating) return;
+    final reveal = !_revealed;
+    setState(() => _revealed = reveal);
+    if (reveal) {
+      _flipController.forward();
+      // Auto-read the back face on reveal when the course toggle is on.
+      if (autoReadOnTapForActiveCourse()) {
+        _ensurePair();
+        _speakFace(widget.back, _pair?.back);
+      }
+    } else {
+      _flipController.reverse();
+    }
+  }
+
+  void _grade({
+    required bool correct,
+    required String label,
+    required AnkiReviewRating rating,
+  }) {
+    widget.onSubmit(
+      correct,
+      userAnswerText: label,
+      reviewQuality: rating.quality,
+    );
   }
 
   @override
@@ -150,39 +183,50 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
         children: [
           SectionCaption(AppStrings.lessonFlipCardCaption),
           // Front / Back card area
-          AnimatedBuilder(
-            animation: _flipAnimation,
-            builder: (context, child) {
-              final angle = _flipAnimation.value * math.pi;
-              final showFront = angle < math.pi / 2;
-              return Transform(
-                alignment: Alignment.center,
-                transform: Matrix4.identity()
-                  ..setEntry(3, 2, 0.001)
-                  ..rotateY(angle),
-                child: showFront
-                    ? _buildFront(context)
-                    // 背面在中点之后淡入, 避免旋转过中点后内容"啪"地出现.
-                    : AnimatedBuilder(
-                        animation: _flipAnimation,
-                        builder: (ctx, child) {
-                          final backProgress = ((angle - math.pi / 2)
-                                  .clamp(0.0, math.pi / 2)) /
-                              (math.pi / 2);
-                          return Opacity(
-                            opacity: backProgress,
-                            child: Transform(
-                              alignment: Alignment.center,
-                              transform:
-                                  Matrix4.identity()..rotateY(math.pi),
-                              child: child,
-                            ),
-                          );
-                        },
-                        child: _buildBack(context),
-                      ),
-              );
-            },
+          Semantics(
+            button: true,
+            label: _revealed
+                ? AppStrings.lessonTapToReturnFront
+                : AppStrings.lessonTapToReveal,
+            child: GestureDetector(
+              key: const ValueKey('anki-flip-card-surface'),
+              behavior: HitTestBehavior.opaque,
+              onTap: _toggleFace,
+              child: AnimatedBuilder(
+                animation: _flipAnimation,
+                builder: (context, child) {
+                  final angle = _flipAnimation.value * math.pi;
+                  final showFront = angle < math.pi / 2;
+                  return Transform(
+                    alignment: Alignment.center,
+                    transform: Matrix4.identity()
+                      ..setEntry(3, 2, 0.001)
+                      ..rotateY(angle),
+                    child: showFront
+                        ? _buildFront(context)
+                        // 背面在中点之后淡入, 避免旋转过中点后内容"啪"地出现.
+                        : AnimatedBuilder(
+                            animation: _flipAnimation,
+                            builder: (ctx, child) {
+                              final backProgress = ((angle - math.pi / 2)
+                                      .clamp(0.0, math.pi / 2)) /
+                                  (math.pi / 2);
+                              return Opacity(
+                                opacity: backProgress,
+                                child: Transform(
+                                  alignment: Alignment.center,
+                                  transform: Matrix4.identity()
+                                    ..rotateY(math.pi),
+                                  child: child,
+                                ),
+                              );
+                            },
+                            child: _buildBack(context),
+                          ),
+                  );
+                },
+              ),
+            ),
           ),
           const SizedBox(height: 24),
           // Hint (shown before reveal)
@@ -252,7 +296,14 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
                   color: VarnamalaTheme.textPrimaryColor(context),
                 ),
           ),
-          _buildMedia(context),
+          const SizedBox(height: 8),
+          IconButton(
+            icon: const Icon(Icons.record_voice_over_rounded),
+            color: VarnamalaTheme.peacockTeal,
+            tooltip: AppStrings.lessonSpeakLabel,
+            onPressed: _speakFront,
+          ),
+          _buildMedia(),
           const SizedBox(height: 12),
           Text(
             AppStrings.lessonTapToReveal,
@@ -287,54 +338,41 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
                   color: VarnamalaTheme.textPrimaryColor(context),
                 ),
           ),
-          _buildMedia(context),
+          const SizedBox(height: 8),
+          IconButton(
+            icon: const Icon(Icons.record_voice_over_rounded),
+            color: VarnamalaTheme.peacockTeal,
+            tooltip: AppStrings.lessonSpeakLabel,
+            onPressed: _speakBack,
+          ),
+          _buildMedia(),
+          const SizedBox(height: 12),
+          Text(
+            AppStrings.lessonTapToReturnFront,
+            style: const TextStyle(
+              fontSize: 13,
+              color: VarnamalaTheme.textHint,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  /// Resolved media (images + audio play buttons) shared by both card faces.
-  /// Empty when the card has no media or the files are missing on disk.
-  Widget _buildMedia(BuildContext context) {
-    if (_imagePaths.isEmpty && _audioPaths.isEmpty) {
+  Widget _buildMedia() {
+    if (widget.audioAssets.isEmpty && widget.imageAssets.isEmpty) {
       return const SizedBox.shrink();
     }
     return Padding(
       padding: const EdgeInsets.only(top: 16),
-      child: Column(
-        children: [
-          for (final path in _imagePaths)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 160),
-                child: Image.file(
-                  File(path),
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                ),
-              ),
-            ),
-          if (_audioPaths.isNotEmpty)
-            Wrap(
-              spacing: 8,
-              children: [
-                for (var i = 0; i < _audioPaths.length; i++)
-                  IconButton(
-                    icon: const Icon(Icons.volume_up_rounded),
-                    color: VarnamalaTheme.peacockTeal,
-                    tooltip: '${AppStrings.lessonPlayAudioLabel} ${i + 1}',
-                    onPressed: () => _playMedia(_audioPaths[i]),
-                  ),
-              ],
-            ),
-        ],
+      child: AnkiMediaStrip(
+        audioAssets: widget.audioAssets,
+        imageAssets: widget.imageAssets,
       ),
     );
   }
 
   Widget _buildGradeButtons(BuildContext context) {
-    final l10n = AppStrings;
     return Column(
       children: [
         Text(
@@ -349,19 +387,49 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
           children: [
             Expanded(
               child: _GradeButton(
-                label: AppStrings.reviewDontKnow,
+                label: AppStrings.reviewAgain,
                 color: VarnamalaTheme.error,
-                onPressed: () =>
-                    _grade(correct: false, label: AppStrings.reviewDontKnow),
+                onPressed: () => _grade(
+                  correct: false,
+                  label: AppStrings.reviewAgain,
+                  rating: AnkiReviewRating.again,
+                ),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 6),
             Expanded(
               child: _GradeButton(
-                label: AppStrings.reviewKnowIt,
+                label: AppStrings.reviewHard,
+                color: VarnamalaTheme.warning,
+                onPressed: () => _grade(
+                  correct: true,
+                  label: AppStrings.reviewHard,
+                  rating: AnkiReviewRating.hard,
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: _GradeButton(
+                label: AppStrings.reviewGood,
                 color: VarnamalaTheme.success,
-                onPressed: () =>
-                    _grade(correct: true, label: AppStrings.reviewKnowIt),
+                onPressed: () => _grade(
+                  correct: true,
+                  label: AppStrings.reviewGood,
+                  rating: AnkiReviewRating.good,
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: _GradeButton(
+                label: AppStrings.reviewEasy,
+                color: VarnamalaTheme.peacockTeal,
+                onPressed: () => _grade(
+                  correct: true,
+                  label: AppStrings.reviewEasy,
+                  rating: AnkiReviewRating.easy,
+                ),
               ),
             ),
           ],

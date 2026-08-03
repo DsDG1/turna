@@ -101,9 +101,8 @@ class _ReadingMcqBodyState extends State<_ReadingMcqBody> {
               isSelected: _selectedIndex == idx,
               isCorrect: submitted && idx == widget.correctIndex,
               isWrong: submitted && correct == false && _selectedIndex == idx,
-              onTap: submitted
-                  ? null
-                  : () => setState(() => _selectedIndex = idx),
+              onTap:
+                  submitted ? null : () => setState(() => _selectedIndex = idx),
             ),
             if (idx < widget.options.length - 1) const SizedBox(height: 10),
           ],

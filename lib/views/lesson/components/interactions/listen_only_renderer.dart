@@ -78,8 +78,8 @@ class _ListenOnlyBodyState extends State<_ListenOnlyBody> {
   @override
   Widget build(BuildContext context) {
     final submitted = widget.state.submitted;
-    final showTranscript = widget.transcript.isNotEmpty &&
-        (_hasPlayed || submitted);
+    final showTranscript =
+        widget.transcript.isNotEmpty && (_hasPlayed || submitted);
 
     return InteractionBody(
       child: Column(
@@ -88,7 +88,9 @@ class _ListenOnlyBodyState extends State<_ListenOnlyBody> {
           SectionCaption(AppStrings.lessonSummaryCaption),
           const SizedBox(height: 8),
           Text(
-            widget.prompt.isEmpty ? AppStrings.lessonListenToSummary : widget.prompt,
+            widget.prompt.isEmpty
+                ? AppStrings.lessonListenToSummary
+                : widget.prompt,
             style: AppTextStyles.promptMd(context),
             textAlign: TextAlign.center,
           ),
@@ -98,7 +100,9 @@ class _ListenOnlyBodyState extends State<_ListenOnlyBody> {
           ),
           const SizedBox(height: 12),
           Text(
-            _hasPlayed ? AppStrings.lessonTapToReplay : AppStrings.lessonTapToListen,
+            _hasPlayed
+                ? AppStrings.lessonTapToReplay
+                : AppStrings.lessonTapToListen,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: VarnamalaTheme.textHintColor(context),
                 ),
@@ -125,7 +129,9 @@ class _ListenOnlyBodyState extends State<_ListenOnlyBody> {
           ],
           const SizedBox(height: 28),
           LessonCheckButton(
-            label: submitted ? AppStrings.commonDone : AppStrings.lessonContinueUpper,
+            label: submitted
+                ? AppStrings.commonDone
+                : AppStrings.lessonContinueUpper,
             enabled: !submitted,
             onPressed: submitted
                 ? null

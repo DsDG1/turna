@@ -14,6 +14,8 @@ _SrsWord _$SrsWordFromJson(Map<String, dynamic> json) => _SrsWord(
       reps: (json['reps'] as num?)?.toInt() ?? 0,
       lapses: (json['lapses'] as num?)?.toInt() ?? 0,
       isLeech: json['isLeech'] as bool? ?? false,
+      isSuspended: json['isSuspended'] as bool? ?? false,
+      isBuried: json['isBuried'] as bool? ?? false,
       type: $enumDecodeNullable(_$SrsItemTypeEnumMap, json['type']) ??
           SrsItemType.word,
       lastReviewedAt: json['lastReviewedAt'] == null
@@ -33,6 +35,8 @@ Map<String, dynamic> _$SrsWordToJson(_SrsWord instance) => <String, dynamic>{
       'reps': instance.reps,
       'lapses': instance.lapses,
       'isLeech': instance.isLeech,
+      'isSuspended': instance.isSuspended,
+      'isBuried': instance.isBuried,
       'type': _$SrsItemTypeEnumMap[instance.type]!,
       'lastReviewedAt': instance.lastReviewedAt?.toIso8601String(),
       'stability': instance.stability,

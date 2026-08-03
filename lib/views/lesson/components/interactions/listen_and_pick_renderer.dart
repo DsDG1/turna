@@ -116,16 +116,14 @@ class _ListenAndPickBodyState extends State<_ListenAndPickBody> {
               isSelected: _picked == idx,
               isCorrect: submitted && idx == widget.correctIndex,
               isWrong: submitted && correct == false && _picked == idx,
-              onTap: submitted
-                  ? null
-                  : () => setState(() => _picked = idx),
+              onTap: submitted ? null : () => setState(() => _picked = idx),
             ),
-            if (idx < widget.options.length - 1)
-              const SizedBox(height: 10),
+            if (idx < widget.options.length - 1) const SizedBox(height: 10),
           ],
           const SizedBox(height: 24),
           LessonCheckButton(
-            label: submitted ? AppStrings.lessonChecked : AppStrings.lessonCheck,
+            label:
+                submitted ? AppStrings.lessonChecked : AppStrings.lessonCheck,
             enabled: canSubmit,
             onPressed: canSubmit
                 ? () => widget.onSubmit(_picked == widget.correctIndex,

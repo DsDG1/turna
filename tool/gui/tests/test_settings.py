@@ -490,5 +490,86 @@ class SettingsGitLibraryTest(unittest.TestCase):
         self.assertEqual(Settings.load_from_qsettings(qs).git_timeout, 600.0)
 
 
+class SettingsTtsTest(unittest.TestCase):
+    """MiniMax TTS (listening audio generation) settings."""
+
+    def test_defaults_when_empty(self) -> None:
+        qs = _make_qsettings({"recent_repos": "[]"})
+        settings = Settings.load_from_qsettings(qs)
+        self.assertEqual(settings.tts_voice_id, "female-tianmei")
+        self.assertEqual(settings.tts_model, "speech-2.8-hd")
+        self.assertEqual(settings.tts_speed, 0.9)
+        self.assertFalse(settings.tts_force)
+        self.assertEqual(settings.tts_api_key, "")
+
+    def test_loads_tts_fields(self) -> None:
+        qs = _make_qsettings({
+            "recent_repos": "[]",
+            "tts/voice_id": "male-qn-jingying",
+            "tts/model": "speech-2.8-lite",
+            "tts/speed": 1.2,
+            "tts/force": True,
+        })
+        settings = Settings.load_from_qsettings(qs)
+        self.assertEqual(settings.tts_voice_id, "male-qn-jingying")
+        self.assertEqual(settings.tts_model, "speech-2.8-lite")
+        self.assertEqual(settings.tts_speed, 1.2)
+        self.assertTrue(settings.tts_force)
+
+    def test_api_key_memory_only_never_loaded(self) -> None:
+        qs = _make_qsettings({
+            "recent_repos": "[]",
+            "tts/api_key": "sk-secret",
+            "tts/voice_id": "v",
+        })
+        settings = Settings.load_from_qsettings(qs)
+        # API key must not be restored from storage.
+        self.assertEqual(settings.tts_api_key, "")
+        # Stale API key must be removed from storage.
+        self.assertFalse(qs.contains("tts/api_key"))
+        # Non-secret fields still load.
+        self.assertEqual(settings.tts_voice_id, "v")
+
+    def test_api_key_never_persisted(self) -> None:
+        qs = _make_qsettings({"recent_repos": "[]"})
+        settings = Settings(tts_voice_id="v", tts_model="m", tts_speed=1.1, tts_force=True,
+                            tts_api_key="sk-secret")
+        settings.save_to_qsettings(qs)
+        self.assertEqual(qs.value("tts/voice_id"), "v")
+        self.assertEqual(qs.value("tts/model"), "m")
+        self.assertEqual(qs.value("tts/speed"), 1.1)
+        self.assertEqual(qs.value("tts/force"), True)
+        self.assertFalse(qs.contains("tts/api_key"))
+
+    def test_speed_clamped(self) -> None:
+        qs_low = _make_qsettings({"recent_repos": "[]", "tts/speed": 0.1})
+        self.assertEqual(Settings.load_from_qsettings(qs_low).tts_speed, 0.5)
+        qs_high = _make_qsettings({"recent_repos": "[]", "tts/speed": 3.0})
+        self.assertEqual(Settings.load_from_qsettings(qs_high).tts_speed, 2.0)
+
+    def test_round_trip(self) -> None:
+        qs = _make_qsettings({"recent_repos": "[]"})
+        original = Settings(tts_voice_id="v", tts_model="m", tts_speed=1.3, tts_force=True,
+                            tts_api_key="sk-x")
+        original.save_to_qsettings(qs)
+        loaded = Settings.load_from_qsettings(qs)
+        self.assertEqual(loaded.tts_voice_id, "v")
+        self.assertEqual(loaded.tts_model, "m")
+        self.assertEqual(loaded.tts_speed, 1.3)
+        self.assertTrue(loaded.tts_force)
+        # API key does not survive a round trip.
+        self.assertEqual(loaded.tts_api_key, "")
+
+    def test_clone_preserves_tts_fields(self) -> None:
+        settings = Settings(tts_voice_id="v", tts_model="m", tts_speed=0.8, tts_force=True,
+                            tts_api_key="sk-c")
+        clone = settings.clone()
+        self.assertEqual(clone.tts_voice_id, "v")
+        self.assertEqual(clone.tts_model, "m")
+        self.assertEqual(clone.tts_speed, 0.8)
+        self.assertTrue(clone.tts_force)
+        self.assertEqual(clone.tts_api_key, "sk-c")
+
+
 if __name__ == "__main__":
     unittest.main()

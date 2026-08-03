@@ -224,6 +224,56 @@ class CourseRepository implements ICourseRepository {
     return _toLesson(row, contentRow?.contentJson);
   }
 
+  /// Full lesson bodies whose content JSON contains any of [needles].
+  ///
+  /// Used by Anki review to resolve <=20 due word ids without loading every
+  /// lesson in a 5k-card deck (see AnkiReviewAssembler.assembleBatchAsync).
+  ///
+  /// [needles] are Anki word ids (`anki-<importId>-c<cardId>`, card-level per
+  /// decision 2). Each needle is anchored with the interaction-id ord
+  /// separator `-c` before LIKE matching: Anki interaction ids are
+  /// `${wordId}-c${ord}`, so `${wordId}-c` is always a substring of a lesson
+  /// body that contains that card. Anchoring prevents prefix collisions
+  /// (`anki-imp-c45` would otherwise also match `anki-imp-c450`). Note: the
+  /// `importId` segment contains `_` (a SQL LIKE wildcard), which can only
+  /// widen a match to a non-existent id, never drop a real one.
+  @override
+  Future<List<Lesson>> lessonsContainingAny(Iterable<String> needles) async {
+    final list = [
+      for (final n in needles)
+        if (n.isNotEmpty) n,
+    ];
+    if (list.isEmpty) return const <Lesson>[];
+
+    // Note: drift.Expression is hidden in this file (collides with the domain
+    // Expression model) - use type inference for the OR-chain of LIKEs.
+    // Each needle is suffixed with `-c` (the ord separator) so a card id that
+    // is a prefix of another (e.g. c45 vs c450) does not load the wrong lesson.
+    final contentQuery = database.select(database.lessonContents)
+      ..where((t) {
+        var expr = t.contentJson.like('%${list.first}-c%');
+        for (var i = 1; i < list.length; i++) {
+          expr = expr | t.contentJson.like('%${list[i]}-c%');
+        }
+        return expr;
+      });
+    final contentRows = await contentQuery.get();
+    if (contentRows.isEmpty) return const <Lesson>[];
+
+    final contentByLessonId = {
+      for (final r in contentRows) r.lessonId: r.contentJson,
+    };
+    final lessonIds = contentByLessonId.keys.toList();
+    final lessonRows = await (database.select(database.lessons)
+          ..where((t) => t.id.isIn(lessonIds)))
+        .get();
+
+    return [
+      for (final lr in lessonRows)
+        _toLesson(lr, contentByLessonId[lr.id]),
+    ];
+  }
+
   @override
   Future<String?> sectionIdForUnit(String unitId) async {
     final row = await (database.select(database.units)
@@ -250,83 +300,121 @@ class CourseRepository implements ICourseRepository {
   /// Bulk-write a full [Section] tree (section + units + lessons + lesson
   /// contents) in one transaction, upserting by id. Mirrors the write pattern
   /// of `AiCourseProvider._writeSectionToDb`; used by the Anki importer.
+  ///
+  /// Uses Drift [batch] so a multi-hundred-lesson Anki section is one
+  /// prepared statement stream instead of thousands of awaited round-trips.
   @override
   Future<void> bulkInsertCourseTree(Section section) async {
-    final sectionRows = await database.select(database.sections).get();
-    final nextOrder = sectionRows.isEmpty
-        ? 0
-        : sectionRows
-                .map((r) => r.sortOrder)
-                .fold<int>(0, (a, b) => a > b ? a : b) +
-            1;
-
+    // Wrap the MAX-read + batch-write in a transaction so a concurrent
+    // reader cannot see a half-built tree (new section row but no units/
+    // lessons yet) and so two imports racing on the same `nextOrder` see a
+    // consistent MAX(sort_order) value. Without the transaction, each
+    // import reads the same pre-write MAX and writes the same nextOrder
+    // — there is no UNIQUE constraint on sort_order, so the L1 tree's
+    // ordering would flicker between launches.
     await database.transaction(() async {
-      await database.into(database.sections).insertOnConflictUpdate(
-            db.SectionsCompanion(
-              id: Value(section.id),
-              name: Value(section.name),
-              description: Value(section.description),
-              level: Value(section.level ?? ''),
-              prerequisiteSectionIds:
-                  Value(jsonEncode(section.prerequisiteSectionIds)),
-              sortOrder: Value(nextOrder),
-            ),
-          );
+      final maxRow = await database
+          .customSelect(
+            'SELECT MAX(sort_order) AS m FROM sections',
+            readsFrom: {database.sections},
+          )
+          .getSingleOrNull();
+      final maxOrder = maxRow?.read<int?>('m');
+      final nextOrder = (maxOrder ?? -1) + 1;
+
+      // Pre-encode JSON off the insert hot path (still main isolate, but once
+      // per lesson rather than interleaved with SQLite awaits).
+      final sectionCompanion = db.SectionsCompanion(
+        id: Value(section.id),
+        name: Value(section.name),
+        description: Value(section.description),
+        level: Value(section.level ?? ''),
+        prerequisiteSectionIds:
+            Value(jsonEncode(section.prerequisiteSectionIds)),
+        sortOrder: Value(nextOrder),
+      );
+
+      final unitCompanions = <db.UnitsCompanion>[];
+      final lessonCompanions = <db.LessonsCompanion>[];
+      final contentCompanions = <db.LessonContentsCompanion>[];
 
       for (var uOrder = 0; uOrder < section.units.length; uOrder++) {
         final u = section.units[uOrder];
-        await database.into(database.units).insertOnConflictUpdate(
-              db.UnitsCompanion(
-                id: Value(u.id),
-                sectionId: Value(section.id),
-                name: Value(u.name),
-                description: Value(u.description),
-                prerequisiteUnitIds:
-                    Value(jsonEncode(u.prerequisiteUnitIds)),
-                sortOrder: Value(uOrder),
-              ),
-            );
+        unitCompanions.add(db.UnitsCompanion(
+          id: Value(u.id),
+          sectionId: Value(section.id),
+          name: Value(u.name),
+          description: Value(u.description),
+          prerequisiteUnitIds: Value(jsonEncode(u.prerequisiteUnitIds)),
+          sortOrder: Value(uOrder),
+        ));
         for (var lOrder = 0; lOrder < u.lessons.length; lOrder++) {
           final l = u.lessons[lOrder];
-          await database.into(database.lessons).insertOnConflictUpdate(
-                db.LessonsCompanion(
-                  id: Value(l.id),
-                  unitId: Value(u.id),
-                  name: Value(l.name),
-                  description: Value(l.description),
-                  type: Value(l.type.name),
-                  template: Value(l.template.name),
-                  prerequisiteLessonIds:
-                      Value(jsonEncode(l.prerequisiteLessonIds)),
-                  sortOrder: Value(lOrder),
-                ),
-              );
-          await database.into(database.lessonContents).insertOnConflictUpdate(
-                db.LessonContentsCompanion(
-                  lessonId: Value(l.id),
-                  contentJson: Value(jsonEncode(l.content.toJson())),
-                ),
-              );
+          lessonCompanions.add(db.LessonsCompanion(
+            id: Value(l.id),
+            unitId: Value(u.id),
+            name: Value(l.name),
+            description: Value(l.description),
+            type: Value(l.type.name),
+            template: Value(l.template.name),
+            prerequisiteLessonIds: Value(jsonEncode(l.prerequisiteLessonIds)),
+            sortOrder: Value(lOrder),
+          ));
+          contentCompanions.add(db.LessonContentsCompanion(
+            lessonId: Value(l.id),
+            contentJson: Value(jsonEncode(l.content.toJson())),
+          ));
         }
       }
+
+      await database.batch((b) {
+        b.insert(
+          database.sections,
+          sectionCompanion,
+          // DoNothing on id collision: a previous import already owns this
+          // section id. Letting DoUpdate clobber the existing section's
+          // name/level would leave the first import's vocab rows (tagged
+          // anki:<firstImportId>) looking orphaned; DoNothing makes the
+          // importer's import-uniqueness check the only authoritative
+          // gate, so callers must catch a same-id collision before
+          // reaching this path.
+          onConflict: DoNothing(),
+        );
+        for (final u in unitCompanions) {
+          b.insert(database.units, u, onConflict: DoUpdate((_) => u));
+        }
+        for (final l in lessonCompanions) {
+          b.insert(database.lessons, l, onConflict: DoUpdate((_) => l));
+        }
+        for (final c in contentCompanions) {
+          b.insert(
+            database.lessonContents,
+            c,
+            onConflict: DoUpdate((_) => c),
+          );
+        }
+      });
     });
   }
 
-  /// Bulk-upsert vocabulary entries in one transaction (Anki importer).
+  /// Bulk-upsert vocabulary entries (Anki importer). Single [batch] write.
   @override
   Future<void> bulkInsertVocabulary(List<WordEntry> words) async {
-    await database.transaction(() async {
-      for (final w in words) {
-        await database.into(database.vocabulary).insertOnConflictUpdate(
-              db.VocabularyCompanion(
-                id: Value(w.id),
-                term: Value(w.term),
-                translation: Value(w.translation),
-                pronunciation: Value(w.pronunciation),
-                audioAsset: Value(w.audioAsset),
-                tags: Value(jsonEncode(w.tags)),
-              ),
-            );
+    if (words.isEmpty) return;
+    final companions = [
+      for (final w in words)
+        db.VocabularyCompanion(
+          id: Value(w.id),
+          term: Value(w.term),
+          translation: Value(w.translation),
+          pronunciation: Value(w.pronunciation),
+          audioAsset: Value(w.audioAsset),
+          tags: Value(jsonEncode(w.tags)),
+        ),
+    ];
+    await database.batch((b) {
+      for (final c in companions) {
+        b.insert(database.vocabulary, c, onConflict: DoUpdate((_) => c));
       }
     });
   }

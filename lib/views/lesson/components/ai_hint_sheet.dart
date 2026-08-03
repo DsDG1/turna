@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:varnamala/application/ai/ai_hint_provider.dart';
 import 'package:varnamala/l10n/app_strings.dart';
+import 'package:varnamala/views/ai/components/ai_sheet_widgets.dart';
 import 'package:varnamala/views/lesson/components/ai_depth_tutor_sheet.dart';
 import 'package:varnamala/views/theme.dart';
 
@@ -86,9 +87,11 @@ class AiHintSheet extends StatelessWidget {
             final reply = context.read<AiHintProvider>().latestReply;
             if (reply == null || reply.isEmpty) return _loading(context);
             return SingleChildScrollView(
-              child: SelectableText(
-                reply,
-                style: Theme.of(context).textTheme.bodyMedium,
+              child: AiSurfaceCard(
+                child: SelectableText(
+                  reply,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
               ),
             );
         }
@@ -97,8 +100,8 @@ class AiHintSheet extends StatelessWidget {
   }
 
   Widget _loading(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(vertical: 32),
+    return AiSurfaceCard(
+      padding: const EdgeInsets.symmetric(vertical: 24),
       child: Center(
         child: CircularProgressIndicator(
           color: VarnamalaTheme.peacockTeal,
@@ -110,12 +113,8 @@ class AiHintSheet extends StatelessWidget {
 
   Widget _error(BuildContext context) {
     final error = context.read<AiHintProvider>().error;
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: VarnamalaTheme.error.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
-      ),
+    return AiSurfaceCard(
+      accent: VarnamalaTheme.error,
       child: Text(
         error != null
             ? AppStrings.aiHintError(error)
@@ -130,6 +129,7 @@ class AiHintSheet extends StatelessWidget {
       children: [
         Expanded(
           child: OutlinedButton.icon(
+            style: aiSheetSecondaryButtonStyle(),
             onPressed: () => showModalBottomSheet<void>(
               context: context,
               isScrollControlled: true,
@@ -148,6 +148,7 @@ class AiHintSheet extends StatelessWidget {
         const SizedBox(width: 8),
         Expanded(
           child: FilledButton.icon(
+            style: aiSheetPrimaryButtonStyle(),
             onPressed: () {
               Navigator.of(context).maybePop();
               onEnterChat();

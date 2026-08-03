@@ -148,13 +148,13 @@ class AppStrings {
   static String settingsImportFailed(Object error) => '导入失败：$error';
   static String settingsExportFailed(Object error) => '导出失败：$error';
   static String get settingsAiApiConfigSheetTitle => 'AI API 配置';
-  static String get settingsAiApiConfigNotSaved => '退出时不保存——仅保留在内存中。';
+  static String get settingsAiApiConfigNotSaved => '密钥保存在本设备，重启后仍保留。';
   static String get settingsBaseUrlLabel => 'Base URL';
   static String get settingsBaseUrlHint => 'https://api.deepseek.com';
   static String get settingsApiKeyLabel => 'API 密钥';
   static String get settingsApiKeyHint => 'sk-...';
   static String get settingsModelLabel => '模型';
-  static String get settingsModelHint => 'deepseek-v4-pro';
+  static String get settingsModelHint => 'deepseek-v4-flash';
   static String get settingsSaveConfig => '保存配置';
   static String get settingsExportSheetTitle => '导出数据';
   static String get settingsExportSubtitle => '选择导出文件中包含的内容。';
@@ -326,6 +326,17 @@ class AppStrings {
       '以下为 Varnamala Plus 主要版本与功能里程碑，条目为简要摘要，便于快速了解近期改动。';
   static String get changelogFooterNote =>
       '更详细的工程说明见仓库 docs/decisions/ 与 README。';
+  static String get changelogCopyTooltip => '复制当前页内容';
+  static String get changelogCopied => '已复制到剪贴板';
+  static String get changeloadFallback => '无法读取 assets/changelog.md，已切换到内置版本';
+
+  // ── About tabs ──
+  static String get aboutTabAbout => '关于';
+  static String get aboutTabChangelog => '更新日志';
+  static String get aboutTabQuickStart => '使用指南';
+
+  // ── Quick Start ──
+  static String get quickStartLoadFallback => '无法读取 assets/quick_start.md';
 
   // ── Home ──
   static String get homeAiCourseDesigner => 'AI 课程设计器';
@@ -352,6 +363,13 @@ class AppStrings {
   static String get courseManagementDefaultBadge => '默认';
   static String get courseManagementBuiltinSubtitle => '默认课程，不可删除';
   static String get courseManagementAddTitle => '添加课程';
+
+  // Per-course smart-TTS settings (course management page).
+  static String get courseTtsSettingsTitle => '朗读设置';
+  static String get courseTtsAutoReadTitle => '点击自动朗读';
+  static String get courseTtsAutoReadSubtitle => '点击选项或翻开卡片时自动朗读';
+  static String get courseTtsNativeLangTitle => '翻译/母语语言';
+  static String get courseTtsNativeLangSubtitle => '纯拉丁字母文本的朗读语音（如英语译文）';
 
   // ── Play ──
   static String get playQuickPlayTitle => '快速练习';
@@ -425,6 +443,10 @@ class AppStrings {
   static String get reviewDoYouKnow => '你认识这个单词吗？';
   static String get reviewDontKnow => '不认识';
   static String get reviewKnowIt => '认识';
+  static String get reviewAgain => '重来';
+  static String get reviewHard => '困难';
+  static String get reviewGood => '良好';
+  static String get reviewEasy => '简单';
   static String get reviewEmptyTitle => '复习';
   static String get reviewEmptyMessage => '你已经全部复习完了。';
   static String get reviewDueMessage => '个单词已到期——下拉刷新';
@@ -497,9 +519,13 @@ class AppStrings {
   // ── Lesson Details ──
   static String get lessonFlipCardCaption => '翻牌';
   static String get lessonShowAnswer => '显示答案';
-  static String get lessonTapToReveal => '点击下方显示答案';
+  static String get lessonTapToReveal => '点击卡片查看答案';
+  static String get lessonTapToReturnFront => '点击卡片返回正面';
   static String get lessonHowWellDidYouKnow => '你对这个有多熟悉？';
   static String get lessonPlayAudioLabel => '播放音频';
+  static String get lessonAudioMissing => '音频文件缺失';
+  static String get lessonAudioPlaybackFailed => '音频播放失败';
+  static String get lessonSpeakLabel => '朗读';
   static String get lessonFillBlankCaption => '填空';
   static String get lessonFillBlankHint => '___';
   static String get lessonCorrectAnswer => '正确答案';
@@ -508,8 +534,10 @@ class AppStrings {
   static String get lessonListenToSummary => '收听概要';
   static String get lessonTapToReplay => '点击喇叭重播';
   static String get lessonTapToListen => '点击喇叭收听';
-  static String get lessonMultipleChoiceCaption => '多项选择';
-  static String get lessonSelectAllCaption => '选择所有适用项';
+
+  /// Single-answer MCQ caption (was misleadingly "多项选择").
+  static String get lessonMultipleChoiceCaption => '单选题';
+  static String get lessonSelectAllCaption => '多选题（请选择所有正确项）';
   static String lessonSelectAtLeast(int min, int count) =>
       '至少选择 $min 项（已选 $count 项）';
   static String lessonSelectExact(int min, int count) =>
@@ -757,6 +785,14 @@ class AppStrings {
   static String get aiConfigGroupModels => '密钥与模型';
   static String get aiConfigGroupAdvanced => '高级';
 
+  // ── AI config page (standalone) ──
+  static String get aiConfigStatusConfigured => '已配置';
+  static String get aiConfigStatusNotConfigured => '未配置';
+  static String get aiConfigStatusHintIncomplete => '填写下方服务商与密钥即可启用 AI 功能';
+  static String get aiConfigProviderSectionHint => '选择你的 AI 服务商';
+  static String get aiConfigTestDisabledHint => '请先完成配置';
+  static String get aiConfigCustomProviderLabel => '自定义';
+
   // ── Anki ──
   static String get ankiImportTitle => '导入 Anki 牌组';
   static String get ankiImportDialogTitle => '导入 Anki 牌组';
@@ -770,9 +806,46 @@ class AppStrings {
   static String get ankiNotesLabel => '笔记';
   static String get ankiCardsLabel => '卡片';
   static String get ankiMediaFilesLabel => '媒体文件';
+  static String ankiImportSourceCards(int count) => '源卡片：$count';
+  static String ankiImportStructuredCards(int count) => '结构化卡片：$count';
+  static String ankiImportFidelityCards(int count) => 'HTML 保真卡片：$count';
+  static String ankiImportUnknownTemplates(int count) => '未识别模板：$count';
+  static String ankiImportSuspended(int count) => '暂停卡：$count';
+  static String ankiImportBuried(int count) => '埋藏卡：$count';
+  static String ankiImportMissingMedia(int count) => '缺失媒体：$count';
+  static String get ankiImportSchedulingMigrated => '已包含调度信息';
+  static String get ankiImportHistoryMigrated => '已包含复习历史';
   static String get ankiDeckStructure => '牌组结构';
   static String ankiDeckCardCount(int cardCount) => '$cardCount 张卡片';
-  static String get ankiNotetypeMapping => '笔记类型映射';
+  static String get ankiNotetypeMapping => '自动识别结果';
+  static String get ankiMappingOverrideHint =>
+      '点按可修改识别结果；同一笔记类型中的单选和多选会按每张卡的题面与答案分别判断。';
+  static String get ankiAiIdentify => 'AI 智能识别';
+  static String get ankiAiIdentifying => 'AI 识别中…';
+  static String get ankiAiNotConfiguredMessage =>
+      '未配置 AI，无法智能识别。请先在「设置 > AI 工具」中配置 AI API。';
+  static String get ankiNotetypePreview => '样例卡预览';
+  static String get ankiNotetypeFields => '字段';
+  static String get ankiNotetypeSampleFront => '正面';
+  static String get ankiNotetypeSampleBack => '背面';
+  static String get ankiMappingTypeAnkiCard => '翻面卡';
+  static String get ankiMappingTypeWordEntry => '词汇（可出单选）';
+  static String get ankiMappingTypeExpression => '表达/句子';
+  static String get ankiMappingTypeCloze => 'Cloze 填空';
+  static String get ankiMappingTypeMultipleChoice => '单选题';
+  static String get ankiMappingTypeMultiSelect => '多选题';
+  static String get ankiMappingTypeAutoChoice => '选择题（逐卡自动识别单选/多选）';
+  static String get ankiMappingTypeFillBlank => '填空题';
+  static String get ankiMappingTypeTypeAnswer => '打字题';
+  static String get ankiMappingTypeListenPick => '听力选择';
+  static String get ankiMappingEditTitle => '编辑识别结果';
+  static String get ankiMappingEditTooltip => '编辑识别结果';
+  static String get ankiMappingFieldType => '卡片类型';
+  static String get ankiMappingFieldFront => '正面字段';
+  static String get ankiMappingFieldBack => '背面字段';
+  static String get ankiMappingFieldsAutoHint => '该类型字段由系统逐卡自动识别，无需手动选择。';
+  static String get ankiMappingResetAuto => '恢复自动识别';
+  static String get ankiMappingReason => '识别依据';
   static String get ankiOrganizationTitle => '组织结构';
   static String get ankiDetectedUnits => '识别到的单元';
   static String get ankiDetectedLessons => '识别到的课时';
@@ -785,6 +858,18 @@ class AppStrings {
   static String get ankiNewCards => '新卡片';
   static String get ankiExistingCards => '已存在';
   static String get ankiImportStrategy => '导入策略';
+  static String get ankiImportLearningProgress => '导入 Anki 学习进度';
+  static String get ankiImportLearningProgressOnDesc =>
+      '保留原卡片的到期时间、间隔、次数、暂停状态和复习历史。';
+  static String get ankiImportLearningProgressOffDesc =>
+      '按新卡导入，不读取原排程与复习历史（推荐）。';
+  static String ankiImportCountsVerified(
+    int source,
+    int stored,
+    int indexed,
+  ) =>
+      '数量已核对：源卡 $source · 已存储 $stored · 已索引 $indexed';
+  static String get ankiImportSchedulingReset => '学习进度：按新卡重置';
   static String get ankiImportComplete => '导入完成！';
   static String get ankiStartLearning => '立即学习';
   static String ankiCardsImported(int cardCount) => '已导入 $cardCount 张卡片';
@@ -797,6 +882,7 @@ class AppStrings {
   static String get ankiPreparingImport => '正在准备导入…';
   static String get ankiAssemblingCourse => '正在构建课程树…';
   static String get ankiMigratingSrs => '正在迁移 SRS 状态…';
+  static String get ankiCopyingMedia => '正在复制媒体文件…';
   static String get ankiSavingMetadata => '正在保存导入元数据…';
   static String ankiImportFailed(Object error) => '导入失败：$error';
   // Fallback file-import flows used when the system FilePicker is unavailable
@@ -821,6 +907,10 @@ class AppStrings {
   static String get ankiStrategyAppendAsNewDesc => '全部作为新卡片添加（加后缀）';
   static String get ankiReviewTitle => 'Anki 复习';
   static String get ankiNoCardsDue => '暂无待复习的 Anki 卡片。';
+  static String get ankiReviewPreparing => '正在准备本批卡片…';
+  static String get ankiReviewLoadFailed => '加载复习卡片失败';
+  static String ankiReviewLoadFailedDetail(Object error) => '加载失败：$error';
+  static String get ankiReviewRetry => '重试';
   static String get ankiReviewScreenTitle => 'Anki 复习';
   static String get ankiImportNewDeck => '导入新牌组';
   static String ankiCardsDueReview(int totalDue) => '$totalDue 张卡片待复习';

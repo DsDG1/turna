@@ -76,16 +76,15 @@ class WeakWordQuizAssembler {
       // the most recent mistake snapshot's interaction (AnkiCard front/back).
       if (e.key.startsWith('anki-')) {
         final snap = e.value.snapshot?.interactionSnapshot;
-        String? term;
-        String? translation;
-        if (snap is AnkiCard) {
-          term = snap.front;
-          translation = snap.back;
-        }
+        // Only AnkiCard (text flip) snapshots carry a term/translation the
+        // weak-word quiz can render. Fidelity (ankiHtmlCard) and MCQ snapshots
+        // have no gradable term for the quiz - skip them (deep-adaptation plan
+        // §6.3: weak-word review is for vocab flip cards only).
+        if (snap is! AnkiCard) continue;
         result.add(WeakWord(
           wordId: e.key,
-          displayText: term ?? e.key,
-          translation: translation,
+          displayText: snap.front,
+          translation: snap.back,
           mistakeCount: e.value.count,
           lastMistakeAt: e.value.last,
         ));

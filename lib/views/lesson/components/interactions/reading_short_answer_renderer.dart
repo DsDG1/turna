@@ -72,8 +72,7 @@ class _ReadingShortAnswerBodyState extends State<_ReadingShortAnswerBody> {
   }
 
   bool _matches(String input) =>
-      input.trim().toLowerCase() ==
-      widget.expectedAnswer.trim().toLowerCase();
+      input.trim().toLowerCase() == widget.expectedAnswer.trim().toLowerCase();
 
   void _trySubmit() {
     final text = _controller.text;

@@ -97,6 +97,8 @@ class SrsStateDao {
       reps: Value(w.reps),
       lapses: Value(w.lapses),
       isLeech: Value(w.isLeech),
+      isSuspended: Value(w.isSuspended),
+      isBuried: Value(w.isBuried),
       type: Value(w.type.name),
       lastReviewedAt: Value(w.lastReviewedAt?.millisecondsSinceEpoch),
       stability: Value(w.stability),
@@ -115,6 +117,8 @@ class SrsStateDao {
       reps: row.reps,
       lapses: row.lapses,
       isLeech: row.isLeech,
+      isSuspended: row.isSuspended,
+      isBuried: row.isBuried,
       type: _parseType(row.type),
       lastReviewedAt: row.lastReviewedAt == null
           ? null

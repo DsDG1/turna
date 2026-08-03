@@ -78,15 +78,34 @@ void main() {
       expect(out, 'Paris is the capital of {{c1::France}}');
     });
 
-    test('hint filter is dropped, unknown filter degrades to field value', () {
+    test('hint filter is dropped and type answer stays hidden on the front',
+        () {
       expect(
         AnkiTemplateRenderer.render('{{hint:Back}}', {'Back': 'secret'}),
         '',
       );
       expect(
         AnkiTemplateRenderer.render('{{type:Back}}', {'Back': 'secret'}),
-        'secret',
+        contains('_____'),
       );
+      final answer = AnkiTemplateRenderer.render(
+        '{{type:Back}}',
+        {'Back': 'secret'},
+        revealTypeAnswers: true,
+      );
+      expect(answer, contains('data-anki-type-expected="secret"'));
+      expect(answer, contains('secret'));
+      expect(AnkiTemplateRenderer.extractTypeAnswer(answer), 'secret');
+    });
+
+    test('converts Anki sound markers to audio elements', () {
+      final out = AnkiTemplateRenderer.render(
+        '{{Front}}',
+        {'Front': 'Listen [sound: hello.mp3]'},
+      );
+      expect(out, contains('<audio controls'));
+      expect(out, contains('src="hello.mp3"'));
+      expect(out, isNot(contains('[sound:')));
     });
 
     test('special fields render empty', () {
@@ -95,6 +114,18 @@ void main() {
         {'Front': 'x'},
       );
       expect(out, '|||x');
+    });
+
+    test('special fields and text filter use Anki context', () {
+      final out = AnkiTemplateRenderer.render(
+        '{{Tags}}|{{Deck}}|{{Subdeck}}|{{Card}}|{{text:Front}}',
+        {'Front': '<b>hello</b><br>world'},
+        tags: 'chapter::one important',
+        deck: 'Spanish::A1',
+        subdeck: 'A1',
+        cardName: 'Card 2',
+      );
+      expect(out, 'chapter::one important|Spanish::A1|A1|Card 2|hello\nworld');
     });
 
     test('unknown field renders empty, unknown placeholder preserved', () {

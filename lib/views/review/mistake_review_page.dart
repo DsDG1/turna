@@ -174,8 +174,7 @@ class _MistakeReviewPageState extends State<MistakeReviewPage> {
                   return const Center(child: CircularProgressIndicator());
                 }
                 final renderer = lookupRenderer(_renderers, interaction);
-                final showCheck =
-                    selected.$4 && !renderer.autoAdvance;
+                final showCheck = selected.$4 && !renderer.autoAdvance;
                 return Column(
                   children: [
                     if (selected.$3 != null)
@@ -184,13 +183,36 @@ class _MistakeReviewPageState extends State<MistakeReviewPage> {
                         accent: VarnamalaTheme.error,
                       ),
                     Expanded(
-                      child: renderer.build(
-                        interaction,
-                        selected.$2,
-                        (correct, {userAnswerText}) {
-                          vm.submitInteraction(correct,
-                              userAnswerText: userAnswerText);
-                        },
+                      child: RepaintBoundary(
+                        // Mirror `new_lesson_screen.dart`: the renderer body is
+                        // a `Column` that can exceed the viewport on long
+                        // prompts / many options (e.g. ethics reading MCQ
+                        // with a multi-paragraph prompt and 4 options →
+                        // BOTTOM OVERFLOWED by 60–160 px). Wrap it in a
+                        // scroll view so the content is reachable instead of
+                        // being clipped by the red overflow stripe.
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.only(top: 8, bottom: 16),
+                          // Key by the interaction's stable id so a new
+                          // interaction creates a fresh State — no stale
+                          // selection/answer carry-over between two
+                          // consecutive interactions that share a renderer
+                          // type.
+                          child: KeyedSubtree(
+                            key: ValueKey(vm.currentInteractionId),
+                            child: renderer.build(
+                              interaction,
+                              selected.$2,
+                              (correct, {userAnswerText, reviewQuality}) {
+                                vm.submitInteraction(
+                                  correct,
+                                  userAnswerText: userAnswerText,
+                                  reviewQuality: reviewQuality,
+                                );
+                              },
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                     if (showCheck)
@@ -198,7 +220,9 @@ class _MistakeReviewPageState extends State<MistakeReviewPage> {
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
                           child: LessonCheckButton(
-                            label: selected.$5 ? AppStrings.commonContinue : AppStrings.commonGotIt,
+                            label: selected.$5
+                                ? AppStrings.commonContinue
+                                : AppStrings.commonGotIt,
                             enabled: true,
                             onPressed: () => vm.advance(),
                           ),
@@ -250,8 +274,7 @@ class _MistakeReviewPageState extends State<MistakeReviewPage> {
                 selector: (context, vm) => vm.progress,
                 builder: (context, progress, _) => LinearProgressIndicator(
                   value: progress,
-                  backgroundColor:
-                      VarnamalaTheme.error.withValues(alpha: 0.1),
+                  backgroundColor: VarnamalaTheme.error.withValues(alpha: 0.1),
                   valueColor:
                       const AlwaysStoppedAnimation<Color>(VarnamalaTheme.error),
                 ),

@@ -46,12 +46,12 @@ class NewLessonPage extends StatefulWidget {
 
 class _NewLessonPageState extends State<NewLessonPage> {
   late final LessonViewModel _vm;
-  final Set<InteractionRenderer> _renderers =
-      getIt<Set<InteractionRenderer>>();
+  final Set<InteractionRenderer> _renderers = getIt<Set<InteractionRenderer>>();
   final Random _random = Random();
   bool _autoAdvanceScheduled = false;
   bool _autoSubmitScheduled = false;
   bool _dialogShown = false;
+
   /// Once the completion dialog has been shown for this lesson pass, never
   /// re-show it on a subsequent VM notify (the VM stays `isComplete` until a
   /// retry/reset, so any stray notify after dismissal would otherwise pop the
@@ -119,9 +119,8 @@ class _NewLessonPageState extends State<NewLessonPage> {
           backgroundColor: VarnamalaTheme.scaffoldBg(context),
           appBar: _LessonAppBar(
             vm: _vm,
-            onClose: () => _vm.isComplete
-                ? null
-                : Navigator.of(context).maybePop(),
+            onClose: () =>
+                _vm.isComplete ? null : Navigator.of(context).maybePop(),
             onAiHint: () => _openAiHint(context, _vm),
             onAiHelper: () => _openAiHelper(context, _vm),
           ),
@@ -134,8 +133,12 @@ class _NewLessonPageState extends State<NewLessonPage> {
               setState(() => _loadFailed = false);
               _openLesson();
             },
-            onSubmit: (correct, {userAnswerText}) {
-              _vm.submitInteraction(correct, userAnswerText: userAnswerText);
+            onSubmit: (correct, {userAnswerText, reviewQuality}) {
+              _vm.submitInteraction(
+                correct,
+                userAnswerText: userAnswerText,
+                reviewQuality: reviewQuality,
+              );
             },
             onAdvance: () => _vm.advance(),
           ),
@@ -405,8 +408,15 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Selector<LessonViewModel,
-        ({String name, String? stage, bool complete, double progress, bool aiEligible})>(
+    return Selector<
+        LessonViewModel,
+        ({
+          String name,
+          String? stage,
+          bool complete,
+          double progress,
+          bool aiEligible
+        })>(
       selector: (context, vm) => (
         name: vm.lesson?.name ?? AppStrings.lessonLessonFallback,
         stage: vm.currentStageName,
@@ -450,8 +460,7 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
             if (context.select<FunProvider, bool>((p) => p.autoAnswer)) ...[
               const SizedBox(height: 2),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: VarnamalaTheme.error.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
@@ -598,8 +607,7 @@ class _LessonBody extends StatelessWidget {
         final renderer = lookupRenderer(renderers, interaction);
         final readingPassage = lesson.content.readingPassage;
         final legacyPassage = lesson.content.passage;
-        final showCheck =
-            interactionState.submitted && !renderer.autoAdvance;
+        final showCheck = interactionState.submitted && !renderer.autoAdvance;
 
         return Column(
           children: [
@@ -638,8 +646,9 @@ class _LessonBody extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
                   child: LessonCheckButton(
-                    label:
-                        interactionState.correct == true ? AppStrings.lessonContinueUpper : AppStrings.lessonGotItUpper,
+                    label: interactionState.correct == true
+                        ? AppStrings.lessonContinueUpper
+                        : AppStrings.lessonGotItUpper,
                     enabled: true,
                     onPressed: onAdvance,
                   ),

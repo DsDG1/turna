@@ -5,7 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
+import 'package:varnamala/application/audio_controller.dart';
+import 'package:varnamala/application/smart_speech.dart';
+import 'package:varnamala/core/language_detector.dart';
 import 'package:varnamala/core/text_styles.dart';
+import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/domain/audio/anki_audio_resolver.dart';
 import 'package:varnamala/domain/course/interaction.dart';
 import 'package:varnamala/l10n/app_strings.dart';
@@ -91,6 +95,25 @@ class _MultipleChoiceBodyState extends State<_MultipleChoiceBody> {
     }
   }
 
+  /// Auto-read the tapped option aloud when the course's auto-read toggle is
+  /// on. The option's language is inferred from the prompt (translation drills
+  /// put options in the opposite language of the prompt), with a reliable
+  /// per-option override for non-Latin / Turkish-letter text.
+  void _maybeSpeakOption(int idx) {
+    if (!autoReadOnTapForActiveCourse()) return;
+    final langs = currentSpeechLanguages();
+    const detector = LanguageDetector();
+    final optionLang = detector.inferOptionLanguage(widget.prompt,
+        targetLanguage: langs.target, nativeLanguage: langs.native);
+    final lang = detector.detectOption(
+      widget.options[idx],
+      optionLanguage: optionLang,
+      targetLanguage: langs.target,
+      nativeLanguage: langs.native,
+    );
+    getIt<AudioController>().speak(widget.options[idx], languageCode: lang);
+  }
+
   @override
   Widget build(BuildContext context) {
     final submitted = widget.state.submitted;
@@ -130,7 +153,8 @@ class _MultipleChoiceBodyState extends State<_MultipleChoiceBody> {
           ..._buildOptions(submitted, correct),
           const SizedBox(height: 20),
           LessonCheckButton(
-            label: submitted ? AppStrings.lessonChecked : AppStrings.lessonCheck,
+            label:
+                submitted ? AppStrings.lessonChecked : AppStrings.lessonCheck,
             enabled: canSubmit,
             onPressed: canSubmit
                 ? () => widget.onSubmit(_picked == widget.correctIndex,
@@ -149,11 +173,13 @@ class _MultipleChoiceBodyState extends State<_MultipleChoiceBody> {
         label: widget.options[idx],
         isSelected: _picked == idx,
         isCorrect: submitted && idx == widget.correctIndex,
-        isWrong:
-            submitted && correct == false && _picked == idx,
+        isWrong: submitted && correct == false && _picked == idx,
         onTap: submitted
             ? null
-            : () => setState(() => _picked = idx),
+            : () {
+                setState(() => _picked = idx);
+                _maybeSpeakOption(idx);
+              },
       ));
       if (idx < widget.options.length - 1) {
         widgets.add(const SizedBox(height: 10));

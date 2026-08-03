@@ -3189,6 +3189,1569 @@ class AnkiImportsCompanion extends UpdateCompanion<AnkiImport> {
   }
 }
 
+class $AnkiNotetypesTable extends AnkiNotetypes
+    with TableInfo<$AnkiNotetypesTable, AnkiNotetypeRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AnkiNotetypesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _importIdMeta =
+      const VerificationMeta('importId');
+  @override
+  late final GeneratedColumn<String> importId = GeneratedColumn<String>(
+      'import_id', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: true,
+      $customConstraints:
+          'NOT NULL REFERENCES anki_imports(import_id) ON DELETE CASCADE');
+  static const VerificationMeta _midMeta = const VerificationMeta('mid');
+  @override
+  late final GeneratedColumn<int> mid = GeneratedColumn<int>(
+      'mid', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+      'name', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _isClozeMeta =
+      const VerificationMeta('isCloze');
+  @override
+  late final GeneratedColumn<bool> isCloze = GeneratedColumn<bool>(
+      'is_cloze', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_cloze" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _fieldNamesJsonMeta =
+      const VerificationMeta('fieldNamesJson');
+  @override
+  late final GeneratedColumn<String> fieldNamesJson = GeneratedColumn<String>(
+      'field_names_json', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('[]'));
+  static const VerificationMeta _templatesJsonMeta =
+      const VerificationMeta('templatesJson');
+  @override
+  late final GeneratedColumn<String> templatesJson = GeneratedColumn<String>(
+      'templates_json', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('[]'));
+  static const VerificationMeta _cssMeta = const VerificationMeta('css');
+  @override
+  late final GeneratedColumn<String> css = GeneratedColumn<String>(
+      'css', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _allowJsMeta =
+      const VerificationMeta('allowJs');
+  @override
+  late final GeneratedColumn<bool> allowJs = GeneratedColumn<bool>(
+      'allow_js', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("allow_js" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  @override
+  List<GeneratedColumn> get $columns => [
+        importId,
+        mid,
+        name,
+        isCloze,
+        fieldNamesJson,
+        templatesJson,
+        css,
+        allowJs
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'anki_notetypes';
+  @override
+  VerificationContext validateIntegrity(Insertable<AnkiNotetypeRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('import_id')) {
+      context.handle(_importIdMeta,
+          importId.isAcceptableOrUnknown(data['import_id']!, _importIdMeta));
+    } else if (isInserting) {
+      context.missing(_importIdMeta);
+    }
+    if (data.containsKey('mid')) {
+      context.handle(
+          _midMeta, mid.isAcceptableOrUnknown(data['mid']!, _midMeta));
+    } else if (isInserting) {
+      context.missing(_midMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    }
+    if (data.containsKey('is_cloze')) {
+      context.handle(_isClozeMeta,
+          isCloze.isAcceptableOrUnknown(data['is_cloze']!, _isClozeMeta));
+    }
+    if (data.containsKey('field_names_json')) {
+      context.handle(
+          _fieldNamesJsonMeta,
+          fieldNamesJson.isAcceptableOrUnknown(
+              data['field_names_json']!, _fieldNamesJsonMeta));
+    }
+    if (data.containsKey('templates_json')) {
+      context.handle(
+          _templatesJsonMeta,
+          templatesJson.isAcceptableOrUnknown(
+              data['templates_json']!, _templatesJsonMeta));
+    }
+    if (data.containsKey('css')) {
+      context.handle(
+          _cssMeta, css.isAcceptableOrUnknown(data['css']!, _cssMeta));
+    }
+    if (data.containsKey('allow_js')) {
+      context.handle(_allowJsMeta,
+          allowJs.isAcceptableOrUnknown(data['allow_js']!, _allowJsMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {importId, mid};
+  @override
+  AnkiNotetypeRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AnkiNotetypeRow(
+      importId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}import_id'])!,
+      mid: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}mid'])!,
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      isCloze: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_cloze'])!,
+      fieldNamesJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}field_names_json'])!,
+      templatesJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}templates_json'])!,
+      css: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}css'])!,
+      allowJs: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}allow_js'])!,
+    );
+  }
+
+  @override
+  $AnkiNotetypesTable createAlias(String alias) {
+    return $AnkiNotetypesTable(attachedDatabase, alias);
+  }
+}
+
+class AnkiNotetypeRow extends DataClass implements Insertable<AnkiNotetypeRow> {
+  final String importId;
+  final int mid;
+  final String name;
+  final bool isCloze;
+  final String fieldNamesJson;
+  final String templatesJson;
+  final String css;
+
+  /// Whether this notetype's qfmt/afmt contains `<script>` / `on*=` handlers,
+  /// enabling JS in the fidelity WebView (decision 3: default off + container
+  /// isolation via navigationDelegate + restricted file access).
+  final bool allowJs;
+  const AnkiNotetypeRow(
+      {required this.importId,
+      required this.mid,
+      required this.name,
+      required this.isCloze,
+      required this.fieldNamesJson,
+      required this.templatesJson,
+      required this.css,
+      required this.allowJs});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['import_id'] = Variable<String>(importId);
+    map['mid'] = Variable<int>(mid);
+    map['name'] = Variable<String>(name);
+    map['is_cloze'] = Variable<bool>(isCloze);
+    map['field_names_json'] = Variable<String>(fieldNamesJson);
+    map['templates_json'] = Variable<String>(templatesJson);
+    map['css'] = Variable<String>(css);
+    map['allow_js'] = Variable<bool>(allowJs);
+    return map;
+  }
+
+  AnkiNotetypesCompanion toCompanion(bool nullToAbsent) {
+    return AnkiNotetypesCompanion(
+      importId: Value(importId),
+      mid: Value(mid),
+      name: Value(name),
+      isCloze: Value(isCloze),
+      fieldNamesJson: Value(fieldNamesJson),
+      templatesJson: Value(templatesJson),
+      css: Value(css),
+      allowJs: Value(allowJs),
+    );
+  }
+
+  factory AnkiNotetypeRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AnkiNotetypeRow(
+      importId: serializer.fromJson<String>(json['importId']),
+      mid: serializer.fromJson<int>(json['mid']),
+      name: serializer.fromJson<String>(json['name']),
+      isCloze: serializer.fromJson<bool>(json['isCloze']),
+      fieldNamesJson: serializer.fromJson<String>(json['fieldNamesJson']),
+      templatesJson: serializer.fromJson<String>(json['templatesJson']),
+      css: serializer.fromJson<String>(json['css']),
+      allowJs: serializer.fromJson<bool>(json['allowJs']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'importId': serializer.toJson<String>(importId),
+      'mid': serializer.toJson<int>(mid),
+      'name': serializer.toJson<String>(name),
+      'isCloze': serializer.toJson<bool>(isCloze),
+      'fieldNamesJson': serializer.toJson<String>(fieldNamesJson),
+      'templatesJson': serializer.toJson<String>(templatesJson),
+      'css': serializer.toJson<String>(css),
+      'allowJs': serializer.toJson<bool>(allowJs),
+    };
+  }
+
+  AnkiNotetypeRow copyWith(
+          {String? importId,
+          int? mid,
+          String? name,
+          bool? isCloze,
+          String? fieldNamesJson,
+          String? templatesJson,
+          String? css,
+          bool? allowJs}) =>
+      AnkiNotetypeRow(
+        importId: importId ?? this.importId,
+        mid: mid ?? this.mid,
+        name: name ?? this.name,
+        isCloze: isCloze ?? this.isCloze,
+        fieldNamesJson: fieldNamesJson ?? this.fieldNamesJson,
+        templatesJson: templatesJson ?? this.templatesJson,
+        css: css ?? this.css,
+        allowJs: allowJs ?? this.allowJs,
+      );
+  AnkiNotetypeRow copyWithCompanion(AnkiNotetypesCompanion data) {
+    return AnkiNotetypeRow(
+      importId: data.importId.present ? data.importId.value : this.importId,
+      mid: data.mid.present ? data.mid.value : this.mid,
+      name: data.name.present ? data.name.value : this.name,
+      isCloze: data.isCloze.present ? data.isCloze.value : this.isCloze,
+      fieldNamesJson: data.fieldNamesJson.present
+          ? data.fieldNamesJson.value
+          : this.fieldNamesJson,
+      templatesJson: data.templatesJson.present
+          ? data.templatesJson.value
+          : this.templatesJson,
+      css: data.css.present ? data.css.value : this.css,
+      allowJs: data.allowJs.present ? data.allowJs.value : this.allowJs,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AnkiNotetypeRow(')
+          ..write('importId: $importId, ')
+          ..write('mid: $mid, ')
+          ..write('name: $name, ')
+          ..write('isCloze: $isCloze, ')
+          ..write('fieldNamesJson: $fieldNamesJson, ')
+          ..write('templatesJson: $templatesJson, ')
+          ..write('css: $css, ')
+          ..write('allowJs: $allowJs')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(importId, mid, name, isCloze, fieldNamesJson,
+      templatesJson, css, allowJs);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AnkiNotetypeRow &&
+          other.importId == this.importId &&
+          other.mid == this.mid &&
+          other.name == this.name &&
+          other.isCloze == this.isCloze &&
+          other.fieldNamesJson == this.fieldNamesJson &&
+          other.templatesJson == this.templatesJson &&
+          other.css == this.css &&
+          other.allowJs == this.allowJs);
+}
+
+class AnkiNotetypesCompanion extends UpdateCompanion<AnkiNotetypeRow> {
+  final Value<String> importId;
+  final Value<int> mid;
+  final Value<String> name;
+  final Value<bool> isCloze;
+  final Value<String> fieldNamesJson;
+  final Value<String> templatesJson;
+  final Value<String> css;
+  final Value<bool> allowJs;
+  final Value<int> rowid;
+  const AnkiNotetypesCompanion({
+    this.importId = const Value.absent(),
+    this.mid = const Value.absent(),
+    this.name = const Value.absent(),
+    this.isCloze = const Value.absent(),
+    this.fieldNamesJson = const Value.absent(),
+    this.templatesJson = const Value.absent(),
+    this.css = const Value.absent(),
+    this.allowJs = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AnkiNotetypesCompanion.insert({
+    required String importId,
+    required int mid,
+    this.name = const Value.absent(),
+    this.isCloze = const Value.absent(),
+    this.fieldNamesJson = const Value.absent(),
+    this.templatesJson = const Value.absent(),
+    this.css = const Value.absent(),
+    this.allowJs = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : importId = Value(importId),
+        mid = Value(mid);
+  static Insertable<AnkiNotetypeRow> custom({
+    Expression<String>? importId,
+    Expression<int>? mid,
+    Expression<String>? name,
+    Expression<bool>? isCloze,
+    Expression<String>? fieldNamesJson,
+    Expression<String>? templatesJson,
+    Expression<String>? css,
+    Expression<bool>? allowJs,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (importId != null) 'import_id': importId,
+      if (mid != null) 'mid': mid,
+      if (name != null) 'name': name,
+      if (isCloze != null) 'is_cloze': isCloze,
+      if (fieldNamesJson != null) 'field_names_json': fieldNamesJson,
+      if (templatesJson != null) 'templates_json': templatesJson,
+      if (css != null) 'css': css,
+      if (allowJs != null) 'allow_js': allowJs,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AnkiNotetypesCompanion copyWith(
+      {Value<String>? importId,
+      Value<int>? mid,
+      Value<String>? name,
+      Value<bool>? isCloze,
+      Value<String>? fieldNamesJson,
+      Value<String>? templatesJson,
+      Value<String>? css,
+      Value<bool>? allowJs,
+      Value<int>? rowid}) {
+    return AnkiNotetypesCompanion(
+      importId: importId ?? this.importId,
+      mid: mid ?? this.mid,
+      name: name ?? this.name,
+      isCloze: isCloze ?? this.isCloze,
+      fieldNamesJson: fieldNamesJson ?? this.fieldNamesJson,
+      templatesJson: templatesJson ?? this.templatesJson,
+      css: css ?? this.css,
+      allowJs: allowJs ?? this.allowJs,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (importId.present) {
+      map['import_id'] = Variable<String>(importId.value);
+    }
+    if (mid.present) {
+      map['mid'] = Variable<int>(mid.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (isCloze.present) {
+      map['is_cloze'] = Variable<bool>(isCloze.value);
+    }
+    if (fieldNamesJson.present) {
+      map['field_names_json'] = Variable<String>(fieldNamesJson.value);
+    }
+    if (templatesJson.present) {
+      map['templates_json'] = Variable<String>(templatesJson.value);
+    }
+    if (css.present) {
+      map['css'] = Variable<String>(css.value);
+    }
+    if (allowJs.present) {
+      map['allow_js'] = Variable<bool>(allowJs.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AnkiNotetypesCompanion(')
+          ..write('importId: $importId, ')
+          ..write('mid: $mid, ')
+          ..write('name: $name, ')
+          ..write('isCloze: $isCloze, ')
+          ..write('fieldNamesJson: $fieldNamesJson, ')
+          ..write('templatesJson: $templatesJson, ')
+          ..write('css: $css, ')
+          ..write('allowJs: $allowJs, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $AnkiNotesTable extends AnkiNotes
+    with TableInfo<$AnkiNotesTable, AnkiNoteRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AnkiNotesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _importIdMeta =
+      const VerificationMeta('importId');
+  @override
+  late final GeneratedColumn<String> importId = GeneratedColumn<String>(
+      'import_id', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: true,
+      $customConstraints:
+          'NOT NULL REFERENCES anki_imports(import_id) ON DELETE CASCADE');
+  static const VerificationMeta _noteIdMeta = const VerificationMeta('noteId');
+  @override
+  late final GeneratedColumn<int> noteId = GeneratedColumn<int>(
+      'note_id', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _midMeta = const VerificationMeta('mid');
+  @override
+  late final GeneratedColumn<int> mid = GeneratedColumn<int>(
+      'mid', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _tagsMeta = const VerificationMeta('tags');
+  @override
+  late final GeneratedColumn<String> tags = GeneratedColumn<String>(
+      'tags', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _fieldsJsonMeta =
+      const VerificationMeta('fieldsJson');
+  @override
+  late final GeneratedColumn<String> fieldsJson = GeneratedColumn<String>(
+      'fields_json', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('[]'));
+  static const VerificationMeta _sfldMeta = const VerificationMeta('sfld');
+  @override
+  late final GeneratedColumn<String> sfld = GeneratedColumn<String>(
+      'sfld', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _guidMeta = const VerificationMeta('guid');
+  @override
+  late final GeneratedColumn<String> guid = GeneratedColumn<String>(
+      'guid', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _modMeta = const VerificationMeta('mod');
+  @override
+  late final GeneratedColumn<int> mod = GeneratedColumn<int>(
+      'mod', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  @override
+  List<GeneratedColumn> get $columns =>
+      [importId, noteId, mid, tags, fieldsJson, sfld, guid, mod];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'anki_notes';
+  @override
+  VerificationContext validateIntegrity(Insertable<AnkiNoteRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('import_id')) {
+      context.handle(_importIdMeta,
+          importId.isAcceptableOrUnknown(data['import_id']!, _importIdMeta));
+    } else if (isInserting) {
+      context.missing(_importIdMeta);
+    }
+    if (data.containsKey('note_id')) {
+      context.handle(_noteIdMeta,
+          noteId.isAcceptableOrUnknown(data['note_id']!, _noteIdMeta));
+    } else if (isInserting) {
+      context.missing(_noteIdMeta);
+    }
+    if (data.containsKey('mid')) {
+      context.handle(
+          _midMeta, mid.isAcceptableOrUnknown(data['mid']!, _midMeta));
+    } else if (isInserting) {
+      context.missing(_midMeta);
+    }
+    if (data.containsKey('tags')) {
+      context.handle(
+          _tagsMeta, tags.isAcceptableOrUnknown(data['tags']!, _tagsMeta));
+    }
+    if (data.containsKey('fields_json')) {
+      context.handle(
+          _fieldsJsonMeta,
+          fieldsJson.isAcceptableOrUnknown(
+              data['fields_json']!, _fieldsJsonMeta));
+    }
+    if (data.containsKey('sfld')) {
+      context.handle(
+          _sfldMeta, sfld.isAcceptableOrUnknown(data['sfld']!, _sfldMeta));
+    }
+    if (data.containsKey('guid')) {
+      context.handle(
+          _guidMeta, guid.isAcceptableOrUnknown(data['guid']!, _guidMeta));
+    }
+    if (data.containsKey('mod')) {
+      context.handle(
+          _modMeta, mod.isAcceptableOrUnknown(data['mod']!, _modMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {importId, noteId};
+  @override
+  AnkiNoteRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AnkiNoteRow(
+      importId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}import_id'])!,
+      noteId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}note_id'])!,
+      mid: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}mid'])!,
+      tags: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}tags'])!,
+      fieldsJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}fields_json'])!,
+      sfld: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}sfld'])!,
+      guid: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}guid'])!,
+      mod: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}mod'])!,
+    );
+  }
+
+  @override
+  $AnkiNotesTable createAlias(String alias) {
+    return $AnkiNotesTable(attachedDatabase, alias);
+  }
+}
+
+class AnkiNoteRow extends DataClass implements Insertable<AnkiNoteRow> {
+  final String importId;
+  final int noteId;
+  final int mid;
+  final String tags;
+  final String fieldsJson;
+  final String sfld;
+  final String guid;
+  final int mod;
+  const AnkiNoteRow(
+      {required this.importId,
+      required this.noteId,
+      required this.mid,
+      required this.tags,
+      required this.fieldsJson,
+      required this.sfld,
+      required this.guid,
+      required this.mod});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['import_id'] = Variable<String>(importId);
+    map['note_id'] = Variable<int>(noteId);
+    map['mid'] = Variable<int>(mid);
+    map['tags'] = Variable<String>(tags);
+    map['fields_json'] = Variable<String>(fieldsJson);
+    map['sfld'] = Variable<String>(sfld);
+    map['guid'] = Variable<String>(guid);
+    map['mod'] = Variable<int>(mod);
+    return map;
+  }
+
+  AnkiNotesCompanion toCompanion(bool nullToAbsent) {
+    return AnkiNotesCompanion(
+      importId: Value(importId),
+      noteId: Value(noteId),
+      mid: Value(mid),
+      tags: Value(tags),
+      fieldsJson: Value(fieldsJson),
+      sfld: Value(sfld),
+      guid: Value(guid),
+      mod: Value(mod),
+    );
+  }
+
+  factory AnkiNoteRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AnkiNoteRow(
+      importId: serializer.fromJson<String>(json['importId']),
+      noteId: serializer.fromJson<int>(json['noteId']),
+      mid: serializer.fromJson<int>(json['mid']),
+      tags: serializer.fromJson<String>(json['tags']),
+      fieldsJson: serializer.fromJson<String>(json['fieldsJson']),
+      sfld: serializer.fromJson<String>(json['sfld']),
+      guid: serializer.fromJson<String>(json['guid']),
+      mod: serializer.fromJson<int>(json['mod']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'importId': serializer.toJson<String>(importId),
+      'noteId': serializer.toJson<int>(noteId),
+      'mid': serializer.toJson<int>(mid),
+      'tags': serializer.toJson<String>(tags),
+      'fieldsJson': serializer.toJson<String>(fieldsJson),
+      'sfld': serializer.toJson<String>(sfld),
+      'guid': serializer.toJson<String>(guid),
+      'mod': serializer.toJson<int>(mod),
+    };
+  }
+
+  AnkiNoteRow copyWith(
+          {String? importId,
+          int? noteId,
+          int? mid,
+          String? tags,
+          String? fieldsJson,
+          String? sfld,
+          String? guid,
+          int? mod}) =>
+      AnkiNoteRow(
+        importId: importId ?? this.importId,
+        noteId: noteId ?? this.noteId,
+        mid: mid ?? this.mid,
+        tags: tags ?? this.tags,
+        fieldsJson: fieldsJson ?? this.fieldsJson,
+        sfld: sfld ?? this.sfld,
+        guid: guid ?? this.guid,
+        mod: mod ?? this.mod,
+      );
+  AnkiNoteRow copyWithCompanion(AnkiNotesCompanion data) {
+    return AnkiNoteRow(
+      importId: data.importId.present ? data.importId.value : this.importId,
+      noteId: data.noteId.present ? data.noteId.value : this.noteId,
+      mid: data.mid.present ? data.mid.value : this.mid,
+      tags: data.tags.present ? data.tags.value : this.tags,
+      fieldsJson:
+          data.fieldsJson.present ? data.fieldsJson.value : this.fieldsJson,
+      sfld: data.sfld.present ? data.sfld.value : this.sfld,
+      guid: data.guid.present ? data.guid.value : this.guid,
+      mod: data.mod.present ? data.mod.value : this.mod,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AnkiNoteRow(')
+          ..write('importId: $importId, ')
+          ..write('noteId: $noteId, ')
+          ..write('mid: $mid, ')
+          ..write('tags: $tags, ')
+          ..write('fieldsJson: $fieldsJson, ')
+          ..write('sfld: $sfld, ')
+          ..write('guid: $guid, ')
+          ..write('mod: $mod')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(importId, noteId, mid, tags, fieldsJson, sfld, guid, mod);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AnkiNoteRow &&
+          other.importId == this.importId &&
+          other.noteId == this.noteId &&
+          other.mid == this.mid &&
+          other.tags == this.tags &&
+          other.fieldsJson == this.fieldsJson &&
+          other.sfld == this.sfld &&
+          other.guid == this.guid &&
+          other.mod == this.mod);
+}
+
+class AnkiNotesCompanion extends UpdateCompanion<AnkiNoteRow> {
+  final Value<String> importId;
+  final Value<int> noteId;
+  final Value<int> mid;
+  final Value<String> tags;
+  final Value<String> fieldsJson;
+  final Value<String> sfld;
+  final Value<String> guid;
+  final Value<int> mod;
+  final Value<int> rowid;
+  const AnkiNotesCompanion({
+    this.importId = const Value.absent(),
+    this.noteId = const Value.absent(),
+    this.mid = const Value.absent(),
+    this.tags = const Value.absent(),
+    this.fieldsJson = const Value.absent(),
+    this.sfld = const Value.absent(),
+    this.guid = const Value.absent(),
+    this.mod = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AnkiNotesCompanion.insert({
+    required String importId,
+    required int noteId,
+    required int mid,
+    this.tags = const Value.absent(),
+    this.fieldsJson = const Value.absent(),
+    this.sfld = const Value.absent(),
+    this.guid = const Value.absent(),
+    this.mod = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : importId = Value(importId),
+        noteId = Value(noteId),
+        mid = Value(mid);
+  static Insertable<AnkiNoteRow> custom({
+    Expression<String>? importId,
+    Expression<int>? noteId,
+    Expression<int>? mid,
+    Expression<String>? tags,
+    Expression<String>? fieldsJson,
+    Expression<String>? sfld,
+    Expression<String>? guid,
+    Expression<int>? mod,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (importId != null) 'import_id': importId,
+      if (noteId != null) 'note_id': noteId,
+      if (mid != null) 'mid': mid,
+      if (tags != null) 'tags': tags,
+      if (fieldsJson != null) 'fields_json': fieldsJson,
+      if (sfld != null) 'sfld': sfld,
+      if (guid != null) 'guid': guid,
+      if (mod != null) 'mod': mod,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AnkiNotesCompanion copyWith(
+      {Value<String>? importId,
+      Value<int>? noteId,
+      Value<int>? mid,
+      Value<String>? tags,
+      Value<String>? fieldsJson,
+      Value<String>? sfld,
+      Value<String>? guid,
+      Value<int>? mod,
+      Value<int>? rowid}) {
+    return AnkiNotesCompanion(
+      importId: importId ?? this.importId,
+      noteId: noteId ?? this.noteId,
+      mid: mid ?? this.mid,
+      tags: tags ?? this.tags,
+      fieldsJson: fieldsJson ?? this.fieldsJson,
+      sfld: sfld ?? this.sfld,
+      guid: guid ?? this.guid,
+      mod: mod ?? this.mod,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (importId.present) {
+      map['import_id'] = Variable<String>(importId.value);
+    }
+    if (noteId.present) {
+      map['note_id'] = Variable<int>(noteId.value);
+    }
+    if (mid.present) {
+      map['mid'] = Variable<int>(mid.value);
+    }
+    if (tags.present) {
+      map['tags'] = Variable<String>(tags.value);
+    }
+    if (fieldsJson.present) {
+      map['fields_json'] = Variable<String>(fieldsJson.value);
+    }
+    if (sfld.present) {
+      map['sfld'] = Variable<String>(sfld.value);
+    }
+    if (guid.present) {
+      map['guid'] = Variable<String>(guid.value);
+    }
+    if (mod.present) {
+      map['mod'] = Variable<int>(mod.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AnkiNotesCompanion(')
+          ..write('importId: $importId, ')
+          ..write('noteId: $noteId, ')
+          ..write('mid: $mid, ')
+          ..write('tags: $tags, ')
+          ..write('fieldsJson: $fieldsJson, ')
+          ..write('sfld: $sfld, ')
+          ..write('guid: $guid, ')
+          ..write('mod: $mod, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $AnkiCardsMetaTable extends AnkiCardsMeta
+    with TableInfo<$AnkiCardsMetaTable, AnkiCardMetaRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AnkiCardsMetaTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _importIdMeta =
+      const VerificationMeta('importId');
+  @override
+  late final GeneratedColumn<String> importId = GeneratedColumn<String>(
+      'import_id', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: true,
+      $customConstraints:
+          'NOT NULL REFERENCES anki_imports(import_id) ON DELETE CASCADE');
+  static const VerificationMeta _cardIdMeta = const VerificationMeta('cardId');
+  @override
+  late final GeneratedColumn<int> cardId = GeneratedColumn<int>(
+      'card_id', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _noteIdMeta = const VerificationMeta('noteId');
+  @override
+  late final GeneratedColumn<int> noteId = GeneratedColumn<int>(
+      'note_id', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _ordMeta = const VerificationMeta('ord');
+  @override
+  late final GeneratedColumn<int> ord = GeneratedColumn<int>(
+      'ord', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _didMeta = const VerificationMeta('did');
+  @override
+  late final GeneratedColumn<int> did = GeneratedColumn<int>(
+      'did', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _wordIdMeta = const VerificationMeta('wordId');
+  @override
+  late final GeneratedColumn<String> wordId = GeneratedColumn<String>(
+      'word_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _renderModeMeta =
+      const VerificationMeta('renderMode');
+  @override
+  late final GeneratedColumn<String> renderMode = GeneratedColumn<String>(
+      'render_mode', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('hybrid'));
+  static const VerificationMeta _schedulingJsonMeta =
+      const VerificationMeta('schedulingJson');
+  @override
+  late final GeneratedColumn<String> schedulingJson = GeneratedColumn<String>(
+      'scheduling_json', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('{}'));
+  @override
+  List<GeneratedColumn> get $columns =>
+      [importId, cardId, noteId, ord, did, wordId, renderMode, schedulingJson];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'anki_cards_meta';
+  @override
+  VerificationContext validateIntegrity(Insertable<AnkiCardMetaRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('import_id')) {
+      context.handle(_importIdMeta,
+          importId.isAcceptableOrUnknown(data['import_id']!, _importIdMeta));
+    } else if (isInserting) {
+      context.missing(_importIdMeta);
+    }
+    if (data.containsKey('card_id')) {
+      context.handle(_cardIdMeta,
+          cardId.isAcceptableOrUnknown(data['card_id']!, _cardIdMeta));
+    } else if (isInserting) {
+      context.missing(_cardIdMeta);
+    }
+    if (data.containsKey('note_id')) {
+      context.handle(_noteIdMeta,
+          noteId.isAcceptableOrUnknown(data['note_id']!, _noteIdMeta));
+    } else if (isInserting) {
+      context.missing(_noteIdMeta);
+    }
+    if (data.containsKey('ord')) {
+      context.handle(
+          _ordMeta, ord.isAcceptableOrUnknown(data['ord']!, _ordMeta));
+    }
+    if (data.containsKey('did')) {
+      context.handle(
+          _didMeta, did.isAcceptableOrUnknown(data['did']!, _didMeta));
+    }
+    if (data.containsKey('word_id')) {
+      context.handle(_wordIdMeta,
+          wordId.isAcceptableOrUnknown(data['word_id']!, _wordIdMeta));
+    } else if (isInserting) {
+      context.missing(_wordIdMeta);
+    }
+    if (data.containsKey('render_mode')) {
+      context.handle(
+          _renderModeMeta,
+          renderMode.isAcceptableOrUnknown(
+              data['render_mode']!, _renderModeMeta));
+    }
+    if (data.containsKey('scheduling_json')) {
+      context.handle(
+          _schedulingJsonMeta,
+          schedulingJson.isAcceptableOrUnknown(
+              data['scheduling_json']!, _schedulingJsonMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {importId, cardId};
+  @override
+  AnkiCardMetaRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AnkiCardMetaRow(
+      importId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}import_id'])!,
+      cardId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}card_id'])!,
+      noteId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}note_id'])!,
+      ord: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}ord'])!,
+      did: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}did'])!,
+      wordId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}word_id'])!,
+      renderMode: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}render_mode'])!,
+      schedulingJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}scheduling_json'])!,
+    );
+  }
+
+  @override
+  $AnkiCardsMetaTable createAlias(String alias) {
+    return $AnkiCardsMetaTable(attachedDatabase, alias);
+  }
+}
+
+class AnkiCardMetaRow extends DataClass implements Insertable<AnkiCardMetaRow> {
+  final String importId;
+  final int cardId;
+  final int noteId;
+  final int ord;
+  final int did;
+  final String wordId;
+  final String renderMode;
+  final String schedulingJson;
+  const AnkiCardMetaRow(
+      {required this.importId,
+      required this.cardId,
+      required this.noteId,
+      required this.ord,
+      required this.did,
+      required this.wordId,
+      required this.renderMode,
+      required this.schedulingJson});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['import_id'] = Variable<String>(importId);
+    map['card_id'] = Variable<int>(cardId);
+    map['note_id'] = Variable<int>(noteId);
+    map['ord'] = Variable<int>(ord);
+    map['did'] = Variable<int>(did);
+    map['word_id'] = Variable<String>(wordId);
+    map['render_mode'] = Variable<String>(renderMode);
+    map['scheduling_json'] = Variable<String>(schedulingJson);
+    return map;
+  }
+
+  AnkiCardsMetaCompanion toCompanion(bool nullToAbsent) {
+    return AnkiCardsMetaCompanion(
+      importId: Value(importId),
+      cardId: Value(cardId),
+      noteId: Value(noteId),
+      ord: Value(ord),
+      did: Value(did),
+      wordId: Value(wordId),
+      renderMode: Value(renderMode),
+      schedulingJson: Value(schedulingJson),
+    );
+  }
+
+  factory AnkiCardMetaRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AnkiCardMetaRow(
+      importId: serializer.fromJson<String>(json['importId']),
+      cardId: serializer.fromJson<int>(json['cardId']),
+      noteId: serializer.fromJson<int>(json['noteId']),
+      ord: serializer.fromJson<int>(json['ord']),
+      did: serializer.fromJson<int>(json['did']),
+      wordId: serializer.fromJson<String>(json['wordId']),
+      renderMode: serializer.fromJson<String>(json['renderMode']),
+      schedulingJson: serializer.fromJson<String>(json['schedulingJson']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'importId': serializer.toJson<String>(importId),
+      'cardId': serializer.toJson<int>(cardId),
+      'noteId': serializer.toJson<int>(noteId),
+      'ord': serializer.toJson<int>(ord),
+      'did': serializer.toJson<int>(did),
+      'wordId': serializer.toJson<String>(wordId),
+      'renderMode': serializer.toJson<String>(renderMode),
+      'schedulingJson': serializer.toJson<String>(schedulingJson),
+    };
+  }
+
+  AnkiCardMetaRow copyWith(
+          {String? importId,
+          int? cardId,
+          int? noteId,
+          int? ord,
+          int? did,
+          String? wordId,
+          String? renderMode,
+          String? schedulingJson}) =>
+      AnkiCardMetaRow(
+        importId: importId ?? this.importId,
+        cardId: cardId ?? this.cardId,
+        noteId: noteId ?? this.noteId,
+        ord: ord ?? this.ord,
+        did: did ?? this.did,
+        wordId: wordId ?? this.wordId,
+        renderMode: renderMode ?? this.renderMode,
+        schedulingJson: schedulingJson ?? this.schedulingJson,
+      );
+  AnkiCardMetaRow copyWithCompanion(AnkiCardsMetaCompanion data) {
+    return AnkiCardMetaRow(
+      importId: data.importId.present ? data.importId.value : this.importId,
+      cardId: data.cardId.present ? data.cardId.value : this.cardId,
+      noteId: data.noteId.present ? data.noteId.value : this.noteId,
+      ord: data.ord.present ? data.ord.value : this.ord,
+      did: data.did.present ? data.did.value : this.did,
+      wordId: data.wordId.present ? data.wordId.value : this.wordId,
+      renderMode:
+          data.renderMode.present ? data.renderMode.value : this.renderMode,
+      schedulingJson: data.schedulingJson.present
+          ? data.schedulingJson.value
+          : this.schedulingJson,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AnkiCardMetaRow(')
+          ..write('importId: $importId, ')
+          ..write('cardId: $cardId, ')
+          ..write('noteId: $noteId, ')
+          ..write('ord: $ord, ')
+          ..write('did: $did, ')
+          ..write('wordId: $wordId, ')
+          ..write('renderMode: $renderMode, ')
+          ..write('schedulingJson: $schedulingJson')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      importId, cardId, noteId, ord, did, wordId, renderMode, schedulingJson);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AnkiCardMetaRow &&
+          other.importId == this.importId &&
+          other.cardId == this.cardId &&
+          other.noteId == this.noteId &&
+          other.ord == this.ord &&
+          other.did == this.did &&
+          other.wordId == this.wordId &&
+          other.renderMode == this.renderMode &&
+          other.schedulingJson == this.schedulingJson);
+}
+
+class AnkiCardsMetaCompanion extends UpdateCompanion<AnkiCardMetaRow> {
+  final Value<String> importId;
+  final Value<int> cardId;
+  final Value<int> noteId;
+  final Value<int> ord;
+  final Value<int> did;
+  final Value<String> wordId;
+  final Value<String> renderMode;
+  final Value<String> schedulingJson;
+  final Value<int> rowid;
+  const AnkiCardsMetaCompanion({
+    this.importId = const Value.absent(),
+    this.cardId = const Value.absent(),
+    this.noteId = const Value.absent(),
+    this.ord = const Value.absent(),
+    this.did = const Value.absent(),
+    this.wordId = const Value.absent(),
+    this.renderMode = const Value.absent(),
+    this.schedulingJson = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AnkiCardsMetaCompanion.insert({
+    required String importId,
+    required int cardId,
+    required int noteId,
+    this.ord = const Value.absent(),
+    this.did = const Value.absent(),
+    required String wordId,
+    this.renderMode = const Value.absent(),
+    this.schedulingJson = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : importId = Value(importId),
+        cardId = Value(cardId),
+        noteId = Value(noteId),
+        wordId = Value(wordId);
+  static Insertable<AnkiCardMetaRow> custom({
+    Expression<String>? importId,
+    Expression<int>? cardId,
+    Expression<int>? noteId,
+    Expression<int>? ord,
+    Expression<int>? did,
+    Expression<String>? wordId,
+    Expression<String>? renderMode,
+    Expression<String>? schedulingJson,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (importId != null) 'import_id': importId,
+      if (cardId != null) 'card_id': cardId,
+      if (noteId != null) 'note_id': noteId,
+      if (ord != null) 'ord': ord,
+      if (did != null) 'did': did,
+      if (wordId != null) 'word_id': wordId,
+      if (renderMode != null) 'render_mode': renderMode,
+      if (schedulingJson != null) 'scheduling_json': schedulingJson,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AnkiCardsMetaCompanion copyWith(
+      {Value<String>? importId,
+      Value<int>? cardId,
+      Value<int>? noteId,
+      Value<int>? ord,
+      Value<int>? did,
+      Value<String>? wordId,
+      Value<String>? renderMode,
+      Value<String>? schedulingJson,
+      Value<int>? rowid}) {
+    return AnkiCardsMetaCompanion(
+      importId: importId ?? this.importId,
+      cardId: cardId ?? this.cardId,
+      noteId: noteId ?? this.noteId,
+      ord: ord ?? this.ord,
+      did: did ?? this.did,
+      wordId: wordId ?? this.wordId,
+      renderMode: renderMode ?? this.renderMode,
+      schedulingJson: schedulingJson ?? this.schedulingJson,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (importId.present) {
+      map['import_id'] = Variable<String>(importId.value);
+    }
+    if (cardId.present) {
+      map['card_id'] = Variable<int>(cardId.value);
+    }
+    if (noteId.present) {
+      map['note_id'] = Variable<int>(noteId.value);
+    }
+    if (ord.present) {
+      map['ord'] = Variable<int>(ord.value);
+    }
+    if (did.present) {
+      map['did'] = Variable<int>(did.value);
+    }
+    if (wordId.present) {
+      map['word_id'] = Variable<String>(wordId.value);
+    }
+    if (renderMode.present) {
+      map['render_mode'] = Variable<String>(renderMode.value);
+    }
+    if (schedulingJson.present) {
+      map['scheduling_json'] = Variable<String>(schedulingJson.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AnkiCardsMetaCompanion(')
+          ..write('importId: $importId, ')
+          ..write('cardId: $cardId, ')
+          ..write('noteId: $noteId, ')
+          ..write('ord: $ord, ')
+          ..write('did: $did, ')
+          ..write('wordId: $wordId, ')
+          ..write('renderMode: $renderMode, ')
+          ..write('schedulingJson: $schedulingJson, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $AnkiPrerenderedHtmlTable extends AnkiPrerenderedHtml
+    with TableInfo<$AnkiPrerenderedHtmlTable, AnkiPrerenderedHtmlRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AnkiPrerenderedHtmlTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _wordIdMeta = const VerificationMeta('wordId');
+  @override
+  late final GeneratedColumn<String> wordId = GeneratedColumn<String>(
+      'word_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _frontHtmlMeta =
+      const VerificationMeta('frontHtml');
+  @override
+  late final GeneratedColumn<String> frontHtml = GeneratedColumn<String>(
+      'front_html', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _backHtmlMeta =
+      const VerificationMeta('backHtml');
+  @override
+  late final GeneratedColumn<String> backHtml = GeneratedColumn<String>(
+      'back_html', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _capturedAtMeta =
+      const VerificationMeta('capturedAt');
+  @override
+  late final GeneratedColumn<int> capturedAt = GeneratedColumn<int>(
+      'captured_at', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  @override
+  List<GeneratedColumn> get $columns =>
+      [wordId, frontHtml, backHtml, capturedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'anki_prerendered_html';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<AnkiPrerenderedHtmlRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('word_id')) {
+      context.handle(_wordIdMeta,
+          wordId.isAcceptableOrUnknown(data['word_id']!, _wordIdMeta));
+    } else if (isInserting) {
+      context.missing(_wordIdMeta);
+    }
+    if (data.containsKey('front_html')) {
+      context.handle(_frontHtmlMeta,
+          frontHtml.isAcceptableOrUnknown(data['front_html']!, _frontHtmlMeta));
+    }
+    if (data.containsKey('back_html')) {
+      context.handle(_backHtmlMeta,
+          backHtml.isAcceptableOrUnknown(data['back_html']!, _backHtmlMeta));
+    }
+    if (data.containsKey('captured_at')) {
+      context.handle(
+          _capturedAtMeta,
+          capturedAt.isAcceptableOrUnknown(
+              data['captured_at']!, _capturedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {wordId};
+  @override
+  AnkiPrerenderedHtmlRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AnkiPrerenderedHtmlRow(
+      wordId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}word_id'])!,
+      frontHtml: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}front_html']),
+      backHtml: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}back_html']),
+      capturedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}captured_at'])!,
+    );
+  }
+
+  @override
+  $AnkiPrerenderedHtmlTable createAlias(String alias) {
+    return $AnkiPrerenderedHtmlTable(attachedDatabase, alias);
+  }
+}
+
+class AnkiPrerenderedHtmlRow extends DataClass
+    implements Insertable<AnkiPrerenderedHtmlRow> {
+  final String wordId;
+  final String? frontHtml;
+  final String? backHtml;
+  final int capturedAt;
+  const AnkiPrerenderedHtmlRow(
+      {required this.wordId,
+      this.frontHtml,
+      this.backHtml,
+      required this.capturedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['word_id'] = Variable<String>(wordId);
+    if (!nullToAbsent || frontHtml != null) {
+      map['front_html'] = Variable<String>(frontHtml);
+    }
+    if (!nullToAbsent || backHtml != null) {
+      map['back_html'] = Variable<String>(backHtml);
+    }
+    map['captured_at'] = Variable<int>(capturedAt);
+    return map;
+  }
+
+  AnkiPrerenderedHtmlCompanion toCompanion(bool nullToAbsent) {
+    return AnkiPrerenderedHtmlCompanion(
+      wordId: Value(wordId),
+      frontHtml: frontHtml == null && nullToAbsent
+          ? const Value.absent()
+          : Value(frontHtml),
+      backHtml: backHtml == null && nullToAbsent
+          ? const Value.absent()
+          : Value(backHtml),
+      capturedAt: Value(capturedAt),
+    );
+  }
+
+  factory AnkiPrerenderedHtmlRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AnkiPrerenderedHtmlRow(
+      wordId: serializer.fromJson<String>(json['wordId']),
+      frontHtml: serializer.fromJson<String?>(json['frontHtml']),
+      backHtml: serializer.fromJson<String?>(json['backHtml']),
+      capturedAt: serializer.fromJson<int>(json['capturedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'wordId': serializer.toJson<String>(wordId),
+      'frontHtml': serializer.toJson<String?>(frontHtml),
+      'backHtml': serializer.toJson<String?>(backHtml),
+      'capturedAt': serializer.toJson<int>(capturedAt),
+    };
+  }
+
+  AnkiPrerenderedHtmlRow copyWith(
+          {String? wordId,
+          Value<String?> frontHtml = const Value.absent(),
+          Value<String?> backHtml = const Value.absent(),
+          int? capturedAt}) =>
+      AnkiPrerenderedHtmlRow(
+        wordId: wordId ?? this.wordId,
+        frontHtml: frontHtml.present ? frontHtml.value : this.frontHtml,
+        backHtml: backHtml.present ? backHtml.value : this.backHtml,
+        capturedAt: capturedAt ?? this.capturedAt,
+      );
+  AnkiPrerenderedHtmlRow copyWithCompanion(AnkiPrerenderedHtmlCompanion data) {
+    return AnkiPrerenderedHtmlRow(
+      wordId: data.wordId.present ? data.wordId.value : this.wordId,
+      frontHtml: data.frontHtml.present ? data.frontHtml.value : this.frontHtml,
+      backHtml: data.backHtml.present ? data.backHtml.value : this.backHtml,
+      capturedAt:
+          data.capturedAt.present ? data.capturedAt.value : this.capturedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AnkiPrerenderedHtmlRow(')
+          ..write('wordId: $wordId, ')
+          ..write('frontHtml: $frontHtml, ')
+          ..write('backHtml: $backHtml, ')
+          ..write('capturedAt: $capturedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(wordId, frontHtml, backHtml, capturedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AnkiPrerenderedHtmlRow &&
+          other.wordId == this.wordId &&
+          other.frontHtml == this.frontHtml &&
+          other.backHtml == this.backHtml &&
+          other.capturedAt == this.capturedAt);
+}
+
+class AnkiPrerenderedHtmlCompanion
+    extends UpdateCompanion<AnkiPrerenderedHtmlRow> {
+  final Value<String> wordId;
+  final Value<String?> frontHtml;
+  final Value<String?> backHtml;
+  final Value<int> capturedAt;
+  final Value<int> rowid;
+  const AnkiPrerenderedHtmlCompanion({
+    this.wordId = const Value.absent(),
+    this.frontHtml = const Value.absent(),
+    this.backHtml = const Value.absent(),
+    this.capturedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AnkiPrerenderedHtmlCompanion.insert({
+    required String wordId,
+    this.frontHtml = const Value.absent(),
+    this.backHtml = const Value.absent(),
+    this.capturedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : wordId = Value(wordId);
+  static Insertable<AnkiPrerenderedHtmlRow> custom({
+    Expression<String>? wordId,
+    Expression<String>? frontHtml,
+    Expression<String>? backHtml,
+    Expression<int>? capturedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (wordId != null) 'word_id': wordId,
+      if (frontHtml != null) 'front_html': frontHtml,
+      if (backHtml != null) 'back_html': backHtml,
+      if (capturedAt != null) 'captured_at': capturedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AnkiPrerenderedHtmlCompanion copyWith(
+      {Value<String>? wordId,
+      Value<String?>? frontHtml,
+      Value<String?>? backHtml,
+      Value<int>? capturedAt,
+      Value<int>? rowid}) {
+    return AnkiPrerenderedHtmlCompanion(
+      wordId: wordId ?? this.wordId,
+      frontHtml: frontHtml ?? this.frontHtml,
+      backHtml: backHtml ?? this.backHtml,
+      capturedAt: capturedAt ?? this.capturedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (wordId.present) {
+      map['word_id'] = Variable<String>(wordId.value);
+    }
+    if (frontHtml.present) {
+      map['front_html'] = Variable<String>(frontHtml.value);
+    }
+    if (backHtml.present) {
+      map['back_html'] = Variable<String>(backHtml.value);
+    }
+    if (capturedAt.present) {
+      map['captured_at'] = Variable<int>(capturedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AnkiPrerenderedHtmlCompanion(')
+          ..write('wordId: $wordId, ')
+          ..write('frontHtml: $frontHtml, ')
+          ..write('backHtml: $backHtml, ')
+          ..write('capturedAt: $capturedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $SrsStatesTable extends SrsStates
     with TableInfo<$SrsStatesTable, SrsState> {
   @override
@@ -3249,6 +4812,26 @@ class $SrsStatesTable extends SrsStates
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('CHECK ("is_leech" IN (0, 1))'),
       defaultValue: const Constant(false));
+  static const VerificationMeta _isSuspendedMeta =
+      const VerificationMeta('isSuspended');
+  @override
+  late final GeneratedColumn<bool> isSuspended = GeneratedColumn<bool>(
+      'is_suspended', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("is_suspended" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _isBuriedMeta =
+      const VerificationMeta('isBuried');
+  @override
+  late final GeneratedColumn<bool> isBuried = GeneratedColumn<bool>(
+      'is_buried', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_buried" IN (0, 1))'),
+      defaultValue: const Constant(false));
   static const VerificationMeta _typeMeta = const VerificationMeta('type');
   @override
   late final GeneratedColumn<String> type = GeneratedColumn<String>(
@@ -3298,6 +4881,8 @@ class $SrsStatesTable extends SrsStates
         reps,
         lapses,
         isLeech,
+        isSuspended,
+        isBuried,
         type,
         lastReviewedAt,
         stability,
@@ -3355,6 +4940,16 @@ class $SrsStatesTable extends SrsStates
       context.handle(_isLeechMeta,
           isLeech.isAcceptableOrUnknown(data['is_leech']!, _isLeechMeta));
     }
+    if (data.containsKey('is_suspended')) {
+      context.handle(
+          _isSuspendedMeta,
+          isSuspended.isAcceptableOrUnknown(
+              data['is_suspended']!, _isSuspendedMeta));
+    }
+    if (data.containsKey('is_buried')) {
+      context.handle(_isBuriedMeta,
+          isBuried.isAcceptableOrUnknown(data['is_buried']!, _isBuriedMeta));
+    }
     if (data.containsKey('type')) {
       context.handle(
           _typeMeta, type.isAcceptableOrUnknown(data['type']!, _typeMeta));
@@ -3410,6 +5005,10 @@ class $SrsStatesTable extends SrsStates
           .read(DriftSqlType.int, data['${effectivePrefix}lapses'])!,
       isLeech: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_leech'])!,
+      isSuspended: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_suspended'])!,
+      isBuried: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_buried'])!,
       type: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}type'])!,
       lastReviewedAt: attachedDatabase.typeMapping
@@ -3440,6 +5039,8 @@ class SrsState extends DataClass implements Insertable<SrsState> {
   final int reps;
   final int lapses;
   final bool isLeech;
+  final bool isSuspended;
+  final bool isBuried;
   final String type;
   final int? lastReviewedAt;
   final double? stability;
@@ -3455,6 +5056,8 @@ class SrsState extends DataClass implements Insertable<SrsState> {
       required this.reps,
       required this.lapses,
       required this.isLeech,
+      required this.isSuspended,
+      required this.isBuried,
       required this.type,
       this.lastReviewedAt,
       this.stability,
@@ -3472,6 +5075,8 @@ class SrsState extends DataClass implements Insertable<SrsState> {
     map['reps'] = Variable<int>(reps);
     map['lapses'] = Variable<int>(lapses);
     map['is_leech'] = Variable<bool>(isLeech);
+    map['is_suspended'] = Variable<bool>(isSuspended);
+    map['is_buried'] = Variable<bool>(isBuried);
     map['type'] = Variable<String>(type);
     if (!nullToAbsent || lastReviewedAt != null) {
       map['last_reviewed_at'] = Variable<int>(lastReviewedAt);
@@ -3499,6 +5104,8 @@ class SrsState extends DataClass implements Insertable<SrsState> {
       reps: Value(reps),
       lapses: Value(lapses),
       isLeech: Value(isLeech),
+      isSuspended: Value(isSuspended),
+      isBuried: Value(isBuried),
       type: Value(type),
       lastReviewedAt: lastReviewedAt == null && nullToAbsent
           ? const Value.absent()
@@ -3528,6 +5135,8 @@ class SrsState extends DataClass implements Insertable<SrsState> {
       reps: serializer.fromJson<int>(json['reps']),
       lapses: serializer.fromJson<int>(json['lapses']),
       isLeech: serializer.fromJson<bool>(json['isLeech']),
+      isSuspended: serializer.fromJson<bool>(json['isSuspended']),
+      isBuried: serializer.fromJson<bool>(json['isBuried']),
       type: serializer.fromJson<String>(json['type']),
       lastReviewedAt: serializer.fromJson<int?>(json['lastReviewedAt']),
       stability: serializer.fromJson<double?>(json['stability']),
@@ -3548,6 +5157,8 @@ class SrsState extends DataClass implements Insertable<SrsState> {
       'reps': serializer.toJson<int>(reps),
       'lapses': serializer.toJson<int>(lapses),
       'isLeech': serializer.toJson<bool>(isLeech),
+      'isSuspended': serializer.toJson<bool>(isSuspended),
+      'isBuried': serializer.toJson<bool>(isBuried),
       'type': serializer.toJson<String>(type),
       'lastReviewedAt': serializer.toJson<int?>(lastReviewedAt),
       'stability': serializer.toJson<double?>(stability),
@@ -3566,6 +5177,8 @@ class SrsState extends DataClass implements Insertable<SrsState> {
           int? reps,
           int? lapses,
           bool? isLeech,
+          bool? isSuspended,
+          bool? isBuried,
           String? type,
           Value<int?> lastReviewedAt = const Value.absent(),
           Value<double?> stability = const Value.absent(),
@@ -3581,6 +5194,8 @@ class SrsState extends DataClass implements Insertable<SrsState> {
         reps: reps ?? this.reps,
         lapses: lapses ?? this.lapses,
         isLeech: isLeech ?? this.isLeech,
+        isSuspended: isSuspended ?? this.isSuspended,
+        isBuried: isBuried ?? this.isBuried,
         type: type ?? this.type,
         lastReviewedAt:
             lastReviewedAt.present ? lastReviewedAt.value : this.lastReviewedAt,
@@ -3602,6 +5217,9 @@ class SrsState extends DataClass implements Insertable<SrsState> {
       reps: data.reps.present ? data.reps.value : this.reps,
       lapses: data.lapses.present ? data.lapses.value : this.lapses,
       isLeech: data.isLeech.present ? data.isLeech.value : this.isLeech,
+      isSuspended:
+          data.isSuspended.present ? data.isSuspended.value : this.isSuspended,
+      isBuried: data.isBuried.present ? data.isBuried.value : this.isBuried,
       type: data.type.present ? data.type.value : this.type,
       lastReviewedAt: data.lastReviewedAt.present
           ? data.lastReviewedAt.value
@@ -3627,6 +5245,8 @@ class SrsState extends DataClass implements Insertable<SrsState> {
           ..write('reps: $reps, ')
           ..write('lapses: $lapses, ')
           ..write('isLeech: $isLeech, ')
+          ..write('isSuspended: $isSuspended, ')
+          ..write('isBuried: $isBuried, ')
           ..write('type: $type, ')
           ..write('lastReviewedAt: $lastReviewedAt, ')
           ..write('stability: $stability, ')
@@ -3647,6 +5267,8 @@ class SrsState extends DataClass implements Insertable<SrsState> {
       reps,
       lapses,
       isLeech,
+      isSuspended,
+      isBuried,
       type,
       lastReviewedAt,
       stability,
@@ -3665,6 +5287,8 @@ class SrsState extends DataClass implements Insertable<SrsState> {
           other.reps == this.reps &&
           other.lapses == this.lapses &&
           other.isLeech == this.isLeech &&
+          other.isSuspended == this.isSuspended &&
+          other.isBuried == this.isBuried &&
           other.type == this.type &&
           other.lastReviewedAt == this.lastReviewedAt &&
           other.stability == this.stability &&
@@ -3682,6 +5306,8 @@ class SrsStatesCompanion extends UpdateCompanion<SrsState> {
   final Value<int> reps;
   final Value<int> lapses;
   final Value<bool> isLeech;
+  final Value<bool> isSuspended;
+  final Value<bool> isBuried;
   final Value<String> type;
   final Value<int?> lastReviewedAt;
   final Value<double?> stability;
@@ -3698,6 +5324,8 @@ class SrsStatesCompanion extends UpdateCompanion<SrsState> {
     this.reps = const Value.absent(),
     this.lapses = const Value.absent(),
     this.isLeech = const Value.absent(),
+    this.isSuspended = const Value.absent(),
+    this.isBuried = const Value.absent(),
     this.type = const Value.absent(),
     this.lastReviewedAt = const Value.absent(),
     this.stability = const Value.absent(),
@@ -3715,6 +5343,8 @@ class SrsStatesCompanion extends UpdateCompanion<SrsState> {
     this.reps = const Value.absent(),
     this.lapses = const Value.absent(),
     this.isLeech = const Value.absent(),
+    this.isSuspended = const Value.absent(),
+    this.isBuried = const Value.absent(),
     this.type = const Value.absent(),
     this.lastReviewedAt = const Value.absent(),
     this.stability = const Value.absent(),
@@ -3734,6 +5364,8 @@ class SrsStatesCompanion extends UpdateCompanion<SrsState> {
     Expression<int>? reps,
     Expression<int>? lapses,
     Expression<bool>? isLeech,
+    Expression<bool>? isSuspended,
+    Expression<bool>? isBuried,
     Expression<String>? type,
     Expression<int>? lastReviewedAt,
     Expression<double>? stability,
@@ -3751,6 +5383,8 @@ class SrsStatesCompanion extends UpdateCompanion<SrsState> {
       if (reps != null) 'reps': reps,
       if (lapses != null) 'lapses': lapses,
       if (isLeech != null) 'is_leech': isLeech,
+      if (isSuspended != null) 'is_suspended': isSuspended,
+      if (isBuried != null) 'is_buried': isBuried,
       if (type != null) 'type': type,
       if (lastReviewedAt != null) 'last_reviewed_at': lastReviewedAt,
       if (stability != null) 'stability': stability,
@@ -3770,6 +5404,8 @@ class SrsStatesCompanion extends UpdateCompanion<SrsState> {
       Value<int>? reps,
       Value<int>? lapses,
       Value<bool>? isLeech,
+      Value<bool>? isSuspended,
+      Value<bool>? isBuried,
       Value<String>? type,
       Value<int?>? lastReviewedAt,
       Value<double?>? stability,
@@ -3786,6 +5422,8 @@ class SrsStatesCompanion extends UpdateCompanion<SrsState> {
       reps: reps ?? this.reps,
       lapses: lapses ?? this.lapses,
       isLeech: isLeech ?? this.isLeech,
+      isSuspended: isSuspended ?? this.isSuspended,
+      isBuried: isBuried ?? this.isBuried,
       type: type ?? this.type,
       lastReviewedAt: lastReviewedAt ?? this.lastReviewedAt,
       stability: stability ?? this.stability,
@@ -3823,6 +5461,12 @@ class SrsStatesCompanion extends UpdateCompanion<SrsState> {
     if (isLeech.present) {
       map['is_leech'] = Variable<bool>(isLeech.value);
     }
+    if (isSuspended.present) {
+      map['is_suspended'] = Variable<bool>(isSuspended.value);
+    }
+    if (isBuried.present) {
+      map['is_buried'] = Variable<bool>(isBuried.value);
+    }
     if (type.present) {
       map['type'] = Variable<String>(type.value);
     }
@@ -3858,6 +5502,8 @@ class SrsStatesCompanion extends UpdateCompanion<SrsState> {
           ..write('reps: $reps, ')
           ..write('lapses: $lapses, ')
           ..write('isLeech: $isLeech, ')
+          ..write('isSuspended: $isSuspended, ')
+          ..write('isBuried: $isBuried, ')
           ..write('type: $type, ')
           ..write('lastReviewedAt: $lastReviewedAt, ')
           ..write('stability: $stability, ')
@@ -3948,6 +5594,12 @@ class $ReviewEventsTable extends ReviewEvents
       type: DriftSqlType.string,
       requiredDuringInsert: false,
       defaultValue: const Constant('word'));
+  static const VerificationMeta _sourceKeyMeta =
+      const VerificationMeta('sourceKey');
+  @override
+  late final GeneratedColumn<String> sourceKey = GeneratedColumn<String>(
+      'source_key', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -3961,7 +5613,8 @@ class $ReviewEventsTable extends ReviewEvents
         nextEase,
         reps,
         lapses,
-        type
+        type,
+        sourceKey
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -4046,6 +5699,10 @@ class $ReviewEventsTable extends ReviewEvents
       context.handle(
           _typeMeta, type.isAcceptableOrUnknown(data['type']!, _typeMeta));
     }
+    if (data.containsKey('source_key')) {
+      context.handle(_sourceKeyMeta,
+          sourceKey.isAcceptableOrUnknown(data['source_key']!, _sourceKeyMeta));
+    }
     return context;
   }
 
@@ -4079,6 +5736,8 @@ class $ReviewEventsTable extends ReviewEvents
           .read(DriftSqlType.int, data['${effectivePrefix}lapses'])!,
       type: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}type'])!,
+      sourceKey: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source_key']),
     );
   }
 
@@ -4101,6 +5760,7 @@ class ReviewEvent extends DataClass implements Insertable<ReviewEvent> {
   final int reps;
   final int lapses;
   final String type;
+  final String? sourceKey;
   const ReviewEvent(
       {required this.id,
       required this.cardId,
@@ -4113,7 +5773,8 @@ class ReviewEvent extends DataClass implements Insertable<ReviewEvent> {
       required this.nextEase,
       required this.reps,
       required this.lapses,
-      required this.type});
+      required this.type,
+      this.sourceKey});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -4129,6 +5790,9 @@ class ReviewEvent extends DataClass implements Insertable<ReviewEvent> {
     map['reps'] = Variable<int>(reps);
     map['lapses'] = Variable<int>(lapses);
     map['type'] = Variable<String>(type);
+    if (!nullToAbsent || sourceKey != null) {
+      map['source_key'] = Variable<String>(sourceKey);
+    }
     return map;
   }
 
@@ -4146,6 +5810,9 @@ class ReviewEvent extends DataClass implements Insertable<ReviewEvent> {
       reps: Value(reps),
       lapses: Value(lapses),
       type: Value(type),
+      sourceKey: sourceKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceKey),
     );
   }
 
@@ -4165,6 +5832,7 @@ class ReviewEvent extends DataClass implements Insertable<ReviewEvent> {
       reps: serializer.fromJson<int>(json['reps']),
       lapses: serializer.fromJson<int>(json['lapses']),
       type: serializer.fromJson<String>(json['type']),
+      sourceKey: serializer.fromJson<String?>(json['sourceKey']),
     );
   }
   @override
@@ -4183,6 +5851,7 @@ class ReviewEvent extends DataClass implements Insertable<ReviewEvent> {
       'reps': serializer.toJson<int>(reps),
       'lapses': serializer.toJson<int>(lapses),
       'type': serializer.toJson<String>(type),
+      'sourceKey': serializer.toJson<String?>(sourceKey),
     };
   }
 
@@ -4198,7 +5867,8 @@ class ReviewEvent extends DataClass implements Insertable<ReviewEvent> {
           double? nextEase,
           int? reps,
           int? lapses,
-          String? type}) =>
+          String? type,
+          Value<String?> sourceKey = const Value.absent()}) =>
       ReviewEvent(
         id: id ?? this.id,
         cardId: cardId ?? this.cardId,
@@ -4212,6 +5882,7 @@ class ReviewEvent extends DataClass implements Insertable<ReviewEvent> {
         reps: reps ?? this.reps,
         lapses: lapses ?? this.lapses,
         type: type ?? this.type,
+        sourceKey: sourceKey.present ? sourceKey.value : this.sourceKey,
       );
   ReviewEvent copyWithCompanion(ReviewEventsCompanion data) {
     return ReviewEvent(
@@ -4232,6 +5903,7 @@ class ReviewEvent extends DataClass implements Insertable<ReviewEvent> {
       reps: data.reps.present ? data.reps.value : this.reps,
       lapses: data.lapses.present ? data.lapses.value : this.lapses,
       type: data.type.present ? data.type.value : this.type,
+      sourceKey: data.sourceKey.present ? data.sourceKey.value : this.sourceKey,
     );
   }
 
@@ -4249,7 +5921,8 @@ class ReviewEvent extends DataClass implements Insertable<ReviewEvent> {
           ..write('nextEase: $nextEase, ')
           ..write('reps: $reps, ')
           ..write('lapses: $lapses, ')
-          ..write('type: $type')
+          ..write('type: $type, ')
+          ..write('sourceKey: $sourceKey')
           ..write(')'))
         .toString();
   }
@@ -4267,7 +5940,8 @@ class ReviewEvent extends DataClass implements Insertable<ReviewEvent> {
       nextEase,
       reps,
       lapses,
-      type);
+      type,
+      sourceKey);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -4283,7 +5957,8 @@ class ReviewEvent extends DataClass implements Insertable<ReviewEvent> {
           other.nextEase == this.nextEase &&
           other.reps == this.reps &&
           other.lapses == this.lapses &&
-          other.type == this.type);
+          other.type == this.type &&
+          other.sourceKey == this.sourceKey);
 }
 
 class ReviewEventsCompanion extends UpdateCompanion<ReviewEvent> {
@@ -4299,6 +5974,7 @@ class ReviewEventsCompanion extends UpdateCompanion<ReviewEvent> {
   final Value<int> reps;
   final Value<int> lapses;
   final Value<String> type;
+  final Value<String?> sourceKey;
   const ReviewEventsCompanion({
     this.id = const Value.absent(),
     this.cardId = const Value.absent(),
@@ -4312,6 +5988,7 @@ class ReviewEventsCompanion extends UpdateCompanion<ReviewEvent> {
     this.reps = const Value.absent(),
     this.lapses = const Value.absent(),
     this.type = const Value.absent(),
+    this.sourceKey = const Value.absent(),
   });
   ReviewEventsCompanion.insert({
     this.id = const Value.absent(),
@@ -4326,6 +6003,7 @@ class ReviewEventsCompanion extends UpdateCompanion<ReviewEvent> {
     required int reps,
     required int lapses,
     this.type = const Value.absent(),
+    this.sourceKey = const Value.absent(),
   })  : cardId = Value(cardId),
         queue = Value(queue),
         reviewedAt = Value(reviewedAt),
@@ -4349,6 +6027,7 @@ class ReviewEventsCompanion extends UpdateCompanion<ReviewEvent> {
     Expression<int>? reps,
     Expression<int>? lapses,
     Expression<String>? type,
+    Expression<String>? sourceKey,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -4363,6 +6042,7 @@ class ReviewEventsCompanion extends UpdateCompanion<ReviewEvent> {
       if (reps != null) 'reps': reps,
       if (lapses != null) 'lapses': lapses,
       if (type != null) 'type': type,
+      if (sourceKey != null) 'source_key': sourceKey,
     });
   }
 
@@ -4378,7 +6058,8 @@ class ReviewEventsCompanion extends UpdateCompanion<ReviewEvent> {
       Value<double>? nextEase,
       Value<int>? reps,
       Value<int>? lapses,
-      Value<String>? type}) {
+      Value<String>? type,
+      Value<String?>? sourceKey}) {
     return ReviewEventsCompanion(
       id: id ?? this.id,
       cardId: cardId ?? this.cardId,
@@ -4392,6 +6073,7 @@ class ReviewEventsCompanion extends UpdateCompanion<ReviewEvent> {
       reps: reps ?? this.reps,
       lapses: lapses ?? this.lapses,
       type: type ?? this.type,
+      sourceKey: sourceKey ?? this.sourceKey,
     );
   }
 
@@ -4434,6 +6116,9 @@ class ReviewEventsCompanion extends UpdateCompanion<ReviewEvent> {
     if (type.present) {
       map['type'] = Variable<String>(type.value);
     }
+    if (sourceKey.present) {
+      map['source_key'] = Variable<String>(sourceKey.value);
+    }
     return map;
   }
 
@@ -4451,7 +6136,8 @@ class ReviewEventsCompanion extends UpdateCompanion<ReviewEvent> {
           ..write('nextEase: $nextEase, ')
           ..write('reps: $reps, ')
           ..write('lapses: $lapses, ')
-          ..write('type: $type')
+          ..write('type: $type, ')
+          ..write('sourceKey: $sourceKey')
           ..write(')'))
         .toString();
   }
@@ -4469,12 +6155,19 @@ abstract class _$CourseDatabase extends GeneratedDatabase {
   late final $CourseMetaTable courseMeta = $CourseMetaTable(this);
   late final $ExpressionsTable expressions = $ExpressionsTable(this);
   late final $AnkiImportsTable ankiImports = $AnkiImportsTable(this);
+  late final $AnkiNotetypesTable ankiNotetypes = $AnkiNotetypesTable(this);
+  late final $AnkiNotesTable ankiNotes = $AnkiNotesTable(this);
+  late final $AnkiCardsMetaTable ankiCardsMeta = $AnkiCardsMetaTable(this);
+  late final $AnkiPrerenderedHtmlTable ankiPrerenderedHtml =
+      $AnkiPrerenderedHtmlTable(this);
   late final $SrsStatesTable srsStates = $SrsStatesTable(this);
   late final $ReviewEventsTable reviewEvents = $ReviewEventsTable(this);
   late final Index reviewEventsCardIdx = Index('review_events_card_idx',
       'CREATE INDEX review_events_card_idx ON review_events (card_id)');
   late final Index reviewEventsTimeIdx = Index('review_events_time_idx',
       'CREATE INDEX review_events_time_idx ON review_events (reviewed_at)');
+  late final Index reviewEventsSourceIdx = Index('review_events_source_idx',
+      'CREATE UNIQUE INDEX review_events_source_idx ON review_events (source_key)');
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -4489,10 +6182,15 @@ abstract class _$CourseDatabase extends GeneratedDatabase {
         courseMeta,
         expressions,
         ankiImports,
+        ankiNotetypes,
+        ankiNotes,
+        ankiCardsMeta,
+        ankiPrerenderedHtml,
         srsStates,
         reviewEvents,
         reviewEventsCardIdx,
-        reviewEventsTimeIdx
+        reviewEventsTimeIdx,
+        reviewEventsSourceIdx
       ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules(
@@ -4516,6 +6214,27 @@ abstract class _$CourseDatabase extends GeneratedDatabase {
                 limitUpdateKind: UpdateKind.delete),
             result: [
               TableUpdate('lesson_contents', kind: UpdateKind.delete),
+            ],
+          ),
+          WritePropagation(
+            on: TableUpdateQuery.onTableName('anki_imports',
+                limitUpdateKind: UpdateKind.delete),
+            result: [
+              TableUpdate('anki_notetypes', kind: UpdateKind.delete),
+            ],
+          ),
+          WritePropagation(
+            on: TableUpdateQuery.onTableName('anki_imports',
+                limitUpdateKind: UpdateKind.delete),
+            result: [
+              TableUpdate('anki_notes', kind: UpdateKind.delete),
+            ],
+          ),
+          WritePropagation(
+            on: TableUpdateQuery.onTableName('anki_imports',
+                limitUpdateKind: UpdateKind.delete),
+            result: [
+              TableUpdate('anki_cards_meta', kind: UpdateKind.delete),
             ],
           ),
         ],
@@ -6490,6 +8209,59 @@ typedef $$AnkiImportsTableUpdateCompanionBuilder = AnkiImportsCompanion
   Value<int> rowid,
 });
 
+final class $$AnkiImportsTableReferences
+    extends BaseReferences<_$CourseDatabase, $AnkiImportsTable, AnkiImport> {
+  $$AnkiImportsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static MultiTypedResultKey<$AnkiNotetypesTable, List<AnkiNotetypeRow>>
+      _ankiNotetypesRefsTable(_$CourseDatabase db) =>
+          MultiTypedResultKey.fromTable(db.ankiNotetypes,
+              aliasName: $_aliasNameGenerator(
+                  db.ankiImports.importId, db.ankiNotetypes.importId));
+
+  $$AnkiNotetypesTableProcessedTableManager get ankiNotetypesRefs {
+    final manager = $$AnkiNotetypesTableTableManager($_db, $_db.ankiNotetypes)
+        .filter((f) =>
+            f.importId.importId.sqlEquals($_itemColumn<String>('import_id')!));
+
+    final cache = $_typedResult.readTableOrNull(_ankiNotetypesRefsTable($_db));
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: cache));
+  }
+
+  static MultiTypedResultKey<$AnkiNotesTable, List<AnkiNoteRow>>
+      _ankiNotesRefsTable(_$CourseDatabase db) =>
+          MultiTypedResultKey.fromTable(db.ankiNotes,
+              aliasName: $_aliasNameGenerator(
+                  db.ankiImports.importId, db.ankiNotes.importId));
+
+  $$AnkiNotesTableProcessedTableManager get ankiNotesRefs {
+    final manager = $$AnkiNotesTableTableManager($_db, $_db.ankiNotes).filter(
+        (f) =>
+            f.importId.importId.sqlEquals($_itemColumn<String>('import_id')!));
+
+    final cache = $_typedResult.readTableOrNull(_ankiNotesRefsTable($_db));
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: cache));
+  }
+
+  static MultiTypedResultKey<$AnkiCardsMetaTable, List<AnkiCardMetaRow>>
+      _ankiCardsMetaRefsTable(_$CourseDatabase db) =>
+          MultiTypedResultKey.fromTable(db.ankiCardsMeta,
+              aliasName: $_aliasNameGenerator(
+                  db.ankiImports.importId, db.ankiCardsMeta.importId));
+
+  $$AnkiCardsMetaTableProcessedTableManager get ankiCardsMetaRefs {
+    final manager = $$AnkiCardsMetaTableTableManager($_db, $_db.ankiCardsMeta)
+        .filter((f) =>
+            f.importId.importId.sqlEquals($_itemColumn<String>('import_id')!));
+
+    final cache = $_typedResult.readTableOrNull(_ankiCardsMetaRefsTable($_db));
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: cache));
+  }
+}
+
 class $$AnkiImportsTableFilterComposer
     extends Composer<_$CourseDatabase, $AnkiImportsTable> {
   $$AnkiImportsTableFilterComposer({
@@ -6531,6 +8303,69 @@ class $$AnkiImportsTableFilterComposer
 
   ColumnFilters<int> get version => $composableBuilder(
       column: $table.version, builder: (column) => ColumnFilters(column));
+
+  Expression<bool> ankiNotetypesRefs(
+      Expression<bool> Function($$AnkiNotetypesTableFilterComposer f) f) {
+    final $$AnkiNotetypesTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.importId,
+        referencedTable: $db.ankiNotetypes,
+        getReferencedColumn: (t) => t.importId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$AnkiNotetypesTableFilterComposer(
+              $db: $db,
+              $table: $db.ankiNotetypes,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
+  Expression<bool> ankiNotesRefs(
+      Expression<bool> Function($$AnkiNotesTableFilterComposer f) f) {
+    final $$AnkiNotesTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.importId,
+        referencedTable: $db.ankiNotes,
+        getReferencedColumn: (t) => t.importId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$AnkiNotesTableFilterComposer(
+              $db: $db,
+              $table: $db.ankiNotes,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
+  Expression<bool> ankiCardsMetaRefs(
+      Expression<bool> Function($$AnkiCardsMetaTableFilterComposer f) f) {
+    final $$AnkiCardsMetaTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.importId,
+        referencedTable: $db.ankiCardsMeta,
+        getReferencedColumn: (t) => t.importId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$AnkiCardsMetaTableFilterComposer(
+              $db: $db,
+              $table: $db.ankiCardsMeta,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
 }
 
 class $$AnkiImportsTableOrderingComposer
@@ -6618,6 +8453,69 @@ class $$AnkiImportsTableAnnotationComposer
 
   GeneratedColumn<int> get version =>
       $composableBuilder(column: $table.version, builder: (column) => column);
+
+  Expression<T> ankiNotetypesRefs<T extends Object>(
+      Expression<T> Function($$AnkiNotetypesTableAnnotationComposer a) f) {
+    final $$AnkiNotetypesTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.importId,
+        referencedTable: $db.ankiNotetypes,
+        getReferencedColumn: (t) => t.importId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$AnkiNotetypesTableAnnotationComposer(
+              $db: $db,
+              $table: $db.ankiNotetypes,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
+  Expression<T> ankiNotesRefs<T extends Object>(
+      Expression<T> Function($$AnkiNotesTableAnnotationComposer a) f) {
+    final $$AnkiNotesTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.importId,
+        referencedTable: $db.ankiNotes,
+        getReferencedColumn: (t) => t.importId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$AnkiNotesTableAnnotationComposer(
+              $db: $db,
+              $table: $db.ankiNotes,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
+  Expression<T> ankiCardsMetaRefs<T extends Object>(
+      Expression<T> Function($$AnkiCardsMetaTableAnnotationComposer a) f) {
+    final $$AnkiCardsMetaTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.importId,
+        referencedTable: $db.ankiCardsMeta,
+        getReferencedColumn: (t) => t.importId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$AnkiCardsMetaTableAnnotationComposer(
+              $db: $db,
+              $table: $db.ankiCardsMeta,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
 }
 
 class $$AnkiImportsTableTableManager extends RootTableManager<
@@ -6629,12 +8527,10 @@ class $$AnkiImportsTableTableManager extends RootTableManager<
     $$AnkiImportsTableAnnotationComposer,
     $$AnkiImportsTableCreateCompanionBuilder,
     $$AnkiImportsTableUpdateCompanionBuilder,
-    (
-      AnkiImport,
-      BaseReferences<_$CourseDatabase, $AnkiImportsTable, AnkiImport>
-    ),
+    (AnkiImport, $$AnkiImportsTableReferences),
     AnkiImport,
-    PrefetchHooks Function()> {
+    PrefetchHooks Function(
+        {bool ankiNotetypesRefs, bool ankiNotesRefs, bool ankiCardsMetaRefs})> {
   $$AnkiImportsTableTableManager(_$CourseDatabase db, $AnkiImportsTable table)
       : super(TableManagerState(
           db: db,
@@ -6702,9 +8598,68 @@ class $$AnkiImportsTableTableManager extends RootTableManager<
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map((e) => (
+                    e.readTable(table),
+                    $$AnkiImportsTableReferences(db, table, e)
+                  ))
               .toList(),
-          prefetchHooksCallback: null,
+          prefetchHooksCallback: (
+              {ankiNotetypesRefs = false,
+              ankiNotesRefs = false,
+              ankiCardsMetaRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [
+                if (ankiNotetypesRefs) db.ankiNotetypes,
+                if (ankiNotesRefs) db.ankiNotes,
+                if (ankiCardsMetaRefs) db.ankiCardsMeta
+              ],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (ankiNotetypesRefs)
+                    await $_getPrefetchedData<AnkiImport, $AnkiImportsTable,
+                            AnkiNotetypeRow>(
+                        currentTable: table,
+                        referencedTable: $$AnkiImportsTableReferences
+                            ._ankiNotetypesRefsTable(db),
+                        managerFromTypedResult: (p0) =>
+                            $$AnkiImportsTableReferences(db, table, p0)
+                                .ankiNotetypesRefs,
+                        referencedItemsForCurrentItem:
+                            (item, referencedItems) => referencedItems
+                                .where((e) => e.importId == item.importId),
+                        typedResults: items),
+                  if (ankiNotesRefs)
+                    await $_getPrefetchedData<AnkiImport, $AnkiImportsTable,
+                            AnkiNoteRow>(
+                        currentTable: table,
+                        referencedTable: $$AnkiImportsTableReferences
+                            ._ankiNotesRefsTable(db),
+                        managerFromTypedResult: (p0) =>
+                            $$AnkiImportsTableReferences(db, table, p0)
+                                .ankiNotesRefs,
+                        referencedItemsForCurrentItem:
+                            (item, referencedItems) => referencedItems
+                                .where((e) => e.importId == item.importId),
+                        typedResults: items),
+                  if (ankiCardsMetaRefs)
+                    await $_getPrefetchedData<AnkiImport, $AnkiImportsTable,
+                            AnkiCardMetaRow>(
+                        currentTable: table,
+                        referencedTable: $$AnkiImportsTableReferences
+                            ._ankiCardsMetaRefsTable(db),
+                        managerFromTypedResult: (p0) =>
+                            $$AnkiImportsTableReferences(db, table, p0)
+                                .ankiCardsMetaRefs,
+                        referencedItemsForCurrentItem:
+                            (item, referencedItems) => referencedItems
+                                .where((e) => e.importId == item.importId),
+                        typedResults: items)
+                ];
+              },
+            );
+          },
         ));
 }
 
@@ -6717,11 +8672,1141 @@ typedef $$AnkiImportsTableProcessedTableManager = ProcessedTableManager<
     $$AnkiImportsTableAnnotationComposer,
     $$AnkiImportsTableCreateCompanionBuilder,
     $$AnkiImportsTableUpdateCompanionBuilder,
-    (
-      AnkiImport,
-      BaseReferences<_$CourseDatabase, $AnkiImportsTable, AnkiImport>
-    ),
+    (AnkiImport, $$AnkiImportsTableReferences),
     AnkiImport,
+    PrefetchHooks Function(
+        {bool ankiNotetypesRefs, bool ankiNotesRefs, bool ankiCardsMetaRefs})>;
+typedef $$AnkiNotetypesTableCreateCompanionBuilder = AnkiNotetypesCompanion
+    Function({
+  required String importId,
+  required int mid,
+  Value<String> name,
+  Value<bool> isCloze,
+  Value<String> fieldNamesJson,
+  Value<String> templatesJson,
+  Value<String> css,
+  Value<bool> allowJs,
+  Value<int> rowid,
+});
+typedef $$AnkiNotetypesTableUpdateCompanionBuilder = AnkiNotetypesCompanion
+    Function({
+  Value<String> importId,
+  Value<int> mid,
+  Value<String> name,
+  Value<bool> isCloze,
+  Value<String> fieldNamesJson,
+  Value<String> templatesJson,
+  Value<String> css,
+  Value<bool> allowJs,
+  Value<int> rowid,
+});
+
+final class $$AnkiNotetypesTableReferences extends BaseReferences<
+    _$CourseDatabase, $AnkiNotetypesTable, AnkiNotetypeRow> {
+  $$AnkiNotetypesTableReferences(
+      super.$_db, super.$_table, super.$_typedResult);
+
+  static $AnkiImportsTable _importIdTable(_$CourseDatabase db) =>
+      db.ankiImports.createAlias($_aliasNameGenerator(
+          db.ankiNotetypes.importId, db.ankiImports.importId));
+
+  $$AnkiImportsTableProcessedTableManager get importId {
+    final $_column = $_itemColumn<String>('import_id')!;
+
+    final manager = $$AnkiImportsTableTableManager($_db, $_db.ankiImports)
+        .filter((f) => f.importId.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_importIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: [item]));
+  }
+}
+
+class $$AnkiNotetypesTableFilterComposer
+    extends Composer<_$CourseDatabase, $AnkiNotetypesTable> {
+  $$AnkiNotetypesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get mid => $composableBuilder(
+      column: $table.mid, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isCloze => $composableBuilder(
+      column: $table.isCloze, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get fieldNamesJson => $composableBuilder(
+      column: $table.fieldNamesJson,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get templatesJson => $composableBuilder(
+      column: $table.templatesJson, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get css => $composableBuilder(
+      column: $table.css, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get allowJs => $composableBuilder(
+      column: $table.allowJs, builder: (column) => ColumnFilters(column));
+
+  $$AnkiImportsTableFilterComposer get importId {
+    final $$AnkiImportsTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.importId,
+        referencedTable: $db.ankiImports,
+        getReferencedColumn: (t) => t.importId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$AnkiImportsTableFilterComposer(
+              $db: $db,
+              $table: $db.ankiImports,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$AnkiNotetypesTableOrderingComposer
+    extends Composer<_$CourseDatabase, $AnkiNotetypesTable> {
+  $$AnkiNotetypesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get mid => $composableBuilder(
+      column: $table.mid, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isCloze => $composableBuilder(
+      column: $table.isCloze, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get fieldNamesJson => $composableBuilder(
+      column: $table.fieldNamesJson,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get templatesJson => $composableBuilder(
+      column: $table.templatesJson,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get css => $composableBuilder(
+      column: $table.css, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get allowJs => $composableBuilder(
+      column: $table.allowJs, builder: (column) => ColumnOrderings(column));
+
+  $$AnkiImportsTableOrderingComposer get importId {
+    final $$AnkiImportsTableOrderingComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.importId,
+        referencedTable: $db.ankiImports,
+        getReferencedColumn: (t) => t.importId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$AnkiImportsTableOrderingComposer(
+              $db: $db,
+              $table: $db.ankiImports,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$AnkiNotetypesTableAnnotationComposer
+    extends Composer<_$CourseDatabase, $AnkiNotetypesTable> {
+  $$AnkiNotetypesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get mid =>
+      $composableBuilder(column: $table.mid, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<bool> get isCloze =>
+      $composableBuilder(column: $table.isCloze, builder: (column) => column);
+
+  GeneratedColumn<String> get fieldNamesJson => $composableBuilder(
+      column: $table.fieldNamesJson, builder: (column) => column);
+
+  GeneratedColumn<String> get templatesJson => $composableBuilder(
+      column: $table.templatesJson, builder: (column) => column);
+
+  GeneratedColumn<String> get css =>
+      $composableBuilder(column: $table.css, builder: (column) => column);
+
+  GeneratedColumn<bool> get allowJs =>
+      $composableBuilder(column: $table.allowJs, builder: (column) => column);
+
+  $$AnkiImportsTableAnnotationComposer get importId {
+    final $$AnkiImportsTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.importId,
+        referencedTable: $db.ankiImports,
+        getReferencedColumn: (t) => t.importId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$AnkiImportsTableAnnotationComposer(
+              $db: $db,
+              $table: $db.ankiImports,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$AnkiNotetypesTableTableManager extends RootTableManager<
+    _$CourseDatabase,
+    $AnkiNotetypesTable,
+    AnkiNotetypeRow,
+    $$AnkiNotetypesTableFilterComposer,
+    $$AnkiNotetypesTableOrderingComposer,
+    $$AnkiNotetypesTableAnnotationComposer,
+    $$AnkiNotetypesTableCreateCompanionBuilder,
+    $$AnkiNotetypesTableUpdateCompanionBuilder,
+    (AnkiNotetypeRow, $$AnkiNotetypesTableReferences),
+    AnkiNotetypeRow,
+    PrefetchHooks Function({bool importId})> {
+  $$AnkiNotetypesTableTableManager(
+      _$CourseDatabase db, $AnkiNotetypesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AnkiNotetypesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AnkiNotetypesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AnkiNotetypesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> importId = const Value.absent(),
+            Value<int> mid = const Value.absent(),
+            Value<String> name = const Value.absent(),
+            Value<bool> isCloze = const Value.absent(),
+            Value<String> fieldNamesJson = const Value.absent(),
+            Value<String> templatesJson = const Value.absent(),
+            Value<String> css = const Value.absent(),
+            Value<bool> allowJs = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AnkiNotetypesCompanion(
+            importId: importId,
+            mid: mid,
+            name: name,
+            isCloze: isCloze,
+            fieldNamesJson: fieldNamesJson,
+            templatesJson: templatesJson,
+            css: css,
+            allowJs: allowJs,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String importId,
+            required int mid,
+            Value<String> name = const Value.absent(),
+            Value<bool> isCloze = const Value.absent(),
+            Value<String> fieldNamesJson = const Value.absent(),
+            Value<String> templatesJson = const Value.absent(),
+            Value<String> css = const Value.absent(),
+            Value<bool> allowJs = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AnkiNotetypesCompanion.insert(
+            importId: importId,
+            mid: mid,
+            name: name,
+            isCloze: isCloze,
+            fieldNamesJson: fieldNamesJson,
+            templatesJson: templatesJson,
+            css: css,
+            allowJs: allowJs,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (
+                    e.readTable(table),
+                    $$AnkiNotetypesTableReferences(db, table, e)
+                  ))
+              .toList(),
+          prefetchHooksCallback: ({importId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins: <
+                  T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic>>(state) {
+                if (importId) {
+                  state = state.withJoin(
+                    currentTable: table,
+                    currentColumn: table.importId,
+                    referencedTable:
+                        $$AnkiNotetypesTableReferences._importIdTable(db),
+                    referencedColumn: $$AnkiNotetypesTableReferences
+                        ._importIdTable(db)
+                        .importId,
+                  ) as T;
+                }
+
+                return state;
+              },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ));
+}
+
+typedef $$AnkiNotetypesTableProcessedTableManager = ProcessedTableManager<
+    _$CourseDatabase,
+    $AnkiNotetypesTable,
+    AnkiNotetypeRow,
+    $$AnkiNotetypesTableFilterComposer,
+    $$AnkiNotetypesTableOrderingComposer,
+    $$AnkiNotetypesTableAnnotationComposer,
+    $$AnkiNotetypesTableCreateCompanionBuilder,
+    $$AnkiNotetypesTableUpdateCompanionBuilder,
+    (AnkiNotetypeRow, $$AnkiNotetypesTableReferences),
+    AnkiNotetypeRow,
+    PrefetchHooks Function({bool importId})>;
+typedef $$AnkiNotesTableCreateCompanionBuilder = AnkiNotesCompanion Function({
+  required String importId,
+  required int noteId,
+  required int mid,
+  Value<String> tags,
+  Value<String> fieldsJson,
+  Value<String> sfld,
+  Value<String> guid,
+  Value<int> mod,
+  Value<int> rowid,
+});
+typedef $$AnkiNotesTableUpdateCompanionBuilder = AnkiNotesCompanion Function({
+  Value<String> importId,
+  Value<int> noteId,
+  Value<int> mid,
+  Value<String> tags,
+  Value<String> fieldsJson,
+  Value<String> sfld,
+  Value<String> guid,
+  Value<int> mod,
+  Value<int> rowid,
+});
+
+final class $$AnkiNotesTableReferences
+    extends BaseReferences<_$CourseDatabase, $AnkiNotesTable, AnkiNoteRow> {
+  $$AnkiNotesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $AnkiImportsTable _importIdTable(_$CourseDatabase db) =>
+      db.ankiImports.createAlias(
+          $_aliasNameGenerator(db.ankiNotes.importId, db.ankiImports.importId));
+
+  $$AnkiImportsTableProcessedTableManager get importId {
+    final $_column = $_itemColumn<String>('import_id')!;
+
+    final manager = $$AnkiImportsTableTableManager($_db, $_db.ankiImports)
+        .filter((f) => f.importId.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_importIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: [item]));
+  }
+}
+
+class $$AnkiNotesTableFilterComposer
+    extends Composer<_$CourseDatabase, $AnkiNotesTable> {
+  $$AnkiNotesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get noteId => $composableBuilder(
+      column: $table.noteId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get mid => $composableBuilder(
+      column: $table.mid, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get tags => $composableBuilder(
+      column: $table.tags, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get fieldsJson => $composableBuilder(
+      column: $table.fieldsJson, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sfld => $composableBuilder(
+      column: $table.sfld, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get guid => $composableBuilder(
+      column: $table.guid, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get mod => $composableBuilder(
+      column: $table.mod, builder: (column) => ColumnFilters(column));
+
+  $$AnkiImportsTableFilterComposer get importId {
+    final $$AnkiImportsTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.importId,
+        referencedTable: $db.ankiImports,
+        getReferencedColumn: (t) => t.importId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$AnkiImportsTableFilterComposer(
+              $db: $db,
+              $table: $db.ankiImports,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$AnkiNotesTableOrderingComposer
+    extends Composer<_$CourseDatabase, $AnkiNotesTable> {
+  $$AnkiNotesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get noteId => $composableBuilder(
+      column: $table.noteId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get mid => $composableBuilder(
+      column: $table.mid, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get tags => $composableBuilder(
+      column: $table.tags, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get fieldsJson => $composableBuilder(
+      column: $table.fieldsJson, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sfld => $composableBuilder(
+      column: $table.sfld, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get guid => $composableBuilder(
+      column: $table.guid, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get mod => $composableBuilder(
+      column: $table.mod, builder: (column) => ColumnOrderings(column));
+
+  $$AnkiImportsTableOrderingComposer get importId {
+    final $$AnkiImportsTableOrderingComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.importId,
+        referencedTable: $db.ankiImports,
+        getReferencedColumn: (t) => t.importId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$AnkiImportsTableOrderingComposer(
+              $db: $db,
+              $table: $db.ankiImports,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$AnkiNotesTableAnnotationComposer
+    extends Composer<_$CourseDatabase, $AnkiNotesTable> {
+  $$AnkiNotesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get noteId =>
+      $composableBuilder(column: $table.noteId, builder: (column) => column);
+
+  GeneratedColumn<int> get mid =>
+      $composableBuilder(column: $table.mid, builder: (column) => column);
+
+  GeneratedColumn<String> get tags =>
+      $composableBuilder(column: $table.tags, builder: (column) => column);
+
+  GeneratedColumn<String> get fieldsJson => $composableBuilder(
+      column: $table.fieldsJson, builder: (column) => column);
+
+  GeneratedColumn<String> get sfld =>
+      $composableBuilder(column: $table.sfld, builder: (column) => column);
+
+  GeneratedColumn<String> get guid =>
+      $composableBuilder(column: $table.guid, builder: (column) => column);
+
+  GeneratedColumn<int> get mod =>
+      $composableBuilder(column: $table.mod, builder: (column) => column);
+
+  $$AnkiImportsTableAnnotationComposer get importId {
+    final $$AnkiImportsTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.importId,
+        referencedTable: $db.ankiImports,
+        getReferencedColumn: (t) => t.importId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$AnkiImportsTableAnnotationComposer(
+              $db: $db,
+              $table: $db.ankiImports,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$AnkiNotesTableTableManager extends RootTableManager<
+    _$CourseDatabase,
+    $AnkiNotesTable,
+    AnkiNoteRow,
+    $$AnkiNotesTableFilterComposer,
+    $$AnkiNotesTableOrderingComposer,
+    $$AnkiNotesTableAnnotationComposer,
+    $$AnkiNotesTableCreateCompanionBuilder,
+    $$AnkiNotesTableUpdateCompanionBuilder,
+    (AnkiNoteRow, $$AnkiNotesTableReferences),
+    AnkiNoteRow,
+    PrefetchHooks Function({bool importId})> {
+  $$AnkiNotesTableTableManager(_$CourseDatabase db, $AnkiNotesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AnkiNotesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AnkiNotesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AnkiNotesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> importId = const Value.absent(),
+            Value<int> noteId = const Value.absent(),
+            Value<int> mid = const Value.absent(),
+            Value<String> tags = const Value.absent(),
+            Value<String> fieldsJson = const Value.absent(),
+            Value<String> sfld = const Value.absent(),
+            Value<String> guid = const Value.absent(),
+            Value<int> mod = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AnkiNotesCompanion(
+            importId: importId,
+            noteId: noteId,
+            mid: mid,
+            tags: tags,
+            fieldsJson: fieldsJson,
+            sfld: sfld,
+            guid: guid,
+            mod: mod,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String importId,
+            required int noteId,
+            required int mid,
+            Value<String> tags = const Value.absent(),
+            Value<String> fieldsJson = const Value.absent(),
+            Value<String> sfld = const Value.absent(),
+            Value<String> guid = const Value.absent(),
+            Value<int> mod = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AnkiNotesCompanion.insert(
+            importId: importId,
+            noteId: noteId,
+            mid: mid,
+            tags: tags,
+            fieldsJson: fieldsJson,
+            sfld: sfld,
+            guid: guid,
+            mod: mod,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (
+                    e.readTable(table),
+                    $$AnkiNotesTableReferences(db, table, e)
+                  ))
+              .toList(),
+          prefetchHooksCallback: ({importId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins: <
+                  T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic>>(state) {
+                if (importId) {
+                  state = state.withJoin(
+                    currentTable: table,
+                    currentColumn: table.importId,
+                    referencedTable:
+                        $$AnkiNotesTableReferences._importIdTable(db),
+                    referencedColumn:
+                        $$AnkiNotesTableReferences._importIdTable(db).importId,
+                  ) as T;
+                }
+
+                return state;
+              },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ));
+}
+
+typedef $$AnkiNotesTableProcessedTableManager = ProcessedTableManager<
+    _$CourseDatabase,
+    $AnkiNotesTable,
+    AnkiNoteRow,
+    $$AnkiNotesTableFilterComposer,
+    $$AnkiNotesTableOrderingComposer,
+    $$AnkiNotesTableAnnotationComposer,
+    $$AnkiNotesTableCreateCompanionBuilder,
+    $$AnkiNotesTableUpdateCompanionBuilder,
+    (AnkiNoteRow, $$AnkiNotesTableReferences),
+    AnkiNoteRow,
+    PrefetchHooks Function({bool importId})>;
+typedef $$AnkiCardsMetaTableCreateCompanionBuilder = AnkiCardsMetaCompanion
+    Function({
+  required String importId,
+  required int cardId,
+  required int noteId,
+  Value<int> ord,
+  Value<int> did,
+  required String wordId,
+  Value<String> renderMode,
+  Value<String> schedulingJson,
+  Value<int> rowid,
+});
+typedef $$AnkiCardsMetaTableUpdateCompanionBuilder = AnkiCardsMetaCompanion
+    Function({
+  Value<String> importId,
+  Value<int> cardId,
+  Value<int> noteId,
+  Value<int> ord,
+  Value<int> did,
+  Value<String> wordId,
+  Value<String> renderMode,
+  Value<String> schedulingJson,
+  Value<int> rowid,
+});
+
+final class $$AnkiCardsMetaTableReferences extends BaseReferences<
+    _$CourseDatabase, $AnkiCardsMetaTable, AnkiCardMetaRow> {
+  $$AnkiCardsMetaTableReferences(
+      super.$_db, super.$_table, super.$_typedResult);
+
+  static $AnkiImportsTable _importIdTable(_$CourseDatabase db) =>
+      db.ankiImports.createAlias($_aliasNameGenerator(
+          db.ankiCardsMeta.importId, db.ankiImports.importId));
+
+  $$AnkiImportsTableProcessedTableManager get importId {
+    final $_column = $_itemColumn<String>('import_id')!;
+
+    final manager = $$AnkiImportsTableTableManager($_db, $_db.ankiImports)
+        .filter((f) => f.importId.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_importIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: [item]));
+  }
+}
+
+class $$AnkiCardsMetaTableFilterComposer
+    extends Composer<_$CourseDatabase, $AnkiCardsMetaTable> {
+  $$AnkiCardsMetaTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get cardId => $composableBuilder(
+      column: $table.cardId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get noteId => $composableBuilder(
+      column: $table.noteId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get ord => $composableBuilder(
+      column: $table.ord, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get did => $composableBuilder(
+      column: $table.did, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get wordId => $composableBuilder(
+      column: $table.wordId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get renderMode => $composableBuilder(
+      column: $table.renderMode, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get schedulingJson => $composableBuilder(
+      column: $table.schedulingJson,
+      builder: (column) => ColumnFilters(column));
+
+  $$AnkiImportsTableFilterComposer get importId {
+    final $$AnkiImportsTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.importId,
+        referencedTable: $db.ankiImports,
+        getReferencedColumn: (t) => t.importId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$AnkiImportsTableFilterComposer(
+              $db: $db,
+              $table: $db.ankiImports,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$AnkiCardsMetaTableOrderingComposer
+    extends Composer<_$CourseDatabase, $AnkiCardsMetaTable> {
+  $$AnkiCardsMetaTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get cardId => $composableBuilder(
+      column: $table.cardId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get noteId => $composableBuilder(
+      column: $table.noteId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get ord => $composableBuilder(
+      column: $table.ord, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get did => $composableBuilder(
+      column: $table.did, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get wordId => $composableBuilder(
+      column: $table.wordId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get renderMode => $composableBuilder(
+      column: $table.renderMode, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get schedulingJson => $composableBuilder(
+      column: $table.schedulingJson,
+      builder: (column) => ColumnOrderings(column));
+
+  $$AnkiImportsTableOrderingComposer get importId {
+    final $$AnkiImportsTableOrderingComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.importId,
+        referencedTable: $db.ankiImports,
+        getReferencedColumn: (t) => t.importId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$AnkiImportsTableOrderingComposer(
+              $db: $db,
+              $table: $db.ankiImports,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$AnkiCardsMetaTableAnnotationComposer
+    extends Composer<_$CourseDatabase, $AnkiCardsMetaTable> {
+  $$AnkiCardsMetaTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get cardId =>
+      $composableBuilder(column: $table.cardId, builder: (column) => column);
+
+  GeneratedColumn<int> get noteId =>
+      $composableBuilder(column: $table.noteId, builder: (column) => column);
+
+  GeneratedColumn<int> get ord =>
+      $composableBuilder(column: $table.ord, builder: (column) => column);
+
+  GeneratedColumn<int> get did =>
+      $composableBuilder(column: $table.did, builder: (column) => column);
+
+  GeneratedColumn<String> get wordId =>
+      $composableBuilder(column: $table.wordId, builder: (column) => column);
+
+  GeneratedColumn<String> get renderMode => $composableBuilder(
+      column: $table.renderMode, builder: (column) => column);
+
+  GeneratedColumn<String> get schedulingJson => $composableBuilder(
+      column: $table.schedulingJson, builder: (column) => column);
+
+  $$AnkiImportsTableAnnotationComposer get importId {
+    final $$AnkiImportsTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.importId,
+        referencedTable: $db.ankiImports,
+        getReferencedColumn: (t) => t.importId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$AnkiImportsTableAnnotationComposer(
+              $db: $db,
+              $table: $db.ankiImports,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$AnkiCardsMetaTableTableManager extends RootTableManager<
+    _$CourseDatabase,
+    $AnkiCardsMetaTable,
+    AnkiCardMetaRow,
+    $$AnkiCardsMetaTableFilterComposer,
+    $$AnkiCardsMetaTableOrderingComposer,
+    $$AnkiCardsMetaTableAnnotationComposer,
+    $$AnkiCardsMetaTableCreateCompanionBuilder,
+    $$AnkiCardsMetaTableUpdateCompanionBuilder,
+    (AnkiCardMetaRow, $$AnkiCardsMetaTableReferences),
+    AnkiCardMetaRow,
+    PrefetchHooks Function({bool importId})> {
+  $$AnkiCardsMetaTableTableManager(
+      _$CourseDatabase db, $AnkiCardsMetaTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AnkiCardsMetaTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AnkiCardsMetaTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AnkiCardsMetaTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> importId = const Value.absent(),
+            Value<int> cardId = const Value.absent(),
+            Value<int> noteId = const Value.absent(),
+            Value<int> ord = const Value.absent(),
+            Value<int> did = const Value.absent(),
+            Value<String> wordId = const Value.absent(),
+            Value<String> renderMode = const Value.absent(),
+            Value<String> schedulingJson = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AnkiCardsMetaCompanion(
+            importId: importId,
+            cardId: cardId,
+            noteId: noteId,
+            ord: ord,
+            did: did,
+            wordId: wordId,
+            renderMode: renderMode,
+            schedulingJson: schedulingJson,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String importId,
+            required int cardId,
+            required int noteId,
+            Value<int> ord = const Value.absent(),
+            Value<int> did = const Value.absent(),
+            required String wordId,
+            Value<String> renderMode = const Value.absent(),
+            Value<String> schedulingJson = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AnkiCardsMetaCompanion.insert(
+            importId: importId,
+            cardId: cardId,
+            noteId: noteId,
+            ord: ord,
+            did: did,
+            wordId: wordId,
+            renderMode: renderMode,
+            schedulingJson: schedulingJson,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (
+                    e.readTable(table),
+                    $$AnkiCardsMetaTableReferences(db, table, e)
+                  ))
+              .toList(),
+          prefetchHooksCallback: ({importId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins: <
+                  T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic>>(state) {
+                if (importId) {
+                  state = state.withJoin(
+                    currentTable: table,
+                    currentColumn: table.importId,
+                    referencedTable:
+                        $$AnkiCardsMetaTableReferences._importIdTable(db),
+                    referencedColumn: $$AnkiCardsMetaTableReferences
+                        ._importIdTable(db)
+                        .importId,
+                  ) as T;
+                }
+
+                return state;
+              },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ));
+}
+
+typedef $$AnkiCardsMetaTableProcessedTableManager = ProcessedTableManager<
+    _$CourseDatabase,
+    $AnkiCardsMetaTable,
+    AnkiCardMetaRow,
+    $$AnkiCardsMetaTableFilterComposer,
+    $$AnkiCardsMetaTableOrderingComposer,
+    $$AnkiCardsMetaTableAnnotationComposer,
+    $$AnkiCardsMetaTableCreateCompanionBuilder,
+    $$AnkiCardsMetaTableUpdateCompanionBuilder,
+    (AnkiCardMetaRow, $$AnkiCardsMetaTableReferences),
+    AnkiCardMetaRow,
+    PrefetchHooks Function({bool importId})>;
+typedef $$AnkiPrerenderedHtmlTableCreateCompanionBuilder
+    = AnkiPrerenderedHtmlCompanion Function({
+  required String wordId,
+  Value<String?> frontHtml,
+  Value<String?> backHtml,
+  Value<int> capturedAt,
+  Value<int> rowid,
+});
+typedef $$AnkiPrerenderedHtmlTableUpdateCompanionBuilder
+    = AnkiPrerenderedHtmlCompanion Function({
+  Value<String> wordId,
+  Value<String?> frontHtml,
+  Value<String?> backHtml,
+  Value<int> capturedAt,
+  Value<int> rowid,
+});
+
+class $$AnkiPrerenderedHtmlTableFilterComposer
+    extends Composer<_$CourseDatabase, $AnkiPrerenderedHtmlTable> {
+  $$AnkiPrerenderedHtmlTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get wordId => $composableBuilder(
+      column: $table.wordId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get frontHtml => $composableBuilder(
+      column: $table.frontHtml, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get backHtml => $composableBuilder(
+      column: $table.backHtml, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get capturedAt => $composableBuilder(
+      column: $table.capturedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$AnkiPrerenderedHtmlTableOrderingComposer
+    extends Composer<_$CourseDatabase, $AnkiPrerenderedHtmlTable> {
+  $$AnkiPrerenderedHtmlTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get wordId => $composableBuilder(
+      column: $table.wordId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get frontHtml => $composableBuilder(
+      column: $table.frontHtml, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get backHtml => $composableBuilder(
+      column: $table.backHtml, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get capturedAt => $composableBuilder(
+      column: $table.capturedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$AnkiPrerenderedHtmlTableAnnotationComposer
+    extends Composer<_$CourseDatabase, $AnkiPrerenderedHtmlTable> {
+  $$AnkiPrerenderedHtmlTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get wordId =>
+      $composableBuilder(column: $table.wordId, builder: (column) => column);
+
+  GeneratedColumn<String> get frontHtml =>
+      $composableBuilder(column: $table.frontHtml, builder: (column) => column);
+
+  GeneratedColumn<String> get backHtml =>
+      $composableBuilder(column: $table.backHtml, builder: (column) => column);
+
+  GeneratedColumn<int> get capturedAt => $composableBuilder(
+      column: $table.capturedAt, builder: (column) => column);
+}
+
+class $$AnkiPrerenderedHtmlTableTableManager extends RootTableManager<
+    _$CourseDatabase,
+    $AnkiPrerenderedHtmlTable,
+    AnkiPrerenderedHtmlRow,
+    $$AnkiPrerenderedHtmlTableFilterComposer,
+    $$AnkiPrerenderedHtmlTableOrderingComposer,
+    $$AnkiPrerenderedHtmlTableAnnotationComposer,
+    $$AnkiPrerenderedHtmlTableCreateCompanionBuilder,
+    $$AnkiPrerenderedHtmlTableUpdateCompanionBuilder,
+    (
+      AnkiPrerenderedHtmlRow,
+      BaseReferences<_$CourseDatabase, $AnkiPrerenderedHtmlTable,
+          AnkiPrerenderedHtmlRow>
+    ),
+    AnkiPrerenderedHtmlRow,
+    PrefetchHooks Function()> {
+  $$AnkiPrerenderedHtmlTableTableManager(
+      _$CourseDatabase db, $AnkiPrerenderedHtmlTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AnkiPrerenderedHtmlTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AnkiPrerenderedHtmlTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AnkiPrerenderedHtmlTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> wordId = const Value.absent(),
+            Value<String?> frontHtml = const Value.absent(),
+            Value<String?> backHtml = const Value.absent(),
+            Value<int> capturedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AnkiPrerenderedHtmlCompanion(
+            wordId: wordId,
+            frontHtml: frontHtml,
+            backHtml: backHtml,
+            capturedAt: capturedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String wordId,
+            Value<String?> frontHtml = const Value.absent(),
+            Value<String?> backHtml = const Value.absent(),
+            Value<int> capturedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AnkiPrerenderedHtmlCompanion.insert(
+            wordId: wordId,
+            frontHtml: frontHtml,
+            backHtml: backHtml,
+            capturedAt: capturedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$AnkiPrerenderedHtmlTableProcessedTableManager = ProcessedTableManager<
+    _$CourseDatabase,
+    $AnkiPrerenderedHtmlTable,
+    AnkiPrerenderedHtmlRow,
+    $$AnkiPrerenderedHtmlTableFilterComposer,
+    $$AnkiPrerenderedHtmlTableOrderingComposer,
+    $$AnkiPrerenderedHtmlTableAnnotationComposer,
+    $$AnkiPrerenderedHtmlTableCreateCompanionBuilder,
+    $$AnkiPrerenderedHtmlTableUpdateCompanionBuilder,
+    (
+      AnkiPrerenderedHtmlRow,
+      BaseReferences<_$CourseDatabase, $AnkiPrerenderedHtmlTable,
+          AnkiPrerenderedHtmlRow>
+    ),
+    AnkiPrerenderedHtmlRow,
     PrefetchHooks Function()>;
 typedef $$SrsStatesTableCreateCompanionBuilder = SrsStatesCompanion Function({
   required String wordId,
@@ -6732,6 +9817,8 @@ typedef $$SrsStatesTableCreateCompanionBuilder = SrsStatesCompanion Function({
   Value<int> reps,
   Value<int> lapses,
   Value<bool> isLeech,
+  Value<bool> isSuspended,
+  Value<bool> isBuried,
   Value<String> type,
   Value<int?> lastReviewedAt,
   Value<double?> stability,
@@ -6749,6 +9836,8 @@ typedef $$SrsStatesTableUpdateCompanionBuilder = SrsStatesCompanion Function({
   Value<int> reps,
   Value<int> lapses,
   Value<bool> isLeech,
+  Value<bool> isSuspended,
+  Value<bool> isBuried,
   Value<String> type,
   Value<int?> lastReviewedAt,
   Value<double?> stability,
@@ -6790,6 +9879,12 @@ class $$SrsStatesTableFilterComposer
 
   ColumnFilters<bool> get isLeech => $composableBuilder(
       column: $table.isLeech, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isSuspended => $composableBuilder(
+      column: $table.isSuspended, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isBuried => $composableBuilder(
+      column: $table.isBuried, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get type => $composableBuilder(
       column: $table.type, builder: (column) => ColumnFilters(column));
@@ -6845,6 +9940,12 @@ class $$SrsStatesTableOrderingComposer
   ColumnOrderings<bool> get isLeech => $composableBuilder(
       column: $table.isLeech, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<bool> get isSuspended => $composableBuilder(
+      column: $table.isSuspended, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isBuried => $composableBuilder(
+      column: $table.isBuried, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get type => $composableBuilder(
       column: $table.type, builder: (column) => ColumnOrderings(column));
 
@@ -6899,6 +10000,12 @@ class $$SrsStatesTableAnnotationComposer
   GeneratedColumn<bool> get isLeech =>
       $composableBuilder(column: $table.isLeech, builder: (column) => column);
 
+  GeneratedColumn<bool> get isSuspended => $composableBuilder(
+      column: $table.isSuspended, builder: (column) => column);
+
+  GeneratedColumn<bool> get isBuried =>
+      $composableBuilder(column: $table.isBuried, builder: (column) => column);
+
   GeneratedColumn<String> get type =>
       $composableBuilder(column: $table.type, builder: (column) => column);
 
@@ -6949,6 +10056,8 @@ class $$SrsStatesTableTableManager extends RootTableManager<
             Value<int> reps = const Value.absent(),
             Value<int> lapses = const Value.absent(),
             Value<bool> isLeech = const Value.absent(),
+            Value<bool> isSuspended = const Value.absent(),
+            Value<bool> isBuried = const Value.absent(),
             Value<String> type = const Value.absent(),
             Value<int?> lastReviewedAt = const Value.absent(),
             Value<double?> stability = const Value.absent(),
@@ -6966,6 +10075,8 @@ class $$SrsStatesTableTableManager extends RootTableManager<
             reps: reps,
             lapses: lapses,
             isLeech: isLeech,
+            isSuspended: isSuspended,
+            isBuried: isBuried,
             type: type,
             lastReviewedAt: lastReviewedAt,
             stability: stability,
@@ -6983,6 +10094,8 @@ class $$SrsStatesTableTableManager extends RootTableManager<
             Value<int> reps = const Value.absent(),
             Value<int> lapses = const Value.absent(),
             Value<bool> isLeech = const Value.absent(),
+            Value<bool> isSuspended = const Value.absent(),
+            Value<bool> isBuried = const Value.absent(),
             Value<String> type = const Value.absent(),
             Value<int?> lastReviewedAt = const Value.absent(),
             Value<double?> stability = const Value.absent(),
@@ -7000,6 +10113,8 @@ class $$SrsStatesTableTableManager extends RootTableManager<
             reps: reps,
             lapses: lapses,
             isLeech: isLeech,
+            isSuspended: isSuspended,
+            isBuried: isBuried,
             type: type,
             lastReviewedAt: lastReviewedAt,
             stability: stability,
@@ -7041,6 +10156,7 @@ typedef $$ReviewEventsTableCreateCompanionBuilder = ReviewEventsCompanion
   required int reps,
   required int lapses,
   Value<String> type,
+  Value<String?> sourceKey,
 });
 typedef $$ReviewEventsTableUpdateCompanionBuilder = ReviewEventsCompanion
     Function({
@@ -7056,6 +10172,7 @@ typedef $$ReviewEventsTableUpdateCompanionBuilder = ReviewEventsCompanion
   Value<int> reps,
   Value<int> lapses,
   Value<String> type,
+  Value<String?> sourceKey,
 });
 
 class $$ReviewEventsTableFilterComposer
@@ -7104,6 +10221,9 @@ class $$ReviewEventsTableFilterComposer
 
   ColumnFilters<String> get type => $composableBuilder(
       column: $table.type, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sourceKey => $composableBuilder(
+      column: $table.sourceKey, builder: (column) => ColumnFilters(column));
 }
 
 class $$ReviewEventsTableOrderingComposer
@@ -7152,6 +10272,9 @@ class $$ReviewEventsTableOrderingComposer
 
   ColumnOrderings<String> get type => $composableBuilder(
       column: $table.type, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sourceKey => $composableBuilder(
+      column: $table.sourceKey, builder: (column) => ColumnOrderings(column));
 }
 
 class $$ReviewEventsTableAnnotationComposer
@@ -7198,6 +10321,9 @@ class $$ReviewEventsTableAnnotationComposer
 
   GeneratedColumn<String> get type =>
       $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceKey =>
+      $composableBuilder(column: $table.sourceKey, builder: (column) => column);
 }
 
 class $$ReviewEventsTableTableManager extends RootTableManager<
@@ -7238,6 +10364,7 @@ class $$ReviewEventsTableTableManager extends RootTableManager<
             Value<int> reps = const Value.absent(),
             Value<int> lapses = const Value.absent(),
             Value<String> type = const Value.absent(),
+            Value<String?> sourceKey = const Value.absent(),
           }) =>
               ReviewEventsCompanion(
             id: id,
@@ -7252,6 +10379,7 @@ class $$ReviewEventsTableTableManager extends RootTableManager<
             reps: reps,
             lapses: lapses,
             type: type,
+            sourceKey: sourceKey,
           ),
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
@@ -7266,6 +10394,7 @@ class $$ReviewEventsTableTableManager extends RootTableManager<
             required int reps,
             required int lapses,
             Value<String> type = const Value.absent(),
+            Value<String?> sourceKey = const Value.absent(),
           }) =>
               ReviewEventsCompanion.insert(
             id: id,
@@ -7280,6 +10409,7 @@ class $$ReviewEventsTableTableManager extends RootTableManager<
             reps: reps,
             lapses: lapses,
             type: type,
+            sourceKey: sourceKey,
           ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -7325,6 +10455,14 @@ class $CourseDatabaseManager {
       $$ExpressionsTableTableManager(_db, _db.expressions);
   $$AnkiImportsTableTableManager get ankiImports =>
       $$AnkiImportsTableTableManager(_db, _db.ankiImports);
+  $$AnkiNotetypesTableTableManager get ankiNotetypes =>
+      $$AnkiNotetypesTableTableManager(_db, _db.ankiNotetypes);
+  $$AnkiNotesTableTableManager get ankiNotes =>
+      $$AnkiNotesTableTableManager(_db, _db.ankiNotes);
+  $$AnkiCardsMetaTableTableManager get ankiCardsMeta =>
+      $$AnkiCardsMetaTableTableManager(_db, _db.ankiCardsMeta);
+  $$AnkiPrerenderedHtmlTableTableManager get ankiPrerenderedHtml =>
+      $$AnkiPrerenderedHtmlTableTableManager(_db, _db.ankiPrerenderedHtml);
   $$SrsStatesTableTableManager get srsStates =>
       $$SrsStatesTableTableManager(_db, _db.srsStates);
   $$ReviewEventsTableTableManager get reviewEvents =>

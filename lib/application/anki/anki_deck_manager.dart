@@ -10,6 +10,7 @@ import 'package:varnamala/application/anki/anki_models.dart';
 import 'package:varnamala/application/anki/anki_review_assembler.dart';
 import 'package:varnamala/application/srs_provider.dart';
 import 'package:varnamala/data/anki_import_dao.dart';
+import 'package:varnamala/data/anki_note_dao.dart';
 import 'package:varnamala/domain/audio/anki_audio_resolver.dart';
 import 'package:varnamala/domain/repositories/i_course_repository.dart';
 import 'package:varnamala/service/locator.dart';
@@ -27,6 +28,7 @@ class AnkiDeckManager {
   final ICourseRepository _repo;
   final SrsProvider _srsProvider;
   final AnkiImportDao _importDao;
+  final AnkiNoteDao _noteDao;
   final AnkiAudioResolver _audioResolver;
   final AppPrefs _appPrefs;
 
@@ -34,11 +36,13 @@ class AnkiDeckManager {
     required ICourseRepository repo,
     required SrsProvider srsProvider,
     required AnkiImportDao importDao,
+    required AnkiNoteDao noteDao,
     required AppPrefs appPrefs,
     AnkiAudioResolver? audioResolver,
   })  : _repo = repo,
         _srsProvider = srsProvider,
         _importDao = importDao,
+        _noteDao = noteDao,
         _appPrefs = appPrefs,
         _audioResolver = audioResolver ?? AnkiAudioResolver();
 
@@ -75,7 +79,8 @@ class AnkiDeckManager {
 
   // ─── Daily Challenge Toggle ─────────────────────────────────────────
 
-  static const String _dailyChallengeAnkiKey = 'anki.dailyChallengeIncludesAnki';
+  static const String _dailyChallengeAnkiKey =
+      'anki.dailyChallengeIncludesAnki';
 
   /// Whether Anki-imported cards may appear in the daily challenge pool.
   /// Defaults to `true`; the settings page exposes a toggle to turn this off.
@@ -102,6 +107,9 @@ class AnkiDeckManager {
   static const String _newDoneTodayKey = 'anki.newDoneToday';
   static const String _reviewDoneTodayKey = 'anki.reviewDoneToday';
   static const String _limitsDateKey = 'anki.limitsDate';
+
+  static String _deckDoneKey(String importId, {required bool isNew}) =>
+      'anki.deck.$importId.${isNew ? 'new' : 'review'}Done.${_todayStamp()}';
 
   static String _todayStamp() {
     final now = DateTime.now();
@@ -147,14 +155,63 @@ class AnkiDeckManager {
   /// How many review cards may still be studied today.
   int get reviewRemainingToday => max(0, dailyReviewLimit - reviewDoneToday);
 
+  Future<int?> dailyNewLimitFor(String importId) =>
+      _importDao.dailyNewLimitFor(importId);
+
+  Future<int?> dailyReviewLimitFor(String importId) =>
+      _importDao.dailyReviewLimitFor(importId);
+
+  Future<int> remainingForImport(String importId, {required bool isNew}) async {
+    final limit = isNew
+        ? await dailyNewLimitFor(importId)
+        : await dailyReviewLimitFor(importId);
+    if (limit == null) return isNew ? newRemainingToday : reviewRemainingToday;
+    _resetCountersIfNewDay();
+    final key = _deckDoneKey(importId, isNew: isNew);
+    final done = _appPrefs.preferences.getInt(key, defaultValue: 0).getValue();
+    return max(0, limit - done);
+  }
+
   /// Record one reviewed card against today's counters. [isNewCard] should
   /// reflect the card's state *before* the review (reps == 0).
-  Future<void> recordCardReviewed({required bool isNewCard}) async {
+  Future<void> recordCardReviewed({
+    required bool isNewCard,
+    String? importId,
+  }) async {
     _resetCountersIfNewDay();
+    if (importId != null) {
+      final limit = isNewCard
+          ? await dailyNewLimitFor(importId)
+          : await dailyReviewLimitFor(importId);
+      if (limit != null) {
+        final key = _deckDoneKey(importId, isNew: isNewCard);
+        final current =
+            _appPrefs.preferences.getInt(key, defaultValue: 0).getValue();
+        await _appPrefs.preferences.setInt(key, min(limit, current + 1));
+        return;
+      }
+    }
     final key = isNewCard ? _newDoneTodayKey : _reviewDoneTodayKey;
     final current =
         _appPrefs.preferences.getInt(key, defaultValue: 0).getValue();
     await _appPrefs.preferences.setInt(key, current + 1);
+  }
+
+  Future<void> recordCardUnreviewed({
+    required bool wasNewCard,
+    String? importId,
+  }) async {
+    _resetCountersIfNewDay();
+    final useDeck = importId != null &&
+        (wasNewCard
+            ? await dailyNewLimitFor(importId) != null
+            : await dailyReviewLimitFor(importId) != null);
+    final key = useDeck
+        ? _deckDoneKey(importId!, isNew: wasNewCard)
+        : (wasNewCard ? _newDoneTodayKey : _reviewDoneTodayKey);
+    final current =
+        _appPrefs.preferences.getInt(key, defaultValue: 0).getValue();
+    await _appPrefs.preferences.setInt(key, max(0, current - 1));
   }
 
   // ─── Deck Uninstall ─────────────────────────────────────────────────
@@ -164,7 +221,8 @@ class AnkiDeckManager {
   /// 2. Delete section tree
   /// 3. Remove SRS entries
   /// 4. Clean up media files
-  /// 5. Delete import metadata
+  /// 5. Delete NoteStore (notetypes/notes/cards_meta)
+  /// 6. Delete import metadata
   Future<void> uninstallDeck(String importId) async {
     // 1. Delete vocabulary by tag
     final tag = 'anki:$importId';
@@ -184,7 +242,12 @@ class AnkiDeckManager {
     // 4. Clean up media files
     await _audioResolver.deleteImportMedia(importId);
 
-    // 5. Delete import metadata
+    // 5. Delete NoteStore (notetypes/notes/cards_meta for this import).
+    await _noteDao.deleteByImport(importId);
+    // Also drop the "智能去解密" pre-rendered HTML cache for this import.
+    await _noteDao.deletePrerenderedByPrefix('anki-$importId-');
+
+    // 6. Delete import metadata
     await _importDao.delete(importId);
   }
 
@@ -209,9 +272,15 @@ class AnkiDeckManager {
     required String importId,
   }) {
     final srsIds = _srsProvider.state.keys;
+    // Card-level wordIds (decision 2): a note counts as already imported if
+    // any of its cards is in the SRS queue.
+    final existingNids = <int>{
+      for (final card in newCollection.cards)
+        if (srsIds.contains('anki-$importId-c${card.id}')) card.nid,
+    };
     return [
       for (final note in newCollection.notes)
-        if (!srsIds.contains('anki-$importId-n${note.id}')) note.id,
+        if (!existingNids.contains(note.id)) note.id,
     ];
   }
 

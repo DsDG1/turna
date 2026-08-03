@@ -23,6 +23,7 @@ from generate_audio import (  # type: ignore
     COURSE_DIR,
     SOUNDS_DIR,
     MiniMaxBackend,
+    cmd_all,
     collect_entries,
     generate_entry,
     listening_asset_path,
@@ -241,6 +242,67 @@ class TestGenerateAudio(unittest.TestCase):
             self.assertEqual(len(backend.calls), 1)
             self.assertEqual(backend.calls[0][0], "Habari")
             self.assertTrue(target.exists())
+
+    def test_cmd_all_writes_into_sounds_dir(self) -> None:
+        """cmd_all honors --sounds-dir and --format json (language-agnostic CLI)."""
+        import argparse
+        import io
+        from types import SimpleNamespace
+        from unittest.mock import patch
+
+        import generate_audio
+
+        os.environ["MINIMAX_API_KEY"] = "sk-test"
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                tmp_course = Path(tmp) / "turkish"
+                _write_listening_course(
+                    tmp_course,
+                    phases=[
+                        {
+                            "id": "p-dialogue",
+                            "name": "Dialogue",
+                            "type": "dialogue",
+                            "audioAsset": "l-habari",
+                            "transcript": "Habari za asubuhi",
+                        }
+                    ],
+                )
+                tmp_sounds = Path(tmp) / "out_sounds"
+
+                args = SimpleNamespace(
+                    course_dir=tmp_course,
+                    sounds_dir=tmp_sounds,
+                    voice_id="female-tianmei",
+                    model="speech-2.8-hd",
+                    speed=0.9,
+                    force=False,
+                    format="json",
+                )
+                # Patch the real TTS backend with a fake factory (ignores the
+                # voice/model kwargs _build_backend passes) so no network is hit.
+                fake_backend = _FakeTtsBackend()
+                with patch.object(
+                    generate_audio, "MiniMaxBackend", lambda **kw: fake_backend
+                ):
+                    with patch.object(sys, "stdout", io.StringIO()) as captured:
+                        rc = cmd_all(args)
+                        out = captured.getvalue()
+
+                self.assertEqual(rc, 0)
+                # JSON summary line emitted.
+                summary = [l for l in out.splitlines() if l.strip().startswith("{")]
+                self.assertEqual(len(summary), 1)
+                counts = json.loads(summary[0])
+                self.assertEqual(counts["generated"], 1)
+                self.assertEqual(counts["skipped"], 0)
+                self.assertEqual(counts["total"], 1)
+                # File written into the provided sounds dir (not SOUNDS_DIR).
+                self.assertTrue(
+                    (tmp_sounds / "listening" / "l-habari.mp3").exists()
+                )
+        finally:
+            os.environ.pop("MINIMAX_API_KEY", None)
 
 
 if __name__ == "__main__":

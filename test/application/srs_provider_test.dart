@@ -3,17 +3,41 @@
 // [setSchedulerForTesting] so intervals stay deterministic; production default
 // is FSRS (ADR 0028, covered by test/core/fsrs_engine_test.dart).
 
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:varnamala/application/lesson_link_store.dart';
 import 'package:varnamala/application/srs_provider.dart';
 import 'package:varnamala/core/sm2.dart';
+import 'package:varnamala/data/review_history_dao.dart';
 import 'package:varnamala/data/srs_state_dao.dart';
 import 'package:varnamala/domain/course/srs_word.dart';
 import 'package:varnamala/service/locator.dart';
 
 import '../helpers/in_memory_course_db.dart';
+
+/// A [ReviewHistoryDao] whose `countFailsOnLocalDay` resolves only when the
+/// test completes [_failCountFuture]. Used to keep [SrsQueueProvider.reviewItem]
+/// suspended on its fail-path await so the in-flight undo gate can be exercised.
+class _ControllableReviewHistoryDao implements ReviewHistoryDao {
+  _ControllableReviewHistoryDao(this._failCountFuture);
+  final Future<int> _failCountFuture;
+
+  @override
+  Future<int> countFailsOnLocalDay(String cardId, DateTime day) =>
+      _failCountFuture;
+
+  @override
+  Future<void> insertEvent(ReviewEventRecord event) async {}
+
+  @override
+  Future<bool> deleteLatestForCard(String cardId) async => false;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -304,6 +328,33 @@ void main() {
       // The word reappears in ~10 minutes (same-day relearn).
       final diff = lapsed.dueAt.difference(DateTime.now());
       expect(diff.inMinutes, lessThanOrEqualTo(Sm2Engine.relearnDelayMinutes));
+    });
+  });
+
+  group('undo gate', () {
+    test('undoReview is refused while a grade is in flight, succeeds after',
+        () async {
+      final completer = Completer<int>();
+      srs.setReviewHistoryDaoForTesting(
+          _ControllableReviewHistoryDao(completer.future));
+      srs.registerWord('w-gate');
+      final previous = srs.state['w-gate']!;
+
+      // quality 0 (<3) takes the fail path, which awaits countFailsOnLocalDay
+      // (the controllable future) - so the grade stays in flight.
+      final gradeFuture = srs.reviewWord('w-gate', 0);
+      // Undo must be refused while the grade is mid-flight, so the grade can't
+      // overwrite the restored state when it resumes. The caller leaves the
+      // undo entry in place and retries once the grade completes.
+      expect(await srs.undoWordReview('w-gate', previous), isFalse);
+
+      // Let the grade finish, clearing the in-flight gate.
+      completer.complete(0);
+      await gradeFuture;
+
+      // After the grade completes, undo is allowed and restores the state.
+      expect(await srs.undoWordReview('w-gate', previous), isTrue);
+      expect(srs.state['w-gate'], previous);
     });
   });
 }

@@ -77,8 +77,11 @@ String interactionItemId(
 /// Result of a renderer's submit. The renderer computes correctness locally
 /// (it has the answer) and reports back; the viewmodel records completion and
 /// decides whether to advance.
-typedef OnInteractionSubmit = void Function(bool correct,
-    {String? userAnswerText});
+typedef OnInteractionSubmit = void Function(
+  bool correct, {
+  String? userAnswerText,
+  int? reviewQuality,
+});
 
 /// Plugin-style renderer. Each [Interaction] subclass maps to one renderer,
 /// registered as `@injectable` and collected into a `Set<InteractionRenderer>`
@@ -139,6 +142,7 @@ Type _handlesTypeFor(Interaction interaction) {
     ReadingTrueFalse() => ReadingTrueFalse,
     ReadingShortAnswer() => ReadingShortAnswer,
     AnkiCard() => AnkiCard,
+    AnkiHtmlCard() => AnkiHtmlCard,
   };
 }
 
@@ -241,8 +245,7 @@ class _InteractionOptionTileState extends State<InteractionOptionTile> {
     if (widget.isCorrect) {
       border = VarnamalaTheme.success;
       background = VarnamalaTheme.success.withValues(alpha: 0.10);
-      trailing =
-          const Icon(Icons.check_circle, color: VarnamalaTheme.success);
+      trailing = const Icon(Icons.check_circle, color: VarnamalaTheme.success);
     } else if (widget.isWrong) {
       border = VarnamalaTheme.error;
       background = VarnamalaTheme.error.withValues(alpha: 0.08);

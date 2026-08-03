@@ -26,12 +26,17 @@ You are an Anki deck analysis assistant. Given an Anki notetype's field definiti
 2. `wordEntry` — Vocabulary card (front is a word/term, back is definition/translation, can generate multiple-choice questions)
 3. `expression` — Sentence/expression card (can generate fill-in-the-blank exercises)
 4. `cloze` — Cloze deletion card (Anki Cloze format with {{c1::}} markers)
+5. `multipleChoice` — Single-answer quiz (fields like Question + Option A/B/C/D + Answer, or MCQ notetype names)
+6. `multiSelect` — Multi-answer quiz (select all that apply; Answers field may list several keys)
 
 Respond with ONLY a JSON object (no markdown fences):
-{"mapping": "<type>", "frontField": "<field name for front>", "backField": "<field name for back>", "reason": "<brief explanation>"}
+{"mapping": "<type>", "frontField": "<field name for front/prompt>", "backField": "<field name for answer key>", "reason": "<brief explanation>"}
 
 Rules:
 - If field names contain "Cloze" or the notetype is marked as Cloze type, use "cloze"
+- If there are 2+ option-like fields (Option A/B, Q_1, 选项A…), use "multipleChoice" or "multiSelect"
+- Multi-select when the name/fields mention multi, multiple answers, or 多选
+- This is only a field-layout classification. The app resolves single-choice vs multi-select again for every individual card from its prompt and complete answer key, so a mixed notetype is supported.
 - If fields look like Term/Word/Front + Translation/Meaning/Back, use "wordEntry"
 - If fields look like Sentence/Expression/Example + Meaning/Translation, use "expression"
 - Otherwise default to "ankiCard"
@@ -134,9 +139,8 @@ Rules:
   }
 
   NotetypeMappingType _parseMappingType(String raw) {
-    switch (raw.toLowerCase()) {
+    switch (raw.toLowerCase().replaceAll(RegExp(r'[\s_-]+'), '')) {
       case 'wordentry':
-      case 'word_entry':
       case 'word':
         return NotetypeMappingType.wordEntry;
       case 'expression':
@@ -144,6 +148,20 @@ Rules:
         return NotetypeMappingType.expression;
       case 'cloze':
         return NotetypeMappingType.cloze;
+      case 'multiplechoice':
+      case 'mcq':
+      case 'singlechoice':
+        return NotetypeMappingType.multipleChoice;
+      case 'multiselect':
+      case 'multichoice':
+      case 'multipleanswer':
+        return NotetypeMappingType.multiSelect;
+      case 'fillblank':
+      case 'typeanswer':
+        return NotetypeMappingType.fillBlank;
+      case 'listenpick':
+      case 'listening':
+        return NotetypeMappingType.listenPick;
       default:
         return NotetypeMappingType.ankiCard;
     }

@@ -33,8 +33,7 @@ class GrammarReviewPage extends StatefulWidget {
 }
 
 class _GrammarReviewPageState extends State<GrammarReviewPage> {
-  final Set<InteractionRenderer> _renderers =
-      getIt<Set<InteractionRenderer>>();
+  final Set<InteractionRenderer> _renderers = getIt<Set<InteractionRenderer>>();
 
   bool _showExplanation = false;
   List<SrsWord> _queue = [];
@@ -87,16 +86,19 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
       _showExplanation = true;
       final point = _currentPoint;
       final items = _practiceFor(point);
-      _phase = items.isEmpty
-          ? _GrammarCardPhase.rate
-          : _GrammarCardPhase.practice;
+      _phase =
+          items.isEmpty ? _GrammarCardPhase.rate : _GrammarCardPhase.practice;
       _practiceIndex = 0;
       _practiceSubmitted = false;
       _practiceCorrect = null;
     });
   }
 
-  void _onPracticeSubmit(bool correct, {String? userAnswerText}) {
+  void _onPracticeSubmit(
+    bool correct, {
+    String? userAnswerText,
+    int? reviewQuality,
+  }) {
     setState(() {
       _practiceSubmitted = true;
       _practiceCorrect = correct;
@@ -149,12 +151,12 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
     // Record study activity for statistics dashboard
     try {
       await context.read<StudyStatsProvider>().recordActivity(
-        type: StudyActivityType.grammarReview,
-        xpEarned: xp,
-        durationSeconds: 0,
-        correctCount: reviewedCount,
-        incorrectCount: 0,
-      );
+            type: StudyActivityType.grammarReview,
+            xpEarned: xp,
+            durationSeconds: 0,
+            correctCount: reviewedCount,
+            incorrectCount: 0,
+          );
     } catch (e) {
       debugPrint('Error recording grammar study stats: $e');
     }
@@ -209,7 +211,8 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
         onDone: () => Navigator.of(context).pop(),
         onReviewMore: _loadQueue,
         title: AppStrings.reviewGrammarSessionComplete,
-        completionMessage: AppStrings.reviewGrammarCompletionMessage(_sessionCount),
+        completionMessage:
+            AppStrings.reviewGrammarCompletionMessage(_sessionCount),
       );
     }
 
@@ -226,7 +229,8 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
             child: Padding(
               padding: const EdgeInsets.only(right: 16),
               child: Text(
-                AppStrings.reviewGrammarProgress(_currentIndex + 1, _queue.length),
+                AppStrings.reviewGrammarProgress(
+                    _currentIndex + 1, _queue.length),
                 style: const TextStyle(fontWeight: FontWeight.w700),
               ),
             ),
@@ -247,8 +251,8 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
                         submitted: _practiceSubmitted,
                         correct: _practiceCorrect,
                         onSubmit: _onPracticeSubmit,
-                        progressLabel:
-                            AppStrings.reviewGrammarPracticeLabel(_practiceIndex + 1, practiceItems.length),
+                        progressLabel: AppStrings.reviewGrammarPracticeLabel(
+                            _practiceIndex + 1, practiceItems.length),
                       )
                     : _GrammarCard(
                         word: item,
@@ -382,9 +386,7 @@ class _PracticePanel extends StatelessWidget {
                 submitted: submitted,
                 correct: correct,
               ),
-              submitted
-                  ? (_, {userAnswerText}) {}
-                  : onSubmit,
+              submitted ? (_, {userAnswerText, reviewQuality}) {} : onSubmit,
             ),
           ),
         ],

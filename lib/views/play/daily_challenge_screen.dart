@@ -35,8 +35,7 @@ class DailyChallengePage extends StatefulWidget {
 
 class _DailyChallengePageState extends State<DailyChallengePage> {
   late final LessonViewModel _vm;
-  final Set<InteractionRenderer> _renderers =
-      getIt<Set<InteractionRenderer>>();
+  final Set<InteractionRenderer> _renderers = getIt<Set<InteractionRenderer>>();
   final Random _random = Random();
   bool _autoAdvanceScheduled = false;
   bool _dialogShown = false;
@@ -60,10 +59,11 @@ class _DailyChallengePageState extends State<DailyChallengePage> {
     final courseProvider = context.read<CourseProvider>();
     // Yield to the event loop so the loading spinner renders before the
     // potentially CPU-heavy assembly work runs on the UI thread.
-    final lesson = await Future(() => DailyChallengeAssembler(courseProvider).assemble(
-      count: kDailyChallengeCount,
-      random: _random,
-    ));
+    final lesson =
+        await Future(() => DailyChallengeAssembler(courseProvider).assemble(
+              count: kDailyChallengeCount,
+              random: _random,
+            ));
     if (!mounted) return;
     final isEmpty = lesson.flattenedStages.isEmpty ||
         lesson.flattenedStages.every((s) => s.items.isEmpty);
@@ -114,7 +114,9 @@ class _DailyChallengePageState extends State<DailyChallengePage> {
     final vm = _vm;
     final total = vm.totalInteractionCount;
     final current = vm.currentQuestionNumber;
-    final subtitle = total > 0 ? AppStrings.playDailyQuestion(current, total) : AppStrings.playDailyChallengeFallback;
+    final subtitle = total > 0
+        ? AppStrings.playDailyQuestion(current, total)
+        : AppStrings.playDailyChallengeFallback;
     return AppBar(
       backgroundColor: VarnamalaTheme.surfaceColor(context),
       elevation: 0,
@@ -124,7 +126,8 @@ class _DailyChallengePageState extends State<DailyChallengePage> {
           Icons.close_rounded,
           color: VarnamalaTheme.textPrimaryColor(context),
         ),
-        onPressed: () => vm.isComplete ? null : Navigator.of(context).maybePop(),
+        onPressed: () =>
+            vm.isComplete ? null : Navigator.of(context).maybePop(),
       ),
       title: Column(
         children: [
@@ -180,8 +183,12 @@ class _DailyChallengePageState extends State<DailyChallengePage> {
           child: renderer.build(
             interaction,
             vm.currentInteractionState,
-            (correct, {userAnswerText}) {
-              vm.submitInteraction(correct, userAnswerText: userAnswerText);
+            (correct, {userAnswerText, reviewQuality}) {
+              vm.submitInteraction(
+                correct,
+                userAnswerText: userAnswerText,
+                reviewQuality: reviewQuality,
+              );
             },
           ),
         ),
@@ -190,7 +197,9 @@ class _DailyChallengePageState extends State<DailyChallengePage> {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
               child: LessonCheckButton(
-                label: vm.isAnswerCorrect ? AppStrings.playDailyContinue : AppStrings.playDailyGotIt,
+                label: vm.isAnswerCorrect
+                    ? AppStrings.playDailyContinue
+                    : AppStrings.playDailyGotIt,
                 enabled: true,
                 onPressed: () => vm.advance(),
               ),

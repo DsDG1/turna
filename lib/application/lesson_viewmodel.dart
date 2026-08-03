@@ -20,16 +20,17 @@ import 'package:varnamala/domain/course/interaction.dart';
 import 'package:varnamala/domain/course/lesson.dart';
 import 'package:varnamala/domain/course/lesson_word_link.dart';
 import 'package:varnamala/domain/course/mistake_entry.dart';
+import 'package:varnamala/domain/course/srs_word.dart';
 import 'package:varnamala/domain/course/stage.dart';
 import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
 
 /// Derive the SRS wordId from an Anki card interaction id.
 ///
 /// Id conventions (see AnkiCardAdapter / AnkiReviewAssembler):
-/// - Course lessons: '<wordId>-c<ord>' where wordId = 'anki-<importId>-n<noteId>'
+/// - Course lessons: '<wordId>-c<ord>' where wordId = 'anki-<importId>-c<cardId>'
 /// - Review sessions: 'anki-review-<wordId>'
 ///
-/// Returns the wordId ('anki-<importId>-n<noteId>') in both cases; ids that
+/// Returns the wordId ('anki-<importId>-c<cardId>') in both cases; ids that
 /// match neither convention are returned unchanged.
 String ankiWordIdFromInteractionId(String interactionId) {
   final id = interactionId.replaceFirst('anki-review-', '');
@@ -67,6 +68,40 @@ class QuestionResult {
     required this.correct,
     this.userAnswer,
     this.correctAnswer,
+  });
+}
+
+class _SubmittedInteraction {
+  final int stageIndex;
+  final int interactionIndex;
+  final String itemId;
+  final bool correct;
+
+  const _SubmittedInteraction({
+    required this.stageIndex,
+    required this.interactionIndex,
+    required this.itemId,
+    required this.correct,
+  });
+}
+
+/// SRS rollback entry captured before [LessonViewModel._applySrsOutcome]
+/// fires a grade. [LessonViewModel.undoLastInteraction] walks the stack in
+/// LIFO order so the most recent grade is rolled back first; entries for
+/// expression / grammar-point grades are tracked alongside word entries so
+/// a single undo restores all three when the lesson's interaction touched
+/// more than one queue.
+class _SrsUndoEntry {
+  final String wordId;
+  final SrsWord? previous;
+  final bool isExpression;
+  final bool isGrammarPoint;
+
+  const _SrsUndoEntry({
+    required this.wordId,
+    required this.previous,
+    this.isExpression = false,
+    this.isGrammarPoint = false,
   });
 }
 
@@ -144,6 +179,14 @@ class LessonViewModel extends ChangeNotifier {
   /// so the completion-summary dialog doesn't re-walk every stage/item and
   /// re-allocate the whole list on every build.
   final List<QuestionResult> _questionResults = [];
+  final List<_SubmittedInteraction> _submittedInteractions = [];
+
+  /// Per-queue captured `previous` snapshots for [undoLastInteraction].
+  /// Populated in [_applySrsOutcome] before the grade fires; one entry per
+  /// queue (word / expression / grammar-point) that the interaction touched,
+  /// so a single undo restores all three when the same item id referred to
+  /// multiple queues. Drained in [retryMastery] / [_resetToLesson].
+  final List<_SrsUndoEntry> _srsUndoStack = [];
 
   // --- Getters ---
 
@@ -258,8 +301,7 @@ class LessonViewModel extends ChangeNotifier {
     return _currentInteractionIndex >= _stageItemCount - 1;
   }
 
-  bool get isLastStageItem =>
-      _currentInteractionIndex >= _stageItemCount - 1;
+  bool get isLastStageItem => _currentInteractionIndex >= _stageItemCount - 1;
 
   bool get hasSubmitted => currentInteractionState.submitted;
   bool get isAnswerCorrect => currentInteractionState.correct == true;
@@ -346,6 +388,8 @@ class LessonViewModel extends ChangeNotifier {
     _incorrectAnswers = 0;
     _interactionStates.clear();
     _questionResults.clear();
+    _submittedInteractions.clear();
+    _srsUndoStack.clear();
     _masteryAttempts = 0;
     _masteryPassed = !lesson.isMastery; // default true for non-mastery lessons
     _cachedTotalItemCount = _cachedStages.fold<int>(
@@ -370,6 +414,7 @@ class LessonViewModel extends ChangeNotifier {
   void submitInteraction(
     bool correct, {
     String? userAnswerText,
+    int? reviewQuality,
     bool? recordMistake,
     String? mistakeWordId,
   }) {
@@ -421,9 +466,16 @@ class LessonViewModel extends ChangeNotifier {
       // Binary SRS signal: 做对/做错 → pass/fail (same pipeline as flashcards).
       _applySrsOutcome(
         correct: correct,
+        reviewQuality: reviewQuality,
         wordId: mistakeWordId,
         interaction: interaction,
       );
+      _submittedInteractions.add(_SubmittedInteraction(
+        stageIndex: _currentStageIndex,
+        interactionIndex: _currentInteractionIndex,
+        itemId: currentInteractionId,
+        correct: correct,
+      ));
     }
 
     notifyListeners();
@@ -434,6 +486,7 @@ class LessonViewModel extends ChangeNotifier {
   /// ShowWord sentinel ids and unregistered phantoms.
   void _applySrsOutcome({
     required bool correct,
+    int? reviewQuality,
     String? wordId,
     required Interaction interaction,
   }) {
@@ -441,12 +494,13 @@ class LessonViewModel extends ChangeNotifier {
 
     String? effectiveWordId = wordId;
     String? expressionId;
+    String? grammarPointId;
     if (interaction is ShowWord) {
       if (effectiveWordId == null || effectiveWordId.isEmpty) {
         effectiveWordId = interaction.wordId;
       }
       expressionId = interaction.expressionId;
-    } else if (interaction is AnkiCard) {
+    } else if (interaction is AnkiCard || interaction is AnkiHtmlCard) {
       // Flip cards studied through the standard lesson path: the assembler
       // ids the interaction '<wordId>-c<ord>' (review sessions re-id them
       // 'anki-review-<wordId>'), so the SRS wordId is recoverable from the
@@ -457,24 +511,47 @@ class LessonViewModel extends ChangeNotifier {
       }
     }
 
+    // Capture pre-grade `previous` snapshots so [undoLastInteraction] can
+    // roll back the SRS state when the user taps Undo. Captured AFTER
+    // registerWord so a never-before-seen word's `previous` reflects the
+    // fresh state that registerWord just inserted (the rollback then
+    // restores that same fresh state — restoring the new-card "never
+    // seen" condition the user expected before this lesson attempt).
     if (effectiveWordId != null &&
         effectiveWordId.isNotEmpty &&
         !effectiveWordId.startsWith(unknownInteractionWordIdPrefix)) {
-      // Ensure the card exists then grade it (register is idempotent).
       _srsProvider.registerWord(effectiveWordId);
-      unawaited(_srsProvider.reviewWordOutcome(effectiveWordId, outcome));
+      _srsUndoStack.add(_SrsUndoEntry(
+        wordId: effectiveWordId,
+        previous: _srsProvider.state[effectiveWordId],
+      ));
+      unawaited(
+        reviewQuality == null
+            ? _srsProvider.reviewWordOutcome(effectiveWordId, outcome)
+            : _srsProvider.reviewWord(effectiveWordId, reviewQuality),
+      );
     }
 
     if (expressionId != null && expressionId.isNotEmpty) {
       _srsProvider.registerExpression(expressionId);
+      _srsUndoStack.add(_SrsUndoEntry(
+        wordId: expressionId,
+        previous: _srsProvider.state[expressionId],
+        isExpression: true,
+      ));
       unawaited(_srsProvider.reviewExpressionOutcome(expressionId, outcome));
     }
 
     // Grammar points use the same binary pass/fail FSRS path.
-    final gp = interactionGrammarPointId(interaction);
-    if (gp != null && gp.isNotEmpty) {
-      _grammarReviewProvider.registerGrammarPoint(gp);
-      unawaited(_grammarReviewProvider.reviewWithOutcome(gp, outcome));
+    grammarPointId = interactionGrammarPointId(interaction);
+    if (grammarPointId != null && grammarPointId.isNotEmpty) {
+      _grammarReviewProvider.registerGrammarPoint(grammarPointId);
+      _srsUndoStack.add(_SrsUndoEntry(
+        wordId: grammarPointId,
+        previous: _grammarReviewProvider.state[grammarPointId],
+        isGrammarPoint: true,
+      ));
+      unawaited(_grammarReviewProvider.reviewWithOutcome(grammarPointId, outcome));
     }
   }
 
@@ -494,9 +571,8 @@ class LessonViewModel extends ChangeNotifier {
       if (_currentStageIndex >= _stageCount) {
         // Mastery lesson: require 80% accuracy
         if (_lesson!.isMastery) {
-          final accuracy = _totalItemCount == 0
-              ? 0.0
-              : _correctAnswers / _totalItemCount;
+          final accuracy =
+              _totalItemCount == 0 ? 0.0 : _correctAnswers / _totalItemCount;
           if (accuracy >= 0.8) {
             _masteryPassed = true;
             _isComplete = true;
@@ -519,6 +595,60 @@ class LessonViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Rewind the most recently submitted interaction. The SRS layer owns the
+  /// durable state rollback; this method restores the visible card and lesson
+  /// counters to the same point, then awaits the SRS rollback for every
+  /// queue (word / expression / grammar-point) the interaction touched.
+  ///
+  /// Returns a [Future] that completes with `true` when the UI counters and
+  /// the SRS state are both restored; `false` when the SRS rollback gate is
+  /// still held by an in-flight grade (the caller should leave the undo
+  /// entry in place and re-tap once the gate releases — see
+  /// [SrsQueueProvider.undoReview]).
+  Future<bool> undoLastInteraction() async {
+    if (_submittedInteractions.isEmpty) return false;
+    final last = _submittedInteractions.removeLast();
+    _currentStageIndex = last.stageIndex;
+    _currentInteractionIndex = last.interactionIndex;
+    _interactionStates.remove(last.itemId);
+    if (last.correct) {
+      if (_correctAnswers > 0) _correctAnswers--;
+    } else {
+      if (_incorrectAnswers > 0) _incorrectAnswers--;
+      if (_totalMistakes > 0) _totalMistakes--;
+    }
+    if (_questionResults.isNotEmpty) _questionResults.removeLast();
+    _isComplete = false;
+    _completionStarted = false;
+    notifyListeners();
+
+    // Walk the SRS undo stack: drain every entry added by the interaction
+    // we just rewound (one word + zero or one expression + zero or one
+    // grammar point). Roll them all back in LIFO order.
+    while (_srsUndoStack.isNotEmpty) {
+      final entry = _srsUndoStack.removeLast();
+      final ok = entry.isGrammarPoint
+          ? await _grammarReviewProvider.rollbackGrammarPoint(
+              entry.wordId,
+              entry.previous,
+            )
+          : entry.isExpression
+              ? await _srsProvider.rollbackExpression(
+                  entry.wordId,
+                  entry.previous,
+                )
+              : await _srsProvider.rollbackWord(entry.wordId, entry.previous);
+      if (!ok) {
+        // Gate held by an in-flight grade — push the entry back so the
+        // user's next undo attempt can retry it. Returning false tells
+        // the UI to leave the snackbar visible / re-enable the button.
+        _srsUndoStack.add(entry);
+        return false;
+      }
+    }
+    return true;
+  }
+
   /// Retry a mastery lesson after failing.
   void retryMastery() {
     if (_lesson == null || !_lesson!.isMastery) return;
@@ -534,6 +664,8 @@ class LessonViewModel extends ChangeNotifier {
     _incorrectAnswers = 0;
     _interactionStates.clear();
     _questionResults.clear();
+    _submittedInteractions.clear();
+    _srsUndoStack.clear();
     notifyListeners();
   }
 
@@ -549,6 +681,8 @@ class LessonViewModel extends ChangeNotifier {
     _incorrectAnswers = 0;
     _interactionStates.clear();
     _questionResults.clear();
+    _submittedInteractions.clear();
+    _srsUndoStack.clear();
     notifyListeners();
   }
 

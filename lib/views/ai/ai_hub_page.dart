@@ -6,7 +6,6 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/ai/ai_course_provider.dart';
 import 'package:varnamala/application/ai/ai_hint_provider.dart';
 import 'package:varnamala/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:varnamala/application/ai/engine/ai_recent_tasks_provider.dart';
@@ -16,7 +15,7 @@ import 'package:varnamala/routing/routing.gr.dart';
 import 'package:varnamala/views/lesson/components/ai_depth_tutor_sheet.dart';
 import 'package:varnamala/views/lesson/tutor_launch_sheet.dart';
 import 'package:varnamala/views/play/components/play_tiles.dart';
-import 'package:varnamala/views/settings/ai_api_config_sheet.dart';
+import 'package:varnamala/views/ai/ai_api_config_page.dart';
 import 'package:varnamala/views/theme.dart';
 
 /// Centralized AI surface (Phase 2.3 / Phase 3 of floofy-hugging-hopper).
@@ -535,19 +534,10 @@ void _openSheet(BuildContext context, Widget sheet, Object? focus) {
   );
 }
 
-/// Open the API config sheet (sourced via [AiCourseProvider]).
+/// Open the standalone AI API config page.
 void _openConfig(BuildContext context) {
-  showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: VarnamalaTheme.cardBg(context),
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(VarnamalaTheme.radiusXLarge),
-      ),
-    ),
-    builder: (_) =>
-        AiApiConfigSheet(provider: context.read<AiCourseProvider>()),
+  Navigator.of(context).push(
+    MaterialPageRoute<void>(builder: (_) => const AiApiConfigPage()),
   );
 }
 

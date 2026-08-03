@@ -39,6 +39,8 @@ Interaction _$InteractionFromJson(Map<String, dynamic> json) {
       return ReadingShortAnswer.fromJson(json);
     case 'ankiCard':
       return AnkiCard.fromJson(json);
+    case 'ankiHtmlCard':
+      return AnkiHtmlCard.fromJson(json);
 
     default:
       throw CheckedFromJsonException(json, 'runtimeType', 'Interaction',
@@ -139,6 +141,7 @@ extension InteractionPatterns on Interaction {
     TResult Function(ReadingTrueFalse value)? readingTrueFalse,
     TResult Function(ReadingShortAnswer value)? readingShortAnswer,
     TResult Function(AnkiCard value)? ankiCard,
+    TResult Function(AnkiHtmlCard value)? ankiHtmlCard,
     required TResult orElse(),
   }) {
     final _that = this;
@@ -169,6 +172,8 @@ extension InteractionPatterns on Interaction {
         return readingShortAnswer(_that);
       case AnkiCard() when ankiCard != null:
         return ankiCard(_that);
+      case AnkiHtmlCard() when ankiHtmlCard != null:
+        return ankiHtmlCard(_that);
       case _:
         return orElse();
     }
@@ -202,6 +207,7 @@ extension InteractionPatterns on Interaction {
     required TResult Function(ReadingTrueFalse value) readingTrueFalse,
     required TResult Function(ReadingShortAnswer value) readingShortAnswer,
     required TResult Function(AnkiCard value) ankiCard,
+    required TResult Function(AnkiHtmlCard value) ankiHtmlCard,
   }) {
     final _that = this;
     switch (_that) {
@@ -231,6 +237,8 @@ extension InteractionPatterns on Interaction {
         return readingShortAnswer(_that);
       case AnkiCard():
         return ankiCard(_that);
+      case AnkiHtmlCard():
+        return ankiHtmlCard(_that);
     }
   }
 
@@ -261,6 +269,7 @@ extension InteractionPatterns on Interaction {
     TResult? Function(ReadingTrueFalse value)? readingTrueFalse,
     TResult? Function(ReadingShortAnswer value)? readingShortAnswer,
     TResult? Function(AnkiCard value)? ankiCard,
+    TResult? Function(AnkiHtmlCard value)? ankiHtmlCard,
   }) {
     final _that = this;
     switch (_that) {
@@ -290,6 +299,8 @@ extension InteractionPatterns on Interaction {
         return readingShortAnswer(_that);
       case AnkiCard() when ankiCard != null:
         return ankiCard(_that);
+      case AnkiHtmlCard() when ankiHtmlCard != null:
+        return ankiHtmlCard(_that);
       case _:
         return null;
     }
@@ -373,6 +384,18 @@ extension InteractionPatterns on Interaction {
             String? hint,
             String? sourceNoteId)?
         ankiCard,
+    TResult Function(
+            String id,
+            String frontHtml,
+            String backHtml,
+            String css,
+            String mediaBasePath,
+            bool allowJs,
+            List<String> audioAssets,
+            String? sourceNoteId,
+            String? sourceCardId,
+            String? wordId)?
+        ankiHtmlCard,
     required TResult orElse(),
   }) {
     final _that = this;
@@ -429,6 +452,18 @@ extension InteractionPatterns on Interaction {
       case AnkiCard() when ankiCard != null:
         return ankiCard(_that.id, _that.front, _that.back, _that.audioAssets,
             _that.imageAssets, _that.hint, _that.sourceNoteId);
+      case AnkiHtmlCard() when ankiHtmlCard != null:
+        return ankiHtmlCard(
+            _that.id,
+            _that.frontHtml,
+            _that.backHtml,
+            _that.css,
+            _that.mediaBasePath,
+            _that.allowJs,
+            _that.audioAssets,
+            _that.sourceNoteId,
+            _that.sourceCardId,
+            _that.wordId);
       case _:
         return orElse();
     }
@@ -513,6 +548,18 @@ extension InteractionPatterns on Interaction {
             String? hint,
             String? sourceNoteId)
         ankiCard,
+    required TResult Function(
+            String id,
+            String frontHtml,
+            String backHtml,
+            String css,
+            String mediaBasePath,
+            bool allowJs,
+            List<String> audioAssets,
+            String? sourceNoteId,
+            String? sourceCardId,
+            String? wordId)
+        ankiHtmlCard,
   }) {
     final _that = this;
     switch (_that) {
@@ -568,6 +615,18 @@ extension InteractionPatterns on Interaction {
       case AnkiCard():
         return ankiCard(_that.id, _that.front, _that.back, _that.audioAssets,
             _that.imageAssets, _that.hint, _that.sourceNoteId);
+      case AnkiHtmlCard():
+        return ankiHtmlCard(
+            _that.id,
+            _that.frontHtml,
+            _that.backHtml,
+            _that.css,
+            _that.mediaBasePath,
+            _that.allowJs,
+            _that.audioAssets,
+            _that.sourceNoteId,
+            _that.sourceCardId,
+            _that.wordId);
     }
   }
 
@@ -649,6 +708,18 @@ extension InteractionPatterns on Interaction {
             String? hint,
             String? sourceNoteId)?
         ankiCard,
+    TResult? Function(
+            String id,
+            String frontHtml,
+            String backHtml,
+            String css,
+            String mediaBasePath,
+            bool allowJs,
+            List<String> audioAssets,
+            String? sourceNoteId,
+            String? sourceCardId,
+            String? wordId)?
+        ankiHtmlCard,
   }) {
     final _that = this;
     switch (_that) {
@@ -704,6 +775,18 @@ extension InteractionPatterns on Interaction {
       case AnkiCard() when ankiCard != null:
         return ankiCard(_that.id, _that.front, _that.back, _that.audioAssets,
             _that.imageAssets, _that.hint, _that.sourceNoteId);
+      case AnkiHtmlCard() when ankiHtmlCard != null:
+        return ankiHtmlCard(
+            _that.id,
+            _that.frontHtml,
+            _that.backHtml,
+            _that.css,
+            _that.mediaBasePath,
+            _that.allowJs,
+            _that.audioAssets,
+            _that.sourceNoteId,
+            _that.sourceCardId,
+            _that.wordId);
       case _:
         return null;
     }
@@ -2535,6 +2618,200 @@ class _$AnkiCardCopyWithImpl<$Res> implements $AnkiCardCopyWith<$Res> {
       sourceNoteId: freezed == sourceNoteId
           ? _self.sourceNoteId
           : sourceNoteId // ignore: cast_nullable_to_non_nullable
+              as String?,
+    ));
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class AnkiHtmlCard implements Interaction {
+  const AnkiHtmlCard(
+      {this.id = '',
+      required this.frontHtml,
+      required this.backHtml,
+      this.css = '',
+      this.mediaBasePath = '',
+      this.allowJs = false,
+      final List<String> audioAssets = const <String>[],
+      this.sourceNoteId,
+      this.sourceCardId,
+      this.wordId,
+      final String? $type})
+      : _audioAssets = audioAssets,
+        $type = $type ?? 'ankiHtmlCard';
+  factory AnkiHtmlCard.fromJson(Map<String, dynamic> json) =>
+      _$AnkiHtmlCardFromJson(json);
+
+  @override
+  @JsonKey()
+  final String id;
+  final String frontHtml;
+  final String backHtml;
+  @JsonKey()
+  final String css;
+  @JsonKey()
+  final String mediaBasePath;
+  @JsonKey()
+  final bool allowJs;
+  final List<String> _audioAssets;
+  @JsonKey()
+  List<String> get audioAssets {
+    if (_audioAssets is EqualUnmodifiableListView) return _audioAssets;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_audioAssets);
+  }
+
+  final String? sourceNoteId;
+  final String? sourceCardId;
+  final String? wordId;
+
+  @JsonKey(name: 'runtimeType')
+  final String $type;
+
+  /// Create a copy of Interaction
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $AnkiHtmlCardCopyWith<AnkiHtmlCard> get copyWith =>
+      _$AnkiHtmlCardCopyWithImpl<AnkiHtmlCard>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$AnkiHtmlCardToJson(
+      this,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is AnkiHtmlCard &&
+            (identical(other.id, id) || other.id == id) &&
+            (identical(other.frontHtml, frontHtml) ||
+                other.frontHtml == frontHtml) &&
+            (identical(other.backHtml, backHtml) ||
+                other.backHtml == backHtml) &&
+            (identical(other.css, css) || other.css == css) &&
+            (identical(other.mediaBasePath, mediaBasePath) ||
+                other.mediaBasePath == mediaBasePath) &&
+            (identical(other.allowJs, allowJs) || other.allowJs == allowJs) &&
+            const DeepCollectionEquality()
+                .equals(other._audioAssets, _audioAssets) &&
+            (identical(other.sourceNoteId, sourceNoteId) ||
+                other.sourceNoteId == sourceNoteId) &&
+            (identical(other.sourceCardId, sourceCardId) ||
+                other.sourceCardId == sourceCardId) &&
+            (identical(other.wordId, wordId) || other.wordId == wordId));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(
+      runtimeType,
+      id,
+      frontHtml,
+      backHtml,
+      css,
+      mediaBasePath,
+      allowJs,
+      const DeepCollectionEquality().hash(_audioAssets),
+      sourceNoteId,
+      sourceCardId,
+      wordId);
+
+  @override
+  String toString() {
+    return 'Interaction.ankiHtmlCard(id: $id, frontHtml: $frontHtml, backHtml: $backHtml, css: $css, mediaBasePath: $mediaBasePath, allowJs: $allowJs, audioAssets: $audioAssets, sourceNoteId: $sourceNoteId, sourceCardId: $sourceCardId, wordId: $wordId)';
+  }
+}
+
+/// @nodoc
+abstract mixin class $AnkiHtmlCardCopyWith<$Res>
+    implements $InteractionCopyWith<$Res> {
+  factory $AnkiHtmlCardCopyWith(
+          AnkiHtmlCard value, $Res Function(AnkiHtmlCard) _then) =
+      _$AnkiHtmlCardCopyWithImpl;
+  @override
+  @useResult
+  $Res call(
+      {String id,
+      String frontHtml,
+      String backHtml,
+      String css,
+      String mediaBasePath,
+      bool allowJs,
+      List<String> audioAssets,
+      String? sourceNoteId,
+      String? sourceCardId,
+      String? wordId});
+}
+
+/// @nodoc
+class _$AnkiHtmlCardCopyWithImpl<$Res> implements $AnkiHtmlCardCopyWith<$Res> {
+  _$AnkiHtmlCardCopyWithImpl(this._self, this._then);
+
+  final AnkiHtmlCard _self;
+  final $Res Function(AnkiHtmlCard) _then;
+
+  /// Create a copy of Interaction
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? id = null,
+    Object? frontHtml = null,
+    Object? backHtml = null,
+    Object? css = null,
+    Object? mediaBasePath = null,
+    Object? allowJs = null,
+    Object? audioAssets = null,
+    Object? sourceNoteId = freezed,
+    Object? sourceCardId = freezed,
+    Object? wordId = freezed,
+  }) {
+    return _then(AnkiHtmlCard(
+      id: null == id
+          ? _self.id
+          : id // ignore: cast_nullable_to_non_nullable
+              as String,
+      frontHtml: null == frontHtml
+          ? _self.frontHtml
+          : frontHtml // ignore: cast_nullable_to_non_nullable
+              as String,
+      backHtml: null == backHtml
+          ? _self.backHtml
+          : backHtml // ignore: cast_nullable_to_non_nullable
+              as String,
+      css: null == css
+          ? _self.css
+          : css // ignore: cast_nullable_to_non_nullable
+              as String,
+      mediaBasePath: null == mediaBasePath
+          ? _self.mediaBasePath
+          : mediaBasePath // ignore: cast_nullable_to_non_nullable
+              as String,
+      allowJs: null == allowJs
+          ? _self.allowJs
+          : allowJs // ignore: cast_nullable_to_non_nullable
+              as bool,
+      audioAssets: null == audioAssets
+          ? _self._audioAssets
+          : audioAssets // ignore: cast_nullable_to_non_nullable
+              as List<String>,
+      sourceNoteId: freezed == sourceNoteId
+          ? _self.sourceNoteId
+          : sourceNoteId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      sourceCardId: freezed == sourceCardId
+          ? _self.sourceCardId
+          : sourceCardId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      wordId: freezed == wordId
+          ? _self.wordId
+          : wordId // ignore: cast_nullable_to_non_nullable
               as String?,
     ));
   }

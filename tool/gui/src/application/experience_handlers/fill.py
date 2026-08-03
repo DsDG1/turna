@@ -404,7 +404,7 @@ def _experience_fill_listening_gaps(
         safe_information(host, "补全听力", "没有可用的 section。")
         return
 
-    from src.backend.ai_generator import fill_listening_gaps
+    from src.backend.ai import fill_listening_gaps
     from src.dialogs.ai.worker import AiRequestWorker
 
     sid = str(section.get("id") or "section")
@@ -419,6 +419,16 @@ def _experience_fill_listening_gaps(
 
     config = host._ai_config
     draft = copy.deepcopy(section)
+    # v4.x: derive the human-readable target-language name from the loaded course
+    # (index.displayName or index.language code) so the LLM prompt is not
+    # hardcoded to Turkish. Mirrors textbook.py's language derivation.
+    try:
+        _idx = getattr(host.adapter, "index", None) or {}
+        lang_name = str(
+            _idx.get("displayName") or _idx.get("language") or "Turkish"
+        )
+    except Exception:
+        lang_name = "Turkish"
     host.job_tray.start_job(
         job_id,
         "补全听力：正在生成 audioAsset/transcript …",
@@ -429,7 +439,9 @@ def _experience_fill_listening_gaps(
     host._refresh_experience(immediate=False, focus_only=True)
 
     def _target() -> dict:
-        return fill_listening_gaps(config, draft)
+        return fill_listening_gaps(
+            config, draft, language=lang_name, source_language="Chinese"
+        )
 
     worker = AiRequestWorker(_target)
 

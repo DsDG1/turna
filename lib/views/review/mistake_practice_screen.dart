@@ -24,8 +24,7 @@ class MistakePracticePage extends StatefulWidget {
 }
 
 class _MistakePracticePageState extends State<MistakePracticePage> {
-  final Set<InteractionRenderer> _renderers =
-      getIt<Set<InteractionRenderer>>();
+  final Set<InteractionRenderer> _renderers = getIt<Set<InteractionRenderer>>();
   bool _submitted = false;
   bool? _correct;
 
@@ -69,24 +68,38 @@ class _MistakePracticePageState extends State<MistakePracticePage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
-                child: renderer.build(
-                  interaction,
-                  InteractionState(
-                    submitted: _submitted,
-                    correct: _correct,
-                    userAnswerText: _submitted ? widget.entry.userAnswer : null,
+                child: RepaintBoundary(
+                  // Same overflow fix as `mistake_review_page.dart`: the
+                  // renderer body is a `Column` and a long prompt + many
+                  // options can exceed the viewport, producing
+                  // `BOTTOM OVERFLOWED BY N PIXELS` stripes. Wrapping it in
+                  // a scroll view makes the content reachable.
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.only(top: 8, bottom: 16),
+                    child: KeyedSubtree(
+                      key: ValueKey(widget.entry.id),
+                      child: renderer.build(
+                        interaction,
+                        InteractionState(
+                          submitted: _submitted,
+                          correct: _correct,
+                          userAnswerText:
+                              _submitted ? widget.entry.userAnswer : null,
+                        ),
+                        (correct, {userAnswerText, reviewQuality}) {
+                          setState(() {
+                            _submitted = true;
+                            _correct = correct;
+                          });
+                          if (correct) {
+                            context
+                                .read<MistakeProvider>()
+                                .recordRewrite(widget.entry.id);
+                          }
+                        },
+                      ),
+                    ),
                   ),
-                  (correct, {userAnswerText}) {
-                    setState(() {
-                      _submitted = true;
-                      _correct = correct;
-                    });
-                    if (correct) {
-                      context
-                          .read<MistakeProvider>()
-                          .recordRewrite(widget.entry.id);
-                    }
-                  },
                 ),
               ),
               if (_submitted) ...[

@@ -32,8 +32,7 @@ class WeakWordsPage extends StatefulWidget {
 
 class _WeakWordsPageState extends State<WeakWordsPage> {
   late final LessonViewModel _vm;
-  final Set<InteractionRenderer> _renderers =
-      getIt<Set<InteractionRenderer>>();
+  final Set<InteractionRenderer> _renderers = getIt<Set<InteractionRenderer>>();
   final Random _random = Random();
   bool _empty = false;
   bool _dialogShown = false;
@@ -149,8 +148,7 @@ class _WeakWordsPageState extends State<WeakWordsPage> {
                   return const Center(child: CircularProgressIndicator());
                 }
                 final renderer = lookupRenderer(_renderers, interaction);
-                final showCheck =
-                    selected.$4 && !renderer.autoAdvance;
+                final showCheck = selected.$4 && !renderer.autoAdvance;
                 return Column(
                   children: [
                     if (selected.$3 != null)
@@ -162,9 +160,12 @@ class _WeakWordsPageState extends State<WeakWordsPage> {
                       child: renderer.build(
                         interaction,
                         selected.$2,
-                        (correct, {userAnswerText}) {
-                          vm.submitInteraction(correct,
-                              userAnswerText: userAnswerText);
+                        (correct, {userAnswerText, reviewQuality}) {
+                          vm.submitInteraction(
+                            correct,
+                            userAnswerText: userAnswerText,
+                            reviewQuality: reviewQuality,
+                          );
                         },
                       ),
                     ),
@@ -173,7 +174,9 @@ class _WeakWordsPageState extends State<WeakWordsPage> {
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
                           child: LessonCheckButton(
-                            label: selected.$5 ? AppStrings.lessonContinueUpper : AppStrings.lessonGotItUpper,
+                            label: selected.$5
+                                ? AppStrings.lessonContinueUpper
+                                : AppStrings.lessonGotItUpper,
                             enabled: true,
                             onPressed: () => vm.advance(),
                           ),
@@ -215,8 +218,7 @@ class _WeakWordsPageState extends State<WeakWordsPage> {
                 selector: (context, vm) => vm.progress,
                 builder: (context, progress, _) => LinearProgressIndicator(
                   value: progress,
-                  backgroundColor:
-                      VarnamalaTheme.error.withValues(alpha: 0.1),
+                  backgroundColor: VarnamalaTheme.error.withValues(alpha: 0.1),
                   valueColor:
                       const AlwaysStoppedAnimation<Color>(VarnamalaTheme.error),
                 ),

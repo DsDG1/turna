@@ -2,6 +2,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 // Project imports:
+import 'package:varnamala/application/anki/anki_card_adapter.dart';
 import 'package:varnamala/application/anki/anki_deck_assembler.dart';
 import 'package:varnamala/data/course_database.dart' as db;
 import 'package:varnamala/application/anki/anki_models.dart';
@@ -9,7 +10,9 @@ import 'package:varnamala/domain/course/expression.dart';
 import 'package:varnamala/domain/course/grammar_point.dart';
 import 'package:varnamala/domain/course/interaction.dart';
 import 'package:varnamala/domain/course/lesson.dart';
+import 'package:varnamala/domain/course/lesson_content.dart';
 import 'package:varnamala/domain/course/section.dart';
+import 'package:varnamala/domain/course/unit.dart';
 import 'package:varnamala/domain/course/word_entry.dart';
 import 'package:varnamala/domain/repositories/i_course_repository.dart';
 
@@ -42,6 +45,10 @@ class MockCourseRepository implements ICourseRepository {
 
   @override
   Future<Lesson> lessonById(String id) async => throw UnimplementedError();
+
+  @override
+  Future<List<Lesson>> lessonsContainingAny(Iterable<String> needles) async =>
+      const [];
 
   @override
   Future<String?> sectionIdForUnit(String unitId) async => null;
@@ -201,8 +208,56 @@ void main() {
       expect(section.units[1].name, 'Child2');
     });
 
+    test(
+        'empty Default deck with card-carrying subdecks is kept (no orphaned cards)',
+        () async {
+      // Regression: an empty Default (id=1) whose subdecks hold cards, alongside
+      // another top-level deck, used to be dropped by the top-level filter -
+      // orphaning the subdecks' cards and aborting the import via
+      // COUNT_RECONCILIATION_FAILED.
+      final collection = AnkiCollection(
+        notetypes: {
+          1: const AnkiNotetype(
+            id: 1,
+            name: 'Basic',
+            fieldNames: ['Front', 'Back'],
+          ),
+        },
+        decks: {
+          1: const AnkiDeckInfo(id: 1, name: 'Default'),
+          2: const AnkiDeckInfo(id: 2, name: 'Default::Sub', parentId: 1),
+          3: const AnkiDeckInfo(id: 3, name: 'German'),
+        },
+        notes: [
+          const AnkiNote(id: 1, mid: 1, fields: ['Q1', 'A1']),
+          const AnkiNote(id: 2, mid: 1, fields: ['Q2', 'A2']),
+          const AnkiNote(id: 3, mid: 1, fields: ['Q3', 'A3']),
+        ],
+        cards: [
+          const AnkiCardData(id: 101, nid: 1, did: 2), // Default::Sub
+          const AnkiCardData(id: 102, nid: 2, did: 3), // German
+          const AnkiCardData(id: 103, nid: 3, did: 3), // German
+        ],
+      );
+
+      final summary = await assembler.assemble(
+        collection: collection,
+        importId: 'defaultsub',
+        repo: repo,
+      );
+
+      // Import succeeds and every card is indexed (reconciliation passes).
+      expect(summary.cardCount, 3);
+      // Two top-level sections: Default (anchoring its subdeck's card) + German.
+      expect(repo.writtenSections.length, 2);
+    });
+
     test('generates AnkiCard interactions for Front/Back fields', () async {
-      final collection = _buildTestCollection(cardCount: 2);
+      // 4 cards -> 3 distractors for each (>=2 threshold) so the adapter
+      // builds MultipleChoice. A 2-card deck has only 1 distractor and the
+      // adapter (correctly) falls back to type-the-answer FillBlank instead of
+      // fabricating a fake MCQ (deep-adaptation plan "禁止伪 MCQ" rule).
+      final collection = _buildTestCollection(cardCount: 4);
 
       await assembler.assemble(
         collection: collection,
@@ -211,14 +266,124 @@ void main() {
       );
 
       final section = repo.writtenSections.first;
-      final firstStage = section.units.first.lessons.first.flattenedStages.first;
+      final firstStage =
+          section.units.first.lessons.first.flattenedStages.first;
       final interaction = firstStage.items.first;
 
       // Front/Back heuristic → wordEntry → MultipleChoice
       expect(interaction, isA<MultipleChoice>());
     });
 
-    test('empty collection produces no sections', () async {
+    test('mappingOverrides are respected (swapped front/back field indices)',
+        () async {
+      // The import wizard lets the user override the inferred notetype
+      // mapping; the override flows into the assembler via mappingOverrides.
+      // Swap the front/back field indices and assert the MultipleChoice
+      // prompt follows the override (Front field by default, Back field when
+      // swapped). If mappingOverrides were ignored, both prompts would match.
+      final collection = _buildTestCollection(cardCount: 4);
+
+      // Default inferred mapping (Front=0/Back=1): prompt is the Front field.
+      await AnkiDeckAssembler().assemble(
+        collection: collection,
+        importId: 'default',
+        repo: repo,
+      );
+      var mc = repo.writtenSections.first.units.first.lessons.first
+          .flattenedStages.first.items.first as MultipleChoice;
+      expect(mc.prompt, 'Question 0');
+
+      // Override: swap front/back indices -> prompt becomes the Back field.
+      repo.writtenSections.clear();
+      await AnkiDeckAssembler().assemble(
+        collection: collection,
+        importId: 'override',
+        repo: repo,
+        mappingOverrides: {
+          1: const NotetypeMapping(
+            type: NotetypeMappingType.wordEntry,
+            frontFieldIndex: 1,
+            backFieldIndex: 0,
+          ),
+        },
+      );
+      mc = repo.writtenSections.first.units.first.lessons.first.flattenedStages
+          .first.items.first as MultipleChoice;
+      expect(mc.prompt, 'Answer 0');
+    });
+
+    test('Lite mode keeps every card in navigable lazy lessons', () async {
+      final collection = _buildTestCollection(cardCount: 10);
+      await assembler.assemble(
+        collection: collection,
+        importId: 'lite',
+        repo: repo,
+        liteThreshold: 5, // force Lite for the 10-card deck
+      );
+      final section = repo.writtenSections.first;
+      expect(section.level, 'Anki');
+      expect(section.units, hasLength(1));
+      expect(section.units.first.lessons, isNotEmpty);
+      final items = section.units.first.lessons
+          .expand((lesson) => lesson.flattenedStages)
+          .expand((stage) => stage.items)
+          .toList();
+      expect(items, hasLength(10));
+      expect(items, everyElement(isA<AnkiHtmlCard>()));
+      expect(
+        items.cast<AnkiHtmlCard>(),
+        everyElement(
+          isA<AnkiHtmlCard>()
+              .having((card) => card.frontHtml, 'frontHtml', isEmpty)
+              .having((card) => card.backHtml, 'backHtml', isEmpty)
+              .having((card) => card.wordId, 'wordId', isNotEmpty),
+        ),
+      );
+    });
+
+    test('all-fidelity deck keeps lazy card references in lessons', () async {
+      // A notetype whose templates contain <script> routes every card to
+      // fidelity (policy rule 1). Rendering is lazy, but navigation and
+      // card-count reconciliation must remain complete.
+      final collection = AnkiCollection(
+        notetypes: {
+          1: const AnkiNotetype(
+            id: 1,
+            name: 'Encrypted',
+            fieldNames: ['Front', 'Back'],
+            templates: [
+              AnkiTemplate(
+                  name: 'C',
+                  qfmt: '{{Front}}<script>decrypt()</script>',
+                  afmt: '{{Back}}'),
+            ],
+          ),
+        },
+        decks: {10: const AnkiDeckInfo(id: 10, name: 'Enc', cardCount: 2)},
+        notes: [
+          AnkiNote(id: 1, mid: 1, fields: const ['q1', 'a1']),
+          AnkiNote(id: 2, mid: 1, fields: const ['q2', 'a2']),
+        ],
+        cards: [
+          AnkiCardData(id: 100, nid: 1, did: 10, queue: 0),
+          AnkiCardData(id: 101, nid: 2, did: 10, queue: 0),
+        ],
+      );
+      await assembler.assemble(
+          collection: collection, importId: 'enc', repo: repo);
+      final section = repo.writtenSections.first;
+      expect(section.level, 'Anki');
+      expect(section.units, hasLength(1));
+      final items = section.units.first.lessons
+          .expand((lesson) => lesson.flattenedStages)
+          .expand((stage) => stage.items)
+          .toList();
+      expect(items, hasLength(2));
+      expect(items, everyElement(isA<AnkiHtmlCard>()));
+    });
+
+    test('empty collection fails instead of reporting a blank success',
+        () async {
       final collection = const AnkiCollection(
         notetypes: {},
         decks: {},
@@ -226,17 +391,79 @@ void main() {
         cards: [],
       );
 
+      await expectLater(
+        assembler.assemble(
+          collection: collection,
+          importId: 'empty',
+          repo: repo,
+        ),
+        throwsA(
+          isA<AnkiImportValidationException>()
+              .having((error) => error.code, 'code', 'NO_CARDS'),
+        ),
+      );
+      expect(repo.writtenSections, isEmpty);
+    });
+
+    test('missing deck metadata is recovered without losing the card',
+        () async {
+      final collection = AnkiCollection(
+        notetypes: {
+          1: const AnkiNotetype(
+            id: 1,
+            name: 'Basic',
+            fieldNames: ['Front', 'Back'],
+          ),
+        },
+        decks: const {},
+        notes: const [
+          AnkiNote(id: 1, mid: 1, fields: ['Question', 'Answer']),
+        ],
+        cards: const [AnkiCardData(id: 2, nid: 1, did: 999)],
+      );
+
       final summary = await assembler.assemble(
         collection: collection,
-        importId: 'empty',
+        importId: 'recovery',
         repo: repo,
       );
 
-      expect(repo.writtenSections, isEmpty);
-      expect(summary.cardCount, 0);
+      expect(summary.cardCount, 1);
+      expect(repo.writtenSections, hasLength(1));
+      expect(repo.writtenSections.single.name, 'Recovered deck 999');
+      expect(repo.writtenSections.single.units.single.lessons, isNotEmpty);
     });
 
-    AnkiCollection _buildTaggedCollection(List<({String tags, int id})> entries) {
+    test('card referencing a missing note blocks all writes', () async {
+      final collection = AnkiCollection(
+        notetypes: {
+          1: const AnkiNotetype(
+            id: 1,
+            name: 'Basic',
+            fieldNames: ['Front', 'Back'],
+          ),
+        },
+        decks: const {1: AnkiDeckInfo(id: 1, name: 'Default')},
+        notes: const [],
+        cards: const [AnkiCardData(id: 2, nid: 404, did: 1)],
+      );
+
+      await expectLater(
+        assembler.assemble(
+          collection: collection,
+          importId: 'broken',
+          repo: repo,
+        ),
+        throwsA(
+          isA<AnkiImportValidationException>()
+              .having((error) => error.code, 'code', 'CARD_NOTE_MISSING'),
+        ),
+      );
+      expect(repo.writtenSections, isEmpty);
+    });
+
+    AnkiCollection _buildTaggedCollection(
+        List<({String tags, int id})> entries) {
       final notes = <AnkiNote>[];
       final cards = <AnkiCardData>[];
       for (final e in entries) {
@@ -281,7 +508,9 @@ void main() {
       final unit = repo.writtenSections.first.units.first;
       expect(unit.name, 'Flat Deck');
       expect(unit.lessons.map((l) => l.name).toSet(), {'A', 'B'});
-      final byName = {for (final l in unit.lessons) l.name: l.flattenedStages.length};
+      final byName = {
+        for (final l in unit.lessons) l.name: l.flattenedStages.length
+      };
       expect(byName['A'], 2);
       expect(byName['B'], 2);
     });
@@ -350,6 +579,120 @@ void main() {
       expect(unit.lessons[0].flattenedStages.length, 20);
       expect(unit.lessons[1].name, 'Big #2');
       expect(unit.lessons[1].flattenedStages.length, 2);
+    });
+
+    group('tree-size caps (kMaxLessonsPerUnit / kMaxUnitsPerSection)', () {
+      test('splitOversizedUnit chunks lessons into parts of max 40', () {
+        final lessons = [
+          for (var i = 0; i < 55; i++)
+            Lesson(
+              id: 'u0-l$i',
+              name: 'L$i',
+              type: LessonType.normal,
+              template: LessonTemplate.legacy,
+              content: const LessonContent(),
+            ),
+        ];
+        final unit = Unit(id: 'u0', name: 'Big', lessons: lessons);
+        final parts = AnkiDeckAssembler.splitOversizedUnit(unit);
+
+        expect(parts, hasLength(2)); // 40 + 15
+        expect(parts[0].id, 'u0-p0');
+        expect(parts[0].name, 'Big (1)');
+        expect(parts[0].lessons, hasLength(40));
+        expect(parts[1].id, 'u0-p1');
+        expect(parts[1].name, 'Big (2)');
+        expect(parts[1].lessons, hasLength(15));
+        // Original lesson ids preserved (stable word/lesson references).
+        expect(parts[0].lessons.first.id, 'u0-l0');
+        expect(parts[1].lessons.first.id, 'u0-l40');
+      });
+
+      test('splitOversizedUnit is a no-op at the limit', () {
+        final lessons = [
+          for (var i = 0; i < 40; i++)
+            Lesson(
+              id: 'u0-l$i',
+              name: 'L$i',
+              type: LessonType.normal,
+              template: LessonTemplate.legacy,
+              content: const LessonContent(),
+            ),
+        ];
+        final unit = Unit(id: 'u0', name: 'Exact', lessons: lessons);
+        final parts = AnkiDeckAssembler.splitOversizedUnit(unit);
+        expect(parts, hasLength(1));
+        expect(parts.single.id, 'u0');
+        expect(parts.single.name, 'Exact');
+      });
+
+      test('packUnitsIntoSections creates extra sections beyond 60 units', () {
+        final units = [
+          for (var i = 0; i < 65; i++)
+            Unit(
+              id: 'u$i',
+              name: 'U$i',
+              lessons: [
+                Lesson(
+                  id: 'u$i-l0',
+                  name: 'L',
+                  type: LessonType.normal,
+                  template: LessonTemplate.legacy,
+                  content: const LessonContent(),
+                ),
+              ],
+            ),
+        ];
+        final sections = AnkiDeckAssembler.packUnitsIntoSections(
+          baseSectionId: 'anki-imp-s10',
+          baseName: 'Huge Deck',
+          description: 'Imported from Anki',
+          units: units,
+        );
+
+        expect(sections, hasLength(2)); // 60 + 5
+        expect(sections[0].id, 'anki-imp-s10');
+        expect(sections[0].name, 'Huge Deck (1)');
+        expect(sections[0].units, hasLength(60));
+        expect(sections[0].level, 'Anki');
+        expect(sections[1].id, 'anki-imp-s10-p1');
+        expect(sections[1].name, 'Huge Deck (2)');
+        expect(sections[1].units, hasLength(5));
+      });
+
+      test('assemble splits a flat deck that would exceed 40 lessons/unit',
+          () async {
+        // 41 lessons × 20 cards = 820 cards → one logical unit must become
+        // two units (40 + 1) so validateSectionTree accepts the tree.
+        final collection = _buildTestCollection(cardCount: 820);
+
+        final summary = await assembler.assemble(
+          collection: collection,
+          importId: 'oversize',
+          repo: repo,
+          smartGrouping: false,
+        );
+
+        expect(repo.writtenSections, isNotEmpty);
+        for (final section in repo.writtenSections) {
+          expect(section.units.length, lessThanOrEqualTo(60));
+          for (final unit in section.units) {
+            expect(
+              unit.lessons.length,
+              lessThanOrEqualTo(40),
+              reason: 'unit ${unit.id} must stay within kMaxLessonsPerUnit',
+            );
+          }
+        }
+        final allUnits = repo.writtenSections.expand((s) => s.units).toList();
+        expect(allUnits.length, greaterThanOrEqualTo(2));
+        expect(
+          allUnits.fold<int>(0, (s, u) => s + u.lessons.length),
+          41,
+        );
+        expect(summary.cardCount, 820);
+        expect(summary.lessonCount, 41);
+      });
     });
   });
 }

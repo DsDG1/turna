@@ -69,7 +69,7 @@ class _FakeAudioController extends AudioController {
         );
 
   @override
-  Future<void> speak(String text, {double? speed}) async {}
+  Future<void> speak(String text, {double? speed, String? languageCode}) async {}
   @override
   Future<void> speakFromAsset(String assetPath) async {}
   @override

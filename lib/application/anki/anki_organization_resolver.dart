@@ -17,22 +17,38 @@ class AnkiOrganizationResolver {
 
   /// Field-name substrings (lower-cased) that mark a unit-level field.
   static const List<String> unitFieldPatterns = [
-    'unit', 'chapter', 'section', '单元', '章',
+    'unit',
+    'chapter',
+    'section',
+    '单元',
+    '章',
   ];
 
   /// Field-name substrings (lower-cased) that mark a lesson-level field.
   static const List<String> lessonFieldPatterns = [
-    'lesson', 'topic', 'subunit', '课', '节',
+    'lesson',
+    'topic',
+    'subunit',
+    '课',
+    '节',
   ];
 
   /// Tag prefixes (lower-cased) that carry a unit value, e.g. `unit::2`.
   static const List<String> unitTagPrefixes = [
-    'unit::', 'unit:', 'chapter::', 'chapter:', '单元::', '单元:',
+    'unit::',
+    'unit:',
+    'chapter::',
+    'chapter:',
+    '单元::',
+    '单元:',
   ];
 
   /// Tag prefixes (lower-cased) that carry a lesson value, e.g. `lesson::hw`.
   static const List<String> lessonTagPrefixes = [
-    'lesson::', 'lesson:', '课::', '课:',
+    'lesson::',
+    'lesson:',
+    '课::',
+    '课:',
   ];
 
   /// Resolve the unit/lesson keys for [note] given its notetype definition.

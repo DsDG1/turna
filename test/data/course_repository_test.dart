@@ -4,6 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:varnamala/data/course_database.dart' as db;
 import 'package:varnamala/data/course_repository.dart';
 import 'package:varnamala/domain/course/lesson.dart';
+import 'package:varnamala/domain/course/lesson_content.dart';
+import 'package:varnamala/domain/course/section.dart';
+import 'package:varnamala/domain/course/unit.dart';
 
 import '../helpers/in_memory_course_db.dart';
 
@@ -394,6 +397,88 @@ void main() {
 
       final words = await repo.vocabulary();
       expect(words.first.tags, isEmpty);
+    });
+  });
+
+  group('bulkInsertCourseTree', () {
+    Section fixture(String id, String name) => Section(
+          id: id,
+          name: name,
+          units: [
+            Unit(
+              id: '$id-u1',
+              name: 'Unit 1',
+              lessons: [
+                Lesson(
+                  id: '$id-u1-l1',
+                  name: 'Lesson 1',
+                  content: const LessonContent(stages: []),
+                ),
+              ],
+            ),
+          ],
+        );
+
+    test('sequential inserts assign distinct, monotonic sortOrder',
+        () async {
+      await repo.bulkInsertCourseTree(fixture('s-a', 'A'));
+      await repo.bulkInsertCourseTree(fixture('s-b', 'B'));
+      await repo.bulkInsertCourseTree(fixture('s-c', 'C'));
+
+      // Direct DB read for the actual sort_orders:
+      final rows = await database
+          .customSelect(
+            'SELECT id, sort_order FROM sections ORDER BY sort_order',
+          )
+          .get();
+      expect(
+        rows.map((r) => r.read<String>('id')).toList(),
+        ['s-a', 's-b', 's-c'],
+      );
+      // Each nextOrder is greater than the previous (no flicker across
+      // launches even though no UNIQUE constraint enforces it).
+      expect(
+        rows.map((r) => r.read<int>('sort_order')).toList(),
+        [0, 1, 2],
+      );
+    });
+
+    test('re-inserting a section with the same id leaves the row unchanged',
+        () async {
+      await repo.bulkInsertCourseTree(fixture('s-x', 'Original'));
+      // Second import collides on id with a different name. The store must
+      // NOT overwrite the original (which would orphan the first import's
+      // vocab rows under the anki:<firstImportId> tag); the new name must
+      // be discarded.
+      await repo.bulkInsertCourseTree(fixture('s-x', 'Hijacked'));
+
+      final shells = await repo.sectionShells();
+      final s = shells.firstWhere((s) => s.id == 's-x');
+      expect(s.name, 'Original');
+    });
+
+    test('concurrent inserts into an empty DB both succeed with distinct '
+        'sortOrder', () async {
+      // Two imports racing on the same MAX(sort_order) (which is null/-1
+      // at this point) used to produce two sections with the same
+      // sort_order = 0; the transaction wrapping MAX-read + batched
+      // write makes the read-then-write atomic.
+      await Future.wait([
+        repo.bulkInsertCourseTree(fixture('s-p', 'P')),
+        repo.bulkInsertCourseTree(fixture('s-q', 'Q')),
+      ]);
+
+      final rows = await database
+          .customSelect('SELECT id, sort_order FROM sections ORDER BY sort_order')
+          .get();
+      expect(rows, hasLength(2));
+      final ids = rows.map((r) => r.read<String>('id')).toSet();
+      expect(ids, {'s-p', 's-q'});
+      // Distinct, monotonically assigned sort_orders (the second insert
+      // sees the first's committed section +1).
+      final sortOrders = rows.map((r) => r.read<int>('sort_order')).toList();
+      expect(sortOrders.toSet(), hasLength(2));
+      expect(sortOrders.first, 0);
     });
   });
 }

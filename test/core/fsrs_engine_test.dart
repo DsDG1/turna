@@ -116,6 +116,28 @@ void main() {
       );
     });
 
+    test('Anki Hard, Good and Easy remain distinct FSRS ratings', () {
+      final now = DateTime.utc(2026, 3, 1, 12);
+      final hard = engine.review(
+        fresh('hard'),
+        AnkiReviewRating.hard.quality,
+        now: now,
+      );
+      final good = engine.review(
+        fresh('good'),
+        AnkiReviewRating.good.quality,
+        now: now,
+      );
+      final easy = engine.review(
+        fresh('easy'),
+        AnkiReviewRating.easy.quality,
+        now: now,
+      );
+
+      expect(hard.dueAt.isAfter(good.dueAt), isFalse);
+      expect(easy.dueAt.isAfter(good.dueAt), isTrue);
+    });
+
     test('SM-2 fields migrate into FSRS stability on first review', () {
       final legacy = SrsWord(
         wordId: 'legacy',

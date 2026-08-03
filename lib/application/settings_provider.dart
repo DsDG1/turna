@@ -31,6 +31,10 @@ class SettingsProvider extends ChangeNotifier {
   bool _hasCustomFsrsWeights = false;
   String _fsrsOptimizedAt = '';
   int _fsrsOptimizedReviews = 0;
+  bool _ankiPreRenderEnabled = true;
+  int _ankiCaptureDelaySec = 2;
+  int _ankiLiteThreshold = 2000;
+  bool _ankiForceDisableJs = false;
 
   SettingsProvider(this._appPrefs) {
     _load();
@@ -52,6 +56,15 @@ class SettingsProvider extends ChangeNotifier {
   bool get hasCustomFsrsWeights => _hasCustomFsrsWeights;
   String get fsrsOptimizedAt => _fsrsOptimizedAt;
   int get fsrsOptimizedReviews => _fsrsOptimizedReviews;
+
+  /// Anki advanced settings (deep-adaptation plan). Pre-render caches decrypted
+  /// HTML on first review; captureDelaySec is the wait for JS; liteThreshold
+  /// switches large decks to shell-only sections; forceDisableJs never runs
+  /// template JS (encrypted decks then show ciphertext).
+  bool get ankiPreRenderEnabled => _ankiPreRenderEnabled;
+  int get ankiCaptureDelaySec => _ankiCaptureDelaySec;
+  int get ankiLiteThreshold => _ankiLiteThreshold;
+  bool get ankiForceDisableJs => _ankiForceDisableJs;
 
   TimeOfDay get dailyReminderTime =>
       TimeOfDay(hour: _dailyReminderHour, minute: _dailyReminderMinute);
@@ -94,6 +107,20 @@ class SettingsProvider extends ChangeNotifier {
         .getValue();
     _fsrsOptimizedReviews = _appPrefs.preferences
         .getInt(LocalStateKeys.srsFsrsOptimizedReviews, defaultValue: 0)
+        .getValue();
+    _ankiPreRenderEnabled = _appPrefs.preferences
+        .getBool(LocalStateKeys.ankiPreRenderEnabled, defaultValue: true)
+        .getValue();
+    _ankiCaptureDelaySec = _appPrefs.preferences
+        .getInt(LocalStateKeys.ankiCaptureDelaySec, defaultValue: 2)
+        .getValue()
+        .clamp(1, 10);
+    _ankiLiteThreshold = _appPrefs.preferences
+        .getInt(LocalStateKeys.ankiLiteThreshold, defaultValue: 2000)
+        .getValue()
+        .clamp(0, 10000);
+    _ankiForceDisableJs = _appPrefs.preferences
+        .getBool(LocalStateKeys.ankiForceDisableJs, defaultValue: false)
         .getValue();
   }
 
@@ -139,6 +166,65 @@ class SettingsProvider extends ChangeNotifier {
   Future<void> setAutoRotateEnabled(bool value) async {
     _autoRotateEnabled = value;
     await _appPrefs.setBool(LocalStateKeys.autoRotate, value: value);
+    notifyListeners();
+  }
+
+  // ──────────────────────────────────────────────────────────────
+  // Per-course smart-TTS settings (keyed by course scope).
+  // ──────────────────────────────────────────────────────────────
+
+  /// Whether tapping an option / revealing a card auto-reads it aloud, for
+  /// the course identified by [scope] ('' = built-in, 'anki:importId' =
+  /// imported deck). Defaults to true (auto-read on).
+  bool autoReadOnTapFor(String scope) {
+    return _appPrefs.preferences
+        .getBool(LocalStateKeys.autoReadOnTapKey(scope), defaultValue: true)
+        .getValue();
+  }
+
+  Future<void> setAutoReadOnTapFor(String scope, bool value) async {
+    await _appPrefs.setBool(LocalStateKeys.autoReadOnTapKey(scope), value: value);
+    notifyListeners();
+  }
+
+  /// BCP-47 base code of the "translation / native" language for the course
+  /// identified by [scope]. Used as the TTS fallback voice for plain-Latin
+  /// text that is neither the target language nor a detectable non-Latin
+  /// script. Defaults to 'en'.
+  String nativeLanguageCodeFor(String scope) {
+    return _appPrefs.preferences
+        .getString(LocalStateKeys.nativeLanguageKey(scope), defaultValue: 'en')
+        .getValue();
+  }
+
+  Future<void> setNativeLanguageCodeFor(String scope, String value) async {
+    await _appPrefs.setString(LocalStateKeys.nativeLanguageKey(scope), value);
+    notifyListeners();
+  }
+
+  Future<void> setAnkiPreRenderEnabled(bool value) async {
+    _ankiPreRenderEnabled = value;
+    await _appPrefs.setBool(LocalStateKeys.ankiPreRenderEnabled, value: value);
+    notifyListeners();
+  }
+
+  Future<void> setAnkiCaptureDelaySec(int value) async {
+    final clamped = value.clamp(1, 10);
+    _ankiCaptureDelaySec = clamped;
+    await _appPrefs.setInt(LocalStateKeys.ankiCaptureDelaySec, clamped);
+    notifyListeners();
+  }
+
+  Future<void> setAnkiLiteThreshold(int value) async {
+    final clamped = value.clamp(0, 10000);
+    _ankiLiteThreshold = clamped;
+    await _appPrefs.setInt(LocalStateKeys.ankiLiteThreshold, clamped);
+    notifyListeners();
+  }
+
+  Future<void> setAnkiForceDisableJs(bool value) async {
+    _ankiForceDisableJs = value;
+    await _appPrefs.setBool(LocalStateKeys.ankiForceDisableJs, value: value);
     notifyListeners();
   }
 

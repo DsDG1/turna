@@ -21,6 +21,12 @@ mixin _$SrsWord {
   int get reps;
   int get lapses;
   bool get isLeech;
+
+  /// Imported scheduling states that Anki intentionally keeps out of the
+  /// ordinary due queue. They are explicit instead of being mislabelled as
+  /// leeches, so the original state can be restored or inspected later.
+  bool get isSuspended;
+  bool get isBuried;
   SrsItemType get type;
 
   /// Wall-clock time of the most recent review (null for never-reviewed
@@ -63,6 +69,10 @@ mixin _$SrsWord {
             (identical(other.reps, reps) || other.reps == reps) &&
             (identical(other.lapses, lapses) || other.lapses == lapses) &&
             (identical(other.isLeech, isLeech) || other.isLeech == isLeech) &&
+            (identical(other.isSuspended, isSuspended) ||
+                other.isSuspended == isSuspended) &&
+            (identical(other.isBuried, isBuried) ||
+                other.isBuried == isBuried) &&
             (identical(other.type, type) || other.type == type) &&
             (identical(other.lastReviewedAt, lastReviewedAt) ||
                 other.lastReviewedAt == lastReviewedAt) &&
@@ -87,6 +97,8 @@ mixin _$SrsWord {
       reps,
       lapses,
       isLeech,
+      isSuspended,
+      isBuried,
       type,
       lastReviewedAt,
       stability,
@@ -96,7 +108,7 @@ mixin _$SrsWord {
 
   @override
   String toString() {
-    return 'SrsWord(wordId: $wordId, dueAt: $dueAt, intervalDays: $intervalDays, ease: $ease, reps: $reps, lapses: $lapses, isLeech: $isLeech, type: $type, lastReviewedAt: $lastReviewedAt, stability: $stability, difficulty: $difficulty, fsrsState: $fsrsState, learningStep: $learningStep)';
+    return 'SrsWord(wordId: $wordId, dueAt: $dueAt, intervalDays: $intervalDays, ease: $ease, reps: $reps, lapses: $lapses, isLeech: $isLeech, isSuspended: $isSuspended, isBuried: $isBuried, type: $type, lastReviewedAt: $lastReviewedAt, stability: $stability, difficulty: $difficulty, fsrsState: $fsrsState, learningStep: $learningStep)';
   }
 }
 
@@ -113,6 +125,8 @@ abstract mixin class $SrsWordCopyWith<$Res> {
       int reps,
       int lapses,
       bool isLeech,
+      bool isSuspended,
+      bool isBuried,
       SrsItemType type,
       DateTime? lastReviewedAt,
       double? stability,
@@ -140,6 +154,8 @@ class _$SrsWordCopyWithImpl<$Res> implements $SrsWordCopyWith<$Res> {
     Object? reps = null,
     Object? lapses = null,
     Object? isLeech = null,
+    Object? isSuspended = null,
+    Object? isBuried = null,
     Object? type = null,
     Object? lastReviewedAt = freezed,
     Object? stability = freezed,
@@ -175,6 +191,14 @@ class _$SrsWordCopyWithImpl<$Res> implements $SrsWordCopyWith<$Res> {
       isLeech: null == isLeech
           ? _self.isLeech
           : isLeech // ignore: cast_nullable_to_non_nullable
+              as bool,
+      isSuspended: null == isSuspended
+          ? _self.isSuspended
+          : isSuspended // ignore: cast_nullable_to_non_nullable
+              as bool,
+      isBuried: null == isBuried
+          ? _self.isBuried
+          : isBuried // ignore: cast_nullable_to_non_nullable
               as bool,
       type: null == type
           ? _self.type
@@ -305,6 +329,8 @@ extension SrsWordPatterns on SrsWord {
             int reps,
             int lapses,
             bool isLeech,
+            bool isSuspended,
+            bool isBuried,
             SrsItemType type,
             DateTime? lastReviewedAt,
             double? stability,
@@ -325,6 +351,8 @@ extension SrsWordPatterns on SrsWord {
             _that.reps,
             _that.lapses,
             _that.isLeech,
+            _that.isSuspended,
+            _that.isBuried,
             _that.type,
             _that.lastReviewedAt,
             _that.stability,
@@ -359,6 +387,8 @@ extension SrsWordPatterns on SrsWord {
             int reps,
             int lapses,
             bool isLeech,
+            bool isSuspended,
+            bool isBuried,
             SrsItemType type,
             DateTime? lastReviewedAt,
             double? stability,
@@ -378,6 +408,8 @@ extension SrsWordPatterns on SrsWord {
             _that.reps,
             _that.lapses,
             _that.isLeech,
+            _that.isSuspended,
+            _that.isBuried,
             _that.type,
             _that.lastReviewedAt,
             _that.stability,
@@ -411,6 +443,8 @@ extension SrsWordPatterns on SrsWord {
             int reps,
             int lapses,
             bool isLeech,
+            bool isSuspended,
+            bool isBuried,
             SrsItemType type,
             DateTime? lastReviewedAt,
             double? stability,
@@ -430,6 +464,8 @@ extension SrsWordPatterns on SrsWord {
             _that.reps,
             _that.lapses,
             _that.isLeech,
+            _that.isSuspended,
+            _that.isBuried,
             _that.type,
             _that.lastReviewedAt,
             _that.stability,
@@ -453,6 +489,8 @@ class _SrsWord implements SrsWord {
       this.reps = 0,
       this.lapses = 0,
       this.isLeech = false,
+      this.isSuspended = false,
+      this.isBuried = false,
       this.type = SrsItemType.word,
       this.lastReviewedAt,
       this.stability,
@@ -481,6 +519,16 @@ class _SrsWord implements SrsWord {
   @override
   @JsonKey()
   final bool isLeech;
+
+  /// Imported scheduling states that Anki intentionally keeps out of the
+  /// ordinary due queue. They are explicit instead of being mislabelled as
+  /// leeches, so the original state can be restored or inspected later.
+  @override
+  @JsonKey()
+  final bool isSuspended;
+  @override
+  @JsonKey()
+  final bool isBuried;
   @override
   @JsonKey()
   final SrsItemType type;
@@ -536,6 +584,10 @@ class _SrsWord implements SrsWord {
             (identical(other.reps, reps) || other.reps == reps) &&
             (identical(other.lapses, lapses) || other.lapses == lapses) &&
             (identical(other.isLeech, isLeech) || other.isLeech == isLeech) &&
+            (identical(other.isSuspended, isSuspended) ||
+                other.isSuspended == isSuspended) &&
+            (identical(other.isBuried, isBuried) ||
+                other.isBuried == isBuried) &&
             (identical(other.type, type) || other.type == type) &&
             (identical(other.lastReviewedAt, lastReviewedAt) ||
                 other.lastReviewedAt == lastReviewedAt) &&
@@ -560,6 +612,8 @@ class _SrsWord implements SrsWord {
       reps,
       lapses,
       isLeech,
+      isSuspended,
+      isBuried,
       type,
       lastReviewedAt,
       stability,
@@ -569,7 +623,7 @@ class _SrsWord implements SrsWord {
 
   @override
   String toString() {
-    return 'SrsWord(wordId: $wordId, dueAt: $dueAt, intervalDays: $intervalDays, ease: $ease, reps: $reps, lapses: $lapses, isLeech: $isLeech, type: $type, lastReviewedAt: $lastReviewedAt, stability: $stability, difficulty: $difficulty, fsrsState: $fsrsState, learningStep: $learningStep)';
+    return 'SrsWord(wordId: $wordId, dueAt: $dueAt, intervalDays: $intervalDays, ease: $ease, reps: $reps, lapses: $lapses, isLeech: $isLeech, isSuspended: $isSuspended, isBuried: $isBuried, type: $type, lastReviewedAt: $lastReviewedAt, stability: $stability, difficulty: $difficulty, fsrsState: $fsrsState, learningStep: $learningStep)';
   }
 }
 
@@ -587,6 +641,8 @@ abstract mixin class _$SrsWordCopyWith<$Res> implements $SrsWordCopyWith<$Res> {
       int reps,
       int lapses,
       bool isLeech,
+      bool isSuspended,
+      bool isBuried,
       SrsItemType type,
       DateTime? lastReviewedAt,
       double? stability,
@@ -614,6 +670,8 @@ class __$SrsWordCopyWithImpl<$Res> implements _$SrsWordCopyWith<$Res> {
     Object? reps = null,
     Object? lapses = null,
     Object? isLeech = null,
+    Object? isSuspended = null,
+    Object? isBuried = null,
     Object? type = null,
     Object? lastReviewedAt = freezed,
     Object? stability = freezed,
@@ -649,6 +707,14 @@ class __$SrsWordCopyWithImpl<$Res> implements _$SrsWordCopyWith<$Res> {
       isLeech: null == isLeech
           ? _self.isLeech
           : isLeech // ignore: cast_nullable_to_non_nullable
+              as bool,
+      isSuspended: null == isSuspended
+          ? _self.isSuspended
+          : isSuspended // ignore: cast_nullable_to_non_nullable
+              as bool,
+      isBuried: null == isBuried
+          ? _self.isBuried
+          : isBuried // ignore: cast_nullable_to_non_nullable
               as bool,
       type: null == type
           ? _self.type

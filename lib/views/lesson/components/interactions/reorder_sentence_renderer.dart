@@ -141,15 +141,17 @@ class _ReorderBodyState extends State<_ReorderBody> {
           if (submitted && correct == false) ...[
             const SizedBox(height: 16),
             LessonCorrectAnswerBanner(
-                label: AppStrings.lessonCorrectOrder, answer: widget.correct.join(' ')),
+                label: AppStrings.lessonCorrectOrder,
+                answer: widget.correct.join(' ')),
           ],
           const SizedBox(height: 24),
           LessonCheckButton(
-            label: submitted ? AppStrings.lessonChecked : AppStrings.lessonCheck,
+            label:
+                submitted ? AppStrings.lessonChecked : AppStrings.lessonCheck,
             enabled: canSubmit,
             onPressed: canSubmit
-                ? () => widget.onSubmit(_matches(),
-                    userAnswerText: _formatAnswer())
+                ? () =>
+                    widget.onSubmit(_matches(), userAnswerText: _formatAnswer())
                 : null,
           ),
         ],
@@ -176,13 +178,10 @@ class _AnswerRow extends StatelessWidget {
     Color border = VarnamalaTheme.textHint.withValues(alpha: 0.30);
     Color background = VarnamalaTheme.cardBg(context);
     if (submitted) {
-      border = correct == true
-          ? VarnamalaTheme.success
-          : VarnamalaTheme.error;
-      background = (correct == true
-              ? VarnamalaTheme.success
-              : VarnamalaTheme.error)
-          .withValues(alpha: 0.06);
+      border = correct == true ? VarnamalaTheme.success : VarnamalaTheme.error;
+      background =
+          (correct == true ? VarnamalaTheme.success : VarnamalaTheme.error)
+              .withValues(alpha: 0.06);
     } else if (tokens.isNotEmpty) {
       border = VarnamalaTheme.peacockTeal;
       background = VarnamalaTheme.peacockTeal.withValues(alpha: 0.04);
@@ -270,9 +269,8 @@ class _TokenChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = selected
-        ? VarnamalaTheme.peacockTeal
-        : VarnamalaTheme.cardBg(context);
+    final bg =
+        selected ? VarnamalaTheme.peacockTeal : VarnamalaTheme.cardBg(context);
     final fg = selected
         ? VarnamalaTheme.textOnPrimary
         : VarnamalaTheme.textPrimaryColor(context);
@@ -294,8 +292,7 @@ class _TokenChip extends StatelessWidget {
           borderRadius: BorderRadius.circular(VarnamalaTheme.radiusRound),
           onTap: onTap,
           child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             child: Text(
               label,
               style: TextStyle(

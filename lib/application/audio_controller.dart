@@ -58,7 +58,7 @@ class AudioController {
   final SettingsProvider _settingsProvider;
   final AccessibilityProvider _accessibilityProvider;
   final VocabAudioResolver _vocabAudioResolver;
-  final AnkiAudioResolver _ankiMediaResolver = AnkiAudioResolver();
+  final AnkiAudioResolver _ankiMediaResolver;
   final TtsAvailabilityChecker? _ttsChecker;
   final Random _random = Random();
 
@@ -79,9 +79,11 @@ class AudioController {
     @Named('audioPlayer') required AudioPlayer audioPlayer,
     @Named('speechPlayer') required AudioPlayer speechPlayer,
     TtsAvailabilityChecker? ttsChecker,
+    AnkiAudioResolver? ankiMediaResolver,
   })  : _audioPlayer = audioPlayer,
         _speechPlayer = speechPlayer,
-        _ttsChecker = ttsChecker {
+        _ttsChecker = ttsChecker,
+        _ankiMediaResolver = ankiMediaResolver ?? AnkiAudioResolver() {
     _ttsSpeed = _settingsProvider.ttsSpeed;
   }
 
@@ -164,8 +166,9 @@ class AudioController {
   ///
   /// Throws [StateError] when no usable system locale can be bound so the
   /// caller can report the failure instead of speaking with the wrong voice.
-  Future<void> _ensureSystemTtsReady() async {
-    final baseLang = _languageProvider.ttsLanguageCode;
+  Future<void> _ensureSystemTtsReady({String? languageCode}) async {
+    final targetBase = _languageProvider.ttsLanguageCode;
+    final baseLang = languageCode ?? targetBase;
     final checker = _ttsChecker;
     final wasConfigured = checker?.isEngineConfigured ?? true;
 
@@ -174,6 +177,11 @@ class AudioController {
       // resolveLanguageCode configures Google TTS first, then picks a locale
       // the engine actually reports as available (e.g. tr-TR).
       lang = await checker.resolveLanguageCode(baseLang);
+      // If the requested (e.g. auto-detected) language has no installed voice,
+      // fall back to the target language so the user still hears something.
+      if (lang == null && baseLang != targetBase) {
+        lang = await checker.resolveLanguageCode(targetBase);
+      }
       if (!wasConfigured) {
         // Engine may have been selected for the first time → force setLanguage.
         _lastTtsLanguage = null;
@@ -185,7 +193,7 @@ class AudioController {
     if (lang == null) {
       throw StateError(
         'No system TTS locale available for "$baseLang" '
-        '(install Google TTS + Turkish voice data)',
+        '(install Google TTS + voice data for that language)',
       );
     }
 
@@ -218,8 +226,12 @@ class AudioController {
     }
   }
 
-  Future<void> _speakWithSystemTts(String text, double effectiveSpeed) async {
-    await _ensureSystemTtsReady();
+  Future<void> _speakWithSystemTts(
+    String text,
+    double effectiveSpeed, {
+    String? languageCode,
+  }) async {
+    await _ensureSystemTtsReady(languageCode: languageCode);
     final rate = mapUiSpeedToFlutterTtsRate(effectiveSpeed);
     if (_lastTtsRate != rate) {
       await _tts.setSpeechRate(rate);
@@ -239,9 +251,14 @@ class AudioController {
   /// Speak arbitrary [text] using TTS in the current target language.
   /// [speed] overrides the current global speed for this utterance.
   ///
+  /// Pass [languageCode] (BCP-47 base code, e.g. `zh`, `en`) to speak in a
+  /// non-target voice - used by smart language detection for content whose
+  /// language varies per item (MCQ options, Anki card faces, dictionary
+  /// translations). When null the target-language voice is used.
+  ///
   /// See [speakWithResult] when the caller needs to know which engine spoke.
-  Future<void> speak(String text, {double? speed}) async {
-    await speakWithResult(text, speed: speed);
+  Future<void> speak(String text, {double? speed, String? languageCode}) async {
+    await speakWithResult(text, speed: speed, languageCode: languageCode);
   }
 
   /// Like [speak], but returns which backend produced audio.
@@ -249,7 +266,11 @@ class AudioController {
   /// This build routes through the device/Google system TTS only. If it
   /// fails, [TtsSpeakSource.failed] is returned with the error — there is no
   /// offline fallback in this build.
-  Future<TtsSpeakResult> speakWithResult(String text, {double? speed}) async {
+  Future<TtsSpeakResult> speakWithResult(
+    String text, {
+    double? speed,
+    String? languageCode,
+  }) async {
     if (text.isEmpty) {
       const empty = TtsSpeakResult(
         source: TtsSpeakSource.failed,
@@ -262,7 +283,8 @@ class AudioController {
     final effectiveSpeed = speed ?? _ttsSpeed;
 
     try {
-      await _speakWithSystemTts(text, effectiveSpeed);
+      await _speakWithSystemTts(text, effectiveSpeed,
+          languageCode: languageCode);
       const ok = TtsSpeakResult(source: TtsSpeakSource.system);
       _lastSpeakResult = ok;
       debugPrint('TTS route: system OK');
@@ -323,7 +345,7 @@ class AudioController {
   /// import language-specific vocab maps.
   Future<void> speakWord(String wordId) async {
     if (AnkiAudioResolver.isAnkiAsset(wordId)) {
-      await _playAnkiMedia(wordId);
+      await playAnkiMedia(wordId);
       return;
     }
     final resolved = _vocabAudioResolver.resolve(wordId);
@@ -336,16 +358,19 @@ class AudioController {
   }
 
   /// Play an Anki deck media file (`anki://` reference) from its persistent
-  /// copy. Missing files degrade silently (the reference may predate the
-  /// media copy or the deck may have been uninstalled).
-  Future<void> _playAnkiMedia(String ref) async {
+  /// copy. Returns `true` only when playback was successfully started.
+  /// Missing files and platform playback errors never fall back to TTS.
+  Future<bool> playAnkiMedia(String ref) async {
+    if (!AnkiAudioResolver.isAnkiAsset(ref)) return false;
     try {
       final path = await _ankiMediaResolver.resolveMediaPath(ref);
-      if (path == null) return;
+      if (path == null) return false;
       await _speechPlayer.stop();
       await _speechPlayer.play(DeviceFileSource(path));
+      return true;
     } catch (e) {
       debugPrint('Error playing Anki media: $e');
+      return false;
     }
   }
 
@@ -360,7 +385,9 @@ class AudioController {
     final text = transcript.trim();
 
     if (asset != null && asset.isNotEmpty) {
-      if (isAssetPath(asset)) {
+      if (AnkiAudioResolver.isAnkiAsset(asset)) {
+        await playAnkiMedia(asset);
+      } else if (isAssetPath(asset)) {
         await speakFromAsset(asset);
       } else if (text.isNotEmpty) {
         // Prefer readable transcript for TTS when asset is a logical id

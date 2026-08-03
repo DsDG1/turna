@@ -392,11 +392,19 @@ class CourseProvider extends ChangeNotifier {
 
   /// Drop all shell/body state and re-run [load] from the database.
   ///
+  /// Always invalidates [CourseLoader] process caches so callers that mutate
+  /// the DB (Anki import, uninstall, AI course write) see fresh section shells
+  /// and vocabulary without having to remember a separate invalidate step.
+  ///
   /// Used by the course-tree empty-shell error UI so "Retry" can recover
   /// after a transient DB failure. Does not reseed assets — that still
   /// requires a content-version bump or clearing app data.
   Future<void> reloadCourse() async {
     logger.w('CourseProvider.reloadCourse: resetting and reloading shells');
+    // Must drop CourseLoader's memoized shells/vocab — otherwise reload reads
+    // the pre-mutation snapshot and newly imported Anki decks never appear
+    // in [allSections] / [courseEntries].
+    CourseLoader.invalidateCaches();
     _isLoaded = false;
     _sections = const [];
     _allSections = const [];

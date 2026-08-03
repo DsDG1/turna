@@ -53,6 +53,7 @@ import '../application/study_stats_provider.dart' as _i620;
 import '../application/theme_provider.dart' as _i151;
 import '../courses/languages/vocab_audio_resolver.dart' as _i73;
 import '../data/anki_import_dao.dart' as _i151;
+import '../data/anki_note_dao.dart' as _i696;
 import '../data/course_database.dart' as _i604;
 import '../data/course_repository.dart' as _i848;
 import '../data/review_history_dao.dart' as _i68;
@@ -69,6 +70,8 @@ import '../service/tts_availability_checker.dart' as _i307;
 import '../service/xiaoyi_service.dart' as _i274;
 import '../views/lesson/components/interactions/anki_card_renderer.dart'
     as _i940;
+import '../views/lesson/components/interactions/anki_html_card_renderer.dart'
+    as _i681;
 import '../views/lesson/components/interactions/fill_blank_renderer.dart'
     as _i665;
 import '../views/lesson/components/interactions/interaction_renderer.dart'
@@ -112,6 +115,7 @@ extension GetItInjectableX on _i174.GetIt {
     final audioModule = _$AudioModule();
     final rendererModule = _$RendererModule();
     gh.factory<_i940.AnkiCardRenderer>(() => _i940.AnkiCardRenderer());
+    gh.factory<_i681.AnkiHtmlCardRenderer>(() => _i681.AnkiHtmlCardRenderer());
     gh.factory<_i665.FillBlankRenderer>(() => _i665.FillBlankRenderer());
     gh.factory<_i657.ListenAndPickRenderer>(
         () => _i657.ListenAndPickRenderer());
@@ -164,6 +168,8 @@ extension GetItInjectableX on _i174.GetIt {
         () => _i793.SettingsProvider(gh<_i523.AppPrefs>()));
     gh.lazySingleton<_i151.AnkiImportDao>(
         () => _i151.AnkiImportDao(gh<_i604.CourseDatabase>()));
+    gh.lazySingleton<_i696.AnkiNoteDao>(
+        () => _i696.AnkiNoteDao(gh<_i604.CourseDatabase>()));
     gh.lazySingleton<_i68.ReviewHistoryDao>(
         () => _i68.ReviewHistoryDao(gh<_i604.CourseDatabase>()));
     gh.lazySingleton<_i336.SrsStateDao>(
@@ -239,6 +245,23 @@ extension GetItInjectableX on _i174.GetIt {
           gh<_i409.LessonProgressProvider>(),
           gh<_i788.GameMilestoneProvider>(),
         ));
+    gh.lazySingleton<Set<_i931.InteractionRenderer>>(
+        () => rendererModule.renderers(
+              gh<_i440.ShowWordRenderer>(),
+              gh<_i990.MultipleChoiceRenderer>(),
+              gh<_i147.MultiSelectRenderer>(),
+              gh<_i665.FillBlankRenderer>(),
+              gh<_i767.TranslateSentenceRenderer>(),
+              gh<_i657.ListenAndPickRenderer>(),
+              gh<_i757.TypeTheWordRenderer>(),
+              gh<_i785.ListenOnlyRenderer>(),
+              gh<_i215.ReorderSentenceRenderer>(),
+              gh<_i235.ReadingMcqRenderer>(),
+              gh<_i399.ReadingTrueFalseRenderer>(),
+              gh<_i532.ReadingShortAnswerRenderer>(),
+              gh<_i940.AnkiCardRenderer>(),
+              gh<_i681.AnkiHtmlCardRenderer>(),
+            ));
     gh.lazySingleton<_i495.LessonCompletionCoordinator>(
         () => _i495.LessonCompletionCoordinator(
               gh<_i565.GameProvider>(),
@@ -271,29 +294,6 @@ extension GetItInjectableX on _i174.GetIt {
           gh<_i1008.GrammarReviewProvider>(),
           gh<_i495.LessonCompletionCoordinator>(),
         ));
-    gh.lazySingleton<_i1045.AnkiDeckManager>(() => _i1045.AnkiDeckManager(
-          repo: gh<_i876.ICourseRepository>(),
-          srsProvider: gh<_i361.SrsProvider>(),
-          importDao: gh<_i151.AnkiImportDao>(),
-          appPrefs: gh<_i523.AppPrefs>(),
-          audioResolver: gh<_i180.AnkiAudioResolver>(),
-        ));
-    gh.lazySingleton<Set<_i931.InteractionRenderer>>(
-        () => rendererModule.renderers(
-              gh<_i440.ShowWordRenderer>(),
-              gh<_i990.MultipleChoiceRenderer>(),
-              gh<_i147.MultiSelectRenderer>(),
-              gh<_i665.FillBlankRenderer>(),
-              gh<_i767.TranslateSentenceRenderer>(),
-              gh<_i657.ListenAndPickRenderer>(),
-              gh<_i757.TypeTheWordRenderer>(),
-              gh<_i785.ListenOnlyRenderer>(),
-              gh<_i215.ReorderSentenceRenderer>(),
-              gh<_i235.ReadingMcqRenderer>(),
-              gh<_i399.ReadingTrueFalseRenderer>(),
-              gh<_i532.ReadingShortAnswerRenderer>(),
-              gh<_i940.AnkiCardRenderer>(),
-            ));
     gh.lazySingleton<_i648.FunProvider>(() => _i648.FunProvider(
           gh<_i523.AppPrefs>(),
           gh<_i565.GameProvider>(),
@@ -312,6 +312,14 @@ extension GetItInjectableX on _i174.GetIt {
         ));
     gh.lazySingleton<_i740.ProgressProvider>(
         () => _i740.ProgressProvider(gh<_i565.GameProvider>()));
+    gh.lazySingleton<_i1045.AnkiDeckManager>(() => _i1045.AnkiDeckManager(
+          repo: gh<_i876.ICourseRepository>(),
+          srsProvider: gh<_i361.SrsProvider>(),
+          importDao: gh<_i151.AnkiImportDao>(),
+          noteDao: gh<_i696.AnkiNoteDao>(),
+          appPrefs: gh<_i523.AppPrefs>(),
+          audioResolver: gh<_i180.AnkiAudioResolver>(),
+        ));
     return this;
   }
 }

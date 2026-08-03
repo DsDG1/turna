@@ -19,14 +19,21 @@ class ReviewHistoryDao {
 
   /// Append a review event.
   Future<void> insertEvent(ReviewEventRecord event) async {
-    await _db.into(_db.reviewEvents).insert(_toCompanion(event));
+    await _db.into(_db.reviewEvents).insert(
+          _toCompanion(event),
+          mode: InsertMode.insertOrIgnore,
+        );
   }
 
   /// Append many events in one transaction (Anki revlog migration).
   Future<void> insertBatch(Iterable<ReviewEventRecord> events) async {
     await _db.batch((b) {
       for (final e in events) {
-        b.insert(_db.reviewEvents, _toCompanion(e));
+        b.insert(
+          _db.reviewEvents,
+          _toCompanion(e),
+          mode: InsertMode.insertOrIgnore,
+        );
       }
     });
   }
@@ -93,6 +100,19 @@ class ReviewHistoryDao {
         .go();
   }
 
+  /// Remove the newest event for one card. Used by the single-step review
+  /// undo action; Anki sessions never allow two pending undos at once.
+  Future<bool> deleteLatestForCard(String cardId) async {
+    final row = await (_db.select(_db.reviewEvents)
+          ..where((t) => t.cardId.equals(cardId))
+          ..orderBy([(t) => OrderingTerm.desc(t.id)])
+          ..limit(1))
+        .getSingleOrNull();
+    if (row == null) return false;
+    await (_db.delete(_db.reviewEvents)..where((t) => t.id.equals(row.id))).go();
+    return true;
+  }
+
   ReviewEventsCompanion _toCompanion(ReviewEventRecord e) {
     return ReviewEventsCompanion.insert(
       cardId: e.cardId,
@@ -106,6 +126,7 @@ class ReviewHistoryDao {
       reps: e.reps,
       lapses: e.lapses,
       type: Value(e.type.name),
+      sourceKey: Value(e.sourceKey),
     );
   }
 
@@ -123,6 +144,7 @@ class ReviewHistoryDao {
       reps: row.reps,
       lapses: row.lapses,
       type: row.type == 'expression' ? SrsItemType.expression : SrsItemType.word,
+      sourceKey: row.sourceKey,
     );
   }
 }
@@ -141,6 +163,7 @@ class ReviewEventRecord {
   final int reps;
   final int lapses;
   final SrsItemType type;
+  final String? sourceKey;
 
   const ReviewEventRecord({
     this.id,
@@ -155,6 +178,7 @@ class ReviewEventRecord {
     required this.reps,
     required this.lapses,
     this.type = SrsItemType.word,
+    this.sourceKey,
   });
 
   /// A recall is successful at SM-2 quality >= 3.

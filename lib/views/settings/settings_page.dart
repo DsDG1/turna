@@ -6,7 +6,6 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/ai/ai_course_provider.dart';
 import 'package:varnamala/application/anki/anki_deck_manager.dart';
 import 'package:varnamala/application/audio_controller.dart';
 import 'package:varnamala/application/game_provider.dart';
@@ -16,8 +15,9 @@ import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/routing/routing.gr.dart';
 import 'package:varnamala/service/export_service.dart';
 import 'package:varnamala/service/local_reminder_service.dart';
-import 'package:varnamala/views/settings/ai_api_config_sheet.dart';
+import 'package:varnamala/views/ai/ai_api_config_page.dart';
 import 'package:varnamala/views/settings/widgets/settings_about_section.dart';
+import 'package:varnamala/views/settings/widgets/settings_advanced_section.dart';
 import 'package:varnamala/views/settings/widgets/settings_accessibility_section.dart';
 import 'package:varnamala/views/settings/widgets/settings_account_section.dart';
 import 'package:varnamala/views/settings/widgets/settings_appearance_section.dart';
@@ -99,6 +99,12 @@ class _SettingsPageState extends State<SettingsPage> {
       subtitle: AppStrings.settingsCategoryFunLabSubtitle,
       icon: Icons.science_rounded,
     ),
+    _SettingsCategory(
+      index: 8,
+      title: '高级',
+      subtitle: 'Anki 保真 / 解密 / 导入',
+      icon: Icons.tune_rounded,
+    ),
   ];
 
   /// Main prefs (account → AI).
@@ -109,6 +115,9 @@ class _SettingsPageState extends State<SettingsPage> {
 
   /// Fun lab (isolated group).
   static const _labIndexes = [7];
+
+  /// Advanced (Anki deep-adaptation tunables).
+  static const _advancedIndexes = [8];
 
   @override
   Widget build(BuildContext context) {
@@ -212,6 +221,13 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const SizedBox(height: 8),
           _categoryCard(_labIndexes),
+          const SizedBox(height: 20),
+          SettingsSectionTitle(
+            icon: Icons.tune_rounded,
+            title: '高级',
+          ),
+          const SizedBox(height: 8),
+          _categoryCard(_advancedIndexes),
           const SizedBox(height: 24),
         ],
       ),
@@ -401,7 +417,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 icon: Icons.vpn_key_rounded,
                 title: AppStrings.settingsAiApiConfigTitle,
                 subtitle: AppStrings.settingsAiApiConfigSubtitle,
-                onTap: (context) => _openAiApiConfigSheet(context),
+                onTap: (context) => _openAiApiConfig(context),
               ),
               settingsTileDivider(context),
               SettingsActionTile(
@@ -467,6 +483,11 @@ class _SettingsPageState extends State<SettingsPage> {
         return const [SettingsAboutSection(), SizedBox(height: 24)];
       case 7:
         return const [SettingsFunSection(), SizedBox(height: 24)];
+      case 8:
+        return [
+          const SettingsAdvancedSection(),
+          const SizedBox(height: 24),
+        ];
       default:
         return const [];
     }
@@ -546,16 +567,9 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Future<void> _openAiApiConfigSheet(BuildContext context) async {
-    final provider = context.read<AiCourseProvider>();
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: VarnamalaTheme.cardBg(context),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (sheetContext) => AiApiConfigSheet(provider: provider),
+  void _openAiApiConfig(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const AiApiConfigPage()),
     );
   }
 

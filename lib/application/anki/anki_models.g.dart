@@ -36,6 +36,7 @@ _AnkiNotetype _$AnkiNotetypeFromJson(Map<String, dynamic> json) =>
               .toList() ??
           const <AnkiTemplate>[],
       isCloze: json['isCloze'] as bool? ?? false,
+      css: json['css'] as String? ?? '',
     );
 
 Map<String, dynamic> _$AnkiNotetypeToJson(_AnkiNotetype instance) =>
@@ -46,6 +47,7 @@ Map<String, dynamic> _$AnkiNotetypeToJson(_AnkiNotetype instance) =>
       'templateNames': instance.templateNames,
       'templates': instance.templates,
       'isCloze': instance.isCloze,
+      'css': instance.css,
     };
 
 _AnkiDeckInfo _$AnkiDeckInfoFromJson(Map<String, dynamic> json) =>

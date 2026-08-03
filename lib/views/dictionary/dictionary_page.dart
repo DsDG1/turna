@@ -7,6 +7,7 @@ import 'package:auto_route/annotations.dart';
 // Project imports:
 import 'package:varnamala/application/audio_controller.dart';
 import 'package:varnamala/application/dictionary_search.dart';
+import 'package:varnamala/application/smart_speech.dart';
 import 'package:varnamala/di/injection.dart';
 import 'package:varnamala/l10n/app_strings.dart';
 import 'package:varnamala/views/theme.dart';
@@ -41,7 +42,10 @@ class _DictionaryPageState extends State<DictionaryPage> {
       return;
     }
     final text = hit.speakText ?? hit.title;
-    if (text.isNotEmpty) await audio.speak(text);
+    if (text.isNotEmpty) {
+      // Auto-detect the language so translations are read in their own voice.
+      await audio.speak(text, languageCode: detectSpeakLanguage(text));
+    }
   }
 
   @override

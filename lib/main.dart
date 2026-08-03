@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 // Project imports:
+import 'package:varnamala/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:varnamala/application/course_provider.dart';
 import 'package:varnamala/application/grammar_review_provider.dart';
 import 'package:varnamala/application/srs_provider.dart';
@@ -68,6 +69,11 @@ Future<void> main() async {
   runApp(const VarnamalaApp());
 
   WidgetsBinding.instance.addPostFrameCallback((_) async {
+    // Hydrate the AI engine config (preset + API key + models) from prefs so
+    // the user's AI setup survives a restart. Best-effort and fast (a single
+    // prefs read); a missing/corrupt record leaves the in-memory default.
+    await getIt<AiEngineConfigHolder>().loadPersisted();
+
     // Populate the synchronous lookup maps (vocab / grammar /
     // expressions) before the course tree shows lessons. Deferred from
     // setupLocator so runApp paints the splash without waiting on the full

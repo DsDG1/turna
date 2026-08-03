@@ -99,8 +99,7 @@ class _ShowWordCard extends StatelessWidget {
             onTap: onTap,
             child: LessonPracticeCard(
               variant: LessonPracticeCardVariant.surface,
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 28, vertical: 48),
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 48),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -145,7 +144,8 @@ class _ShowWordCard extends StatelessWidget {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                  if (contextSentence != null && contextSentence!.isNotEmpty) ...[
+                  if (contextSentence != null &&
+                      contextSentence!.isNotEmpty) ...[
                     const SizedBox(height: 20),
                     Semantics(
                       button: true,
@@ -161,8 +161,8 @@ class _ShowWordCard extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: VarnamalaTheme.peacockTeal
                                 .withValues(alpha: 0.06),
-                            borderRadius:
-                                BorderRadius.circular(VarnamalaTheme.radiusMedium),
+                            borderRadius: BorderRadius.circular(
+                                VarnamalaTheme.radiusMedium),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -243,8 +243,7 @@ class _UnknownItemCard extends StatelessWidget {
             onTap: onTap,
             child: LessonPracticeCard(
               variant: LessonPracticeCardVariant.surface,
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 28, vertical: 48),
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 48),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [

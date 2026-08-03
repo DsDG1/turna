@@ -172,7 +172,8 @@ class _MultiSelectBodyState extends State<_MultiSelectBody> {
           ..._buildOptions(submitted, correct),
           const SizedBox(height: 20),
           LessonCheckButton(
-            label: submitted ? AppStrings.lessonChecked : AppStrings.lessonCheck,
+            label:
+                submitted ? AppStrings.lessonChecked : AppStrings.lessonCheck,
             enabled: _canSubmit,
             onPressed: _canSubmit
                 ? () => widget.onSubmit(

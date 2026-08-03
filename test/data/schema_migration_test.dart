@@ -154,14 +154,30 @@ class _CourseDatabaseV6 extends db.CourseDatabase {
       );
 }
 
-/// A hypothetical newer schema (v9) used to verify downgrade behavior: opening
-/// a v9 DB with the current v8 code must not crash — it wipes + recreates the
+/// A hypothetical newer schema (v15) used to verify downgrade behavior: opening
+/// a v15 DB with the current v14 code must not crash - it wipes + recreates the
 /// schema (the course DB is a reseedable derived cache).
-class _CourseDatabaseV9 extends db.CourseDatabase {
-  _CourseDatabaseV9(super.e);
+class _CourseDatabaseV15 extends db.CourseDatabase {
+  _CourseDatabaseV15(super.e);
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 15;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (m) async => await m.createAll(),
+      );
+}
+
+/// A v13 schema (the version before the card-level Anki wordId re-key) used to
+/// verify the v13 -> v14 migration re-keys legacy note-based SRS ids. onCreate
+/// builds the full current table set; the re-key only touches Drift-defined
+/// columns on anki_cards_meta / srs_states / review_events.
+class _CourseDatabaseV13 extends db.CourseDatabase {
+  _CourseDatabaseV13(super.e);
+
+  @override
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -231,8 +247,7 @@ void main() {
   ensureSqliteLibForTestHost();
 
   group('Drift schema migrations', () {
-    test('v1 -> v6 creates grammarPoints, courseMeta, expressions',
-        () async {
+    test('v1 -> v6 creates grammarPoints, courseMeta, expressions', () async {
       final path = await _tempDbPath();
       final oldDb = _CourseDatabaseV1(NativeDatabase(File(path)));
       await _forceOpen(oldDb);
@@ -379,19 +394,58 @@ void main() {
       await File(path).parent.delete(recursive: true);
     });
 
-    test('v9 -> v8 downgrade wipes and recreates instead of crashing', () async {
+    test('v6 -> v9 adds the Anki NoteStore tables', () async {
       final path = await _tempDbPath();
-      final newer = _CourseDatabaseV9(NativeDatabase(File(path)));
+      final oldDb = _CourseDatabaseV6(NativeDatabase(File(path)));
+      await _forceOpen(oldDb);
+      await _seedV4Data(oldDb);
+      await oldDb.close();
+
+      final migrated = db.CourseDatabase(NativeDatabase(File(path)));
+      await _forceOpen(migrated);
+
+      // v9 adds the three NoteStore tables (empty on creation; populated at
+      // import time by the AnkiImporter).
+      expect(await migrated.select(migrated.ankiNotetypes).get(), isEmpty);
+      expect(await migrated.select(migrated.ankiNotes).get(), isEmpty);
+      expect(await migrated.select(migrated.ankiCardsMeta).get(), isEmpty);
+
+      await migrated.close();
+      await File(path).parent.delete(recursive: true);
+    });
+
+    test('v9 -> v10 adds the anki_prerendered_html cache table', () async {
+      final path = await _tempDbPath();
+      final oldDb = _CourseDatabaseV6(NativeDatabase(File(path)));
+      await _forceOpen(oldDb);
+      await _seedV4Data(oldDb);
+      await oldDb.close();
+
+      final migrated = db.CourseDatabase(NativeDatabase(File(path)));
+      await _forceOpen(migrated);
+
+      // v10 adds the pre-rendered HTML cache table (empty on creation).
+      expect(
+          await migrated.select(migrated.ankiPrerenderedHtml).get(), isEmpty);
+
+      await migrated.close();
+      await File(path).parent.delete(recursive: true);
+    });
+
+    test('v15 -> v14 downgrade wipes and recreates instead of crashing',
+        () async {
+      final path = await _tempDbPath();
+      final newer = _CourseDatabaseV15(NativeDatabase(File(path)));
       await _forceOpen(newer);
       await newer.into(newer.sections).insert(
             const db.SectionsCompanion(
-              id: Value('s-v9'),
-              name: Value('Section V9'),
+              id: Value('s-v11'),
+              name: Value('Section V11'),
             ),
           );
       await newer.close();
 
-      // Opening a v9 DB with the current v8 code must downgrade gracefully
+      // Opening a v15 DB with the current v14 code must downgrade gracefully
       // (wipe + recreate) rather than throw.
       final downgraded = db.CourseDatabase(NativeDatabase(File(path)));
       await _forceOpen(downgraded);
@@ -411,6 +465,55 @@ void main() {
       expect(after.map((r) => r.id), ['s-fresh']);
 
       await downgraded.close();
+      await File(path).parent.delete(recursive: true);
+    });
+
+    test('v13 -> v14 re-keys legacy note-based Anki word ids to card-level',
+        () async {
+      final path = await _tempDbPath();
+      final oldDb = _CourseDatabaseV13(NativeDatabase(File(path)));
+      await _forceOpen(oldDb);
+      // anki_cards_meta carries the authoritative card-level word id; SRS
+      // state + review history still carry legacy note-based ids.
+      await oldDb.customStatement(
+        "INSERT INTO anki_cards_meta "
+        "(import_id, card_id, note_id, ord, did, word_id, render_mode, "
+        "scheduling_json) VALUES ('anki_import_123', 456, 100, 0, 1, "
+        "'anki-anki_import_123-c456', 'hybrid', '{}')",
+      );
+      await oldDb.customStatement(
+        "INSERT INTO srs_states (word_id, queue, due_at, interval_days, "
+        "ease, reps, lapses, is_leech, is_suspended, is_buried, type) VALUES "
+        "('anki-anki_import_123-n100', 'srs', 0, 1, 2.5, 0, 0, 0, 0, 0, 'word')",
+      );
+      await oldDb.customStatement(
+        "INSERT INTO review_events (card_id, queue, reviewed_at, quality, "
+        "prev_interval_days, next_interval_days, prev_ease, next_ease, reps, "
+        "lapses, type) VALUES ('anki-anki_import_123-n100', 'srs', 0, 4, 0, "
+        "1, 2.5, 2.5, 1, 0, 'word')",
+      );
+      await oldDb.close();
+
+      final migrated = db.CourseDatabase(NativeDatabase(File(path)));
+      await _forceOpen(migrated);
+
+      final srs = await migrated
+          .customSelect(
+            "SELECT word_id FROM srs_states WHERE word_id LIKE 'anki-%'",
+          )
+          .get();
+      expect(srs.map((r) => r.read<String>('word_id')),
+          ['anki-anki_import_123-c456']);
+
+      final ev = await migrated
+          .customSelect(
+            "SELECT card_id FROM review_events WHERE card_id LIKE 'anki-%'",
+          )
+          .get();
+      expect(ev.map((r) => r.read<String>('card_id')),
+          ['anki-anki_import_123-c456']);
+
+      await migrated.close();
       await File(path).parent.delete(recursive: true);
     });
   });

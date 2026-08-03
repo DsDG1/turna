@@ -12,6 +12,7 @@ import 'package:varnamala/application/audio_controller.dart';
 import 'package:varnamala/application/language_provider.dart';
 import 'package:varnamala/application/settings_provider.dart';
 import 'package:varnamala/di/injection.dart';
+import 'package:varnamala/domain/audio/anki_audio_resolver.dart';
 import 'package:varnamala/domain/audio/vocab_audio_resolver.dart';
 import 'package:varnamala/service/locator.dart';
 
@@ -33,6 +34,33 @@ class _FakeAudioPlayer implements AudioPlayer {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+class _RecordingAudioPlayer implements AudioPlayer {
+  final List<Source> playedSources = [];
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) {
+    if (invocation.memberName == #play) {
+      playedSources.add(invocation.positionalArguments.first as Source);
+      return Future<void>.value();
+    }
+    if (invocation.memberName == #stop ||
+        invocation.memberName == #dispose ||
+        invocation.memberName == #release) {
+      return Future<void>.value();
+    }
+    return super.noSuchMethod(invocation);
+  }
+}
+
+class _FakeAnkiAudioResolver extends AnkiAudioResolver {
+  final Map<String, String> paths;
+
+  _FakeAnkiAudioResolver(this.paths);
+
+  @override
+  Future<String?> resolveMediaPath(String assetPath) async => paths[assetPath];
+}
+
 /// In-memory [VocabAudioResolver] for speakWord routing tests.
 class _MapVocabAudioResolver implements VocabAudioResolver {
   final Map<String, ResolvedVocabAudio> entries;
@@ -41,14 +69,14 @@ class _MapVocabAudioResolver implements VocabAudioResolver {
 
   @override
   ResolvedVocabAudio resolve(String wordId) {
-    return entries[wordId] ??
-        ResolvedVocabAudio(speakText: wordId);
+    return entries[wordId] ?? ResolvedVocabAudio(speakText: wordId);
   }
 }
 
 class _TestAudioController extends AudioController {
   final List<String> ttsCalls = [];
   final List<String> assetCalls = [];
+  final List<String> ankiCalls = [];
 
   _TestAudioController(VocabAudioResolver resolver)
       : super(
@@ -62,13 +90,19 @@ class _TestAudioController extends AudioController {
         );
 
   @override
-  Future<void> speak(String text, {double? speed}) async {
+  Future<void> speak(String text, {double? speed, String? languageCode}) async {
     ttsCalls.add(text);
   }
 
   @override
   Future<void> speakFromAsset(String assetPath) async {
     assetCalls.add(assetPath);
+  }
+
+  @override
+  Future<bool> playAnkiMedia(String ref) async {
+    ankiCalls.add(ref);
+    return true;
   }
 }
 
@@ -200,6 +234,18 @@ void main() {
       expect(controller.ttsCalls, isEmpty);
     });
 
+    test('anki reference → local Anki playback before generic asset routing',
+        () async {
+      await controller.speakListenContent(
+        audioAsset: 'anki://imp/voice.mp3',
+        transcript: 'must not use TTS',
+      );
+
+      expect(controller.ankiCalls, ['anki://imp/voice.mp3']);
+      expect(controller.assetCalls, isEmpty);
+      expect(controller.ttsCalls, isEmpty);
+    });
+
     test('word id with transcript → prefer transcript TTS', () async {
       await controller.speakListenContent(
         audioAsset: 'w-habari',
@@ -217,6 +263,67 @@ void main() {
     test('transcript only → speak transcript', () async {
       await controller.speakListenContent(transcript: 'Karibu');
       expect(controller.ttsCalls, ['Karibu']);
+    });
+  });
+
+  group('AudioController.playAnkiMedia', () {
+    setUp(() async {
+      await getIt.reset();
+      SharedPreferences.setMockInitialValues({});
+      final sp = await StreamingSharedPreferences.instance;
+      final prefs = AppPrefs(sp);
+      getIt.registerLazySingleton<AppPrefs>(() => prefs);
+      getIt.registerLazySingleton<SettingsProvider>(
+        () => SettingsProvider(prefs),
+      );
+      getIt.registerLazySingleton<AccessibilityProvider>(
+        () => AccessibilityProvider(prefs),
+      );
+    });
+
+    tearDown(() async => getIt.reset());
+
+    test('resolved anki reference plays through DeviceFileSource', () async {
+      final speechPlayer = _RecordingAudioPlayer();
+      final controller = AudioController(
+        _FakeFlutterTts(),
+        _FakeLanguageProvider(),
+        getIt<SettingsProvider>(),
+        getIt<AccessibilityProvider>(),
+        _MapVocabAudioResolver({}),
+        audioPlayer: _FakeAudioPlayer(),
+        speechPlayer: speechPlayer,
+        ankiMediaResolver: _FakeAnkiAudioResolver({
+          'anki://imp/voice.mp3': r'C:\media\voice.mp3',
+        }),
+      );
+
+      expect(await controller.playAnkiMedia('anki://imp/voice.mp3'), isTrue);
+      expect(speechPlayer.playedSources, hasLength(1));
+      expect(speechPlayer.playedSources.single, isA<DeviceFileSource>());
+      expect(
+        (speechPlayer.playedSources.single as DeviceFileSource).path,
+        r'C:\media\voice.mp3',
+      );
+    });
+
+    test('missing or non-Anki references return false without playback',
+        () async {
+      final speechPlayer = _RecordingAudioPlayer();
+      final controller = AudioController(
+        _FakeFlutterTts(),
+        _FakeLanguageProvider(),
+        getIt<SettingsProvider>(),
+        getIt<AccessibilityProvider>(),
+        _MapVocabAudioResolver({}),
+        audioPlayer: _FakeAudioPlayer(),
+        speechPlayer: speechPlayer,
+        ankiMediaResolver: _FakeAnkiAudioResolver({}),
+      );
+
+      expect(await controller.playAnkiMedia('anki://imp/missing.mp3'), isFalse);
+      expect(await controller.playAnkiMedia('assets/audio.mp3'), isFalse);
+      expect(speechPlayer.playedSources, isEmpty);
     });
   });
 }

@@ -52,6 +52,10 @@ class SrsProvider extends SrsQueueProvider {
   /// Remove all entries whose id starts with [prefix] (Anki deck uninstall).
   Future<void> removeByPrefix(String prefix) => removeItemsByPrefix(prefix);
 
+  /// Remove only ids created by a failed import transaction.
+  Future<void> rollbackImportedIds(Iterable<String> ids) =>
+      removeImportedItems(ids);
+
   /// Persist first-seen lesson links for words/expressions.
   Future<void> recordLessonLinks({
     required Iterable<String> wordIds,
@@ -66,7 +70,8 @@ class SrsProvider extends SrsQueueProvider {
         type: type,
       );
 
-  String? getLessonNameForWord(String wordId) => linkStore.lessonNameFor(wordId);
+  String? getLessonNameForWord(String wordId) =>
+      linkStore.lessonNameFor(wordId);
 
   String? getLessonNameForExpression(String expressionId) =>
       linkStore.lessonNameFor(expressionId);
@@ -80,6 +85,16 @@ class SrsProvider extends SrsQueueProvider {
   /// Binary pass/fail for a word (记住·做对 / 没记住·做错).
   Future<SrsWord?> reviewWordOutcome(String wordId, ReviewOutcome outcome) =>
       reviewWithOutcome(wordId, outcome);
+
+  Future<bool> undoWordReview(String wordId, SrsWord previous) =>
+      undoReview(wordId, previous);
+
+  Future<void> setWordFlags(
+    String wordId, {
+    bool? suspended,
+    bool? buried,
+  }) =>
+      setItemFlags(wordId, suspended: suspended, buried: buried);
 
   Future<SrsWord?> reviewExpression(String expressionId, int quality) =>
       reviewItem(expressionId, quality);
@@ -95,6 +110,22 @@ class SrsProvider extends SrsQueueProvider {
     ReviewOutcome outcome,
   ) =>
       reviewWithOutcome(expressionId, outcome);
+
+  /// Public surface for [LessonViewModel.undoLastInteraction] to roll back
+  /// a word grade captured before the most recent submission. Delegates to
+  /// the base class' gate-protected [SrsQueueProvider.undoReview] so an
+  /// in-flight grade can't overwrite the restored state. [previous] is the
+  /// snapshot taken in [LessonViewModel._applySrsOutcome]; when it is null
+  /// (e.g. the grade was for a freshly registered word the lesson never
+  /// saw before), we restore the in-memory fresh state, not a freshly
+  /// re-registered one — otherwise the undo would silently re-register the
+  /// id with a different timestamp.
+  Future<bool> rollbackWord(String wordId, SrsWord? previous) =>
+      undoReview(wordId, previous ?? state[wordId] ?? SrsWord.fresh(wordId));
+
+  /// Same as [rollbackWord] but for the expression queue.
+  Future<bool> rollbackExpression(String expressionId, SrsWord? previous) =>
+      undoReview(expressionId, previous ?? state[expressionId] ?? SrsWord.fresh(expressionId));
 
   /// Words whose `dueAt` is in the past or now (primary due cache).
   List<SrsWord> getDueWords([DateTime? now]) => getDueItems(
@@ -162,8 +193,9 @@ class SrsProvider extends SrsQueueProvider {
   }
 
   int get dueCount => primaryCachedDueCount ?? getDueWords().length;
-  int get totalSeen =>
-      state.values.where((w) => w.type == SrsItemType.word && w.reps >= 1).length;
+  int get totalSeen => state.values
+      .where((w) => w.type == SrsItemType.word && w.reps >= 1)
+      .length;
   int get totalRegistered =>
       state.values.where((w) => w.type == SrsItemType.word).length;
 

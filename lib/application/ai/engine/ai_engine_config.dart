@@ -10,7 +10,7 @@ import 'package:varnamala/application/ai/engine/ai_provider_preset.dart';
 /// - [off]: force `json_object` (the loosest JSON mode).
 enum StrictSchemaMode { auto, on, off }
 
-/// Unified, in-memory-only configuration for the AI engine.
+/// Unified configuration for the AI engine.
 ///
 /// Supersedes the legacy [AiApiConfig] (kept for back-compat during migration).
 /// Adds the three capabilities the legacy config lacked:
@@ -20,8 +20,11 @@ enum StrictSchemaMode { auto, on, off }
 ///     calls can go to a smaller model;
 ///   * a [strictSchema] policy with auto-fallback.
 ///
-/// The API key is held in memory only and is **never persisted** - this matches
-/// the security stance of `AiApiConfig` (see `ai_api_config.dart:4-7`).
+/// This class is a plain immutable value; persistence is the responsibility of
+/// [AiEngineConfigHolder], which serializes the config (including [apiKey]) to
+/// SharedPreferences so it survives an app restart. The API key is therefore
+/// stored in plain text on the device - never logged (the holder writes via the
+/// raw `StreamingSharedPreferences` to bypass `AppPrefs.printBefore`).
 class AiEngineConfig {
   const AiEngineConfig({
     this.preset = kDeepseekPreset,
@@ -39,7 +42,8 @@ class AiEngineConfig {
   /// is set (only meaningful when [preset] is `custom`).
   final AiProviderPreset preset;
 
-  /// Secret API key. Never logged or persisted.
+  /// Secret API key. Never logged; persisted to the device by
+  /// [AiEngineConfigHolder] so it survives an app restart.
   final String apiKey;
 
   /// Explicit override for whether the endpoint accepts reasoning payload
@@ -151,4 +155,58 @@ class AiEngineConfig {
   String toString() =>
       'AiEngineConfig(provider: ${preset.id}, baseUrl: $baseUrl, '
       'modelChat: $modelChat, modelJson: $modelJson)';
+
+  // ─── Serialization (for AiEngineConfigHolder persistence) ───────────────
+  //
+  // Round-trips the config to JSON so it can be stored in SharedPreferences
+  // and reloaded on the next launch. The preset is serialized by its enum
+  // [AiProvider.name] and rebuilt via [presetFor]; for the `custom` preset the
+  // Base URL lives in [customBaseUrl], so no extra URL field is needed.
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'presetId': preset.id.name,
+        'apiKey': apiKey,
+        'modelChat': _modelChat,
+        'modelJson': _modelJson,
+        'strictSchema': strictSchema.name,
+        'cacheEnabled': cacheEnabled,
+        'customBaseUrl': customBaseUrl,
+        'supportsReasoningOverride': supportsReasoningOverride,
+      };
+
+  /// Rebuild a config from its [toJson] output. Unknown / missing fields fall
+  /// back to the constructor defaults, so a partial or older-shape record
+  /// degrades gracefully instead of throwing.
+  factory AiEngineConfig.fromJson(Map<String, dynamic> json) {
+    AiProvider? presetId;
+    final rawPreset = json['presetId'];
+    if (rawPreset is String) {
+      for (final p in AiProvider.values) {
+        if (p.name == rawPreset) {
+          presetId = p;
+          break;
+        }
+      }
+    }
+    StrictSchemaMode? strict;
+    final rawStrict = json['strictSchema'];
+    if (rawStrict is String) {
+      for (final m in StrictSchemaMode.values) {
+        if (m.name == rawStrict) {
+          strict = m;
+          break;
+        }
+      }
+    }
+    return AiEngineConfig(
+      preset: presetId != null ? presetFor(presetId) : kDeepseekPreset,
+      apiKey: (json['apiKey'] as String?) ?? '',
+      modelChat: json['modelChat'] as String?,
+      modelJson: json['modelJson'] as String?,
+      strictSchema: strict ?? StrictSchemaMode.auto,
+      cacheEnabled: (json['cacheEnabled'] as bool?) ?? true,
+      customBaseUrl: json['customBaseUrl'] as String?,
+      supportsReasoningOverride: json['supportsReasoningOverride'] as bool?,
+    );
+  }
 }

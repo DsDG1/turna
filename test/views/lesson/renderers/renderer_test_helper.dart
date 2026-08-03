@@ -14,7 +14,7 @@ class RendererTestHarness {
         body: renderer.build(
           interaction,
           InteractionState.idle,
-          (correct, {userAnswerText}) {
+          (correct, {userAnswerText, reviewQuality}) {
             submissions.add((correct, userAnswerText));
           },
         ),

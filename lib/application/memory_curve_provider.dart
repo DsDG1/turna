@@ -34,8 +34,17 @@ class MemoryCurveProvider {
   /// Interval buckets (days) used to bin the empirical retention curve.
   static const List<int> intervalBuckets = [1, 4, 7, 14, 21, 30, 60, 90, 180];
 
-  Future<MemoryCurveSnapshot> snapshot() async {
-    final all = <SrsWord>[..._srs.state.values, ..._grammar.state.values];
+  Future<MemoryCurveSnapshot> snapshot() => _snapshotForPrefix(null);
+
+  /// Compute the same metrics for one imported Anki deck. The prefix filter
+  /// keeps the deck panel a true subset of the global dashboard.
+  Future<MemoryCurveSnapshot> snapshotForImportId(String importId) =>
+      _snapshotForPrefix('anki-$importId-');
+
+  Future<MemoryCurveSnapshot> _snapshotForPrefix(String? prefix) async {
+    final all = <SrsWord>[..._srs.state.values, ..._grammar.state.values]
+        .where((w) => prefix == null || w.wordId.startsWith(prefix))
+        .toList();
     final now = DateTime.now();
 
     // Current retention: mean FSRS R over reviewed cards.
@@ -80,7 +89,9 @@ class MemoryCurveProvider {
 
     // Empirical retention curve: recall rate bucketed by the interval that was
     // in effect *before* each review (prevIntervalDays).
-    final events = await _reviewDao.allEvents();
+    final events = (await _reviewDao.allEvents())
+        .where((e) => prefix == null || e.cardId.startsWith(prefix))
+        .toList();
     final bucketRecalled = <int, int>{};
     final bucketTotal = <int, int>{};
     for (final e in events) {

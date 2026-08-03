@@ -38,6 +38,15 @@ mixin _$AnkiCollection {
   /// immediately after import. Empty when the package has no revlog.
   List<AnkiRevlogEntry> get revlog;
 
+  /// Collection creation time (`col.crt`, Unix seconds). Anki review-card
+  /// due values are day offsets from this clock, not offsets from import
+  /// time.
+  int get collectionCreationTime;
+
+  /// Raw deck configuration (`col.dconf`) retained for traceability and
+  /// future scheduler-specific migrations.
+  Map<String, dynamic> get deckConfigs;
+
   /// Create a copy of AnkiCollection
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -60,7 +69,11 @@ mixin _$AnkiCollection {
                 other.mediaDir == mediaDir) &&
             (identical(other.sourceHash, sourceHash) ||
                 other.sourceHash == sourceHash) &&
-            const DeepCollectionEquality().equals(other.revlog, revlog));
+            const DeepCollectionEquality().equals(other.revlog, revlog) &&
+            (identical(other.collectionCreationTime, collectionCreationTime) ||
+                other.collectionCreationTime == collectionCreationTime) &&
+            const DeepCollectionEquality()
+                .equals(other.deckConfigs, deckConfigs));
   }
 
   @override
@@ -73,11 +86,13 @@ mixin _$AnkiCollection {
       const DeepCollectionEquality().hash(media),
       mediaDir,
       sourceHash,
-      const DeepCollectionEquality().hash(revlog));
+      const DeepCollectionEquality().hash(revlog),
+      collectionCreationTime,
+      const DeepCollectionEquality().hash(deckConfigs));
 
   @override
   String toString() {
-    return 'AnkiCollection(notetypes: $notetypes, decks: $decks, notes: $notes, cards: $cards, media: $media, mediaDir: $mediaDir, sourceHash: $sourceHash, revlog: $revlog)';
+    return 'AnkiCollection(notetypes: $notetypes, decks: $decks, notes: $notes, cards: $cards, media: $media, mediaDir: $mediaDir, sourceHash: $sourceHash, revlog: $revlog, collectionCreationTime: $collectionCreationTime, deckConfigs: $deckConfigs)';
   }
 }
 
@@ -95,7 +110,9 @@ abstract mixin class $AnkiCollectionCopyWith<$Res> {
       Map<String, String> media,
       String mediaDir,
       String sourceHash,
-      List<AnkiRevlogEntry> revlog});
+      List<AnkiRevlogEntry> revlog,
+      int collectionCreationTime,
+      Map<String, dynamic> deckConfigs});
 }
 
 /// @nodoc
@@ -119,6 +136,8 @@ class _$AnkiCollectionCopyWithImpl<$Res>
     Object? mediaDir = null,
     Object? sourceHash = null,
     Object? revlog = null,
+    Object? collectionCreationTime = null,
+    Object? deckConfigs = null,
   }) {
     return _then(_self.copyWith(
       notetypes: null == notetypes
@@ -153,6 +172,14 @@ class _$AnkiCollectionCopyWithImpl<$Res>
           ? _self.revlog
           : revlog // ignore: cast_nullable_to_non_nullable
               as List<AnkiRevlogEntry>,
+      collectionCreationTime: null == collectionCreationTime
+          ? _self.collectionCreationTime
+          : collectionCreationTime // ignore: cast_nullable_to_non_nullable
+              as int,
+      deckConfigs: null == deckConfigs
+          ? _self.deckConfigs
+          : deckConfigs // ignore: cast_nullable_to_non_nullable
+              as Map<String, dynamic>,
     ));
   }
 }
@@ -258,15 +285,26 @@ extension AnkiCollectionPatterns on AnkiCollection {
             Map<String, String> media,
             String mediaDir,
             String sourceHash,
-            List<AnkiRevlogEntry> revlog)?
+            List<AnkiRevlogEntry> revlog,
+            int collectionCreationTime,
+            Map<String, dynamic> deckConfigs)?
         $default, {
     required TResult orElse(),
   }) {
     final _that = this;
     switch (_that) {
       case _AnkiCollection() when $default != null:
-        return $default(_that.notetypes, _that.decks, _that.notes, _that.cards,
-            _that.media, _that.mediaDir, _that.sourceHash, _that.revlog);
+        return $default(
+            _that.notetypes,
+            _that.decks,
+            _that.notes,
+            _that.cards,
+            _that.media,
+            _that.mediaDir,
+            _that.sourceHash,
+            _that.revlog,
+            _that.collectionCreationTime,
+            _that.deckConfigs);
       case _:
         return orElse();
     }
@@ -295,14 +333,25 @@ extension AnkiCollectionPatterns on AnkiCollection {
             Map<String, String> media,
             String mediaDir,
             String sourceHash,
-            List<AnkiRevlogEntry> revlog)
+            List<AnkiRevlogEntry> revlog,
+            int collectionCreationTime,
+            Map<String, dynamic> deckConfigs)
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _AnkiCollection():
-        return $default(_that.notetypes, _that.decks, _that.notes, _that.cards,
-            _that.media, _that.mediaDir, _that.sourceHash, _that.revlog);
+        return $default(
+            _that.notetypes,
+            _that.decks,
+            _that.notes,
+            _that.cards,
+            _that.media,
+            _that.mediaDir,
+            _that.sourceHash,
+            _that.revlog,
+            _that.collectionCreationTime,
+            _that.deckConfigs);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -330,14 +379,25 @@ extension AnkiCollectionPatterns on AnkiCollection {
             Map<String, String> media,
             String mediaDir,
             String sourceHash,
-            List<AnkiRevlogEntry> revlog)?
+            List<AnkiRevlogEntry> revlog,
+            int collectionCreationTime,
+            Map<String, dynamic> deckConfigs)?
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _AnkiCollection() when $default != null:
-        return $default(_that.notetypes, _that.decks, _that.notes, _that.cards,
-            _that.media, _that.mediaDir, _that.sourceHash, _that.revlog);
+        return $default(
+            _that.notetypes,
+            _that.decks,
+            _that.notes,
+            _that.cards,
+            _that.media,
+            _that.mediaDir,
+            _that.sourceHash,
+            _that.revlog,
+            _that.collectionCreationTime,
+            _that.deckConfigs);
       case _:
         return null;
     }
@@ -355,13 +415,16 @@ class _AnkiCollection implements AnkiCollection {
       final Map<String, String> media = const {},
       this.mediaDir = '',
       this.sourceHash = '',
-      final List<AnkiRevlogEntry> revlog = const <AnkiRevlogEntry>[]})
+      final List<AnkiRevlogEntry> revlog = const <AnkiRevlogEntry>[],
+      this.collectionCreationTime = 0,
+      final Map<String, dynamic> deckConfigs = const <String, dynamic>{}})
       : _notetypes = notetypes,
         _decks = decks,
         _notes = notes,
         _cards = cards,
         _media = media,
-        _revlog = revlog;
+        _revlog = revlog,
+        _deckConfigs = deckConfigs;
 
   /// mid → notetype definition
   final Map<int, AnkiNotetype> _notetypes;
@@ -441,6 +504,27 @@ class _AnkiCollection implements AnkiCollection {
     return EqualUnmodifiableListView(_revlog);
   }
 
+  /// Collection creation time (`col.crt`, Unix seconds). Anki review-card
+  /// due values are day offsets from this clock, not offsets from import
+  /// time.
+  @override
+  @JsonKey()
+  final int collectionCreationTime;
+
+  /// Raw deck configuration (`col.dconf`) retained for traceability and
+  /// future scheduler-specific migrations.
+  final Map<String, dynamic> _deckConfigs;
+
+  /// Raw deck configuration (`col.dconf`) retained for traceability and
+  /// future scheduler-specific migrations.
+  @override
+  @JsonKey()
+  Map<String, dynamic> get deckConfigs {
+    if (_deckConfigs is EqualUnmodifiableMapView) return _deckConfigs;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableMapView(_deckConfigs);
+  }
+
   /// Create a copy of AnkiCollection
   /// with the given fields replaced by the non-null parameter values.
   @override
@@ -464,7 +548,11 @@ class _AnkiCollection implements AnkiCollection {
                 other.mediaDir == mediaDir) &&
             (identical(other.sourceHash, sourceHash) ||
                 other.sourceHash == sourceHash) &&
-            const DeepCollectionEquality().equals(other._revlog, _revlog));
+            const DeepCollectionEquality().equals(other._revlog, _revlog) &&
+            (identical(other.collectionCreationTime, collectionCreationTime) ||
+                other.collectionCreationTime == collectionCreationTime) &&
+            const DeepCollectionEquality()
+                .equals(other._deckConfigs, _deckConfigs));
   }
 
   @override
@@ -477,11 +565,13 @@ class _AnkiCollection implements AnkiCollection {
       const DeepCollectionEquality().hash(_media),
       mediaDir,
       sourceHash,
-      const DeepCollectionEquality().hash(_revlog));
+      const DeepCollectionEquality().hash(_revlog),
+      collectionCreationTime,
+      const DeepCollectionEquality().hash(_deckConfigs));
 
   @override
   String toString() {
-    return 'AnkiCollection(notetypes: $notetypes, decks: $decks, notes: $notes, cards: $cards, media: $media, mediaDir: $mediaDir, sourceHash: $sourceHash, revlog: $revlog)';
+    return 'AnkiCollection(notetypes: $notetypes, decks: $decks, notes: $notes, cards: $cards, media: $media, mediaDir: $mediaDir, sourceHash: $sourceHash, revlog: $revlog, collectionCreationTime: $collectionCreationTime, deckConfigs: $deckConfigs)';
   }
 }
 
@@ -501,7 +591,9 @@ abstract mixin class _$AnkiCollectionCopyWith<$Res>
       Map<String, String> media,
       String mediaDir,
       String sourceHash,
-      List<AnkiRevlogEntry> revlog});
+      List<AnkiRevlogEntry> revlog,
+      int collectionCreationTime,
+      Map<String, dynamic> deckConfigs});
 }
 
 /// @nodoc
@@ -525,6 +617,8 @@ class __$AnkiCollectionCopyWithImpl<$Res>
     Object? mediaDir = null,
     Object? sourceHash = null,
     Object? revlog = null,
+    Object? collectionCreationTime = null,
+    Object? deckConfigs = null,
   }) {
     return _then(_AnkiCollection(
       notetypes: null == notetypes
@@ -559,6 +653,14 @@ class __$AnkiCollectionCopyWithImpl<$Res>
           ? _self._revlog
           : revlog // ignore: cast_nullable_to_non_nullable
               as List<AnkiRevlogEntry>,
+      collectionCreationTime: null == collectionCreationTime
+          ? _self.collectionCreationTime
+          : collectionCreationTime // ignore: cast_nullable_to_non_nullable
+              as int,
+      deckConfigs: null == deckConfigs
+          ? _self._deckConfigs
+          : deckConfigs // ignore: cast_nullable_to_non_nullable
+              as Map<String, dynamic>,
     ));
   }
 }
@@ -922,6 +1024,12 @@ mixin _$AnkiNotetype {
   /// Whether this is a Cloze notetype
   bool get isCloze;
 
+  /// Notetype-level CSS (the `css` key of an Anki model), injected into the
+  /// fidelity-track WebView document so rendered cards match the Anki desktop
+  /// preview (deep-adaptation plan §5.1). Empty for imports parsed before css
+  /// capture was added.
+  String get css;
+
   /// Create a copy of AnkiNotetype
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -945,7 +1053,8 @@ mixin _$AnkiNotetype {
             const DeepCollectionEquality()
                 .equals(other.templateNames, templateNames) &&
             const DeepCollectionEquality().equals(other.templates, templates) &&
-            (identical(other.isCloze, isCloze) || other.isCloze == isCloze));
+            (identical(other.isCloze, isCloze) || other.isCloze == isCloze) &&
+            (identical(other.css, css) || other.css == css));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -957,11 +1066,12 @@ mixin _$AnkiNotetype {
       const DeepCollectionEquality().hash(fieldNames),
       const DeepCollectionEquality().hash(templateNames),
       const DeepCollectionEquality().hash(templates),
-      isCloze);
+      isCloze,
+      css);
 
   @override
   String toString() {
-    return 'AnkiNotetype(id: $id, name: $name, fieldNames: $fieldNames, templateNames: $templateNames, templates: $templates, isCloze: $isCloze)';
+    return 'AnkiNotetype(id: $id, name: $name, fieldNames: $fieldNames, templateNames: $templateNames, templates: $templates, isCloze: $isCloze, css: $css)';
   }
 }
 
@@ -977,7 +1087,8 @@ abstract mixin class $AnkiNotetypeCopyWith<$Res> {
       List<String> fieldNames,
       List<String> templateNames,
       List<AnkiTemplate> templates,
-      bool isCloze});
+      bool isCloze,
+      String css});
 }
 
 /// @nodoc
@@ -998,6 +1109,7 @@ class _$AnkiNotetypeCopyWithImpl<$Res> implements $AnkiNotetypeCopyWith<$Res> {
     Object? templateNames = null,
     Object? templates = null,
     Object? isCloze = null,
+    Object? css = null,
   }) {
     return _then(_self.copyWith(
       id: null == id
@@ -1024,6 +1136,10 @@ class _$AnkiNotetypeCopyWithImpl<$Res> implements $AnkiNotetypeCopyWith<$Res> {
           ? _self.isCloze
           : isCloze // ignore: cast_nullable_to_non_nullable
               as bool,
+      css: null == css
+          ? _self.css
+          : css // ignore: cast_nullable_to_non_nullable
+              as String,
     ));
   }
 }
@@ -1127,7 +1243,8 @@ extension AnkiNotetypePatterns on AnkiNotetype {
             List<String> fieldNames,
             List<String> templateNames,
             List<AnkiTemplate> templates,
-            bool isCloze)?
+            bool isCloze,
+            String css)?
         $default, {
     required TResult orElse(),
   }) {
@@ -1135,7 +1252,7 @@ extension AnkiNotetypePatterns on AnkiNotetype {
     switch (_that) {
       case _AnkiNotetype() when $default != null:
         return $default(_that.id, _that.name, _that.fieldNames,
-            _that.templateNames, _that.templates, _that.isCloze);
+            _that.templateNames, _that.templates, _that.isCloze, _that.css);
       case _:
         return orElse();
     }
@@ -1162,14 +1279,15 @@ extension AnkiNotetypePatterns on AnkiNotetype {
             List<String> fieldNames,
             List<String> templateNames,
             List<AnkiTemplate> templates,
-            bool isCloze)
+            bool isCloze,
+            String css)
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _AnkiNotetype():
         return $default(_that.id, _that.name, _that.fieldNames,
-            _that.templateNames, _that.templates, _that.isCloze);
+            _that.templateNames, _that.templates, _that.isCloze, _that.css);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -1195,14 +1313,15 @@ extension AnkiNotetypePatterns on AnkiNotetype {
             List<String> fieldNames,
             List<String> templateNames,
             List<AnkiTemplate> templates,
-            bool isCloze)?
+            bool isCloze,
+            String css)?
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _AnkiNotetype() when $default != null:
         return $default(_that.id, _that.name, _that.fieldNames,
-            _that.templateNames, _that.templates, _that.isCloze);
+            _that.templateNames, _that.templates, _that.isCloze, _that.css);
       case _:
         return null;
     }
@@ -1218,7 +1337,8 @@ class _AnkiNotetype implements AnkiNotetype {
       required final List<String> fieldNames,
       final List<String> templateNames = const <String>[],
       final List<AnkiTemplate> templates = const <AnkiTemplate>[],
-      this.isCloze = false})
+      this.isCloze = false,
+      this.css = ''})
       : _fieldNames = fieldNames,
         _templateNames = templateNames,
         _templates = templates;
@@ -1274,6 +1394,14 @@ class _AnkiNotetype implements AnkiNotetype {
   @JsonKey()
   final bool isCloze;
 
+  /// Notetype-level CSS (the `css` key of an Anki model), injected into the
+  /// fidelity-track WebView document so rendered cards match the Anki desktop
+  /// preview (deep-adaptation plan §5.1). Empty for imports parsed before css
+  /// capture was added.
+  @override
+  @JsonKey()
+  final String css;
+
   /// Create a copy of AnkiNotetype
   /// with the given fields replaced by the non-null parameter values.
   @override
@@ -1302,7 +1430,8 @@ class _AnkiNotetype implements AnkiNotetype {
                 .equals(other._templateNames, _templateNames) &&
             const DeepCollectionEquality()
                 .equals(other._templates, _templates) &&
-            (identical(other.isCloze, isCloze) || other.isCloze == isCloze));
+            (identical(other.isCloze, isCloze) || other.isCloze == isCloze) &&
+            (identical(other.css, css) || other.css == css));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -1314,11 +1443,12 @@ class _AnkiNotetype implements AnkiNotetype {
       const DeepCollectionEquality().hash(_fieldNames),
       const DeepCollectionEquality().hash(_templateNames),
       const DeepCollectionEquality().hash(_templates),
-      isCloze);
+      isCloze,
+      css);
 
   @override
   String toString() {
-    return 'AnkiNotetype(id: $id, name: $name, fieldNames: $fieldNames, templateNames: $templateNames, templates: $templates, isCloze: $isCloze)';
+    return 'AnkiNotetype(id: $id, name: $name, fieldNames: $fieldNames, templateNames: $templateNames, templates: $templates, isCloze: $isCloze, css: $css)';
   }
 }
 
@@ -1336,7 +1466,8 @@ abstract mixin class _$AnkiNotetypeCopyWith<$Res>
       List<String> fieldNames,
       List<String> templateNames,
       List<AnkiTemplate> templates,
-      bool isCloze});
+      bool isCloze,
+      String css});
 }
 
 /// @nodoc
@@ -1358,6 +1489,7 @@ class __$AnkiNotetypeCopyWithImpl<$Res>
     Object? templateNames = null,
     Object? templates = null,
     Object? isCloze = null,
+    Object? css = null,
   }) {
     return _then(_AnkiNotetype(
       id: null == id
@@ -1384,6 +1516,10 @@ class __$AnkiNotetypeCopyWithImpl<$Res>
           ? _self.isCloze
           : isCloze // ignore: cast_nullable_to_non_nullable
               as bool,
+      css: null == css
+          ? _self.css
+          : css // ignore: cast_nullable_to_non_nullable
+              as String,
     ));
   }
 }
@@ -2234,6 +2370,21 @@ mixin _$AnkiCardData {
   /// Number of times forgotten
   int get lapses;
 
+  /// Remaining learning repetitions/steps encoded by Anki's `left` field.
+  int get left;
+
+  /// Original due value retained for filtered/suspended cards.
+  int get odue;
+
+  /// Original deck id retained when a card was temporarily moved by Anki.
+  int get odid;
+
+  /// Anki card flags (including user flag bits).
+  int get flags;
+
+  /// Scheduler-specific opaque card data.
+  String get data;
+
   /// Create a copy of AnkiCardData
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -2257,16 +2408,21 @@ mixin _$AnkiCardData {
             (identical(other.ivl, ivl) || other.ivl == ivl) &&
             (identical(other.factor, factor) || other.factor == factor) &&
             (identical(other.reps, reps) || other.reps == reps) &&
-            (identical(other.lapses, lapses) || other.lapses == lapses));
+            (identical(other.lapses, lapses) || other.lapses == lapses) &&
+            (identical(other.left, left) || other.left == left) &&
+            (identical(other.odue, odue) || other.odue == odue) &&
+            (identical(other.odid, odid) || other.odid == odid) &&
+            (identical(other.flags, flags) || other.flags == flags) &&
+            (identical(other.data, data) || other.data == data));
   }
 
   @override
   int get hashCode => Object.hash(runtimeType, id, nid, did, ord, type, queue,
-      due, ivl, factor, reps, lapses);
+      due, ivl, factor, reps, lapses, left, odue, odid, flags, data);
 
   @override
   String toString() {
-    return 'AnkiCardData(id: $id, nid: $nid, did: $did, ord: $ord, type: $type, queue: $queue, due: $due, ivl: $ivl, factor: $factor, reps: $reps, lapses: $lapses)';
+    return 'AnkiCardData(id: $id, nid: $nid, did: $did, ord: $ord, type: $type, queue: $queue, due: $due, ivl: $ivl, factor: $factor, reps: $reps, lapses: $lapses, left: $left, odue: $odue, odid: $odid, flags: $flags, data: $data)';
   }
 }
 
@@ -2287,7 +2443,12 @@ abstract mixin class $AnkiCardDataCopyWith<$Res> {
       int ivl,
       int factor,
       int reps,
-      int lapses});
+      int lapses,
+      int left,
+      int odue,
+      int odid,
+      int flags,
+      String data});
 }
 
 /// @nodoc
@@ -2313,6 +2474,11 @@ class _$AnkiCardDataCopyWithImpl<$Res> implements $AnkiCardDataCopyWith<$Res> {
     Object? factor = null,
     Object? reps = null,
     Object? lapses = null,
+    Object? left = null,
+    Object? odue = null,
+    Object? odid = null,
+    Object? flags = null,
+    Object? data = null,
   }) {
     return _then(_self.copyWith(
       id: null == id
@@ -2359,6 +2525,26 @@ class _$AnkiCardDataCopyWithImpl<$Res> implements $AnkiCardDataCopyWith<$Res> {
           ? _self.lapses
           : lapses // ignore: cast_nullable_to_non_nullable
               as int,
+      left: null == left
+          ? _self.left
+          : left // ignore: cast_nullable_to_non_nullable
+              as int,
+      odue: null == odue
+          ? _self.odue
+          : odue // ignore: cast_nullable_to_non_nullable
+              as int,
+      odid: null == odid
+          ? _self.odid
+          : odid // ignore: cast_nullable_to_non_nullable
+              as int,
+      flags: null == flags
+          ? _self.flags
+          : flags // ignore: cast_nullable_to_non_nullable
+              as int,
+      data: null == data
+          ? _self.data
+          : data // ignore: cast_nullable_to_non_nullable
+              as String,
     ));
   }
 }
@@ -2456,8 +2642,23 @@ extension AnkiCardDataPatterns on AnkiCardData {
 
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>(
-    TResult Function(int id, int nid, int did, int ord, int type, int queue,
-            int due, int ivl, int factor, int reps, int lapses)?
+    TResult Function(
+            int id,
+            int nid,
+            int did,
+            int ord,
+            int type,
+            int queue,
+            int due,
+            int ivl,
+            int factor,
+            int reps,
+            int lapses,
+            int left,
+            int odue,
+            int odid,
+            int flags,
+            String data)?
         $default, {
     required TResult orElse(),
   }) {
@@ -2475,7 +2676,12 @@ extension AnkiCardDataPatterns on AnkiCardData {
             _that.ivl,
             _that.factor,
             _that.reps,
-            _that.lapses);
+            _that.lapses,
+            _that.left,
+            _that.odue,
+            _that.odid,
+            _that.flags,
+            _that.data);
       case _:
         return orElse();
     }
@@ -2496,8 +2702,23 @@ extension AnkiCardDataPatterns on AnkiCardData {
 
   @optionalTypeArgs
   TResult when<TResult extends Object?>(
-    TResult Function(int id, int nid, int did, int ord, int type, int queue,
-            int due, int ivl, int factor, int reps, int lapses)
+    TResult Function(
+            int id,
+            int nid,
+            int did,
+            int ord,
+            int type,
+            int queue,
+            int due,
+            int ivl,
+            int factor,
+            int reps,
+            int lapses,
+            int left,
+            int odue,
+            int odid,
+            int flags,
+            String data)
         $default,
   ) {
     final _that = this;
@@ -2514,7 +2735,12 @@ extension AnkiCardDataPatterns on AnkiCardData {
             _that.ivl,
             _that.factor,
             _that.reps,
-            _that.lapses);
+            _that.lapses,
+            _that.left,
+            _that.odue,
+            _that.odid,
+            _that.flags,
+            _that.data);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -2534,8 +2760,23 @@ extension AnkiCardDataPatterns on AnkiCardData {
 
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>(
-    TResult? Function(int id, int nid, int did, int ord, int type, int queue,
-            int due, int ivl, int factor, int reps, int lapses)?
+    TResult? Function(
+            int id,
+            int nid,
+            int did,
+            int ord,
+            int type,
+            int queue,
+            int due,
+            int ivl,
+            int factor,
+            int reps,
+            int lapses,
+            int left,
+            int odue,
+            int odid,
+            int flags,
+            String data)?
         $default,
   ) {
     final _that = this;
@@ -2552,7 +2793,12 @@ extension AnkiCardDataPatterns on AnkiCardData {
             _that.ivl,
             _that.factor,
             _that.reps,
-            _that.lapses);
+            _that.lapses,
+            _that.left,
+            _that.odue,
+            _that.odid,
+            _that.flags,
+            _that.data);
       case _:
         return null;
     }
@@ -2573,7 +2819,12 @@ class _AnkiCardData implements AnkiCardData {
       this.ivl = 0,
       this.factor = 2500,
       this.reps = 0,
-      this.lapses = 0});
+      this.lapses = 0,
+      this.left = 0,
+      this.odue = 0,
+      this.odid = 0,
+      this.flags = 0,
+      this.data = ''});
 
   @override
   final int id;
@@ -2629,6 +2880,31 @@ class _AnkiCardData implements AnkiCardData {
   @JsonKey()
   final int lapses;
 
+  /// Remaining learning repetitions/steps encoded by Anki's `left` field.
+  @override
+  @JsonKey()
+  final int left;
+
+  /// Original due value retained for filtered/suspended cards.
+  @override
+  @JsonKey()
+  final int odue;
+
+  /// Original deck id retained when a card was temporarily moved by Anki.
+  @override
+  @JsonKey()
+  final int odid;
+
+  /// Anki card flags (including user flag bits).
+  @override
+  @JsonKey()
+  final int flags;
+
+  /// Scheduler-specific opaque card data.
+  @override
+  @JsonKey()
+  final String data;
+
   /// Create a copy of AnkiCardData
   /// with the given fields replaced by the non-null parameter values.
   @override
@@ -2652,16 +2928,21 @@ class _AnkiCardData implements AnkiCardData {
             (identical(other.ivl, ivl) || other.ivl == ivl) &&
             (identical(other.factor, factor) || other.factor == factor) &&
             (identical(other.reps, reps) || other.reps == reps) &&
-            (identical(other.lapses, lapses) || other.lapses == lapses));
+            (identical(other.lapses, lapses) || other.lapses == lapses) &&
+            (identical(other.left, left) || other.left == left) &&
+            (identical(other.odue, odue) || other.odue == odue) &&
+            (identical(other.odid, odid) || other.odid == odid) &&
+            (identical(other.flags, flags) || other.flags == flags) &&
+            (identical(other.data, data) || other.data == data));
   }
 
   @override
   int get hashCode => Object.hash(runtimeType, id, nid, did, ord, type, queue,
-      due, ivl, factor, reps, lapses);
+      due, ivl, factor, reps, lapses, left, odue, odid, flags, data);
 
   @override
   String toString() {
-    return 'AnkiCardData(id: $id, nid: $nid, did: $did, ord: $ord, type: $type, queue: $queue, due: $due, ivl: $ivl, factor: $factor, reps: $reps, lapses: $lapses)';
+    return 'AnkiCardData(id: $id, nid: $nid, did: $did, ord: $ord, type: $type, queue: $queue, due: $due, ivl: $ivl, factor: $factor, reps: $reps, lapses: $lapses, left: $left, odue: $odue, odid: $odid, flags: $flags, data: $data)';
   }
 }
 
@@ -2684,7 +2965,12 @@ abstract mixin class _$AnkiCardDataCopyWith<$Res>
       int ivl,
       int factor,
       int reps,
-      int lapses});
+      int lapses,
+      int left,
+      int odue,
+      int odid,
+      int flags,
+      String data});
 }
 
 /// @nodoc
@@ -2711,6 +2997,11 @@ class __$AnkiCardDataCopyWithImpl<$Res>
     Object? factor = null,
     Object? reps = null,
     Object? lapses = null,
+    Object? left = null,
+    Object? odue = null,
+    Object? odid = null,
+    Object? flags = null,
+    Object? data = null,
   }) {
     return _then(_AnkiCardData(
       id: null == id
@@ -2757,6 +3048,26 @@ class __$AnkiCardDataCopyWithImpl<$Res>
           ? _self.lapses
           : lapses // ignore: cast_nullable_to_non_nullable
               as int,
+      left: null == left
+          ? _self.left
+          : left // ignore: cast_nullable_to_non_nullable
+              as int,
+      odue: null == odue
+          ? _self.odue
+          : odue // ignore: cast_nullable_to_non_nullable
+              as int,
+      odid: null == odid
+          ? _self.odid
+          : odid // ignore: cast_nullable_to_non_nullable
+              as int,
+      flags: null == flags
+          ? _self.flags
+          : flags // ignore: cast_nullable_to_non_nullable
+              as int,
+      data: null == data
+          ? _self.data
+          : data // ignore: cast_nullable_to_non_nullable
+              as String,
     ));
   }
 }

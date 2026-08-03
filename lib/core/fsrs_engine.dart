@@ -12,8 +12,9 @@ import 'package:varnamala/domain/course/srs_word.dart';
 
 /// FSRS-backed [SrsScheduler] (ADR 0028 / 0029).
 ///
-/// **Binary-only:** pass→Good / fail→Again. Optional personalized [parameters].
-/// Fail path applies a same-day relearn ladder (10m → 30m → 2h → next day).
+/// Exercises use binary pass→Good / fail→Again, while imported Anki cards may
+/// pass the four distinct Again/Hard/Good/Easy qualities. Optional
+/// personalized [parameters]. Fail path applies a same-day relearn ladder.
 class FsrsEngine implements SrsScheduler {
   FsrsEngine({
     this.desiredRetention = 0.9,
@@ -176,7 +177,10 @@ class FsrsEngine implements SrsScheduler {
   }
 
   static fsrs.Rating _toRating(int quality) {
-    return quality < 3 ? fsrs.Rating.again : fsrs.Rating.good;
+    if (quality <= 2) return fsrs.Rating.again;
+    if (quality == 3) return fsrs.Rating.hard;
+    if (quality >= 5) return fsrs.Rating.easy;
+    return fsrs.Rating.good;
   }
 
   static fsrs.Rating ratingForOutcome(ReviewOutcome outcome) =>

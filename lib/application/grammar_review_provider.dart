@@ -58,6 +58,15 @@ class GrammarReviewProvider extends SrsQueueProvider {
   Future<SrsWord?> reviewGrammarPoint(String id, int quality) =>
       reviewItem(id, quality);
 
+  /// Public surface for [LessonViewModel.undoLastInteraction] to roll back
+  /// a grammar-point grade. Delegates to the base class' gate-protected
+  /// [SrsQueueProvider.undoReview]. See [SrsProvider.rollbackWord] for the
+  /// rationale behind the `previous ?? state[id] ?? SrsWord.fresh(id)`
+  /// fallback (newly registered points need a sentinel so the undo
+  /// doesn't accidentally re-register them with a different timestamp).
+  Future<bool> rollbackGrammarPoint(String id, SrsWord? previous) =>
+      undoReview(id, previous ?? state[id] ?? SrsWord.fresh(id));
+
   Future<SrsWord?> reviewWithQuality(String id, ReviewGrade grade) =>
       reviewWithOutcome(id, grade.outcome);
 

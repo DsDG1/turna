@@ -104,16 +104,16 @@ class FillListeningGapsTest(unittest.TestCase):
         return SimpleNamespace(select_model=lambda kind: "m")
 
     def test_audio_only_item_collected_and_transcript_filled(self) -> None:
-        import src.backend.ai_generator as ai_gen
+        import src.backend.ai.section_ops as section_ops
 
-        from src.backend.ai_generator import fill_listening_gaps
+        from src.backend.ai import fill_listening_gaps
 
-        orig = ai_gen.request_chat
+        orig = section_ops.resolved_request_chat
 
         def fake_chat(config, messages, **kw):
             return {"choices": [{"message": {"content": '{"entries":[{"id":"i1","audioAsset":"NEW","transcript":"merhaba"}]}'}}]}
 
-        ai_gen.request_chat = fake_chat  # type: ignore[assignment]
+        section_ops.resolved_request_chat = fake_chat  # type: ignore[assignment]
         try:
             section = _listen_section(audio="a.mp3")  # audio present, transcript absent
             result = fill_listening_gaps(self._config(), section)
@@ -123,19 +123,19 @@ class FillListeningGapsTest(unittest.TestCase):
             # transcript filled
             self.assertEqual(item["transcript"], "merhaba")
         finally:
-            ai_gen.request_chat = orig
+            section_ops.resolved_request_chat = orig
 
     def test_both_absent_item_filled(self) -> None:
-        import src.backend.ai_generator as ai_gen
+        import src.backend.ai.section_ops as section_ops
 
-        from src.backend.ai_generator import fill_listening_gaps
+        from src.backend.ai import fill_listening_gaps
 
-        orig = ai_gen.request_chat
+        orig = section_ops.resolved_request_chat
 
         def fake_chat(config, messages, **kw):
             return {"choices": [{"message": {"content": '{"entries":[{"id":"i1","audioAsset":"aud","transcript":"tr"}]}'}}]}
 
-        ai_gen.request_chat = fake_chat  # type: ignore[assignment]
+        section_ops.resolved_request_chat = fake_chat  # type: ignore[assignment]
         try:
             section = _listen_section()  # both absent
             result = fill_listening_gaps(self._config(), section)
@@ -144,7 +144,7 @@ class FillListeningGapsTest(unittest.TestCase):
             self.assertEqual(item["transcript"], "tr")
             self.assertEqual(item["id"], "i1")
         finally:
-            ai_gen.request_chat = orig
+            section_ops.resolved_request_chat = orig
 
 
 class SuggestionTest(unittest.TestCase):

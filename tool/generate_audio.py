@@ -16,6 +16,11 @@ Examples:
   python tool/generate_audio.py all --voice-id male-qn-jingying --speed 0.9
   python tool/generate_audio.py list section:foundations
   python tool/generate_audio.py speak "Habari za asubuhi" assets/sounds/turkish/listening/l-greetings.mp3
+
+The GUI passes ``--course-dir`` and ``--sounds-dir`` explicitly so any language
+course (not just Turkish) can be synthesized into ``assets/sounds/<lang>/listening/``.
+The ``all`` subcommand accepts ``--format json`` to emit a final machine-readable
+summary line (used by the GUI's background worker).
 """
 
 from __future__ import annotations
@@ -273,15 +278,21 @@ def cmd_all(args: argparse.Namespace) -> int:
     generated = 0
     skipped = 0
     for entry in entries:
-        target = listening_asset_path(entry.audio_asset)
+        target = listening_asset_path(entry.audio_asset, args.sounds_dir)
         if target.exists() and not args.force:
             skipped += 1
             continue
-        generate_entry(entry, backend, force=args.force)
+        generate_entry(entry, backend, force=args.force, base_dir=args.sounds_dir)
         generated += 1
         print(f"Generated {target}")
 
     print(f"\nDone: {generated} generated, {skipped} skipped, {len(entries)} total.")
+    if args.format == "json":
+        print(
+            json.dumps(
+                {"generated": generated, "skipped": skipped, "total": len(entries)}
+            )
+        )
     return 0
 
 
@@ -298,7 +309,7 @@ def cmd_list(args: argparse.Namespace) -> int:
     ]
 
     for entry in entries:
-        target = generate_entry(entry, backend, force=args.force)
+        target = generate_entry(entry, backend, force=args.force, base_dir=args.sounds_dir)
         print(f"Generated {target}")
     return 0
 
@@ -327,6 +338,12 @@ def main(argv: list[str] | None = None) -> int:
         help="Course directory (default: assets/courses/turkish)",
     )
     parser.add_argument(
+        "--sounds-dir",
+        type=Path,
+        default=SOUNDS_DIR,
+        help="Sounds output root (default: assets/sounds/turkish)",
+    )
+    parser.add_argument(
         "--voice-id",
         default=DEFAULT_VOICE_ID,
         help=f"MiniMax voice ID (default: {DEFAULT_VOICE_ID})",
@@ -352,6 +369,12 @@ def main(argv: list[str] | None = None) -> int:
 
     p_all = subparsers.add_parser(
         "all", help="Generate audio for all listening-lesson assets"
+    )
+    p_all.add_argument(
+        "--format",
+        choices=["text", "json"],
+        default="text",
+        help='Output summary format (json emits a final machine-readable line)',
     )
     p_all.set_defaults(func=cmd_all)
 

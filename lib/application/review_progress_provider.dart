@@ -166,11 +166,13 @@ class ReviewProgressProvider {
 
   static const List<int> intervalBuckets = MemoryCurveProvider.intervalBuckets;
 
-  /// Extract Anki importId from `anki-<importId>-n…`.
+  /// Extract Anki importId from `anki-<importId>-c…` (card-level wordId,
+  /// decision 2). The `<cardId>` segment is always last, so `lastIndexOf('-c')`
+  /// finds the importId / cardId separator.
   static String? importIdFromWordId(String wordId) {
     if (!wordId.startsWith(AnkiReviewAssembler.ankiPrefix)) return null;
-    final nIdx = wordId.lastIndexOf('-n');
-    if (nIdx > 5) return wordId.substring(5, nIdx);
+    final cIdx = wordId.lastIndexOf('-c');
+    if (cIdx > 5) return wordId.substring(5, cIdx);
     return null;
   }
 

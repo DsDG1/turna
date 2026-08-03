@@ -162,7 +162,8 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
                         enabled: !submitted,
                         autofocus: !submitted,
                         textAlign: TextAlign.center,
-                        style: AppTextStyles.promptMd(context).copyWith(fontSize: 18),
+                        style: AppTextStyles.promptMd(context)
+                            .copyWith(fontSize: 18),
                         decoration: InputDecoration(
                           border: InputBorder.none,
                           isDense: true,
@@ -188,16 +189,19 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
           if (submitted && correct == false) ...[
             const SizedBox(height: 16),
             LessonCorrectAnswerBanner(
-                label: AppStrings.lessonCorrectAnswer, answer: widget.answer, showBorder: true),
+                label: AppStrings.lessonCorrectAnswer,
+                answer: widget.answer,
+                showBorder: true),
           ],
           const SizedBox(height: 24),
           ValueListenableBuilder<TextEditingValue>(
             valueListenable: _controller,
             builder: (context, value, _) {
-              final canSubmit =
-                  !submitted && value.text.trim().isNotEmpty;
+              final canSubmit = !submitted && value.text.trim().isNotEmpty;
               return LessonCheckButton(
-                label: submitted ? AppStrings.lessonChecked : AppStrings.lessonCheck,
+                label: submitted
+                    ? AppStrings.lessonChecked
+                    : AppStrings.lessonCheck,
                 enabled: canSubmit,
                 onPressed: canSubmit ? _trySubmit : null,
               );

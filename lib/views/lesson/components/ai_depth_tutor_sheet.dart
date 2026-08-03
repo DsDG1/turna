@@ -11,6 +11,7 @@ import 'package:varnamala/application/ai/engine/ai_cancel_token.dart';
 import 'package:varnamala/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:varnamala/application/ai/hint_genres.dart';
 import 'package:varnamala/l10n/app_strings.dart';
+import 'package:varnamala/views/ai/components/ai_sheet_widgets.dart';
 import 'package:varnamala/views/theme.dart';
 
 /// The four depth-learning genres offered by the tutor sheet.
@@ -179,11 +180,18 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
             Text(AppStrings.aiDepthTutorSubtitle,
                 style: Theme.of(context).textTheme.bodySmall),
             const SizedBox(height: 12),
-            _genreGrid(context),
-            if (_needsInput) ...[
-              const SizedBox(height: 12),
-              _inputField(context),
-            ],
+            AiSurfaceCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _genreGrid(context),
+                  if (_needsInput) ...[
+                    const SizedBox(height: 12),
+                    _inputField(context),
+                  ],
+                ],
+              ),
+            ),
             const SizedBox(height: 12),
             _generateButton(context),
             const SizedBox(height: 12),
@@ -248,22 +256,18 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
   Widget _inputField(BuildContext context) {
     return TextField(
       controller: _genre == DepthGenre.grammar ? _grammarCtrl : _synonymCtrl,
-      decoration: InputDecoration(
-        isDense: true,
-        filled: true,
-        fillColor: VarnamalaTheme.inputFillColor(context),
-        labelText: _genre == DepthGenre.grammar
+      decoration: aiSheetInputDecoration(
+        context,
+        label: _genre == DepthGenre.grammar
             ? AppStrings.aiDepthGrammarPointLabel
             : AppStrings.aiDepthSynonymWordsLabel,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
-        ),
       ),
     );
   }
 
   Widget _generateButton(BuildContext context) {
     return FilledButton.icon(
+      style: aiSheetPrimaryButtonStyle(),
       onPressed: _loading ? null : _generate,
       icon: _loading
           ? const SizedBox(
@@ -289,13 +293,12 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
       );
     }
     if (_error != null) {
-      return Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: VarnamalaTheme.error.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+      return AiSurfaceCard(
+        accent: VarnamalaTheme.error,
+        child: Text(
+          _error!,
+          style: const TextStyle(color: VarnamalaTheme.error),
         ),
-        child: Text(_error!, style: const TextStyle(color: VarnamalaTheme.error)),
       );
     }
     if (_result == null) return const SizedBox.shrink();
@@ -368,13 +371,7 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
         _labeled(AppStrings.aiDepthHowToRemember, r.howToRemember),
       ]);
 
-  Widget _card(List<Widget> children) => Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: VarnamalaTheme.cardBg(context),
-          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
-          border: Border.all(color: VarnamalaTheme.dividerBg(context)),
-        ),
+  Widget _card(List<Widget> children) => AiSurfaceCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: children,

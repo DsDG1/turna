@@ -196,7 +196,7 @@ class _ProfileCard extends StatelessWidget {
     // ("already occupied") and `InheritedElement._dependents.isEmpty`. The
     // bottom-sheet route has no viewInsets-driven animation (the keyboard is
     // absorbed by a static Padding in _EditNameSheet), so it dismisses
-    // cleanly. Mirrors _AiApiConfigSheet. The TextEditingController is owned
+    // cleanly. The TextEditingController is owned
     // by _EditNameSheet's State and disposed with the sheet (after the exit
     // animation), not from a finally here, which would run while the sheet is
     // still mounted and rebuild the TextField against a disposed controller.

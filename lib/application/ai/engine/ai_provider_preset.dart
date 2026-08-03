@@ -65,8 +65,9 @@ const AiProviderPreset kDeepseekPreset = AiProviderPreset(
   id: AiProvider.deepseek,
   label: 'DeepSeek',
   baseUrl: 'https://api.deepseek.com',
-  defaultModel: 'deepseek-v4-pro',
+  defaultModel: 'deepseek-v4-flash',
   supportedModels: [
+    'deepseek-v4-flash',
     'deepseek-v4-pro',
     'deepseek-chat',
     'deepseek-reasoner',

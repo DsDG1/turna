@@ -203,10 +203,10 @@ class Sm2Engine implements SrsScheduler {
   }
 }
 
-/// Sole user-facing review outcome for the whole app (ADR 0028 binary lock).
+/// Binary outcome used by objectively graded exercises and legacy review UI.
 ///
-/// Flashcards: 没记住 / 记住 · Exercises: 做错 / 做对.
-/// Never expose Hard/Easy or 0–5 SM-2 grades in the UI.
+/// Imported Anki flip cards use [AnkiReviewRating] so their scheduling keeps
+/// the official Again / Hard / Good / Easy distinction.
 enum ReviewOutcome {
   /// Forgot / incorrect → FSRS Again.
   fail,
@@ -229,6 +229,19 @@ enum ReviewOutcome {
 
   static ReviewOutcome fromQuality(int quality) =>
       quality < 3 ? ReviewOutcome.fail : ReviewOutcome.pass;
+}
+
+/// The four official Anki answer buttons expressed as the scheduler's legacy
+/// SM-2 quality values. Values 3/4/5 also preserve distinct Hard/Good/Easy
+/// behavior when the app is configured to use SM-2 instead of FSRS.
+enum AnkiReviewRating {
+  again(1),
+  hard(3),
+  good(4),
+  easy(5);
+
+  final int quality;
+  const AnkiReviewRating(this.quality);
 }
 
 /// 2-button flashcard labels — aliases of [ReviewOutcome].
