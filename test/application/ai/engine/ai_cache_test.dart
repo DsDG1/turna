@@ -5,7 +5,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 // Project imports:
-import 'package:varnamala/application/ai/engine/ai_cache.dart';
+import 'package:turna/application/ai/engine/ai_cache.dart';
 
 void main() {
   group('AiCache.makeKey', () {
@@ -32,13 +32,17 @@ void main() {
     test('differs when any field changes', () {
       final base = AiCache.makeKey(
         'm',
-        const [{'role': 'user', 'content': 'hi'}],
+        const [
+          {'role': 'user', 'content': 'hi'}
+        ],
         null,
       );
       expect(
         AiCache.makeKey(
           'm2',
-          const [{'role': 'user', 'content': 'hi'}],
+          const [
+            {'role': 'user', 'content': 'hi'}
+          ],
           null,
         ),
         isNot(base),
@@ -46,7 +50,9 @@ void main() {
       expect(
         AiCache.makeKey(
           'm',
-          const [{'role': 'user', 'content': 'hi2'}],
+          const [
+            {'role': 'user', 'content': 'hi2'}
+          ],
           null,
         ),
         isNot(base),
@@ -54,7 +60,9 @@ void main() {
       expect(
         AiCache.makeKey(
           'm',
-          const [{'role': 'user', 'content': 'hi'}],
+          const [
+            {'role': 'user', 'content': 'hi'}
+          ],
           {'type': 'json_object'},
         ),
         isNot(base),
@@ -86,7 +94,13 @@ void main() {
     test('hit returns the stored body and bumps hits', () {
       final cache = AiCache.forTest(maxEntries: 4);
       const key = 'k';
-      cache.put(key, {'choices': [{'message': {'content': 'hi'}}]});
+      cache.put(key, {
+        'choices': [
+          {
+            'message': {'content': 'hi'}
+          }
+        ]
+      });
       final got = cache.get(key);
       expect(got, isNotNull);
       expect(got!['choices'], isA<List>());
@@ -146,10 +160,18 @@ void main() {
     test('survives a cold restart via the disk mirror', () {
       final key = AiCache.makeKey(
         'm',
-        const [{'role': 'user', 'content': 'hi'}],
+        const [
+          {'role': 'user', 'content': 'hi'}
+        ],
         {'type': 'json_object'},
       );
-      final body = {'choices': [{'message': {'content': 'cached!'}}]};
+      final body = {
+        'choices': [
+          {
+            'message': {'content': 'cached!'}
+          }
+        ]
+      };
 
       // First instance: write to memory + disk.
       final warm = AiCache.forTest(maxEntries: 4);
@@ -170,7 +192,9 @@ void main() {
     test('clearAll removes both memory and disk entries', () {
       final key = AiCache.makeKey(
         'm',
-        const [{'role': 'user', 'content': 'hi'}],
+        const [
+          {'role': 'user', 'content': 'hi'}
+        ],
         null,
       );
       final cache = AiCache.forTest(maxEntries: 4);

@@ -2,8 +2,8 @@
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/application/course_provider.dart';
-import 'package:varnamala/routing/course_ready_guard.dart';
+import 'package:turna/application/course_provider.dart';
+import 'package:turna/routing/course_ready_guard.dart';
 
 /// Minimal stand-in so we do not need a full [CourseProvider] load path.
 class _StubCourseProvider extends CourseProvider {

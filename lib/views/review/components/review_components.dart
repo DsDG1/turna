@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import 'package:varnamala/core/sm2.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/core/sm2.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/theme.dart';
 
 /// Binary rating bar only: 不认识 / 认识.
 /// Optional [failPreview] / [passPreview] show FSRS interval chips (ADR 0028).
@@ -30,7 +30,7 @@ class ReviewRatingBar extends StatelessWidget {
               child: _RateButton(
                 label: AppStrings.reviewDontKnow,
                 subtitle: failPreview ?? AppStrings.srsPreviewUnknown,
-                color: VarnamalaTheme.error,
+                color: TurnaTheme.error,
                 onTap: () => onRate(ReviewGrade.unknown),
               ),
             ),
@@ -39,7 +39,7 @@ class ReviewRatingBar extends StatelessWidget {
               child: _RateButton(
                 label: AppStrings.reviewKnowIt,
                 subtitle: passPreview,
-                color: VarnamalaTheme.success,
+                color: TurnaTheme.success,
                 onTap: () => onRate(ReviewGrade.known),
               ),
             ),
@@ -49,7 +49,7 @@ class ReviewRatingBar extends StatelessWidget {
         Text(
           prompt,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: VarnamalaTheme.textHintColor(context),
+                color: TurnaTheme.textHintColor(context),
               ),
         ),
       ],
@@ -74,10 +74,10 @@ class _RateButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: color.withValues(alpha: 0.12),
-      borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+      borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
           alignment: Alignment.center,
@@ -138,7 +138,7 @@ class ReviewEmptyState extends StatelessWidget {
             const Icon(
               Icons.check_circle_rounded,
               size: 64,
-              color: VarnamalaTheme.success,
+              color: TurnaTheme.success,
             ),
             const SizedBox(height: 16),
             Text(
@@ -154,7 +154,7 @@ class ReviewEmptyState extends StatelessWidget {
                   : emptyMessage,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: VarnamalaTheme.textSecondaryColor(context),
+                    color: TurnaTheme.textSecondaryColor(context),
                   ),
             ),
             const SizedBox(height: 24),
@@ -203,7 +203,7 @@ class ReviewCompletionState extends StatelessWidget {
             const Icon(
               Icons.emoji_events_rounded,
               size: 64,
-              color: VarnamalaTheme.success,
+              color: TurnaTheme.success,
             ),
             const SizedBox(height: 16),
             Text(
@@ -216,7 +216,7 @@ class ReviewCompletionState extends StatelessWidget {
             Text(
               completionMessage,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: VarnamalaTheme.textSecondaryColor(context),
+                    color: TurnaTheme.textSecondaryColor(context),
                   ),
             ),
             if (xpEarned > 0 || gemsEarned > 0) ...[
@@ -228,7 +228,7 @@ class ReviewCompletionState extends StatelessWidget {
                 ].join('  ·  '),
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w800,
-                      color: VarnamalaTheme.peacockTeal,
+                      color: TurnaTheme.peacockTeal,
                     ),
               ),
             ],

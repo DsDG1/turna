@@ -1,7 +1,7 @@
 """Anki .apkg import for the GUI course editor.
 
 Parses Anki .apkg files using Python's built-in sqlite3 and zipfile modules,
-converts them to Varnamala Section JSON, and integrates with the existing
+converts them to Turna Section JSON, and integrates with the existing
 SectionImportService pipeline.
 
 Usage (from GUI menu):
@@ -10,7 +10,7 @@ Usage (from GUI menu):
 The import flow:
 1. User selects .apkg file via QFileDialog
 2. This module parses the SQLite database inside the ZIP
-3. Converts notes/cards to Varnamala Section JSON structure
+3. Converts notes/cards to Turna Section JSON structure
 4. Passes to SectionImportService for merge/insert into the course tree
 """
 from __future__ import annotations
@@ -175,7 +175,7 @@ def convert_to_section_json(
     import_id: str,
     cards_per_lesson: int = 20,
 ) -> list[dict[str, Any]]:
-    """Convert a parsed AnkiCollection to Varnamala Section JSON dicts.
+    """Convert a parsed AnkiCollection to Turna Section JSON dicts.
 
     Returns a list of section dicts ready for SectionImportService.
     """

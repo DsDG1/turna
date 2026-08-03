@@ -79,7 +79,7 @@ AppBar   练习  (extension 图标 + 标题，现状保持)
 
 ### 5. 可复用的工具方法
 
-在 `VarnamalaTheme` 里加 2 个 helper：
+在 `TurnaTheme` 里加 2 个 helper：
 
 ```dart
 /// 浅色 tinted 卡片底色（accent @ 0.10 浅色 / 0.14 深色）

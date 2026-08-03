@@ -1,4 +1,4 @@
-# Varnamala build automation.
+# Turna build automation.
 # Run `make help` to list targets.
 
 .PHONY: help gen analyze test test-python build-release build-release-smoke ci clean

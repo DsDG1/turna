@@ -241,7 +241,7 @@ generated code touched this round (no `@freezed`/`@JsonSerializable` changes).
     `lib/views/settings/widgets/settings_accessibility_section.dart`.
   - About page gained Privacy & local-first section, Version & changelog card
     (expandable, hard-coded milestones + PackageInfo), and a "View releases" link;
-    credits now note the local-first fork; copyright footer uses `© <year> Varnamala`.
+    credits now note the local-first fork; copyright footer uses `© <year> Turna`.
   - Focus mode gates the `MalaWelcomes` rotating image timer (splash screen).
   - Test wiring: 7 test files that subclass `AudioController` updated to pass the new
     `AccessibilityProvider` positional arg and register it in `getIt`/setUp. New

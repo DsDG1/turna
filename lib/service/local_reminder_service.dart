@@ -12,7 +12,7 @@ class LocalReminderService {
   LocalReminderService();
 
   static const int notificationId = 2201;
-  static const String channelId = 'varnamala_daily_review';
+  static const String channelId = 'turna_daily_review';
   static const String channelName = 'Daily review';
   static const String reminderBody = 'Time for a quick Turkish review';
 
@@ -107,7 +107,7 @@ class LocalReminderService {
     try {
       await _plugin.periodicallyShow(
         notificationId,
-        'Varnamala',
+        'Turna',
         reminderBody,
         RepeatInterval.daily,
         details,

@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/service/tts_availability_checker.dart';
+import 'package:turna/service/tts_availability_checker.dart';
 
 class _FakeFlutterTts implements FlutterTts {
   _FakeFlutterTts({
@@ -9,6 +9,7 @@ class _FakeFlutterTts implements FlutterTts {
     this.availableLanguages = const {'tr'},
     this.installedLanguages = const {},
     this.engineShouldFail = false,
+
     /// Languages only available after Google engine is selected.
     this.googleOnlyLanguages = const {},
     this.googleOnlyInstalled = const {},
@@ -133,7 +134,8 @@ void main() {
         debugDefaultTargetPlatformOverride = null;
       });
 
-      test('configureSystemEngine selects Google engine when present', () async {
+      test('configureSystemEngine selects Google engine when present',
+          () async {
         final tts = _FakeFlutterTts(
           engines: const [
             {'name': 'com.google.android.tts', 'label': 'Google'},
@@ -204,7 +206,8 @@ void main() {
         },
       );
 
-      test('configureSystemEngine is idempotent unless force is true', () async {
+      test('configureSystemEngine is idempotent unless force is true',
+          () async {
         final tts = _FakeFlutterTts(
           engines: const ['com.google.android.tts'],
         );

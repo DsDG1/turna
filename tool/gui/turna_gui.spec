@@ -1,10 +1,10 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller spec for the Varnamala course editor GUI (guiplan §9 M5.2).
+"""PyInstaller spec for the Turna course editor GUI (guiplan §9 M5.2).
 
-Build with:  python -m PyInstaller tool/gui/varnamala_gui.spec
+Build with:  python -m PyInstaller tool/gui/turna_gui.spec
 (or:         python tool/gui/build_gui.py)
 
-Produces a single-file executable `dist/varnamala-gui.exe` (Windows) that
+Produces a single-file executable `dist/turna-gui.exe` (Windows) that
 launches the Qt course editor. The editor opens any course directory chosen by
 the teacher, so course JSON is NOT bundled.
 
@@ -111,7 +111,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name="varnamala-gui",
+    name="turna-gui",
     debug=False,
     bootloader_ignore_signals=False,
     strip=True,

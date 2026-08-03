@@ -6,29 +6,28 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/game_provider.dart';
-import 'package:varnamala/application/gems_provider.dart';
-import 'package:varnamala/application/grammar_review_provider.dart';
-import 'package:varnamala/application/language_provider.dart';
-import 'package:varnamala/application/mistake_provider.dart';
-import 'package:varnamala/application/srs_provider.dart';
-import 'package:varnamala/data/course_database.dart';
-import 'package:varnamala/data/course_repository.dart';
-import 'package:varnamala/data/study_log_repository.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/service/locator.dart';
-import 'package:varnamala/service/tab_router.dart';
-import 'package:varnamala/views/content_update/content_update_dialog.dart';
-import 'package:varnamala/views/courses/course_tree.dart';
-import 'package:varnamala/views/home/components/components.dart';
-import 'package:varnamala/views/home/streak_broken_dialog.dart';
-import 'package:varnamala/views/play/play_app_bar.dart';
-import 'package:varnamala/views/play/play_hub_screen.dart';
-import 'package:varnamala/views/profile/profile_screen.dart';
-import 'package:varnamala/views/settings/settings_app_bar.dart';
-import 'package:varnamala/views/settings/settings_page.dart';
-import 'package:varnamala/views/theme.dart';
-
+import 'package:turna/application/game_provider.dart';
+import 'package:turna/application/gems_provider.dart';
+import 'package:turna/application/grammar_review_provider.dart';
+import 'package:turna/application/language_provider.dart';
+import 'package:turna/application/mistake_provider.dart';
+import 'package:turna/application/srs_provider.dart';
+import 'package:turna/data/course_database.dart';
+import 'package:turna/data/course_repository.dart';
+import 'package:turna/data/study_log_repository.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/service/locator.dart';
+import 'package:turna/service/tab_router.dart';
+import 'package:turna/views/content_update/content_update_dialog.dart';
+import 'package:turna/views/courses/course_tree.dart';
+import 'package:turna/views/home/components/components.dart';
+import 'package:turna/views/home/streak_broken_dialog.dart';
+import 'package:turna/views/play/play_app_bar.dart';
+import 'package:turna/views/play/play_hub_screen.dart';
+import 'package:turna/views/profile/profile_screen.dart';
+import 'package:turna/views/settings/settings_app_bar.dart';
+import 'package:turna/views/settings/settings_page.dart';
+import 'package:turna/views/theme.dart';
 
 @RoutePage()
 class HomePage extends StatefulWidget {
@@ -156,8 +155,8 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: currentIndex == 0
-          ? VarnamalaTheme.scaffoldBg(context)
-          : VarnamalaTheme.surfaceColor(context),
+          ? TurnaTheme.scaffoldBg(context)
+          : TurnaTheme.surfaceColor(context),
       appBar: appBars[currentIndex],
       bottomNavigationBar: BottomNavigator(
         currentIndex: currentIndex,

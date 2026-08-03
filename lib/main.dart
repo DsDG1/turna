@@ -6,20 +6,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 // Project imports:
-import 'package:varnamala/application/ai/engine/ai_engine_config_holder.dart';
-import 'package:varnamala/application/course_provider.dart';
-import 'package:varnamala/application/grammar_review_provider.dart';
-import 'package:varnamala/application/srs_provider.dart';
-import 'package:varnamala/courses/languages/expressions.dart';
-import 'package:varnamala/courses/languages/grammar_points.dart';
-import 'package:varnamala/courses/languages/vocab.dart';
-import 'package:varnamala/core/logger.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/application/settings_provider.dart';
-import 'package:varnamala/service/local_reminder_service.dart';
-import 'package:varnamala/service/locator.dart';
-import 'package:varnamala/service/tts_availability_checker.dart';
-import 'package:varnamala/views/app.dart';
+import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
+import 'package:turna/application/course_provider.dart';
+import 'package:turna/application/grammar_review_provider.dart';
+import 'package:turna/application/srs_provider.dart';
+import 'package:turna/courses/languages/expressions.dart';
+import 'package:turna/courses/languages/grammar_points.dart';
+import 'package:turna/courses/languages/vocab.dart';
+import 'package:turna/core/logger.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/application/settings_provider.dart';
+import 'package:turna/service/local_reminder_service.dart';
+import 'package:turna/service/locator.dart';
+import 'package:turna/service/tts_availability_checker.dart';
+import 'package:turna/views/app.dart';
 
 /// Install global error handlers so uncaught framework and platform errors
 /// are observable in the app log instead of disappearing. This is an offline
@@ -66,7 +66,7 @@ Future<void> main() async {
   // during the (cold) DB read. CourseProvider.load() is idempotent, so the
   // CourseTree's defensive ensureSectionLoaded can never double-load or reset
   // shells back to their initial state.
-  runApp(const VarnamalaApp());
+  runApp(const TurnaApp());
 
   WidgetsBinding.instance.addPostFrameCallback((_) async {
     // Hydrate the AI engine config (preset + API key + models) from prefs so

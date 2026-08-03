@@ -4,12 +4,12 @@
 // duplicate id cannot silently corrupt the seeded course tree.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/courses/course_validator.dart';
-import 'package:varnamala/data/course_database_seeder.dart';
-import 'package:varnamala/domain/course/lesson.dart';
-import 'package:varnamala/domain/course/lesson_content.dart';
-import 'package:varnamala/domain/course/section.dart';
-import 'package:varnamala/domain/course/unit.dart';
+import 'package:turna/courses/course_validator.dart';
+import 'package:turna/data/course_database_seeder.dart';
+import 'package:turna/domain/course/lesson.dart';
+import 'package:turna/domain/course/lesson_content.dart';
+import 'package:turna/domain/course/section.dart';
+import 'package:turna/domain/course/unit.dart';
 
 Section _section(String id, List<Unit> units) =>
     Section(id: id, name: id, units: units);
@@ -29,8 +29,12 @@ void main() {
   group('DatabaseSeeder.collectCrossCourseIdErrors', () {
     test('returns no errors for clean sections', () {
       final sections = [
-        _section('s-1', [_unit('u-1', [_lesson('l-1'), _lesson('l-2')])]),
-        _section('s-2', [_unit('u-2', [_lesson('l-3'), _lesson('l-4')])]),
+        _section('s-1', [
+          _unit('u-1', [_lesson('l-1'), _lesson('l-2')])
+        ]),
+        _section('s-2', [
+          _unit('u-2', [_lesson('l-3'), _lesson('l-4')])
+        ]),
       ];
       expect(
         DatabaseSeeder.collectCrossCourseIdErrors(sections),
@@ -40,8 +44,12 @@ void main() {
 
     test('flags duplicate lesson id across sections', () {
       final sections = [
-        _section('s-1', [_unit('u-1', [_lesson('l-dup')])]),
-        _section('s-2', [_unit('u-2', [_lesson('l-dup')])]),
+        _section('s-1', [
+          _unit('u-1', [_lesson('l-dup')])
+        ]),
+        _section('s-2', [
+          _unit('u-2', [_lesson('l-dup')])
+        ]),
       ];
       final errors = DatabaseSeeder.collectCrossCourseIdErrors(sections);
       expect(errors, hasLength(1));
@@ -50,8 +58,12 @@ void main() {
 
     test('flags duplicate unit id across sections', () {
       final sections = [
-        _section('s-1', [_unit('u-dup', [_lesson('l-1')])]),
-        _section('s-2', [_unit('u-dup', [_lesson('l-2')])]),
+        _section('s-1', [
+          _unit('u-dup', [_lesson('l-1')])
+        ]),
+        _section('s-2', [
+          _unit('u-dup', [_lesson('l-2')])
+        ]),
       ];
       final errors = DatabaseSeeder.collectCrossCourseIdErrors(sections);
       expect(errors, hasLength(1));
@@ -60,8 +72,12 @@ void main() {
 
     test('reports both duplicate unit and duplicate lesson ids', () {
       final sections = [
-        _section('s-1', [_unit('u-dup', [_lesson('l-dup')])]),
-        _section('s-2', [_unit('u-dup', [_lesson('l-dup')])]),
+        _section('s-1', [
+          _unit('u-dup', [_lesson('l-dup')])
+        ]),
+        _section('s-2', [
+          _unit('u-dup', [_lesson('l-dup')])
+        ]),
       ];
       final errors = DatabaseSeeder.collectCrossCourseIdErrors(sections);
       expect(errors, hasLength(2));
@@ -71,7 +87,9 @@ void main() {
       // within-section uniqueness is validateSection's job; the seeder only
       // checks across sections, so a unique-per-section layout is clean.
       final sections = [
-        _section('s-1', [_unit('u-1', [_lesson('l-1')])]),
+        _section('s-1', [
+          _unit('u-1', [_lesson('l-1')])
+        ]),
       ];
       expect(DatabaseSeeder.collectCrossCourseIdErrors(sections), isEmpty);
     });

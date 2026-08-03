@@ -1,4 +1,4 @@
-# Varnamala Plus 项目指南（详尽版）
+# Turna Plus 项目指南（详尽版）
 
 > 本文是 README 的深度补充。README 给出概览与快速上手，本文给出每个子系统的设计、实现要点与决策依据。阅读顺序建议：先读 README，再按需查阅本文相应章节。
 >
@@ -30,7 +30,7 @@
 
 ## 1. 项目定位与设计哲学
 
-**Varnamala Plus** 是基于上游 [Varnamala](https://github.com/rshrc/Varnamala) 的本地优先（local-first）、离线 Flutter 语言学习框架，当前目标语为 **Turkish（土耳其语）**。它在上游 Section/Unit/Lesson/SRS/错题本骨架之上，持续做三件事：
+**Turna Plus** 是基于上游 [Turna](https://github.com/rshrc/Varnamala) 的本地优先（local-first）、离线 Flutter 语言学习框架，当前目标语为 **Turkish（土耳其语）**。它在上游 Section/Unit/Lesson/SRS/错题本骨架之上，持续做三件事：
 
 - **深化复习引擎**：从 SM-2 升级到 **FSRS**（Free Spaced Repetition Scheduler），并加入记忆曲线可视化与复习历史持久化。
 - **打通 Anki 生态**：可直接导入 `.apkg` 牌组，按 notetype 智能映射为课程结构，复杂牌组以 WebView 高保真渲染，并与本应用 SRS/错题/统计流水线双向打通。
@@ -46,7 +46,7 @@
 | **DB 作为派生缓存** | 首次启动从 bundle JSON seed `course.db`，之后复用；按内容版本号自动 reseed。 |
 | **教学法驱动** | 功能取舍以二语习得研究为依据（见第 2 节），而非单纯工程简化。 |
 
-> 本仓库非上游官方版本；纯原版功能请访问 [rshrc/Varnamala](https://github.com/rshrc/Varnamala)。
+> 本仓库非上游官方版本；纯原版功能请访问 [rshrc/Turna](https://github.com/rshrc/Varnamala)。
 
 ---
 
@@ -437,7 +437,7 @@ Explain → Practice → Rate 三段流（见 2.4 Skill Acquisition Theory）。
 
 ## 9. 主题与可访问性
 
-### 9.1 VarnamalaTheme
+### 9.1 TurnaTheme
 
 `lib/views/theme.dart` 提供 `lightTheme` / `darkTheme` / `highContrastLightTheme` / `highContrastDarkTheme`，及一组按 `Brightness` 自适应的语义化颜色 helper（`cardBg` / `scaffoldBg` / `textHintColor` / `inputFillColor` / `bottomNavBg` / `glassSurface` 等）。Play Hub 用毛玻璃（`_GlassCard` + `BackdropFilter` + 极光底层 `_AuroraBackground`）。
 
@@ -574,7 +574,7 @@ make ci                 # analyze + test + test-python + build-release-smoke
 
 ```bash
 pip install pyinstaller
-python tool/gui/build_gui.py              # onefile -> dist/varnamala-gui.exe
+python tool/gui/build_gui.py              # onefile -> dist/turna-gui.exe
 python tool/gui/build_gui.py --onedir
 
 python -m pytest tool/gui/tests/                 # GUI 单元测试
@@ -717,7 +717,7 @@ python3 -m unittest discover -s tool/gui/tests -p "test_*.py"  # GUI 804 项
 
 ### 致谢
 
-- 原始框架：[Varnamala](https://github.com/rshrc/Varnamala) — Section/Unit/Lesson 树 + Provider + Drift + Freezed + auto_route 骨架。
+- 原始框架：[Turna](https://github.com/rshrc/Varnamala) — Section/Unit/Lesson 树 + Provider + Drift + Freezed + auto_route 骨架。
 - 复习算法：[fsrs](https://pub.dev/packages/fsrs)（FSRS）、SM-2（SuperMemo 2）。
 - TTS：[flutter_tts](https://pub.dev/packages/flutter_tts)。
 - 持久化：[drift](https://pub.dev/packages/drift) + [streaming_shared_preferences](https://pub.dev/packages/streaming_shared_preferences)。

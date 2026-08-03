@@ -2,9 +2,9 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/app_fonts.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/app_fonts.dart';
+import 'package:turna/views/theme.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({Key? key}) : super(key: key);
@@ -43,7 +43,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: VarnamalaTheme.scaffoldBg(context),
+      backgroundColor: TurnaTheme.scaffoldBg(context),
       body: SafeArea(
         child: Column(
           children: [
@@ -63,13 +63,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       child: Container(
                         padding: const EdgeInsets.all(32),
                         decoration: BoxDecoration(
-                          color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.1),
+                          color: TurnaTheme.peacockTeal.withValues(alpha: 0.1),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
                           Icons.public,
                           size: 80,
-                          color: VarnamalaTheme.peacockTeal,
+                          color: TurnaTheme.peacockTeal,
                         ),
                       ),
                     ),
@@ -92,7 +92,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           style: AppFonts.nunito(
                             fontSize: 28,
                             fontWeight: FontWeight.bold,
-                            color: VarnamalaTheme.textPrimaryColor(context),
+                            color: TurnaTheme.textPrimaryColor(context),
                           ),
                         ),
                       ),
@@ -110,8 +110,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         ).animate(
                           CurvedAnimation(
                             parent: _textController,
-                            curve: const Interval(0.5, 1.0,
-                                curve: Curves.easeOut),
+                            curve:
+                                const Interval(0.5, 1.0, curve: Curves.easeOut),
                           ),
                         ),
                         child: Text(
@@ -119,7 +119,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           textAlign: TextAlign.center,
                           style: AppFonts.nunito(
                             fontSize: 18,
-                            color: VarnamalaTheme.textSecondaryColor(context),
+                            color: TurnaTheme.textSecondaryColor(context),
                             height: 1.5,
                           ),
                         ),
@@ -140,7 +140,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   },
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(
-                      color: VarnamalaTheme.peacockTeal,
+                      color: TurnaTheme.peacockTeal,
                       width: 2,
                     ),
                     shape: RoundedRectangleBorder(
@@ -152,7 +152,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: VarnamalaTheme.peacockTeal,
+                      color: TurnaTheme.peacockTeal,
                     ),
                   ),
                 ),

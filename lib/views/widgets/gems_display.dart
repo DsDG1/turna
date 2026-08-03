@@ -5,9 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/gems_provider.dart';
-import 'package:varnamala/views/theme.dart';
-import 'package:varnamala/views/widgets/loader.dart';
+import 'package:turna/application/gems_provider.dart';
+import 'package:turna/views/theme.dart';
+import 'package:turna/views/widgets/loader.dart';
 
 class GemsDisplay extends StatelessWidget {
   const GemsDisplay({super.key});
@@ -17,13 +17,13 @@ class GemsDisplay extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.error.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusRound),
+        color: TurnaTheme.error.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.diamond_rounded, color: VarnamalaTheme.error, size: 18),
+          const Icon(Icons.diamond_rounded, color: TurnaTheme.error, size: 18),
           const SizedBox(width: 4),
           StreamBuilder<int>(
             stream: context.read<GemsProvider>().getGemsStream(),
@@ -36,7 +36,7 @@ class GemsDisplay extends StatelessWidget {
               return Text(
                 '$gems',
                 style: const TextStyle(
-                  color: VarnamalaTheme.error,
+                  color: TurnaTheme.error,
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                 ),

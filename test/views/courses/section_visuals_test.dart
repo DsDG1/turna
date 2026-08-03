@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // Project imports:
-import 'package:varnamala/views/courses/components/section_visuals.dart';
+import 'package:turna/views/courses/components/section_visuals.dart';
 
 void main() {
   group('SectionVisuals.iconFor', () {

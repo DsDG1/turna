@@ -8,8 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/accessibility_provider.dart';
-import 'package:varnamala/gen/assets.gen.dart';
+import 'package:turna/application/accessibility_provider.dart';
+import 'package:turna/gen/assets.gen.dart';
 
 class MalaWelcomes extends StatefulWidget {
   const MalaWelcomes({super.key});

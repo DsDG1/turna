@@ -6,12 +6,12 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/anki/anki_review_assembler.dart';
-import 'package:varnamala/application/mistake_provider.dart';
-import 'package:varnamala/application/srs_provider.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/routing/routing.gr.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/anki/anki_review_assembler.dart';
+import 'package:turna/application/mistake_provider.dart';
+import 'package:turna/application/srs_provider.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/routing/routing.gr.dart';
+import 'package:turna/views/theme.dart';
 
 /// Tappable due chips: SRS review, mistakes, Anki review.
 class ProfileQuickActions extends StatelessWidget {
@@ -37,7 +37,7 @@ class ProfileQuickActions extends StatelessWidget {
           Row(
             children: [
               const Icon(Icons.bolt_rounded,
-                  color: VarnamalaTheme.peacockTeal, size: 20),
+                  color: TurnaTheme.peacockTeal, size: 20),
               const SizedBox(width: 8),
               Text(
                 AppStrings.profileQuickActionsTitle,
@@ -55,7 +55,7 @@ class ProfileQuickActions extends StatelessWidget {
                   icon: Icons.repeat_rounded,
                   label: AppStrings.profileQuickSrs,
                   count: srsDue,
-                  accent: VarnamalaTheme.successDark,
+                  accent: TurnaTheme.successDark,
                   onTap: () => context.router.push(const SrsReviewRoute()),
                 ),
               ),
@@ -65,9 +65,8 @@ class ProfileQuickActions extends StatelessWidget {
                   icon: Icons.error_outline_rounded,
                   label: AppStrings.profileQuickMistakes,
                   count: mistakesCount,
-                  accent: VarnamalaTheme.error,
-                  onTap: () =>
-                      context.router.push(const MistakeReviewRoute()),
+                  accent: TurnaTheme.error,
+                  onTap: () => context.router.push(const MistakeReviewRoute()),
                 ),
               ),
               const SizedBox(width: 8),
@@ -76,7 +75,7 @@ class ProfileQuickActions extends StatelessWidget {
                   icon: Icons.layers_rounded,
                   label: AppStrings.profileQuickAnki,
                   count: ankiDue,
-                  accent: VarnamalaTheme.leagueAmethyst,
+                  accent: TurnaTheme.leagueAmethyst,
                   onTap: () => context.router.push(const AnkiReviewRoute()),
                 ),
               ),
@@ -106,34 +105,35 @@ class _QuickChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasDue = count > 0;
-    final bg = hasDue
-        ? accent.withValues(alpha: 0.12)
-        : VarnamalaTheme.cardBg(context);
+    final bg =
+        hasDue ? accent.withValues(alpha: 0.12) : TurnaTheme.cardBg(context);
     final border = hasDue
         ? accent.withValues(alpha: 0.35)
-        : VarnamalaTheme.statCardBorder(context);
+        : TurnaTheme.statCardBorder(context);
 
     return Material(
       color: bg,
-      borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+      borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+            borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
             border: Border.all(color: border),
           ),
           child: Column(
             children: [
-              Icon(icon, color: hasDue ? accent : VarnamalaTheme.textHint, size: 22),
+              Icon(icon,
+                  color: hasDue ? accent : TurnaTheme.textHint, size: 22),
               const SizedBox(height: 6),
               Text(
                 AppStrings.profileQuickDue(count),
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w800,
-                      color: hasDue ? accent : VarnamalaTheme.textHintColor(context),
+                      color:
+                          hasDue ? accent : TurnaTheme.textHintColor(context),
                     ),
               ),
               const SizedBox(height: 2),
@@ -145,7 +145,7 @@ class _QuickChip extends StatelessWidget {
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: VarnamalaTheme.textHintColor(context),
+                      color: TurnaTheme.textHintColor(context),
                     ),
               ),
             ],

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/app_fonts.dart';
-import 'package:varnamala/views/home/mala_welcomes.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/app_fonts.dart';
+import 'package:turna/views/home/mala_welcomes.dart';
+import 'package:turna/views/theme.dart';
 
 class CenterDisplay extends StatefulWidget {
   const CenterDisplay({Key? key}) : super(key: key);
@@ -40,19 +40,19 @@ class _CenterDisplayState extends State<CenterDisplay>
       _TextItem(
         AppStrings.splashReclaiming,
         FontWeight.w600,
-        (context) => VarnamalaTheme.textSecondaryColor(context),
+        (context) => TurnaTheme.textSecondaryColor(context),
         const Duration(milliseconds: 1000),
       ),
       _TextItem(
         AppStrings.splashLearnTurkish,
         FontWeight.w600,
-        (context) => VarnamalaTheme.textSecondaryColor(context),
+        (context) => TurnaTheme.textSecondaryColor(context),
         const Duration(milliseconds: 1000),
       ),
       _TextItem(
         AppStrings.splashFreeForever,
         FontWeight.w700,
-        (_) => VarnamalaTheme.error,
+        (_) => TurnaTheme.error,
         const Duration(milliseconds: 2500),
       ),
     ];
@@ -92,7 +92,7 @@ class _CenterDisplayState extends State<CenterDisplay>
             style: AppFonts.nunito(
               fontSize: 36,
               fontWeight: FontWeight.w800,
-              color: VarnamalaTheme.peacockTeal,
+              color: TurnaTheme.peacockTeal,
               letterSpacing: 0.5,
             ),
           ),
@@ -121,7 +121,7 @@ class _CenterDisplayState extends State<CenterDisplay>
               textAlign: TextAlign.center,
               style: AppFonts.nunito(
                 fontSize: 16,
-                color: VarnamalaTheme.textHintColor(context),
+                color: TurnaTheme.textHintColor(context),
                 height: 1.5,
               ),
             ),

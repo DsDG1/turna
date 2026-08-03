@@ -4,7 +4,7 @@
 // null — ListenOnly has no correctness verdict by design.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/domain/course/interaction.dart';
+import 'package:turna/domain/course/interaction.dart';
 
 void main() {
   group('interactionCorrectAnswerLabel', () {

@@ -5,11 +5,11 @@ import 'dart:async';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/application/ai/engine/ai_cache.dart';
-import 'package:varnamala/application/ai/engine/ai_cancel_token.dart';
-import 'package:varnamala/application/ai/engine/ai_engine_config.dart';
-import 'package:varnamala/application/ai/engine/ai_engine_result.dart';
-import 'package:varnamala/application/ai/engine/ai_http_client.dart';
+import 'package:turna/application/ai/engine/ai_cache.dart';
+import 'package:turna/application/ai/engine/ai_cancel_token.dart';
+import 'package:turna/application/ai/engine/ai_engine_config.dart';
+import 'package:turna/application/ai/engine/ai_engine_result.dart';
+import 'package:turna/application/ai/engine/ai_http_client.dart';
 
 /// Single choke point for every LLM call in the app.
 ///

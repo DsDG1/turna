@@ -6,12 +6,12 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/game_provider.dart';
-import 'package:varnamala/routing/routing.gr.dart';
-import 'package:varnamala/views/theme.dart';
-import 'package:varnamala/views/widgets/gems_display.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/widgets/loader.dart';
+import 'package:turna/application/game_provider.dart';
+import 'package:turna/routing/routing.gr.dart';
+import 'package:turna/views/theme.dart';
+import 'package:turna/views/widgets/gems_display.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/widgets/loader.dart';
 
 class StatAppBar extends StatelessWidget implements PreferredSizeWidget {
   const StatAppBar({Key? key}) : super(key: key);
@@ -59,7 +59,7 @@ class LanguageSwitch extends StatelessWidget {
       icon: const Icon(
         Icons.language_rounded,
         size: 22,
-        color: VarnamalaTheme.peacockTeal,
+        color: TurnaTheme.peacockTeal,
       ),
       onPressed: () => context.router.push(const CourseManagementRoute()),
     );
@@ -74,14 +74,14 @@ class Streak extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.streakChipBg(context),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusRound),
+        color: TurnaTheme.streakChipBg(context),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.local_fire_department_rounded,
-              color: VarnamalaTheme.streakChipText(context), size: 20),
+              color: TurnaTheme.streakChipText(context), size: 20),
           const SizedBox(width: 4),
           StreamBuilder<int>(
             stream: context.read<GameProvider>().getUserStreakStream(),
@@ -97,7 +97,7 @@ class Streak extends StatelessWidget {
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 14,
-                  color: VarnamalaTheme.streakChipText(context),
+                  color: TurnaTheme.streakChipText(context),
                 ),
               );
             },
@@ -116,14 +116,14 @@ class ScoreCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.scoreChipBg(context),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusRound),
+        color: TurnaTheme.scoreChipBg(context),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.stars_rounded,
-              color: VarnamalaTheme.scoreChipText(context), size: 20),
+              color: TurnaTheme.scoreChipText(context), size: 20),
           const SizedBox(width: 4),
           StreamBuilder<int>(
             stream: context.read<GameProvider>().getUserScoreStream(),
@@ -139,7 +139,7 @@ class ScoreCard extends StatelessWidget {
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 14,
-                  color: VarnamalaTheme.scoreChipText(context),
+                  color: TurnaTheme.scoreChipText(context),
                 ),
               );
             },

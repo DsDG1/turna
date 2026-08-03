@@ -6,11 +6,11 @@ import 'package:flutter/services.dart';
 import 'package:auto_route/auto_route.dart';
 
 // Project imports:
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/routing/routing.gr.dart';
-import 'package:varnamala/service/tab_router.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/routing/routing.gr.dart';
+import 'package:turna/service/tab_router.dart';
+import 'package:turna/views/theme.dart';
 
 /// 新手指南 - introduces the app's core features with one-tap jump links
 /// (功能卡) plus a written quick-start guide (markdown).
@@ -30,7 +30,7 @@ class BeginnerGuidePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: VarnamalaTheme.scaffoldBg(context),
+      backgroundColor: TurnaTheme.scaffoldBg(context),
       appBar: AppBar(
         title: Text(
           AppStrings.beginnerGuideTitle,
@@ -41,7 +41,7 @@ class BeginnerGuidePage extends StatelessWidget {
       ),
       body: Container(
         decoration: BoxDecoration(
-          gradient: VarnamalaTheme.courseTreeGradientFor(context),
+          gradient: TurnaTheme.courseTreeGradientFor(context),
         ),
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
@@ -165,7 +165,7 @@ class QuickStartFromAsset extends StatelessWidget {
                 height: 24,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.5,
-                  color: VarnamalaTheme.peacockTeal,
+                  color: TurnaTheme.peacockTeal,
                 ),
               ),
             ),
@@ -175,14 +175,14 @@ class QuickStartFromAsset extends StatelessWidget {
           return Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: VarnamalaTheme.cardBg(context),
-              borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-              border: Border.all(color: VarnamalaTheme.statCardBorder(context)),
+              color: TurnaTheme.cardBg(context),
+              borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+              border: Border.all(color: TurnaTheme.statCardBorder(context)),
             ),
             child: Text(
               AppStrings.quickStartLoadFallback,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: VarnamalaTheme.textSecondaryColor(context),
+                    color: TurnaTheme.textSecondaryColor(context),
                   ),
             ),
           );
@@ -192,14 +192,14 @@ class QuickStartFromAsset extends StatelessWidget {
           return Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: VarnamalaTheme.cardBg(context),
-              borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-              border: Border.all(color: VarnamalaTheme.statCardBorder(context)),
+              color: TurnaTheme.cardBg(context),
+              borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+              border: Border.all(color: TurnaTheme.statCardBorder(context)),
             ),
             child: Text(
               AppStrings.quickStartLoadFallback,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: VarnamalaTheme.textSecondaryColor(context),
+                    color: TurnaTheme.textSecondaryColor(context),
                   ),
             ),
           );
@@ -313,10 +313,10 @@ class _QuickStartSection extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-        border: Border.all(color: VarnamalaTheme.statCardBorder(context)),
-        boxShadow: VarnamalaTheme.softShadow,
+        color: TurnaTheme.cardBg(context),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        border: Border.all(color: TurnaTheme.statCardBorder(context)),
+        boxShadow: TurnaTheme.softShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -328,15 +328,14 @@ class _QuickStartSection extends StatelessWidget {
                 height: 32,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.1),
-                  borderRadius:
-                      BorderRadius.circular(VarnamalaTheme.radiusMedium),
+                  color: TurnaTheme.peacockTeal.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
                 ),
                 child: Text(
                   section.number,
                   style: const TextStyle(
                     fontWeight: FontWeight.w700,
-                    color: VarnamalaTheme.peacockTeal,
+                    color: TurnaTheme.peacockTeal,
                     fontSize: 13,
                   ),
                 ),
@@ -347,7 +346,7 @@ class _QuickStartSection extends StatelessWidget {
                   section.title,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: VarnamalaTheme.textPrimaryColor(context),
+                        color: TurnaTheme.textPrimaryColor(context),
                       ),
                 ),
               ),
@@ -361,7 +360,7 @@ class _QuickStartSection extends StatelessWidget {
                 p,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       height: 1.5,
-                      color: VarnamalaTheme.textSecondaryColor(context),
+                      color: TurnaTheme.textSecondaryColor(context),
                     ),
               ),
             ),
@@ -382,9 +381,9 @@ class _IntroHero extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: VarnamalaTheme.peacockGradient,
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-        boxShadow: VarnamalaTheme.softShadow,
+        gradient: TurnaTheme.peacockGradient,
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        boxShadow: TurnaTheme.softShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -396,8 +395,7 @@ class _IntroHero extends StatelessWidget {
                 height: 44,
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.18),
-                  borderRadius:
-                      BorderRadius.circular(VarnamalaTheme.radiusMedium),
+                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
                 ),
                 child: const Icon(
                   Icons.waving_hand_rounded,
@@ -445,7 +443,7 @@ class _SectionHeader extends StatelessWidget {
             width: 3,
             height: 18,
             decoration: BoxDecoration(
-              color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.5),
+              color: TurnaTheme.peacockTeal.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -455,7 +453,7 @@ class _SectionHeader extends StatelessWidget {
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                   fontSize: 15,
-                  color: VarnamalaTheme.textSecondaryColor(context),
+                  color: TurnaTheme.textSecondaryColor(context),
                 ),
           ),
         ],
@@ -485,16 +483,16 @@ class _FeatureCard extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 10),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: VarnamalaTheme.cardBg(context),
-          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-          border: Border.all(color: VarnamalaTheme.statCardBorder(context)),
-          boxShadow: VarnamalaTheme.softShadow,
+          color: TurnaTheme.cardBg(context),
+          borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+          border: Border.all(color: TurnaTheme.statCardBorder(context)),
+          boxShadow: TurnaTheme.softShadow,
         ),
         child: Material(
           color: Colors.transparent,
-          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+          borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
           child: InkWell(
-            borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+            borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
             onTap: onTap,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -504,13 +502,13 @@ class _FeatureCard extends StatelessWidget {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.1),
+                      color: TurnaTheme.peacockTeal.withValues(alpha: 0.1),
                       borderRadius:
-                          BorderRadius.circular(VarnamalaTheme.radiusMedium),
+                          BorderRadius.circular(TurnaTheme.radiusMedium),
                     ),
                     child: Icon(
                       icon,
-                      color: VarnamalaTheme.peacockTeal,
+                      color: TurnaTheme.peacockTeal,
                       size: 22,
                     ),
                   ),
@@ -531,13 +529,11 @@ class _FeatureCard extends StatelessWidget {
                           description,
                           maxLines: 3,
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall
-                              ?.copyWith(
-                                color: VarnamalaTheme.textHintColor(context),
-                                height: 1.4,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: TurnaTheme.textHintColor(context),
+                                    height: 1.4,
+                                  ),
                         ),
                       ],
                     ),
@@ -547,9 +543,9 @@ class _FeatureCard extends StatelessWidget {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
-                      color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.1),
+                      color: TurnaTheme.peacockTeal.withValues(alpha: 0.1),
                       borderRadius:
-                          BorderRadius.circular(VarnamalaTheme.radiusRound),
+                          BorderRadius.circular(TurnaTheme.radiusRound),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -558,7 +554,7 @@ class _FeatureCard extends StatelessWidget {
                           AppStrings.beginnerGuideTryNow,
                           style:
                               Theme.of(context).textTheme.labelSmall?.copyWith(
-                                    color: VarnamalaTheme.peacockTeal,
+                                    color: TurnaTheme.peacockTeal,
                                     fontWeight: FontWeight.w700,
                                   ),
                         ),
@@ -566,7 +562,7 @@ class _FeatureCard extends StatelessWidget {
                         const Icon(
                           Icons.arrow_forward_rounded,
                           size: 14,
-                          color: VarnamalaTheme.peacockTeal,
+                          color: TurnaTheme.peacockTeal,
                         ),
                       ],
                     ),

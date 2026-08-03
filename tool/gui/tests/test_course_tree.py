@@ -261,7 +261,7 @@ class CourseTreeMoveTest(unittest.TestCase):
 def _real_adapter_with_course():
     """A real CourseAdapter loaded from the Turkish course for keyboard
     integration tests (duplicate/delete/move actually mutate the tree)."""
-    return real_adapter_with_course(prefix="varnamala_tree_kb_")
+    return real_adapter_with_course(prefix="turna_tree_kb_")
 
 
 class CourseTreeKeyboardTest(unittest.TestCase):

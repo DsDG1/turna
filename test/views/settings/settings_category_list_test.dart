@@ -5,10 +5,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
-import 'package:varnamala/application/settings_provider.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/service/locator.dart';
-import 'package:varnamala/views/settings/settings_page.dart';
+import 'package:turna/application/settings_provider.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/service/locator.dart';
+import 'package:turna/views/settings/settings_page.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -58,7 +58,8 @@ void main() {
     );
   });
 
-  testWidgets('tapping a category shows matching app bar title', (tester) async {
+  testWidgets('tapping a category shows matching app bar title',
+      (tester) async {
     await tester.pumpWidget(wrap(const SettingsPage()));
     await tester.pumpAndSettle();
 

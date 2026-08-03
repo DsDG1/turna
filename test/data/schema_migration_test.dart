@@ -8,7 +8,7 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
-import 'package:varnamala/data/course_database.dart' as db;
+import 'package:turna/data/course_database.dart' as db;
 
 import '../helpers/in_memory_course_db.dart';
 
@@ -238,7 +238,7 @@ Future<void> _seedV4Data(db.CourseDatabase database) async {
 }
 
 Future<String> _tempDbPath() async {
-  final dir = await Directory.systemTemp.createTemp('varnamala_migration_');
+  final dir = await Directory.systemTemp.createTemp('turna_migration_');
   return p.join(dir.path, 'course.db');
 }
 

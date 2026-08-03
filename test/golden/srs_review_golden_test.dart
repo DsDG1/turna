@@ -3,10 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
-import 'package:varnamala/application/lesson_link_store.dart';
-import 'package:varnamala/application/srs_provider.dart';
-import 'package:varnamala/service/locator.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/lesson_link_store.dart';
+import 'package:turna/application/srs_provider.dart';
+import 'package:turna/service/locator.dart';
+import 'package:turna/views/theme.dart';
 
 import '../helpers/in_memory_course_db.dart';
 
@@ -50,8 +50,8 @@ void main() {
       ChangeNotifierProvider(
         create: (_) => SrsProvider(prefs, LessonLinkStore(prefs), srsDao),
         child: MaterialApp(
-          theme: VarnamalaTheme.lightTheme,
-          darkTheme: VarnamalaTheme.darkTheme,
+          theme: TurnaTheme.lightTheme,
+          darkTheme: TurnaTheme.darkTheme,
           themeMode: mode,
           home: const _SrsEmptyReviewBody(),
         ),

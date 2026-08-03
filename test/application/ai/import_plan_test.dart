@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/application/ai/textbook/import_plan.dart';
-import 'package:varnamala/application/ai/textbook/knowledge_merger.dart';
+import 'package:turna/application/ai/textbook/import_plan.dart';
+import 'package:turna/application/ai/textbook/knowledge_merger.dart';
 
 void main() {
   Map<String, dynamic> section(String id) => {

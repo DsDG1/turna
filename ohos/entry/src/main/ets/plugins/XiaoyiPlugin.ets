@@ -1,4 +1,4 @@
-// Copyright (c) 2024 VarnamalaPlus. All rights reserved.
+// Copyright (c) 2024 Turna. All rights reserved.
 // Bridges HarmonyOS system AI assistant ("小艺") launch to Flutter via
 // MethodChannel. Lets the learner ask 小艺 to explain a practice question
 // without configuring any API key — 小艺 answers inside the system AI
@@ -16,7 +16,7 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import hilog from '@ohos.hilog';
 
 const TAG = "XiaoyiPlugin";
-const CHANNEL = "com.varnamala/xiaoyi";
+const CHANNEL = "me.dsdogs.turna/xiaoyi";
 
 export default class XiaoyiPlugin implements FlutterPlugin {
   private channel: MethodChannel | null = null;

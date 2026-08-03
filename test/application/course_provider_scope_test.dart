@@ -5,16 +5,16 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
-import 'package:varnamala/application/course_provider.dart';
-import 'package:varnamala/courses/course_loader.dart';
-import 'package:varnamala/data/course_repository.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/domain/course/lesson.dart';
-import 'package:varnamala/domain/course/lesson_content.dart';
-import 'package:varnamala/domain/course/section.dart';
-import 'package:varnamala/domain/course/stage.dart';
-import 'package:varnamala/domain/course/unit.dart';
-import 'package:varnamala/service/locator.dart';
+import 'package:turna/application/course_provider.dart';
+import 'package:turna/courses/course_loader.dart';
+import 'package:turna/data/course_repository.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/domain/course/lesson.dart';
+import 'package:turna/domain/course/lesson_content.dart';
+import 'package:turna/domain/course/section.dart';
+import 'package:turna/domain/course/stage.dart';
+import 'package:turna/domain/course/unit.dart';
+import 'package:turna/service/locator.dart';
 
 import '../helpers/in_memory_course_db.dart';
 
@@ -202,8 +202,7 @@ void main() {
       final provider = CourseProvider(appPrefs);
       await provider.load();
 
-      await provider.persistCourseOrder(
-          ['anki:deckbb', '', 'anki:deckaa']);
+      await provider.persistCourseOrder(['anki:deckbb', '', 'anki:deckaa']);
 
       expect(
         provider.courseEntries.map((e) => e.scope),
@@ -236,12 +235,15 @@ void main() {
       );
     });
 
-    test('reloadCourse sees a newly imported Anki deck without manual '
+    test(
+        'reloadCourse sees a newly imported Anki deck without manual '
         'invalidateCaches (import-path regression)', () async {
       final db = await seedInMemoryCourseDb();
       final writeRepo = CourseRepository(db);
-      await writeRepo.bulkInsertCourseTree(_ankiDeckSection('deckaa', 'Deck A'));
-      await writeRepo.bulkInsertCourseTree(_ankiDeckSection('deckbb', 'Deck B'));
+      await writeRepo
+          .bulkInsertCourseTree(_ankiDeckSection('deckaa', 'Deck A'));
+      await writeRepo
+          .bulkInsertCourseTree(_ankiDeckSection('deckbb', 'Deck B'));
       CourseLoader.invalidateCaches();
 
       final provider = CourseProvider(appPrefs);
@@ -258,7 +260,8 @@ void main() {
       // Simulate Anki import writing a section while CourseLoader shells
       // are still memoized. reloadCourse itself must drop that memo — the
       // caller must not need a separate invalidateCaches().
-      await writeRepo.bulkInsertCourseTree(_ankiDeckSection('deckcc', 'Deck C'));
+      await writeRepo
+          .bulkInsertCourseTree(_ankiDeckSection('deckcc', 'Deck C'));
       await provider.reloadCourse();
 
       expect(

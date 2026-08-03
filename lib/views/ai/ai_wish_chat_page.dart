@@ -7,16 +7,16 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/ai/ai_course_provider.dart';
-import 'package:varnamala/application/ai/ai_course_spec.dart';
-import 'package:varnamala/application/ai/ai_genre.dart';
-import 'package:varnamala/application/ai/ai_wish_provider.dart';
-import 'package:varnamala/application/ai/engine/ai_engine_config.dart';
-import 'package:varnamala/application/ai/engine/ai_engine_config_holder.dart';
-import 'package:varnamala/application/course_provider.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/ai/chat_bubble.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/ai/ai_course_provider.dart';
+import 'package:turna/application/ai/ai_course_spec.dart';
+import 'package:turna/application/ai/ai_genre.dart';
+import 'package:turna/application/ai/ai_wish_provider.dart';
+import 'package:turna/application/ai/engine/ai_engine_config.dart';
+import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
+import 'package:turna/application/course_provider.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/ai/chat_bubble.dart';
+import 'package:turna/views/theme.dart';
 
 @RoutePage()
 class AiWishChatPage extends StatefulWidget {
@@ -148,7 +148,7 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: VarnamalaTheme.cardBg(context),
+      backgroundColor: TurnaTheme.cardBg(context),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -170,7 +170,10 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
                     children: [
                       Text(
                         AppStrings.aiCourseParametersTitle,
-                        style: Theme.of(innerContext).textTheme.titleMedium?.copyWith(
+                        style: Theme.of(innerContext)
+                            .textTheme
+                            .titleMedium
+                            ?.copyWith(
                               fontWeight: FontWeight.w700,
                             ),
                       ),
@@ -196,7 +199,7 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: VarnamalaTheme.scaffoldBg(context),
+      backgroundColor: TurnaTheme.scaffoldBg(context),
       appBar: AppBar(
         title: Text(
           AppStrings.aiCourseDesignerTitle,
@@ -204,7 +207,7 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
                 fontWeight: FontWeight.w700,
               ),
         ),
-        backgroundColor: VarnamalaTheme.bottomNavBg(context),
+        backgroundColor: TurnaTheme.bottomNavBg(context),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings, size: 22),
@@ -221,7 +224,8 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
         child: Column(
           children: [
             Expanded(
-              child: Selector<AiWishProvider, ({bool empty, int count, bool hasError})>(
+              child: Selector<AiWishProvider,
+                  ({bool empty, int count, bool hasError})>(
                 selector: (_, w) => (
                   empty: w.messages.isEmpty,
                   count: w.messages.length,
@@ -257,10 +261,11 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
                 return Column(
                   children: [
                     if (generated)
-              Selector<AiWishProvider, String?>(
-                selector: (_, w) => w.explanation,
-                builder: (context, explanation, _) => _generatedPanel(explanation),
-              ),
+                      Selector<AiWishProvider, String?>(
+                        selector: (_, w) => w.explanation,
+                        builder: (context, explanation, _) =>
+                            _generatedPanel(explanation),
+                      ),
                     if (busy) const LinearProgressIndicator(),
                     _chatInputBar(busy, generated),
                   ],
@@ -363,8 +368,7 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
                 items: [1, 2, 3, 4, 5]
                     .map((n) => DropdownMenuItem(value: n, child: Text('$n')))
                     .toList(),
-                onChanged: (v) =>
-                    setInnerState(() => _lessonsPerUnit = v ?? 3),
+                onChanged: (v) => setInnerState(() => _lessonsPerUnit = v ?? 3),
               ),
             ),
           ],
@@ -381,7 +385,15 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
             isDense: true,
             border: const OutlineInputBorder(),
           ),
-          items: ['intro', 'practice', 'review', 'listening', 'reading', 'mastery', 'mixed']
+          items: [
+            'intro',
+            'practice',
+            'review',
+            'listening',
+            'reading',
+            'mastery',
+            'mixed'
+          ]
               .map((t) => DropdownMenuItem(
                     value: t,
                     child: Text(
@@ -480,12 +492,12 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
         margin: const EdgeInsets.symmetric(vertical: 4),
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: VarnamalaTheme.error.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+          color: TurnaTheme.error.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
         ),
         child: Text(
           AppStrings.aiErrorBubble(error),
-          style: const TextStyle(color: VarnamalaTheme.error),
+          style: const TextStyle(color: TurnaTheme.error),
         ),
       ),
     );
@@ -494,7 +506,7 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
   Widget _generatedPanel(String? explanation) {
     return Container(
       width: double.infinity,
-      color: VarnamalaTheme.cardBg(context),
+      color: TurnaTheme.cardBg(context),
       padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -617,7 +629,7 @@ class _SwipeConfirmBarState extends State<_SwipeConfirmBar>
     final fillWidth = _trackWidth * _fraction;
     final fillColor = Color.lerp(
       Colors.grey.shade400,
-      VarnamalaTheme.primary,
+      TurnaTheme.primary,
       _fraction,
     )!;
     final dim = widget.enabled ? 1.0 : 0.4;
@@ -680,7 +692,9 @@ class _SwipeConfirmBarState extends State<_SwipeConfirmBar>
                     // Centered label.
                     Center(
                       child: Text(
-                        atThreshold ? AppStrings.aiReleaseToFinalize : AppStrings.aiSwipeToFinalize,
+                        atThreshold
+                            ? AppStrings.aiReleaseToFinalize
+                            : AppStrings.aiSwipeToFinalize,
                         style: TextStyle(
                           color: _fraction > 0.5
                               ? Colors.white
@@ -701,7 +715,7 @@ class _SwipeConfirmBarState extends State<_SwipeConfirmBar>
                         ),
                         child: const Icon(
                           Icons.chevron_right,
-                          color: VarnamalaTheme.primary,
+                          color: TurnaTheme.primary,
                         ),
                       ),
                     ),

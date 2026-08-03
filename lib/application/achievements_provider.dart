@@ -7,10 +7,10 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/application/gems_provider.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/domain/achievement.dart';
-import 'package:varnamala/service/locator.dart';
+import 'package:turna/application/gems_provider.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/domain/achievement.dart';
+import 'package:turna/service/locator.dart';
 
 @lazySingleton
 class AchievementsProvider extends ChangeNotifier {

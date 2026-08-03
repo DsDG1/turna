@@ -8,7 +8,7 @@ import 'package:injectable/injectable.dart';
 /// Bridges the HarmonyOS system AI assistant ("小艺") to Flutter.
 ///
 /// On HarmonyOS the native `XiaoyiPlugin` registers a MethodChannel named
-/// `com.varnamala/xiaoyi` that exposes:
+/// `me.dsdogs.turna/xiaoyi` that exposes:
 ///   - `isSupported()` → `true` (only present on HarmonyOS)
 ///   - `askXiaoyi({prompt})` → hands the prompt to 小艺 via `startAbility`
 ///
@@ -17,7 +17,7 @@ import 'package:injectable/injectable.dart';
 /// flow — keeping Android behavior unchanged.
 @lazySingleton
 class XiaoyiService {
-  static const MethodChannel _channel = MethodChannel('com.varnamala/xiaoyi');
+  static const MethodChannel _channel = MethodChannel('me.dsdogs.turna/xiaoyi');
 
   bool? _supportedCache;
 

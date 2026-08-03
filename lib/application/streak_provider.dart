@@ -5,8 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/core/streak_resolver.dart';
-import 'package:varnamala/service/locator.dart';
+import 'package:turna/core/streak_resolver.dart';
+import 'package:turna/service/locator.dart';
 
 /// Result of [StreakProvider.checkStreakOnAppOpen].
 enum StreakCheckResult {

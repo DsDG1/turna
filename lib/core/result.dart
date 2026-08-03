@@ -1,5 +1,5 @@
 // Project imports:
-import 'package:varnamala/core/logger.dart';
+import 'package:turna/core/logger.dart';
 
 /// A lightweight discriminated result type for operations that can fail.
 ///

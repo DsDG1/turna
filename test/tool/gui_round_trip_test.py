@@ -73,7 +73,7 @@ class GuiCliRoundTripTest(unittest.TestCase):
     """Fixed fixture (Turkish) -> GUI save -> CLI validate, results consistent."""
 
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_roundtrip_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_roundtrip_"))
         self.course_dir = self.tmp / "turkish"
         shutil.copytree(COURSE_SRC, self.course_dir)
 
@@ -181,7 +181,7 @@ class FullLifecycleRoundTripTest(unittest.TestCase):
     """
 
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_full_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_full_"))
         self.course_dir = self.tmp / "turkish"
         shutil.copytree(COURSE_SRC, self.course_dir)
 

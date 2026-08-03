@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Command-line toolchain for producing and validating Varnamala course content.
+"""Command-line toolchain for producing and validating Turna course content.
 
 Subcommands:
   validate        Run the Python equivalent of Dart's course_validator.
@@ -1372,7 +1372,7 @@ def _course_dir(value: str) -> Path:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Varnamala course content toolchain",
+        description="Turna course content toolchain",
     )
     parser.add_argument(
         "--course-dir",

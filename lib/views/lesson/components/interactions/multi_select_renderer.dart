@@ -5,13 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/core/spacing.dart';
-import 'package:varnamala/core/text_styles.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/lesson/components/cached_asset_image.dart';
-import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/lesson/components/cached_asset_image.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/views/theme.dart';
 
 /// Pick one or more options out of N.
 ///
@@ -161,7 +161,7 @@ class _MultiSelectBodyState extends State<_MultiSelectBody> {
             style: AppTextStyles.promptMd(context).copyWith(
               fontSize: 14,
               fontWeight: FontWeight.w400,
-              color: VarnamalaTheme.textSecondaryColor(context),
+              color: TurnaTheme.textSecondaryColor(context),
             ),
           ),
           if (widget.imageAsset != null) ...[

@@ -1,6 +1,6 @@
 // Project imports:
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/application/ai/ai_resource_consistency.dart';
+import 'package:turna/application/ai/ai_resource_consistency.dart';
 
 void main() {
   group('ai_resource_consistency', () {
@@ -122,7 +122,8 @@ void main() {
       );
     });
 
-    test('iterItems yields items across stages, subLessons, listeningPhases', () {
+    test('iterItems yields items across stages, subLessons, listeningPhases',
+        () {
       final lesson = <String, dynamic>{
         'content': {
           'stages': [

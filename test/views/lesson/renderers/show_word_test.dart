@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/courses/languages/vocab.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/domain/course/word_entry.dart';
-import 'package:varnamala/views/lesson/components/interactions/show_word_renderer.dart';
+import 'package:turna/courses/languages/vocab.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/domain/course/word_entry.dart';
+import 'package:turna/views/lesson/components/interactions/show_word_renderer.dart';
 
 import 'fake_audio_controller.dart';
 import 'renderer_test_helper.dart';
@@ -39,7 +39,8 @@ void main() {
     expect(harness.submissions, [(true, null)]);
   });
 
-  testWidgets('ShowWord speaks term and context sentence on tap', (tester) async {
+  testWidgets('ShowWord speaks term and context sentence on tap',
+      (tester) async {
     final audio = FakeAudioController();
     final renderer = ShowWordRenderer(audio);
     const interaction = Interaction.showWord(

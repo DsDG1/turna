@@ -1,6 +1,6 @@
 // Project imports:
-import 'package:varnamala/courses/course_loader.dart';
-import 'package:varnamala/domain/course/section.dart';
+import 'package:turna/courses/course_loader.dart';
+import 'package:turna/domain/course/section.dart';
 
 /// Top-level course structure: sections → units → lessons → stages.
 ///

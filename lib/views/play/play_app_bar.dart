@@ -2,8 +2,8 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/theme.dart';
 
 class PlayAppBar extends StatelessWidget implements PreferredSizeWidget {
   const PlayAppBar({super.key});
@@ -17,7 +17,7 @@ class PlayAppBar extends StatelessWidget implements PreferredSizeWidget {
         children: [
           const Icon(
             Icons.extension_rounded,
-            color: VarnamalaTheme.peacockTeal,
+            color: TurnaTheme.peacockTeal,
             size: 22,
           ),
           const SizedBox(width: 8),

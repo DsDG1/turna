@@ -2,9 +2,9 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:varnamala/application/ai/textbook/textbook_import_provider.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/ai/textbook/textbook_import_provider.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/theme.dart';
 
 /// Tabbed knowledge review: words / expressions / grammar with search + edit.
 class TextbookReviewPanel extends StatefulWidget {
@@ -78,9 +78,9 @@ class _TextbookReviewPanelState extends State<TextbookReviewPanel>
         const SizedBox(height: 8),
         TabBar(
           controller: _tabs,
-          labelColor: VarnamalaTheme.peacockTeal,
-          unselectedLabelColor: VarnamalaTheme.textHintColor(context),
-          indicatorColor: VarnamalaTheme.peacockTeal,
+          labelColor: TurnaTheme.peacockTeal,
+          unselectedLabelColor: TurnaTheme.textHintColor(context),
+          indicatorColor: TurnaTheme.peacockTeal,
           tabs: [
             Tab(text: '${AppStrings.aiTextbookTabWords} (${p.totalWordCount})'),
             Tab(
@@ -117,15 +117,15 @@ class _CountChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusRound),
+        color: TurnaTheme.peacockTeal.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
       ),
       child: Text(
         '$label $count',
         style: const TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w600,
-          color: VarnamalaTheme.peacockTeal,
+          color: TurnaTheme.peacockTeal,
         ),
       ),
     );
@@ -146,7 +146,7 @@ class _ResourceList extends StatelessWidget {
         child: Text(
           AppStrings.aiTextbookReviewEmpty,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: VarnamalaTheme.textHintColor(context),
+                color: TurnaTheme.textHintColor(context),
               ),
           textAlign: TextAlign.center,
         ),
@@ -157,7 +157,7 @@ class _ResourceList extends StatelessWidget {
       itemCount: items.length,
       separatorBuilder: (_, __) => Divider(
         height: 1,
-        color: VarnamalaTheme.dividerBg(context),
+        color: TurnaTheme.dividerBg(context),
       ),
       itemBuilder: (context, i) {
         final item = items[i];
@@ -197,7 +197,7 @@ class _ResourceList extends StatelessWidget {
     final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: VarnamalaTheme.cardBg(context),
+      backgroundColor: TurnaTheme.cardBg(context),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),

@@ -4,7 +4,7 @@
 // helper routes `pickFiles` calls to a native ArkTS plugin via MethodChannel
 // when running on OHos, and falls through to `FilePicker` on other platforms.
 //
-// Native channel: 'com.varnamala/file_picker' -> methods 'pickFile',
+// Native channel: 'me.dsdogs.turna/file_picker' -> methods 'pickFile',
 // 'scanForFiles', 'importFromPath'. The native side opens DocumentViewPicker
 // (preferred), scans well-known directories, or opens a path the user
 // supplies, copies the picked file into the app sandbox, and returns the
@@ -15,7 +15,8 @@ import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
 
 class OhosFilePicker {
-  static const MethodChannel _channel = MethodChannel('com.varnamala/file_picker');
+  static const MethodChannel _channel =
+      MethodChannel('me.dsdogs.turna/file_picker');
 
   /// Picks a single file restricted (by suffix) to [allowedExtensions].
   ///
@@ -54,7 +55,8 @@ class OhosFilePicker {
       return result;
     }
 
-    final path = await _channel.invokeMethod<String>('pickFile', <String, dynamic>{
+    final path =
+        await _channel.invokeMethod<String>('pickFile', <String, dynamic>{
       // Native DocumentSelectOptions.fileSuffixFilters expects extensions
       // with a leading dot (e.g. '.apkg'). Normalize the caller's input.
       'extensions':

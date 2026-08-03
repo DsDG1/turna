@@ -6,10 +6,10 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:varnamala/application/lesson_viewmodel.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/home/components/stat_app_bar.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/lesson_viewmodel.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/home/components/stat_app_bar.dart';
+import 'package:turna/views/theme.dart';
 
 enum MasteryDialogResult { retry, back }
 
@@ -28,17 +28,17 @@ class LessonCelebrationStyle {
 const lessonCelebrationStyles = [
   LessonCelebrationStyle(
     icon: Icons.celebration_rounded,
-    accent: VarnamalaTheme.peacockTurquoise,
+    accent: TurnaTheme.peacockTurquoise,
     styleIndex: 0,
   ),
   LessonCelebrationStyle(
     icon: Icons.flash_on_rounded,
-    accent: VarnamalaTheme.warning,
+    accent: TurnaTheme.warning,
     styleIndex: 1,
   ),
   LessonCelebrationStyle(
     icon: Icons.auto_awesome_rounded,
-    accent: VarnamalaTheme.leagueAmethyst,
+    accent: TurnaTheme.leagueAmethyst,
     styleIndex: 2,
   ),
 ];
@@ -112,15 +112,15 @@ class _LessonCompletionSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = lessonCelebrationStyles[
-        random.nextInt(lessonCelebrationStyles.length)];
+    final style =
+        lessonCelebrationStyles[random.nextInt(lessonCelebrationStyles.length)];
     final accuracy =
         totalCount == 0 ? 0.0 : (correctCount / totalCount).toDouble();
     final accuracyPercent = (accuracy * 100).round();
 
     return Dialog(
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusXLarge),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusXLarge),
       ),
       child: ConstrainedBox(
         constraints: BoxConstraints(
@@ -200,12 +200,12 @@ class _LessonCompletionSummary extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(4),
                 decoration: const BoxDecoration(
-                  color: VarnamalaTheme.success,
+                  color: TurnaTheme.success,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
                   Icons.star_rounded,
-                  color: VarnamalaTheme.textOnPrimary,
+                  color: TurnaTheme.textOnPrimary,
                   size: 16,
                 ),
               ),
@@ -238,25 +238,25 @@ class _LessonCompletionSummary extends StatelessWidget {
       children: [
         _StatChip(
           icon: Icons.check_circle_rounded,
-          iconColor: VarnamalaTheme.success,
+          iconColor: TurnaTheme.success,
           label: AppStrings.lessonCorrect,
           value: correctCount,
         ),
         _StatChip(
           icon: Icons.cancel_rounded,
-          iconColor: VarnamalaTheme.error,
+          iconColor: TurnaTheme.error,
           label: AppStrings.lessonWrong,
           value: incorrectCount,
         ),
         _StatChip(
           icon: Icons.timer_rounded,
-          iconColor: VarnamalaTheme.peacockCyan,
+          iconColor: TurnaTheme.peacockCyan,
           label: AppStrings.lessonTime,
           valueText: _formatDuration(context, durationSeconds),
         ),
         _StatChip(
           icon: Icons.stars_rounded,
-          iconColor: VarnamalaTheme.warning,
+          iconColor: TurnaTheme.warning,
           label: AppStrings.lessonXp,
           value: xpEarned,
         ),
@@ -269,7 +269,7 @@ class _LessonCompletionSummary extends StatelessWidget {
       children: [
         const Icon(
           Icons.fact_check_rounded,
-          color: VarnamalaTheme.peacockTeal,
+          color: TurnaTheme.peacockTeal,
           size: 20,
         ),
         const SizedBox(width: 8),
@@ -283,7 +283,7 @@ class _LessonCompletionSummary extends StatelessWidget {
         Text(
           AppStrings.lessonResultsCount(correctCount, totalCount),
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: VarnamalaTheme.textHint,
+                color: TurnaTheme.textHint,
                 fontWeight: FontWeight.w600,
               ),
         ),
@@ -314,9 +314,9 @@ class _LessonCompletionSummary extends StatelessWidget {
           child: Text(
             AppStrings.lessonBackToCourses,
             style: theme.textTheme.bodyMedium?.copyWith(
-                  color: VarnamalaTheme.textHint,
-                  fontWeight: FontWeight.w500,
-                ),
+              color: TurnaTheme.textHint,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ),
       ],
@@ -341,10 +341,10 @@ class _AccuracyRing extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ringColor = accuracy >= 0.8
-        ? VarnamalaTheme.success
+        ? TurnaTheme.success
         : accuracy >= 0.5
-            ? VarnamalaTheme.warning
-            : VarnamalaTheme.error;
+            ? TurnaTheme.warning
+            : TurnaTheme.error;
 
     return SizedBox(
       width: 140,
@@ -355,7 +355,7 @@ class _AccuracyRing extends StatelessWidget {
           CircularProgressIndicator(
             value: accuracy.clamp(0.0, 1.0),
             strokeWidth: 10,
-            backgroundColor: VarnamalaTheme.divider,
+            backgroundColor: TurnaTheme.divider,
             valueColor: AlwaysStoppedAnimation<Color>(ringColor),
           ),
           Center(
@@ -372,7 +372,7 @@ class _AccuracyRing extends StatelessWidget {
                 Text(
                   AppStrings.lessonAccuracy,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: VarnamalaTheme.textHint,
+                        color: TurnaTheme.textHint,
                         fontWeight: FontWeight.w600,
                       ),
                 ),
@@ -407,9 +407,9 @@ class _StatChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
-        border: Border.all(color: VarnamalaTheme.statCardBorder(context)),
+        color: TurnaTheme.cardBg(context),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+        border: Border.all(color: TurnaTheme.statCardBorder(context)),
       ),
       child: Row(
         children: [
@@ -440,7 +440,7 @@ class _StatChip extends StatelessWidget {
                 Text(
                   label,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: VarnamalaTheme.textHintColor(context),
+                        color: TurnaTheme.textHintColor(context),
                         fontWeight: FontWeight.w500,
                       ),
                   maxLines: 1,
@@ -483,10 +483,9 @@ class _QuestionResultTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final icon = result.correct
-        ? Icons.check_circle_rounded
-        : Icons.cancel_rounded;
-    final color = result.correct ? VarnamalaTheme.success : VarnamalaTheme.error;
+    final icon =
+        result.correct ? Icons.check_circle_rounded : Icons.cancel_rounded;
+    final color = result.correct ? TurnaTheme.success : TurnaTheme.error;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -513,7 +512,7 @@ class _QuestionResultTile extends StatelessWidget {
                     child: Text(
                       AppStrings.lessonQuestionAnswer(result.correctAnswer!),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: VarnamalaTheme.textHint,
+                            color: TurnaTheme.textHint,
                           ),
                     ),
                   ),
@@ -549,7 +548,7 @@ Future<MasteryDialogResult?> showMasteryRetryDialog({
     barrierDismissible: false,
     builder: (ctx) => Dialog(
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusXLarge),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusXLarge),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
@@ -559,12 +558,12 @@ Future<MasteryDialogResult?> showMasteryRetryDialog({
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: VarnamalaTheme.error.withValues(alpha: 0.12),
+                color: TurnaTheme.error.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
                 Icons.refresh_rounded,
-                color: VarnamalaTheme.error,
+                color: TurnaTheme.error,
                 size: 40,
               ),
             ),
@@ -589,7 +588,8 @@ Future<MasteryDialogResult?> showMasteryRetryDialog({
                     Navigator.of(ctx).pop(MasteryDialogResult.retry),
                 child: Text(
                   AppStrings.lessonTryAgain,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w700),
                 ),
               ),
             ),
@@ -599,9 +599,9 @@ Future<MasteryDialogResult?> showMasteryRetryDialog({
               child: Text(
                 AppStrings.lessonBackToCourses,
                 style: theme.textTheme.bodyMedium?.copyWith(
-                      color: VarnamalaTheme.textHint,
-                      fontWeight: FontWeight.w500,
-                    ),
+                  color: TurnaTheme.textHint,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ],

@@ -6,18 +6,18 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/anki/anki_deck_manager.dart';
-import 'package:varnamala/application/anki/anki_review_assembler.dart';
-import 'package:varnamala/data/anki_note_dao.dart';
-import 'package:varnamala/data/anki_import_dao.dart';
-import 'package:varnamala/application/course_provider.dart';
-import 'package:varnamala/application/srs_provider.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/routing/routing.gr.dart';
-import 'package:varnamala/views/anki/anki_card_browser_page.dart';
-import 'package:varnamala/views/anki/anki_deck_stats_page.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/anki/anki_deck_manager.dart';
+import 'package:turna/application/anki/anki_review_assembler.dart';
+import 'package:turna/data/anki_note_dao.dart';
+import 'package:turna/data/anki_import_dao.dart';
+import 'package:turna/application/course_provider.dart';
+import 'package:turna/application/srs_provider.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/routing/routing.gr.dart';
+import 'package:turna/views/anki/anki_card_browser_page.dart';
+import 'package:turna/views/anki/anki_deck_stats_page.dart';
+import 'package:turna/views/theme.dart';
 
 /// Anki review hub — lists imported Anki sections with due counts,
 /// allows starting a review session for a selected section.
@@ -57,9 +57,8 @@ class _AnkiReviewBody extends StatelessWidget {
 
     // Find Anki sections (allSections: the review hub lists decks even when
     // the course scope hides them from the Learn-page tree).
-    final ankiSections = courseProvider.allSections
-        .where((s) => s.level == 'Anki')
-        .toList();
+    final ankiSections =
+        courseProvider.allSections.where((s) => s.level == 'Anki').toList();
 
     final deckOrder = {
       for (var i = 0; i < courseProvider.courseEntries.length; i++)
@@ -90,10 +89,10 @@ class _AnkiReviewBody extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           margin: const EdgeInsets.only(bottom: 16),
           decoration: BoxDecoration(
-            color: VarnamalaTheme.cardBg(context),
-            borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+            color: TurnaTheme.cardBg(context),
+            borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
             border: Border.all(
-              color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.12),
+              color: TurnaTheme.peacockTeal.withValues(alpha: 0.12),
             ),
           ),
           child: Row(
@@ -101,7 +100,7 @@ class _AnkiReviewBody extends StatelessWidget {
               Icon(
                 Icons.today_rounded,
                 size: 18,
-                color: VarnamalaTheme.textSecondaryColor(context),
+                color: TurnaTheme.textSecondaryColor(context),
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -112,7 +111,7 @@ class _AnkiReviewBody extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: VarnamalaTheme.textSecondaryColor(context),
+                    color: TurnaTheme.textSecondaryColor(context),
                   ),
                 ),
               ),
@@ -126,28 +125,28 @@ class _AnkiReviewBody extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             margin: const EdgeInsets.only(bottom: 16),
             decoration: BoxDecoration(
-              color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+              color: TurnaTheme.peacockTeal.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
             ),
             child: Row(
               children: [
                 const Icon(Icons.notifications_active,
-                    color: VarnamalaTheme.peacockTeal),
+                    color: TurnaTheme.peacockTeal),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     AppStrings.ankiCardsDueReview(totalDue),
                     style: const TextStyle(
                       fontWeight: FontWeight.w600,
-                      color: VarnamalaTheme.peacockTeal,
+                      color: TurnaTheme.peacockTeal,
                     ),
                   ),
                 ),
                 ElevatedButton(
                   onPressed: () => _startReview(context, null),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: VarnamalaTheme.peacockTeal,
-                    foregroundColor: VarnamalaTheme.textOnPrimary,
+                    backgroundColor: TurnaTheme.peacockTeal,
+                    foregroundColor: TurnaTheme.textOnPrimary,
                   ),
                   child: Text(AppStrings.ankiReviewAll),
                 ),
@@ -172,7 +171,8 @@ class _AnkiReviewBody extends StatelessWidget {
                 sectionName: section.name,
                 description: section.description,
                 dueCount: dueSnap.byImportId[
-                        AnkiReviewAssembler.importIdFromSectionId(section.id)] ??
+                        AnkiReviewAssembler.importIdFromSectionId(
+                            section.id)] ??
                     0,
                 onTap: () => _startReview(context, section.id),
                 onStats: () => Navigator.of(context).push(
@@ -218,8 +218,8 @@ class _AnkiReviewBody extends StatelessWidget {
   static String _scopeForSection(String sectionId) =>
       'anki:${AnkiReviewAssembler.importIdFromSectionId(sectionId)}';
 
-  Future<void> _reorderDecks(BuildContext context, List sections, int oldIndex,
-      int newIndex) async {
+  Future<void> _reorderDecks(
+      BuildContext context, List sections, int oldIndex, int newIndex) async {
     if (oldIndex < newIndex) newIndex--;
     final reordered = List.of(sections);
     final item = reordered.removeAt(oldIndex);
@@ -228,9 +228,12 @@ class _AnkiReviewBody extends StatelessWidget {
       for (final section in reordered)
         AnkiReviewAssembler.importIdFromSectionId(section.id),
     };
-    final allScopes = context.read<CourseProvider>().courseEntries
+    final allScopes = context
+        .read<CourseProvider>()
+        .courseEntries
         .map((entry) => entry.scope)
-        .where((scope) => !scope.startsWith('anki:') || deckIds.contains(scope.substring(5)))
+        .where((scope) =>
+            !scope.startsWith('anki:') || deckIds.contains(scope.substring(5)))
         .toList();
     final builtIn = allScopes.where((scope) => scope.isEmpty);
     final others = allScopes.where((scope) => scope.isNotEmpty).toSet();
@@ -238,8 +241,8 @@ class _AnkiReviewBody extends StatelessWidget {
       ...builtIn,
       for (final section in reordered)
         'anki:${AnkiReviewAssembler.importIdFromSectionId(section.id)}',
-      ...others.where((scope) => !reordered.any((section) =>
-          scope == _scopeForSection(section.id))),
+      ...others.where((scope) =>
+          !reordered.any((section) => scope == _scopeForSection(section.id))),
     ]);
   }
 
@@ -342,7 +345,7 @@ class _AnkiReviewBody extends StatelessWidget {
           ),
           FilledButton(
             style: FilledButton.styleFrom(
-              backgroundColor: VarnamalaTheme.error,
+              backgroundColor: TurnaTheme.error,
             ),
             onPressed: () => Navigator.of(dialogContext).pop(true),
             child: Text(AppStrings.ankiUninstallDeck),
@@ -380,7 +383,7 @@ class _AnkiReviewBody extends StatelessWidget {
             Icon(
               Icons.layers_outlined,
               size: 80,
-              color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.4),
+              color: TurnaTheme.peacockTeal.withValues(alpha: 0.4),
             ),
             const SizedBox(height: 24),
             Text(
@@ -393,7 +396,7 @@ class _AnkiReviewBody extends StatelessWidget {
             Text(
               AppStrings.ankiNoDecksSubtitle,
               style: TextStyle(
-                color: VarnamalaTheme.textSecondaryColor(context),
+                color: TurnaTheme.textSecondaryColor(context),
               ),
             ),
             const SizedBox(height: 32),
@@ -402,8 +405,8 @@ class _AnkiReviewBody extends StatelessWidget {
               icon: const Icon(Icons.add),
               label: Text(AppStrings.ankiImportDeck),
               style: ElevatedButton.styleFrom(
-                backgroundColor: VarnamalaTheme.peacockTeal,
-                foregroundColor: VarnamalaTheme.textOnPrimary,
+                backgroundColor: TurnaTheme.peacockTeal,
+                foregroundColor: TurnaTheme.textOnPrimary,
                 padding:
                     const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                 shape: RoundedRectangleBorder(
@@ -452,17 +455,17 @@ class _AnkiSectionCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Material(
-        color: VarnamalaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+        color: TurnaTheme.cardBg(context),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+          borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+              borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
               border: Border.all(
-                color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.12),
+                color: TurnaTheme.peacockTeal.withValues(alpha: 0.12),
               ),
             ),
             child: Row(
@@ -470,13 +473,12 @@ class _AnkiSectionCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color:
-                        VarnamalaTheme.peacockTeal.withValues(alpha: 0.12),
+                    color: TurnaTheme.peacockTeal.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(
                     Icons.layers_rounded,
-                    color: VarnamalaTheme.peacockTeal,
+                    color: TurnaTheme.peacockTeal,
                     size: 24,
                   ),
                 ),
@@ -497,7 +499,7 @@ class _AnkiSectionCard extends StatelessWidget {
                         description,
                         style: TextStyle(
                           fontSize: 13,
-                          color: VarnamalaTheme.textSecondaryColor(context),
+                          color: TurnaTheme.textSecondaryColor(context),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -507,16 +509,16 @@ class _AnkiSectionCard extends StatelessWidget {
                 ),
                 if (dueCount > 0)
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: VarnamalaTheme.peacockTeal,
+                      color: TurnaTheme.peacockTeal,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       '$dueCount',
                       style: const TextStyle(
-                        color: VarnamalaTheme.textOnPrimary,
+                        color: TurnaTheme.textOnPrimary,
                         fontWeight: FontWeight.w800,
                         fontSize: 12,
                       ),
@@ -526,7 +528,7 @@ class _AnkiSectionCard extends StatelessWidget {
                 Icon(
                   Icons.arrow_forward_ios_rounded,
                   size: 16,
-                  color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.5),
+                  color: TurnaTheme.peacockTeal.withValues(alpha: 0.5),
                 ),
                 const SizedBox(width: 4),
                 _UninstallMenuButton(
@@ -566,7 +568,7 @@ class _UninstallMenuButton extends StatelessWidget {
       icon: Icon(
         Icons.more_vert_rounded,
         size: 20,
-        color: VarnamalaTheme.textSecondaryColor(context),
+        color: TurnaTheme.textSecondaryColor(context),
       ),
       padding: const EdgeInsets.all(4),
       tooltip: '',
@@ -618,7 +620,7 @@ class _UninstallMenuButton extends StatelessWidget {
               const Icon(
                 Icons.delete_outline_rounded,
                 size: 20,
-                color: VarnamalaTheme.error,
+                color: TurnaTheme.error,
               ),
               const SizedBox(width: 12),
               Text(AppStrings.ankiUninstallDeck),

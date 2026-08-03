@@ -9,7 +9,7 @@ class AppStrings {
   static const AppStrings instance = AppStrings._();
 
   // ── App ──
-  static String get appTitle => 'Varnamala';
+  static String get appTitle => 'Turna';
 
   // ── Common ──
   static String get commonCancel => '取消';
@@ -96,7 +96,7 @@ class AppStrings {
   static String get beginnerGuideEntry => '新手指南';
   static String get beginnerGuideEntrySubtitle => '了解核心功能与使用方法';
   static String get beginnerGuideIntro =>
-      '欢迎来到 Varnamala！这里快速介绍应用的核心功能，点击任意功能卡即可跳转体验。';
+      '欢迎来到 Turna！这里快速介绍应用的核心功能，点击任意功能卡即可跳转体验。';
   static String get beginnerGuideSectionLearn => '学习';
   static String get beginnerGuideSectionPractice => '练习与复习';
   static String get beginnerGuideSectionTools => '工具';
@@ -164,7 +164,7 @@ class AppStrings {
   static String get settingsExportCourseSubtitle => '内置土耳其语课程 JSON 文件';
   static String get settingsExportButton => '导出';
   static String get settingsExporting => '导出中…';
-  static String get settingsAboutVarnamala => '关于 Varnamala';
+  static String get settingsAboutTurna => '关于 Turna';
   static String get settingsOpenSourceLicenses => '开源许可证';
   static String settingsVersionFooter(String version) => '版本 $version';
   static String settingsVersionFooterWithBuild(String version, String build) =>
@@ -267,10 +267,10 @@ class AppStrings {
   static String get accountResetDone => '账户已重置';
 
   // ── About ──
-  static String get aboutTitle => '关于 Varnamala';
-  static String get aboutWhatIsTitle => '什么是 Varnamala';
+  static String get aboutTitle => '关于 Turna';
+  static String get aboutWhatIsTitle => '什么是 Turna';
   static String get aboutWhatIsBody =>
-      'Varnamala 是一款免费、开源的语言学习应用，专注于帮助你一步步建立真实的词汇和语法能力。它让学习保持离线、无干扰，并由你掌控。';
+      'Turna 是一款免费、开源的语言学习应用，专注于帮助你一步步建立真实的词汇和语法能力。它让学习保持离线、无干扰，并由你掌控。';
   static String get aboutHighlightsTitle => '亮点';
   static String get aboutHighlightOfflineTitle => '离线优先';
   static String get aboutHighlightOfflineSubtitle => '随时随地学习';
@@ -280,7 +280,7 @@ class AppStrings {
   static String get aboutHighlightInteractionsSubtitle => '练习所有技能';
   static String get aboutPrivacyTitle => '隐私与本地优先';
   static String get aboutPrivacyBody =>
-      '你学习的一切都保留在本设备上。Varnamala 没有云端后端、没有账户、没有追踪——你的进度、错题和设置永不离开手机。卸载应用会删除所有数据。唯一的网络访问是可选的（打开外部链接或你自己配置的 AI 工具）。';
+      '你学习的一切都保留在本设备上。Turna 没有云端后端、没有账户、没有追踪——你的进度、错题和设置永不离开手机。卸载应用会删除所有数据。唯一的网络访问是可选的（打开外部链接或你自己配置的 AI 工具）。';
   static String get aboutVersionTitle => '版本与更新日志';
   static String get aboutLinksTitle => '链接';
   static String get aboutUpstreamTitle => '上游项目';
@@ -289,20 +289,20 @@ class AppStrings {
   static String get aboutReportIssueSubtitle => 'GitHub Issues';
   static String get aboutViewReleasesTitle => '查看发布';
   static String get aboutViewReleasesSubtitle => '更新日志与下载';
-  static String get aboutShareTitle => '分享 Varnamala';
+  static String get aboutShareTitle => '分享 Turna';
   static String get aboutCreditsTitle => '致谢';
   static String get aboutCreditsOriginal =>
       '原始框架由 Rishi Banerjee 和 Varnamala 开源社区构建。';
   static String get aboutCreditsFork => '本构建是一个本地优先的分叉版本，增加了无障碍设置和课程创作工具。';
   static String get aboutLicense => '基于 GNU 通用公共许可证 v3.0 授权。';
-  static String aboutCopyright(String year) => '© $year Varnamala';
-  static String get aboutBrandName => 'Varnamala';
+  static String aboutCopyright(String year) => '© $year Turna';
+  static String get aboutBrandName => 'Turna';
   static String get aboutTagline => '学习语言，一步步来。';
   static String aboutVersionLabel(String version) => '版本 $version';
   static String aboutVersionWithBuild(String version, String buildNumber) =>
       '版本 $version（$buildNumber）';
   static String get aboutShareText =>
-      '看看 Varnamala——一款免费、开源的语言学习应用！https://github.com/rshrc/Varnamala';
+      '看看 Turna——一款免费、开源的语言学习应用！https://github.com/rshrc/Varnamala';
   static String aboutVersionShort(String version) => '版本 $version';
   static String aboutVersionBuild(String buildNumber) => '（$buildNumber）';
   static String get aboutHideChangelog => '隐藏';
@@ -323,7 +323,7 @@ class AppStrings {
   // ── Changelog ──
   static String get changelogTitle => '更新日志';
   static String get changelogIntro =>
-      '以下为 Varnamala Plus 主要版本与功能里程碑，条目为简要摘要，便于快速了解近期改动。';
+      '以下为 Turna 主要版本与功能里程碑，条目为简要摘要，便于快速了解近期改动。';
   static String get changelogFooterNote =>
       '更详细的工程说明见仓库 docs/decisions/ 与 README。';
   static String get changelogCopyTooltip => '复制当前页内容';
@@ -1063,9 +1063,9 @@ class AppStrings {
   static String get profileShareCardLessons => '已完成课程';
   static String get profileShareCardQuote => '每一个词，都是打开新世界的钥匙。';
   static String get profileShareCardQuoteSub => '继续前行，遇见更多美好。';
-  static String get profileShareCardFooterTitle => '我在 Varnamala 学习语言';
+  static String get profileShareCardFooterTitle => '我在 Turna 学习语言';
   static String get profileShareCardFooterSub => '成长从今天开始，未来无限可能！';
-  static String get profileShareText => '看看我在 Varnamala 上的进度！';
+  static String get profileShareText => '看看我在 Turna 上的进度！';
 
   // ── Characters ──
   static String charactersScriptTitle(String currentLanguage) =>
@@ -1092,7 +1092,7 @@ class AppStrings {
   static String get splashReclaiming => '重拾语言学习';
   static String get splashLearnTurkish => 'Learn Turkish • Türkçe öğren';
   static String get splashFreeForever => '免费。永远。';
-  static String get splashAppName => 'Varnamala';
+  static String get splashAppName => 'Turna';
   static String get splashSubtitle => '没有会失去的生命值，没有要补充的体力。\n纯粹的学习。';
   static String get splashGetStarted => '开始使用';
   static String get splashTurkishVoiceMissingTitle => '缺少土耳其语语音数据';

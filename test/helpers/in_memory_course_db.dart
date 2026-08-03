@@ -17,11 +17,11 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:sqlite3/src/ffi/load_library.dart' show OperatingSystem, open;
-import 'package:varnamala/courses/course_loader.dart';
-import 'package:varnamala/data/course_database.dart';
-import 'package:varnamala/data/course_database_seeder.dart';
-import 'package:varnamala/data/review_history_dao.dart';
-import 'package:varnamala/data/srs_state_dao.dart';
+import 'package:turna/courses/course_loader.dart';
+import 'package:turna/data/course_database.dart';
+import 'package:turna/data/course_database_seeder.dart';
+import 'package:turna/data/review_history_dao.dart';
+import 'package:turna/data/srs_state_dao.dart';
 
 bool _sqliteOverrideApplied = false;
 bool _pathProviderMockApplied = false;

@@ -4,10 +4,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
-import 'package:varnamala/application/mistake_provider.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/domain/course/mistake_entry.dart';
-import 'package:varnamala/service/locator.dart';
+import 'package:turna/application/mistake_provider.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/domain/course/mistake_entry.dart';
+import 'package:turna/service/locator.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

@@ -1,5 +1,5 @@
 // Project imports:
-import 'package:varnamala/application/ai/textbook/knowledge_merger.dart';
+import 'package:turna/application/ai/textbook/knowledge_merger.dart';
 
 /// Command-level action resolved from (collision, strategy).
 /// Mirrors `tool/gui/src/backend/import_strategy.py`.

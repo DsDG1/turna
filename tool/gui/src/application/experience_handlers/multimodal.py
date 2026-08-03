@@ -210,7 +210,7 @@ def _experience_ocr(
                             getattr(record, "original_name", "image")
                         ).name
                         tmp = Path(tempfile.gettempdir()) / (
-                            f"varnamala_ocr_{uuid.uuid4().hex[:8]}_{base_name}.txt"
+                            f"turna_ocr_{uuid.uuid4().hex[:8]}_{base_name}.txt"
                         )
                         tmp.write_text(text, encoding="utf-8")
                         new_rec = AttachmentRecord(

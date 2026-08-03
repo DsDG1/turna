@@ -6,10 +6,10 @@ import 'package:flutter/services.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/application/grammar_review_provider.dart';
-import 'package:varnamala/application/srs_provider.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/service/locator.dart';
+import 'package:turna/application/grammar_review_provider.dart';
+import 'package:turna/application/srs_provider.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/service/locator.dart';
 
 /// App-wide user settings that need to persist across launches.
 ///

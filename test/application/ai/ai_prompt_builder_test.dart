@@ -1,7 +1,7 @@
 // Project imports:
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/application/ai/ai_course_spec.dart';
-import 'package:varnamala/application/ai/ai_prompt_builder.dart';
+import 'package:turna/application/ai/ai_course_spec.dart';
+import 'package:turna/application/ai/ai_prompt_builder.dart';
 
 void main() {
   group('ai_prompt_builder', () {

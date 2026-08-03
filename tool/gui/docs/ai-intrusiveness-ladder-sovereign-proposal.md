@@ -178,7 +178,7 @@ RegretSuppressionEngine:
 
 ## 9. 开放技术课题
 
-1. **Sovereign 模式的存储持久化**：Sovereign 引入的“反悔抑制索引”与“范式强对齐状态”是否随工程文件 `.varnamala/sovereign.idx` 落地？
+1. **Sovereign 模式的存储持久化**：Sovereign 引入的“反悔抑制索引”与“范式强对齐状态”是否随工程文件 `.turna/sovereign.idx` 落地？
 2. **紧急系统硬重置 (Hard Safety Escape)**：是否保留组合键（如 `Ctrl+Alt+Shift+ESC`）用于强行清空 Sovereign 状态栈并重置回 Observer 模式？
 
 ---

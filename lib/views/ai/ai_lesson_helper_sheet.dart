@@ -5,13 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/ai/ai_course_provider.dart';
-import 'package:varnamala/application/ai/ai_lesson_helper_provider.dart';
-import 'package:varnamala/application/ai/engine/ai_engine_config_holder.dart';
-import 'package:varnamala/application/lesson_viewmodel.dart';
-import 'package:varnamala/domain/course/lesson.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/ai/ai_course_provider.dart';
+import 'package:turna/application/ai/ai_lesson_helper_provider.dart';
+import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
+import 'package:turna/application/lesson_viewmodel.dart';
+import 'package:turna/domain/course/lesson.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/theme.dart';
 
 /// Bottom sheet for editing the current lesson with AI.
 ///
@@ -113,7 +113,7 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
     return Row(
       children: [
         const Icon(Icons.auto_fix_high,
-            color: VarnamalaTheme.peacockTeal, size: 22),
+            color: TurnaTheme.peacockTeal, size: 22),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
@@ -181,7 +181,7 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
               padding: EdgeInsets.symmetric(vertical: 24),
               child: Center(
                 child: CircularProgressIndicator(
-                  color: VarnamalaTheme.peacockTeal,
+                  color: TurnaTheme.peacockTeal,
                   strokeWidth: 3,
                 ),
               ),
@@ -191,15 +191,14 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
             return Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: VarnamalaTheme.error.withValues(alpha: 0.12),
-                borderRadius:
-                    BorderRadius.circular(VarnamalaTheme.radiusMedium),
+                color: TurnaTheme.error.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
               ),
               child: Text(
                 error != null
                     ? AppStrings.aiLessonHelperError(error)
                     : AppStrings.aiLessonHelperErrorUnknown,
-                style: const TextStyle(color: VarnamalaTheme.error),
+                style: const TextStyle(color: TurnaTheme.error),
               ),
             );
           case AiLessonHelperState.ready:
@@ -218,9 +217,9 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
       constraints: const BoxConstraints(maxHeight: 240),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
-        border: Border.all(color: VarnamalaTheme.divider),
+        color: TurnaTheme.cardBg(context),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+        border: Border.all(color: TurnaTheme.divider),
       ),
       child: SingleChildScrollView(
         child: Column(
@@ -266,9 +265,8 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
               const SizedBox(width: 12),
               Expanded(
                 child: FilledButton.icon(
-                  onPressed: state == AiLessonHelperState.applying
-                      ? null
-                      : _onApply,
+                  onPressed:
+                      state == AiLessonHelperState.applying ? null : _onApply,
                   icon: const Icon(Icons.check),
                   label: Text(AppStrings.commonApply),
                 ),

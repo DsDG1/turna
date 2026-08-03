@@ -1,6 +1,6 @@
-# Varnamala Course Editor GUI (语言课程图形编辑器)
+# Turna Course Editor GUI (语言课程图形编辑器)
 
-`Varnamala GUI` 是基于 **PySide6** 开发的高效、本地化二语习得（SLA）课程编辑器。它是底层 CLI 工具 [`tool/course_cli.py`](../course_cli.py) 的图形前端，结合严格的结构校验与 AI 辅助能力，为课程创作者提供可视化设计、教材智能化提取、资源集中管理、交互审校与一键发布的全流程解决方案。
+`Turna GUI` 是基于 **PySide6** 开发的高效、本地化二语习得（SLA）课程编辑器。它是底层 CLI 工具 [`tool/course_cli.py`](../course_cli.py) 的图形前端，结合严格的结构校验与 AI 辅助能力，为课程创作者提供可视化设计、教材智能化提取、资源集中管理、交互审校与一键发布的全流程解决方案。
 
 > 💡 **新手快速入门**：若您是初次使用的课程创作者或教师，无需命令行背景，可参考 [图形界面新手指南](../../docs/authoring/gui-beginner-guide.md)。  
 > 🛠️ **开发者与高级用户**：本 README 涵盖安装运行、主界面使用、课程工坊（AI 创作中心）全流程、架构设计、测试与打包指南。
@@ -221,7 +221,7 @@ python -m tool.gui.src.main
 
 ## 课程工坊 (AI 创作中心) 全流程指南
 
-课程工坊是 Varnamala GUI 的核心 AI 协同创作模块：一个**非模态窗口**，可与主界面并排。  
+课程工坊是 Turna GUI 的核心 AI 协同创作模块：一个**非模态窗口**，可与主界面并排。  
 自 P0 起，信息架构为 **项目库 ↔ 创意画布**（不再使用可点击的六阶段侧栏）。头栏 checklist 提示进度：`○/✓ 素材 · 知识 · 草稿 · 导入`（可点击跳转对应栏）。
 
 ```
@@ -372,7 +372,7 @@ tool/gui/
 sequenceDiagram
     autonumber
     actor Author as 课程创作者
-    participant GUI as Varnamala GUI
+    participant GUI as Turna GUI
     participant Adapter as CourseAdapter
     participant CLI as course_cli
 
@@ -424,7 +424,7 @@ python -m unittest discover -s test -p "*_cli_test.py"
 # 安装 PyInstaller
 pip install pyinstaller
 
-# 默认构建 (在 dist/ 目录下生成 varnamala-gui 可执行文件)
+# 默认构建 (在 dist/ 目录下生成 turna-gui 可执行文件)
 python tool/gui/build_gui.py
 
 # 清理构建缓存并重新构建
@@ -434,7 +434,7 @@ python tool/gui/build_gui.py --clean
 python tool/gui/build_gui.py --onedir
 ```
 
-具体的 PyInstaller 打包配置文件参见 [`varnamala_gui.spec`](./varnamala_gui.spec)。
+具体的 PyInstaller 打包配置文件参见 [`turna_gui.spec`](./turna_gui.spec)。
 
 > 📌 **打包已知说明**：发布阶段的音效清单检测 (`sound-manifest`) 需要访问相对路径 `assets/sounds`。打包后的独立 exe 运行于非仓库根目录时，音效检查可能会提示路径缺失，但核心编辑、保存、校验与发布报告导出功能不受影响。推荐在仓库根目录环境下运行或打包。
 

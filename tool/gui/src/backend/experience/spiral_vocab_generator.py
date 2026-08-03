@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 
 from src.backend.content_quality import evaluate_unit_spiral
 
-logger = logging.getLogger("varnamala.spiral_vocab")
+logger = logging.getLogger("turna.spiral_vocab")
 
 
 class SpiralVocabGenerator:

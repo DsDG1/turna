@@ -2,8 +2,8 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:varnamala/domain/course/reading_passage.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/domain/course/reading_passage.dart';
+import 'package:turna/views/theme.dart';
 
 class LessonStageBanner extends StatelessWidget {
   final String name;
@@ -46,10 +46,10 @@ class LessonReadingPassageCard extends StatelessWidget {
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.leagueAmethyst.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+        color: TurnaTheme.leagueAmethyst.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
         border: Border.all(
-          color: VarnamalaTheme.leagueAmethyst.withValues(alpha: 0.15),
+          color: TurnaTheme.leagueAmethyst.withValues(alpha: 0.15),
         ),
       ),
       child: Column(
@@ -59,7 +59,7 @@ class LessonReadingPassageCard extends StatelessWidget {
             passage.title,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
-                  color: VarnamalaTheme.textPrimaryColor(context),
+                  color: TurnaTheme.textPrimaryColor(context),
                 ),
           ),
           const SizedBox(height: 12),
@@ -69,7 +69,7 @@ class LessonReadingPassageCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 16,
                     height: 1.6,
-                    color: VarnamalaTheme.textPrimaryColor(context),
+                    color: TurnaTheme.textPrimaryColor(context),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -92,10 +92,10 @@ class LessonLegacyReadingPassage extends StatelessWidget {
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.leagueAmethyst.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+        color: TurnaTheme.leagueAmethyst.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
         border: Border.all(
-          color: VarnamalaTheme.leagueAmethyst.withValues(alpha: 0.15),
+          color: TurnaTheme.leagueAmethyst.withValues(alpha: 0.15),
         ),
       ),
       child: Text(
@@ -103,7 +103,7 @@ class LessonLegacyReadingPassage extends StatelessWidget {
         style: TextStyle(
           fontSize: 16,
           height: 1.6,
-          color: VarnamalaTheme.textPrimaryColor(context),
+          color: TurnaTheme.textPrimaryColor(context),
         ),
       ),
     );

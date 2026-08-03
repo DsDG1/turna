@@ -10,7 +10,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/views/settings/changelog_page.dart';
+import 'package:turna/views/settings/changelog_page.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -52,7 +52,8 @@ void main() {
     return null;
   }
 
-  Future<void> installHandler(Future<ByteData?> Function(ByteData?) handler) async {
+  Future<void> installHandler(
+      Future<ByteData?> Function(ByteData?) handler) async {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMessageHandler('flutter/assets', handler);
   }
@@ -66,15 +67,15 @@ void main() {
   });
 
   test('parseChangelogMarkdown ignores empty / separator lines', () {
-    final releases = parseChangelogMarkdown('# Top\n\n---\n\n## 9.9.9 - Hi\n- only');
+    final releases =
+        parseChangelogMarkdown('# Top\n\n---\n\n## 9.9.9 - Hi\n- only');
     expect(releases.length, 1);
     expect(releases.first.version, '9.9.9');
     expect(releases.first.title, 'Hi');
     expect(releases.first.items, ['only']);
   });
 
-  testWidgets(
-      'ChangelogFromAsset falls back to legacy releases on load error',
+  testWidgets('ChangelogFromAsset falls back to legacy releases on load error',
       (tester) async {
     await installHandler(failHandler);
     await tester.pumpWidget(

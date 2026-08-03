@@ -5,7 +5,7 @@
 // shift if a new section is inserted in the middle of the list.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/application/course_provider.dart';
+import 'package:turna/application/course_provider.dart';
 
 import '../helpers/in_memory_course_db.dart';
 
@@ -106,7 +106,8 @@ void main() {
     // was loaded. The user saw a blank Course Tree. After the fix load()
     // is idempotent (early-returns when `_isLoaded` is true), so the
     // cached full bodies survive any number of re-entries.
-    test('load() called a second time leaves bodies intact (regression: tab-blank)',
+    test(
+        'load() called a second time leaves bodies intact (regression: tab-blank)',
         () async {
       await provider.load();
       final firstSectionId = provider.currentSectionId;
@@ -132,15 +133,16 @@ void main() {
       provider.switchToSection(other);
       await provider.ensureSectionLoaded(other);
 
-      final otherUnitsCount = provider.findSectionById(other)?.units.length ?? 0;
+      final otherUnitsCount =
+          provider.findSectionById(other)?.units.length ?? 0;
       expect(otherUnitsCount, greaterThan(0));
 
       // Now a stray load() (e.g. from a tab round-trip firing the old
       // initState code path before the fix lands in production) must be
       // a no-op; the body for `other` must stay populated.
       await provider.load();
-      expect(provider.findSectionById(other)?.units.length ?? 0,
-          otherUnitsCount,
+      expect(
+          provider.findSectionById(other)?.units.length ?? 0, otherUnitsCount,
           reason: 'third load() must not reset the body for the switched-to '
               'section');
     });
@@ -181,7 +183,8 @@ void main() {
       expect(provider.isLoaded, isTrue);
       expect(provider.sections, isNotEmpty);
       expect(provider.currentSectionId, firstSectionId);
-      expect(provider.sectionLoadState(firstSectionId!), SectionLoadState.loaded);
+      expect(
+          provider.sectionLoadState(firstSectionId!), SectionLoadState.loaded);
       expect(provider.currentSection?.units.length ?? 0, unitsBefore);
     });
   });

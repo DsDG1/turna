@@ -2,7 +2,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 // Project imports:
-import 'package:varnamala/application/ai/engine/ai_provider_preset.dart';
+import 'package:turna/application/ai/engine/ai_provider_preset.dart';
 
 void main() {
   group('kBuiltinPresets', () {

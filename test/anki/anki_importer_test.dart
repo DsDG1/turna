@@ -6,7 +6,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/application/anki/anki_importer.dart';
+import 'package:turna/application/anki/anki_importer.dart';
 
 void main() {
   group('AnkiImporter._parseNotetypes', () {
@@ -90,8 +90,7 @@ void main() {
       final result = AnkiImporter.parseNotetypesForTest(modelsJson);
 
       expect(result, isEmpty,
-          reason:
-              'A field without a `name` key cannot be safely indexed and '
+          reason: 'A field without a `name` key cannot be safely indexed and '
               'must drop the entire notetype');
     });
 
@@ -105,8 +104,7 @@ void main() {
       expect(result, isEmpty);
     });
 
-    test('a mix of valid and malformed notetypes keeps the valid ones',
-        () {
+    test('a mix of valid and malformed notetypes keeps the valid ones', () {
       final modelsJson = modelsJsonFor({
         10: notetype(fields: [
           {'name': 'A'},

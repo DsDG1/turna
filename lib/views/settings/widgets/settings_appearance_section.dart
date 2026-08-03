@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/theme_provider.dart';
-import 'package:varnamala/views/settings/widgets/settings_common.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/theme_provider.dart';
+import 'package:turna/views/settings/widgets/settings_common.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/theme.dart';
 
 class SettingsThemeSelector extends StatelessWidget {
   const SettingsThemeSelector({super.key});
@@ -62,9 +62,9 @@ class _ThemeOption extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+      borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
       child: InkWell(
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -74,16 +74,14 @@ class _ThemeOption extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.08),
-                  borderRadius:
-                      BorderRadius.circular(VarnamalaTheme.radiusMedium),
+                  color: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
                 ),
                 child: Icon(
                   icon,
                   size: 20,
-                  color: isSelected
-                      ? VarnamalaTheme.peacockTeal
-                      : VarnamalaTheme.textHint,
+                  color:
+                      isSelected ? TurnaTheme.peacockTeal : TurnaTheme.textHint,
                 ),
               ),
               const SizedBox(width: 12),
@@ -102,8 +100,8 @@ class _ThemeOption extends StatelessWidget {
                   shape: BoxShape.circle,
                   border: Border.all(
                     color: isSelected
-                        ? VarnamalaTheme.peacockTeal
-                        : VarnamalaTheme.textHint,
+                        ? TurnaTheme.peacockTeal
+                        : TurnaTheme.textHint,
                     width: 2,
                   ),
                 ),
@@ -114,7 +112,7 @@ class _ThemeOption extends StatelessWidget {
                           height: 10,
                           decoration: const BoxDecoration(
                             shape: BoxShape.circle,
-                            color: VarnamalaTheme.peacockTeal,
+                            color: TurnaTheme.peacockTeal,
                           ),
                         ),
                       )

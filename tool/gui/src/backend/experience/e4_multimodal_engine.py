@@ -10,7 +10,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-logger = logging.getLogger("varnamala.e4_multimodal")
+logger = logging.getLogger("turna.e4_multimodal")
 
 
 @dataclass

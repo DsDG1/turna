@@ -1,7 +1,7 @@
 // Project imports:
-import 'package:varnamala/application/ai/textbook/knowledge_schema.dart';
+import 'package:turna/application/ai/textbook/knowledge_schema.dart';
 
-/// Builds a Varnamala section dict from extracted textbook knowledge.
+/// Builds a Turna section dict from extracted textbook knowledge.
 /// Mirrors `tool/gui/src/backend/textbook_to_course.py`.
 class TextbookToCourse {
   const TextbookToCourse();

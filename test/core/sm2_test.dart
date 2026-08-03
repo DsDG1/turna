@@ -1,8 +1,8 @@
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/core/sm2.dart';
-import 'package:varnamala/domain/course/srs_word.dart';
+import 'package:turna/core/sm2.dart';
+import 'package:turna/domain/course/srs_word.dart';
 
 void main() {
   group('Sm2Engine.review', () {
@@ -29,7 +29,8 @@ void main() {
       expect(updated.lapses, 0);
       expect(updated.ease, closeTo(2.5, 0.001));
       expect(
-        updated.dueAt.isAfter(DateTime.now().subtract(const Duration(seconds: 1))),
+        updated.dueAt
+            .isAfter(DateTime.now().subtract(const Duration(seconds: 1))),
         isTrue,
       );
     });
@@ -68,7 +69,8 @@ void main() {
       expect(word.ease, closeTo(Sm2Engine.maxEase, 0.001));
     });
 
-    test('unknown review counts a lapse, applies fixed ease penalty, and '
+    test(
+        'unknown review counts a lapse, applies fixed ease penalty, and '
         'relearns same-day', () {
       final studied = engine.review(
         engine.review(freshWord('w-1'), ReviewGrade.known.sm2,
@@ -98,8 +100,8 @@ void main() {
     });
 
     test('mature lapse keeps a fraction of the old interval', () {
-      final word = freshWord('w-1')
-          .copyWith(reps: 5, intervalDays: 30, ease: 2.5);
+      final word =
+          freshWord('w-1').copyWith(reps: 5, intervalDays: 30, ease: 2.5);
       final failed = engine.review(word, ReviewGrade.unknown.sm2);
 
       expect(failed.intervalDays, (30 * Sm2Engine.lapseIntervalFactor).round());
@@ -109,8 +111,8 @@ void main() {
     });
 
     test('relearnt mature card resumes growth from its lapse interval', () {
-      var word = freshWord('w-1')
-          .copyWith(reps: 5, intervalDays: 30, ease: 2.5);
+      var word =
+          freshWord('w-1').copyWith(reps: 5, intervalDays: 30, ease: 2.5);
       word = engine.review(word, ReviewGrade.unknown.sm2); // int 6, ease 2.3
       word = engine.review(word, ReviewGrade.known.sm2, random: Random(7));
 
@@ -127,8 +129,8 @@ void main() {
         ease: 2.5,
         dueAt: DateTime.now().subtract(const Duration(days: 10)),
       );
-      final updated = engine.review(word, ReviewGrade.known.sm2,
-          random: Random(3));
+      final updated =
+          engine.review(word, ReviewGrade.known.sm2, random: Random(3));
 
       // Unfuzzed: 10 * 2.52 * 2 = 50.4 → 50; fuzz ±8 → 42..58.
       expect(updated.intervalDays, inInclusiveRange(42, 58));
@@ -143,17 +145,18 @@ void main() {
         ease: 2.5,
         dueAt: DateTime.now().subtract(const Duration(days: 100)),
       );
-      final updated = engine.review(word, ReviewGrade.known.sm2,
-          random: Random(3));
+      final updated =
+          engine.review(word, ReviewGrade.known.sm2, random: Random(3));
       expect(updated.intervalDays, inInclusiveRange(42, 58));
     });
 
     test('interval is capped at maxIntervalDays (after fuzz)', () {
-      final word = freshWord('w-1')
-          .copyWith(reps: 10, intervalDays: 400, ease: 3.0);
-      final updated = engine.review(word, ReviewGrade.known.sm2,
-          random: Random(5));
-      expect(updated.intervalDays, lessThanOrEqualTo(Sm2Engine.maxIntervalDays));
+      final word =
+          freshWord('w-1').copyWith(reps: 10, intervalDays: 400, ease: 3.0);
+      final updated =
+          engine.review(word, ReviewGrade.known.sm2, random: Random(5));
+      expect(
+          updated.intervalDays, lessThanOrEqualTo(Sm2Engine.maxIntervalDays));
     });
 
     test('quality values are clamped to 0..5', () {
@@ -226,9 +229,12 @@ void main() {
       expect(engine.previewIntervalDays(word, ReviewGrade.known.sm2), 4);
     });
 
-    test('mature preview is deterministic (no fuzz) and matches the unfuzzed interval', () {
+    test(
+        'mature preview is deterministic (no fuzz) and matches the unfuzzed interval',
+        () {
       // reps >= 3: interval = intervalDays * (ease + bonus) (no fuzz).
-      final word = freshWord('w-1').copyWith(reps: 2, intervalDays: 10, ease: 2.5);
+      final word =
+          freshWord('w-1').copyWith(reps: 2, intervalDays: 10, ease: 2.5);
       final a = engine.previewIntervalDays(word, ReviewGrade.known.sm2);
       final b = engine.previewIntervalDays(word, ReviewGrade.known.sm2);
       expect(a, b); // deterministic
@@ -247,8 +253,8 @@ void main() {
     });
 
     test('preview is capped at maxIntervalDays', () {
-      final word = freshWord('w-1')
-          .copyWith(reps: 10, intervalDays: 400, ease: 3.0);
+      final word =
+          freshWord('w-1').copyWith(reps: 10, intervalDays: 400, ease: 3.0);
       expect(
         engine.previewIntervalDays(word, ReviewGrade.known.sm2),
         Sm2Engine.maxIntervalDays,

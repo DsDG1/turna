@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/fun_provider.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/settings/widgets/settings_common.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/fun_provider.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/settings/widgets/settings_common.dart';
+import 'package:turna/views/theme.dart';
 
 /// A switch tile bound to [FunProvider], mirroring [AccessibilityToggleTile]
 /// (which is bound to [AccessibilityProvider]).
@@ -179,17 +179,17 @@ class _WarningBanner extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.error.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+        color: TurnaTheme.error.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
         border: Border.all(
-          color: VarnamalaTheme.error.withValues(alpha: 0.2),
+          color: TurnaTheme.error.withValues(alpha: 0.2),
         ),
       ),
       child: Row(
         children: [
           const Icon(
             Icons.warning_amber_rounded,
-            color: VarnamalaTheme.error,
+            color: TurnaTheme.error,
             size: 22,
           ),
           const SizedBox(width: 10),
@@ -197,7 +197,7 @@ class _WarningBanner extends StatelessWidget {
             child: Text(
               AppStrings.settingsFunWarning,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: VarnamalaTheme.textSecondaryColor(context),
+                    color: TurnaTheme.textSecondaryColor(context),
                     height: 1.4,
                   ),
             ),

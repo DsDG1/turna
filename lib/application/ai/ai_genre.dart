@@ -1,7 +1,7 @@
 // Dart imports:
 import 'dart:convert';
 
-import 'package:varnamala/l10n/app_strings.dart';
+import 'package:turna/l10n/app_strings.dart';
 
 /// Genre tag → lesson template metadata. Mirrors
 /// `tool/gui/src/backend/ai_genre.py:GENRE_TEMPLATES`.

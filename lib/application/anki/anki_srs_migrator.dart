@@ -1,12 +1,12 @@
 // Project imports:
-import 'package:varnamala/application/anki/anki_deck_manager.dart';
-import 'package:varnamala/application/anki/anki_models.dart';
-import 'package:varnamala/application/srs_provider.dart';
-import 'package:varnamala/core/logger.dart';
-import 'package:varnamala/data/review_history_dao.dart';
-import 'package:varnamala/domain/course/srs_word.dart';
+import 'package:turna/application/anki/anki_deck_manager.dart';
+import 'package:turna/application/anki/anki_models.dart';
+import 'package:turna/application/srs_provider.dart';
+import 'package:turna/core/logger.dart';
+import 'package:turna/data/review_history_dao.dart';
+import 'package:turna/domain/course/srs_word.dart';
 
-/// Migrates Anki card scheduling state into Varnamala's [SrsWord] format
+/// Migrates Anki card scheduling state into Turna's [SrsWord] format
 /// and registers them into [SrsProvider].
 ///
 /// Anki field → SrsWord mapping:

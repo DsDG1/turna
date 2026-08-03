@@ -463,7 +463,7 @@ class TtsAvailabilityChecker {
     }
     try {
       // android.settings.TTS_SETTINGS is the public action for TTS prefs.
-      const channel = MethodChannel('varnamala/tts_settings');
+      const channel = MethodChannel('turna/tts_settings');
       final result = await channel.invokeMethod<bool>('openTtsSettings');
       return result == true;
     } on MissingPluginException {

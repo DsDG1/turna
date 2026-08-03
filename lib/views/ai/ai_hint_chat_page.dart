@@ -6,13 +6,13 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/ai/ai_hint_provider.dart';
-import 'package:varnamala/application/ai/engine/ai_engine_config.dart';
-import 'package:varnamala/application/ai/engine/ai_engine_config_holder.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/ai/chat_bubble.dart';
-import 'package:varnamala/views/ai/components/ai_sheet_widgets.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/ai/ai_hint_provider.dart';
+import 'package:turna/application/ai/engine/ai_engine_config.dart';
+import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/ai/chat_bubble.dart';
+import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
+import 'package:turna/views/theme.dart';
 
 @RoutePage()
 class AiHintChatPage extends StatefulWidget {
@@ -65,9 +65,8 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
     // Ask first; only clear the field once the turn is actually accepted,
     // so a no-op (e.g. context cleared by a concurrent reset) doesn't
     // silently swallow the user's text.
-    final started = await context
-        .read<AiHintProvider>()
-        .ask(config: _config(), text: text);
+    final started =
+        await context.read<AiHintProvider>().ask(config: _config(), text: text);
     if (started) {
       _inputCtrl.clear();
       _scrollToBottom();
@@ -90,22 +89,23 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
   Widget build(BuildContext context) {
     final ctx = widget.context;
     return Scaffold(
-      backgroundColor: VarnamalaTheme.scaffoldBg(context),
+      backgroundColor: TurnaTheme.scaffoldBg(context),
       appBar: AppBar(
         title: Text(
-          ctx == null ? AppStrings.aiTutorTitle : AppStrings.aiTutorTitleWithType(ctx.typeLabel),
+          ctx == null
+              ? AppStrings.aiTutorTitle
+              : AppStrings.aiTutorTitleWithType(ctx.typeLabel),
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
         ),
-        backgroundColor: VarnamalaTheme.bottomNavBg(context),
+        backgroundColor: TurnaTheme.bottomNavBg(context),
       ),
       body: SafeArea(
         child: Column(
           children: [
             Expanded(
-              child: Selector<
-                  AiHintProvider,
+              child: Selector<AiHintProvider,
                   ({bool empty, int count, bool hasError, AiHintState state})>(
                 selector: (_, w) => (
                   empty: w.messages.isEmpty,
@@ -120,8 +120,8 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
                   // Loading + no assistant reply yet → show an in-list
                   // "thinking" bubble so the message area doesn't look
                   // answered-but-unanswered.
-                  final showThinking = v.state == AiHintState.loading &&
-                      _lastIsUser(v.count);
+                  final showThinking =
+                      v.state == AiHintState.loading && _lastIsUser(v.count);
                   final itemCount =
                       v.count + (v.hasError ? 1 : 0) + (showThinking ? 1 : 0);
                   return ListView.builder(
@@ -193,7 +193,7 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
         margin: const EdgeInsets.symmetric(vertical: 4),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: VarnamalaTheme.cardBg(context),
+          color: TurnaTheme.cardBg(context),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
@@ -204,7 +204,7 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
               height: 16,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                color: VarnamalaTheme.peacockTeal,
+                color: TurnaTheme.peacockTeal,
               ),
             ),
             const SizedBox(width: 8),
@@ -225,12 +225,12 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
         margin: const EdgeInsets.symmetric(vertical: 4),
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: VarnamalaTheme.error.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+          color: TurnaTheme.error.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
         ),
         child: Text(
           AppStrings.aiErrorBubble(error),
-          style: const TextStyle(color: VarnamalaTheme.error),
+          style: const TextStyle(color: TurnaTheme.error),
         ),
       ),
     );

@@ -2,10 +2,10 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:varnamala/application/ai/textbook/import_plan.dart';
-import 'package:varnamala/application/ai/textbook/textbook_import_provider.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/ai/textbook/import_plan.dart';
+import 'package:turna/application/ai/textbook/textbook_import_provider.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/theme.dart';
 
 /// Conflict preview: resource collision summary + per-section import actions.
 class TextbookConflictPreview extends StatelessWidget {
@@ -31,7 +31,7 @@ class TextbookConflictPreview extends StatelessWidget {
         Text(
           AppStrings.aiTextbookConflictSubtitle,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: VarnamalaTheme.textHintColor(context),
+                color: TurnaTheme.textHintColor(context),
               ),
         ),
         const SizedBox(height: 12),
@@ -42,19 +42,20 @@ class TextbookConflictPreview extends StatelessWidget {
             children: [
               _SummaryChip(
                 label: AppStrings.aiTextbookCollisionNew(report.totalNew),
-                color: VarnamalaTheme.peacockTeal,
+                color: TurnaTheme.peacockTeal,
               ),
               _SummaryChip(
-                label: AppStrings.aiTextbookCollisionDup(report.totalDuplicates),
-                color: VarnamalaTheme.warning,
+                label:
+                    AppStrings.aiTextbookCollisionDup(report.totalDuplicates),
+                color: TurnaTheme.warning,
               ),
               _SummaryChip(
                 label: AppStrings.aiTextbookWords(report.newWords),
-                color: VarnamalaTheme.peacockCyan,
+                color: TurnaTheme.peacockCyan,
               ),
               _SummaryChip(
                 label: AppStrings.aiTextbookExpressions(report.newExpressions),
-                color: VarnamalaTheme.leagueAmethyst,
+                color: TurnaTheme.leagueAmethyst,
               ),
             ],
           ),
@@ -65,7 +66,7 @@ class TextbookConflictPreview extends StatelessWidget {
                   child: Text(
                     AppStrings.aiTextbookReviewEmpty,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: VarnamalaTheme.textHintColor(context),
+                          color: TurnaTheme.textHintColor(context),
                         ),
                   ),
                 )
@@ -95,7 +96,7 @@ class _SummaryChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusRound),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
         border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Text(
@@ -123,9 +124,9 @@ class _PlanCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-        border: Border.all(color: VarnamalaTheme.statCardBorder(context)),
+        color: TurnaTheme.cardBg(context),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        border: Border.all(color: TurnaTheme.statCardBorder(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -134,21 +135,17 @@ class _PlanCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  plan.chapterTitle.isEmpty
-                      ? plan.sourceId
-                      : plan.chapterTitle,
+                  plan.chapterTitle.isEmpty ? plan.sourceId : plan.chapterTitle,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
                 ),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: actionColor.withValues(alpha: 0.12),
-                  borderRadius:
-                      BorderRadius.circular(VarnamalaTheme.radiusRound),
+                  borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
                 ),
                 child: Text(
                   actionLabel,
@@ -163,11 +160,12 @@ class _PlanCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            plan.targetId != plan.sourceId && plan.action == ImportAction.appendNew
+            plan.targetId != plan.sourceId &&
+                    plan.action == ImportAction.appendNew
                 ? '${plan.sourceId} → ${plan.targetId}'
                 : plan.sourceId,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: VarnamalaTheme.textHintColor(context),
+                  color: TurnaTheme.textHintColor(context),
                   fontFamily: 'monospace',
                 ),
           ),
@@ -192,10 +190,10 @@ class _PlanCard extends StatelessWidget {
       };
 
   Color _actionColor(ImportAction a) => switch (a) {
-        ImportAction.append => VarnamalaTheme.peacockTeal,
-        ImportAction.merge => VarnamalaTheme.peacockCyan,
-        ImportAction.skip => VarnamalaTheme.textHint,
-        ImportAction.replace => VarnamalaTheme.warning,
-        ImportAction.appendNew => VarnamalaTheme.leagueAmethyst,
+        ImportAction.append => TurnaTheme.peacockTeal,
+        ImportAction.merge => TurnaTheme.peacockCyan,
+        ImportAction.skip => TurnaTheme.textHint,
+        ImportAction.replace => TurnaTheme.warning,
+        ImportAction.appendNew => TurnaTheme.leagueAmethyst,
       };
 }

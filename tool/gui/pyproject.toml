@@ -1,7 +1,7 @@
 [project]
-name = "varnamala-gui"
+name = "turna-gui"
 version = "0.1.0"
-description = "Varnamala local GUI course editor (constrained form frontend over course_cli)"
+description = "Turna local GUI course editor (constrained form frontend over course_cli)"
 requires-python = ">=3.11"
 dependencies = [
   "PySide6>=6.5",

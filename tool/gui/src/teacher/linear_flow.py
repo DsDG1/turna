@@ -33,7 +33,7 @@ class _DragDropFilter(QObject):
     ``_handle_drop(kind, source_id, pos)``.
     """
 
-    _MIME_TYPE = "application/x-varnamala-reorder"
+    _MIME_TYPE = "application/x-turna-reorder"
 
     def __init__(self, owner: "LinearFlowWidget", kind: str, item_id: str) -> None:
         super().__init__(owner)

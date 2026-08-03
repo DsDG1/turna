@@ -251,11 +251,11 @@ class UnifiedWorkspaceWidget(QWidget):
         self.right_tabs.setCurrentIndex(0)
 
     def _tips_dismissed(self) -> bool:
-        s = QSettings("Varnamala", "CourseEditor")
+        s = QSettings("Turna", "CourseEditor")
         return bool(s.value(_TIPS_DISMISSED_KEY, False))
 
     def _dismiss_banner(self) -> None:
-        s = QSettings("Varnamala", "CourseEditor")
+        s = QSettings("Turna", "CourseEditor")
         s.setValue(_TIPS_DISMISSED_KEY, True)
         self._banner.setVisible(False)
 
@@ -308,7 +308,7 @@ class UnifiedWorkspaceWidget(QWidget):
         """Persist left/right tab indices and splitter sizes for this project."""
         if not self._project_id:
             return
-        s = QSettings("Varnamala", "CourseEditor")
+        s = QSettings("Turna", "CourseEditor")
         s.setValue(self._settings_key("left_tab"), self.left_tabs.currentIndex())
         s.setValue(self._settings_key("right_tab"), self.right_tabs.currentIndex())
         s.setValue(self._settings_key("splitter"), self.splitter.saveState())
@@ -317,7 +317,7 @@ class UnifiedWorkspaceWidget(QWidget):
         """Restore tabs/splitter if previously saved; keep defaults otherwise."""
         if not self._project_id:
             return
-        s = QSettings("Varnamala", "CourseEditor")
+        s = QSettings("Turna", "CourseEditor")
         left = s.value(self._settings_key("left_tab"), None)
         right = s.value(self._settings_key("right_tab"), None)
         if left is not None:

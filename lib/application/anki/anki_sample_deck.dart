@@ -1,6 +1,6 @@
 // Project imports:
-import 'package:varnamala/application/anki/anki_models.dart';
-import 'package:varnamala/l10n/app_strings.dart';
+import 'package:turna/application/anki/anki_models.dart';
+import 'package:turna/l10n/app_strings.dart';
 
 /// Builds a small in-memory [AnkiCollection] so users can try the import
 /// wizard without picking a real `.apkg` file.

@@ -8,11 +8,11 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:drift/drift.dart';
 
 // Project imports:
-import 'package:varnamala/core/logger.dart';
-import 'package:varnamala/courses/course_loader.dart';
-import 'package:varnamala/courses/course_validator.dart';
-import 'package:varnamala/data/course_database.dart' hide Section;
-import 'package:varnamala/domain/course/section.dart';
+import 'package:turna/core/logger.dart';
+import 'package:turna/courses/course_loader.dart';
+import 'package:turna/courses/course_validator.dart';
+import 'package:turna/data/course_database.dart' hide Section;
+import 'package:turna/domain/course/section.dart';
 
 /// Seeds [CourseDatabase] from the bundled JSON assets.
 ///

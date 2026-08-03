@@ -1,6 +1,6 @@
 // Project imports:
-import 'package:varnamala/core/enums.dart';
-import 'package:varnamala/courses/alphabets/alphabets.dart';
+import 'package:turna/core/enums.dart';
+import 'package:turna/courses/alphabets/alphabets.dart';
 
 /// Single-language build: helpers return the alphabet map. The
 /// [TargetLanguage] parameter is retained as a no-op so existing call sites

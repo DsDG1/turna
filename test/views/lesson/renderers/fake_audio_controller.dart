@@ -1,4 +1,4 @@
-import 'package:varnamala/application/audio_controller.dart';
+import 'package:turna/application/audio_controller.dart';
 
 /// A no-op [AudioController] for renderer/widget tests.
 ///

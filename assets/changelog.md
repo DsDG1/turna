@@ -1,6 +1,6 @@
 # Changelog
 
-Varnamala Plus 的更新日志。本文件随发布打包到 App 资产中,由应用读取渲染。
+Turna 的更新日志。本文件随发布打包到 App 资产中,由应用读取渲染。
 完整工程说明见仓库根 `CHANGELOG.md` 与 `docs/decisions/`。
 
 ---

@@ -54,7 +54,7 @@ class BlueprintAiGenerateTest(unittest.TestCase):
 
     def setUp(self) -> None:
         qt_app()
-        self.adapter, self.tmp = real_adapter_with_course(prefix="varnamala_t08_")
+        self.adapter, self.tmp = real_adapter_with_course(prefix="turna_t08_")
         self.addCleanup(lambda: shutil.rmtree(self.tmp, ignore_errors=True))
         _s, _u, self.lesson = self.adapter.find_lesson(self._first_lesson_id())
 

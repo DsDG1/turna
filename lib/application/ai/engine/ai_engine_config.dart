@@ -1,6 +1,6 @@
 // Project imports:
-import 'package:varnamala/application/ai/ai_api_config.dart';
-import 'package:varnamala/application/ai/engine/ai_provider_preset.dart';
+import 'package:turna/application/ai/ai_api_config.dart';
+import 'package:turna/application/ai/engine/ai_provider_preset.dart';
 
 /// Strict-JSON response-format policy. Mirrors `ai/config.py:AiApiConfig.strict_schema`.
 ///

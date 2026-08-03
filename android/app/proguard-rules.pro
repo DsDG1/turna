@@ -1,4 +1,4 @@
-# Varnamala ProGuard / R8 rules
+# Turna ProGuard / R8 rules
 #
 # Keeps for code that R8 cannot see statically — FFI/JNI bindings, reflection-
 # based serialization, and generated data classes. Without these, minifyEnabled

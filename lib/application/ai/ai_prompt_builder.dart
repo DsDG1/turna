@@ -2,8 +2,8 @@
 import 'dart:convert';
 
 // Project imports:
-import 'package:varnamala/application/ai/ai_course_spec.dart';
-import 'package:varnamala/application/ai/ai_genre.dart';
+import 'package:turna/application/ai/ai_course_spec.dart';
+import 'package:turna/application/ai/ai_genre.dart';
 
 /// Prompt schema blocks mirroring
 /// `tool/gui/src/backend/ai_generator.py:_template_schema_block`,

@@ -10,13 +10,13 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/application/accessibility_provider.dart';
-import 'package:varnamala/application/language_provider.dart';
-import 'package:varnamala/application/settings_provider.dart';
-import 'package:varnamala/domain/audio/anki_audio_resolver.dart';
-import 'package:varnamala/domain/audio/vocab_audio_resolver.dart';
-import 'package:varnamala/gen/assets.gen.dart';
-import 'package:varnamala/service/tts_availability_checker.dart';
+import 'package:turna/application/accessibility_provider.dart';
+import 'package:turna/application/language_provider.dart';
+import 'package:turna/application/settings_provider.dart';
+import 'package:turna/domain/audio/anki_audio_resolver.dart';
+import 'package:turna/domain/audio/vocab_audio_resolver.dart';
+import 'package:turna/gen/assets.gen.dart';
+import 'package:turna/service/tts_availability_checker.dart';
 
 /// Which backend actually produced the last [AudioController.speak] utterance.
 enum TtsSpeakSource {

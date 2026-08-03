@@ -2,9 +2,9 @@
 // the methods they need; defaults return empty / zero.
 
 import 'package:flutter/foundation.dart';
-import 'package:varnamala/application/study_stats_provider.dart';
-import 'package:varnamala/domain/study/daily_stats.dart';
-import 'package:varnamala/domain/study/study_log.dart';
+import 'package:turna/application/study_stats_provider.dart';
+import 'package:turna/domain/study/daily_stats.dart';
+import 'package:turna/domain/study/study_log.dart';
 
 class FakeStudyStatsProvider extends ChangeNotifier
     implements StudyStatsProvider {
@@ -41,8 +41,7 @@ class FakeStudyStatsProvider extends ChangeNotifier
   Future<List<WeakWord>> getWeakWords({int limit = 10}) async => const [];
 
   @override
-  Stream<List<DailyStudyStats>> getWeeklyStatsStream() =>
-      const Stream.empty();
+  Stream<List<DailyStudyStats>> getWeeklyStatsStream() => const Stream.empty();
 
   @override
   Future<void> recordActivity({

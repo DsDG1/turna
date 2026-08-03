@@ -5,16 +5,16 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
-import 'package:varnamala/application/accessibility_provider.dart';
-import 'package:varnamala/application/audio_controller.dart';
-import 'package:varnamala/application/game_provider.dart';
-import 'package:varnamala/application/language_provider.dart';
-import 'package:varnamala/application/match_provider.dart';
-import 'package:varnamala/application/settings_provider.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/domain/audio/vocab_audio_resolver.dart';
-import 'package:varnamala/service/locator.dart';
-import 'package:varnamala/views/play/match_words.dart';
+import 'package:turna/application/accessibility_provider.dart';
+import 'package:turna/application/audio_controller.dart';
+import 'package:turna/application/game_provider.dart';
+import 'package:turna/application/language_provider.dart';
+import 'package:turna/application/match_provider.dart';
+import 'package:turna/application/settings_provider.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/domain/audio/vocab_audio_resolver.dart';
+import 'package:turna/service/locator.dart';
+import 'package:turna/views/play/match_words.dart';
 
 class _FakeFlutterTts implements FlutterTts {
   @override

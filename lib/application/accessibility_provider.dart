@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/service/locator.dart';
+import 'package:turna/service/locator.dart';
 
 /// App-wide accessibility / neurodiversity settings that persist across
 /// launches and are consumed app-wide via [ChangeNotifier].

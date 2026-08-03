@@ -5,12 +5,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
-import 'package:varnamala/application/grammar_review_provider.dart';
-import 'package:varnamala/application/lesson_link_store.dart';
-import 'package:varnamala/application/srs_provider.dart';
-import 'package:varnamala/core/sm2.dart';
-import 'package:varnamala/data/srs_state_dao.dart';
-import 'package:varnamala/service/locator.dart';
+import 'package:turna/application/grammar_review_provider.dart';
+import 'package:turna/application/lesson_link_store.dart';
+import 'package:turna/application/srs_provider.dart';
+import 'package:turna/core/sm2.dart';
+import 'package:turna/data/srs_state_dao.dart';
+import 'package:turna/service/locator.dart';
 
 import '../helpers/in_memory_course_db.dart';
 
@@ -37,7 +37,8 @@ void main() {
 
   group('GrammarReviewProvider', () {
     test('register makes a grammar point due immediately', () {
-      final grammar = GrammarReviewProvider(appPrefs, LessonLinkStore(appPrefs), dao);
+      final grammar =
+          GrammarReviewProvider(appPrefs, LessonLinkStore(appPrefs), dao);
       expect(grammar.dueCount, 0);
       grammar.registerGrammarPoint('gp.present-a');
       expect(grammar.dueCount, 1);
@@ -45,7 +46,8 @@ void main() {
     });
 
     test('registerAll is idempotent', () {
-      final grammar = GrammarReviewProvider(appPrefs, LessonLinkStore(appPrefs), dao);
+      final grammar =
+          GrammarReviewProvider(appPrefs, LessonLinkStore(appPrefs), dao);
       grammar.registerAll(['gp.a', 'gp.b', 'gp.a']);
       expect(grammar.dueCount, 2);
       grammar.registerAll(['gp.a', 'gp.b']); // no-op
@@ -53,7 +55,8 @@ void main() {
     });
 
     test('review with Good reschedules the point into the future', () async {
-      final grammar = GrammarReviewProvider(appPrefs, LessonLinkStore(appPrefs), dao);
+      final grammar =
+          GrammarReviewProvider(appPrefs, LessonLinkStore(appPrefs), dao);
       grammar.registerGrammarPoint('gp.a');
       expect(grammar.dueCount, 1);
 
@@ -67,18 +70,21 @@ void main() {
     });
 
     test('review on an unknown id returns null', () async {
-      final grammar = GrammarReviewProvider(appPrefs, LessonLinkStore(appPrefs), dao);
-      expect(await grammar.reviewWithQuality('nope', ReviewGrade.known),
-          isNull);
+      final grammar =
+          GrammarReviewProvider(appPrefs, LessonLinkStore(appPrefs), dao);
+      expect(
+          await grammar.reviewWithQuality('nope', ReviewGrade.known), isNull);
     });
 
     test('state persists across provider instances', () async {
-      final first = GrammarReviewProvider(appPrefs, LessonLinkStore(appPrefs), dao);
+      final first =
+          GrammarReviewProvider(appPrefs, LessonLinkStore(appPrefs), dao);
       first.registerGrammarPoint('gp.a');
       await first.reviewWithQuality('gp.a', ReviewGrade.known);
 
       // A new provider reading the same DB must restore the state.
-      final second = GrammarReviewProvider(appPrefs, LessonLinkStore(appPrefs), dao);
+      final second =
+          GrammarReviewProvider(appPrefs, LessonLinkStore(appPrefs), dao);
       await second.ensureLoaded();
       expect(second.totalRegistered, 1);
       expect(second.totalSeen, 1); // reps >= 1 after one review
@@ -86,11 +92,13 @@ void main() {
     });
 
     test('markDueNow registers unseen points and re-dues seen ones', () async {
-      final grammar = GrammarReviewProvider(appPrefs, LessonLinkStore(appPrefs), dao);
+      final grammar =
+          GrammarReviewProvider(appPrefs, LessonLinkStore(appPrefs), dao);
 
       await grammar.markDueNow('gp.a');
       expect(grammar.dueCount, 1);
-      expect(grammar.state['gp.a']!.dueAt.isAfter(DateTime.now().subtract(
+      expect(
+          grammar.state['gp.a']!.dueAt.isAfter(DateTime.now().subtract(
             const Duration(seconds: 2),
           )),
           isTrue);
@@ -106,7 +114,8 @@ void main() {
     });
 
     test('is isolated from the word SRS queue', () async {
-      final grammar = GrammarReviewProvider(appPrefs, LessonLinkStore(appPrefs), dao);
+      final grammar =
+          GrammarReviewProvider(appPrefs, LessonLinkStore(appPrefs), dao);
       final srs = SrsProvider(appPrefs, LessonLinkStore(appPrefs), dao);
 
       grammar.registerGrammarPoint('gp.a');
@@ -127,7 +136,8 @@ void main() {
     });
 
     test('recordLessonLinks records the grammar link type', () async {
-      final grammar = GrammarReviewProvider(appPrefs, LessonLinkStore(appPrefs), dao);
+      final grammar =
+          GrammarReviewProvider(appPrefs, LessonLinkStore(appPrefs), dao);
       grammar.registerGrammarPoint('gp.a');
       await grammar.recordLessonLinks(
         ids: ['gp.a'],

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // Project imports:
-import 'package:varnamala/views/home/components/stat_app_bar.dart';
+import 'package:turna/views/home/components/stat_app_bar.dart';
 
 void main() {
   group('AnimatedCounter', () {

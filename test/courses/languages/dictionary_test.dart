@@ -1,8 +1,8 @@
 // Project imports:
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/courses/languages/dictionary.dart';
-import 'package:varnamala/courses/languages/vocab.dart';
-import 'package:varnamala/domain/course/word_entry.dart';
+import 'package:turna/courses/languages/dictionary.dart';
+import 'package:turna/courses/languages/vocab.dart';
+import 'package:turna/domain/course/word_entry.dart';
 
 void main() {
   setUp(() {

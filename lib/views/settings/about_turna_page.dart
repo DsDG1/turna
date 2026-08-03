@@ -8,12 +8,12 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 // Project imports:
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/settings/beginner_guide_page.dart';
-import 'package:varnamala/views/settings/changelog_page.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/settings/beginner_guide_page.dart';
+import 'package:turna/views/settings/changelog_page.dart';
+import 'package:turna/views/theme.dart';
 
-/// Dedicated About page for Varnamala.
+/// Dedicated About page for Turna.
 ///
 /// Three tabs in a single Scaffold:
 ///   - **关于** (`_AboutTab`): brand header, highlights, privacy, version,
@@ -28,8 +28,8 @@ import 'package:varnamala/views/theme.dart';
 ///   - white/dark cards with soft shadow + 1px border
 ///   - peacockTeal-tinted icon tiles and version pill
 ///   - section headers rendered as a short teal bar + title (UnitHeader rhythm)
-class AboutVarnamalaPage extends StatelessWidget {
-  const AboutVarnamalaPage({super.key});
+class AboutTurnaPage extends StatelessWidget {
+  const AboutTurnaPage({super.key});
 
   Future<void> _launchUrl(String url) async {
     final uri = Uri.parse(url);
@@ -47,7 +47,7 @@ class AboutVarnamalaPage extends StatelessWidget {
     return DefaultTabController(
       length: 3,
       child: Scaffold(
-        backgroundColor: VarnamalaTheme.scaffoldBg(context),
+        backgroundColor: TurnaTheme.scaffoldBg(context),
         appBar: AppBar(
           title: Text(
             AppStrings.aboutTitle,
@@ -58,12 +58,12 @@ class AboutVarnamalaPage extends StatelessWidget {
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(48),
             child: Container(
-              color: VarnamalaTheme.scaffoldBg(context),
+              color: TurnaTheme.scaffoldBg(context),
               child: TabBar(
-                indicatorColor: VarnamalaTheme.peacockTeal,
+                indicatorColor: TurnaTheme.peacockTeal,
                 indicatorWeight: 3,
-                labelColor: VarnamalaTheme.peacockTeal,
-                unselectedLabelColor: VarnamalaTheme.textHintColor(context),
+                labelColor: TurnaTheme.peacockTeal,
+                unselectedLabelColor: TurnaTheme.textHintColor(context),
                 labelStyle: Theme.of(context).textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w700,
                     ),
@@ -78,7 +78,7 @@ class AboutVarnamalaPage extends StatelessWidget {
         ),
         body: Container(
           decoration: BoxDecoration(
-            gradient: VarnamalaTheme.courseTreeGradientFor(context),
+            gradient: TurnaTheme.courseTreeGradientFor(context),
           ),
           child: TabBarView(
             children: [
@@ -117,7 +117,7 @@ class AboutVarnamalaPage extends StatelessWidget {
   }
 }
 
-/// "关于"Tab 内容。原 AboutVarnamalaPage 主体内容抽到此处,
+/// "关于"Tab 内容。原 AboutTurnaPage 主体内容抽到此处,
 /// 顺序与样式不变,仅外层换为 Column(由 TabBarView 嵌入)。
 class _AboutTab extends StatelessWidget {
   final Future<void> Function(String url) onLaunchUrl;
@@ -145,7 +145,7 @@ class _AboutTab extends StatelessWidget {
               AppStrings.aboutWhatIsBody,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     height: 1.5,
-                    color: VarnamalaTheme.textSecondaryColor(context),
+                    color: TurnaTheme.textSecondaryColor(context),
                   ),
             ),
           ),
@@ -187,7 +187,7 @@ class _AboutTab extends StatelessWidget {
               AppStrings.aboutPrivacyBody,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     height: 1.5,
-                    color: VarnamalaTheme.textSecondaryColor(context),
+                    color: TurnaTheme.textSecondaryColor(context),
                   ),
             ),
           ),
@@ -207,7 +207,7 @@ class _AboutTab extends StatelessWidget {
                   title: AppStrings.settingsOpenSourceLicenses,
                   onTap: () => showLicensePage(
                     context: context,
-                    applicationName: 'Varnamala',
+                    applicationName: 'Turna',
                     applicationVersion: _fallbackVersion,
                   ),
                 ),
@@ -258,7 +258,7 @@ class _AboutTab extends StatelessWidget {
                   AppStrings.aboutCreditsOriginal,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         height: 1.5,
-                        color: VarnamalaTheme.textSecondaryColor(context),
+                        color: TurnaTheme.textSecondaryColor(context),
                       ),
                 ),
                 const SizedBox(height: 10),
@@ -266,14 +266,14 @@ class _AboutTab extends StatelessWidget {
                   AppStrings.aboutCreditsFork,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         height: 1.5,
-                        color: VarnamalaTheme.textSecondaryColor(context),
+                        color: TurnaTheme.textSecondaryColor(context),
                       ),
                 ),
                 const SizedBox(height: 10),
                 Text(
                   AppStrings.aboutLicense,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: VarnamalaTheme.textHintColor(context),
+                        color: TurnaTheme.textHintColor(context),
                       ),
                 ),
               ],
@@ -284,7 +284,7 @@ class _AboutTab extends StatelessWidget {
             child: Text(
               AppStrings.aboutCopyright(year.toString()),
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: VarnamalaTheme.textHintColor(context),
+                    color: TurnaTheme.textHintColor(context),
                   ),
             ),
           ),
@@ -312,7 +312,7 @@ class _SectionHeader extends StatelessWidget {
             width: 3,
             height: 18,
             decoration: BoxDecoration(
-              color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.5),
+              color: TurnaTheme.peacockTeal.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -322,7 +322,7 @@ class _SectionHeader extends StatelessWidget {
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                   fontSize: 15,
-                  color: VarnamalaTheme.textSecondaryColor(context),
+                  color: TurnaTheme.textSecondaryColor(context),
                 ),
           ),
         ],
@@ -355,10 +355,10 @@ class _BrandHeader extends StatelessWidget {
           height: 84,
           padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
-            color: VarnamalaTheme.cardBg(context),
-            borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-            border: Border.all(color: VarnamalaTheme.statCardBorder(context)),
-            boxShadow: VarnamalaTheme.softShadow,
+            color: TurnaTheme.cardBg(context),
+            borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+            border: Border.all(color: TurnaTheme.statCardBorder(context)),
+            boxShadow: TurnaTheme.softShadow,
           ),
           child: Row(
             children: [
@@ -366,13 +366,12 @@ class _BrandHeader extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.1),
-                  borderRadius:
-                      BorderRadius.circular(VarnamalaTheme.radiusMedium),
+                  color: TurnaTheme.peacockTeal.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
                 ),
                 child: const Icon(
                   Icons.school_rounded,
-                  color: VarnamalaTheme.peacockTeal,
+                  color: TurnaTheme.peacockTeal,
                   size: 24,
                 ),
               ),
@@ -387,7 +386,7 @@ class _BrandHeader extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
-                        color: VarnamalaTheme.textPrimaryColor(context),
+                        color: TurnaTheme.textPrimaryColor(context),
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -396,7 +395,7 @@ class _BrandHeader extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
-                        color: VarnamalaTheme.textSecondaryColor(context),
+                        color: TurnaTheme.textSecondaryColor(context),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -409,16 +408,15 @@ class _BrandHeader extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.1),
-                  borderRadius:
-                      BorderRadius.circular(VarnamalaTheme.radiusRound),
+                  color: TurnaTheme.peacockTeal.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
                 ),
                 child: Text(
                   displayVersion,
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: VarnamalaTheme.peacockTeal,
+                    color: TurnaTheme.peacockTeal,
                   ),
                 ),
               ),
@@ -447,10 +445,10 @@ class _AboutCard extends StatelessWidget {
       width: double.infinity,
       padding: padding,
       decoration: BoxDecoration(
-        color: VarnamalaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-        border: Border.all(color: VarnamalaTheme.statCardBorder(context)),
-        boxShadow: VarnamalaTheme.softShadow,
+        color: TurnaTheme.cardBg(context),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        border: Border.all(color: TurnaTheme.statCardBorder(context)),
+        boxShadow: TurnaTheme.softShadow,
       ),
       child: child,
     );
@@ -474,10 +472,10 @@ class _HighlightCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-        border: Border.all(color: VarnamalaTheme.statCardBorder(context)),
-        boxShadow: VarnamalaTheme.softShadow,
+        color: TurnaTheme.cardBg(context),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        border: Border.all(color: TurnaTheme.statCardBorder(context)),
+        boxShadow: TurnaTheme.softShadow,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -486,12 +484,12 @@ class _HighlightCard extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+              color: TurnaTheme.peacockTeal.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
             ),
             child: Icon(
               icon,
-              color: VarnamalaTheme.peacockTeal,
+              color: TurnaTheme.peacockTeal,
               size: 22,
             ),
           ),
@@ -503,7 +501,7 @@ class _HighlightCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   fontWeight: FontWeight.w700,
-                  color: VarnamalaTheme.textPrimaryColor(context),
+                  color: TurnaTheme.textPrimaryColor(context),
                 ),
           ),
           const SizedBox(height: 2),
@@ -513,7 +511,7 @@ class _HighlightCard extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: VarnamalaTheme.textHintColor(context),
+                  color: TurnaTheme.textHintColor(context),
                 ),
           ),
         ],
@@ -539,9 +537,9 @@ class _LinkTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+      borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
       child: InkWell(
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -551,13 +549,12 @@ class _LinkTile extends StatelessWidget {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.08),
-                  borderRadius:
-                      BorderRadius.circular(VarnamalaTheme.radiusMedium),
+                  color: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
                 ),
                 child: Icon(
                   icon,
-                  color: VarnamalaTheme.peacockTeal,
+                  color: TurnaTheme.peacockTeal,
                   size: 20,
                 ),
               ),
@@ -576,7 +573,7 @@ class _LinkTile extends StatelessWidget {
                       Text(
                         subtitle!,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: VarnamalaTheme.textHintColor(context),
+                              color: TurnaTheme.textHintColor(context),
                             ),
                       ),
                   ],
@@ -584,7 +581,7 @@ class _LinkTile extends StatelessWidget {
               ),
               Icon(
                 Icons.chevron_right_rounded,
-                color: VarnamalaTheme.textHint.withValues(alpha: 0.6),
+                color: TurnaTheme.textHint.withValues(alpha: 0.6),
               ),
             ],
           ),
@@ -601,7 +598,7 @@ class _LinkDivider extends StatelessWidget {
       height: 1,
       indent: 64,
       endIndent: 16,
-      color: VarnamalaTheme.dividerBg(context),
+      color: TurnaTheme.dividerBg(context),
     );
   }
 }
@@ -635,7 +632,7 @@ class _VersionCard extends StatelessWidget {
                       child: Text(
                         AppStrings.aboutVersionBuild(buildNumber),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: VarnamalaTheme.textHintColor(context),
+                              color: TurnaTheme.textHintColor(context),
                             ),
                       ),
                     ),
@@ -645,7 +642,7 @@ class _VersionCard extends StatelessWidget {
               Text(
                 AppStrings.aboutReleasesNote,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: VarnamalaTheme.textHintColor(context),
+                      color: TurnaTheme.textHintColor(context),
                     ),
               ),
               const SizedBox(height: 8),

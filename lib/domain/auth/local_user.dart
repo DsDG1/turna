@@ -94,7 +94,8 @@ class LocalUser {
       bio: bio ?? this.bio,
       avatarColorIndex: avatarColorIndex ?? this.avatarColorIndex,
       dailyXpGoal: dailyXpGoal ?? this.dailyXpGoal,
-      dailyStudyMinutesGoal: dailyStudyMinutesGoal ?? this.dailyStudyMinutesGoal,
+      dailyStudyMinutesGoal:
+          dailyStudyMinutesGoal ?? this.dailyStudyMinutesGoal,
       dailyLessonGoal: dailyLessonGoal ?? this.dailyLessonGoal,
     );
   }

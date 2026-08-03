@@ -5,12 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:auto_route/annotations.dart';
 
 // Project imports:
-import 'package:varnamala/application/audio_controller.dart';
-import 'package:varnamala/application/dictionary_search.dart';
-import 'package:varnamala/application/smart_speech.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/audio_controller.dart';
+import 'package:turna/application/dictionary_search.dart';
+import 'package:turna/application/smart_speech.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/theme.dart';
 
 @RoutePage()
 class DictionaryPage extends StatefulWidget {
@@ -51,7 +51,7 @@ class _DictionaryPageState extends State<DictionaryPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: VarnamalaTheme.scaffoldBg(context),
+      backgroundColor: TurnaTheme.scaffoldBg(context),
       appBar: AppBar(
         title: Text(
           AppStrings.dictionaryTitle,
@@ -71,10 +71,9 @@ class _DictionaryPageState extends State<DictionaryPage> {
                 hintText: AppStrings.dictionarySearchHint,
                 prefixIcon: const Icon(Icons.search_rounded),
                 filled: true,
-                fillColor: VarnamalaTheme.inputFillColor(context),
+                fillColor: TurnaTheme.inputFillColor(context),
                 border: OutlineInputBorder(
-                  borderRadius:
-                      BorderRadius.circular(VarnamalaTheme.radiusMedium),
+                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
                   borderSide: BorderSide.none,
                 ),
               ),
@@ -88,7 +87,7 @@ class _DictionaryPageState extends State<DictionaryPage> {
                           ? AppStrings.dictionarySearchEmpty
                           : AppStrings.dictionaryNoMatches,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: VarnamalaTheme.textHintColor(context),
+                            color: TurnaTheme.textHintColor(context),
                           ),
                       textAlign: TextAlign.center,
                     ),
@@ -133,8 +132,8 @@ class _DictionaryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: VarnamalaTheme.cardBg(context),
-      borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+      color: TurnaTheme.cardBg(context),
+      borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Row(
@@ -146,7 +145,7 @@ class _DictionaryTile extends StatelessWidget {
                   Text(
                     _kindLabel(context),
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: VarnamalaTheme.peacockTeal,
+                          color: TurnaTheme.peacockTeal,
                           fontWeight: FontWeight.w700,
                         ),
                   ),
@@ -163,7 +162,7 @@ class _DictionaryTile extends StatelessWidget {
                     Text(
                       hit.pronunciation!,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: VarnamalaTheme.textHintColor(context),
+                            color: TurnaTheme.textHintColor(context),
                             fontStyle: FontStyle.italic,
                           ),
                     ),
@@ -172,7 +171,7 @@ class _DictionaryTile extends StatelessWidget {
                   Text(
                     hit.subtitle,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: VarnamalaTheme.textSecondaryColor(context),
+                          color: TurnaTheme.textSecondaryColor(context),
                         ),
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
@@ -185,7 +184,7 @@ class _DictionaryTile extends StatelessWidget {
               onPressed: onSpeak,
               icon: const Icon(
                 Icons.volume_up_rounded,
-                color: VarnamalaTheme.peacockTeal,
+                color: TurnaTheme.peacockTeal,
               ),
             ),
           ],

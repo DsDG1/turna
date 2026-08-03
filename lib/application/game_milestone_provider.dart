@@ -5,10 +5,10 @@ import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/application/gems_provider.dart';
-import 'package:varnamala/core/achievement_config.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/service/locator.dart';
+import 'package:turna/application/gems_provider.dart';
+import 'package:turna/core/achievement_config.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/service/locator.dart';
 
 /// XP / streak milestone unlock ids + gem awards (not the UI [AchievementsProvider]).
 @lazySingleton

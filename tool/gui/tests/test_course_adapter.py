@@ -18,7 +18,7 @@ from src.backend.course_adapter import CourseAdapter  # noqa: E402
 
 class CourseAdapterRoundTripTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_gui_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_gui_"))
         self.course_dir = self.tmp / "turkish"
         copy_turkish_course(self.course_dir)
 
@@ -123,7 +123,7 @@ class CourseAdapterRoundTripTest(unittest.TestCase):
 
 class PrereqEditTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_gui_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_gui_"))
         self.course_dir = self.tmp / "turkish"
         copy_turkish_course(self.course_dir)
 
@@ -178,7 +178,7 @@ class PrereqEditTest(unittest.TestCase):
 
 class ResourceEditTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_gui_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_gui_"))
         self.course_dir = self.tmp / "turkish"
         copy_turkish_course(self.course_dir)
 
@@ -322,7 +322,7 @@ class ResourceEditTest(unittest.TestCase):
 
 class PublishFlowTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_gui_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_gui_"))
         self.course_dir = self.tmp / "turkish"
         copy_turkish_course(self.course_dir)
 
@@ -426,7 +426,7 @@ class PublishFlowTest(unittest.TestCase):
 
 class InitNewTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_init_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_init_"))
 
     def tearDown(self) -> None:
         shutil.rmtree(self.tmp, ignore_errors=True)
@@ -468,7 +468,7 @@ class InitNewTest(unittest.TestCase):
 
 class ValidateSectionJsonTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_validate_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_validate_"))
         self.course_dir = self.tmp / "turkish"
         copy_turkish_course(self.course_dir)
         self.adapter = CourseAdapter()
@@ -652,7 +652,7 @@ class ValidateSectionJsonTest(unittest.TestCase):
 
 class CourseAdapterResourcePackTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_gui_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_gui_"))
         self.course_dir = self.tmp / "turkish"
         copy_turkish_course(self.course_dir)
         self.adapter = CourseAdapter()
@@ -697,7 +697,7 @@ class CourseAdapterResourcePackTest(unittest.TestCase):
 
 class CourseAdapterDuplicateTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_gui_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_gui_"))
         self.course_dir = self.tmp / "turkish"
         copy_turkish_course(self.course_dir)
         self.adapter = CourseAdapter()
@@ -726,7 +726,7 @@ class CourseAdapterDuplicateTest(unittest.TestCase):
 
 class CourseAdapterGitSyncTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_gui_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_gui_"))
         self.course_dir = self.tmp / "turkish"
         copy_turkish_course(self.course_dir)
         self.adapter = CourseAdapter()

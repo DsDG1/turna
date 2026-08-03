@@ -5,7 +5,7 @@ import 'package:path/path.dart' as p;
 // Project imports:
 import 'anki_media_platform_stub.dart'
     if (dart.library.io) 'anki_media_platform_io.dart' as platform;
-import 'package:varnamala/domain/audio/vocab_audio_resolver.dart';
+import 'package:turna/domain/audio/vocab_audio_resolver.dart';
 
 /// Resolves Anki media assets (audio/images) from the extracted media directory.
 ///
@@ -146,7 +146,8 @@ class AnkiAudioResolver implements VocabAudioResolver {
 
   String? _safeRelativePath(String raw) {
     final normalized = raw.replaceAll('\\', '/');
-    if (normalized.isEmpty || normalized.startsWith('/') ||
+    if (normalized.isEmpty ||
+        normalized.startsWith('/') ||
         RegExp(r'^[A-Za-z]:').hasMatch(normalized)) {
       return null;
     }
@@ -159,9 +160,8 @@ class AnkiAudioResolver implements VocabAudioResolver {
     final rootPath = p.normalize(root);
     final candidatePath = p.normalize(candidate);
     if (p.equals(rootPath, candidatePath)) return true;
-    final prefix = rootPath.endsWith(p.separator)
-        ? rootPath
-        : '$rootPath${p.separator}';
+    final prefix =
+        rootPath.endsWith(p.separator) ? rootPath : '$rootPath${p.separator}';
     return candidatePath.startsWith(prefix);
   }
 

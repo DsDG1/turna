@@ -19,6 +19,24 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QFormLayout,
     QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QListWidget,
+    QListWidgetItem,
+    QMessageBox,
+    QPlainTextEdit,
+    QPushButton,
+    QTreeWidget,
+    QTreeWidgetItem,
+    QVBoxLayout,
+)
+from src.application.settings import course_clones_dir
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QFileDialog,
+    QFormLayout,
+    QHBoxLayout,
     QInputDialog,
     QLabel,
     QLineEdit,
@@ -429,7 +447,7 @@ class GitLibraryDialog(QDialog):
             if clone_root:
                 self.dir_edit.setText(clone_root)
             else:
-                default_dir = Path.home() / ".varnamala" / "course-clones"
+                default_dir = course_clones_dir()
                 self.dir_edit.setText(str(default_dir))
             lang = self._settings.default_lang_code
             if lang:
@@ -441,7 +459,7 @@ class GitLibraryDialog(QDialog):
                 self.lan_bind_combo.setCurrentIndex(bind_idx)
             self.lan_token_edit.setText(self._settings.lan_token)
         else:
-            default_dir = Path.home() / ".varnamala" / "course-clones"
+            default_dir = course_clones_dir()
             self.dir_edit.setText(str(default_dir))
 
     def _on_browse(self) -> None:

@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/views/theme.dart';
 
 /// A header label for a Unit grouping in the course tree.
 ///
@@ -22,7 +22,7 @@ class UnitHeader extends StatelessWidget {
             width: 3,
             height: 18,
             decoration: BoxDecoration(
-              color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.5),
+              color: TurnaTheme.peacockTeal.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -30,7 +30,7 @@ class UnitHeader extends StatelessWidget {
           Text(
             name,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: VarnamalaTheme.textSecondary,
+                  color: TurnaTheme.textSecondary,
                   fontWeight: FontWeight.w600,
                   fontSize: 13,
                 ),

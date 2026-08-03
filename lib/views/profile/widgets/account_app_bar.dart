@@ -6,14 +6,14 @@ import 'package:provider/provider.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 
 // Project imports:
-import 'package:varnamala/application/language_provider.dart';
-import 'package:varnamala/application/theme_provider.dart';
-import 'package:varnamala/core/extensions.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/domain/auth/local_user.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/service/locator.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/language_provider.dart';
+import 'package:turna/application/theme_provider.dart';
+import 'package:turna/core/extensions.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/domain/auth/local_user.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/service/locator.dart';
+import 'package:turna/views/theme.dart';
 
 class AccountAppBar extends StatelessWidget implements PreferredSizeWidget {
   const AccountAppBar({Key? key}) : super(key: key);
@@ -51,26 +51,26 @@ class AccountWidget extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.fromLTRB(18, 18, 14, 18),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(VarnamalaTheme.radiusXLarge),
+            borderRadius: BorderRadius.circular(TurnaTheme.radiusXLarge),
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: isDark
                   ? [
-                      VarnamalaTheme.peacockTeal.withValues(alpha: 0.35),
-                      VarnamalaTheme.peacockDeep.withValues(alpha: 0.45),
+                      TurnaTheme.peacockTeal.withValues(alpha: 0.35),
+                      TurnaTheme.peacockDeep.withValues(alpha: 0.45),
                     ]
                   : [
-                      VarnamalaTheme.peacockTeal.withValues(alpha: 0.12),
-                      VarnamalaTheme.peacockCyan.withValues(alpha: 0.18),
+                      TurnaTheme.peacockTeal.withValues(alpha: 0.12),
+                      TurnaTheme.peacockCyan.withValues(alpha: 0.18),
                     ],
             ),
             border: Border.all(
-              color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.18),
+              color: TurnaTheme.peacockTeal.withValues(alpha: 0.18),
             ),
             boxShadow: [
               BoxShadow(
-                color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.08),
+                color: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
                 blurRadius: 16,
                 offset: const Offset(0, 6),
               ),
@@ -84,16 +84,16 @@ class AccountWidget extends StatelessWidget {
                 height: 64,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.15),
+                  color: TurnaTheme.peacockTeal.withValues(alpha: 0.15),
                   border: Border.all(
-                    color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.35),
+                    color: TurnaTheme.peacockTeal.withValues(alpha: 0.35),
                     width: 2,
                   ),
                 ),
                 child: const Icon(
                   Icons.person_rounded,
                   size: 32,
-                  color: VarnamalaTheme.peacockTeal,
+                  color: TurnaTheme.peacockTeal,
                 ),
               ),
               const SizedBox(width: 14),
@@ -112,7 +112,7 @@ class AccountWidget extends StatelessWidget {
                       Text(
                         email,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: VarnamalaTheme.textHintColor(context),
+                              color: TurnaTheme.textHintColor(context),
                             ),
                       ),
                     ],
@@ -123,7 +123,7 @@ class AccountWidget extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: VarnamalaTheme.textSecondaryColor(context),
+                              color: TurnaTheme.textSecondaryColor(context),
                             ),
                       ),
                     ],
@@ -132,11 +132,11 @@ class AccountWidget extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: VarnamalaTheme.cardBg(context).withValues(
-                              alpha: isDark ? 0.35 : 0.85,
-                            ),
+                        color: TurnaTheme.cardBg(context).withValues(
+                          alpha: isDark ? 0.35 : 0.85,
+                        ),
                         borderRadius:
-                            BorderRadius.circular(VarnamalaTheme.radiusRound),
+                            BorderRadius.circular(TurnaTheme.radiusRound),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -144,7 +144,7 @@ class AccountWidget extends StatelessWidget {
                           const Icon(
                             Icons.language_rounded,
                             size: 14,
-                            color: VarnamalaTheme.peacockTeal,
+                            color: TurnaTheme.peacockTeal,
                           ),
                           const SizedBox(width: 4),
                           Text(
@@ -152,7 +152,7 @@ class AccountWidget extends StatelessWidget {
                             style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
-                              color: VarnamalaTheme.peacockTeal,
+                              color: TurnaTheme.peacockTeal,
                             ),
                           ),
                         ],
@@ -198,14 +198,14 @@ class _HeroIconButton extends StatelessWidget {
     return Tooltip(
       message: tooltip,
       child: Material(
-        color: VarnamalaTheme.cardBg(context).withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusRound),
+        color: TurnaTheme.cardBg(context).withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusRound),
+          borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
           child: Padding(
             padding: const EdgeInsets.all(8),
-            child: Icon(icon, size: 20, color: VarnamalaTheme.peacockTeal),
+            child: Icon(icon, size: 20, color: TurnaTheme.peacockTeal),
           ),
         ),
       ),
@@ -230,9 +230,8 @@ class _ThemeToggle extends StatelessWidget {
               Icon(
                 Icons.light_mode_rounded,
                 size: 18,
-                color: current == ThemeMode.light
-                    ? VarnamalaTheme.peacockTeal
-                    : null,
+                color:
+                    current == ThemeMode.light ? TurnaTheme.peacockTeal : null,
               ),
               const SizedBox(width: 8),
               Text(
@@ -253,9 +252,8 @@ class _ThemeToggle extends StatelessWidget {
               Icon(
                 Icons.dark_mode_rounded,
                 size: 18,
-                color: current == ThemeMode.dark
-                    ? VarnamalaTheme.peacockTeal
-                    : null,
+                color:
+                    current == ThemeMode.dark ? TurnaTheme.peacockTeal : null,
               ),
               const SizedBox(width: 8),
               Text(
@@ -276,9 +274,8 @@ class _ThemeToggle extends StatelessWidget {
               Icon(
                 Icons.settings_suggest_rounded,
                 size: 18,
-                color: current == ThemeMode.system
-                    ? VarnamalaTheme.peacockTeal
-                    : null,
+                color:
+                    current == ThemeMode.system ? TurnaTheme.peacockTeal : null,
               ),
               const SizedBox(width: 8),
               Text(
@@ -296,8 +293,8 @@ class _ThemeToggle extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: VarnamalaTheme.cardBg(context).withValues(alpha: 0.7),
-          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusRound),
+          color: TurnaTheme.cardBg(context).withValues(alpha: 0.7),
+          borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
         ),
         child: Icon(
           current == ThemeMode.dark
@@ -306,7 +303,7 @@ class _ThemeToggle extends StatelessWidget {
                   ? Icons.light_mode_rounded
                   : Icons.settings_suggest_rounded,
           size: 20,
-          color: VarnamalaTheme.peacockTeal,
+          color: TurnaTheme.peacockTeal,
         ),
       ),
     );

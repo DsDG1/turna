@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/settings_provider.dart';
-import 'package:varnamala/views/settings/widgets/settings_common.dart';
-import 'package:varnamala/views/settings/widgets/settings_sound_section.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/settings_provider.dart';
+import 'package:turna/views/settings/widgets/settings_common.dart';
+import 'package:turna/views/settings/widgets/settings_sound_section.dart';
+import 'package:turna/views/theme.dart';
 
 /// "高级"设置分类:Anki 深度适配的可调项(deep-adaptation plan)。
 /// 影响 WebView 保真轨的 JS/解密行为 + Lite 导入阈值。改前请看底部说明。
@@ -64,7 +64,7 @@ class SettingsAdvancedSection extends StatelessWidget {
             '智能去解密:首次复习用 WebView 跑模板 JS 解密 + 缓存明文,之后无 JS/联网。'
             '强制禁用 JS 会让加密牌组显示密文。'
             'Lite 阈值=0 表示始终建完整课程树(不切壳模式)。',
-            style: TextStyle(fontSize: 12, color: VarnamalaTheme.textHint),
+            style: TextStyle(fontSize: 12, color: TurnaTheme.textHint),
           ),
         ),
       ],
@@ -98,12 +98,11 @@ class _CaptureDelayTileState extends State<_CaptureDelayTile> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.08),
-                  borderRadius:
-                      BorderRadius.circular(VarnamalaTheme.radiusMedium),
+                  color: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
                 ),
                 child: const Icon(Icons.timer_outlined,
-                    color: VarnamalaTheme.peacockTeal, size: 20),
+                    color: TurnaTheme.peacockTeal, size: 20),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -111,19 +110,19 @@ class _CaptureDelayTileState extends State<_CaptureDelayTile> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text('抓取延时',
-                        style:
-                            TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                        style: TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 15)),
                     Text(
                       'JS 跑完后等几秒抓明文(当前 ${value.round()} 秒)',
-                      style: TextStyle(
-                          fontSize: 12, color: VarnamalaTheme.textHint),
+                      style:
+                          TextStyle(fontSize: 12, color: TurnaTheme.textHint),
                     ),
                   ],
                 ),
               ),
               Text('${value.round()}s',
                   style: const TextStyle(
-                      color: VarnamalaTheme.peacockTeal,
+                      color: TurnaTheme.peacockTeal,
                       fontWeight: FontWeight.w700)),
             ],
           ),
@@ -132,12 +131,14 @@ class _CaptureDelayTileState extends State<_CaptureDelayTile> {
             min: 1,
             max: 10,
             divisions: 9,
-            activeColor: VarnamalaTheme.peacockTeal,
+            activeColor: TurnaTheme.peacockTeal,
             label: '${value.round()}s',
             onChanged: (v) => setState(() => _drag = v),
             onChangeEnd: (v) {
               _drag = null;
-              context.read<SettingsProvider>().setAnkiCaptureDelaySec(v.round());
+              context
+                  .read<SettingsProvider>()
+                  .setAnkiCaptureDelaySec(v.round());
             },
           ),
         ],
@@ -172,12 +173,11 @@ class _LiteThresholdTileState extends State<_LiteThresholdTile> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.08),
-                  borderRadius:
-                      BorderRadius.circular(VarnamalaTheme.radiusMedium),
+                  color: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
                 ),
                 child: const Icon(Icons.layers_rounded,
-                    color: VarnamalaTheme.peacockTeal, size: 20),
+                    color: TurnaTheme.peacockTeal, size: 20),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -185,12 +185,12 @@ class _LiteThresholdTileState extends State<_LiteThresholdTile> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text('Lite 阈值',
-                        style:
-                            TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                        style: TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 15)),
                     Text(
                       '超过此卡数的牌组只建壳(当前 ${value.round()} 张,0=始终完整)',
-                      style: TextStyle(
-                          fontSize: 12, color: VarnamalaTheme.textHint),
+                      style:
+                          TextStyle(fontSize: 12, color: TurnaTheme.textHint),
                     ),
                   ],
                 ),
@@ -198,8 +198,7 @@ class _LiteThresholdTileState extends State<_LiteThresholdTile> {
               Text(
                 value.round() == 0 ? '关' : '${value.round()}',
                 style: const TextStyle(
-                    color: VarnamalaTheme.peacockTeal,
-                    fontWeight: FontWeight.w700),
+                    color: TurnaTheme.peacockTeal, fontWeight: FontWeight.w700),
               ),
             ],
           ),
@@ -208,7 +207,7 @@ class _LiteThresholdTileState extends State<_LiteThresholdTile> {
             min: 0,
             max: 10000,
             divisions: 100,
-            activeColor: VarnamalaTheme.peacockTeal,
+            activeColor: TurnaTheme.peacockTeal,
             onChanged: (v) => setState(() => _drag = v),
             onChangeEnd: (v) {
               _drag = null;

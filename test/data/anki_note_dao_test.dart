@@ -7,10 +7,10 @@
 // Project imports:
 import 'package:drift/drift.dart' show Variable;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/application/anki/anki_models.dart';
-import 'package:varnamala/data/anki_import_dao.dart';
-import 'package:varnamala/data/anki_note_dao.dart';
-import 'package:varnamala/data/course_database.dart';
+import 'package:turna/application/anki/anki_models.dart';
+import 'package:turna/data/anki_import_dao.dart';
+import 'package:turna/data/anki_note_dao.dart';
+import 'package:turna/data/course_database.dart';
 
 import '../helpers/in_memory_course_db.dart';
 
@@ -211,13 +211,25 @@ void main() {
   test('wordIdsForDecks returns word ids for cards in the given decks only',
       () async {
     await noteDao.upsertCardMeta(const AnkiCardMetaRecord(
-      importId: 'imp1', cardId: 1, noteId: 1, did: 10, wordId: 'w-1',
+      importId: 'imp1',
+      cardId: 1,
+      noteId: 1,
+      did: 10,
+      wordId: 'w-1',
     ));
     await noteDao.upsertCardMeta(const AnkiCardMetaRecord(
-      importId: 'imp1', cardId: 2, noteId: 2, did: 11, wordId: 'w-2',
+      importId: 'imp1',
+      cardId: 2,
+      noteId: 2,
+      did: 11,
+      wordId: 'w-2',
     ));
     await noteDao.upsertCardMeta(const AnkiCardMetaRecord(
-      importId: 'imp1', cardId: 3, noteId: 3, did: 99, wordId: 'w-3',
+      importId: 'imp1',
+      cardId: 3,
+      noteId: 3,
+      did: 99,
+      wordId: 'w-3',
     ));
 
     final inSubtree = await noteDao.wordIdsForDecks('imp1', {10, 11});

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Build the Varnamala GUI into a single-file executable (guiplan §9 M5.2).
+"""Build the Turna GUI into a single-file executable (guiplan §9 M5.2).
 
-Wraps PyInstaller with the bundled `varnamala_gui.spec`. Intended for local
+Wraps PyInstaller with the bundled `turna_gui.spec`. Intended for local
 host builds -- PyInstaller (like PySide6) cannot be pip-installed in the TRAE
 sandbox, so the produced exe must be verified on the developer's machine.
 
@@ -20,7 +20,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-SPEC = ROOT / "tool" / "gui" / "varnamala_gui.spec"
+SPEC = ROOT / "tool" / "gui" / "turna_gui.spec"
 
 
 def require_pyinstaller() -> str:
@@ -58,7 +58,7 @@ def build(clean: bool, onedir: bool) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Build the Varnamala GUI exe.")
+    parser = argparse.ArgumentParser(description="Build the Turna GUI exe.")
     parser.add_argument("--clean", action="store_true", help="Remove build/ and dist/ first.")
     parser.add_argument("--onedir", action="store_true", help="Build onedir instead of onefile.")
     args = parser.parse_args(argv)

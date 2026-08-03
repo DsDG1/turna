@@ -15,31 +15,33 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
-import 'package:varnamala/application/ai/ai_course_provider.dart';
-import 'package:varnamala/application/ai/engine/ai_cache.dart';
-import 'package:varnamala/application/ai/engine/ai_cancel_token.dart';
-import 'package:varnamala/application/ai/engine/ai_engine.dart';
-import 'package:varnamala/application/ai/engine/ai_engine_config.dart';
-import 'package:varnamala/application/ai/engine/ai_http_client.dart';
-import 'package:varnamala/application/ai/engine/ai_provider_preset.dart';
-import 'package:varnamala/application/mistake_provider.dart';
-import 'package:varnamala/application/srs_tutor_provider.dart';
-import 'package:varnamala/data/course_database.dart' as db;
-import 'package:varnamala/data/course_repository.dart';
-import 'package:varnamala/data/srs_state_dao.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/domain/repositories/i_course_repository.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/domain/course/mistake_entry.dart';
-import 'package:varnamala/domain/course/srs_word.dart';
-import 'package:varnamala/service/locator.dart';
+import 'package:turna/application/ai/ai_course_provider.dart';
+import 'package:turna/application/ai/engine/ai_cache.dart';
+import 'package:turna/application/ai/engine/ai_cancel_token.dart';
+import 'package:turna/application/ai/engine/ai_engine.dart';
+import 'package:turna/application/ai/engine/ai_engine_config.dart';
+import 'package:turna/application/ai/engine/ai_http_client.dart';
+import 'package:turna/application/ai/engine/ai_provider_preset.dart';
+import 'package:turna/application/mistake_provider.dart';
+import 'package:turna/application/srs_tutor_provider.dart';
+import 'package:turna/data/course_database.dart' as db;
+import 'package:turna/data/course_repository.dart';
+import 'package:turna/data/srs_state_dao.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/domain/repositories/i_course_repository.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/domain/course/mistake_entry.dart';
+import 'package:turna/domain/course/srs_word.dart';
+import 'package:turna/service/locator.dart';
 
 import '../helpers/in_memory_course_db.dart';
 
 http.Response _sectionResponse(Map<String, dynamic> section) {
   final body = jsonEncode({
     'choices': [
-      {'message': {'role': 'assistant', 'content': jsonEncode(section)}},
+      {
+        'message': {'role': 'assistant', 'content': jsonEncode(section)}
+      },
     ],
   });
   return http.Response.bytes(
@@ -58,7 +60,8 @@ AiEngineConfig _engineConfig() => const AiEngineConfig(
       cacheEnabled: false,
     );
 
-Map<String, dynamic> _validSection({String id = 'tutor-x'}) => <String, dynamic>{
+Map<String, dynamic> _validSection({String id = 'tutor-x'}) =>
+    <String, dynamic>{
       'id': id,
       'name': 'Tutor Test',
       'level': 'A1',
@@ -118,23 +121,19 @@ class _FakeSrsStateDao implements SrsStateDao {
     int limit = 20,
     DateTime? since,
   }) async {
-    var filtered = _rows
-        .where((w) => w.lastReviewedAt != null)
-        .toList()
+    var filtered = _rows.where((w) => w.lastReviewedAt != null).toList()
       ..sort((a, b) => b.lastReviewedAt!.compareTo(a.lastReviewedAt!));
     if (since != null) {
-      filtered = filtered
-          .where((w) => !w.lastReviewedAt!.isBefore(since))
-          .toList();
+      filtered =
+          filtered.where((w) => !w.lastReviewedAt!.isBefore(since)).toList();
     }
     if (limit <= 0) return const <SrsWord>[];
     return filtered.take(limit).toList();
   }
 
   @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      throw UnimplementedError(
-          'SrsStateDao fake does not implement ${invocation.memberName}');
+  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError(
+      'SrsStateDao fake does not implement ${invocation.memberName}');
 }
 
 class _RecordingAiCourseProvider extends AiCourseProvider {
@@ -262,8 +261,8 @@ void main() {
     expect(capturedBody, isNotNull);
     final body = jsonDecode(capturedBody!) as Map<String, dynamic>;
     final messages = (body['messages'] as List).cast<Map<String, dynamic>>();
-    final userPrompt = messages
-        .firstWhere((m) => m['role'] == 'user')['content'] as String;
+    final userPrompt =
+        messages.firstWhere((m) => m['role'] == 'user')['content'] as String;
     expect(userPrompt, contains('w1'));
     expect(userPrompt, contains('w2'));
     expect(userPrompt, contains('Recent mistakes'));
@@ -352,7 +351,8 @@ void main() {
     );
     final provider = SrsTutorProvider(
       engine: engine,
-      courseProvider: _RecordingAiCourseProvider(_validSection(), engine: engine),
+      courseProvider:
+          _RecordingAiCourseProvider(_validSection(), engine: engine),
       mistakeProvider: mistakes,
       srsDao: srsDao,
     );

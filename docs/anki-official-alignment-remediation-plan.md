@@ -42,7 +42,7 @@ Collection
   └─ Revlog：每次评分记录
 ```
 
-Varnamala 可以在此模型上增加“课程导航”和“结构化练习”，但不能反向改变原始 Card 的含义。
+Turna 可以在此模型上增加“课程导航”和“结构化练习”，但不能反向改变原始 Card 的含义。
 
 ## 3. 当前问题与根因
 
@@ -77,7 +77,7 @@ Varnamala 可以在此模型上增加“课程导航”和“结构化练习”�
 
 ### 3.3 与 Anki 语义的根本偏差
 
-当前架构把“能否转成 Varnamala Interaction”当成卡片是否可用的前提。Anki 的正确前提应是“Card 能否按 qfmt/afmt 渲染并完成自评”。结构化选择题只是一种可选增强。
+当前架构把“能否转成 Turna Interaction”当成卡片是否可用的前提。Anki 的正确前提应是“Card 能否按 qfmt/afmt 渲染并完成自评”。结构化选择题只是一种可选增强。
 
 ## 4. 目标架构
 
@@ -210,7 +210,7 @@ Canonical Anki Store（唯一主数据）
 ### 阶段 A：包读取与格式识别
 
 1. 在临时目录解包，进行路径穿越、绝对路径、超大压缩比、总展开大小和文件数限制。
-2. 明确区分 `.apkg` 与 `.colpkg`；Varnamala 不执行 Anki `.colpkg` 的“替换整个 collection”语义，而应在 UI 中说明“作为新的本地 Anki 课程导入”。
+2. 明确区分 `.apkg` 与 `.colpkg`；Turna 不执行 Anki `.colpkg` 的“替换整个 collection”语义，而应在 UI 中说明“作为新的本地 Anki 课程导入”。
 3. 支持并测试传统与现代 package 变体；未知格式必须报明确错误，不能返回空集合。
 4. 媒体文件只允许通过导入专属目录解析，WebView 禁止任意 `file://`、外部网络和跨导入访问。
 
@@ -377,7 +377,7 @@ Question → 用户回忆/可选作答 → Show Answer → 展示完整 Answer
 产品必须明确显示兼容等级：
 
 - **Reset**：忽略源学习进度，所有 Card 作为新卡；对共享 `.apkg` 建议默认使用。
-- **Migrate snapshot**：迁移 queue/due/ivl/factor/reps/lapses/revlog，再由 Varnamala 调度器继续；明确标记“近似迁移，不保证与同版本 Anki 下一间隔完全一致”。
+- **Migrate snapshot**：迁移 queue/due/ivl/factor/reps/lapses/revlog，再由 Turna 调度器继续；明确标记“近似迁移，不保证与同版本 Anki 下一间隔完全一致”。
 - **Exact backend（远期）**：只有集成并持续跟进 Anki 官方调度后端/等价实现后，才可宣称精确兼容。
 
 导入 UI 必须让用户选择是否导入学习进度。不能仅因为包内存在调度数据就默认采用。
@@ -709,7 +709,7 @@ UI 提供与现代 Anki 类似的更新选项：
 
 - 本计划不宣称实现 AnkiWeb 同步。
 - 在未使用 Anki 官方调度后端前，不宣称下一间隔与当前 Anki 完全一致。
-- 不自动执行 `.colpkg` 覆盖 Varnamala 全部本地数据的官方桌面行为。
+- 不自动执行 `.colpkg` 覆盖 Turna 全部本地数据的官方桌面行为。
 - 不把 AI 识别包装成 Anki 官方功能。
 - 不保证任意第三方 add-on JS 都可运行；不能运行时必须安全降级并可诊断。
 - 不从 Anki 源码复制受许可证约束的大段实现；若未来集成官方后端，需要单独完成许可证与分发评审。

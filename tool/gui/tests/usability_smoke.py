@@ -88,7 +88,7 @@ def _walk_items(lesson: dict) -> list[dict]:
 
 def main() -> int:
     report: list[str] = []
-    tmp = Path(tempfile.mkdtemp(prefix="varnamala_usability_"))
+    tmp = Path(tempfile.mkdtemp(prefix="turna_usability_"))
     try:
         course_dir = tmp / "my-course"
 

@@ -30,7 +30,7 @@ from src.backend.lesson_content import (  # noqa: E402
 
 class NewLessonRoundTripTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_m2_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_m2_"))
         self.course_dir = self.tmp / "turkish"
         copy_turkish_course(self.course_dir)
 

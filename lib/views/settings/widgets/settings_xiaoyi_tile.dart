@@ -2,11 +2,11 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/service/xiaoyi_service.dart';
-import 'package:varnamala/views/settings/widgets/settings_common.dart';
-import 'package:varnamala/views/settings/widgets/settings_sound_section.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/service/xiaoyi_service.dart';
+import 'package:turna/views/settings/widgets/settings_common.dart';
+import 'package:turna/views/settings/widgets/settings_sound_section.dart';
 
 /// A toggle that lets the learner hand practice-question explanations to
 /// HarmonyOS 小艺 instead of the configured DeepSeek endpoint. Renders only

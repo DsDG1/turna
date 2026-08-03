@@ -1,10 +1,10 @@
-# Varnamala - Language Learning App
+# Turna - Language Learning App
 
 > 当前状态：future4 框架已完成，并完成 Swahili→Turkish 迁移（ADR 0020）。真实 Turkish 内容已填充 Section 1 问候语单元（8 词 + 2 表达），Sections 2–8 仍为占位。最新内容清单见 [`docs/content_inventory_current.md`](./docs/content_inventory_current.md)，决策记录见 [`docs/decisions/`](./docs/decisions/)。
 
 ## Project Overview
 
-**Varnamala** is a Flutter-based, local-first language learning framework. Currently focused on **Turkish** as the primary target language. Ships 8 CEFR-graded sections (A1→B2) with inter-section prerequisites; Section 1 contains a real greetings lesson (8 vocab words + 2 expressions), while Sections 2–8 are metadata-only placeholders awaiting content authoring (see ADR 0020 and `docs/content_inventory_current.md`). The app follows a clean architecture pattern and is entirely offline — no Firebase backend, no social features, no pay-to-win mechanics.
+**Turna** is a Flutter-based, local-first language learning framework. Currently focused on **Turkish** as the primary target language. Ships 8 CEFR-graded sections (A1→B2) with inter-section prerequisites; Section 1 contains a real greetings lesson (8 vocab words + 2 expressions), while Sections 2–8 are metadata-only placeholders awaiting content authoring (see ADR 0020 and `docs/content_inventory_current.md`). The app follows a clean architecture pattern and is entirely offline — no Firebase backend, no social features, no pay-to-win mechanics.
 
 ---
 
@@ -53,7 +53,7 @@ lib/
     ├── play/          # Play hub (Match Madness, SRS Review, Mistakes, Weak Words)
     ├── profile/       # User profile + settings (reminder, theme, sound)
     ├── review/        # SRS review + mistake list + weak-word review
-    ├── theme.dart     # VarnamalaTheme: light/dark ThemeData + semantic color helpers
+    ├── theme.dart     # TurnaTheme: light/dark ThemeData + semantic color helpers
     └── weak_words/    # Weak-word review UI
 ```
 
@@ -122,9 +122,9 @@ lib/
 
 ## UI Theming Guidelines
 
-### VarnamalaTheme (lib/views/theme.dart)
+### TurnaTheme (lib/views/theme.dart)
 
-The app uses a single `VarnamalaTheme` class that provides both `lightTheme` and `darkTheme` `ThemeData` getters, plus a suite of **semantic color helpers** that adapt to the current `Brightness` via `BuildContext`:
+The app uses a single `TurnaTheme` class that provides both `lightTheme` and `darkTheme` `ThemeData` getters, plus a suite of **semantic color helpers** that adapt to the current `Brightness` via `BuildContext`:
 
 ```dart
 // Theme-aware helpers — use these instead of hard-coded Colors.white
@@ -280,7 +280,7 @@ make build-release
 | `lib/views/dictionary/dictionary_page.dart` | Dictionary / search |
 | `lib/views/weak_words/weak_words_page.dart` | Weak-word review |
 | `lib/views/profile/widgets/learning_stats.dart` | Profile learning statistics dashboard |
-| `lib/views/theme.dart` | VarnamalaTheme: light/dark ThemeData + semantic color helpers |
+| `lib/views/theme.dart` | TurnaTheme: light/dark ThemeData + semantic color helpers |
 | `tool/build_release.py` | One-command release builder |
 | `docs/decisions/0018-future4-completion-and-content-handoff.md` | Completed framework plan |
 | `docs/decisions/0020-swahili-to-turkish-pivot.md` | Swahili→Turkish pivot migration plan |

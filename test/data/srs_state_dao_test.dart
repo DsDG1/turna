@@ -2,8 +2,8 @@
 // `srs_states` table, queue isolation, prefix delete, and clear.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/data/srs_state_dao.dart';
-import 'package:varnamala/domain/course/srs_word.dart';
+import 'package:turna/data/srs_state_dao.dart';
+import 'package:turna/domain/course/srs_word.dart';
 
 import '../helpers/in_memory_course_db.dart';
 

@@ -1,11 +1,11 @@
-"""Global Qt stylesheet and font setup for the Varnamala GUI course editor.
+"""Global Qt stylesheet and font setup for the Turna GUI course editor.
 
 Theming is intentionally centralized so the desktop app feels like a modern
 content-editing tool rather than a raw Qt form.  Call :func:`apply_theme` once
 after the QApplication is created.
 
 Design language: **Peacock** - aligned with the Flutter app's
-``VarnamalaTheme`` (``lib/views/theme.dart``). The accent family is teal /
+``TurnaTheme`` (``lib/views/theme.dart``). The accent family is teal /
 cyan / turquoise. Four themes are supported: ``dark`` (default), ``light``,
 ``high-contrast-dark``, and ``high-contrast-light``.
 

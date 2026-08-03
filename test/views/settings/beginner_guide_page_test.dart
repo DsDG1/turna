@@ -10,14 +10,14 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/settings/beginner_guide_page.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/settings/beginner_guide_page.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   const fakeQuickStart = '''
-# Varnamala Plus 使用指南
+# Turna 使用指南
 
 ---
 
@@ -56,7 +56,8 @@ void main() {
     return null;
   }
 
-  Future<void> installHandler(Future<ByteData?> Function(ByteData?) handler) async {
+  Future<void> installHandler(
+      Future<ByteData?> Function(ByteData?) handler) async {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMessageHandler('flutter/assets', handler);
   }

@@ -3,10 +3,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
-import 'package:varnamala/application/gems_provider.dart';
-import 'package:varnamala/data/study_log_repository.dart';
-import 'package:varnamala/domain/study/study_log.dart';
-import 'package:varnamala/service/locator.dart';
+import 'package:turna/application/gems_provider.dart';
+import 'package:turna/data/study_log_repository.dart';
+import 'package:turna/domain/study/study_log.dart';
+import 'package:turna/service/locator.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -29,7 +29,9 @@ void main() {
     // deltas. With the write-chain serializing, the final total is 10.
     await Future.wait(List.generate(10, (_) => gems.addGems(1)));
     expect(
-      prefs.preferences.getInt(LocalStateKeys.gems, defaultValue: -1).getValue(),
+      prefs.preferences
+          .getInt(LocalStateKeys.gems, defaultValue: -1)
+          .getValue(),
       10,
     );
   });
@@ -42,12 +44,15 @@ void main() {
       gems.addGems(0),
     ]);
     expect(
-      prefs.preferences.getInt(LocalStateKeys.gems, defaultValue: -1).getValue(),
+      prefs.preferences
+          .getInt(LocalStateKeys.gems, defaultValue: -1)
+          .getValue(),
       0,
     );
   });
 
-  test('StudyLogRepository serializes concurrent appendLog so lessonCount adds up',
+  test(
+      'StudyLogRepository serializes concurrent appendLog so lessonCount adds up',
       () async {
     final repo = StudyLogRepository(prefs);
     // Fire 5 simultaneous logs of the same day; lessonCount must equal 5.

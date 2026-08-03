@@ -3,8 +3,8 @@ import 'package:drift/drift.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/data/course_database.dart';
-import 'package:varnamala/domain/course/srs_word.dart';
+import 'package:turna/data/course_database.dart';
+import 'package:turna/domain/course/srs_word.dart';
 
 /// Data access object for the `srs_states` table - the durable store for
 /// [SrsWord] scheduling state (migrated from a prefs JSON blob in schema v7).

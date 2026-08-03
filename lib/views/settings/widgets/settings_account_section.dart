@@ -6,27 +6,27 @@ import 'package:provider/provider.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 
 // Project imports:
-import 'package:varnamala/application/game_provider.dart';
-import 'package:varnamala/application/grammar_review_provider.dart';
-import 'package:varnamala/application/mistake_provider.dart';
-import 'package:varnamala/application/srs_provider.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/domain/auth/local_user.dart';
-import 'package:varnamala/service/locator.dart';
-import 'package:varnamala/views/settings/widgets/settings_common.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/game_provider.dart';
+import 'package:turna/application/grammar_review_provider.dart';
+import 'package:turna/application/mistake_provider.dart';
+import 'package:turna/application/srs_provider.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/domain/auth/local_user.dart';
+import 'package:turna/service/locator.dart';
+import 'package:turna/views/settings/widgets/settings_common.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/theme.dart';
 
 /// Available avatar background colors indexed by [LocalUser.avatarColorIndex].
 const _avatarColors = <Color>[
-  VarnamalaTheme.peacockTeal,
-  VarnamalaTheme.peacockCyan,
-  VarnamalaTheme.peacockTurquoise,
-  VarnamalaTheme.peacockMint,
-  VarnamalaTheme.error,
-  VarnamalaTheme.warning,
-  VarnamalaTheme.leagueEmerald,
-  VarnamalaTheme.leagueAmethyst,
+  TurnaTheme.peacockTeal,
+  TurnaTheme.peacockCyan,
+  TurnaTheme.peacockTurquoise,
+  TurnaTheme.peacockMint,
+  TurnaTheme.error,
+  TurnaTheme.warning,
+  TurnaTheme.leagueEmerald,
+  TurnaTheme.leagueAmethyst,
 ];
 
 /// Preset daily XP goal values for the slider.
@@ -85,7 +85,8 @@ class _ProfileCard extends StatelessWidget {
         final email = user.email ?? '';
         final bio = user.bio;
         final avatarColorIndex = user.avatarColorIndex ?? 0;
-        final avatarColor = _avatarColors[avatarColorIndex.clamp(0, _avatarColors.length - 1)];
+        final avatarColor =
+            _avatarColors[avatarColorIndex.clamp(0, _avatarColors.length - 1)];
         final initials = _initials(displayName);
 
         return SettingsCard(
@@ -136,9 +137,8 @@ class _ProfileCard extends StatelessWidget {
                                   .bodySmall
                                   ?.copyWith(
                                     color: bio?.isNotEmpty == true
-                                        ? VarnamalaTheme.textSecondaryColor(
-                                            context)
-                                        : VarnamalaTheme.textHintColor(context),
+                                        ? TurnaTheme.textSecondaryColor(context)
+                                        : TurnaTheme.textHintColor(context),
                                     fontStyle: bio?.isNotEmpty == true
                                         ? FontStyle.italic
                                         : FontStyle.normal,
@@ -154,8 +154,7 @@ class _ProfileCard extends StatelessWidget {
                                     .textTheme
                                     .bodySmall
                                     ?.copyWith(
-                                      color: VarnamalaTheme.textHintColor(
-                                          context),
+                                      color: TurnaTheme.textHintColor(context),
                                     ),
                               ),
                             ],
@@ -165,7 +164,7 @@ class _ProfileCard extends StatelessWidget {
                       IconButton(
                         icon: const Icon(Icons.edit_rounded, size: 20),
                         tooltip: AppStrings.accountEditName,
-                        color: VarnamalaTheme.peacockTeal,
+                        color: TurnaTheme.peacockTeal,
                         onPressed: () => _showEditNameDialog(context, user),
                       ),
                     ],
@@ -203,7 +202,7 @@ class _ProfileCard extends StatelessWidget {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: VarnamalaTheme.cardBg(context),
+      backgroundColor: TurnaTheme.cardBg(context),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -223,7 +222,7 @@ class _ProfileCard extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+          borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
         ),
         title: Text(AppStrings.accountAvatarTitle),
         content: SizedBox(
@@ -243,9 +242,8 @@ class _ProfileCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: color.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
-                    border: isSelected
-                        ? Border.all(color: color, width: 3)
-                        : null,
+                    border:
+                        isSelected ? Border.all(color: color, width: 3) : null,
                   ),
                   child: Center(
                     child: Icon(
@@ -404,8 +402,7 @@ class _LearningGoalsSection extends StatelessWidget {
                   title: AppStrings.accountDailyStudyGoal,
                   value: user.dailyStudyMinutesGoal ?? 30,
                   steps: _studyMinuteSteps,
-                  formatValue: (v) =>
-                      AppStrings.accountDailyStudyGoalValue(v),
+                  formatValue: (v) => AppStrings.accountDailyStudyGoalValue(v),
                   onChanged: (v) =>
                       _updateUser(user.copyWith(dailyStudyMinutesGoal: v)),
                 ),
@@ -415,7 +412,8 @@ class _LearningGoalsSection extends StatelessWidget {
                   title: AppStrings.accountDailyLessonGoal,
                   value: user.dailyLessonGoal ?? 5,
                   steps: _lessonGoalSteps,
-                  formatValue: (v) => AppStrings.accountLessonsCompletedValue(v),
+                  formatValue: (v) =>
+                      AppStrings.accountLessonsCompletedValue(v),
                   onChanged: (v) =>
                       _updateUser(user.copyWith(dailyLessonGoal: v)),
                 ),
@@ -487,13 +485,12 @@ class _GoalSliderTileState extends State<_GoalSliderTile> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.08),
-                  borderRadius:
-                      BorderRadius.circular(VarnamalaTheme.radiusMedium),
+                  color: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
                 ),
                 child: Icon(
                   widget.icon,
-                  color: VarnamalaTheme.peacockTeal,
+                  color: TurnaTheme.peacockTeal,
                   size: 20,
                 ),
               ),
@@ -509,7 +506,7 @@ class _GoalSliderTileState extends State<_GoalSliderTile> {
               Text(
                 widget.formatValue(_value),
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: VarnamalaTheme.peacockTeal,
+                      color: TurnaTheme.peacockTeal,
                       fontWeight: FontWeight.w700,
                     ),
               ),
@@ -523,8 +520,8 @@ class _GoalSliderTileState extends State<_GoalSliderTile> {
               min: 0,
               max: divisions.toDouble(),
               divisions: divisions,
-              activeColor: VarnamalaTheme.peacockTeal,
-              inactiveColor: VarnamalaTheme.dividerBg(context),
+              activeColor: TurnaTheme.peacockTeal,
+              inactiveColor: TurnaTheme.dividerBg(context),
               onChanged: (index) {
                 final stepIndex = index.round().clamp(0, divisions);
                 final newValue = widget.steps[stepIndex];
@@ -593,28 +590,28 @@ class _StatsSection extends StatelessWidget {
           children: [
             _StatRow(
               icon: Icons.local_fire_department_rounded,
-              iconColor: VarnamalaTheme.warning,
+              iconColor: TurnaTheme.warning,
               label: AppStrings.accountStreak,
               value: AppStrings.accountStreakValue(stats.streak),
             ),
             settingsTileDivider(context),
             _StatRow(
               icon: Icons.star_rounded,
-              iconColor: VarnamalaTheme.peacockTeal,
+              iconColor: TurnaTheme.peacockTeal,
               label: AppStrings.profileTotalXp,
               value: _formatNumber(stats.score),
             ),
             settingsTileDivider(context),
             _StatRow(
               icon: Icons.diamond_rounded,
-              iconColor: VarnamalaTheme.peacockTurquoise,
+              iconColor: TurnaTheme.peacockTurquoise,
               label: AppStrings.profileGems,
               value: _formatNumber(stats.gems),
             ),
             settingsTileDivider(context),
             _StatRow(
               icon: Icons.check_circle_rounded,
-              iconColor: VarnamalaTheme.leagueEmerald,
+              iconColor: TurnaTheme.leagueEmerald,
               label: AppStrings.accountLessonsCompleted,
               value: AppStrings.accountLessonsCompletedValue(
                   stats.lessonsCompleted),
@@ -622,10 +619,10 @@ class _StatsSection extends StatelessWidget {
             settingsTileDivider(context),
             _StatRow(
               icon: Icons.emoji_events_rounded,
-              iconColor: VarnamalaTheme.leagueAmethyst,
+              iconColor: TurnaTheme.leagueAmethyst,
               label: AppStrings.accountPerfectLessons,
-              value: AppStrings.accountPerfectLessonsValue(
-                  stats.perfectLessons),
+              value:
+                  AppStrings.accountPerfectLessonsValue(stats.perfectLessons),
             ),
           ],
         ),
@@ -694,7 +691,7 @@ class _StatRow extends StatelessWidget {
             height: 40,
             decoration: BoxDecoration(
               color: iconColor.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+              borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
             ),
             child: Icon(icon, color: iconColor, size: 20),
           ),
@@ -711,7 +708,7 @@ class _StatRow extends StatelessWidget {
             value,
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   fontWeight: FontWeight.w700,
-                  color: VarnamalaTheme.peacockTeal,
+                  color: TurnaTheme.peacockTeal,
                 ),
           ),
         ],

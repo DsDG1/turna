@@ -2,11 +2,11 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:varnamala/core/spacing.dart';
-import 'package:varnamala/core/text_styles.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/core/spacing.dart';
+import 'package:turna/core/text_styles.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/theme.dart';
 
 /// Snapshot of how the parent ([LessonViewModel]) wants the renderer to look.
 ///
@@ -169,9 +169,9 @@ class LessonCheckButton extends StatelessWidget {
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
           backgroundColor:
-              enabled ? VarnamalaTheme.peacockTeal : VarnamalaTheme.divider,
+              enabled ? TurnaTheme.peacockTeal : TurnaTheme.divider,
           foregroundColor:
-              enabled ? VarnamalaTheme.textOnPrimary : VarnamalaTheme.textHint,
+              enabled ? TurnaTheme.textOnPrimary : TurnaTheme.textHint,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -238,21 +238,21 @@ class _InteractionOptionTileState extends State<InteractionOptionTile> {
 
   @override
   Widget build(BuildContext context) {
-    Color border = VarnamalaTheme.borderMuted;
-    Color background = VarnamalaTheme.cardBg(context);
+    Color border = TurnaTheme.borderMuted;
+    Color background = TurnaTheme.cardBg(context);
     Widget? trailing;
 
     if (widget.isCorrect) {
-      border = VarnamalaTheme.success;
-      background = VarnamalaTheme.success.withValues(alpha: 0.10);
-      trailing = const Icon(Icons.check_circle, color: VarnamalaTheme.success);
+      border = TurnaTheme.success;
+      background = TurnaTheme.success.withValues(alpha: 0.10);
+      trailing = const Icon(Icons.check_circle, color: TurnaTheme.success);
     } else if (widget.isWrong) {
-      border = VarnamalaTheme.error;
-      background = VarnamalaTheme.error.withValues(alpha: 0.08);
-      trailing = const Icon(Icons.cancel, color: VarnamalaTheme.error);
+      border = TurnaTheme.error;
+      background = TurnaTheme.error.withValues(alpha: 0.08);
+      trailing = const Icon(Icons.cancel, color: TurnaTheme.error);
     } else if (widget.isSelected) {
-      border = VarnamalaTheme.peacockTeal;
-      background = VarnamalaTheme.peacockTeal.withValues(alpha: 0.06);
+      border = TurnaTheme.peacockTeal;
+      background = TurnaTheme.peacockTeal.withValues(alpha: 0.06);
     }
 
     return Semantics(
@@ -268,10 +268,10 @@ class _InteractionOptionTileState extends State<InteractionOptionTile> {
           color: background,
           shape: RoundedRectangleBorder(
             side: BorderSide(color: border, width: 2),
-            borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+            borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
           ),
           child: InkWell(
-            borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+            borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
             onTap: widget.onTap,
             onHighlightChanged: (v) {
               // 涟漪的按下状态与缩放联动, 但只有 tile 可点时才有按下效果.
@@ -288,7 +288,7 @@ class _InteractionOptionTileState extends State<InteractionOptionTile> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
-                        color: VarnamalaTheme.textPrimaryColor(context),
+                        color: TurnaTheme.textPrimaryColor(context),
                       ),
                     ),
                   ),
@@ -321,22 +321,22 @@ class LessonCorrectAnswerBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.success.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+        color: TurnaTheme.success.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
         border: showBorder
-            ? Border.all(color: VarnamalaTheme.success.withValues(alpha: 0.4))
+            ? Border.all(color: TurnaTheme.success.withValues(alpha: 0.4))
             : null,
       ),
       child: Row(
         children: [
-          const Icon(Icons.check_circle, color: VarnamalaTheme.successDark),
+          const Icon(Icons.check_circle, color: TurnaTheme.successDark),
           const SizedBox(width: 8),
           Expanded(
             child: RichText(
               text: TextSpan(
                 style: TextStyle(
                   fontSize: 14,
-                  color: VarnamalaTheme.textPrimaryColor(context),
+                  color: TurnaTheme.textPrimaryColor(context),
                 ),
                 children: [
                   TextSpan(text: '$label: '),
@@ -368,17 +368,17 @@ class SpeakerButton extends StatelessWidget {
       child: Tooltip(
         message: AppStrings.lessonPlayAudioLabel,
         child: Material(
-          color: VarnamalaTheme.peacockTeal,
+          color: TurnaTheme.peacockTeal,
           shape: const CircleBorder(),
           elevation: 4,
-          shadowColor: VarnamalaTheme.peacockTeal.withValues(alpha: 0.4),
+          shadowColor: TurnaTheme.peacockTeal.withValues(alpha: 0.4),
           child: InkWell(
             customBorder: const CircleBorder(),
             onTap: onPressed,
             child: const Padding(
               padding: EdgeInsets.all(24),
               child: Icon(Icons.volume_up_rounded,
-                  color: VarnamalaTheme.textOnPrimary, size: 36),
+                  color: TurnaTheme.textOnPrimary, size: 36),
             ),
           ),
         ),

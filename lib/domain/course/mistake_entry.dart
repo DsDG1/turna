@@ -2,7 +2,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 // Project imports:
-import 'package:varnamala/domain/course/interaction.dart';
+import 'package:turna/domain/course/interaction.dart';
 
 part 'mistake_entry.freezed.dart';
 part 'mistake_entry.g.dart';

@@ -10,17 +10,17 @@ import 'package:auto_route/annotations.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/course_provider.dart';
-import 'package:varnamala/application/daily_challenge_assembler.dart';
-import 'package:varnamala/application/game_provider.dart';
-import 'package:varnamala/application/gems_provider.dart';
-import 'package:varnamala/application/lesson_viewmodel.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:varnamala/views/lesson/components/lesson_dialogs.dart';
-import 'package:varnamala/views/lesson/components/lesson_stage_widgets.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/course_provider.dart';
+import 'package:turna/application/daily_challenge_assembler.dart';
+import 'package:turna/application/game_provider.dart';
+import 'package:turna/application/gems_provider.dart';
+import 'package:turna/application/lesson_viewmodel.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/views/lesson/components/lesson_dialogs.dart';
+import 'package:turna/views/lesson/components/lesson_stage_widgets.dart';
+import 'package:turna/views/theme.dart';
 
 /// The number of random questions a daily challenge serves.
 const int kDailyChallengeCount = 15;
@@ -88,7 +88,7 @@ class _DailyChallengePageState extends State<DailyChallengePage> {
     return ChangeNotifierProvider.value(
       value: _vm,
       child: Scaffold(
-        backgroundColor: VarnamalaTheme.scaffoldBg(context),
+        backgroundColor: TurnaTheme.scaffoldBg(context),
         appBar: _buildAppBar(context),
         body: Consumer<LessonViewModel>(
           builder: (context, vm, _) {
@@ -98,7 +98,7 @@ class _DailyChallengePageState extends State<DailyChallengePage> {
             if (vm.lesson == null) {
               return const Center(
                 child: CircularProgressIndicator(
-                  color: VarnamalaTheme.peacockTeal,
+                  color: TurnaTheme.peacockTeal,
                   strokeWidth: 3,
                 ),
               );
@@ -118,13 +118,13 @@ class _DailyChallengePageState extends State<DailyChallengePage> {
         ? AppStrings.playDailyQuestion(current, total)
         : AppStrings.playDailyChallengeFallback;
     return AppBar(
-      backgroundColor: VarnamalaTheme.surfaceColor(context),
+      backgroundColor: TurnaTheme.surfaceColor(context),
       elevation: 0,
       leading: IconButton(
         tooltip: AppStrings.commonClose,
         icon: Icon(
           Icons.close_rounded,
-          color: VarnamalaTheme.textPrimaryColor(context),
+          color: TurnaTheme.textPrimaryColor(context),
         ),
         onPressed: () =>
             vm.isComplete ? null : Navigator.of(context).maybePop(),
@@ -136,7 +136,7 @@ class _DailyChallengePageState extends State<DailyChallengePage> {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,
-              color: VarnamalaTheme.textPrimaryColor(context),
+              color: TurnaTheme.textPrimaryColor(context),
             ),
           ),
           const SizedBox(height: 2),
@@ -145,7 +145,7 @@ class _DailyChallengePageState extends State<DailyChallengePage> {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w500,
-              color: VarnamalaTheme.textSecondaryColor(context),
+              color: TurnaTheme.textSecondaryColor(context),
             ),
           ),
         ],
@@ -155,9 +155,9 @@ class _DailyChallengePageState extends State<DailyChallengePage> {
         preferredSize: const Size.fromHeight(4),
         child: LinearProgressIndicator(
           value: vm.progress,
-          backgroundColor: VarnamalaTheme.leagueAmethyst.withValues(alpha: 0.1),
+          backgroundColor: TurnaTheme.leagueAmethyst.withValues(alpha: 0.1),
           valueColor: const AlwaysStoppedAnimation<Color>(
-            VarnamalaTheme.leagueAmethyst,
+            TurnaTheme.leagueAmethyst,
           ),
         ),
       ),
@@ -177,7 +177,7 @@ class _DailyChallengePageState extends State<DailyChallengePage> {
         if (vm.currentStageName != null)
           LessonStageBanner(
             name: vm.currentStageName!,
-            accent: VarnamalaTheme.leagueAmethyst,
+            accent: TurnaTheme.leagueAmethyst,
           ),
         Expanded(
           child: renderer.build(
@@ -219,7 +219,7 @@ class _DailyChallengePageState extends State<DailyChallengePage> {
             Icon(
               Icons.quiz_rounded,
               size: 48,
-              color: VarnamalaTheme.textHint.withValues(alpha: 0.4),
+              color: TurnaTheme.textHint.withValues(alpha: 0.4),
             ),
             const SizedBox(height: 12),
             Text(
@@ -231,7 +231,7 @@ class _DailyChallengePageState extends State<DailyChallengePage> {
             Text(
               AppStrings.playDailyCompleteFewLessons,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: VarnamalaTheme.textSecondaryColor(context),
+                    color: TurnaTheme.textSecondaryColor(context),
                   ),
               textAlign: TextAlign.center,
             ),

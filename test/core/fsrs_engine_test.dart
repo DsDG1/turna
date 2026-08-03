@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/core/fsrs_engine.dart';
-import 'package:varnamala/core/sm2.dart';
-import 'package:varnamala/domain/course/srs_word.dart';
+import 'package:turna/core/fsrs_engine.dart';
+import 'package:turna/core/sm2.dart';
+import 'package:turna/domain/course/srs_word.dart';
 
 void main() {
   group('FsrsEngine', () {
@@ -32,7 +32,8 @@ void main() {
       expect(updated.dueAt.isAfter(now.toLocal()), isTrue);
     });
 
-    test('unknown review increments lapses and does not reset reps to zero', () {
+    test('unknown review increments lapses and does not reset reps to zero',
+        () {
       final now = DateTime.utc(2026, 1, 1, 12);
       var word = engine.review(fresh('w1'), ReviewGrade.known.sm2, now: now);
       word = engine.review(
@@ -75,7 +76,8 @@ void main() {
     test('retrievability is continuous in [0,1], not a stage flag', () {
       final t0 = DateTime.utc(2026, 1, 1, 12);
       final word = engine.review(fresh('w1'), ReviewGrade.known.sm2, now: t0);
-      final rNow = engine.retrievability(word, now: t0.add(const Duration(hours: 1)));
+      final rNow =
+          engine.retrievability(word, now: t0.add(const Duration(hours: 1)));
       final rLater = engine.retrievability(
         word,
         now: t0.add(Duration(days: (word.stability ?? 1).ceil() + 10)),
@@ -89,7 +91,8 @@ void main() {
       expect(engine.masteryScore(fresh('new')), closeTo(0.0, 1e-6));
       final t0 = DateTime.utc(2026, 1, 1, 12);
       var word = engine.review(fresh('w1'), ReviewGrade.known.sm2, now: t0);
-      final m1 = engine.masteryScore(word, now: t0.add(const Duration(hours: 1)));
+      final m1 =
+          engine.masteryScore(word, now: t0.add(const Duration(hours: 1)));
       word = engine.review(
         word,
         ReviewGrade.known.sm2,
@@ -106,8 +109,10 @@ void main() {
     test('previewIntervalDays is deterministic and non-negative', () {
       final word = fresh('w1');
       final now = DateTime.utc(2026, 3, 1, 12);
-      final a = engine.previewIntervalDays(word, ReviewGrade.known.sm2, now: now);
-      final b = engine.previewIntervalDays(word, ReviewGrade.known.sm2, now: now);
+      final a =
+          engine.previewIntervalDays(word, ReviewGrade.known.sm2, now: now);
+      final b =
+          engine.previewIntervalDays(word, ReviewGrade.known.sm2, now: now);
       expect(b, a);
       expect(a, greaterThanOrEqualTo(0));
       expect(

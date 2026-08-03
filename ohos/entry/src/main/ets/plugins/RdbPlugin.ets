@@ -1,4 +1,4 @@
-// Copyright (c) 2024 VarnamalaPlus. All rights reserved.
+// Copyright (c) 2024 Turna. All rights reserved.
 // Bridges HarmonyOS native RDB (@kit.ArkData relationalStore) to Flutter drift
 // via MethodChannel, enabling full course database functionality on HarmonyOS.
 
@@ -15,7 +15,7 @@ import { common } from '@kit.AbilityKit';
 import hilog from '@ohos.hilog';
 
 const TAG = "RdbPlugin";
-const CHANNEL = "com.varnamala/rdb";
+const CHANNEL = "me.dsdogs.turna/rdb";
 
 export default class RdbPlugin implements FlutterPlugin {
   private channel: MethodChannel | null = null;

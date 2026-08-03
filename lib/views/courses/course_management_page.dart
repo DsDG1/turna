@@ -9,15 +9,15 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/anki/anki_deck_manager.dart';
-import 'package:varnamala/application/course_provider.dart';
-import 'package:varnamala/application/language_provider.dart';
-import 'package:varnamala/application/settings_provider.dart';
-import 'package:varnamala/core/enums.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/routing/routing.gr.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/anki/anki_deck_manager.dart';
+import 'package:turna/application/course_provider.dart';
+import 'package:turna/application/language_provider.dart';
+import 'package:turna/application/settings_provider.dart';
+import 'package:turna/core/enums.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/routing/routing.gr.dart';
+import 'package:turna/views/theme.dart';
 
 /// Course management page — opened from the globe icon in the Learn tab.
 /// Lists the built-in course plus every imported Anki deck, lets the user
@@ -31,9 +31,9 @@ class CourseManagementPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: VarnamalaTheme.scaffoldBg(context),
+      backgroundColor: TurnaTheme.scaffoldBg(context),
       appBar: AppBar(
-        backgroundColor: VarnamalaTheme.surfaceColor(context),
+        backgroundColor: TurnaTheme.surfaceColor(context),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -44,7 +44,7 @@ class CourseManagementPage extends StatelessWidget {
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w700,
-            color: VarnamalaTheme.textPrimaryColor(context),
+            color: TurnaTheme.textPrimaryColor(context),
           ),
         ),
         centerTitle: true,
@@ -105,7 +105,7 @@ class _CourseManagementBody extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: VarnamalaTheme.textSecondaryColor(context),
+                    color: TurnaTheme.textSecondaryColor(context),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -176,7 +176,8 @@ class _CourseManagementBody extends StatelessWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(AppStrings.ankiUninstallConfirmTitle),
-        content: Text('${entry.name}\n\n${AppStrings.ankiUninstallConfirmBody}'),
+        content:
+            Text('${entry.name}\n\n${AppStrings.ankiUninstallConfirmBody}'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -184,7 +185,7 @@ class _CourseManagementBody extends StatelessWidget {
           ),
           FilledButton(
             style: FilledButton.styleFrom(
-              backgroundColor: VarnamalaTheme.error,
+              backgroundColor: TurnaTheme.error,
             ),
             onPressed: () => Navigator.of(dialogContext).pop(true),
             child: Text(AppStrings.ankiUninstallDeck),
@@ -254,10 +255,10 @@ class _CourseManagementBody extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: VarnamalaTheme.cardBg(context),
+      backgroundColor: TurnaTheme.cardBg(context),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
-          top: Radius.circular(VarnamalaTheme.radiusLarge),
+          top: Radius.circular(TurnaTheme.radiusLarge),
         ),
       ),
       builder: (_) => _CourseTtsSettingsSheet(
@@ -290,24 +291,24 @@ class _CourseCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accent = isActive
-        ? VarnamalaTheme.peacockTeal
-        : VarnamalaTheme.textSecondaryColor(context);
+        ? TurnaTheme.peacockTeal
+        : TurnaTheme.textSecondaryColor(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Material(
-        color: VarnamalaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+        color: TurnaTheme.cardBg(context),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+          borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+              borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
               border: Border.all(
                 color: isActive
-                    ? VarnamalaTheme.peacockTeal
-                    : VarnamalaTheme.peacockTeal.withValues(alpha: 0.12),
+                    ? TurnaTheme.peacockTeal
+                    : TurnaTheme.peacockTeal.withValues(alpha: 0.12),
               ),
             ),
             child: Row(
@@ -316,7 +317,7 @@ class _CourseCard extends StatelessWidget {
                   index: index,
                   child: Icon(
                     Icons.drag_indicator_rounded,
-                    color: VarnamalaTheme.textSecondaryColor(context),
+                    color: TurnaTheme.textSecondaryColor(context),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -357,15 +358,14 @@ class _CourseCard extends StatelessWidget {
                             const SizedBox(width: 8),
                             _Badge(
                               label: AppStrings.courseManagementCurrentBadge,
-                              color: VarnamalaTheme.peacockTeal,
+                              color: TurnaTheme.peacockTeal,
                             ),
                           ],
                           if (entry.isBuiltin) ...[
                             const SizedBox(width: 8),
                             _Badge(
                               label: AppStrings.courseManagementDefaultBadge,
-                              color:
-                                  VarnamalaTheme.textSecondaryColor(context),
+                              color: TurnaTheme.textSecondaryColor(context),
                             ),
                           ],
                         ],
@@ -376,7 +376,7 @@ class _CourseCard extends StatelessWidget {
                           AppStrings.courseManagementBuiltinSubtitle,
                           style: TextStyle(
                             fontSize: 13,
-                            color: VarnamalaTheme.textSecondaryColor(context),
+                            color: TurnaTheme.textSecondaryColor(context),
                           ),
                         ),
                       ],
@@ -386,7 +386,7 @@ class _CourseCard extends StatelessWidget {
                 IconButton(
                   icon: const Icon(
                     Icons.record_voice_over_rounded,
-                    color: VarnamalaTheme.peacockTeal,
+                    color: TurnaTheme.peacockTeal,
                   ),
                   tooltip: AppStrings.courseTtsSettingsTitle,
                   onPressed: onSettings,
@@ -395,7 +395,7 @@ class _CourseCard extends StatelessWidget {
                   IconButton(
                     icon: const Icon(
                       Icons.delete_outline_rounded,
-                      color: VarnamalaTheme.error,
+                      color: TurnaTheme.error,
                     ),
                     tooltip: AppStrings.ankiUninstallDeck,
                     onPressed: onDelete,
@@ -452,7 +452,7 @@ class _AddCourseTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      leading: Icon(icon, color: VarnamalaTheme.peacockTeal),
+      leading: Icon(icon, color: TurnaTheme.peacockTeal),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
       subtitle: Text(
         subtitle,
@@ -460,7 +460,7 @@ class _AddCourseTile extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
           fontSize: 12,
-          color: VarnamalaTheme.textSecondaryColor(context),
+          color: TurnaTheme.textSecondaryColor(context),
         ),
       ),
       onTap: onTap,
@@ -542,7 +542,7 @@ class _CourseTtsSettingsSheetState extends State<_CourseTtsSettingsSheet> {
                 AppStrings.courseTtsAutoReadSubtitle,
                 style: TextStyle(
                   fontSize: 12,
-                  color: VarnamalaTheme.textSecondaryColor(context),
+                  color: TurnaTheme.textSecondaryColor(context),
                 ),
               ),
               value: _autoRead,
@@ -560,7 +560,7 @@ class _CourseTtsSettingsSheetState extends State<_CourseTtsSettingsSheet> {
               AppStrings.courseTtsNativeLangSubtitle,
               style: TextStyle(
                 fontSize: 12,
-                color: VarnamalaTheme.textSecondaryColor(context),
+                color: TurnaTheme.textSecondaryColor(context),
               ),
             ),
             const SizedBox(height: 8),

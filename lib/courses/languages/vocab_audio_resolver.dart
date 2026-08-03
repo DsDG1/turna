@@ -2,8 +2,8 @@
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/courses/languages/vocab.dart';
-import 'package:varnamala/domain/audio/vocab_audio_resolver.dart';
+import 'package:turna/courses/languages/vocab.dart';
+import 'package:turna/domain/audio/vocab_audio_resolver.dart';
 
 /// [VocabAudioResolver] backed by [vocabById].
 ///

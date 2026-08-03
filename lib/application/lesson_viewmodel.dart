@@ -8,21 +8,21 @@ import 'package:injectable/injectable.dart';
 import 'dart:async';
 
 // Project imports:
-import 'package:varnamala/application/audio_controller.dart';
-import 'package:varnamala/application/course_provider.dart';
-import 'package:varnamala/application/grammar_review_provider.dart';
-import 'package:varnamala/application/lesson_completion_coordinator.dart';
-import 'package:varnamala/application/mistake_provider.dart';
-import 'package:varnamala/application/srs_provider.dart';
-import 'package:varnamala/core/sm2.dart';
-import 'package:varnamala/courses/course_loader.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/domain/course/lesson.dart';
-import 'package:varnamala/domain/course/lesson_word_link.dart';
-import 'package:varnamala/domain/course/mistake_entry.dart';
-import 'package:varnamala/domain/course/srs_word.dart';
-import 'package:varnamala/domain/course/stage.dart';
-import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/application/audio_controller.dart';
+import 'package:turna/application/course_provider.dart';
+import 'package:turna/application/grammar_review_provider.dart';
+import 'package:turna/application/lesson_completion_coordinator.dart';
+import 'package:turna/application/mistake_provider.dart';
+import 'package:turna/application/srs_provider.dart';
+import 'package:turna/core/sm2.dart';
+import 'package:turna/courses/course_loader.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/domain/course/lesson.dart';
+import 'package:turna/domain/course/lesson_word_link.dart';
+import 'package:turna/domain/course/mistake_entry.dart';
+import 'package:turna/domain/course/srs_word.dart';
+import 'package:turna/domain/course/stage.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 
 /// Derive the SRS wordId from an Anki card interaction id.
 ///

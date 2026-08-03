@@ -6,23 +6,23 @@ import 'package:injectable/injectable.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/anki/anki_canonical_card_loader.dart';
-import 'package:varnamala/application/anki/anki_type_answer.dart';
-import 'package:varnamala/application/anki/anki_template_renderer.dart';
-import 'package:varnamala/application/audio_controller.dart';
-import 'package:varnamala/application/settings_provider.dart';
-import 'package:varnamala/application/smart_speech.dart';
-import 'package:varnamala/core/html_stripper.dart';
-import 'package:varnamala/core/language_detector.dart';
-import 'package:varnamala/core/sm2.dart';
-import 'package:varnamala/data/anki_note_dao.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/anki/anki_html_card_view.dart';
-import 'package:varnamala/views/lesson/components/anki_media_strip.dart';
-import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/anki/anki_canonical_card_loader.dart';
+import 'package:turna/application/anki/anki_type_answer.dart';
+import 'package:turna/application/anki/anki_template_renderer.dart';
+import 'package:turna/application/audio_controller.dart';
+import 'package:turna/application/settings_provider.dart';
+import 'package:turna/application/smart_speech.dart';
+import 'package:turna/core/html_stripper.dart';
+import 'package:turna/core/language_detector.dart';
+import 'package:turna/core/sm2.dart';
+import 'package:turna/data/anki_note_dao.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/anki/anki_html_card_view.dart';
+import 'package:turna/views/lesson/components/anki_media_strip.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/views/theme.dart';
 
 /// Fidelity-track renderer for [AnkiHtmlCard] (deep-adaptation plan §5).
 ///
@@ -215,7 +215,7 @@ class _AnkiHtmlCardBodyState extends State<_AnkiHtmlCardBody> {
               : Text(
                   'Anki card could not be loaded: $_loadError',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: VarnamalaTheme.error),
+                  style: const TextStyle(color: TurnaTheme.error),
                 ),
         ),
       );
@@ -248,13 +248,12 @@ class _AnkiHtmlCardBodyState extends State<_AnkiHtmlCardBody> {
               child: SizedBox(
                 height: 300,
                 child: ClipRRect(
-                  borderRadius:
-                      BorderRadius.circular(VarnamalaTheme.radiusMedium),
+                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
                   child: DecoratedBox(
                     decoration: BoxDecoration(
-                      color: VarnamalaTheme.cardBg(context),
+                      color: TurnaTheme.cardBg(context),
                       border: Border.all(
-                        color: VarnamalaTheme.statCardBorder(context),
+                        color: TurnaTheme.statCardBorder(context),
                       ),
                     ),
                     child: AnkiHtmlCardView(
@@ -309,7 +308,7 @@ class _AnkiHtmlCardBodyState extends State<_AnkiHtmlCardBody> {
             children: [
               IconButton(
                 icon: const Icon(Icons.record_voice_over_rounded),
-                color: VarnamalaTheme.peacockTeal,
+                color: TurnaTheme.peacockTeal,
                 tooltip: AppStrings.lessonSpeakLabel,
                 onPressed: _revealed ? _speakBack : _speakFront,
               ),
@@ -346,8 +345,7 @@ class _AnkiHtmlCardBodyState extends State<_AnkiHtmlCardBody> {
 
   Widget _buildTypeFeedback(BuildContext context, String expected) {
     final result = AnkiTypeAnswerMatcher.compare(expected, _typedAnswer);
-    final color =
-        result.correct ? VarnamalaTheme.success : VarnamalaTheme.error;
+    final color = result.correct ? TurnaTheme.success : TurnaTheme.error;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
@@ -376,7 +374,7 @@ class _AnkiHtmlCardBodyState extends State<_AnkiHtmlCardBody> {
           AppStrings.lessonHowWellDidYouKnow,
           style: TextStyle(
             fontSize: 14,
-            color: VarnamalaTheme.textSecondaryColor(context),
+            color: TurnaTheme.textSecondaryColor(context),
           ),
         ),
         const SizedBox(height: 12),
@@ -385,7 +383,7 @@ class _AnkiHtmlCardBodyState extends State<_AnkiHtmlCardBody> {
             Expanded(
               child: _GradeButton(
                 label: AppStrings.reviewAgain,
-                color: VarnamalaTheme.error,
+                color: TurnaTheme.error,
                 onPressed: () => _grade(
                   correct: false,
                   label: AppStrings.reviewAgain,
@@ -397,7 +395,7 @@ class _AnkiHtmlCardBodyState extends State<_AnkiHtmlCardBody> {
             Expanded(
               child: _GradeButton(
                 label: AppStrings.reviewHard,
-                color: VarnamalaTheme.warning,
+                color: TurnaTheme.warning,
                 onPressed: () => _grade(
                   correct: true,
                   label: AppStrings.reviewHard,
@@ -409,7 +407,7 @@ class _AnkiHtmlCardBodyState extends State<_AnkiHtmlCardBody> {
             Expanded(
               child: _GradeButton(
                 label: AppStrings.reviewGood,
-                color: VarnamalaTheme.success,
+                color: TurnaTheme.success,
                 onPressed: () => _grade(
                   correct: true,
                   label: AppStrings.reviewGood,
@@ -421,7 +419,7 @@ class _AnkiHtmlCardBodyState extends State<_AnkiHtmlCardBody> {
             Expanded(
               child: _GradeButton(
                 label: AppStrings.reviewEasy,
-                color: VarnamalaTheme.peacockTeal,
+                color: TurnaTheme.peacockTeal,
                 onPressed: () => _grade(
                   correct: true,
                   label: AppStrings.reviewEasy,

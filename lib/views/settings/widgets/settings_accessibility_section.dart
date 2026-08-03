@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/accessibility_provider.dart';
-import 'package:varnamala/views/settings/widgets/settings_common.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/accessibility_provider.dart';
+import 'package:turna/views/settings/widgets/settings_common.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/theme.dart';
 
 /// A switch tile bound to [AccessibilityProvider], mirroring
 /// [SettingsToggleTile] (which is bound to [SettingsProvider]).
@@ -78,13 +78,12 @@ class _SettingsTextScaleTileState extends State<SettingsTextScaleTile> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.08),
-                  borderRadius:
-                      BorderRadius.circular(VarnamalaTheme.radiusMedium),
+                  color: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
                 ),
                 child: const Icon(
                   Icons.format_size_rounded,
-                  color: VarnamalaTheme.peacockTeal,
+                  color: TurnaTheme.peacockTeal,
                   size: 20,
                 ),
               ),
@@ -102,7 +101,7 @@ class _SettingsTextScaleTileState extends State<SettingsTextScaleTile> {
                     Text(
                       AppStrings.settingsTextSizeSubtitle,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: VarnamalaTheme.textHintColor(context),
+                            color: TurnaTheme.textHintColor(context),
                           ),
                     ),
                   ],
@@ -111,7 +110,7 @@ class _SettingsTextScaleTileState extends State<SettingsTextScaleTile> {
               Text(
                 '$value%',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: VarnamalaTheme.peacockTeal,
+                      color: TurnaTheme.peacockTeal,
                       fontWeight: FontWeight.w700,
                     ),
               ),
@@ -125,8 +124,8 @@ class _SettingsTextScaleTileState extends State<SettingsTextScaleTile> {
               min: 100,
               max: 200,
               divisions: 5,
-              activeColor: VarnamalaTheme.peacockTeal,
-              inactiveColor: VarnamalaTheme.dividerBg(context),
+              activeColor: TurnaTheme.peacockTeal,
+              inactiveColor: TurnaTheme.dividerBg(context),
               onChanged: (v) => setState(() => _dragValue = v.round()),
               onChangeEnd: (v) async {
                 await context

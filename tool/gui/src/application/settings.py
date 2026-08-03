@@ -1,8 +1,9 @@
 """Application-wide user settings model and QSettings persistence.
 
-This module centralises all user-configurable preferences for the Varnamala
+This module centralises all user-configurable preferences for the Turna
 course editor. It intentionally stays close to Qt's QSettings so the rest of
-the GUI can keep using the same storage backend without a migration.
+the GUI can keep using the same storage backend with a one-shot migration
+from the legacy Varnamala namespace (see `migrate_legacy_varnamala_qsettings`).
 """
 from __future__ import annotations
 
@@ -13,12 +14,19 @@ from typing import Any
 
 from PySide6.QtCore import QSettings
 
+# QSettings organisation / application names. The legacy
+# ("Varnamala", "CourseEditor") namespace is still read for one-shot
+# migration on first launch (see `migrate_legacy_varnamala_qsettings`).
+ORG_NAME = "Turna"
+APP_NAME = "CourseEditor"
+LEGACY_ORG_NAME = "Varnamala"
+
 
 @dataclass
 class Settings:
     """User preferences for the course editor.
 
-    Most attributes match keys persisted under the ``Varnamala/CourseEditor``
+    Most attributes match keys persisted under the ``Turna/CourseEditor``
     QSettings namespace. ``ai_api_key`` is intentionally memory-only and is
     never written to disk; it is cleared when the application exits.
     """
@@ -406,3 +414,55 @@ def _bool_or_default(value: Any, default: bool) -> bool:
             return False
         return default
     return default
+
+
+def app_data_dir(new_name: str = ".turna-gui", legacy_name: str = ".varnamala-gui") -> Path:
+    """Return the user's GUI data directory.
+
+    Prefers ``~/.turna-gui``. Falls back to ``~/.varnamala-gui`` when the new
+    directory has not been created yet; callers create it on first write. The
+    legacy directory is **not** deleted — users who downgrade keep their logs.
+    """
+    new_dir = Path.home() / new_name
+    if new_dir.exists():
+        return new_dir
+    legacy_dir = Path.home() / legacy_name
+    if legacy_dir.exists():
+        return legacy_dir
+    return new_dir
+
+
+def course_clones_dir(new_name: str = ".turna", legacy_name: str = ".varnamala") -> Path:
+    """Return the directory used to clone remote courses into."""
+    new_dir = Path.home() / new_name / "course-clones"
+    if new_dir.exists() or not (Path.home() / legacy_name / "course-clones").exists():
+        return new_dir
+    return Path.home() / legacy_name / "course-clones"
+
+
+def migrate_legacy_varnamala_qsettings() -> bool:
+    """Copy QSettings keys from the legacy ``Varnamala/CourseEditor`` namespace
+    to the new ``Turna/CourseEditor`` namespace. Returns True when a migration
+    happened.
+
+    The legacy namespace is **not** deleted. Users who downgrade to a previous
+    build keep their settings. If the new namespace already has keys, this
+    function is a no-op (new namespace wins).
+    """
+    new_qs = QSettings(ORG_NAME, APP_NAME)
+    if new_qs.allKeys():
+        # New namespace already populated — nothing to migrate.
+        return False
+
+    # Try both the cross-platform QSettings form and the explicit
+    # setOrganizationName/form so we read the right backend regardless of
+    # whether the legacy build switched application name.
+    legacy_qs = QSettings(LEGACY_ORG_NAME, APP_NAME)
+    legacy_keys = legacy_qs.allKeys()
+    if not legacy_keys:
+        return False
+
+    for key in legacy_keys:
+        new_qs.setValue(key, legacy_qs.value(key))
+    new_qs.sync()
+    return True

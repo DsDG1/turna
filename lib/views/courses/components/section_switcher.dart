@@ -6,11 +6,11 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/course_provider.dart';
-import 'package:varnamala/domain/course/section.dart';
-import 'package:varnamala/routing/routing.gr.dart';
-import 'package:varnamala/views/courses/components/section_visuals.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/course_provider.dart';
+import 'package:turna/domain/course/section.dart';
+import 'package:turna/routing/routing.gr.dart';
+import 'package:turna/views/courses/components/section_visuals.dart';
+import 'package:turna/views/theme.dart';
 
 /// A compact, tappable section header card displayed at the top of the course tree.
 ///
@@ -54,18 +54,18 @@ class _SectionHeaderCard extends StatelessWidget {
     final colors = SectionVisuals.colorsFor(section.id);
 
     return Material(
-      color: VarnamalaTheme.cardBg(context),
-      borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+      color: TurnaTheme.cardBg(context),
+      borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
       elevation: 0,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
         child: Container(
           height: 76,
           padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-            boxShadow: VarnamalaTheme.softShadow,
+            borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+            boxShadow: TurnaTheme.softShadow,
           ),
           child: Row(
             children: [
@@ -76,7 +76,7 @@ class _SectionHeaderCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: colors.background,
                   borderRadius: BorderRadius.circular(
-                    VarnamalaTheme.radiusMedium,
+                    TurnaTheme.radiusMedium,
                   ),
                 ),
                 child: Icon(
@@ -93,7 +93,7 @@ class _SectionHeaderCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
-                    color: VarnamalaTheme.textPrimaryColor(context),
+                    color: TurnaTheme.textPrimaryColor(context),
                   ),
                 ),
               ),
@@ -101,7 +101,7 @@ class _SectionHeaderCard extends StatelessWidget {
               // Chevron
               Icon(
                 Icons.chevron_right_rounded,
-                color: VarnamalaTheme.textHint.withValues(alpha: 0.6),
+                color: TurnaTheme.textHint.withValues(alpha: 0.6),
                 size: 28,
               ),
             ],

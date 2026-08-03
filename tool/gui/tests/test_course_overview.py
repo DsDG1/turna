@@ -31,7 +31,7 @@ def _load_adapter(tmp: Path) -> CourseAdapter:
 class CourseOverviewTest(unittest.TestCase):
     def setUp(self) -> None:
         _App._ensure()
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_ov_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_ov_"))
         self.adapter = _load_adapter(self.tmp)
         self.win = CourseOverviewWindow(self.adapter)
 

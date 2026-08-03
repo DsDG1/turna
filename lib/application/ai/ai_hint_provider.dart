@@ -2,14 +2,14 @@
 import 'package:flutter/foundation.dart';
 
 // Project imports:
-import 'package:varnamala/application/ai/ai_course_spec.dart';
-import 'package:varnamala/application/ai/hint_genres.dart';
-import 'package:varnamala/application/ai/engine/ai_cancel_token.dart';
-import 'package:varnamala/application/ai/engine/ai_engine.dart';
-import 'package:varnamala/application/ai/engine/ai_engine_config.dart';
-import 'package:varnamala/application/ai/engine/ai_recent_tasks_provider.dart';
-import 'package:varnamala/core/logger.dart';
-import 'package:varnamala/di/injection.dart';
+import 'package:turna/application/ai/ai_course_spec.dart';
+import 'package:turna/application/ai/hint_genres.dart';
+import 'package:turna/application/ai/engine/ai_cancel_token.dart';
+import 'package:turna/application/ai/engine/ai_engine.dart';
+import 'package:turna/application/ai/engine/ai_engine_config.dart';
+import 'package:turna/application/ai/engine/ai_recent_tasks_provider.dart';
+import 'package:turna/core/logger.dart';
+import 'package:turna/di/injection.dart';
 
 /// State machine for the in-lesson AI hint conversation.
 enum AiHintState { idle, loading, ready, error }

@@ -2,11 +2,11 @@
 import 'dart:math';
 
 // Project imports:
-import 'package:varnamala/application/course_provider.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/domain/course/lesson.dart';
-import 'package:varnamala/domain/course/lesson_content.dart';
-import 'package:varnamala/domain/course/stage.dart';
+import 'package:turna/application/course_provider.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/domain/course/lesson.dart';
+import 'package:turna/domain/course/lesson_content.dart';
+import 'package:turna/domain/course/stage.dart';
 
 /// Assembles a "Daily Challenge" — a synthetic [Lesson] holding a random
 /// sample of real authored questions drawn from the loaded course tree.

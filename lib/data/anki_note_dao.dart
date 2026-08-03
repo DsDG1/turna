@@ -6,8 +6,8 @@ import 'package:drift/drift.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/application/anki/anki_models.dart';
-import 'package:varnamala/data/course_database.dart';
+import 'package:turna/application/anki/anki_models.dart';
+import 'package:turna/data/course_database.dart';
 
 /// Data access object for the Anki NoteStore tables (`anki_notetypes`,
 /// `anki_notes`, `anki_cards_meta`) added in schema v9.

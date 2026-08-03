@@ -1,10 +1,10 @@
 // Flutter imports:
 import 'package:flutter/material.dart';
 
-/// Varnamala Peacock Theme
+/// Turna Peacock Theme
 /// A vibrant theme inspired by peacock feathers with teal, cyan, and emerald tones
-class VarnamalaTheme {
-  VarnamalaTheme._();
+class TurnaTheme {
+  TurnaTheme._();
 
   // PRIMARY PEACOCK COLORS
   static const Color peacockDeep = Color(0xFF1A0285);
@@ -210,8 +210,7 @@ class VarnamalaTheme {
   /// 玻璃着色层：accent × 低 alpha，让每张卡读作对应色玻璃。
   /// 浅深色均使用 0.22 alpha，深色模式下整体暗调由 [glassSurface] 和
   /// [glassHighlight] 的深色分支承担，避免此处再分叉。
-  static Color glassAccentFill(Color accent) =>
-      accent.withValues(alpha: 0.22);
+  static Color glassAccentFill(Color accent) => accent.withValues(alpha: 0.22);
 
   /// 玻璃阴影：双层（accent + 黑色微影），按深浅微调 alpha。
   static List<BoxShadow> glassShadow(BuildContext context, Color accent) =>
@@ -336,56 +335,44 @@ class VarnamalaTheme {
   static Color scaffoldBg(BuildContext context) =>
       Theme.of(context).scaffoldBackgroundColor;
 
-  static Color cardBg(BuildContext context) => _isDark(context)
-      ? const Color(0xFF1A2E2B)
-      : Colors.white;
+  static Color cardBg(BuildContext context) =>
+      _isDark(context) ? const Color(0xFF1A2E2B) : Colors.white;
 
-  static Color elevatedCardBg(BuildContext context) => _isDark(context)
-      ? const Color(0xFF1A2E2B)
-      : const Color(0xFFFFFFFF);
+  static Color elevatedCardBg(BuildContext context) =>
+      _isDark(context) ? const Color(0xFF1A2E2B) : const Color(0xFFFFFFFF);
 
-  static Color dividerBg(BuildContext context) => _isDark(context)
-      ? const Color(0xFF2A4540)
-      : const Color(0xFFEEF2F1);
+  static Color dividerBg(BuildContext context) =>
+      _isDark(context) ? const Color(0xFF2A4540) : const Color(0xFFEEF2F1);
 
   static Color textPrimaryColor(BuildContext context) =>
       Theme.of(context).colorScheme.onSurface;
 
-  static Color textSecondaryColor(BuildContext context) => _isDark(context)
-      ? const Color(0xFFB0CBC7)
-      : const Color(0xFF4A5568);
+  static Color textSecondaryColor(BuildContext context) =>
+      _isDark(context) ? const Color(0xFFB0CBC7) : const Color(0xFF4A5568);
 
-  static Color textHintColor(BuildContext context) => _isDark(context)
-      ? const Color(0xFF6B8A85)
-      : const Color(0xFF9CA3AF);
+  static Color textHintColor(BuildContext context) =>
+      _isDark(context) ? const Color(0xFF6B8A85) : const Color(0xFF9CA3AF);
 
-  static Color inputFillColor(BuildContext context) => _isDark(context)
-      ? const Color(0xFF142624)
-      : const Color(0xFFF5F8F7);
+  static Color inputFillColor(BuildContext context) =>
+      _isDark(context) ? const Color(0xFF142624) : const Color(0xFFF5F8F7);
 
-  static Color statCardBorder(BuildContext context) => _isDark(context)
-      ? const Color(0xFF2A4540)
-      : const Color(0xFFEEF2F1);
+  static Color statCardBorder(BuildContext context) =>
+      _isDark(context) ? const Color(0xFF2A4540) : const Color(0xFFEEF2F1);
 
-  static Color bottomNavBg(BuildContext context) => _isDark(context)
-      ? const Color(0xFF1A2E2B)
-      : Colors.white;
+  static Color bottomNavBg(BuildContext context) =>
+      _isDark(context) ? const Color(0xFF1A2E2B) : Colors.white;
 
-  static Color streakChipBg(BuildContext context) => _isDark(context)
-      ? const Color(0xFF3E2723)
-      : const Color(0xFFFFF3E0);
+  static Color streakChipBg(BuildContext context) =>
+      _isDark(context) ? const Color(0xFF3E2723) : const Color(0xFFFFF3E0);
 
-  static Color streakChipText(BuildContext context) => _isDark(context)
-      ? const Color(0xFFFFB74D)
-      : const Color(0xFFFF9500);
+  static Color streakChipText(BuildContext context) =>
+      _isDark(context) ? const Color(0xFFFFB74D) : const Color(0xFFFF9500);
 
-  static Color scoreChipBg(BuildContext context) => _isDark(context)
-      ? const Color(0xFF4A3B00)
-      : const Color(0xFFFFF8E1);
+  static Color scoreChipBg(BuildContext context) =>
+      _isDark(context) ? const Color(0xFF4A3B00) : const Color(0xFFFFF8E1);
 
-  static Color scoreChipText(BuildContext context) => _isDark(context)
-      ? const Color(0xFFFFD54F)
-      : const Color(0xFFE5A800);
+  static Color scoreChipText(BuildContext context) =>
+      _isDark(context) ? const Color(0xFFFFD54F) : const Color(0xFFE5A800);
 
   // MATERIAL THEME DATA
   static ThemeData get lightTheme => ThemeData(
@@ -879,4 +866,4 @@ class VarnamalaTheme {
 }
 
 // LEGACY SUPPORT
-const primaryColor = VarnamalaTheme.primary;
+const primaryColor = TurnaTheme.primary;

@@ -2,13 +2,13 @@
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/application/achievements_provider.dart';
-import 'package:varnamala/application/game_provider.dart';
-import 'package:varnamala/application/gems_provider.dart';
-import 'package:varnamala/application/study_stats_provider.dart';
-import 'package:varnamala/core/logger.dart';
-import 'package:varnamala/core/result.dart';
-import 'package:varnamala/domain/study/study_log.dart';
+import 'package:turna/application/achievements_provider.dart';
+import 'package:turna/application/game_provider.dart';
+import 'package:turna/application/gems_provider.dart';
+import 'package:turna/application/study_stats_provider.dart';
+import 'package:turna/core/logger.dart';
+import 'package:turna/core/result.dart';
+import 'package:turna/domain/study/study_log.dart';
 
 /// Orchestrates side-effects when a lesson finishes (XP, gems, progress,
 /// achievements, study stats). Kept separate from [LessonViewModel] so the

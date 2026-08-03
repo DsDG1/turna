@@ -5,10 +5,10 @@ import 'dart:math';
 import 'package:fsrs/fsrs.dart' as fsrs;
 
 // Project imports:
-import 'package:varnamala/core/fsrs_relearn.dart';
-import 'package:varnamala/core/sm2.dart';
-import 'package:varnamala/core/srs_scheduler.dart';
-import 'package:varnamala/domain/course/srs_word.dart';
+import 'package:turna/core/fsrs_relearn.dart';
+import 'package:turna/core/sm2.dart';
+import 'package:turna/core/srs_scheduler.dart';
+import 'package:turna/domain/course/srs_word.dart';
 
 /// FSRS-backed [SrsScheduler] (ADR 0028 / 0029).
 ///

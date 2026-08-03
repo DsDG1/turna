@@ -112,7 +112,7 @@ class TextbookImportDialog(QDialog):
 
         # P4-2 auto-cascade (standard -> vocab_only) is on by default; the
         # ``textbook/auto_cascade`` QSettings key can turn it off.
-        auto_cascade = QSettings("Varnamala", "CourseEditor").value(
+        auto_cascade = QSettings("Turna", "CourseEditor").value(
             "textbook/auto_cascade", True, type=bool
         )
         self._controller = TextbookImportController(

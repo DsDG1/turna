@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/game_provider.dart';
-import 'package:varnamala/application/gems_provider.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/game_provider.dart';
+import 'package:turna/application/gems_provider.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/theme.dart';
 
 /// Compact 4-metric strip: streak, total XP, gems, lessons completed.
 class Statistics extends StatelessWidget {
@@ -35,41 +35,41 @@ class Statistics extends StatelessWidget {
                 builder: (context, gemsSnap) {
                   final gems = gemsSnap.data ?? 0;
                   return Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 14),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
                     decoration: BoxDecoration(
-                      color: VarnamalaTheme.cardBg(context),
+                      color: TurnaTheme.cardBg(context),
                       borderRadius:
-                          BorderRadius.circular(VarnamalaTheme.radiusLarge),
-                      border: Border.all(
-                          color: VarnamalaTheme.statCardBorder(context)),
+                          BorderRadius.circular(TurnaTheme.radiusLarge),
+                      border:
+                          Border.all(color: TurnaTheme.statCardBorder(context)),
                     ),
                     child: Row(
                       children: [
                         _MetricCell(
                           icon: Icons.local_fire_department_rounded,
-                          iconColor: VarnamalaTheme.warning,
+                          iconColor: TurnaTheme.warning,
                           value: streak.toString(),
                           label: AppStrings.profileDayStreak,
                         ),
                         _vDivider(context),
                         _MetricCell(
                           icon: Icons.bolt_rounded,
-                          iconColor: VarnamalaTheme.peacockTurquoise,
+                          iconColor: TurnaTheme.peacockTurquoise,
                           value: totalXp.toString(),
                           label: AppStrings.profileTotalXp,
                         ),
                         _vDivider(context),
                         _MetricCell(
                           icon: Icons.diamond_rounded,
-                          iconColor: VarnamalaTheme.error,
+                          iconColor: TurnaTheme.error,
                           value: gems.toString(),
                           label: AppStrings.profileGems,
                         ),
                         _vDivider(context),
                         _MetricCell(
                           icon: Icons.school_rounded,
-                          iconColor: VarnamalaTheme.peacockCyan,
+                          iconColor: TurnaTheme.peacockCyan,
                           value: lessons.toString(),
                           label: AppStrings.profileLessonsShort,
                         ),
@@ -89,7 +89,7 @@ class Statistics extends StatelessWidget {
     return Row(
       children: [
         const Icon(Icons.insights_rounded,
-            color: VarnamalaTheme.peacockTeal, size: 20),
+            color: TurnaTheme.peacockTeal, size: 20),
         const SizedBox(width: 8),
         Text(
           text,
@@ -105,7 +105,7 @@ class Statistics extends StatelessWidget {
     return Container(
       width: 1,
       height: 40,
-      color: VarnamalaTheme.dividerBg(context),
+      color: TurnaTheme.dividerBg(context),
     );
   }
 }
@@ -143,7 +143,7 @@ class _MetricCell extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: VarnamalaTheme.textHintColor(context),
+                  color: TurnaTheme.textHintColor(context),
                   fontWeight: FontWeight.w500,
                   fontSize: 11,
                 ),

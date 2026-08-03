@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/views/lesson/components/interactions/multiple_choice_renderer.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/views/lesson/components/interactions/multiple_choice_renderer.dart';
 
 import 'renderer_test_helper.dart';
 

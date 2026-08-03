@@ -1,10 +1,10 @@
 // Project imports:
-import 'package:varnamala/application/anki/anki_card_html_renderer.dart';
-import 'package:varnamala/application/anki/anki_media_reference_extractor.dart';
-import 'package:varnamala/application/anki/anki_models.dart';
-import 'package:varnamala/data/anki_note_dao.dart';
-import 'package:varnamala/domain/audio/anki_audio_resolver.dart';
-import 'package:varnamala/domain/course/interaction.dart';
+import 'package:turna/application/anki/anki_card_html_renderer.dart';
+import 'package:turna/application/anki/anki_media_reference_extractor.dart';
+import 'package:turna/application/anki/anki_models.dart';
+import 'package:turna/data/anki_note_dao.dart';
+import 'package:turna/domain/audio/anki_audio_resolver.dart';
+import 'package:turna/domain/course/interaction.dart';
 
 /// Resolves a lightweight Anki card reference into its canonical rendered
 /// front/back faces from the NoteStore.

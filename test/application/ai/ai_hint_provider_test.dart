@@ -10,12 +10,12 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 // Project imports:
-import 'package:varnamala/application/ai/ai_hint_provider.dart';
-import 'package:varnamala/application/ai/engine/ai_cache.dart';
-import 'package:varnamala/application/ai/engine/ai_engine.dart';
-import 'package:varnamala/application/ai/engine/ai_engine_config.dart';
-import 'package:varnamala/application/ai/engine/ai_http_client.dart';
-import 'package:varnamala/application/ai/engine/ai_provider_preset.dart';
+import 'package:turna/application/ai/ai_hint_provider.dart';
+import 'package:turna/application/ai/engine/ai_cache.dart';
+import 'package:turna/application/ai/engine/ai_engine.dart';
+import 'package:turna/application/ai/engine/ai_engine_config.dart';
+import 'package:turna/application/ai/engine/ai_http_client.dart';
+import 'package:turna/application/ai/engine/ai_provider_preset.dart';
 
 http.Response _textResponse(String content) {
   final body = jsonEncode({
@@ -123,7 +123,8 @@ void main() {
     expect(provider.latestReply, isNull);
   });
 
-  test('a stale in-flight explainQuestion does not append into a newer '
+  test(
+      'a stale in-flight explainQuestion does not append into a newer '
       'conversation after reset', () async {
     final gate = Completer<void>();
     final client = MockClient((req) async {
@@ -192,8 +193,7 @@ void main() {
     final client = MockClient((req) async {
       final body = jsonDecode(req.body) as Map<String, dynamic>;
       final messages = body['messages'] as List;
-      final lastContent =
-          (messages.last as Map)['content'] as String? ?? '';
+      final lastContent = (messages.last as Map)['content'] as String? ?? '';
       // Gate only A's follow-up so explainQuestion and B can resolve.
       if (lastContent.contains('A 的问题')) {
         await gate.future;
@@ -219,7 +219,8 @@ void main() {
     expect(provider.messages.last.content, 'B 的回复。');
   });
 
-  test('cancel aborts an in-flight explainQuestion and returns to idle', () async {
+  test('cancel aborts an in-flight explainQuestion and returns to idle',
+      () async {
     final gate = Completer<void>();
     final client = MockClient((req) async {
       await gate.future;
@@ -228,7 +229,8 @@ void main() {
     final provider = _provider(client);
 
     // Start a generation that hangs on the gate, then cancel it.
-    final future = provider.explainQuestion(config: _engineConfig(), ctx: _ctx());
+    final future =
+        provider.explainQuestion(config: _engineConfig(), ctx: _ctx());
     // Let the request reach the mock (awaiting the gate) before cancelling.
     await Future<void>.delayed(Duration.zero);
     provider.cancel();

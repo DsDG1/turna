@@ -4,9 +4,9 @@
 
 // Project imports:
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/application/anki/anki_card_html_renderer.dart';
-import 'package:varnamala/application/anki/anki_media_url_resolver.dart';
-import 'package:varnamala/application/anki/anki_models.dart';
+import 'package:turna/application/anki/anki_card_html_renderer.dart';
+import 'package:turna/application/anki/anki_media_url_resolver.dart';
+import 'package:turna/application/anki/anki_models.dart';
 
 void main() {
   group('AnkiCardHtmlRenderer', () {

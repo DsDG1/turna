@@ -6,15 +6,15 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/ai/ai_course_provider.dart';
-import 'package:varnamala/application/ai/engine/ai_engine_config_holder.dart';
-import 'package:varnamala/application/ai/textbook/knowledge_merger.dart';
-import 'package:varnamala/application/ai/textbook/textbook_import_provider.dart';
-import 'package:varnamala/application/ai/textbook/textbook_presets.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/ai/textbook/textbook_conflict_preview.dart';
-import 'package:varnamala/views/ai/textbook/textbook_review_panel.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/ai/ai_course_provider.dart';
+import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
+import 'package:turna/application/ai/textbook/knowledge_merger.dart';
+import 'package:turna/application/ai/textbook/textbook_import_provider.dart';
+import 'package:turna/application/ai/textbook/textbook_presets.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/ai/textbook/textbook_conflict_preview.dart';
+import 'package:turna/views/ai/textbook/textbook_review_panel.dart';
+import 'package:turna/views/theme.dart';
 
 @RoutePage()
 class TextbookImportPage extends StatefulWidget {
@@ -76,10 +76,10 @@ class _TextbookImportPageState extends State<TextbookImportPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: VarnamalaTheme.scaffoldBg(context),
+      backgroundColor: TurnaTheme.scaffoldBg(context),
       appBar: AppBar(
         title: Text(AppStrings.aiTextbookImportTitle),
-        backgroundColor: VarnamalaTheme.bottomNavBg(context),
+        backgroundColor: TurnaTheme.bottomNavBg(context),
       ),
       body: SafeArea(
         child: Padding(
@@ -200,16 +200,14 @@ class _TextbookImportPageState extends State<TextbookImportPage> {
                 const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             border: const OutlineInputBorder(),
           ),
-          items: textbookPresetNames
-              .map((name) {
-                final p = presetFor(name);
-                return DropdownMenuItem(
-                  value: name,
-                  child: Text(p.label,
-                      overflow: TextOverflow.ellipsis, maxLines: 1),
-                );
-              })
-              .toList(),
+          items: textbookPresetNames.map((name) {
+            final p = presetFor(name);
+            return DropdownMenuItem(
+              value: name,
+              child:
+                  Text(p.label, overflow: TextOverflow.ellipsis, maxLines: 1),
+            );
+          }).toList(),
           onChanged: (v) {
             if (v != null) provider.updateSettings(preset: presetFor(v));
           },
@@ -292,7 +290,7 @@ class _TextbookImportPageState extends State<TextbookImportPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const CircularProgressIndicator(color: VarnamalaTheme.peacockTeal),
+          const CircularProgressIndicator(color: TurnaTheme.peacockTeal),
           const SizedBox(height: 16),
           Text(label),
         ],
@@ -337,8 +335,7 @@ class _TextbookImportPageState extends State<TextbookImportPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.check_circle,
-              color: VarnamalaTheme.success, size: 64),
+          const Icon(Icons.check_circle, color: TurnaTheme.success, size: 64),
           const SizedBox(height: 16),
           Text(AppStrings.aiTextbookImportComplete),
           const SizedBox(height: 16),
@@ -357,12 +354,12 @@ class _TextbookImportPageState extends State<TextbookImportPage> {
         padding: const EdgeInsets.all(12),
         margin: const EdgeInsets.only(top: 8),
         decoration: BoxDecoration(
-          color: VarnamalaTheme.error.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+          color: TurnaTheme.error.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
         ),
         child: Text(
           AppStrings.aiTextbookErrorFooter(provider.error!),
-          style: const TextStyle(color: VarnamalaTheme.error),
+          style: const TextStyle(color: TurnaTheme.error),
         ),
       );
     }
@@ -381,8 +378,9 @@ class _TextbookImportPageState extends State<TextbookImportPage> {
         return Padding(
           padding: const EdgeInsets.only(top: 8),
           child: FilledButton.icon(
-            onPressed:
-                provider.isBusy ? null : () => provider.prepareConflictPreview(),
+            onPressed: provider.isBusy
+                ? null
+                : () => provider.prepareConflictPreview(),
             icon: const Icon(Icons.preview_outlined),
             label: Text(AppStrings.aiTextbookContinueToConflict),
           ),
@@ -394,8 +392,7 @@ class _TextbookImportPageState extends State<TextbookImportPage> {
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed:
-                      provider.isBusy ? null : provider.backToReview,
+                  onPressed: provider.isBusy ? null : provider.backToReview,
                   child: Text(AppStrings.aiTextbookBackToReview),
                 ),
               ),

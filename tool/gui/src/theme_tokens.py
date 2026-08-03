@@ -1,4 +1,4 @@
-"""Semantic color tokens for the Varnamala GUI course editor.
+"""Semantic color tokens for the Turna GUI course editor.
 
 This module is the single source of truth for all theme palettes. It is
 deliberately free of Qt imports so the token tables and helpers can be
@@ -6,7 +6,7 @@ unit-tested headlessly and reused by ``theme.py`` (which owns the QSS
 stylesheet generation and ``QApplication`` wiring).
 
 Design language: **Peacock** - aligned with the Flutter app's
-``VarnamalaTheme`` (``lib/views/theme.dart``). The primary accent family is
+``TurnaTheme`` (``lib/views/theme.dart``). The primary accent family is
 teal / cyan / turquoise rather than the generic blue that previously drove
 the desktop editor. Four palettes are provided:
 

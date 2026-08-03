@@ -1,12 +1,12 @@
 // Project imports:
-import 'package:varnamala/domain/course/expression.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/domain/course/lesson.dart';
-import 'package:varnamala/domain/course/listening_phase.dart';
-import 'package:varnamala/domain/course/section.dart';
-import 'package:varnamala/domain/course/stage.dart';
-import 'package:varnamala/domain/course/sub_lesson.dart';
-import 'package:varnamala/domain/course/word_entry.dart';
+import 'package:turna/domain/course/expression.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/domain/course/lesson.dart';
+import 'package:turna/domain/course/listening_phase.dart';
+import 'package:turna/domain/course/section.dart';
+import 'package:turna/domain/course/stage.dart';
+import 'package:turna/domain/course/sub_lesson.dart';
+import 'package:turna/domain/course/word_entry.dart';
 
 /// Design-contract limits for course-tree performance (~9300 lessons target).
 /// Enforced at seed/CI ([validateCourse] / [validateSection]) and on

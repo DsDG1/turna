@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/views/theme.dart';
 
 class SplashBackgroundPainter extends CustomPainter {
   @override
@@ -7,7 +7,7 @@ class SplashBackgroundPainter extends CustomPainter {
     final paint = Paint()..style = PaintingStyle.fill;
 
     // First Curve - Top Right (Warm Gold)
-    paint.color = VarnamalaTheme.success.withValues(alpha: 0.15);
+    paint.color = TurnaTheme.success.withValues(alpha: 0.15);
     final path1 = Path();
     path1.moveTo(size.width, 0);
     path1.lineTo(size.width, size.height * 0.35);
@@ -22,7 +22,7 @@ class SplashBackgroundPainter extends CustomPainter {
     canvas.drawPath(path1, paint);
 
     // Second Curve - Middle/Bottom Layer (Coral/Orange)
-    paint.color = VarnamalaTheme.warning.withValues(alpha: 0.15);
+    paint.color = TurnaTheme.warning.withValues(alpha: 0.15);
     final path2 = Path();
     path2.moveTo(size.width, size.height);
     path2.lineTo(size.width, size.height * 0.6);
@@ -39,7 +39,7 @@ class SplashBackgroundPainter extends CustomPainter {
     canvas.drawPath(path2, paint);
 
     // Third Curve - Bottom Left Accent (Red/Coral)
-    paint.color = VarnamalaTheme.errorLight.withValues(alpha: 0.1);
+    paint.color = TurnaTheme.errorLight.withValues(alpha: 0.1);
     final path3 = Path();
     path3.moveTo(0, size.height);
     path3.lineTo(0, size.height * 0.75);

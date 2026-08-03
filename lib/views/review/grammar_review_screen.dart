@@ -6,21 +6,21 @@ import 'package:auto_route/annotations.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/game_provider.dart';
-import 'package:varnamala/application/gems_provider.dart';
-import 'package:varnamala/application/grammar_review_provider.dart';
-import 'package:varnamala/application/study_stats_provider.dart';
-import 'package:varnamala/core/sm2.dart';
-import 'package:varnamala/courses/languages/grammar_points.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/domain/course/grammar_point.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/domain/course/srs_word.dart';
-import 'package:varnamala/domain/study/study_log.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:varnamala/views/review/components/review_components.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/game_provider.dart';
+import 'package:turna/application/gems_provider.dart';
+import 'package:turna/application/grammar_review_provider.dart';
+import 'package:turna/application/study_stats_provider.dart';
+import 'package:turna/core/sm2.dart';
+import 'package:turna/courses/languages/grammar_points.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/domain/course/grammar_point.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/domain/course/srs_word.dart';
+import 'package:turna/domain/study/study_log.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/views/review/components/review_components.dart';
+import 'package:turna/views/theme.dart';
 
 enum _GrammarCardPhase { explain, practice, rate }
 
@@ -221,7 +221,7 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
     final practiceItems = _practiceFor(point);
 
     return Scaffold(
-      backgroundColor: VarnamalaTheme.scaffoldBg(context),
+      backgroundColor: TurnaTheme.scaffoldBg(context),
       appBar: AppBar(
         title: Text(AppStrings.reviewGrammarAppBarTitle),
         actions: [
@@ -283,12 +283,12 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
                   child: ElevatedButton(
                     onPressed: _onPracticeContinue,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: VarnamalaTheme.peacockTeal,
-                      foregroundColor: VarnamalaTheme.textOnPrimary,
+                      backgroundColor: TurnaTheme.peacockTeal,
+                      foregroundColor: TurnaTheme.textOnPrimary,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius:
-                            BorderRadius.circular(VarnamalaTheme.radiusMedium),
+                            BorderRadius.circular(TurnaTheme.radiusMedium),
                       ),
                     ),
                     child: Text(
@@ -308,12 +308,12 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
                   child: ElevatedButton(
                     onPressed: _onRevealExplanation,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: VarnamalaTheme.peacockTeal,
-                      foregroundColor: VarnamalaTheme.textOnPrimary,
+                      backgroundColor: TurnaTheme.peacockTeal,
+                      foregroundColor: TurnaTheme.textOnPrimary,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius:
-                            BorderRadius.circular(VarnamalaTheme.radiusMedium),
+                            BorderRadius.circular(TurnaTheme.radiusMedium),
                       ),
                     ),
                     child: Text(
@@ -358,11 +358,11 @@ class _PracticePanel extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+        color: TurnaTheme.cardBg(context),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
         boxShadow: [
           BoxShadow(
-            color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.08),
+            color: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -374,7 +374,7 @@ class _PracticePanel extends StatelessWidget {
           Text(
             progressLabel,
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: VarnamalaTheme.peacockTeal,
+                  color: TurnaTheme.peacockTeal,
                   fontWeight: FontWeight.w700,
                 ),
           ),
@@ -416,11 +416,11 @@ class _GrammarCard extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: VarnamalaTheme.cardBg(context),
-          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+          color: TurnaTheme.cardBg(context),
+          borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
           boxShadow: [
             BoxShadow(
-              color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.08),
+              color: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),
@@ -435,7 +435,7 @@ class _GrammarCard extends StatelessWidget {
                   point!.title,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.w800,
-                        color: VarnamalaTheme.textPrimaryColor(context),
+                        color: TurnaTheme.textPrimaryColor(context),
                       ),
                   textAlign: TextAlign.center,
                 ),
@@ -447,7 +447,7 @@ class _GrammarCard extends StatelessWidget {
                     point!.explanation,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           height: 1.5,
-                          color: VarnamalaTheme.textPrimaryColor(context),
+                          color: TurnaTheme.textPrimaryColor(context),
                         ),
                   ),
                   const SizedBox(height: 16),
@@ -460,7 +460,7 @@ class _GrammarCard extends StatelessWidget {
                             ? AppStrings.reviewGrammarLearnedIn(lessonName)
                             : AppStrings.reviewGrammarFirstSeen(word.wordId),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: VarnamalaTheme.textHintColor(context),
+                              color: TurnaTheme.textHintColor(context),
                             ),
                       );
                     },
@@ -469,7 +469,7 @@ class _GrammarCard extends StatelessWidget {
                   Text(
                     AppStrings.reviewGrammarTapToReveal,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: VarnamalaTheme.textHintColor(context),
+                          color: TurnaTheme.textHintColor(context),
                         ),
                     textAlign: TextAlign.center,
                   ),
@@ -486,7 +486,7 @@ class _GrammarCard extends StatelessWidget {
                 Text(
                   AppStrings.reviewGrammarPointNotFound,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: VarnamalaTheme.textHintColor(context),
+                        color: TurnaTheme.textHintColor(context),
                       ),
                   textAlign: TextAlign.center,
                 ),

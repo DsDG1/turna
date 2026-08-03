@@ -2,8 +2,8 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/theme.dart';
 
 /// User choice for the content-update prompt (ADR 0002).
 enum ContentUpdateChoice { keepProgress, resetProgress }
@@ -23,7 +23,7 @@ class ContentUpdateDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return AlertDialog(
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
       ),
       title: Text(AppStrings.contentUpdateTitle),
       content: Text(
@@ -38,7 +38,7 @@ class ContentUpdateDialog extends StatelessWidget {
         TextButton(
           onPressed: () =>
               Navigator.of(context).pop(ContentUpdateChoice.resetProgress),
-          style: TextButton.styleFrom(foregroundColor: VarnamalaTheme.error),
+          style: TextButton.styleFrom(foregroundColor: TurnaTheme.error),
           child: Text(AppStrings.contentUpdateResetProgress),
         ),
       ],

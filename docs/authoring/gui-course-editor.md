@@ -1,6 +1,6 @@
 # GUI 课程开发工具设计
 
-> 本文件描述如何在**不破坏 JSON-first 契约**的前提下，为 Varnamala 构建一个本地
+> 本文件描述如何在**不破坏 JSON-first 契约**的前提下，为 Turna 构建一个本地
 > GUI 课程编辑器。契约本体见 [`course-layout.md`](./course-layout.md)；本文不重复
 > 契约，只规定 GUI 与现有 CLI 工具链的协作方式。
 >

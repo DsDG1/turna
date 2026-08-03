@@ -5,13 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/settings_provider.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/service/local_reminder_service.dart';
-import 'package:varnamala/views/settings/widgets/settings_common.dart';
-import 'package:varnamala/views/settings/widgets/settings_sound_section.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/settings_provider.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/service/local_reminder_service.dart';
+import 'package:turna/views/settings/widgets/settings_common.dart';
+import 'package:turna/views/settings/widgets/settings_sound_section.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/theme.dart';
 
 class SettingsDailyReminderTile extends StatelessWidget {
   const SettingsDailyReminderTile({super.key});
@@ -57,7 +57,7 @@ class SettingsDailyReminderTile extends StatelessWidget {
             trailing: Text(
               timeLabel,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: VarnamalaTheme.peacockTeal,
+                    color: TurnaTheme.peacockTeal,
                     fontWeight: FontWeight.w700,
                   ),
             ),

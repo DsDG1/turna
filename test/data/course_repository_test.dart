@@ -1,12 +1,12 @@
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/data/course_database.dart' as db;
-import 'package:varnamala/data/course_repository.dart';
-import 'package:varnamala/domain/course/lesson.dart';
-import 'package:varnamala/domain/course/lesson_content.dart';
-import 'package:varnamala/domain/course/section.dart';
-import 'package:varnamala/domain/course/unit.dart';
+import 'package:turna/data/course_database.dart' as db;
+import 'package:turna/data/course_repository.dart';
+import 'package:turna/domain/course/lesson.dart';
+import 'package:turna/domain/course/lesson_content.dart';
+import 'package:turna/domain/course/section.dart';
+import 'package:turna/domain/course/unit.dart';
 
 import '../helpers/in_memory_course_db.dart';
 
@@ -419,8 +419,7 @@ void main() {
           ],
         );
 
-    test('sequential inserts assign distinct, monotonic sortOrder',
-        () async {
+    test('sequential inserts assign distinct, monotonic sortOrder', () async {
       await repo.bulkInsertCourseTree(fixture('s-a', 'A'));
       await repo.bulkInsertCourseTree(fixture('s-b', 'B'));
       await repo.bulkInsertCourseTree(fixture('s-c', 'C'));
@@ -457,7 +456,8 @@ void main() {
       expect(s.name, 'Original');
     });
 
-    test('concurrent inserts into an empty DB both succeed with distinct '
+    test(
+        'concurrent inserts into an empty DB both succeed with distinct '
         'sortOrder', () async {
       // Two imports racing on the same MAX(sort_order) (which is null/-1
       // at this point) used to produce two sections with the same
@@ -469,7 +469,8 @@ void main() {
       ]);
 
       final rows = await database
-          .customSelect('SELECT id, sort_order FROM sections ORDER BY sort_order')
+          .customSelect(
+              'SELECT id, sort_order FROM sections ORDER BY sort_order')
           .get();
       expect(rows, hasLength(2));
       final ids = rows.map((r) => r.read<String>('id')).toSet();

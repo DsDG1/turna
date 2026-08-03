@@ -9,8 +9,8 @@ import 'package:share_plus/share_plus.dart';
 
 // Project imports:
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:varnamala/courses/course_loader.dart';
-import 'package:varnamala/service/locator.dart';
+import 'package:turna/courses/course_loader.dart';
+import 'package:turna/service/locator.dart';
 
 /// Encoded progress / settings keys carried in an export and written back on
 /// import. Each entry pairs a prefs key with its scalar type so the export can
@@ -119,7 +119,7 @@ class ExportService {
 
     final dir = await getTemporaryDirectory();
     final ts = DateTime.now().millisecondsSinceEpoch;
-    final file = File('${dir.path}/varnamala_export_$ts.json');
+    final file = File('${dir.path}/turna_export_$ts.json');
     await file.writeAsString(jsonEncode(payload));
     return file;
   }
@@ -127,7 +127,7 @@ class ExportService {
   Future<void> share(File file) async {
     await Share.shareXFiles(
       [XFile(file.path)],
-      text: 'Varnamala export',
+      text: 'Turna export',
     );
   }
 
@@ -169,14 +169,16 @@ class ExportService {
       if (!keys.contains(entry.key)) continue;
       switch (entry.type) {
         case _PrefType.bool_:
-          out[entry.key] = prefs.getBool(entry.key, defaultValue: false).getValue();
+          out[entry.key] =
+              prefs.getBool(entry.key, defaultValue: false).getValue();
         case _PrefType.int_:
           out[entry.key] = prefs.getInt(entry.key, defaultValue: 0).getValue();
         case _PrefType.double_:
           out[entry.key] =
               prefs.getDouble(entry.key, defaultValue: 0.0).getValue();
         case _PrefType.string:
-          out[entry.key] = prefs.getString(entry.key, defaultValue: '').getValue();
+          out[entry.key] =
+              prefs.getString(entry.key, defaultValue: '').getValue();
         case _PrefType.stringList:
           out[entry.key] =
               prefs.getStringList(entry.key, defaultValue: const []).getValue();

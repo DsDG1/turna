@@ -25,8 +25,8 @@ class Achievement {
   final String description;
   final IconData icon;
   final Color color;
-  final List<int> targets; 
-  
+  final List<int> targets;
+
   int get maxLevel => targets.length;
 
   const Achievement({
@@ -44,16 +44,16 @@ class Achievement {
   // the final target, the achievement is at its maximum level.
   int getCurrentLevel(int progress) {
     for (int i = 0; i < targets.length; i++) {
-        if (progress < targets[i]) {
-            return i + 1;
-        }
+      if (progress < targets[i]) {
+        return i + 1;
+      }
     }
     return targets.length;
   }
 
   int getTargetForLevel(int level) {
-      if (level <= 0) return targets.isNotEmpty ? targets.first : 0;
-      if (level > targets.length) return targets.isNotEmpty ? targets.last : 0;
-      return targets[level - 1];
+    if (level <= 0) return targets.isNotEmpty ? targets.first : 0;
+    if (level > targets.length) return targets.isNotEmpty ? targets.last : 0;
+    return targets[level - 1];
   }
 }

@@ -4,8 +4,8 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // Project imports:
-import 'package:varnamala/data/anki_import_dao.dart';
-import 'package:varnamala/data/course_database.dart' as db;
+import 'package:turna/data/anki_import_dao.dart';
+import 'package:turna/data/course_database.dart' as db;
 
 import '../helpers/in_memory_course_db.dart';
 
@@ -53,16 +53,15 @@ void main() {
     }
 
     Future<Map<String, Object?>> readRow(String importId) async {
-      final row = await database
-          .customSelect(
-            'SELECT status, last_error FROM anki_imports WHERE import_id = ?',
-            variables: [Variable.withString(importId)],
-          )
-          .getSingleOrNull();
+      final row = await database.customSelect(
+        'SELECT status, last_error FROM anki_imports WHERE import_id = ?',
+        variables: [Variable.withString(importId)],
+      ).getSingleOrNull();
       return row?.data ?? const {};
     }
 
-    test('markFailed flips status from pending to failed with reason', () async {
+    test('markFailed flips status from pending to failed with reason',
+        () async {
       await seedRow('imp-1');
 
       expect((await readRow('imp-1'))['status'], 'pending');
@@ -97,12 +96,10 @@ void main() {
     test('markFailed on a non-existent importId is a no-op', () async {
       // The WHERE import_id = ? clause matches zero rows; no error.
       await dao.markFailed('does-not-exist', reason: 'orphan');
-      final row = await database
-          .customSelect(
-            'SELECT 1 FROM anki_imports WHERE import_id = ?',
-            variables: [Variable.withString('does-not-exist')],
-          )
-          .getSingleOrNull();
+      final row = await database.customSelect(
+        'SELECT 1 FROM anki_imports WHERE import_id = ?',
+        variables: [Variable.withString('does-not-exist')],
+      ).getSingleOrNull();
       expect(row, isNull);
     });
   });

@@ -1,4 +1,4 @@
-// Copyright (c) 2024 VarnamalaPlus. All rights reserved.
+// Copyright (c) 2024 Turna. All rights reserved.
 // Native file picker for HarmonyOS — bridges @ohos.file.picker to Flutter
 // via MethodChannel, since the file_picker Flutter plugin does not support OHos.
 
@@ -16,7 +16,7 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import hilog from '@ohos.hilog';
 
 const TAG = "FilePickerPlugin";
-const CHANNEL = "com.varnamala/file_picker";
+const CHANNEL = "me.dsdogs.turna/file_picker";
 
 export default class FilePickerPlugin implements FlutterPlugin {
   private channel: MethodChannel | null = null;

@@ -2,9 +2,9 @@
 import 'dart:convert';
 
 // Project imports:
-import 'package:varnamala/application/ai/ai_course_spec.dart';
-import 'package:varnamala/application/ai/ai_genre.dart';
-import 'package:varnamala/application/ai/ai_resource_consistency.dart';
+import 'package:turna/application/ai/ai_course_spec.dart';
+import 'package:turna/application/ai/ai_genre.dart';
+import 'package:turna/application/ai/ai_resource_consistency.dart';
 
 /// Pure helpers used by the feature providers to build prompts, normalize and
 /// validate the AI's JSON reply, and apply genre tags.

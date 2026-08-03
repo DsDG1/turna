@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 // Project imports:
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/theme.dart';
 
 /// Offline changelog of major milestones and feature batches.
 ///
@@ -161,7 +161,7 @@ class ChangelogPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: VarnamalaTheme.scaffoldBg(context),
+      backgroundColor: TurnaTheme.scaffoldBg(context),
       appBar: AppBar(
         title: Text(
           AppStrings.changelogTitle,
@@ -200,10 +200,10 @@ class JourneyOverviewCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-        border: Border.all(color: VarnamalaTheme.statCardBorder(context)),
-        boxShadow: VarnamalaTheme.softShadow,
+        color: TurnaTheme.cardBg(context),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        border: Border.all(color: TurnaTheme.statCardBorder(context)),
+        boxShadow: TurnaTheme.softShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -214,13 +214,12 @@ class JourneyOverviewCard extends StatelessWidget {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.1),
-                  borderRadius:
-                      BorderRadius.circular(VarnamalaTheme.radiusMedium),
+                  color: TurnaTheme.peacockTeal.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
                 ),
                 child: const Icon(
                   Icons.timeline_rounded,
-                  color: VarnamalaTheme.peacockTeal,
+                  color: TurnaTheme.peacockTeal,
                   size: 20,
                 ),
               ),
@@ -239,7 +238,7 @@ class JourneyOverviewCard extends StatelessWidget {
           Text(
             'Varnamala Plus 从原型到 1.1.0 的 6 个阶段',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: VarnamalaTheme.textHintColor(context),
+                  color: TurnaTheme.textHintColor(context),
                 ),
           ),
           const SizedBox(height: 12),
@@ -286,7 +285,7 @@ const String kDefaultChangelogAssetPath = 'assets/changelog.md';
 
 /// 从 `assets/changelog.md` 读取并渲染 changelog;失败时使用 fallback。
 ///
-/// 切换到 About 页"更新日志"Tab 时,由 [AboutVarnamalaPage] 直接嵌入,
+/// 切换到 About 页"更新日志"Tab 时,由 [AboutTurnaPage] 直接嵌入,
 /// 不再走独立路由;`ChangelogPage` 独立路由仍保留,以兼容设置页入口与
 /// 测试。
 class ChangelogFromAsset extends StatelessWidget {
@@ -322,9 +321,7 @@ class ChangelogFromAsset extends StatelessWidget {
         if (snapshot.hasError || !snapshot.hasData) {
           return _ReleaseList(
             releases: fallbackReleases,
-            banner: showFallbackBanner
-                ? AppStrings.changeloadFallback
-                : null,
+            banner: showFallbackBanner ? AppStrings.changeloadFallback : null,
             sourceText: null,
             onCopyText: onCopyText,
           );
@@ -333,9 +330,7 @@ class ChangelogFromAsset extends StatelessWidget {
         if (releases.isEmpty) {
           return _ReleaseList(
             releases: fallbackReleases,
-            banner: showFallbackBanner
-                ? AppStrings.changeloadFallback
-                : null,
+            banner: showFallbackBanner ? AppStrings.changeloadFallback : null,
             sourceText: null,
             onCopyText: onCopyText,
           );
@@ -366,7 +361,7 @@ class _LoadingState extends StatelessWidget {
               height: 28,
               child: CircularProgressIndicator(
                 strokeWidth: 2.5,
-                color: VarnamalaTheme.peacockTeal,
+                color: TurnaTheme.peacockTeal,
               ),
             ),
             const SizedBox(height: 12),
@@ -374,7 +369,7 @@ class _LoadingState extends StatelessWidget {
               AppStrings.changelogIntro,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: VarnamalaTheme.textHintColor(context),
+                    color: TurnaTheme.textHintColor(context),
                   ),
             ),
           ],
@@ -407,7 +402,7 @@ class _ReleaseList extends StatelessWidget {
           AppStrings.changelogIntro,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 height: 1.5,
-                color: VarnamalaTheme.textSecondaryColor(context),
+                color: TurnaTheme.textSecondaryColor(context),
               ),
         ),
         const SizedBox(height: 16),
@@ -417,10 +412,10 @@ class _ReleaseList extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: VarnamalaTheme.warning.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+              color: TurnaTheme.warning.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
               border: Border.all(
-                color: VarnamalaTheme.warning.withValues(alpha: 0.4),
+                color: TurnaTheme.warning.withValues(alpha: 0.4),
               ),
             ),
             child: Row(
@@ -428,14 +423,14 @@ class _ReleaseList extends StatelessWidget {
                 Icon(
                   Icons.warning_amber_rounded,
                   size: 18,
-                  color: VarnamalaTheme.warning,
+                  color: TurnaTheme.warning,
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     banner!,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: VarnamalaTheme.textSecondaryColor(context),
+                          color: TurnaTheme.textSecondaryColor(context),
                         ),
                   ),
                 ),
@@ -456,7 +451,7 @@ class _ReleaseList extends StatelessWidget {
           AppStrings.changelogFooterNote,
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: VarnamalaTheme.textHintColor(context),
+                color: TurnaTheme.textHintColor(context),
               ),
         ),
       ],
@@ -567,17 +562,17 @@ class JourneyStepRow extends StatelessWidget {
                     height: isFirst ? 12 : 6,
                     color: isFirst
                         ? Colors.transparent
-                        : VarnamalaTheme.peacockTeal.withValues(alpha: 0.3),
+                        : TurnaTheme.peacockTeal.withValues(alpha: 0.3),
                   ),
                 ),
                 Container(
                   width: 10,
                   height: 10,
                   decoration: BoxDecoration(
-                    color: VarnamalaTheme.peacockTeal,
+                    color: TurnaTheme.peacockTeal,
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: VarnamalaTheme.cardBg(context),
+                      color: TurnaTheme.cardBg(context),
                       width: 2,
                     ),
                   ),
@@ -587,7 +582,7 @@ class JourneyStepRow extends StatelessWidget {
                     width: 2,
                     color: isLast
                         ? Colors.transparent
-                        : VarnamalaTheme.peacockTeal.withValues(alpha: 0.3),
+                        : TurnaTheme.peacockTeal.withValues(alpha: 0.3),
                   ),
                 ),
               ],
@@ -606,16 +601,16 @@ class JourneyStepRow extends StatelessWidget {
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.1),
+                      color: TurnaTheme.peacockTeal.withValues(alpha: 0.1),
                       borderRadius:
-                          BorderRadius.circular(VarnamalaTheme.radiusSmall),
+                          BorderRadius.circular(TurnaTheme.radiusSmall),
                     ),
                     child: Text(
                       step.label,
                       style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: VarnamalaTheme.peacockTeal,
+                        color: TurnaTheme.peacockTeal,
                       ),
                     ),
                   ),
@@ -626,23 +621,19 @@ class JourneyStepRow extends StatelessWidget {
                       children: [
                         Text(
                           step.title,
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyMedium
-                              ?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: VarnamalaTheme.textPrimaryColor(context),
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: TurnaTheme.textPrimaryColor(context),
+                                  ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           step.subtitle,
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall
-                              ?.copyWith(
-                                color: VarnamalaTheme.textHintColor(context),
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: TurnaTheme.textHintColor(context),
+                                  ),
                         ),
                       ],
                     ),
@@ -674,12 +665,12 @@ class ChangelogReleaseCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+        color: TurnaTheme.cardBg(context),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
         border: Border.all(
           color: isLatest
-              ? VarnamalaTheme.peacockTeal.withValues(alpha: 0.45)
-              : VarnamalaTheme.statCardBorder(context),
+              ? TurnaTheme.peacockTeal.withValues(alpha: 0.45)
+              : TurnaTheme.statCardBorder(context),
         ),
       ),
       child: Column(
@@ -692,17 +683,16 @@ class ChangelogReleaseCard extends StatelessWidget {
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: isLatest
-                      ? VarnamalaTheme.peacockTeal
-                      : VarnamalaTheme.peacockTeal.withValues(alpha: 0.12),
-                  borderRadius:
-                      BorderRadius.circular(VarnamalaTheme.radiusRound),
+                      ? TurnaTheme.peacockTeal
+                      : TurnaTheme.peacockTeal.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
                 ),
                 child: Text(
                   release.version,
                   style: TextStyle(
                     color: isLatest
-                        ? VarnamalaTheme.textOnPrimary
-                        : VarnamalaTheme.peacockTeal,
+                        ? TurnaTheme.textOnPrimary
+                        : TurnaTheme.peacockTeal,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
@@ -732,7 +722,7 @@ class ChangelogReleaseCard extends StatelessWidget {
                       width: 6,
                       height: 6,
                       decoration: BoxDecoration(
-                        color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.7),
+                        color: TurnaTheme.peacockTeal.withValues(alpha: 0.7),
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -743,7 +733,7 @@ class ChangelogReleaseCard extends StatelessWidget {
                       item,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             height: 1.45,
-                            color: VarnamalaTheme.textSecondaryColor(context),
+                            color: TurnaTheme.textSecondaryColor(context),
                           ),
                     ),
                   ),

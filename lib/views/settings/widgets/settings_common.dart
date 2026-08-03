@@ -2,14 +2,14 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/theme.dart';
 
 Widget settingsTileDivider(BuildContext context) => Divider(
       height: 1,
       indent: 56,
       endIndent: 16,
-      color: VarnamalaTheme.dividerBg(context),
+      color: TurnaTheme.dividerBg(context),
     );
 
 /// Shared peacock-teal adaptive switch used across settings toggle tiles.
@@ -19,10 +19,10 @@ Widget settingsAdaptiveSwitch({
 }) {
   return Switch.adaptive(
     value: value,
-    activeTrackColor: VarnamalaTheme.peacockTeal,
+    activeTrackColor: TurnaTheme.peacockTeal,
     thumbColor: WidgetStateProperty.resolveWith((states) {
       if (states.contains(WidgetState.selected)) {
-        return VarnamalaTheme.peacockTeal;
+        return TurnaTheme.peacockTeal;
       }
       return null;
     }),
@@ -46,13 +46,13 @@ class SettingsSectionTitle extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          Icon(icon, color: VarnamalaTheme.peacockTeal, size: 20),
+          Icon(icon, color: TurnaTheme.peacockTeal, size: 20),
           const SizedBox(width: 8),
           Text(
             title,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
-                  color: VarnamalaTheme.textSecondaryColor(context),
+                  color: TurnaTheme.textSecondaryColor(context),
                 ),
           ),
         ],
@@ -71,9 +71,9 @@ class SettingsCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-        border: Border.all(color: VarnamalaTheme.statCardBorder(context)),
+        color: TurnaTheme.cardBg(context),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        border: Border.all(color: TurnaTheme.statCardBorder(context)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -109,12 +109,12 @@ class SettingsTile extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+              color: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
             ),
             child: Icon(
               icon,
-              color: VarnamalaTheme.peacockTeal,
+              color: TurnaTheme.peacockTeal,
               size: 20,
             ),
           ),
@@ -133,7 +133,7 @@ class SettingsTile extends StatelessWidget {
                   Text(
                     subtitle!,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: VarnamalaTheme.textHintColor(context),
+                          color: TurnaTheme.textHintColor(context),
                         ),
                   ),
               ],
@@ -147,9 +147,9 @@ class SettingsTile extends StatelessWidget {
     if (onTap == null) return content;
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+      borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
       child: InkWell(
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
         onTap: onTap,
         child: content,
       ),
@@ -180,7 +180,7 @@ class SettingsActionTile extends StatelessWidget {
       onTap: () => onTap(context),
       trailing: const Icon(
         Icons.chevron_right_rounded,
-        color: VarnamalaTheme.textHint,
+        color: TurnaTheme.textHint,
       ),
     );
   }
@@ -209,7 +209,7 @@ class SettingsNavigationTile extends StatelessWidget {
       onTap: () => onTap(context),
       trailing: const Icon(
         Icons.chevron_right_rounded,
-        color: VarnamalaTheme.textHint,
+        color: TurnaTheme.textHint,
       ),
     );
   }
@@ -231,7 +231,7 @@ class SettingsConfirmDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return AlertDialog(
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
       ),
       title: Text(title),
       content: Text(message),
@@ -244,7 +244,7 @@ class SettingsConfirmDialog extends StatelessWidget {
           onPressed: () => Navigator.of(context).pop(true),
           child: Text(
             confirmText,
-            style: const TextStyle(color: VarnamalaTheme.error),
+            style: const TextStyle(color: TurnaTheme.error),
           ),
         ),
       ],

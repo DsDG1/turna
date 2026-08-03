@@ -8,10 +8,10 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 // Project imports:
-import 'package:varnamala/application/ai/engine/ai_cancel_token.dart';
-import 'package:varnamala/application/ai/engine/ai_engine_config.dart';
-import 'package:varnamala/application/ai/engine/ai_http_client.dart';
-import 'package:varnamala/application/ai/engine/ai_provider_preset.dart';
+import 'package:turna/application/ai/engine/ai_cancel_token.dart';
+import 'package:turna/application/ai/engine/ai_engine_config.dart';
+import 'package:turna/application/ai/engine/ai_http_client.dart';
+import 'package:turna/application/ai/engine/ai_provider_preset.dart';
 
 /// A config with a non-DeepSeek preset so the reasoning payload fields are not
 /// injected (keeps payload assertions simple).
@@ -86,21 +86,20 @@ void main() {
     test('yields one chunk per content fragment then a terminal done chunk',
         () async {
       final controller = StreamController<List<int>>();
-      final client = AiHttpClient.withClient(_ControllableClient(controller, 200));
+      final client =
+          AiHttpClient.withClient(_ControllableClient(controller, 200));
 
       final sse = 'data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n'
           'data: {"choices":[{"delta":{"content":" world"}}]}\n\n'
           'data: [DONE]\n\n';
       // Subscribe first (realistic server-streaming order), then feed bytes.
-      final fut = client
-          .postStream(
-            config: _config,
-            model: 'gpt-4o',
-            messages: const [
-              {'role': 'user', 'content': 'hi'},
-            ],
-          )
-          .toList();
+      final fut = client.postStream(
+        config: _config,
+        model: 'gpt-4o',
+        messages: const [
+          {'role': 'user', 'content': 'hi'},
+        ],
+      ).toList();
       controller.add(utf8.encode(sse));
       await controller.close();
 
@@ -113,16 +112,15 @@ void main() {
     test('non-SSE buffered body is emitted as a single chunk', () async {
       // The endpoint ignored `stream: true` and returned a buffered JSON body.
       final controller = StreamController<List<int>>();
-      final client = AiHttpClient.withClient(_ControllableClient(controller, 200));
-      final fut = client
-          .postStream(
-            config: _config,
-            model: 'gpt-4o',
-            messages: const [
-              {'role': 'user', 'content': 'hi'},
-            ],
-          )
-          .toList();
+      final client =
+          AiHttpClient.withClient(_ControllableClient(controller, 200));
+      final fut = client.postStream(
+        config: _config,
+        model: 'gpt-4o',
+        messages: const [
+          {'role': 'user', 'content': 'hi'},
+        ],
+      ).toList();
       controller.add(utf8.encode(_chatResponse('bulk reply').body));
       await controller.close();
 
@@ -134,7 +132,8 @@ void main() {
 
     test('throws AiCancelled when the cancel token fires mid-stream', () async {
       final controller = StreamController<List<int>>();
-      final client = AiHttpClient.withClient(_ControllableClient(controller, 200));
+      final client =
+          AiHttpClient.withClient(_ControllableClient(controller, 200));
       final cancel = AiCancelToken();
 
       // Drive the stream: emit the first content line, wait for the engine to
@@ -150,15 +149,15 @@ void main() {
           )
           .toList();
 
-      controller.add(utf8.encode(
-          'data: {"choices":[{"delta":{"content":"first"}}]}\n\n'));
+      controller.add(
+          utf8.encode('data: {"choices":[{"delta":{"content":"first"}}]}\n\n'));
       // Let the stream pump receive the first line.
       await Future<void>.delayed(const Duration(milliseconds: 10));
       cancel.cancel();
       // Emit a second line so the loop's moveNext returns and the cancel check
       // at the top of the next iteration fires.
-      controller.add(utf8.encode(
-          'data: {"choices":[{"delta":{"content":"second"}}]}\n\n'));
+      controller.add(utf8
+          .encode('data: {"choices":[{"delta":{"content":"second"}}]}\n\n'));
       await controller.close();
 
       await expectLater(fut, throwsA(isA<AiCancelled>()));
@@ -289,7 +288,8 @@ void main() {
       expect(sentBody['thinking'], {'type': 'enabled'});
     });
 
-    test('supportsReasoningOverride=true wins over a non-DeepSeek host', () async {
+    test('supportsReasoningOverride=true wins over a non-DeepSeek host',
+        () async {
       late Map<String, dynamic> sentBody;
       final client = AiHttpClient.withClient(
         MockClient((req) async {

@@ -5,12 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 // Project imports:
-import 'package:varnamala/views/settings/about_varnamala_page.dart';
-import 'package:varnamala/views/settings/beginner_guide_page.dart';
-import 'package:varnamala/views/settings/changelog_page.dart';
-import 'package:varnamala/views/settings/widgets/settings_common.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/views/settings/about_turna_page.dart';
+import 'package:turna/views/settings/beginner_guide_page.dart';
+import 'package:turna/views/settings/changelog_page.dart';
+import 'package:turna/views/settings/widgets/settings_common.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/theme.dart';
 
 /// Cached once per process — About footer and license page share this.
 Future<PackageInfo>? _packageInfoFuture;
@@ -38,10 +38,10 @@ class SettingsAboutSection extends StatelessWidget {
         settingsTileDivider(context),
         SettingsNavigationTile(
           icon: Icons.school_rounded,
-          title: AppStrings.settingsAboutVarnamala,
+          title: AppStrings.settingsAboutTurna,
           onTap: (context) => Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => const AboutVarnamalaPage(),
+              builder: (_) => const AboutTurnaPage(),
             ),
           ),
         ),
@@ -64,7 +64,7 @@ class SettingsAboutSection extends StatelessWidget {
             if (!context.mounted) return;
             showLicensePage(
               context: context,
-              applicationName: 'Varnamala',
+              applicationName: 'Turna',
               applicationVersion: info.version,
             );
           },
@@ -97,13 +97,12 @@ class SettingsVersionFooter extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.08),
-                  borderRadius:
-                      BorderRadius.circular(VarnamalaTheme.radiusMedium),
+                  color: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
                 ),
                 child: const Icon(
                   Icons.info_outline_rounded,
-                  color: VarnamalaTheme.peacockTeal,
+                  color: TurnaTheme.peacockTeal,
                   size: 20,
                 ),
               ),
@@ -112,7 +111,7 @@ class SettingsVersionFooter extends StatelessWidget {
                 child: Text(
                   label,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: VarnamalaTheme.textHintColor(context),
+                        color: TurnaTheme.textHintColor(context),
                       ),
                 ),
               ),

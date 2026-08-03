@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
-import 'package:varnamala/data/study_log_repository.dart';
-import 'package:varnamala/domain/study/study_log.dart';
-import 'package:varnamala/service/locator.dart';
+import 'package:turna/data/study_log_repository.dart';
+import 'package:turna/domain/study/study_log.dart';
+import 'package:turna/service/locator.dart';
 
 // StudyLogRepository uses private key constants; mirror them here for tests.
 const _logsKey = 'study.logs';
@@ -70,22 +70,27 @@ void main() {
       await repo.appendLog(makeLog(id: 'yesterday', timestamp: yesterday));
       await repo.appendLog(makeLog(id: 'last-week', timestamp: lastWeek));
 
-      final sinceYesterday = await repo.readLogs(since: yesterday.subtract(const Duration(hours: 1)));
-      expect(sinceYesterday.map((l) => l.id).toSet(),
-          {'today', 'yesterday'});
+      final sinceYesterday = await repo.readLogs(
+          since: yesterday.subtract(const Duration(hours: 1)));
+      expect(sinceYesterday.map((l) => l.id).toSet(), {'today', 'yesterday'});
 
-      final untilYesterday = await repo.readLogs(until: yesterday.subtract(const Duration(hours: 1)));
-      expect(untilYesterday.map((l) => l.id).toSet(),
-          {'yesterday', 'last-week'});
+      final untilYesterday = await repo.readLogs(
+          until: yesterday.subtract(const Duration(hours: 1)));
+      expect(
+          untilYesterday.map((l) => l.id).toSet(), {'yesterday', 'last-week'});
     });
 
     test('filters logs by activity type', () async {
       final now = DateTime.now();
       await repo.appendLog(
-        makeLog(id: 'lesson', timestamp: now, type: StudyActivityType.lessonComplete),
+        makeLog(
+            id: 'lesson',
+            timestamp: now,
+            type: StudyActivityType.lessonComplete),
       );
       await repo.appendLog(
-        makeLog(id: 'review', timestamp: now, type: StudyActivityType.srsReview),
+        makeLog(
+            id: 'review', timestamp: now, type: StudyActivityType.srsReview),
       );
 
       final reviews = await repo.readLogs(type: StudyActivityType.srsReview);
@@ -252,8 +257,9 @@ void main() {
       final now = DateTime.now();
       await repo.appendLog(makeLog(id: 'r1', timestamp: now));
 
-      final recentRaw =
-          prefs.preferences.getString(_recentKey, defaultValue: '[]').getValue();
+      final recentRaw = prefs.preferences
+          .getString(_recentKey, defaultValue: '[]')
+          .getValue();
       expect(recentRaw.contains('r1'), isTrue);
 
       final mainRaw =
@@ -273,8 +279,9 @@ void main() {
         );
       }
 
-      final recentRaw =
-          prefs.preferences.getString(_recentKey, defaultValue: '[]').getValue();
+      final recentRaw = prefs.preferences
+          .getString(_recentKey, defaultValue: '[]')
+          .getValue();
       expect(recentRaw, '[]');
 
       final logs = await repo.readLogs();
@@ -286,8 +293,9 @@ void main() {
       await repo.appendLog(makeLog(id: 'pending', timestamp: now));
       await repo.flushRecent();
 
-      final recentRaw =
-          prefs.preferences.getString(_recentKey, defaultValue: '[]').getValue();
+      final recentRaw = prefs.preferences
+          .getString(_recentKey, defaultValue: '[]')
+          .getValue();
       expect(recentRaw, '[]');
 
       final mainRaw =
@@ -325,7 +333,8 @@ void main() {
       expect(logs, isEmpty);
     });
 
-    test('appendLog still works after corrupted logs (reads empty, then writes)',
+    test(
+        'appendLog still works after corrupted logs (reads empty, then writes)',
         () async {
       await prefs.preferences.setString(_logsKey, 'not-json');
       await repo.appendLog(makeLog(id: 'recovered', timestamp: DateTime.now()));

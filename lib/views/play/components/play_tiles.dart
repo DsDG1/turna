@@ -2,16 +2,16 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/theme.dart';
 
 // ────────────────────────────────────────────────────────────────────
 // Soft-tinted card surfaces — shared building blocks
 // ────────────────────────────────────────────────────────────────────
 // 设计目标：轻盈 pastel 着色卡，accent @ 0.10 底色 + 白色高光描边 +
 // 白色晕染发光 + 内侧顶部霜面高光 + 圆角 20。Hero 例外用 accent 渐变 + 白字。
-// 暗色模式由 [VarnamalaTheme.softTint] 改为不透明罩染，accent 文字经
-// [VarnamalaTheme.accentOnCard] 提亮，避免发灰发浑。
+// 暗色模式由 [TurnaTheme.softTint] 改为不透明罩染，accent 文字经
+// [TurnaTheme.accentOnCard] 提亮，避免发灰发浑。
 //
 // 抽取自 `play_hub_screen.dart`，供练习 Hub 与 AI 页共用，保证两页风格
 // 完全一致。组件签名与原私有版本保持一致，仅去 `_` 改为 public。
@@ -33,8 +33,7 @@ class QuickPlayHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const radius =
-        BorderRadius.all(Radius.circular(VarnamalaTheme.radiusXLarge));
+    const radius = BorderRadius.all(Radius.circular(TurnaTheme.radiusXLarge));
 
     return Material(
       color: Colors.transparent,
@@ -47,15 +46,14 @@ class QuickPlayHero extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                VarnamalaTheme.peacockTeal,
-                VarnamalaTheme.peacockCyan,
+                TurnaTheme.peacockTeal,
+                TurnaTheme.peacockCyan,
               ],
             ),
             borderRadius: radius,
             boxShadow: [
               BoxShadow(
-                color:
-                    VarnamalaTheme.peacockTeal.withValues(alpha: 0.25),
+                color: TurnaTheme.peacockTeal.withValues(alpha: 0.25),
                 blurRadius: 16,
                 offset: const Offset(0, 8),
               ),
@@ -89,10 +87,7 @@ class QuickPlayHero extends StatelessWidget {
                     children: [
                       Text(
                         title,
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleLarge
-                            ?.copyWith(
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
                               fontWeight: FontWeight.w800,
                               color: Colors.white,
                               letterSpacing: -0.3,
@@ -101,10 +96,7 @@ class QuickPlayHero extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         subtitle,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.copyWith(
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               color: Colors.white.withValues(alpha: 0.85),
                             ),
                       ),
@@ -147,7 +139,7 @@ class FocusTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = VarnamalaTheme.accentOnCard(context, accentColor);
+    final accent = TurnaTheme.accentOnCard(context, accentColor);
 
     return SoftCard(
       accentColor: accentColor,
@@ -161,7 +153,8 @@ class FocusTile extends StatelessWidget {
               children: [
                 AccentIconChip(icon: icon, color: accent, size: 26),
                 const Spacer(),
-                if (badge != null) CountBadge(label: badge!, color: accentColor),
+                if (badge != null)
+                  CountBadge(label: badge!, color: accentColor),
               ],
             ),
             const Spacer(),
@@ -180,7 +173,7 @@ class FocusTile extends StatelessWidget {
                 countText,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w800,
-                      color: VarnamalaTheme.textPrimaryColor(context),
+                      color: TurnaTheme.textPrimaryColor(context),
                     ),
                 maxLines: 1,
               ),
@@ -229,7 +222,7 @@ class ReviewTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = VarnamalaTheme.accentOnCard(context, accentColor);
+    final accent = TurnaTheme.accentOnCard(context, accentColor);
 
     return SoftCard(
       accentColor: accentColor,
@@ -308,7 +301,7 @@ class ToolsTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = VarnamalaTheme.accentOnCard(context, accentColor);
+    final accent = TurnaTheme.accentOnCard(context, accentColor);
 
     return Opacity(
       opacity: enabled ? 1.0 : 0.5,
@@ -329,15 +322,14 @@ class ToolsTile extends StatelessWidget {
                       title,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w700,
-                            color: VarnamalaTheme.textPrimaryColor(context),
+                            color: TurnaTheme.textPrimaryColor(context),
                           ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color:
-                                VarnamalaTheme.textSecondaryColor(context),
+                            color: TurnaTheme.textSecondaryColor(context),
                           ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -364,7 +356,7 @@ class ToolsTile extends StatelessWidget {
 
 /// 软着色卡底座：accent 着色底 + 白色高光描边（无彩色线条）+ 圆角 20 +
 /// accent 轻阴影 + 白色晕染发光 + 内侧顶部霜面高光。
-/// 暗色模式由 [VarnamalaTheme.softTint] 自动转为不透明罩染。
+/// 暗色模式由 [TurnaTheme.softTint] 自动转为不透明罩染。
 class SoftCard extends StatelessWidget {
   final Color accentColor;
   final Widget child;
@@ -379,8 +371,7 @@ class SoftCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const radius =
-        BorderRadius.all(Radius.circular(VarnamalaTheme.radiusXLarge));
+    const radius = BorderRadius.all(Radius.circular(TurnaTheme.radiusXLarge));
 
     return Material(
       color: Colors.transparent,
@@ -389,22 +380,22 @@ class SoftCard extends StatelessWidget {
         borderRadius: radius,
         child: Ink(
           decoration: BoxDecoration(
-            color: VarnamalaTheme.softTint(context, accentColor),
+            color: TurnaTheme.softTint(context, accentColor),
             borderRadius: radius,
             border: Border.all(
-              color: VarnamalaTheme.glassBorder(context),
+              color: TurnaTheme.glassBorder(context),
               width: 1,
             ),
             boxShadow: [
-              ...VarnamalaTheme.softCardShadow(context, accentColor),
-              ...VarnamalaTheme.featheredButtonGlow(context),
+              ...TurnaTheme.softCardShadow(context, accentColor),
+              ...TurnaTheme.featheredButtonGlow(context),
             ],
           ),
           child: ClipRRect(
             borderRadius: radius,
             child: DecoratedBox(
               decoration: BoxDecoration(
-                gradient: VarnamalaTheme.softCardSheen(context),
+                gradient: TurnaTheme.softCardSheen(context),
               ),
               child: child,
             ),
@@ -468,18 +459,18 @@ class CountBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final radius = circular
-        ? const BorderRadius.all(Radius.circular(VarnamalaTheme.radiusMedium))
-        : const BorderRadius.all(Radius.circular(VarnamalaTheme.radiusMedium));
+        ? const BorderRadius.all(Radius.circular(TurnaTheme.radiusMedium))
+        : const BorderRadius.all(Radius.circular(TurnaTheme.radiusMedium));
 
     return Container(
       padding: circular
           ? const EdgeInsets.symmetric(horizontal: 8, vertical: 2)
           : const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.glassBadgeFill(color),
+        color: TurnaTheme.glassBadgeFill(color),
         borderRadius: radius,
         border: Border.all(
-          color: VarnamalaTheme.glassHighlight(context),
+          color: TurnaTheme.glassHighlight(context),
           width: 0.5,
         ),
         boxShadow: [
@@ -493,7 +484,7 @@ class CountBadge extends StatelessWidget {
       child: Text(
         label,
         style: const TextStyle(
-          color: VarnamalaTheme.textOnPrimary,
+          color: TurnaTheme.textOnPrimary,
           fontWeight: FontWeight.w800,
           fontSize: 12,
         ),
@@ -515,7 +506,7 @@ class SectionTitle extends StatelessWidget {
         title,
         style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w800,
-              color: VarnamalaTheme.textPrimaryColor(context),
+              color: TurnaTheme.textPrimaryColor(context),
             ),
       ),
     );

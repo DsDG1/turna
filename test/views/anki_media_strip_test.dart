@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/lesson/components/anki_media_strip.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/lesson/components/anki_media_strip.dart';
 
 void main() {
   Future<void> pumpStrip(

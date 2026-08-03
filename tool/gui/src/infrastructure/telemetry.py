@@ -1,9 +1,10 @@
-"""Structured telemetry logging for the Varnamala GUI.
+"""Structured telemetry logging for the Turna GUI.
 
 All monitoring events (startup, user actions, durations, errors) go through a
 single logger so the rest of the GUI does not scatter ad-hoc logging calls.
-Events are written as single-line JSON to ``~/.varnamala-gui/telemetry.log``
-with daily rotation and a 7-day retention.
+Events are written as single-line JSON to ``~/.turna-gui/telemetry.log`` with
+daily rotation and a 7-day retention. The legacy ``~/.varnamala-gui`` dir is
+read for compatibility on first launch.
 """
 from __future__ import annotations
 
@@ -16,7 +17,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-_LOG_DIR = Path.home() / ".varnamala-gui"
+# Local imports must come after sys.path manipulation below.
+_GUI_DIR = Path(__file__).resolve().parent.parent.parent
+if str(_GUI_DIR) not in sys.path:
+    sys.path.insert(0, str(_GUI_DIR))
+
+from src.application.settings import app_data_dir
+
+_LOG_DIR = app_data_dir()
 _LOG_DIR.mkdir(parents=True, exist_ok=True)
 _LOG_FILE = _LOG_DIR / "telemetry.log"
 
@@ -35,7 +43,7 @@ class Telemetry:
         self._log_file.parent.mkdir(parents=True, exist_ok=True)
         # Each instance gets its own logger so two Telemetry instances writing
         # to different files do not clobber each other's handlers.
-        logger_name = f"varnamala.telemetry.{self._log_file.name}"
+        logger_name = f"turna.telemetry.{self._log_file.name}"
         self._logger = logging.getLogger(logger_name)
         self._logger.setLevel(logging.INFO)
         self._logger.propagate = False
@@ -99,7 +107,7 @@ class Telemetry:
                 self._write_failed_warned = True
                 try:
                     print(
-                        f"[varnamala] warning: telemetry log write failed "
+                        f"[turna] warning: telemetry log write failed "
                         f"({self._log_file}); subsequent failures will be silent.",
                         file=sys.stderr,
                     )

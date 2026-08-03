@@ -4,13 +4,13 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
-import 'package:varnamala/application/grammar_review_provider.dart';
-import 'package:varnamala/application/memory_curve_provider.dart';
-import 'package:varnamala/application/srs_provider.dart';
-import 'package:varnamala/application/lesson_link_store.dart';
-import 'package:varnamala/core/sm2.dart';
-import 'package:varnamala/data/review_history_dao.dart';
-import 'package:varnamala/service/locator.dart';
+import 'package:turna/application/grammar_review_provider.dart';
+import 'package:turna/application/memory_curve_provider.dart';
+import 'package:turna/application/srs_provider.dart';
+import 'package:turna/application/lesson_link_store.dart';
+import 'package:turna/core/sm2.dart';
+import 'package:turna/data/review_history_dao.dart';
+import 'package:turna/service/locator.dart';
 
 import '../helpers/in_memory_course_db.dart';
 
@@ -87,25 +87,60 @@ void main() {
       // Insert review events directly with controlled prevIntervalDays.
       await reviewDao.insertBatch([
         ReviewEventRecord(
-            cardId: 'a', queue: 'srs', reviewedAt: DateTime(2026, 7, 1),
-            quality: 4, prevIntervalDays: 1, nextIntervalDays: 4,
-            prevEase: 2.5, nextEase: 2.5, reps: 1, lapses: 0),
+            cardId: 'a',
+            queue: 'srs',
+            reviewedAt: DateTime(2026, 7, 1),
+            quality: 4,
+            prevIntervalDays: 1,
+            nextIntervalDays: 4,
+            prevEase: 2.5,
+            nextEase: 2.5,
+            reps: 1,
+            lapses: 0),
         ReviewEventRecord(
-            cardId: 'b', queue: 'srs', reviewedAt: DateTime(2026, 7, 2),
-            quality: 1, prevIntervalDays: 1, nextIntervalDays: 1,
-            prevEase: 2.5, nextEase: 2.3, reps: 0, lapses: 1),
+            cardId: 'b',
+            queue: 'srs',
+            reviewedAt: DateTime(2026, 7, 2),
+            quality: 1,
+            prevIntervalDays: 1,
+            nextIntervalDays: 1,
+            prevEase: 2.5,
+            nextEase: 2.3,
+            reps: 0,
+            lapses: 1),
         ReviewEventRecord(
-            cardId: 'c', queue: 'srs', reviewedAt: DateTime(2026, 7, 3),
-            quality: 4, prevIntervalDays: 4, nextIntervalDays: 10,
-            prevEase: 2.5, nextEase: 2.5, reps: 3, lapses: 0),
+            cardId: 'c',
+            queue: 'srs',
+            reviewedAt: DateTime(2026, 7, 3),
+            quality: 4,
+            prevIntervalDays: 4,
+            nextIntervalDays: 10,
+            prevEase: 2.5,
+            nextEase: 2.5,
+            reps: 3,
+            lapses: 0),
         ReviewEventRecord(
-            cardId: 'd', queue: 'srs', reviewedAt: DateTime(2026, 7, 4),
-            quality: 4, prevIntervalDays: 30, nextIntervalDays: 60,
-            prevEase: 2.5, nextEase: 2.5, reps: 5, lapses: 0),
+            cardId: 'd',
+            queue: 'srs',
+            reviewedAt: DateTime(2026, 7, 4),
+            quality: 4,
+            prevIntervalDays: 30,
+            nextIntervalDays: 60,
+            prevEase: 2.5,
+            nextEase: 2.5,
+            reps: 5,
+            lapses: 0),
         ReviewEventRecord(
-            cardId: 'e', queue: 'srs', reviewedAt: DateTime(2026, 7, 5),
-            quality: 1, prevIntervalDays: 30, nextIntervalDays: 1,
-            prevEase: 2.5, nextEase: 2.3, reps: 0, lapses: 1),
+            cardId: 'e',
+            queue: 'srs',
+            reviewedAt: DateTime(2026, 7, 5),
+            quality: 1,
+            prevIntervalDays: 30,
+            nextIntervalDays: 1,
+            prevEase: 2.5,
+            nextEase: 2.3,
+            reps: 0,
+            lapses: 1),
       ]);
 
       final snap = await memoryCurve.snapshot();

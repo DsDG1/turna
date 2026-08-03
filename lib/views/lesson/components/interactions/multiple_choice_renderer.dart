@@ -5,17 +5,17 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/application/audio_controller.dart';
-import 'package:varnamala/application/smart_speech.dart';
-import 'package:varnamala/core/language_detector.dart';
-import 'package:varnamala/core/text_styles.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/domain/audio/anki_audio_resolver.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/lesson/components/anki_media_strip.dart';
-import 'package:varnamala/views/lesson/components/cached_asset_image.dart';
-import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/application/audio_controller.dart';
+import 'package:turna/application/smart_speech.dart';
+import 'package:turna/core/language_detector.dart';
+import 'package:turna/core/text_styles.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/domain/audio/anki_audio_resolver.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/lesson/components/anki_media_strip.dart';
+import 'package:turna/views/lesson/components/cached_asset_image.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 
 /// Pick one of N options. Submit locks the UI and colours correct/incorrect
 /// choices using [InteractionState.correct].

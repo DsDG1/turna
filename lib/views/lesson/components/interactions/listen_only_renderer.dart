@@ -5,13 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/application/audio_controller.dart';
-import 'package:varnamala/core/text_styles.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/audio_controller.dart';
+import 'package:turna/core/text_styles.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/views/theme.dart';
 
 /// Listen-only summary (or similar) card: play audio / TTS, then continue.
 ///
@@ -104,7 +104,7 @@ class _ListenOnlyBodyState extends State<_ListenOnlyBody> {
                 ? AppStrings.lessonTapToReplay
                 : AppStrings.lessonTapToListen,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: VarnamalaTheme.textHintColor(context),
+                  color: TurnaTheme.textHintColor(context),
                 ),
             textAlign: TextAlign.center,
           ),
@@ -113,9 +113,8 @@ class _ListenOnlyBodyState extends State<_ListenOnlyBody> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.08),
-                borderRadius:
-                    BorderRadius.circular(VarnamalaTheme.radiusMedium),
+                color: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
               ),
               child: Text(
                 widget.transcript,

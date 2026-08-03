@@ -5,8 +5,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 
 // Project imports:
-import 'package:varnamala/courses/course_validator.dart';
-import 'package:varnamala/data/course_database.dart'
+import 'package:turna/courses/course_validator.dart';
+import 'package:turna/data/course_database.dart'
     hide
         Section,
         Unit,
@@ -14,13 +14,13 @@ import 'package:varnamala/data/course_database.dart'
         LessonContent,
         Vocabulary,
         GrammarPoint;
-import 'package:varnamala/data/course_repository.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/domain/course/expression.dart';
-import 'package:varnamala/domain/course/grammar_point.dart';
-import 'package:varnamala/domain/course/lesson.dart';
-import 'package:varnamala/domain/course/section.dart';
-import 'package:varnamala/domain/course/word_entry.dart';
+import 'package:turna/data/course_repository.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/domain/course/expression.dart';
+import 'package:turna/domain/course/grammar_point.dart';
+import 'package:turna/domain/course/lesson.dart';
+import 'package:turna/domain/course/section.dart';
+import 'package:turna/domain/course/word_entry.dart';
 
 /// Loads a language course from a SQLite database ([CourseDatabase]) that is
 /// seeded from the bundled JSON assets under `assets/courses/turkish/` on

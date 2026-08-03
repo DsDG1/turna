@@ -5,13 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/application/audio_controller.dart';
-import 'package:varnamala/core/text_styles.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/audio_controller.dart';
+import 'package:turna/core/text_styles.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/views/theme.dart';
 
 /// Play audio, then type what was heard. Match is case-insensitive and
 /// whitespace-trimmed.
@@ -114,7 +114,7 @@ class _TypeTheWordBodyState extends State<_TypeTheWordBody> {
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w700,
-              color: VarnamalaTheme.textPrimaryColor(context),
+              color: TurnaTheme.textPrimaryColor(context),
               letterSpacing: 0.5,
             ),
             decoration: InputDecoration(
@@ -122,9 +122,9 @@ class _TypeTheWordBodyState extends State<_TypeTheWordBody> {
               filled: true,
               fillColor: submitted
                   ? (correct == true
-                      ? VarnamalaTheme.success.withValues(alpha: 0.10)
-                      : VarnamalaTheme.error.withValues(alpha: 0.08))
-                  : VarnamalaTheme.inputFillColor(context),
+                      ? TurnaTheme.success.withValues(alpha: 0.10)
+                      : TurnaTheme.error.withValues(alpha: 0.08))
+                  : TurnaTheme.inputFillColor(context),
             ),
             onSubmitted: (_) => _trySubmit(),
           ),

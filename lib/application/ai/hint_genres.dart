@@ -17,7 +17,10 @@ List<String> _stringList(dynamic value) {
 
 List<Map<String, dynamic>> _objectList(dynamic value) {
   if (value is! List) return const [];
-  return [for (final e in value) if (e is Map<String, dynamic>) e];
+  return [
+    for (final e in value)
+      if (e is Map<String, dynamic>) e
+  ];
 }
 
 /// Deep explanation of a single grammar point.
@@ -134,8 +137,7 @@ class WhyWrongExplanation {
   static WhyWrongExplanation fromJson(Map<String, dynamic> m) =>
       WhyWrongExplanation(
         whyWrong: (m['whyWrong'] ?? '').toString(),
-        whatYouProbablyThought:
-            (m['whatYouProbablyThought'] ?? '').toString(),
+        whatYouProbablyThought: (m['whatYouProbablyThought'] ?? '').toString(),
         howToRemember: (m['howToRemember'] ?? '').toString(),
       );
 }

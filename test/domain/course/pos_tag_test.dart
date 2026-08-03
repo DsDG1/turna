@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/domain/course/pos_tag.dart';
+import 'package:turna/domain/course/pos_tag.dart';
 
 void main() {
   group('PosTag.parse', () {

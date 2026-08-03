@@ -458,7 +458,7 @@ class CourseOverviewWindow(QWidget):
     # --- geometry -------------------------------------------------------
 
     def _load_geometry(self) -> None:
-        qs = QSettings("Varnamala", "CourseEditor")
+        qs = QSettings("Turna", "CourseEditor")
         geo = qs.value(self._GEO_KEY)
         if geo is not None:
             self.restoreGeometry(geo)
@@ -466,7 +466,7 @@ class CourseOverviewWindow(QWidget):
             self.showMaximized()
 
     def _save_geometry(self) -> None:
-        qs = QSettings("Varnamala", "CourseEditor")
+        qs = QSettings("Turna", "CourseEditor")
         qs.setValue(self._GEO_KEY, self.saveGeometry())
         qs.setValue(self._MAX_KEY, self.isMaximized())
 

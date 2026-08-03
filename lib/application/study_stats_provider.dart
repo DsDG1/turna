@@ -9,12 +9,12 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/application/mistake_provider.dart';
-import 'package:varnamala/courses/languages/grammar_points.dart';
-import 'package:varnamala/courses/languages/vocab.dart';
-import 'package:varnamala/data/study_log_repository.dart';
-import 'package:varnamala/domain/study/daily_stats.dart';
-import 'package:varnamala/domain/study/study_log.dart';
+import 'package:turna/application/mistake_provider.dart';
+import 'package:turna/courses/languages/grammar_points.dart';
+import 'package:turna/courses/languages/vocab.dart';
+import 'package:turna/data/study_log_repository.dart';
+import 'package:turna/domain/study/daily_stats.dart';
+import 'package:turna/domain/study/study_log.dart';
 
 /// Provides aggregated learning statistics and records study activity.
 @lazySingleton

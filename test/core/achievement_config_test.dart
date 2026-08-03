@@ -2,7 +2,7 @@
 // and that the milestone tables match the historical GameProvider ladder.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/core/achievement_config.dart';
+import 'package:turna/core/achievement_config.dart';
 
 void main() {
   group('xp milestones', () {
@@ -23,8 +23,7 @@ void main() {
       expect(unlocked, {'xp_1000'});
     });
 
-    test('jumping past the top threshold unlocks all three in one pass',
-        () {
+    test('jumping past the top threshold unlocks all three in one pass', () {
       final unlocked = <String>{};
       final gems = AchievementConfig.gemsForThreshold(
           AchievementConfig.xp, 50000, unlocked);
@@ -44,8 +43,7 @@ void main() {
     test('below every threshold unlocks nothing', () {
       final unlocked = <String>{};
       expect(
-        AchievementConfig.gemsForThreshold(
-            AchievementConfig.xp, 999, unlocked),
+        AchievementConfig.gemsForThreshold(AchievementConfig.xp, 999, unlocked),
         0,
       );
       expect(unlocked, isEmpty);

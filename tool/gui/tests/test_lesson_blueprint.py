@@ -117,7 +117,7 @@ class BlueprintEditTest(unittest.TestCase):
 
 
 def _real_adapter_with_course():
-    return real_adapter_with_course(prefix="varnamala_bp_dp_")
+    return real_adapter_with_course(prefix="turna_bp_dp_")
 
 
 class DetailPanelLessonViewTest(unittest.TestCase):

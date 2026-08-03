@@ -1,7 +1,7 @@
 """Prompt template library and generation history for the AI generator.
 
 Templates and history are persisted in QSettings under the namespace
-``Varnamala/CourseEditor/ai/prompts``. The module has no PySide6 dependency in
+``Turna/CourseEditor/ai/prompts``. The module has no PySide6 dependency in
 its data classes but uses QSettings for storage so it integrates with the rest
 of the application.
 """
@@ -117,7 +117,7 @@ class AiPromptLibrary:
         if qsettings is None:
             from PySide6.QtCore import QSettings
 
-            self._settings = QSettings("Varnamala", "CourseEditor")
+            self._settings = QSettings("Turna", "CourseEditor")
         else:
             self._settings = qsettings
         self._settings.beginGroup("ai/prompts")

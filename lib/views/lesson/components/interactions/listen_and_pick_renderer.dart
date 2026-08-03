@@ -5,12 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/application/audio_controller.dart';
-import 'package:varnamala/core/text_styles.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/application/audio_controller.dart';
+import 'package:turna/core/text_styles.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 
 /// Play audio (TTS) and pick the matching option. The [Interaction.audioAsset]
 /// field is a wordId in current data; we look up the target-language term from the

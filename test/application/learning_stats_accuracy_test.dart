@@ -6,8 +6,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
-import 'package:varnamala/application/study_stats_provider.dart';
-import 'package:varnamala/views/profile/widgets/learning_stats.dart';
+import 'package:turna/application/study_stats_provider.dart';
+import 'package:turna/views/profile/widgets/learning_stats.dart';
 
 import '../helpers/fake_study_stats.dart';
 
@@ -24,8 +24,6 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        
-        
         home: Scaffold(
           body: ChangeNotifierProvider<StudyStatsProvider>.value(
             value: fake,

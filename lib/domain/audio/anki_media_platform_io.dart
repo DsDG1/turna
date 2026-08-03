@@ -22,4 +22,5 @@ void ankiCopyFile(String sourcePath, String targetPath) {
   File(sourcePath).copySync(targetPath);
 }
 
-void ankiDeleteDirectory(String path) => Directory(path).deleteSync(recursive: true);
+void ankiDeleteDirectory(String path) =>
+    Directory(path).deleteSync(recursive: true);

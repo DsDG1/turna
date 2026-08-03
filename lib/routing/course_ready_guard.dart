@@ -6,8 +6,8 @@ import 'package:auto_route/auto_route.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/application/course_provider.dart';
-import 'package:varnamala/routing/routing.gr.dart';
+import 'package:turna/application/course_provider.dart';
+import 'package:turna/routing/routing.gr.dart';
 
 /// Redirects to [SplashRoute] when the course shells have not finished loading.
 ///

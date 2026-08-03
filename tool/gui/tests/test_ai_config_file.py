@@ -105,18 +105,18 @@ class AiConfigFileRoundTripTest(unittest.TestCase):
         qs.setValue = lambda key, value: store.__setitem__(key, value)
 
         s = Settings(
-            ai_config_file_path=r"C:\Users\me\.varnamala\ai.json",
+            ai_config_file_path=r"C:\Users\me\.turna\ai.json",
             ai_config_file_autoload=True,
             ai_config_file_autosave=False,
             ai_api_key="should-not-persist",
         )
         s.save_to_qsettings(qs)
-        self.assertEqual(store.get("ai/config_file_path"), r"C:\Users\me\.varnamala\ai.json")
+        self.assertEqual(store.get("ai/config_file_path"), r"C:\Users\me\.turna\ai.json")
         self.assertFalse(store.get("ai/config_file_autosave"))
         self.assertNotIn("ai/api_key", store)
 
         s2 = Settings.load_from_qsettings(qs)
-        self.assertEqual(s2.ai_config_file_path, r"C:\Users\me\.varnamala\ai.json")
+        self.assertEqual(s2.ai_config_file_path, r"C:\Users\me\.turna\ai.json")
         self.assertFalse(s2.ai_config_file_autosave)
         self.assertEqual(s2.ai_api_key, "")  # still not from QSettings
 

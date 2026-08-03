@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/core/fsrs_engine.dart';
-import 'package:varnamala/core/fsrs_relearn.dart';
-import 'package:varnamala/core/sm2.dart';
-import 'package:varnamala/domain/course/srs_word.dart';
+import 'package:turna/core/fsrs_engine.dart';
+import 'package:turna/core/fsrs_relearn.dart';
+import 'package:turna/core/sm2.dart';
+import 'package:turna/domain/course/srs_word.dart';
 
 void main() {
   group('relearnDelayForFailStreak', () {

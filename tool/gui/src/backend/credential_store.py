@@ -15,8 +15,32 @@ from typing import Optional
 
 from PySide6.QtCore import QSettings
 
-_KEYRING_SERVICE = "varnamala.git"
+_KEYRING_SERVICE = "turna.git"
+# Legacy keyring service from the pre-rebrand "Varnamala" days. We still
+# read it for one-shot migration: when a token lives under the legacy
+# service but not under the new one, treat it as the user's choice and
+# copy it to the new service so future reads are stable.
+_KEYRING_SERVICE_LEGACY = "varnamala.git"
 _KEYRING_UNAVAILABLE_WARNED = False
+
+
+def _read_keyring_token(account: str) -> Optional[str]:
+    """Read token from the active keyring service; on miss, fall back to the
+    legacy service and copy the value to the new one for stability."""
+    import keyring  # noqa: WPS433
+    value = keyring.get_password(_KEYRING_SERVICE, account)
+    if value:
+        return value
+    legacy = keyring.get_password(_KEYRING_SERVICE_LEGACY, account)
+    if not legacy:
+        return None
+    try:
+        keyring.set_password(_KEYRING_SERVICE, account, legacy)
+    except Exception:
+        # If the new service refuses to write, return the legacy value
+        # without persisting so callers at least see the token once.
+        pass
+    return legacy
 
 
 def _keyring_available() -> bool:
@@ -62,13 +86,11 @@ def get_git_token(url: str) -> Optional[str]:
     account = _account_for_url(url)
     if _keyring_available():
         try:
-            import keyring  # noqa: WPS433
-            value = keyring.get_password(_KEYRING_SERVICE, account)
-            return value if value else None
+            return _read_keyring_token(account)
         except Exception:
             _warn_keyring_unavailable_once()
     # Fallback: QSettings obfuscated.
-    qsettings = QSettings("Varnamala", "CourseEditor")
+    qsettings = QSettings("Turna", "CourseEditor")
     raw = qsettings.value(f"git/token/{account}", "")
     if not raw:
         return None
@@ -89,7 +111,7 @@ def set_git_token(url: str, token: str) -> None:
         except Exception:
             _warn_keyring_unavailable_once()
     # Fallback: QSettings obfuscated.
-    qsettings = QSettings("Varnamala", "CourseEditor")
+    qsettings = QSettings("Turna", "CourseEditor")
     encoded = base64.b64encode(token.encode("utf-8")).decode("utf-8")
     qsettings.setValue(f"git/token/{account}", encoded)
 
@@ -101,13 +123,21 @@ def delete_git_token(url: str) -> bool:
         try:
             import keyring  # noqa: WPS433
             existing = keyring.get_password(_KEYRING_SERVICE, account)
-            if existing is None:
+            legacy_existing = keyring.get_password(_KEYRING_SERVICE_LEGACY, account)
+            if existing is None and legacy_existing is None:
                 return False
-            keyring.delete_password(_KEYRING_SERVICE, account)
+            if existing is not None:
+                keyring.delete_password(_KEYRING_SERVICE, account)
+            if legacy_existing is not None:
+                try:
+                    keyring.delete_password(_KEYRING_SERVICE_LEGACY, account)
+                except Exception:
+                    # Old service may be unwritable; leave it intact.
+                    pass
             return True
         except Exception:
             _warn_keyring_unavailable_once()
-    qsettings = QSettings("Varnamala", "CourseEditor")
+    qsettings = QSettings("Turna", "CourseEditor")
     key = f"git/token/{account}"
     if not qsettings.contains(key):
         return False
@@ -119,13 +149,13 @@ def delete_git_token(url: str) -> bool:
 
 def get_ssh_key_path() -> str:
     """Return the configured SSH key path (empty string if not set)."""
-    qsettings = QSettings("Varnamala", "CourseEditor")
+    qsettings = QSettings("Turna", "CourseEditor")
     return str(qsettings.value("git/ssh_key_path", ""))
 
 
 def set_ssh_key_path(path: str) -> None:
     """Persist the SSH key path."""
-    qsettings = QSettings("Varnamala", "CourseEditor")
+    qsettings = QSettings("Turna", "CourseEditor")
     qsettings.setValue("git/ssh_key_path", path)
 
 

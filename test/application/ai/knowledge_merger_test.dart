@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/application/ai/textbook/knowledge_merger.dart';
-import 'package:varnamala/application/ai/textbook/knowledge_schema.dart';
+import 'package:turna/application/ai/textbook/knowledge_merger.dart';
+import 'package:turna/application/ai/textbook/knowledge_schema.dart';
 
 void main() {
   ChapterResult chapterWith({

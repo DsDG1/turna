@@ -6,14 +6,14 @@ import 'dart:math';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/application/anki/anki_models.dart';
-import 'package:varnamala/application/anki/anki_review_assembler.dart';
-import 'package:varnamala/application/srs_provider.dart';
-import 'package:varnamala/data/anki_import_dao.dart';
-import 'package:varnamala/data/anki_note_dao.dart';
-import 'package:varnamala/domain/audio/anki_audio_resolver.dart';
-import 'package:varnamala/domain/repositories/i_course_repository.dart';
-import 'package:varnamala/service/locator.dart';
+import 'package:turna/application/anki/anki_models.dart';
+import 'package:turna/application/anki/anki_review_assembler.dart';
+import 'package:turna/application/srs_provider.dart';
+import 'package:turna/data/anki_import_dao.dart';
+import 'package:turna/data/anki_note_dao.dart';
+import 'package:turna/domain/audio/anki_audio_resolver.dart';
+import 'package:turna/domain/repositories/i_course_repository.dart';
+import 'package:turna/service/locator.dart';
 
 /// Centralized Anki deck management: uninstall, incremental update detection,
 /// review limits, and SRS key partitioning.

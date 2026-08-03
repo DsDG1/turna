@@ -166,7 +166,7 @@ class UnifiedWorkspaceTest(unittest.TestCase):
     def test_save_restore_ui_state(self) -> None:
         from PySide6.QtCore import QSettings
 
-        QSettings("Varnamala", "CourseEditor").remove(
+        QSettings("Turna", "CourseEditor").remove(
             f"workshop/ui/{self.project.project_id}/left_tab"
         )
         self.ws._project_id = self.project.project_id
@@ -222,7 +222,7 @@ class UnifiedWorkspaceTest(unittest.TestCase):
     def test_banner_dismiss_persists(self) -> None:
         from PySide6.QtCore import QSettings
 
-        QSettings("Varnamala", "CourseEditor").remove("workshop/canvas_tips_dismissed")
+        QSettings("Turna", "CourseEditor").remove("workshop/canvas_tips_dismissed")
         # Rebuild banner state
         self.ws._update_banner()
         # May or may not show depending on draft/knowledge — force message path.
@@ -234,7 +234,7 @@ class UnifiedWorkspaceTest(unittest.TestCase):
         self.assertFalse(self.ws._banner.isVisible())
         self.assertTrue(
             bool(
-                QSettings("Varnamala", "CourseEditor").value(
+                QSettings("Turna", "CourseEditor").value(
                     "workshop/canvas_tips_dismissed", False
                 )
             )

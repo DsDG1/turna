@@ -17,7 +17,7 @@ from src.backend import api  # noqa: E402
 
 class BackendApiTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_api_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_api_"))
         self.course_dir = self.tmp / "turkish"
         copy_turkish_course(self.course_dir)
 

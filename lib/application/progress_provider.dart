@@ -7,7 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/application/game_provider.dart';
+import 'package:turna/application/game_provider.dart';
 
 /// Read-only view onto the user's lesson-completion state.
 ///

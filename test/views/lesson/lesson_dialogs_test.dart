@@ -2,9 +2,9 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/application/lesson_viewmodel.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/lesson/components/lesson_dialogs.dart';
+import 'package:turna/application/lesson_viewmodel.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/lesson/components/lesson_dialogs.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -23,8 +23,6 @@ void main() {
     }) async {
       await tester.pumpWidget(
         MaterialApp(
-          
-          
           home: Builder(
             builder: (context) {
               return Scaffold(

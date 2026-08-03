@@ -4,15 +4,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/course_provider.dart';
-import 'package:varnamala/application/game_provider.dart';
-import 'package:varnamala/application/progress_provider.dart';
-import 'package:varnamala/domain/course/lesson.dart';
-import 'package:varnamala/domain/course/lesson_content.dart';
-import 'package:varnamala/domain/course/section.dart';
-import 'package:varnamala/domain/course/unit.dart';
-import 'package:varnamala/views/courses/course_tree.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/course_provider.dart';
+import 'package:turna/application/game_provider.dart';
+import 'package:turna/application/progress_provider.dart';
+import 'package:turna/domain/course/lesson.dart';
+import 'package:turna/domain/course/lesson_content.dart';
+import 'package:turna/domain/course/section.dart';
+import 'package:turna/domain/course/unit.dart';
+import 'package:turna/views/courses/course_tree.dart';
+import 'package:turna/views/theme.dart';
 
 /// Reuses the fake-provider shape from course_tree_test.dart, trimmed to what
 /// the dark-mode contrast smoke test needs.
@@ -49,8 +49,7 @@ class _FakeGameProvider extends ChangeNotifier implements GameProvider {
 }
 
 class _FakeCourseProvider extends CourseProvider {
-  _FakeCourseProvider(this._section)
-      : _loadState = SectionLoadState.loaded;
+  _FakeCourseProvider(this._section) : _loadState = SectionLoadState.loaded;
 
   final Section _section;
   final SectionLoadState _loadState;
@@ -126,11 +125,9 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          theme: VarnamalaTheme.darkTheme,
-          darkTheme: VarnamalaTheme.darkTheme,
+          theme: TurnaTheme.darkTheme,
+          darkTheme: TurnaTheme.darkTheme,
           themeMode: ThemeMode.dark,
-          
-          
           home: MultiProvider(
             providers: [
               ChangeNotifierProvider<CourseProvider>.value(
@@ -147,7 +144,7 @@ void main() {
 
       // Every rendered Text must NOT be the static near-black token — that
       // would be invisible on the dark card background.
-      const nearBlack = VarnamalaTheme.textPrimary;
+      const nearBlack = TurnaTheme.textPrimary;
       final texts = tester.widgetList<Text>(find.byType(Text));
       expect(texts, isNotEmpty);
       for (final t in texts) {
@@ -162,7 +159,7 @@ void main() {
       }
 
       // Sanity: the unit card background adapted (not a hardcoded white slab).
-      final cardBg = VarnamalaTheme.cardBg(
+      final cardBg = TurnaTheme.cardBg(
         tester.element(find.byType(CourseTree)),
       );
       expect(cardBg, isNot(Colors.white));

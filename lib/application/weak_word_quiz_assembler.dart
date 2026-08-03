@@ -2,14 +2,14 @@
 import 'dart:math';
 
 // Project imports:
-import 'package:varnamala/courses/languages/vocab.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/domain/course/lesson.dart';
-import 'package:varnamala/domain/course/lesson_content.dart';
-import 'package:varnamala/domain/course/mistake_entry.dart';
-import 'package:varnamala/domain/course/stage.dart';
-import 'package:varnamala/domain/course/word_entry.dart';
-import 'package:varnamala/domain/study/daily_stats.dart';
+import 'package:turna/courses/languages/vocab.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/domain/course/lesson.dart';
+import 'package:turna/domain/course/lesson_content.dart';
+import 'package:turna/domain/course/mistake_entry.dart';
+import 'package:turna/domain/course/stage.dart';
+import 'package:turna/domain/course/word_entry.dart';
+import 'package:turna/domain/study/daily_stats.dart';
 
 /// Builds a synthetic weak-word quiz lesson (ADR 0014).
 ///

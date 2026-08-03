@@ -8,11 +8,11 @@ import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/core/logger.dart';
-import 'package:varnamala/domain/repositories/i_study_log_repository.dart';
-import 'package:varnamala/domain/study/daily_stats.dart';
-import 'package:varnamala/domain/study/study_log.dart';
-import 'package:varnamala/service/locator.dart';
+import 'package:turna/core/logger.dart';
+import 'package:turna/domain/repositories/i_study_log_repository.dart';
+import 'package:turna/domain/study/daily_stats.dart';
+import 'package:turna/domain/study/study_log.dart';
+import 'package:turna/service/locator.dart';
 
 /// Stores study logs and daily aggregates in [StreamingSharedPreferences].
 ///

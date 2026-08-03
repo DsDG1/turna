@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/views/theme.dart';
 
 /// Arrange scrambled tokens into the canonical sentence. Tap a token in the
 /// pool to move it to the answer row; tap a token in the answer row to send
@@ -110,7 +110,7 @@ class _ReorderBodyState extends State<_ReorderBody> {
             AppStrings.lessonTapRightOrder,
             style: const TextStyle(
               fontSize: 13,
-              color: VarnamalaTheme.textHint,
+              color: TurnaTheme.textHint,
             ),
           ),
           const SizedBox(height: 20),
@@ -128,7 +128,7 @@ class _ReorderBodyState extends State<_ReorderBody> {
             style: const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: VarnamalaTheme.textHint,
+              color: TurnaTheme.textHint,
               letterSpacing: 0.6,
             ),
           ),
@@ -175,16 +175,15 @@ class _AnswerRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Color border = VarnamalaTheme.textHint.withValues(alpha: 0.30);
-    Color background = VarnamalaTheme.cardBg(context);
+    Color border = TurnaTheme.textHint.withValues(alpha: 0.30);
+    Color background = TurnaTheme.cardBg(context);
     if (submitted) {
-      border = correct == true ? VarnamalaTheme.success : VarnamalaTheme.error;
-      background =
-          (correct == true ? VarnamalaTheme.success : VarnamalaTheme.error)
-              .withValues(alpha: 0.06);
+      border = correct == true ? TurnaTheme.success : TurnaTheme.error;
+      background = (correct == true ? TurnaTheme.success : TurnaTheme.error)
+          .withValues(alpha: 0.06);
     } else if (tokens.isNotEmpty) {
-      border = VarnamalaTheme.peacockTeal;
-      background = VarnamalaTheme.peacockTeal.withValues(alpha: 0.04);
+      border = TurnaTheme.peacockTeal;
+      background = TurnaTheme.peacockTeal.withValues(alpha: 0.04);
     }
 
     return Container(
@@ -194,14 +193,14 @@ class _AnswerRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: background,
         border: Border.all(color: border, width: 2),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
       ),
       child: tokens.isEmpty
           ? Center(
               child: Text(
                 AppStrings.lessonTapWordToStart,
                 style: TextStyle(
-                  color: VarnamalaTheme.textHint.withValues(alpha: 0.7),
+                  color: TurnaTheme.textHint.withValues(alpha: 0.7),
                   fontSize: 14,
                 ),
               ),
@@ -269,14 +268,13 @@ class _TokenChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg =
-        selected ? VarnamalaTheme.peacockTeal : VarnamalaTheme.cardBg(context);
+    final bg = selected ? TurnaTheme.peacockTeal : TurnaTheme.cardBg(context);
     final fg = selected
-        ? VarnamalaTheme.textOnPrimary
-        : VarnamalaTheme.textPrimaryColor(context);
+        ? TurnaTheme.textOnPrimary
+        : TurnaTheme.textPrimaryColor(context);
     final border = selected
-        ? VarnamalaTheme.peacockTeal
-        : VarnamalaTheme.textHint.withValues(alpha: 0.3);
+        ? TurnaTheme.peacockTeal
+        : TurnaTheme.textHint.withValues(alpha: 0.3);
 
     return Semantics(
       button: true,
@@ -286,10 +284,10 @@ class _TokenChip extends StatelessWidget {
         color: bg,
         shape: RoundedRectangleBorder(
           side: BorderSide(color: border, width: 1.5),
-          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusRound),
+          borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
         ),
         child: InkWell(
-          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusRound),
+          borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
           onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),

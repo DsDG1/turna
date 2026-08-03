@@ -76,13 +76,16 @@ void autoFixResources(Map<String, dynamic> parsed) {
           const [];
 
   final wordIds = <String>{
-    for (final w in words) if (w != null) w['id']?.toString() ?? '',
+    for (final w in words)
+      if (w != null) w['id']?.toString() ?? '',
   }..remove('');
   final exprIds = <String>{
-    for (final e in expressions) if (e != null) e['id']?.toString() ?? '',
+    for (final e in expressions)
+      if (e != null) e['id']?.toString() ?? '',
   }..remove('');
   final grammarIds = <String>{
-    for (final g in grammarPoints) if (g != null) g['id']?.toString() ?? '',
+    for (final g in grammarPoints)
+      if (g != null) g['id']?.toString() ?? '',
   }..remove('');
 
   final wordsList = words.whereType<Map<String, dynamic>>().toList();
@@ -194,16 +197,19 @@ void checkResourceSelfConsistency(Map<String, dynamic> parsed) {
           if (rt == 'showWord') {
             final wid = item['wordId']?.toString();
             if (wid != null && wid.isNotEmpty && !wordIds.contains(wid)) {
-              missing.add('lesson $lid: showWord references undefined wordId "$wid"');
+              missing.add(
+                  'lesson $lid: showWord references undefined wordId "$wid"');
             }
           }
           final eid = item['expressionId']?.toString();
           if (eid != null && eid.isNotEmpty && !exprIds.contains(eid)) {
-            missing.add('lesson $lid: references undefined expressionId "$eid"');
+            missing
+                .add('lesson $lid: references undefined expressionId "$eid"');
           }
           final gid = item['grammarPointId']?.toString();
           if (gid != null && gid.isNotEmpty && !grammarIds.contains(gid)) {
-            missing.add('lesson $lid: references undefined grammarPointId "$gid"');
+            missing
+                .add('lesson $lid: references undefined grammarPointId "$gid"');
           }
         }
       }

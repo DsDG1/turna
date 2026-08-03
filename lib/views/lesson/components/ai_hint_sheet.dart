@@ -5,11 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/ai/ai_hint_provider.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/ai/components/ai_sheet_widgets.dart';
-import 'package:varnamala/views/lesson/components/ai_depth_tutor_sheet.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/ai/ai_hint_provider.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
+import 'package:turna/views/lesson/components/ai_depth_tutor_sheet.dart';
+import 'package:turna/views/theme.dart';
 
 /// Bottom sheet that pops up when the learner taps the AI button on a
 /// lesson question. Shows the AI's explanation of the current question and
@@ -54,11 +54,13 @@ class AiHintSheet extends StatelessWidget {
     return Row(
       children: [
         const Icon(Icons.auto_awesome_rounded,
-            color: VarnamalaTheme.peacockTeal, size: 22),
+            color: TurnaTheme.peacockTeal, size: 22),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            ctx == null ? AppStrings.aiHintTitle : AppStrings.aiHintTitleWithType(ctx.typeLabel),
+            ctx == null
+                ? AppStrings.aiHintTitle
+                : AppStrings.aiHintTitleWithType(ctx.typeLabel),
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
@@ -104,7 +106,7 @@ class AiHintSheet extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 24),
       child: Center(
         child: CircularProgressIndicator(
-          color: VarnamalaTheme.peacockTeal,
+          color: TurnaTheme.peacockTeal,
           strokeWidth: 3,
         ),
       ),
@@ -114,12 +116,12 @@ class AiHintSheet extends StatelessWidget {
   Widget _error(BuildContext context) {
     final error = context.read<AiHintProvider>().error;
     return AiSurfaceCard(
-      accent: VarnamalaTheme.error,
+      accent: TurnaTheme.error,
       child: Text(
         error != null
             ? AppStrings.aiHintError(error)
             : AppStrings.aiHintErrorUnknown,
-        style: const TextStyle(color: VarnamalaTheme.error),
+        style: const TextStyle(color: TurnaTheme.error),
       ),
     );
   }
@@ -133,10 +135,10 @@ class AiHintSheet extends StatelessWidget {
             onPressed: () => showModalBottomSheet<void>(
               context: context,
               isScrollControlled: true,
-              backgroundColor: VarnamalaTheme.cardBg(context),
+              backgroundColor: TurnaTheme.cardBg(context),
               shape: const RoundedRectangleBorder(
                 borderRadius: BorderRadius.vertical(
-                  top: Radius.circular(VarnamalaTheme.radiusXLarge),
+                  top: Radius.circular(TurnaTheme.radiusXLarge),
                 ),
               ),
               builder: (_) => const AiDepthTutorSheet(),

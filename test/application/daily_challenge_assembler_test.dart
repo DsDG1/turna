@@ -5,14 +5,14 @@
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/application/course_provider.dart';
-import 'package:varnamala/application/daily_challenge_assembler.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/domain/course/lesson.dart';
-import 'package:varnamala/domain/course/lesson_content.dart';
-import 'package:varnamala/domain/course/section.dart';
-import 'package:varnamala/domain/course/stage.dart';
-import 'package:varnamala/domain/course/unit.dart';
+import 'package:turna/application/course_provider.dart';
+import 'package:turna/application/daily_challenge_assembler.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/domain/course/lesson.dart';
+import 'package:turna/domain/course/lesson_content.dart';
+import 'package:turna/domain/course/section.dart';
+import 'package:turna/domain/course/stage.dart';
+import 'package:turna/domain/course/unit.dart';
 
 class _StubCourseProvider extends CourseProvider {
   final List<Section> _sections;
@@ -98,11 +98,13 @@ void main() {
 
     test('empty pool or non-positive count yields empty', () {
       expect(pickChallengeItems(const [], 15, Random(0)), isEmpty);
-      expect(pickChallengeItems(
-        [const Interaction.fillBlank(sentence: 's', answer: 'a')],
-        0,
-        Random(0),
-      ), isEmpty);
+      expect(
+          pickChallengeItems(
+            [const Interaction.fillBlank(sentence: 's', answer: 'a')],
+            0,
+            Random(0),
+          ),
+          isEmpty);
     });
   });
 
@@ -175,8 +177,7 @@ void main() {
     });
 
     test('empty course yields an empty challenge', () {
-      final assembler =
-          DailyChallengeAssembler(_StubCourseProvider(const []));
+      final assembler = DailyChallengeAssembler(_StubCourseProvider(const []));
       final lesson = assembler.assemble(count: 15, random: Random(0));
       expect(lesson.type, LessonType.challenge);
       expect(lesson.flattenedStages.single.items, isEmpty);

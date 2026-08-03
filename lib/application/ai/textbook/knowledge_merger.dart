@@ -1,5 +1,5 @@
 // Project imports:
-import 'package:varnamala/application/ai/textbook/knowledge_schema.dart';
+import 'package:turna/application/ai/textbook/knowledge_schema.dart';
 
 /// Collision resolution strategies when importing a textbook section.
 enum ImportStrategy { merge, skipExisting, forceReplace, appendAsNew }

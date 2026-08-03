@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
 
 from src.backend.textbook_project import TextbookProject
 from src.backend.textbook_project_store import ProjectSummary, TextbookProjectStore
+from src.application.settings import course_clones_dir
 
 _STEP_LABELS = [
     "选择教材",
@@ -336,7 +337,7 @@ class TextbookLibraryDialog(QDialog):
         remote = remotes[idx]
         # Clone/pull.
         git = GitLibrary()
-        local_dir = Path(remote.local_dir) if remote.local_dir else Path.home() / ".varnamala" / "course-clones" / remote.name
+        local_dir = Path(remote.local_dir) if remote.local_dir else course_clones_dir() / remote.name
         try:
             git.clone(remote.url, local_dir)
         except RuntimeError as exc:
@@ -398,7 +399,7 @@ class TextbookLibraryDialog(QDialog):
             return
         # Clone/pull the remote.
         git = GitLibrary()
-        local_dir = Path(remote.local_dir) if remote.local_dir else Path.home() / ".varnamala" / "course-clones" / remote.name
+        local_dir = Path(remote.local_dir) if remote.local_dir else course_clones_dir() / remote.name
         try:
             git.clone(remote.url, local_dir)
         except RuntimeError as exc:

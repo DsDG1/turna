@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/views/theme.dart';
 
 /// 视觉风格变体. 不同 variant 仅改底色和边框色阶, 共享同一套渐变 + 阴影,
 /// 以保证练习域所有主卡观感一致.
@@ -20,7 +20,7 @@ enum LessonPracticeCardVariant {
 /// 练习页面的「半拟物质感」主卡容器.
 ///
 /// 视觉构成 (自下而上):
-/// 1. 双层柔阴影 ([VarnamalaTheme.elevatedCardShadow]) — 模拟光照下的悬浮感.
+/// 1. 双层柔阴影 ([TurnaTheme.elevatedCardShadow]) — 模拟光照下的悬浮感.
 /// 2. 底色 + 极轻白色渐变 (左上→右下, 0.55→0.0 透明) — 模拟磨砂面的光照面.
 /// 3. 细描边 (1.5px) — 不抢戏, 仅保持轮廓清晰.
 ///
@@ -57,7 +57,7 @@ class LessonPracticeCard extends StatelessWidget {
       padding: padding,
       decoration: BoxDecoration(
         color: colors.fill,
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
         // 渐变模拟「光照下磨砂面」, 不透明度极低.
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -68,7 +68,7 @@ class LessonPracticeCard extends StatelessWidget {
           ],
         ),
         border: Border.all(color: colors.border, width: 1.5),
-        boxShadow: VarnamalaTheme.elevatedCardShadow,
+        boxShadow: TurnaTheme.elevatedCardShadow,
       ),
       child: child,
     );
@@ -100,19 +100,18 @@ class LessonPracticeCard extends StatelessWidget {
     switch (v) {
       case LessonPracticeCardVariant.front:
         return _CardColors(
-          fill: VarnamalaTheme.cardBg(context),
-          border: VarnamalaTheme.peacockTeal.withValues(alpha: 0.20),
+          fill: TurnaTheme.cardBg(context),
+          border: TurnaTheme.peacockTeal.withValues(alpha: 0.20),
         );
       case LessonPracticeCardVariant.back:
         return _CardColors(
-          fill: VarnamalaTheme.peacockTeal
-              .withValues(alpha: isDark ? 0.18 : 0.10),
-          border: VarnamalaTheme.peacockTeal.withValues(alpha: 0.45),
+          fill: TurnaTheme.peacockTeal.withValues(alpha: isDark ? 0.18 : 0.10),
+          border: TurnaTheme.peacockTeal.withValues(alpha: 0.45),
         );
       case LessonPracticeCardVariant.surface:
         return _CardColors(
-          fill: VarnamalaTheme.cardBg(context),
-          border: VarnamalaTheme.peacockTeal.withValues(alpha: 0.15),
+          fill: TurnaTheme.cardBg(context),
+          border: TurnaTheme.peacockTeal.withValues(alpha: 0.15),
         );
     }
   }

@@ -3,10 +3,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
-import 'package:varnamala/application/lesson_link_store.dart';
-import 'package:varnamala/application/srs_provider.dart';
-import 'package:varnamala/core/sm2.dart';
-import 'package:varnamala/service/locator.dart';
+import 'package:turna/application/lesson_link_store.dart';
+import 'package:turna/application/srs_provider.dart';
+import 'package:turna/core/sm2.dart';
+import 'package:turna/service/locator.dart';
 
 import '../helpers/in_memory_course_db.dart';
 

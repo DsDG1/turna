@@ -2,8 +2,8 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/theme.dart';
 
 class BottomNavigator extends StatelessWidget {
   final Function(int) onPress;
@@ -22,10 +22,10 @@ class BottomNavigator extends StatelessWidget {
       height: 64 + bottomPadding,
       child: Container(
         decoration: BoxDecoration(
-          color: VarnamalaTheme.bottomNavBg(context),
+          color: TurnaTheme.bottomNavBg(context),
           boxShadow: [
             BoxShadow(
-              color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.08),
+              color: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
               blurRadius: 20,
               offset: const Offset(0, -4),
             ),
@@ -90,9 +90,9 @@ class _NavItem extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected
-              ? VarnamalaTheme.peacockTeal.withValues(alpha: 0.1)
+              ? TurnaTheme.peacockTeal.withValues(alpha: 0.1)
               : Colors.transparent,
-          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+          borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -100,9 +100,7 @@ class _NavItem extends StatelessWidget {
             Icon(
               icon,
               size: 26,
-              color: isSelected
-                  ? VarnamalaTheme.peacockTeal
-                  : VarnamalaTheme.textHint,
+              color: isSelected ? TurnaTheme.peacockTeal : TurnaTheme.textHint,
             ),
             const SizedBox(height: 2),
             Text(
@@ -110,9 +108,8 @@ class _NavItem extends StatelessWidget {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                color: isSelected
-                    ? VarnamalaTheme.peacockTeal
-                    : VarnamalaTheme.textHint,
+                color:
+                    isSelected ? TurnaTheme.peacockTeal : TurnaTheme.textHint,
               ),
             ),
           ],

@@ -2,7 +2,7 @@
 import 'package:drift/drift.dart';
 
 // Project imports:
-import 'package:varnamala/core/logger.dart';
+import 'package:turna/core/logger.dart';
 
 part 'course_database.g.dart';
 

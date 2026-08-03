@@ -18,10 +18,9 @@ class DailyStudyStats {
     this.reviewCount = 0,
   });
 
-  double get accuracy =>
-      (correctCount + incorrectCount) == 0
-          ? 0.0
-          : correctCount / (correctCount + incorrectCount);
+  double get accuracy => (correctCount + incorrectCount) == 0
+      ? 0.0
+      : correctCount / (correctCount + incorrectCount);
 
   int get totalQuestions => correctCount + incorrectCount;
 

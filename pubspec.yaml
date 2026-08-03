@@ -1,9 +1,9 @@
-name: varnamala
+name: turna
 version: 1.0.0+1
 publish_to: 'none'
 environment:
   sdk: ">=3.2.3 <4.0.0"
-description: Varnamala - Local-first language learning (Turkish)
+description: Turna - Local-first Turkish language learning
 dependencies:
   archive: ^4.0.9
   audioplayers: ^6.0.0

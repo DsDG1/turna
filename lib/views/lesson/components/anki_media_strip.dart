@@ -6,11 +6,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:varnamala/application/audio_controller.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/domain/audio/anki_audio_resolver.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/audio_controller.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/domain/audio/anki_audio_resolver.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/theme.dart';
 
 /// Renders Anki deck media (`anki://<importId>/<file>` references) attached
 /// to an objectively-graded interaction (MCQ / FillBlank): one speaker
@@ -132,7 +132,7 @@ class _AnkiMediaStripState extends State<AnkiMediaStrip> {
                       onPressed: _audios[index].available
                           ? () => _play(_audios[index].ref)
                           : null,
-                      color: VarnamalaTheme.peacockTeal,
+                      color: TurnaTheme.peacockTeal,
                       icon: const Icon(Icons.volume_up_rounded),
                     ),
                   ),

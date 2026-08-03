@@ -1014,7 +1014,7 @@ class AiGeneratorDialog(QDialog):
         win = getattr(self, "_chat_expand", None)
         if win is None:
             return
-        qs = QSettings("Varnamala", "CourseEditor")
+        qs = QSettings("Turna", "CourseEditor")
         geo = qs.value("ai_chat_expand/geometry")
         if geo is not None:
             win.restoreGeometry(geo)
@@ -1024,7 +1024,7 @@ class AiGeneratorDialog(QDialog):
     def _save_chat_expand_geometry(self, win) -> None:
         from PySide6.QtCore import QSettings
 
-        qs = QSettings("Varnamala", "CourseEditor")
+        qs = QSettings("Turna", "CourseEditor")
         qs.setValue("ai_chat_expand/geometry", win.saveGeometry())
         qs.setValue("ai_chat_expand/maximized", win.isMaximized())
 
@@ -1943,7 +1943,7 @@ class AiGeneratorDialog(QDialog):
 
     def _add_attachment_paths(self, paths: list[Path]) -> None:
         for path in paths:
-            temp_name = f"varnamala_wish_{uuid.uuid4().hex[:8]}_{path.name}"
+            temp_name = f"turna_wish_{uuid.uuid4().hex[:8]}_{path.name}"
             temp_path = Path(tempfile.gettempdir()) / temp_name
             try:
                 shutil.copy(str(path), str(temp_path))

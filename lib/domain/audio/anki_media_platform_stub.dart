@@ -8,7 +8,8 @@ bool ankiDirectoryExists(String path) => false;
 
 void ankiCreateDirectory(String path) {}
 
-void ankiCopyFile(String sourcePath, String targetPath) => throw UnsupportedError(
+void ankiCopyFile(String sourcePath, String targetPath) =>
+    throw UnsupportedError(
       'Anki media files require an IO-capable platform.',
     );
 

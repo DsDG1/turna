@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // Project imports:
-import 'package:varnamala/core/text_styles.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/core/text_styles.dart';
+import 'package:turna/views/theme.dart';
 
 void main() {
   group('AppTextStyles', () {
@@ -14,7 +14,7 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          theme: VarnamalaTheme.darkTheme,
+          theme: TurnaTheme.darkTheme,
           home: Builder(
             builder: (context) {
               captured = context;
@@ -25,7 +25,7 @@ void main() {
       );
 
       final style = AppTextStyles.promptMd(captured);
-      expect(style.color, VarnamalaTheme.textPrimaryColor(captured));
+      expect(style.color, TurnaTheme.textPrimaryColor(captured));
       expect(
         style.color,
         Theme.of(captured).colorScheme.onSurface,
@@ -38,7 +38,7 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          theme: VarnamalaTheme.darkTheme,
+          theme: TurnaTheme.darkTheme,
           home: Builder(
             builder: (context) {
               captured = context;
@@ -52,11 +52,11 @@ void main() {
       // proving the caption adapts instead of staying dark-on-dark.
       expect(
         AppTextStyles.caption(captured).color,
-        isNot(VarnamalaTheme.textHint),
+        isNot(TurnaTheme.textHint),
       );
       expect(
         AppTextStyles.caption(captured).color,
-        VarnamalaTheme.textHintColor(captured),
+        TurnaTheme.textHintColor(captured),
       );
     });
 

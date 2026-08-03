@@ -8,7 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/service/locator.dart';
+import 'package:turna/service/locator.dart';
 
 /// Owns per-lesson completed / perfect sets.
 @lazySingleton

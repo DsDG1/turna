@@ -2,8 +2,8 @@
 // notetype fields and tags, priority, and the collection preview aggregate.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/application/anki/anki_models.dart';
-import 'package:varnamala/application/anki/anki_organization_resolver.dart';
+import 'package:turna/application/anki/anki_models.dart';
+import 'package:turna/application/anki/anki_organization_resolver.dart';
 
 void main() {
   const resolver = AnkiOrganizationResolver();

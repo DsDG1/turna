@@ -8,13 +8,13 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
-import 'package:varnamala/application/lesson_link_store.dart';
-import 'package:varnamala/application/srs_provider.dart';
-import 'package:varnamala/core/sm2.dart';
-import 'package:varnamala/data/review_history_dao.dart';
-import 'package:varnamala/data/srs_state_dao.dart';
-import 'package:varnamala/domain/course/srs_word.dart';
-import 'package:varnamala/service/locator.dart';
+import 'package:turna/application/lesson_link_store.dart';
+import 'package:turna/application/srs_provider.dart';
+import 'package:turna/core/sm2.dart';
+import 'package:turna/data/review_history_dao.dart';
+import 'package:turna/data/srs_state_dao.dart';
+import 'package:turna/domain/course/srs_word.dart';
+import 'package:turna/service/locator.dart';
 
 import '../helpers/in_memory_course_db.dart';
 
@@ -75,7 +75,8 @@ void main() {
       expect(srs.totalRegistered, 1);
     });
 
-    test('registerWord is idempotent — re-registering does not reset state', () {
+    test('registerWord is idempotent — re-registering does not reset state',
+        () {
       srs.registerWord('w-1');
       // Mutate state by reviewing.
       srs.reviewWord('w-1', ReviewGrade.known.sm2);
@@ -217,8 +218,7 @@ void main() {
       expect(mixed.map((w) => w.wordId), ['w-seen']);
     });
 
-    test('getMixedExpressions excludes words and unseen expressions',
-        () async {
+    test('getMixedExpressions excludes words and unseen expressions', () async {
       srs.registerWord('w-1');
       srs.registerExpression('e-unseen');
       srs.registerExpression('e-seen');

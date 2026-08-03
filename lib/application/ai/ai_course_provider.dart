@@ -9,22 +9,22 @@ import 'package:drift/drift.dart' show Value;
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/application/ai/ai_course_service.dart';
-import 'package:varnamala/application/ai/ai_prompt_builder.dart';
-import 'package:varnamala/application/ai/engine/ai_cancel_token.dart';
-import 'package:varnamala/application/ai/engine/ai_engine.dart';
-import 'package:varnamala/application/ai/engine/ai_engine_config_holder.dart';
-import 'package:varnamala/application/ai/engine/ai_recent_tasks_provider.dart';
-import 'package:varnamala/application/ai/ai_course_spec.dart';
-import 'package:varnamala/application/ai/ai_grounded_resource_provider.dart';
-import 'package:varnamala/application/ai/ai_resource_consistency.dart';
-import 'package:varnamala/core/logger.dart';
-import 'package:varnamala/courses/course_loader.dart';
-import 'package:varnamala/courses/course_validator.dart';
-import 'package:varnamala/data/course_database.dart' as db;
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/domain/course/lesson.dart';
-import 'package:varnamala/domain/course/section.dart';
+import 'package:turna/application/ai/ai_course_service.dart';
+import 'package:turna/application/ai/ai_prompt_builder.dart';
+import 'package:turna/application/ai/engine/ai_cancel_token.dart';
+import 'package:turna/application/ai/engine/ai_engine.dart';
+import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
+import 'package:turna/application/ai/engine/ai_recent_tasks_provider.dart';
+import 'package:turna/application/ai/ai_course_spec.dart';
+import 'package:turna/application/ai/ai_grounded_resource_provider.dart';
+import 'package:turna/application/ai/ai_resource_consistency.dart';
+import 'package:turna/core/logger.dart';
+import 'package:turna/courses/course_loader.dart';
+import 'package:turna/courses/course_validator.dart';
+import 'package:turna/data/course_database.dart' as db;
+import 'package:turna/di/injection.dart';
+import 'package:turna/domain/course/lesson.dart';
+import 'package:turna/domain/course/section.dart';
 
 /// State machine for the AI course generation flow.
 enum AiCourseState { idle, generating, generated, saving, saved, error }

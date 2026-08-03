@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/views/theme.dart';
 
 /// Shared visual building blocks for the AI tutor surfaces (config page, hint
 /// sheet, depth-tutor sheet, chat page) so they share one card-based design
@@ -36,17 +36,15 @@ class AiGroupCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final a = VarnamalaTheme.accentOnCard(
-        context, accent ?? VarnamalaTheme.peacockTeal);
+    final a =
+        TurnaTheme.accentOnCard(context, accent ?? TurnaTheme.peacockTeal);
     return Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: VarnamalaTheme.softTint(
-            context, accent ?? VarnamalaTheme.peacockTeal),
-        borderRadius:
-            BorderRadius.circular(VarnamalaTheme.radiusXLarge - 4),
+        color: TurnaTheme.softTint(context, accent ?? TurnaTheme.peacockTeal),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusXLarge - 4),
         border: Border.all(
-          color: VarnamalaTheme.glassBorder(context),
+          color: TurnaTheme.glassBorder(context),
           width: 1,
         ),
       ),
@@ -61,7 +59,7 @@ class AiGroupCard extends StatelessWidget {
                 title,
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
                       fontWeight: FontWeight.w800,
-                      color: VarnamalaTheme.textPrimaryColor(context),
+                      color: TurnaTheme.textPrimaryColor(context),
                     ),
               ),
             ],
@@ -94,12 +92,10 @@ class AiSurfaceCard extends StatelessWidget {
     return Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: VarnamalaTheme.softTint(
-            context, accent ?? VarnamalaTheme.peacockTeal),
-        borderRadius:
-            BorderRadius.circular(VarnamalaTheme.radiusXLarge - 4),
+        color: TurnaTheme.softTint(context, accent ?? TurnaTheme.peacockTeal),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusXLarge - 4),
         border: Border.all(
-          color: VarnamalaTheme.glassBorder(context),
+          color: TurnaTheme.glassBorder(context),
           width: 1,
         ),
       ),
@@ -118,26 +114,25 @@ InputDecoration aiSheetInputDecoration(
   Widget? suffixIcon,
 }) {
   final base = OutlineInputBorder(
-    borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+    borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
     borderSide: BorderSide.none,
   );
   return InputDecoration(
     hintText: hint,
     labelText: label,
-    hintStyle: TextStyle(color: VarnamalaTheme.textHintColor(context)),
+    hintStyle: TextStyle(color: TurnaTheme.textHintColor(context)),
     filled: true,
-    fillColor: VarnamalaTheme.tintLight,
+    fillColor: TurnaTheme.tintLight,
     isDense: true,
-    contentPadding:
-        const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
     suffixIcon: suffixIcon,
     border: base,
     enabledBorder: base,
     disabledBorder: base,
     focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+      borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
       borderSide: const BorderSide(
-        color: VarnamalaTheme.peacockTeal,
+        color: TurnaTheme.peacockTeal,
         width: 1.2,
       ),
     ),
@@ -148,7 +143,7 @@ InputDecoration aiSheetInputDecoration(
 ButtonStyle aiSheetPrimaryButtonStyle() => FilledButton.styleFrom(
       padding: const EdgeInsets.symmetric(vertical: 16),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
       ),
       textStyle: const TextStyle(
         fontSize: 15,
@@ -160,9 +155,9 @@ ButtonStyle aiSheetPrimaryButtonStyle() => FilledButton.styleFrom(
 ButtonStyle aiSheetSecondaryButtonStyle() => OutlinedButton.styleFrom(
       padding: const EdgeInsets.symmetric(vertical: 13),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
       ),
       side: BorderSide(
-        color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.5),
+        color: TurnaTheme.peacockTeal.withValues(alpha: 0.5),
       ),
     );

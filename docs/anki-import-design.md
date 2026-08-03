@@ -1,12 +1,12 @@
 # Anki 导入与通用刷题集成设计
 
-> 本文档描述如何将 Varnamala 从「单一语言学习应用」扩展为「可导入 Anki 牌组进行通用刷题」的学习平台，并保证已有的 SRS 引擎、错题记录、弱词回顾、统计面板、AI 辅助等功能无缝复用。文档面向实现者，包含数据模型映射、模块拆分、AI 增强路径、大单元处理策略、测试策略与落地路线图。
+> 本文档描述如何将 Turna 从「单一语言学习应用」扩展为「可导入 Anki 牌组进行通用刷题」的学习平台，并保证已有的 SRS 引擎、错题记录、弱词回顾、统计面板、AI 辅助等功能无缝复用。文档面向实现者，包含数据模型映射、模块拆分、AI 增强路径、大单元处理策略、测试策略与落地路线图。
 
 ---
 
 ## 1. 背景与目标
 
-Varnamala 当前是一套以语言学习为内容、以课程树（Section → Unit → Lesson → Stage → Interaction）为组织形式的本地优先学习框架。其学习引擎与 AI 能力已经具备以下「与具体语言无关」的通用基础设施：
+Turna 当前是一套以语言学习为内容、以课程树（Section → Unit → Lesson → Stage → Interaction）为组织形式的本地优先学习框架。其学习引擎与 AI 能力已经具备以下「与具体语言无关」的通用基础设施：
 
 学习引擎层：
 
@@ -35,9 +35,9 @@ AI 能力层：
 
 核心目标：
 
-1. 支持导入 Anki `.apkg` / `.colpkg` 文件，将其转换为 Varnamala 的课程结构并落库；
+1. 支持导入 Anki `.apkg` / `.colpkg` 文件，将其转换为 Turna 的课程结构并落库；
 2. 支持超大牌组（万级卡片）的导入与复习，不阻塞 UI、不爆内存；
-3. Anki 自带的复习状态（due/interval/ease/lapses/reps）迁移到 Varnamala 的 `SrsWord`，迁移后复习曲线连续；
+3. Anki 自带的复习状态（due/interval/ease/lapses/reps）迁移到 Turna 的 `SrsWord`，迁移后复习曲线连续；
 4. 刷题过程中产生的错题进入既有 `MistakeProvider`，可被「错题本」「弱词回顾」「每日挑战」复用；
 5. Anki 牌组与语言课程在 UI 上并存且可区分，但不引入新的渲染分支；
 6. **AI 增强**：利用既有 AI 基础设施实现 notetype 智能识别、卡片质量提升、干扰项自动生成、课中提示、Wish 式课程化等能力，让 Anki 牌组不仅是「翻面卡片」，还能升级为结构化课程。
@@ -45,7 +45,7 @@ AI 能力层：
 非目标：
 
 - 不做 Anki 同步（AnkiWeb 对接）——保持本地优先；
-- 不内嵌 Anki 牌组编辑器——编辑仍由 Anki 桌面端完成，Varnamala 只做「消费侧」；
+- 不内嵌 Anki 牌组编辑器——编辑仍由 Anki 桌面端完成，Turna 只做「消费侧」；
 - 不替换现有课程树结构——Anki 牌组作为「另一类 Section」挂载，复用同一棵树。
 
 ---
@@ -83,7 +83,7 @@ AI 能力层：
 
 ### 3.1 领域模型契合度
 
-Varnamala 的 `WordEntry`（id/term/translation/pronunciation/audioAsset/pos/tags）与 Anki 一条 note 的「正面/反面」二元字段几乎一一对应；`Expression` 对应带上下文的句子卡；`GrammarPoint` 对应带说明的语法卡。三者的并集足以覆盖绝大多数 Anki 基础牌组。
+Turna 的 `WordEntry`（id/term/translation/pronunciation/audioAsset/pos/tags）与 Anki 一条 note 的「正面/反面」二元字段几乎一一对应；`Expression` 对应带上下文的句子卡；`GrammarPoint` 对应带说明的语法卡。三者的并集足以覆盖绝大多数 Anki 基础牌组。
 
 `Interaction` sealed union 已覆盖 12 种题型。Anki 的「正面提示 → 反面答案」最自然地映射到 `Interaction.multipleChoice`（自动生成干扰项）或 `Interaction.fillBlank`（若正面包含挖空）或一种新的轻量 `Interaction.ankiCard`（正面/反面纯展示，见 §5.2）。
 
@@ -103,7 +103,7 @@ Varnamala 的 `WordEntry`（id/term/translation/pronunciation/audioAsset/pos/tag
 
 ### 3.5 Textbook 导入管线的可复用模式
 
-Textbook 导入管线（`TextbookImportProvider`）已经建立了「外部内容 → Varnamala 课程」的完整流水线，其中多个组件可直接复用或模式复用：
+Textbook 导入管线（`TextbookImportProvider`）已经建立了「外部内容 → Turna 课程」的完整流水线，其中多个组件可直接复用或模式复用：
 
 - `ImportStrategy` 枚举（`merge` / `skipExisting` / `forceReplace` / `appendAsNew`）——Anki 导入同样面临「同一牌组重复导入」或「Anki 词汇与课程词汇碰撞」的场景，可直接复用这一策略体系；
 - `KnowledgeMerger.analyze()` 的碰撞报告模式——导入前预览「N 条新词 / M 条重复」，让用户决策策略；
@@ -194,13 +194,13 @@ Textbook 导入管线（`TextbookImportProvider`）已经建立了「外部内�
 
 ## 5. 数据模型与映射
 
-### 5.1 Anki 牌组 → Varnamala 课程树
+### 5.1 Anki 牌组 → Turna 课程树
 
-一个 Anki deck 映射为一个 Varnamala `Section`，其下挂一个或多个 `Unit`（按子牌组或按卡片数量分片，见 §7）。每个 `Unit` 下生成若干「虚拟 Lesson」，每节 Lesson 容纳固定数量的卡片（默认 20 张），避免单 Lesson 过大导致一次加载全部 Interaction。
+一个 Anki deck 映射为一个 Turna `Section`，其下挂一个或多个 `Unit`（按子牌组或按卡片数量分片，见 §7）。每个 `Unit` 下生成若干「虚拟 Lesson」，每节 Lesson 容纳固定数量的卡片（默认 20 张），避免单 Lesson 过大导致一次加载全部 Interaction。
 
 映射规则：
 
-| Anki 概念 | Varnamala 概念 | 说明 |
+| Anki 概念 | Turna 概念 | 说明 |
 |-----------|----------------|------|
 | Collection（一个 .apkg） | 一棵「Anki 导入」Section 子树 | id 前缀 `anki-<importId>-` |
 | Deck | Section 或 Unit（视层级） | 顶层 deck → Section；子 deck → Unit |
@@ -302,7 +302,7 @@ Anki 导入面临两类碰撞：同一牌组重复导入（note id 相同），�
 ```dart
 class AnkiImporter {
   /// 解析 .apkg，返回中间表示 + 媒体文件清单。
-  /// 不触碰 Varnamala 数据库——纯函数，便于测试。
+  /// 不触碰 Turna 数据库——纯函数，便于测试。
   Future<AnkiCollection> parse(String apkgPath);
 }
 
@@ -329,7 +329,7 @@ class AnkiCollection with _$AnkiCollection {
 
 ### 6.2 AnkiCardAdapter（适配层）
 
-职责：把 `AnkiNote` + `AnkiCard` 转成 `(WordEntry?, Interaction)` 二元组。这是 Anki 语义 → Varnamala 语义的核心翻译器。
+职责：把 `AnkiNote` + `AnkiCard` 转成 `(WordEntry?, Interaction)` 二元组。这是 Anki 语义 → Turna 语义的核心翻译器。
 
 适配分两条路径：**启发式规则**（默认，离线可用）和 **AI 识别**（可选，需配置 API）。
 
@@ -359,7 +359,7 @@ class AnkiCardAdapter {
 
 ```dart
 class AnkiNotetypeAI {
-  /// 用 LLM 识别 notetype 应映射为哪种 Varnamala 卡片类型。
+  /// 用 LLM 识别 notetype 应映射为哪种 Turna 卡片类型。
   /// 复用 AiCourseService.requestTextReply()。
   Future<NotetypeMapping> identify({
     required AiApiConfig config,
@@ -370,7 +370,7 @@ class AnkiNotetypeAI {
 
 System prompt 示例：
 
-> 你是一个 Anki 牌组分析助手。给定一个 Anki notetype 的字段定义（字段名列表），判断它最适合映射为以下哪种 Varnamala 卡片类型：
+> 你是一个 Anki 牌组分析助手。给定一个 Anki notetype 的字段定义（字段名列表），判断它最适合映射为以下哪种 Turna 卡片类型：
 > 1. `ankiCard` — 通用正反面卡片（适合非语言类内容）
 > 2. `wordEntry` — 词汇卡（正面是词，反面是释义，可生成选择题）
 > 3. `expression` — 句子/表达卡（可生成填空题）
@@ -388,7 +388,7 @@ id 生成策略：`wordId = "anki-${importId}-n${note.id}"`，`interactionId = "
 
 ```dart
 class AnkiDeckAssembler {
-  /// 将 AnkiCollection 组装为 Varnamala 课程树并落库。
+  /// 将 AnkiCollection 组装为 Turna 课程树并落库。
   /// 返回导入摘要（importId, 计数）。
   Future<AnkiImportSummary> assemble({
     required AnkiCollection collection,
@@ -436,7 +436,7 @@ class AnkiSrsMigrator {
 }
 ```
 
-注意 Anki 的 `ease` 下限是 1.3（1300），而 Varnamala 的 `Sm2Engine` 默认下限需对齐——迁移时若 `factor < 1300` 钳制到 1300，避免复习时 ease 溢出导致间隔塌缩。
+注意 Anki 的 `ease` 下限是 1.3（1300），而 Turna 的 `Sm2Engine` 默认下限需对齐——迁移时若 `factor < 1300` 钳制到 1300，避免复习时 ease 溢出导致间隔塌缩。
 
 迁移后 `SrsProvider.getDueWords()` 会自动包含 Anki 卡片，既有 SRS 复习 UI（`SrsReviewScreen`）无需改动即可刷 Anki 卡——只要 `SrsReviewScreen` 的渲染能识别 `AnkiCard` 类型 Interaction 并翻面展示。
 
@@ -559,7 +559,7 @@ await aiHintProvider.explainQuestion(config: config, ctx: ctx);
 
 ### 7.5 AI Wish Mode：牌组课程化
 
-**场景**：用户导入了一个「英语 GRE 词汇 3000」牌组，但不想只是翻面刷题，希望 Varnamala 把它组织成 intro（展示新词）→ practice（选择题练习）→ review（混合复习）的结构化课程。
+**场景**：用户导入了一个「英语 GRE 词汇 3000」牌组，但不想只是翻面刷题，希望 Turna 把它组织成 intro（展示新词）→ practice（选择题练习）→ review（混合复习）的结构化课程。
 
 **实现**：导入后在 Anki Section 详情页提供「AI 课程化」按钮。点击后进入 `AiWishProvider` 的对话流：
 
@@ -625,7 +625,7 @@ Anki Section 与语言课程 Section 共用 `CourseTree`，通过 `level` 字段
 `tool/gui` 的 PySide6 桌面编辑器已支持丰富的课程编辑能力。Anki 导入可在 GUI 侧增加一个「导入 Anki 牌组」菜单项，复用 `section_import_service.py` 的导入管道：
 
 - GUI 侧解析 `.apkg`（Python 有成熟的 `genanki` / `sqlite3` 库，比 Dart 侧更简单）；
-- 转换为 Varnamala Section JSON；
+- 转换为 Turna Section JSON；
 - 在 GUI 的 3-column workshop 中预览和编辑（`unified_workspace.py` + `course_tree.py`）；
 - 通过 `CourseAdapter` 写入 assets 或通过 `git_library` 推送到资源库。
 
@@ -839,7 +839,7 @@ Anki 牌组的媒体文件可能数百 MB（图片/音频）。导入时不全�
 - [ ] GUI 工具「导入 Anki 牌组」菜单项（`section_import_service.py` 扩展）；
 - [ ] 可选：SRS 状态迁移到 SQLite（>5000 卡片时自动切换）；
 - [ ] 可选：`revlog` 迁移到 study log（历史复习记录还原）；
-- [ ] 可选：导出 Varnamala 卡片为 .apkg（反向导出）。
+- [ ] 可选：导出 Turna 卡片为 .apkg（反向导出）。
 
 ---
 
@@ -857,7 +857,7 @@ Anki 牌组的媒体文件可能数百 MB（图片/音频）。导入时不全�
 
 **AI 依赖的渐进式降级**：所有 AI 功能都是可选的。`AiApiConfig.isComplete == false` 时，导入走纯启发式路径，复习走纯翻面卡片，课中无 AI 提示，每日挑战仍可混入 Anki 卡片。这保证了离线/未配置 API 的用户体验完整，AI 只是锦上添花。
 
-**Anki 调度参数差异**：Anki 的 SM-2 变体与 Varnamala 的 `Sm2Engine` 在细节上有差异（Anki 有 fuzzing、learning steps、relearning steps；Varnamala 是标准 SM-2）。迁移后的首次复习可能与 Anki 桌面端的调度有 1-2 天偏差。缓解：迁移时记录原始参数，在 `SrsWord` 中增加可选字段 `originalScheduler: 'anki'`，后续可按需对齐调度行为。MVP 接受偏差——用户在 Varnamala 刷题后，调度由 Varnamala 的 `Sm2Engine` 接管，几轮后自然收敛。
+**Anki 调度参数差异**：Anki 的 SM-2 变体与 Turna 的 `Sm2Engine` 在细节上有差异（Anki 有 fuzzing、learning steps、relearning steps；Turna 是标准 SM-2）。迁移后的首次复习可能与 Anki 桌面端的调度有 1-2 天偏差。缓解：迁移时记录原始参数，在 `SrsWord` 中增加可选字段 `originalScheduler: 'anki'`，后续可按需对齐调度行为。MVP 接受偏差——用户在 Turna 刷题后，调度由 Turna 的 `Sm2Engine` 接管，几轮后自然收敛。
 
 ---
 
@@ -955,7 +955,7 @@ Anki 牌组的媒体文件可能数百 MB（图片/音频）。导入时不全�
 
 ## 15. 结论
 
-Varnamala 的现有架构对「Anki 导入刷题」有天然的兼容性，而既有的 AI 基础设施进一步将其从「翻面卡片刷题器」升级为「智能学习平台」。
+Turna 的现有架构对「Anki 导入刷题」有天然的兼容性，而既有的 AI 基础设施进一步将其从「翻面卡片刷题器」升级为「智能学习平台」。
 
 在引擎层，SRS 引擎与卡片类型解耦、错题携带完整快照可独立重放（`MistakeReviewAssembler` 已证明这条路径）、统计与内容来源无关、`LessonCompletionCoordinator` 自动处理完成副作用、`DailyChallengeAssembler` 可无缝混入 Anki 卡片、`Interaction` sealed union 可低成本扩展。主要新增工作集中在「Anki 解析 + 适配」这一层，以及一个翻面渲染器。
 

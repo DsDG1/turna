@@ -16,7 +16,7 @@ from src.infrastructure.telemetry import Telemetry  # noqa: E402
 
 class TelemetryTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_telemetry_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_telemetry_"))
         self.log_file = self.tmp / "telemetry.log"
         self.telemetry = Telemetry(self.log_file)
 

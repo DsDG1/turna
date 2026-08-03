@@ -7,11 +7,11 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 // Project imports:
-import 'package:varnamala/application/ai/engine/ai_cache.dart';
-import 'package:varnamala/application/ai/engine/ai_engine.dart';
-import 'package:varnamala/application/ai/engine/ai_engine_config.dart';
-import 'package:varnamala/application/ai/engine/ai_http_client.dart';
-import 'package:varnamala/application/ai/engine/ai_provider_preset.dart';
+import 'package:turna/application/ai/engine/ai_cache.dart';
+import 'package:turna/application/ai/engine/ai_engine.dart';
+import 'package:turna/application/ai/engine/ai_engine_config.dart';
+import 'package:turna/application/ai/engine/ai_http_client.dart';
+import 'package:turna/application/ai/engine/ai_provider_preset.dart';
 
 const AiEngineConfig _config = AiEngineConfig(
   preset: kOpenaiPreset,

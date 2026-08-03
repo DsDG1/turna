@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/service/locator.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/service/locator.dart';
+import 'package:turna/views/theme.dart';
 
 @lazySingleton
 class ThemeProvider extends ChangeNotifier {
@@ -30,8 +30,8 @@ class ThemeProvider extends ChangeNotifier {
   }
 
   ThemeData get currentTheme => isDarkMode
-      ? VarnamalaTheme.darkTheme
-      : VarnamalaTheme.lightTheme;
+      ? TurnaTheme.darkTheme
+      : TurnaTheme.lightTheme;
 
   void toggleTheme() {
     _themeMode = _themeMode == ThemeMode.light

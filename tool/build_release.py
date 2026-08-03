@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One-command release builder for Varnamala.
+"""One-command release builder for Turna.
 
 Produces versioned release artifacts (APK, AAB, optional web) and a matching
 content inventory report. Intended for local release builds and CI smoke tests.
@@ -90,20 +90,20 @@ def build_release(
 
     run([flutter, "build", "apk", "--release"], cwd=root)
     apk_src = root / "build" / "app" / "outputs" / "flutter-apk" / "app-release.apk"
-    apk_dst = output_dir / f"varnamala-v{version}-release.apk"
+    apk_dst = output_dir / f"turna-v{version}-release.apk"
     copy_artifact(apk_src, apk_dst)
     artifacts.append(apk_dst)
 
     run([flutter, "build", "appbundle", "--release"], cwd=root)
     aab_src = root / "build" / "app" / "outputs" / "bundle" / "release" / "app-release.aab"
-    aab_dst = output_dir / f"varnamala-v{version}-release.aab"
+    aab_dst = output_dir / f"turna-v{version}-release.aab"
     copy_artifact(aab_src, aab_dst)
     artifacts.append(aab_dst)
 
     if not skip_web:
         run([flutter, "build", "web", "--release"], cwd=root)
         web_src = root / "build" / "web"
-        web_dst = output_dir / f"varnamala-v{version}-web"
+        web_dst = output_dir / f"turna-v{version}-web"
         copy_tree(web_src, web_dst)
         artifacts.append(web_dst)
 
@@ -117,7 +117,7 @@ def build_release(
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Build a Varnamala release.")
+    parser = argparse.ArgumentParser(description="Build a Turna release.")
     parser.add_argument(
         "--version",
         required=True,

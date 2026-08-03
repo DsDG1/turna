@@ -1,4 +1,4 @@
-"""Stable backend API for the Varnamala GUI.
+"""Stable backend API for the Turna GUI.
 
 This module is the only part of the GUI that is allowed to import
 course_cli. All other GUI code calls the functions and data classes

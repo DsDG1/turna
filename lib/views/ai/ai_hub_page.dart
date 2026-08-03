@@ -6,17 +6,17 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/ai/ai_hint_provider.dart';
-import 'package:varnamala/application/ai/engine/ai_engine_config_holder.dart';
-import 'package:varnamala/application/ai/engine/ai_recent_tasks_provider.dart';
-import 'package:varnamala/application/srs_tutor_provider.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/routing/routing.gr.dart';
-import 'package:varnamala/views/lesson/components/ai_depth_tutor_sheet.dart';
-import 'package:varnamala/views/lesson/tutor_launch_sheet.dart';
-import 'package:varnamala/views/play/components/play_tiles.dart';
-import 'package:varnamala/views/ai/ai_api_config_page.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/ai/ai_hint_provider.dart';
+import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
+import 'package:turna/application/ai/engine/ai_recent_tasks_provider.dart';
+import 'package:turna/application/srs_tutor_provider.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/routing/routing.gr.dart';
+import 'package:turna/views/lesson/components/ai_depth_tutor_sheet.dart';
+import 'package:turna/views/lesson/tutor_launch_sheet.dart';
+import 'package:turna/views/play/components/play_tiles.dart';
+import 'package:turna/views/ai/ai_api_config_page.dart';
+import 'package:turna/views/theme.dart';
 
 /// Centralized AI surface (Phase 2.3 / Phase 3 of floofy-hugging-hopper).
 ///
@@ -40,7 +40,7 @@ class AiHubPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: VarnamalaTheme.surfaceColor(context),
+      backgroundColor: TurnaTheme.surfaceColor(context),
       appBar: AppBar(
         centerTitle: true,
         title: Row(
@@ -48,7 +48,7 @@ class AiHubPage extends StatelessWidget {
           children: [
             const Icon(
               Icons.auto_awesome_rounded,
-              color: VarnamalaTheme.amethystLeague,
+              color: TurnaTheme.amethystLeague,
               size: 22,
             ),
             const SizedBox(width: 8),
@@ -95,7 +95,7 @@ class _HeroSection extends StatelessWidget {
       ),
       builder: (context, snap, _) {
         const radius =
-            BorderRadius.all(Radius.circular(VarnamalaTheme.radiusXLarge));
+            BorderRadius.all(Radius.circular(TurnaTheme.radiusXLarge));
 
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -110,15 +110,14 @@ class _HeroSection extends StatelessWidget {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      VarnamalaTheme.amethystLeague,
-                      VarnamalaTheme.peacockTeal,
+                      TurnaTheme.amethystLeague,
+                      TurnaTheme.peacockTeal,
                     ],
                   ),
                   borderRadius: radius,
                   boxShadow: [
                     BoxShadow(
-                      color: VarnamalaTheme.amethystLeague
-                          .withValues(alpha: 0.25),
+                      color: TurnaTheme.amethystLeague.withValues(alpha: 0.25),
                       blurRadius: 16,
                       offset: const Offset(0, 8),
                     ),
@@ -243,8 +242,7 @@ class _HeroSnapshot {
       other.complete == complete;
 
   @override
-  int get hashCode =>
-      Object.hash(preset, modelChat, apiKeyMasked, complete);
+  int get hashCode => Object.hash(preset, modelChat, apiKeyMasked, complete);
 }
 
 /// Small frosted chip rendered on the gradient hero. Warning variant swaps to
@@ -259,10 +257,9 @@ class _HeroChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: warning
-            ? VarnamalaTheme.warning
-            : Colors.white.withValues(alpha: 0.22),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+        color:
+            warning ? TurnaTheme.warning : Colors.white.withValues(alpha: 0.22),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
         border: Border.all(
           color: Colors.white.withValues(alpha: warning ? 0.0 : 0.35),
           width: 0.5,
@@ -297,13 +294,13 @@ class _ContinueSection extends StatelessWidget {
             builder: (context, items, _) {
               if (items.isEmpty) {
                 return SoftCard(
-                  accentColor: VarnamalaTheme.peacockTeal,
+                  accentColor: TurnaTheme.peacockTeal,
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Text(
                       AppStrings.aiHubContinueEmpty,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: VarnamalaTheme.textSecondaryColor(context),
+                            color: TurnaTheme.textSecondaryColor(context),
                           ),
                     ),
                   ),
@@ -337,11 +334,10 @@ class _RecentRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent =
-        VarnamalaTheme.accentOnCard(context, VarnamalaTheme.peacockTeal);
+    final accent = TurnaTheme.accentOnCard(context, TurnaTheme.peacockTeal);
 
     return SoftCard(
-      accentColor: VarnamalaTheme.peacockTeal,
+      accentColor: TurnaTheme.peacockTeal,
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -364,14 +360,14 @@ class _RecentRow extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w700,
-                          color: VarnamalaTheme.textPrimaryColor(context),
+                          color: TurnaTheme.textPrimaryColor(context),
                         ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     _labelFor(task.kind),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: VarnamalaTheme.textSecondaryColor(context),
+                          color: TurnaTheme.textSecondaryColor(context),
                         ),
                   ),
                 ],
@@ -459,29 +455,28 @@ class _StartSection extends StatelessWidget {
               ReviewTile(
                 title: AppStrings.aiHubStartWish,
                 icon: Icons.auto_awesome_rounded,
-                accentColor: VarnamalaTheme.amethystLeague,
+                accentColor: TurnaTheme.amethystLeague,
                 onTap: () => context.router.push(const AiWishChatRoute()),
               ),
               ReviewTile(
                 title: AppStrings.aiHubStartTextbook,
                 icon: Icons.menu_book_rounded,
-                accentColor: VarnamalaTheme.peacockCyan,
-                onTap: () =>
-                    context.router.push(const TextbookImportRoute()),
+                accentColor: TurnaTheme.peacockCyan,
+                onTap: () => context.router.push(const TextbookImportRoute()),
               ),
               ReviewTile(
                 title: AppStrings.aiHubStartTutorMistakes,
                 icon: Icons.history_toggle_off_rounded,
-                accentColor: VarnamalaTheme.peacockTeal,
+                accentColor: TurnaTheme.peacockTeal,
                 onTap: () => _openSheet(
                     context, const TutorLaunchSheet(), SrsTutorFocus.mistakes),
               ),
               ReviewTile(
                 title: AppStrings.aiHubStartTutorWeak,
                 icon: Icons.quiz_rounded,
-                accentColor: VarnamalaTheme.peacockTurquoise,
-                onTap: () => _openSheet(context, const TutorLaunchSheet(),
-                    SrsTutorFocus.weakWords),
+                accentColor: TurnaTheme.peacockTurquoise,
+                onTap: () => _openSheet(
+                    context, const TutorLaunchSheet(), SrsTutorFocus.weakWords),
               ),
             ],
           ),
@@ -495,11 +490,10 @@ class _StartSection extends StatelessWidget {
                     ? AppStrings.aiHubDepthTutorSubtitleOn
                     : AppStrings.aiHubDepthTutorSubtitleOff,
                 icon: Icons.account_tree_outlined,
-                accentColor: VarnamalaTheme.amethystLeague,
+                accentColor: TurnaTheme.amethystLeague,
                 enabled: hasQuestion,
                 onTap: hasQuestion
-                    ? () => _openSheet(
-                        context, const AiDepthTutorSheet(), null)
+                    ? () => _openSheet(context, const AiDepthTutorSheet(), null)
                     : null,
               );
             },
@@ -524,10 +518,10 @@ void _openSheet(BuildContext context, Widget sheet, Object? focus) {
   showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: VarnamalaTheme.cardBg(context),
+    backgroundColor: TurnaTheme.cardBg(context),
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(
-        top: Radius.circular(VarnamalaTheme.radiusXLarge),
+        top: Radius.circular(TurnaTheme.radiusXLarge),
       ),
     ),
     builder: (_) => sheet,

@@ -103,7 +103,7 @@ class AiChatMessage {
 }
 
 /// A course JSON payload produced by the AI, already decoded into a
-/// `Map<String, dynamic>` matching the Varnamala section file schema.
+/// `Map<String, dynamic>` matching the Turna section file schema.
 class AiGeneratedCourse {
   const AiGeneratedCourse({required this.rawJson, required this.parsed});
 

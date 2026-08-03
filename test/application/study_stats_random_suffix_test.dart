@@ -6,11 +6,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
-import 'package:varnamala/application/mistake_provider.dart';
-import 'package:varnamala/application/study_stats_provider.dart';
-import 'package:varnamala/data/study_log_repository.dart';
-import 'package:varnamala/domain/study/study_log.dart';
-import 'package:varnamala/service/locator.dart';
+import 'package:turna/application/mistake_provider.dart';
+import 'package:turna/application/study_stats_provider.dart';
+import 'package:turna/data/study_log_repository.dart';
+import 'package:turna/domain/study/study_log.dart';
+import 'package:turna/service/locator.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -72,4 +72,3 @@ void main() {
         reason: 'suffix should be 6 chars of [a-z0-9], got "${parts[1]}"');
   });
 }
-

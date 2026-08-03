@@ -7,30 +7,30 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
-import 'package:varnamala/application/achievements_provider.dart';
-import 'package:varnamala/application/accessibility_provider.dart';
-import 'package:varnamala/application/audio_controller.dart';
-import 'package:varnamala/application/course_provider.dart';
-import 'package:varnamala/application/game_provider.dart';
-import 'package:varnamala/application/gems_provider.dart';
-import 'package:varnamala/application/grammar_review_provider.dart';
-import 'package:varnamala/application/language_provider.dart';
-import 'package:varnamala/application/lesson_completion_coordinator.dart';
-import 'package:varnamala/application/lesson_link_store.dart';
-import 'package:varnamala/application/lesson_viewmodel.dart';
-import 'package:varnamala/application/mistake_provider.dart'; // MistakeProvider for StudyStatsProvider
-import 'package:varnamala/application/srs_provider.dart';
-import 'package:varnamala/application/settings_provider.dart';
-import 'package:varnamala/application/study_stats_provider.dart';
-import 'package:varnamala/data/study_log_repository.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/domain/audio/vocab_audio_resolver.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/domain/course/lesson.dart';
-import 'package:varnamala/domain/course/lesson_content.dart';
-import 'package:varnamala/domain/course/stage.dart';
-import 'package:varnamala/domain/study/study_log.dart';
-import 'package:varnamala/service/locator.dart';
+import 'package:turna/application/achievements_provider.dart';
+import 'package:turna/application/accessibility_provider.dart';
+import 'package:turna/application/audio_controller.dart';
+import 'package:turna/application/course_provider.dart';
+import 'package:turna/application/game_provider.dart';
+import 'package:turna/application/gems_provider.dart';
+import 'package:turna/application/grammar_review_provider.dart';
+import 'package:turna/application/language_provider.dart';
+import 'package:turna/application/lesson_completion_coordinator.dart';
+import 'package:turna/application/lesson_link_store.dart';
+import 'package:turna/application/lesson_viewmodel.dart';
+import 'package:turna/application/mistake_provider.dart'; // MistakeProvider for StudyStatsProvider
+import 'package:turna/application/srs_provider.dart';
+import 'package:turna/application/settings_provider.dart';
+import 'package:turna/application/study_stats_provider.dart';
+import 'package:turna/data/study_log_repository.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/domain/audio/vocab_audio_resolver.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/domain/course/lesson.dart';
+import 'package:turna/domain/course/lesson_content.dart';
+import 'package:turna/domain/course/stage.dart';
+import 'package:turna/domain/study/study_log.dart';
+import 'package:turna/service/locator.dart';
 
 import '../helpers/in_memory_course_db.dart';
 
@@ -69,7 +69,8 @@ class _FakeAudioController extends AudioController {
           speechPlayer: _FakeAudioPlayer(),
         );
   @override
-  Future<void> speak(String text, {double? speed, String? languageCode}) async {}
+  Future<void> speak(String text,
+      {double? speed, String? languageCode}) async {}
   @override
   Future<void> speakFromAsset(String assetPath) async {}
   @override
@@ -175,7 +176,8 @@ void main() {
     // the harness (which constructs the audio controller).
     await getIt.reset();
     getIt.registerLazySingleton<AppPrefs>(() => prefs);
-    getIt.registerLazySingleton<SettingsProvider>(() => SettingsProvider(prefs));
+    getIt
+        .registerLazySingleton<SettingsProvider>(() => SettingsProvider(prefs));
     getIt.registerLazySingleton<AccessibilityProvider>(
       () => AccessibilityProvider(prefs),
     );
@@ -192,7 +194,8 @@ void main() {
     await vm.loadLesson(lesson.id);
     for (var i = 0; i < 6; i++) {
       final correct = i < 4;
-      vm.submitInteraction(correct, userAnswerText: correct ? 'Correct' : 'Wrong');
+      vm.submitInteraction(correct,
+          userAnswerText: correct ? 'Correct' : 'Wrong');
       vm.advance();
     }
     await pumpEventQueue();
@@ -214,7 +217,8 @@ void main() {
     await vm.loadLesson(lesson.id);
     for (var i = 0; i < 6; i++) {
       final correct = i < 5;
-      vm.submitInteraction(correct, userAnswerText: correct ? 'Correct' : 'Wrong');
+      vm.submitInteraction(correct,
+          userAnswerText: correct ? 'Correct' : 'Wrong');
       vm.advance();
     }
     await pumpEventQueue();
@@ -225,14 +229,17 @@ void main() {
     expect(vm.totalInteractionCount, 6);
   });
 
-  test('lesson completion exposes incorrectAnswers, duration and per-question results', () async {
+  test(
+      'lesson completion exposes incorrectAnswers, duration and per-question results',
+      () async {
     final lesson = _masteryLesson();
     final vm = _harness(prefs, lesson);
 
     await vm.loadLesson(lesson.id);
     for (var i = 0; i < 6; i++) {
       final correct = i < 4;
-      vm.submitInteraction(correct, userAnswerText: correct ? 'Correct' : 'Wrong');
+      vm.submitInteraction(correct,
+          userAnswerText: correct ? 'Correct' : 'Wrong');
       vm.advance();
     }
     await pumpEventQueue();

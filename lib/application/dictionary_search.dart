@@ -1,10 +1,10 @@
 // Project imports:
-import 'package:varnamala/courses/languages/expressions.dart';
-import 'package:varnamala/courses/languages/grammar_points.dart';
-import 'package:varnamala/courses/languages/vocab.dart';
-import 'package:varnamala/domain/course/expression.dart';
-import 'package:varnamala/domain/course/grammar_point.dart';
-import 'package:varnamala/domain/course/word_entry.dart';
+import 'package:turna/courses/languages/expressions.dart';
+import 'package:turna/courses/languages/grammar_points.dart';
+import 'package:turna/courses/languages/vocab.dart';
+import 'package:turna/domain/course/expression.dart';
+import 'package:turna/domain/course/grammar_point.dart';
+import 'package:turna/domain/course/word_entry.dart';
 
 /// Kind of dictionary hit.
 enum DictionaryHitKind { vocab, expression, grammar }

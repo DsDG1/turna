@@ -165,7 +165,11 @@ AiProviderPreset presetFor(AiProvider provider) =>
 }) {
   final preset = presetFor(provider);
   if (preset.id == AiProvider.custom) {
-    return (baseUrl: baseUrl, model: model, supportsReasoning: supportsReasoning);
+    return (
+      baseUrl: baseUrl,
+      model: model,
+      supportsReasoning: supportsReasoning
+    );
   }
   return (
     baseUrl: preset.baseUrl,

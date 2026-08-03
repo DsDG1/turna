@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/core/verbose.dart';
+import 'package:turna/core/verbose.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

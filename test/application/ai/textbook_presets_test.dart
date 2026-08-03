@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/application/ai/textbook/textbook_presets.dart';
+import 'package:turna/application/ai/textbook/textbook_presets.dart';
 
 void main() {
   test('builtin presets match GUI names and fields', () {
@@ -24,6 +24,7 @@ void main() {
   });
 
   test('grammar preset is cooler temperature', () {
-    expect(presetFor('grammar').temperature, lessThan(presetFor('dialogue').temperature));
+    expect(presetFor('grammar').temperature,
+        lessThan(presetFor('dialogue').temperature));
   });
 }

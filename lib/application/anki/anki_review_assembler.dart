@@ -1,15 +1,15 @@
 // Project imports:
-import 'package:varnamala/application/anki/anki_canonical_card_loader.dart';
-import 'package:varnamala/application/course_provider.dart';
-import 'package:varnamala/application/srs_provider.dart';
-import 'package:varnamala/courses/course_loader.dart';
-import 'package:varnamala/data/anki_note_dao.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/domain/course/lesson.dart';
-import 'package:varnamala/domain/course/lesson_content.dart';
-import 'package:varnamala/domain/course/section.dart';
-import 'package:varnamala/domain/course/srs_word.dart';
-import 'package:varnamala/domain/course/stage.dart';
+import 'package:turna/application/anki/anki_canonical_card_loader.dart';
+import 'package:turna/application/course_provider.dart';
+import 'package:turna/application/srs_provider.dart';
+import 'package:turna/courses/course_loader.dart';
+import 'package:turna/data/anki_note_dao.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/domain/course/lesson.dart';
+import 'package:turna/domain/course/lesson_content.dart';
+import 'package:turna/domain/course/section.dart';
+import 'package:turna/domain/course/srs_word.dart';
+import 'package:turna/domain/course/stage.dart';
 
 /// Assembles Anki review sessions by collecting due Anki cards from the SRS
 /// queue and packaging them into temporary [Lesson]s for [LessonViewModel].

@@ -5,11 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 
 // Project imports:
-import 'package:varnamala/core/extensions.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/service/locator.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/core/extensions.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/service/locator.dart';
+import 'package:turna/views/theme.dart';
 
 class CharactersAppBar extends StatelessWidget implements PreferredSizeWidget {
   const CharactersAppBar({super.key});
@@ -25,11 +25,10 @@ class CharactersAppBar extends StatelessWidget implements PreferredSizeWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Icon(Icons.translate_rounded,
-                  color: VarnamalaTheme.peacockTeal, size: 22),
+                  color: TurnaTheme.peacockTeal, size: 22),
               const SizedBox(width: 8),
               Text(
-                AppStrings
-                    .charactersScriptTitle(currentLanguage.toTitleCase),
+                AppStrings.charactersScriptTitle(currentLanguage.toTitleCase),
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w700,
                     ),

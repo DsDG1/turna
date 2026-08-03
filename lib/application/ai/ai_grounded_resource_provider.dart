@@ -8,8 +8,8 @@ import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/domain/repositories/i_course_repository.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/domain/repositories/i_course_repository.dart';
 
 /// Loads existing course resources so the AI can be grounded to reuse them.
 ///

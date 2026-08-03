@@ -27,7 +27,7 @@ from src.backend.lesson_content import build_intro_lesson  # noqa: E402
 
 class LessonWizardTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_wizard_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_wizard_"))
         self.course_dir = self.tmp / "turkish"
         copy_turkish_course(self.course_dir)
 

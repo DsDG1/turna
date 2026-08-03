@@ -7,18 +7,18 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/course_provider.dart';
-import 'package:varnamala/application/lesson_link_store.dart';
-import 'package:varnamala/application/mistake_provider.dart';
-import 'package:varnamala/application/progress_provider.dart';
-import 'package:varnamala/application/srs_provider.dart';
-import 'package:varnamala/application/weak_word_quiz_assembler.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/domain/course/lesson.dart';
-import 'package:varnamala/domain/course/unit.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/routing/routing.gr.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/course_provider.dart';
+import 'package:turna/application/lesson_link_store.dart';
+import 'package:turna/application/mistake_provider.dart';
+import 'package:turna/application/progress_provider.dart';
+import 'package:turna/application/srs_provider.dart';
+import 'package:turna/application/weak_word_quiz_assembler.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/domain/course/lesson.dart';
+import 'package:turna/domain/course/unit.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/routing/routing.gr.dart';
+import 'package:turna/views/theme.dart';
 import 'components/section_switcher.dart';
 
 class CourseTree extends StatefulWidget {
@@ -50,7 +50,7 @@ class _CourseTreeState extends State<CourseTree> {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        gradient: VarnamalaTheme.courseTreeGradientFor(context),
+        gradient: TurnaTheme.courseTreeGradientFor(context),
       ),
       child: Consumer<CourseProvider>(
         builder: (context, courseState, _) {
@@ -240,10 +240,14 @@ class _CourseTreeState extends State<CourseTree> {
               (context, index) {
                 final item = items[index];
                 final (top, bottom) = switch (item) {
-                  _UnitHeaderItem(expanded: final expanded) =>
-                    (4.0, expanded ? 0.0 : 4.0),
-                  _LessonItem(isLast: final isLast) =>
-                    (0.0, isLast ? 4.0 : 0.0),
+                  _UnitHeaderItem(expanded: final expanded) => (
+                      4.0,
+                      expanded ? 0.0 : 4.0
+                    ),
+                  _LessonItem(isLast: final isLast) => (
+                      0.0,
+                      isLast ? 4.0 : 0.0
+                    ),
                 };
 
                 // RepaintBoundary isolates each item's painting so a progress
@@ -268,8 +272,7 @@ class _CourseTreeState extends State<CourseTree> {
                           expanded: expanded,
                           onHeaderTap: () {
                             setState(() {
-                              _expandedUnitId =
-                                  expanded ? null : unit.id;
+                              _expandedUnitId = expanded ? null : unit.id;
                             });
                           },
                         ),
@@ -283,8 +286,7 @@ class _CourseTreeState extends State<CourseTree> {
                         Selector<ProgressProvider,
                             ({bool completed, bool perfect})>(
                           selector: (_, progress) => (
-                            completed:
-                                progress.isLessonCompleted(lesson.id),
+                            completed: progress.isLessonCompleted(lesson.id),
                             perfect: progress.isLessonPerfect(lesson.id),
                           ),
                           builder: (context, value, _) => _LessonTile(
@@ -295,8 +297,7 @@ class _CourseTreeState extends State<CourseTree> {
                             hasWeak: weakSet.contains(lesson.id),
                             isFirst: isFirst,
                             isLast: isLast,
-                            onTap: () =>
-                                _navigateToLesson(context, lesson),
+                            onTap: () => _navigateToLesson(context, lesson),
                           ),
                         ),
                     },
@@ -323,7 +324,7 @@ class _CourseTreeState extends State<CourseTree> {
           Icon(
             Icons.menu_book_rounded,
             size: 64,
-            color: VarnamalaTheme.textHint.withValues(alpha: 0.3),
+            color: TurnaTheme.textHint.withValues(alpha: 0.3),
           ),
           const SizedBox(height: 16),
           Text(
@@ -331,7 +332,7 @@ class _CourseTreeState extends State<CourseTree> {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
-              color: VarnamalaTheme.textSecondaryColor(context),
+              color: TurnaTheme.textSecondaryColor(context),
             ),
           ),
         ],
@@ -354,7 +355,7 @@ class _CourseTreeState extends State<CourseTree> {
             Icon(
               Icons.error_outline_rounded,
               size: 56,
-              color: VarnamalaTheme.error.withValues(alpha: 0.8),
+              color: TurnaTheme.error.withValues(alpha: 0.8),
             ),
             const SizedBox(height: 16),
             Text(
@@ -362,7 +363,7 @@ class _CourseTreeState extends State<CourseTree> {
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: VarnamalaTheme.textPrimaryColor(context),
+                    color: TurnaTheme.textPrimaryColor(context),
                   ),
             ),
             if (error != null) ...[
@@ -373,7 +374,7 @@ class _CourseTreeState extends State<CourseTree> {
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: VarnamalaTheme.textSecondaryColor(context),
+                      color: TurnaTheme.textSecondaryColor(context),
                     ),
               ),
             ],
@@ -383,15 +384,15 @@ class _CourseTreeState extends State<CourseTree> {
               icon: const Icon(Icons.refresh_rounded),
               label: Text(AppStrings.commonRetry),
               style: ElevatedButton.styleFrom(
-                backgroundColor: VarnamalaTheme.peacockTeal,
-                foregroundColor: VarnamalaTheme.textOnPrimary,
+                backgroundColor: TurnaTheme.peacockTeal,
+                foregroundColor: TurnaTheme.textOnPrimary,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,
                   vertical: 12,
                 ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(
-                    VarnamalaTheme.radiusMedium,
+                    TurnaTheme.radiusMedium,
                   ),
                 ),
               ),
@@ -469,8 +470,7 @@ class _UnitHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final isFullyComplete =
         completedCount == unit.lessons.length && unit.lessons.isNotEmpty;
-    final radiusMedium =
-        const Radius.circular(VarnamalaTheme.radiusMedium);
+    final radiusMedium = const Radius.circular(TurnaTheme.radiusMedium);
 
     final borderRadius = BorderRadius.vertical(
       top: radiusMedium,
@@ -478,10 +478,10 @@ class _UnitHeader extends StatelessWidget {
     );
 
     return Material(
-      color: VarnamalaTheme.cardBg(context),
+      color: TurnaTheme.cardBg(context),
       borderRadius: borderRadius,
       elevation: 0,
-      shadowColor: VarnamalaTheme.peacockTeal.withValues(alpha: 0.08),
+      shadowColor: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -489,8 +489,7 @@ class _UnitHeader extends StatelessWidget {
             borderRadius: borderRadius,
             onTap: onHeaderTap,
             child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: Row(
                 children: [
                   Container(
@@ -498,11 +497,10 @@ class _UnitHeader extends StatelessWidget {
                     height: 38,
                     decoration: BoxDecoration(
                       color: isFullyComplete
-                          ? VarnamalaTheme.success.withValues(alpha: 0.18)
-                          : VarnamalaTheme.peacockTeal
-                              .withValues(alpha: 0.1),
+                          ? TurnaTheme.success.withValues(alpha: 0.18)
+                          : TurnaTheme.peacockTeal.withValues(alpha: 0.1),
                       borderRadius:
-                          BorderRadius.circular(VarnamalaTheme.radiusSmall),
+                          BorderRadius.circular(TurnaTheme.radiusSmall),
                     ),
                     child: Icon(
                       isFullyComplete
@@ -511,8 +509,8 @@ class _UnitHeader extends StatelessWidget {
                               ? Icons.expand_less_rounded
                               : Icons.expand_more_rounded),
                       color: isFullyComplete
-                          ? VarnamalaTheme.successDark
-                          : VarnamalaTheme.peacockTeal,
+                          ? TurnaTheme.successDark
+                          : TurnaTheme.peacockTeal,
                       size: 22,
                     ),
                   ),
@@ -526,7 +524,7 @@ class _UnitHeader extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
-                            color: VarnamalaTheme.textPrimaryColor(context),
+                            color: TurnaTheme.textPrimaryColor(context),
                           ),
                         ),
                         if (unit.description.isNotEmpty) ...[
@@ -535,8 +533,7 @@ class _UnitHeader extends StatelessWidget {
                             unit.description,
                             style: TextStyle(
                               fontSize: 13,
-                              color: VarnamalaTheme.textSecondaryColor(
-                                  context),
+                              color: TurnaTheme.textSecondaryColor(context),
                             ),
                           ),
                         ],
@@ -544,15 +541,14 @@ class _UnitHeader extends StatelessWidget {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: isFullyComplete
-                          ? VarnamalaTheme.success.withValues(alpha: 0.12)
-                          : VarnamalaTheme.peacockTeal
-                              .withValues(alpha: 0.08),
+                          ? TurnaTheme.success.withValues(alpha: 0.12)
+                          : TurnaTheme.peacockTeal.withValues(alpha: 0.08),
                       borderRadius:
-                          BorderRadius.circular(VarnamalaTheme.radiusRound),
+                          BorderRadius.circular(TurnaTheme.radiusRound),
                     ),
                     child: Text(
                       AppStrings.coursesUnitProgress(
@@ -563,8 +559,8 @@ class _UnitHeader extends StatelessWidget {
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: isFullyComplete
-                            ? VarnamalaTheme.successDark
-                            : VarnamalaTheme.peacockTeal,
+                            ? TurnaTheme.successDark
+                            : TurnaTheme.peacockTeal,
                       ),
                     ),
                   ),
@@ -572,10 +568,10 @@ class _UnitHeader extends StatelessWidget {
                     const SizedBox(width: 6),
                     if (hasDue)
                       const Icon(Icons.schedule_rounded,
-                          size: 16, color: VarnamalaTheme.warning),
+                          size: 16, color: TurnaTheme.warning),
                     if (hasWeak)
                       const Icon(Icons.fitness_center_rounded,
-                          size: 16, color: VarnamalaTheme.error),
+                          size: 16, color: TurnaTheme.error),
                   ],
                 ],
               ),
@@ -622,16 +618,16 @@ class _LessonTile extends StatelessWidget {
     Color iconColor;
     IconData icon;
     if (isCompleted) {
-      iconBg = VarnamalaTheme.success.withValues(alpha: 0.18);
-      iconColor = VarnamalaTheme.successDark;
+      iconBg = TurnaTheme.success.withValues(alpha: 0.18);
+      iconColor = TurnaTheme.successDark;
       icon = Icons.check_circle_rounded;
     } else if (hasDue) {
-      iconBg = VarnamalaTheme.warning.withValues(alpha: 0.18);
-      iconColor = VarnamalaTheme.warning;
+      iconBg = TurnaTheme.warning.withValues(alpha: 0.18);
+      iconColor = TurnaTheme.warning;
       icon = Icons.schedule_rounded;
     } else if (hasWeak) {
-      iconBg = VarnamalaTheme.error.withValues(alpha: 0.12);
-      iconColor = VarnamalaTheme.error;
+      iconBg = TurnaTheme.error.withValues(alpha: 0.12);
+      iconColor = TurnaTheme.error;
       icon = Icons.fitness_center_rounded;
     } else {
       iconBg = typeColor.withValues(alpha: 0.1);
@@ -639,15 +635,14 @@ class _LessonTile extends StatelessWidget {
       icon = _lessonTypeIcon(lesson.type);
     }
 
-    final radiusMedium =
-        const Radius.circular(VarnamalaTheme.radiusMedium);
+    final radiusMedium = const Radius.circular(TurnaTheme.radiusMedium);
     final borderRadius = BorderRadius.vertical(
       top: Radius.zero,
       bottom: isLast ? radiusMedium : Radius.zero,
     );
 
     return Material(
-      color: VarnamalaTheme.cardBg(context),
+      color: TurnaTheme.cardBg(context),
       borderRadius: borderRadius,
       child: InkWell(
         borderRadius: borderRadius,
@@ -662,8 +657,7 @@ class _LessonTile extends StatelessWidget {
                 height: 32,
                 decoration: BoxDecoration(
                   color: iconBg,
-                  borderRadius:
-                      BorderRadius.circular(VarnamalaTheme.radiusSmall),
+                  borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
                 ),
                 child: Icon(
                   icon,
@@ -683,8 +677,8 @@ class _LessonTile extends StatelessWidget {
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: isCompleted
-                            ? VarnamalaTheme.textSecondaryColor(context)
-                            : VarnamalaTheme.textPrimaryColor(context),
+                            ? TurnaTheme.textSecondaryColor(context)
+                            : TurnaTheme.textPrimaryColor(context),
                       ),
                     ),
                     if (lesson.description.isNotEmpty)
@@ -692,7 +686,7 @@ class _LessonTile extends StatelessWidget {
                         lesson.description,
                         style: TextStyle(
                           fontSize: 12,
-                          color: VarnamalaTheme.textSecondaryColor(context),
+                          color: TurnaTheme.textSecondaryColor(context),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -702,14 +696,12 @@ class _LessonTile extends StatelessWidget {
               ),
               // Type badge (or perfect crown if perfect)
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: isCompleted
-                      ? VarnamalaTheme.success.withValues(alpha: 0.1)
+                      ? TurnaTheme.success.withValues(alpha: 0.1)
                       : typeColor.withValues(alpha: 0.1),
-                  borderRadius:
-                      BorderRadius.circular(VarnamalaTheme.radiusRound),
+                  borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
                 ),
                 child: Text(
                   isPerfect
@@ -718,9 +710,7 @@ class _LessonTile extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: isCompleted
-                        ? VarnamalaTheme.successDark
-                        : typeColor,
+                    color: isCompleted ? TurnaTheme.successDark : typeColor,
                   ),
                 ),
               ),
@@ -728,7 +718,7 @@ class _LessonTile extends StatelessWidget {
               Icon(
                 Icons.chevron_right_rounded,
                 size: 18,
-                color: VarnamalaTheme.textHint.withValues(alpha: 0.5),
+                color: TurnaTheme.textHint.withValues(alpha: 0.5),
               ),
             ],
           ),
@@ -749,11 +739,11 @@ class _LessonTile extends StatelessWidget {
 
   static Color _lessonTypeColor(LessonType type) {
     return switch (type) {
-      LessonType.normal => VarnamalaTheme.peacockTeal,
-      LessonType.listening => VarnamalaTheme.peacockCyan,
-      LessonType.reading => VarnamalaTheme.leagueAmethyst,
-      LessonType.review => VarnamalaTheme.warning,
-      LessonType.challenge => VarnamalaTheme.leagueRuby,
+      LessonType.normal => TurnaTheme.peacockTeal,
+      LessonType.listening => TurnaTheme.peacockCyan,
+      LessonType.reading => TurnaTheme.leagueAmethyst,
+      LessonType.review => TurnaTheme.warning,
+      LessonType.challenge => TurnaTheme.leagueRuby,
     };
   }
 
@@ -782,7 +772,7 @@ class _LoadingIndicator extends StatelessWidget {
           child: CircularProgressIndicator(
             strokeWidth: 3,
             valueColor: AlwaysStoppedAnimation<Color>(
-              VarnamalaTheme.peacockTeal.withValues(alpha: 0.7),
+              TurnaTheme.peacockTeal.withValues(alpha: 0.7),
             ),
           ),
         ),
@@ -790,7 +780,7 @@ class _LoadingIndicator extends StatelessWidget {
         Text(
           AppStrings.coursesLoadingCourses,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: VarnamalaTheme.textHintColor(context),
+                color: TurnaTheme.textHintColor(context),
                 fontWeight: FontWeight.w500,
               ),
         ),

@@ -14,13 +14,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
-import 'package:varnamala/application/game_provider.dart';
-import 'package:varnamala/application/mistake_provider.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/domain/auth/local_user.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/service/locator.dart';
-import 'package:varnamala/views/settings/widgets/settings_account_section.dart';
+import 'package:turna/application/game_provider.dart';
+import 'package:turna/application/mistake_provider.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/domain/auth/local_user.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/service/locator.dart';
+import 'package:turna/views/settings/widgets/settings_account_section.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

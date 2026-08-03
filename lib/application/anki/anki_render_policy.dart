@@ -1,6 +1,6 @@
 // Project imports:
-import 'package:varnamala/application/anki/anki_card_adapter.dart';
-import 'package:varnamala/application/anki/anki_models.dart';
+import 'package:turna/application/anki/anki_card_adapter.dart';
+import 'package:turna/application/anki/anki_models.dart';
 
 /// How a card should be rendered in the review session
 /// (deep-adaptation plan §3.2.1 / §3.2.3).

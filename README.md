@@ -1,4 +1,4 @@
-# Varnamala Plus
+# Turna
 
 > 本地优先、离线的 Flutter 语言学习框架。当前目标语：**Turkish（土耳其语）**。
 > 复习引擎基于 **FSRS**，可导入 **Anki** 牌组，AI 能力由统一引擎层 + AI Hub 承载。
@@ -11,14 +11,14 @@
 
 ## 这是什么
 
-基于上游 [Varnamala](https://github.com/rshrc/Varnamala) 的 Section/Unit/Lesson/SRS/错题本骨架，聚焦 **Turkish**，持续深化：FSRS 复习引擎、Anki 牌组导入与高保真渲染、统一 AI 引擎层。
+基于上游 [Turna](https://github.com/rshrc/Varnamala) 的 Section/Unit/Lesson/SRS/错题本骨架，聚焦 **Turkish**，持续深化：FSRS 复习引擎、Anki 牌组导入与高保真渲染、统一 AI 引擎层。
 
 - **纯本地**：SQLite（drift，schemaVersion 14），无云后端/推送/登录。
 - **单人离线**：无好友、排行榜、联赛、心数、宝石。
 - **多平台**：Android、HarmonyOS（OHOS Flutter 分支）、iOS、Web（有限）。
 - **教学法驱动**：功能取舍以二语习得研究为依据。
 
-> 本仓库非上游官方版本；纯原版功能请访问 [rshrc/Varnamala](https://github.com/rshrc/Varnamala)。
+> 本仓库非上游官方版本；纯原版功能请访问 [rshrc/Turna](https://github.com/rshrc/Varnamala)。
 
 ---
 
@@ -116,7 +116,7 @@ flutter run
 
 ### 主题与可访问性
 
-- **主题**：亮 / 暗 / 跟随系统，`VarnamalaTheme` 语义化颜色 + 高对比主题变体 + Play Hub 毛玻璃。`ThemeProvider` 持久化。
+- **主题**：亮 / 暗 / 跟随系统，`TurnaTheme` 语义化颜色 + 高对比主题变体 + Play Hub 毛玻璃。`ThemeProvider` 持久化。
 - **可访问性**（`AccessibilityProvider`，6 项持久化偏好）：文本缩放 100–200%、减少动画、高对比、阅读障碍字体（Lexend）、感官减负（静音音效/触觉）、专注模式。
 
 ### 音频 / TTS
@@ -193,7 +193,7 @@ lib/
 
 ## UI 主题
 
-`VarnamalaTheme`（[lib/views/theme.dart](lib/views/theme.dart)）提供 `lightTheme` / `darkTheme` / 高对比变体，及一组按 `Brightness` 自适应的语义化颜色 helper（`cardBg` / `scaffoldBg` / `textHintColor` / `inputFillColor` / `bottomNavBg` 等）。
+`TurnaTheme`（[lib/views/theme.dart](lib/views/theme.dart)）提供 `lightTheme` / `darkTheme` / 高对比变体，及一组按 `Brightness` 自适应的语义化颜色 helper（`cardBg` / `scaffoldBg` / `textHintColor` / `inputFillColor` / `bottomNavBg` 等）。
 
 ```dart
 const primaryColor   = Color(0xFF1F727E);   // Teal/Cyan
@@ -312,7 +312,7 @@ python3 -m unittest discover -s tool/gui/tests -p "test_*.py"  # GUI 804 项
 
 ## 致谢
 
-- 原始框架：[Varnamala](https://github.com/rshrc/Varnamala) - Section/Unit/Lesson 树 + Provider + Drift + Freezed + auto_route 骨架。
+- 原始框架：[Turna](https://github.com/rshrc/Varnamala) - Section/Unit/Lesson 树 + Provider + Drift + Freezed + auto_route 骨架。
 - 复习算法：[fsrs](https://pub.dev/packages/fsrs)（FSRS）、SM-2（SuperMemo 2）。
 - TTS：[flutter_tts](https://pub.dev/packages/flutter_tts)。
 - 持久化：[drift](https://pub.dev/packages/drift) + [streaming_shared_preferences](https://pub.dev/packages/streaming_shared_preferences)。

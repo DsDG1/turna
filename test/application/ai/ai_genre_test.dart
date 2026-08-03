@@ -1,6 +1,6 @@
 // Project imports:
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/application/ai/ai_genre.dart';
+import 'package:turna/application/ai/ai_genre.dart';
 
 void main() {
   group('ai_genre', () {

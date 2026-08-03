@@ -6,9 +6,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
-import 'package:varnamala/application/game_provider.dart';
-import 'package:varnamala/domain/game/user_game_state.dart';
-import 'package:varnamala/service/locator.dart';
+import 'package:turna/application/game_provider.dart';
+import 'package:turna/domain/game/user_game_state.dart';
+import 'package:turna/service/locator.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -26,17 +26,18 @@ void main() {
     await prefs.preferences.setInt(LocalStateKeys.score, 0);
     await prefs.preferences.setInt(LocalStateKeys.streak, 0);
     await prefs.preferences.setString(LocalStateKeys.lastStreakDate, '');
-    await prefs.preferences.setStringList(LocalStateKeys.achievements, const []);
+    await prefs.preferences
+        .setStringList(LocalStateKeys.achievements, const []);
     game = GameProvider.forTesting(prefs);
   });
 
-  int readScore() =>
-      prefs.preferences.getInt(LocalStateKeys.score, defaultValue: -1).getValue();
+  int readScore() => prefs.preferences
+      .getInt(LocalStateKeys.score, defaultValue: -1)
+      .getValue();
 
   List<String> unlocked() =>
-      prefs.preferences
-          .getStringList(LocalStateKeys.achievements, defaultValue: <String>[])
-          .getValue();
+      prefs.preferences.getStringList(LocalStateKeys.achievements,
+          defaultValue: <String>[]).getValue();
 
   group('awardXP / incrementScore', () {
     test('awardXP adds the event base to the score', () async {
@@ -46,7 +47,8 @@ void main() {
     });
 
     test('awardXP with multiplier scales the gain and rounds', () async {
-      final gained = await game.awardXP(XPEvent.lessonComplete, multiplier: 1.5);
+      final gained =
+          await game.awardXP(XPEvent.lessonComplete, multiplier: 1.5);
       expect(gained, 15); // 10 * 1.5
       expect(readScore(), 15);
     });
@@ -54,7 +56,8 @@ void main() {
     test('awardXP accumulates across multiple calls', () async {
       await game.awardXP(XPEvent.lessonComplete);
       await game.awardXP(XPEvent.perfectLesson);
-      expect(readScore(), XPEvent.lessonComplete.base + XPEvent.perfectLesson.base);
+      expect(readScore(),
+          XPEvent.lessonComplete.base + XPEvent.perfectLesson.base);
     });
 
     test('incrementScore(0) is a no-op', () async {
@@ -79,7 +82,8 @@ void main() {
       expect(game.isLessonPerfect('l-1'), isTrue);
     });
 
-    test('replaying a lesson can upgrade it to perfect without losing the '
+    test(
+        'replaying a lesson can upgrade it to perfect without losing the '
         'completed flag', () async {
       await game.recordLessonCompletion(lessonId: 'l-1', wasPerfect: false);
       await game.recordLessonCompletion(lessonId: 'l-1', wasPerfect: true);

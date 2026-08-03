@@ -51,7 +51,7 @@ def _resumed_project(store: TextbookProjectStore, source_path: Path) -> Textbook
 
 
 def _clear_last_project_key() -> None:
-    QSettings("Varnamala", "CourseEditor").remove("workshop/last_project_id")
+    QSettings("Turna", "CourseEditor").remove("workshop/last_project_id")
 
 
 class WorkshopWindowTest(unittest.TestCase):

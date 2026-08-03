@@ -7,23 +7,22 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/courses/course_loader.dart';
-import 'package:varnamala/courses/course_validator.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/domain/course/lesson.dart';
-import 'package:varnamala/domain/course/lesson_content.dart';
-import 'package:varnamala/domain/course/listening_phase.dart';
-import 'package:varnamala/domain/course/section.dart';
-import 'package:varnamala/domain/course/stage.dart';
-import 'package:varnamala/domain/course/sub_lesson.dart';
-import 'package:varnamala/domain/course/unit.dart';
-import 'package:varnamala/domain/course/word_entry.dart';
+import 'package:turna/courses/course_loader.dart';
+import 'package:turna/courses/course_validator.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/domain/course/lesson.dart';
+import 'package:turna/domain/course/lesson_content.dart';
+import 'package:turna/domain/course/listening_phase.dart';
+import 'package:turna/domain/course/section.dart';
+import 'package:turna/domain/course/stage.dart';
+import 'package:turna/domain/course/sub_lesson.dart';
+import 'package:turna/domain/course/unit.dart';
+import 'package:turna/domain/course/word_entry.dart';
 
 import '../helpers/in_memory_course_db.dart';
 
 /// Per-section files live under this directory; the index orders them.
-final Directory _sectionsDir =
-    Directory('assets/courses/turkish/sections');
+final Directory _sectionsDir = Directory('assets/courses/turkish/sections');
 
 /// Parse every per-section file (in stable, sorted order) into a flat list
 /// of [Section]s, mirroring what [CourseLoader.load] assembles at runtime.
@@ -275,12 +274,14 @@ void main() {
                 Stage(
                   id: 'practice',
                   name: 'Practice',
-                  items: [Interaction.multipleChoice(
-                    id: 'mc1',
-                    prompt: 'p',
-                    options: ['a', 'b'],
-                    correctIndex: 0,
-                  )],
+                  items: [
+                    Interaction.multipleChoice(
+                      id: 'mc1',
+                      prompt: 'p',
+                      options: ['a', 'b'],
+                      correctIndex: 0,
+                    )
+                  ],
                 ),
               ],
             ),
@@ -346,12 +347,14 @@ void main() {
             Stage(
               id: 'q1',
               name: 'Question 1',
-              items: [Interaction.readingMcq(
-                id: 'mc1',
-                prompt: 'p',
-                options: ['a', 'b'],
-                correctIndex: 0,
-              )],
+              items: [
+                Interaction.readingMcq(
+                  id: 'mc1',
+                  prompt: 'p',
+                  options: ['a', 'b'],
+                  correctIndex: 0,
+                )
+              ],
             ),
           ],
         ),
@@ -399,12 +402,18 @@ void main() {
           Stage(
             id: 'stage-dup',
             name: 'A',
-            items: [Interaction.multipleChoice(id: 'i1', prompt: 'p', options: ['a', 'b'], correctIndex: 0)],
+            items: [
+              Interaction.multipleChoice(
+                  id: 'i1', prompt: 'p', options: ['a', 'b'], correctIndex: 0)
+            ],
           ),
           Stage(
             id: 'stage-dup',
             name: 'B',
-            items: [Interaction.multipleChoice(id: 'i2', prompt: 'p', options: ['a', 'b'], correctIndex: 0)],
+            items: [
+              Interaction.multipleChoice(
+                  id: 'i2', prompt: 'p', options: ['a', 'b'], correctIndex: 0)
+            ],
           ),
         ]),
       );
@@ -422,7 +431,10 @@ void main() {
           Stage(
             id: 'stage',
             name: 'A',
-            items: [Interaction.multipleChoice(id: '', prompt: 'p', options: ['a', 'b'], correctIndex: 0)],
+            items: [
+              Interaction.multipleChoice(
+                  id: '', prompt: 'p', options: ['a', 'b'], correctIndex: 0)
+            ],
           ),
         ]),
       );
@@ -459,7 +471,10 @@ void main() {
           Stage(
             id: 'stage',
             name: 'A',
-            items: [Interaction.multipleChoice(id: 'i1', prompt: 'p', options: ['a', 'b'], correctIndex: 0)],
+            items: [
+              Interaction.multipleChoice(
+                  id: 'i1', prompt: 'p', options: ['a', 'b'], correctIndex: 0)
+            ],
           ),
         ]),
       );
@@ -478,7 +493,10 @@ void main() {
           Stage(
             id: 'stage',
             name: 'A',
-            items: [Interaction.multipleChoice(id: 'i1', prompt: 'p', options: ['a', 'b'], correctIndex: 0)],
+            items: [
+              Interaction.multipleChoice(
+                  id: 'i1', prompt: 'p', options: ['a', 'b'], correctIndex: 0)
+            ],
           ),
         ]),
       );
@@ -497,7 +515,10 @@ void main() {
           Stage(
             id: 'stage',
             name: 'A',
-            items: [Interaction.readingMcq(id: 'i1', prompt: 'p', options: ['a', 'b'], correctIndex: 0)],
+            items: [
+              Interaction.readingMcq(
+                  id: 'i1', prompt: 'p', options: ['a', 'b'], correctIndex: 0)
+            ],
           ),
         ]),
       );
@@ -605,12 +626,18 @@ void main() {
           Stage(
             id: 'stage-dup',
             name: 'A',
-            items: [Interaction.multipleChoice(id: 'i1', prompt: 'p', options: ['a', 'b'], correctIndex: 0)],
+            items: [
+              Interaction.multipleChoice(
+                  id: 'i1', prompt: 'p', options: ['a', 'b'], correctIndex: 0)
+            ],
           ),
           Stage(
             id: 'stage-dup',
             name: 'B',
-            items: [Interaction.multipleChoice(id: 'i2', prompt: 'p', options: ['a', 'b'], correctIndex: 0)],
+            items: [
+              Interaction.multipleChoice(
+                  id: 'i2', prompt: 'p', options: ['a', 'b'], correctIndex: 0)
+            ],
           ),
         ]),
       );

@@ -10,8 +10,8 @@ import 'package:injectable/injectable.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 
 // Project imports:
-import 'package:varnamala/application/ai/engine/ai_cache_disk_io.dart'
-    if (dart.library.html) 'package:varnamala/application/ai/engine/ai_cache_disk_web.dart';
+import 'package:turna/application/ai/engine/ai_cache_disk_io.dart'
+    if (dart.library.html) 'package:turna/application/ai/engine/ai_cache_disk_web.dart';
 
 /// Snapshot of cache counters (immutable view for telemetry).
 ///

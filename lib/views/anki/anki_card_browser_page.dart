@@ -9,11 +9,11 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/data/anki_note_dao.dart';
-import 'package:varnamala/application/srs_provider.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/routing/routing.gr.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/data/anki_note_dao.dart';
+import 'package:turna/application/srs_provider.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/routing/routing.gr.dart';
+import 'package:turna/views/theme.dart';
 
 @RoutePage()
 class AnkiCardBrowserPage extends StatefulWidget {
@@ -138,7 +138,7 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
                 for (var i = 0; i < row.note.fields.length; i++) ...[
                   Text('字段 ${i + 1}',
                       style: TextStyle(
-                        color: VarnamalaTheme.textHintColor(context),
+                        color: TurnaTheme.textHintColor(context),
                         fontWeight: FontWeight.w600,
                       )),
                   SelectableText(_preview([row.note.fields[i]])),
@@ -275,7 +275,7 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
                               subtitle: Text(
                                 '#${row.card.cardId}  ${row.card.suspended ? '已暂停' : ''}${row.card.marked ? ' · 已标记' : ''}',
                                 style: TextStyle(
-                                  color: VarnamalaTheme.textHintColor(context),
+                                  color: TurnaTheme.textHintColor(context),
                                 ),
                               ),
                               trailing: PopupMenuButton<String>(
@@ -342,7 +342,7 @@ class _DiagnosticRow extends StatelessWidget {
             child: Text(
               label,
               style: TextStyle(
-                color: VarnamalaTheme.textHintColor(context),
+                color: TurnaTheme.textHintColor(context),
               ),
             ),
           ),
@@ -360,15 +360,14 @@ class _FlagIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (flag == 0) {
-      return const Icon(Icons.style_outlined,
-          color: VarnamalaTheme.peacockTeal);
+      return const Icon(Icons.style_outlined, color: TurnaTheme.peacockTeal);
     }
     final color = switch (flag) {
       1 => Colors.red,
       2 => Colors.orange,
       3 => Colors.blue,
       4 => Colors.green,
-      _ => VarnamalaTheme.peacockTeal,
+      _ => TurnaTheme.peacockTeal,
     };
     return Icon(Icons.flag, color: color);
   }

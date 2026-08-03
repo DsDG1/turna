@@ -11,11 +11,11 @@ import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/application/audio_controller.dart';
-import 'package:varnamala/core/extensions.dart';
-import 'package:varnamala/core/logger.dart';
-import 'package:varnamala/views/play/match_levels.dart';
-import 'package:varnamala/service/locator.dart';
+import 'package:turna/application/audio_controller.dart';
+import 'package:turna/core/extensions.dart';
+import 'package:turna/core/logger.dart';
+import 'package:turna/views/play/match_levels.dart';
+import 'package:turna/service/locator.dart';
 
 @lazySingleton
 class MatchProvider extends ChangeNotifier {

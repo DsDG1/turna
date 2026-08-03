@@ -11,33 +11,33 @@ import 'package:flutter/services.dart';
 // Package imports:
 import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
-import 'package:varnamala/application/settings_provider.dart';
+import 'package:turna/application/settings_provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/ai/engine/ai_engine_config_holder.dart';
-import 'package:varnamala/application/anki/anki_card_adapter.dart';
-import 'package:varnamala/application/anki/anki_deck_assembler.dart';
-import 'package:varnamala/application/anki/anki_deck_manager.dart';
-import 'package:varnamala/application/anki/anki_importer.dart';
-import 'package:varnamala/application/anki/anki_import_cleanup_service.dart';
-import 'package:varnamala/application/anki/anki_models.dart';
-import 'package:varnamala/application/anki/anki_organization_resolver.dart';
-import 'package:varnamala/application/anki/anki_sample_deck.dart';
-import 'package:varnamala/application/anki/anki_notetype_ai.dart';
-import 'package:varnamala/application/anki/anki_srs_migrator.dart';
-import 'package:varnamala/application/course_provider.dart';
-import 'package:varnamala/application/srs_provider.dart';
-import 'package:varnamala/courses/course_loader.dart';
-import 'package:varnamala/data/anki_import_dao.dart';
-import 'package:varnamala/data/anki_note_dao.dart';
-import 'package:varnamala/data/course_database.dart';
-import 'package:varnamala/data/course_repository.dart';
-import 'package:varnamala/data/review_history_dao.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/domain/audio/anki_audio_resolver.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/utils/ohos_file_picker.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
+import 'package:turna/application/anki/anki_card_adapter.dart';
+import 'package:turna/application/anki/anki_deck_assembler.dart';
+import 'package:turna/application/anki/anki_deck_manager.dart';
+import 'package:turna/application/anki/anki_importer.dart';
+import 'package:turna/application/anki/anki_import_cleanup_service.dart';
+import 'package:turna/application/anki/anki_models.dart';
+import 'package:turna/application/anki/anki_organization_resolver.dart';
+import 'package:turna/application/anki/anki_sample_deck.dart';
+import 'package:turna/application/anki/anki_notetype_ai.dart';
+import 'package:turna/application/anki/anki_srs_migrator.dart';
+import 'package:turna/application/course_provider.dart';
+import 'package:turna/application/srs_provider.dart';
+import 'package:turna/courses/course_loader.dart';
+import 'package:turna/data/anki_import_dao.dart';
+import 'package:turna/data/anki_note_dao.dart';
+import 'package:turna/data/course_database.dart';
+import 'package:turna/data/course_repository.dart';
+import 'package:turna/data/review_history_dao.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/domain/audio/anki_audio_resolver.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/utils/ohos_file_picker.dart';
+import 'package:turna/views/theme.dart';
 
 /// Import strategy when collisions are detected.
 enum ImportStrategy { merge, skipExisting, forceReplace, appendAsNew }
@@ -193,7 +193,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
                     Icon(
                       Icons.upload_file_rounded,
                       size: 80,
-                      color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.6),
+                      color: TurnaTheme.peacockTeal.withValues(alpha: 0.6),
                     ),
                     const SizedBox(height: 24),
                     Text(
@@ -208,7 +208,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
                     Text(
                       AppStrings.ankiImportSelectSubtitle,
                       style: TextStyle(
-                        color: VarnamalaTheme.textSecondaryColor(context),
+                        color: TurnaTheme.textSecondaryColor(context),
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -218,7 +218,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
                         padding: const EdgeInsets.only(bottom: 16),
                         child: Text(
                           _error!,
-                          style: const TextStyle(color: VarnamalaTheme.error),
+                          style: const TextStyle(color: TurnaTheme.error),
                           textAlign: TextAlign.center,
                         ),
                       ),
@@ -227,8 +227,8 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
                       icon: const Icon(Icons.folder_open),
                       label: Text(AppStrings.ankiChooseFile),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: VarnamalaTheme.peacockTeal,
-                        foregroundColor: VarnamalaTheme.textOnPrimary,
+                        backgroundColor: TurnaTheme.peacockTeal,
+                        foregroundColor: TurnaTheme.textOnPrimary,
                         padding: const EdgeInsets.symmetric(
                             horizontal: 32, vertical: 16),
                         shape: RoundedRectangleBorder(
@@ -245,7 +245,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
                       Text(
                         AppStrings.ankiFallbackPickFileFirst,
                         style: TextStyle(
-                          color: VarnamalaTheme.textHintColor(context),
+                          color: TurnaTheme.textHintColor(context),
                           fontSize: 12,
                         ),
                         textAlign: TextAlign.center,
@@ -256,9 +256,8 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
                         icon: const Icon(Icons.search),
                         label: Text(AppStrings.ankiFallbackScanTitle),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: VarnamalaTheme.peacockTeal,
-                          side: const BorderSide(
-                              color: VarnamalaTheme.peacockTeal),
+                          foregroundColor: TurnaTheme.peacockTeal,
+                          side: const BorderSide(color: TurnaTheme.peacockTeal),
                           padding: const EdgeInsets.symmetric(
                               horizontal: 24, vertical: 12),
                           shape: RoundedRectangleBorder(
@@ -272,7 +271,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
                         icon: const Icon(Icons.edit_note, size: 18),
                         label: Text(AppStrings.ankiFallbackPathTitle),
                         style: TextButton.styleFrom(
-                          foregroundColor: VarnamalaTheme.peacockTeal,
+                          foregroundColor: TurnaTheme.peacockTeal,
                         ),
                       ),
                     ],
@@ -282,9 +281,8 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
                       icon: const Icon(Icons.auto_awesome_rounded),
                       label: Text(AppStrings.ankiTrySample),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: VarnamalaTheme.peacockTeal,
-                        side:
-                            const BorderSide(color: VarnamalaTheme.peacockTeal),
+                        foregroundColor: TurnaTheme.peacockTeal,
+                        side: const BorderSide(color: TurnaTheme.peacockTeal),
                         padding: const EdgeInsets.symmetric(
                             horizontal: 28, vertical: 14),
                         shape: RoundedRectangleBorder(
@@ -296,7 +294,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
                     Text(
                       AppStrings.ankiSampleHint,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: VarnamalaTheme.textHintColor(context),
+                            color: TurnaTheme.textHintColor(context),
                           ),
                       textAlign: TextAlign.center,
                     ),
@@ -322,10 +320,9 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
               padding: const EdgeInsets.symmetric(horizontal: 60),
               child: LinearProgressIndicator(
                 value: _progress,
-                backgroundColor:
-                    VarnamalaTheme.peacockTeal.withValues(alpha: 0.1),
-                valueColor: const AlwaysStoppedAnimation<Color>(
-                    VarnamalaTheme.peacockTeal),
+                backgroundColor: TurnaTheme.peacockTeal.withValues(alpha: 0.1),
+                valueColor:
+                    const AlwaysStoppedAnimation<Color>(TurnaTheme.peacockTeal),
               ),
             )
           else
@@ -337,7 +334,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
             Text(
               _progressMessage,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: VarnamalaTheme.textSecondaryColor(context),
+                    color: TurnaTheme.textSecondaryColor(context),
                   ),
             ),
           ],
@@ -403,7 +400,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
               child: Text(
                 AppStrings.ankiMappingOverrideHint,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: VarnamalaTheme.textHintColor(context),
+                      color: TurnaTheme.textHintColor(context),
                     ),
               ),
             ),
@@ -485,8 +482,8 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         ElevatedButton(
           onPressed: _executeImport,
           style: ElevatedButton.styleFrom(
-            backgroundColor: VarnamalaTheme.peacockTeal,
-            foregroundColor: VarnamalaTheme.textOnPrimary,
+            backgroundColor: TurnaTheme.peacockTeal,
+            foregroundColor: TurnaTheme.textOnPrimary,
             padding: const EdgeInsets.symmetric(vertical: 16),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -544,10 +541,9 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
               padding: const EdgeInsets.symmetric(horizontal: 60),
               child: LinearProgressIndicator(
                 value: _progress,
-                backgroundColor:
-                    VarnamalaTheme.peacockTeal.withValues(alpha: 0.1),
-                valueColor: const AlwaysStoppedAnimation<Color>(
-                    VarnamalaTheme.peacockTeal),
+                backgroundColor: TurnaTheme.peacockTeal.withValues(alpha: 0.1),
+                valueColor:
+                    const AlwaysStoppedAnimation<Color>(TurnaTheme.peacockTeal),
               ),
             )
           else
@@ -583,7 +579,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
             const Icon(
               Icons.check_circle_outline,
               size: 80,
-              color: VarnamalaTheme.success,
+              color: TurnaTheme.success,
             ),
             const SizedBox(height: 24),
             Text(
@@ -630,8 +626,8 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
             ElevatedButton(
               onPressed: _startLearningNow,
               style: ElevatedButton.styleFrom(
-                backgroundColor: VarnamalaTheme.peacockTeal,
-                foregroundColor: VarnamalaTheme.textOnPrimary,
+                backgroundColor: TurnaTheme.peacockTeal,
+                foregroundColor: TurnaTheme.textOnPrimary,
                 padding:
                     const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
                 shape: RoundedRectangleBorder(
@@ -1434,10 +1430,10 @@ class _InfoCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+        color: TurnaTheme.cardBg(context),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
         border: Border.all(
-          color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.12),
+          color: TurnaTheme.peacockTeal.withValues(alpha: 0.12),
         ),
       ),
       child: Column(
@@ -1479,7 +1475,7 @@ class _InfoRow extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: VarnamalaTheme.textSecondaryColor(context),
+                color: TurnaTheme.textSecondaryColor(context),
               ),
             ),
           ),
@@ -1544,16 +1540,15 @@ class _NotetypeMappingRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
         child: InkWell(
           onTap: onEdit,
-          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+          borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
           child: Semantics(
             button: true,
             label: AppStrings.ankiMappingEditTooltip,
             child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -1573,12 +1568,12 @@ class _NotetypeMappingRow extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 8),
                           decoration: BoxDecoration(
-                            color: VarnamalaTheme.peacockTeal
-                                .withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(
-                                VarnamalaTheme.radiusSmall),
+                            color:
+                                TurnaTheme.peacockTeal.withValues(alpha: 0.08),
+                            borderRadius:
+                                BorderRadius.circular(TurnaTheme.radiusSmall),
                             border: Border.all(
-                              color: VarnamalaTheme.peacockTeal
+                              color: TurnaTheme.peacockTeal
                                   .withValues(alpha: 0.18),
                             ),
                           ),
@@ -1587,7 +1582,7 @@ class _NotetypeMappingRow extends StatelessWidget {
                               const Icon(
                                 Icons.auto_awesome_outlined,
                                 size: 16,
-                                color: VarnamalaTheme.peacockTeal,
+                                color: TurnaTheme.peacockTeal,
                               ),
                               const SizedBox(width: 7),
                               Expanded(
@@ -1610,7 +1605,7 @@ class _NotetypeMappingRow extends StatelessWidget {
                   const Icon(
                     Icons.edit_outlined,
                     size: 20,
-                    color: VarnamalaTheme.peacockTeal,
+                    color: TurnaTheme.peacockTeal,
                   ),
                 ],
               ),
@@ -1688,7 +1683,8 @@ class _NotetypeMappingEditorState extends State<_NotetypeMappingEditor> {
   @override
   Widget build(BuildContext context) {
     final fields = widget.notetype.fieldNames;
-    final showFields = _typeUsesFrontBackFields(_draft.type) && fields.isNotEmpty;
+    final showFields =
+        _typeUsesFrontBackFields(_draft.type) && fields.isNotEmpty;
     final noteFields = widget.note?.fields ?? const <String>[];
     String fieldValue(int idx) => (idx >= 0 && idx < noteFields.length)
         ? AnkiCardAdapter.stripHtmlPublic(noteFields[idx])
@@ -1731,8 +1727,8 @@ class _NotetypeMappingEditorState extends State<_NotetypeMappingEditor> {
                 label: AppStrings.ankiMappingFieldFront,
                 value: _draft.frontFieldIndex,
                 fields: fields,
-                onChanged: (i) => setState(() =>
-                    _draft = _draft.copyWith(frontFieldIndex: i ?? 0)),
+                onChanged: (i) => setState(
+                    () => _draft = _draft.copyWith(frontFieldIndex: i ?? 0)),
               ),
               const SizedBox(height: 10),
               _fieldSelector(
@@ -1740,8 +1736,8 @@ class _NotetypeMappingEditorState extends State<_NotetypeMappingEditor> {
                 label: AppStrings.ankiMappingFieldBack,
                 value: _draft.backFieldIndex,
                 fields: fields,
-                onChanged: (i) => setState(() =>
-                    _draft = _draft.copyWith(backFieldIndex: i ?? 0)),
+                onChanged: (i) => setState(
+                    () => _draft = _draft.copyWith(backFieldIndex: i ?? 0)),
               ),
             ] else
               _autoFieldsHint(context),
@@ -1749,7 +1745,7 @@ class _NotetypeMappingEditorState extends State<_NotetypeMappingEditor> {
             if (widget.note == null)
               Text(
                 '-',
-                style: TextStyle(color: VarnamalaTheme.textHintColor(context)),
+                style: TextStyle(color: TurnaTheme.textHintColor(context)),
               )
             else ...[
               _PreviewField(
@@ -1770,7 +1766,7 @@ class _NotetypeMappingEditorState extends State<_NotetypeMappingEditor> {
                   Icon(
                     Icons.lightbulb_outline_rounded,
                     size: 16,
-                    color: VarnamalaTheme.textSecondaryColor(context),
+                    color: TurnaTheme.textSecondaryColor(context),
                   ),
                   const SizedBox(width: 6),
                   Expanded(
@@ -1782,7 +1778,7 @@ class _NotetypeMappingEditorState extends State<_NotetypeMappingEditor> {
                           AppStrings.ankiMappingReason,
                           style: TextStyle(
                             fontWeight: FontWeight.w600,
-                            color: VarnamalaTheme.textSecondaryColor(context),
+                            color: TurnaTheme.textSecondaryColor(context),
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -1802,8 +1798,8 @@ class _NotetypeMappingEditorState extends State<_NotetypeMappingEditor> {
       actions: [
         TextButton(
           onPressed: () {
-            setState(
-                () => _draft = _clampFields(AnkiCardAdapter.inferMapping(widget.notetype)));
+            setState(() => _draft =
+                _clampFields(AnkiCardAdapter.inferMapping(widget.notetype)));
           },
           child: Text(AppStrings.ankiMappingResetAuto),
         ),
@@ -1824,7 +1820,7 @@ class _NotetypeMappingEditorState extends State<_NotetypeMappingEditor> {
       label,
       style: TextStyle(
         fontWeight: FontWeight.w600,
-        color: VarnamalaTheme.textSecondaryColor(context),
+        color: TurnaTheme.textSecondaryColor(context),
       ),
     );
   }
@@ -1863,14 +1859,14 @@ class _NotetypeMappingEditorState extends State<_NotetypeMappingEditor> {
         Icon(
           Icons.info_outline_rounded,
           size: 16,
-          color: VarnamalaTheme.textHintColor(context),
+          color: TurnaTheme.textHintColor(context),
         ),
         const SizedBox(width: 6),
         Expanded(
           child: Text(
             AppStrings.ankiMappingFieldsAutoHint,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: VarnamalaTheme.textHintColor(context),
+                  color: TurnaTheme.textHintColor(context),
                 ),
           ),
         ),
@@ -1881,16 +1877,15 @@ class _NotetypeMappingEditorState extends State<_NotetypeMappingEditor> {
   InputDecoration _dropdownDecoration(BuildContext context) {
     return InputDecoration(
       isDense: true,
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       filled: true,
-      fillColor: VarnamalaTheme.tintLight,
+      fillColor: TurnaTheme.tintLight,
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
         borderSide: BorderSide.none,
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
         borderSide: BorderSide.none,
       ),
     );
@@ -1913,7 +1908,7 @@ class _PreviewField extends StatelessWidget {
           label,
           style: TextStyle(
             fontWeight: FontWeight.w600,
-            color: VarnamalaTheme.textSecondaryColor(context),
+            color: TurnaTheme.textSecondaryColor(context),
           ),
         ),
         const SizedBox(height: 2),
@@ -1921,7 +1916,7 @@ class _PreviewField extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: VarnamalaTheme.inputFillColor(context),
+            color: TurnaTheme.inputFillColor(context),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Text(value),

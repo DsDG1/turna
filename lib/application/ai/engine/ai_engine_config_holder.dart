@@ -8,9 +8,9 @@ import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/application/ai/engine/ai_engine_config.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/service/locator.dart';
+import 'package:turna/application/ai/engine/ai_engine_config.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/service/locator.dart';
 
 /// Owns the single [AiEngineConfig] the engine reads.
 ///

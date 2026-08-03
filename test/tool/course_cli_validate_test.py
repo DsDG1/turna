@@ -18,7 +18,7 @@ import course_cli  # noqa: E402
 
 def _minimal_course(units: int, lessons_per_unit: int) -> Path:
     """Build a tiny valid-enough course tree for validate scale checks."""
-    tmp = Path(tempfile.mkdtemp(prefix="varnamala-course-"))
+    tmp = Path(tempfile.mkdtemp(prefix="turna-course-"))
     sections = tmp / "sections"
     sections.mkdir()
     units_json = []

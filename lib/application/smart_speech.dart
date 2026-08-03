@@ -1,9 +1,9 @@
 // Project imports:
-import 'package:varnamala/application/course_provider.dart';
-import 'package:varnamala/application/language_provider.dart';
-import 'package:varnamala/application/settings_provider.dart';
-import 'package:varnamala/core/language_detector.dart';
-import 'package:varnamala/di/injection.dart';
+import 'package:turna/application/course_provider.dart';
+import 'package:turna/application/language_provider.dart';
+import 'package:turna/application/settings_provider.dart';
+import 'package:turna/core/language_detector.dart';
+import 'package:turna/di/injection.dart';
 
 /// The target and native (translation) TTS languages for the currently
 /// active course.

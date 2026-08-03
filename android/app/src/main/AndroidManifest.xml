@@ -11,7 +11,7 @@
         <package android:name="com.google.android.tts" />
     </queries>
     <application
-        android:label="Varnamala"
+        android:label="Turna"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon">
         <activity

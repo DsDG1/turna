@@ -33,7 +33,7 @@ def _git_available() -> bool:
 @unittest.skipUnless(_git_available(), "git not installed")
 class GitLibraryTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_git_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_git_"))
         # Create a bare "remote".
         self.remote = self.tmp / "remote.git"
         subprocess.run(

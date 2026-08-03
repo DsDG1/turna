@@ -2,15 +2,15 @@
 import 'dart:convert';
 
 // Project imports:
-import 'package:varnamala/application/ai/engine/ai_engine.dart';
-import 'package:varnamala/application/ai/engine/ai_engine_config.dart';
-import 'package:varnamala/application/anki/anki_card_adapter.dart';
-import 'package:varnamala/application/anki/anki_models.dart';
-import 'package:varnamala/core/logger.dart';
-import 'package:varnamala/di/injection.dart';
+import 'package:turna/application/ai/engine/ai_engine.dart';
+import 'package:turna/application/ai/engine/ai_engine_config.dart';
+import 'package:turna/application/anki/anki_card_adapter.dart';
+import 'package:turna/application/anki/anki_models.dart';
+import 'package:turna/core/logger.dart';
+import 'package:turna/di/injection.dart';
 
 /// Uses LLM to intelligently identify how an Anki notetype should map
-/// to Varnamala card types. Falls back to heuristic on failure.
+/// to Turna card types. Falls back to heuristic on failure.
 ///
 /// Routes through [AiEngine.chat] with a system/user message pair (same
 /// pattern as KnowledgePrompt.buildExtractionMessages).
@@ -20,7 +20,7 @@ class AnkiNotetypeAI {
   AnkiNotetypeAI({AiEngine? engine}) : _engine = engine ?? getIt<AiEngine>();
 
   static const _systemPrompt = '''
-You are an Anki deck analysis assistant. Given an Anki notetype's field definitions (field name list), determine which Varnamala card type it best maps to:
+You are an Anki deck analysis assistant. Given an Anki notetype's field definitions (field name list), determine which Turna card type it best maps to:
 
 1. `ankiCard` — Generic flip card (for non-language content, or when fields are ambiguous)
 2. `wordEntry` — Vocabulary card (front is a word/term, back is definition/translation, can generate multiple-choice questions)

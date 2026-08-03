@@ -5,12 +5,12 @@ import 'dart:math';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/application/grammar_review_provider.dart';
-import 'package:varnamala/application/srs_provider.dart';
-import 'package:varnamala/core/fsrs_engine.dart';
-import 'package:varnamala/core/srs_scheduler.dart';
-import 'package:varnamala/data/review_history_dao.dart';
-import 'package:varnamala/domain/course/srs_word.dart';
+import 'package:turna/application/grammar_review_provider.dart';
+import 'package:turna/application/srs_provider.dart';
+import 'package:turna/core/fsrs_engine.dart';
+import 'package:turna/core/srs_scheduler.dart';
+import 'package:turna/data/review_history_dao.dart';
+import 'package:turna/domain/course/srs_word.dart';
 
 /// Computes the memory-curve / retention snapshot shown on the profile stats
 /// dashboard. Reads current SRS state from [SrsProvider] + [GrammarReviewProvider]

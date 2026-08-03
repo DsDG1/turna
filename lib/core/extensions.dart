@@ -9,7 +9,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:intl/intl.dart';
 
 // Project imports:
-import 'package:varnamala/core/enums.dart';
+import 'package:turna/core/enums.dart';
 
 extension BreakpointUtils on BoxConstraints {
   bool get isTablet => maxWidth > 730;
@@ -43,7 +43,7 @@ extension ContextExtentions on BuildContext {
 
   double get width => MediaQuery.of(this).size.width;
 
-  // Convenience push: routes via AutoRouter (see [package:varnamala/routing]).
+  // Convenience push: routes via AutoRouter (see [package:turna/routing]).
   Future<dynamic> route(PageRouteInfo route) async {
     AutoRouter.of(this).push(route);
   }

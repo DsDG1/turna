@@ -5,13 +5,13 @@ import 'package:flutter/cupertino.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/core/logger.dart';
-import 'package:varnamala/courses/course_loader.dart';
-import 'package:varnamala/courses/languages/course_lookup.dart';
-import 'package:varnamala/domain/course/section.dart';
-import 'package:varnamala/domain/course/unit.dart';
-import 'package:varnamala/domain/course/lesson.dart';
-import 'package:varnamala/service/locator.dart';
+import 'package:turna/core/logger.dart';
+import 'package:turna/courses/course_loader.dart';
+import 'package:turna/courses/languages/course_lookup.dart';
+import 'package:turna/domain/course/section.dart';
+import 'package:turna/domain/course/unit.dart';
+import 'package:turna/domain/course/lesson.dart';
+import 'package:turna/service/locator.dart';
 
 /// Explicit state for per-section body loading.
 ///

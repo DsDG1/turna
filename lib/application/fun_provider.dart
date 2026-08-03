@@ -5,9 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/application/game_provider.dart';
-import 'package:varnamala/core/achievement_config.dart';
-import 'package:varnamala/service/locator.dart';
+import 'package:turna/application/game_provider.dart';
+import 'package:turna/core/achievement_config.dart';
+import 'package:turna/service/locator.dart';
 
 /// "Fun Lab" settings — joke cheat features persisted across launches.
 ///

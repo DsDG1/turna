@@ -117,7 +117,7 @@ class CloneLessonTest(unittest.TestCase):
 
 class DuplicateLessonCommandTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_dup_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_dup_"))
         self.adapter = _load_adapter(self.tmp)
         self.lesson_id = _first_lessons(self.adapter, 1)[0]
         self.unit_id = _lesson_unit_id(self.adapter, self.lesson_id)
@@ -160,7 +160,7 @@ class DuplicateLessonCommandTest(unittest.TestCase):
 
 class BulkDeleteLessonsCommandTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_bulkdel_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_bulkdel_"))
         self.adapter = _load_adapter(self.tmp)
         self.lesson_ids = _first_lessons(self.adapter, 3)
 
@@ -206,7 +206,7 @@ class BulkDeleteLessonsCommandTest(unittest.TestCase):
 
 class BulkDuplicateLessonsCommandTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_bulkdup_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_bulkdup_"))
         self.adapter = _load_adapter(self.tmp)
         self.lesson_ids = _first_lessons(self.adapter, 2)
 
@@ -225,7 +225,7 @@ class BulkDuplicateLessonsCommandTest(unittest.TestCase):
 
 class BulkMoveLessonsCommandTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_bulkmove_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_bulkmove_"))
         self.adapter = _load_adapter(self.tmp)
         # Find a target unit different from the source unit of the first lesson.
         first = _first_lessons(self.adapter, 1)[0]
@@ -300,7 +300,7 @@ class ApplyPresetTest(unittest.TestCase):
 
 class BulkApplyPresetCommandTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_bulkapply_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_bulkapply_"))
         self.adapter = _load_adapter(self.tmp)
         self.lesson_ids = _first_lessons(self.adapter, 3)
 

@@ -26,6 +26,7 @@ abstract class SrsWord with _$SrsWord {
     @Default(0) int reps,
     @Default(0) int lapses,
     @Default(false) bool isLeech,
+
     /// Imported scheduling states that Anki intentionally keeps out of the
     /// ordinary due queue. They are explicit instead of being mislabelled as
     /// leeches, so the original state can be restored or inspected later.

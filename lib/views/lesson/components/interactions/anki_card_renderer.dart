@@ -7,17 +7,17 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/application/audio_controller.dart';
-import 'package:varnamala/application/smart_speech.dart';
-import 'package:varnamala/core/language_detector.dart';
-import 'package:varnamala/core/sm2.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/lesson/components/anki_media_strip.dart';
-import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:varnamala/views/lesson/components/lesson_practice_card.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/audio_controller.dart';
+import 'package:turna/application/smart_speech.dart';
+import 'package:turna/core/language_detector.dart';
+import 'package:turna/core/sm2.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/lesson/components/anki_media_strip.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/views/lesson/components/lesson_practice_card.dart';
+import 'package:turna/views/theme.dart';
 
 /// Anki-style flip card renderer. Shows the front, user taps "Show Answer",
 /// then grades with Anki's four answer buttons: Again / Hard / Good / Easy.
@@ -237,21 +237,20 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: VarnamalaTheme.warning.withValues(alpha: 0.1),
-                  borderRadius:
-                      BorderRadius.circular(VarnamalaTheme.radiusSmall),
+                  color: TurnaTheme.warning.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
                 ),
                 child: Row(
                   children: [
                     const Icon(Icons.lightbulb_outline,
-                        size: 16, color: VarnamalaTheme.warning),
+                        size: 16, color: TurnaTheme.warning),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         widget.hint!,
                         style: TextStyle(
                           fontSize: 13,
-                          color: VarnamalaTheme.textSecondaryColor(context),
+                          color: TurnaTheme.textSecondaryColor(context),
                         ),
                       ),
                     ),
@@ -285,7 +284,7 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
           Icon(
             Icons.style_rounded,
             size: 32,
-            color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.5),
+            color: TurnaTheme.peacockTeal.withValues(alpha: 0.5),
           ),
           const SizedBox(height: 16),
           Text(
@@ -293,13 +292,13 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w700,
-                  color: VarnamalaTheme.textPrimaryColor(context),
+                  color: TurnaTheme.textPrimaryColor(context),
                 ),
           ),
           const SizedBox(height: 8),
           IconButton(
             icon: const Icon(Icons.record_voice_over_rounded),
-            color: VarnamalaTheme.peacockTeal,
+            color: TurnaTheme.peacockTeal,
             tooltip: AppStrings.lessonSpeakLabel,
             onPressed: _speakFront,
           ),
@@ -309,7 +308,7 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
             AppStrings.lessonTapToReveal,
             style: const TextStyle(
               fontSize: 13,
-              color: VarnamalaTheme.textHint,
+              color: TurnaTheme.textHint,
             ),
           ),
         ],
@@ -327,7 +326,7 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
           Icon(
             Icons.check_circle_outline,
             size: 28,
-            color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.6),
+            color: TurnaTheme.peacockTeal.withValues(alpha: 0.6),
           ),
           const SizedBox(height: 16),
           Text(
@@ -335,13 +334,13 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w700,
-                  color: VarnamalaTheme.textPrimaryColor(context),
+                  color: TurnaTheme.textPrimaryColor(context),
                 ),
           ),
           const SizedBox(height: 8),
           IconButton(
             icon: const Icon(Icons.record_voice_over_rounded),
-            color: VarnamalaTheme.peacockTeal,
+            color: TurnaTheme.peacockTeal,
             tooltip: AppStrings.lessonSpeakLabel,
             onPressed: _speakBack,
           ),
@@ -351,7 +350,7 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
             AppStrings.lessonTapToReturnFront,
             style: const TextStyle(
               fontSize: 13,
-              color: VarnamalaTheme.textHint,
+              color: TurnaTheme.textHint,
             ),
           ),
         ],
@@ -379,7 +378,7 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
           AppStrings.lessonHowWellDidYouKnow,
           style: TextStyle(
             fontSize: 14,
-            color: VarnamalaTheme.textSecondaryColor(context),
+            color: TurnaTheme.textSecondaryColor(context),
           ),
         ),
         const SizedBox(height: 12),
@@ -388,7 +387,7 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
             Expanded(
               child: _GradeButton(
                 label: AppStrings.reviewAgain,
-                color: VarnamalaTheme.error,
+                color: TurnaTheme.error,
                 onPressed: () => _grade(
                   correct: false,
                   label: AppStrings.reviewAgain,
@@ -400,7 +399,7 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
             Expanded(
               child: _GradeButton(
                 label: AppStrings.reviewHard,
-                color: VarnamalaTheme.warning,
+                color: TurnaTheme.warning,
                 onPressed: () => _grade(
                   correct: true,
                   label: AppStrings.reviewHard,
@@ -412,7 +411,7 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
             Expanded(
               child: _GradeButton(
                 label: AppStrings.reviewGood,
-                color: VarnamalaTheme.success,
+                color: TurnaTheme.success,
                 onPressed: () => _grade(
                   correct: true,
                   label: AppStrings.reviewGood,
@@ -424,7 +423,7 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
             Expanded(
               child: _GradeButton(
                 label: AppStrings.reviewEasy,
-                color: VarnamalaTheme.peacockTeal,
+                color: TurnaTheme.peacockTeal,
                 onPressed: () => _grade(
                   correct: true,
                   label: AppStrings.reviewEasy,

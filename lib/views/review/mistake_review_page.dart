@@ -8,19 +8,19 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/game_provider.dart';
-import 'package:varnamala/application/gems_provider.dart';
-import 'package:varnamala/application/lesson_viewmodel.dart';
-import 'package:varnamala/application/mistake_provider.dart';
-import 'package:varnamala/application/mistake_review_assembler.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/routing/routing.gr.dart';
-import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:varnamala/views/lesson/components/lesson_dialogs.dart';
-import 'package:varnamala/views/lesson/components/lesson_stage_widgets.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/game_provider.dart';
+import 'package:turna/application/gems_provider.dart';
+import 'package:turna/application/lesson_viewmodel.dart';
+import 'package:turna/application/mistake_provider.dart';
+import 'package:turna/application/mistake_review_assembler.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/routing/routing.gr.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/views/lesson/components/lesson_dialogs.dart';
+import 'package:turna/views/lesson/components/lesson_stage_widgets.dart';
+import 'package:turna/views/theme.dart';
 
 @RoutePage()
 class MistakeReviewPage extends StatefulWidget {
@@ -154,7 +154,7 @@ class _MistakeReviewPageState extends State<MistakeReviewPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: VarnamalaTheme.scaffoldBg(context),
+      backgroundColor: TurnaTheme.scaffoldBg(context),
       appBar: _buildAppBar(context),
       body: _empty
           ? _buildEmpty()
@@ -180,7 +180,7 @@ class _MistakeReviewPageState extends State<MistakeReviewPage> {
                     if (selected.$3 != null)
                       LessonStageBanner(
                         name: selected.$3!,
-                        accent: VarnamalaTheme.error,
+                        accent: TurnaTheme.error,
                       ),
                     Expanded(
                       child: RepaintBoundary(
@@ -237,13 +237,13 @@ class _MistakeReviewPageState extends State<MistakeReviewPage> {
 
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     return AppBar(
-      backgroundColor: VarnamalaTheme.surfaceColor(context),
+      backgroundColor: TurnaTheme.surfaceColor(context),
       elevation: 0,
       leading: IconButton(
         tooltip: AppStrings.commonClose,
         icon: Icon(
           Icons.close_rounded,
-          color: VarnamalaTheme.textPrimaryColor(context),
+          color: TurnaTheme.textPrimaryColor(context),
         ),
         onPressed: () => Navigator.of(context).maybePop(),
       ),
@@ -252,7 +252,7 @@ class _MistakeReviewPageState extends State<MistakeReviewPage> {
         style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w700,
-          color: VarnamalaTheme.textPrimaryColor(context),
+          color: TurnaTheme.textPrimaryColor(context),
         ),
       ),
       centerTitle: true,
@@ -261,7 +261,7 @@ class _MistakeReviewPageState extends State<MistakeReviewPage> {
           tooltip: AppStrings.reviewViewMistakeList,
           icon: Icon(
             Icons.list_rounded,
-            color: VarnamalaTheme.textPrimaryColor(context),
+            color: TurnaTheme.textPrimaryColor(context),
           ),
           onPressed: () => context.router.push(const MistakeListRoute()),
         ),
@@ -274,9 +274,9 @@ class _MistakeReviewPageState extends State<MistakeReviewPage> {
                 selector: (context, vm) => vm.progress,
                 builder: (context, progress, _) => LinearProgressIndicator(
                   value: progress,
-                  backgroundColor: VarnamalaTheme.error.withValues(alpha: 0.1),
+                  backgroundColor: TurnaTheme.error.withValues(alpha: 0.1),
                   valueColor:
-                      const AlwaysStoppedAnimation<Color>(VarnamalaTheme.error),
+                      const AlwaysStoppedAnimation<Color>(TurnaTheme.error),
                 ),
               ),
             ),
@@ -294,7 +294,7 @@ class _MistakeReviewPageState extends State<MistakeReviewPage> {
               AppStrings.reviewNoMistakes,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: VarnamalaTheme.textSecondaryColor(context),
+                    color: TurnaTheme.textSecondaryColor(context),
                   ),
             ),
             const SizedBox(height: 16),

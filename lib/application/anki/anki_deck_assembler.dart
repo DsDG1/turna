@@ -5,21 +5,21 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 
 // Project imports:
-import 'package:varnamala/application/anki/anki_card_adapter.dart';
-import 'package:varnamala/application/anki/anki_importer.dart';
-import 'package:varnamala/application/anki/anki_models.dart';
-import 'package:varnamala/application/anki/anki_organization_resolver.dart';
-import 'package:varnamala/courses/course_validator.dart';
-import 'package:varnamala/application/anki/anki_render_policy.dart';
-import 'package:varnamala/data/anki_note_dao.dart';
-import 'package:varnamala/domain/course/lesson.dart';
-import 'package:varnamala/domain/course/lesson_content.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/domain/course/section.dart';
-import 'package:varnamala/domain/course/stage.dart';
-import 'package:varnamala/domain/course/unit.dart';
-import 'package:varnamala/domain/course/word_entry.dart';
-import 'package:varnamala/domain/repositories/i_course_repository.dart';
+import 'package:turna/application/anki/anki_card_adapter.dart';
+import 'package:turna/application/anki/anki_importer.dart';
+import 'package:turna/application/anki/anki_models.dart';
+import 'package:turna/application/anki/anki_organization_resolver.dart';
+import 'package:turna/courses/course_validator.dart';
+import 'package:turna/application/anki/anki_render_policy.dart';
+import 'package:turna/data/anki_note_dao.dart';
+import 'package:turna/domain/course/lesson.dart';
+import 'package:turna/domain/course/lesson_content.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/domain/course/section.dart';
+import 'package:turna/domain/course/stage.dart';
+import 'package:turna/domain/course/unit.dart';
+import 'package:turna/domain/course/word_entry.dart';
+import 'package:turna/domain/repositories/i_course_repository.dart';
 
 /// Summary of a completed Anki import.
 class AnkiImportSummary {
@@ -86,7 +86,7 @@ class AnkiImportSummary {
       );
 }
 
-/// Assembles parsed Anki data into Varnamala's course tree structure
+/// Assembles parsed Anki data into Turna's course tree structure
 /// (Section -> Unit -> Lesson -> Stage -> Interaction) and writes to DB.
 ///
 /// Mapping rules:

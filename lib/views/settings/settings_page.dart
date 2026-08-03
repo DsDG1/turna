@@ -6,30 +6,30 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/anki/anki_deck_manager.dart';
-import 'package:varnamala/application/audio_controller.dart';
-import 'package:varnamala/application/game_provider.dart';
-import 'package:varnamala/application/mistake_provider.dart';
-import 'package:varnamala/application/settings_provider.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/routing/routing.gr.dart';
-import 'package:varnamala/service/export_service.dart';
-import 'package:varnamala/service/local_reminder_service.dart';
-import 'package:varnamala/views/ai/ai_api_config_page.dart';
-import 'package:varnamala/views/settings/widgets/settings_about_section.dart';
-import 'package:varnamala/views/settings/widgets/settings_advanced_section.dart';
-import 'package:varnamala/views/settings/widgets/settings_accessibility_section.dart';
-import 'package:varnamala/views/settings/widgets/settings_account_section.dart';
-import 'package:varnamala/views/settings/widgets/settings_appearance_section.dart';
-import 'package:varnamala/views/settings/widgets/settings_common.dart';
-import 'package:varnamala/views/settings/widgets/settings_fun_section.dart';
-import 'package:varnamala/views/settings/widgets/settings_learning_section.dart';
-import 'package:varnamala/views/settings/widgets/settings_reminder_section.dart';
-import 'package:varnamala/views/settings/widgets/settings_sound_section.dart';
-import 'package:varnamala/views/settings/widgets/settings_xiaoyi_tile.dart';
-import 'package:varnamala/utils/ohos_file_picker.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/anki/anki_deck_manager.dart';
+import 'package:turna/application/audio_controller.dart';
+import 'package:turna/application/game_provider.dart';
+import 'package:turna/application/mistake_provider.dart';
+import 'package:turna/application/settings_provider.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/routing/routing.gr.dart';
+import 'package:turna/service/export_service.dart';
+import 'package:turna/service/local_reminder_service.dart';
+import 'package:turna/views/ai/ai_api_config_page.dart';
+import 'package:turna/views/settings/widgets/settings_about_section.dart';
+import 'package:turna/views/settings/widgets/settings_advanced_section.dart';
+import 'package:turna/views/settings/widgets/settings_accessibility_section.dart';
+import 'package:turna/views/settings/widgets/settings_account_section.dart';
+import 'package:turna/views/settings/widgets/settings_appearance_section.dart';
+import 'package:turna/views/settings/widgets/settings_common.dart';
+import 'package:turna/views/settings/widgets/settings_fun_section.dart';
+import 'package:turna/views/settings/widgets/settings_learning_section.dart';
+import 'package:turna/views/settings/widgets/settings_reminder_section.dart';
+import 'package:turna/views/settings/widgets/settings_sound_section.dart';
+import 'package:turna/views/settings/widgets/settings_xiaoyi_tile.dart';
+import 'package:turna/utils/ohos_file_picker.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/theme.dart';
 
 /// Settings is organized as a category list that pushes a sub-page per
 /// category (iOS Settings style). Because [SettingsPage] lives inside the
@@ -138,9 +138,9 @@ class _SettingsPageState extends State<SettingsPage> {
         }
       },
       child: Scaffold(
-        backgroundColor: VarnamalaTheme.surfaceColor(context),
+        backgroundColor: TurnaTheme.surfaceColor(context),
         appBar: AppBar(
-          backgroundColor: VarnamalaTheme.surfaceColor(context),
+          backgroundColor: TurnaTheme.surfaceColor(context),
           elevation: 0,
           centerTitle: true,
           leading: isList
@@ -155,7 +155,7 @@ class _SettingsPageState extends State<SettingsPage> {
             children: [
               Icon(
                 titleIcon,
-                color: VarnamalaTheme.peacockTeal,
+                color: TurnaTheme.peacockTeal,
                 size: 22,
               ),
               const SizedBox(width: 8),
@@ -577,7 +577,7 @@ class _SettingsPageState extends State<SettingsPage> {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: VarnamalaTheme.cardBg(context),
+      backgroundColor: TurnaTheme.cardBg(context),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -711,7 +711,7 @@ class _ExportSheetState extends State<_ExportSheet> {
           Text(
             AppStrings.settingsExportSubtitle,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: VarnamalaTheme.textHintColor(context),
+                  color: TurnaTheme.textHintColor(context),
                 ),
           ),
           const SizedBox(height: 8),
@@ -746,7 +746,7 @@ class _ExportSheetState extends State<_ExportSheet> {
                       height: 18,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: VarnamalaTheme.textOnPrimary,
+                        color: TurnaTheme.textOnPrimary,
                       ),
                     )
                   : const Icon(Icons.ios_share_rounded),

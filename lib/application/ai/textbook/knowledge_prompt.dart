@@ -9,6 +9,7 @@ class KnowledgePrompt {
     required String chapterTitle,
     required String chapterMarkdown,
     int maxChars = 8000,
+
     /// `standard` or `vocab_only` (from [TextbookPreset.strategy]).
     String extractionStrategy = 'standard',
   }) {

@@ -3,8 +3,8 @@ import 'package:auto_route/auto_route.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/routing/course_ready_guard.dart';
-import 'package:varnamala/routing/routing.gr.dart';
+import 'package:turna/routing/course_ready_guard.dart';
+import 'package:turna/routing/routing.gr.dart';
 
 @lazySingleton
 @AutoRouterConfig(replaceInRouteName: 'Page,Route')
@@ -37,8 +37,7 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: GrammarReviewRoute.page),
         AutoRoute(page: MistakeListRoute.page),
         AutoRoute(page: MistakePracticeRoute.page),
-        AutoRoute(
-            page: MistakeReviewRoute.page, guards: [_courseReadyGuard]),
+        AutoRoute(page: MistakeReviewRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(page: DictionaryRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(page: WeakWordsRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(page: AnkiImportRoute.page),

@@ -2,16 +2,16 @@
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/application/anki/anki_review_assembler.dart';
-import 'package:varnamala/application/grammar_review_provider.dart';
-import 'package:varnamala/application/memory_curve_provider.dart';
-import 'package:varnamala/application/srs_provider.dart';
-import 'package:varnamala/core/fsrs_engine.dart';
-import 'package:varnamala/core/srs_scheduler.dart';
-import 'package:varnamala/data/anki_import_dao.dart';
-import 'package:varnamala/data/review_history_dao.dart';
-import 'package:varnamala/domain/course/srs_word.dart';
-import 'package:varnamala/l10n/app_strings.dart';
+import 'package:turna/application/anki/anki_review_assembler.dart';
+import 'package:turna/application/grammar_review_provider.dart';
+import 'package:turna/application/memory_curve_provider.dart';
+import 'package:turna/application/srs_provider.dart';
+import 'package:turna/core/fsrs_engine.dart';
+import 'package:turna/core/srs_scheduler.dart';
+import 'package:turna/data/anki_import_dao.dart';
+import 'package:turna/data/review_history_dao.dart';
+import 'package:turna/domain/course/srs_word.dart';
+import 'package:turna/l10n/app_strings.dart';
 
 /// Where a card comes from for progress stats.
 enum ReviewSourceKind { all, course, grammar, ankiDeck }

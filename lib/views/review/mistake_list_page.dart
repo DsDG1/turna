@@ -6,15 +6,15 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/grammar_review_provider.dart';
-import 'package:varnamala/application/mistake_provider.dart';
-import 'package:varnamala/courses/languages/dictionary.dart';
-import 'package:varnamala/courses/languages/grammar_points.dart';
-import 'package:varnamala/courses/languages/vocab.dart';
-import 'package:varnamala/domain/course/mistake_entry.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/routing/routing.gr.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/grammar_review_provider.dart';
+import 'package:turna/application/mistake_provider.dart';
+import 'package:turna/courses/languages/dictionary.dart';
+import 'package:turna/courses/languages/grammar_points.dart';
+import 'package:turna/courses/languages/vocab.dart';
+import 'package:turna/domain/course/mistake_entry.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/routing/routing.gr.dart';
+import 'package:turna/views/theme.dart';
 
 @RoutePage()
 class MistakeListPage extends StatelessWidget {
@@ -64,7 +64,7 @@ class _EmptyState extends StatelessWidget {
           const Icon(
             Icons.check_circle_rounded,
             size: 72,
-            color: VarnamalaTheme.success,
+            color: TurnaTheme.success,
           ),
           const SizedBox(height: 20),
           Text(
@@ -77,7 +77,7 @@ class _EmptyState extends StatelessWidget {
           Text(
             AppStrings.reviewKeepItUp,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: VarnamalaTheme.textSecondary,
+                  color: TurnaTheme.textSecondary,
                 ),
           ),
         ],
@@ -99,38 +99,38 @@ class _MistakesStatsHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 20),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-        border: Border.all(color: VarnamalaTheme.statCardBorder(context)),
+        color: TurnaTheme.cardBg(context),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        border: Border.all(color: TurnaTheme.statCardBorder(context)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _StatItem(
             icon: Icons.error_outline_rounded,
-            iconColor: VarnamalaTheme.error,
+            iconColor: TurnaTheme.error,
             value: mistakes.length.toString(),
             label: AppStrings.reviewMistakesLabel,
           ),
           Container(
             width: 1,
             height: 40,
-            color: VarnamalaTheme.dividerBg(context),
+            color: TurnaTheme.dividerBg(context),
           ),
           _StatItem(
             icon: Icons.translate_rounded,
-            iconColor: VarnamalaTheme.peacockTeal,
+            iconColor: TurnaTheme.peacockTeal,
             value: wordCount.toString(),
             label: AppStrings.reviewWordsLabel,
           ),
           Container(
             width: 1,
             height: 40,
-            color: VarnamalaTheme.dividerBg(context),
+            color: TurnaTheme.dividerBg(context),
           ),
           _StatItem(
             icon: Icons.school_rounded,
-            iconColor: VarnamalaTheme.leagueAmethyst,
+            iconColor: TurnaTheme.leagueAmethyst,
             value: grammarCount.toString(),
             label: AppStrings.reviewGrammarLabel,
           ),
@@ -169,7 +169,7 @@ class _StatItem extends StatelessWidget {
         Text(
           label,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: VarnamalaTheme.textHintColor(context),
+                color: TurnaTheme.textHintColor(context),
                 fontWeight: FontWeight.w500,
               ),
         ),
@@ -185,9 +185,7 @@ class _MistakeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final word = mistake.wordId != null
-        ? vocabById[mistake.wordId!]
-        : null;
+    final word = mistake.wordId != null ? vocabById[mistake.wordId!] : null;
     final grammar = mistake.grammarPointId != null
         ? grammarPointById[mistake.grammarPointId!]
         : null;
@@ -207,11 +205,11 @@ class _MistakeCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: VarnamalaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+        color: TurnaTheme.cardBg(context),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
         boxShadow: [
           BoxShadow(
-            color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.08),
+            color: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -233,9 +231,10 @@ class _MistakeCard extends StatelessWidget {
                     children: [
                       Text(
                         displayQuestion,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
                       ),
                       if (grammar != null) ...[
                         const SizedBox(height: 6),
@@ -260,14 +259,14 @@ class _MistakeCard extends StatelessWidget {
                   Icon(
                     Icons.menu_book_outlined,
                     size: 14,
-                    color: VarnamalaTheme.textHintColor(context),
+                    color: TurnaTheme.textHintColor(context),
                   ),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       resolvedMeaning,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: VarnamalaTheme.textSecondaryColor(context),
+                            color: TurnaTheme.textSecondaryColor(context),
                             fontStyle: FontStyle.italic,
                           ),
                     ),
@@ -295,9 +294,8 @@ class _MistakeCard extends StatelessWidget {
                 _TextActionButton(
                   icon: Icons.check_circle_outline_rounded,
                   label: AppStrings.reviewGotItNow,
-                  onTap: () => context
-                      .read<MistakeProvider>()
-                      .recordRewrite(mistake.id),
+                  onTap: () =>
+                      context.read<MistakeProvider>().recordRewrite(mistake.id),
                 ),
               ],
             ),
@@ -332,12 +330,12 @@ class _TypeIcon extends StatelessWidget {
       width: 44,
       height: 44,
       decoration: BoxDecoration(
-        color: VarnamalaTheme.tintSoft,
+        color: TurnaTheme.tintSoft,
         shape: BoxShape.circle,
       ),
       child: Icon(
         icon,
-        color: VarnamalaTheme.peacockTeal,
+        color: TurnaTheme.peacockTeal,
         size: 22,
       ),
     );
@@ -354,13 +352,13 @@ class _GrammarChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.12),
+        color: TurnaTheme.peacockTeal.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         AppStrings.reviewGrammarChip(title),
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: VarnamalaTheme.peacockTeal,
+              color: TurnaTheme.peacockTeal,
               fontWeight: FontWeight.w700,
             ),
       ),
@@ -406,8 +404,8 @@ class _AnswerComparison extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.inputFillColor(context),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+        color: TurnaTheme.inputFillColor(context),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
       ),
       child: Row(
         children: [
@@ -415,7 +413,7 @@ class _AnswerComparison extends StatelessWidget {
             child: _AnswerBlock(
               label: AppStrings.reviewYourAnswer,
               value: userAnswer.isEmpty ? AppStrings.reviewDash : userAnswer,
-              valueColor: VarnamalaTheme.error,
+              valueColor: TurnaTheme.error,
             ),
           ),
           const Padding(
@@ -423,14 +421,15 @@ class _AnswerComparison extends StatelessWidget {
             child: Icon(
               Icons.arrow_forward_rounded,
               size: 16,
-              color: VarnamalaTheme.textHint,
+              color: TurnaTheme.textHint,
             ),
           ),
           Expanded(
             child: _AnswerBlock(
               label: AppStrings.reviewCorrectAnswer,
-              value: correctAnswer.isEmpty ? AppStrings.reviewDash : correctAnswer,
-              valueColor: VarnamalaTheme.peacockTeal,
+              value:
+                  correctAnswer.isEmpty ? AppStrings.reviewDash : correctAnswer,
+              valueColor: TurnaTheme.peacockTeal,
             ),
           ),
         ],
@@ -458,7 +457,7 @@ class _AnswerBlock extends StatelessWidget {
         Text(
           label,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: VarnamalaTheme.textHint,
+                color: TurnaTheme.textHint,
               ),
         ),
         const SizedBox(height: 2),

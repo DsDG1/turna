@@ -762,7 +762,7 @@ class DesignPanel(QWidget):
                 continue
             temp_path = (
                 Path(tempfile.gettempdir())
-                / f"varnamala_design_{uuid.uuid4().hex[:8]}_{path.name}"
+                / f"turna_design_{uuid.uuid4().hex[:8]}_{path.name}"
             )
             try:
                 temp_path.write_bytes(path.read_bytes())

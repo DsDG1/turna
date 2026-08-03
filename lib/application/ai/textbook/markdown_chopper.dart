@@ -1,5 +1,5 @@
 // Project imports:
-import 'package:varnamala/application/ai/textbook/knowledge_schema.dart';
+import 'package:turna/application/ai/textbook/knowledge_schema.dart';
 
 /// Splits a markdown document into chapters by headings.
 ///

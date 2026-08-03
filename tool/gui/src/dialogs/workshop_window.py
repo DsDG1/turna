@@ -405,7 +405,7 @@ class WorkshopWindow(QDialog):
         """Reopen the last-used project on the canvas, if any."""
         if self._project is not None:
             return True
-        settings = QSettings("Varnamala", "CourseEditor")
+        settings = QSettings("Turna", "CourseEditor")
         project_id = settings.value(_LAST_PROJECT_KEY, "")
         if not project_id:
             return False
@@ -528,7 +528,7 @@ class WorkshopWindow(QDialog):
         self._stack.setCurrentIndex(1)
         self._update_header()
 
-        settings = QSettings("Varnamala", "CourseEditor")
+        settings = QSettings("Turna", "CourseEditor")
         settings.setValue(_LAST_PROJECT_KEY, project.project_id)
         self._persist_ui_stage(_UI_CANVAS)
 
@@ -649,13 +649,13 @@ class WorkshopWindow(QDialog):
     _GEOMETRY_KEY = "workshop/geometry"
 
     def _restore_geometry(self) -> None:
-        settings = QSettings("Varnamala", "CourseEditor")
+        settings = QSettings("Turna", "CourseEditor")
         geo = settings.value(self._GEOMETRY_KEY)
         if geo:
             self.restoreGeometry(geo)
 
     def _save_geometry(self) -> None:
-        settings = QSettings("Varnamala", "CourseEditor")
+        settings = QSettings("Turna", "CourseEditor")
         settings.setValue(self._GEOMETRY_KEY, self.saveGeometry())
 
     def closeEvent(self, event: Any) -> None:

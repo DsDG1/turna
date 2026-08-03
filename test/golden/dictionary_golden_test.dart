@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/courses/languages/vocab.dart';
-import 'package:varnamala/domain/course/word_entry.dart';
-import 'package:varnamala/views/dictionary/dictionary_page.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/courses/languages/vocab.dart';
+import 'package:turna/domain/course/word_entry.dart';
+import 'package:turna/views/dictionary/dictionary_page.dart';
+import 'package:turna/views/theme.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -29,11 +29,9 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        theme: VarnamalaTheme.lightTheme,
-        darkTheme: VarnamalaTheme.darkTheme,
+        theme: TurnaTheme.lightTheme,
+        darkTheme: TurnaTheme.darkTheme,
         themeMode: mode,
-        
-        
         home: const DictionaryPage(),
       ),
     );

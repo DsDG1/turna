@@ -346,7 +346,7 @@ class AiEditConflictTest(unittest.TestCase):
 
         from src.backend.course_adapter import CourseAdapter
 
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_aiconf_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_aiconf_"))
         course_dir = self.tmp / "turkish"
         copy_turkish_course(course_dir)
         self.adapter = CourseAdapter()
@@ -473,7 +473,7 @@ class WorkshopImportTargetTest(unittest.TestCase):
 
         from src.backend.course_adapter import CourseAdapter
 
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_ws_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_ws_"))
         course_dir = self.tmp / "turkish"
         copy_turkish_course(course_dir)
         self.adapter = CourseAdapter()
@@ -632,7 +632,7 @@ class GenerateAudioTest(unittest.TestCase):
 
         from src.backend.course_adapter import CourseAdapter
 
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_tts_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_tts_"))
         course_dir = self.tmp / "turkish"
         copy_turkish_course(course_dir)
         self.adapter = CourseAdapter()

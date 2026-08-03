@@ -1,4 +1,4 @@
-"""Main window for the Varnamala GUI course editor."""
+"""Main window for the Turna GUI course editor."""
 from __future__ import annotations
 
 import time
@@ -32,7 +32,7 @@ from src.application.commands import (
     AppendUnitsToSectionCommand,
     MergeAiSectionCommand,
 )
-from src.application.settings import Settings
+from src.application.settings import Settings, migrate_legacy_varnamala_qsettings
 from src.backend.ai_generator import AiApiConfig
 from src.backend.course_adapter import CourseAdapter
 from src.backend.import_step_result import ImportStepResult
@@ -100,7 +100,7 @@ class MainWindow(QMainWindow):
 
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("Varnamala 课程编辑器")
+        self.setWindowTitle("Turna 课程编辑器")
         self.resize(1280, 800)
 
         self.adapter = CourseAdapter()
@@ -111,8 +111,11 @@ class MainWindow(QMainWindow):
         self._overview_window = None
         self._last_imported_section_id: str | None = None
 
-        self._settings = QSettings("Varnamala", "CourseEditor")
+        self._settings = QSettings("Turna", "CourseEditor")
         self._settings_obj = Settings.load_from_qsettings(self._settings)
+        # One-shot migration from legacy "Varnamala" -> "Turna" namespace.
+        # No-op when the new namespace already has keys.
+        migrate_legacy_varnamala_qsettings()
         apply_theme(QApplication.instance(), self._settings_obj)
 
         # Keep button text from being clipped by tight layouts (applies to
@@ -209,7 +212,7 @@ class MainWindow(QMainWindow):
     def _on_undo_clean_changed(self, clean: bool) -> None:
         if self.course_dir is not None:
             marker = "" if clean else " *"
-            base = "Varnamala 课程编辑器"
+            base = "Turna 课程编辑器"
             if self.teacher_mode:
                 base += " · 教师模式"
             self.setWindowTitle(base + marker)
@@ -500,7 +503,7 @@ class MainWindow(QMainWindow):
         self.teacher_mode = checked
         self.mode_action.setText("教师模式：开" if checked else "教师模式")
         self.setWindowTitle(
-            "Varnamala 课程编辑器 · 教师模式" if checked else "Varnamala 课程编辑器"
+            "Turna 课程编辑器 · 教师模式" if checked else "Turna 课程编辑器"
         )
         telemetry.record_event(
             "app.mode_changed",

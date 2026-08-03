@@ -9,14 +9,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/course_provider.dart';
-import 'package:varnamala/application/game_provider.dart';
-import 'package:varnamala/application/progress_provider.dart';
-import 'package:varnamala/domain/course/lesson.dart';
-import 'package:varnamala/domain/course/lesson_content.dart';
-import 'package:varnamala/domain/course/section.dart';
-import 'package:varnamala/domain/course/unit.dart';
-import 'package:varnamala/views/courses/course_tree.dart';
+import 'package:turna/application/course_provider.dart';
+import 'package:turna/application/game_provider.dart';
+import 'package:turna/application/progress_provider.dart';
+import 'package:turna/domain/course/lesson.dart';
+import 'package:turna/domain/course/lesson_content.dart';
+import 'package:turna/domain/course/section.dart';
+import 'package:turna/domain/course/unit.dart';
+import 'package:turna/views/courses/course_tree.dart';
 
 /// Minimal fake [GameProvider] for widget tests that only need the
 /// completed-lessons stream.
@@ -147,8 +147,6 @@ class _FakeCourseProvider extends CourseProvider {
 void main() {
   Widget pumpTree(CourseProvider courseProvider) {
     return MaterialApp(
-      
-      
       home: MultiProvider(
         providers: [
           ChangeNotifierProvider<CourseProvider>.value(value: courseProvider),
@@ -245,8 +243,7 @@ void main() {
       expect(find.text('无法加载课程'), findsNothing);
     });
 
-    testWidgets(
-        'defensively ensures section body when load state is initial',
+    testWidgets('defensively ensures section body when load state is initial',
         (tester) async {
       final provider = _FakeCourseProvider(
         currentSection: _shellSection('s-init'),
@@ -301,8 +298,7 @@ void main() {
 
     testWidgets(
         'expanding a unit with 100 lessons renders them without building '
-        'all tiles eagerly',
-        (tester) async {
+        'all tiles eagerly', (tester) async {
       final lessons = List.generate(
         100,
         (i) => Lesson(

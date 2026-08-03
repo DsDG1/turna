@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/views/theme.dart';
 
 /// A memory-bounded [Image.asset] for interaction prompts.
 ///
@@ -53,7 +53,7 @@ class RoundedCachedAssetImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+      borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
       child: CachedAssetImage(asset: asset, maxHeight: maxHeight),
     );
   }

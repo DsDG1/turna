@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/core/fsrs_optimizer.dart';
-import 'package:varnamala/data/review_history_dao.dart';
-import 'package:varnamala/domain/course/srs_word.dart';
+import 'package:turna/core/fsrs_optimizer.dart';
+import 'package:turna/data/review_history_dao.dart';
+import 'package:turna/domain/course/srs_word.dart';
 
 void main() {
   group('FsrsLiteOptimizer', () {
@@ -27,8 +27,7 @@ void main() {
     test('rejects when below min review count', () {
       final t0 = DateTime(2026, 1, 1);
       final events = <ReviewEventRecord>[
-        for (var i = 0; i < 10; i++)
-          ev('c$i', t0.add(Duration(days: i)), 4),
+        for (var i = 0; i < 10; i++) ev('c$i', t0.add(Duration(days: i)), 4),
         for (var i = 0; i < 10; i++)
           ev('c$i', t0.add(Duration(days: i + 1)), 4),
       ];

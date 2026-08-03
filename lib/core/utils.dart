@@ -35,7 +35,8 @@ String getFormattedTime(int totalSeconds) {
 /// SQLite read path share one source of truth for the default rather than
 /// hand-rolled loops per enum. Callers pass the expected fallback explicitly
 /// (e.g. `LessonType.normal`) so the default is visible at the call site.
-T enumByName<T extends Enum>(List<T> values, String name, {required T fallback}) {
+T enumByName<T extends Enum>(List<T> values, String name,
+    {required T fallback}) {
   for (final v in values) {
     if (v.name == name) return v;
   }

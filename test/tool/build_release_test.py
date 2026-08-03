@@ -104,20 +104,20 @@ class BuildReleaseTests(unittest.TestCase):
         self.assertTrue(self._has_command(commands, "flutter build apk --release"))
         self.assertTrue(self._has_command(commands, "flutter build appbundle --release"))
         dst_names = [dst.name for _, dst in copies]
-        self.assertIn("varnamala-v0.4.0-test-release.apk", dst_names)
-        self.assertIn("varnamala-v0.4.0-test-release.aab", dst_names)
+        self.assertIn("turna-v0.4.0-test-release.apk", dst_names)
+        self.assertIn("turna-v0.4.0-test-release.aab", dst_names)
 
     def test_web_build_is_skipped_with_flag(self) -> None:
         commands, copies = self._run_build(skip_web=True)
         self.assertFalse(self._has_command(commands, "flutter build web --release"))
         dst_names = [dst.name for _, dst in copies]
-        self.assertNotIn("varnamala-v0.4.0-test-web", dst_names)
+        self.assertNotIn("turna-v0.4.0-test-web", dst_names)
 
     def test_web_build_is_included_by_default(self) -> None:
         commands, copies = self._run_build(skip_web=False)
         self.assertTrue(self._has_command(commands, "flutter build web --release"))
         dst_names = [dst.name for _, dst in copies]
-        self.assertIn("varnamala-v0.4.0-test-web", dst_names)
+        self.assertIn("turna-v0.4.0-test-web", dst_names)
 
     def test_content_validation_commands_when_not_skipped(self) -> None:
         commands, _ = self._run_build(skip_content_validation=False)

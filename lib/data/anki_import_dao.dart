@@ -3,7 +3,7 @@ import 'package:drift/drift.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/data/course_database.dart';
+import 'package:turna/data/course_database.dart';
 
 /// Data access object for the `anki_imports` table.
 /// Provides CRUD operations for Anki import metadata.

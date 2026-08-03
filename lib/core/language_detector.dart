@@ -22,16 +22,14 @@ class LanguageDetector {
   /// Turkish-specific letters. `ç ö ü` are shared with French/German/etc. so
   /// they are NOT treated as Turkish-specific; `ğ ı ş İ` (and their case
   /// variants) unambiguously indicate Turkish (or another Turkic language).
-  static final _turkishSpecific =
-      RegExp('[ğĞıİşŞ]');
+  static final _turkishSpecific = RegExp('[ğĞıİşŞ]');
 
   // Non-Latin script ranges - each maps to a definite TTS language.
   static final _kana = RegExp('[぀-ヿㇰ-ㇿ]');
   static final _hangul = RegExp('[가-힯ᄀ-ᇿ]');
   static final _han = RegExp('[一-鿿㐀-䶿豈-﫿]');
   static final _cyrillic = RegExp('[Ѐ-ӿԀ-ԯ]');
-  static final _arabic =
-      RegExp('[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]');
+  static final _arabic = RegExp('[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]');
   static final _thai = RegExp('[฀-๿]');
   static final _devanagari = RegExp('[ऀ-ॿ]');
   static final _greek = RegExp('[Ͱ-Ͽἀ-῿]');

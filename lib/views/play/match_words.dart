@@ -8,11 +8,11 @@ import 'package:auto_route/annotations.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/game_provider.dart';
-import 'package:varnamala/application/match_provider.dart';
-import 'package:varnamala/core/utils.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/game_provider.dart';
+import 'package:turna/application/match_provider.dart';
+import 'package:turna/core/utils.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/theme.dart';
 
 @RoutePage()
 class MatchWordsPage extends StatefulWidget {
@@ -94,7 +94,7 @@ class _MatchWordsPageState extends State<MatchWordsPage> {
                   AppStrings.playMatchMadness,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: VarnamalaTheme.leagueAmethyst,
+                        color: TurnaTheme.leagueAmethyst,
                       ),
                 ),
                 ValueListenableBuilder<int>(
@@ -106,8 +106,8 @@ class _MatchWordsPageState extends State<MatchWordsPage> {
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
                         color: seconds < 25
-                            ? VarnamalaTheme.error
-                            : VarnamalaTheme.peacockTeal,
+                            ? TurnaTheme.error
+                            : TurnaTheme.peacockTeal,
                       ),
                     );
                   },
@@ -115,7 +115,7 @@ class _MatchWordsPageState extends State<MatchWordsPage> {
               ],
             ),
             toolbarHeight: 60,
-            backgroundColor: VarnamalaTheme.cardBg(context),
+            backgroundColor: TurnaTheme.cardBg(context),
             elevation: 1.2,
           ),
           body: Stack(
@@ -130,13 +130,15 @@ class _MatchWordsPageState extends State<MatchWordsPage> {
                       children: [
                         _TopChip(
                           icon: Icons.bolt_rounded,
-                          label: AppStrings.playXpLabel(matchProvider.sessionScore),
-                          color: VarnamalaTheme.peacockTeal,
+                          label: AppStrings.playXpLabel(
+                              matchProvider.sessionScore),
+                          color: TurnaTheme.peacockTeal,
                         ),
                         _TopChip(
                           icon: Icons.auto_awesome_rounded,
-                          label: AppStrings.playRoundLabel(matchProvider.roundsCompleted + 1),
-                          color: VarnamalaTheme.leagueAmethyst,
+                          label: AppStrings.playRoundLabel(
+                              matchProvider.roundsCompleted + 1),
+                          color: TurnaTheme.leagueAmethyst,
                         ),
                       ],
                     ),
@@ -148,8 +150,8 @@ class _MatchWordsPageState extends State<MatchWordsPage> {
                             words: matchProvider.englishWords,
                             selectedWord: matchProvider.selectedEnglishWord,
                             onWordSelected: matchProvider.selectEnglishWord,
-                            selectedColor: VarnamalaTheme.peacockCyan,
-                            borderColor: VarnamalaTheme.statCardBorder(context),
+                            selectedColor: TurnaTheme.peacockCyan,
+                            borderColor: TurnaTheme.statCardBorder(context),
                             matchedWords: matchProvider.matchedWords,
                           ),
                           const SizedBox(width: 16),
@@ -157,8 +159,8 @@ class _MatchWordsPageState extends State<MatchWordsPage> {
                             words: matchProvider.targetWords,
                             selectedWord: matchProvider.selectedTargetWord,
                             onWordSelected: matchProvider.selectTargetWord,
-                            selectedColor: VarnamalaTheme.successDark,
-                            borderColor: VarnamalaTheme.statCardBorder(context),
+                            selectedColor: TurnaTheme.successDark,
+                            borderColor: TurnaTheme.statCardBorder(context),
                             matchedWords: matchProvider.matchedWords,
                           ),
                         ],
@@ -168,7 +170,7 @@ class _MatchWordsPageState extends State<MatchWordsPage> {
                     Text(
                       AppStrings.playInfiniteRoundsNote,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: VarnamalaTheme.textHintColor(context),
+                            color: TurnaTheme.textHintColor(context),
                           ),
                     ),
                     const SizedBox(height: 8),
@@ -181,8 +183,7 @@ class _MatchWordsPageState extends State<MatchWordsPage> {
               ),
               if (matchProvider.isRoundTransitioning)
                 Container(
-                  color: VarnamalaTheme.scaffoldBg(context)
-                      .withValues(alpha: 0.85),
+                  color: TurnaTheme.scaffoldBg(context).withValues(alpha: 0.85),
                   alignment: Alignment.center,
                   child: const _RoundCompleteOverlay(),
                 ),
@@ -228,16 +229,15 @@ class _RoundCompleteOverlayState extends State<_RoundCompleteOverlay>
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
           decoration: BoxDecoration(
-            color: VarnamalaTheme.cardBg(context),
-            borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-            border: Border.all(color: VarnamalaTheme.statCardBorder(context)),
-            boxShadow: VarnamalaTheme.cardShadow,
+            color: TurnaTheme.cardBg(context),
+            borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+            border: Border.all(color: TurnaTheme.statCardBorder(context)),
+            boxShadow: TurnaTheme.cardShadow,
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.celebration_rounded,
-                  color: VarnamalaTheme.peacockTeal),
+              Icon(Icons.celebration_rounded, color: TurnaTheme.peacockTeal),
               SizedBox(width: 8),
               Text(
                 AppStrings.playRoundComplete,
@@ -286,13 +286,16 @@ class WordListWidget extends StatelessWidget {
                   duration: const Duration(milliseconds: 250),
                   curve: Curves.easeInOut,
                   margin: isMatched
-                      ? const EdgeInsets.symmetric(vertical: 1.0, horizontal: 36.0)
+                      ? const EdgeInsets.symmetric(
+                          vertical: 1.0, horizontal: 36.0)
                       : const EdgeInsets.symmetric(vertical: 6.0),
-                  padding:
-                      isMatched ? const EdgeInsets.all(4.0) : const EdgeInsets.all(14.0),
+                  padding: isMatched
+                      ? const EdgeInsets.all(4.0)
+                      : const EdgeInsets.all(14.0),
                   height: isMatched ? 0 : 58,
                   decoration: BoxDecoration(
-                    color: isSelected ? selectedColor : VarnamalaTheme.cardBg(context),
+                    color:
+                        isSelected ? selectedColor : TurnaTheme.cardBg(context),
                     borderRadius: BorderRadius.circular(12.0),
                     border: Border.all(
                       color: isSelected ? selectedColor : borderColor,
@@ -304,13 +307,13 @@ class WordListWidget extends StatelessWidget {
                       style: isSelected
                           ? const TextStyle(
                               fontWeight: FontWeight.w700,
-                              color: VarnamalaTheme.textOnPrimary,
+                              color: TurnaTheme.textOnPrimary,
                               fontSize: 17,
                             )
                           : TextStyle(
                               color: isMatched
-                                  ? VarnamalaTheme.textHint
-                                  : VarnamalaTheme.textPrimaryColor(context),
+                                  ? TurnaTheme.textHint
+                                  : TurnaTheme.textPrimaryColor(context),
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
                             ),
@@ -350,7 +353,7 @@ class MatchCounter extends StatelessWidget {
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w700,
-            color: VarnamalaTheme.textPrimaryColor(context),
+            color: TurnaTheme.textPrimaryColor(context),
           ),
         ),
       ),
@@ -375,7 +378,7 @@ class _TopChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusRound),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
       ),
       child: Row(
         children: [
@@ -438,7 +441,7 @@ class _MatchGameOverDialogState extends State<_MatchGameOverDialog>
 
     return Dialog(
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusXLarge),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusXLarge),
       ),
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -489,11 +492,23 @@ class _MatchGameOverDialogState extends State<_MatchGameOverDialog>
   (IconData, Color, String) _celebrationStyle(MatchCelebrationType type) {
     switch (type) {
       case MatchCelebrationType.sparkles:
-        return (Icons.auto_awesome_rounded, VarnamalaTheme.leagueAmethyst, AppStrings.playBrilliantRun);
+        return (
+          Icons.auto_awesome_rounded,
+          TurnaTheme.leagueAmethyst,
+          AppStrings.playBrilliantRun
+        );
       case MatchCelebrationType.trophy:
-        return (Icons.emoji_events_rounded, VarnamalaTheme.successDark, AppStrings.playChampionEnergy);
+        return (
+          Icons.emoji_events_rounded,
+          TurnaTheme.successDark,
+          AppStrings.playChampionEnergy
+        );
       case MatchCelebrationType.lightning:
-        return (Icons.bolt_rounded, VarnamalaTheme.peacockTeal, AppStrings.playLightningFast);
+        return (
+          Icons.bolt_rounded,
+          TurnaTheme.peacockTeal,
+          AppStrings.playLightningFast
+        );
     }
   }
 }

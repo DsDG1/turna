@@ -1,5 +1,5 @@
 // Project imports:
-import 'package:varnamala/application/anki/anki_models.dart';
+import 'package:turna/application/anki/anki_models.dart';
 
 /// Resolves where an Anki card should sit in the imported course tree by
 /// reading unit/lesson metadata the card carries.

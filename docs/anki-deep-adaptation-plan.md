@@ -3,7 +3,7 @@
 > 状态：已采纳（Adopted）  ·  4 项决策已冻结，见 §15  
 > 日期：2026-07-31  
 > 依据：Anki Desktop（AGPL）、AnkiDroid（GPL-3）、现有 `docs/anki-import-design.md` 与已实现导入/SRS/双轨适配代码  
-> 目标：在 **不整仓搬迁** 开源 Anki 客户端的前提下，按 Anki 生态的**原理与分层**改造 Varnamala，使复杂 notetype（含中文政治多选、模板 JS、媒体）达到接近 AnkiDroid 的兼容度，同时保留语言课与客观题引擎。
+> 目标：在 **不整仓搬迁** 开源 Anki 客户端的前提下，按 Anki 生态的**原理与分层**改造 Turna，使复杂 notetype（含中文政治多选、模板 JS、媒体）达到接近 AnkiDroid 的兼容度，同时保留语言课与客观题引擎。
 
 ---
 
@@ -39,7 +39,7 @@
 
 ### 1.1 Anki Desktop（ankitects/anki）
 
-| 层次 | 原理 | 对 Varnamala 的启示 |
+| 层次 | 原理 | 对 Turna 的启示 |
 |------|------|-------------------|
 | 包格式 | `.apkg` = ZIP + SQLite（`notes`/`cards`/`col.models`） | 已有 `AnkiImporter`，保留 |
 | 卡片定义 | **Notetype 模板** `qfmt`/`afmt` + 字段 `flds` | 兼容核心是**渲染模板**，不是猜 front/back |
@@ -48,7 +48,7 @@
 
 ### 1.2 AnkiDroid（ankidroid/Anki-Android）
 
-| 层次 | 原理 | 对 Varnamala 的启示 |
+| 层次 | 原理 | 对 Turna 的启示 |
 |------|------|-------------------|
 | 显示 | **WebView 加载渲染后的 HTML**（非原生列表猜选项） | 复杂卡必须走 WebView |
 | 后端 | rsdroid / Anki 集合库 | 可选远期；MVP 不必嵌入 Rust 后端 |
@@ -99,7 +99,7 @@
 
 ## 3. 目标架构（框架结构改造）
 
-### 3.1 分层（对齐 Anki，适配 Varnamala）
+### 3.1 分层（对齐 Anki，适配 Turna）
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -301,7 +301,7 @@ fields_raw (HTML 保留)
 
 ### 5.3 与 AnkiDroid 的差异（刻意简化）
 
-| AnkiDroid | Varnamala MVP |
+| AnkiDroid | Turna MVP |
 |-----------|----------------|
 | 完整 libanki 调度 | 已有 FSRS/SM-2 迁移态 |
 | 编辑卡片 | 不做 |

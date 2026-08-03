@@ -1,9 +1,9 @@
 // Project imports:
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/domain/course/lesson.dart';
-import 'package:varnamala/domain/course/lesson_content.dart';
-import 'package:varnamala/domain/course/mistake_entry.dart';
-import 'package:varnamala/domain/course/stage.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/domain/course/lesson.dart';
+import 'package:turna/domain/course/lesson_content.dart';
+import 'package:turna/domain/course/mistake_entry.dart';
+import 'package:turna/domain/course/stage.dart';
 
 /// Result of assembling a mistake-review session.
 ///

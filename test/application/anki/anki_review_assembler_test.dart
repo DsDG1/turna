@@ -8,20 +8,20 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
-import 'package:varnamala/application/anki/anki_review_assembler.dart';
-import 'package:varnamala/application/course_provider.dart';
-import 'package:varnamala/application/lesson_link_store.dart';
-import 'package:varnamala/application/srs_provider.dart';
-import 'package:varnamala/courses/course_loader.dart';
-import 'package:varnamala/data/course_repository.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/domain/course/lesson.dart';
-import 'package:varnamala/domain/course/lesson_content.dart';
-import 'package:varnamala/domain/course/section.dart';
-import 'package:varnamala/domain/course/srs_word.dart';
-import 'package:varnamala/domain/course/stage.dart';
-import 'package:varnamala/domain/course/unit.dart';
-import 'package:varnamala/service/locator.dart';
+import 'package:turna/application/anki/anki_review_assembler.dart';
+import 'package:turna/application/course_provider.dart';
+import 'package:turna/application/lesson_link_store.dart';
+import 'package:turna/application/srs_provider.dart';
+import 'package:turna/courses/course_loader.dart';
+import 'package:turna/data/course_repository.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/domain/course/lesson.dart';
+import 'package:turna/domain/course/lesson_content.dart';
+import 'package:turna/domain/course/section.dart';
+import 'package:turna/domain/course/srs_word.dart';
+import 'package:turna/domain/course/stage.dart';
+import 'package:turna/domain/course/unit.dart';
+import 'package:turna/service/locator.dart';
 
 import '../../helpers/in_memory_course_db.dart';
 
@@ -97,7 +97,8 @@ void main() {
     await courseProvider.load();
   });
 
-  test('due Anki card counts as due but sync batch is null while interactions '
+  test(
+      'due Anki card counts as due but sync batch is null while interactions '
       'are not loaded (root cause reproduction)', () {
     srs.registerWord('anki-deckaa-c1');
     final assembler = AnkiReviewAssembler(srs, courseProvider);

@@ -8,16 +8,16 @@ import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 
 // Project imports:
-import 'package:varnamala/application/lesson_link_store.dart';
-import 'package:varnamala/core/fsrs_engine.dart';
-import 'package:varnamala/core/logger.dart';
-import 'package:varnamala/core/sm2.dart';
-import 'package:varnamala/core/srs_scheduler.dart';
-import 'package:varnamala/data/review_history_dao.dart';
-import 'package:varnamala/data/srs_state_dao.dart';
-import 'package:varnamala/domain/course/lesson_word_link.dart';
-import 'package:varnamala/domain/course/srs_word.dart';
-import 'package:varnamala/service/locator.dart';
+import 'package:turna/application/lesson_link_store.dart';
+import 'package:turna/core/fsrs_engine.dart';
+import 'package:turna/core/logger.dart';
+import 'package:turna/core/sm2.dart';
+import 'package:turna/core/srs_scheduler.dart';
+import 'package:turna/data/review_history_dao.dart';
+import 'package:turna/data/srs_state_dao.dart';
+import 'package:turna/domain/course/lesson_word_link.dart';
+import 'package:turna/domain/course/srs_word.dart';
+import 'package:turna/service/locator.dart';
 
 /// Shared SRS queue machinery for [SrsProvider] and [GrammarReviewProvider].
 ///

@@ -6,16 +6,16 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/ai/engine/ai_engine_config_holder.dart';
-import 'package:varnamala/application/anki/anki_review_assembler.dart';
-import 'package:varnamala/application/grammar_review_provider.dart';
-import 'package:varnamala/application/mistake_provider.dart';
-import 'package:varnamala/application/srs_provider.dart';
-import 'package:varnamala/application/weak_word_quiz_assembler.dart';
-import 'package:varnamala/routing/routing.gr.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/play/components/play_tiles.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
+import 'package:turna/application/anki/anki_review_assembler.dart';
+import 'package:turna/application/grammar_review_provider.dart';
+import 'package:turna/application/mistake_provider.dart';
+import 'package:turna/application/srs_provider.dart';
+import 'package:turna/application/weak_word_quiz_assembler.dart';
+import 'package:turna/routing/routing.gr.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/play/components/play_tiles.dart';
+import 'package:turna/views/theme.dart';
 
 class PlayHubScreen extends StatefulWidget {
   const PlayHubScreen({super.key});
@@ -29,8 +29,7 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
   Widget build(BuildContext context) {
     final mistakes = context.select((MistakeProvider p) => p.entries);
     final mistakesCount = mistakes.length;
-    final weakCount =
-        WeakWordQuizAssembler.aggregateWeakWords(mistakes).length;
+    final weakCount = WeakWordQuizAssembler.aggregateWeakWords(mistakes).length;
     final srsDue = context.select((SrsProvider p) => p.dueCount);
     final grammarDue = context.select((GrammarReviewProvider p) => p.dueCount);
     final ankiDue = context.select(
@@ -80,7 +79,7 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
                             ? AppStrings.playMistakeFocusCount(mistakesCount)
                             : AppStrings.playMistakeFocusEmpty,
                         icon: Icons.priority_high_rounded,
-                        accentColor: VarnamalaTheme.errorLight,
+                        accentColor: TurnaTheme.errorLight,
                         badge: mistakesCount > 0 ? '$mistakesCount' : null,
                         onTap: () =>
                             context.router.push(const MistakeReviewRoute()),
@@ -94,7 +93,7 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
                             ? AppStrings.playReviewFocusCount(srsDue)
                             : AppStrings.playReviewFocusEmpty,
                         icon: Icons.repeat_rounded,
-                        accentColor: VarnamalaTheme.success,
+                        accentColor: TurnaTheme.success,
                         badge: srsDue > 0 ? '$srsDue' : null,
                         onTap: () =>
                             context.router.push(const SrsReviewRoute()),
@@ -128,15 +127,14 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
                   ReviewTile(
                     title: AppStrings.playWeakWordsTitle,
                     icon: Icons.fitness_center_rounded,
-                    accentColor: VarnamalaTheme.warning,
+                    accentColor: TurnaTheme.warning,
                     badge: weakCount > 0 ? '$weakCount' : null,
-                    onTap: () =>
-                        context.router.push(const WeakWordsRoute()),
+                    onTap: () => context.router.push(const WeakWordsRoute()),
                   ),
                   ReviewTile(
                     title: AppStrings.playGrammarReviewTitle,
                     icon: Icons.menu_book_rounded,
-                    accentColor: VarnamalaTheme.peacockTeal,
+                    accentColor: TurnaTheme.peacockTeal,
                     badge: grammarDue > 0 ? '$grammarDue' : null,
                     onTap: () =>
                         context.router.push(const GrammarReviewRoute()),
@@ -144,18 +142,16 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
                   ReviewTile(
                     title: AppStrings.playAnkiReviewTitle,
                     icon: Icons.style_rounded,
-                    accentColor: VarnamalaTheme.peacockCyan,
+                    accentColor: TurnaTheme.peacockCyan,
                     badge: ankiDue > 0 ? '$ankiDue' : null,
-                    onTap: () =>
-                        context.router.push(const AnkiReviewRoute()),
+                    onTap: () => context.router.push(const AnkiReviewRoute()),
                   ),
                   ReviewTile(
                     title: AppStrings.playReviewTitle,
                     icon: Icons.repeat_rounded,
-                    accentColor: VarnamalaTheme.success,
+                    accentColor: TurnaTheme.success,
                     badge: srsDue > 0 ? '$srsDue' : null,
-                    onTap: () =>
-                        context.router.push(const SrsReviewRoute()),
+                    onTap: () => context.router.push(const SrsReviewRoute()),
                   ),
                 ],
               ),
@@ -181,7 +177,7 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
                       child: ReviewTile(
                         title: AppStrings.aiHubStartWish,
                         icon: Icons.auto_awesome_rounded,
-                        accentColor: VarnamalaTheme.amethystLeague,
+                        accentColor: TurnaTheme.amethystLeague,
                         onTap: () =>
                             context.router.push(const AiWishChatRoute()),
                       ),
@@ -191,7 +187,7 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
                       child: ReviewTile(
                         title: AppStrings.aiHubStartTextbook,
                         icon: Icons.menu_book_rounded,
-                        accentColor: VarnamalaTheme.peacockCyan,
+                        accentColor: TurnaTheme.peacockCyan,
                         onTap: () => context.router.push(
                           const TextbookImportRoute(),
                         ),
@@ -227,9 +223,8 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
                 title: AppStrings.playReviewProgressTitle,
                 subtitle: AppStrings.playReviewProgressSubtitle,
                 icon: Icons.show_chart_rounded,
-                accentColor: VarnamalaTheme.peacockTeal,
-                onTap: () =>
-                    context.router.push(const ReviewProgressRoute()),
+                accentColor: TurnaTheme.peacockTeal,
+                onTap: () => context.router.push(const ReviewProgressRoute()),
               ),
             ),
           ),
@@ -241,9 +236,8 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
                 title: AppStrings.playDictionaryTitle,
                 subtitle: AppStrings.playDictionarySubtitle,
                 icon: Icons.menu_book_outlined,
-                accentColor: VarnamalaTheme.peacockCyan,
-                onTap: () =>
-                    context.router.push(const DictionaryRoute()),
+                accentColor: TurnaTheme.peacockCyan,
+                onTap: () => context.router.push(const DictionaryRoute()),
               ),
             ),
           ),
@@ -270,22 +264,19 @@ class _AiStatusBar extends StatelessWidget {
     final complete = context.select(
       (AiEngineConfigHolder h) => h.config.isComplete,
     );
-    final statusColor =
-        complete ? VarnamalaTheme.success : VarnamalaTheme.warning;
+    final statusColor = complete ? TurnaTheme.success : TurnaTheme.warning;
     final actionColor =
-        VarnamalaTheme.accentOnCard(context, VarnamalaTheme.peacockTeal);
+        TurnaTheme.accentOnCard(context, TurnaTheme.peacockTeal);
 
     return SoftCard(
-      accentColor: VarnamalaTheme.peacockTeal,
+      accentColor: TurnaTheme.peacockTeal,
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
           children: [
             Icon(
-              complete
-                  ? Icons.check_circle_rounded
-                  : Icons.tune_rounded,
+              complete ? Icons.check_circle_rounded : Icons.tune_rounded,
               color: statusColor,
               size: 22,
             ),
@@ -298,7 +289,7 @@ class _AiStatusBar extends StatelessWidget {
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                       color: complete
-                          ? VarnamalaTheme.textPrimaryColor(context)
+                          ? TurnaTheme.textPrimaryColor(context)
                           : statusColor,
                     ),
                 maxLines: 1,

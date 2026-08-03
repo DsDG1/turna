@@ -1489,7 +1489,7 @@ class CourseAdapter:
         tmp_dir: Path | None = None
         result: SaveResult | None = None
         try:
-            tmp_dir = Path(tempfile.mkdtemp(prefix=".varnamala-save-"))
+            tmp_dir = Path(tempfile.mkdtemp(prefix=".turna-save-"))
             self._write_files_to_dir(tmp_dir)
 
             validate = api.validate_course_dir(tmp_dir)

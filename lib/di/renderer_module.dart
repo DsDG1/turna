@@ -2,21 +2,21 @@
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/views/lesson/components/interactions/anki_card_renderer.dart';
-import 'package:varnamala/views/lesson/components/interactions/anki_html_card_renderer.dart';
-import 'package:varnamala/views/lesson/components/interactions/fill_blank_renderer.dart';
-import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:varnamala/views/lesson/components/interactions/listen_and_pick_renderer.dart';
-import 'package:varnamala/views/lesson/components/interactions/listen_only_renderer.dart';
-import 'package:varnamala/views/lesson/components/interactions/multi_select_renderer.dart';
-import 'package:varnamala/views/lesson/components/interactions/multiple_choice_renderer.dart';
-import 'package:varnamala/views/lesson/components/interactions/reading_mcq_renderer.dart';
-import 'package:varnamala/views/lesson/components/interactions/reading_short_answer_renderer.dart';
-import 'package:varnamala/views/lesson/components/interactions/reading_true_false_renderer.dart';
-import 'package:varnamala/views/lesson/components/interactions/reorder_sentence_renderer.dart';
-import 'package:varnamala/views/lesson/components/interactions/show_word_renderer.dart';
-import 'package:varnamala/views/lesson/components/interactions/translate_sentence_renderer.dart';
-import 'package:varnamala/views/lesson/components/interactions/type_the_word_renderer.dart';
+import 'package:turna/views/lesson/components/interactions/anki_card_renderer.dart';
+import 'package:turna/views/lesson/components/interactions/anki_html_card_renderer.dart';
+import 'package:turna/views/lesson/components/interactions/fill_blank_renderer.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/views/lesson/components/interactions/listen_and_pick_renderer.dart';
+import 'package:turna/views/lesson/components/interactions/listen_only_renderer.dart';
+import 'package:turna/views/lesson/components/interactions/multi_select_renderer.dart';
+import 'package:turna/views/lesson/components/interactions/multiple_choice_renderer.dart';
+import 'package:turna/views/lesson/components/interactions/reading_mcq_renderer.dart';
+import 'package:turna/views/lesson/components/interactions/reading_short_answer_renderer.dart';
+import 'package:turna/views/lesson/components/interactions/reading_true_false_renderer.dart';
+import 'package:turna/views/lesson/components/interactions/reorder_sentence_renderer.dart';
+import 'package:turna/views/lesson/components/interactions/show_word_renderer.dart';
+import 'package:turna/views/lesson/components/interactions/translate_sentence_renderer.dart';
+import 'package:turna/views/lesson/components/interactions/type_the_word_renderer.dart';
 
 /// Plugin-style DI for [InteractionRenderer]s.
 ///

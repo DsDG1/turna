@@ -2,19 +2,19 @@
 import 'package:flutter_test/flutter_test.dart';
 
 // Project imports:
-import 'package:varnamala/application/anki/anki_card_adapter.dart';
-import 'package:varnamala/application/anki/anki_deck_assembler.dart';
-import 'package:varnamala/data/course_database.dart' as db;
-import 'package:varnamala/application/anki/anki_models.dart';
-import 'package:varnamala/domain/course/expression.dart';
-import 'package:varnamala/domain/course/grammar_point.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/domain/course/lesson.dart';
-import 'package:varnamala/domain/course/lesson_content.dart';
-import 'package:varnamala/domain/course/section.dart';
-import 'package:varnamala/domain/course/unit.dart';
-import 'package:varnamala/domain/course/word_entry.dart';
-import 'package:varnamala/domain/repositories/i_course_repository.dart';
+import 'package:turna/application/anki/anki_card_adapter.dart';
+import 'package:turna/application/anki/anki_deck_assembler.dart';
+import 'package:turna/data/course_database.dart' as db;
+import 'package:turna/application/anki/anki_models.dart';
+import 'package:turna/domain/course/expression.dart';
+import 'package:turna/domain/course/grammar_point.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/domain/course/lesson.dart';
+import 'package:turna/domain/course/lesson_content.dart';
+import 'package:turna/domain/course/section.dart';
+import 'package:turna/domain/course/unit.dart';
+import 'package:turna/domain/course/word_entry.dart';
+import 'package:turna/domain/repositories/i_course_repository.dart';
 
 /// Mock repository that captures written sections and vocabulary.
 class MockCourseRepository implements ICourseRepository {

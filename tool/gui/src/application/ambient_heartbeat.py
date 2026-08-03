@@ -12,7 +12,7 @@ from PySide6.QtCore import QObject, QTimer
 
 from src.backend.experience.policy import resolve_policy
 
-logger = logging.getLogger("varnamala.ambient_heartbeat")
+logger = logging.getLogger("turna.ambient_heartbeat")
 
 
 class AmbientHeartbeatService(QObject):

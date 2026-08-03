@@ -1,5 +1,5 @@
 // Project imports:
-import 'package:varnamala/core/logger.dart';
+import 'package:turna/core/logger.dart';
 import 'vocab.dart';
 
 /// Look up the meaning of [word] in the target-language vocabulary.

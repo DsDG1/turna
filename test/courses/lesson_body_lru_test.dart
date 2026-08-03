@@ -1,7 +1,7 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/courses/course_loader.dart';
-import 'package:varnamala/data/course_database.dart' as db;
+import 'package:turna/courses/course_loader.dart';
+import 'package:turna/data/course_database.dart' as db;
 import 'package:drift/drift.dart';
 
 import '../helpers/in_memory_course_db.dart';
@@ -58,7 +58,8 @@ void main() {
     await database.close();
   });
 
-  test('loadLessonById caches and remains correct under LRU pressure', () async {
+  test('loadLessonById caches and remains correct under LRU pressure',
+      () async {
     final cap = CourseLoader.lessonBodyCacheCap;
     // Fill beyond cap.
     for (var i = 0; i < cap + 5; i++) {

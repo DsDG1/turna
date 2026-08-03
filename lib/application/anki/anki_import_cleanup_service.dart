@@ -1,10 +1,10 @@
 // Project imports:
-import 'package:varnamala/application/srs_provider.dart';
-import 'package:varnamala/data/anki_import_dao.dart';
-import 'package:varnamala/data/anki_note_dao.dart';
-import 'package:varnamala/data/course_repository.dart';
-import 'package:varnamala/data/review_history_dao.dart';
-import 'package:varnamala/domain/audio/anki_audio_resolver.dart';
+import 'package:turna/application/srs_provider.dart';
+import 'package:turna/data/anki_import_dao.dart';
+import 'package:turna/data/anki_note_dao.dart';
+import 'package:turna/data/course_repository.dart';
+import 'package:turna/data/review_history_dao.dart';
+import 'package:turna/domain/audio/anki_audio_resolver.dart';
 
 /// Removes every persisted resource belonging to one Anki import.
 ///

@@ -1,8 +1,8 @@
-# Varnamala Plus
+# Turna
 
 > 本地优先、离线的 Flutter 语言学习框架。当前目标语：**Turkish**。
 
-基于上游 [Varnamala](https://github.com/rshrc/Varnamala) 的骨架，纯本地运行 —— SQLite（drift），无云后端/推送/登录，无社交功能。
+基于上游 [Turna](https://github.com/rshrc/Varnamala) 的骨架，纯本地运行 —— SQLite（drift），无云后端/推送/登录，无社交功能。
 
 ## 快速开始
 
@@ -37,7 +37,7 @@ flutter pub run build_runner build --delete-conflicting-outputs
 | **词典/搜索** | 搜单词、表达、语法点，`VocabAudioResolver` 播放音频 |
 | **学习统计** | 90 天学习日志 + 7 日 XP 趋势 + 时长/准确率/弱词分析 |
 | **AI 提示助手** | 课程内嵌 AI 聊天面板，按题目上下文提供提示（OpenAI-compatible） |
-| **主题** | 暗色/亮色/跟随系统，`VarnamalaTheme` 语义化颜色 |
+| **主题** | 暗色/亮色/跟随系统，`TurnaTheme` 语义化颜色 |
 | **本地提醒** | `flutter_local_notifications` 每日提醒 |
 | **进度管理** | 导出/导入 JSON，课程更新检测与重置提示 |
 

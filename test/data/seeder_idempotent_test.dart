@@ -14,13 +14,13 @@ import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
-import 'package:varnamala/data/course_database.dart';
-import 'package:varnamala/data/course_database_seeder.dart';
+import 'package:turna/data/course_database.dart';
+import 'package:turna/data/course_database_seeder.dart';
 
 import '../helpers/in_memory_course_db.dart';
 
 Future<String> _tempDbPath() async {
-  final dir = await Directory.systemTemp.createTemp('varnamala_seeder_');
+  final dir = await Directory.systemTemp.createTemp('turna_seeder_');
   return p.join(dir.path, 'course.db');
 }
 
@@ -86,7 +86,8 @@ void main() {
       expect(await DatabaseSeeder(db).seedIfNeeded(), isFalse);
     });
 
-    test('orphan vocabulary without sections clears and reseeds without PK crash',
+    test(
+        'orphan vocabulary without sections clears and reseeds without PK crash',
         () async {
       final db = CourseDatabase(NativeDatabase.memory());
       addTearDown(db.close);

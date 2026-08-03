@@ -1,12 +1,12 @@
-# Varnamala GUI AI 配置架构与功能分析报告
+# Turna GUI AI 配置架构与功能分析报告
 
-> **文档目的**：对 Varnamala 课程编辑器 GUI 中的全部 AI 实际配置、接入服务、后台架构与前端功能模块进行全方位深度解析。报告以**功能视角（Feature-Centric Perspective）**切入，系统梳理每个 AI 功能的配置机制、工作原理、底层实现路径以及最终呈现的教学与编辑效果。
+> **文档目的**：对 Turna 课程编辑器 GUI 中的全部 AI 实际配置、接入服务、后台架构与前端功能模块进行全方位深度解析。报告以**功能视角（Feature-Centric Perspective）**切入，系统梳理每个 AI 功能的配置机制、工作原理、底层实现路径以及最终呈现的教学与编辑效果。
 
 ---
 
 ## 一、 概述与架构愿景
 
-Varnamala GUI 采用了 **“Open → Save 全流程超级共生体”（Experience AI Co-pilot & Engine）** 架构设计。AI 在编辑器中并非孤立的对话框或单点工具，而是作为默认环境语言，贯穿从打开项目、教材导入、设计生成、实时编辑补全、校验修复到保存导出的全生命周期。
+Turna GUI 采用了 **“Open → Save 全流程超级共生体”（Experience AI Co-pilot & Engine）** 架构设计。AI 在编辑器中并非孤立的对话框或单点工具，而是作为默认环境语言，贯穿从打开项目、教材导入、设计生成、实时编辑补全、校验修复到保存导出的全生命周期。
 
 ### 关键设计原则：
 1. **双轨混合智能（Local-First Rule Engine + LLM Engine）**：优先使用零延迟、零消耗的本地规则/语义探针；在涉及复杂文本生成、跨节解构、错误诊治时无缝调度大语言模型。
@@ -79,7 +79,7 @@ ai_pipeline_default_mode: str   # 默认生成模式：fast (单次全量) | ref
 
 ```
 +-----------------------------------------------------------------------------------+
-|                            Varnamala GUI AI 功能全景                              |
+|                            Turna GUI AI 功能全景                              |
 +-----------------------------------------------------------------------------------+
 |  1. 教材工坊 (Textbook Workshop)    --> 智能切块 + JSON Schema 资产提取               |
 |  2. 分阶段生成 (Phased Pipeline)    --> 大纲规划 + 多线程并行 Lesson + 自动补全          |
@@ -114,7 +114,7 @@ ai_pipeline_default_mode: str   # 默认生成模式：fast (单次全量) | ref
 
 * **核心模块文件**：[ai_generator_dialog.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/dialogs/ai_generator_dialog.py)、[ai_pipeline.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/backend/ai_pipeline.py)、[ai_phased.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/backend/ai_phased.py)。
 * **功能描述**：
-  根据教师输入的课程主题或教学大纲，自动生成符合 Varnamala 规格的多 Unit/Lesson/Stage 完整课程 JSON。
+  根据教师输入的课程主题或教学大纲，自动生成符合 Turna 规格的多 Unit/Lesson/Stage 完整课程 JSON。
 
 * **实际配置与技术效果**：
   系统支持两种生成管线模式（可由 `ai_pipeline_default_mode` 控制）：
@@ -230,11 +230,11 @@ ai_pipeline_default_mode: str   # 默认生成模式：fast (单次全量) | ref
 
 ## 四、 总结与特点归纳
 
-通过对 Varnamala GUI AI 配置与架构的深度梳理，该系统展现出以下四大核心特点：
+通过对 Turna GUI AI 配置与架构的深度梳理，该系统展现出以下四大核心特点：
 
 ```
 +-----------------------------------------------------------------------------------+
-|                         Varnamala GUI AI 体系四大核心特点                         |
+|                         Turna GUI AI 体系四大核心特点                         |
 +-----------------------------------------------------------------------------------+
 |  1. 深度浸入与全流程感知  --> Context Bus <50ms 实时光标追踪，Open 到 Save 始终在场 |
 |  2. 极致安全与隐私保护    --> Key 仅内存单次持有，高危 Skill 开关与日预算防暴刷   |

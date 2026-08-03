@@ -5,13 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/application/audio_controller.dart';
-import 'package:varnamala/courses/languages/vocab.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:varnamala/views/lesson/components/lesson_practice_card.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/audio_controller.dart';
+import 'package:turna/courses/languages/vocab.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/views/lesson/components/lesson_practice_card.dart';
+import 'package:turna/views/theme.dart';
 
 /// Flashcard introducing a vocabulary word.
 ///
@@ -95,7 +95,7 @@ class _ShowWordCard extends StatelessWidget {
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+            borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
             onTap: onTap,
             child: LessonPracticeCard(
               variant: LessonPracticeCardVariant.surface,
@@ -121,13 +121,13 @@ class _ShowWordCard extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 44,
                               fontWeight: FontWeight.w700,
-                              color: VarnamalaTheme.textPrimaryColor(context),
+                              color: TurnaTheme.textPrimaryColor(context),
                             ),
                           ),
                           const SizedBox(width: 12),
                           const Icon(
                             Icons.volume_up_rounded,
-                            color: VarnamalaTheme.peacockTeal,
+                            color: TurnaTheme.peacockTeal,
                             size: 28,
                           ),
                         ],
@@ -140,7 +140,7 @@ class _ShowWordCard extends StatelessWidget {
                       translation,
                       style: TextStyle(
                         fontSize: 20,
-                        color: VarnamalaTheme.textSecondaryColor(context),
+                        color: TurnaTheme.textSecondaryColor(context),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -159,17 +159,17 @@ class _ShowWordCard extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 12),
                           decoration: BoxDecoration(
-                            color: VarnamalaTheme.peacockTeal
-                                .withValues(alpha: 0.06),
-                            borderRadius: BorderRadius.circular(
-                                VarnamalaTheme.radiusMedium),
+                            color:
+                                TurnaTheme.peacockTeal.withValues(alpha: 0.06),
+                            borderRadius:
+                                BorderRadius.circular(TurnaTheme.radiusMedium),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               const Icon(
                                 Icons.volume_up_rounded,
-                                color: VarnamalaTheme.peacockTeal,
+                                color: TurnaTheme.peacockTeal,
                                 size: 18,
                               ),
                               const SizedBox(width: 8),
@@ -179,8 +179,8 @@ class _ShowWordCard extends StatelessWidget {
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
                                     fontSize: 15,
-                                    color: VarnamalaTheme.textSecondaryColor(
-                                        context),
+                                    color:
+                                        TurnaTheme.textSecondaryColor(context),
                                     fontStyle: FontStyle.italic,
                                   ),
                                 ),
@@ -196,7 +196,7 @@ class _ShowWordCard extends StatelessWidget {
                     AppStrings.lessonTapToContinue,
                     style: TextStyle(
                       fontSize: 13,
-                      color: VarnamalaTheme.textHintColor(context)
+                      color: TurnaTheme.textHintColor(context)
                           .withValues(alpha: 0.8),
                       letterSpacing: 0.4,
                     ),
@@ -239,7 +239,7 @@ class _UnknownItemCard extends StatelessWidget {
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+            borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
             onTap: onTap,
             child: LessonPracticeCard(
               variant: LessonPracticeCardVariant.surface,
@@ -250,7 +250,7 @@ class _UnknownItemCard extends StatelessWidget {
                   Icon(
                     Icons.help_outline_rounded,
                     size: 48,
-                    color: VarnamalaTheme.textHint.withValues(alpha: 0.4),
+                    color: TurnaTheme.textHint.withValues(alpha: 0.4),
                   ),
                   const SizedBox(height: 12),
                   Text(
@@ -258,7 +258,7 @@ class _UnknownItemCard extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 16,
-                      color: VarnamalaTheme.textHintColor(context),
+                      color: TurnaTheme.textHintColor(context),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -266,7 +266,7 @@ class _UnknownItemCard extends StatelessWidget {
                     AppStrings.lessonTapToContinue,
                     style: TextStyle(
                       fontSize: 13,
-                      color: VarnamalaTheme.textHintColor(context)
+                      color: TurnaTheme.textHintColor(context)
                           .withValues(alpha: 0.8),
                       letterSpacing: 0.4,
                     ),

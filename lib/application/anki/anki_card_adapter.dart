@@ -2,16 +2,16 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 // Project imports:
-import 'package:varnamala/application/anki/anki_media_reference_extractor.dart';
-import 'package:varnamala/application/anki/anki_models.dart';
-import 'package:varnamala/application/anki/anki_template_renderer.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/domain/course/word_entry.dart';
+import 'package:turna/application/anki/anki_media_reference_extractor.dart';
+import 'package:turna/application/anki/anki_models.dart';
+import 'package:turna/application/anki/anki_template_renderer.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/domain/course/word_entry.dart';
 
 part 'anki_card_adapter.freezed.dart';
 part 'anki_card_adapter.g.dart';
 
-/// How an Anki notetype maps to Varnamala card types.
+/// How an Anki notetype maps to Turna card types.
 enum NotetypeMappingType {
   /// Generic flip card (AnkiCard interaction). At adapt time the adapter
   /// auto-upgrades objectively-gradable cards (short answer, audio, cloze,
@@ -86,7 +86,7 @@ class AnkiAdaptResult {
   });
 }
 
-/// Translates Anki notes + cards into Varnamala domain objects.
+/// Translates Anki notes + cards into Turna domain objects.
 ///
 /// Two paths:
 /// 1. Heuristic (offline, default) — field name pattern matching
@@ -113,7 +113,7 @@ class AnkiCardAdapter {
   ) =>
       const AnkiMediaReferenceExtractor().extract(rawField, importId);
 
-  /// Adapt a single Anki note + card into Varnamala domain objects.
+  /// Adapt a single Anki note + card into Turna domain objects.
   ///
   /// [importId] is the UUID for this import session (used in id generation).
   /// [mapping] is the notetype mapping decision (from heuristic or AI).

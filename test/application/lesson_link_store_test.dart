@@ -3,9 +3,9 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
-import 'package:varnamala/application/lesson_link_store.dart';
-import 'package:varnamala/domain/course/lesson_word_link.dart';
-import 'package:varnamala/service/locator.dart';
+import 'package:turna/application/lesson_link_store.dart';
+import 'package:turna/domain/course/lesson_word_link.dart';
+import 'package:turna/service/locator.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -141,8 +141,8 @@ void main() {
 
   group('corruption handling', () {
     test('decodes invalid JSON to an empty map without crashing', () async {
-      await prefs.preferences.setString(
-          LocalStateKeys.lessonWordLinks, 'not-json');
+      await prefs.preferences
+          .setString(LocalStateKeys.lessonWordLinks, 'not-json');
       final corrupted = LessonLinkStore(prefs);
       expect(corrupted.readAll(), isEmpty);
     });

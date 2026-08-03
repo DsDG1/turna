@@ -7,9 +7,9 @@ import 'package:http/http.dart' as http;
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/application/ai/engine/ai_cancel_token.dart';
-import 'package:varnamala/application/ai/engine/ai_engine_config.dart';
-import 'package:varnamala/application/ai/engine/ai_stream_chunk.dart';
+import 'package:turna/application/ai/engine/ai_cancel_token.dart';
+import 'package:turna/application/ai/engine/ai_engine_config.dart';
+import 'package:turna/application/ai/engine/ai_stream_chunk.dart';
 
 /// OpenAI-compatible HTTP client with streaming, cooperative cancel, and
 /// `json_schema` -> `json_object` auto-fallback.

@@ -7,16 +7,16 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
-import 'package:varnamala/application/course_provider.dart';
-import 'package:varnamala/application/game_provider.dart';
-import 'package:varnamala/application/grammar_review_provider.dart';
-import 'package:varnamala/application/mistake_provider.dart';
-import 'package:varnamala/application/providers.dart';
-import 'package:varnamala/application/srs_provider.dart';
-import 'package:varnamala/application/theme_provider.dart';
-import 'package:varnamala/data/course_database.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/service/locator.dart';
+import 'package:turna/application/course_provider.dart';
+import 'package:turna/application/game_provider.dart';
+import 'package:turna/application/grammar_review_provider.dart';
+import 'package:turna/application/mistake_provider.dart';
+import 'package:turna/application/providers.dart';
+import 'package:turna/application/srs_provider.dart';
+import 'package:turna/application/theme_provider.dart';
+import 'package:turna/data/course_database.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/service/locator.dart';
 
 import '../helpers/in_memory_course_db.dart';
 

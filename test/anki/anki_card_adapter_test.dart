@@ -2,9 +2,9 @@
 import 'package:flutter_test/flutter_test.dart';
 
 // Project imports:
-import 'package:varnamala/application/anki/anki_card_adapter.dart';
-import 'package:varnamala/application/anki/anki_models.dart';
-import 'package:varnamala/domain/course/interaction.dart';
+import 'package:turna/application/anki/anki_card_adapter.dart';
+import 'package:turna/application/anki/anki_models.dart';
+import 'package:turna/domain/course/interaction.dart';
 
 void main() {
   group('AnkiCardAdapter', () {
@@ -168,8 +168,7 @@ void main() {
         );
       });
 
-      test('parseCorrectIndices does not treat "0" as a 0-based option',
-          () {
+      test('parseCorrectIndices does not treat "0" as a 0-based option', () {
         // Regression: a teacher using "0" as a "no answer" sentinel was
         // getting option A marked correct via the 0-based fallback branch.
         // Numeric answers are 1-based; out-of-range and 0 produce an empty

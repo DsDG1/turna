@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/application/weak_word_quiz_assembler.dart';
-import 'package:varnamala/courses/languages/vocab.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/domain/course/mistake_entry.dart';
-import 'package:varnamala/domain/course/word_entry.dart';
+import 'package:turna/application/weak_word_quiz_assembler.dart';
+import 'package:turna/courses/languages/vocab.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/domain/course/mistake_entry.dart';
+import 'package:turna/domain/course/word_entry.dart';
 
 void main() {
   final now = DateTime(2026, 7, 11, 12);
@@ -53,7 +53,8 @@ void main() {
       mistake('1', 'w-a', now.subtract(const Duration(days: 1))),
       mistake('2', 'w-a', now.subtract(const Duration(days: 2))),
       mistake('3', 'w-b', now.subtract(const Duration(days: 1))), // only once
-      mistake('4', 'w-c', now.subtract(const Duration(days: 40))), // outside window
+      mistake(
+          '4', 'w-c', now.subtract(const Duration(days: 40))), // outside window
       mistake('5', 'w-c', now.subtract(const Duration(days: 41))),
     ];
 

@@ -1,6 +1,6 @@
 """External Git course library backend.
 
-Connects to a remote git repository that stores Varnamala course directories,
+Connects to a remote git repository that stores Turna course directories,
 lets the editor clone/pull/push them, and can copy a cloned course into the
 app's bundled ``assets/courses/<lang>/`` directory so it ships with the Flutter
 app.

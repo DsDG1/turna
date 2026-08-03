@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/application/anki/anki_media_reference_extractor.dart';
+import 'package:turna/application/anki/anki_media_reference_extractor.dart';
 
 void main() {
   const extractor = AnkiMediaReferenceExtractor();

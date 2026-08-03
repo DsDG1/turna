@@ -91,7 +91,7 @@ class InitCourseDialog(QDialog):
         layout.addWidget(buttons)
 
     def _load_defaults(self) -> None:
-        settings = QSettings("Varnamala", "CourseEditor")
+        settings = QSettings("Turna", "CourseEditor")
         last_dir = settings.value("last_init_dir", "")
         if last_dir and isinstance(last_dir, str):
             self.dir_edit.setText(last_dir)
@@ -137,7 +137,7 @@ class InitCourseDialog(QDialog):
             return
 
         self._init_dir = course_dir
-        settings = QSettings("Varnamala", "CourseEditor")
+        settings = QSettings("Turna", "CourseEditor")
         settings.setValue("last_init_dir", str(parent_path))
         self.accept()
 

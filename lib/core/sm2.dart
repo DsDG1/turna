@@ -1,7 +1,7 @@
 import 'dart:math';
 
-import 'package:varnamala/core/srs_scheduler.dart';
-import 'package:varnamala/domain/course/srs_word.dart';
+import 'package:turna/core/srs_scheduler.dart';
+import 'package:turna/domain/course/srs_word.dart';
 
 /// Legacy SM-2 spaced-repetition algorithm (kept for tests / opt-in).
 ///

@@ -5,20 +5,20 @@ import 'dart:convert';
 import 'package:drift/drift.dart' hide Expression;
 
 // Project imports:
-import 'package:varnamala/core/logger.dart';
-import 'package:varnamala/core/utils.dart';
-import 'package:varnamala/data/course_database.dart' as db;
-import 'package:varnamala/data/course_database_seeder.dart';
-import 'package:varnamala/domain/course/expression.dart';
-import 'package:varnamala/domain/course/grammar_point.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/domain/course/lesson.dart';
-import 'package:varnamala/domain/course/lesson_content.dart';
-import 'package:varnamala/domain/course/section.dart';
-import 'package:varnamala/domain/course/unit.dart';
-import 'package:varnamala/domain/course/word_entry.dart';
+import 'package:turna/core/logger.dart';
+import 'package:turna/core/utils.dart';
+import 'package:turna/data/course_database.dart' as db;
+import 'package:turna/data/course_database_seeder.dart';
+import 'package:turna/domain/course/expression.dart';
+import 'package:turna/domain/course/grammar_point.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/domain/course/lesson.dart';
+import 'package:turna/domain/course/lesson_content.dart';
+import 'package:turna/domain/course/section.dart';
+import 'package:turna/domain/course/unit.dart';
+import 'package:turna/domain/course/word_entry.dart';
 import 'package:injectable/injectable.dart';
-import 'package:varnamala/domain/repositories/i_course_repository.dart';
+import 'package:turna/domain/repositories/i_course_repository.dart';
 
 /// Reads course content from [CourseDatabase] and reconstructs the existing
 /// freezed domain models ([Section]/[Unit]/[Lesson]/[LessonContent]/

@@ -7,14 +7,14 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
-import 'package:varnamala/application/mistake_provider.dart';
-import 'package:varnamala/application/study_stats_provider.dart';
-import 'package:varnamala/courses/languages/vocab.dart';
-import 'package:varnamala/data/study_log_repository.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/domain/course/mistake_entry.dart';
-import 'package:varnamala/domain/course/word_entry.dart';
-import 'package:varnamala/service/locator.dart';
+import 'package:turna/application/mistake_provider.dart';
+import 'package:turna/application/study_stats_provider.dart';
+import 'package:turna/courses/languages/vocab.dart';
+import 'package:turna/data/study_log_repository.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/domain/course/mistake_entry.dart';
+import 'package:turna/domain/course/word_entry.dart';
+import 'package:turna/service/locator.dart';
 
 class _TestVocab {
   static WordEntry of(String id) => WordEntry(
@@ -88,7 +88,8 @@ void main() {
         interactionId: 'i',
         wordId: 'w-hello',
         grammarPointId: null,
-        interactionSnapshot: const Interaction.showWord(id: 'i', wordId: 'w-hello'),
+        interactionSnapshot:
+            const Interaction.showWord(id: 'i', wordId: 'w-hello'),
         userAnswer: 'x',
         correctAnswer: 'hello',
         timestamp: now.subtract(const Duration(minutes: 5)),
@@ -100,7 +101,8 @@ void main() {
         interactionId: 'i',
         wordId: 'w-hello',
         grammarPointId: null,
-        interactionSnapshot: const Interaction.showWord(id: 'i', wordId: 'w-hello'),
+        interactionSnapshot:
+            const Interaction.showWord(id: 'i', wordId: 'w-hello'),
         userAnswer: 'x',
         correctAnswer: 'hello',
         timestamp: now.subtract(const Duration(minutes: 4)),
@@ -112,7 +114,8 @@ void main() {
         interactionId: 'i',
         wordId: 'w-bye',
         grammarPointId: null,
-        interactionSnapshot: const Interaction.showWord(id: 'i', wordId: 'w-bye'),
+        interactionSnapshot:
+            const Interaction.showWord(id: 'i', wordId: 'w-bye'),
         userAnswer: 'y',
         correctAnswer: 'bye',
         timestamp: now.subtract(const Duration(minutes: 3)),

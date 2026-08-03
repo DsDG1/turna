@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/views/lesson/components/interactions/anki_card_renderer.dart';
-import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/views/lesson/components/interactions/anki_card_renderer.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

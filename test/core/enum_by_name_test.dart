@@ -1,6 +1,6 @@
 // Project imports:
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/core/utils.dart';
+import 'package:turna/core/utils.dart';
 
 enum _Fruit { apple, banana, cherry }
 

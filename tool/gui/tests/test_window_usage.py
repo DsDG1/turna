@@ -32,7 +32,7 @@ class _SampleWindow(WindowUsageMixin, QDialog):
 
 class WindowUsageTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_winuse_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_winuse_"))
         self.log_file = self.tmp / "operations.log"
         self._orig_ops = operations_log.operations
         self.ops = Telemetry(self.log_file)

@@ -8,22 +8,22 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/anki/anki_deck_manager.dart';
-import 'package:varnamala/application/anki/anki_review_assembler.dart';
-import 'package:varnamala/data/anki_note_dao.dart';
-import 'package:varnamala/application/course_provider.dart';
-import 'package:varnamala/application/game_provider.dart';
-import 'package:varnamala/application/gems_provider.dart';
-import 'package:varnamala/application/lesson_viewmodel.dart';
-import 'package:varnamala/application/srs_provider.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/domain/course/srs_word.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:varnamala/views/lesson/components/lesson_dialogs.dart';
-import 'package:varnamala/views/lesson/components/lesson_stage_widgets.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/anki/anki_deck_manager.dart';
+import 'package:turna/application/anki/anki_review_assembler.dart';
+import 'package:turna/data/anki_note_dao.dart';
+import 'package:turna/application/course_provider.dart';
+import 'package:turna/application/game_provider.dart';
+import 'package:turna/application/gems_provider.dart';
+import 'package:turna/application/lesson_viewmodel.dart';
+import 'package:turna/application/srs_provider.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/domain/course/srs_word.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/views/lesson/components/lesson_dialogs.dart';
+import 'package:turna/views/lesson/components/lesson_stage_widgets.dart';
+import 'package:turna/views/theme.dart';
 
 /// Anki review session. Collects due Anki cards (optionally filtered by
 /// [sectionId]) into a synthetic in-memory [Lesson] and plays it through the
@@ -365,7 +365,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: VarnamalaTheme.scaffoldBg(context),
+      backgroundColor: TurnaTheme.scaffoldBg(context),
       appBar: _buildAppBar(context),
       body: _loading
           ? _buildLoading()
@@ -396,7 +396,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
                             if (selected.$3 != null)
                               LessonStageBanner(
                                 name: selected.$3!,
-                                accent: VarnamalaTheme.leagueAmethyst,
+                                accent: TurnaTheme.leagueAmethyst,
                               ),
                             Expanded(
                               child: renderer.build(
@@ -442,13 +442,13 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
 
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     return AppBar(
-      backgroundColor: VarnamalaTheme.surfaceColor(context),
+      backgroundColor: TurnaTheme.surfaceColor(context),
       elevation: 0,
       leading: IconButton(
         tooltip: AppStrings.commonClose,
         icon: Icon(
           Icons.close_rounded,
-          color: VarnamalaTheme.textPrimaryColor(context),
+          color: TurnaTheme.textPrimaryColor(context),
         ),
         onPressed: () => Navigator.of(context).maybePop(),
       ),
@@ -457,7 +457,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
         style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w700,
-          color: VarnamalaTheme.textPrimaryColor(context),
+          color: TurnaTheme.textPrimaryColor(context),
         ),
       ),
       centerTitle: true,
@@ -483,9 +483,9 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
                 builder: (context, progress, _) => LinearProgressIndicator(
                   value: progress,
                   backgroundColor:
-                      VarnamalaTheme.leagueAmethyst.withValues(alpha: 0.1),
+                      TurnaTheme.leagueAmethyst.withValues(alpha: 0.1),
                   valueColor: const AlwaysStoppedAnimation<Color>(
-                      VarnamalaTheme.leagueAmethyst),
+                      TurnaTheme.leagueAmethyst),
                 ),
               ),
             ),
@@ -505,7 +505,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
               AppStrings.ankiReviewPreparing,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: VarnamalaTheme.textSecondaryColor(context),
+                    color: TurnaTheme.textSecondaryColor(context),
                   ),
             ),
           ],
@@ -524,7 +524,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
             Icon(
               Icons.error_outline_rounded,
               size: 64,
-              color: VarnamalaTheme.error.withValues(alpha: 0.7),
+              color: TurnaTheme.error.withValues(alpha: 0.7),
             ),
             const SizedBox(height: 16),
             Text(
@@ -539,7 +539,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
               AppStrings.ankiReviewLoadFailedDetail(_error ?? ''),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: VarnamalaTheme.textSecondaryColor(context),
+                    color: TurnaTheme.textSecondaryColor(context),
                   ),
             ),
             const SizedBox(height: 20),
@@ -567,14 +567,14 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
             Icon(
               Icons.check_circle_outline_rounded,
               size: 64,
-              color: VarnamalaTheme.success.withValues(alpha: 0.6),
+              color: TurnaTheme.success.withValues(alpha: 0.6),
             ),
             const SizedBox(height: 16),
             Text(
               AppStrings.ankiNoCardsDue,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: VarnamalaTheme.textSecondaryColor(context),
+                    color: TurnaTheme.textSecondaryColor(context),
                   ),
             ),
             const SizedBox(height: 16),

@@ -2,8 +2,8 @@
 // prefix delete, and the `recalled` derivation.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/data/review_history_dao.dart';
-import 'package:varnamala/domain/course/srs_word.dart';
+import 'package:turna/data/review_history_dao.dart';
+import 'package:turna/domain/course/srs_word.dart';
 
 import '../helpers/in_memory_course_db.dart';
 
@@ -69,12 +69,12 @@ void main() {
     });
 
     test('eventsForCard returns oldest first', () async {
-      await dao.insertEvent(
-          makeEvent(cardId: 'w-1', quality: 1, reviewedAt: DateTime(2026, 7, 1)));
-      await dao.insertEvent(
-          makeEvent(cardId: 'w-1', quality: 4, reviewedAt: DateTime(2026, 7, 2)));
-      await dao.insertEvent(
-          makeEvent(cardId: 'w-1', quality: 4, reviewedAt: DateTime(2026, 7, 3)));
+      await dao.insertEvent(makeEvent(
+          cardId: 'w-1', quality: 1, reviewedAt: DateTime(2026, 7, 1)));
+      await dao.insertEvent(makeEvent(
+          cardId: 'w-1', quality: 4, reviewedAt: DateTime(2026, 7, 2)));
+      await dao.insertEvent(makeEvent(
+          cardId: 'w-1', quality: 4, reviewedAt: DateTime(2026, 7, 3)));
 
       final events = await dao.eventsForCard('w-1');
       expect(events.map((e) => e.quality), [1, 4, 4]);
@@ -107,12 +107,12 @@ void main() {
     });
 
     test('allEvents is sorted by cardId then time', () async {
-      await dao.insertEvent(
-          makeEvent(cardId: 'w-2', quality: 4, reviewedAt: DateTime(2026, 7, 1)));
-      await dao.insertEvent(
-          makeEvent(cardId: 'w-1', quality: 4, reviewedAt: DateTime(2026, 7, 2)));
-      await dao.insertEvent(
-          makeEvent(cardId: 'w-1', quality: 1, reviewedAt: DateTime(2026, 7, 1)));
+      await dao.insertEvent(makeEvent(
+          cardId: 'w-2', quality: 4, reviewedAt: DateTime(2026, 7, 1)));
+      await dao.insertEvent(makeEvent(
+          cardId: 'w-1', quality: 4, reviewedAt: DateTime(2026, 7, 2)));
+      await dao.insertEvent(makeEvent(
+          cardId: 'w-1', quality: 1, reviewedAt: DateTime(2026, 7, 1)));
       final all = await dao.allEvents();
       expect(all.map((e) => '${e.cardId}:${e.quality}').toList(),
           ['w-1:1', 'w-1:4', 'w-2:4']);

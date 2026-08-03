@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from time import time
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-logger = logging.getLogger("varnamala.regret_suppression")
+logger = logging.getLogger("turna.regret_suppression")
 
 ApplyFn = Callable[[], Tuple[bool, str]]
 

@@ -7,12 +7,12 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/memory_curve_provider.dart';
-import 'package:varnamala/application/study_stats_provider.dart';
-import 'package:varnamala/domain/study/daily_stats.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/routing/routing.gr.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/memory_curve_provider.dart';
+import 'package:turna/application/study_stats_provider.dart';
+import 'package:turna/domain/study/daily_stats.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/routing/routing.gr.dart';
+import 'package:turna/views/theme.dart';
 
 /// Displays today's learning summary and recent activity trends.
 ///
@@ -98,8 +98,7 @@ class _LearningStatsState extends State<LearningStats> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionTitle(context,
-              AppStrings.profileLearningStatsTitle,
+          _sectionTitle(context, AppStrings.profileLearningStatsTitle,
               Icons.bar_chart_rounded),
           const SizedBox(height: 8),
           FutureBuilder<DailyStudyStats>(
@@ -159,7 +158,7 @@ class _LearningStatsState extends State<LearningStats> {
       padding: const EdgeInsets.only(top: 20, bottom: 8),
       child: Row(
         children: [
-          Icon(icon, color: VarnamalaTheme.peacockTeal, size: 22),
+          Icon(icon, color: TurnaTheme.peacockTeal, size: 22),
           const SizedBox(width: 8),
           Text(
             text,
@@ -183,37 +182,36 @@ class _TodaySummary extends StatelessWidget {
     final s = stats;
     final xp = s?.totalXp ?? 0;
     final minutes = ((s?.totalDurationSeconds ?? 0) / 60).ceil();
-    final accuracy = s != null
-        ? int.parse((s.accuracy * 100).toStringAsFixed(0))
-        : 0;
+    final accuracy =
+        s != null ? int.parse((s.accuracy * 100).toStringAsFixed(0)) : 0;
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-        border: Border.all(color: VarnamalaTheme.statCardBorder(context)),
+        color: TurnaTheme.cardBg(context),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        border: Border.all(color: TurnaTheme.statCardBorder(context)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _TodayItem(
             icon: Icons.bolt_rounded,
-            iconColor: VarnamalaTheme.peacockTurquoise,
+            iconColor: TurnaTheme.peacockTurquoise,
             value: xp.toString(),
             label: AppStrings.profileXpToday,
           ),
-          Container(width: 1, height: 40, color: VarnamalaTheme.dividerBg(context)),
+          Container(width: 1, height: 40, color: TurnaTheme.dividerBg(context)),
           _TodayItem(
             icon: Icons.timer_rounded,
-            iconColor: VarnamalaTheme.leagueAmethyst,
+            iconColor: TurnaTheme.leagueAmethyst,
             value: AppStrings.profileStudyTimeValue(minutes),
             label: AppStrings.profileStudyTime,
           ),
-          Container(width: 1, height: 40, color: VarnamalaTheme.dividerBg(context)),
+          Container(width: 1, height: 40, color: TurnaTheme.dividerBg(context)),
           _TodayItem(
             icon: Icons.percent_rounded,
-            iconColor: VarnamalaTheme.successDark,
+            iconColor: TurnaTheme.successDark,
             value: AppStrings.profileAccuracyValue(accuracy),
             label: AppStrings.profileAccuracy,
           ),
@@ -252,7 +250,7 @@ class _TodayItem extends StatelessWidget {
         Text(
           label,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: VarnamalaTheme.textHintColor(context),
+                color: TurnaTheme.textHintColor(context),
                 fontWeight: FontWeight.w500,
               ),
         ),
@@ -270,19 +268,24 @@ class _WeeklyXpBars extends StatelessWidget {
   Widget build(BuildContext context) {
     if (days.isEmpty) return const SizedBox.shrink();
 
-    final maxXp = days.map((d) => d.totalXp).fold<int>(1, (a, b) => a > b ? a : b);
+    final maxXp =
+        days.map((d) => d.totalXp).fold<int>(1, (a, b) => a > b ? a : b);
     final dayLabels = [
-    AppStrings.dayMon, AppStrings.dayTue, AppStrings.dayWed,
-    AppStrings.dayThu, AppStrings.dayFri, AppStrings.daySat,
-    AppStrings.daySun,
-  ];
+      AppStrings.dayMon,
+      AppStrings.dayTue,
+      AppStrings.dayWed,
+      AppStrings.dayThu,
+      AppStrings.dayFri,
+      AppStrings.daySat,
+      AppStrings.daySun,
+    ];
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-        border: Border.all(color: VarnamalaTheme.statCardBorder(context)),
+        color: TurnaTheme.cardBg(context),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        border: Border.all(color: TurnaTheme.statCardBorder(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -309,7 +312,7 @@ class _WeeklyXpBars extends StatelessWidget {
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
-                          color: VarnamalaTheme.textHintColor(context),
+                          color: TurnaTheme.textHintColor(context),
                         ),
                   ),
                   const SizedBox(height: 4),
@@ -318,8 +321,8 @@ class _WeeklyXpBars extends StatelessWidget {
                     height: barHeight,
                     decoration: BoxDecoration(
                       color: day.totalXp > 0
-                          ? VarnamalaTheme.peacockTeal
-                          : VarnamalaTheme.dividerBg(context),
+                          ? TurnaTheme.peacockTeal
+                          : TurnaTheme.dividerBg(context),
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
@@ -329,7 +332,7 @@ class _WeeklyXpBars extends StatelessWidget {
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: VarnamalaTheme.textHintColor(context),
+                          color: TurnaTheme.textHintColor(context),
                         ),
                   ),
                 ],
@@ -350,9 +353,9 @@ class _OverallStatsGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final totalMinutes = (data['totalMinutes'] as num?)?.toInt() ?? 0;
-    final accuracy = int.parse((((data['accuracy'] as num?) ?? 0.0)
-            .toDouble() * 100)
-        .toStringAsFixed(0));
+    final accuracy = int.parse(
+        (((data['accuracy'] as num?) ?? 0.0).toDouble() * 100)
+            .toStringAsFixed(0));
     final totalLessons = (data['totalLessons'] as num?)?.toInt() ?? 0;
     final totalReviews = (data['totalReviews'] as num?)?.toInt() ?? 0;
 
@@ -366,27 +369,25 @@ class _OverallStatsGrid extends StatelessWidget {
       children: [
         _StatCard(
           icon: Icons.timer_rounded,
-          iconColor: VarnamalaTheme.leagueAmethyst,
-          value: AppStrings
-              .profileTotalStudyTimeValue(totalMinutes),
+          iconColor: TurnaTheme.leagueAmethyst,
+          value: AppStrings.profileTotalStudyTimeValue(totalMinutes),
           label: AppStrings.profileTotalStudyTime,
         ),
         _StatCard(
           icon: Icons.percent_rounded,
-          iconColor: VarnamalaTheme.successDark,
-          value:
-              AppStrings.profileOverallAccuracyValue(accuracy),
+          iconColor: TurnaTheme.successDark,
+          value: AppStrings.profileOverallAccuracyValue(accuracy),
           label: AppStrings.profileOverallAccuracy,
         ),
         _StatCard(
           icon: Icons.school_rounded,
-          iconColor: VarnamalaTheme.peacockCyan,
+          iconColor: TurnaTheme.peacockCyan,
           value: totalLessons.toString(),
           label: AppStrings.profileLessonsDone,
         ),
         _StatCard(
           icon: Icons.repeat_rounded,
-          iconColor: VarnamalaTheme.leagueGold,
+          iconColor: TurnaTheme.leagueGold,
           value: totalReviews.toString(),
           label: AppStrings.profileReviewsDone,
         ),
@@ -411,9 +412,9 @@ class _AnkiStatsCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-        border: Border.all(color: VarnamalaTheme.statCardBorder(context)),
+        color: TurnaTheme.cardBg(context),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        border: Border.all(color: TurnaTheme.statCardBorder(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -421,7 +422,7 @@ class _AnkiStatsCard extends StatelessWidget {
           Row(
             children: [
               const Icon(Icons.layers_rounded,
-                  color: VarnamalaTheme.peacockTeal, size: 20),
+                  color: TurnaTheme.peacockTeal, size: 20),
               const SizedBox(width: 8),
               Text(
                 AppStrings.profileAnkiDecks,
@@ -437,15 +438,15 @@ class _AnkiStatsCard extends StatelessWidget {
             children: [
               _TodayItem(
                 icon: Icons.school_rounded,
-                iconColor: VarnamalaTheme.peacockCyan,
+                iconColor: TurnaTheme.peacockCyan,
                 value: ankiLessons.toString(),
                 label: AppStrings.profileAnkiLessons,
               ),
               Container(
-                  width: 1, height: 40, color: VarnamalaTheme.dividerBg(context)),
+                  width: 1, height: 40, color: TurnaTheme.dividerBg(context)),
               _TodayItem(
                 icon: Icons.repeat_rounded,
-                iconColor: VarnamalaTheme.leagueGold,
+                iconColor: TurnaTheme.leagueGold,
                 value: ankiReviews.toString(),
                 label: AppStrings.profileAnkiReviews,
               ),
@@ -475,9 +476,9 @@ class _StatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
-        border: Border.all(color: VarnamalaTheme.statCardBorder(context)),
+        color: TurnaTheme.cardBg(context),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+        border: Border.all(color: TurnaTheme.statCardBorder(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -504,7 +505,7 @@ class _StatCard extends StatelessWidget {
             child: Text(
               label,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: VarnamalaTheme.textHintColor(context),
+                    color: TurnaTheme.textHintColor(context),
                     fontWeight: FontWeight.w500,
                   ),
             ),
@@ -532,9 +533,9 @@ class _MemoryCurveCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-        border: Border.all(color: VarnamalaTheme.statCardBorder(context)),
+        color: TurnaTheme.cardBg(context),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        border: Border.all(color: TurnaTheme.statCardBorder(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -542,7 +543,7 @@ class _MemoryCurveCard extends StatelessWidget {
           Row(
             children: [
               Icon(Icons.show_chart_rounded,
-                  color: VarnamalaTheme.peacockTeal, size: 20),
+                  color: TurnaTheme.peacockTeal, size: 20),
               const SizedBox(width: 8),
               Text(
                 AppStrings.profileMemoryCurveTitle,
@@ -561,7 +562,7 @@ class _MemoryCurveCard extends StatelessWidget {
                 AppStrings.profileRetentionValue(retentionPct),
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w700,
-                      color: VarnamalaTheme.peacockTeal,
+                      color: TurnaTheme.peacockTeal,
                     ),
               ),
             ],
@@ -570,7 +571,7 @@ class _MemoryCurveCard extends StatelessWidget {
           Text(
             '${AppStrings.profileRetention} · ${AppStrings.profileReviewsCount(snapshot.totalReviews)}',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: VarnamalaTheme.textHintColor(context),
+                  color: TurnaTheme.textHintColor(context),
                 ),
           ),
           const SizedBox(height: 12),
@@ -584,7 +585,7 @@ class _MemoryCurveCard extends StatelessWidget {
                   AppStrings.profileMemoryCurveEmpty,
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: VarnamalaTheme.textHintColor(context),
+                        color: TurnaTheme.textHintColor(context),
                       ),
                 ),
               ),
@@ -599,9 +600,12 @@ class _MemoryCurveCard extends StatelessWidget {
           const SizedBox(height: 8),
           Row(
             children: [
-              _miniStat(context, snapshot.forecast.dueToday, AppStrings.profileDueToday),
-              _miniStat(context, snapshot.forecast.due7Days, AppStrings.profileDue7Days),
-              _miniStat(context, snapshot.forecast.due30Days, AppStrings.profileDue30Days),
+              _miniStat(context, snapshot.forecast.dueToday,
+                  AppStrings.profileDueToday),
+              _miniStat(context, snapshot.forecast.due7Days,
+                  AppStrings.profileDue7Days),
+              _miniStat(context, snapshot.forecast.due30Days,
+                  AppStrings.profileDue30Days),
             ],
           ),
           const SizedBox(height: 12),
@@ -618,7 +622,7 @@ class _MemoryCurveCard extends StatelessWidget {
             ),
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w700,
-                  color: VarnamalaTheme.primary,
+                  color: TurnaTheme.primary,
                 ),
           ),
           const SizedBox(height: 12),
@@ -633,14 +637,17 @@ class _MemoryCurveCard extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              _maturityChip(context, AppStrings.profileMaturityNew,
-                  snapshot.maturity.newCards, VarnamalaTheme.textHintColor(context)),
+              _maturityChip(
+                  context,
+                  AppStrings.profileMaturityNew,
+                  snapshot.maturity.newCards,
+                  TurnaTheme.textHintColor(context)),
               _maturityChip(context, AppStrings.profileMaturityYoung,
-                  snapshot.maturity.young, VarnamalaTheme.primaryLight),
+                  snapshot.maturity.young, TurnaTheme.primaryLight),
               _maturityChip(context, AppStrings.profileMaturityMature,
-                  snapshot.maturity.mature, VarnamalaTheme.success),
+                  snapshot.maturity.mature, TurnaTheme.success),
               _maturityChip(context, AppStrings.profileMaturityLeech,
-                  snapshot.maturity.leech, VarnamalaTheme.error),
+                  snapshot.maturity.leech, TurnaTheme.error),
             ],
           ),
         ],
@@ -653,7 +660,7 @@ class _MemoryCurveCard extends StatelessWidget {
       for (var i = 0; i < curve.length; i++)
         FlSpot(i.toDouble(), curve[i].retention),
     ];
-    final lineColor = VarnamalaTheme.peacockTeal;
+    final lineColor = TurnaTheme.peacockTeal;
     return LineChart(
       LineChartData(
         minY: 0,
@@ -665,12 +672,13 @@ class _MemoryCurveCard extends StatelessWidget {
           drawVerticalLine: false,
           horizontalInterval: 0.25,
           getDrawingHorizontalLine: (v) => FlLine(
-            color: VarnamalaTheme.dividerBg(context),
+            color: TurnaTheme.dividerBg(context),
             strokeWidth: 1,
           ),
         ),
         titlesData: FlTitlesData(
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           rightTitles:
               const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           leftTitles: AxisTitles(
@@ -683,7 +691,7 @@ class _MemoryCurveCard extends StatelessWidget {
                 child: Text('${(v * 100).round()}%',
                     style: TextStyle(
                         fontSize: 10,
-                        color: VarnamalaTheme.textHintColor(context))),
+                        color: TurnaTheme.textHintColor(context))),
               ),
             ),
           ),
@@ -702,7 +710,7 @@ class _MemoryCurveCard extends StatelessWidget {
                   child: Text('${curve[idx].intervalBucketDays}d',
                       style: TextStyle(
                           fontSize: 10,
-                          color: VarnamalaTheme.textHintColor(context))),
+                          color: TurnaTheme.textHintColor(context))),
                 );
               },
             ),
@@ -755,8 +763,8 @@ class _MemoryCurveCard extends StatelessWidget {
         margin: const EdgeInsets.only(right: 8),
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
         decoration: BoxDecoration(
-          color: VarnamalaTheme.inputFillColor(context),
-          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+          color: TurnaTheme.inputFillColor(context),
+          borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
         ),
         child: Column(
           children: [
@@ -770,7 +778,7 @@ class _MemoryCurveCard extends StatelessWidget {
             Text(
               label,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: VarnamalaTheme.textHintColor(context),
+                    color: TurnaTheme.textHintColor(context),
                   ),
             ),
           ],

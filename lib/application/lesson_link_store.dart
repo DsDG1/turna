@@ -5,9 +5,9 @@ import 'dart:convert';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/core/logger.dart';
-import 'package:varnamala/domain/course/lesson_word_link.dart';
-import 'package:varnamala/service/locator.dart';
+import 'package:turna/core/logger.dart';
+import 'package:turna/domain/course/lesson_word_link.dart';
+import 'package:turna/service/locator.dart';
 
 /// Single writer for [LocalStateKeys.lessonWordLinks].
 ///

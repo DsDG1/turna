@@ -1,10 +1,10 @@
 // Project imports:
-import 'package:varnamala/data/course_database.dart' as db;
-import 'package:varnamala/domain/course/expression.dart';
-import 'package:varnamala/domain/course/grammar_point.dart';
-import 'package:varnamala/domain/course/lesson.dart';
-import 'package:varnamala/domain/course/section.dart';
-import 'package:varnamala/domain/course/word_entry.dart';
+import 'package:turna/data/course_database.dart' as db;
+import 'package:turna/domain/course/expression.dart';
+import 'package:turna/domain/course/grammar_point.dart';
+import 'package:turna/domain/course/lesson.dart';
+import 'package:turna/domain/course/section.dart';
+import 'package:turna/domain/course/word_entry.dart';
 
 /// Read API for course content (DB-backed cache over JSON assets).
 ///

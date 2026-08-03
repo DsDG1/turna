@@ -5,12 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/achievements_provider.dart';
-import 'package:varnamala/application/game_provider.dart';
-import 'package:varnamala/domain/achievement.dart';
-import 'package:varnamala/domain/game/user_game_state.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/achievements_provider.dart';
+import 'package:turna/application/game_provider.dart';
+import 'package:turna/domain/achievement.dart';
+import 'package:turna/domain/game/user_game_state.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/theme.dart';
 
 class Achievements extends StatefulWidget {
   const Achievements({Key? key}) : super(key: key);
@@ -34,32 +34,32 @@ class _AchievementsState extends State<Achievements> {
 
         final displayedAchievements =
             _expanded ? achievements : achievements.take(3).toList();
-        final remainingCount = achievements.length - displayedAchievements.length;
+        final remainingCount =
+            achievements.length - displayedAchievements.length;
 
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _sectionTitle(
-                      context,
-                      AppStrings.profileAchievementsTitle,
-                      Icons.military_tech_rounded),
+              _sectionTitle(context, AppStrings.profileAchievementsTitle,
+                  Icons.military_tech_rounded),
               const SizedBox(height: 8),
               Container(
                 decoration: BoxDecoration(
-                  color: VarnamalaTheme.cardBg(context),
-                  borderRadius:
-                      BorderRadius.circular(VarnamalaTheme.radiusLarge),
-                  border: Border.all(color: VarnamalaTheme.statCardBorder(context)),
+                  color: TurnaTheme.cardBg(context),
+                  borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+                  border: Border.all(color: TurnaTheme.statCardBorder(context)),
                 ),
                 child: Column(
                   children: [
                     ...displayedAchievements.map((achievement) {
                       final progress = _getProgress(achievement, userData);
-                      final currentLevel = achievement.getCurrentLevel(progress);
-                      final nextTarget = achievement.getTargetForLevel(currentLevel);
-                      
+                      final currentLevel =
+                          achievement.getCurrentLevel(progress);
+                      final nextTarget =
+                          achievement.getTargetForLevel(currentLevel);
+
                       return Column(
                         children: [
                           _AchievementTile(
@@ -75,7 +75,10 @@ class _AchievementsState extends State<Achievements> {
                           if (achievement != displayedAchievements.last ||
                               (!_expanded && remainingCount > 0))
                             Divider(
-                                height: 1, indent: 16, endIndent: 16, color: VarnamalaTheme.dividerBg(context)),
+                                height: 1,
+                                indent: 16,
+                                endIndent: 16,
+                                color: TurnaTheme.dividerBg(context)),
                         ],
                       );
                     }),
@@ -89,10 +92,9 @@ class _AchievementsState extends State<Achievements> {
                             });
                           },
                           borderRadius: const BorderRadius.only(
-                            bottomLeft:
-                                Radius.circular(VarnamalaTheme.radiusLarge),
+                            bottomLeft: Radius.circular(TurnaTheme.radiusLarge),
                             bottomRight:
-                                Radius.circular(VarnamalaTheme.radiusLarge),
+                                Radius.circular(TurnaTheme.radiusLarge),
                           ),
                           child: Padding(
                             padding: const EdgeInsets.symmetric(
@@ -100,26 +102,25 @@ class _AchievementsState extends State<Achievements> {
                             child: Row(
                               children: [
                                 Text(
-                                  AppStrings
-                                      .profileViewMore(remainingCount),
+                                  AppStrings.profileViewMore(remainingCount),
                                   style: Theme.of(context)
                                       .textTheme
                                       .titleSmall
                                       ?.copyWith(
                                         fontWeight: FontWeight.w600,
-                                        color: VarnamalaTheme.peacockTeal,
+                                        color: TurnaTheme.peacockTeal,
                                       ),
                                 ),
                                 const Spacer(),
                                 const Icon(Icons.chevron_right_rounded,
-                                    color: VarnamalaTheme.peacockTeal, size: 22),
+                                    color: TurnaTheme.peacockTeal, size: 22),
                               ],
                             ),
                           ),
                         ),
                       ),
-                      if(_expanded)
-                       Material(
+                    if (_expanded)
+                      Material(
                         color: Colors.transparent,
                         child: InkWell(
                           onTap: () {
@@ -128,10 +129,9 @@ class _AchievementsState extends State<Achievements> {
                             });
                           },
                           borderRadius: const BorderRadius.only(
-                            bottomLeft:
-                                Radius.circular(VarnamalaTheme.radiusLarge),
+                            bottomLeft: Radius.circular(TurnaTheme.radiusLarge),
                             bottomRight:
-                                Radius.circular(VarnamalaTheme.radiusLarge),
+                                Radius.circular(TurnaTheme.radiusLarge),
                           ),
                           child: Padding(
                             padding: const EdgeInsets.symmetric(
@@ -145,12 +145,12 @@ class _AchievementsState extends State<Achievements> {
                                       .titleSmall
                                       ?.copyWith(
                                         fontWeight: FontWeight.w600,
-                                        color: VarnamalaTheme.peacockTeal,
+                                        color: TurnaTheme.peacockTeal,
                                       ),
                                 ),
                                 const Spacer(),
                                 const Icon(Icons.expand_less_rounded,
-                                    color: VarnamalaTheme.peacockTeal, size: 22),
+                                    color: TurnaTheme.peacockTeal, size: 22),
                               ],
                             ),
                           ),
@@ -188,7 +188,7 @@ class _AchievementsState extends State<Achievements> {
       padding: const EdgeInsets.only(top: 20, bottom: 8),
       child: Row(
         children: [
-          Icon(icon, color: VarnamalaTheme.peacockTeal, size: 22),
+          Icon(icon, color: TurnaTheme.peacockTeal, size: 22),
           const SizedBox(width: 8),
           Text(
             text,
@@ -228,8 +228,8 @@ class _AchievementTile extends StatelessWidget {
     // An achievement is complete once it reaches its maximum level, which
     // happens exactly when progress meets or exceeds the final target.
     bool isCompleted = level >= maxLevel;
-    int displayTarget = isCompleted ? current : target; 
-    
+    int displayTarget = isCompleted ? current : target;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
@@ -239,8 +239,7 @@ class _AchievementTile extends StatelessWidget {
             height: 48,
             decoration: BoxDecoration(
               color: iconColor.withValues(alpha: 0.1),
-              borderRadius:
-                  BorderRadius.circular(VarnamalaTheme.radiusMedium),
+              borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -248,8 +247,7 @@ class _AchievementTile extends StatelessWidget {
                 Icon(icon, color: iconColor, size: 24),
                 if (!isCompleted)
                   Text(
-                    AppStrings
-                        .profileAchievementLevel(level),
+                    AppStrings.profileAchievementLevel(level),
                     style: TextStyle(
                       fontSize: 9,
                       fontWeight: FontWeight.w700,
@@ -274,7 +272,7 @@ class _AchievementTile extends StatelessWidget {
                 Text(
                   description,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: VarnamalaTheme.textSecondary,
+                        color: TurnaTheme.textSecondary,
                       ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -284,26 +282,27 @@ class _AchievementTile extends StatelessWidget {
                   children: [
                     Expanded(
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(
-                            VarnamalaTheme.radiusRound),
+                        borderRadius:
+                            BorderRadius.circular(TurnaTheme.radiusRound),
                         child: LinearProgressIndicator(
-                          value: displayTarget > 0 ? (current / displayTarget).clamp(0.0, 1.0) : 0,
+                          value: displayTarget > 0
+                              ? (current / displayTarget).clamp(0.0, 1.0)
+                              : 0,
                           minHeight: 8,
-                          backgroundColor: VarnamalaTheme.dividerBg(context),
+                          backgroundColor: TurnaTheme.dividerBg(context),
                           valueColor: const AlwaysStoppedAnimation<Color>(
-                              VarnamalaTheme.success),
+                              TurnaTheme.success),
                         ),
                       ),
                     ),
                     const SizedBox(width: 10),
                     Text(
-                      AppStrings
-                          .profileAchievementProgress(current, displayTarget),
-                      style:
-                          Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: VarnamalaTheme.textHint,
-                                fontWeight: FontWeight.w600,
-                              ),
+                      AppStrings.profileAchievementProgress(
+                          current, displayTarget),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: TurnaTheme.textHint,
+                            fontWeight: FontWeight.w600,
+                          ),
                     ),
                   ],
                 ),

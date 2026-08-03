@@ -7,20 +7,20 @@ import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/application/ai/ai_course_provider.dart';
-import 'package:varnamala/application/ai/ai_course_service.dart';
-import 'package:varnamala/application/ai/ai_course_spec.dart';
-import 'package:varnamala/application/ai/engine/ai_cancel_token.dart';
-import 'package:varnamala/application/ai/engine/ai_engine.dart';
-import 'package:varnamala/application/ai/engine/ai_engine_config.dart';
-import 'package:varnamala/application/ai/engine/ai_recent_tasks_provider.dart';
-import 'package:varnamala/application/mistake_provider.dart';
-import 'package:varnamala/application/weak_word_quiz_assembler.dart';
-import 'package:varnamala/data/srs_state_dao.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/domain/course/mistake_entry.dart';
-import 'package:varnamala/domain/course/srs_word.dart';
-import 'package:varnamala/domain/study/daily_stats.dart';
+import 'package:turna/application/ai/ai_course_provider.dart';
+import 'package:turna/application/ai/ai_course_service.dart';
+import 'package:turna/application/ai/ai_course_spec.dart';
+import 'package:turna/application/ai/engine/ai_cancel_token.dart';
+import 'package:turna/application/ai/engine/ai_engine.dart';
+import 'package:turna/application/ai/engine/ai_engine_config.dart';
+import 'package:turna/application/ai/engine/ai_recent_tasks_provider.dart';
+import 'package:turna/application/mistake_provider.dart';
+import 'package:turna/application/weak_word_quiz_assembler.dart';
+import 'package:turna/data/srs_state_dao.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/domain/course/mistake_entry.dart';
+import 'package:turna/domain/course/srs_word.dart';
+import 'package:turna/domain/study/daily_stats.dart';
 
 /// Plan-driven generator that synthesizes a personalized remediation
 /// section (ADR 0026 / floofy-hugging-hopper Phase 2.2).
@@ -270,7 +270,7 @@ class SrsTutorProvider extends ChangeNotifier {
         'Generate ONE personalized remediation section whose primary goal is '
         'to drill the learner on the words, expressions, and grammar points '
         'they keep missing. '
-        'Output ONLY valid JSON matching the Varnamala section schema '
+        'Output ONLY valid JSON matching the Turna section schema '
         '(see AiCourseService). No prose, no markdown fences. The section '
         'must be self-contained: include its own words/expressions/grammar '
         'points and at least 4 practice interactions (mix of multipleChoice, '

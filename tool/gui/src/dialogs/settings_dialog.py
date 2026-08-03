@@ -38,7 +38,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from src.application.settings import Settings
+from src.application.settings import Settings, app_data_dir
 from src.backend import ai_presets
 from src.backend import credential_store
 from src.backend import git_remote_catalog
@@ -525,7 +525,7 @@ class SettingsDialog(QDialog):
 
         clone_root_row = QHBoxLayout()
         self.git_clone_root_edit = QLineEdit()
-        self.git_clone_root_edit.setPlaceholderText("默认克隆目录，如 ~/.varnamala/course-clones")
+        self.git_clone_root_edit.setPlaceholderText("默认克隆目录，如 ~/.turna/course-clones")
         clone_root_row.addWidget(self.git_clone_root_edit, 1)
         browse_clone = QPushButton("浏览...")
         browse_clone.clicked.connect(lambda: self._pick_dir(self.git_clone_root_edit))
@@ -850,7 +850,7 @@ class SettingsDialog(QDialog):
 
         note = QLabel(
             "记录最近 500 条操作（点击、输入、窗口运行时长、AI 回复耗时、启动时间、运行错误）。"
-            "API Key 等敏感字段记为 <redacted>。日志位于 ~/.varnamala-gui/，按天轮转保留 7 天。"
+            "API Key 等敏感字段记为 <redacted>。日志位于 ~/.turna-gui/，按天轮转保留 7 天。"
         )
         note.setObjectName("hintLabel")
         note.setWordWrap(True)
@@ -1143,7 +1143,7 @@ class SettingsDialog(QDialog):
         from PySide6.QtCore import QUrl
         from PySide6.QtGui import QDesktopServices
 
-        QDesktopServices.openUrl(QUrl.fromLocalFile(str(Path.home() / ".varnamala-gui")))
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(app_data_dir())))
 
     def _on_clear_telemetry(self) -> None:
         if self._confirm_clear("清空本地 AI 用量记录", "确定要清空本地 telemetry 日志吗？此操作不可撤销。"):

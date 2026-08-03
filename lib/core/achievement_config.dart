@@ -33,8 +33,7 @@ class AchievementConfig {
   ) {
     var gemsReward = 0;
     for (final milestone in list) {
-      if (value >= milestone.threshold &&
-          achievements.add(milestone.id)) {
+      if (value >= milestone.threshold && achievements.add(milestone.id)) {
         gemsReward += milestone.gemReward;
       }
     }

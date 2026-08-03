@@ -1,4 +1,4 @@
-// Widget test: AboutVarnamalaPage renders three tabs and the brand header.
+// Widget test: AboutTurnaPage renders three tabs and the brand header.
 //
 // rootBundle / PlatformAssetBundle 通过 raw bytes 发送 `flutter/assets`
 // 消息,不是 method call,因此测试必须用 `setMockMessageHandler` 而不是
@@ -10,9 +10,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/views/settings/about_varnamala_page.dart';
-import 'package:varnamala/views/settings/beginner_guide_page.dart';
-import 'package:varnamala/views/settings/changelog_page.dart';
+import 'package:turna/views/settings/about_turna_page.dart';
+import 'package:turna/views/settings/beginner_guide_page.dart';
+import 'package:turna/views/settings/changelog_page.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -36,7 +36,8 @@ void main() {
 ''';
 
   Future<ByteData?> assetsHandler(ByteData? message) async {
-    final key = message == null ? '' : utf8.decode(message.buffer.asUint8List());
+    final key =
+        message == null ? '' : utf8.decode(message.buffer.asUint8List());
     if (key.endsWith('changelog.md')) {
       return ByteData.sublistView(utf8.encode(minimalChangelog));
     }
@@ -56,11 +57,10 @@ void main() {
     TestWidgetsFlutterBinding.ensureInitialized();
   });
 
-  testWidgets('AboutVarnamalaPage shows 3 tabs and brand header',
-      (tester) async {
+  testWidgets('AboutTurnaPage shows 3 tabs and brand header', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(
-        home: AboutVarnamalaPage(),
+        home: AboutTurnaPage(),
       ),
     );
     for (var i = 0; i < 5; i++) {
@@ -80,7 +80,7 @@ void main() {
     await installHandler(assetsHandler);
     await tester.pumpWidget(
       const MaterialApp(
-        home: AboutVarnamalaPage(),
+        home: AboutTurnaPage(),
       ),
     );
     for (var i = 0; i < 5; i++) {
@@ -114,7 +114,7 @@ void main() {
     await installHandler(assetsHandler);
     await tester.pumpWidget(
       const MaterialApp(
-        home: AboutVarnamalaPage(),
+        home: AboutTurnaPage(),
       ),
     );
     for (var i = 0; i < 5; i++) {

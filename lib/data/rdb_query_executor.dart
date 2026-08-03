@@ -32,7 +32,7 @@ import 'package:flutter/foundation.dart';
 /// - BLOB columns return null (project has no BLOB columns).
 /// - Transaction support is best-effort (each executeSql is atomic).
 class HarmonyOsRdbExecutor extends QueryExecutor implements TransactionExecutor {
-  static const MethodChannel _channel = MethodChannel('com.varnamala/rdb');
+  static const MethodChannel _channel = MethodChannel('me.dsdogs.turna/rdb');
 
   @override
   final SqlDialect dialect = SqlDialect.sqlite;

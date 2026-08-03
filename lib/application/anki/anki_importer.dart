@@ -9,15 +9,15 @@ import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 
 // Project imports:
-import 'package:varnamala/application/anki/anki_models.dart';
-import 'package:varnamala/core/logger.dart';
+import 'package:turna/application/anki/anki_models.dart';
+import 'package:turna/core/logger.dart';
 
 // Platform imports:
 import 'anki_import_platform_stub.dart'
     if (dart.library.io) 'anki_import_platform_io.dart' as platform;
 
 /// Parses Anki `.apkg` / `.colpkg` files into an [AnkiCollection]
-/// intermediate representation. Pure parsing — does not touch the Varnamala
+/// intermediate representation. Pure parsing — does not touch the Turna
 /// database.
 ///
 /// Implementation notes:

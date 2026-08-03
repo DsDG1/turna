@@ -1,6 +1,6 @@
 // Project imports:
-import 'package:varnamala/courses/course_loader.dart';
-import 'package:varnamala/domain/course/grammar_point.dart';
+import 'package:turna/courses/course_loader.dart';
+import 'package:turna/domain/course/grammar_point.dart';
 
 /// Grammar points for the grammar-review SRS queue.
 ///

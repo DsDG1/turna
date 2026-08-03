@@ -4,12 +4,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:varnamala/application/language_provider.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/service/locator.dart';
-import 'package:varnamala/service/tts_availability_checker.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/language_provider.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/service/locator.dart';
+import 'package:turna/service/tts_availability_checker.dart';
+import 'package:turna/views/theme.dart';
 
 import 'components/center_display.dart';
 import 'components/get_started_button.dart';
@@ -28,7 +28,8 @@ class _SplashPageState extends State<SplashPage> {
   void initState() {
     super.initState();
     if (!kIsWeb && defaultTargetPlatform != TargetPlatform.ohos) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _checkTtsAvailability());
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _checkTtsAvailability());
     }
   }
 
@@ -125,7 +126,7 @@ class _SplashPageState extends State<SplashPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: VarnamalaTheme.scaffoldBg(context),
+      backgroundColor: TurnaTheme.scaffoldBg(context),
       body: Stack(
         children: [
           CustomPaint(

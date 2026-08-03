@@ -11,28 +11,28 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/ai/ai_hint_provider.dart';
-import 'package:varnamala/application/ai/ai_lesson_helper_provider.dart';
-import 'package:varnamala/application/ai/engine/ai_engine_config_holder.dart';
-import 'package:varnamala/application/fun_provider.dart';
-import 'package:varnamala/application/game_provider.dart';
-import 'package:varnamala/application/gems_provider.dart';
-import 'package:varnamala/application/lesson_viewmodel.dart';
-import 'package:varnamala/core/enums.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/domain/course/lesson.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/routing/routing.gr.dart';
-import 'package:varnamala/application/settings_provider.dart';
-import 'package:varnamala/service/tab_router.dart';
-import 'package:varnamala/service/xiaoyi_service.dart';
-import 'package:varnamala/views/lesson/components/ai_hint_sheet.dart';
-import 'package:varnamala/views/ai/ai_lesson_helper_sheet.dart';
-import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:varnamala/views/lesson/components/lesson_dialogs.dart';
-import 'package:varnamala/views/lesson/components/lesson_stage_widgets.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/ai/ai_hint_provider.dart';
+import 'package:turna/application/ai/ai_lesson_helper_provider.dart';
+import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
+import 'package:turna/application/fun_provider.dart';
+import 'package:turna/application/game_provider.dart';
+import 'package:turna/application/gems_provider.dart';
+import 'package:turna/application/lesson_viewmodel.dart';
+import 'package:turna/core/enums.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/domain/course/lesson.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/routing/routing.gr.dart';
+import 'package:turna/application/settings_provider.dart';
+import 'package:turna/service/tab_router.dart';
+import 'package:turna/service/xiaoyi_service.dart';
+import 'package:turna/views/lesson/components/ai_hint_sheet.dart';
+import 'package:turna/views/ai/ai_lesson_helper_sheet.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/views/lesson/components/lesson_dialogs.dart';
+import 'package:turna/views/lesson/components/lesson_stage_widgets.dart';
+import 'package:turna/views/theme.dart';
 
 @RoutePage()
 class NewLessonPage extends StatefulWidget {
@@ -116,7 +116,7 @@ class _NewLessonPageState extends State<NewLessonPage> {
       value: _vm,
       child: Builder(
         builder: (context) => Scaffold(
-          backgroundColor: VarnamalaTheme.scaffoldBg(context),
+          backgroundColor: TurnaTheme.scaffoldBg(context),
           appBar: _LessonAppBar(
             vm: _vm,
             onClose: () =>
@@ -224,10 +224,10 @@ class _NewLessonPageState extends State<NewLessonPage> {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: VarnamalaTheme.cardBg(context),
+      backgroundColor: TurnaTheme.cardBg(context),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
-          top: Radius.circular(VarnamalaTheme.radiusXLarge),
+          top: Radius.circular(TurnaTheme.radiusXLarge),
         ),
       ),
       builder: (_) => AiHintSheet(
@@ -255,10 +255,10 @@ class _NewLessonPageState extends State<NewLessonPage> {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: VarnamalaTheme.cardBg(context),
+      backgroundColor: TurnaTheme.cardBg(context),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
-          top: Radius.circular(VarnamalaTheme.radiusXLarge),
+          top: Radius.circular(TurnaTheme.radiusXLarge),
         ),
       ),
       builder: (_) => const AiLessonHelperSheet(),
@@ -425,13 +425,13 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
         aiEligible: _aiEligible(vm),
       ),
       builder: (context, s, _) => AppBar(
-        backgroundColor: VarnamalaTheme.surfaceColor(context),
+        backgroundColor: TurnaTheme.surfaceColor(context),
         elevation: 0,
         leading: IconButton(
           tooltip: AppStrings.commonClose,
           icon: Icon(
             Icons.close_rounded,
-            color: VarnamalaTheme.textPrimaryColor(context),
+            color: TurnaTheme.textPrimaryColor(context),
           ),
           // Disable close once complete (the completion dialog drives exit).
           onPressed: s.complete ? null : onClose,
@@ -443,7 +443,7 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: VarnamalaTheme.textPrimaryColor(context),
+                color: TurnaTheme.textPrimaryColor(context),
               ),
             ),
             if (s.stage != null) ...[
@@ -453,7 +453,7 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
-                  color: VarnamalaTheme.textSecondaryColor(context),
+                  color: TurnaTheme.textSecondaryColor(context),
                 ),
               ),
             ],
@@ -462,7 +462,7 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: VarnamalaTheme.error.withValues(alpha: 0.12),
+                  color: TurnaTheme.error.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -470,7 +470,7 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
-                    color: VarnamalaTheme.error,
+                    color: TurnaTheme.error,
                   ),
                 ),
               ),
@@ -483,7 +483,7 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
             tooltip: AppStrings.lessonAiHelperTooltip,
             icon: Icon(
               Icons.auto_fix_high,
-              color: VarnamalaTheme.textPrimaryColor(context),
+              color: TurnaTheme.textPrimaryColor(context),
             ),
             onPressed: onAiHelper,
           ),
@@ -492,7 +492,7 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
               tooltip: AppStrings.lessonAiHintTooltip,
               icon: Icon(
                 Icons.auto_awesome_rounded,
-                color: VarnamalaTheme.textPrimaryColor(context),
+                color: TurnaTheme.textPrimaryColor(context),
               ),
               onPressed: onAiHint,
             ),
@@ -501,9 +501,9 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
           preferredSize: const Size.fromHeight(4),
           child: LinearProgressIndicator(
             value: s.progress,
-            backgroundColor: VarnamalaTheme.peacockTeal.withValues(alpha: 0.1),
+            backgroundColor: TurnaTheme.peacockTeal.withValues(alpha: 0.1),
             valueColor: const AlwaysStoppedAnimation<Color>(
-              VarnamalaTheme.peacockTeal,
+              TurnaTheme.peacockTeal,
             ),
           ),
         ),
@@ -579,7 +579,7 @@ class _LessonBody extends StatelessWidget {
         if (lesson == null) {
           return const Center(
             child: CircularProgressIndicator(
-              color: VarnamalaTheme.peacockTeal,
+              color: TurnaTheme.peacockTeal,
               strokeWidth: 3,
             ),
           );
@@ -614,7 +614,7 @@ class _LessonBody extends StatelessWidget {
             if (vm.currentStageName != null)
               LessonStageBanner(
                 name: vm.currentStageName!,
-                accent: VarnamalaTheme.peacockTeal,
+                accent: TurnaTheme.peacockTeal,
               ),
             if (readingPassage != null)
               LessonReadingPassageCard(passage: readingPassage)
@@ -668,14 +668,14 @@ class _LessonBody extends StatelessWidget {
           Icon(
             Icons.menu_book_rounded,
             size: 48,
-            color: VarnamalaTheme.textHint.withValues(alpha: 0.3),
+            color: TurnaTheme.textHint.withValues(alpha: 0.3),
           ),
           const SizedBox(height: 12),
           Text(
             AppStrings.lessonNoContent,
             style: const TextStyle(
               fontSize: 16,
-              color: VarnamalaTheme.textHint,
+              color: TurnaTheme.textHint,
             ),
           ),
         ],

@@ -5,7 +5,7 @@ part 'anki_models.freezed.dart';
 part 'anki_models.g.dart';
 
 /// Intermediate representation of a parsed Anki collection (.apkg).
-/// Pure data — no Varnamala domain types. Produced by [AnkiImporter].
+/// Pure data — no Turna domain types. Produced by [AnkiImporter].
 @freezed
 abstract class AnkiCollection with _$AnkiCollection {
   const factory AnkiCollection({

@@ -5,12 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/core/text_styles.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/lesson/components/anki_media_strip.dart';
-import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/core/text_styles.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/lesson/components/anki_media_strip.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/views/theme.dart';
 
 /// Fill in a blanked word in a sentence. The data uses `_____` to mark the
 /// gap; we replace the first occurrence with a tappable [TextField]. Matching
@@ -110,9 +110,9 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
     final (before, after) = _split;
     final inputBoxColor = submitted
         ? (correct == true
-            ? VarnamalaTheme.success.withValues(alpha: 0.10)
-            : VarnamalaTheme.error.withValues(alpha: 0.08))
-        : VarnamalaTheme.inputFillColor(context);
+            ? TurnaTheme.success.withValues(alpha: 0.10)
+            : TurnaTheme.error.withValues(alpha: 0.08))
+        : TurnaTheme.inputFillColor(context);
 
     return InteractionBody(
       child: Column(
@@ -149,13 +149,13 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
                         border: Border.all(
                           color: submitted
                               ? (correct == true
-                                  ? VarnamalaTheme.success
-                                  : VarnamalaTheme.error)
-                              : VarnamalaTheme.peacockTeal,
+                                  ? TurnaTheme.success
+                                  : TurnaTheme.error)
+                              : TurnaTheme.peacockTeal,
                           width: 2,
                         ),
                         borderRadius:
-                            BorderRadius.circular(VarnamalaTheme.radiusSmall),
+                            BorderRadius.circular(TurnaTheme.radiusSmall),
                       ),
                       child: TextField(
                         controller: _controller,
@@ -230,20 +230,20 @@ class _HintChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: VarnamalaTheme.warning.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusRound),
+          color: TurnaTheme.warning.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(Icons.lightbulb_outline,
-                size: 16, color: VarnamalaTheme.warning),
+                size: 16, color: TurnaTheme.warning),
             const SizedBox(width: 6),
             Text(
               hint,
               style: TextStyle(
                 fontSize: 13,
-                color: VarnamalaTheme.textSecondaryColor(context),
+                color: TurnaTheme.textSecondaryColor(context),
                 fontWeight: FontWeight.w500,
               ),
             ),

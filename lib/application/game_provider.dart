@@ -8,16 +8,16 @@ import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/application/game_milestone_provider.dart';
-import 'package:varnamala/application/gems_provider.dart';
-import 'package:varnamala/application/lesson_progress_provider.dart';
-import 'package:varnamala/application/score_provider.dart';
-import 'package:varnamala/application/streak_provider.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/domain/game/user_game_state.dart';
-import 'package:varnamala/service/locator.dart';
+import 'package:turna/application/game_milestone_provider.dart';
+import 'package:turna/application/gems_provider.dart';
+import 'package:turna/application/lesson_progress_provider.dart';
+import 'package:turna/application/score_provider.dart';
+import 'package:turna/application/streak_provider.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/domain/game/user_game_state.dart';
+import 'package:turna/service/locator.dart';
 
-export 'package:varnamala/application/streak_provider.dart' show StreakCheckResult;
+export 'package:turna/application/streak_provider.dart' show StreakCheckResult;
 
 enum XPEvent {
   lessonComplete(base: 10),

@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 // Project imports:
-import 'package:varnamala/application/memory_curve_provider.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/memory_curve_provider.dart';
+import 'package:turna/views/theme.dart';
 
 /// Shared retention-vs-interval line chart (Profile + Review Progress).
 class RetentionCurveChart extends StatelessWidget {
@@ -28,7 +28,7 @@ class RetentionCurveChart extends StatelessWidget {
       for (var i = 0; i < curve.length; i++)
         FlSpot(i.toDouble(), curve[i].retention),
     ];
-    final lineColor = VarnamalaTheme.peacockTeal;
+    final lineColor = TurnaTheme.peacockTeal;
     return SizedBox(
       height: height,
       child: LineChart(
@@ -42,7 +42,7 @@ class RetentionCurveChart extends StatelessWidget {
             drawVerticalLine: false,
             horizontalInterval: 0.25,
             getDrawingHorizontalLine: (v) => FlLine(
-              color: VarnamalaTheme.dividerBg(context),
+              color: TurnaTheme.dividerBg(context),
               strokeWidth: 1,
             ),
           ),
@@ -62,7 +62,7 @@ class RetentionCurveChart extends StatelessWidget {
                     '${(v * 100).round()}%',
                     style: TextStyle(
                       fontSize: 10,
-                      color: VarnamalaTheme.textHintColor(context),
+                      color: TurnaTheme.textHintColor(context),
                     ),
                   ),
                 ),
@@ -84,7 +84,7 @@ class RetentionCurveChart extends StatelessWidget {
                       '${curve[idx].intervalBucketDays}d',
                       style: TextStyle(
                         fontSize: 10,
-                        color: VarnamalaTheme.textHintColor(context),
+                        color: TurnaTheme.textHintColor(context),
                       ),
                     ),
                   );
@@ -124,7 +124,7 @@ class RetentionCurveChart extends StatelessWidget {
                         '${(curve[s.spotIndex].retention * 100).round()}%\n'
                         'n=${curve[s.spotIndex].sampleSize}',
                         TextStyle(
-                          color: VarnamalaTheme.textOnPrimary,
+                          color: TurnaTheme.textOnPrimary,
                           fontWeight: FontWeight.w600,
                           fontSize: 12,
                         ),

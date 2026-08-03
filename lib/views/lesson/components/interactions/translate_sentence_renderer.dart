@@ -5,12 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/core/text_styles.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:varnamala/views/lesson/components/lesson_practice_card.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/core/text_styles.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/views/lesson/components/lesson_practice_card.dart';
+import 'package:turna/views/theme.dart';
 
 /// Free-text translation. User types the translation of a source sentence.
 /// Match is case-insensitive, whitespace-trimmed, and ignores trailing
@@ -133,15 +133,15 @@ class _TranslateBodyState extends State<_TranslateBody> {
             maxLines: 3,
             minLines: 1,
             style: TextStyle(
-                fontSize: 18, color: VarnamalaTheme.textPrimaryColor(context)),
+                fontSize: 18, color: TurnaTheme.textPrimaryColor(context)),
             decoration: InputDecoration(
               hintText: AppStrings.lessonTypeTranslation,
               filled: true,
               fillColor: submitted
                   ? (correct == true
-                      ? VarnamalaTheme.success.withValues(alpha: 0.10)
-                      : VarnamalaTheme.error.withValues(alpha: 0.08))
-                  : VarnamalaTheme.inputFillColor(context),
+                      ? TurnaTheme.success.withValues(alpha: 0.10)
+                      : TurnaTheme.error.withValues(alpha: 0.08))
+                  : TurnaTheme.inputFillColor(context),
             ),
           ),
           if (widget.hints.isNotEmpty) ...[
@@ -155,14 +155,14 @@ class _TranslateBodyState extends State<_TranslateBody> {
                     label: Text(h),
                     onPressed: submitted ? null : () => _applyHint(h),
                     backgroundColor:
-                        VarnamalaTheme.peacockCyan.withValues(alpha: 0.12),
+                        TurnaTheme.peacockCyan.withValues(alpha: 0.12),
                     labelStyle: const TextStyle(
-                      color: VarnamalaTheme.peacockDeep,
+                      color: TurnaTheme.peacockDeep,
                       fontWeight: FontWeight.w600,
                     ),
                     shape: RoundedRectangleBorder(
                       borderRadius:
-                          BorderRadius.circular(VarnamalaTheme.radiusRound),
+                          BorderRadius.circular(TurnaTheme.radiusRound),
                       side: BorderSide.none,
                     ),
                   ),

@@ -4,9 +4,9 @@ import 'dart:convert';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/courses/course_loader.dart';
-import 'package:varnamala/data/course_repository.dart';
-import 'package:varnamala/domain/course/lesson.dart';
+import 'package:turna/courses/course_loader.dart';
+import 'package:turna/data/course_repository.dart';
+import 'package:turna/domain/course/lesson.dart';
 
 import '../helpers/in_memory_course_db.dart';
 

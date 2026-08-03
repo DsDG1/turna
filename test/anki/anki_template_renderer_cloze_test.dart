@@ -4,7 +4,7 @@
 
 // Project imports:
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/application/anki/anki_template_renderer.dart';
+import 'package:turna/application/anki/anki_template_renderer.dart';
 
 void main() {
   group('AnkiTemplateRenderer cloze (fidelity track)', () {
@@ -50,15 +50,15 @@ void main() {
 
     test('FrontSide substitution works alongside cloze', () {
       const f = {'Text': '{{c1::answer}}'};
-      final front = AnkiTemplateRenderer.render('{{cloze:Text}}', f, clozeOrd: 1);
+      final front =
+          AnkiTemplateRenderer.render('{{cloze:Text}}', f, clozeOrd: 1);
       final back = AnkiTemplateRenderer.render(
         '{{FrontSide}}<hr id="answer">{{cloze:Text}}',
         f,
         frontSide: front,
         revealAllClozes: true,
       );
-      expect(back,
-          '<span class="cloze">[…]</span><hr id="answer">answer');
+      expect(back, '<span class="cloze">[…]</span><hr id="answer">answer');
     });
   });
 }

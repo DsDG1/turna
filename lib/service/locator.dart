@@ -11,15 +11,15 @@ import 'package:path_provider/path_provider.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 
 // Project imports:
-import 'package:varnamala/core/logger.dart';
-import 'package:varnamala/core/verbose.dart';
-import 'package:varnamala/data/course_database.dart';
-import 'package:varnamala/data/course_database_seeder.dart';
-import 'package:varnamala/data/rdb_query_executor.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/domain/auth/local_user.dart';
-import 'package:varnamala/service/export_service.dart';
-import 'package:varnamala/service/tab_router.dart';
+import 'package:turna/core/logger.dart';
+import 'package:turna/core/verbose.dart';
+import 'package:turna/data/course_database.dart';
+import 'package:turna/data/course_database_seeder.dart';
+import 'package:turna/data/rdb_query_executor.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/domain/auth/local_user.dart';
+import 'package:turna/service/export_service.dart';
+import 'package:turna/service/tab_router.dart';
 
 class AppPrefs {
   final StreamingSharedPreferences preferences;

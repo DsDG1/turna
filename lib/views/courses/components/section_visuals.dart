@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/views/theme.dart';
 
 /// Shared icon + color mapping for course sections.
 ///
@@ -35,46 +35,46 @@ class SectionVisuals {
   static ({Color background, Color foreground}) colorsFor(String sectionId) {
     if (sectionId.startsWith('anki-')) {
       return (
-        background: VarnamalaTheme.leagueAmethyst.withValues(alpha: 0.18),
-        foreground: VarnamalaTheme.leagueAmethyst,
+        background: TurnaTheme.leagueAmethyst.withValues(alpha: 0.18),
+        foreground: TurnaTheme.leagueAmethyst,
       );
     }
     return switch (sectionId) {
       'section1' => (
-          background: VarnamalaTheme.success.withValues(alpha: 0.18),
-          foreground: VarnamalaTheme.successDark,
+          background: TurnaTheme.success.withValues(alpha: 0.18),
+          foreground: TurnaTheme.successDark,
         ),
       'section2' => (
-          background: VarnamalaTheme.peacockCyan.withValues(alpha: 0.18),
-          foreground: VarnamalaTheme.peacockTeal,
+          background: TurnaTheme.peacockCyan.withValues(alpha: 0.18),
+          foreground: TurnaTheme.peacockTeal,
         ),
       'section3' => (
-          background: VarnamalaTheme.warning.withValues(alpha: 0.18),
-          foreground: VarnamalaTheme.warning,
+          background: TurnaTheme.warning.withValues(alpha: 0.18),
+          foreground: TurnaTheme.warning,
         ),
       'section4' => (
-          background: VarnamalaTheme.leagueAmethyst.withValues(alpha: 0.18),
-          foreground: VarnamalaTheme.leagueAmethyst,
+          background: TurnaTheme.leagueAmethyst.withValues(alpha: 0.18),
+          foreground: TurnaTheme.leagueAmethyst,
         ),
       'section5' => (
-          background: VarnamalaTheme.leagueEmerald.withValues(alpha: 0.18),
-          foreground: VarnamalaTheme.leagueEmerald,
+          background: TurnaTheme.leagueEmerald.withValues(alpha: 0.18),
+          foreground: TurnaTheme.leagueEmerald,
         ),
       'section6' => (
-          background: VarnamalaTheme.leagueDiamond.withValues(alpha: 0.18),
-          foreground: VarnamalaTheme.leagueDiamond,
+          background: TurnaTheme.leagueDiamond.withValues(alpha: 0.18),
+          foreground: TurnaTheme.leagueDiamond,
         ),
       'section7' => (
-          background: VarnamalaTheme.leagueRuby.withValues(alpha: 0.18),
-          foreground: VarnamalaTheme.leagueRuby,
+          background: TurnaTheme.leagueRuby.withValues(alpha: 0.18),
+          foreground: TurnaTheme.leagueRuby,
         ),
       'section8' => (
-          background: VarnamalaTheme.peacockTurquoise.withValues(alpha: 0.22),
-          foreground: VarnamalaTheme.peacockTeal,
+          background: TurnaTheme.peacockTurquoise.withValues(alpha: 0.22),
+          foreground: TurnaTheme.peacockTeal,
         ),
       _ => (
-          background: VarnamalaTheme.tintSoft,
-          foreground: VarnamalaTheme.textSecondary,
+          background: TurnaTheme.tintSoft,
+          foreground: TurnaTheme.textSecondary,
         ),
     };
   }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/views/content_update/content_update_dialog.dart';
+import 'package:turna/views/content_update/content_update_dialog.dart';
 
 void main() {
   Future<ContentUpdateChoice?> pumpAndAwaitChoice(
@@ -10,8 +10,6 @@ void main() {
     ContentUpdateChoice? result;
     await tester.pumpWidget(
       MaterialApp(
-        
-        
         home: Builder(
           builder: (context) => ElevatedButton(
             onPressed: () async {
@@ -54,8 +52,6 @@ void main() {
         (tester) async {
       await tester.pumpWidget(
         MaterialApp(
-          
-          
           home: Builder(
             builder: (context) => ElevatedButton(
               onPressed: () => showDialog<ContentUpdateChoice>(
@@ -81,8 +77,6 @@ void main() {
         (tester) async {
       await tester.pumpWidget(
         MaterialApp(
-          
-          
           home: Builder(
             builder: (context) => ElevatedButton(
               onPressed: () => showDialog<ContentUpdateChoice>(

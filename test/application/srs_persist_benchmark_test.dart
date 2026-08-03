@@ -5,8 +5,8 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/application/srs_queue_provider.dart';
-import 'package:varnamala/domain/course/srs_word.dart';
+import 'package:turna/application/srs_queue_provider.dart';
+import 'package:turna/domain/course/srs_word.dart';
 
 Map<String, SrsWord> _buildState(int n) {
   final now = DateTime(2026, 7, 11);

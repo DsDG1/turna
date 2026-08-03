@@ -5,11 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/core/text_styles.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/core/text_styles.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/views/theme.dart';
 
 /// Renderer for [Interaction.readingShortAnswer].
 ///
@@ -98,16 +98,16 @@ class _ReadingShortAnswerBodyState extends State<_ReadingShortAnswerBody> {
             autofocus: !submitted,
             style: TextStyle(
               fontSize: 18,
-              color: VarnamalaTheme.textPrimaryColor(context),
+              color: TurnaTheme.textPrimaryColor(context),
             ),
             decoration: InputDecoration(
               hintText: AppStrings.lessonTypeYourAnswer,
               filled: true,
               fillColor: submitted
                   ? (correct == true
-                      ? VarnamalaTheme.success.withValues(alpha: 0.10)
-                      : VarnamalaTheme.error.withValues(alpha: 0.08))
-                  : VarnamalaTheme.inputFillColor(context),
+                      ? TurnaTheme.success.withValues(alpha: 0.10)
+                      : TurnaTheme.error.withValues(alpha: 0.08))
+                  : TurnaTheme.inputFillColor(context),
             ),
             onSubmitted: (_) => _trySubmit(),
           ),

@@ -5,7 +5,7 @@ import 'dart:math';
 import 'package:fsrs/fsrs.dart' as fsrs;
 
 // Project imports:
-import 'package:varnamala/data/review_history_dao.dart';
+import 'package:turna/data/review_history_dao.dart';
 
 /// Minimum review events before local weight fitting is allowed.
 const int kFsrsOptimizeMinReviews = 300;

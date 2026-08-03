@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/application/anki/anki_card_adapter.dart';
-import 'package:varnamala/application/anki/anki_sample_deck.dart';
+import 'package:turna/application/anki/anki_card_adapter.dart';
+import 'package:turna/application/anki/anki_sample_deck.dart';
 
 void main() {
   test('sample deck has stable hash, notes, and cards', () {
@@ -25,7 +25,8 @@ void main() {
     }
 
     // Re-builds use the same note ids (merge-friendly).
-    expect(a.notes.map((n) => n.id).toList(), b.notes.map((n) => n.id).toList());
+    expect(
+        a.notes.map((n) => n.id).toList(), b.notes.map((n) => n.id).toList());
   });
 
   test('sample notetype maps to wordEntry or ankiCard', () {

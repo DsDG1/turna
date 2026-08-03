@@ -5,11 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/core/text_styles.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/core/text_styles.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/views/theme.dart';
 
 /// Renderer for [Interaction.readingTrueFalse].
 ///
@@ -95,8 +95,8 @@ class _ReadingTrueFalseBodyState extends State<_ReadingTrueFalseBody> {
             width: double.infinity,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: VarnamalaTheme.tintLight,
-              borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+              color: TurnaTheme.tintLight,
+              borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
             ),
             child:
                 Text(widget.statement, style: AppTextStyles.promptMd(context)),

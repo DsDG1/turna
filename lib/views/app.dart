@@ -6,19 +6,19 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/accessibility_provider.dart';
-import 'package:varnamala/application/settings_provider.dart';
-import 'package:varnamala/application/providers.dart';
-import 'package:varnamala/application/theme_provider.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/routing/routing.dart';
-import 'package:varnamala/views/app_fonts.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/accessibility_provider.dart';
+import 'package:turna/application/settings_provider.dart';
+import 'package:turna/application/providers.dart';
+import 'package:turna/application/theme_provider.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/routing/routing.dart';
+import 'package:turna/views/app_fonts.dart';
+import 'package:turna/views/theme.dart';
 
 final router = getIt<AppRouter>();
 
-class VarnamalaApp extends StatelessWidget {
-  const VarnamalaApp({Key? key}) : super(key: key);
+class TurnaApp extends StatelessWidget {
+  const TurnaApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -63,11 +63,11 @@ class _AppShellState extends State<_AppShell> {
     final ThemeData light;
     final ThemeData dark;
     if (acc.highContrast) {
-      light = VarnamalaTheme.highContrastLightTheme;
-      dark = VarnamalaTheme.highContrastDarkTheme;
+      light = TurnaTheme.highContrastLightTheme;
+      dark = TurnaTheme.highContrastDarkTheme;
     } else {
-      light = VarnamalaTheme.lightTheme;
-      dark = VarnamalaTheme.darkTheme;
+      light = TurnaTheme.lightTheme;
+      dark = TurnaTheme.darkTheme;
     }
     final theme = acc.dyslexiaFont
         ? light.copyWith(textTheme: AppFonts.lexendTextTheme(light.textTheme))
@@ -79,7 +79,7 @@ class _AppShellState extends State<_AppShell> {
     return _OrientationController(
       child: MaterialApp.router(
         debugShowCheckedModeBanner: false,
-        title: 'Varnamala',
+        title: 'Turna',
         theme: theme,
         darkTheme: darkTheme,
         themeMode: themeMode,

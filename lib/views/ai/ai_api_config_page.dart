@@ -2,15 +2,15 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:varnamala/application/ai/engine/ai_cache.dart';
-import 'package:varnamala/application/ai/engine/ai_engine.dart';
-import 'package:varnamala/application/ai/engine/ai_engine_config.dart';
-import 'package:varnamala/application/ai/engine/ai_engine_config_holder.dart';
-import 'package:varnamala/application/ai/engine/ai_provider_preset.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/ai/components/ai_sheet_widgets.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/ai/engine/ai_cache.dart';
+import 'package:turna/application/ai/engine/ai_engine.dart';
+import 'package:turna/application/ai/engine/ai_engine_config.dart';
+import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
+import 'package:turna/application/ai/engine/ai_provider_preset.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
+import 'package:turna/views/theme.dart';
 
 /// Standalone AI API configuration page (replaces the former
 /// [AiApiConfigSheet] modal). Reached from the AI Hub hero and from
@@ -161,15 +161,21 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
   ({IconData icon, Color color}) _providerVisual(AiProvider p) {
     switch (p) {
       case AiProvider.deepseek:
-        return (icon: Icons.bolt_rounded, color: VarnamalaTheme.peacockCyan);
+        return (icon: Icons.bolt_rounded, color: TurnaTheme.peacockCyan);
       case AiProvider.openai:
-        return (icon: Icons.auto_awesome_rounded, color: VarnamalaTheme.peacockTeal);
+        return (
+          icon: Icons.auto_awesome_rounded,
+          color: TurnaTheme.peacockTeal
+        );
       case AiProvider.moonshot:
-        return (icon: Icons.nights_stay_rounded, color: VarnamalaTheme.amethystLeague);
+        return (
+          icon: Icons.nights_stay_rounded,
+          color: TurnaTheme.amethystLeague
+        );
       case AiProvider.ollama:
-        return (icon: Icons.memory_rounded, color: VarnamalaTheme.warning);
+        return (icon: Icons.memory_rounded, color: TurnaTheme.warning);
       case AiProvider.custom:
-        return (icon: Icons.tune_rounded, color: VarnamalaTheme.peacockTurquoise);
+        return (icon: Icons.tune_rounded, color: TurnaTheme.peacockTurquoise);
     }
   }
 
@@ -179,7 +185,7 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     return Scaffold(
-      backgroundColor: VarnamalaTheme.surfaceColor(context),
+      backgroundColor: TurnaTheme.surfaceColor(context),
       appBar: AppBar(
         centerTitle: true,
         title: Row(
@@ -187,7 +193,7 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
           children: [
             const Icon(
               Icons.auto_awesome_rounded,
-              color: VarnamalaTheme.amethystLeague,
+              color: TurnaTheme.amethystLeague,
               size: 22,
             ),
             const SizedBox(width: 8),
@@ -244,7 +250,7 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
                               ? Icons.visibility_off_outlined
                               : Icons.visibility_outlined,
                           size: 20,
-                          color: VarnamalaTheme.textHintColor(context),
+                          color: TurnaTheme.textHintColor(context),
                         ),
                         onPressed: () =>
                             setState(() => _obscureKey = !_obscureKey),
@@ -345,13 +351,13 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
                   Icon(
                     Icons.save_outlined,
                     size: 13,
-                    color: VarnamalaTheme.textHintColor(context),
+                    color: TurnaTheme.textHintColor(context),
                   ),
                   const SizedBox(width: 5),
                   Text(
                     AppStrings.settingsAiApiConfigNotSaved,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: VarnamalaTheme.textHintColor(context),
+                          color: TurnaTheme.textHintColor(context),
                         ),
                   ),
                 ],
@@ -367,8 +373,7 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
 
   Widget _statusHero(BuildContext context) {
     final complete = _draft.isComplete;
-    final accent =
-        complete ? VarnamalaTheme.peacockTeal : VarnamalaTheme.warning;
+    final accent = complete ? TurnaTheme.peacockTeal : TurnaTheme.warning;
     final subtitle = complete
         ? '${_draft.preset.label} · ${_draft.modelChat}'
         : AppStrings.aiConfigStatusHintIncomplete;
@@ -376,9 +381,9 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.softTint(context, accent),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusXLarge),
-        border: Border.all(color: VarnamalaTheme.glassBorder(context)),
+        color: TurnaTheme.softTint(context, accent),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusXLarge),
+        border: Border.all(color: TurnaTheme.glassBorder(context)),
       ),
       child: Row(
         children: [
@@ -407,14 +412,14 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
                       : AppStrings.aiConfigStatusNotConfigured,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w800,
-                        color: VarnamalaTheme.textPrimaryColor(context),
+                        color: TurnaTheme.textPrimaryColor(context),
                       ),
                 ),
                 const SizedBox(height: 3),
                 Text(
                   subtitle,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: VarnamalaTheme.textSecondaryColor(context),
+                        color: TurnaTheme.textSecondaryColor(context),
                       ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -427,7 +432,7 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: accent.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(VarnamalaTheme.radiusRound),
+                borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
               ),
               child: Text(
                 _maskKey(_draft.apiKey),
@@ -452,7 +457,8 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
       crossAxisSpacing: 10,
       childAspectRatio: 2.7,
       children: [
-        for (final p in providerOrder()) _providerCard(context, p, p == selected),
+        for (final p in providerOrder())
+          _providerCard(context, p, p == selected),
       ],
     );
   }
@@ -468,18 +474,18 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
 
     return Material(
       color: selected
-          ? VarnamalaTheme.softTint(context, accent)
-          : VarnamalaTheme.tintLight,
-      borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+          ? TurnaTheme.softTint(context, accent)
+          : TurnaTheme.tintLight,
+      borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
       child: InkWell(
         onTap: () => _onPresetChanged(provider),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+            borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
             border: Border.all(
-              color: selected ? accent : VarnamalaTheme.glassBorder(context),
+              color: selected ? accent : TurnaTheme.glassBorder(context),
               width: selected ? 1.6 : 1,
             ),
           ),
@@ -490,7 +496,7 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
                 height: 30,
                 decoration: BoxDecoration(
                   color: accent.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(VarnamalaTheme.radiusSmall),
+                  borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
                 ),
                 child: Icon(v.icon, color: accent, size: 17),
               ),
@@ -502,7 +508,7 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: VarnamalaTheme.textPrimaryColor(context),
+                        color: TurnaTheme.textPrimaryColor(context),
                       ),
                 ),
               ),
@@ -538,15 +544,15 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.tintLight,
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+        color: TurnaTheme.tintLight,
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
       ),
       child: Row(
         children: [
           Icon(
             Icons.link_rounded,
             size: 16,
-            color: VarnamalaTheme.textHintColor(context),
+            color: TurnaTheme.textHintColor(context),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -555,7 +561,7 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: VarnamalaTheme.textSecondaryColor(context),
+                    color: TurnaTheme.textSecondaryColor(context),
                   ),
             ),
           ),
@@ -577,12 +583,12 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
             labelStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: _modelChatCtrl.text.trim() == model
                       ? Colors.white
-                      : VarnamalaTheme.peacockTeal,
+                      : TurnaTheme.peacockTeal,
                   fontWeight: FontWeight.w600,
                 ),
             backgroundColor: _modelChatCtrl.text.trim() == model
-                ? VarnamalaTheme.peacockTeal
-                : VarnamalaTheme.tintLight,
+                ? TurnaTheme.peacockTeal
+                : TurnaTheme.tintLight,
             side: BorderSide.none,
             onPressed: () => _pickChatModel(model),
           ),
@@ -592,21 +598,23 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
 
   Widget _probeStatusRow(BuildContext context) {
     final ok = _probeResult!.ok;
-    final accent = ok ? VarnamalaTheme.peacockTeal : VarnamalaTheme.error;
+    final accent = ok ? TurnaTheme.peacockTeal : TurnaTheme.error;
     final text = ok
         ? AppStrings.aiHubToolsTestConnectionOk(_probeResult!.latencyMs)
         : AppStrings.aiHubToolsTestConnectionFail;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.softTint(context, accent),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
-        border: Border.all(color: VarnamalaTheme.glassBorder(context)),
+        color: TurnaTheme.softTint(context, accent),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+        border: Border.all(color: TurnaTheme.glassBorder(context)),
       ),
       child: Row(
         children: [
           Icon(
-            ok ? Icons.check_circle_outline_rounded : Icons.error_outline_rounded,
+            ok
+                ? Icons.check_circle_outline_rounded
+                : Icons.error_outline_rounded,
             size: 18,
             color: accent,
           ),
@@ -629,15 +637,15 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.tintLight,
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+        color: TurnaTheme.tintLight,
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
       ),
       child: Row(
         children: [
           Icon(
             Icons.analytics_outlined,
             size: 16,
-            color: VarnamalaTheme.textHintColor(context),
+            color: TurnaTheme.textHintColor(context),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -678,7 +686,7 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
     return Text(
       label,
       style: Theme.of(context).textTheme.labelMedium?.copyWith(
-            color: VarnamalaTheme.textSecondaryColor(context),
+            color: TurnaTheme.textSecondaryColor(context),
             fontWeight: FontWeight.w600,
           ),
     );

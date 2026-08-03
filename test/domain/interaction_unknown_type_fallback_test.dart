@@ -6,12 +6,11 @@
 // offending type so the lesson still loads.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/domain/course/interaction.dart';
+import 'package:turna/domain/course/interaction.dart';
 
 void main() {
   group('Interaction.fromJson unknown-type fallback', () {
-    test('degrades unknown runtimeType to ShowWord with diagnostic wordId',
-        () {
+    test('degrades unknown runtimeType to ShowWord with diagnostic wordId', () {
       final interaction = Interaction.fromJson(const {
         'runtimeType': 'futureUnknownType',
         'prompt': 'ignored',

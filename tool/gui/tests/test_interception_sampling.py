@@ -77,7 +77,7 @@ class TelemetrySamplingTest(unittest.TestCase):
     """Read back multiple persisted events and aggregate (E4 sampling gate)."""
 
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_intercept_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_intercept_"))
         self.log_file = self.tmp / "telemetry.log"
         self.telemetry = Telemetry(self.log_file)
         self.telemetry.start_session()

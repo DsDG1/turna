@@ -8,8 +8,8 @@
 // when other items are inserted or removed before them.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 
 void main() {
   group('interactionItemId stability', () {
@@ -20,14 +20,14 @@ void main() {
         options: ['a', 'b'],
         correctIndex: 0,
       );
-      expect(interactionItemId('stage-vocab', item.id, 0),
-          'stage-vocab#mc-yes');
+      expect(
+          interactionItemId('stage-vocab', item.id, 0), 'stage-vocab#mc-yes');
     });
 
     test('falls back to legacy-N when id is empty', () {
       const item = Interaction.showWord(id: '', wordId: 'w-x');
-      expect(interactionItemId('stage-vocab', item.id, 2),
-          'stage-vocab#legacy-2');
+      expect(
+          interactionItemId('stage-vocab', item.id, 2), 'stage-vocab#legacy-2');
     });
 
     test('inserting an item before does not shift sibling ids', () {

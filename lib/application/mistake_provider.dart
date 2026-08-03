@@ -8,9 +8,9 @@ import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/domain/course/mistake_entry.dart';
-import 'package:varnamala/service/locator.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/domain/course/mistake_entry.dart';
+import 'package:turna/service/locator.dart';
 
 /// Manages a FIFO log of recent wrong answers.
 ///

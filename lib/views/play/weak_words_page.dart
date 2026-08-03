@@ -9,18 +9,18 @@ import 'package:auto_route/annotations.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/game_provider.dart';
-import 'package:varnamala/application/gems_provider.dart';
-import 'package:varnamala/application/lesson_viewmodel.dart';
-import 'package:varnamala/application/mistake_provider.dart';
-import 'package:varnamala/application/weak_word_quiz_assembler.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:varnamala/views/lesson/components/lesson_dialogs.dart';
-import 'package:varnamala/views/lesson/components/lesson_stage_widgets.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/game_provider.dart';
+import 'package:turna/application/gems_provider.dart';
+import 'package:turna/application/lesson_viewmodel.dart';
+import 'package:turna/application/mistake_provider.dart';
+import 'package:turna/application/weak_word_quiz_assembler.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/views/lesson/components/lesson_dialogs.dart';
+import 'package:turna/views/lesson/components/lesson_stage_widgets.dart';
+import 'package:turna/views/theme.dart';
 
 @RoutePage()
 class WeakWordsPage extends StatefulWidget {
@@ -128,7 +128,7 @@ class _WeakWordsPageState extends State<WeakWordsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: VarnamalaTheme.scaffoldBg(context),
+      backgroundColor: TurnaTheme.scaffoldBg(context),
       appBar: _buildAppBar(context),
       body: _empty
           ? _buildEmpty()
@@ -154,7 +154,7 @@ class _WeakWordsPageState extends State<WeakWordsPage> {
                     if (selected.$3 != null)
                       LessonStageBanner(
                         name: selected.$3!,
-                        accent: VarnamalaTheme.error,
+                        accent: TurnaTheme.error,
                       ),
                     Expanded(
                       child: renderer.build(
@@ -191,13 +191,13 @@ class _WeakWordsPageState extends State<WeakWordsPage> {
 
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     return AppBar(
-      backgroundColor: VarnamalaTheme.surfaceColor(context),
+      backgroundColor: TurnaTheme.surfaceColor(context),
       elevation: 0,
       leading: IconButton(
         tooltip: AppStrings.commonClose,
         icon: Icon(
           Icons.close_rounded,
-          color: VarnamalaTheme.textPrimaryColor(context),
+          color: TurnaTheme.textPrimaryColor(context),
         ),
         onPressed: () => Navigator.of(context).maybePop(),
       ),
@@ -206,7 +206,7 @@ class _WeakWordsPageState extends State<WeakWordsPage> {
         style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w700,
-          color: VarnamalaTheme.textPrimaryColor(context),
+          color: TurnaTheme.textPrimaryColor(context),
         ),
       ),
       centerTitle: true,
@@ -218,9 +218,9 @@ class _WeakWordsPageState extends State<WeakWordsPage> {
                 selector: (context, vm) => vm.progress,
                 builder: (context, progress, _) => LinearProgressIndicator(
                   value: progress,
-                  backgroundColor: VarnamalaTheme.error.withValues(alpha: 0.1),
+                  backgroundColor: TurnaTheme.error.withValues(alpha: 0.1),
                   valueColor:
-                      const AlwaysStoppedAnimation<Color>(VarnamalaTheme.error),
+                      const AlwaysStoppedAnimation<Color>(TurnaTheme.error),
                 ),
               ),
             ),
@@ -238,7 +238,7 @@ class _WeakWordsPageState extends State<WeakWordsPage> {
               AppStrings.playWeakWordsEmpty,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: VarnamalaTheme.textSecondaryColor(context),
+                    color: TurnaTheme.textSecondaryColor(context),
                   ),
             ),
             const SizedBox(height: 16),

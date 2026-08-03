@@ -2,8 +2,8 @@
 import 'package:path/path.dart' as p;
 
 // Project imports:
-import 'package:varnamala/application/anki/anki_models.dart';
-import 'package:varnamala/application/anki/anki_template_renderer.dart';
+import 'package:turna/application/anki/anki_models.dart';
+import 'package:turna/application/anki/anki_template_renderer.dart';
 
 /// Renders Anki card faces as full HTML documents for the fidelity WebView
 /// (deep-adaptation plan §5.1).

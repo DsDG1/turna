@@ -23,7 +23,8 @@ class KnowledgePoints {
   final List<Map<String, dynamic>> expressions;
   final List<Map<String, dynamic>> grammarPoints;
 
-  bool get isEmpty => words.isEmpty && expressions.isEmpty && grammarPoints.isEmpty;
+  bool get isEmpty =>
+      words.isEmpty && expressions.isEmpty && grammarPoints.isEmpty;
 
   int get length => words.length + expressions.length + grammarPoints.length;
 

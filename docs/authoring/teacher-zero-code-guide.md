@@ -9,7 +9,7 @@
 
 ### 1. 安装程序
 
-老师会收到一个 `varnamala-gui.exe`（Windows）或对应可执行文件，**双击即可运行**，无需安装 Python 或任何开发工具。
+老师会收到一个 `turna-gui.exe`（Windows）或对应可执行文件，**双击即可运行**，无需安装 Python 或任何开发工具。
 
 > 如果收到的是源码版本，技术人员需先按 [`tool/gui/README.md`](../tool/gui/README.md) 打包。
 
@@ -27,7 +27,7 @@ intro 课是「认识新词」课型，一节典型的 intro 课包含：展示�
 
 ### 第 1 步：打开课程
 
-1. 双击 `varnamala-gui.exe`
+1. 双击 `turna-gui.exe`
 2. 点工具栏「打开」按钮
 3. 在弹出的文件夹选择器中，选中课程目录（如 `turkish/`）并确认
 4. 左侧出现课程树：Section → Unit → Lesson 三级

@@ -5,16 +5,16 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/game_provider.dart';
-import 'package:varnamala/application/gems_provider.dart';
-import 'package:varnamala/application/language_provider.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/domain/auth/local_user.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/service/locator.dart';
-import 'package:varnamala/views/profile/utils/share_image_generator.dart';
-import 'package:varnamala/views/profile/widgets/share_progress_card.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/game_provider.dart';
+import 'package:turna/application/gems_provider.dart';
+import 'package:turna/application/language_provider.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/domain/auth/local_user.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/service/locator.dart';
+import 'package:turna/views/profile/utils/share_image_generator.dart';
+import 'package:turna/views/profile/widgets/share_progress_card.dart';
+import 'package:turna/views/theme.dart';
 
 class ProfileAppBar extends StatelessWidget implements PreferredSizeWidget {
   const ProfileAppBar({Key? key}) : super(key: key);
@@ -60,8 +60,7 @@ class _ShareProgressSheetState extends State<_ShareProgressSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final LocalUser user =
-        getIt<AppPrefs>().authUser.getValue();
+    final LocalUser user = getIt<AppPrefs>().authUser.getValue();
     final languageProvider = context.read<LanguageProvider>();
     final gameProvider = context.read<GameProvider>();
     final gemsProvider = context.read<GemsProvider>();
@@ -83,78 +82,78 @@ class _ShareProgressSheetState extends State<_ShareProgressSheet> {
             return Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: VarnamalaTheme.scaffoldBg(context),
+                color: TurnaTheme.scaffoldBg(context),
                 borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(VarnamalaTheme.radiusXLarge),
-                  topRight: Radius.circular(VarnamalaTheme.radiusXLarge),
+                  topLeft: Radius.circular(TurnaTheme.radiusXLarge),
+                  topRight: Radius.circular(TurnaTheme.radiusXLarge),
                 ),
               ),
               child: SafeArea(
                 child: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: VarnamalaTheme.dividerBg(context),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      AppStrings.profileShareYourProgress,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
-                    ),
-                    const SizedBox(height: 20),
-                    // Visible preview doubles as the capture target. The
-                    // RepaintBoundary wraps the ClipRRect (not the reverse) so
-                    // its layer includes the rounded-corner clip —
-                    // RenderRepaintBoundary.toImage rasterizes the boundary's
-                    // own subtree only and does NOT apply ancestor clips, so
-                    // the boundary must be the OUTER widget for the rounded
-                    // corners to appear in the captured PNG.
-                    RepaintBoundary(
-                      key: _generator.boundaryKey,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(
-                            VarnamalaTheme.radiusXLarge),
-                        child: ShareProgressCard(
-                          user: user,
-                          streak: streak,
-                          totalXp: totalXp,
-                          gems: gems,
-                          completedLessons: completedLessons,
-                          perfectLessons: perfectLessons,
-                          targetLanguage: languageProvider.selectedLanguage,
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: TurnaTheme.dividerBg(context),
+                          borderRadius: BorderRadius.circular(2),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: _sharing ? null : _handleShare,
-                        icon: _sharing
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: VarnamalaTheme.textOnPrimary,
-                                ),
-                              )
-                            : const Icon(Icons.share_rounded),
-                        label: Text(_sharing
-                            ? AppStrings.profileSharing
-                            : AppStrings.profileShareButton),
+                      const SizedBox(height: 20),
+                      Text(
+                        AppStrings.profileShareYourProgress,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
+                      const SizedBox(height: 20),
+                      // Visible preview doubles as the capture target. The
+                      // RepaintBoundary wraps the ClipRRect (not the reverse) so
+                      // its layer includes the rounded-corner clip —
+                      // RenderRepaintBoundary.toImage rasterizes the boundary's
+                      // own subtree only and does NOT apply ancestor clips, so
+                      // the boundary must be the OUTER widget for the rounded
+                      // corners to appear in the captured PNG.
+                      RepaintBoundary(
+                        key: _generator.boundaryKey,
+                        child: ClipRRect(
+                          borderRadius:
+                              BorderRadius.circular(TurnaTheme.radiusXLarge),
+                          child: ShareProgressCard(
+                            user: user,
+                            streak: streak,
+                            totalXp: totalXp,
+                            gems: gems,
+                            completedLessons: completedLessons,
+                            perfectLessons: perfectLessons,
+                            targetLanguage: languageProvider.selectedLanguage,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _sharing ? null : _handleShare,
+                          icon: _sharing
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: TurnaTheme.textOnPrimary,
+                                  ),
+                                )
+                              : const Icon(Icons.share_rounded),
+                          label: Text(_sharing
+                              ? AppStrings.profileSharing
+                              : AppStrings.profileShareButton),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
                   ),
                 ),
               ),
@@ -173,9 +172,9 @@ class _ShareProgressSheetState extends State<_ShareProgressSheet> {
     // FutureBuilder forever — fall back to 0.
     try {
       return await provider.getGemsStream().first.timeout(
-        const Duration(seconds: 1),
-        onTimeout: () => 0,
-      );
+            const Duration(seconds: 1),
+            onTimeout: () => 0,
+          );
     } catch (_) {
       return 0;
     }
@@ -193,9 +192,7 @@ class _ShareProgressSheetState extends State<_ShareProgressSheet> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content:
-                  Text(AppStrings.profileShareFailed(e))),
+          SnackBar(content: Text(AppStrings.profileShareFailed(e))),
         );
       }
     } finally {

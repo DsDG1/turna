@@ -6,10 +6,10 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/review_progress_provider.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/review/components/retention_curve_chart.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/review_progress_provider.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/review/components/retention_curve_chart.dart';
+import 'package:turna/views/theme.dart';
 
 @RoutePage()
 class ReviewProgressPage extends StatefulWidget {
@@ -46,10 +46,10 @@ class _ReviewProgressPageState extends State<ReviewProgressPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: VarnamalaTheme.scaffoldBg(context),
+      backgroundColor: TurnaTheme.scaffoldBg(context),
       appBar: AppBar(
         title: Text(AppStrings.reviewProgressTitle),
-        backgroundColor: VarnamalaTheme.scaffoldBg(context),
+        backgroundColor: TurnaTheme.scaffoldBg(context),
       ),
       body: FutureBuilder<ReviewProgressSnapshot>(
         future: _future,
@@ -66,7 +66,7 @@ class _ReviewProgressPageState extends State<ReviewProgressPage> {
             return Center(child: Text(AppStrings.reviewProgressEmpty));
           }
           return RefreshIndicator(
-            color: VarnamalaTheme.peacockTeal,
+            color: TurnaTheme.peacockTeal,
             onRefresh: () async => _reload(),
             child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(
@@ -140,9 +140,9 @@ class _FilterPanel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-        border: Border.all(color: VarnamalaTheme.statCardBorder(context)),
+        color: TurnaTheme.cardBg(context),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        border: Border.all(color: TurnaTheme.statCardBorder(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -188,8 +188,7 @@ class _FilterPanel extends StatelessWidget {
                 context,
                 label: AppStrings.reviewProgressDueOverdue,
                 selected: filter.due == DueFilter.overdue,
-                onTap: () =>
-                    onChanged(filter.copyWith(due: DueFilter.overdue)),
+                onTap: () => onChanged(filter.copyWith(due: DueFilter.overdue)),
               ),
               _chip(
                 context,
@@ -305,21 +304,21 @@ class _FilterPanel extends StatelessWidget {
       label: Text(label),
       selected: selected,
       onSelected: (_) => onTap(),
-      selectedColor: VarnamalaTheme.peacockTeal.withValues(alpha: 0.18),
-      checkmarkColor: VarnamalaTheme.peacockTeal,
+      selectedColor: TurnaTheme.peacockTeal.withValues(alpha: 0.18),
+      checkmarkColor: TurnaTheme.peacockTeal,
       labelStyle: TextStyle(
         fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
         color: selected
-            ? VarnamalaTheme.peacockTeal
-            : VarnamalaTheme.textSecondaryColor(context),
+            ? TurnaTheme.peacockTeal
+            : TurnaTheme.textSecondaryColor(context),
         fontSize: 13,
       ),
       side: BorderSide(
         color: selected
-            ? VarnamalaTheme.peacockTeal
-            : VarnamalaTheme.statCardBorder(context),
+            ? TurnaTheme.peacockTeal
+            : TurnaTheme.statCardBorder(context),
       ),
-      backgroundColor: VarnamalaTheme.cardBg(context),
+      backgroundColor: TurnaTheme.cardBg(context),
       visualDensity: VisualDensity.compact,
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
@@ -342,34 +341,34 @@ class _KpiCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-        border: Border.all(color: VarnamalaTheme.statCardBorder(context)),
+        color: TurnaTheme.cardBg(context),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        border: Border.all(color: TurnaTheme.statCardBorder(context)),
       ),
       child: Column(
         children: [
           Row(
             children: [
               _kpi(context, '$ret%', AppStrings.reviewProgressKpiRetention,
-                  VarnamalaTheme.peacockTeal),
+                  TurnaTheme.peacockTeal),
               _kpi(context, '$mas%', AppStrings.reviewProgressKpiMastery,
-                  VarnamalaTheme.primaryLight),
-              _kpi(context, '${a.totalCards}', AppStrings.reviewProgressKpiCards,
-                  VarnamalaTheme.textSecondaryColor(context)),
+                  TurnaTheme.primaryLight),
+              _kpi(
+                  context,
+                  '${a.totalCards}',
+                  AppStrings.reviewProgressKpiCards,
+                  TurnaTheme.textSecondaryColor(context)),
             ],
           ),
           const SizedBox(height: 12),
           Row(
             children: [
-              _kpi(context, '${a.forecast.dueToday}', AppStrings.profileDueToday,
-                  VarnamalaTheme.error),
-              _kpi(context, '${a.forecast.due7Days}', AppStrings.profileDue7Days,
-                  VarnamalaTheme.warning),
-              _kpi(
-                  context,
-                  '${a.totalReviews}',
-                  AppStrings.reviewProgressKpiReviews,
-                  VarnamalaTheme.peacockCyan),
+              _kpi(context, '${a.forecast.dueToday}',
+                  AppStrings.profileDueToday, TurnaTheme.error),
+              _kpi(context, '${a.forecast.due7Days}',
+                  AppStrings.profileDue7Days, TurnaTheme.warning),
+              _kpi(context, '${a.totalReviews}',
+                  AppStrings.reviewProgressKpiReviews, TurnaTheme.peacockCyan),
             ],
           ),
         ],
@@ -377,8 +376,7 @@ class _KpiCard extends StatelessWidget {
     );
   }
 
-  Widget _kpi(
-      BuildContext context, String value, String label, Color accent) {
+  Widget _kpi(BuildContext context, String value, String label, Color accent) {
     return Expanded(
       child: Column(
         children: [
@@ -394,7 +392,7 @@ class _KpiCard extends StatelessWidget {
             label,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: VarnamalaTheme.textHintColor(context),
+                  color: TurnaTheme.textHintColor(context),
                 ),
           ),
         ],
@@ -416,9 +414,9 @@ class _CurveCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-        border: Border.all(color: VarnamalaTheme.statCardBorder(context)),
+        color: TurnaTheme.cardBg(context),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        border: Border.all(color: TurnaTheme.statCardBorder(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -426,7 +424,7 @@ class _CurveCard extends StatelessWidget {
           Row(
             children: [
               Icon(Icons.show_chart_rounded,
-                  color: VarnamalaTheme.peacockTeal, size: 20),
+                  color: TurnaTheme.peacockTeal, size: 20),
               const SizedBox(width: 8),
               Text(
                 AppStrings.profileMemoryCurveTitle,
@@ -440,7 +438,7 @@ class _CurveCard extends StatelessWidget {
           Text(
             AppStrings.profileReviewsCount(snapshot.aggregate.totalReviews),
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: VarnamalaTheme.textHintColor(context),
+                  color: TurnaTheme.textHintColor(context),
                 ),
           ),
           const SizedBox(height: 12),
@@ -454,7 +452,7 @@ class _CurveCard extends StatelessWidget {
                       : AppStrings.profileMemoryCurveEmpty,
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: VarnamalaTheme.textHintColor(context),
+                        color: TurnaTheme.textHintColor(context),
                       ),
                 ),
               ),
@@ -480,9 +478,9 @@ class _MaturityCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-        border: Border.all(color: VarnamalaTheme.statCardBorder(context)),
+        color: TurnaTheme.cardBg(context),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        border: Border.all(color: TurnaTheme.statCardBorder(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -499,13 +497,13 @@ class _MaturityCard extends StatelessWidget {
             runSpacing: 8,
             children: [
               _chip(context, AppStrings.profileMaturityNew, m.newCards,
-                  VarnamalaTheme.textHintColor(context)),
+                  TurnaTheme.textHintColor(context)),
               _chip(context, AppStrings.profileMaturityYoung, m.young,
-                  VarnamalaTheme.primaryLight),
+                  TurnaTheme.primaryLight),
               _chip(context, AppStrings.profileMaturityMature, m.mature,
-                  VarnamalaTheme.success),
+                  TurnaTheme.success),
               _chip(context, AppStrings.profileMaturityLeech, m.leech,
-                  VarnamalaTheme.error),
+                  TurnaTheme.error),
             ],
           ),
         ],
@@ -518,7 +516,7 @@ class _MaturityCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusRound),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
       ),
       child: Text(
         '$label $count',
@@ -550,9 +548,9 @@ class _SourceList extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
-        border: Border.all(color: VarnamalaTheme.statCardBorder(context)),
+        color: TurnaTheme.cardBg(context),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        border: Border.all(color: TurnaTheme.statCardBorder(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -570,13 +568,13 @@ class _SourceList extends StatelessWidget {
               child: Text(
                 AppStrings.reviewProgressEmptyFiltered,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: VarnamalaTheme.textHintColor(context),
+                      color: TurnaTheme.textHintColor(context),
                     ),
               ),
             )
           else
             for (var i = 0; i < rows.length; i++) ...[
-              if (i > 0) Divider(color: VarnamalaTheme.dividerBg(context)),
+              if (i > 0) Divider(color: TurnaTheme.dividerBg(context)),
               _SourceTile(
                 row: rows[i],
                 selected: selected.id == rows[i].source.id,
@@ -616,12 +614,13 @@ class _SourceTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ret = (row.meanRetention * 100).round();
-    final progress =
-        row.totalCards == 0 ? 0.0 : (1.0 - row.dueToday / row.totalCards).clamp(0.0, 1.0);
+    final progress = row.totalCards == 0
+        ? 0.0
+        : (1.0 - row.dueToday / row.totalCards).clamp(0.0, 1.0);
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+      borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 10),
         child: Column(
@@ -632,8 +631,8 @@ class _SourceTile extends StatelessWidget {
                 Icon(_icon,
                     size: 22,
                     color: selected
-                        ? VarnamalaTheme.peacockTeal
-                        : VarnamalaTheme.textSecondaryColor(context)),
+                        ? TurnaTheme.peacockTeal
+                        : TurnaTheme.textSecondaryColor(context)),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
@@ -643,16 +642,14 @@ class _SourceTile extends StatelessWidget {
                         row.source.label,
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w700,
-                              color: selected
-                                  ? VarnamalaTheme.peacockTeal
-                                  : null,
+                              color: selected ? TurnaTheme.peacockTeal : null,
                             ),
                       ),
                       Text(
                         AppStrings.reviewProgressCardsDue(
                             row.totalCards, row.dueToday),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: VarnamalaTheme.textHintColor(context),
+                              color: TurnaTheme.textHintColor(context),
                             ),
                       ),
                     ],
@@ -662,7 +659,7 @@ class _SourceTile extends StatelessWidget {
                   AppStrings.reviewProgressRetentionPct(ret),
                   style: Theme.of(context).textTheme.labelLarge?.copyWith(
                         fontWeight: FontWeight.w800,
-                        color: VarnamalaTheme.peacockTeal,
+                        color: TurnaTheme.peacockTeal,
                       ),
                 ),
               ],
@@ -673,8 +670,8 @@ class _SourceTile extends StatelessWidget {
               child: LinearProgressIndicator(
                 value: progress,
                 minHeight: 6,
-                backgroundColor: VarnamalaTheme.dividerBg(context),
-                color: VarnamalaTheme.peacockTeal,
+                backgroundColor: TurnaTheme.dividerBg(context),
+                color: TurnaTheme.peacockTeal,
               ),
             ),
           ],

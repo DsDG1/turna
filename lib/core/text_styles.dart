@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/views/theme.dart';
 
 /// Shared text styles used across the lesson screens.
 ///
@@ -20,7 +20,7 @@ abstract final class AppTextStyles {
   static TextStyle caption(BuildContext context) => TextStyle(
         fontSize: 14,
         fontWeight: FontWeight.w600,
-        color: VarnamalaTheme.textHintColor(context),
+        color: TurnaTheme.textHintColor(context),
         letterSpacing: 0.4,
       );
 
@@ -31,14 +31,14 @@ abstract final class AppTextStyles {
   static TextStyle promptLg(BuildContext context) => TextStyle(
         fontSize: 22,
         fontWeight: FontWeight.w500,
-        color: VarnamalaTheme.textPrimaryColor(context),
+        color: TurnaTheme.textPrimaryColor(context),
       );
 
   /// Medium body prompt — used for listening, type-the-word, reading MCQs.
   static TextStyle promptMd(BuildContext context) => TextStyle(
         fontSize: 20,
         fontWeight: FontWeight.w600,
-        color: VarnamalaTheme.textPrimaryColor(context),
+        color: TurnaTheme.textPrimaryColor(context),
       );
 
   /// Bottom action button label ("CHECK" / "CONTINUE" / "GOT IT").

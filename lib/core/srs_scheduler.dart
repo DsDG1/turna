@@ -2,7 +2,7 @@
 import 'dart:math';
 
 // Project imports:
-import 'package:varnamala/domain/course/srs_word.dart';
+import 'package:turna/domain/course/srs_word.dart';
 
 /// Abstraction over spaced-repetition scheduling algorithms.
 ///

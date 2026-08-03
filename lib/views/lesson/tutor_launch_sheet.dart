@@ -6,12 +6,12 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/ai/engine/ai_engine_config_holder.dart';
-import 'package:varnamala/application/language_provider.dart';
-import 'package:varnamala/application/srs_tutor_provider.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/routing/routing.gr.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
+import 'package:turna/application/language_provider.dart';
+import 'package:turna/application/srs_tutor_provider.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/routing/routing.gr.dart';
+import 'package:turna/views/theme.dart';
 
 /// Bottom sheet that launches the personalized companion flow
 /// (Phase 2.2 of floofy-hugging-hopper).
@@ -57,7 +57,8 @@ class _TutorLaunchSheetState extends State<TutorLaunchSheet> {
     );
 
     if (!mounted) return;
-    if (lessonId == null) return; // error / cancel path is rendered by the body.
+    if (lessonId == null)
+      return; // error / cancel path is rendered by the body.
     router.pop(); // close the sheet
     router.push(NewLessonRoute(lessonId: lessonId));
   }
@@ -99,7 +100,7 @@ class _TutorLaunchSheetState extends State<TutorLaunchSheet> {
     return Row(
       children: [
         const Icon(Icons.auto_awesome_rounded,
-            color: VarnamalaTheme.peacockTeal, size: 22),
+            color: TurnaTheme.peacockTeal, size: 22),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
@@ -175,8 +176,7 @@ class _TutorLaunchSheetState extends State<TutorLaunchSheet> {
               const SizedBox(width: 8),
               IconButton(
                 tooltip: AppStrings.commonCancel,
-                onPressed: () =>
-                    context.read<SrsTutorProvider>().cancel(),
+                onPressed: () => context.read<SrsTutorProvider>().cancel(),
                 icon: const Icon(Icons.stop_circle_outlined),
               ),
             ],
@@ -188,7 +188,8 @@ class _TutorLaunchSheetState extends State<TutorLaunchSheet> {
 
   Widget _status(BuildContext context) {
     return Selector<SrsTutorProvider, _TutorStatus>(
-      selector: (_, w) => _TutorStatus(w.state, w.errorMessage, w.generatedSectionName),
+      selector: (_, w) =>
+          _TutorStatus(w.state, w.errorMessage, w.generatedSectionName),
       builder: (context, snap, _) {
         switch (snap.state) {
           case SrsTutorState.idle:
@@ -207,13 +208,12 @@ class _TutorLaunchSheetState extends State<TutorLaunchSheet> {
             return Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: VarnamalaTheme.error.withValues(alpha: 0.12),
-                borderRadius:
-                    BorderRadius.circular(VarnamalaTheme.radiusMedium),
+                color: TurnaTheme.error.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
               ),
               child: Text(
                 snap.errorMessage ?? AppStrings.tutorLaunchErrorUnknown,
-                style: const TextStyle(color: VarnamalaTheme.error),
+                style: const TextStyle(color: TurnaTheme.error),
               ),
             );
         }
@@ -231,7 +231,7 @@ class _TutorLaunchSheetState extends State<TutorLaunchSheet> {
             height: 18,
             child: CircularProgressIndicator(
               strokeWidth: 3,
-              color: VarnamalaTheme.peacockTeal,
+              color: TurnaTheme.peacockTeal,
             ),
           ),
           const SizedBox(width: 12),

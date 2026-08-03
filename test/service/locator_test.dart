@@ -11,9 +11,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
-import 'package:varnamala/application/settings_provider.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/service/locator.dart';
+import 'package:turna/application/settings_provider.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/service/locator.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -40,7 +40,8 @@ void main() {
     getIt.registerLazySingleton<FlutterTts>(() => FlutterTts());
   }
 
-  test('SettingsProvider is registered as a lazySingleton in the Injectable '
+  test(
+      'SettingsProvider is registered as a lazySingleton in the Injectable '
       'graph (no longer a manual main.dart registration)', () async {
     await bootstrapWithoutDb();
     expect(getIt.isRegistered<SettingsProvider>(), isTrue);
@@ -68,7 +69,8 @@ void main() {
     expect(settings.soundEffectsEnabled, isFalse);
   });
 
-  test('AudioController no longer needs the isRegistered guard once '
+  test(
+      'AudioController no longer needs the isRegistered guard once '
       'SettingsProvider is in the graph', () async {
     // Contract guard: after the Phase 3 refactor lands, this assertion
     // documents that SettingsProvider is always registered before any

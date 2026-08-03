@@ -12,7 +12,11 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
-CONFIG_KIND = "varnamala.ai_config"
+CONFIG_KIND = "turna.ai_config"
+# Legacy kind from the pre-rebrand "Varnamala" days. We still accept it on
+# read for backward compatibility so existing user config files keep loading.
+# Newly written files always use CONFIG_KIND.
+CONFIG_KIND_LEGACY = "varnamala.ai_config"
 CONFIG_VERSION = 1
 
 # Closed set of AI fields written to / read from the external file.
@@ -269,7 +273,7 @@ def parse_document(data: Any) -> tuple[dict[str, Any] | None, str]:
         if not isinstance(data, dict):
             return None, "配置文件根节点必须是 JSON 对象"
         kind = str(data.get("kind") or "")
-        if kind and kind != CONFIG_KIND:
+        if kind and kind not in (CONFIG_KIND, CONFIG_KIND_LEGACY):
             return None, f"未知 kind：{kind}（期望 {CONFIG_KIND}）"
         ai = data.get("ai")
         if ai is None and any(k in data for k in _AI_KEYS):

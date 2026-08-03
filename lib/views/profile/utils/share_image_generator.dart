@@ -56,12 +56,13 @@ class ShareProgressImageGenerator {
     final ByteData? byteData =
         await image.toByteData(format: ui.ImageByteFormat.png);
     if (byteData == null) {
-      throw StateError('Failed to encode share image to PNG (toByteData null).');
+      throw StateError(
+          'Failed to encode share image to PNG (toByteData null).');
     }
     final Uint8List pngBytes = byteData.buffer.asUint8List();
 
     final tempDir = await getTemporaryDirectory();
-    final file = File('${tempDir.path}/varnamala_progress.png');
+    final file = File('${tempDir.path}/turna_progress.png');
     await file.writeAsBytes(pngBytes);
 
     await Share.shareXFiles(

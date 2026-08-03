@@ -6,24 +6,24 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 // Project imports:
-import 'package:varnamala/application/ai/ai_course_provider.dart';
-import 'package:varnamala/application/ai/engine/ai_cancel_token.dart';
-import 'package:varnamala/application/ai/engine/ai_engine.dart';
-import 'package:varnamala/application/ai/engine/ai_engine_config.dart';
-import 'package:varnamala/application/ai/engine/ai_recent_tasks_provider.dart';
-import 'package:varnamala/routing/routing.gr.dart';
-import 'package:varnamala/application/ai/textbook/import_plan.dart';
-import 'package:varnamala/application/ai/textbook/knowledge_merger.dart';
-import 'package:varnamala/application/ai/textbook/knowledge_prompt.dart';
-import 'package:varnamala/application/ai/textbook/knowledge_schema.dart';
-import 'package:varnamala/application/ai/textbook/markdown_chopper.dart';
-import 'package:varnamala/application/ai/textbook/textbook_presets.dart';
-import 'package:varnamala/application/ai/textbook/textbook_to_course.dart';
-import 'package:varnamala/core/logger.dart';
-import 'package:varnamala/data/course_database.dart' as db;
-import 'package:varnamala/data/course_repository.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/utils/ohos_file_picker.dart';
+import 'package:turna/application/ai/ai_course_provider.dart';
+import 'package:turna/application/ai/engine/ai_cancel_token.dart';
+import 'package:turna/application/ai/engine/ai_engine.dart';
+import 'package:turna/application/ai/engine/ai_engine_config.dart';
+import 'package:turna/application/ai/engine/ai_recent_tasks_provider.dart';
+import 'package:turna/routing/routing.gr.dart';
+import 'package:turna/application/ai/textbook/import_plan.dart';
+import 'package:turna/application/ai/textbook/knowledge_merger.dart';
+import 'package:turna/application/ai/textbook/knowledge_prompt.dart';
+import 'package:turna/application/ai/textbook/knowledge_schema.dart';
+import 'package:turna/application/ai/textbook/markdown_chopper.dart';
+import 'package:turna/application/ai/textbook/textbook_presets.dart';
+import 'package:turna/application/ai/textbook/textbook_to_course.dart';
+import 'package:turna/core/logger.dart';
+import 'package:turna/data/course_database.dart' as db;
+import 'package:turna/data/course_repository.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/utils/ohos_file_picker.dart';
 
 /// Kind of a flattened knowledge row in the review table.
 enum ResourceKind { word, expression, grammar }

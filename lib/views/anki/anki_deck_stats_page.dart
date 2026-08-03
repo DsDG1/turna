@@ -6,9 +6,9 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/memory_curve_provider.dart';
-import 'package:varnamala/views/review/components/retention_curve_chart.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/memory_curve_provider.dart';
+import 'package:turna/views/review/components/retention_curve_chart.dart';
+import 'package:turna/views/theme.dart';
 
 @RoutePage()
 class AnkiDeckStatsPage extends StatelessWidget {
@@ -26,7 +26,8 @@ class AnkiDeckStatsPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text('$title · 统计')),
       body: FutureBuilder<MemoryCurveSnapshot>(
-        future: context.read<MemoryCurveProvider>().snapshotForImportId(importId),
+        future:
+            context.read<MemoryCurveProvider>().snapshotForImportId(importId),
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());
@@ -51,7 +52,8 @@ class AnkiDeckStatsPage extends StatelessWidget {
               const SizedBox(height: 12),
               _MetricCard(
                 title: '复习记录',
-                value: '${data.totalReviews} 次 · ${data.trackedCards}/${data.totalCards} 张已复习',
+                value:
+                    '${data.totalReviews} 次 · ${data.trackedCards}/${data.totalCards} 张已复习',
                 icon: Icons.history,
               ),
               const SizedBox(height: 12),
@@ -86,12 +88,13 @@ class _MetricCard extends StatelessWidget {
   final String value;
   final IconData icon;
 
-  const _MetricCard({required this.title, required this.value, required this.icon});
+  const _MetricCard(
+      {required this.title, required this.value, required this.icon});
 
   @override
   Widget build(BuildContext context) => Card(
         child: ListTile(
-          leading: Icon(icon, color: VarnamalaTheme.peacockTeal),
+          leading: Icon(icon, color: TurnaTheme.peacockTeal),
           title: Text(title),
           subtitle: Text(value,
               style: Theme.of(context)

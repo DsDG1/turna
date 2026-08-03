@@ -2,9 +2,9 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:varnamala/views/home/components/profile_app_bar.dart';
-import 'package:varnamala/views/profile/widgets/learning_stats.dart';
-import 'package:varnamala/views/profile/widgets/widgets.dart';
+import 'package:turna/views/home/components/profile_app_bar.dart';
+import 'package:turna/views/profile/widgets/learning_stats.dart';
+import 'package:turna/views/profile/widgets/widgets.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({Key? key}) : super(key: key);

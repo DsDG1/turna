@@ -44,7 +44,7 @@ class SavedRemote:
 
 def load_remotes() -> list[SavedRemote]:
     """Load all saved remotes from QSettings."""
-    qsettings = QSettings("Varnamala", "CourseEditor")
+    qsettings = QSettings("Turna", "CourseEditor")
     raw = qsettings.value(_QSETTINGS_KEY, "[]")
     if not isinstance(raw, str):
         return []
@@ -63,7 +63,7 @@ def load_remotes() -> list[SavedRemote]:
 
 def save_remotes(remotes: list[SavedRemote]) -> None:
     """Persist the full list of saved remotes."""
-    qsettings = QSettings("Varnamala", "CourseEditor")
+    qsettings = QSettings("Turna", "CourseEditor")
     qsettings.setValue(
         _QSETTINGS_KEY,
         json.dumps([r.to_dict() for r in remotes], ensure_ascii=False),

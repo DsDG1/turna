@@ -5,7 +5,7 @@
 // TypeTheWord, ListenOnly) also opt out (no text prompt).
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/domain/course/interaction.dart';
+import 'package:turna/domain/course/interaction.dart';
 
 void main() {
   group('interactionAiHintEligible', () {

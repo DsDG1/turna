@@ -8,18 +8,18 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/anki/anki_deck_manager.dart';
-import 'package:varnamala/application/audio_controller.dart';
-import 'package:varnamala/application/language_provider.dart';
-import 'package:varnamala/application/settings_provider.dart';
-import 'package:varnamala/core/enums.dart';
-import 'package:varnamala/core/extensions.dart';
-import 'package:varnamala/core/fsrs_optimizer.dart';
-import 'package:varnamala/data/review_history_dao.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/settings/widgets/settings_common.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/anki/anki_deck_manager.dart';
+import 'package:turna/application/audio_controller.dart';
+import 'package:turna/application/language_provider.dart';
+import 'package:turna/application/settings_provider.dart';
+import 'package:turna/core/enums.dart';
+import 'package:turna/core/extensions.dart';
+import 'package:turna/core/fsrs_optimizer.dart';
+import 'package:turna/data/review_history_dao.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/settings/widgets/settings_common.dart';
+import 'package:turna/views/theme.dart';
 
 class SettingsLanguageSelectorTile extends StatelessWidget {
   const SettingsLanguageSelectorTile({super.key});
@@ -47,8 +47,8 @@ class SettingsLanguageSelectorTile extends StatelessWidget {
                     Icons.language_rounded,
                     size: 18,
                     color: lang == current
-                        ? VarnamalaTheme.peacockTeal
-                        : VarnamalaTheme.textHint,
+                        ? TurnaTheme.peacockTeal
+                        : TurnaTheme.textHint,
                   ),
                   const SizedBox(width: 8),
                   Text(
@@ -73,14 +73,14 @@ class SettingsLanguageSelectorTile extends StatelessWidget {
             Text(
               current.name.toTitleCase,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: VarnamalaTheme.peacockTeal,
+                    color: TurnaTheme.peacockTeal,
                     fontWeight: FontWeight.w700,
                   ),
             ),
             const SizedBox(width: 4),
             const Icon(
               Icons.chevron_right_rounded,
-              color: VarnamalaTheme.textHint,
+              color: TurnaTheme.textHint,
             ),
           ],
         ),
@@ -103,7 +103,8 @@ class _SettingsTtsSpeedTileState extends State<SettingsTtsSpeedTile> {
 
   @override
   Widget build(BuildContext context) {
-    final persisted = context.select<SettingsProvider, double>((p) => p.ttsSpeed);
+    final persisted =
+        context.select<SettingsProvider, double>((p) => p.ttsSpeed);
     final value = _dragValue ?? persisted;
 
     return Padding(
@@ -117,13 +118,12 @@ class _SettingsTtsSpeedTileState extends State<SettingsTtsSpeedTile> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.08),
-                  borderRadius:
-                      BorderRadius.circular(VarnamalaTheme.radiusMedium),
+                  color: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
                 ),
                 child: const Icon(
                   Icons.record_voice_over_rounded,
-                  color: VarnamalaTheme.peacockTeal,
+                  color: TurnaTheme.peacockTeal,
                   size: 20,
                 ),
               ),
@@ -141,7 +141,7 @@ class _SettingsTtsSpeedTileState extends State<SettingsTtsSpeedTile> {
                     Text(
                       AppStrings.settingsTtsSpeedSubtitle,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: VarnamalaTheme.textHintColor(context),
+                            color: TurnaTheme.textHintColor(context),
                           ),
                     ),
                   ],
@@ -150,7 +150,7 @@ class _SettingsTtsSpeedTileState extends State<SettingsTtsSpeedTile> {
               Text(
                 AppStrings.settingsTtsSpeedValue(value.toStringAsFixed(1)),
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: VarnamalaTheme.peacockTeal,
+                      color: TurnaTheme.peacockTeal,
                       fontWeight: FontWeight.w700,
                     ),
               ),
@@ -164,8 +164,8 @@ class _SettingsTtsSpeedTileState extends State<SettingsTtsSpeedTile> {
               min: 0.5,
               max: 2.0,
               divisions: 15,
-              activeColor: VarnamalaTheme.peacockTeal,
-              inactiveColor: VarnamalaTheme.dividerBg(context),
+              activeColor: TurnaTheme.peacockTeal,
+              inactiveColor: TurnaTheme.dividerBg(context),
               onChanged: (v) {
                 setState(() => _dragValue = v);
                 // Preview immediately without prefs write / provider notify.
@@ -213,13 +213,12 @@ class _SettingsSrsWeightsTileState extends State<SettingsSrsWeightsTile> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.08),
-                  borderRadius:
-                      BorderRadius.circular(VarnamalaTheme.radiusMedium),
+                  color: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
                 ),
                 child: const Icon(
                   Icons.auto_graph_rounded,
-                  color: VarnamalaTheme.peacockTeal,
+                  color: TurnaTheme.peacockTeal,
                   size: 20,
                 ),
               ),
@@ -237,7 +236,7 @@ class _SettingsSrsWeightsTileState extends State<SettingsSrsWeightsTile> {
                     Text(
                       subtitle,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: VarnamalaTheme.textHintColor(context),
+                            color: TurnaTheme.textHintColor(context),
                           ),
                     ),
                   ],
@@ -251,7 +250,7 @@ class _SettingsSrsWeightsTileState extends State<SettingsSrsWeightsTile> {
             child: Text(
               AppStrings.settingsSrsOptimizeHint,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: VarnamalaTheme.textHintColor(context),
+                    color: TurnaTheme.textHintColor(context),
                   ),
             ),
           ),
@@ -272,7 +271,9 @@ class _SettingsSrsWeightsTileState extends State<SettingsSrsWeightsTile> {
                 TextButton(
                   onPressed: _busy
                       ? null
-                      : () => context.read<SettingsProvider>().clearFsrsParameters(),
+                      : () => context
+                          .read<SettingsProvider>()
+                          .clearFsrsParameters(),
                   child: Text(AppStrings.settingsSrsResetWeights),
                 ),
               ],
@@ -350,13 +351,12 @@ class _SettingsSrsRetentionTileState extends State<SettingsSrsRetentionTile> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.08),
-                  borderRadius:
-                      BorderRadius.circular(VarnamalaTheme.radiusMedium),
+                  color: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
                 ),
                 child: const Icon(
                   Icons.psychology_rounded,
-                  color: VarnamalaTheme.peacockTeal,
+                  color: TurnaTheme.peacockTeal,
                   size: 20,
                 ),
               ),
@@ -372,7 +372,7 @@ class _SettingsSrsRetentionTileState extends State<SettingsSrsRetentionTile> {
               Text(
                 AppStrings.settingsSrsRetentionValue(percent),
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: VarnamalaTheme.peacockTeal,
+                      color: TurnaTheme.peacockTeal,
                       fontWeight: FontWeight.w700,
                     ),
               ),
@@ -386,11 +386,13 @@ class _SettingsSrsRetentionTileState extends State<SettingsSrsRetentionTile> {
               min: 0.80,
               max: 0.95,
               divisions: 15,
-              activeColor: VarnamalaTheme.peacockTeal,
-              inactiveColor: VarnamalaTheme.dividerBg(context),
+              activeColor: TurnaTheme.peacockTeal,
+              inactiveColor: TurnaTheme.dividerBg(context),
               onChanged: (v) => setState(() => _dragValue = v),
               onChangeEnd: (v) async {
-                await context.read<SettingsProvider>().setSrsDesiredRetention(v);
+                await context
+                    .read<SettingsProvider>()
+                    .setSrsDesiredRetention(v);
                 if (mounted) setState(() => _dragValue = null);
               },
             ),
@@ -441,7 +443,8 @@ class SettingsAnkiReviewLimitTile extends StatefulWidget {
       _SettingsAnkiReviewLimitTileState();
 }
 
-class _SettingsAnkiReviewLimitTileState extends State<SettingsAnkiReviewLimitTile> {
+class _SettingsAnkiReviewLimitTileState
+    extends State<SettingsAnkiReviewLimitTile> {
   late final AnkiDeckManager _manager = getIt<AnkiDeckManager>();
 
   @override
@@ -509,13 +512,12 @@ class _AnkiLimitSliderState extends State<_AnkiLimitSlider> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.08),
-                  borderRadius:
-                      BorderRadius.circular(VarnamalaTheme.radiusMedium),
+                  color: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
                 ),
                 child: Icon(
                   widget.icon,
-                  color: VarnamalaTheme.peacockTeal,
+                  color: TurnaTheme.peacockTeal,
                   size: 20,
                 ),
               ),
@@ -533,7 +535,7 @@ class _AnkiLimitSliderState extends State<_AnkiLimitSlider> {
                     Text(
                       widget.subtitle,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: VarnamalaTheme.textHintColor(context),
+                            color: TurnaTheme.textHintColor(context),
                           ),
                     ),
                   ],
@@ -542,7 +544,7 @@ class _AnkiLimitSliderState extends State<_AnkiLimitSlider> {
               Text(
                 '$_value',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: VarnamalaTheme.peacockTeal,
+                      color: TurnaTheme.peacockTeal,
                       fontWeight: FontWeight.w700,
                     ),
               ),
@@ -556,8 +558,8 @@ class _AnkiLimitSliderState extends State<_AnkiLimitSlider> {
               min: widget.min.toDouble(),
               max: widget.max.toDouble(),
               divisions: widget.divisions,
-              activeColor: VarnamalaTheme.peacockTeal,
-              inactiveColor: VarnamalaTheme.dividerBg(context),
+              activeColor: TurnaTheme.peacockTeal,
+              inactiveColor: TurnaTheme.dividerBg(context),
               onChanged: (value) {
                 setState(() => _value = value.round());
               },

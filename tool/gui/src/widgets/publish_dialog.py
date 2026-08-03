@@ -308,7 +308,7 @@ class PublishDialog(QDialog):
     def _report_text(self) -> str:
         r = self._report
         if self.teacher_friendly:
-            lines = ["Varnamala 发布报告", "=" * 30, ""]
+            lines = ["Turna 发布报告", "=" * 30, ""]
             lines.append("[改动]")
             for k, v in r["changes"].items():
                 if v:
@@ -327,7 +327,7 @@ class PublishDialog(QDialog):
             for e in v["errors"]:
                 lines.append(f"  ERROR: {humanize_problem(e)}")
             return "\n".join(lines) + "\n"
-        lines: list[str] = ["Varnamala 发布报告", "=" * 40, ""]
+        lines: list[str] = ["Turna 发布报告", "=" * 40, ""]
         lines.append("[改动检测]")
         for k, v in r["changes"].items():
             lines.append(f"  {k}: {'改动' if v else '无'}")

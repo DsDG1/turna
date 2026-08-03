@@ -6,23 +6,23 @@ import 'package:auto_route/annotations.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/audio_controller.dart';
-import 'package:varnamala/application/game_provider.dart';
-import 'package:varnamala/application/gems_provider.dart';
-import 'package:varnamala/application/srs_provider.dart';
-import 'package:varnamala/application/study_stats_provider.dart';
-import 'package:varnamala/core/fsrs_engine.dart';
-import 'package:varnamala/core/sm2.dart';
-import 'package:varnamala/courses/languages/expressions.dart';
-import 'package:varnamala/courses/languages/vocab.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/domain/course/expression.dart';
-import 'package:varnamala/domain/course/srs_word.dart';
-import 'package:varnamala/domain/course/word_entry.dart';
-import 'package:varnamala/domain/study/study_log.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/review/components/review_components.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/audio_controller.dart';
+import 'package:turna/application/game_provider.dart';
+import 'package:turna/application/gems_provider.dart';
+import 'package:turna/application/srs_provider.dart';
+import 'package:turna/application/study_stats_provider.dart';
+import 'package:turna/core/fsrs_engine.dart';
+import 'package:turna/core/sm2.dart';
+import 'package:turna/courses/languages/expressions.dart';
+import 'package:turna/courses/languages/vocab.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/domain/course/expression.dart';
+import 'package:turna/domain/course/srs_word.dart';
+import 'package:turna/domain/course/word_entry.dart';
+import 'package:turna/domain/study/study_log.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/review/components/review_components.dart';
+import 'package:turna/views/theme.dart';
 
 @RoutePage()
 class SrsReviewPage extends StatefulWidget {
@@ -101,12 +101,12 @@ class _SrsReviewPageState extends State<SrsReviewPage> {
     // Record study activity for statistics dashboard
     try {
       await context.read<StudyStatsProvider>().recordActivity(
-        type: StudyActivityType.srsReview,
-        xpEarned: xp,
-        durationSeconds: 0, // SRS sessions are quick; could add timer later
-        correctCount: reviewedCount,
-        incorrectCount: 0,
-      );
+            type: StudyActivityType.srsReview,
+            xpEarned: xp,
+            durationSeconds: 0, // SRS sessions are quick; could add timer later
+            correctCount: reviewedCount,
+            incorrectCount: 0,
+          );
     } catch (e) {
       debugPrint('Error recording SRS study stats: $e');
     }
@@ -172,21 +172,21 @@ class _SrsReviewPageState extends State<SrsReviewPage> {
     }
 
     final word = _queue[_currentIndex];
-    final wordEntry = word.type == SrsItemType.word
-        ? vocabById[word.wordId]
-        : null;
+    final wordEntry =
+        word.type == SrsItemType.word ? vocabById[word.wordId] : null;
     final expression = word.type == SrsItemType.expression
         ? expressionsById[word.wordId]
         : null;
 
     return Scaffold(
-      backgroundColor: VarnamalaTheme.scaffoldBg(context),
+      backgroundColor: TurnaTheme.scaffoldBg(context),
       appBar: AppBar(
         title: Text(AppStrings.reviewSrsAppBarTitle),
         actions: [
           IconButton(
             icon: Text(
-              AppStrings.reviewSrsTtsSpeed(_audioController.ttsSpeed.toStringAsFixed(1)),
+              AppStrings.reviewSrsTtsSpeed(
+                  _audioController.ttsSpeed.toStringAsFixed(1)),
               style: const TextStyle(
                 fontWeight: FontWeight.w700,
                 fontSize: 14,
@@ -218,7 +218,8 @@ class _SrsReviewPageState extends State<SrsReviewPage> {
                   expression: expression,
                   showAnswer: _showAnswer,
                   onFlip: () => setState(() => _showAnswer = true),
-                  onSpeak: () => _speak(wordEntry?.term ?? expression?.term ?? word.wordId),
+                  onSpeak: () => _speak(
+                      wordEntry?.term ?? expression?.term ?? word.wordId),
                 ),
               ),
               const SizedBox(height: 24),
@@ -228,7 +229,7 @@ class _SrsReviewPageState extends State<SrsReviewPage> {
                     AppStrings.reviewLeechHint,
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: VarnamalaTheme.error,
+                          color: TurnaTheme.error,
                           fontWeight: FontWeight.w600,
                         ),
                   ),
@@ -261,12 +262,12 @@ class _SrsReviewPageState extends State<SrsReviewPage> {
                   child: ElevatedButton(
                     onPressed: () => setState(() => _showAnswer = true),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: VarnamalaTheme.peacockTeal,
-                      foregroundColor: VarnamalaTheme.textOnPrimary,
+                      backgroundColor: TurnaTheme.peacockTeal,
+                      foregroundColor: TurnaTheme.textOnPrimary,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius:
-                            BorderRadius.circular(VarnamalaTheme.radiusMedium),
+                            BorderRadius.circular(TurnaTheme.radiusMedium),
                       ),
                     ),
                     child: Text(
@@ -318,11 +319,11 @@ class _FlashCard extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: VarnamalaTheme.cardBg(context),
-          borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+          color: TurnaTheme.cardBg(context),
+          borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
           boxShadow: [
             BoxShadow(
-              color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.08),
+              color: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),
@@ -336,7 +337,7 @@ class _FlashCard extends StatelessWidget {
                 _term,
                 style: Theme.of(context).textTheme.displaySmall?.copyWith(
                       fontWeight: FontWeight.w800,
-                      color: VarnamalaTheme.textPrimaryColor(context),
+                      color: TurnaTheme.textPrimaryColor(context),
                     ),
                 textAlign: TextAlign.center,
               ),
@@ -346,7 +347,7 @@ class _FlashCard extends StatelessWidget {
                 onPressed: onSpeak,
                 icon: const Icon(Icons.volume_up_rounded),
                 iconSize: 32,
-                color: VarnamalaTheme.peacockTeal,
+                color: TurnaTheme.peacockTeal,
               ),
               const SizedBox(height: 24),
               if (showAnswer) ...[
@@ -356,7 +357,7 @@ class _FlashCard extends StatelessWidget {
                   _translation,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: VarnamalaTheme.peacockTeal,
+                        color: TurnaTheme.peacockTeal,
                       ),
                   textAlign: TextAlign.center,
                 ),
@@ -365,7 +366,7 @@ class _FlashCard extends StatelessWidget {
                   Text(
                     '/$_pronunciation/',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: VarnamalaTheme.textSecondaryColor(context),
+                          color: TurnaTheme.textSecondaryColor(context),
                         ),
                   ),
                 ],
@@ -380,7 +381,7 @@ class _FlashCard extends StatelessWidget {
                           ? AppStrings.reviewSrsLearnedIn(lessonName)
                           : AppStrings.reviewSrsFirstSeen(word.wordId),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: VarnamalaTheme.textHintColor(context),
+                            color: TurnaTheme.textHintColor(context),
                           ),
                     );
                   },
@@ -389,7 +390,7 @@ class _FlashCard extends StatelessWidget {
                 Text(
                   AppStrings.reviewSrsTapToReveal,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: VarnamalaTheme.textHintColor(context),
+                        color: TurnaTheme.textHintColor(context),
                       ),
                 ),
               ],
@@ -404,7 +405,7 @@ class _FlashCard extends StatelessWidget {
               Text(
                 AppStrings.reviewSrsEntryNotFound,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: VarnamalaTheme.textHintColor(context),
+                      color: TurnaTheme.textHintColor(context),
                     ),
               ),
             ],

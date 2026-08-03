@@ -2,7 +2,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 // Project imports:
-import 'package:varnamala/application/anki/anki_template_renderer.dart';
+import 'package:turna/application/anki/anki_template_renderer.dart';
 
 void main() {
   group('AnkiTemplateRenderer', () {

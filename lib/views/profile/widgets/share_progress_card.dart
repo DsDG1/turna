@@ -2,11 +2,11 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:varnamala/core/enums.dart';
-import 'package:varnamala/core/extensions.dart';
-import 'package:varnamala/domain/auth/local_user.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/core/enums.dart';
+import 'package:turna/core/extensions.dart';
+import 'package:turna/domain/auth/local_user.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/theme.dart';
 
 /// A brand-styled progress poster designed to be captured and shared.
 ///
@@ -36,14 +36,14 @@ class ShareProgressCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Theme(
-      data: VarnamalaTheme.lightTheme,
+      data: TurnaTheme.lightTheme,
       child: Container(
         width: 360,
         height: 600,
         decoration: const BoxDecoration(
-          gradient: VarnamalaTheme.peacockGradient,
+          gradient: TurnaTheme.peacockGradient,
           borderRadius: BorderRadius.all(
-            Radius.circular(VarnamalaTheme.radiusXLarge),
+            Radius.circular(TurnaTheme.radiusXLarge),
           ),
         ),
         child: Stack(
@@ -57,7 +57,7 @@ class ShareProgressCard extends StatelessWidget {
                 height: 180,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: VarnamalaTheme.textOnPrimary.withValues(alpha: 0.08),
+                  color: TurnaTheme.textOnPrimary.withValues(alpha: 0.08),
                 ),
               ),
             ),
@@ -69,7 +69,7 @@ class ShareProgressCard extends StatelessWidget {
                 height: 240,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: VarnamalaTheme.textOnPrimary.withValues(alpha: 0.06),
+                  color: TurnaTheme.textOnPrimary.withValues(alpha: 0.06),
                 ),
               ),
             ),
@@ -80,7 +80,7 @@ class ShareProgressCard extends StatelessWidget {
               child: Icon(
                 Icons.auto_awesome,
                 size: 14,
-                color: VarnamalaTheme.textOnPrimary.withValues(alpha: 0.45),
+                color: TurnaTheme.textOnPrimary.withValues(alpha: 0.45),
               ),
             ),
             Positioned(
@@ -89,7 +89,7 @@ class ShareProgressCard extends StatelessWidget {
               child: Icon(
                 Icons.star_rounded,
                 size: 16,
-                color: VarnamalaTheme.textOnPrimary.withValues(alpha: 0.5),
+                color: TurnaTheme.textOnPrimary.withValues(alpha: 0.5),
               ),
             ),
             Positioned(
@@ -98,7 +98,7 @@ class ShareProgressCard extends StatelessWidget {
               child: Icon(
                 Icons.auto_awesome,
                 size: 12,
-                color: VarnamalaTheme.textOnPrimary.withValues(alpha: 0.35),
+                color: TurnaTheme.textOnPrimary.withValues(alpha: 0.35),
               ),
             ),
             Padding(
@@ -126,8 +126,7 @@ class ShareProgressCard extends StatelessWidget {
                   Text(
                     AppStrings.profileShareCardJourneySubtitle,
                     style: TextStyle(
-                      color:
-                          VarnamalaTheme.textOnPrimary.withValues(alpha: 0.8),
+                      color: TurnaTheme.textOnPrimary.withValues(alpha: 0.8),
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
                       letterSpacing: 0.5,
@@ -171,7 +170,7 @@ class ShareProgressCard extends StatelessWidget {
                             Text(
                               '“${AppStrings.profileShareCardQuote}”',
                               style: const TextStyle(
-                                color: VarnamalaTheme.textOnPrimary,
+                                color: TurnaTheme.textOnPrimary,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,
                                 height: 1.35,
@@ -181,7 +180,7 @@ class ShareProgressCard extends StatelessWidget {
                             Text(
                               AppStrings.profileShareCardQuoteSub,
                               style: TextStyle(
-                                color: VarnamalaTheme.textOnPrimary
+                                color: TurnaTheme.textOnPrimary
                                     .withValues(alpha: 0.75),
                                 fontSize: 11,
                                 fontWeight: FontWeight.w500,
@@ -199,10 +198,9 @@ class ShareProgressCard extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(
                         vertical: 10, horizontal: 14),
                     decoration: BoxDecoration(
-                      color:
-                          VarnamalaTheme.textOnPrimary.withValues(alpha: 0.12),
+                      color: TurnaTheme.textOnPrimary.withValues(alpha: 0.12),
                       borderRadius:
-                          BorderRadius.circular(VarnamalaTheme.radiusMedium),
+                          BorderRadius.circular(TurnaTheme.radiusMedium),
                     ),
                     child: Column(
                       children: [
@@ -210,7 +208,7 @@ class ShareProgressCard extends StatelessWidget {
                           AppStrings.profileShareCardFooterTitle,
                           textAlign: TextAlign.center,
                           style: const TextStyle(
-                            color: VarnamalaTheme.textOnPrimary,
+                            color: TurnaTheme.textOnPrimary,
                             fontSize: 14,
                             fontWeight: FontWeight.w800,
                           ),
@@ -220,8 +218,8 @@ class ShareProgressCard extends StatelessWidget {
                           AppStrings.profileShareCardFooterSub,
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            color: VarnamalaTheme.textOnPrimary
-                                .withValues(alpha: 0.8),
+                            color:
+                                TurnaTheme.textOnPrimary.withValues(alpha: 0.8),
                             fontSize: 11,
                             fontWeight: FontWeight.w500,
                           ),
@@ -243,10 +241,10 @@ class ShareProgressCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(16, 48, 16, 14),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.textOnPrimary.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+        color: TurnaTheme.textOnPrimary.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
         border: Border.all(
-          color: VarnamalaTheme.textOnPrimary.withValues(alpha: 0.18),
+          color: TurnaTheme.textOnPrimary.withValues(alpha: 0.18),
         ),
       ),
       child: Column(
@@ -262,7 +260,7 @@ class ShareProgressCard extends StatelessWidget {
                     Text(
                       targetLanguage.name.toTitleCase,
                       style: const TextStyle(
-                        color: VarnamalaTheme.textOnPrimary,
+                        color: TurnaTheme.textOnPrimary,
                         fontSize: 26,
                         fontWeight: FontWeight.w800,
                       ),
@@ -271,8 +269,7 @@ class ShareProgressCard extends StatelessWidget {
                     Text(
                       AppStrings.profileShareCardLearnerTag,
                       style: TextStyle(
-                        color: VarnamalaTheme.textOnPrimary
-                            .withValues(alpha: 0.8),
+                        color: TurnaTheme.textOnPrimary.withValues(alpha: 0.8),
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
@@ -290,8 +287,8 @@ class ShareProgressCard extends StatelessWidget {
                       Text(
                         AppStrings.profileShareCardTotalXp,
                         style: TextStyle(
-                          color: VarnamalaTheme.textOnPrimary
-                              .withValues(alpha: 0.8),
+                          color:
+                              TurnaTheme.textOnPrimary.withValues(alpha: 0.8),
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
@@ -307,7 +304,7 @@ class ShareProgressCard extends StatelessWidget {
                   Text(
                     totalXp.toString(),
                     style: const TextStyle(
-                      color: VarnamalaTheme.textOnPrimary,
+                      color: TurnaTheme.textOnPrimary,
                       fontSize: 26,
                       fontWeight: FontWeight.w800,
                     ),
@@ -315,8 +312,7 @@ class ShareProgressCard extends StatelessWidget {
                   Text(
                     'XP',
                     style: TextStyle(
-                      color:
-                          VarnamalaTheme.textOnPrimary.withValues(alpha: 0.7),
+                      color: TurnaTheme.textOnPrimary.withValues(alpha: 0.7),
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                     ),
@@ -380,8 +376,8 @@ class _StatBox extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
       decoration: BoxDecoration(
-        color: VarnamalaTheme.textOnPrimary.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+        color: TurnaTheme.textOnPrimary.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
       ),
       child: Column(
         children: [
@@ -390,7 +386,7 @@ class _StatBox extends StatelessWidget {
           Text(
             value,
             style: const TextStyle(
-              color: VarnamalaTheme.textOnPrimary,
+              color: TurnaTheme.textOnPrimary,
               fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
@@ -400,7 +396,7 @@ class _StatBox extends StatelessWidget {
             label,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: VarnamalaTheme.textOnPrimary.withValues(alpha: 0.85),
+              color: TurnaTheme.textOnPrimary.withValues(alpha: 0.85),
               fontSize: 10,
               fontWeight: FontWeight.w600,
             ),

@@ -18,7 +18,7 @@ from src.backend.course_adapter import CourseAdapter  # noqa: E402
 
 class SaveAtomicityTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_atomic_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_atomic_"))
         self.course_dir = self.tmp / "turkish"
         copy_turkish_course(self.course_dir)
 

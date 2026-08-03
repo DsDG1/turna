@@ -4,9 +4,9 @@
 
 // Project imports:
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/application/anki/anki_card_adapter.dart';
-import 'package:varnamala/application/anki/anki_models.dart';
-import 'package:varnamala/application/anki/anki_render_policy.dart';
+import 'package:turna/application/anki/anki_card_adapter.dart';
+import 'package:turna/application/anki/anki_models.dart';
+import 'package:turna/application/anki/anki_render_policy.dart';
 
 void main() {
   const policy = AnkiRenderPolicy();

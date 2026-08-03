@@ -2,35 +2,35 @@
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/achievements_provider.dart';
-import 'package:varnamala/application/accessibility_provider.dart';
-import 'package:varnamala/application/ai/ai_course_provider.dart';
-import 'package:varnamala/application/ai/ai_grounded_resource_provider.dart';
-import 'package:varnamala/application/ai/ai_hint_provider.dart';
-import 'package:varnamala/application/ai/ai_lesson_helper_provider.dart';
-import 'package:varnamala/application/ai/ai_wish_provider.dart';
-import 'package:varnamala/application/ai/engine/ai_engine_config_holder.dart';
-import 'package:varnamala/application/ai/engine/ai_recent_tasks_provider.dart';
-import 'package:varnamala/application/ai/textbook/textbook_import_provider.dart';
-import 'package:varnamala/application/character_provider.dart';
-import 'package:varnamala/application/course_provider.dart';
-import 'package:varnamala/application/fun_provider.dart';
-import 'package:varnamala/application/game_provider.dart';
-import 'package:varnamala/application/gems_provider.dart';
-import 'package:varnamala/application/grammar_review_provider.dart';
-import 'package:varnamala/application/language_provider.dart';
-import 'package:varnamala/application/lesson_viewmodel.dart';
-import 'package:varnamala/application/match_provider.dart';
-import 'package:varnamala/application/memory_curve_provider.dart';
-import 'package:varnamala/application/mistake_provider.dart';
-import 'package:varnamala/application/progress_provider.dart';
-import 'package:varnamala/application/review_progress_provider.dart';
-import 'package:varnamala/application/settings_provider.dart';
-import 'package:varnamala/application/srs_provider.dart';
-import 'package:varnamala/application/srs_tutor_provider.dart';
-import 'package:varnamala/application/study_stats_provider.dart';
-import 'package:varnamala/application/theme_provider.dart';
-import 'package:varnamala/di/injection.dart';
+import 'package:turna/application/achievements_provider.dart';
+import 'package:turna/application/accessibility_provider.dart';
+import 'package:turna/application/ai/ai_course_provider.dart';
+import 'package:turna/application/ai/ai_grounded_resource_provider.dart';
+import 'package:turna/application/ai/ai_hint_provider.dart';
+import 'package:turna/application/ai/ai_lesson_helper_provider.dart';
+import 'package:turna/application/ai/ai_wish_provider.dart';
+import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
+import 'package:turna/application/ai/engine/ai_recent_tasks_provider.dart';
+import 'package:turna/application/ai/textbook/textbook_import_provider.dart';
+import 'package:turna/application/character_provider.dart';
+import 'package:turna/application/course_provider.dart';
+import 'package:turna/application/fun_provider.dart';
+import 'package:turna/application/game_provider.dart';
+import 'package:turna/application/gems_provider.dart';
+import 'package:turna/application/grammar_review_provider.dart';
+import 'package:turna/application/language_provider.dart';
+import 'package:turna/application/lesson_viewmodel.dart';
+import 'package:turna/application/match_provider.dart';
+import 'package:turna/application/memory_curve_provider.dart';
+import 'package:turna/application/mistake_provider.dart';
+import 'package:turna/application/progress_provider.dart';
+import 'package:turna/application/review_progress_provider.dart';
+import 'package:turna/application/settings_provider.dart';
+import 'package:turna/application/srs_provider.dart';
+import 'package:turna/application/srs_tutor_provider.dart';
+import 'package:turna/application/study_stats_provider.dart';
+import 'package:turna/application/theme_provider.dart';
+import 'package:turna/di/injection.dart';
 
 /// App-wide [ChangeNotifier] graph. Every `getIt<T>()` here must resolve the
 /// **same** instance that constructor-injected collaborators receive

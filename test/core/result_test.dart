@@ -1,7 +1,7 @@
 // Unit tests for the Result discriminated-result type.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:varnamala/core/result.dart';
+import 'package:turna/core/result.dart';
 
 void main() {
   group('guard', () {
@@ -54,7 +54,8 @@ void main() {
     });
 
     test('map propagates a failure untouched', () {
-      final result = Result.guardSync(() => throw Exception('no')).map((v) => v);
+      final result =
+          Result.guardSync(() => throw Exception('no')).map((v) => v);
       expect(result.isFailure, isTrue);
     });
 
@@ -64,8 +65,8 @@ void main() {
     });
 
     test('flatMap propagates a failure untouched', () {
-      final result =
-          Result.guardSync(() => throw Exception('no')).flatMap((v) => Success(v));
+      final result = Result.guardSync(() => throw Exception('no'))
+          .flatMap((v) => Success(v));
       expect(result.isFailure, isTrue);
     });
   });

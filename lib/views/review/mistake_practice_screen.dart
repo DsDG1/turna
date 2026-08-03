@@ -6,12 +6,12 @@ import 'package:auto_route/annotations.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/mistake_provider.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/domain/course/mistake_entry.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/mistake_provider.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/domain/course/mistake_entry.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
+import 'package:turna/views/theme.dart';
 
 @RoutePage()
 class MistakePracticePage extends StatefulWidget {
@@ -45,17 +45,17 @@ class _MistakePracticePageState extends State<MistakePracticePage> {
     final renderer = lookupRenderer(_renderers, interaction);
 
     return Scaffold(
-      backgroundColor: VarnamalaTheme.scaffoldBg(context),
+      backgroundColor: TurnaTheme.scaffoldBg(context),
       appBar: AppBar(
-        backgroundColor: VarnamalaTheme.surfaceColor(context),
+        backgroundColor: TurnaTheme.surfaceColor(context),
         elevation: 0,
         iconTheme: IconThemeData(
-          color: VarnamalaTheme.textPrimaryColor(context),
+          color: TurnaTheme.textPrimaryColor(context),
         ),
         title: Text(
           AppStrings.reviewPracticeMistakeTitle,
           style: TextStyle(
-            color: VarnamalaTheme.textPrimaryColor(context),
+            color: TurnaTheme.textPrimaryColor(context),
             fontSize: 16,
             fontWeight: FontWeight.w700,
           ),

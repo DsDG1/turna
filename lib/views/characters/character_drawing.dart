@@ -6,16 +6,16 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/audio_controller.dart';
-import 'package:varnamala/application/character_provider.dart';
-import 'package:varnamala/application/language_provider.dart';
-import 'package:varnamala/core/enums.dart';
-import 'package:varnamala/core/utils.dart';
-import 'package:varnamala/courses/alphabets/alphabets.dart';
-import 'package:varnamala/di/injection.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/routing/routing.gr.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/audio_controller.dart';
+import 'package:turna/application/character_provider.dart';
+import 'package:turna/application/language_provider.dart';
+import 'package:turna/core/enums.dart';
+import 'package:turna/core/utils.dart';
+import 'package:turna/courses/alphabets/alphabets.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/routing/routing.gr.dart';
+import 'package:turna/views/theme.dart';
 
 enum CharacterLearningMode {
   vowels,
@@ -55,8 +55,7 @@ class _CharacterPracticeScreenState extends State<CharacterPracticeScreen> {
         SliverToBoxAdapter(
           child: _SectionHeader(
             title: AppStrings.charactersVowelsTitle,
-            subtitle:
-                AppStrings.charactersVowelsSubtitle(vowels.length),
+            subtitle: AppStrings.charactersVowelsSubtitle(vowels.length),
             icon: Icons.record_voice_over_rounded,
           ),
         ),
@@ -75,7 +74,7 @@ class _CharacterPracticeScreenState extends State<CharacterPracticeScreen> {
                 return _CharacterTile(
                   character: entry.key,
                   pronunciation: entry.value,
-                  color: VarnamalaTheme.peacockTeal,
+                  color: TurnaTheme.peacockTeal,
                 );
               },
               childCount: vowels.length,
@@ -86,8 +85,8 @@ class _CharacterPracticeScreenState extends State<CharacterPracticeScreen> {
         SliverToBoxAdapter(
           child: _SectionHeader(
             title: AppStrings.charactersConsonantsTitle,
-            subtitle: AppStrings
-                .charactersConsonantsSubtitle(consonants.length),
+            subtitle:
+                AppStrings.charactersConsonantsSubtitle(consonants.length),
             icon: Icons.abc_rounded,
           ),
         ),
@@ -106,7 +105,7 @@ class _CharacterPracticeScreenState extends State<CharacterPracticeScreen> {
                 return _CharacterTile(
                   character: entry.key,
                   pronunciation: entry.value,
-                  color: VarnamalaTheme.leagueAmethyst,
+                  color: TurnaTheme.leagueAmethyst,
                 );
               },
               childCount: consonants.length,
@@ -123,7 +122,7 @@ class _CharacterPracticeScreenState extends State<CharacterPracticeScreen> {
                 _PracticeButton(
                   label: AppStrings.charactersLearnVowels,
                   icon: Icons.record_voice_over_rounded,
-                  color: VarnamalaTheme.peacockTeal,
+                  color: TurnaTheme.peacockTeal,
                   onTap: () => context.router.push(
                       VowelAndConsonantLearningRoute(
                           mode: CharacterLearningMode.vowels)),
@@ -132,7 +131,7 @@ class _CharacterPracticeScreenState extends State<CharacterPracticeScreen> {
                 _PracticeButton(
                   label: AppStrings.charactersLearnConsonants,
                   icon: Icons.abc_rounded,
-                  color: VarnamalaTheme.leagueAmethyst,
+                  color: TurnaTheme.leagueAmethyst,
                   onTap: () => context.router.push(
                       VowelAndConsonantLearningRoute(
                           mode: CharacterLearningMode.consonants)),
@@ -141,7 +140,7 @@ class _CharacterPracticeScreenState extends State<CharacterPracticeScreen> {
                 _PracticeButton(
                   label: AppStrings.charactersRandomPractice,
                   icon: Icons.shuffle_rounded,
-                  color: VarnamalaTheme.peacockCyan,
+                  color: TurnaTheme.peacockCyan,
                   onTap: () => context.router.push(
                       VowelAndConsonantLearningRoute(
                           mode: CharacterLearningMode.random)),
@@ -173,7 +172,7 @@ class _SectionHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
       child: Row(
         children: [
-          Icon(icon, color: VarnamalaTheme.peacockTeal, size: 22),
+          Icon(icon, color: TurnaTheme.peacockTeal, size: 22),
           const SizedBox(width: 8),
           Text(
             title,
@@ -185,7 +184,7 @@ class _SectionHeader extends StatelessWidget {
           Text(
             subtitle,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: VarnamalaTheme.textHint,
+                  color: TurnaTheme.textHint,
                 ),
           ),
         ],
@@ -208,15 +207,15 @@ class _CharacterTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: VarnamalaTheme.textOnPrimary,
-      borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+      color: TurnaTheme.textOnPrimary,
+      borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
       child: InkWell(
         onTap: () => getIt<AudioController>().speak(pronunciation),
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
         child: Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
-            border: Border.all(color: VarnamalaTheme.dividerBg(context)),
+            borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+            border: Border.all(color: TurnaTheme.dividerBg(context)),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -233,7 +232,7 @@ class _CharacterTile extends StatelessWidget {
               Text(
                 pronunciation,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: VarnamalaTheme.textSecondary,
+                      color: TurnaTheme.textSecondary,
                       fontSize: 11,
                     ),
                 maxLines: 1,
@@ -263,16 +262,16 @@ class _PracticeButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: VarnamalaTheme.textOnPrimary,
-      borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+      color: TurnaTheme.textOnPrimary,
+      borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
         child: Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(vertical: 14),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(VarnamalaTheme.radiusMedium),
+            borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
             border: Border.all(color: color.withValues(alpha: 0.3), width: 2),
           ),
           child: Row(
@@ -340,10 +339,10 @@ class RenderCharacterState extends State<RenderCharacter> {
         aspectRatio: 0.75,
         child: Container(
           decoration: BoxDecoration(
-            color: VarnamalaTheme.textOnPrimary,
+            color: TurnaTheme.textOnPrimary,
             border: Border.all(
-                color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.15)),
-            borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+                color: TurnaTheme.peacockTeal.withValues(alpha: 0.15)),
+            borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
           ),
           child: Stack(
             children: [
@@ -354,7 +353,7 @@ class RenderCharacterState extends State<RenderCharacter> {
                     widget.alphabet,
                     style: const TextStyle(
                       fontSize: 280,
-                      color: VarnamalaTheme.peacockTeal,
+                      color: TurnaTheme.peacockTeal,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -403,12 +402,10 @@ class RenderCharacterState extends State<RenderCharacter> {
                 top: 10,
                 right: 10,
                 child: Material(
-                  color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.1),
-                  borderRadius:
-                      BorderRadius.circular(VarnamalaTheme.radiusSmall),
+                  color: TurnaTheme.peacockTeal.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
                   child: InkWell(
-                    borderRadius:
-                        BorderRadius.circular(VarnamalaTheme.radiusSmall),
+                    borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
                     onTap: () {
                       strokesNotifier.value = [];
                       currentStroke = [];
@@ -417,7 +414,7 @@ class RenderCharacterState extends State<RenderCharacter> {
                       padding: EdgeInsets.all(8),
                       child: Icon(
                         Icons.delete_outline_rounded,
-                        color: VarnamalaTheme.peacockTeal,
+                        color: TurnaTheme.peacockTeal,
                         size: 22,
                       ),
                     ),
@@ -480,10 +477,10 @@ class _VowelAndConsonantLearningPageState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: VarnamalaTheme.scaffoldBackground,
+      backgroundColor: TurnaTheme.scaffoldBackground,
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.close_rounded, color: VarnamalaTheme.textHint),
+          icon: const Icon(Icons.close_rounded, color: TurnaTheme.textHint),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -506,10 +503,9 @@ class _VowelAndConsonantLearningPageState
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               margin: const EdgeInsets.symmetric(horizontal: 32),
               decoration: BoxDecoration(
-                color: VarnamalaTheme.textOnPrimary,
-                borderRadius:
-                    BorderRadius.circular(VarnamalaTheme.radiusMedium),
-                border: Border.all(color: VarnamalaTheme.dividerBg(context)),
+                color: TurnaTheme.textOnPrimary,
+                borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+                border: Border.all(color: TurnaTheme.dividerBg(context)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -519,35 +515,34 @@ class _VowelAndConsonantLearningPageState
                     style: const TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.w700,
-                      color: VarnamalaTheme.peacockTeal,
+                      color: TurnaTheme.peacockTeal,
                     ),
                   ),
                   const SizedBox(width: 12),
                   const Icon(Icons.arrow_forward_rounded,
-                      color: VarnamalaTheme.textHint, size: 20),
+                      color: TurnaTheme.textHint, size: 20),
                   const SizedBox(width: 12),
                   Text(
                     currentCharacter.value,
                     style: const TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.w600,
-                      color: VarnamalaTheme.textPrimary,
+                      color: TurnaTheme.textPrimary,
                     ),
                   ),
                   const SizedBox(width: 12),
                   Material(
-                    color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.1),
-                    borderRadius:
-                        BorderRadius.circular(VarnamalaTheme.radiusSmall),
+                    color: TurnaTheme.peacockTeal.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
                     child: InkWell(
                       borderRadius:
-                          BorderRadius.circular(VarnamalaTheme.radiusSmall),
-                      onTap: () =>
-                          getIt<AudioController>().speak(currentCharacter.value),
+                          BorderRadius.circular(TurnaTheme.radiusSmall),
+                      onTap: () => getIt<AudioController>()
+                          .speak(currentCharacter.value),
                       child: const Padding(
                         padding: EdgeInsets.all(8),
                         child: Icon(Icons.volume_up_rounded,
-                            color: VarnamalaTheme.peacockTeal, size: 22),
+                            color: TurnaTheme.peacockTeal, size: 22),
                       ),
                     ),
                   ),
@@ -574,18 +569,17 @@ class _VowelAndConsonantLearningPageState
                         !shouldRebuildCharacter.value;
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: VarnamalaTheme.peacockTeal,
-                    foregroundColor: VarnamalaTheme.textOnPrimary,
+                    backgroundColor: TurnaTheme.peacockTeal,
+                    foregroundColor: TurnaTheme.textOnPrimary,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(
-                          VarnamalaTheme.radiusMedium),
+                      borderRadius:
+                          BorderRadius.circular(TurnaTheme.radiusMedium),
                     ),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                          AppStrings.charactersNext,
+                      Text(AppStrings.charactersNext,
                           style: const TextStyle(
                               fontSize: 18, fontWeight: FontWeight.w700)),
                       const SizedBox(width: 8),
@@ -626,7 +620,7 @@ class CharacterPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = VarnamalaTheme.peacockTeal
+      ..color = TurnaTheme.peacockTeal
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
       ..strokeWidth = 6.0

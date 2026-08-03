@@ -4,12 +4,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 
 // Project imports:
-import 'package:varnamala/application/anki/anki_models.dart';
-import 'package:varnamala/application/anki/anki_srs_migrator.dart';
-import 'package:varnamala/application/lesson_link_store.dart';
-import 'package:varnamala/application/srs_provider.dart';
-import 'package:varnamala/domain/course/srs_word.dart';
-import 'package:varnamala/service/locator.dart';
+import 'package:turna/application/anki/anki_models.dart';
+import 'package:turna/application/anki/anki_srs_migrator.dart';
+import 'package:turna/application/lesson_link_store.dart';
+import 'package:turna/application/srs_provider.dart';
+import 'package:turna/domain/course/srs_word.dart';
+import 'package:turna/service/locator.dart';
 
 import '../helpers/in_memory_course_db.dart';
 
@@ -494,8 +494,7 @@ void main() {
         expect(
           dueAt.difference(before).inSeconds > 60,
           isTrue,
-          reason:
-              'dueAt ${dueAt.difference(before).inSeconds}s after before; '
+          reason: 'dueAt ${dueAt.difference(before).inSeconds}s after before; '
               'expected ~600s (10 min), not ~10s',
         );
       });

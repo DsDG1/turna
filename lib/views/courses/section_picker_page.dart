@@ -6,11 +6,11 @@ import 'package:auto_route/annotations.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/course_provider.dart';
-import 'package:varnamala/domain/course/section.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/courses/components/section_visuals.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/course_provider.dart';
+import 'package:turna/domain/course/section.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/courses/components/section_visuals.dart';
+import 'package:turna/views/theme.dart';
 
 @RoutePage()
 class SectionPickerPage extends StatelessWidget {
@@ -19,7 +19,7 @@ class SectionPickerPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: VarnamalaTheme.scaffoldBg(context),
+      backgroundColor: TurnaTheme.scaffoldBg(context),
       appBar: AppBar(
         title: Text(
           AppStrings.coursesChooseSection,
@@ -28,7 +28,8 @@ class SectionPickerPage extends StatelessWidget {
               ),
         ),
       ),
-      body: Selector<CourseProvider, ({List<Section> sections, String? currentId})>(
+      body: Selector<CourseProvider,
+          ({List<Section> sections, String? currentId})>(
         selector: (_, p) => (
           sections: p.sections,
           currentId: p.currentSectionId,
@@ -74,24 +75,24 @@ class _SectionCard extends StatelessWidget {
     final colors = SectionVisuals.colorsFor(section.id);
 
     return Material(
-      color: VarnamalaTheme.cardBg(context),
-      borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+      color: TurnaTheme.cardBg(context),
+      borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
       elevation: 0,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
         child: Container(
           height: 96,
           padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(VarnamalaTheme.radiusLarge),
+            borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
             border: isSelected
                 ? Border.all(
-                    color: VarnamalaTheme.peacockTeal.withValues(alpha: 0.5),
+                    color: TurnaTheme.peacockTeal.withValues(alpha: 0.5),
                     width: 2,
                   )
                 : null,
-            boxShadow: VarnamalaTheme.softShadow,
+            boxShadow: TurnaTheme.softShadow,
           ),
           child: Row(
             children: [
@@ -102,7 +103,7 @@ class _SectionCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: colors.background,
                   borderRadius: BorderRadius.circular(
-                    VarnamalaTheme.radiusMedium,
+                    TurnaTheme.radiusMedium,
                   ),
                 ),
                 child: Icon(
@@ -124,8 +125,8 @@ class _SectionCard extends StatelessWidget {
                         fontSize: 17,
                         fontWeight: FontWeight.w700,
                         color: isSelected
-                            ? VarnamalaTheme.peacockTeal
-                            : VarnamalaTheme.textPrimaryColor(context),
+                            ? TurnaTheme.peacockTeal
+                            : TurnaTheme.textPrimaryColor(context),
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -134,7 +135,7 @@ class _SectionCard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
-                        color: VarnamalaTheme.textSecondaryColor(context),
+                        color: TurnaTheme.textSecondaryColor(context),
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -149,8 +150,8 @@ class _SectionCard extends StatelessWidget {
                     ? Icons.check_circle_rounded
                     : Icons.chevron_right_rounded,
                 color: isSelected
-                    ? VarnamalaTheme.peacockTeal
-                    : VarnamalaTheme.textHint.withValues(alpha: 0.5),
+                    ? TurnaTheme.peacockTeal
+                    : TurnaTheme.textHint.withValues(alpha: 0.5),
                 size: 28,
               ),
             ],

@@ -1,4 +1,4 @@
-"""Entry point for the Varnamala GUI course editor."""
+"""Entry point for the Turna GUI course editor."""
 from __future__ import annotations
 
 import logging
@@ -14,9 +14,10 @@ if str(_GUI_DIR) not in sys.path:
 from PySide6.QtWidgets import QApplication
 
 from src.app import MainWindow
+from src.application.settings import app_data_dir
 from src.theme import apply_theme
 
-_LOG_DIR = Path.home() / ".varnamala-gui"
+_LOG_DIR = app_data_dir()
 _LOG_DIR.mkdir(parents=True, exist_ok=True)
 _LOG_FILE = _LOG_DIR / "app.log"
 
@@ -68,7 +69,7 @@ def main() -> int:
     telemetry.start_session()
     start = time.perf_counter()
     app = QApplication(sys.argv)
-    app.setApplicationName("Varnamala Course Editor")
+    app.setApplicationName("Turna Course Editor")
     apply_theme(app)
     # Global event filter records every click and input commit to operations.log.
     from src.infrastructure.user_action_filter import UserActionFilter

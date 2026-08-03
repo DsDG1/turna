@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 
 // Project imports:
-import 'package:varnamala/application/ai/ai_course_service.dart';
+import 'package:turna/application/ai/ai_course_service.dart';
 
 http.Response _chatResponse(String content) {
   final body = jsonEncode({
@@ -48,7 +48,11 @@ Map<String, dynamic> _validSectionJson() {
                 {
                   'id': 'st1',
                   'items': [
-                    {'runtimeType': 'showWord', 'id': 'i1', 'wordId': 'w-merhaba'},
+                    {
+                      'runtimeType': 'showWord',
+                      'id': 'i1',
+                      'wordId': 'w-merhaba'
+                    },
                   ],
                 },
               ],
@@ -105,8 +109,8 @@ void main() {
     final service = AiCourseService();
 
     test('returns trimmed content for a well-formed response', () {
-      final body = jsonDecode(_chatResponse('  hello  ').body)
-          as Map<String, dynamic>;
+      final body =
+          jsonDecode(_chatResponse('  hello  ').body) as Map<String, dynamic>;
       expect(service.extractAssistantText(body), 'hello');
     });
 
@@ -119,8 +123,11 @@ void main() {
 
     test('throws a user-facing error when message is null', () {
       expect(
-        () => service
-            .extractAssistantText({'choices': [{'message': null}]}),
+        () => service.extractAssistantText({
+          'choices': [
+            {'message': null}
+          ]
+        }),
         throwsA(isA<Exception>()),
       );
     });
@@ -148,7 +155,9 @@ void main() {
       // A malformed/stub payload like {"choices":[42]} must surface the
       // friendly Exception, not a raw TypeError from an `as Map?` cast.
       expect(
-        () => service.extractAssistantText({'choices': [42]}),
+        () => service.extractAssistantText({
+          'choices': [42]
+        }),
         throwsA(isA<Exception>()),
       );
     });

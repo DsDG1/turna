@@ -6,13 +6,13 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:varnamala/application/ai/ai_hint_provider.dart';
-import 'package:varnamala/application/ai/engine/ai_cancel_token.dart';
-import 'package:varnamala/application/ai/engine/ai_engine_config_holder.dart';
-import 'package:varnamala/application/ai/hint_genres.dart';
-import 'package:varnamala/l10n/app_strings.dart';
-import 'package:varnamala/views/ai/components/ai_sheet_widgets.dart';
-import 'package:varnamala/views/theme.dart';
+import 'package:turna/application/ai/ai_hint_provider.dart';
+import 'package:turna/application/ai/engine/ai_cancel_token.dart';
+import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
+import 'package:turna/application/ai/hint_genres.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
+import 'package:turna/views/theme.dart';
 
 /// The four depth-learning genres offered by the tutor sheet.
 enum DepthGenre { grammar, synonyms, decompose, whyWrong }
@@ -74,7 +74,8 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
 
     if (_genre == DepthGenre.whyWrong) {
       final answered = ctx.userAnswer != null && ctx.userAnswer!.isNotEmpty;
-      final hasCorrect = ctx.correctLabel != null && ctx.correctLabel!.isNotEmpty;
+      final hasCorrect =
+          ctx.correctLabel != null && ctx.correctLabel!.isNotEmpty;
       if (!answered || !hasCorrect) {
         setState(() {
           _error = AppStrings.aiDepthNeedAnswer;
@@ -212,7 +213,7 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
     return Row(
       children: [
         const Icon(Icons.auto_awesome_rounded,
-            color: VarnamalaTheme.peacockTeal, size: 22),
+            color: TurnaTheme.peacockTeal, size: 22),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
@@ -234,9 +235,21 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
   Widget _genreGrid(BuildContext context) {
     final tiles = <(DepthGenre, String, IconData)>[
       (DepthGenre.grammar, AppStrings.aiDepthGrammar, Icons.menu_book_outlined),
-      (DepthGenre.synonyms, AppStrings.aiDepthSynonyms, Icons.compare_arrows_rounded),
-      (DepthGenre.decompose, AppStrings.aiDepthDecompose, Icons.account_tree_outlined),
-      (DepthGenre.whyWrong, AppStrings.aiDepthWhyWrong, Icons.help_outline_rounded),
+      (
+        DepthGenre.synonyms,
+        AppStrings.aiDepthSynonyms,
+        Icons.compare_arrows_rounded
+      ),
+      (
+        DepthGenre.decompose,
+        AppStrings.aiDepthDecompose,
+        Icons.account_tree_outlined
+      ),
+      (
+        DepthGenre.whyWrong,
+        AppStrings.aiDepthWhyWrong,
+        Icons.help_outline_rounded
+      ),
     ];
     return Wrap(
       spacing: 8,
@@ -287,17 +300,17 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
     if (_loading) {
       return const Center(
         child: CircularProgressIndicator(
-          color: VarnamalaTheme.peacockTeal,
+          color: TurnaTheme.peacockTeal,
           strokeWidth: 3,
         ),
       );
     }
     if (_error != null) {
       return AiSurfaceCard(
-        accent: VarnamalaTheme.error,
+        accent: TurnaTheme.error,
         child: Text(
           _error!,
-          style: const TextStyle(color: VarnamalaTheme.error),
+          style: const TextStyle(color: TurnaTheme.error),
         ),
       );
     }
@@ -383,7 +396,7 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
         child: Text(
           text,
           style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: VarnamalaTheme.peacockTeal,
+                color: TurnaTheme.peacockTeal,
                 fontWeight: FontWeight.w600,
               ),
         ),
@@ -415,7 +428,7 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
         '$a  vs  $b',
         style: Theme.of(context).textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w700,
-              color: VarnamalaTheme.peacockTeal,
+              color: TurnaTheme.peacockTeal,
             ),
       );
 

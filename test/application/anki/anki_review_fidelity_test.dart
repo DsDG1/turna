@@ -6,15 +6,15 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
-import 'package:varnamala/application/anki/anki_models.dart';
-import 'package:varnamala/application/anki/anki_review_assembler.dart';
-import 'package:varnamala/application/course_provider.dart';
-import 'package:varnamala/application/lesson_link_store.dart';
-import 'package:varnamala/application/srs_provider.dart';
-import 'package:varnamala/data/anki_import_dao.dart';
-import 'package:varnamala/data/anki_note_dao.dart';
-import 'package:varnamala/domain/course/interaction.dart';
-import 'package:varnamala/service/locator.dart';
+import 'package:turna/application/anki/anki_models.dart';
+import 'package:turna/application/anki/anki_review_assembler.dart';
+import 'package:turna/application/course_provider.dart';
+import 'package:turna/application/lesson_link_store.dart';
+import 'package:turna/application/srs_provider.dart';
+import 'package:turna/data/anki_import_dao.dart';
+import 'package:turna/data/anki_note_dao.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/service/locator.dart';
 
 import '../../helpers/in_memory_course_db.dart';
 

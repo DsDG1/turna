@@ -1,6 +1,6 @@
 // Project imports:
-import 'package:varnamala/domain/study/daily_stats.dart';
-import 'package:varnamala/domain/study/study_log.dart';
+import 'package:turna/domain/study/daily_stats.dart';
+import 'package:turna/domain/study/study_log.dart';
 
 /// Persistence API for study activity logs and daily aggregates.
 ///

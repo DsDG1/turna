@@ -32,7 +32,7 @@ def copy_turkish_course(dst: Path) -> Path:
     return dst
 
 
-def real_adapter_with_course(prefix: str = "varnamala_course_"):
+def real_adapter_with_course(prefix: str = "turna_course_"):
     """Build a real ``CourseAdapter`` loaded from the Turkish course.
 
     Returns ``(adapter, tmp_path)``. The caller is responsible for cleaning up

@@ -90,7 +90,7 @@ class _FakeChatBody:
 
 class SectionDeleteTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_cmd_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_cmd_"))
         self.adapter = _load_adapter(self.tmp)
 
     def tearDown(self) -> None:
@@ -133,7 +133,7 @@ class SectionDeleteTest(unittest.TestCase):
 
 class TreeCommandsUndoTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_cmd_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_cmd_"))
         self.adapter = _load_adapter(self.tmp)
         self.stack = QUndoStack()
 
@@ -266,7 +266,7 @@ class TreeCommandsUndoTest(unittest.TestCase):
 
 class MetadataCommandsUndoTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_cmd_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_cmd_"))
         self.adapter = _load_adapter(self.tmp)
         self.stack = QUndoStack()
 
@@ -327,7 +327,7 @@ class MetadataCommandsUndoTest(unittest.TestCase):
 
 class AiEditCommandsTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_cmd_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_cmd_"))
         self.adapter = _load_adapter(self.tmp)
         self.stack = QUndoStack()
 
@@ -401,7 +401,7 @@ class AiEditCommandsTest(unittest.TestCase):
 
 class AiEditPromptTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_cmd_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_cmd_"))
         self.adapter = _load_adapter(self.tmp)
 
     def tearDown(self) -> None:
@@ -685,7 +685,7 @@ class ContentCommandsUndoTest(unittest.TestCase):
 
 class AppendLessonCommandTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_cmd_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_cmd_"))
         self.adapter = _load_adapter(self.tmp)
         self.stack = QUndoStack()
 
@@ -770,7 +770,7 @@ class ListeningPhaseCommandsTest(unittest.TestCase):
 
 class AiResourceRollbackTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_cmd_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_cmd_"))
         self.adapter = _load_adapter(self.tmp)
         self.stack = QUndoStack()
 
@@ -897,7 +897,7 @@ class AiResourceRollbackTest(unittest.TestCase):
 
 class MergeAiSectionCommandTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_merge_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_merge_"))
         self.adapter = _load_adapter(self.tmp)
         self.stack = QUndoStack()
 
@@ -1037,7 +1037,7 @@ class MergeAiSectionCommandTest(unittest.TestCase):
 
 class AppendUnitCommandTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_cmd_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_cmd_"))
         self.adapter = _load_adapter(self.tmp)
         self.stack = QUndoStack()
 
@@ -1112,7 +1112,7 @@ class CloneUnitFreshIdsTest(unittest.TestCase):
 
 class ReparentCommandsTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_cmd_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_cmd_"))
         self.adapter = _load_adapter(self.tmp)
         self.stack = QUndoStack()
 
@@ -1171,7 +1171,7 @@ class ReparentCommandsTest(unittest.TestCase):
 
 class AppendUnitsToSectionCommandTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_cmd_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_cmd_"))
         self.adapter = _load_adapter(self.tmp)
         self.stack = QUndoStack()
 
@@ -1203,7 +1203,7 @@ class AppendUnitsToSectionCommandTest(unittest.TestCase):
 
 class AppendLessonsToUnitCommandTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_cmd_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_cmd_"))
         self.adapter = _load_adapter(self.tmp)
         self.stack = QUndoStack()
 

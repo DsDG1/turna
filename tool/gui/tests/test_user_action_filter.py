@@ -27,7 +27,7 @@ from tests._qtapp import _App  # noqa: E402
 
 class UserActionFilterTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="varnamala_filter_"))
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_filter_"))
         self.log_file = self.tmp / "operations.log"
         # Redirect the module singleton so tests don't touch the real log dir.
         self._orig_ops = operations_log.operations

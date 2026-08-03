@@ -1,6 +1,6 @@
 // Project imports:
-import 'package:varnamala/courses/course_loader.dart';
-import 'package:varnamala/domain/course/word_entry.dart';
+import 'package:turna/courses/course_loader.dart';
+import 'package:turna/domain/course/word_entry.dart';
 
 /// Curated target-language vocabulary for the SRS word pool.
 ///
