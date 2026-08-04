@@ -19,6 +19,8 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import QPlainTextEdit, QWidget
 
+from src.theme_tokens import BRAND_REED
+
 try:  # theme is optional at import time (tests may not apply_theme)
     from src.theme import current_palette
 except Exception:  # noqa: BLE001
@@ -32,7 +34,7 @@ def _palette() -> dict[str, str]:
         except Exception:  # noqa: BLE001
             pass
     return {
-        "ai_accent": "#78C7B8",
+        "ai_accent": BRAND_REED,
         "text": "#E8EAF0",
         "text_secondary": "#9CA3AF",
         "warning": "#FF9F43",
@@ -58,7 +60,7 @@ class _JsonHighlighter(QSyntaxHighlighter):
                 f.setFontWeight(700)
             return f
 
-        fmts["key"] = mk(p.get("ai_accent", "#78C7B8"), bold=True)
+        fmts["key"] = mk(p.get("ai_accent", BRAND_REED), bold=True)
         fmts["string"] = mk(p.get("text", "#E8EAF0"))
         fmts["number"] = mk(p.get("warning", "#FF9F43"))
         fmts["keyword"] = mk(p.get("text_secondary", "#9CA3AF"))

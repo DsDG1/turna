@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "projects": [
+    {
+      "project_id": "未命名项目_c7e607a3",
+      "name": "未命名项目",
+      "updated_at": "2026-08-03T15:38:07.802117+00:00",
+      "current_step": 4,
+      "language": "Turkish",
+      "source_language": "Chinese",
+      "source_path": "C:\\Users\\DsDogs\\AppData\\Local\\Temp\\tmp0g6fsqnf.md",
+      "has_source": true,
+      "imported": false,
+      "_mtime": 1785771487.804728
+    },
+    {
+      "project_id": "未命名项目_0a03038b",
+      "name": "未命名项目",
+      "updated_at": "2026-08-03T16:14:13.589571+00:00",
+      "current_step": 4,
+      "language": "Turkish",
+      "source_language": "Chinese",
+      "source_path": "C:\\Users\\DsDogs\\AppData\\Local\\Temp\\tmpe2wkd8vu.md",
+      "has_source": true,
+      "imported": false,
+      "_mtime": 1785773653.59333
+    }
+  ]
+}

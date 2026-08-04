@@ -326,7 +326,7 @@ class CourseDatabase extends _$CourseDatabase {
   CourseDatabase(QueryExecutor e) : super(e);
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -334,6 +334,7 @@ class CourseDatabase extends _$CourseDatabase {
           await m.createAll();
           await _addAnkiStateColumns(m.database);
           await _ensureAnkiCanonicalV2(m.database);
+          await _ensureFunLabSnapshotTables(m.database);
         },
         onUpgrade: (m, from, to) async {
           if (from > to) {
@@ -366,12 +367,17 @@ class CourseDatabase extends _$CourseDatabase {
               'anki_imports',
               'srs_states',
               'review_events',
+              'fun_lab_snapshot_anki_state',
+              'fun_lab_snapshot_review_events',
+              'fun_lab_snapshot_srs',
+              'fun_lab_snapshot_meta',
             ]) {
               await m.deleteTable(tableName);
             }
             await m.createAll();
             await _addAnkiStateColumns(m.database);
             await _ensureAnkiCanonicalV2(m.database);
+            await _ensureFunLabSnapshotTables(m.database);
             return;
           }
           if (from < 2) {
@@ -486,8 +492,77 @@ class CourseDatabase extends _$CourseDatabase {
             // returning '' for `-n` ids). See [_rekeyLegacyAnkiWordIds].
             await _rekeyLegacyAnkiWordIds(m.database);
           }
+          if (from < 15) {
+            // v15: one persistent Fun Lab checkpoint. Raw tables intentionally
+            // mirror the live progress tables so snapshots can be copied and
+            // restored with transactional INSERT ... SELECT statements.
+            await _ensureFunLabSnapshotTables(m.database);
+          }
         },
       );
+
+  static Future<void> _ensureFunLabSnapshotTables(
+    GeneratedDatabase database,
+  ) async {
+    await database.customStatement('''
+      CREATE TABLE IF NOT EXISTS fun_lab_snapshot_meta (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        created_at INTEGER NOT NULL,
+        content_fingerprint TEXT NOT NULL,
+        prefs_json TEXT NOT NULL,
+        srs_item_count INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+    await database.customStatement('''
+      CREATE TABLE IF NOT EXISTS fun_lab_snapshot_srs (
+        word_id TEXT PRIMARY KEY,
+        queue TEXT NOT NULL,
+        due_at INTEGER NOT NULL,
+        interval_days INTEGER NOT NULL,
+        ease REAL NOT NULL,
+        reps INTEGER NOT NULL,
+        lapses INTEGER NOT NULL,
+        is_leech INTEGER NOT NULL,
+        is_suspended INTEGER NOT NULL,
+        is_buried INTEGER NOT NULL,
+        type TEXT NOT NULL,
+        last_reviewed_at INTEGER,
+        stability REAL,
+        difficulty REAL,
+        fsrs_state INTEGER NOT NULL,
+        learning_step INTEGER
+      )
+    ''');
+    await database.customStatement('''
+      CREATE TABLE IF NOT EXISTS fun_lab_snapshot_review_events (
+        id INTEGER PRIMARY KEY,
+        card_id TEXT NOT NULL,
+        queue TEXT NOT NULL,
+        reviewed_at INTEGER NOT NULL,
+        quality INTEGER NOT NULL,
+        prev_interval_days INTEGER NOT NULL,
+        next_interval_days INTEGER NOT NULL,
+        prev_ease REAL NOT NULL,
+        next_ease REAL NOT NULL,
+        reps INTEGER NOT NULL,
+        lapses INTEGER NOT NULL,
+        type TEXT NOT NULL,
+        source_key TEXT
+      )
+    ''');
+    await database.customStatement('''
+      CREATE TABLE IF NOT EXISTS fun_lab_snapshot_anki_state (
+        import_id TEXT NOT NULL,
+        card_id INTEGER NOT NULL,
+        suspended INTEGER NOT NULL,
+        buried_until INTEGER,
+        marked INTEGER NOT NULL,
+        flag INTEGER NOT NULL,
+        PRIMARY KEY (import_id, card_id)
+      )
+    ''');
+  }
+
   static Future<void> _addAnkiStateColumns(GeneratedDatabase database) async {
     Future<void> addColumn(
         String table, String column, String definition) async {
@@ -631,13 +706,16 @@ class CourseDatabase extends _$CourseDatabase {
   static Future<void> _rekeyLegacyAnkiWordIds(
     GeneratedDatabase database,
   ) async {
-    final meta = await database.customSelect(
-      'SELECT import_id, note_id, word_id FROM anki_cards_meta',
-    ).get();
+    final meta = await database
+        .customSelect(
+          'SELECT import_id, note_id, word_id FROM anki_cards_meta',
+        )
+        .get();
     // (importId, noteId) -> new card-level wordId.
     final noteToWord = <String, String>{};
     for (final row in meta) {
-      noteToWord['${row.read<String>('import_id')}|${row.read<int>('note_id')}'] =
+      noteToWord[
+              '${row.read<String>('import_id')}|${row.read<int>('note_id')}'] =
           row.read<String>('word_id');
     }
     await _rekeyLegacyColumn(
@@ -663,10 +741,12 @@ class CourseDatabase extends _$CourseDatabase {
     Map<String, String> noteToWord, {
     required bool isPrimaryKey,
   }) async {
-    final legacy = await database.customSelect(
-      "SELECT $column AS id FROM $table "
-      "WHERE $column LIKE 'anki-%' AND $column LIKE '%-n%'",
-    ).get();
+    final legacy = await database
+        .customSelect(
+          "SELECT $column AS id FROM $table "
+          "WHERE $column LIKE 'anki-%' AND $column LIKE '%-n%'",
+        )
+        .get();
     for (final row in legacy) {
       final legacyId = row.read<String>('id');
       final parsed = _parseLegacyAnkiWordId(legacyId);

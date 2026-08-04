@@ -55,6 +55,12 @@ class StudyStatsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Re-emit aggregates after the backing preference blobs are restored.
+  Future<void> refreshFromPrefs() async {
+    await _emitDailyStats();
+    notifyListeners();
+  }
+
   /// Get today's statistics snapshot.
   Future<DailyStudyStats> getTodayStats() async {
     final today = DateTime.now();

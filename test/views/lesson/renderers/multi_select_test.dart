@@ -67,13 +67,12 @@ void main() {
     await tester.pumpWidget(harness.build(renderer, interaction));
 
     // No selection yet: check button should be disabled.
-    final checkFinder = find.widgetWithText(ElevatedButton, '核对');
-    expect(tester.widget<ElevatedButton>(checkFinder).enabled, isFalse);
+    expect(isCheckEnabled(tester), isFalse);
 
     await tapOption(tester, 'apple');
-    expect(tester.widget<ElevatedButton>(checkFinder).enabled, isFalse);
+    expect(isCheckEnabled(tester), isFalse);
 
     await tapOption(tester, 'carrot');
-    expect(tester.widget<ElevatedButton>(checkFinder).enabled, isTrue);
+    expect(isCheckEnabled(tester), isTrue);
   });
 }

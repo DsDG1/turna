@@ -154,18 +154,48 @@ class _CourseDatabaseV6 extends db.CourseDatabase {
       );
 }
 
-/// A hypothetical newer schema (v15) used to verify downgrade behavior: opening
-/// a v15 DB with the current v14 code must not crash - it wipes + recreates the
+/// A hypothetical newer schema (v16) used to verify downgrade behavior: opening
+/// a v16 DB with the current v15 code must not crash - it wipes + recreates the
 /// schema (the course DB is a reseedable derived cache).
-class _CourseDatabaseV15 extends db.CourseDatabase {
-  _CourseDatabaseV15(super.e);
+class _CourseDatabaseV16 extends db.CourseDatabase {
+  _CourseDatabaseV16(super.e);
 
   @override
-  int get schemaVersion => 15;
+  int get schemaVersion => 16;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (m) async => await m.createAll(),
+      );
+}
+
+/// v14 contains all live learning tables but predates Fun Lab checkpoints.
+class _CourseDatabaseV14 extends db.CourseDatabase {
+  _CourseDatabaseV14(super.e);
+
+  @override
+  int get schemaVersion => 14;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (m) async {
+          await m.createAll();
+          await m.database.customStatement(
+            'ALTER TABLE anki_cards_meta ADD COLUMN suspended '
+            'INTEGER NOT NULL DEFAULT 0',
+          );
+          await m.database.customStatement(
+            'ALTER TABLE anki_cards_meta ADD COLUMN buried_until INTEGER',
+          );
+          await m.database.customStatement(
+            'ALTER TABLE anki_cards_meta ADD COLUMN marked '
+            'INTEGER NOT NULL DEFAULT 0',
+          );
+          await m.database.customStatement(
+            'ALTER TABLE anki_cards_meta ADD COLUMN flag '
+            'INTEGER NOT NULL DEFAULT 0',
+          );
+        },
       );
 }
 
@@ -432,10 +462,47 @@ void main() {
       await File(path).parent.delete(recursive: true);
     });
 
-    test('v15 -> v14 downgrade wipes and recreates instead of crashing',
+    test('v14 -> v15 adds Fun Lab checkpoint tables and preserves data',
         () async {
       final path = await _tempDbPath();
-      final newer = _CourseDatabaseV15(NativeDatabase(File(path)));
+      final oldDb = _CourseDatabaseV14(NativeDatabase(File(path)));
+      await _forceOpen(oldDb);
+      await oldDb.into(oldDb.sections).insert(
+            const db.SectionsCompanion(
+              id: Value('s-v14'),
+              name: Value('Section V14'),
+            ),
+          );
+      await oldDb.close();
+
+      final migrated = db.CourseDatabase(NativeDatabase(File(path)));
+      await _forceOpen(migrated);
+      expect(
+          (await migrated.select(migrated.sections).get()).single.id, 's-v14');
+      final tables = await migrated
+          .customSelect(
+            "SELECT name FROM sqlite_master WHERE type = 'table' "
+            "AND name LIKE 'fun_lab_snapshot_%' ORDER BY name",
+          )
+          .get();
+      expect(
+        tables.map((row) => row.read<String>('name')),
+        [
+          'fun_lab_snapshot_anki_state',
+          'fun_lab_snapshot_meta',
+          'fun_lab_snapshot_review_events',
+          'fun_lab_snapshot_srs',
+        ],
+      );
+
+      await migrated.close();
+      await File(path).parent.delete(recursive: true);
+    });
+
+    test('v16 -> v15 downgrade wipes and recreates instead of crashing',
+        () async {
+      final path = await _tempDbPath();
+      final newer = _CourseDatabaseV16(NativeDatabase(File(path)));
       await _forceOpen(newer);
       await newer.into(newer.sections).insert(
             const db.SectionsCompanion(
@@ -445,7 +512,7 @@ void main() {
           );
       await newer.close();
 
-      // Opening a v15 DB with the current v14 code must downgrade gracefully
+      // Opening a v16 DB with the current v15 code must downgrade gracefully
       // (wipe + recreate) rather than throw.
       final downgraded = db.CourseDatabase(NativeDatabase(File(path)));
       await _forceOpen(downgraded);

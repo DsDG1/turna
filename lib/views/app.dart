@@ -13,6 +13,7 @@ import 'package:turna/application/theme_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/routing/routing.dart';
 import 'package:turna/views/app_fonts.dart';
+import 'package:turna/views/settings/widgets/guide_return_bubble.dart';
 import 'package:turna/views/theme.dart';
 
 final router = getIt<AppRouter>();
@@ -85,6 +86,16 @@ class _AppShellState extends State<_AppShell> {
         themeMode: themeMode,
         routerConfig: _routeConfig,
         builder: (context, child) {
+          // Keep Android/iOS status + nav bar in sync with the resolved
+          // theme (including ThemeMode.system and high-contrast).
+          final brightness = Theme.of(context).brightness;
+          SystemChrome.setSystemUIOverlayStyle(
+            TurnaTheme.systemUiOverlayFor(
+              brightness: brightness,
+              highContrast: acc.highContrast,
+            ),
+          );
+
           // Apply the accessibility MediaQuery overrides at the root so every
           // descendant inherits them: text magnification and (when reduced
           // motion is on) Flutter's accessibleNavigation / disableAnimations
@@ -99,7 +110,14 @@ class _AppShellState extends State<_AppShell> {
               disableAnimations:
                   acc.reducedMotion ? true : mq.disableAnimations,
             ),
-            child: child!,
+            // Stack the beginner-guide return bubble above all routes so it
+            // survives tab switches and pushed experience pages.
+            child: Stack(
+              children: [
+                child!,
+                const GuideReturnBubbleOverlay(),
+              ],
+            ),
           );
         },
       ),

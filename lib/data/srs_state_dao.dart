@@ -30,7 +30,9 @@ class SrsStateDao {
 
   /// Insert or update a single [SrsWord] in [queue].
   Future<void> upsert(String queue, SrsWord word) async {
-    await _db.into(_db.srsStates).insertOnConflictUpdate(_toCompanion(queue, word));
+    await _db
+        .into(_db.srsStates)
+        .insertOnConflictUpdate(_toCompanion(queue, word));
   }
 
   /// Insert or update many [SrsWord]s in one transaction (bulk import /
@@ -46,20 +48,47 @@ class SrsStateDao {
 
   /// Delete a single state row by [wordId].
   Future<void> delete(String wordId) async {
-    await (_db.delete(_db.srsStates)..where((t) => t.wordId.equals(wordId))).go();
+    await (_db.delete(_db.srsStates)..where((t) => t.wordId.equals(wordId)))
+        .go();
   }
 
   /// Delete every row whose `wordId` starts with [prefix] (e.g. uninstalling
   /// an imported Anki deck removes its `anki-<importId>-` entries).
   Future<void> deleteByPrefix(String prefix) async {
-    await (_db.delete(_db.srsStates)
-          ..where((t) => t.wordId.like('$prefix%')))
+    await (_db.delete(_db.srsStates)..where((t) => t.wordId.like('$prefix%')))
         .go();
   }
 
   /// Delete every row in [queue] (content-update reset).
   Future<void> clearQueue(String queue) async {
     await (_db.delete(_db.srsStates)..where((t) => t.queue.equals(queue))).go();
+  }
+
+  /// Count every active schedule that can be moved by the Fun Lab time
+  /// machine. Both currently-due and future rows are included.
+  Future<int> countPostponable() async {
+    final count = _db.srsStates.wordId.count();
+    final query = _db.selectOnly(_db.srsStates)
+      ..addColumns([count])
+      ..where(
+        _db.srsStates.isSuspended.equals(false) &
+            _db.srsStates.isBuried.equals(false),
+      );
+    final row = await query.getSingle();
+    return row.read(count) ?? 0;
+  }
+
+  /// Move all active schedules by [duration] atomically, without touching any
+  /// other FSRS field or the review history table.
+  Future<int> postponeActiveBy(Duration duration) {
+    return _db.transaction(() {
+      return _db.customUpdate(
+        'UPDATE srs_states SET due_at = due_at + ? '
+        'WHERE is_suspended = 0 AND is_buried = 0',
+        variables: [Variable<int>(duration.inMilliseconds)],
+        updates: {_db.srsStates},
+      );
+    });
   }
 
   /// Most recent [limit] reviewed rows in [queue] (newest first), filtered
@@ -77,7 +106,8 @@ class SrsStateDao {
       ..where((t) => t.lastReviewedAt.isNotNull());
     if (since != null) {
       query.where(
-        (t) => t.lastReviewedAt.isBiggerOrEqualValue(since.millisecondsSinceEpoch),
+        (t) =>
+            t.lastReviewedAt.isBiggerOrEqualValue(since.millisecondsSinceEpoch),
       );
     }
     query

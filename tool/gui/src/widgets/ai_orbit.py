@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
 
 from src.widgets.knowledge_bubble import KnowledgeBubble
 from src.theme import current_palette, apply_shadow
+from src.theme_tokens import BRAND_REED, BRAND_TEAL
 
 
 class AiOrbitWidget(QWidget):
@@ -236,8 +237,8 @@ class AiOrbitWidget(QWidget):
     def _apply_style(self) -> None:
         p = current_palette()
         border_color = p.get("border", "#2C313C")
-        accent = p.get("ai_accent", "#78C7B8")
-        accent_border = p.get("ai_accent_border", "#1F727E")
+        accent = p.get("ai_accent", BRAND_REED)
+        accent_border = p.get("ai_accent_border", BRAND_TEAL)
 
         self.orbit_zone.setStyleSheet(
             f"QWidget#orbitZone {{"
@@ -270,7 +271,7 @@ class AiOrbitWidget(QWidget):
         self._drag_active = active
         p = current_palette()
         border_color = (
-            p.get("ai_accent", "#78C7B8") if active else p.get("border", "#2C313C")
+            p.get("ai_accent", BRAND_REED) if active else p.get("border", "#2C313C")
         )
         self.orbit_zone.setStyleSheet(
             f"QWidget#orbitZone {{"

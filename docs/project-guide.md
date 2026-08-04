@@ -441,21 +441,23 @@ Explain → Practice → Rate 三段流（见 2.4 Skill Acquisition Theory）。
 
 `lib/views/theme.dart` 提供 `lightTheme` / `darkTheme` / `highContrastLightTheme` / `highContrastDarkTheme`，及一组按 `Brightness` 自适应的语义化颜色 helper（`cardBg` / `scaffoldBg` / `textHintColor` / `inputFillColor` / `bottomNavBg` / `glassSurface` 等）。Play Hub 用毛玻璃（`_GlassCard` + `BackdropFilter` + 极光底层 `_AuroraBackground`）。
 
-调色板（Turna 克制型品牌色，区别于 Duolingo）：
+调色板（Turna「湿地鹤」ADR 0033 方案 A — 主色锁 `#1F727E`；无 peacock API）：
 
 ```dart
 const brandNavy      = Color(0xFF19324A);
-const primaryColor   = Color(0xFF1F727E);  // Brand Teal
+const primaryColor   = Color(0xFF1F727E);  // Brand Teal (locked)
 const primaryLight   = Color(0xFF2F7F8E);
-const primaryDark    = Color(0xFF145A64);
+const primaryDark    = Color(0xFF145A64);  // brandTealDark ≡ GUI BRAND_TEAL_DARK
 const brandSky       = Color(0xFF4A95A8);
 const brandReed      = Color(0xFF78C7B8);
-const secondary      = Color(0xFFB85C3F);
-const secondaryLight = Color(0xFFEAD9B8);
+const secondary      = Color(0xFFB85C3F);  // anatolianClay — warm accent only
+const secondaryLight = Color(0xFFEAD9B8);  // warmSand
 const error   = Color(0xFFE74C3C);
 const success = Color(0xFFFFD93D);
 const warning = Color(0xFFFF9F43);
 ```
+
+主 CTA 渐变：`brandTeal → brandTealLight`（关键路径用 `TurnaTheme.primaryCtaDecoration`）。Clay 用于完成/完美角标、成就向指标、About 品牌条、Play Hub 至多一处次要 soft tint。**角色边界：** success 黄=答题反馈；clay=进度/成就；streak 橙=连胜 chip（不同控件）；高对比 secondary 可偏离 clay。**Android 状态栏/导航栏** 对齐 AppBar 表面（非 teal 铺条）：`colors.xml` + `TurnaTheme.systemUiOverlayFor`。真源：`lib/views/theme.dart` 与 `tool/gui/src/theme_tokens.py`（ADR 0033）。
 
 `ThemeProvider`（`light / dark / system`）持久化到 `StreamingSharedPreferences`，Profile 页可切换。
 

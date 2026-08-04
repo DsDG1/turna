@@ -20,9 +20,11 @@
   <title>Turna | Reclaiming Language Learning</title>
   <link rel="manifest" href="manifest.json">
 
+  <!-- Colors must stay in sync with ADR 0033 / lib/views/theme.dart (scheme A).
+       brandTeal #1F727E · scaffoldBackground #F3F8F7 · textSecondary #52616B -->
   <style>
     body {
-      background-color: #F3F8F7; /* Turna scaffold background */
+      background-color: #F3F8F7; /* TurnaTheme.scaffoldBackground */
       display: flex;
       align-items: center;
       justify-content: center;
@@ -32,12 +34,12 @@
     }
     .loading {
       text-align: center;
-      color: #1F727E; /* Turna Brand Teal */
+      color: #1F727E; /* brandTeal — lock scheme A */
     }
     .spinner {
       border: 4px solid #E5E5E5;
       border-radius: 50%;
-      border-top: 4px solid #1F727E;
+      border-top: 4px solid #1F727E; /* brandTeal */
       width: 40px;
       height: 40px;
       -webkit-animation: spin 1s linear infinite; /* Safari */

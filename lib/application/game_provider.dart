@@ -22,8 +22,10 @@ export 'package:turna/application/streak_provider.dart' show StreakCheckResult;
 enum XPEvent {
   lessonComplete(base: 10),
   perfectLesson(base: 15),
+
   /// Base XP per reviewed word/card; multiply by session count.
   srsReviewSession(base: 5),
+
   /// Base XP per reviewed grammar point; multiply by session count.
   grammarReviewSession(base: 5);
 
@@ -248,6 +250,12 @@ class GameProvider extends ChangeNotifier {
     return result;
   }
 
+  /// Publish a fresh aggregate after an external checkpoint restore.
+  void refreshFromPrefs() {
+    notifyListeners();
+    _emitState();
+  }
+
   // --- helpers ---
 
   bool _readBool(String key, bool fallback) =>
@@ -257,7 +265,9 @@ class GameProvider extends ChangeNotifier {
       appPrefs.preferences.getInt(key, defaultValue: fallback).getValue();
 
   List<String> _readStringList(String key, List<String> fallback) =>
-      appPrefs.preferences.getStringList(key, defaultValue: fallback).getValue();
+      appPrefs.preferences
+          .getStringList(key, defaultValue: fallback)
+          .getValue();
 
   UserGameState _readState() => UserGameState(
         score: scoreProvider.score,

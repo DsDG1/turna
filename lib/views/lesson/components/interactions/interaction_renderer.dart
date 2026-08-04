@@ -163,22 +163,36 @@ class LessonCheckButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(12);
     return SizedBox(
       height: 52,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor:
-              enabled ? TurnaTheme.brandTeal : TurnaTheme.divider,
-          foregroundColor:
-              enabled ? TurnaTheme.textOnPrimary : TurnaTheme.textHint,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+      width: double.infinity,
+      child: Material(
+        color: Colors.transparent,
+        child: Ink(
+          decoration: enabled
+              ? TurnaTheme.primaryCtaDecoration(
+                  borderRadius: radius,
+                  elevated: false,
+                )
+              : BoxDecoration(
+                  color: TurnaTheme.divider,
+                  borderRadius: radius,
+                ),
+          child: InkWell(
+            onTap: enabled ? onPressed : null,
+            borderRadius: radius,
+            child: Center(
+              child: Text(
+                label,
+                style: AppTextStyles.buttonLabel.copyWith(
+                  color: enabled
+                      ? TurnaTheme.textOnPrimary
+                      : TurnaTheme.textHint,
+                ),
+              ),
+            ),
           ),
-        ),
-        child: Text(
-          label,
-          style: AppTextStyles.buttonLabel,
         ),
       ),
     );

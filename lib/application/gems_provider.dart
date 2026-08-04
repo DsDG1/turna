@@ -1,6 +1,7 @@
-// Flutter imports:
+// Dart imports:
 import 'dart:async';
 
+// Flutter imports:
 import 'package:flutter/material.dart';
 
 // Package imports:
@@ -16,8 +17,10 @@ enum GemEvent {
   streakMilestone30(200),
   streakMilestone100(500),
   achievementUnlock(25),
+
   /// Flat gems for finishing one SRS word-review session.
   srsReviewSession(2),
+
   /// Flat gems for finishing one grammar-review session.
   grammarReviewSession(2);
 
@@ -76,6 +79,45 @@ class GemsProvider extends ChangeNotifier {
       _emit(next);
       notifyListeners();
     });
+  }
+
+  /// Current balance (prefs snapshot; may lag an in-flight write by one frame).
+  int get balance => _readInt(LocalStateKeys.gems, 0);
+
+  /// Deduct [amount] if the balance is sufficient. Serialized via [_writeChain]
+  /// so concurrent spends cannot drive the balance negative.
+  ///
+  /// Returns `false` when [amount] is non-positive or the balance is too low.
+  Future<bool> spendGems(int amount) async {
+    if (amount <= 0) return false;
+    final result = Completer<bool>();
+    _writeChain = _writeChain.then((_) async {
+      final current = _readInt(LocalStateKeys.gems, 0);
+      if (current < amount) {
+        if (!result.isCompleted) result.complete(false);
+        return;
+      }
+      final next = current - amount;
+      await appPrefs.preferences.setInt(LocalStateKeys.gems, next);
+      _emit(next);
+      notifyListeners();
+      if (!result.isCompleted) result.complete(true);
+    }).catchError((Object e) {
+      assert(() {
+        // ignore: avoid_print
+        print('GemsProvider spendGems failed: $e');
+        return true;
+      }());
+      if (!result.isCompleted) result.complete(false);
+    });
+    return result.future;
+  }
+
+  /// Publish the preference-backed balance after an external restore.
+  void refreshFromPrefs() {
+    final value = _readInt(LocalStateKeys.gems, 0);
+    _emit(value);
+    notifyListeners();
   }
 
   Future<void> _enqueueWrite(Future<void> Function() op) {

@@ -21,34 +21,36 @@ class GetStartedButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(16);
     return SizedBox(
       width: MediaQuery.of(context).size.width * 0.9,
-      child: ElevatedButton(
-        onPressed: () => _handleGetStarted(context),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: primaryColor,
-          foregroundColor: TurnaTheme.textOnPrimary,
-          elevation: 4,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              AppStrings.splashGetStarted,
-              style: const TextStyle(
-                color: TurnaTheme.textOnPrimary,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+      child: Material(
+        color: Colors.transparent,
+        child: Ink(
+          decoration: TurnaTheme.primaryCtaDecoration(borderRadius: radius),
+          child: InkWell(
+            onTap: () => _handleGetStarted(context),
+            borderRadius: radius,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    AppStrings.splashGetStarted,
+                    style: const TextStyle(
+                      color: TurnaTheme.textOnPrimary,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  const Icon(Icons.arrow_forward,
+                      color: TurnaTheme.textOnPrimary, size: 18),
+                ],
               ),
             ),
-            const SizedBox(width: 16),
-            const Icon(Icons.arrow_forward,
-                color: TurnaTheme.textOnPrimary, size: 18),
-          ],
+          ),
         ),
       ),
     );

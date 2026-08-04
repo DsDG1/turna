@@ -21,14 +21,17 @@ for backward compatibility with the chat / orbit / workshop widgets.
 from __future__ import annotations
 
 # ---------------------------------------------------------------------------
-# Canonical Turna brand colors (mirrors lib/views/theme.dart)
+# Canonical Turna brand colors (mirrors lib/views/theme.dart — ADR 0033)
+# Scheme A locked: BRAND_TEAL stays #1F727E. Keep hex in sync with Flutter.
 # ---------------------------------------------------------------------------
 BRAND_NAVY = "#19324A"
-BRAND_TEAL = "#1F727E"       # primary
-BRAND_TEAL_LIGHT = "#2F7F8E"       # primaryLight
+BRAND_TEAL = "#1F727E"       # primary / main CTA
+BRAND_TEAL_LIGHT = "#2F7F8E" # primaryLight / button gradient end
 BRAND_SKY = "#4A95A8"        # information and chart accent
 BRAND_REED = "#78C7B8"       # low-intensity highlight and glow
-BRAND_TEAL_DARK = "#145A64"
+BRAND_TEAL_DARK = "#145A64"  # pressed (≡ Flutter brandTealDark / primaryDark)
+BRAND_CLAY = "#B85C3F"       # anatolianClay / secondary brand warm
+BRAND_SAND = "#EAD9B8"       # warmSand / secondaryContainer
 
 # ---------------------------------------------------------------------------
 # Template badge palette (theme-independent - colored chips w/ white text)

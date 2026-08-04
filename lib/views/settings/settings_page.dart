@@ -65,59 +65,53 @@ class _SettingsPageState extends State<SettingsPage> {
     ),
     _SettingsCategory(
       index: 2,
-      title: AppStrings.settingsCategoryAudioHaptics,
-      subtitle: AppStrings.settingsCategoryAudioHapticsSubtitle,
-      icon: Icons.volume_up_rounded,
+      title: AppStrings.settingsCategorySensoryA11y,
+      subtitle: AppStrings.settingsCategorySensoryA11ySubtitle,
+      icon: Icons.tune_rounded,
     ),
     _SettingsCategory(
       index: 3,
-      title: AppStrings.settingsCategoryAccessibility,
-      subtitle: AppStrings.settingsCategoryAccessibilitySubtitle,
-      icon: Icons.accessibility_new_rounded,
-    ),
-    _SettingsCategory(
-      index: 4,
       title: AppStrings.settingsCategoryAiTools,
       subtitle: AppStrings.settingsCategoryAiToolsSubtitle,
       icon: Icons.auto_awesome_rounded,
     ),
     _SettingsCategory(
-      index: 5,
+      index: 4,
       title: AppStrings.settingsCategoryData,
       subtitle: AppStrings.settingsCategoryDataSubtitle,
       icon: Icons.storage_rounded,
     ),
     _SettingsCategory(
-      index: 6,
+      index: 5,
       title: AppStrings.settingsCategoryAbout,
       subtitle: AppStrings.settingsCategoryAboutSubtitle,
       icon: Icons.info_rounded,
     ),
     _SettingsCategory(
-      index: 7,
+      index: 6,
       title: AppStrings.settingsCategoryFunLab,
       subtitle: AppStrings.settingsCategoryFunLabSubtitle,
       icon: Icons.science_rounded,
     ),
     _SettingsCategory(
-      index: 8,
+      index: 7,
       title: '高级',
       subtitle: 'Anki 保真 / 解密 / 导入',
-      icon: Icons.tune_rounded,
+      icon: Icons.build_rounded,
     ),
   ];
 
   /// Main prefs (account → AI).
-  static const _mainIndexes = [0, 1, 2, 3, 4];
+  static const _mainIndexes = [0, 1, 2, 3];
 
   /// Data + About.
-  static const _dataAboutIndexes = [5, 6];
+  static const _dataAboutIndexes = [4, 5];
 
   /// Fun lab (isolated group).
-  static const _labIndexes = [7];
+  static const _labIndexes = [6];
 
   /// Advanced (Anki deep-adaptation tunables).
-  static const _advancedIndexes = [8];
+  static const _advancedIndexes = [7];
 
   @override
   Widget build(BuildContext context) {
@@ -274,7 +268,7 @@ class _SettingsPageState extends State<SettingsPage> {
         return [
           SettingsAccountSection(
             key: const ValueKey('account-section'),
-            onNavigateToData: () => setState(() => _category = 5),
+            onNavigateToData: () => setState(() => _category = 4),
           ),
         ];
       case 1:
@@ -332,6 +326,7 @@ class _SettingsPageState extends State<SettingsPage> {
           const SizedBox(height: 24),
         ];
       case 2:
+        // Merged 声音与触感 + 无障碍 / 外观 into one sub-page.
         return [
           SettingsSectionTitle(
             icon: Icons.volume_up_rounded,
@@ -359,10 +354,7 @@ class _SettingsPageState extends State<SettingsPage> {
               const SettingsTtsEngineTile(),
             ],
           ),
-          const SizedBox(height: 24),
-        ];
-      case 3:
-        return [
+          const SizedBox(height: 20),
           SettingsSectionTitle(
             icon: Icons.accessibility_new_rounded,
             title: AppStrings.settingsA11ySectionTitle,
@@ -404,7 +396,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const SizedBox(height: 24),
         ];
-      case 4:
+      case 3:
         return [
           SettingsSectionTitle(
             icon: Icons.auto_awesome_rounded,
@@ -439,7 +431,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const SizedBox(height: 24),
         ];
-      case 5:
+      case 4:
         return [
           SettingsSectionTitle(
             icon: Icons.storage_rounded,
@@ -479,11 +471,11 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const SizedBox(height: 24),
         ];
-      case 6:
+      case 5:
         return const [SettingsAboutSection(), SizedBox(height: 24)];
-      case 7:
+      case 6:
         return const [SettingsFunSection(), SizedBox(height: 24)];
-      case 8:
+      case 7:
         return [
           const SettingsAdvancedSection(),
           const SizedBox(height: 24),

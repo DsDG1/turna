@@ -4,8 +4,9 @@
 
  ## 当前基线
 
-- 日期：2026-07-21
-- 全量用例：1276 passed（skipped=2），命令：
+- 日期：2026-08-05（Turna wetland palette ADR 0033：`BRAND_CLAY`/`BRAND_SAND` 常量 + Flutter 核心 hex 对照含 clay/sand/tealDark；`tests.test_theme` 29 OK）
+- 主题专项：`python -m unittest tests.test_theme` → 29 passed
+- 全量用例（上次记录）：1276 passed（skipped=2），命令：
   ```bash
   QT_QPA_PLATFORM=offscreen python3 -m unittest discover -s tests -p "test_*.py"
   ```

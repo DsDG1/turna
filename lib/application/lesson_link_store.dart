@@ -93,6 +93,12 @@ class LessonLinkStore {
     return Map.fromEntries(all.entries.where((e) => e.value.type == type));
   }
 
+  /// Invalidate first-seen link metadata after an external restore.
+  Future<void> reloadFromPrefs() => _enqueue(() async {
+        _cache = null;
+        readAll();
+      });
+
   Future<void> _persist(Map<String, LessonWordLink> map) async {
     final encoded = jsonEncode(
       map.map((k, v) => MapEntry(k, v.toJson())),

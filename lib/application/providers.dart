@@ -16,6 +16,7 @@ import 'package:turna/application/character_provider.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/fun_provider.dart';
 import 'package:turna/application/game_provider.dart';
+import 'package:turna/application/cosmetic_provider.dart';
 import 'package:turna/application/gems_provider.dart';
 import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/language_provider.dart';
@@ -93,6 +94,9 @@ final providers = [
   ),
   ChangeNotifierProvider<GemsProvider>(
     create: (_) => getIt<GemsProvider>(),
+  ),
+  ChangeNotifierProvider<CosmeticProvider>(
+    create: (_) => getIt<CosmeticProvider>(),
   ),
   ChangeNotifierProvider<AchievementsProvider>(
     create: (_) => getIt<AchievementsProvider>(),

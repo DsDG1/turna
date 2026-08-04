@@ -21,6 +21,8 @@ from PySide6.QtGui import QColor, QFont, QFontDatabase
 from PySide6.QtWidgets import QApplication, QGraphicsDropShadowEffect, QWidget
 
 from src.theme_tokens import (
+    BRAND_CLAY,
+    BRAND_SAND,
     DEFAULT_THEME,
     PALETTES,
     is_dark,
@@ -193,15 +195,17 @@ QPushButton#dangerButton:hover {{
     background-color: {p['danger_hover']};
 }}
 
+/* Secondary brand (clay) — does not replace primary teal CTA (ADR 0033).
+   Light hover: warm sand fill. Dark hover: elevated surface (sand too bright). */
 QPushButton#secondaryButton {{
     background-color: {p['bg_input']};
-    color: {p['text']};
-    border: {border_w} solid {p['border_hover']};
+    color: {BRAND_CLAY};
+    border: {border_w} solid {BRAND_CLAY};
 }}
 QPushButton#secondaryButton:hover {{
-    background-color: {p['accent_subtle']};
-    color: {p['accent_text']};
-    border-color: {p['accent']};
+    background-color: {BRAND_SAND if not is_dark(theme) else p['bg_elevated']};
+    color: {BRAND_CLAY};
+    border-color: {BRAND_CLAY};
 }}
 
 /* Tool buttons outside toolbars (toolbar buttons are styled above) */

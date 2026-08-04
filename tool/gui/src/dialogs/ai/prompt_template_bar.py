@@ -24,12 +24,13 @@ from PySide6.QtWidgets import (
 
 from src.backend.ai_genre import GENRE_TEMPLATES
 from src.backend.ai_prompt_library import AiPromptLibrary, AiPromptHistory, AiPromptTemplate
+from src.theme_tokens import BRAND_REED, BRAND_TEAL
 
 
 def _card_stylesheet(selected: bool, palette: dict[str, str] | None = None) -> str:
     pal = palette or {}
-    accent = pal.get("ai_accent", "#78C7B8")
-    accent_border = pal.get("ai_accent_border", "#1F727E")
+    accent = pal.get("ai_accent", BRAND_REED)
+    accent_border = pal.get("ai_accent_border", BRAND_TEAL)
     card_bg = pal.get("ai_card_bg", "#1F232C")
     border = pal.get("ai_bubble_bg", "#2C313C")
     text = pal.get("text", "#E8EAF0")

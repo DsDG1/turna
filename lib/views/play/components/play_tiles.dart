@@ -210,6 +210,8 @@ class ReviewTile extends StatelessWidget {
   final Color accentColor;
   final String? badge;
   final VoidCallback onTap;
+  /// Soft-tint strength for [SoftCard] fill (default 0.10).
+  final double tintAlpha;
 
   const ReviewTile({
     required this.title,
@@ -217,6 +219,7 @@ class ReviewTile extends StatelessWidget {
     required this.accentColor,
     required this.onTap,
     this.badge,
+    this.tintAlpha = 0.10,
     super.key,
   });
 
@@ -226,6 +229,7 @@ class ReviewTile extends StatelessWidget {
 
     return SoftCard(
       accentColor: accentColor,
+      tintAlpha: tintAlpha,
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.all(14),
@@ -361,11 +365,14 @@ class SoftCard extends StatelessWidget {
   final Color accentColor;
   final Widget child;
   final VoidCallback? onTap;
+  /// Blend alpha for [TurnaTheme.softTint] (default 0.10).
+  final double tintAlpha;
 
   const SoftCard({
     required this.accentColor,
     required this.child,
     this.onTap,
+    this.tintAlpha = 0.10,
     super.key,
   });
 
@@ -380,7 +387,7 @@ class SoftCard extends StatelessWidget {
         borderRadius: radius,
         child: Ink(
           decoration: BoxDecoration(
-            color: TurnaTheme.softTint(context, accentColor),
+            color: TurnaTheme.softTint(context, accentColor, alpha: tintAlpha),
             borderRadius: radius,
             border: Border.all(
               color: TurnaTheme.glassBorder(context),

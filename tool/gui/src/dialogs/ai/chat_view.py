@@ -11,18 +11,20 @@ from typing import Any
 
 from PySide6.QtWidgets import QTextBrowser
 
+from src.theme_tokens import BRAND_REED, BRAND_TEAL, BRAND_TEAL_DARK
+
 # A fallback palette used until theme.py provides one (and by unit tests).
 # Keys mirror the ``ai_*`` palette keys in src/theme_tokens.py.
 # Values are kept in sync with the ``dark`` palette so chat rendering looks
-# correct before apply_theme() is called.
+# correct before apply_theme() is called. Brand hex equals ADR 0033 contract.
 DEFAULT_PALETTE: dict[str, str] = {
     "ai_chat_bg": "#142129",
     "ai_bubble_bg": "#20323D",
-    "ai_user_bubble": "#1F727E",
+    "ai_user_bubble": BRAND_TEAL,
     "ai_card_bg": "#182832",
     "ai_chip_bg": "#142129",
-    "ai_accent": "#78C7B8",
-    "ai_accent_border": "#1F727E",
+    "ai_accent": BRAND_REED,
+    "ai_accent_border": BRAND_TEAL,
     "ai_beta_bg": "#664400",
     "ai_beta_text": "#FFD93D",
     "text": "#E8EAF0",
@@ -69,7 +71,7 @@ def user_bubble_html(
         if ts
         else ""
     )
-    bg = palette.get("ai_user_bubble", "#145A64")
+    bg = palette.get("ai_user_bubble", BRAND_TEAL_DARK)
     return (
         '<div style="display: flex; justify-content: flex-end; margin: 12px 0;">'
         '<div style="max-width: 75%;">'

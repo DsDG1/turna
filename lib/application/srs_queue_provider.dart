@@ -207,6 +207,16 @@ abstract class SrsQueueProvider extends ChangeNotifier {
     }
   }
 
+  /// Force the in-memory queue to match SQLite after an external transactional
+  /// restore or bulk schedule edit (for example the Fun Lab checkpoint).
+  Future<void> reloadFromStorage() async {
+    final loaded = await srsDao.loadQueue(queueId);
+    _cachedState = loaded;
+    _loaded = true;
+    invalidateDueCaches();
+    notifyListeners();
+  }
+
   bool _migrationDone() => appPrefs.preferences
       .getBool(_migratedFlag, defaultValue: false)
       .getValue();

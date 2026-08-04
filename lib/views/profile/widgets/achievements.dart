@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/application/achievements_provider.dart';
+import 'package:turna/application/fun_provider.dart';
 import 'package:turna/application/game_provider.dart';
 import 'package:turna/domain/achievement.dart';
 import 'package:turna/domain/game/user_game_state.dart';
@@ -26,6 +27,9 @@ class _AchievementsState extends State<Achievements> {
   Widget build(BuildContext context) {
     const achievements = AchievementsProvider.allAchievements;
     final gameProvider = Provider.of<GameProvider>(context, listen: false);
+    final showAllUnlocked = context.select<FunProvider, bool>(
+      (provider) => provider.allAchievementsUnlocked,
+    );
 
     return StreamBuilder(
       stream: gameProvider.getUserGameStateStream(),
@@ -54,7 +58,9 @@ class _AchievementsState extends State<Achievements> {
                 child: Column(
                   children: [
                     ...displayedAchievements.map((achievement) {
-                      final progress = _getProgress(achievement, userData);
+                      final progress = showAllUnlocked
+                          ? achievement.targets.last
+                          : _getProgress(achievement, userData);
                       final currentLevel =
                           achievement.getCurrentLevel(progress);
                       final nextTarget =
@@ -178,6 +184,8 @@ class _AchievementsState extends State<Achievements> {
         return data.lessonsCompleted;
       case AchievementType.sharpshooter:
         return data.perfectLessons;
+      case AchievementType.xp:
+        return data.score;
       default:
         return 0;
     }
@@ -188,7 +196,8 @@ class _AchievementsState extends State<Achievements> {
       padding: const EdgeInsets.only(top: 20, bottom: 8),
       child: Row(
         children: [
-          Icon(icon, color: TurnaTheme.brandTeal, size: 22),
+          // Achievement section uses secondary brand clay (ADR 0033 role boundary).
+          Icon(icon, color: TurnaTheme.anatolianClay, size: 22),
           const SizedBox(width: 8),
           Text(
             text,

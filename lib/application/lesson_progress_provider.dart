@@ -38,8 +38,7 @@ class LessonProgressProvider extends ChangeNotifier {
   bool isLessonCompleted(String lessonId) =>
       _completedLessonIds.contains(lessonId);
 
-  bool isLessonPerfect(String lessonId) =>
-      _perfectLessonIds.contains(lessonId);
+  bool isLessonPerfect(String lessonId) => _perfectLessonIds.contains(lessonId);
 
   Stream<Set<String>> get completedLessonsStream async* {
     yield Set.unmodifiable(_completedLessonIds);
@@ -71,7 +70,8 @@ class LessonProgressProvider extends ChangeNotifier {
         LocalStateKeys.lessonsCompleted,
         lessonsCompleted,
       ),
-      appPrefs.preferences.setInt(LocalStateKeys.perfectLessons, perfectLessons),
+      appPrefs.preferences
+          .setInt(LocalStateKeys.perfectLessons, perfectLessons),
     ]);
 
     notifyListeners();
@@ -100,8 +100,25 @@ class LessonProgressProvider extends ChangeNotifier {
     _completedLessonsController.add(const <String>{});
   }
 
+  /// Refresh cached lesson-id sets after progress is restored outside this
+  /// provider (Fun Lab checkpoint / data import).
+  void reloadFromPrefs() {
+    _completedLessonIds = _readStringList(
+      LocalStateKeys.completedLessonIds,
+      const <String>[],
+    ).toSet();
+    _perfectLessonIds = _readStringList(
+      LocalStateKeys.perfectLessonIds,
+      const <String>[],
+    ).toSet();
+    notifyListeners();
+    _completedLessonsController.add(Set.unmodifiable(_completedLessonIds));
+  }
+
   List<String> _readStringList(String key, List<String> fallback) =>
-      appPrefs.preferences.getStringList(key, defaultValue: fallback).getValue();
+      appPrefs.preferences
+          .getStringList(key, defaultValue: fallback)
+          .getValue();
 
   @override
   void dispose() {

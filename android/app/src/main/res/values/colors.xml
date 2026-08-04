@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Turna surface tokens for Android window chrome (status / navigation bar).
+  Keep hex in sync with lib/views/theme.dart and ADR 0033 (scheme A).
+  Status bars align with AppBar / scaffold surfaces — not brandTeal fills.
+-->
+<resources>
+    <color name="turna_scaffold_light">#F3F8F7</color>
+    <color name="turna_appbar_light">#FFFFFF</color>
+    <color name="turna_scaffold_dark">#101B22</color>
+    <color name="turna_appbar_dark">#182832</color>
+    <!-- Brand teal (primary); not used for status bar fills. -->
+    <color name="turna_brand_teal">#1F727E</color>
+</resources>

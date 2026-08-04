@@ -218,10 +218,15 @@ lib/
 `TurnaTheme`（[lib/views/theme.dart](lib/views/theme.dart)）提供 `lightTheme` / `darkTheme` / 高对比变体，及一组按 `Brightness` 自适应的语义化颜色 helper（`cardBg` / `scaffoldBg` / `textHintColor` / `inputFillColor` / `bottomNavBg` 等）。
 
 ```dart
-const primaryColor   = Color(0xFF1F727E);   // Teal/Cyan
-const primaryLight   = Color(0xFF359CBB);
-const secondary      = Color(0xFF46D1BF);
-const secondaryLight = Color(0xFF00FFC6);
+// Wetland cool axis + Anatolian warm accents (ADR 0033, scheme A)
+const brandNavy      = Color(0xFF19324A);
+const primaryColor   = Color(0xFF1F727E);   // Brand Teal (locked)
+const primaryLight   = Color(0xFF2F7F8E);
+const primaryDark    = Color(0xFF145A64);
+const brandSky       = Color(0xFF4A95A8);
+const brandReed      = Color(0xFF78C7B8);
+const secondary      = Color(0xFFB85C3F);   // Anatolian clay
+const secondaryLight = Color(0xFFEAD9B8);   // Warm sand
 const error   = Color(0xFFE74C3C);
 const success = Color(0xFFFFD93D);
 const warning = Color(0xFFFF9F43);

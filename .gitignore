@@ -73,6 +73,9 @@ __pycache__/
 flutter_run.log
 flutter_run.err.log
 
+# Golden pixel failure dumps (regenerate locally; do not commit)
+test/golden/failures/
+
 # Build artifacts / release output
 dist/
 

@@ -197,9 +197,11 @@ class _TodaySummary extends StatelessWidget {
         children: [
           _TodayItem(
             icon: Icons.bolt_rounded,
-            iconColor: TurnaTheme.brandReed,
+            // Achievement-facing XP: clay icon on sand/soft badge (visibility).
+            iconColor: TurnaTheme.anatolianClay,
             value: xp.toString(),
             label: AppStrings.profileXpToday,
+            warmBadge: true,
           ),
           Container(width: 1, height: 40, color: TurnaTheme.dividerBg(context)),
           _TodayItem(
@@ -226,19 +228,32 @@ class _TodayItem extends StatelessWidget {
   final Color iconColor;
   final String value;
   final String label;
+  final bool warmBadge;
 
   const _TodayItem({
     required this.icon,
     required this.iconColor,
     required this.value,
     required this.label,
+    this.warmBadge = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final iconWidget = warmBadge
+        ? Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: TurnaTheme.clayOnSandFill(context),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: iconColor, size: 20),
+          )
+        : Icon(icon, color: iconColor, size: 22);
+
     return Column(
       children: [
-        Icon(icon, color: iconColor, size: 22),
+        iconWidget,
         const SizedBox(height: 6),
         Text(
           value,
@@ -730,8 +745,8 @@ class _MemoryCurveCard extends StatelessWidget {
               show: true,
               gradient: LinearGradient(
                 colors: [
-                  lineColor.withOpacity(0.12),
-                  lineColor.withOpacity(0.02),
+                  lineColor.withValues(alpha: 0.12),
+                  lineColor.withValues(alpha: 0.02),
                 ],
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
@@ -792,9 +807,9 @@ class _MemoryCurveCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.4)),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

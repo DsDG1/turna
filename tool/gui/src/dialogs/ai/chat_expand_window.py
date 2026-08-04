@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 from src.dialogs.ai.chat_view import ChatView
 from src.infrastructure.operations_log import operations
 from src.infrastructure.window_usage import WindowUsageMixin
+from src.theme_tokens import BRAND_REED
 
 
 class ChatExpandWindow(WindowUsageMixin, QDialog):
@@ -52,7 +53,7 @@ class ChatExpandWindow(WindowUsageMixin, QDialog):
         self.progress.setVisible(False)
         self.stage_label = QLabel("")
         self.stage_label.setStyleSheet(
-            f"color: {chat_palette.get('ai_accent', '#78C7B8')}; font-size: 12px;"
+            f"color: {chat_palette.get('ai_accent', BRAND_REED)}; font-size: 12px;"
         )
         self.stage_label.setVisible(False)
         self.usage_label = QLabel("")

@@ -40,9 +40,11 @@ const List<_PrefEntry> _progressManifest = [
   // Per-lesson progress
   _PrefEntry(LocalStateKeys.completedLessonIds, _PrefType.stringList),
   _PrefEntry(LocalStateKeys.perfectLessonIds, _PrefType.stringList),
-  // Currency / achievements
+  // Currency / achievements / cosmetics
   _PrefEntry(LocalStateKeys.gems, _PrefType.int_),
   _PrefEntry(LocalStateKeys.achievements, _PrefType.stringList),
+  _PrefEntry(LocalStateKeys.cosmeticsUnlocked, _PrefType.stringList),
+  _PrefEntry(LocalStateKeys.cosmeticsEquippedRing, _PrefType.string),
   // SRS / mistakes
   _PrefEntry(LocalStateKeys.srsState, _PrefType.string),
   _PrefEntry(LocalStateKeys.lessonWordLinks, _PrefType.string),

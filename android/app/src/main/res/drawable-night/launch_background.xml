@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dark-mode cold start: align with Turna dark scaffold (ADR 0033). -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/turna_scaffold_dark" />
+</layer-list>

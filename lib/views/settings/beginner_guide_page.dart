@@ -6,26 +6,38 @@ import 'package:flutter/services.dart';
 import 'package:auto_route/auto_route.dart';
 
 // Project imports:
+import 'package:turna/application/guide_return_controller.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/service/tab_router.dart';
 import 'package:turna/views/theme.dart';
 
-/// 新手指南 - introduces the app's core features with one-tap jump links
-/// (功能卡) plus a written quick-start guide (markdown).
+/// 新手指南 — compact feature list with one-tap 「去体验」 jumps.
 ///
-/// Reached from Settings > 关于 > 新手指南. Visual style mirrors the About
-/// page: course-tree gradient background, soft white/dark cards with a 1px
-/// border, Turna teal icon tiles, and short-bar section headers.
+/// Reached from Settings > 关于 > 新手指南. Long-form help lives on About's
+/// 「使用指南」 tab ([QuickStartFromAsset]); this page is intentionally short.
 ///
-/// Each feature card jumps to its feature:
+/// Each feature card jumps to its feature and arms a root-level return bubble
+/// ([GuideReturnController]) so the user can come back or dismiss the hint:
 ///   - Tab destinations (学习 / 练习 / 我的) switch the bottom nav via
 ///     [TabRouter] and pop this page so the user lands on the tab.
 ///   - Pushed routes (词典 / AI / 错题 / 弱词 / SRS) open on top of this page
 ///     so the user can explore and return to the guide.
-class BeginnerGuidePage extends StatelessWidget {
+class BeginnerGuidePage extends StatefulWidget {
   const BeginnerGuidePage({super.key});
+
+  @override
+  State<BeginnerGuidePage> createState() => _BeginnerGuidePageState();
+}
+
+class _BeginnerGuidePageState extends State<BeginnerGuidePage> {
+  @override
+  void initState() {
+    super.initState();
+    // Already on the guide — hide any leftover bubble from a prior session.
+    getIt<GuideReturnController>().clear();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,23 +62,20 @@ class BeginnerGuidePage extends StatelessWidget {
             children: [
               const _IntroHero(),
               const SizedBox(height: 20),
-              const QuickStartFromAsset(
-                showTitle: false,
-              ),
-              const SizedBox(height: 20),
               _SectionHeader(text: AppStrings.beginnerGuideSectionLearn),
               const SizedBox(height: 10),
               _FeatureCard(
                 icon: Icons.menu_book_rounded,
                 title: AppStrings.beginnerGuideLearnTitle,
-                description: AppStrings.beginnerGuideLearnDesc,
                 onTap: () => _goToTab(context, TabDestination.learn),
               ),
               _FeatureCard(
                 icon: Icons.language_rounded,
                 title: AppStrings.beginnerGuideCourseMgmtTitle,
-                description: AppStrings.beginnerGuideCourseMgmtDesc,
-                onTap: () => context.router.push(const CourseManagementRoute()),
+                onTap: () => _pushExperience(
+                  context,
+                  () => context.router.push(const CourseManagementRoute()),
+                ),
               ),
               const SizedBox(height: 20),
               _SectionHeader(text: AppStrings.beginnerGuideSectionPractice),
@@ -74,26 +83,31 @@ class BeginnerGuidePage extends StatelessWidget {
               _FeatureCard(
                 icon: Icons.extension_rounded,
                 title: AppStrings.beginnerGuidePlayTitle,
-                description: AppStrings.beginnerGuidePlayDesc,
                 onTap: () => _goToTab(context, TabDestination.play),
               ),
               _FeatureCard(
                 icon: Icons.repeat_rounded,
                 title: AppStrings.beginnerGuideSrsTitle,
-                description: AppStrings.beginnerGuideSrsDesc,
-                onTap: () => context.router.push(const SrsReviewRoute()),
+                onTap: () => _pushExperience(
+                  context,
+                  () => context.router.push(const SrsReviewRoute()),
+                ),
               ),
               _FeatureCard(
                 icon: Icons.error_outline_rounded,
                 title: AppStrings.beginnerGuideMistakesTitle,
-                description: AppStrings.beginnerGuideMistakesDesc,
-                onTap: () => context.router.push(const MistakeListRoute()),
+                onTap: () => _pushExperience(
+                  context,
+                  () => context.router.push(const MistakeListRoute()),
+                ),
               ),
               _FeatureCard(
                 icon: Icons.trending_down_rounded,
                 title: AppStrings.beginnerGuideWeakWordsTitle,
-                description: AppStrings.beginnerGuideWeakWordsDesc,
-                onTap: () => context.router.push(const WeakWordsRoute()),
+                onTap: () => _pushExperience(
+                  context,
+                  () => context.router.push(const WeakWordsRoute()),
+                ),
               ),
               const SizedBox(height: 20),
               _SectionHeader(text: AppStrings.beginnerGuideSectionTools),
@@ -101,14 +115,18 @@ class BeginnerGuidePage extends StatelessWidget {
               _FeatureCard(
                 icon: Icons.search_rounded,
                 title: AppStrings.beginnerGuideDictionaryTitle,
-                description: AppStrings.beginnerGuideDictionaryDesc,
-                onTap: () => context.router.push(const DictionaryRoute()),
+                onTap: () => _pushExperience(
+                  context,
+                  () => context.router.push(const DictionaryRoute()),
+                ),
               ),
               _FeatureCard(
                 icon: Icons.auto_awesome_rounded,
                 title: AppStrings.beginnerGuideAiTitle,
-                description: AppStrings.beginnerGuideAiDesc,
-                onTap: () => context.router.push(const AiHubRoute()),
+                onTap: () => _pushExperience(
+                  context,
+                  () => context.router.push(const AiHubRoute()),
+                ),
               ),
               const SizedBox(height: 20),
               _SectionHeader(text: AppStrings.beginnerGuideSectionProfile),
@@ -116,7 +134,6 @@ class BeginnerGuidePage extends StatelessWidget {
               _FeatureCard(
                 icon: Icons.insights_rounded,
                 title: AppStrings.beginnerGuideStatsTitle,
-                description: AppStrings.beginnerGuideStatsDesc,
                 onTap: () => _goToTab(context, TabDestination.profile),
               ),
               const SizedBox(height: 28),
@@ -127,9 +144,16 @@ class BeginnerGuidePage extends StatelessWidget {
     );
   }
 
+  /// Push a feature route while keeping the guide under the stack.
+  void _pushExperience(BuildContext context, VoidCallback navigate) {
+    getIt<GuideReturnController>().arm(guidePopped: false);
+    navigate();
+  }
+
   /// Switch the bottom nav to [tab] and pop this guide so the user lands on
   /// the destination tab (tabs can't overlay this page, so it must close).
   void _goToTab(BuildContext context, int tab) {
+    getIt<GuideReturnController>().arm(guidePopped: true);
     getIt<TabRouter>().switchTo(tab);
     Navigator.of(context).pop();
   }
@@ -137,8 +161,7 @@ class BeginnerGuidePage extends StatelessWidget {
 
 /// 读取 `assets/quick_start.md` 并按 `## ` 切分章节,渲染为简单卡片列表。
 ///
-/// 用作 About 页"使用指南"Tab 的内容来源,以及 [BeginnerGuidePage] 顶部
-/// 的文字详情。
+/// 用作 About 页"使用指南"Tab 的内容来源。
 class QuickStartFromAsset extends StatelessWidget {
   final String assetPath;
 
@@ -370,8 +393,7 @@ class _QuickStartSection extends StatelessWidget {
   }
 }
 
-/// Turna-gradient hero with a welcome icon, the page title, and a short
-/// intro explaining the "tap a card to jump" affordance.
+/// Compact hero: welcome icon + title + one-line affordance.
 class _IntroHero extends StatelessWidget {
   const _IntroHero();
 
@@ -379,47 +401,49 @@ class _IntroHero extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         gradient: TurnaTheme.brandGradient,
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
         boxShadow: TurnaTheme.softShadow,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-                ),
-                child: const Icon(
-                  Icons.waving_hand_rounded,
-                  color: Colors.white,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                AppStrings.beginnerGuideTitle,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                    ),
-              ),
-            ],
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+            ),
+            child: const Icon(
+              Icons.waving_hand_rounded,
+              color: Colors.white,
+              size: 22,
+            ),
           ),
-          const SizedBox(height: 12),
-          Text(
-            AppStrings.beginnerGuideIntro,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.92),
-                  height: 1.5,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  AppStrings.beginnerGuideTitle,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
                 ),
+                const SizedBox(height: 2),
+                Text(
+                  AppStrings.beginnerGuideIntro,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.white.withValues(alpha: 0.92),
+                        height: 1.35,
+                      ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -462,18 +486,15 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-/// A tappable feature row: tinted icon tile, title + description, and a
-/// "去体验 ›" pill that signals the jump affordance.
+/// A tappable feature row: tinted icon tile, title only, and a 「去体验 ›」 pill.
 class _FeatureCard extends StatelessWidget {
   final IconData icon;
   final String title;
-  final String description;
   final VoidCallback onTap;
 
   const _FeatureCard({
     required this.icon,
     required this.title,
-    required this.description,
     required this.onTap,
   });
 
@@ -514,28 +535,11 @@ class _FeatureCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style:
-                              Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          description,
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: TurnaTheme.textHintColor(context),
-                                    height: 1.4,
-                                  ),
-                        ),
-                      ],
+                    child: Text(
+                      title,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
                     ),
                   ),
                   const SizedBox(width: 8),

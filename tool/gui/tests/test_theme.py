@@ -10,9 +10,12 @@ if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
 from src.theme_tokens import (  # noqa: E402
+    BRAND_CLAY,
     BRAND_REED,
+    BRAND_SAND,
     BRAND_SKY,
     BRAND_TEAL,
+    BRAND_TEAL_DARK,
     BRAND_TEAL_LIGHT,
     DEFAULT_THEME,
     PALETTES,
@@ -95,14 +98,32 @@ class AccentColorTest(unittest.TestCase):
         expected = {
             "brandTeal": BRAND_TEAL,
             "brandTealLight": BRAND_TEAL_LIGHT,
+            "brandTealDark": BRAND_TEAL_DARK,
             "brandSky": BRAND_SKY,
             "brandReed": BRAND_REED,
+            "anatolianClay": BRAND_CLAY,
+            "warmSand": BRAND_SAND,
         }
         for token, value in expected.items():
             self.assertIn(
                 f"static const Color {token} = Color(0xFF{value[1:]});",
                 flutter_theme,
             )
+        # Legacy color aliases retired (ADR 0033).
+        for alias in (
+            "peacockDeep",
+            "peacockTeal",
+            "peacockCyan",
+            "peacockTurquoise",
+            "peacockMint",
+            "peacockGradient",
+        ):
+            self.assertNotIn(alias, flutter_theme)
+
+    def test_clay_and_sand_brand_constants(self) -> None:
+        self.assertEqual(BRAND_CLAY, "#B85C3F")
+        self.assertEqual(BRAND_SAND, "#EAD9B8")
+        self.assertEqual(BRAND_TEAL_DARK, "#145A64")
 
     def test_light_accent_is_Turna_teal(self) -> None:
         self.assertEqual(palette_for("light")["accent"], BRAND_TEAL)

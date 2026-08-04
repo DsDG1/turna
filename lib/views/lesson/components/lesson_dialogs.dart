@@ -300,11 +300,29 @@ class _LessonCompletionSummary extends StatelessWidget {
         SizedBox(
           width: double.infinity,
           height: 48,
-          child: ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text(
-              AppStrings.lessonContinueUpper,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          child: Material(
+            color: Colors.transparent,
+            child: Ink(
+              decoration: TurnaTheme.primaryCtaDecoration(
+                borderRadius:
+                    BorderRadius.circular(TurnaTheme.radiusMedium),
+                elevated: false,
+              ),
+              child: InkWell(
+                onTap: () => Navigator.of(context).pop(true),
+                borderRadius:
+                    BorderRadius.circular(TurnaTheme.radiusMedium),
+                child: Center(
+                  child: Text(
+                    AppStrings.lessonContinueUpper,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: TurnaTheme.textOnPrimary,
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
         ),

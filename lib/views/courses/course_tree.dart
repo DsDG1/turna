@@ -497,7 +497,7 @@ class _UnitHeader extends StatelessWidget {
                     height: 38,
                     decoration: BoxDecoration(
                       color: isFullyComplete
-                          ? TurnaTheme.success.withValues(alpha: 0.18)
+                          ? TurnaTheme.anatolianClay.withValues(alpha: 0.16)
                           : TurnaTheme.brandTeal.withValues(alpha: 0.1),
                       borderRadius:
                           BorderRadius.circular(TurnaTheme.radiusSmall),
@@ -509,7 +509,7 @@ class _UnitHeader extends StatelessWidget {
                               ? Icons.expand_less_rounded
                               : Icons.expand_more_rounded),
                       color: isFullyComplete
-                          ? TurnaTheme.successDark
+                          ? TurnaTheme.anatolianClay
                           : TurnaTheme.brandTeal,
                       size: 22,
                     ),
@@ -540,12 +540,16 @@ class _UnitHeader extends StatelessWidget {
                       ],
                     ),
                   ),
+                  // Progress chip: clay as soon as any lesson is done (not only
+                  // full unit complete) so secondary brand is visible earlier.
                   Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: isFullyComplete
-                          ? TurnaTheme.success.withValues(alpha: 0.12)
+                      color: completedCount > 0
+                          ? TurnaTheme.anatolianClay.withValues(
+                              alpha: isFullyComplete ? 0.14 : 0.10,
+                            )
                           : TurnaTheme.brandTeal.withValues(alpha: 0.08),
                       borderRadius:
                           BorderRadius.circular(TurnaTheme.radiusRound),
@@ -558,9 +562,9 @@ class _UnitHeader extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: isFullyComplete
-                            ? TurnaTheme.successDark
-                            : TurnaTheme.brandTeal,
+                        color: completedCount > 0
+                            ? TurnaTheme.anatolianClay
+                            : TurnaTheme.textSecondaryColor(context),
                       ),
                     ),
                   ),
@@ -618,8 +622,9 @@ class _LessonTile extends StatelessWidget {
     Color iconColor;
     IconData icon;
     if (isCompleted) {
-      iconBg = TurnaTheme.success.withValues(alpha: 0.18);
-      iconColor = TurnaTheme.successDark;
+      // Warm clay complete accent (ADR 0033); in-progress stays teal.
+      iconBg = TurnaTheme.anatolianClay.withValues(alpha: 0.16);
+      iconColor = TurnaTheme.anatolianClay;
       icon = Icons.check_circle_rounded;
     } else if (hasDue) {
       iconBg = TurnaTheme.warning.withValues(alpha: 0.18);
@@ -694,14 +699,22 @@ class _LessonTile extends StatelessWidget {
                   ],
                 ),
               ),
-              // Type badge (or perfect crown if perfect)
+              // Type badge: completed soft clay; perfect = clay fill + 1px ring.
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: isCompleted
-                      ? TurnaTheme.success.withValues(alpha: 0.1)
-                      : typeColor.withValues(alpha: 0.1),
+                  color: isPerfect
+                      ? TurnaTheme.anatolianClay.withValues(alpha: 0.18)
+                      : isCompleted
+                          ? TurnaTheme.anatolianClay.withValues(alpha: 0.10)
+                          : typeColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
+                  border: isPerfect
+                      ? Border.all(
+                          color: TurnaTheme.anatolianClay.withValues(alpha: 0.55),
+                          width: 1,
+                        )
+                      : null,
                 ),
                 child: Text(
                   isPerfect
@@ -710,7 +723,9 @@ class _LessonTile extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: isCompleted ? TurnaTheme.successDark : typeColor,
+                    color: (isPerfect || isCompleted)
+                        ? TurnaTheme.anatolianClay
+                        : typeColor,
                   ),
                 ),
               ),

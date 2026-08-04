@@ -102,6 +102,13 @@ class MistakeProvider extends ChangeNotifier {
     await _persist(<MistakeEntry>[]);
   }
 
+  /// Drop decoded state after an external checkpoint restore.
+  void reloadFromPrefs() {
+    _cached = null;
+    _cachedView = null;
+    notifyListeners();
+  }
+
   /// Returns the stored interaction snapshot for [entry], or `null` if the
   /// mistake was recorded before snapshots were saved.
   Interaction? toInteraction(MistakeEntry entry) => entry.interactionSnapshot;

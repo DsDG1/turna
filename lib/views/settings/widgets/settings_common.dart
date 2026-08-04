@@ -162,6 +162,7 @@ class SettingsActionTile extends StatelessWidget {
   final String title;
   final String subtitle;
   final void Function(BuildContext) onTap;
+  final bool enabled;
 
   const SettingsActionTile({
     super.key,
@@ -169,6 +170,7 @@ class SettingsActionTile extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.onTap,
+    this.enabled = true,
   });
 
   @override
@@ -177,7 +179,7 @@ class SettingsActionTile extends StatelessWidget {
       icon: icon,
       title: title,
       subtitle: subtitle,
-      onTap: () => onTap(context),
+      onTap: enabled ? () => onTap(context) : null,
       trailing: const Icon(
         Icons.chevron_right_rounded,
         color: TurnaTheme.textHint,

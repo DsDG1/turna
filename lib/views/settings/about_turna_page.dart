@@ -397,71 +397,95 @@ class _BrandHeader extends StatelessWidget {
 
         return Container(
           width: double.infinity,
-          height: 84,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
             color: TurnaTheme.cardBg(context),
             borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
             border: Border.all(color: TurnaTheme.statCardBorder(context)),
             boxShadow: TurnaTheme.softShadow,
           ),
-          child: Row(
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
+              // Clay + sand brand strip (visibility polish; keep strip thin).
               Container(
-                width: 48,
-                height: 48,
+                height: 4,
                 decoration: BoxDecoration(
-                  color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-                ),
-                child: const Icon(
-                  Icons.school_rounded,
-                  color: TurnaTheme.brandTeal,
-                  size: 24,
+                  gradient: LinearGradient(
+                    colors: [
+                      TurnaTheme.anatolianClay,
+                      TurnaTheme.warmSand.withValues(alpha: 0.95),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      AppStrings.aboutBrandName,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: TurnaTheme.textPrimaryColor(context),
+              SizedBox(
+                height: 81,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: TurnaTheme.clayOnSandFill(context),
+                          borderRadius:
+                              BorderRadius.circular(TurnaTheme.radiusMedium),
+                        ),
+                        child: const Icon(
+                          Icons.school_rounded,
+                          color: TurnaTheme.anatolianClay,
+                          size: 24,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      AppStrings.aboutTagline,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: TurnaTheme.textSecondaryColor(context),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              AppStrings.aboutBrandName,
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: TurnaTheme.textPrimaryColor(context),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              AppStrings.aboutTagline,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: TurnaTheme.textSecondaryColor(context),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
-                ),
-                child: Text(
-                  displayVersion,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: TurnaTheme.brandTeal,
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
+                          borderRadius:
+                              BorderRadius.circular(TurnaTheme.radiusRound),
+                        ),
+                        child: Text(
+                          displayVersion,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: TurnaTheme.brandTeal,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),

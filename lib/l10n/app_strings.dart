@@ -43,10 +43,16 @@ class AppStrings {
   static String get settingsCategoryAccountSubtitle => '资料、目标与统计';
   static String get settingsCategoryLearning => '学习';
   static String get settingsCategoryLearningSubtitle => '语言、语速、提醒与 Anki';
-  static String get settingsCategoryAudioHaptics => '声音与触感';
-  static String get settingsCategoryAudioHapticsSubtitle => '音效、振动与 TTS';
-  static String get settingsCategoryAccessibility => '无障碍';
-  static String get settingsCategoryAccessibilitySubtitle => '字号、对比度与主题';
+  /// Merged audio + accessibility category (was two separate entries).
+  static String get settingsCategorySensoryA11y => '声音与无障碍';
+  static String get settingsCategorySensoryA11ySubtitle => '音效、触感、字号与主题';
+  // Kept as aliases so older call sites / docs still resolve if any remain.
+  static String get settingsCategoryAudioHaptics => settingsCategorySensoryA11y;
+  static String get settingsCategoryAudioHapticsSubtitle =>
+      settingsCategorySensoryA11ySubtitle;
+  static String get settingsCategoryAccessibility => settingsCategorySensoryA11y;
+  static String get settingsCategoryAccessibilitySubtitle =>
+      settingsCategorySensoryA11ySubtitle;
   static String get settingsCategoryAiTools => 'AI 工具';
   static String get settingsCategoryAiToolsSubtitle => 'API、设计课程与教材导入';
   static String get settingsCategoryData => '数据';
@@ -95,32 +101,23 @@ class AppStrings {
   static String get beginnerGuideTitle => '新手指南';
   static String get beginnerGuideEntry => '新手指南';
   static String get beginnerGuideEntrySubtitle => '了解核心功能与使用方法';
-  static String get beginnerGuideIntro =>
-      '欢迎来到 Turna！这里快速介绍应用的核心功能，点击任意功能卡即可跳转体验。';
+  static String get beginnerGuideIntro => '点功能即可跳转体验';
   static String get beginnerGuideSectionLearn => '学习';
   static String get beginnerGuideSectionPractice => '练习与复习';
   static String get beginnerGuideSectionTools => '工具';
   static String get beginnerGuideSectionProfile => '我的';
   static String get beginnerGuideTryNow => '去体验';
+  static String get beginnerGuideReturnBubble => '返回新手指南';
+  static String get beginnerGuideReturnDismissTooltip => '关闭提示';
   static String get beginnerGuideLearnTitle => '学习课程';
-  static String get beginnerGuideLearnDesc =>
-      '从问候语开始，按 CEFR 等级循序渐进地学习土耳其语词汇、表达与语法。';
   static String get beginnerGuideCourseMgmtTitle => '课程管理';
-  static String get beginnerGuideCourseMgmtDesc => '切换、添加或重排所学语言课程。';
   static String get beginnerGuidePlayTitle => '练习中心';
-  static String get beginnerGuidePlayDesc => '配对小游戏与每日挑战，轻松巩固所学。';
   static String get beginnerGuideSrsTitle => '间隔复习';
-  static String get beginnerGuideSrsDesc => '基于 FSRS 算法的智能复习队列，让记忆更持久。';
   static String get beginnerGuideMistakesTitle => '错题本';
-  static String get beginnerGuideMistakesDesc => '自动记录做错的题目，针对性重练薄弱点。';
   static String get beginnerGuideWeakWordsTitle => '弱词专项';
-  static String get beginnerGuideWeakWordsDesc => '从近期错题生成 10 题小测，集中攻克易错词。';
   static String get beginnerGuideDictionaryTitle => '词典';
-  static String get beginnerGuideDictionaryDesc => '搜索词汇、表达与语法点，点击播放发音。';
   static String get beginnerGuideAiTitle => 'AI 助手';
-  static String get beginnerGuideAiDesc => '用 AI 设计课程、导入教材，或对错题进行深度讲解。';
   static String get beginnerGuideStatsTitle => '学习统计';
-  static String get beginnerGuideStatsDesc => '查看每日 XP、学习时长与准确率趋势，追踪进度。';
   static String get settingsResetLearningDefaultsTitle => '重置为默认';
   static String get settingsResetLearningDefaultsSubtitle =>
       '恢复语速、提醒、小艺与 Anki 限额等学习偏好';
@@ -170,6 +167,35 @@ class AppStrings {
   static String settingsVersionFooterWithBuild(String version, String build) =>
       '版本 $version ($build)';
   static String get settingsAccountLearnerFallback => '学习者';
+
+  // ── Cosmetics (avatar rings) ──
+  static String get cosmeticsTitle => '装扮';
+  static String get cosmeticsSubtitle => '用宝石兑换头像环';
+  static String get cosmeticsRingMist => '晨雾';
+  static String get cosmeticsRingReed => '芦苇';
+  static String get cosmeticsRingLake => '湖光';
+  static String get cosmeticsFree => '免费';
+  static String get cosmeticsInUse => '使用中';
+  static String get cosmeticsUse => '使用';
+  static String get cosmeticsRedeem => '兑换';
+  static String get cosmeticsInsufficientGems => '宝石不足';
+  static String get cosmeticsRedeemed => '已兑换并使用';
+  static String get cosmeticsEquipped => '已使用';
+  static String cosmeticsGemsBalance(int gems) => '宝石 $gems';
+  static String cosmeticsRingPrice(int price) => '$price';
+
+  static String cosmeticsRingTitle(String id) {
+    switch (id) {
+      case 'ring_reed':
+        return cosmeticsRingReed;
+      case 'ring_lake':
+        return cosmeticsRingLake;
+      case 'ring_mist':
+      default:
+        return cosmeticsRingMist;
+    }
+  }
+
   static String get settingsThemeLight => '浅色';
   static String get settingsThemeDark => '深色';
   static String get settingsThemeSystem => '跟随系统';
@@ -301,7 +327,8 @@ class AppStrings {
   static String get aboutToolGuiName => 'GUI 课程编辑器';
   static String get aboutToolGuiDesc => 'PySide6 桌面应用，课程树 / AI 工坊 / 校验与发布';
   static String get aboutToolCliName => '课程内容 CLI';
-  static String get aboutToolCliDesc => 'course_cli.py：校验 / lint / CSV / 音频清单 / diff';
+  static String get aboutToolCliDesc =>
+      'course_cli.py：校验 / lint / CSV / 音频清单 / diff';
   static String get aboutToolDocsName => '项目文档';
   static String get aboutToolDocsDesc => 'project-guide 与 authoring/ 下的创作者指南';
   static String get aboutLicense => '基于 GNU 通用公共许可证 v3.0 授权。';
@@ -1138,6 +1165,53 @@ class AppStrings {
 
   // ── Settings Fun Lab ──
   static String get settingsFunWarning => '趣味实验室\n以下功能仅供娱乐，请勿用于正常学习。';
+  static String get settingsFunSnapshotSection => '实验存档';
+  static String get settingsFunActionsSection => '实验功能';
+  static String get settingsFunSnapshotStatusTitle => '当前检查点';
+  static String get settingsFunSnapshotLoading => '正在读取…';
+  static String get settingsFunSnapshotEmpty => '尚未创建，危险操作暂不可用';
+  static String settingsFunSnapshotReady(String time, int count) =>
+      '$time · $count 个复习项目';
+  static String get settingsFunSnapshotCreateTitle => '创建实验存档';
+  static String get settingsFunSnapshotCreateSubtitle => '保存当前学习进度，之后可一键恢复';
+  static String get settingsFunSnapshotReplaceTitle => '替换实验存档';
+  static String get settingsFunSnapshotReplaceSubtitle => '用当前学习进度覆盖已有检查点';
+  static String get settingsFunSnapshotCreateDialogTitle => '创建实验存档？';
+  static String get settingsFunSnapshotCreateDialogMessage =>
+      '将保存当前复习状态、历史、分数、宝石、课程进度、错题和学习统计。课程内容与应用设置不会保存。';
+  static String get settingsFunSnapshotReplaceDialogTitle => '替换现有存档？';
+  static String get settingsFunSnapshotReplaceDialogMessage =>
+      '旧检查点会被当前学习进度覆盖，此操作无法撤销。';
+  static String get settingsFunSnapshotCreateConfirm => '创建存档';
+  static String get settingsFunSnapshotReplaceConfirm => '替换存档';
+  static String get settingsFunSnapshotCreated => '📦 实验存档已创建';
+  static String get settingsFunSnapshotRestoreTitle => '恢复实验存档';
+  static String get settingsFunSnapshotRestoreSubtitle => '恢复完整学习进度，存档本身会继续保留';
+  static String get settingsFunSnapshotRestoreDialogTitle => '恢复实验存档？';
+  static String get settingsFunSnapshotRestoreDialogMessage =>
+      '当前学习进度将被检查点覆盖。恢复后仍可再次使用这个检查点。';
+  static String get settingsFunSnapshotRestoreConfirm => '恢复';
+  static String get settingsFunSnapshotRestored => '↩️ 学习进度已恢复';
+  static String get settingsFunSnapshotDeleteTitle => '删除实验存档';
+  static String get settingsFunSnapshotDeleteSubtitle => '删除后危险操作将再次锁定';
+  static String get settingsFunSnapshotDeleteDialogTitle => '删除实验存档？';
+  static String get settingsFunSnapshotDeleteDialogMessage =>
+      '删除检查点不会改变当前学习进度，但之后将无法恢复到该状态。';
+  static String get settingsFunSnapshotDeleteConfirm => '删除';
+  static String get settingsFunSnapshotDeleted => '实验存档已删除';
+  static String get settingsFunSnapshotRequiredTitle => '需要实验存档';
+  static String get settingsFunSnapshotRequiredMessage =>
+      '请先创建实验存档，再使用会修改学习进度的功能。';
+  static String get settingsFunSnapshotContentChanged =>
+      '课程内容或 Anki 导入已发生变化，无法安全恢复。请删除并重新创建实验存档。';
+  static String settingsFunOperationFailed(Object error) => '操作失败：$error';
+  static String get settingsFunPostponeTitle => '复习时间机器';
+  static String get settingsFunPostponeSubtitle => '将全部有效复习内容推迟 1 天';
+  static String get settingsFunPostponeDialogTitle => '推迟全部复习？';
+  static String settingsFunPostponeDialogMessage(int count) =>
+      '将 $count 个词汇、表达、语法或 Anki 复习计划统一顺延 24 小时。暂停和埋藏卡片不会改变。';
+  static String get settingsFunPostponeConfirm => '推迟 1 天';
+  static String settingsFunPostponeDone(int count) => '⏰ 已将 $count 个复习计划推迟 1 天';
   static String get settingsFunAutoAnswerTitle => '破解版（自动出答案）';
   static String get settingsFunAutoAnswerSubtitle => '上课时自动选择正确答案并提交';
   static String get settingsFunAutoAnswerOn => '🎮 破解模式已开启 — 上课时将自动答题';
@@ -1146,21 +1220,21 @@ class AppStrings {
   static String get settingsFunMaxScoreSubtitle => '将总分设为 99999';
   static String get settingsFunMaxScoreDialogTitle => '一键满级？';
   static String get settingsFunMaxScoreDialogMessage =>
-      '你的真实分数将被覆盖为 99999。此操作无法撤销。';
+      '你的真实分数将被覆盖为 99999，可通过实验存档恢复。';
   static String get settingsFunMaxScoreConfirm => '满级';
   static String get settingsFunMaxScoreDone => '⭐ 总分已设为 99999';
   static String get settingsFunMaxGemsTitle => '无限宝石';
   static String get settingsFunMaxGemsSubtitle => '将宝石设为 99999';
   static String get settingsFunMaxGemsDialogTitle => '无限宝石？';
   static String get settingsFunMaxGemsDialogMessage =>
-      '你的真实宝石数将被覆盖为 99999。此操作无法撤销。';
+      '你的真实宝石数将被覆盖为 99999，可通过实验存档恢复。';
   static String get settingsFunMaxGemsConfirm => '无限宝石';
   static String get settingsFunMaxGemsDone => '💎 宝石已设为 99999';
   static String get settingsFunAllAchievementsTitle => '全成就解锁';
   static String get settingsFunAllAchievementsSubtitle => '解锁所有成就';
   static String get settingsFunAllAchievementsDialogTitle => '全成就解锁？';
   static String get settingsFunAllAchievementsDialogMessage =>
-      '所有成就将被标记为已解锁。此操作无法撤销。';
+      '个人页将把所有成就显示为满级，但不会修改真实学习统计。';
   static String get settingsFunAllAchievementsConfirm => '解锁';
   static String get settingsFunAllAchievementsDone => '🏆 所有成就已解锁';
 

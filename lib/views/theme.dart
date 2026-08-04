@@ -1,31 +1,56 @@
+// Dart imports:
+import 'dart:math' as math;
+
 // Flutter imports:
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-/// Turna Brand Theme
-/// A restrained teal, navy, reed, clay, and warm-sand palette.
+/// Turna Brand Theme —「湿地鹤」visual system (ADR 0033).
+///
+/// **Area ratio (70 / 20 / 10):**
+/// - ~70% mist neutrals: scaffold / surface / card / text
+/// - ~20% wetland cool axis: [brandNavy] → [brandTeal] → [brandSky] → [brandReed]
+/// - ~10% warm Anatolian accents: [anatolianClay] / [warmSand]
+///
+/// **Primary CTA:** always teal ([buttonGradient] = teal → tealLight).
+/// Clay is secondary brand only — markers, chips, brand strips; never main CTA fill.
+///
+/// **Single source of truth** with GUI `tool/gui/src/theme_tokens.py` (BRAND_*).
+/// Scheme A locked: brandTeal = `#1F727E`. Brand tokens only — no legacy color aliases.
 class TurnaTheme {
   TurnaTheme._();
 
-  // TURNA BRAND COLORS
+  // ---------------------------------------------------------------------------
+  // TURNA BRAND COLORS (core contract — keep in sync with theme_tokens.py)
+  // ---------------------------------------------------------------------------
+  /// Deep silhouette / night water — shadows, gradient start.
   static const Color brandNavy = Color(0xFF19324A);
-  static const Color brandTeal = Color(0xFF1F727E);
-  static const Color brandTealLight = Color(0xFF2F7F8E);
-  static const Color brandSky = Color(0xFF4A95A8);
-  static const Color brandReed = Color(0xFF78C7B8);
-  static const Color anatolianClay = Color(0xFFB85C3F);
-  static const Color warmSand = Color(0xFFEAD9B8);
 
-  // Temporary compatibility aliases for widgets that are being migrated.
-  static const Color peacockDeep = brandNavy;
-  static const Color peacockTeal = brandTeal;
-  static const Color peacockCyan = brandSky;
-  static const Color peacockTurquoise = brandReed;
-  static const Color peacockMint = brandReed;
+  /// Primary brand / main CTA fill / links / selected chrome.
+  static const Color brandTeal = Color(0xFF1F727E);
+
+  /// Primary hover / button gradient end.
+  static const Color brandTealLight = Color(0xFF2F7F8E);
+
+  /// Pressed / darker primary (≡ GUI `BRAND_TEAL_DARK`).
+  static const Color brandTealDark = Color(0xFF145A64);
+
+  /// Info / listening / secondary cool accent.
+  static const Color brandSky = Color(0xFF4A95A8);
+
+  /// Glow / dark-mode icon highlight — never large light-surface body text.
+  static const Color brandReed = Color(0xFF78C7B8);
+
+  /// Second brand (warm) — complete/perfect markers, achievement chips, brand strip.
+  static const Color anatolianClay = Color(0xFFB85C3F);
+
+  /// Warm light fill / secondaryContainer / sand strip under clay accents.
+  static const Color warmSand = Color(0xFFEAD9B8);
 
   // SEMANTIC COLORS
   static const Color primary = brandTeal;
   static const Color primaryLight = brandTealLight;
-  static const Color primaryDark = Color(0xFF145A64);
+  static const Color primaryDark = brandTealDark;
   static const Color secondary = anatolianClay;
   static const Color secondaryLight = warmSand;
   static const Color error = Color(0xFFE74C3C);
@@ -48,6 +73,12 @@ class TurnaTheme {
   static const Color cardBackground = Colors.white;
   static const Color elevatedSurface = Color(0xFFFFFFFF);
   static const Color divider = Color(0xFFE3EBE9);
+
+  /// Dark scaffold / window chrome (≡ Android `turna_scaffold_dark`).
+  static const Color darkScaffold = Color(0xFF101B22);
+
+  /// Dark AppBar / status bar surface (≡ Android `turna_appbar_dark`).
+  static const Color darkAppBar = Color(0xFF182832);
 
   // TEXT COLORS
   static const Color textPrimary = Color(0xFF1C2730);
@@ -72,7 +103,6 @@ class TurnaTheme {
     end: Alignment.bottomRight,
     colors: [brandNavy, brandTeal, brandSky],
   );
-  static const LinearGradient peacockGradient = brandGradient;
 
   static const LinearGradient softGradient = LinearGradient(
     begin: Alignment.topCenter,
@@ -105,11 +135,15 @@ class TurnaTheme {
             )
           : courseTreeGradient;
 
+  /// Main CTA / primary FAB gradient — teal only (never insert clay).
   static const LinearGradient buttonGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [brandTeal, brandTealLight],
   );
+
+  /// Alias for [buttonGradient]. Prefer either name; both are teal → tealLight.
+  static const LinearGradient brandPrimaryGradient = buttonGradient;
 
   static const LinearGradient successGradient = LinearGradient(
     begin: Alignment.topLeft,
@@ -117,13 +151,116 @@ class TurnaTheme {
     colors: [success, successLight],
   );
 
-  static const RadialGradient nodeGlowGradient = RadialGradient(
+  /// Soft reed glow under course nodes — alphas derived from [brandReed].
+  static final RadialGradient nodeGlowGradient = RadialGradient(
     colors: [
-      Color(0x2678C7B8),
-      Color(0x1278C7B8),
-      Color(0x0078C7B8),
+      brandReed.withValues(alpha: 0.15),
+      brandReed.withValues(alpha: 0.07),
+      brandReed.withValues(alpha: 0.0),
     ],
   );
+
+  /// Box decoration for primary CTAs (teal → tealLight). Never insert clay.
+  static BoxDecoration primaryCtaDecoration({
+    BorderRadius? borderRadius,
+    bool elevated = true,
+  }) {
+    final radius =
+        borderRadius ?? BorderRadius.circular(radiusMedium);
+    return BoxDecoration(
+      gradient: buttonGradient,
+      borderRadius: radius,
+      boxShadow: elevated ? buttonShadow : null,
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // SYSTEM UI (status / navigation bar) — surface-aligned, not brandTeal fill
+  // ---------------------------------------------------------------------------
+
+  /// Light AppBar / status / nav chrome (white) with dark icons.
+  static const SystemUiOverlayStyle lightSystemUiOverlay = SystemUiOverlayStyle(
+    statusBarColor: Colors.white,
+    statusBarIconBrightness: Brightness.dark,
+    statusBarBrightness: Brightness.light,
+    systemNavigationBarColor: Colors.white,
+    systemNavigationBarIconBrightness: Brightness.dark,
+    systemNavigationBarContrastEnforced: false,
+  );
+
+  /// Dark AppBar / status / nav chrome with light icons.
+  static const SystemUiOverlayStyle darkSystemUiOverlay = SystemUiOverlayStyle(
+    statusBarColor: darkAppBar,
+    statusBarIconBrightness: Brightness.light,
+    statusBarBrightness: Brightness.dark,
+    systemNavigationBarColor: darkAppBar,
+    systemNavigationBarIconBrightness: Brightness.light,
+    systemNavigationBarContrastEnforced: false,
+  );
+
+  /// High-contrast light: pure white chrome, dark icons.
+  static const SystemUiOverlayStyle highContrastLightSystemUiOverlay =
+      SystemUiOverlayStyle(
+    statusBarColor: Colors.white,
+    statusBarIconBrightness: Brightness.dark,
+    statusBarBrightness: Brightness.light,
+    systemNavigationBarColor: Colors.white,
+    systemNavigationBarIconBrightness: Brightness.dark,
+    systemNavigationBarContrastEnforced: false,
+  );
+
+  /// High-contrast dark: pure black chrome, light icons.
+  static const SystemUiOverlayStyle highContrastDarkSystemUiOverlay =
+      SystemUiOverlayStyle(
+    statusBarColor: Colors.black,
+    statusBarIconBrightness: Brightness.light,
+    statusBarBrightness: Brightness.dark,
+    systemNavigationBarColor: Colors.black,
+    systemNavigationBarIconBrightness: Brightness.light,
+    systemNavigationBarContrastEnforced: false,
+  );
+
+  /// Status/nav bar style for the active [brightness] and high-contrast flag.
+  ///
+  /// Aligns with AppBar surfaces (not [brandTeal]). Call from the app shell
+  /// when theme mode or high-contrast changes so pages without an AppBar
+  /// still update Android chrome.
+  static SystemUiOverlayStyle systemUiOverlayFor({
+    required Brightness brightness,
+    bool highContrast = false,
+  }) {
+    if (highContrast) {
+      return brightness == Brightness.dark
+          ? highContrastDarkSystemUiOverlay
+          : highContrastLightSystemUiOverlay;
+    }
+    return brightness == Brightness.dark
+        ? darkSystemUiOverlay
+        : lightSystemUiOverlay;
+  }
+
+  /// WCAG relative contrast ratio between [foreground] and [background].
+  /// Used by theme contract tests and any a11y checks.
+  static double contrastRatio(Color foreground, Color background) {
+    final l1 = _relativeLuminance(foreground);
+    final l2 = _relativeLuminance(background);
+    final lighter = l1 > l2 ? l1 : l2;
+    final darker = l1 > l2 ? l2 : l1;
+    return (lighter + 0.05) / (darker + 0.05);
+  }
+
+  static double _relativeLuminance(Color color) {
+    double linearize(double channel) {
+      return channel <= 0.03928
+          ? channel / 12.92
+          : math.pow((channel + 0.055) / 1.055, 2.4).toDouble();
+    }
+
+    final r = linearize(color.r);
+    final g = linearize(color.g);
+    final b = linearize(color.b);
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  }
 
   // SHADOWS
   static List<BoxShadow> get softShadow => [
@@ -294,15 +431,22 @@ class TurnaTheme {
   /// tinted 卡片底色：浅色为 accent @ 0.10 罩白；深色为 accent @ 0.10
   /// 不透明罩染在抬升暗面上——只留淡淡色相，接近「学习」section 卡的
   /// 中性暗面质感，色彩由 icon chip 与提亮文字承载。
-  static Color softTint(BuildContext context, Color accent) => _isDark(context)
-      ? Color.alphaBlend(
-          accent.withValues(alpha: 0.10),
-          const Color(0xFF182832),
-        )
-      : Color.alphaBlend(
-          accent.withValues(alpha: 0.10),
-          Colors.white,
-        );
+  /// Soft fill for accent cards. Default alpha 0.10; raise slightly (e.g. 0.16)
+  /// for secondary-brand tiles that need higher visibility.
+  static Color softTint(
+    BuildContext context,
+    Color accent, {
+    double alpha = 0.10,
+  }) =>
+      _isDark(context)
+          ? Color.alphaBlend(
+              accent.withValues(alpha: alpha),
+              const Color(0xFF182832),
+            )
+          : Color.alphaBlend(
+              accent.withValues(alpha: alpha),
+              Colors.white,
+            );
 
   /// 着色卡内侧顶部白色晕染：模拟光照打在霜面上的高光。
   /// 用法：SoftCard 在 ClipRRect 内用 DecoratedBox 叠加在 child 之下。
@@ -384,6 +528,23 @@ class TurnaTheme {
   static Color scoreChipText(BuildContext context) =>
       _isDark(context) ? const Color(0xFFFFD54F) : const Color(0xFFE5A800);
 
+  // ---------------------------------------------------------------------------
+  // CLAY / SAND HELPERS (secondary brand — restrained warm accents)
+  // ---------------------------------------------------------------------------
+
+  /// Solid clay accent (icons, small pills). Prefer over hard-coded hex.
+  static Color clayAccent(BuildContext context) => anatolianClay;
+
+  /// Soft clay tint for secondary soft-tint cards (Play Hub optional tile, etc.).
+  static Color claySoftTint(BuildContext context) => softTint(context, anatolianClay);
+
+  /// Warm sand surface for brand strips / chip fills under clay accents.
+  static Color clayOnSandFill(BuildContext context) =>
+      _isDark(context) ? anatolianClay.withValues(alpha: 0.18) : warmSand;
+
+  /// Readable clay (or navy if sand contrast is weak) on sand-like fills.
+  static Color clayOnSandText(BuildContext context) => anatolianClay;
+
   // MATERIAL THEME DATA
   static ThemeData get lightTheme => ThemeData(
         useMaterial3: true,
@@ -409,6 +570,7 @@ class TurnaTheme {
           backgroundColor: Colors.white,
           foregroundColor: textPrimary,
           surfaceTintColor: Colors.transparent,
+          systemOverlayStyle: lightSystemUiOverlay,
           titleTextStyle: TextStyle(
             color: textPrimary,
             fontSize: 20,
@@ -536,13 +698,13 @@ class TurnaTheme {
         useMaterial3: true,
         brightness: Brightness.dark,
         primaryColor: primary,
-        scaffoldBackgroundColor: const Color(0xFF101B22),
+        scaffoldBackgroundColor: darkScaffold,
         colorScheme: const ColorScheme.dark(
           primary: primary,
           primaryContainer: primaryLight,
           secondary: secondary,
           secondaryContainer: secondaryLight,
-          surface: Color(0xFF182832),
+          surface: darkAppBar,
           error: error,
           onPrimary: textOnPrimary,
           onSecondary: textOnSecondary,
@@ -553,9 +715,10 @@ class TurnaTheme {
           elevation: 0,
           scrolledUnderElevation: 0,
           centerTitle: true,
-          backgroundColor: Color(0xFF182832),
+          backgroundColor: darkAppBar,
           foregroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
+          systemOverlayStyle: darkSystemUiOverlay,
           titleTextStyle: TextStyle(
             color: Colors.white,
             fontSize: 20,
@@ -705,6 +868,7 @@ class TurnaTheme {
           backgroundColor: Colors.white,
           foregroundColor: Colors.black,
           surfaceTintColor: Colors.transparent,
+          systemOverlayStyle: highContrastLightSystemUiOverlay,
           titleTextStyle: TextStyle(
             color: Colors.black,
             fontSize: 20,
@@ -802,6 +966,7 @@ class TurnaTheme {
           backgroundColor: Colors.black,
           foregroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
+          systemOverlayStyle: highContrastDarkSystemUiOverlay,
           titleTextStyle: TextStyle(
             color: Colors.white,
             fontSize: 20,

@@ -25,6 +25,7 @@ from src.widgets.ai_orbit import AiOrbitWidget
 from src.widgets.flow_layout import FlowLayout
 from src.widgets.knowledge_bubble import KnowledgeBubble
 from src.theme import current_palette
+from src.theme_tokens import BRAND_TEAL
 
 _BUBBLE_POOL_LIMIT = 200
 _BUBBLE_DEBOUNCE_MS = 60
@@ -180,7 +181,7 @@ class UnifiedWorkspaceWidget(QWidget):
         banner.setStyleSheet(
             f"QFrame#canvasBanner {{"
             f"  background-color: {pal.get('ai_card_bg', '#1F232C')};"
-            f"  border: 1px solid {pal.get('ai_accent_border', '#1F727E')};"
+            f"  border: 1px solid {pal.get('ai_accent_border', BRAND_TEAL)};"
             f"  border-radius: 8px;"
             f"}}"
         )

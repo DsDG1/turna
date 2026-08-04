@@ -140,17 +140,24 @@ static Color scoreChipBg(BuildContext context)
 // ... and more
 ```
 
-### Color Palette (Turna Brand, distinct from Duolingo)
+### Color Palette (Turna「湿地鹤」— ADR 0033, scheme A)
+
+Single source of truth: `lib/views/theme.dart` ↔ GUI `tool/gui/src/theme_tokens.py`.
+Primary CTA stays teal (`#1F727E`); clay is secondary warm accent only (~10% area).
+No `peacock*` aliases.
 
 ```dart
-// Primary: restrained teal
-const primaryColor = Color(0xFF1F727E);
-const primaryLight = Color(0xFF2F7F8E);
-const primaryDark = Color(0xFF145A64);
+// Wetland cool axis (~20%)
+const brandNavy = Color(0xFF19324A);
+const brandTeal = Color(0xFF1F727E);      // primary — locked scheme A
+const brandTealLight = Color(0xFF2F7F8E);
+const brandTealDark = Color(0xFF145A64);  // ≡ primaryDark / BRAND_TEAL_DARK
+const brandSky = Color(0xFF4A95A8);
+const brandReed = Color(0xFF78C7B8);
 
-// Accent / Secondary
-const secondary = Color(0xFFB85C3F);
-const secondaryLight = Color(0xFFEAD9B8);
+// Anatolian warm accents (~10%)
+const anatolianClay = Color(0xFFB85C3F);  // secondary
+const warmSand = Color(0xFFEAD9B8);       // secondaryLight
 
 // Semantic
 const error = Color(0xFFE74C3C);

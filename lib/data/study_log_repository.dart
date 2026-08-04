@@ -104,8 +104,10 @@ class StudyLogRepository implements IStudyLogRepository {
       logs = logs.where((l) => l.timestamp.isAfter(since)).toList();
     }
     if (until != null) {
-      logs =
-          logs.where((l) => l.timestamp.isBefore(until.add(const Duration(days: 1)))).toList();
+      logs = logs
+          .where(
+              (l) => l.timestamp.isBefore(until.add(const Duration(days: 1))))
+          .toList();
     }
     if (type != null) {
       logs = logs.where((l) => l.type == type).toList();
@@ -136,8 +138,8 @@ class StudyLogRepository implements IStudyLogRepository {
         .getValue();
     try {
       final map = jsonDecode(raw) as Map<String, dynamic>;
-      final decoded = map.map((key, value) =>
-          MapEntry(key, DailyStudyStats.fromJson(value as Map<String, dynamic>)));
+      final decoded = map.map((key, value) => MapEntry(
+          key, DailyStudyStats.fromJson(value as Map<String, dynamic>)));
       _dailyStatsCache = decoded;
       return Map.of(decoded);
     } catch (e) {
@@ -178,6 +180,12 @@ class StudyLogRepository implements IStudyLogRepository {
     });
   }
 
+  /// Invalidate decoded aggregates after preferences are restored externally.
+  Future<void> reloadFromPrefs() => _enqueueRead(() async {
+        _dailyStatsCache = null;
+        _mergedLogsCache = null;
+      });
+
   // --- internal ---
 
   /// Chain a mutating write so they execute in submission order. Errors in
@@ -194,9 +202,8 @@ class StudyLogRepository implements IStudyLogRepository {
   }
 
   Future<List<StudyLog>> _readMainLogs() async {
-    final raw = appPrefs.preferences
-        .getString(_logsKey, defaultValue: '[]')
-        .getValue();
+    final raw =
+        appPrefs.preferences.getString(_logsKey, defaultValue: '[]').getValue();
     try {
       final list = jsonDecode(raw) as List<dynamic>;
       return list

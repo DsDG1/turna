@@ -88,6 +88,7 @@ from src.dialogs.ai.chat_view import (
 )
 from src.dialogs.ai.prompt_template_bar import PromptTemplateBar
 from src.infrastructure.telemetry import telemetry
+from src.theme_tokens import BRAND_REED, BRAND_TEAL, BRAND_TEAL_DARK
 from src.widgets.json_editor import JsonEditor
 
 
@@ -577,7 +578,7 @@ class AiGeneratorDialog(QDialog):
         progress_row.addWidget(self.progress)
         self.stage_label = QLabel("")
         self.stage_label.setStyleSheet(
-            f"color: {self._pal('ai_accent', '#78C7B8')}; font-size: 12px;"
+            f"color: {self._pal('ai_accent', BRAND_REED)}; font-size: 12px;"
         )
         self.stage_label.setVisible(False)
         progress_row.addWidget(self.stage_label)
@@ -614,13 +615,13 @@ class AiGeneratorDialog(QDialog):
         self.expand_btn.setStyleSheet(
             "QPushButton {"
             f"  background-color: {self._pal('ai_card_bg', '#1F232C')};"
-            f"  color: {self._pal('ai_accent', '#78C7B8')};"
+            f"  color: {self._pal('ai_accent', BRAND_REED)};"
             f"  border: 1px solid {self._pal('ai_bubble_bg', '#2C313C')};"
             "  border-radius: 6px;"
             "  padding: 4px 10px;"
             "  font-size: 12px;"
             "}"
-            f"QPushButton:hover {{ border: 1px solid {self._pal('ai_accent_border', '#1F727E')}; }}"
+            f"QPushButton:hover {{ border: 1px solid {self._pal('ai_accent_border', BRAND_TEAL)}; }}"
         )
         self.expand_btn.setCheckable(True)
         self.expand_btn.toggled.connect(self._on_expand_toggled)
@@ -652,7 +653,7 @@ class AiGeneratorDialog(QDialog):
         self.wish_progress.setVisible(False)
         self.wish_stage_label = QLabel("")
         self.wish_stage_label.setStyleSheet(
-            f"color: {self._pal('ai_accent', '#78C7B8')}; font-size: 12px;"
+            f"color: {self._pal('ai_accent', BRAND_REED)}; font-size: 12px;"
         )
         self.wish_stage_label.setVisible(False)
         self.wish_usage_label = QLabel("")
@@ -733,7 +734,7 @@ class AiGeneratorDialog(QDialog):
             "QTextBrowser {"
             "  border: none;"
             f"  background-color: {self._pal('ai_card_bg', '#1F232C')};"
-            f"  color: {self._pal('ai_accent', '#78C7B8')};"
+            f"  color: {self._pal('ai_accent', BRAND_REED)};"
             "  font-family: system-ui, sans-serif;"
             "  font-size: 13px;"
             "  padding: 8px;"
@@ -784,13 +785,13 @@ class AiGeneratorDialog(QDialog):
         self.wish_btn.setToolTip("让 AI 根据对话生成课程")
         self.wish_btn.setStyleSheet(
             "QPushButton {"
-            f"  background-color: {self._pal('ai_user_bubble', '#145A64')};"
+            f"  background-color: {self._pal('ai_user_bubble', BRAND_TEAL_DARK)};"
             "  color: #FFFFFF;"
             "  border: none;"
             "  border-radius: 6px;"
             "  padding: 6px 12px;"
             "}"
-            f"QPushButton:hover {{ background-color: {self._pal('ai_accent_border', '#1F727E')}; }}"
+            f"QPushButton:hover {{ background-color: {self._pal('ai_accent_border', BRAND_TEAL)}; }}"
         )
         self.wish_btn.clicked.connect(self._on_wish_generate)
         action_layout.addWidget(self.wish_btn)

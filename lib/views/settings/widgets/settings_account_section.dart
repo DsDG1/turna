@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 
 // Project imports:
+import 'package:turna/application/cosmetic_provider.dart';
 import 'package:turna/application/game_provider.dart';
 import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/mistake_provider.dart';
@@ -13,9 +14,11 @@ import 'package:turna/application/srs_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/auth/local_user.dart';
 import 'package:turna/service/locator.dart';
+import 'package:turna/views/settings/avatar_rings_page.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/theme.dart';
+import 'package:turna/views/widgets/avatar_with_ring.dart';
 
 /// Available avatar background colors indexed by [LocalUser.avatarColorIndex].
 const _avatarColors = <Color>[
@@ -56,6 +59,8 @@ class SettingsAccountSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const _ProfileCard(),
+        const SizedBox(height: 12),
+        const _CosmeticsEntry(),
         const SizedBox(height: 20),
         const _LearningGoalsSection(),
         const SizedBox(height: 20),
@@ -63,6 +68,56 @@ class SettingsAccountSection extends StatelessWidget {
         const SizedBox(height: 20),
         _DataManagementSection(onNavigateToData: onNavigateToData),
         const SizedBox(height: 24),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Cosmetics entry
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _CosmeticsEntry extends StatelessWidget {
+  const _CosmeticsEntry();
+
+  @override
+  Widget build(BuildContext context) {
+    final ring = context.watch<CosmeticProvider>().equippedRing;
+    return SettingsCard(
+      children: [
+        SettingsTile(
+          icon: Icons.account_circle_outlined,
+          title: AppStrings.cosmeticsTitle,
+          subtitle: AppStrings.cosmeticsRingTitle(ring.id),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AvatarWithRing(
+                radius: 14,
+                ring: ring,
+                gapColor: TurnaTheme.cardBg(context),
+                backgroundColor: TurnaTheme.brandTeal.withValues(alpha: 0.12),
+                child: const Icon(
+                  Icons.person_rounded,
+                  size: 14,
+                  color: TurnaTheme.brandTeal,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: TurnaTheme.textHintColor(context),
+              ),
+            ],
+          ),
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const AvatarRingsPage(),
+              ),
+            );
+          },
+        ),
       ],
     );
   }
@@ -88,6 +143,7 @@ class _ProfileCard extends StatelessWidget {
         final avatarColor =
             _avatarColors[avatarColorIndex.clamp(0, _avatarColors.length - 1)];
         final initials = _initials(displayName);
+        final equippedRing = context.watch<CosmeticProvider>().equippedRing;
 
         return SettingsCard(
           children: [
@@ -101,8 +157,10 @@ class _ProfileCard extends StatelessWidget {
                       // Avatar — tap to change color
                       GestureDetector(
                         onTap: () => _showAvatarColorPicker(context, user),
-                        child: CircleAvatar(
+                        child: AvatarWithRing(
                           radius: 32,
+                          ring: equippedRing,
+                          gapColor: TurnaTheme.cardBg(context),
                           backgroundColor: avatarColor.withValues(alpha: 0.15),
                           child: Text(
                             initials,
@@ -774,12 +832,14 @@ class _DataManagementSection extends StatelessWidget {
     final mistakeProvider = context.read<MistakeProvider>();
     final srsProvider = getIt<SrsProvider>();
     final grammarProvider = getIt<GrammarReviewProvider>();
+    final cosmetics = context.read<CosmeticProvider>();
     final appPrefs = getIt<AppPrefs>();
 
     await mistakeProvider.clear();
     await srsProvider.clear();
     await grammarProvider.clear();
     await gameProvider.resetAccountGameState();
+    await cosmetics.resetCosmetics();
     await appPrefs.setLocalUser(LocalUser.local);
 
     if (context.mounted) {

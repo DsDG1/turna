@@ -58,14 +58,16 @@ AppBar   练习  (extension 图标 + 标题，现状保持)
 
 ### 3. 配色映射（保持现有 accent 体系）
 
+> **注（ADR 0033）：** 下表为历史 redesign 方案。现役 token 为 `brandTeal` / `brandSky` 等；`peacock*` 已删除。薄弱单词现可用 `anatolianClay` 作为唯一次要暖 soft tint。
+
 | 功能 | 当前 accent | 备注 |
 |------|------------|------|
-| 快速练习 (hero) | `peacockTeal` | 改用 teal→cyan 渐变 |
+| 快速练习 (hero) | `brandTeal` | 主按钮/hero 用 teal 渐变 |
 | 错题复习 | `error` (red) | 改为更柔和的 `errorLight` (0xFFFF6B6B) |
 | 复习 (今日重点) | `success` (0xFFFFD93D 黄) | 保持 |
-| 薄弱单词 | `warning` (0xFFFF9F43 橙) | 保持 |
-| 语法复习 | `peacockTeal` | 保持 |
-| Anki 复习 | `peacockCyan` | 保持 |
+| 薄弱单词 | `anatolianClay`（次要暖 accent） | 原 warning；ADR 0033 产品化 clay |
+| 语法复习 | `brandTeal` | 保持冷色主轴 |
+| Anki 复习 | `brandSky` | 保持 |
 | 复习 (复习中心) | `success` (黄) | 保持 |
 
 图里的「错题复习」用偏珊瑚红/粉色，比当前的 `error (0xFFE74C3C)` 柔和；切到 `errorLight` 即可。其他 4 个复习宫格的色彩和图基本对得上。
@@ -101,7 +103,7 @@ static Color softBorder(BuildContext, Color accent) => _isDark(context)
 - 底部导航（`bottom_navigator.dart`）—— 图里和现状一致
 - 路由跳转逻辑、provider 监听、l10n 文案 —— 全部不动
 - `_CountBadge`、`_SectionTitle` —— 复用
-- `peacockTeal` / `peacockCyan` 等色彩 token —— 不动
+- 色彩 token：历史稿曾写 `peacock*`；现役 API 为 `brand*` / clay（见 ADR 0033）
 - 删除「工具」section 的功能（复习进度 / 词典入口），只是换皮肤
 
 ## 涉及文件

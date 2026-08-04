@@ -18,6 +18,8 @@ Flutter 与 GUI 使用同一组核心值：`brandNavy #19324A`、`brandTeal #1F7
 
 Flutter 暂时保留 `peacock*` 兼容别名，但新页面调用点使用 `brand*` token。GUI 旧常量已迁移为 `BRAND_*`，四套 palette 保持相同 token 集合。待外部兼容调用清理完成后，再删除 Flutter 别名。
 
+> **后续（ADR 0033，2026-08-05）：** `peacock*` 别名已从 `lib/views/theme.dart` 删除；主色方案 A 锁死；clay 产品化与完整契约见 `0033-turna-wetland-crane-palette.md`。
+
 ## 验证
 
 主题测试验证四套 palette 的完整性、Flutter/GUI 核心色值一致、主按钮渐变 token 与对比度约束、纯黑/白高对比度表面，以及荧光 mint 不再作为当前主题值出现。

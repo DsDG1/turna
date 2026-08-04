@@ -12,13 +12,13 @@ class ReviewRatingBar extends StatelessWidget {
   final String? failPreview;
   final String? passPreview;
 
-  const ReviewRatingBar({
+  ReviewRatingBar({
     super.key,
     required this.onRate,
-    this.prompt = AppStrings.reviewDoYouKnow,
+    String? prompt,
     this.failPreview,
     this.passPreview,
-  });
+  }) : prompt = prompt ?? AppStrings.reviewDoYouKnow;
 
   @override
   Widget build(BuildContext context) {
@@ -118,14 +118,16 @@ class ReviewEmptyState extends StatelessWidget {
   final String emptyMessage;
   final String dueMessage;
 
-  const ReviewEmptyState({
+  ReviewEmptyState({
     super.key,
     required this.onRefresh,
     required this.dueCount,
-    this.title = AppStrings.reviewEmptyTitle,
-    this.emptyMessage = AppStrings.reviewEmptyMessage,
-    this.dueMessage = AppStrings.reviewDueMessage,
-  });
+    String? title,
+    String? emptyMessage,
+    String? dueMessage,
+  })  : title = title ?? AppStrings.reviewEmptyTitle,
+        emptyMessage = emptyMessage ?? AppStrings.reviewEmptyMessage,
+        dueMessage = dueMessage ?? AppStrings.reviewDueMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -180,7 +182,7 @@ class ReviewCompletionState extends StatelessWidget {
   final String title;
   final String completionMessage;
 
-  const ReviewCompletionState({
+  ReviewCompletionState({
     super.key,
     required this.reviewedCount,
     required this.dueCount,
@@ -188,9 +190,11 @@ class ReviewCompletionState extends StatelessWidget {
     required this.gemsEarned,
     required this.onDone,
     required this.onReviewMore,
-    this.title = AppStrings.reviewCompletionTitle,
-    this.completionMessage = AppStrings.reviewCompletionMessage,
-  });
+    String? title,
+    String? completionMessage,
+  })  : title = title ?? AppStrings.reviewCompletionTitle,
+        completionMessage =
+            completionMessage ?? AppStrings.reviewCompletionMessage;
 
   @override
   Widget build(BuildContext context) {

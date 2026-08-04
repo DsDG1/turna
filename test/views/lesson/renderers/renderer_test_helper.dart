@@ -28,14 +28,21 @@ Future<void> tapOption(WidgetTester tester, String label) async {
   await tester.pumpAndSettle();
 }
 
+/// LessonCheckButton is a gradient InkWell CTA (not ElevatedButton).
 Future<void> tapCheck(WidgetTester tester) async {
-  await tester.tap(find.widgetWithText(ElevatedButton, '核对'));
+  await tester.tap(find.widgetWithText(InkWell, '核对'));
   await tester.pumpAndSettle();
 }
 
 Future<void> tapContinue(WidgetTester tester) async {
-  await tester.tap(find.widgetWithText(ElevatedButton, '继续'));
+  await tester.tap(find.widgetWithText(InkWell, '继续'));
   await tester.pumpAndSettle();
+}
+
+/// Whether the lesson CHECK CTA is enabled (InkWell.onTap non-null).
+bool isCheckEnabled(WidgetTester tester) {
+  final ink = tester.widget<InkWell>(find.widgetWithText(InkWell, '核对'));
+  return ink.onTap != null;
 }
 
 Future<void> enterText(WidgetTester tester, String text) async {

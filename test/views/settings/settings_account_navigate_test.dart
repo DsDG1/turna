@@ -5,7 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
+import 'package:turna/application/cosmetic_provider.dart';
 import 'package:turna/application/game_provider.dart';
+import 'package:turna/application/gems_provider.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/auth/local_user.dart';
@@ -45,6 +47,12 @@ void main() {
           ),
           ChangeNotifierProvider<MistakeProvider>(
             create: (_) => MistakeProvider(prefs),
+          ),
+          ChangeNotifierProvider<GemsProvider>(
+            create: (_) => GemsProvider(prefs),
+          ),
+          ChangeNotifierProvider<CosmeticProvider>(
+            create: (ctx) => CosmeticProvider(prefs, ctx.read<GemsProvider>()),
           ),
         ],
         child: MaterialApp(

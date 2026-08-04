@@ -1,3 +1,6 @@
+// Dart imports:
+import 'dart:async';
+
 // Flutter imports:
 import 'package:flutter/material.dart';
 
@@ -6,7 +9,8 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/application/game_provider.dart';
-import 'package:turna/core/achievement_config.dart';
+import 'package:turna/application/gems_provider.dart';
+import 'package:turna/application/fun_lab_snapshot_service.dart';
 import 'package:turna/service/locator.dart';
 
 /// "Fun Lab" settings — joke cheat features persisted across launches.
@@ -23,19 +27,53 @@ import 'package:turna/service/locator.dart';
 class FunProvider extends ChangeNotifier {
   final AppPrefs _appPrefs;
   final GameProvider _gameProvider;
+  final GemsProvider _gemsProvider;
+  final FunLabSnapshotService _snapshotService;
 
   bool _autoAnswer = false;
+  bool _allAchievementsUnlocked = false;
+  bool _busy = false;
+  bool _snapshotLoaded = false;
+  FunLabSnapshotMeta? _snapshot;
 
-  FunProvider(this._appPrefs, this._gameProvider) {
+  FunProvider(
+    this._appPrefs,
+    this._gameProvider,
+    this._gemsProvider,
+    this._snapshotService,
+  ) {
     _load();
+    unawaited(_loadSnapshot());
   }
 
   bool get autoAnswer => _autoAnswer;
+  bool get allAchievementsUnlocked => _allAchievementsUnlocked;
+  bool get isBusy => _busy;
+  bool get snapshotLoaded => _snapshotLoaded;
+  bool get hasSnapshot => _snapshot != null;
+  FunLabSnapshotMeta? get snapshot => _snapshot;
 
   void _load() {
     _autoAnswer = _appPrefs.preferences
         .getBool(LocalStateKeys.funAutoAnswer, defaultValue: false)
         .getValue();
+    _allAchievementsUnlocked = _appPrefs.preferences
+        .getBool(
+          LocalStateKeys.funAllAchievementsUnlocked,
+          defaultValue: false,
+        )
+        .getValue();
+  }
+
+  Future<void> _loadSnapshot() async {
+    try {
+      _snapshot = await _snapshotService.loadMeta();
+    } catch (_) {
+      _snapshot = null;
+    } finally {
+      _snapshotLoaded = true;
+      notifyListeners();
+    }
   }
 
   Future<void> setAutoAnswer(bool value) async {
@@ -46,28 +84,89 @@ class FunProvider extends ChangeNotifier {
 
   // ── One-shot cheat actions ──────────────────────────────────────────
 
+  Future<void> createSnapshot() async {
+    await _runBusy(() async {
+      _snapshot = await _snapshotService.createSnapshot();
+    });
+  }
+
+  Future<void> restoreSnapshot() async {
+    _requireSnapshot();
+    await _runBusy(() async {
+      await _snapshotService.restoreSnapshot();
+      _load();
+      _snapshot = await _snapshotService.loadMeta();
+    });
+  }
+
+  Future<void> deleteSnapshot() async {
+    _requireSnapshot();
+    await _runBusy(() async {
+      await _snapshotService.deleteSnapshot();
+      _snapshot = null;
+    });
+  }
+
+  Future<int> countPostponableReviews() =>
+      _snapshotService.countPostponableReviews();
+
+  Future<int> postponeAllReviewsOneDay() async {
+    _requireSnapshot();
+    var affected = 0;
+    await _runBusy(() async {
+      affected = await _snapshotService.postponeAllActiveReviews(
+        const Duration(days: 1),
+      );
+    });
+    return affected;
+  }
+
   /// Set total XP score to 99999. ScoreProvider reads directly from prefs
   /// (score_provider.dart:17), so notify on GameProvider is sufficient.
   Future<void> cheatMaxScore() async {
-    await _appPrefs.setInt(LocalStateKeys.score, 99999);
-    _gameProvider.notifyListeners();
+    _requireSnapshot();
+    await _runBusy(() async {
+      await _appPrefs.setInt(LocalStateKeys.score, 99999);
+      _gameProvider.refreshFromPrefs();
+    });
   }
 
   /// Set gems to 99999. GemsProvider reads from prefs on every access
   /// (gems_provider.dart:44).
   Future<void> cheatMaxGems() async {
-    await _appPrefs.setInt(LocalStateKeys.gems, 99999);
-    _gameProvider.notifyListeners();
+    _requireSnapshot();
+    await _runBusy(() async {
+      await _gemsProvider.setGems(99999);
+      _gameProvider.refreshFromPrefs();
+    });
   }
 
-  /// Unlock every achievement milestone. AchievementConfig has separate
-  /// `xp` and `streak` lists (achievement_config.dart:11-24); merge both.
+  /// Display all profile achievements as complete without changing the real
+  /// counters or pre-consuming XP/streak milestone rewards.
   Future<void> cheatUnlockAllAchievements() async {
-    final allIds = <String>[
-      ...AchievementConfig.xp.map((m) => m.id),
-      ...AchievementConfig.streak.map((m) => m.id),
-    ];
-    await _appPrefs.setStringList(LocalStateKeys.achievements, allIds);
-    _gameProvider.notifyListeners();
+    _requireSnapshot();
+    await _runBusy(() async {
+      _allAchievementsUnlocked = true;
+      await _appPrefs.setBool(
+        LocalStateKeys.funAllAchievementsUnlocked,
+        value: true,
+      );
+    });
+  }
+
+  void _requireSnapshot() {
+    if (_snapshot == null) throw StateError('Fun Lab snapshot required');
+  }
+
+  Future<void> _runBusy(Future<void> Function() action) async {
+    if (_busy) return;
+    _busy = true;
+    notifyListeners();
+    try {
+      await action();
+    } finally {
+      _busy = false;
+      notifyListeners();
+    }
   }
 }

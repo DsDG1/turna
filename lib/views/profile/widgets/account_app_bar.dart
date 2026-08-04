@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 
 // Project imports:
+import 'package:turna/application/cosmetic_provider.dart';
 import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/theme_provider.dart';
 import 'package:turna/core/extensions.dart';
@@ -14,6 +15,7 @@ import 'package:turna/domain/auth/local_user.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/views/theme.dart';
+import 'package:turna/views/widgets/avatar_with_ring.dart';
 
 class AccountAppBar extends StatelessWidget implements PreferredSizeWidget {
   const AccountAppBar({Key? key}) : super(key: key);
@@ -40,6 +42,8 @@ class AccountWidget extends StatelessWidget {
         .select((LanguageProvider p) => p.selectedLanguage.displayName)
         .toTitleCase;
 
+    final equippedRing = context.watch<CosmeticProvider>().equippedRing;
+
     return PreferenceBuilder<LocalUser>(
       preference: getIt<AppPrefs>().authUser,
       builder: (BuildContext context, LocalUser user) {
@@ -48,8 +52,8 @@ class AccountWidget extends StatelessWidget {
         final email = user.email ?? '';
         final bio = user.bio?.trim() ?? '';
 
+        // Clip + column so the clay→sand brand strip sits under rounded corners.
         return Container(
-          padding: const EdgeInsets.fromLTRB(18, 18, 14, 18),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(TurnaTheme.radiusXLarge),
             gradient: LinearGradient(
@@ -76,103 +80,130 @@ class AccountWidget extends StatelessWidget {
               ),
             ],
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
+              // Always-on secondary brand strip (wetland clay visibility polish).
               Container(
-                width: 64,
-                height: 64,
+                height: 3,
+                width: double.infinity,
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: TurnaTheme.brandTeal.withValues(alpha: 0.15),
-                  border: Border.all(
-                    color: TurnaTheme.brandTeal.withValues(alpha: 0.35),
-                    width: 2,
+                  gradient: LinearGradient(
+                    colors: [
+                      TurnaTheme.anatolianClay,
+                      TurnaTheme.warmSand.withValues(alpha: 0.85),
+                    ],
                   ),
                 ),
-                child: const Icon(
-                  Icons.person_rounded,
-                  size: 32,
-                  color: TurnaTheme.brandTeal,
-                ),
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 15, 14, 18),
+                child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      displayName,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
+                    AvatarWithRing(
+                      radius: 32,
+                      ring: equippedRing,
+                      gapColor: TurnaTheme.cardBg(context),
+                      backgroundColor:
+                          TurnaTheme.brandTeal.withValues(alpha: 0.15),
+                      child: const Icon(
+                        Icons.person_rounded,
+                        size: 32,
+                        color: TurnaTheme.brandTeal,
+                      ),
                     ),
-                    if (email.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        email,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: TurnaTheme.textHintColor(context),
-                            ),
-                      ),
-                    ],
-                    if (bio.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        bio,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: TurnaTheme.textSecondaryColor(context),
-                            ),
-                      ),
-                    ],
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: TurnaTheme.cardBg(context).withValues(
-                          alpha: isDark ? 0.35 : 0.85,
-                        ),
-                        borderRadius:
-                            BorderRadius.circular(TurnaTheme.radiusRound),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(
-                            Icons.language_rounded,
-                            size: 14,
-                            color: TurnaTheme.brandTeal,
-                          ),
-                          const SizedBox(width: 4),
                           Text(
-                            languageName,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: TurnaTheme.brandTeal,
+                            displayName,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                          ),
+                          if (email.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              email,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: TurnaTheme.textHintColor(context),
+                                  ),
+                            ),
+                          ],
+                          if (bio.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              bio,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color:
+                                        TurnaTheme.textSecondaryColor(context),
+                                  ),
+                            ),
+                          ],
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: TurnaTheme.cardBg(context).withValues(
+                                alpha: isDark ? 0.35 : 0.85,
+                              ),
+                              borderRadius: BorderRadius.circular(
+                                  TurnaTheme.radiusRound),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.language_rounded,
+                                  size: 14,
+                                  color: TurnaTheme.anatolianClay,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  languageName,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: TurnaTheme.anatolianClay,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
                     ),
-                  ],
-                ),
-              ),
-              Column(
-                children: [
-                  _ThemeToggle(),
-                  if (onShare != null) ...[
-                    const SizedBox(height: 8),
-                    _HeroIconButton(
-                      icon: Icons.share_rounded,
-                      tooltip: AppStrings.profileShare,
-                      onTap: onShare!,
+                    Column(
+                      children: [
+                        _ThemeToggle(),
+                        if (onShare != null) ...[
+                          const SizedBox(height: 8),
+                          _HeroIconButton(
+                            icon: Icons.share_rounded,
+                            tooltip: AppStrings.profileShare,
+                            onTap: onShare!,
+                          ),
+                        ],
+                      ],
                     ),
                   ],
-                ],
+                ),
               ),
             ],
           ),

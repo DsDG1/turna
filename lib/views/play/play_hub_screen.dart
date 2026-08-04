@@ -127,7 +127,10 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
                   ReviewTile(
                     title: AppStrings.playWeakWordsTitle,
                     icon: Icons.fitness_center_rounded,
-                    accentColor: TurnaTheme.warning,
+                    // Single Play Hub secondary warm soft-tint (ADR 0033);
+                    // slightly stronger alpha so clay is readable at a glance.
+                    accentColor: TurnaTheme.anatolianClay,
+                    tintAlpha: 0.16,
                     badge: weakCount > 0 ? '$weakCount' : null,
                     onTap: () => context.router.push(const WeakWordsRoute()),
                   ),

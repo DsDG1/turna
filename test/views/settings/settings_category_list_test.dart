@@ -47,6 +47,15 @@ void main() {
       findsOneWidget,
     );
 
+    // Audio + accessibility are merged into one category entry.
+    expect(find.text(AppStrings.settingsCategorySensoryA11y), findsOneWidget);
+    expect(
+      find.text(AppStrings.settingsCategorySensoryA11ySubtitle),
+      findsOneWidget,
+    );
+    // Only one tile with that title (not two separate categories).
+    expect(find.text(AppStrings.settingsCategorySensoryA11y), findsOneWidget);
+
     // Fun lab is in its own group; scroll if needed.
     final fun = find.text(AppStrings.settingsCategoryFunLab);
     await tester.ensureVisible(fun);

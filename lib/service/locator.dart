@@ -11,6 +11,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 
 // Project imports:
+import 'package:turna/application/guide_return_controller.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/core/verbose.dart';
 import 'package:turna/data/course_database.dart';
@@ -137,6 +138,13 @@ class LocalStateKeys {
   // Currency
   static const String gems = 'currency.gems';
 
+  // Cosmetics (gem-spend avatar rings, etc.)
+  /// Unlocked cosmetic ids (string list). [ring_mist] is always free.
+  static const String cosmeticsUnlocked = 'cosmetics.unlocked';
+
+  /// Currently equipped avatar ring id. Default: [ring_mist].
+  static const String cosmeticsEquippedRing = 'cosmetics.equippedRing';
+
   // Achievements
   static const String achievements = 'achievements.unlocked';
 
@@ -232,6 +240,8 @@ class LocalStateKeys {
 
   // Fun / cheat settings — see FunProvider.
   static const String funAutoAnswer = 'fun.autoAnswer';
+  static const String funAllAchievementsUnlocked =
+      'fun.allAchievementsUnlocked';
 }
 
 /// Making AppPrefs injectable
@@ -242,6 +252,11 @@ Future<void> setupLocator() async {
   // Bottom-nav tab switcher — registered early so HomePage and any pushed
   // route (e.g. lesson dialog) can resolve it synchronously.
   getIt.registerLazySingleton<TabRouter>(() => TabRouter());
+
+  // Beginner-guide 「返回」 bubble session — framework-only, no prefs.
+  getIt.registerLazySingleton<GuideReturnController>(
+    () => GuideReturnController(),
+  );
 
   getIt.registerLazySingleton<ExportService>(
       () => ExportService(getIt<AppPrefs>()));
