@@ -28,7 +28,7 @@ class RetentionCurveChart extends StatelessWidget {
       for (var i = 0; i < curve.length; i++)
         FlSpot(i.toDouble(), curve[i].retention),
     ];
-    final lineColor = TurnaTheme.peacockTeal;
+    final lineColor = TurnaTheme.brandTeal;
     return SizedBox(
       height: height,
       child: LineChart(

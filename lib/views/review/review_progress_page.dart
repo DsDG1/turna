@@ -66,7 +66,7 @@ class _ReviewProgressPageState extends State<ReviewProgressPage> {
             return Center(child: Text(AppStrings.reviewProgressEmpty));
           }
           return RefreshIndicator(
-            color: TurnaTheme.peacockTeal,
+            color: TurnaTheme.brandTeal,
             onRefresh: () async => _reload(),
             child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(
@@ -304,18 +304,18 @@ class _FilterPanel extends StatelessWidget {
       label: Text(label),
       selected: selected,
       onSelected: (_) => onTap(),
-      selectedColor: TurnaTheme.peacockTeal.withValues(alpha: 0.18),
-      checkmarkColor: TurnaTheme.peacockTeal,
+      selectedColor: TurnaTheme.brandTeal.withValues(alpha: 0.18),
+      checkmarkColor: TurnaTheme.brandTeal,
       labelStyle: TextStyle(
         fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
         color: selected
-            ? TurnaTheme.peacockTeal
+            ? TurnaTheme.brandTeal
             : TurnaTheme.textSecondaryColor(context),
         fontSize: 13,
       ),
       side: BorderSide(
         color: selected
-            ? TurnaTheme.peacockTeal
+            ? TurnaTheme.brandTeal
             : TurnaTheme.statCardBorder(context),
       ),
       backgroundColor: TurnaTheme.cardBg(context),
@@ -350,7 +350,7 @@ class _KpiCard extends StatelessWidget {
           Row(
             children: [
               _kpi(context, '$ret%', AppStrings.reviewProgressKpiRetention,
-                  TurnaTheme.peacockTeal),
+                  TurnaTheme.brandTeal),
               _kpi(context, '$mas%', AppStrings.reviewProgressKpiMastery,
                   TurnaTheme.primaryLight),
               _kpi(
@@ -368,7 +368,7 @@ class _KpiCard extends StatelessWidget {
               _kpi(context, '${a.forecast.due7Days}',
                   AppStrings.profileDue7Days, TurnaTheme.warning),
               _kpi(context, '${a.totalReviews}',
-                  AppStrings.reviewProgressKpiReviews, TurnaTheme.peacockCyan),
+                  AppStrings.reviewProgressKpiReviews, TurnaTheme.brandSky),
             ],
           ),
         ],
@@ -424,7 +424,7 @@ class _CurveCard extends StatelessWidget {
           Row(
             children: [
               Icon(Icons.show_chart_rounded,
-                  color: TurnaTheme.peacockTeal, size: 20),
+                  color: TurnaTheme.brandTeal, size: 20),
               const SizedBox(width: 8),
               Text(
                 AppStrings.profileMemoryCurveTitle,
@@ -631,7 +631,7 @@ class _SourceTile extends StatelessWidget {
                 Icon(_icon,
                     size: 22,
                     color: selected
-                        ? TurnaTheme.peacockTeal
+                        ? TurnaTheme.brandTeal
                         : TurnaTheme.textSecondaryColor(context)),
                 const SizedBox(width: 10),
                 Expanded(
@@ -642,7 +642,7 @@ class _SourceTile extends StatelessWidget {
                         row.source.label,
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w700,
-                              color: selected ? TurnaTheme.peacockTeal : null,
+                              color: selected ? TurnaTheme.brandTeal : null,
                             ),
                       ),
                       Text(
@@ -659,7 +659,7 @@ class _SourceTile extends StatelessWidget {
                   AppStrings.reviewProgressRetentionPct(ret),
                   style: Theme.of(context).textTheme.labelLarge?.copyWith(
                         fontWeight: FontWeight.w800,
-                        color: TurnaTheme.peacockTeal,
+                        color: TurnaTheme.brandTeal,
                       ),
                 ),
               ],
@@ -671,7 +671,7 @@ class _SourceTile extends StatelessWidget {
                 value: progress,
                 minHeight: 6,
                 backgroundColor: TurnaTheme.dividerBg(context),
-                color: TurnaTheme.peacockTeal,
+                color: TurnaTheme.brandTeal,
               ),
             ),
           ],

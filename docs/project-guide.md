@@ -441,14 +441,17 @@ Explain → Practice → Rate 三段流（见 2.4 Skill Acquisition Theory）。
 
 `lib/views/theme.dart` 提供 `lightTheme` / `darkTheme` / `highContrastLightTheme` / `highContrastDarkTheme`，及一组按 `Brightness` 自适应的语义化颜色 helper（`cardBg` / `scaffoldBg` / `textHintColor` / `inputFillColor` / `bottomNavBg` / `glassSurface` 等）。Play Hub 用毛玻璃（`_GlassCard` + `BackdropFilter` + 极光底层 `_AuroraBackground`）。
 
-调色板（孔雀色系，区别于 Duolingo）：
+调色板（Turna 克制型品牌色，区别于 Duolingo）：
 
 ```dart
-const primaryColor   = Color(0xFF1F727E);  // Teal/Cyan
-const primaryLight   = Color(0xFF359CBB);
+const brandNavy      = Color(0xFF19324A);
+const primaryColor   = Color(0xFF1F727E);  // Brand Teal
+const primaryLight   = Color(0xFF2F7F8E);
 const primaryDark    = Color(0xFF145A64);
-const secondary      = Color(0xFF46D1BF);
-const secondaryLight = Color(0xFF00FFC6);
+const brandSky       = Color(0xFF4A95A8);
+const brandReed      = Color(0xFF78C7B8);
+const secondary      = Color(0xFFB85C3F);
+const secondaryLight = Color(0xFFEAD9B8);
 const error   = Color(0xFFE74C3C);
 const success = Color(0xFFFFD93D);
 const warning = Color(0xFFFF9F43);

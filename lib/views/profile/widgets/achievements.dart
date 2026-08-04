@@ -108,12 +108,12 @@ class _AchievementsState extends State<Achievements> {
                                       .titleSmall
                                       ?.copyWith(
                                         fontWeight: FontWeight.w600,
-                                        color: TurnaTheme.peacockTeal,
+                                        color: TurnaTheme.brandTeal,
                                       ),
                                 ),
                                 const Spacer(),
                                 const Icon(Icons.chevron_right_rounded,
-                                    color: TurnaTheme.peacockTeal, size: 22),
+                                    color: TurnaTheme.brandTeal, size: 22),
                               ],
                             ),
                           ),
@@ -145,12 +145,12 @@ class _AchievementsState extends State<Achievements> {
                                       .titleSmall
                                       ?.copyWith(
                                         fontWeight: FontWeight.w600,
-                                        color: TurnaTheme.peacockTeal,
+                                        color: TurnaTheme.brandTeal,
                                       ),
                                 ),
                                 const Spacer(),
                                 const Icon(Icons.expand_less_rounded,
-                                    color: TurnaTheme.peacockTeal, size: 22),
+                                    color: TurnaTheme.brandTeal, size: 22),
                               ],
                             ),
                           ),
@@ -188,7 +188,7 @@ class _AchievementsState extends State<Achievements> {
       padding: const EdgeInsets.only(top: 20, bottom: 8),
       child: Row(
         children: [
-          Icon(icon, color: TurnaTheme.peacockTeal, size: 22),
+          Icon(icon, color: TurnaTheme.brandTeal, size: 22),
           const SizedBox(width: 8),
           Text(
             text,

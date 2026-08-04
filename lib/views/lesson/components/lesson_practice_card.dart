@@ -101,17 +101,17 @@ class LessonPracticeCard extends StatelessWidget {
       case LessonPracticeCardVariant.front:
         return _CardColors(
           fill: TurnaTheme.cardBg(context),
-          border: TurnaTheme.peacockTeal.withValues(alpha: 0.20),
+          border: TurnaTheme.brandTeal.withValues(alpha: 0.20),
         );
       case LessonPracticeCardVariant.back:
         return _CardColors(
-          fill: TurnaTheme.peacockTeal.withValues(alpha: isDark ? 0.18 : 0.10),
-          border: TurnaTheme.peacockTeal.withValues(alpha: 0.45),
+          fill: TurnaTheme.brandTeal.withValues(alpha: isDark ? 0.18 : 0.10),
+          border: TurnaTheme.brandTeal.withValues(alpha: 0.45),
         );
       case LessonPracticeCardVariant.surface:
         return _CardColors(
           fill: TurnaTheme.cardBg(context),
-          border: TurnaTheme.peacockTeal.withValues(alpha: 0.15),
+          border: TurnaTheme.brandTeal.withValues(alpha: 0.15),
         );
     }
   }

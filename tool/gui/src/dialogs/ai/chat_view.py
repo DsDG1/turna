@@ -16,18 +16,18 @@ from PySide6.QtWidgets import QTextBrowser
 # Values are kept in sync with the ``dark`` palette so chat rendering looks
 # correct before apply_theme() is called.
 DEFAULT_PALETTE: dict[str, str] = {
-    "ai_chat_bg": "#142624",
-    "ai_bubble_bg": "#1F3A36",
+    "ai_chat_bg": "#142129",
+    "ai_bubble_bg": "#20323D",
     "ai_user_bubble": "#1F727E",
-    "ai_card_bg": "#1A2E2B",
-    "ai_chip_bg": "#142624",
-    "ai_accent": "#46D1BF",
+    "ai_card_bg": "#182832",
+    "ai_chip_bg": "#142129",
+    "ai_accent": "#78C7B8",
     "ai_accent_border": "#1F727E",
     "ai_beta_bg": "#664400",
     "ai_beta_text": "#FFD93D",
     "text": "#E8EAF0",
-    "text_secondary": "#B0CBC7",
-    "text_disabled": "#6B8A85",
+    "text_secondary": "#B6C4CB",
+    "text_disabled": "#7D929C",
     "success": "#27AE60",
     "error": "#E74C3C",
 }

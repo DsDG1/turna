@@ -42,7 +42,7 @@ class TextbookConflictPreview extends StatelessWidget {
             children: [
               _SummaryChip(
                 label: AppStrings.aiTextbookCollisionNew(report.totalNew),
-                color: TurnaTheme.peacockTeal,
+                color: TurnaTheme.brandTeal,
               ),
               _SummaryChip(
                 label:
@@ -51,7 +51,7 @@ class TextbookConflictPreview extends StatelessWidget {
               ),
               _SummaryChip(
                 label: AppStrings.aiTextbookWords(report.newWords),
-                color: TurnaTheme.peacockCyan,
+                color: TurnaTheme.brandSky,
               ),
               _SummaryChip(
                 label: AppStrings.aiTextbookExpressions(report.newExpressions),
@@ -190,8 +190,8 @@ class _PlanCard extends StatelessWidget {
       };
 
   Color _actionColor(ImportAction a) => switch (a) {
-        ImportAction.append => TurnaTheme.peacockTeal,
-        ImportAction.merge => TurnaTheme.peacockCyan,
+        ImportAction.append => TurnaTheme.brandTeal,
+        ImportAction.merge => TurnaTheme.brandSky,
         ImportAction.skip => TurnaTheme.textHint,
         ImportAction.replace => TurnaTheme.warning,
         ImportAction.appendNew => TurnaTheme.leagueAmethyst,

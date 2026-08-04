@@ -360,14 +360,14 @@ class _FlagIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (flag == 0) {
-      return const Icon(Icons.style_outlined, color: TurnaTheme.peacockTeal);
+      return const Icon(Icons.style_outlined, color: TurnaTheme.brandTeal);
     }
     final color = switch (flag) {
       1 => Colors.red,
       2 => Colors.orange,
       3 => Colors.blue,
       4 => Colors.green,
-      _ => TurnaTheme.peacockTeal,
+      _ => TurnaTheme.brandTeal,
     };
     return Icon(Icons.flag, color: color);
   }

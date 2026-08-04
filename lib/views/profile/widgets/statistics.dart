@@ -55,7 +55,7 @@ class Statistics extends StatelessWidget {
                         _vDivider(context),
                         _MetricCell(
                           icon: Icons.bolt_rounded,
-                          iconColor: TurnaTheme.peacockTurquoise,
+                          iconColor: TurnaTheme.brandReed,
                           value: totalXp.toString(),
                           label: AppStrings.profileTotalXp,
                         ),
@@ -69,7 +69,7 @@ class Statistics extends StatelessWidget {
                         _vDivider(context),
                         _MetricCell(
                           icon: Icons.school_rounded,
-                          iconColor: TurnaTheme.peacockCyan,
+                          iconColor: TurnaTheme.brandSky,
                           value: lessons.toString(),
                           label: AppStrings.profileLessonsShort,
                         ),
@@ -89,7 +89,7 @@ class Statistics extends StatelessWidget {
     return Row(
       children: [
         const Icon(Icons.insights_rounded,
-            color: TurnaTheme.peacockTeal, size: 20),
+            color: TurnaTheme.brandTeal, size: 20),
         const SizedBox(width: 8),
         Text(
           text,

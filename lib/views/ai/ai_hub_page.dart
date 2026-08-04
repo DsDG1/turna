@@ -111,7 +111,7 @@ class _HeroSection extends StatelessWidget {
                     end: Alignment.bottomRight,
                     colors: [
                       TurnaTheme.amethystLeague,
-                      TurnaTheme.peacockTeal,
+                      TurnaTheme.brandTeal,
                     ],
                   ),
                   borderRadius: radius,
@@ -294,7 +294,7 @@ class _ContinueSection extends StatelessWidget {
             builder: (context, items, _) {
               if (items.isEmpty) {
                 return SoftCard(
-                  accentColor: TurnaTheme.peacockTeal,
+                  accentColor: TurnaTheme.brandTeal,
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Text(
@@ -334,10 +334,10 @@ class _RecentRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = TurnaTheme.accentOnCard(context, TurnaTheme.peacockTeal);
+    final accent = TurnaTheme.accentOnCard(context, TurnaTheme.brandTeal);
 
     return SoftCard(
-      accentColor: TurnaTheme.peacockTeal,
+      accentColor: TurnaTheme.brandTeal,
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -461,20 +461,20 @@ class _StartSection extends StatelessWidget {
               ReviewTile(
                 title: AppStrings.aiHubStartTextbook,
                 icon: Icons.menu_book_rounded,
-                accentColor: TurnaTheme.peacockCyan,
+                accentColor: TurnaTheme.brandSky,
                 onTap: () => context.router.push(const TextbookImportRoute()),
               ),
               ReviewTile(
                 title: AppStrings.aiHubStartTutorMistakes,
                 icon: Icons.history_toggle_off_rounded,
-                accentColor: TurnaTheme.peacockTeal,
+                accentColor: TurnaTheme.brandTeal,
                 onTap: () => _openSheet(
                     context, const TutorLaunchSheet(), SrsTutorFocus.mistakes),
               ),
               ReviewTile(
                 title: AppStrings.aiHubStartTutorWeak,
                 icon: Icons.quiz_rounded,
-                accentColor: TurnaTheme.peacockTurquoise,
+                accentColor: TurnaTheme.brandReed,
                 onTap: () => _openSheet(
                     context, const TutorLaunchSheet(), SrsTutorFocus.weakWords),
               ),

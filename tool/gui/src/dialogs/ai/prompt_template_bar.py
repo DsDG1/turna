@@ -28,7 +28,7 @@ from src.backend.ai_prompt_library import AiPromptLibrary, AiPromptHistory, AiPr
 
 def _card_stylesheet(selected: bool, palette: dict[str, str] | None = None) -> str:
     pal = palette or {}
-    accent = pal.get("ai_accent", "#46D1BF")
+    accent = pal.get("ai_accent", "#78C7B8")
     accent_border = pal.get("ai_accent_border", "#1F727E")
     card_bg = pal.get("ai_card_bg", "#1F232C")
     border = pal.get("ai_bubble_bg", "#2C313C")

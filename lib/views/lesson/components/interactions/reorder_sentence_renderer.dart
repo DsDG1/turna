@@ -182,8 +182,8 @@ class _AnswerRow extends StatelessWidget {
       background = (correct == true ? TurnaTheme.success : TurnaTheme.error)
           .withValues(alpha: 0.06);
     } else if (tokens.isNotEmpty) {
-      border = TurnaTheme.peacockTeal;
-      background = TurnaTheme.peacockTeal.withValues(alpha: 0.04);
+      border = TurnaTheme.brandTeal;
+      background = TurnaTheme.brandTeal.withValues(alpha: 0.04);
     }
 
     return Container(
@@ -268,12 +268,12 @@ class _TokenChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = selected ? TurnaTheme.peacockTeal : TurnaTheme.cardBg(context);
+    final bg = selected ? TurnaTheme.brandTeal : TurnaTheme.cardBg(context);
     final fg = selected
         ? TurnaTheme.textOnPrimary
         : TurnaTheme.textPrimaryColor(context);
     final border = selected
-        ? TurnaTheme.peacockTeal
+        ? TurnaTheme.brandTeal
         : TurnaTheme.textHint.withValues(alpha: 0.3);
 
     return Semantics(

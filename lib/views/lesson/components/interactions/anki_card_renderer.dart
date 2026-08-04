@@ -284,7 +284,7 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
           Icon(
             Icons.style_rounded,
             size: 32,
-            color: TurnaTheme.peacockTeal.withValues(alpha: 0.5),
+            color: TurnaTheme.brandTeal.withValues(alpha: 0.5),
           ),
           const SizedBox(height: 16),
           Text(
@@ -298,7 +298,7 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
           const SizedBox(height: 8),
           IconButton(
             icon: const Icon(Icons.record_voice_over_rounded),
-            color: TurnaTheme.peacockTeal,
+            color: TurnaTheme.brandTeal,
             tooltip: AppStrings.lessonSpeakLabel,
             onPressed: _speakFront,
           ),
@@ -326,7 +326,7 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
           Icon(
             Icons.check_circle_outline,
             size: 28,
-            color: TurnaTheme.peacockTeal.withValues(alpha: 0.6),
+            color: TurnaTheme.brandTeal.withValues(alpha: 0.6),
           ),
           const SizedBox(height: 16),
           Text(
@@ -340,7 +340,7 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
           const SizedBox(height: 8),
           IconButton(
             icon: const Icon(Icons.record_voice_over_rounded),
-            color: TurnaTheme.peacockTeal,
+            color: TurnaTheme.brandTeal,
             tooltip: AppStrings.lessonSpeakLabel,
             onPressed: _speakBack,
           ),
@@ -423,7 +423,7 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
             Expanded(
               child: _GradeButton(
                 label: AppStrings.reviewEasy,
-                color: TurnaTheme.peacockTeal,
+                color: TurnaTheme.brandTeal,
                 onPressed: () => _grade(
                   correct: true,
                   label: AppStrings.reviewEasy,

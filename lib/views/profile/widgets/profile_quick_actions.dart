@@ -37,7 +37,7 @@ class ProfileQuickActions extends StatelessWidget {
           Row(
             children: [
               const Icon(Icons.bolt_rounded,
-                  color: TurnaTheme.peacockTeal, size: 20),
+                  color: TurnaTheme.brandTeal, size: 20),
               const SizedBox(width: 8),
               Text(
                 AppStrings.profileQuickActionsTitle,

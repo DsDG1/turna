@@ -78,12 +78,12 @@ class _SettingsTextScaleTileState extends State<SettingsTextScaleTile> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
+                  color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
                 ),
                 child: const Icon(
                   Icons.format_size_rounded,
-                  color: TurnaTheme.peacockTeal,
+                  color: TurnaTheme.brandTeal,
                   size: 20,
                 ),
               ),
@@ -110,7 +110,7 @@ class _SettingsTextScaleTileState extends State<SettingsTextScaleTile> {
               Text(
                 '$value%',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: TurnaTheme.peacockTeal,
+                      color: TurnaTheme.brandTeal,
                       fontWeight: FontWeight.w700,
                     ),
               ),
@@ -124,7 +124,7 @@ class _SettingsTextScaleTileState extends State<SettingsTextScaleTile> {
               min: 100,
               max: 200,
               divisions: 5,
-              activeColor: TurnaTheme.peacockTeal,
+              activeColor: TurnaTheme.brandTeal,
               inactiveColor: TurnaTheme.dividerBg(context),
               onChanged: (v) => setState(() => _dragValue = v.round()),
               onChangeEnd: (v) async {

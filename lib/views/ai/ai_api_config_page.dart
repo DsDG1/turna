@@ -161,11 +161,11 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
   ({IconData icon, Color color}) _providerVisual(AiProvider p) {
     switch (p) {
       case AiProvider.deepseek:
-        return (icon: Icons.bolt_rounded, color: TurnaTheme.peacockCyan);
+        return (icon: Icons.bolt_rounded, color: TurnaTheme.brandSky);
       case AiProvider.openai:
         return (
           icon: Icons.auto_awesome_rounded,
-          color: TurnaTheme.peacockTeal
+          color: TurnaTheme.brandTeal
         );
       case AiProvider.moonshot:
         return (
@@ -175,7 +175,7 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
       case AiProvider.ollama:
         return (icon: Icons.memory_rounded, color: TurnaTheme.warning);
       case AiProvider.custom:
-        return (icon: Icons.tune_rounded, color: TurnaTheme.peacockTurquoise);
+        return (icon: Icons.tune_rounded, color: TurnaTheme.brandReed);
     }
   }
 
@@ -373,7 +373,7 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
 
   Widget _statusHero(BuildContext context) {
     final complete = _draft.isComplete;
-    final accent = complete ? TurnaTheme.peacockTeal : TurnaTheme.warning;
+    final accent = complete ? TurnaTheme.brandTeal : TurnaTheme.warning;
     final subtitle = complete
         ? '${_draft.preset.label} · ${_draft.modelChat}'
         : AppStrings.aiConfigStatusHintIncomplete;
@@ -583,11 +583,11 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
             labelStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: _modelChatCtrl.text.trim() == model
                       ? Colors.white
-                      : TurnaTheme.peacockTeal,
+                      : TurnaTheme.brandTeal,
                   fontWeight: FontWeight.w600,
                 ),
             backgroundColor: _modelChatCtrl.text.trim() == model
-                ? TurnaTheme.peacockTeal
+                ? TurnaTheme.brandTeal
                 : TurnaTheme.tintLight,
             side: BorderSide.none,
             onPressed: () => _pickChatModel(model),
@@ -598,7 +598,7 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
 
   Widget _probeStatusRow(BuildContext context) {
     final ok = _probeResult!.ok;
-    final accent = ok ? TurnaTheme.peacockTeal : TurnaTheme.error;
+    final accent = ok ? TurnaTheme.brandTeal : TurnaTheme.error;
     final text = ok
         ? AppStrings.aiHubToolsTestConnectionOk(_probeResult!.latencyMs)
         : AppStrings.aiHubToolsTestConnectionFail;

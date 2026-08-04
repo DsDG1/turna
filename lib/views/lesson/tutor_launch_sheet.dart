@@ -100,7 +100,7 @@ class _TutorLaunchSheetState extends State<TutorLaunchSheet> {
     return Row(
       children: [
         const Icon(Icons.auto_awesome_rounded,
-            color: TurnaTheme.peacockTeal, size: 22),
+            color: TurnaTheme.brandTeal, size: 22),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
@@ -231,7 +231,7 @@ class _TutorLaunchSheetState extends State<TutorLaunchSheet> {
             height: 18,
             child: CircularProgressIndicator(
               strokeWidth: 3,
-              color: TurnaTheme.peacockTeal,
+              color: TurnaTheme.brandTeal,
             ),
           ),
           const SizedBox(width: 12),

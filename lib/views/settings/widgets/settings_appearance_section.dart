@@ -74,14 +74,14 @@ class _ThemeOption extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
+                  color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
                 ),
                 child: Icon(
                   icon,
                   size: 20,
                   color:
-                      isSelected ? TurnaTheme.peacockTeal : TurnaTheme.textHint,
+                      isSelected ? TurnaTheme.brandTeal : TurnaTheme.textHint,
                 ),
               ),
               const SizedBox(width: 12),
@@ -100,7 +100,7 @@ class _ThemeOption extends StatelessWidget {
                   shape: BoxShape.circle,
                   border: Border.all(
                     color: isSelected
-                        ? TurnaTheme.peacockTeal
+                        ? TurnaTheme.brandTeal
                         : TurnaTheme.textHint,
                     width: 2,
                   ),
@@ -112,7 +112,7 @@ class _ThemeOption extends StatelessWidget {
                           height: 10,
                           decoration: const BoxDecoration(
                             shape: BoxShape.circle,
-                            color: TurnaTheme.peacockTeal,
+                            color: TurnaTheme.brandTeal,
                           ),
                         ),
                       )

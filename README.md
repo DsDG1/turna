@@ -141,6 +141,28 @@ flutter run
 - **内容 CLI**：`tool/course_cli.py`（校验/lint/CSV 导入导出/音频清单/diff）、`tool/export_content_inventory.py`、`tool/split_course.py`。
 - **GUI 课程编辑器**：完整 PySide6 桌面编辑器（教材导入、AI 生成、Workshop、操作日志），详尽说明见 `docs/project-guide.md` §11。
 
+### 课程编辑器 (tool/gui)
+
+[`tool/gui/`](./tool/gui/) 是一个面向课程创作者 / 教师的 **PySide6 桌面编辑器**——把 `tool/course_cli.py` 的能力包成可视化界面。**不进 App 本体**，与上游"已移除外部 GUI 编辑器"立场一致；它是仓库内给内容创作者用的桌面工具。
+
+**核心功能**：
+
+- 🌳 **三级课程树直观编排**：Section → Unit → Lesson 层级化展示，支持拖拽排序、批量复制/移动、删除与预设套用。
+- 🎨 **可视化蓝图与表单引擎**：针对 6 种课时模板（`intro` / `practice` / `listening` / `reading` / `review` / `mastery`）提供动态属性表单与编排蓝图。
+- 🤖 **AI 课程工坊（统一创意画布）**：非模态三栏画布（教材 / 知识 / 气泡 · AI 轨道 · 大纲 / 设计 / 导入），支持教材提取、Grounded 生成、局部重生成与幂等导入。
+- 📦 **语言资源独立建模**：词汇 (`vocab`)、固定表达 (`expressions`)、语法点 (`grammar_points`) 集中化表格管理，支持 CSV 导入导出与引用依赖检测。
+- 🛡️ **单一校验源与保存回滚**：编辑器不另立校验规则，完全对接 `course_cli validate & lint`，保存失败自动恢复内存与磁盘。
+- 🎓 **教师预览与试做模式**：可切换教师视角审查课程结构，并对编写中的课时进行实时交互试做。
+- 🚀 **版本控制与发布工作流**：整合版本 Bump、音频 Manifest 挂载检查、Diff 差异比对与发布报告一键生成。
+
+需要 Python 3.11+：
+
+```bash
+python -m tool.gui.src.main
+```
+
+完整功能、快捷键与打包说明见 [`tool/gui/README.md`](./tool/gui/README.md) 与 [`docs/authoring/gui-course-editor.md`](./docs/authoring/gui-course-editor.md)。
+
 ---
 
 ## 已明确不做

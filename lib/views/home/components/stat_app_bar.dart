@@ -59,7 +59,7 @@ class LanguageSwitch extends StatelessWidget {
       icon: const Icon(
         Icons.language_rounded,
         size: 22,
-        color: TurnaTheme.peacockTeal,
+        color: TurnaTheme.brandTeal,
       ),
       onPressed: () => context.router.push(const CourseManagementRoute()),
     );

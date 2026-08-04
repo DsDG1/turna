@@ -384,7 +384,7 @@ class _CourseTreeState extends State<CourseTree> {
               icon: const Icon(Icons.refresh_rounded),
               label: Text(AppStrings.commonRetry),
               style: ElevatedButton.styleFrom(
-                backgroundColor: TurnaTheme.peacockTeal,
+                backgroundColor: TurnaTheme.brandTeal,
                 foregroundColor: TurnaTheme.textOnPrimary,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,
@@ -481,7 +481,7 @@ class _UnitHeader extends StatelessWidget {
       color: TurnaTheme.cardBg(context),
       borderRadius: borderRadius,
       elevation: 0,
-      shadowColor: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
+      shadowColor: TurnaTheme.brandTeal.withValues(alpha: 0.08),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -498,7 +498,7 @@ class _UnitHeader extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: isFullyComplete
                           ? TurnaTheme.success.withValues(alpha: 0.18)
-                          : TurnaTheme.peacockTeal.withValues(alpha: 0.1),
+                          : TurnaTheme.brandTeal.withValues(alpha: 0.1),
                       borderRadius:
                           BorderRadius.circular(TurnaTheme.radiusSmall),
                     ),
@@ -510,7 +510,7 @@ class _UnitHeader extends StatelessWidget {
                               : Icons.expand_more_rounded),
                       color: isFullyComplete
                           ? TurnaTheme.successDark
-                          : TurnaTheme.peacockTeal,
+                          : TurnaTheme.brandTeal,
                       size: 22,
                     ),
                   ),
@@ -546,7 +546,7 @@ class _UnitHeader extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: isFullyComplete
                           ? TurnaTheme.success.withValues(alpha: 0.12)
-                          : TurnaTheme.peacockTeal.withValues(alpha: 0.08),
+                          : TurnaTheme.brandTeal.withValues(alpha: 0.08),
                       borderRadius:
                           BorderRadius.circular(TurnaTheme.radiusRound),
                     ),
@@ -560,7 +560,7 @@ class _UnitHeader extends StatelessWidget {
                         fontWeight: FontWeight.w600,
                         color: isFullyComplete
                             ? TurnaTheme.successDark
-                            : TurnaTheme.peacockTeal,
+                            : TurnaTheme.brandTeal,
                       ),
                     ),
                   ),
@@ -739,8 +739,8 @@ class _LessonTile extends StatelessWidget {
 
   static Color _lessonTypeColor(LessonType type) {
     return switch (type) {
-      LessonType.normal => TurnaTheme.peacockTeal,
-      LessonType.listening => TurnaTheme.peacockCyan,
+      LessonType.normal => TurnaTheme.brandTeal,
+      LessonType.listening => TurnaTheme.brandSky,
       LessonType.reading => TurnaTheme.leagueAmethyst,
       LessonType.review => TurnaTheme.warning,
       LessonType.challenge => TurnaTheme.leagueRuby,
@@ -772,7 +772,7 @@ class _LoadingIndicator extends StatelessWidget {
           child: CircularProgressIndicator(
             strokeWidth: 3,
             valueColor: AlwaysStoppedAnimation<Color>(
-              TurnaTheme.peacockTeal.withValues(alpha: 0.7),
+              TurnaTheme.brandTeal.withValues(alpha: 0.7),
             ),
           ),
         ),

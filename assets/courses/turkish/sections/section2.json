@@ -1,43 +1,863 @@
 {
   "id": "section2",
   "name": "Section 2",
-  "description": "",
+  "description": "Temel kelimeleri öğreniyorum",
   "prerequisiteSectionIds": [
     "section1"
   ],
   "units": [
     {
       "id": "s2-u1",
-      "name": "Basics",
-      "description": "Numbers, colors, and common nouns.",
+      "name": "Sayılar",
+      "description": "Learn to count from one to five in Turkish.",
       "prerequisiteUnitIds": [],
       "lessons": [
         {
           "id": "s2-l1",
-          "name": "One to five",
-          "description": "Placeholder lesson — Turkish content to be authored.",
+          "name": "Welcome",
+          "description": "",
           "type": "normal",
           "template": "legacy",
           "prerequisiteLessonIds": [],
           "content": {
             "stages": [
               {
-                "id": "stage-welcome",
+                "id": "stage-numbers-welcome",
                 "name": "Welcome",
                 "description": "",
                 "prerequisiteStageIds": [],
                 "items": [
                   {
                     "runtimeType": "multipleChoice",
-                    "id": "mc-welcome",
-                    "prompt": "Which Turkish word means a number?",
+                    "id": "mc-numbers-welcome",
+                    "prompt": "Which Turkish word means \"one\"?",
                     "options": [
                       "bir",
-                      "kırmızı",
-                      "merhaba",
-                      "evet"
+                      "iki",
+                      "üç",
+                      "dört"
                     ],
                     "correctIndex": 0
+                  }
+                ]
+              }
+            ],
+            "subLessons": []
+          }
+        },
+        {
+          "id": "s2-l2",
+          "name": "Birden beşe",
+          "description": "Meet numbers 1–5 and produce them right away.",
+          "type": "normal",
+          "template": "intro",
+          "prerequisiteLessonIds": [
+            "s2-l1"
+          ],
+          "content": {
+            "subLessons": [
+              {
+                "id": "sl-bir",
+                "name": "Bir",
+                "stages": [
+                  {
+                    "id": "st-bir",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-bir",
+                        "wordId": "w-bir",
+                        "context": "Bir. — One."
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-bir",
+                        "source": "One.",
+                        "expected": "Bir.",
+                        "hints": [
+                          "bir"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-bir",
+                        "sentence": "_____, iki, üç.",
+                        "answer": "Bir",
+                        "hint": "1"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-iki",
+                "name": "İki",
+                "stages": [
+                  {
+                    "id": "st-iki",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-iki",
+                        "wordId": "w-iki",
+                        "context": "İki. — Two."
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-iki",
+                        "source": "Two.",
+                        "expected": "İki.",
+                        "hints": [
+                          "iki"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-iki",
+                        "sentence": "Bir, _____, üç.",
+                        "answer": "iki",
+                        "hint": "2"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-uc",
+                "name": "Üç",
+                "stages": [
+                  {
+                    "id": "st-uc",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-uc",
+                        "wordId": "w-uc",
+                        "context": "Üç. — Three."
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-uc",
+                        "source": "Three.",
+                        "expected": "Üç.",
+                        "hints": [
+                          "üç"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-uc",
+                        "sentence": "İki, _____, dört.",
+                        "answer": "Üç",
+                        "hint": "3"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-dort",
+                "name": "Dört",
+                "stages": [
+                  {
+                    "id": "st-dort",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-dort",
+                        "wordId": "w-dort",
+                        "context": "Dört. — Four."
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-dort",
+                        "source": "Four.",
+                        "expected": "Dört.",
+                        "hints": [
+                          "dört"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-dort",
+                        "sentence": "Üç, _____, beş.",
+                        "answer": "dört",
+                        "hint": "4"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-bes",
+                "name": "Beş",
+                "stages": [
+                  {
+                    "id": "st-bes",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-bes",
+                        "wordId": "w-bes",
+                        "context": "Beş. — Five."
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-bes",
+                        "source": "Five.",
+                        "expected": "Beş.",
+                        "hints": [
+                          "beş"
+                        ]
+                      },
+                      {
+                        "runtimeType": "typeTheWord",
+                        "id": "ttw-bes",
+                        "audioAsset": "w-bes",
+                        "prompt": "Type the word you hear",
+                        "expected": "beş"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-numbers-review",
+                "name": "Review",
+                "stages": [
+                  {
+                    "id": "st-numbers-review",
+                    "name": "Put it together",
+                    "items": [
+                      {
+                        "runtimeType": "reorderSentence",
+                        "id": "rs-counting",
+                        "scrambled": [
+                          "üç",
+                          "Bir",
+                          "beş",
+                          "dört",
+                          "iki"
+                        ],
+                        "correct": [
+                          "Bir",
+                          "iki",
+                          "üç",
+                          "dört",
+                          "beş"
+                        ]
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-numbers-review",
+                        "source": "One, two, three, four, five.",
+                        "expected": "Bir, iki, üç, dört, beş.",
+                        "hints": [
+                          "bir",
+                          "iki",
+                          "üç",
+                          "dört",
+                          "beş"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-numbers-review",
+                        "sentence": "Dört, _____.",
+                        "answer": "beş",
+                        "hint": "5"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "s2-u2",
+      "name": "Renkler",
+      "description": "Name the basic colors in Turkish.",
+      "prerequisiteUnitIds": [
+        "s2-u1"
+      ],
+      "lessons": [
+        {
+          "id": "s2-l3",
+          "name": "Welcome",
+          "description": "",
+          "type": "normal",
+          "template": "legacy",
+          "prerequisiteLessonIds": [],
+          "content": {
+            "stages": [
+              {
+                "id": "stage-colors-welcome",
+                "name": "Welcome",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-colors-welcome",
+                    "prompt": "Which Turkish word means \"red\"?",
+                    "options": [
+                      "mavi",
+                      "kırmızı",
+                      "yeşil",
+                      "sarı"
+                    ],
+                    "correctIndex": 1
+                  }
+                ]
+              }
+            ],
+            "subLessons": []
+          }
+        },
+        {
+          "id": "s2-l4",
+          "name": "Renkleri tanıyorum",
+          "description": "Learn the six most common colors and use them in short sentences.",
+          "type": "normal",
+          "template": "intro",
+          "prerequisiteLessonIds": [
+            "s2-l3"
+          ],
+          "content": {
+            "subLessons": [
+              {
+                "id": "sl-kirmizi",
+                "name": "Kırmızı",
+                "stages": [
+                  {
+                    "id": "st-kirmizi",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-kirmizi",
+                        "wordId": "w-kirmizi",
+                        "context": "Kırmızı. — Red."
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-kirmizi",
+                        "source": "Red.",
+                        "expected": "Kırmızı.",
+                        "hints": [
+                          "kırmızı"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-kirmizi",
+                        "sentence": "Elma _____.",
+                        "answer": "kırmızı",
+                        "hint": "red (an apple is...)"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-mavi",
+                "name": "Mavi",
+                "stages": [
+                  {
+                    "id": "st-mavi",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-mavi",
+                        "wordId": "w-mavi",
+                        "context": "Mavi. — Blue."
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-mavi",
+                        "source": "Blue.",
+                        "expected": "Mavi.",
+                        "hints": [
+                          "mavi"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-mavi",
+                        "sentence": "Gökyüzü _____.",
+                        "answer": "Mavi",
+                        "hint": "blue (the sky is...)"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-yesil",
+                "name": "Yeşil",
+                "stages": [
+                  {
+                    "id": "st-yesil",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-yesil",
+                        "wordId": "w-yesil",
+                        "context": "Yeşil. — Green."
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-yesil",
+                        "source": "Green.",
+                        "expected": "Yeşil.",
+                        "hints": [
+                          "yeşil"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-yesil",
+                        "sentence": "Yaprak _____.",
+                        "answer": "yeşil",
+                        "hint": "green (a leaf is...)"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-sari",
+                "name": "Sarı",
+                "stages": [
+                  {
+                    "id": "st-sari",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-sari",
+                        "wordId": "w-sari",
+                        "context": "Sarı. — Yellow."
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-sari",
+                        "source": "Yellow.",
+                        "expected": "Sarı.",
+                        "hints": [
+                          "sarı"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-sari",
+                        "sentence": "Güneş _____.",
+                        "answer": "sarı",
+                        "hint": "yellow (the sun is...)"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-siyah",
+                "name": "Siyah",
+                "stages": [
+                  {
+                    "id": "st-siyah",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-siyah",
+                        "wordId": "w-siyah",
+                        "context": "Siyah. — Black."
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-siyah",
+                        "source": "Black.",
+                        "expected": "Siyah.",
+                        "hints": [
+                          "siyah"
+                        ]
+                      },
+                      {
+                        "runtimeType": "typeTheWord",
+                        "id": "ttw-siyah",
+                        "audioAsset": "w-siyah",
+                        "prompt": "Type the word you hear",
+                        "expected": "siyah"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-beyaz",
+                "name": "Beyaz",
+                "stages": [
+                  {
+                    "id": "st-beyaz",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-beyaz",
+                        "wordId": "w-beyaz",
+                        "context": "Beyaz. — White."
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-beyaz",
+                        "source": "White.",
+                        "expected": "Beyaz.",
+                        "hints": [
+                          "beyaz"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-beyaz",
+                        "sentence": "Kar _____.",
+                        "answer": "beyaz",
+                        "hint": "white (snow is...)"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-colors-review",
+                "name": "Review",
+                "stages": [
+                  {
+                    "id": "st-colors-review",
+                    "name": "Put it together",
+                    "items": [
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-colors-1",
+                        "prompt": "Which color is \"mavi\"?",
+                        "options": [
+                          "Red",
+                          "Blue",
+                          "Green",
+                          "Yellow"
+                        ],
+                        "correctIndex": 1
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-colors-review",
+                        "source": "The sky is blue.",
+                        "expected": "Gökyüzü mavi.",
+                        "hints": [
+                          "mavi",
+                          "gökyüzü"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-colors-review",
+                        "sentence": "Kar _____, kömür siyah.",
+                        "answer": "beyaz",
+                        "hint": "white"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "s2-u3",
+      "name": "Günlük nesneler",
+      "description": "Name a few everyday things in Turkish.",
+      "prerequisiteUnitIds": [
+        "s2-u2"
+      ],
+      "lessons": [
+        {
+          "id": "s2-l5",
+          "name": "Welcome",
+          "description": "",
+          "type": "normal",
+          "template": "legacy",
+          "prerequisiteLessonIds": [],
+          "content": {
+            "stages": [
+              {
+                "id": "stage-nouns-welcome",
+                "name": "Welcome",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-nouns-welcome",
+                    "prompt": "Which Turkish word means \"water\"?",
+                    "options": [
+                      "ekmek",
+                      "süt",
+                      "su",
+                      "çay"
+                    ],
+                    "correctIndex": 2
+                  }
+                ]
+              }
+            ],
+            "subLessons": []
+          }
+        },
+        {
+          "id": "s2-l6",
+          "name": "Günlük kelimeler",
+          "description": "Meet the everyday nouns su, ev, kitap, araba, yemek and use them in short sentences.",
+          "type": "normal",
+          "template": "intro",
+          "prerequisiteLessonIds": [
+            "s2-l5"
+          ],
+          "content": {
+            "subLessons": [
+              {
+                "id": "sl-su",
+                "name": "Su",
+                "stages": [
+                  {
+                    "id": "st-su",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-su",
+                        "wordId": "w-su",
+                        "context": "Su. — Water."
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-su",
+                        "source": "Water.",
+                        "expected": "Su.",
+                        "hints": [
+                          "su"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-su",
+                        "sentence": "Bir bardak _____ lütfen.",
+                        "answer": "su",
+                        "hint": "water"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-ev",
+                "name": "Ev",
+                "stages": [
+                  {
+                    "id": "st-ev",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-ev",
+                        "wordId": "w-ev",
+                        "context": "Ev. — Home / house."
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-ev",
+                        "source": "Home.",
+                        "expected": "Ev.",
+                        "hints": [
+                          "ev"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-ev",
+                        "sentence": "Benim _____ büyük.",
+                        "answer": "ev",
+                        "hint": "home (My ___ is big.)"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-kitap",
+                "name": "Kitap",
+                "stages": [
+                  {
+                    "id": "st-kitap",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-kitap",
+                        "wordId": "w-kitap",
+                        "context": "Kitap. — Book."
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-kitap",
+                        "source": "Book.",
+                        "expected": "Kitap.",
+                        "hints": [
+                          "kitap"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-kitap",
+                        "sentence": "Bu _____ çok güzel.",
+                        "answer": "kitap",
+                        "hint": "book (This ___ is very nice.)"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-araba",
+                "name": "Araba",
+                "stages": [
+                  {
+                    "id": "st-araba",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-araba",
+                        "wordId": "w-araba",
+                        "context": "Araba. — Car."
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-araba",
+                        "source": "Car.",
+                        "expected": "Araba.",
+                        "hints": [
+                          "araba"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-araba",
+                        "sentence": "Yeni _____ kırmızı.",
+                        "answer": "araba",
+                        "hint": "car"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-yemek",
+                "name": "Yemek",
+                "stages": [
+                  {
+                    "id": "st-yemek",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-yemek",
+                        "wordId": "w-yemek",
+                        "context": "Yemek. — Food / to eat."
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-yemek",
+                        "source": "Food.",
+                        "expected": "Yemek.",
+                        "hints": [
+                          "yemek"
+                        ]
+                      },
+                      {
+                        "runtimeType": "typeTheWord",
+                        "id": "ttw-yemek",
+                        "audioAsset": "w-yemek",
+                        "prompt": "Type the word you hear",
+                        "expected": "yemek"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-nouns-review",
+                "name": "Review",
+                "stages": [
+                  {
+                    "id": "st-nouns-review",
+                    "name": "Put it together",
+                    "items": [
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-nouns-1",
+                        "prompt": "What is \"araba\"?",
+                        "options": [
+                          "Book",
+                          "Car",
+                          "Home",
+                          "Water"
+                        ],
+                        "correctIndex": 1
+                      },
+                      {
+                        "runtimeType": "reorderSentence",
+                        "id": "rs-book-nice",
+                        "scrambled": [
+                          "Bu",
+                          "güzel",
+                          "kitap",
+                          "çok"
+                        ],
+                        "correct": [
+                          "Bu",
+                          "kitap",
+                          "çok",
+                          "güzel"
+                        ]
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-nouns-review",
+                        "source": "I am at home.",
+                        "expected": "Evdeyim.",
+                        "hints": [
+                          "ev"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-nouns-review",
+                        "sentence": "Bir bardak _____ lütfen.",
+                        "answer": "su",
+                        "hint": "water"
+                      }
+                    ]
                   }
                 ]
               }

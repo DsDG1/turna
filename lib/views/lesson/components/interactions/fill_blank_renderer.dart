@@ -151,7 +151,7 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
                               ? (correct == true
                                   ? TurnaTheme.success
                                   : TurnaTheme.error)
-                              : TurnaTheme.peacockTeal,
+                              : TurnaTheme.brandTeal,
                           width: 2,
                         ),
                         borderRadius:

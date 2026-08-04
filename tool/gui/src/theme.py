@@ -4,9 +4,9 @@ Theming is intentionally centralized so the desktop app feels like a modern
 content-editing tool rather than a raw Qt form.  Call :func:`apply_theme` once
 after the QApplication is created.
 
-Design language: **Peacock** - aligned with the Flutter app's
-``TurnaTheme`` (``lib/views/theme.dart``). The accent family is teal /
-cyan / turquoise. Four themes are supported: ``dark`` (default), ``light``,
+Design language: **Turna** - aligned with the Flutter app's
+``TurnaTheme`` (``lib/views/theme.dart``). The accent family is navy / teal /
+reed. Four themes are supported: ``dark`` (default), ``light``,
 ``high-contrast-dark``, and ``high-contrast-light``.
 
 Palette token tables live in :mod:`src.theme_tokens` (Qt-free, unit-testable).
@@ -117,7 +117,7 @@ QMainWindow {{
     background-color: {p['bg']};
 }}
 
-/* Toolbar - subtle peacock gradient for brand identity */
+/* Toolbar - subtle Turna gradient for brand identity */
 QToolBar {{
     background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,
         stop:0 {p['toolbar_gradient_start']},
@@ -161,7 +161,7 @@ QToolBar::separator {{
     margin: 4px 8px;
 }}
 
-/* Buttons - peacock gradient on primary */
+/* Buttons - Turna gradient on primary */
 QPushButton {{
     background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1,
         stop:0 {p['accent_gradient_start']},
@@ -579,7 +579,7 @@ QToolTip {{
     border-radius: 6px;
 }}
 
-/* Progress bars - peacock gradient chunk */
+/* Progress bars - Turna gradient chunk */
 QProgressBar {{
     background-color: {p['bg_input']};
     border: {border_w} solid {p['border']};
@@ -650,7 +650,7 @@ QMessageBox QLabel {{
     color: {p['text']};
 }}
 
-/* Tab widget - selected tab gets peacock underline */
+/* Tab widget - selected tab gets Turna underline */
 QTabWidget::pane {{
     border: {border_w} solid {p['border']};
     border-radius: 8px;
@@ -741,12 +741,12 @@ def apply_shadow(
     dy: int = 4,
     alpha: float = 0.15,
 ) -> QGraphicsDropShadowEffect | None:
-    """Apply a soft peacock-tinted drop shadow to *widget*.
+    """Apply a soft Turna-tinted drop shadow to *widget*.
 
     QSS does not support ``box-shadow``; this helper bridges that gap by
     attaching a ``QGraphicsDropShadowEffect`` from code. The shadow color
     is drawn from the active palette (*color_key*), defaulting to the
-    ``shadow`` token (pure black in dark themes, peacock teal in light).
+    ``shadow`` token (pure black in dark themes, Turna teal in light).
 
     Returns the effect so callers can tweak it further, or ``None`` if the
     widget is ``None`` (defensive for partially-constructed widgets).

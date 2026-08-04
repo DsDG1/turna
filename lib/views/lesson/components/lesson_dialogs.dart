@@ -28,7 +28,7 @@ class LessonCelebrationStyle {
 const lessonCelebrationStyles = [
   LessonCelebrationStyle(
     icon: Icons.celebration_rounded,
-    accent: TurnaTheme.peacockTurquoise,
+    accent: TurnaTheme.brandReed,
     styleIndex: 0,
   ),
   LessonCelebrationStyle(
@@ -250,7 +250,7 @@ class _LessonCompletionSummary extends StatelessWidget {
         ),
         _StatChip(
           icon: Icons.timer_rounded,
-          iconColor: TurnaTheme.peacockCyan,
+          iconColor: TurnaTheme.brandSky,
           label: AppStrings.lessonTime,
           valueText: _formatDuration(context, durationSeconds),
         ),
@@ -269,7 +269,7 @@ class _LessonCompletionSummary extends StatelessWidget {
       children: [
         const Icon(
           Icons.fact_check_rounded,
-          color: TurnaTheme.peacockTeal,
+          color: TurnaTheme.brandTeal,
           size: 20,
         ),
         const SizedBox(width: 8),

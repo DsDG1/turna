@@ -5,13 +5,12 @@ deliberately free of Qt imports so the token tables and helpers can be
 unit-tested headlessly and reused by ``theme.py`` (which owns the QSS
 stylesheet generation and ``QApplication`` wiring).
 
-Design language: **Peacock** - aligned with the Flutter app's
+Design language: **Turna** - aligned with the Flutter app's
 ``TurnaTheme`` (``lib/views/theme.dart``). The primary accent family is
-teal / cyan / turquoise rather than the generic blue that previously drove
-the desktop editor. Four palettes are provided:
+navy / teal / reed with restrained clay and sand accents. Four palettes are provided:
 
-* ``dark``  - default, peacock-tinted dark surfaces
-* ``light`` - bright, airy surfaces with peacock teal accents
+* ``dark``  - default, Turna-tinted dark surfaces
+* ``light`` - bright, airy surfaces with Turna teal accents
 * ``high-contrast-dark``  - near-black surfaces, pure-white text, thick borders
 * ``high-contrast-light`` - pure-white surfaces, near-black text, thick borders
 
@@ -22,23 +21,23 @@ for backward compatibility with the chat / orbit / workshop widgets.
 from __future__ import annotations
 
 # ---------------------------------------------------------------------------
-# Canonical peacock brand colors (mirrors lib/views/theme.dart)
+# Canonical Turna brand colors (mirrors lib/views/theme.dart)
 # ---------------------------------------------------------------------------
-PEACOCK_DEEP = "#1A0285"
-PEACOCK_TEAL = "#1F727E"       # primary
-PEACOCK_CYAN = "#359CBB"       # primaryLight
-PEACOCK_TURQUOISE = "#46D1BF"  # secondary
-PEACOCK_MINT = "#00FFC6"       # secondaryLight (glow accent)
-PRIMARY_DARK = "#145A64"
+BRAND_NAVY = "#19324A"
+BRAND_TEAL = "#1F727E"       # primary
+BRAND_TEAL_LIGHT = "#2F7F8E"       # primaryLight
+BRAND_SKY = "#4A95A8"        # information and chart accent
+BRAND_REED = "#78C7B8"       # low-intensity highlight and glow
+BRAND_TEAL_DARK = "#145A64"
 
 # ---------------------------------------------------------------------------
 # Template badge palette (theme-independent - colored chips w/ white text)
 # ---------------------------------------------------------------------------
-# Curated to harmonize with the peacock brand while staying distinguishable
+# Curated to harmonize with the Turna brand while staying distinguishable
 # via hue separation. Only ``listening`` carries the brand teal; the rest
 # retain their established hues to preserve visual memory.
 TEMPLATE_BADGES: dict[str, str] = {
-    "listening": PEACOCK_TEAL,      # brand teal (was #3B82F6 blue)
+    "listening": BRAND_TEAL,      # brand teal (was #3B82F6 blue)
     "reading": "#10B981",           # emerald - kept
     "mastery": "#F59E0B",           # amber - kept
     "intro": "#6366F1",             # indigo - kept
@@ -50,7 +49,7 @@ TEMPLATE_BADGE_DEFAULT = "#6B7280"
 
 # Resource-type pill colors (knowledge bubbles, review table)
 RESOURCE_TYPE_COLORS: dict[str, str] = {
-    "word": PEACOCK_TEAL,           # brand teal (was #3B82F6 blue)
+    "word": BRAND_TEAL,           # brand teal (was #3B82F6 blue)
     "expression": "#10B981",        # emerald - kept
     "grammarPoint": "#F59E0B",      # amber - kept
 }
@@ -73,24 +72,24 @@ def resource_type_color(resource_type: str) -> str:
 
 _DARK_PALETTE: dict[str, str] = {
     # Surfaces
-    "bg": "#0F1C1A",
-    "bg_secondary": "#1A2E2B",
-    "bg_input": "#142624",
-    "bg_elevated": "#1F3A36",
+    "bg": "#101B22",
+    "bg_secondary": "#182832",
+    "bg_input": "#142129",
+    "bg_elevated": "#20323D",
     "bg_disabled": "#1C2A28",
     # Text
     "text": "#E8EAF0",
-    "text_secondary": "#B0CBC7",
-    "text_disabled": "#6B8A85",
+    "text_secondary": "#B6C4CB",
+    "text_disabled": "#7D929C",
     # Borders
-    "border": "#2A4540",
-    "border_hover": PEACOCK_TURQUOISE,
-    # Accent (peacock teal family - was Tailwind blue)
-    "accent": PEACOCK_TEAL,
-    "accent_hover": PEACOCK_CYAN,
-    "accent_pressed": PRIMARY_DARK,
+    "border": "#2B414C",
+    "border_hover": BRAND_REED,
+    # Accent (Turna teal family - was Tailwind blue)
+    "accent": BRAND_TEAL,
+    "accent_hover": BRAND_TEAL_LIGHT,
+    "accent_pressed": BRAND_TEAL_DARK,
     "accent_subtle": "#331F727E",   # alpha 0x33 (~20%) over bg
-    "accent_text": PEACOCK_TURQUOISE,
+    "accent_text": BRAND_REED,
     # Semantic
     "danger": "#EF4444",
     "danger_hover": "#DC2626",
@@ -100,36 +99,36 @@ _DARK_PALETTE: dict[str, str] = {
     "warning_text": "#FFB877",
     "error": "#E74C3C",
     "error_text": "#FF6B6B",
-    "info": PEACOCK_CYAN,
-    # Scrollbars (peacock-tinted)
+    "info": BRAND_SKY,
+    # Scrollbars (Turna-tinted)
     "scrollbar": "#3A5A55",
     "scrollbar_hover": "#5A7A75",
     # Depth / brand
-    "surface_elevated": "#1F3A36",
+    "surface_elevated": "#20323D",
     "shadow": "#000000",
-    "glow": PEACOCK_TURQUOISE,
-    "accent_gradient_start": PEACOCK_TEAL,
-    "accent_gradient_end": PEACOCK_CYAN,
-    "toolbar_gradient_start": "#1A2E2B",
-    "toolbar_gradient_end": "#0F1C1A",
-    "ai_orbit_glow": PEACOCK_TURQUOISE,
-    # AI dialog semantic colors (peacock-aligned)
-    "ai_chat_bg": "#142624",
-    "ai_bubble_bg": "#1F3A36",
-    "ai_user_bubble": PEACOCK_TEAL,
-    "ai_card_bg": "#1A2E2B",
-    "ai_chip_bg": "#142624",
-    "ai_accent": PEACOCK_TURQUOISE,
-    "ai_accent_border": PEACOCK_TEAL,
+    "glow": BRAND_REED,
+    "accent_gradient_start": BRAND_TEAL,
+    "accent_gradient_end": BRAND_TEAL_LIGHT,
+    "toolbar_gradient_start": "#182832",
+    "toolbar_gradient_end": "#101B22",
+    "ai_orbit_glow": BRAND_REED,
+    # AI dialog semantic colors (Turna-aligned)
+    "ai_chat_bg": "#142129",
+    "ai_bubble_bg": "#20323D",
+    "ai_user_bubble": BRAND_TEAL,
+    "ai_card_bg": "#182832",
+    "ai_chip_bg": "#142129",
+    "ai_accent": BRAND_REED,
+    "ai_accent_border": BRAND_TEAL,
     "ai_beta_bg": "#664400",
     "ai_beta_text": "#FFD93D",
 }
 
 _LIGHT_PALETTE: dict[str, str] = {
     # Surfaces
-    "bg": "#F8FFFE",
+    "bg": "#F7FAF9",
     "bg_secondary": "#FFFFFF",
-    "bg_input": "#F5F8F7",
+    "bg_input": "#F3F8F7",
     "bg_elevated": "#FFFFFF",
     "bg_disabled": "#F3F4F6",
     # Text
@@ -137,14 +136,14 @@ _LIGHT_PALETTE: dict[str, str] = {
     "text_secondary": "#4A5568",
     "text_disabled": "#9CA3AF",
     # Borders
-    "border": "#EEF2F1",
-    "border_hover": PEACOCK_TEAL,
-    # Accent (peacock teal family - was Tailwind blue)
-    "accent": PEACOCK_TEAL,
-    "accent_hover": PRIMARY_DARK,      # darker on hover for light mode contrast
+    "border": "#E3EBE9",
+    "border_hover": BRAND_TEAL,
+    # Accent (Turna teal family - was Tailwind blue)
+    "accent": BRAND_TEAL,
+    "accent_hover": BRAND_TEAL_DARK,      # darker on hover for light mode contrast
     "accent_pressed": "#0F3D44",
     "accent_subtle": "#261F727E",      # alpha 0x26 (~15%) over white
-    "accent_text": PRIMARY_DARK,       # readable on light surfaces
+    "accent_text": BRAND_TEAL_DARK,       # readable on light surfaces
     # Semantic
     "danger": "#EF4444",
     "danger_hover": "#DC2626",
@@ -154,27 +153,27 @@ _LIGHT_PALETTE: dict[str, str] = {
     "warning_text": "#B9770E",
     "error": "#E74C3C",
     "error_text": "#C0392B",
-    "info": PEACOCK_TEAL,
-    # Scrollbars (peacock-tinted light)
+    "info": BRAND_TEAL,
+    # Scrollbars (Turna-tinted light)
     "scrollbar": "#C1D5D1",
     "scrollbar_hover": "#9CB8B3",
     # Depth / brand
     "surface_elevated": "#FFFFFF",
-    "shadow": PEACOCK_TEAL,
-    "glow": PEACOCK_TURQUOISE,
-    "accent_gradient_start": PEACOCK_TEAL,
-    "accent_gradient_end": PEACOCK_CYAN,
-    "toolbar_gradient_start": "#F0FFFC",
-    "toolbar_gradient_end": "#E0F5F1",
-    "ai_orbit_glow": PEACOCK_TURQUOISE,
+    "shadow": BRAND_TEAL,
+    "glow": BRAND_REED,
+    "accent_gradient_start": BRAND_TEAL,
+    "accent_gradient_end": BRAND_TEAL_LIGHT,
+    "toolbar_gradient_start": "#F7FAF9",
+    "toolbar_gradient_end": "#E8F2F0",
+    "ai_orbit_glow": BRAND_REED,
     # AI dialog semantic colors (light variants)
-    "ai_chat_bg": "#F5F8F7",
+    "ai_chat_bg": "#F3F8F7",
     "ai_bubble_bg": "#FFFFFF",
-    "ai_user_bubble": PEACOCK_TEAL,
+    "ai_user_bubble": BRAND_TEAL,
     "ai_card_bg": "#FFFFFF",
     "ai_chip_bg": "#EEF2F7",
-    "ai_accent": PEACOCK_TEAL,
-    "ai_accent_border": PRIMARY_DARK,
+    "ai_accent": BRAND_TEAL,
+    "ai_accent_border": BRAND_TEAL_DARK,
     "ai_beta_bg": "#FFF3D6",
     "ai_beta_text": "#7A5A00",
 }
@@ -192,13 +191,13 @@ _HIGH_CONTRAST_DARK_PALETTE: dict[str, str] = {
     "text_disabled": "#AAAAAA",
     # Borders (thick, high-contrast)
     "border": "#FFFFFF",
-    "border_hover": PEACOCK_TURQUOISE,
-    # Accent (brighter turquoise for max visibility on black)
-    "accent": PEACOCK_TURQUOISE,
-    "accent_hover": PEACOCK_MINT,
-    "accent_pressed": PEACOCK_CYAN,
-    "accent_subtle": "#3346D1BF",
-    "accent_text": PEACOCK_TURQUOISE,
+    "border_hover": BRAND_REED,
+    # Accent remains dark enough for white labels in high-contrast mode.
+    "accent": BRAND_TEAL,
+    "accent_hover": BRAND_TEAL_LIGHT,
+    "accent_pressed": BRAND_TEAL_LIGHT,
+    "accent_subtle": "#331F727E",
+    "accent_text": "#FFFFFF",
     # Semantic (brighter variants)
     "danger": "#FF6B6B",
     "danger_hover": "#FF8585",
@@ -208,27 +207,27 @@ _HIGH_CONTRAST_DARK_PALETTE: dict[str, str] = {
     "warning_text": "#FFB877",
     "error": "#FF6B6B",
     "error_text": "#FF6B6B",
-    "info": PEACOCK_TURQUOISE,
+    "info": BRAND_SKY,
     # Scrollbars
     "scrollbar": "#666666",
     "scrollbar_hover": "#999999",
     # Depth / brand
     "surface_elevated": "#111111",
     "shadow": "#000000",
-    "glow": PEACOCK_MINT,
-    "accent_gradient_start": PEACOCK_TURQUOISE,
-    "accent_gradient_end": PEACOCK_CYAN,
+    "glow": BRAND_REED,
+    "accent_gradient_start": BRAND_TEAL,
+    "accent_gradient_end": BRAND_TEAL_LIGHT,
     "toolbar_gradient_start": "#000000",
     "toolbar_gradient_end": "#000000",
-    "ai_orbit_glow": PEACOCK_MINT,
+    "ai_orbit_glow": BRAND_REED,
     # AI dialog semantic colors (high-contrast dark)
     "ai_chat_bg": "#000000",
     "ai_bubble_bg": "#111111",
-    "ai_user_bubble": PEACOCK_TEAL,
+    "ai_user_bubble": BRAND_TEAL,
     "ai_card_bg": "#0A0A0A",
     "ai_chip_bg": "#111111",
-    "ai_accent": PEACOCK_TURQUOISE,
-    "ai_accent_border": PEACOCK_TURQUOISE,
+    "ai_accent": BRAND_TEAL_LIGHT,
+    "ai_accent_border": BRAND_TEAL_LIGHT,
     "ai_beta_bg": "#664400",
     "ai_beta_text": "#FFD93D",
 }
@@ -246,13 +245,13 @@ _HIGH_CONTRAST_LIGHT_PALETTE: dict[str, str] = {
     "text_disabled": "#333333",
     # Borders (thick, high-contrast)
     "border": "#000000",
-    "border_hover": PRIMARY_DARK,
+    "border_hover": BRAND_TEAL_DARK,
     # Accent (darker teal for max visibility on white)
-    "accent": PRIMARY_DARK,
+    "accent": BRAND_TEAL_DARK,
     "accent_hover": "#0F3D44",
     "accent_pressed": "#08222B",
     "accent_subtle": "#26145A64",
-    "accent_text": PRIMARY_DARK,
+    "accent_text": BRAND_TEAL_DARK,
     # Semantic (darker variants)
     "danger": "#C0392B",
     "danger_hover": "#A93226",
@@ -262,26 +261,26 @@ _HIGH_CONTRAST_LIGHT_PALETTE: dict[str, str] = {
     "warning_text": "#B9770E",
     "error": "#C0392B",
     "error_text": "#C0392B",
-    "info": PRIMARY_DARK,
+    "info": BRAND_TEAL_DARK,
     # Scrollbars
     "scrollbar": "#999999",
     "scrollbar_hover": "#666666",
     # Depth / brand
     "surface_elevated": "#FFFFFF",
-    "shadow": PRIMARY_DARK,
-    "glow": PEACOCK_TURQUOISE,
-    "accent_gradient_start": PRIMARY_DARK,
-    "accent_gradient_end": PEACOCK_TEAL,
+    "shadow": BRAND_TEAL_DARK,
+    "glow": BRAND_REED,
+    "accent_gradient_start": BRAND_TEAL_DARK,
+    "accent_gradient_end": BRAND_TEAL,
     "toolbar_gradient_start": "#FFFFFF",
     "toolbar_gradient_end": "#FFFFFF",
-    "ai_orbit_glow": PEACOCK_TURQUOISE,
+    "ai_orbit_glow": BRAND_REED,
     # AI dialog semantic colors (high-contrast light)
     "ai_chat_bg": "#FFFFFF",
     "ai_bubble_bg": "#FFFFFF",
-    "ai_user_bubble": PRIMARY_DARK,
+    "ai_user_bubble": BRAND_TEAL_DARK,
     "ai_card_bg": "#FFFFFF",
     "ai_chip_bg": "#EEEEEE",
-    "ai_accent": PRIMARY_DARK,
+    "ai_accent": BRAND_TEAL_DARK,
     "ai_accent_border": "#000000",
     "ai_beta_bg": "#FFF3D6",
     "ai_beta_text": "#000000",

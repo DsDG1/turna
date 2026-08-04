@@ -97,12 +97,12 @@ class SettingsVersionFooter extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
+                  color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
                 ),
                 child: const Icon(
                   Icons.info_outline_rounded,
-                  color: TurnaTheme.peacockTeal,
+                  color: TurnaTheme.brandTeal,
                   size: 20,
                 ),
               ),

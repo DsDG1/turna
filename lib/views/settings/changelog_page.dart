@@ -214,12 +214,12 @@ class JourneyOverviewCard extends StatelessWidget {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: TurnaTheme.peacockTeal.withValues(alpha: 0.1),
+                  color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
                 ),
                 child: const Icon(
                   Icons.timeline_rounded,
-                  color: TurnaTheme.peacockTeal,
+                  color: TurnaTheme.brandTeal,
                   size: 20,
                 ),
               ),
@@ -361,7 +361,7 @@ class _LoadingState extends StatelessWidget {
               height: 28,
               child: CircularProgressIndicator(
                 strokeWidth: 2.5,
-                color: TurnaTheme.peacockTeal,
+                color: TurnaTheme.brandTeal,
               ),
             ),
             const SizedBox(height: 12),
@@ -562,14 +562,14 @@ class JourneyStepRow extends StatelessWidget {
                     height: isFirst ? 12 : 6,
                     color: isFirst
                         ? Colors.transparent
-                        : TurnaTheme.peacockTeal.withValues(alpha: 0.3),
+                        : TurnaTheme.brandTeal.withValues(alpha: 0.3),
                   ),
                 ),
                 Container(
                   width: 10,
                   height: 10,
                   decoration: BoxDecoration(
-                    color: TurnaTheme.peacockTeal,
+                    color: TurnaTheme.brandTeal,
                     shape: BoxShape.circle,
                     border: Border.all(
                       color: TurnaTheme.cardBg(context),
@@ -582,7 +582,7 @@ class JourneyStepRow extends StatelessWidget {
                     width: 2,
                     color: isLast
                         ? Colors.transparent
-                        : TurnaTheme.peacockTeal.withValues(alpha: 0.3),
+                        : TurnaTheme.brandTeal.withValues(alpha: 0.3),
                   ),
                 ),
               ],
@@ -601,7 +601,7 @@ class JourneyStepRow extends StatelessWidget {
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: TurnaTheme.peacockTeal.withValues(alpha: 0.1),
+                      color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
                       borderRadius:
                           BorderRadius.circular(TurnaTheme.radiusSmall),
                     ),
@@ -610,7 +610,7 @@ class JourneyStepRow extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: TurnaTheme.peacockTeal,
+                        color: TurnaTheme.brandTeal,
                       ),
                     ),
                   ),
@@ -669,7 +669,7 @@ class ChangelogReleaseCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
         border: Border.all(
           color: isLatest
-              ? TurnaTheme.peacockTeal.withValues(alpha: 0.45)
+              ? TurnaTheme.brandTeal.withValues(alpha: 0.45)
               : TurnaTheme.statCardBorder(context),
         ),
       ),
@@ -683,8 +683,8 @@ class ChangelogReleaseCard extends StatelessWidget {
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: isLatest
-                      ? TurnaTheme.peacockTeal
-                      : TurnaTheme.peacockTeal.withValues(alpha: 0.12),
+                      ? TurnaTheme.brandTeal
+                      : TurnaTheme.brandTeal.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
                 ),
                 child: Text(
@@ -692,7 +692,7 @@ class ChangelogReleaseCard extends StatelessWidget {
                   style: TextStyle(
                     color: isLatest
                         ? TurnaTheme.textOnPrimary
-                        : TurnaTheme.peacockTeal,
+                        : TurnaTheme.brandTeal,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
@@ -722,7 +722,7 @@ class ChangelogReleaseCard extends StatelessWidget {
                       width: 6,
                       height: 6,
                       decoration: BoxDecoration(
-                        color: TurnaTheme.peacockTeal.withValues(alpha: 0.7),
+                        color: TurnaTheme.brandTeal.withValues(alpha: 0.7),
                         shape: BoxShape.circle,
                       ),
                     ),

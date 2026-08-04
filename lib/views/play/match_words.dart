@@ -107,7 +107,7 @@ class _MatchWordsPageState extends State<MatchWordsPage> {
                         fontWeight: FontWeight.w700,
                         color: seconds < 25
                             ? TurnaTheme.error
-                            : TurnaTheme.peacockTeal,
+                            : TurnaTheme.brandTeal,
                       ),
                     );
                   },
@@ -132,7 +132,7 @@ class _MatchWordsPageState extends State<MatchWordsPage> {
                           icon: Icons.bolt_rounded,
                           label: AppStrings.playXpLabel(
                               matchProvider.sessionScore),
-                          color: TurnaTheme.peacockTeal,
+                          color: TurnaTheme.brandTeal,
                         ),
                         _TopChip(
                           icon: Icons.auto_awesome_rounded,
@@ -150,7 +150,7 @@ class _MatchWordsPageState extends State<MatchWordsPage> {
                             words: matchProvider.englishWords,
                             selectedWord: matchProvider.selectedEnglishWord,
                             onWordSelected: matchProvider.selectEnglishWord,
-                            selectedColor: TurnaTheme.peacockCyan,
+                            selectedColor: TurnaTheme.brandSky,
                             borderColor: TurnaTheme.statCardBorder(context),
                             matchedWords: matchProvider.matchedWords,
                           ),
@@ -237,7 +237,7 @@ class _RoundCompleteOverlayState extends State<_RoundCompleteOverlay>
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.celebration_rounded, color: TurnaTheme.peacockTeal),
+              Icon(Icons.celebration_rounded, color: TurnaTheme.brandTeal),
               SizedBox(width: 8),
               Text(
                 AppStrings.playRoundComplete,
@@ -506,7 +506,7 @@ class _MatchGameOverDialogState extends State<_MatchGameOverDialog>
       case MatchCelebrationType.lightning:
         return (
           Icons.bolt_rounded,
-          TurnaTheme.peacockTeal,
+          TurnaTheme.brandTeal,
           AppStrings.playLightningFast
         );
     }

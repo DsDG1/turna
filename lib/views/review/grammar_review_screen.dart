@@ -283,7 +283,7 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
                   child: ElevatedButton(
                     onPressed: _onPracticeContinue,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: TurnaTheme.peacockTeal,
+                      backgroundColor: TurnaTheme.brandTeal,
                       foregroundColor: TurnaTheme.textOnPrimary,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
@@ -308,7 +308,7 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
                   child: ElevatedButton(
                     onPressed: _onRevealExplanation,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: TurnaTheme.peacockTeal,
+                      backgroundColor: TurnaTheme.brandTeal,
                       foregroundColor: TurnaTheme.textOnPrimary,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
@@ -362,7 +362,7 @@ class _PracticePanel extends StatelessWidget {
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
         boxShadow: [
           BoxShadow(
-            color: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
+            color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -374,7 +374,7 @@ class _PracticePanel extends StatelessWidget {
           Text(
             progressLabel,
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: TurnaTheme.peacockTeal,
+                  color: TurnaTheme.brandTeal,
                   fontWeight: FontWeight.w700,
                 ),
           ),
@@ -420,7 +420,7 @@ class _GrammarCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
           boxShadow: [
             BoxShadow(
-              color: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
+              color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),

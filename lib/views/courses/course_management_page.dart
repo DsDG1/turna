@@ -291,7 +291,7 @@ class _CourseCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accent = isActive
-        ? TurnaTheme.peacockTeal
+        ? TurnaTheme.brandTeal
         : TurnaTheme.textSecondaryColor(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -307,8 +307,8 @@ class _CourseCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
               border: Border.all(
                 color: isActive
-                    ? TurnaTheme.peacockTeal
-                    : TurnaTheme.peacockTeal.withValues(alpha: 0.12),
+                    ? TurnaTheme.brandTeal
+                    : TurnaTheme.brandTeal.withValues(alpha: 0.12),
               ),
             ),
             child: Row(
@@ -358,7 +358,7 @@ class _CourseCard extends StatelessWidget {
                             const SizedBox(width: 8),
                             _Badge(
                               label: AppStrings.courseManagementCurrentBadge,
-                              color: TurnaTheme.peacockTeal,
+                              color: TurnaTheme.brandTeal,
                             ),
                           ],
                           if (entry.isBuiltin) ...[
@@ -386,7 +386,7 @@ class _CourseCard extends StatelessWidget {
                 IconButton(
                   icon: const Icon(
                     Icons.record_voice_over_rounded,
-                    color: TurnaTheme.peacockTeal,
+                    color: TurnaTheme.brandTeal,
                   ),
                   tooltip: AppStrings.courseTtsSettingsTitle,
                   onPressed: onSettings,
@@ -452,7 +452,7 @@ class _AddCourseTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      leading: Icon(icon, color: TurnaTheme.peacockTeal),
+      leading: Icon(icon, color: TurnaTheme.brandTeal),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
       subtitle: Text(
         subtitle,

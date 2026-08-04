@@ -113,7 +113,7 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
     return Row(
       children: [
         const Icon(Icons.auto_fix_high,
-            color: TurnaTheme.peacockTeal, size: 22),
+            color: TurnaTheme.brandTeal, size: 22),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
@@ -181,7 +181,7 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
               padding: EdgeInsets.symmetric(vertical: 24),
               child: Center(
                 child: CircularProgressIndicator(
-                  color: TurnaTheme.peacockTeal,
+                  color: TurnaTheme.brandTeal,
                   strokeWidth: 3,
                 ),
               ),

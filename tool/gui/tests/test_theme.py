@@ -10,6 +10,10 @@ if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
 from src.theme_tokens import (  # noqa: E402
+    BRAND_REED,
+    BRAND_SKY,
+    BRAND_TEAL,
+    BRAND_TEAL_LIGHT,
     DEFAULT_THEME,
     PALETTES,
     TEMPLATE_BADGES,
@@ -71,7 +75,7 @@ class PaletteStructureTest(unittest.TestCase):
 
 
 class AccentColorTest(unittest.TestCase):
-    """The accent family must be peacock teal/cyan, not the old Tailwind blue."""
+    """The accent family must use the current Turna brand tokens."""
 
     def test_no_old_blue_in_any_palette(self) -> None:
         for theme in VALID_THEMES:
@@ -83,17 +87,52 @@ class AccentColorTest(unittest.TestCase):
                     f"{theme}.{key} still uses old blue {value}",
                 )
 
-    def test_dark_accent_is_peacock_teal(self) -> None:
-        self.assertEqual(palette_for("dark")["accent"], "#1F727E")
+    def test_flutter_and_gui_primary_tokens_match(self) -> None:
+        self.assertEqual(palette_for("dark")["accent"], BRAND_TEAL)
+        flutter_theme = (_GUI.parents[1] / "lib" / "views" / "theme.dart").read_text(
+            encoding="utf-8"
+        )
+        expected = {
+            "brandTeal": BRAND_TEAL,
+            "brandTealLight": BRAND_TEAL_LIGHT,
+            "brandSky": BRAND_SKY,
+            "brandReed": BRAND_REED,
+        }
+        for token, value in expected.items():
+            self.assertIn(
+                f"static const Color {token} = Color(0xFF{value[1:]});",
+                flutter_theme,
+            )
 
-    def test_light_accent_is_peacock_teal(self) -> None:
-        self.assertEqual(palette_for("light")["accent"], "#1F727E")
+    def test_light_accent_is_Turna_teal(self) -> None:
+        self.assertEqual(palette_for("light")["accent"], BRAND_TEAL)
 
-    def test_dark_accent_hover_is_peacock_cyan(self) -> None:
-        self.assertEqual(palette_for("dark")["accent_hover"], "#359CBB")
+    def test_dark_accent_hover_uses_brand_teal_light(self) -> None:
+        self.assertEqual(palette_for("dark")["accent_hover"], BRAND_TEAL_LIGHT)
 
-    def test_ai_accent_is_peacock_turquoise(self) -> None:
-        self.assertEqual(palette_for("dark")["ai_accent"], "#46D1BF")
+    def test_ai_accent_uses_brand_reed(self) -> None:
+        self.assertEqual(palette_for("dark")["ai_accent"], BRAND_REED)
+
+    def test_info_accent_uses_brand_sky(self) -> None:
+        self.assertEqual(palette_for("dark")["info"], BRAND_SKY)
+
+    def test_button_gradient_ends_are_readable_with_white_text(self) -> None:
+        # Relative luminance calculation for WCAG contrast, kept local so the
+        # test documents the contract without adding a runtime dependency.
+        def luminance(value: str) -> float:
+            rgb = [int(value[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+            channels = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in rgb]
+            return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
+
+        for theme in VALID_THEMES:
+            palette = palette_for(theme)
+            for key in ("accent_gradient_start", "accent_gradient_end"):
+                ratio = (1.0 + 0.05) / (luminance(palette[key]) + 0.05)
+                self.assertGreaterEqual(ratio, 4.5, f"{theme}.{key} is too light")
+
+    def test_fluorescent_mint_is_absent(self) -> None:
+        for theme in VALID_THEMES:
+            self.assertNotIn("#00FFC6", {value.upper() for value in palette_for(theme).values()})
 
     def test_gradient_tokens_present(self) -> None:
         for theme in VALID_THEMES:
@@ -145,7 +184,7 @@ class PaletteForTest(unittest.TestCase):
 
 
 class BadgeColorTest(unittest.TestCase):
-    def test_listening_badge_is_peacock_teal(self) -> None:
+    def test_listening_badge_is_Turna_teal(self) -> None:
         self.assertEqual(TEMPLATE_BADGES["listening"], "#1F727E")
         self.assertEqual(template_badge_color("listening"), "#1F727E")
 
@@ -158,7 +197,7 @@ class BadgeColorTest(unittest.TestCase):
     def test_unknown_template_uses_default(self) -> None:
         self.assertEqual(template_badge_color("nonexistent"), "#6B7280")
 
-    def test_word_resource_is_peacock_teal(self) -> None:
+    def test_word_resource_is_Turna_teal(self) -> None:
         self.assertEqual(resource_type_color("word"), "#1F727E")
 
     def test_unknown_resource_uses_default(self) -> None:

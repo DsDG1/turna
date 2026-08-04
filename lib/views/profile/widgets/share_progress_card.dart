@@ -41,7 +41,7 @@ class ShareProgressCard extends StatelessWidget {
         width: 360,
         height: 600,
         decoration: const BoxDecoration(
-          gradient: TurnaTheme.peacockGradient,
+          gradient: TurnaTheme.brandGradient,
           borderRadius: BorderRadius.all(
             Radius.circular(TurnaTheme.radiusXLarge),
           ),

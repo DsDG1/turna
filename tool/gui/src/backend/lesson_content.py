@@ -77,7 +77,7 @@ TEMPLATE_LABELS: dict[str, str] = {
 #: Soft badge color per functional template. Shared by the course tree and the
 #: overview window so they stay in sync. Keep here next to TEMPLATE_LABELS.
 #: Sourced from theme_tokens.TEMPLATE_BADGES so the brand palette stays in one
-#: place (listening = peacock teal, see ADR for theme redesign).
+#: place (listening = Turna teal, see ADR for theme redesign).
 from src.theme_tokens import TEMPLATE_BADGES as _TEMPLATE_BADGES
 from src.theme_tokens import TEMPLATE_BADGE_DEFAULT as _TEMPLATE_BADGE_DEFAULT
 TEMPLATE_COLORS: dict[str, str] = dict(_TEMPLATE_BADGES)

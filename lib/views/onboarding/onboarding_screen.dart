@@ -63,13 +63,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       child: Container(
                         padding: const EdgeInsets.all(32),
                         decoration: BoxDecoration(
-                          color: TurnaTheme.peacockTeal.withValues(alpha: 0.1),
+                          color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
                           Icons.public,
                           size: 80,
-                          color: TurnaTheme.peacockTeal,
+                          color: TurnaTheme.brandTeal,
                         ),
                       ),
                     ),
@@ -140,7 +140,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   },
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(
-                      color: TurnaTheme.peacockTeal,
+                      color: TurnaTheme.brandTeal,
                       width: 2,
                     ),
                     shape: RoundedRectangleBorder(
@@ -152,7 +152,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: TurnaTheme.peacockTeal,
+                      color: TurnaTheme.brandTeal,
                     ),
                   ),
                 ),

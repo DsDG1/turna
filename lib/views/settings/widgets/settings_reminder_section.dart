@@ -57,7 +57,7 @@ class SettingsDailyReminderTile extends StatelessWidget {
             trailing: Text(
               timeLabel,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: TurnaTheme.peacockTeal,
+                    color: TurnaTheme.brandTeal,
                     fontWeight: FontWeight.w700,
                   ),
             ),

@@ -12,17 +12,17 @@ Widget settingsTileDivider(BuildContext context) => Divider(
       color: TurnaTheme.dividerBg(context),
     );
 
-/// Shared peacock-teal adaptive switch used across settings toggle tiles.
+/// Shared Turna teal adaptive switch used across settings toggle tiles.
 Widget settingsAdaptiveSwitch({
   required bool value,
   required ValueChanged<bool>? onChanged,
 }) {
   return Switch.adaptive(
     value: value,
-    activeTrackColor: TurnaTheme.peacockTeal,
+    activeTrackColor: TurnaTheme.brandTeal,
     thumbColor: WidgetStateProperty.resolveWith((states) {
       if (states.contains(WidgetState.selected)) {
-        return TurnaTheme.peacockTeal;
+        return TurnaTheme.brandTeal;
       }
       return null;
     }),
@@ -46,7 +46,7 @@ class SettingsSectionTitle extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          Icon(icon, color: TurnaTheme.peacockTeal, size: 20),
+          Icon(icon, color: TurnaTheme.brandTeal, size: 20),
           const SizedBox(width: 8),
           Text(
             title,
@@ -109,12 +109,12 @@ class SettingsTile extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
+              color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
             ),
             child: Icon(
               icon,
-              color: TurnaTheme.peacockTeal,
+              color: TurnaTheme.brandTeal,
               size: 20,
             ),
           ),

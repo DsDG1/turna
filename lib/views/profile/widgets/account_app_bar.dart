@@ -57,20 +57,20 @@ class AccountWidget extends StatelessWidget {
               end: Alignment.bottomRight,
               colors: isDark
                   ? [
-                      TurnaTheme.peacockTeal.withValues(alpha: 0.35),
-                      TurnaTheme.peacockDeep.withValues(alpha: 0.45),
+                      TurnaTheme.brandTeal.withValues(alpha: 0.35),
+                      TurnaTheme.brandNavy.withValues(alpha: 0.45),
                     ]
                   : [
-                      TurnaTheme.peacockTeal.withValues(alpha: 0.12),
-                      TurnaTheme.peacockCyan.withValues(alpha: 0.18),
+                      TurnaTheme.brandTeal.withValues(alpha: 0.12),
+                      TurnaTheme.brandSky.withValues(alpha: 0.18),
                     ],
             ),
             border: Border.all(
-              color: TurnaTheme.peacockTeal.withValues(alpha: 0.18),
+              color: TurnaTheme.brandTeal.withValues(alpha: 0.18),
             ),
             boxShadow: [
               BoxShadow(
-                color: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
+                color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
                 blurRadius: 16,
                 offset: const Offset(0, 6),
               ),
@@ -84,16 +84,16 @@ class AccountWidget extends StatelessWidget {
                 height: 64,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: TurnaTheme.peacockTeal.withValues(alpha: 0.15),
+                  color: TurnaTheme.brandTeal.withValues(alpha: 0.15),
                   border: Border.all(
-                    color: TurnaTheme.peacockTeal.withValues(alpha: 0.35),
+                    color: TurnaTheme.brandTeal.withValues(alpha: 0.35),
                     width: 2,
                   ),
                 ),
                 child: const Icon(
                   Icons.person_rounded,
                   size: 32,
-                  color: TurnaTheme.peacockTeal,
+                  color: TurnaTheme.brandTeal,
                 ),
               ),
               const SizedBox(width: 14),
@@ -144,7 +144,7 @@ class AccountWidget extends StatelessWidget {
                           const Icon(
                             Icons.language_rounded,
                             size: 14,
-                            color: TurnaTheme.peacockTeal,
+                            color: TurnaTheme.brandTeal,
                           ),
                           const SizedBox(width: 4),
                           Text(
@@ -152,7 +152,7 @@ class AccountWidget extends StatelessWidget {
                             style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
-                              color: TurnaTheme.peacockTeal,
+                              color: TurnaTheme.brandTeal,
                             ),
                           ),
                         ],
@@ -205,7 +205,7 @@ class _HeroIconButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
           child: Padding(
             padding: const EdgeInsets.all(8),
-            child: Icon(icon, size: 20, color: TurnaTheme.peacockTeal),
+            child: Icon(icon, size: 20, color: TurnaTheme.brandTeal),
           ),
         ),
       ),
@@ -231,7 +231,7 @@ class _ThemeToggle extends StatelessWidget {
                 Icons.light_mode_rounded,
                 size: 18,
                 color:
-                    current == ThemeMode.light ? TurnaTheme.peacockTeal : null,
+                    current == ThemeMode.light ? TurnaTheme.brandTeal : null,
               ),
               const SizedBox(width: 8),
               Text(
@@ -253,7 +253,7 @@ class _ThemeToggle extends StatelessWidget {
                 Icons.dark_mode_rounded,
                 size: 18,
                 color:
-                    current == ThemeMode.dark ? TurnaTheme.peacockTeal : null,
+                    current == ThemeMode.dark ? TurnaTheme.brandTeal : null,
               ),
               const SizedBox(width: 8),
               Text(
@@ -275,7 +275,7 @@ class _ThemeToggle extends StatelessWidget {
                 Icons.settings_suggest_rounded,
                 size: 18,
                 color:
-                    current == ThemeMode.system ? TurnaTheme.peacockTeal : null,
+                    current == ThemeMode.system ? TurnaTheme.brandTeal : null,
               ),
               const SizedBox(width: 8),
               Text(
@@ -303,7 +303,7 @@ class _ThemeToggle extends StatelessWidget {
                   ? Icons.light_mode_rounded
                   : Icons.settings_suggest_rounded,
           size: 20,
-          color: TurnaTheme.peacockTeal,
+          color: TurnaTheme.brandTeal,
         ),
       ),
     );

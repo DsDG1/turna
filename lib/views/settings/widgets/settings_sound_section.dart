@@ -117,7 +117,7 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
             Text(
               AppStrings.settingsSystemTts,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: TurnaTheme.peacockTeal,
+                    color: TurnaTheme.brandTeal,
                     fontWeight: FontWeight.w700,
                   ),
             ),

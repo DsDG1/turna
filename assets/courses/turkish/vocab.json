@@ -143,6 +143,142 @@
       "tags": [
         "shopping"
       ]
+    },
+    {
+      "id": "w-bir",
+      "term": "bir",
+      "translation": "1",
+      "pronunciation": "bir",
+      "tags": [
+        "number"
+      ]
+    },
+    {
+      "id": "w-iki",
+      "term": "iki",
+      "translation": "2",
+      "pronunciation": "i-ki",
+      "tags": [
+        "number"
+      ]
+    },
+    {
+      "id": "w-uc",
+      "term": "üç",
+      "translation": "3",
+      "pronunciation": "üç",
+      "tags": [
+        "number"
+      ]
+    },
+    {
+      "id": "w-dort",
+      "term": "dört",
+      "translation": "4",
+      "pronunciation": "dört",
+      "tags": [
+        "number"
+      ]
+    },
+    {
+      "id": "w-bes",
+      "term": "beş",
+      "translation": "5",
+      "pronunciation": "beş",
+      "tags": [
+        "number"
+      ]
+    },
+    {
+      "id": "w-kirmizi",
+      "term": "kırmızı",
+      "translation": "红色",
+      "pronunciation": "kır-mı-zı",
+      "tags": [
+        "color"
+      ]
+    },
+    {
+      "id": "w-mavi",
+      "term": "mavi",
+      "translation": "蓝色",
+      "pronunciation": "ma-vi",
+      "tags": [
+        "color"
+      ]
+    },
+    {
+      "id": "w-yesil",
+      "term": "yeşil",
+      "translation": "绿色",
+      "pronunciation": "ye-şil",
+      "tags": [
+        "color"
+      ]
+    },
+    {
+      "id": "w-sari",
+      "term": "sarı",
+      "translation": "黄色",
+      "pronunciation": "sa-rı",
+      "tags": [
+        "color"
+      ]
+    },
+    {
+      "id": "w-siyah",
+      "term": "siyah",
+      "translation": "黑色",
+      "pronunciation": "si-yah",
+      "tags": [
+        "color"
+      ]
+    },
+    {
+      "id": "w-beyaz",
+      "term": "beyaz",
+      "translation": "白色",
+      "pronunciation": "be-yaz",
+      "tags": [
+        "color"
+      ]
+    },
+    {
+      "id": "w-ev",
+      "term": "ev",
+      "translation": "家",
+      "pronunciation": "ev",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-kitap",
+      "term": "kitap",
+      "translation": "书",
+      "pronunciation": "ki-tap",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-araba",
+      "term": "araba",
+      "translation": "车",
+      "pronunciation": "a-ra-ba",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-yemek",
+      "term": "yemek",
+      "translation": "食物/吃饭",
+      "pronunciation": "ye-mek",
+      "tags": [
+        "noun",
+        "food"
+      ]
     }
   ]
 }

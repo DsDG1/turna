@@ -132,7 +132,7 @@ class _AnkiMediaStripState extends State<AnkiMediaStrip> {
                       onPressed: _audios[index].available
                           ? () => _play(_audios[index].ref)
                           : null,
-                      color: TurnaTheme.peacockTeal,
+                      color: TurnaTheme.brandTeal,
                       icon: const Icon(Icons.volume_up_rounded),
                     ),
                   ),

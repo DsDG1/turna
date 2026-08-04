@@ -1,24 +1,33 @@
 // Flutter imports:
 import 'package:flutter/material.dart';
 
-/// Turna Peacock Theme
-/// A vibrant theme inspired by peacock feathers with teal, cyan, and emerald tones
+/// Turna Brand Theme
+/// A restrained teal, navy, reed, clay, and warm-sand palette.
 class TurnaTheme {
   TurnaTheme._();
 
-  // PRIMARY PEACOCK COLORS
-  static const Color peacockDeep = Color(0xFF1A0285);
-  static const Color peacockTeal = Color(0xFF1F727E);
-  static const Color peacockCyan = Color(0xFF359CBB);
-  static const Color peacockTurquoise = Color(0xFF46D1BF);
-  static const Color peacockMint = Color(0xFF00FFC6);
+  // TURNA BRAND COLORS
+  static const Color brandNavy = Color(0xFF19324A);
+  static const Color brandTeal = Color(0xFF1F727E);
+  static const Color brandTealLight = Color(0xFF2F7F8E);
+  static const Color brandSky = Color(0xFF4A95A8);
+  static const Color brandReed = Color(0xFF78C7B8);
+  static const Color anatolianClay = Color(0xFFB85C3F);
+  static const Color warmSand = Color(0xFFEAD9B8);
+
+  // Temporary compatibility aliases for widgets that are being migrated.
+  static const Color peacockDeep = brandNavy;
+  static const Color peacockTeal = brandTeal;
+  static const Color peacockCyan = brandSky;
+  static const Color peacockTurquoise = brandReed;
+  static const Color peacockMint = brandReed;
 
   // SEMANTIC COLORS
-  static const Color primary = peacockTeal;
-  static const Color primaryLight = peacockCyan;
+  static const Color primary = brandTeal;
+  static const Color primaryLight = brandTealLight;
   static const Color primaryDark = Color(0xFF145A64);
-  static const Color secondary = peacockTurquoise;
-  static const Color secondaryLight = peacockMint;
+  static const Color secondary = anatolianClay;
+  static const Color secondaryLight = warmSand;
   static const Color error = Color(0xFFE74C3C);
   static const Color errorLight = Color(0xFFFF6B6B);
   static const Color errorDark = Color(0xFFC0392B);
@@ -27,22 +36,22 @@ class TurnaTheme {
   static const Color successDark = Color(0xFFE5C235);
   static const Color warning = Color(0xFFFF9F43);
   static const Color warningLight = Color(0xFFFFBE76);
-  static const Color info = peacockCyan;
+  static const Color info = brandSky;
 
   // JEWEL TONES - distinct accents for feature surfaces (e.g. AI).
   static const Color amethystLeague = Color(0xFF9B59B6);
 
   // BACKGROUND COLORS
-  static const Color background = Color(0xFFF8FFFE);
+  static const Color background = Color(0xFFF7FAF9);
   static const Color surface = Colors.white;
-  static const Color scaffoldBackground = Color(0xFFF5FDFB);
+  static const Color scaffoldBackground = Color(0xFFF3F8F7);
   static const Color cardBackground = Colors.white;
   static const Color elevatedSurface = Color(0xFFFFFFFF);
-  static const Color divider = Color(0xFFEEF2F1);
+  static const Color divider = Color(0xFFE3EBE9);
 
   // TEXT COLORS
-  static const Color textPrimary = Color(0xFF1A1A2E);
-  static const Color textSecondary = Color(0xFF4A5568);
+  static const Color textPrimary = Color(0xFF1C2730);
+  static const Color textSecondary = Color(0xFF52616B);
   static const Color textHint = Color(0xFF9CA3AF);
   static const Color textOnPrimary = Colors.white;
   static const Color textOnSecondary = Colors.white;
@@ -58,25 +67,26 @@ class TurnaTheme {
   static const Color leagueDiamond = Color(0xFF3498DB);
 
   // GRADIENTS
-  static const LinearGradient peacockGradient = LinearGradient(
+  static const LinearGradient brandGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [peacockDeep, peacockTeal, peacockCyan],
+    colors: [brandNavy, brandTeal, brandSky],
   );
+  static const LinearGradient peacockGradient = brandGradient;
 
   static const LinearGradient softGradient = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [Color(0xFFF8FFFE), Color(0xFFE8F8F5)],
+    colors: [Color(0xFFF7FAF9), Color(0xFFE8F2F0)],
   );
 
   static const LinearGradient courseTreeGradient = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
     colors: [
-      Color(0xFFF0FFFC),
-      Color(0xFFE8F8F5),
-      Color(0xFFE0F5F1),
+      Color(0xFFF7FAF9),
+      Color(0xFFEFF7F5),
+      Color(0xFFE8F2F0),
     ],
     stops: [0.0, 0.5, 1.0],
   );
@@ -87,9 +97,9 @@ class TurnaTheme {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                Color(0xFF0F1C1A),
-                Color(0xFF142624),
-                Color(0xFF1A2E2B),
+                Color(0xFF101B22),
+                Color(0xFF142129),
+                Color(0xFF182832),
               ],
               stops: [0.0, 0.5, 1.0],
             )
@@ -98,7 +108,7 @@ class TurnaTheme {
   static const LinearGradient buttonGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [peacockCyan, peacockTurquoise],
+    colors: [brandTeal, brandTealLight],
   );
 
   static const LinearGradient successGradient = LinearGradient(
@@ -109,16 +119,16 @@ class TurnaTheme {
 
   static const RadialGradient nodeGlowGradient = RadialGradient(
     colors: [
-      Color(0x4046D1BF),
-      Color(0x2046D1BF),
-      Color(0x0046D1BF),
+      Color(0x2678C7B8),
+      Color(0x1278C7B8),
+      Color(0x0078C7B8),
     ],
   );
 
   // SHADOWS
   static List<BoxShadow> get softShadow => [
         BoxShadow(
-          color: peacockTeal.withValues(alpha: 0.08),
+          color: brandNavy.withValues(alpha: 0.07),
           blurRadius: 10,
           offset: const Offset(0, 4),
         ),
@@ -126,7 +136,7 @@ class TurnaTheme {
 
   static List<BoxShadow> get cardShadow => [
         BoxShadow(
-          color: peacockTeal.withValues(alpha: 0.1),
+          color: brandNavy.withValues(alpha: 0.08),
           blurRadius: 15,
           offset: const Offset(0, 5),
         ),
@@ -134,7 +144,7 @@ class TurnaTheme {
 
   static List<BoxShadow> get glowShadow => [
         BoxShadow(
-          color: peacockMint.withValues(alpha: 0.3),
+          color: brandReed.withValues(alpha: 0.18),
           blurRadius: 20,
           spreadRadius: 2,
         ),
@@ -142,7 +152,7 @@ class TurnaTheme {
 
   static List<BoxShadow> get buttonShadow => [
         BoxShadow(
-          color: peacockTeal.withValues(alpha: 0.3),
+          color: brandNavy.withValues(alpha: 0.22),
           blurRadius: 8,
           offset: const Offset(0, 4),
         ),
@@ -152,12 +162,12 @@ class TurnaTheme {
   /// 双层阴影 (远大 + 近小) 模拟光照下的悬浮磨砂面.
   static List<BoxShadow> get elevatedCardShadow => [
         BoxShadow(
-          color: peacockTeal.withValues(alpha: 0.10),
+          color: brandNavy.withValues(alpha: 0.08),
           blurRadius: 24,
           offset: const Offset(0, 10),
         ),
         BoxShadow(
-          color: peacockTeal.withValues(alpha: 0.06),
+          color: brandNavy.withValues(alpha: 0.05),
           blurRadius: 4,
           offset: const Offset(0, 2),
         ),
@@ -166,7 +176,7 @@ class TurnaTheme {
   /// 选项条 / 输入框 / 副卡: 浅短阴影.
   static List<BoxShadow> get raisedCardShadow => [
         BoxShadow(
-          color: peacockTeal.withValues(alpha: 0.08),
+          color: brandNavy.withValues(alpha: 0.06),
           blurRadius: 14,
           offset: const Offset(0, 6),
         ),
@@ -182,9 +192,9 @@ class TurnaTheme {
   // SEMANTIC TINT TOKENS
   // Common alpha-blended fills & borders used across feature widgets.
   // Non-const because `withValues` is computed at runtime.
-  static final Color tintLight = peacockTeal.withValues(alpha: 0.06);
-  static final Color tintSoft = peacockTeal.withValues(alpha: 0.08);
-  static final Color tintMedium = peacockTeal.withValues(alpha: 0.12);
+  static final Color tintLight = brandTeal.withValues(alpha: 0.06);
+  static final Color tintSoft = brandTeal.withValues(alpha: 0.08);
+  static final Color tintMedium = brandTeal.withValues(alpha: 0.12);
   static final Color borderMuted = textHint.withValues(alpha: 0.25);
 
   // FROSTED GLASS TOKENS
@@ -287,7 +297,7 @@ class TurnaTheme {
   static Color softTint(BuildContext context, Color accent) => _isDark(context)
       ? Color.alphaBlend(
           accent.withValues(alpha: 0.10),
-          const Color(0xFF1D3330),
+          const Color(0xFF182832),
         )
       : Color.alphaBlend(
           accent.withValues(alpha: 0.10),
@@ -336,31 +346,31 @@ class TurnaTheme {
       Theme.of(context).scaffoldBackgroundColor;
 
   static Color cardBg(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF1A2E2B) : Colors.white;
+      _isDark(context) ? const Color(0xFF182832) : Colors.white;
 
   static Color elevatedCardBg(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF1A2E2B) : const Color(0xFFFFFFFF);
+      _isDark(context) ? const Color(0xFF20323D) : const Color(0xFFFFFFFF);
 
   static Color dividerBg(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF2A4540) : const Color(0xFFEEF2F1);
+      _isDark(context) ? const Color(0xFF2B414C) : divider;
 
   static Color textPrimaryColor(BuildContext context) =>
       Theme.of(context).colorScheme.onSurface;
 
   static Color textSecondaryColor(BuildContext context) =>
-      _isDark(context) ? const Color(0xFFB0CBC7) : const Color(0xFF4A5568);
+      _isDark(context) ? const Color(0xFFB6C4CB) : textSecondary;
 
   static Color textHintColor(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF6B8A85) : const Color(0xFF9CA3AF);
+      _isDark(context) ? const Color(0xFF7D929C) : textHint;
 
   static Color inputFillColor(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF142624) : const Color(0xFFF5F8F7);
+      _isDark(context) ? const Color(0xFF142129) : const Color(0xFFF3F8F7);
 
   static Color statCardBorder(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF2A4540) : const Color(0xFFEEF2F1);
+      _isDark(context) ? const Color(0xFF2B414C) : divider;
 
   static Color bottomNavBg(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF1A2E2B) : Colors.white;
+      _isDark(context) ? const Color(0xFF182832) : Colors.white;
 
   static Color streakChipBg(BuildContext context) =>
       _isDark(context) ? const Color(0xFF3E2723) : const Color(0xFFFFF3E0);
@@ -405,7 +415,7 @@ class TurnaTheme {
             fontWeight: FontWeight.w700,
             letterSpacing: -0.3,
           ),
-          iconTheme: IconThemeData(color: peacockTeal),
+          iconTheme: IconThemeData(color: brandTeal),
         ),
         cardTheme: CardThemeData(
           elevation: 0,
@@ -451,7 +461,7 @@ class TurnaTheme {
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: const Color(0xFFF5F8F7),
+          fillColor: const Color(0xFFF3F8F7),
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           border: OutlineInputBorder(
@@ -473,7 +483,7 @@ class TurnaTheme {
         ),
         bottomNavigationBarTheme: const BottomNavigationBarThemeData(
           backgroundColor: Colors.white,
-          selectedItemColor: peacockTeal,
+          selectedItemColor: brandTeal,
           unselectedItemColor: textHint,
           showSelectedLabels: false,
           showUnselectedLabels: false,
@@ -481,16 +491,16 @@ class TurnaTheme {
           elevation: 0,
         ),
         progressIndicatorTheme: const ProgressIndicatorThemeData(
-          color: peacockTurquoise,
+          color: brandTeal,
           linearTrackColor: Color(0xFFE0E0E0),
         ),
         floatingActionButtonTheme: const FloatingActionButtonThemeData(
-          backgroundColor: peacockTurquoise,
+          backgroundColor: brandTeal,
           foregroundColor: Colors.white,
           elevation: 4,
         ),
         dividerTheme: const DividerThemeData(
-          color: Color(0xFFEEF2F1),
+          color: divider,
           thickness: 1,
         ),
         textTheme: const TextTheme(
@@ -526,13 +536,13 @@ class TurnaTheme {
         useMaterial3: true,
         brightness: Brightness.dark,
         primaryColor: primary,
-        scaffoldBackgroundColor: const Color(0xFF0F1C1A),
+        scaffoldBackgroundColor: const Color(0xFF101B22),
         colorScheme: const ColorScheme.dark(
           primary: primary,
           primaryContainer: primaryLight,
           secondary: secondary,
           secondaryContainer: secondaryLight,
-          surface: Color(0xFF1A2E2B),
+          surface: Color(0xFF182832),
           error: error,
           onPrimary: textOnPrimary,
           onSecondary: textOnSecondary,
@@ -543,7 +553,7 @@ class TurnaTheme {
           elevation: 0,
           scrolledUnderElevation: 0,
           centerTitle: true,
-          backgroundColor: Color(0xFF1A2E2B),
+          backgroundColor: Color(0xFF182832),
           foregroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
           titleTextStyle: TextStyle(
@@ -552,11 +562,11 @@ class TurnaTheme {
             fontWeight: FontWeight.w700,
             letterSpacing: -0.3,
           ),
-          iconTheme: IconThemeData(color: peacockTurquoise),
+          iconTheme: IconThemeData(color: brandReed),
         ),
         cardTheme: CardThemeData(
           elevation: 0,
-          color: const Color(0xFF1A2E2B),
+          color: const Color(0xFF182832),
           surfaceTintColor: Colors.transparent,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radiusLarge),
@@ -579,7 +589,7 @@ class TurnaTheme {
         ),
         textButtonTheme: TextButtonThemeData(
           style: TextButton.styleFrom(
-            foregroundColor: peacockTurquoise,
+            foregroundColor: brandReed,
             textStyle: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
@@ -588,7 +598,7 @@ class TurnaTheme {
         ),
         outlinedButtonTheme: OutlinedButtonThemeData(
           style: OutlinedButton.styleFrom(
-            foregroundColor: peacockTurquoise,
+            foregroundColor: brandReed,
             side: const BorderSide(color: primary, width: 2),
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
             shape: RoundedRectangleBorder(
@@ -598,7 +608,7 @@ class TurnaTheme {
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: const Color(0xFF142624),
+          fillColor: const Color(0xFF142129),
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           border: OutlineInputBorder(
@@ -619,25 +629,25 @@ class TurnaTheme {
           ),
         ),
         bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-          backgroundColor: Color(0xFF1A2E2B),
-          selectedItemColor: peacockTurquoise,
-          unselectedItemColor: Color(0xFF6B8A85),
+          backgroundColor: Color(0xFF182832),
+          selectedItemColor: brandReed,
+          unselectedItemColor: Color(0xFF7D929C),
           showSelectedLabels: false,
           showUnselectedLabels: false,
           type: BottomNavigationBarType.fixed,
           elevation: 0,
         ),
         progressIndicatorTheme: const ProgressIndicatorThemeData(
-          color: peacockTurquoise,
-          linearTrackColor: Color(0xFF2A4540),
+          color: brandTealLight,
+          linearTrackColor: Color(0xFF2B414C),
         ),
         floatingActionButtonTheme: const FloatingActionButtonThemeData(
-          backgroundColor: peacockTurquoise,
+          backgroundColor: brandTeal,
           foregroundColor: Colors.white,
           elevation: 4,
         ),
         dividerTheme: const DividerThemeData(
-          color: Color(0xFF2A4540),
+          color: Color(0xFF2B414C),
           thickness: 1,
         ),
         textTheme: const TextTheme(
@@ -656,16 +666,16 @@ class TurnaTheme {
           titleLarge:
               TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
           titleMedium:
-              TextStyle(color: Color(0xFFB0CBC7), fontWeight: FontWeight.w500),
+              TextStyle(color: Color(0xFFB6C4CB), fontWeight: FontWeight.w500),
           titleSmall:
-              TextStyle(color: Color(0xFFB0CBC7), fontWeight: FontWeight.w500),
+              TextStyle(color: Color(0xFFB6C4CB), fontWeight: FontWeight.w500),
           bodyLarge: TextStyle(color: Colors.white),
-          bodyMedium: TextStyle(color: Color(0xFFB0CBC7)),
-          bodySmall: TextStyle(color: Color(0xFF6B8A85)),
+          bodyMedium: TextStyle(color: Color(0xFFB6C4CB)),
+          bodySmall: TextStyle(color: Color(0xFF7D929C)),
           labelLarge:
               TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-          labelMedium: TextStyle(color: Color(0xFFB0CBC7)),
-          labelSmall: TextStyle(color: Color(0xFF6B8A85)),
+          labelMedium: TextStyle(color: Color(0xFFB6C4CB)),
+          labelSmall: TextStyle(color: Color(0xFF7D929C)),
         ),
       );
 
@@ -774,10 +784,10 @@ class TurnaTheme {
   static ThemeData get highContrastDarkTheme => darkTheme.copyWith(
         scaffoldBackgroundColor: Colors.black,
         colorScheme: const ColorScheme.dark(
-          primary: peacockTurquoise,
-          primaryContainer: peacockCyan,
-          secondary: peacockTurquoise,
-          secondaryContainer: peacockCyan,
+          primary: brandReed,
+          primaryContainer: brandTealLight,
+          secondary: brandReed,
+          secondaryContainer: brandTealLight,
           surface: Colors.black,
           error: errorLight,
           onPrimary: Colors.black,
@@ -798,7 +808,7 @@ class TurnaTheme {
             fontWeight: FontWeight.w800,
             letterSpacing: -0.3,
           ),
-          iconTheme: IconThemeData(color: peacockTurquoise),
+          iconTheme: IconThemeData(color: brandReed),
         ),
         cardTheme: CardThemeData(
           elevation: 0,
@@ -824,7 +834,7 @@ class TurnaTheme {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(radiusMedium),
-            borderSide: const BorderSide(color: peacockTurquoise, width: 2.5),
+            borderSide: const BorderSide(color: brandReed, width: 2.5),
           ),
           errorBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(radiusMedium),

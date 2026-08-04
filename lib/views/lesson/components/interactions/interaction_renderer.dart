@@ -169,7 +169,7 @@ class LessonCheckButton extends StatelessWidget {
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
           backgroundColor:
-              enabled ? TurnaTheme.peacockTeal : TurnaTheme.divider,
+              enabled ? TurnaTheme.brandTeal : TurnaTheme.divider,
           foregroundColor:
               enabled ? TurnaTheme.textOnPrimary : TurnaTheme.textHint,
           shape: RoundedRectangleBorder(
@@ -251,8 +251,8 @@ class _InteractionOptionTileState extends State<InteractionOptionTile> {
       background = TurnaTheme.error.withValues(alpha: 0.08);
       trailing = const Icon(Icons.cancel, color: TurnaTheme.error);
     } else if (widget.isSelected) {
-      border = TurnaTheme.peacockTeal;
-      background = TurnaTheme.peacockTeal.withValues(alpha: 0.06);
+      border = TurnaTheme.brandTeal;
+      background = TurnaTheme.brandTeal.withValues(alpha: 0.06);
     }
 
     return Semantics(
@@ -368,10 +368,10 @@ class SpeakerButton extends StatelessWidget {
       child: Tooltip(
         message: AppStrings.lessonPlayAudioLabel,
         child: Material(
-          color: TurnaTheme.peacockTeal,
+          color: TurnaTheme.brandTeal,
           shape: const CircleBorder(),
           elevation: 4,
-          shadowColor: TurnaTheme.peacockTeal.withValues(alpha: 0.4),
+          shadowColor: TurnaTheme.brandTeal.withValues(alpha: 0.4),
           child: InkWell(
             customBorder: const CircleBorder(),
             onTap: onPressed,

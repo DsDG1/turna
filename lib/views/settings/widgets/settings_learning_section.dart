@@ -47,7 +47,7 @@ class SettingsLanguageSelectorTile extends StatelessWidget {
                     Icons.language_rounded,
                     size: 18,
                     color: lang == current
-                        ? TurnaTheme.peacockTeal
+                        ? TurnaTheme.brandTeal
                         : TurnaTheme.textHint,
                   ),
                   const SizedBox(width: 8),
@@ -73,7 +73,7 @@ class SettingsLanguageSelectorTile extends StatelessWidget {
             Text(
               current.name.toTitleCase,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: TurnaTheme.peacockTeal,
+                    color: TurnaTheme.brandTeal,
                     fontWeight: FontWeight.w700,
                   ),
             ),
@@ -118,12 +118,12 @@ class _SettingsTtsSpeedTileState extends State<SettingsTtsSpeedTile> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
+                  color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
                 ),
                 child: const Icon(
                   Icons.record_voice_over_rounded,
-                  color: TurnaTheme.peacockTeal,
+                  color: TurnaTheme.brandTeal,
                   size: 20,
                 ),
               ),
@@ -150,7 +150,7 @@ class _SettingsTtsSpeedTileState extends State<SettingsTtsSpeedTile> {
               Text(
                 AppStrings.settingsTtsSpeedValue(value.toStringAsFixed(1)),
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: TurnaTheme.peacockTeal,
+                      color: TurnaTheme.brandTeal,
                       fontWeight: FontWeight.w700,
                     ),
               ),
@@ -164,7 +164,7 @@ class _SettingsTtsSpeedTileState extends State<SettingsTtsSpeedTile> {
               min: 0.5,
               max: 2.0,
               divisions: 15,
-              activeColor: TurnaTheme.peacockTeal,
+              activeColor: TurnaTheme.brandTeal,
               inactiveColor: TurnaTheme.dividerBg(context),
               onChanged: (v) {
                 setState(() => _dragValue = v);
@@ -213,12 +213,12 @@ class _SettingsSrsWeightsTileState extends State<SettingsSrsWeightsTile> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
+                  color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
                 ),
                 child: const Icon(
                   Icons.auto_graph_rounded,
-                  color: TurnaTheme.peacockTeal,
+                  color: TurnaTheme.brandTeal,
                   size: 20,
                 ),
               ),
@@ -351,12 +351,12 @@ class _SettingsSrsRetentionTileState extends State<SettingsSrsRetentionTile> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
+                  color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
                 ),
                 child: const Icon(
                   Icons.psychology_rounded,
-                  color: TurnaTheme.peacockTeal,
+                  color: TurnaTheme.brandTeal,
                   size: 20,
                 ),
               ),
@@ -372,7 +372,7 @@ class _SettingsSrsRetentionTileState extends State<SettingsSrsRetentionTile> {
               Text(
                 AppStrings.settingsSrsRetentionValue(percent),
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: TurnaTheme.peacockTeal,
+                      color: TurnaTheme.brandTeal,
                       fontWeight: FontWeight.w700,
                     ),
               ),
@@ -386,7 +386,7 @@ class _SettingsSrsRetentionTileState extends State<SettingsSrsRetentionTile> {
               min: 0.80,
               max: 0.95,
               divisions: 15,
-              activeColor: TurnaTheme.peacockTeal,
+              activeColor: TurnaTheme.brandTeal,
               inactiveColor: TurnaTheme.dividerBg(context),
               onChanged: (v) => setState(() => _dragValue = v),
               onChangeEnd: (v) async {
@@ -512,12 +512,12 @@ class _AnkiLimitSliderState extends State<_AnkiLimitSlider> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
+                  color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
                 ),
                 child: Icon(
                   widget.icon,
-                  color: TurnaTheme.peacockTeal,
+                  color: TurnaTheme.brandTeal,
                   size: 20,
                 ),
               ),
@@ -544,7 +544,7 @@ class _AnkiLimitSliderState extends State<_AnkiLimitSlider> {
               Text(
                 '$_value',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: TurnaTheme.peacockTeal,
+                      color: TurnaTheme.brandTeal,
                       fontWeight: FontWeight.w700,
                     ),
               ),
@@ -558,7 +558,7 @@ class _AnkiLimitSliderState extends State<_AnkiLimitSlider> {
               min: widget.min.toDouble(),
               max: widget.max.toDouble(),
               divisions: widget.divisions,
-              activeColor: TurnaTheme.peacockTeal,
+              activeColor: TurnaTheme.brandTeal,
               inactiveColor: TurnaTheme.dividerBg(context),
               onChanged: (value) {
                 setState(() => _value = value.round());

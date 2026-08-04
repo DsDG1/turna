@@ -577,7 +577,7 @@ class AiGeneratorDialog(QDialog):
         progress_row.addWidget(self.progress)
         self.stage_label = QLabel("")
         self.stage_label.setStyleSheet(
-            f"color: {self._pal('ai_accent', '#46D1BF')}; font-size: 12px;"
+            f"color: {self._pal('ai_accent', '#78C7B8')}; font-size: 12px;"
         )
         self.stage_label.setVisible(False)
         progress_row.addWidget(self.stage_label)
@@ -614,7 +614,7 @@ class AiGeneratorDialog(QDialog):
         self.expand_btn.setStyleSheet(
             "QPushButton {"
             f"  background-color: {self._pal('ai_card_bg', '#1F232C')};"
-            f"  color: {self._pal('ai_accent', '#46D1BF')};"
+            f"  color: {self._pal('ai_accent', '#78C7B8')};"
             f"  border: 1px solid {self._pal('ai_bubble_bg', '#2C313C')};"
             "  border-radius: 6px;"
             "  padding: 4px 10px;"
@@ -652,7 +652,7 @@ class AiGeneratorDialog(QDialog):
         self.wish_progress.setVisible(False)
         self.wish_stage_label = QLabel("")
         self.wish_stage_label.setStyleSheet(
-            f"color: {self._pal('ai_accent', '#46D1BF')}; font-size: 12px;"
+            f"color: {self._pal('ai_accent', '#78C7B8')}; font-size: 12px;"
         )
         self.wish_stage_label.setVisible(False)
         self.wish_usage_label = QLabel("")
@@ -733,7 +733,7 @@ class AiGeneratorDialog(QDialog):
             "QTextBrowser {"
             "  border: none;"
             f"  background-color: {self._pal('ai_card_bg', '#1F232C')};"
-            f"  color: {self._pal('ai_accent', '#46D1BF')};"
+            f"  color: {self._pal('ai_accent', '#78C7B8')};"
             "  font-family: system-ui, sans-serif;"
             "  font-size: 13px;"
             "  padding: 8px;"

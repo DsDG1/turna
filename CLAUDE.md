@@ -140,17 +140,17 @@ static Color scoreChipBg(BuildContext context)
 // ... and more
 ```
 
-### Color Palette (Peacock-inspired, distinct from Duolingo)
+### Color Palette (Turna Brand, distinct from Duolingo)
 
 ```dart
-// Primary: Teal/Cyan
+// Primary: restrained teal
 const primaryColor = Color(0xFF1F727E);
-const primaryLight = Color(0xFF359CBB);
+const primaryLight = Color(0xFF2F7F8E);
 const primaryDark = Color(0xFF145A64);
 
 // Accent / Secondary
-const secondary = Color(0xFF46D1BF);
-const secondaryLight = Color(0xFF00FFC6);
+const secondary = Color(0xFFB85C3F);
+const secondaryLight = Color(0xFFEAD9B8);
 
 // Semantic
 const error = Color(0xFFE74C3C);

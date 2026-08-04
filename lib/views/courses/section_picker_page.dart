@@ -88,7 +88,7 @@ class _SectionCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
             border: isSelected
                 ? Border.all(
-                    color: TurnaTheme.peacockTeal.withValues(alpha: 0.5),
+                    color: TurnaTheme.brandTeal.withValues(alpha: 0.5),
                     width: 2,
                   )
                 : null,
@@ -125,7 +125,7 @@ class _SectionCard extends StatelessWidget {
                         fontSize: 17,
                         fontWeight: FontWeight.w700,
                         color: isSelected
-                            ? TurnaTheme.peacockTeal
+                            ? TurnaTheme.brandTeal
                             : TurnaTheme.textPrimaryColor(context),
                       ),
                     ),
@@ -150,7 +150,7 @@ class _SectionCard extends StatelessWidget {
                     ? Icons.check_circle_rounded
                     : Icons.chevron_right_rounded,
                 color: isSelected
-                    ? TurnaTheme.peacockTeal
+                    ? TurnaTheme.brandTeal
                     : TurnaTheme.textHint.withValues(alpha: 0.5),
                 size: 28,
               ),

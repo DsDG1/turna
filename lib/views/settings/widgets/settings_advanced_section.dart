@@ -98,11 +98,11 @@ class _CaptureDelayTileState extends State<_CaptureDelayTile> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
+                  color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
                 ),
                 child: const Icon(Icons.timer_outlined,
-                    color: TurnaTheme.peacockTeal, size: 20),
+                    color: TurnaTheme.brandTeal, size: 20),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -122,7 +122,7 @@ class _CaptureDelayTileState extends State<_CaptureDelayTile> {
               ),
               Text('${value.round()}s',
                   style: const TextStyle(
-                      color: TurnaTheme.peacockTeal,
+                      color: TurnaTheme.brandTeal,
                       fontWeight: FontWeight.w700)),
             ],
           ),
@@ -131,7 +131,7 @@ class _CaptureDelayTileState extends State<_CaptureDelayTile> {
             min: 1,
             max: 10,
             divisions: 9,
-            activeColor: TurnaTheme.peacockTeal,
+            activeColor: TurnaTheme.brandTeal,
             label: '${value.round()}s',
             onChanged: (v) => setState(() => _drag = v),
             onChangeEnd: (v) {
@@ -173,11 +173,11 @@ class _LiteThresholdTileState extends State<_LiteThresholdTile> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
+                  color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
                 ),
                 child: const Icon(Icons.layers_rounded,
-                    color: TurnaTheme.peacockTeal, size: 20),
+                    color: TurnaTheme.brandTeal, size: 20),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -198,7 +198,7 @@ class _LiteThresholdTileState extends State<_LiteThresholdTile> {
               Text(
                 value.round() == 0 ? '关' : '${value.round()}',
                 style: const TextStyle(
-                    color: TurnaTheme.peacockTeal, fontWeight: FontWeight.w700),
+                    color: TurnaTheme.brandTeal, fontWeight: FontWeight.w700),
               ),
             ],
           ),
@@ -207,7 +207,7 @@ class _LiteThresholdTileState extends State<_LiteThresholdTile> {
             min: 0,
             max: 10000,
             divisions: 100,
-            activeColor: TurnaTheme.peacockTeal,
+            activeColor: TurnaTheme.brandTeal,
             onChanged: (v) => setState(() => _drag = v),
             onChangeEnd: (v) {
               _drag = null;

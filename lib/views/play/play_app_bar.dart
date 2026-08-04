@@ -17,7 +17,7 @@ class PlayAppBar extends StatelessWidget implements PreferredSizeWidget {
         children: [
           const Icon(
             Icons.extension_rounded,
-            color: TurnaTheme.peacockTeal,
+            color: TurnaTheme.brandTeal,
             size: 22,
           ),
           const SizedBox(width: 8),

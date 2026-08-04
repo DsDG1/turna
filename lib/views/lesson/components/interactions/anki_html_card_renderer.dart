@@ -308,7 +308,7 @@ class _AnkiHtmlCardBodyState extends State<_AnkiHtmlCardBody> {
             children: [
               IconButton(
                 icon: const Icon(Icons.record_voice_over_rounded),
-                color: TurnaTheme.peacockTeal,
+                color: TurnaTheme.brandTeal,
                 tooltip: AppStrings.lessonSpeakLabel,
                 onPressed: _revealed ? _speakBack : _speakFront,
               ),
@@ -419,7 +419,7 @@ class _AnkiHtmlCardBodyState extends State<_AnkiHtmlCardBody> {
             Expanded(
               child: _GradeButton(
                 label: AppStrings.reviewEasy,
-                color: TurnaTheme.peacockTeal,
+                color: TurnaTheme.brandTeal,
                 onPressed: () => _grade(
                   correct: true,
                   label: AppStrings.reviewEasy,

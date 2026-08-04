@@ -290,7 +290,7 @@ class _TextbookImportPageState extends State<TextbookImportPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const CircularProgressIndicator(color: TurnaTheme.peacockTeal),
+          const CircularProgressIndicator(color: TurnaTheme.brandTeal),
           const SizedBox(height: 16),
           Text(label),
         ],

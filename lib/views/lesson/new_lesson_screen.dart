@@ -501,9 +501,9 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
           preferredSize: const Size.fromHeight(4),
           child: LinearProgressIndicator(
             value: s.progress,
-            backgroundColor: TurnaTheme.peacockTeal.withValues(alpha: 0.1),
+            backgroundColor: TurnaTheme.brandTeal.withValues(alpha: 0.1),
             valueColor: const AlwaysStoppedAnimation<Color>(
-              TurnaTheme.peacockTeal,
+              TurnaTheme.brandTeal,
             ),
           ),
         ),
@@ -579,7 +579,7 @@ class _LessonBody extends StatelessWidget {
         if (lesson == null) {
           return const Center(
             child: CircularProgressIndicator(
-              color: TurnaTheme.peacockTeal,
+              color: TurnaTheme.brandTeal,
               strokeWidth: 3,
             ),
           );
@@ -614,7 +614,7 @@ class _LessonBody extends StatelessWidget {
             if (vm.currentStageName != null)
               LessonStageBanner(
                 name: vm.currentStageName!,
-                accent: TurnaTheme.peacockTeal,
+                accent: TurnaTheme.brandTeal,
               ),
             if (readingPassage != null)
               LessonReadingPassageCard(passage: readingPassage)

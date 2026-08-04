@@ -158,7 +158,7 @@ class _LearningStatsState extends State<LearningStats> {
       padding: const EdgeInsets.only(top: 20, bottom: 8),
       child: Row(
         children: [
-          Icon(icon, color: TurnaTheme.peacockTeal, size: 22),
+          Icon(icon, color: TurnaTheme.brandTeal, size: 22),
           const SizedBox(width: 8),
           Text(
             text,
@@ -197,7 +197,7 @@ class _TodaySummary extends StatelessWidget {
         children: [
           _TodayItem(
             icon: Icons.bolt_rounded,
-            iconColor: TurnaTheme.peacockTurquoise,
+            iconColor: TurnaTheme.brandReed,
             value: xp.toString(),
             label: AppStrings.profileXpToday,
           ),
@@ -321,7 +321,7 @@ class _WeeklyXpBars extends StatelessWidget {
                     height: barHeight,
                     decoration: BoxDecoration(
                       color: day.totalXp > 0
-                          ? TurnaTheme.peacockTeal
+                          ? TurnaTheme.brandTeal
                           : TurnaTheme.dividerBg(context),
                       borderRadius: BorderRadius.circular(4),
                     ),
@@ -381,7 +381,7 @@ class _OverallStatsGrid extends StatelessWidget {
         ),
         _StatCard(
           icon: Icons.school_rounded,
-          iconColor: TurnaTheme.peacockCyan,
+          iconColor: TurnaTheme.brandSky,
           value: totalLessons.toString(),
           label: AppStrings.profileLessonsDone,
         ),
@@ -422,7 +422,7 @@ class _AnkiStatsCard extends StatelessWidget {
           Row(
             children: [
               const Icon(Icons.layers_rounded,
-                  color: TurnaTheme.peacockTeal, size: 20),
+                  color: TurnaTheme.brandTeal, size: 20),
               const SizedBox(width: 8),
               Text(
                 AppStrings.profileAnkiDecks,
@@ -438,7 +438,7 @@ class _AnkiStatsCard extends StatelessWidget {
             children: [
               _TodayItem(
                 icon: Icons.school_rounded,
-                iconColor: TurnaTheme.peacockCyan,
+                iconColor: TurnaTheme.brandSky,
                 value: ankiLessons.toString(),
                 label: AppStrings.profileAnkiLessons,
               ),
@@ -543,7 +543,7 @@ class _MemoryCurveCard extends StatelessWidget {
           Row(
             children: [
               Icon(Icons.show_chart_rounded,
-                  color: TurnaTheme.peacockTeal, size: 20),
+                  color: TurnaTheme.brandTeal, size: 20),
               const SizedBox(width: 8),
               Text(
                 AppStrings.profileMemoryCurveTitle,
@@ -562,7 +562,7 @@ class _MemoryCurveCard extends StatelessWidget {
                 AppStrings.profileRetentionValue(retentionPct),
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w700,
-                      color: TurnaTheme.peacockTeal,
+                      color: TurnaTheme.brandTeal,
                     ),
               ),
             ],
@@ -660,7 +660,7 @@ class _MemoryCurveCard extends StatelessWidget {
       for (var i = 0; i < curve.length; i++)
         FlSpot(i.toDouble(), curve[i].retention),
     ];
-    final lineColor = TurnaTheme.peacockTeal;
+    final lineColor = TurnaTheme.brandTeal;
     return LineChart(
       LineChartData(
         minY: 0,

@@ -119,7 +119,7 @@ class _MistakesStatsHeader extends StatelessWidget {
           ),
           _StatItem(
             icon: Icons.translate_rounded,
-            iconColor: TurnaTheme.peacockTeal,
+            iconColor: TurnaTheme.brandTeal,
             value: wordCount.toString(),
             label: AppStrings.reviewWordsLabel,
           ),
@@ -209,7 +209,7 @@ class _MistakeCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
         boxShadow: [
           BoxShadow(
-            color: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
+            color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -335,7 +335,7 @@ class _TypeIcon extends StatelessWidget {
       ),
       child: Icon(
         icon,
-        color: TurnaTheme.peacockTeal,
+        color: TurnaTheme.brandTeal,
         size: 22,
       ),
     );
@@ -352,13 +352,13 @@ class _GrammarChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: TurnaTheme.peacockTeal.withValues(alpha: 0.12),
+        color: TurnaTheme.brandTeal.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         AppStrings.reviewGrammarChip(title),
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: TurnaTheme.peacockTeal,
+              color: TurnaTheme.brandTeal,
               fontWeight: FontWeight.w700,
             ),
       ),
@@ -429,7 +429,7 @@ class _AnswerComparison extends StatelessWidget {
               label: AppStrings.reviewCorrectAnswer,
               value:
                   correctAnswer.isEmpty ? AppStrings.reviewDash : correctAnswer,
-              valueColor: TurnaTheme.peacockTeal,
+              valueColor: TurnaTheme.brandTeal,
             ),
           ),
         ],

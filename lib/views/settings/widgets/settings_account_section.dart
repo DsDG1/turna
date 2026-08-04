@@ -19,10 +19,10 @@ import 'package:turna/views/theme.dart';
 
 /// Available avatar background colors indexed by [LocalUser.avatarColorIndex].
 const _avatarColors = <Color>[
-  TurnaTheme.peacockTeal,
-  TurnaTheme.peacockCyan,
-  TurnaTheme.peacockTurquoise,
-  TurnaTheme.peacockMint,
+  TurnaTheme.brandTeal,
+  TurnaTheme.brandSky,
+  TurnaTheme.brandReed,
+  TurnaTheme.brandReed,
   TurnaTheme.error,
   TurnaTheme.warning,
   TurnaTheme.leagueEmerald,
@@ -164,7 +164,7 @@ class _ProfileCard extends StatelessWidget {
                       IconButton(
                         icon: const Icon(Icons.edit_rounded, size: 20),
                         tooltip: AppStrings.accountEditName,
-                        color: TurnaTheme.peacockTeal,
+                        color: TurnaTheme.brandTeal,
                         onPressed: () => _showEditNameDialog(context, user),
                       ),
                     ],
@@ -485,12 +485,12 @@ class _GoalSliderTileState extends State<_GoalSliderTile> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
+                  color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
                 ),
                 child: Icon(
                   widget.icon,
-                  color: TurnaTheme.peacockTeal,
+                  color: TurnaTheme.brandTeal,
                   size: 20,
                 ),
               ),
@@ -506,7 +506,7 @@ class _GoalSliderTileState extends State<_GoalSliderTile> {
               Text(
                 widget.formatValue(_value),
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: TurnaTheme.peacockTeal,
+                      color: TurnaTheme.brandTeal,
                       fontWeight: FontWeight.w700,
                     ),
               ),
@@ -520,7 +520,7 @@ class _GoalSliderTileState extends State<_GoalSliderTile> {
               min: 0,
               max: divisions.toDouble(),
               divisions: divisions,
-              activeColor: TurnaTheme.peacockTeal,
+              activeColor: TurnaTheme.brandTeal,
               inactiveColor: TurnaTheme.dividerBg(context),
               onChanged: (index) {
                 final stepIndex = index.round().clamp(0, divisions);
@@ -597,14 +597,14 @@ class _StatsSection extends StatelessWidget {
             settingsTileDivider(context),
             _StatRow(
               icon: Icons.star_rounded,
-              iconColor: TurnaTheme.peacockTeal,
+              iconColor: TurnaTheme.brandTeal,
               label: AppStrings.profileTotalXp,
               value: _formatNumber(stats.score),
             ),
             settingsTileDivider(context),
             _StatRow(
               icon: Icons.diamond_rounded,
-              iconColor: TurnaTheme.peacockTurquoise,
+              iconColor: TurnaTheme.brandReed,
               label: AppStrings.profileGems,
               value: _formatNumber(stats.gems),
             ),
@@ -708,7 +708,7 @@ class _StatRow extends StatelessWidget {
             value,
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   fontWeight: FontWeight.w700,
-                  color: TurnaTheme.peacockTeal,
+                  color: TurnaTheme.brandTeal,
                 ),
           ),
         ],

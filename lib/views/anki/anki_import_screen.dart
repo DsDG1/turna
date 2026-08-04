@@ -193,7 +193,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
                     Icon(
                       Icons.upload_file_rounded,
                       size: 80,
-                      color: TurnaTheme.peacockTeal.withValues(alpha: 0.6),
+                      color: TurnaTheme.brandTeal.withValues(alpha: 0.6),
                     ),
                     const SizedBox(height: 24),
                     Text(
@@ -227,7 +227,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
                       icon: const Icon(Icons.folder_open),
                       label: Text(AppStrings.ankiChooseFile),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: TurnaTheme.peacockTeal,
+                        backgroundColor: TurnaTheme.brandTeal,
                         foregroundColor: TurnaTheme.textOnPrimary,
                         padding: const EdgeInsets.symmetric(
                             horizontal: 32, vertical: 16),
@@ -256,8 +256,8 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
                         icon: const Icon(Icons.search),
                         label: Text(AppStrings.ankiFallbackScanTitle),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: TurnaTheme.peacockTeal,
-                          side: const BorderSide(color: TurnaTheme.peacockTeal),
+                          foregroundColor: TurnaTheme.brandTeal,
+                          side: const BorderSide(color: TurnaTheme.brandTeal),
                           padding: const EdgeInsets.symmetric(
                               horizontal: 24, vertical: 12),
                           shape: RoundedRectangleBorder(
@@ -271,7 +271,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
                         icon: const Icon(Icons.edit_note, size: 18),
                         label: Text(AppStrings.ankiFallbackPathTitle),
                         style: TextButton.styleFrom(
-                          foregroundColor: TurnaTheme.peacockTeal,
+                          foregroundColor: TurnaTheme.brandTeal,
                         ),
                       ),
                     ],
@@ -281,8 +281,8 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
                       icon: const Icon(Icons.auto_awesome_rounded),
                       label: Text(AppStrings.ankiTrySample),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: TurnaTheme.peacockTeal,
-                        side: const BorderSide(color: TurnaTheme.peacockTeal),
+                        foregroundColor: TurnaTheme.brandTeal,
+                        side: const BorderSide(color: TurnaTheme.brandTeal),
                         padding: const EdgeInsets.symmetric(
                             horizontal: 28, vertical: 14),
                         shape: RoundedRectangleBorder(
@@ -320,9 +320,9 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
               padding: const EdgeInsets.symmetric(horizontal: 60),
               child: LinearProgressIndicator(
                 value: _progress,
-                backgroundColor: TurnaTheme.peacockTeal.withValues(alpha: 0.1),
+                backgroundColor: TurnaTheme.brandTeal.withValues(alpha: 0.1),
                 valueColor:
-                    const AlwaysStoppedAnimation<Color>(TurnaTheme.peacockTeal),
+                    const AlwaysStoppedAnimation<Color>(TurnaTheme.brandTeal),
               ),
             )
           else
@@ -482,7 +482,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         ElevatedButton(
           onPressed: _executeImport,
           style: ElevatedButton.styleFrom(
-            backgroundColor: TurnaTheme.peacockTeal,
+            backgroundColor: TurnaTheme.brandTeal,
             foregroundColor: TurnaTheme.textOnPrimary,
             padding: const EdgeInsets.symmetric(vertical: 16),
             shape: RoundedRectangleBorder(
@@ -541,9 +541,9 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
               padding: const EdgeInsets.symmetric(horizontal: 60),
               child: LinearProgressIndicator(
                 value: _progress,
-                backgroundColor: TurnaTheme.peacockTeal.withValues(alpha: 0.1),
+                backgroundColor: TurnaTheme.brandTeal.withValues(alpha: 0.1),
                 valueColor:
-                    const AlwaysStoppedAnimation<Color>(TurnaTheme.peacockTeal),
+                    const AlwaysStoppedAnimation<Color>(TurnaTheme.brandTeal),
               ),
             )
           else
@@ -626,7 +626,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
             ElevatedButton(
               onPressed: _startLearningNow,
               style: ElevatedButton.styleFrom(
-                backgroundColor: TurnaTheme.peacockTeal,
+                backgroundColor: TurnaTheme.brandTeal,
                 foregroundColor: TurnaTheme.textOnPrimary,
                 padding:
                     const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
@@ -1433,7 +1433,7 @@ class _InfoCard extends StatelessWidget {
         color: TurnaTheme.cardBg(context),
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
         border: Border.all(
-          color: TurnaTheme.peacockTeal.withValues(alpha: 0.12),
+          color: TurnaTheme.brandTeal.withValues(alpha: 0.12),
         ),
       ),
       child: Column(
@@ -1569,11 +1569,11 @@ class _NotetypeMappingRow extends StatelessWidget {
                               horizontal: 10, vertical: 8),
                           decoration: BoxDecoration(
                             color:
-                                TurnaTheme.peacockTeal.withValues(alpha: 0.08),
+                                TurnaTheme.brandTeal.withValues(alpha: 0.08),
                             borderRadius:
                                 BorderRadius.circular(TurnaTheme.radiusSmall),
                             border: Border.all(
-                              color: TurnaTheme.peacockTeal
+                              color: TurnaTheme.brandTeal
                                   .withValues(alpha: 0.18),
                             ),
                           ),
@@ -1582,7 +1582,7 @@ class _NotetypeMappingRow extends StatelessWidget {
                               const Icon(
                                 Icons.auto_awesome_outlined,
                                 size: 16,
-                                color: TurnaTheme.peacockTeal,
+                                color: TurnaTheme.brandTeal,
                               ),
                               const SizedBox(width: 7),
                               Expanded(
@@ -1605,7 +1605,7 @@ class _NotetypeMappingRow extends StatelessWidget {
                   const Icon(
                     Icons.edit_outlined,
                     size: 20,
-                    color: TurnaTheme.peacockTeal,
+                    color: TurnaTheme.brandTeal,
                   ),
                 ],
               ),

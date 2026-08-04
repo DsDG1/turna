@@ -92,7 +92,7 @@ class _CenterDisplayState extends State<CenterDisplay>
             style: AppFonts.nunito(
               fontSize: 36,
               fontWeight: FontWeight.w800,
-              color: TurnaTheme.peacockTeal,
+              color: TurnaTheme.brandTeal,
               letterSpacing: 0.5,
             ),
           ),

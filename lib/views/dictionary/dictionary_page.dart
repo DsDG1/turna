@@ -145,7 +145,7 @@ class _DictionaryTile extends StatelessWidget {
                   Text(
                     _kindLabel(context),
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: TurnaTheme.peacockTeal,
+                          color: TurnaTheme.brandTeal,
                           fontWeight: FontWeight.w700,
                         ),
                   ),
@@ -184,7 +184,7 @@ class _DictionaryTile extends StatelessWidget {
               onPressed: onSpeak,
               icon: const Icon(
                 Icons.volume_up_rounded,
-                color: TurnaTheme.peacockTeal,
+                color: TurnaTheme.brandTeal,
               ),
             ),
           ],

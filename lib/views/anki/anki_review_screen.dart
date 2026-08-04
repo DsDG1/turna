@@ -92,7 +92,7 @@ class _AnkiReviewBody extends StatelessWidget {
             color: TurnaTheme.cardBg(context),
             borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
             border: Border.all(
-              color: TurnaTheme.peacockTeal.withValues(alpha: 0.12),
+              color: TurnaTheme.brandTeal.withValues(alpha: 0.12),
             ),
           ),
           child: Row(
@@ -125,27 +125,27 @@ class _AnkiReviewBody extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             margin: const EdgeInsets.only(bottom: 16),
             decoration: BoxDecoration(
-              color: TurnaTheme.peacockTeal.withValues(alpha: 0.1),
+              color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
             ),
             child: Row(
               children: [
                 const Icon(Icons.notifications_active,
-                    color: TurnaTheme.peacockTeal),
+                    color: TurnaTheme.brandTeal),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     AppStrings.ankiCardsDueReview(totalDue),
                     style: const TextStyle(
                       fontWeight: FontWeight.w600,
-                      color: TurnaTheme.peacockTeal,
+                      color: TurnaTheme.brandTeal,
                     ),
                   ),
                 ),
                 ElevatedButton(
                   onPressed: () => _startReview(context, null),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: TurnaTheme.peacockTeal,
+                    backgroundColor: TurnaTheme.brandTeal,
                     foregroundColor: TurnaTheme.textOnPrimary,
                   ),
                   child: Text(AppStrings.ankiReviewAll),
@@ -383,7 +383,7 @@ class _AnkiReviewBody extends StatelessWidget {
             Icon(
               Icons.layers_outlined,
               size: 80,
-              color: TurnaTheme.peacockTeal.withValues(alpha: 0.4),
+              color: TurnaTheme.brandTeal.withValues(alpha: 0.4),
             ),
             const SizedBox(height: 24),
             Text(
@@ -405,7 +405,7 @@ class _AnkiReviewBody extends StatelessWidget {
               icon: const Icon(Icons.add),
               label: Text(AppStrings.ankiImportDeck),
               style: ElevatedButton.styleFrom(
-                backgroundColor: TurnaTheme.peacockTeal,
+                backgroundColor: TurnaTheme.brandTeal,
                 foregroundColor: TurnaTheme.textOnPrimary,
                 padding:
                     const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
@@ -465,7 +465,7 @@ class _AnkiSectionCard extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
               border: Border.all(
-                color: TurnaTheme.peacockTeal.withValues(alpha: 0.12),
+                color: TurnaTheme.brandTeal.withValues(alpha: 0.12),
               ),
             ),
             child: Row(
@@ -473,12 +473,12 @@ class _AnkiSectionCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: TurnaTheme.peacockTeal.withValues(alpha: 0.12),
+                    color: TurnaTheme.brandTeal.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(
                     Icons.layers_rounded,
-                    color: TurnaTheme.peacockTeal,
+                    color: TurnaTheme.brandTeal,
                     size: 24,
                   ),
                 ),
@@ -512,7 +512,7 @@ class _AnkiSectionCard extends StatelessWidget {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: TurnaTheme.peacockTeal,
+                      color: TurnaTheme.brandTeal,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -528,7 +528,7 @@ class _AnkiSectionCard extends StatelessWidget {
                 Icon(
                   Icons.arrow_forward_ios_rounded,
                   size: 16,
-                  color: TurnaTheme.peacockTeal.withValues(alpha: 0.5),
+                  color: TurnaTheme.brandTeal.withValues(alpha: 0.5),
                 ),
                 const SizedBox(width: 4),
                 _UninstallMenuButton(

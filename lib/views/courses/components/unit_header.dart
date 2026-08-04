@@ -22,7 +22,7 @@ class UnitHeader extends StatelessWidget {
             width: 3,
             height: 18,
             decoration: BoxDecoration(
-              color: TurnaTheme.peacockTeal.withValues(alpha: 0.5),
+              color: TurnaTheme.brandTeal.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(2),
             ),
           ),

@@ -236,7 +236,7 @@ class AiOrbitWidget(QWidget):
     def _apply_style(self) -> None:
         p = current_palette()
         border_color = p.get("border", "#2C313C")
-        accent = p.get("ai_accent", "#46D1BF")
+        accent = p.get("ai_accent", "#78C7B8")
         accent_border = p.get("ai_accent_border", "#1F727E")
 
         self.orbit_zone.setStyleSheet(
@@ -270,7 +270,7 @@ class AiOrbitWidget(QWidget):
         self._drag_active = active
         p = current_palette()
         border_color = (
-            p.get("ai_accent", "#46D1BF") if active else p.get("border", "#2C313C")
+            p.get("ai_accent", "#78C7B8") if active else p.get("border", "#2C313C")
         )
         self.orbit_zone.setStyleSheet(
             f"QWidget#orbitZone {{"

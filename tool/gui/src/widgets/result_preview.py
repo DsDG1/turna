@@ -28,7 +28,7 @@ from src.theme import current_palette
 
 
 class _StatCard(QFrame):
-    """A small peacock-styled stat tile (label + value)."""
+    """A small Turna-styled stat tile (label + value)."""
 
     def __init__(self, label: str, value: str, parent: QWidget | None = None) -> None:
         super().__init__(parent)

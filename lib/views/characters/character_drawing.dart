@@ -74,7 +74,7 @@ class _CharacterPracticeScreenState extends State<CharacterPracticeScreen> {
                 return _CharacterTile(
                   character: entry.key,
                   pronunciation: entry.value,
-                  color: TurnaTheme.peacockTeal,
+                  color: TurnaTheme.brandTeal,
                 );
               },
               childCount: vowels.length,
@@ -122,7 +122,7 @@ class _CharacterPracticeScreenState extends State<CharacterPracticeScreen> {
                 _PracticeButton(
                   label: AppStrings.charactersLearnVowels,
                   icon: Icons.record_voice_over_rounded,
-                  color: TurnaTheme.peacockTeal,
+                  color: TurnaTheme.brandTeal,
                   onTap: () => context.router.push(
                       VowelAndConsonantLearningRoute(
                           mode: CharacterLearningMode.vowels)),
@@ -140,7 +140,7 @@ class _CharacterPracticeScreenState extends State<CharacterPracticeScreen> {
                 _PracticeButton(
                   label: AppStrings.charactersRandomPractice,
                   icon: Icons.shuffle_rounded,
-                  color: TurnaTheme.peacockCyan,
+                  color: TurnaTheme.brandSky,
                   onTap: () => context.router.push(
                       VowelAndConsonantLearningRoute(
                           mode: CharacterLearningMode.random)),
@@ -172,7 +172,7 @@ class _SectionHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
       child: Row(
         children: [
-          Icon(icon, color: TurnaTheme.peacockTeal, size: 22),
+          Icon(icon, color: TurnaTheme.brandTeal, size: 22),
           const SizedBox(width: 8),
           Text(
             title,
@@ -341,7 +341,7 @@ class RenderCharacterState extends State<RenderCharacter> {
           decoration: BoxDecoration(
             color: TurnaTheme.textOnPrimary,
             border: Border.all(
-                color: TurnaTheme.peacockTeal.withValues(alpha: 0.15)),
+                color: TurnaTheme.brandTeal.withValues(alpha: 0.15)),
             borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
           ),
           child: Stack(
@@ -353,7 +353,7 @@ class RenderCharacterState extends State<RenderCharacter> {
                     widget.alphabet,
                     style: const TextStyle(
                       fontSize: 280,
-                      color: TurnaTheme.peacockTeal,
+                      color: TurnaTheme.brandTeal,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -402,7 +402,7 @@ class RenderCharacterState extends State<RenderCharacter> {
                 top: 10,
                 right: 10,
                 child: Material(
-                  color: TurnaTheme.peacockTeal.withValues(alpha: 0.1),
+                  color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
@@ -414,7 +414,7 @@ class RenderCharacterState extends State<RenderCharacter> {
                       padding: EdgeInsets.all(8),
                       child: Icon(
                         Icons.delete_outline_rounded,
-                        color: TurnaTheme.peacockTeal,
+                        color: TurnaTheme.brandTeal,
                         size: 22,
                       ),
                     ),
@@ -515,7 +515,7 @@ class _VowelAndConsonantLearningPageState
                     style: const TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.w700,
-                      color: TurnaTheme.peacockTeal,
+                      color: TurnaTheme.brandTeal,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -532,7 +532,7 @@ class _VowelAndConsonantLearningPageState
                   ),
                   const SizedBox(width: 12),
                   Material(
-                    color: TurnaTheme.peacockTeal.withValues(alpha: 0.1),
+                    color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
                     child: InkWell(
                       borderRadius:
@@ -542,7 +542,7 @@ class _VowelAndConsonantLearningPageState
                       child: const Padding(
                         padding: EdgeInsets.all(8),
                         child: Icon(Icons.volume_up_rounded,
-                            color: TurnaTheme.peacockTeal, size: 22),
+                            color: TurnaTheme.brandTeal, size: 22),
                       ),
                     ),
                   ),
@@ -569,7 +569,7 @@ class _VowelAndConsonantLearningPageState
                         !shouldRebuildCharacter.value;
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: TurnaTheme.peacockTeal,
+                    backgroundColor: TurnaTheme.brandTeal,
                     foregroundColor: TurnaTheme.textOnPrimary,
                     shape: RoundedRectangleBorder(
                       borderRadius:
@@ -620,7 +620,7 @@ class CharacterPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = TurnaTheme.peacockTeal
+      ..color = TurnaTheme.brandTeal
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
       ..strokeWidth = 6.0

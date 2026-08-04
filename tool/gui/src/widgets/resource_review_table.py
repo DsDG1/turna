@@ -158,7 +158,7 @@ class DraggableTableWidget(QTableWidget):
             painter = QPainter(pixmap)
             painter.setRenderHint(QPainter.RenderHint.Antialiasing)
             
-            # Pill bg color based on resource type (peacock-harmonized)
+            # Pill bg color based on resource type (Turna-harmonized)
             bg = resource_type_color(row_obj.resource_type)
             
             painter.setBrush(QBrush(QColor(bg)))

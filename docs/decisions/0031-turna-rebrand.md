@@ -140,9 +140,31 @@ A reviewer should treat the following hits as **legitimately retained**
   `LICENSE`).
 - Historical entries inside `CHANGELOG` / ADRs.
 - One-shot migration code in `tool/gui` (read-old-write-new for
-  QSettings + local dirs).
-- `.varnamala-backup` paths in course-internal backup logic and fixtures.
-- Image / launcher / icon file names listed in §"Out of scope".
+  QSettings + local dirs). Includes:
+  - `tool/gui/src/application/settings.py` — `LEGACY_ORG_NAME`,
+    `app_data_dir(legacy_name=…)`, `course_clones_dir(legacy_name=…)`,
+    `migrate_legacy_varnamala_qsettings`.
+  - `tool/gui/src/app.py` — `migrate_legacy_varnamala_qsettings` call site.
+  - `tool/gui/src/backend/credential_store.py` —
+    `_KEYRING_SERVICE_LEGACY = "varnamala.git"` and the legacy read path.
+  - `tool/gui/src/backend/ai_config_file.py` —
+    `CONFIG_KIND_LEGACY = "varnamala.ai_config"` (dual-kind acceptance).
+- `.varnamala-backup` paths in course-internal backup logic and fixtures
+  (`tool/gui/src/backend/course_adapter.py`,
+  `assets/courses/turkish/.gitignore`, BASELINE history files).
+- Generated Flutter / Hvigor cache files that bake in the absolute path
+  to the on-disk repo root (`ios/Flutter/Generated.xcconfig`,
+  `macos/Flutter/ephemeral/Flutter-Generated.xcconfig`,
+  `windows/flutter/ephemeral/generated_config.cmake`,
+  `ohos/.hvigor/**`). These regenerate from the directory path on every
+  build and are not part of the source-of-truth.
+- Physical upstream repo slug `Varnamalaplus` in `README.md`'s `git clone`
+  command (line 43–44) and inside `file:///` slugs in older analysis
+  docs — the upstream directory has not been renamed, so URLs and
+  path slugs referencing it stay.
+- Test baseline history files (`test/BASELINE.md`,
+  `tool/gui/tests/BASELINE.md`) — describe historical test outcomes
+  that pre-date the rebrand; only the *current-reality* line is updated.
 
 Everything else — current product copy, current `package:` imports,
 current platform display names, current publish IDs — must end up

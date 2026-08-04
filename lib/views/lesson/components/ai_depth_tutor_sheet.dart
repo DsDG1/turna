@@ -213,7 +213,7 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
     return Row(
       children: [
         const Icon(Icons.auto_awesome_rounded,
-            color: TurnaTheme.peacockTeal, size: 22),
+            color: TurnaTheme.brandTeal, size: 22),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
@@ -300,7 +300,7 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
     if (_loading) {
       return const Center(
         child: CircularProgressIndicator(
-          color: TurnaTheme.peacockTeal,
+          color: TurnaTheme.brandTeal,
           strokeWidth: 3,
         ),
       );
@@ -396,7 +396,7 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
         child: Text(
           text,
           style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: TurnaTheme.peacockTeal,
+                color: TurnaTheme.brandTeal,
                 fontWeight: FontWeight.w600,
               ),
         ),
@@ -428,7 +428,7 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
         '$a  vs  $b',
         style: Theme.of(context).textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w700,
-              color: TurnaTheme.peacockTeal,
+              color: TurnaTheme.brandTeal,
             ),
       );
 

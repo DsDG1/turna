@@ -94,8 +94,8 @@ class KnowledgeBubble(QWidget):
         self.setCursor(Qt.CursorShape.OpenHandCursor)
 
     def _apply_style(self) -> None:
-        # Styled pill colors - peacock-harmonized via theme_tokens.
-        # Peacock teal for words, emerald for expressions, amber for grammar points.
+        # Styled pill colors - Turna-harmonized via theme_tokens.
+        # Turna teal for words, emerald for expressions, amber for grammar points.
         bg = resource_type_color(self.resource_type)
 
         self.setStyleSheet(

@@ -155,9 +155,9 @@ class _TranslateBodyState extends State<_TranslateBody> {
                     label: Text(h),
                     onPressed: submitted ? null : () => _applyHint(h),
                     backgroundColor:
-                        TurnaTheme.peacockCyan.withValues(alpha: 0.12),
+                        TurnaTheme.brandSky.withValues(alpha: 0.12),
                     labelStyle: const TextStyle(
-                      color: TurnaTheme.peacockDeep,
+                      color: TurnaTheme.brandNavy,
                       fontWeight: FontWeight.w600,
                     ),
                     shape: RoundedRectangleBorder(

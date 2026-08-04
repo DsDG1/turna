@@ -204,7 +204,7 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
               height: 16,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                color: TurnaTheme.peacockTeal,
+                color: TurnaTheme.brandTeal,
               ),
             ),
             const SizedBox(width: 8),

@@ -70,6 +70,9 @@ class FakeAudioController implements AudioController {
   }
 
   @override
+  Future<bool> playAnkiMedia(String ref) async => false;
+
+  @override
   void setTtsSpeed(double speed) {}
 
   @override

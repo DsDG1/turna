@@ -31,17 +31,17 @@ class AiGroupCard extends StatelessWidget {
   final List<Widget> children;
   final EdgeInsetsGeometry padding;
 
-  /// Accent color for the header icon. Defaults to the peacock teal accent.
+  /// Accent color for the header icon. Defaults to the Turna teal accent.
   final Color? accent;
 
   @override
   Widget build(BuildContext context) {
     final a =
-        TurnaTheme.accentOnCard(context, accent ?? TurnaTheme.peacockTeal);
+        TurnaTheme.accentOnCard(context, accent ?? TurnaTheme.brandTeal);
     return Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: TurnaTheme.softTint(context, accent ?? TurnaTheme.peacockTeal),
+        color: TurnaTheme.softTint(context, accent ?? TurnaTheme.brandTeal),
         borderRadius: BorderRadius.circular(TurnaTheme.radiusXLarge - 4),
         border: Border.all(
           color: TurnaTheme.glassBorder(context),
@@ -92,7 +92,7 @@ class AiSurfaceCard extends StatelessWidget {
     return Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: TurnaTheme.softTint(context, accent ?? TurnaTheme.peacockTeal),
+        color: TurnaTheme.softTint(context, accent ?? TurnaTheme.brandTeal),
         borderRadius: BorderRadius.circular(TurnaTheme.radiusXLarge - 4),
         border: Border.all(
           color: TurnaTheme.glassBorder(context),
@@ -132,7 +132,7 @@ InputDecoration aiSheetInputDecoration(
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
       borderSide: const BorderSide(
-        color: TurnaTheme.peacockTeal,
+        color: TurnaTheme.brandTeal,
         width: 1.2,
       ),
     ),
@@ -158,6 +158,6 @@ ButtonStyle aiSheetSecondaryButtonStyle() => OutlinedButton.styleFrom(
         borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
       ),
       side: BorderSide(
-        color: TurnaTheme.peacockTeal.withValues(alpha: 0.5),
+        color: TurnaTheme.brandTeal.withValues(alpha: 0.5),
       ),
     );

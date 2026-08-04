@@ -98,7 +98,7 @@ class _DailyChallengePageState extends State<DailyChallengePage> {
             if (vm.lesson == null) {
               return const Center(
                 child: CircularProgressIndicator(
-                  color: TurnaTheme.peacockTeal,
+                  color: TurnaTheme.brandTeal,
                   strokeWidth: 3,
                 ),
               );

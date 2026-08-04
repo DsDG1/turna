@@ -25,7 +25,7 @@ class BottomNavigator extends StatelessWidget {
           color: TurnaTheme.bottomNavBg(context),
           boxShadow: [
             BoxShadow(
-              color: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
+              color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
               blurRadius: 20,
               offset: const Offset(0, -4),
             ),
@@ -90,7 +90,7 @@ class _NavItem extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected
-              ? TurnaTheme.peacockTeal.withValues(alpha: 0.1)
+              ? TurnaTheme.brandTeal.withValues(alpha: 0.1)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
         ),
@@ -100,7 +100,7 @@ class _NavItem extends StatelessWidget {
             Icon(
               icon,
               size: 26,
-              color: isSelected ? TurnaTheme.peacockTeal : TurnaTheme.textHint,
+              color: isSelected ? TurnaTheme.brandTeal : TurnaTheme.textHint,
             ),
             const SizedBox(height: 2),
             Text(
@@ -109,7 +109,7 @@ class _NavItem extends StatelessWidget {
                 fontSize: 11,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                 color:
-                    isSelected ? TurnaTheme.peacockTeal : TurnaTheme.textHint,
+                    isSelected ? TurnaTheme.brandTeal : TurnaTheme.textHint,
               ),
             ),
           ],

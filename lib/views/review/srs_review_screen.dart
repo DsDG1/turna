@@ -262,7 +262,7 @@ class _SrsReviewPageState extends State<SrsReviewPage> {
                   child: ElevatedButton(
                     onPressed: () => setState(() => _showAnswer = true),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: TurnaTheme.peacockTeal,
+                      backgroundColor: TurnaTheme.brandTeal,
                       foregroundColor: TurnaTheme.textOnPrimary,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
@@ -323,7 +323,7 @@ class _FlashCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
           boxShadow: [
             BoxShadow(
-              color: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
+              color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),
@@ -347,7 +347,7 @@ class _FlashCard extends StatelessWidget {
                 onPressed: onSpeak,
                 icon: const Icon(Icons.volume_up_rounded),
                 iconSize: 32,
-                color: TurnaTheme.peacockTeal,
+                color: TurnaTheme.brandTeal,
               ),
               const SizedBox(height: 24),
               if (showAnswer) ...[
@@ -357,7 +357,7 @@ class _FlashCard extends StatelessWidget {
                   _translation,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: TurnaTheme.peacockTeal,
+                        color: TurnaTheme.brandTeal,
                       ),
                   textAlign: TextAlign.center,
                 ),

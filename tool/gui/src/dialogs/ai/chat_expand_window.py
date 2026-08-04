@@ -52,7 +52,7 @@ class ChatExpandWindow(WindowUsageMixin, QDialog):
         self.progress.setVisible(False)
         self.stage_label = QLabel("")
         self.stage_label.setStyleSheet(
-            f"color: {chat_palette.get('ai_accent', '#46D1BF')}; font-size: 12px;"
+            f"color: {chat_palette.get('ai_accent', '#78C7B8')}; font-size: 12px;"
         )
         self.stage_label.setVisible(False)
         self.usage_label = QLabel("")

@@ -113,7 +113,7 @@ class _ListenOnlyBodyState extends State<_ListenOnlyBody> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
+                color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
               ),
               child: Text(

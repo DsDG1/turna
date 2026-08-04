@@ -15,7 +15,7 @@ class ReviewRatingBar extends StatelessWidget {
   const ReviewRatingBar({
     super.key,
     required this.onRate,
-    this.prompt = 'Do you know this word?',
+    this.prompt = AppStrings.reviewDoYouKnow,
     this.failPreview,
     this.passPreview,
   });
@@ -122,9 +122,9 @@ class ReviewEmptyState extends StatelessWidget {
     super.key,
     required this.onRefresh,
     required this.dueCount,
-    this.title = 'Review',
-    this.emptyMessage = "You've reviewed everything for now.",
-    this.dueMessage = 'words are already due — pull to refresh',
+    this.title = AppStrings.reviewEmptyTitle,
+    this.emptyMessage = AppStrings.reviewEmptyMessage,
+    this.dueMessage = AppStrings.reviewDueMessage,
   });
 
   @override
@@ -188,14 +188,14 @@ class ReviewCompletionState extends StatelessWidget {
     required this.gemsEarned,
     required this.onDone,
     required this.onReviewMore,
-    this.title = 'Session Complete!',
-    this.completionMessage = 'You reviewed everything.',
+    this.title = AppStrings.reviewCompletionTitle,
+    this.completionMessage = AppStrings.reviewCompletionMessage,
   });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(AppStrings.reviewEmptyTitle)),
+      appBar: AppBar(title: Text(AppStrings.reviewReviewAppBarTitle)),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -223,12 +223,12 @@ class ReviewCompletionState extends StatelessWidget {
               const SizedBox(height: 12),
               Text(
                 [
-                  if (xpEarned > 0) '+$xpEarned XP',
-                  if (gemsEarned > 0) '+$gemsEarned Gems',
+                  if (xpEarned > 0) AppStrings.reviewXpEarned(xpEarned),
+                  if (gemsEarned > 0) AppStrings.reviewGemsEarned(gemsEarned),
                 ].join('  ·  '),
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w800,
-                      color: TurnaTheme.peacockTeal,
+                      color: TurnaTheme.brandTeal,
                     ),
               ),
             ],

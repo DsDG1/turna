@@ -155,7 +155,7 @@ class _SettingsPageState extends State<SettingsPage> {
             children: [
               Icon(
                 titleIcon,
-                color: TurnaTheme.peacockTeal,
+                color: TurnaTheme.brandTeal,
                 size: 22,
               ),
               const SizedBox(width: 8),

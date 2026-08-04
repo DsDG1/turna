@@ -26,7 +26,7 @@ import 'package:turna/views/theme.dart';
 /// Visual style mirrors the learning (course tree) page:
 ///   - mint gradient background (`courseTreeGradientFor`)
 ///   - white/dark cards with soft shadow + 1px border
-///   - peacockTeal-tinted icon tiles and version pill
+///   - Turna teal-tinted icon tiles and version pill
 ///   - section headers rendered as a short teal bar + title (UnitHeader rhythm)
 class AboutTurnaPage extends StatelessWidget {
   const AboutTurnaPage({super.key});
@@ -60,9 +60,9 @@ class AboutTurnaPage extends StatelessWidget {
             child: Container(
               color: TurnaTheme.scaffoldBg(context),
               child: TabBar(
-                indicatorColor: TurnaTheme.peacockTeal,
+                indicatorColor: TurnaTheme.brandTeal,
                 indicatorWeight: 3,
-                labelColor: TurnaTheme.peacockTeal,
+                labelColor: TurnaTheme.brandTeal,
                 unselectedLabelColor: TurnaTheme.textHintColor(context),
                 labelStyle: Theme.of(context).textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w700,
@@ -240,9 +240,54 @@ class _AboutTab extends StatelessWidget {
                 ),
                 _LinkDivider(),
                 _LinkTile(
+                  icon: Icons.desktop_mac_rounded,
+                  title: AppStrings.aboutToolGuiLinkTitle,
+                  subtitle: AppStrings.aboutToolGuiLinkSubtitle,
+                  onTap: () => onLaunchUrl(
+                    'https://github.com/rshrc/Varnamala#课程编辑器-toolgui',
+                  ),
+                ),
+                _LinkDivider(),
+                _LinkTile(
                   icon: Icons.share_rounded,
                   title: AppStrings.aboutShareTitle,
                   onTap: () => onShare(context),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          _SectionHeader(text: AppStrings.aboutToolsTitle),
+          const SizedBox(height: 10),
+          _AboutCard(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                _ToolTile(
+                  icon: Icons.desktop_mac_rounded,
+                  title: AppStrings.aboutToolGuiName,
+                  description: AppStrings.aboutToolGuiDesc,
+                  onTap: () => onLaunchUrl(
+                    'https://github.com/rshrc/Varnamala/tree/main/tool/gui',
+                  ),
+                ),
+                _LinkDivider(),
+                _ToolTile(
+                  icon: Icons.terminal_rounded,
+                  title: AppStrings.aboutToolCliName,
+                  description: AppStrings.aboutToolCliDesc,
+                  onTap: () => onLaunchUrl(
+                    'https://github.com/rshrc/Varnamala/blob/main/tool/course_cli.py',
+                  ),
+                ),
+                _LinkDivider(),
+                _ToolTile(
+                  icon: Icons.menu_book_rounded,
+                  title: AppStrings.aboutToolDocsName,
+                  description: AppStrings.aboutToolDocsDesc,
+                  onTap: () => onLaunchUrl(
+                    'https://github.com/rshrc/Varnamala/blob/main/docs/project-guide.md',
+                  ),
                 ),
               ],
             ),
@@ -312,7 +357,7 @@ class _SectionHeader extends StatelessWidget {
             width: 3,
             height: 18,
             decoration: BoxDecoration(
-              color: TurnaTheme.peacockTeal.withValues(alpha: 0.5),
+              color: TurnaTheme.brandTeal.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -331,7 +376,7 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-/// Compact brand area card (replaces the old `peacockGradient` banner).
+/// Compact brand area card (replaces the old brand gradient banner).
 ///
 /// Layout mirrors the section switcher on the learning page: tinted icon
 /// tile on the left, brand + tagline in the middle, version pill on the
@@ -366,12 +411,12 @@ class _BrandHeader extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: TurnaTheme.peacockTeal.withValues(alpha: 0.1),
+                  color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
                 ),
                 child: const Icon(
                   Icons.school_rounded,
-                  color: TurnaTheme.peacockTeal,
+                  color: TurnaTheme.brandTeal,
                   size: 24,
                 ),
               ),
@@ -408,7 +453,7 @@ class _BrandHeader extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: TurnaTheme.peacockTeal.withValues(alpha: 0.1),
+                  color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
                 ),
                 child: Text(
@@ -416,7 +461,7 @@ class _BrandHeader extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: TurnaTheme.peacockTeal,
+                    color: TurnaTheme.brandTeal,
                   ),
                 ),
               ),
@@ -484,12 +529,12 @@ class _HighlightCard extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: TurnaTheme.peacockTeal.withValues(alpha: 0.1),
+              color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
             ),
             child: Icon(
               icon,
-              color: TurnaTheme.peacockTeal,
+              color: TurnaTheme.brandTeal,
               size: 22,
             ),
           ),
@@ -549,12 +594,12 @@ class _LinkTile extends StatelessWidget {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: TurnaTheme.peacockTeal.withValues(alpha: 0.08),
+                  color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
                 ),
                 child: Icon(
                   icon,
-                  color: TurnaTheme.peacockTeal,
+                  color: TurnaTheme.brandTeal,
                   size: 20,
                 ),
               ),
@@ -599,6 +644,87 @@ class _LinkDivider extends StatelessWidget {
       indent: 64,
       endIndent: 16,
       color: TurnaTheme.dividerBg(context),
+    );
+  }
+}
+
+/// Richer row used in the "配套工具" section: 40px icon tile + bold title +
+/// 1-line secondary description + trailing arrow. Tap opens the URL.
+class _ToolTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String description;
+  final VoidCallback? onTap;
+
+  const _ToolTile({
+    required this.icon,
+    required this.title,
+    required this.description,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+                ),
+                child: Icon(
+                  icon,
+                  color: TurnaTheme.brandTeal,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: TurnaTheme.textPrimaryColor(context),
+                          ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      description,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: TurnaTheme.textSecondaryColor(context),
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 14,
+                color: TurnaTheme.textHintColor(context),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

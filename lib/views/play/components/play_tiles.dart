@@ -46,14 +46,14 @@ class QuickPlayHero extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                TurnaTheme.peacockTeal,
-                TurnaTheme.peacockCyan,
+                TurnaTheme.brandTeal,
+                TurnaTheme.brandSky,
               ],
             ),
             borderRadius: radius,
             boxShadow: [
               BoxShadow(
-                color: TurnaTheme.peacockTeal.withValues(alpha: 0.25),
+                color: TurnaTheme.brandTeal.withValues(alpha: 0.25),
                 blurRadius: 16,
                 offset: const Offset(0, 8),
               ),

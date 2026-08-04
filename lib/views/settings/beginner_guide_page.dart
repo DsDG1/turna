@@ -17,7 +17,7 @@ import 'package:turna/views/theme.dart';
 ///
 /// Reached from Settings > 关于 > 新手指南. Visual style mirrors the About
 /// page: course-tree gradient background, soft white/dark cards with a 1px
-/// border, peacock-teal icon tiles, and short-bar section headers.
+/// border, Turna teal icon tiles, and short-bar section headers.
 ///
 /// Each feature card jumps to its feature:
 ///   - Tab destinations (学习 / 练习 / 我的) switch the bottom nav via
@@ -165,7 +165,7 @@ class QuickStartFromAsset extends StatelessWidget {
                 height: 24,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.5,
-                  color: TurnaTheme.peacockTeal,
+                  color: TurnaTheme.brandTeal,
                 ),
               ),
             ),
@@ -328,14 +328,14 @@ class _QuickStartSection extends StatelessWidget {
                 height: 32,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: TurnaTheme.peacockTeal.withValues(alpha: 0.1),
+                  color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
                 ),
                 child: Text(
                   section.number,
                   style: const TextStyle(
                     fontWeight: FontWeight.w700,
-                    color: TurnaTheme.peacockTeal,
+                    color: TurnaTheme.brandTeal,
                     fontSize: 13,
                   ),
                 ),
@@ -370,7 +370,7 @@ class _QuickStartSection extends StatelessWidget {
   }
 }
 
-/// Peacock-gradient hero with a welcome icon, the page title, and a short
+/// Turna-gradient hero with a welcome icon, the page title, and a short
 /// intro explaining the "tap a card to jump" affordance.
 class _IntroHero extends StatelessWidget {
   const _IntroHero();
@@ -381,7 +381,7 @@ class _IntroHero extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: TurnaTheme.peacockGradient,
+        gradient: TurnaTheme.brandGradient,
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
         boxShadow: TurnaTheme.softShadow,
       ),
@@ -443,7 +443,7 @@ class _SectionHeader extends StatelessWidget {
             width: 3,
             height: 18,
             decoration: BoxDecoration(
-              color: TurnaTheme.peacockTeal.withValues(alpha: 0.5),
+              color: TurnaTheme.brandTeal.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -502,13 +502,13 @@ class _FeatureCard extends StatelessWidget {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: TurnaTheme.peacockTeal.withValues(alpha: 0.1),
+                      color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
                       borderRadius:
                           BorderRadius.circular(TurnaTheme.radiusMedium),
                     ),
                     child: Icon(
                       icon,
-                      color: TurnaTheme.peacockTeal,
+                      color: TurnaTheme.brandTeal,
                       size: 22,
                     ),
                   ),
@@ -543,7 +543,7 @@ class _FeatureCard extends StatelessWidget {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
-                      color: TurnaTheme.peacockTeal.withValues(alpha: 0.1),
+                      color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
                       borderRadius:
                           BorderRadius.circular(TurnaTheme.radiusRound),
                     ),
@@ -554,7 +554,7 @@ class _FeatureCard extends StatelessWidget {
                           AppStrings.beginnerGuideTryNow,
                           style:
                               Theme.of(context).textTheme.labelSmall?.copyWith(
-                                    color: TurnaTheme.peacockTeal,
+                                    color: TurnaTheme.brandTeal,
                                     fontWeight: FontWeight.w700,
                                   ),
                         ),
@@ -562,7 +562,7 @@ class _FeatureCard extends StatelessWidget {
                         const Icon(
                           Icons.arrow_forward_rounded,
                           size: 14,
-                          color: TurnaTheme.peacockTeal,
+                          color: TurnaTheme.brandTeal,
                         ),
                       ],
                     ),

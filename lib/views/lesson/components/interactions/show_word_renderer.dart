@@ -127,7 +127,7 @@ class _ShowWordCard extends StatelessWidget {
                           const SizedBox(width: 12),
                           const Icon(
                             Icons.volume_up_rounded,
-                            color: TurnaTheme.peacockTeal,
+                            color: TurnaTheme.brandTeal,
                             size: 28,
                           ),
                         ],
@@ -160,7 +160,7 @@ class _ShowWordCard extends StatelessWidget {
                               horizontal: 16, vertical: 12),
                           decoration: BoxDecoration(
                             color:
-                                TurnaTheme.peacockTeal.withValues(alpha: 0.06),
+                                TurnaTheme.brandTeal.withValues(alpha: 0.06),
                             borderRadius:
                                 BorderRadius.circular(TurnaTheme.radiusMedium),
                           ),
@@ -169,7 +169,7 @@ class _ShowWordCard extends StatelessWidget {
                             children: [
                               const Icon(
                                 Icons.volume_up_rounded,
-                                color: TurnaTheme.peacockTeal,
+                                color: TurnaTheme.brandTeal,
                                 size: 18,
                               ),
                               const SizedBox(width: 8),

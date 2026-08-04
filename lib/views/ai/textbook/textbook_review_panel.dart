@@ -78,9 +78,9 @@ class _TextbookReviewPanelState extends State<TextbookReviewPanel>
         const SizedBox(height: 8),
         TabBar(
           controller: _tabs,
-          labelColor: TurnaTheme.peacockTeal,
+          labelColor: TurnaTheme.brandTeal,
           unselectedLabelColor: TurnaTheme.textHintColor(context),
-          indicatorColor: TurnaTheme.peacockTeal,
+          indicatorColor: TurnaTheme.brandTeal,
           tabs: [
             Tab(text: '${AppStrings.aiTextbookTabWords} (${p.totalWordCount})'),
             Tab(
@@ -117,7 +117,7 @@ class _CountChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: TurnaTheme.peacockTeal.withValues(alpha: 0.1),
+        color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
       ),
       child: Text(
@@ -125,7 +125,7 @@ class _CountChip extends StatelessWidget {
         style: const TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w600,
-          color: TurnaTheme.peacockTeal,
+          color: TurnaTheme.brandTeal,
         ),
       ),
     );

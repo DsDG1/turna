@@ -45,8 +45,8 @@ class SectionVisuals {
           foreground: TurnaTheme.successDark,
         ),
       'section2' => (
-          background: TurnaTheme.peacockCyan.withValues(alpha: 0.18),
-          foreground: TurnaTheme.peacockTeal,
+          background: TurnaTheme.brandSky.withValues(alpha: 0.18),
+          foreground: TurnaTheme.brandTeal,
         ),
       'section3' => (
           background: TurnaTheme.warning.withValues(alpha: 0.18),
@@ -69,8 +69,8 @@ class SectionVisuals {
           foreground: TurnaTheme.leagueRuby,
         ),
       'section8' => (
-          background: TurnaTheme.peacockTurquoise.withValues(alpha: 0.22),
-          foreground: TurnaTheme.peacockTeal,
+          background: TurnaTheme.brandReed.withValues(alpha: 0.22),
+          foreground: TurnaTheme.brandTeal,
         ),
       _ => (
           background: TurnaTheme.tintSoft,

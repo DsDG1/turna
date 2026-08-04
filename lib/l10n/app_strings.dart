@@ -293,7 +293,17 @@ class AppStrings {
   static String get aboutCreditsTitle => '致谢';
   static String get aboutCreditsOriginal =>
       '原始框架由 Rishi Banerjee 和 Varnamala 开源社区构建。';
-  static String get aboutCreditsFork => '本构建是一个本地优先的分叉版本，增加了无障碍设置和课程创作工具。';
+  static String get aboutCreditsFork =>
+      '本构建是一个本地优先的分叉版本，增加了无障碍设置，并在 tool/gui/ 中提供了面向创作者的桌面端课程编辑器。';
+  static String get aboutToolGuiLinkTitle => '课程编辑器（桌面端）';
+  static String get aboutToolGuiLinkSubtitle => '可视化课程编辑 · AI 课程工坊 · 一键发布';
+  static String get aboutToolsTitle => '配套工具';
+  static String get aboutToolGuiName => 'GUI 课程编辑器';
+  static String get aboutToolGuiDesc => 'PySide6 桌面应用，课程树 / AI 工坊 / 校验与发布';
+  static String get aboutToolCliName => '课程内容 CLI';
+  static String get aboutToolCliDesc => 'course_cli.py：校验 / lint / CSV / 音频清单 / diff';
+  static String get aboutToolDocsName => '项目文档';
+  static String get aboutToolDocsDesc => 'project-guide 与 authoring/ 下的创作者指南';
   static String get aboutLicense => '基于 GNU 通用公共许可证 v3.0 授权。';
   static String aboutCopyright(String year) => '© $year Turna';
   static String get aboutBrandName => 'Turna';

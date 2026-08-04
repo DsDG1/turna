@@ -25,7 +25,7 @@ class CharactersAppBar extends StatelessWidget implements PreferredSizeWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Icon(Icons.translate_rounded,
-                  color: TurnaTheme.peacockTeal, size: 22),
+                  color: TurnaTheme.brandTeal, size: 22),
               const SizedBox(width: 8),
               Text(
                 AppStrings.charactersScriptTitle(currentLanguage.toTitleCase),

@@ -94,7 +94,7 @@ class _MetricCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Card(
         child: ListTile(
-          leading: Icon(icon, color: TurnaTheme.peacockTeal),
+          leading: Icon(icon, color: TurnaTheme.brandTeal),
           title: Text(title),
           subtitle: Text(value,
               style: Theme.of(context)

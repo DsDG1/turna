@@ -134,7 +134,7 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
                   ReviewTile(
                     title: AppStrings.playGrammarReviewTitle,
                     icon: Icons.menu_book_rounded,
-                    accentColor: TurnaTheme.peacockTeal,
+                    accentColor: TurnaTheme.brandTeal,
                     badge: grammarDue > 0 ? '$grammarDue' : null,
                     onTap: () =>
                         context.router.push(const GrammarReviewRoute()),
@@ -142,7 +142,7 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
                   ReviewTile(
                     title: AppStrings.playAnkiReviewTitle,
                     icon: Icons.style_rounded,
-                    accentColor: TurnaTheme.peacockCyan,
+                    accentColor: TurnaTheme.brandSky,
                     badge: ankiDue > 0 ? '$ankiDue' : null,
                     onTap: () => context.router.push(const AnkiReviewRoute()),
                   ),
@@ -187,7 +187,7 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
                       child: ReviewTile(
                         title: AppStrings.aiHubStartTextbook,
                         icon: Icons.menu_book_rounded,
-                        accentColor: TurnaTheme.peacockCyan,
+                        accentColor: TurnaTheme.brandSky,
                         onTap: () => context.router.push(
                           const TextbookImportRoute(),
                         ),
@@ -223,7 +223,7 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
                 title: AppStrings.playReviewProgressTitle,
                 subtitle: AppStrings.playReviewProgressSubtitle,
                 icon: Icons.show_chart_rounded,
-                accentColor: TurnaTheme.peacockTeal,
+                accentColor: TurnaTheme.brandTeal,
                 onTap: () => context.router.push(const ReviewProgressRoute()),
               ),
             ),
@@ -236,7 +236,7 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
                 title: AppStrings.playDictionaryTitle,
                 subtitle: AppStrings.playDictionarySubtitle,
                 icon: Icons.menu_book_outlined,
-                accentColor: TurnaTheme.peacockCyan,
+                accentColor: TurnaTheme.brandSky,
                 onTap: () => context.router.push(const DictionaryRoute()),
               ),
             ),
@@ -266,10 +266,10 @@ class _AiStatusBar extends StatelessWidget {
     );
     final statusColor = complete ? TurnaTheme.success : TurnaTheme.warning;
     final actionColor =
-        TurnaTheme.accentOnCard(context, TurnaTheme.peacockTeal);
+        TurnaTheme.accentOnCard(context, TurnaTheme.brandTeal);
 
     return SoftCard(
-      accentColor: TurnaTheme.peacockTeal,
+      accentColor: TurnaTheme.brandTeal,
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
