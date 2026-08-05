@@ -1,6 +1,8 @@
 # Test Baseline
 
-Generated: 2026-08-05 (宝石装饰兑换第一步：`GemsProvider.spendGems` + `CosmeticProvider` 头像环三款（晨雾/芦苇/湖光）；设置→账户→装扮列表；Profile/账户头像 `AvatarWithRing`；导出 key + 账户重置清装扮。新增 `gems_spend_test` 4 + `cosmetic_provider_test` 6；账户设置 widget 测试补 CosmeticProvider。相关定向测试 **13 passed**。全量预计 **875** = 865+10。)
+Generated: 2026-08-05 (Turkish content enrichment S1–S8: CEFR outlines → template shells → grounded pool 148 words / 18 expressions / 8 grammar; no placeholders; listening+reading per section; inventory v12; `turkish_enrichment_structure_test` +5; `course_cli_test` +4 structure/lint gates. Directed: flutter enrichment+loader **34 passed**; python course_cli **11 passed**. Full suite estimate **~880**.)
+
+Previous: Generated: 2026-08-05 (宝石装饰兑换第一步：`GemsProvider.spendGems` + `CosmeticProvider` 头像环三款（晨雾/芦苇/湖光）；设置→账户→装扮列表；Profile/账户头像 `AvatarWithRing`；导出 key + 账户重置清装扮。新增 `gems_spend_test` 4 + `cosmetic_provider_test` 6；账户设置 widget 测试补 CosmeticProvider。相关定向测试 **13 passed**。全量预计 **875** = 865+10。)
 
 Previous: Generated: 2026-08-05 (Android 状态栏对齐：`colors.xml` + light/night/v27 styles；`TurnaTheme.systemUiOverlayFor` + 四套 AppBarTheme；`_AppShell` 随主题应用 SystemChrome；launch_background 雾色/深色 scaffold；wetland 契约 +7。`flutter test`：**865 passed / 0 failed**。)
 

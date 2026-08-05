@@ -1,3 +1,78 @@
 {
-  "grammarPoints": []
+  "grammarPoints": [
+    {
+      "id": "g-present-to-be",
+      "title": "Personal endings with -im / -sin (to be)",
+      "explanation": "Turkish often attaches the verb 'to be' as a personal suffix: iyiyim (I am fine), nasılsın (how are you).",
+      "exampleExpressionIds": [
+        "e-nasilsin"
+      ],
+      "exampleSentenceIds": [],
+      "practiceItems": []
+    },
+    {
+      "id": "g-vowel-harmony",
+      "title": "Vowel harmony basics",
+      "explanation": "Suffix vowels often match front/back harmony of the stem (e.g. kitap-ta, ev-de).",
+      "exampleExpressionIds": [],
+      "exampleSentenceIds": [],
+      "practiceItems": []
+    },
+    {
+      "id": "g-question-mi",
+      "title": "Yes/no questions with mi/mı/mu/mü",
+      "explanation": "Yes/no questions use a separate particle that follows vowel harmony: Güzel mi? — Is it nice?",
+      "exampleExpressionIds": [],
+      "exampleSentenceIds": [],
+      "practiceItems": []
+    },
+    {
+      "id": "g-istiyorum",
+      "title": "Wanting with istemek",
+      "explanation": "Use object + istiyorum to say what you want: Bir çay istiyorum.",
+      "exampleExpressionIds": [
+        "e-istiyorum",
+        "e-bir-cay"
+      ],
+      "exampleSentenceIds": [],
+      "practiceItems": []
+    },
+    {
+      "id": "g-locative",
+      "title": "Locative case -de/-da",
+      "explanation": "Location is marked with -de/-da (and variants): evde (at home), otelde (at the hotel).",
+      "exampleExpressionIds": [
+        "e-nerede"
+      ],
+      "exampleSentenceIds": [],
+      "practiceItems": []
+    },
+    {
+      "id": "g-present-continuous",
+      "title": "Present continuous -iyor",
+      "explanation": "Ongoing actions use -iyor plus personal endings: çalışıyorum, okuyorum.",
+      "exampleExpressionIds": [],
+      "exampleSentenceIds": [],
+      "practiceItems": []
+    },
+    {
+      "id": "g-opinion",
+      "title": "Giving opinions with bence",
+      "explanation": "Start opinions with bence (in my opinion), then a full clause.",
+      "exampleExpressionIds": [
+        "e-bence",
+        "e-katiliyorum"
+      ],
+      "exampleSentenceIds": [],
+      "practiceItems": []
+    },
+    {
+      "id": "g-abstract-nouns",
+      "title": "Talking about abstract topics",
+      "explanation": "B2 topics use abstract nouns (özgürlük, sorumluluk) with stance verbs (inanmak, tartışmak).",
+      "exampleExpressionIds": [],
+      "exampleSentenceIds": [],
+      "practiceItems": []
+    }
+  ]
 }

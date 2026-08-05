@@ -1,8 +1,15 @@
+// Dart imports:
+import 'dart:convert';
+
 // Flutter imports:
 import 'package:flutter/foundation.dart';
 
 // Package imports:
 import 'package:injectable/injectable.dart';
+
+// Project imports:
+import 'package:turna/di/injection.dart';
+import 'package:turna/service/locator.dart';
 
 /// A single completed AI task recorded by the engine's consumers.
 ///
@@ -29,6 +36,21 @@ class AiRecentTask {
   final DateTime timestamp;
   final String? route;
 
+  Map<String, dynamic> toJson() => {
+        'kind': kind,
+        'summary': summary,
+        'timestamp': timestamp.toIso8601String(),
+        'route': route,
+      };
+
+  static AiRecentTask fromJson(Map<String, dynamic> m) => AiRecentTask(
+        kind: (m['kind'] ?? AiTaskKind.generic).toString(),
+        summary: (m['summary'] ?? '').toString(),
+        timestamp: DateTime.tryParse((m['timestamp'] ?? '').toString()) ??
+            DateTime.fromMillisecondsSinceEpoch(0),
+        route: m['route']?.toString(),
+      );
+
   @override
   String toString() =>
       'AiRecentTask(kind: $kind, summary: $summary, at: $timestamp)';
@@ -47,23 +69,36 @@ class AiTaskKind {
   static const String hintChat = 'hint.chat';
   static const String lessonHelper = 'lesson-helper';
   static const String courseGenerate = 'course.generate';
+  static const String tutorChat = 'tutor.chat';
+  static const String diagnosis = 'tutor.diagnosis';
+  static const String dictionary = 'dictionary.enrich';
+  static const String saved = 'saved';
+
+  /// Companion kinds that are persisted across restarts.
+  static const Set<String> companionPersistKinds = {
+    hintChat,
+    hintDepth,
+    tutorChat,
+    diagnosis,
+    dictionary,
+    tutorMistakes,
+    tutorWeakWords,
+  };
 }
+
+/// Prefs key for companion recent tasks JSON array.
+const kAiRecentCompanionTasksKey = 'ai.recentCompanionTasks';
 
 /// In-memory ring of the most recent AI tasks completed by the engine.
 ///
-/// The engine facade itself stays domain-agnostic: every provider / feature
-/// that calls into [AiEngine] is responsible for [record]ing its outcome
-/// here. Cache hits are intentionally NOT recorded — the AI Hub's Continue
-/// section is a list of things the user actually generated, not a list of
-/// requests served from cache.
-///
-/// Lifetime is process-bound (no persistence). Resetting the engine config
-/// does NOT clear this list; only [clear] does.
+/// Companion task kinds are also persisted to prefs so they survive process
+/// restarts. Authoring kinds remain memory-only.
 @lazySingleton
 class AiRecentTasksProvider extends ChangeNotifier {
   static const int maxEntries = 20;
 
   final List<AiRecentTask> _items = <AiRecentTask>[];
+  bool _loaded = false;
 
   /// Most recent [limit] tasks (newest first). The returned list is
   /// unmodifiable; callers must not mutate it.
@@ -78,20 +113,76 @@ class AiRecentTasksProvider extends ChangeNotifier {
   /// Number of recorded tasks. Exposed for the AI Hub header chip.
   int get count => _items.length;
 
+  /// Hydrate companion tasks from prefs (call once at startup).
+  Future<void> loadPersisted() async {
+    if (_loaded) return;
+    _loaded = true;
+    final prefs = _prefs;
+    if (prefs == null) return;
+    try {
+      final raw = prefs.preferences
+          .getString(kAiRecentCompanionTasksKey, defaultValue: '')
+          .getValue();
+      if (raw.isEmpty) return;
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return;
+      for (final e in decoded) {
+        final map = e is Map<String, dynamic>
+            ? e
+            : e is Map
+                ? Map<String, dynamic>.from(e)
+                : null;
+        if (map == null) continue;
+        final task = AiRecentTask.fromJson(map);
+        if (AiTaskKind.companionPersistKinds.contains(task.kind)) {
+          _items.add(task);
+        }
+      }
+      if (_items.length > maxEntries) {
+        _items.removeRange(0, _items.length - maxEntries);
+      }
+      if (_items.isNotEmpty) notifyListeners();
+    } catch (_) {
+      // Corrupt — keep empty.
+    }
+  }
+
   /// Append [task] to the ring, evicting the oldest entry if necessary.
   void record(AiRecentTask task) {
     _items.add(task);
     if (_items.length > maxEntries) {
       _items.removeAt(0);
     }
+    _persistCompanion();
     notifyListeners();
   }
 
-  /// Drop every recorded task. Used by the AI Hub Tools section's
-  /// "clear history" affordance if/when it ships.
+  /// Drop every recorded task.
   void clear() {
     if (_items.isEmpty) return;
     _items.clear();
+    _persistCompanion();
     notifyListeners();
+  }
+
+  AppPrefs? get _prefs {
+    if (!getIt.isRegistered<AppPrefs>()) return null;
+    try {
+      return getIt<AppPrefs>();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _persistCompanion() {
+    final prefs = _prefs;
+    if (prefs == null) return;
+    final companion = [
+      for (final t in _items)
+        if (AiTaskKind.companionPersistKinds.contains(t.kind)) t.toJson(),
+    ];
+    // Fire-and-forget.
+    prefs.preferences
+        .setString(kAiRecentCompanionTasksKey, jsonEncode(companion));
   }
 }

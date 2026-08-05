@@ -6,6 +6,8 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
+import 'package:turna/application/ai/ai_hint_provider.dart';
+import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/courses/languages/dictionary.dart';
@@ -14,6 +16,7 @@ import 'package:turna/courses/languages/vocab.dart';
 import 'package:turna/domain/course/mistake_entry.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
+import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
 import 'package:turna/views/theme.dart';
 
 @RoutePage()
@@ -178,6 +181,35 @@ class _StatItem extends StatelessWidget {
   }
 }
 
+void _openWhyWrong(
+  BuildContext context, {
+  required MistakeEntry mistake,
+  required String displayQuestion,
+  required String correctAnswer,
+}) {
+  final config = context.read<AiEngineConfigHolder>().config;
+  if (!config.isComplete) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (_) => const SafeArea(
+        child: AiNotConfiguredPanel(compact: true),
+      ),
+    );
+    return;
+  }
+  final qctx = AiQuestionContext(
+    language: 'Turkish',
+    typeLabel: 'Mistake',
+    promptLabel: displayQuestion,
+    correctLabel: correctAnswer,
+    userAnswer: mistake.userAnswer,
+  );
+  final provider = context.read<AiHintProvider>();
+  // Fire why-wrong as a depth call; surface via hint chat for streaming UX.
+  provider.reset();
+  context.router.push(AiHintChatRoute(context: qctx));
+}
+
 class _MistakeCard extends StatelessWidget {
   final MistakeEntry mistake;
 
@@ -290,6 +322,16 @@ class _MistakeCard extends StatelessWidget {
                       }
                     },
                   ),
+                _TextActionButton(
+                  icon: Icons.auto_awesome_rounded,
+                  label: AppStrings.aiExplainWhyWrong,
+                  onTap: () => _openWhyWrong(
+                    context,
+                    mistake: mistake,
+                    displayQuestion: displayQuestion,
+                    correctAnswer: correctAnswer,
+                  ),
+                ),
                 const Spacer(),
                 _TextActionButton(
                   icon: Icons.check_circle_outline_rounded,

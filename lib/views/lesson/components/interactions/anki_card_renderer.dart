@@ -1,5 +1,5 @@
 // Flutter imports:
-import 'dart:math' as math;
+import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
 
@@ -24,6 +24,10 @@ import 'package:turna/views/theme.dart';
 ///
 /// Again is an unsuccessful recall; Hard, Good and Easy are successful
 /// recalls with distinct scheduler qualities.
+///
+/// Face changes use a light scale pulse (shrink → grow) rather than a 3D
+/// rotate, so word cards feel soft and the action row does not jump with
+/// perspective height changes mid-flip.
 @injectable
 class AnkiCardRenderer extends InteractionRenderer {
   @override
@@ -73,29 +77,47 @@ class _AnkiCardBody extends StatefulWidget {
 
 class _AnkiCardBodyState extends State<_AnkiCardBody>
     with SingleTickerProviderStateMixin {
+  /// Semantic / logical face after the user asks to reveal (or hide). The
+  /// visible face still follows [_flipController] so mid-animation reverse
+  /// keeps showing the correct side.
   bool _revealed = false;
+
   late AnimationController _flipController;
-  late Animation<double> _flipAnimation;
+
+  /// Minimum scale at the midpoint of the pulse (1.0 → min → 1.0).
+  static const double _pulseMinScale = 0.94;
+
+  /// Reserved height for the action row so swapping "Show answer" ↔ grade
+  /// buttons does not jump the layout. Covers caption + spacing + 48px row.
+  static const double _actionAreaMinHeight = 88;
 
   /// Resolved TTS languages for the front/back pair (computed lazily). Null
   /// until the first speak / auto-speak call.
   ({String front, String back})? _pair;
 
+  /// Grade buttons only after the reveal pulse finishes — avoids a height
+  /// stutter while the card is still animating.
+  bool get _showGradeButtons =>
+      _revealed && _flipController.status == AnimationStatus.completed;
+
   @override
   void initState() {
     super.initState();
+    // Linear progress so the face swap stays at the true midpoint; easing is
+    // applied only to the scale envelope.
     _flipController = AnimationController(
-      duration: const Duration(milliseconds: 380),
+      duration: const Duration(milliseconds: 320),
       vsync: this,
-    );
-    _flipAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _flipController,
-        // Material 标准曲线, 收尾更柔, 避免 easeInOut 在中点的"顿一下".
-        curve: const Cubic(0.4, 0.0, 0.2, 1.0),
-      ),
-    );
+    )..addStatusListener(_onFlipStatus);
     _maybeAutoSpeakFront();
+  }
+
+  void _onFlipStatus(AnimationStatus status) {
+    // Rebuild the action row when the pulse settles (or is dismissed).
+    if (status == AnimationStatus.completed ||
+        status == AnimationStatus.dismissed) {
+      if (mounted) setState(() {});
+    }
   }
 
   /// Resolve the front/back TTS languages from the card text + active course.
@@ -138,6 +160,7 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
 
   @override
   void dispose() {
+    _flipController.removeStatusListener(_onFlipStatus);
     _flipController.dispose();
     super.dispose();
   }
@@ -175,6 +198,13 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
     );
   }
 
+  /// Scale envelope: 1.0 at t=0/1, [_pulseMinScale] at t=0.5.
+  double _pulseScale(double t) {
+    final towardMid = t < 0.5 ? t * 2.0 : (1.0 - t) * 2.0;
+    final eased = Curves.easeInOut.transform(towardMid.clamp(0.0, 1.0));
+    return lerpDouble(1.0, _pulseMinScale, eased)!;
+  }
+
   @override
   Widget build(BuildContext context) {
     return InteractionBody(
@@ -193,36 +223,19 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
               behavior: HitTestBehavior.opaque,
               onTap: _toggleFace,
               child: AnimatedBuilder(
-                animation: _flipAnimation,
+                animation: _flipController,
                 builder: (context, child) {
-                  final angle = _flipAnimation.value * math.pi;
-                  final showFront = angle < math.pi / 2;
-                  return Transform(
+                  final t = _flipController.value;
+                  // Front while t < 0.5 (including reverse: back shrinks first).
+                  final showFront = t < 0.5;
+                  final scale = _pulseScale(t);
+                  return Transform.scale(
+                    scale: scale,
                     alignment: Alignment.center,
-                    transform: Matrix4.identity()
-                      ..setEntry(3, 2, 0.001)
-                      ..rotateY(angle),
+                    filterQuality: FilterQuality.medium,
                     child: showFront
                         ? _buildFront(context)
-                        // 背面在中点之后淡入, 避免旋转过中点后内容"啪"地出现.
-                        : AnimatedBuilder(
-                            animation: _flipAnimation,
-                            builder: (ctx, child) {
-                              final backProgress = ((angle - math.pi / 2)
-                                      .clamp(0.0, math.pi / 2)) /
-                                  (math.pi / 2);
-                              return Opacity(
-                                opacity: backProgress,
-                                child: Transform(
-                                  alignment: Alignment.center,
-                                  transform: Matrix4.identity()
-                                    ..rotateY(math.pi),
-                                  child: child,
-                                ),
-                              );
-                            },
-                            child: _buildBack(context),
-                          ),
+                        : _buildBack(context),
                   );
                 },
               ),
@@ -258,17 +271,22 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
                 ),
               ),
             ),
-          // Action buttons
-          if (!widget.state.submitted) ...[
-            if (!_revealed)
-              LessonCheckButton(
-                label: AppStrings.lessonShowAnswer,
-                enabled: true,
-                onPressed: _reveal,
-              )
-            else
-              _buildGradeButtons(context),
-          ],
+          // Action buttons — fixed min height so grade row appearance does
+          // not jump the column after the pulse.
+          if (!widget.state.submitted)
+            ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: _actionAreaMinHeight),
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: _showGradeButtons
+                    ? _buildGradeButtons(context)
+                    : LessonCheckButton(
+                        label: AppStrings.lessonShowAnswer,
+                        enabled: !_revealed && !_flipController.isAnimating,
+                        onPressed: _reveal,
+                      ),
+              ),
+            ),
         ],
       ),
     );
@@ -373,6 +391,7 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
 
   Widget _buildGradeButtons(BuildContext context) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           AppStrings.lessonHowWellDidYouKnow,

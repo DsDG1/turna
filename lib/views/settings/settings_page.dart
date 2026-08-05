@@ -26,7 +26,6 @@ import 'package:turna/views/settings/widgets/settings_fun_section.dart';
 import 'package:turna/views/settings/widgets/settings_learning_section.dart';
 import 'package:turna/views/settings/widgets/settings_reminder_section.dart';
 import 'package:turna/views/settings/widgets/settings_sound_section.dart';
-import 'package:turna/views/settings/widgets/settings_xiaoyi_tile.dart';
 import 'package:turna/utils/ohos_file_picker.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/theme.dart';
@@ -291,9 +290,6 @@ class _SettingsPageState extends State<SettingsPage> {
               const SettingsSrsWeightsTile(),
               settingsTileDivider(context),
               const SettingsDailyReminderTile(),
-              // Xiaoyi renders its own leading divider only when supported
-              // (avoids a double divider gap on non-HarmonyOS builds).
-              const SettingsXiaoyiTile(),
             ],
           ),
           const SizedBox(height: 20),
@@ -410,6 +406,22 @@ class _SettingsPageState extends State<SettingsPage> {
                 title: AppStrings.settingsAiApiConfigTitle,
                 subtitle: AppStrings.settingsAiApiConfigSubtitle,
                 onTap: (context) => _openAiApiConfig(context),
+              ),
+              settingsTileDivider(context),
+              SettingsActionTile(
+                icon: Icons.forum_outlined,
+                title: AppStrings.aiHubStartTutorChat,
+                subtitle: AppStrings.aiTutorChatEmpty,
+                onTap: (context) =>
+                    context.router.push(const AiTutorChatRoute()),
+              ),
+              settingsTileDivider(context),
+              SettingsActionTile(
+                icon: Icons.analytics_outlined,
+                title: AppStrings.aiHubStartDiagnosis,
+                subtitle: AppStrings.aiDiagnosisEmpty,
+                onTap: (context) =>
+                    context.router.push(const AiDiagnosisRoute()),
               ),
               settingsTileDivider(context),
               SettingsActionTile(

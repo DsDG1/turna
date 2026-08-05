@@ -64,7 +64,6 @@ const List<_PrefEntry> _progressManifest = [
   _PrefEntry(LocalStateKeys.dailyReminderEnabled, _PrefType.bool_),
   _PrefEntry(LocalStateKeys.dailyReminderHour, _PrefType.int_),
   _PrefEntry(LocalStateKeys.dailyReminderMinute, _PrefType.int_),
-  _PrefEntry(LocalStateKeys.useXiaoyiHint, _PrefType.bool_),
   _PrefEntry(LocalStateKeys.contentVersionAcknowledged, _PrefType.string),
   // Account + language
   _PrefEntry(PrefsConstants.currentLanguage, _PrefType.string),

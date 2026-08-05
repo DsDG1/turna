@@ -118,7 +118,9 @@ void main() {
 
     expect(provider.state, AiHintState.error);
     expect(provider.error, isNotNull);
-    // user turn was added, no assistant turn.
+    // User-facing mapped message (not raw exception body).
+    expect(provider.error!.toLowerCase(), isNot(contains('boom')));
+    // user turn kept; empty assistant placeholder removed on hard error.
     expect(provider.messages.length, 1);
     expect(provider.latestReply, isNull);
   });
@@ -241,9 +243,13 @@ void main() {
     gate.complete();
     await future;
     expect(provider.state, AiHintState.idle);
+    // Streaming inserts an empty assistant placeholder; cancel keeps partial
+    // (empty) text and must not apply the late network content.
     expect(provider.latestReply, isNull);
-    // Only the user turn was added; no assistant turn.
-    expect(provider.messages.length, 1);
+    expect(
+      provider.messages.any((m) => m.content.contains('never seen')),
+      isFalse,
+    );
   });
 
   // ─── Depth-tutor genres ──────────────────────────────────────────────

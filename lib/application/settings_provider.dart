@@ -25,7 +25,6 @@ class SettingsProvider extends ChangeNotifier {
   bool _dailyReminderEnabled = false;
   int _dailyReminderHour = 19;
   int _dailyReminderMinute = 0;
-  bool _useXiaoyiHint = false;
   bool _autoRotateEnabled = false;
   double _srsDesiredRetention = 0.9;
   bool _hasCustomFsrsWeights = false;
@@ -46,7 +45,6 @@ class SettingsProvider extends ChangeNotifier {
   bool get dailyReminderEnabled => _dailyReminderEnabled;
   int get dailyReminderHour => _dailyReminderHour;
   int get dailyReminderMinute => _dailyReminderMinute;
-  bool get useXiaoyiHint => _useXiaoyiHint;
 
   /// Screen auto-rotation. false (default) locks portrait; true follows device.
   bool get autoRotateEnabled => _autoRotateEnabled;
@@ -87,9 +85,6 @@ class SettingsProvider extends ChangeNotifier {
         .getValue();
     _dailyReminderMinute = _appPrefs.preferences
         .getInt(LocalStateKeys.dailyReminderMinute, defaultValue: 0)
-        .getValue();
-    _useXiaoyiHint = _appPrefs.preferences
-        .getBool(LocalStateKeys.useXiaoyiHint, defaultValue: false)
         .getValue();
     _autoRotateEnabled = _appPrefs.preferences
         .getBool(LocalStateKeys.autoRotate, defaultValue: false)
@@ -154,12 +149,6 @@ class SettingsProvider extends ChangeNotifier {
     _dailyReminderMinute = time.minute;
     await _appPrefs.setInt(LocalStateKeys.dailyReminderHour, time.hour);
     await _appPrefs.setInt(LocalStateKeys.dailyReminderMinute, time.minute);
-    notifyListeners();
-  }
-
-  Future<void> setUseXiaoyiHint(bool value) async {
-    _useXiaoyiHint = value;
-    await _appPrefs.setBool(LocalStateKeys.useXiaoyiHint, value: value);
     notifyListeners();
   }
 
@@ -277,20 +266,18 @@ class SettingsProvider extends ChangeNotifier {
   /// Restore learning-related prefs to their factory defaults.
   ///
   /// Does **not** change target language, theme, accessibility, sound/haptics,
-  /// or lesson progress — only TTS speed, daily reminder, Xiaoyi hint, and
-  /// SRS desired retention.
+  /// or lesson progress — only TTS speed, daily reminder, and SRS desired
+  /// retention.
   Future<void> resetLearningDefaults() async {
     _ttsSpeed = 1.0;
     _dailyReminderEnabled = false;
     _dailyReminderHour = 19;
     _dailyReminderMinute = 0;
-    _useXiaoyiHint = false;
     _srsDesiredRetention = 0.9;
     await _appPrefs.setDouble(LocalStateKeys.ttsSpeed, 1.0);
     await _appPrefs.setBool(LocalStateKeys.dailyReminderEnabled, value: false);
     await _appPrefs.setInt(LocalStateKeys.dailyReminderHour, 19);
     await _appPrefs.setInt(LocalStateKeys.dailyReminderMinute, 0);
-    await _appPrefs.setBool(LocalStateKeys.useXiaoyiHint, value: false);
     await _appPrefs.setDouble(LocalStateKeys.srsDesiredRetention, 0.9);
     try {
       getIt<SrsProvider>().setDesiredRetention(0.9);

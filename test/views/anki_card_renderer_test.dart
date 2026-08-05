@@ -29,23 +29,46 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    // Reveal the back so the grade buttons appear.
+  }
+
+  Future<void> revealAnswer(WidgetTester tester) async {
     await tester.tap(find.text('显示答案'));
+    // Wait for the scale-pulse animation + status listener rebuild so grade
+    // buttons appear only after the pulse completes.
     await tester.pumpAndSettle();
   }
 
-  testWidgets('shows Anki four-grade buttons', (
+  testWidgets('shows Anki four-grade buttons after reveal settles', (
     tester,
   ) async {
     await pumpCard(
       tester,
       onSubmit: (_, {userAnswerText, reviewQuality}) {},
     );
+    await revealAnswer(tester);
 
     expect(find.text('重来'), findsOneWidget);
     expect(find.text('困难'), findsOneWidget);
     expect(find.text('良好'), findsOneWidget);
     expect(find.text('简单'), findsOneWidget);
+  });
+
+  testWidgets('grade buttons are deferred until pulse completes',
+      (tester) async {
+    await pumpCard(
+      tester,
+      onSubmit: (_, {userAnswerText, reviewQuality}) {},
+    );
+
+    await tester.tap(find.text('显示答案'));
+    // Mid-pulse: face may already switch, but grades must not appear yet.
+    await tester.pump(const Duration(milliseconds: 80));
+    expect(find.text('重来'), findsNothing);
+    expect(find.text('显示答案'), findsOneWidget);
+
+    await tester.pumpAndSettle();
+    expect(find.text('重来'), findsOneWidget);
+    expect(find.text('显示答案'), findsNothing);
   });
 
   testWidgets('Hard submits success with distinct quality 3', (tester) async {
@@ -55,6 +78,7 @@ void main() {
       onSubmit: (correct, {userAnswerText, reviewQuality}) =>
           results.add((correct, reviewQuality)),
     );
+    await revealAnswer(tester);
 
     await tester.tap(find.text('困难'));
     expect(results, [(true, 3)]);
@@ -67,6 +91,7 @@ void main() {
       onSubmit: (correct, {userAnswerText, reviewQuality}) =>
           results.add((correct, reviewQuality)),
     );
+    await revealAnswer(tester);
 
     await tester.tap(find.text('重来'));
     expect(results, [(false, 1)]);
@@ -80,6 +105,7 @@ void main() {
       onSubmit: (correct, {userAnswerText, reviewQuality}) =>
           results.add((correct, reviewQuality)),
     );
+    await revealAnswer(tester);
     expect(find.text('Back side'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('anki-flip-card-surface')));
@@ -88,6 +114,7 @@ void main() {
     expect(find.text('Front side'), findsOneWidget);
     expect(find.text('Back side'), findsNothing);
     expect(find.text('显示答案'), findsOneWidget);
+    expect(find.text('重来'), findsNothing);
     expect(results, isEmpty);
   });
 }

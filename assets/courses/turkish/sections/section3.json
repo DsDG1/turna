@@ -8,36 +8,663 @@
   "units": [
     {
       "id": "s3-u1",
-      "name": "Small talk",
-      "description": "Simple everyday conversations.",
+      "name": "Aile ve tanışma",
+      "description": "Family members and introducing yourself.",
       "prerequisiteUnitIds": [],
       "lessons": [
         {
           "id": "s3-l1",
-          "name": "How are you?",
-          "description": "Placeholder lesson — Turkish content to be authored.",
+          "name": "Welcome",
+          "description": "",
           "type": "normal",
           "template": "legacy",
           "prerequisiteLessonIds": [],
           "content": {
             "stages": [
               {
-                "id": "stage-welcome",
+                "id": "stage-s3-l1",
                 "name": "Welcome",
                 "description": "",
                 "prerequisiteStageIds": [],
                 "items": [
                   {
                     "runtimeType": "multipleChoice",
-                    "id": "mc-welcome",
-                    "prompt": "How do you ask \"How are you?\" in Turkish?",
+                    "id": "mc-s3-l1",
+                    "prompt": "How do you say \"mother\"?",
                     "options": [
-                      "Nasılsın?",
-                      "Hoşça kal",
-                      "Teşekkürler",
-                      "Günaydın"
+                      "anne",
+                      "baba",
+                      "kardeş",
+                      "çocuk"
                     ],
                     "correctIndex": 0
+                  }
+                ]
+              }
+            ],
+            "subLessons": []
+          }
+        },
+        {
+          "id": "s3-l2",
+          "name": "Aile",
+          "description": "Meet family words and basic introductions.",
+          "type": "normal",
+          "template": "intro",
+          "prerequisiteLessonIds": [
+            "s3-l1"
+          ],
+          "content": {
+            "subLessons": [
+              {
+                "id": "sl-s3-l2-w-anne",
+                "name": "Anne",
+                "stages": [
+                  {
+                    "id": "st-sl-s3-l2-w-anne",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s3-l2-0",
+                        "wordId": "w-anne",
+                        "context": "anne — mother"
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s3-l2-0",
+                        "source": "Mother.",
+                        "expected": "Anne.",
+                        "hints": [
+                          "anne"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-s3-l2-0",
+                        "sentence": "Benim _____.",
+                        "answer": "annem",
+                        "hint": "mother"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-s3-l2-w-baba",
+                "name": "Baba",
+                "stages": [
+                  {
+                    "id": "st-sl-s3-l2-w-baba",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s3-l2-1",
+                        "wordId": "w-baba",
+                        "context": "baba — father"
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s3-l2-1",
+                        "source": "Father.",
+                        "expected": "Baba.",
+                        "hints": [
+                          "baba"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-s3-l2-1",
+                        "sentence": "Benim _____.",
+                        "answer": "babam",
+                        "hint": "father"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-s3-l2-w-kardes",
+                "name": "Kardeş",
+                "stages": [
+                  {
+                    "id": "st-sl-s3-l2-w-kardes",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s3-l2-2",
+                        "wordId": "w-kardes",
+                        "context": "kardeş — sibling"
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s3-l2-2",
+                        "source": "Sibling.",
+                        "expected": "Kardeş.",
+                        "hints": [
+                          "kardeş"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-s3-l2-2",
+                        "sentence": "Bir _____ var.",
+                        "answer": "kardeş",
+                        "hint": "sibling"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-s3-l2-w-arkadas",
+                "name": "Arkadaş",
+                "stages": [
+                  {
+                    "id": "st-sl-s3-l2-w-arkadas",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s3-l2-3",
+                        "wordId": "w-arkadas",
+                        "context": "arkadaş — friend"
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s3-l2-3",
+                        "source": "Friend.",
+                        "expected": "Arkadaş.",
+                        "hints": [
+                          "arkadaş"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-s3-l2-3",
+                        "sentence": "İyi bir _____.",
+                        "answer": "arkadaş",
+                        "hint": "friend"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-s3-l2-w-ad",
+                "name": "Ad",
+                "stages": [
+                  {
+                    "id": "st-sl-s3-l2-w-ad",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s3-l2-4",
+                        "wordId": "w-ad",
+                        "context": "ad — name"
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s3-l2-4",
+                        "source": "Name.",
+                        "expected": "Ad.",
+                        "hints": [
+                          "ad"
+                        ]
+                      },
+                      {
+                        "runtimeType": "typeTheWord",
+                        "id": "ttw-s3-l2-4",
+                        "audioAsset": "w-ad",
+                        "prompt": "Type the word you hear",
+                        "expected": "ad"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-s3-l2-review",
+                "name": "Review",
+                "stages": [
+                  {
+                    "id": "st-sl-s3-l2-review",
+                    "name": "Put it together",
+                    "items": [
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s3-l2-rev-0",
+                        "prompt": "What is \"anne\"?",
+                        "options": [
+                          "mother",
+                          "father",
+                          "sibling",
+                          "friend"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s3-l2-rev-1",
+                        "prompt": "What is \"baba\"?",
+                        "options": [
+                          "father",
+                          "mother",
+                          "sibling",
+                          "friend"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s3-l2-rev-2",
+                        "prompt": "What is \"kardeş\"?",
+                        "options": [
+                          "sibling",
+                          "mother",
+                          "father",
+                          "friend"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s3-l2-rev",
+                        "source": "Mother.",
+                        "expected": "Anne.",
+                        "hints": [
+                          "anne"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "linkedGrammarPointIds": [
+              "g-present-to-be",
+              "g-vowel-harmony"
+            ]
+          }
+        },
+        {
+          "id": "s3-l3",
+          "name": "Pronouns & intros",
+          "description": "Practice and expand the unit theme.",
+          "type": "normal",
+          "template": "practice",
+          "prerequisiteLessonIds": [
+            "s3-l2"
+          ],
+          "content": {
+            "subLessons": [
+              {
+                "id": "sl-s3-l3-1",
+                "name": "Practice",
+                "stages": [
+                  {
+                    "id": "st-sl-s3-l3-1",
+                    "name": "Drill",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s3-ben",
+                        "wordId": "w-ben",
+                        "context": "ben — I"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s3-sen",
+                        "wordId": "w-sen",
+                        "context": "sen — you"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s3-o",
+                        "wordId": "w-o",
+                        "context": "o — he/she/it"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s3-biz",
+                        "wordId": "w-biz",
+                        "context": "biz — we"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s3-cocuk",
+                        "wordId": "w-cocuk",
+                        "context": "çocuk — child"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s3-kiz",
+                        "wordId": "w-kiz-kardes",
+                        "context": "kız kardeş — sister"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s3-erkek",
+                        "wordId": "w-erkek-kardes",
+                        "context": "erkek kardeş — brother"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s3-memnun",
+                        "wordId": "w-memnun-oldum",
+                        "context": "memnun oldum — nice to meet you"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s3-nere",
+                        "wordId": "w-nerelisin",
+                        "context": "nerelisin — where are you from?"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s3-tr",
+                        "wordId": "w-turkiyeliyim",
+                        "context": "Türkiyeliyim — I am from Turkey"
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s3-p1",
+                        "prompt": "What is \"anne\"?",
+                        "options": [
+                          "mother",
+                          "father",
+                          "friend",
+                          "child"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s3-p1",
+                        "source": "My name is Ali.",
+                        "expected": "Adım Ali.",
+                        "hints": [
+                          "adım"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-s3-p1",
+                        "sentence": "_____ oldum.",
+                        "answer": "Memnun",
+                        "hint": "nice to meet you"
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s3-p2",
+                        "prompt": "How do you say \"we\"?",
+                        "options": [
+                          "biz",
+                          "ben",
+                          "sen",
+                          "o"
+                        ],
+                        "correctIndex": 0
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "linkedGrammarPointIds": [
+              "g-present-to-be",
+              "g-vowel-harmony"
+            ]
+          }
+        },
+        {
+          "id": "s3-l4",
+          "name": "Listening: family",
+          "description": "Listening practice with TTS-backed word audio.",
+          "type": "listening",
+          "template": "listening",
+          "prerequisiteLessonIds": [
+            "s3-l3"
+          ],
+          "content": {
+            "listeningPhases": [
+              {
+                "id": "lp-s3-l4-word",
+                "name": "Word pairing",
+                "type": "wordPairing",
+                "transcript": "Listen and choose the matching form.",
+                "items": [
+                  {
+                    "runtimeType": "listenAndPick",
+                    "id": "lp-s3-l4-0",
+                    "audioAsset": "w-anne",
+                    "prompt": "What do you hear?",
+                    "options": [
+                      "anne",
+                      "baba",
+                      "arkadaş"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "listenAndPick",
+                    "id": "lp-s3-l4-1",
+                    "audioAsset": "w-baba",
+                    "prompt": "What do you hear?",
+                    "options": [
+                      "baba",
+                      "anne",
+                      "çocuk"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "listenAndPick",
+                    "id": "lp-s3-l4-2",
+                    "audioAsset": "w-arkadas",
+                    "prompt": "What do you hear?",
+                    "options": [
+                      "arkadaş",
+                      "ad",
+                      "biz"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "listenAndPick",
+                    "id": "lp-s3-l4-3",
+                    "audioAsset": "w-memnun-oldum",
+                    "prompt": "What do you hear?",
+                    "options": [
+                      "memnun oldum",
+                      "nasılsın",
+                      "teşekkürler"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              },
+              {
+                "id": "lp-s3-l4-dialogue",
+                "name": "Dialogue",
+                "type": "dialogue",
+                "audioAsset": "w-anne",
+                "transcript": "A: Merhaba, adım Ali. Bu benim annem.\nB: Memnun oldum. Ben Ayşe.",
+                "items": [
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-s3-ld1",
+                    "prompt": "What is Ali doing?",
+                    "options": [
+                      "Introducing himself",
+                      "Ordering food",
+                      "Buying a ticket"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-s3-ld2",
+                    "prompt": "Who is with Ali?",
+                    "options": [
+                      "His mother",
+                      "His teacher",
+                      "A taxi driver"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              },
+              {
+                "id": "lp-s3-l4-summary",
+                "name": "Summary",
+                "type": "summary",
+                "audioAsset": "w-memnun-oldum",
+                "transcript": "You heard family words and a short introduction.",
+                "items": []
+              }
+            ]
+          }
+        },
+        {
+          "id": "s3-l5",
+          "name": "Reading: my family",
+          "description": "Short reading for this unit.",
+          "type": "reading",
+          "template": "reading",
+          "prerequisiteLessonIds": [
+            "s3-l4"
+          ],
+          "content": {
+            "readingPassage": {
+              "title": "Benim ailem",
+              "paragraphs": [
+                "Benim adım Deniz. Annem ve babam İstanbul'da yaşıyor.",
+                "Bir kız kardeşim var. O öğrenci.",
+                "En iyi arkadaşım Mehmet. Memnun oldum demeyi severiz."
+              ],
+              "difficulty": 1,
+              "linkedWordIds": [
+                "w-ad",
+                "w-anne",
+                "w-baba",
+                "w-kiz-kardes",
+                "w-arkadas",
+                "w-memnun-oldum",
+                "w-ogrenci"
+              ],
+              "linkedExpressionIds": [
+                "e-adim",
+                "e-memnun-oldum",
+                "e-selam",
+                "e-nasilsin"
+              ]
+            },
+            "stages": [
+              {
+                "id": "st-s3-l5-q",
+                "name": "Comprehension",
+                "items": [
+                  {
+                    "runtimeType": "readingMcq",
+                    "id": "rq-s3-1",
+                    "prompt": "Where do the parents live?",
+                    "options": [
+                      "Istanbul",
+                      "Ankara",
+                      "Izmir"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "readingTrueFalse",
+                    "id": "rq-s3-2",
+                    "statement": "Deniz has a sister.",
+                    "answer": true
+                  },
+                  {
+                    "runtimeType": "readingMcq",
+                    "id": "rq-s3-3",
+                    "prompt": "Who is Mehmet?",
+                    "options": [
+                      "Best friend",
+                      "Father",
+                      "Teacher"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              }
+            ],
+            "linkedGrammarPointIds": [
+              "g-present-to-be",
+              "g-vowel-harmony"
+            ]
+          }
+        },
+        {
+          "id": "s3-l6",
+          "name": "Unit review",
+          "description": "Mixed review of this unit.",
+          "type": "review",
+          "template": "review",
+          "prerequisiteLessonIds": [
+            "s3-l5"
+          ],
+          "content": {
+            "subLessons": [
+              {
+                "id": "sl-s3-l6-1",
+                "name": "Mixed review",
+                "stages": [
+                  {
+                    "id": "st-sl-s3-l6-1",
+                    "name": "Recall",
+                    "items": [
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s3-r1",
+                        "prompt": "What is \"baba\"?",
+                        "options": [
+                          "father",
+                          "mother",
+                          "friend",
+                          "name"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s3-r1",
+                        "source": "Where are you from?",
+                        "expected": "Nerelisin?",
+                        "hints": [
+                          "nerelisin"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-s3-r1",
+                        "sentence": "Adım _____.",
+                        "answer": "Ali",
+                        "hint": "a name"
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s3-r2",
+                        "prompt": "What is \"çocuk\"?",
+                        "options": [
+                          "child",
+                          "teacher",
+                          "map",
+                          "tea"
+                        ],
+                        "correctIndex": 0
+                      }
+                    ]
                   }
                 ]
               }

@@ -28,19 +28,21 @@ enum NotetypeMappingType {
   /// Cloze deletion → FillBlank
   cloze,
 
-  /// Single-choice MCQ. Prefer option fields on the note (Option A/B/C…);
+  /// Choice quiz layout. Prefer option fields on the note (Option A/B/C…);
   /// otherwise prompt=front, answer=back, distractors from the deck.
+  ///
+  /// Single vs multi-select is resolved **per card** from the prompt wording
+  /// and answer key (see [AnkiCardAdapter.adapt]) — not at notetype level.
   multipleChoice,
 
-  /// Multi-select MCQ (one or more correct options). Same option-field /
-  /// embedded-option sources as [multipleChoice]; answer field may list
-  /// several keys (e.g. `A,C` or `1;3`).
+  /// Legacy alias of [multipleChoice]. Kept for JSON / stored mappings;
+  /// new inference always writes [multipleChoice]. Adapt path is identical.
   multiSelect,
 
   /// Force a type-the-answer fill-in-the-blank (answer = back face)
   fillBlank,
 
-  /// Alias of [fillBlank] — type the back face as the answer.
+  /// Legacy alias of [fillBlank]. Kept for JSON / stored mappings.
   typeAnswer,
 
   /// Force a listening question (audio on the front face drives
@@ -206,22 +208,10 @@ class AnkiCardAdapter {
         );
 
       case NotetypeMappingType.multipleChoice:
-        // Choice cardinality is a property of the current card, not of the
-        // whole note type. A single option-field note type may contain both
-        // single-choice and multi-select cards, so either structured result
-        // is valid here.
-        if (choiceFromNote != null) return choiceFromNote;
-        return _adaptAnkiCard(
-          note: note,
-          wordId: wordId,
-          interactionId: interactionId,
-          front: front,
-          back: back,
-          audioAssets: [...frontMedia.audios, ...backMedia.audios],
-          imageAssets: [...frontMedia.images, ...backMedia.images],
-        );
-
       case NotetypeMappingType.multiSelect:
+        // Choice cardinality is a property of the current card, not of the
+        // whole note type. multiSelect is a legacy notetype alias of
+        // multipleChoice; both prefer structured options then flip fallback.
         if (choiceFromNote != null) return choiceFromNote;
         return _adaptAnkiCard(
           note: note,
@@ -376,25 +366,26 @@ class AnkiCardAdapter {
       );
     }
 
-    // Dedicated MCQ / multi-select notetypes (option fields on the note).
+    // Dedicated choice notetypes (option fields on the note). Single vs
+    // multi is decided per card at adapt time — notetype maps only to
+    // multipleChoice so the import UI is not forced to pick one.
     final layout = detectChoiceLayout(notetype);
     if (layout != null) {
       return NotetypeMapping(
-        type: layout.multi
-            ? NotetypeMappingType.multiSelect
-            : NotetypeMappingType.multipleChoice,
+        type: NotetypeMappingType.multipleChoice,
         frontFieldIndex: layout.promptIndex,
         backFieldIndex: layout.answerIndex,
         reason: layout.multi
-            ? 'Multi-select option fields detected'
-            : 'Multiple-choice option fields detected',
+            ? 'Choice option fields detected (multi-select name/fields; '
+                'cardinality resolved per card)'
+            : 'Choice option fields detected (single/multi resolved per card)',
       );
     }
 
     // Notetype name hints (no structured fields, still prefer MCQ auto path).
-    if (_nameLooksLikeMultiSelect(nameLower)) {
+    if (_nameLooksLikeMultiSelect(nameLower) || _nameLooksLikeMcq(nameLower)) {
       return NotetypeMapping(
-        type: NotetypeMappingType.multiSelect,
+        type: NotetypeMappingType.multipleChoice,
         frontFieldIndex: _findFieldIndex(lowerFields, [
               'question',
               'prompt',
@@ -415,32 +406,11 @@ class AnkiCardAdapter {
               '正确',
             ]) ??
             1,
-        reason: 'Notetype name suggests multi-select',
-      );
-    }
-    if (_nameLooksLikeMcq(nameLower)) {
-      return NotetypeMapping(
-        type: NotetypeMappingType.multipleChoice,
-        frontFieldIndex: _findFieldIndex(lowerFields, [
-              'question',
-              'prompt',
-              'front',
-              'title',
-              '问题',
-              '题目',
-              '题干',
-              '正面',
-            ]) ??
-            0,
-        backFieldIndex: _findFieldIndex(lowerFields, [
-              'answer',
-              'correct',
-              'back',
-              '答案',
-              '正确',
-            ]) ??
-            1,
-        reason: 'Notetype name suggests multiple-choice',
+        reason: _nameLooksLikeMultiSelect(nameLower)
+            ? 'Notetype name suggests choice quiz '
+                '(multi-select; cardinality resolved per card)'
+            : 'Notetype name suggests choice quiz '
+                '(single/multi resolved per card)',
       );
     }
 

@@ -20,14 +20,14 @@
           "content": {
             "stages": [
               {
-                "id": "stage-welcome",
+                "id": "stage-s1-l1",
                 "name": "Welcome",
                 "description": "",
                 "prerequisiteStageIds": [],
                 "items": [
                   {
                     "runtimeType": "multipleChoice",
-                    "id": "mc-welcome",
+                    "id": "mc-s1-l1",
                     "prompt": "What does \"Merhaba\" mean?",
                     "options": [
                       "Hello",
@@ -55,22 +55,22 @@
           "content": {
             "subLessons": [
               {
-                "id": "sl-merhaba",
+                "id": "sl-s1-l2-w-merhaba",
                 "name": "Merhaba",
                 "stages": [
                   {
-                    "id": "st-merhaba",
+                    "id": "st-sl-s1-l2-w-merhaba",
                     "name": "Learn & produce",
                     "items": [
                       {
                         "runtimeType": "showWord",
-                        "id": "sw-merhaba",
+                        "id": "sw-s1-l2-0",
                         "wordId": "w-merhaba",
-                        "context": "Merhaba! — Hello!"
+                        "context": "merhaba — hello"
                       },
                       {
                         "runtimeType": "translateSentence",
-                        "id": "ts-merhaba",
+                        "id": "ts-s1-l2-0",
                         "source": "Hello!",
                         "expected": "Merhaba!",
                         "hints": [
@@ -79,7 +79,7 @@
                       },
                       {
                         "runtimeType": "fillBlank",
-                        "id": "fb-merhaba",
+                        "id": "fb-s1-l2-0",
                         "sentence": "_____, nasılsın?",
                         "answer": "Merhaba",
                         "hint": "Hello"
@@ -89,22 +89,22 @@
                 ]
               },
               {
-                "id": "sl-nasilsin",
+                "id": "sl-s1-l2-w-nasilsin",
                 "name": "Nasılsın",
                 "stages": [
                   {
-                    "id": "st-nasilsin",
+                    "id": "st-sl-s1-l2-w-nasilsin",
                     "name": "Learn & produce",
                     "items": [
                       {
                         "runtimeType": "showWord",
-                        "id": "sw-nasilsin",
-                        "wordId": "w-merhaba",
-                        "context": "Nasılsın? — How are you?"
+                        "id": "sw-s1-l2-1",
+                        "wordId": "w-nasilsin",
+                        "context": "nasılsın — how are you?"
                       },
                       {
                         "runtimeType": "translateSentence",
-                        "id": "ts-nasilsin",
+                        "id": "ts-s1-l2-1",
                         "source": "How are you?",
                         "expected": "Nasılsın?",
                         "hints": [
@@ -113,7 +113,7 @@
                       },
                       {
                         "runtimeType": "fillBlank",
-                        "id": "fb-nasilsin",
+                        "id": "fb-s1-l2-1",
                         "sentence": "Merhaba, _____?",
                         "answer": "nasılsın",
                         "hint": "how are you?"
@@ -123,32 +123,31 @@
                 ]
               },
               {
-                "id": "sl-iyiyim",
-                "name": "İyiyim",
+                "id": "sl-s1-l2-w-iyiyim",
+                "name": "Iyiyim",
                 "stages": [
                   {
-                    "id": "st-iyiyim",
+                    "id": "st-sl-s1-l2-w-iyiyim",
                     "name": "Learn & produce",
                     "items": [
                       {
                         "runtimeType": "showWord",
-                        "id": "sw-iyiyim",
+                        "id": "sw-s1-l2-2",
                         "wordId": "w-iyiyim",
-                        "context": "İyiyim, teşekkürler. — I'm fine, thank you."
+                        "context": "iyiyim — I am fine"
                       },
                       {
                         "runtimeType": "translateSentence",
-                        "id": "ts-iyiyim",
+                        "id": "ts-s1-l2-2",
                         "source": "I'm fine, thank you.",
                         "expected": "İyiyim, teşekkürler.",
                         "hints": [
-                          "iyiyim",
-                          "teşekkürler"
+                          "iyiyim"
                         ]
                       },
                       {
                         "runtimeType": "fillBlank",
-                        "id": "fb-iyiyim",
+                        "id": "fb-s1-l2-2",
                         "sentence": "_____, teşekkürler.",
                         "answer": "İyiyim",
                         "hint": "I'm fine"
@@ -158,22 +157,22 @@
                 ]
               },
               {
-                "id": "sl-tesekkurler",
+                "id": "sl-s1-l2-w-tesekkurler",
                 "name": "Teşekkürler",
                 "stages": [
                   {
-                    "id": "st-tesekkurler",
+                    "id": "st-sl-s1-l2-w-tesekkurler",
                     "name": "Learn & produce",
                     "items": [
                       {
                         "runtimeType": "showWord",
-                        "id": "sw-tesekkurler",
+                        "id": "sw-s1-l2-3",
                         "wordId": "w-tesekkurler",
-                        "context": "Teşekkürler! — Thank you!"
+                        "context": "teşekkürler — thank you"
                       },
                       {
                         "runtimeType": "translateSentence",
-                        "id": "ts-tesekkurler",
+                        "id": "ts-s1-l2-3",
                         "source": "Thank you!",
                         "expected": "Teşekkürler!",
                         "hints": [
@@ -182,7 +181,7 @@
                       },
                       {
                         "runtimeType": "typeTheWord",
-                        "id": "ttw-tesekkurler",
+                        "id": "ttw-s1-l2-3",
                         "audioAsset": "w-tesekkurler",
                         "prompt": "Type the word you hear",
                         "expected": "teşekkürler"
@@ -192,43 +191,466 @@
                 ]
               },
               {
-                "id": "sl-review",
+                "id": "sl-s1-l2-review",
                 "name": "Review",
                 "stages": [
                   {
-                    "id": "st-review",
+                    "id": "st-sl-s1-l2-review",
                     "name": "Put it together",
                     "items": [
                       {
-                        "runtimeType": "reorderSentence",
-                        "id": "rs-greet-ali",
-                        "scrambled": [
-                          "Ali",
-                          "Merhaba",
-                          "nasılsın"
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s1-l2-rev-0",
+                        "prompt": "What is \"merhaba\"?",
+                        "options": [
+                          "hello",
+                          "how are you?",
+                          "I am fine",
+                          "thank you"
                         ],
-                        "correct": [
-                          "Merhaba",
-                          "Ali",
-                          "nasılsın"
-                        ]
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s1-l2-rev-1",
+                        "prompt": "What is \"nasılsın\"?",
+                        "options": [
+                          "how are you?",
+                          "hello",
+                          "I am fine",
+                          "thank you"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s1-l2-rev-2",
+                        "prompt": "What is \"iyiyim\"?",
+                        "options": [
+                          "I am fine",
+                          "hello",
+                          "how are you?",
+                          "thank you"
+                        ],
+                        "correctIndex": 0
                       },
                       {
                         "runtimeType": "translateSentence",
-                        "id": "ts-review-greet",
-                        "source": "Hello, how are you?",
-                        "expected": "Merhaba, nasılsın?",
+                        "id": "ts-s1-l2-rev",
+                        "source": "Hello!",
+                        "expected": "Merhaba!",
                         "hints": [
-                          "merhaba",
-                          "nasılsın"
+                          "merhaba"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "linkedGrammarPointIds": [
+              "g-present-to-be"
+            ]
+          }
+        },
+        {
+          "id": "s1-l3",
+          "name": "Greetings practice",
+          "description": "Practice yes/no, please, and goodbye.",
+          "type": "normal",
+          "template": "practice",
+          "prerequisiteLessonIds": [
+            "s1-l2"
+          ],
+          "content": {
+            "subLessons": [
+              {
+                "id": "sl-s1-l3-1",
+                "name": "Practice",
+                "stages": [
+                  {
+                    "id": "st-sl-s1-l3-1",
+                    "name": "Drill",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s1-evet",
+                        "wordId": "w-evet",
+                        "context": "evet — yes"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s1-hayir",
+                        "wordId": "w-hayir",
+                        "context": "hayır — no"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s1-lutfen",
+                        "wordId": "w-lutfen",
+                        "context": "lütfen — please"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s1-gunaydin",
+                        "wordId": "w-gunaydin",
+                        "context": "günaydın — good morning"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s1-hoscakal",
+                        "wordId": "w-hoscakal",
+                        "context": "hoşça kal — goodbye"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s1-gule",
+                        "wordId": "w-gule-gule",
+                        "context": "güle güle — goodbye (leaving)"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s1-rica",
+                        "wordId": "w-rica-ederim",
+                        "context": "rica ederim — you're welcome"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s1-affe",
+                        "wordId": "w-affedersiniz",
+                        "context": "affedersiniz — excuse me"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s1-tesekkur",
+                        "wordId": "w-tesekkur",
+                        "context": "teşekkür ederim — thank you (formal)"
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s1-p1",
+                        "prompt": "How do you say \"yes\"?",
+                        "options": [
+                          "evet",
+                          "hayır",
+                          "lütfen",
+                          "merhaba"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s1-p2",
+                        "prompt": "What does \"hayır\" mean?",
+                        "options": [
+                          "Yes",
+                          "No",
+                          "Please",
+                          "Hello"
+                        ],
+                        "correctIndex": 1
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s1-p1",
+                        "source": "Please.",
+                        "expected": "Lütfen.",
+                        "hints": [
+                          "lütfen"
                         ]
                       },
                       {
                         "runtimeType": "fillBlank",
-                        "id": "fb-review-thanks",
-                        "sentence": "İyiyim, _____.",
-                        "answer": "teşekkürler",
-                        "hint": "thank you"
+                        "id": "fb-s1-p1",
+                        "sentence": "_____, teşekkürler.",
+                        "answer": "İyiyim",
+                        "hint": "I'm fine"
+                      },
+                      {
+                        "runtimeType": "reorderSentence",
+                        "id": "rs-s1-p1",
+                        "scrambled": [
+                          "nasılsın",
+                          "Merhaba"
+                        ],
+                        "correct": [
+                          "Merhaba",
+                          "nasılsın"
+                        ]
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s1-p3",
+                        "prompt": "Which means \"goodbye\"?",
+                        "options": [
+                          "hoşça kal",
+                          "günaydın",
+                          "evet",
+                          "su"
+                        ],
+                        "correctIndex": 0
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "s1-l4",
+          "name": "Listening: greetings",
+          "description": "Hear greetings and short courtesy phrases (TTS-backed word audio).",
+          "type": "listening",
+          "template": "listening",
+          "prerequisiteLessonIds": [
+            "s1-l3"
+          ],
+          "content": {
+            "listeningPhases": [
+              {
+                "id": "lp-s1-l4-word",
+                "name": "Word pairing",
+                "type": "wordPairing",
+                "transcript": "Listen and choose the matching form.",
+                "items": [
+                  {
+                    "runtimeType": "listenAndPick",
+                    "id": "lp-s1-l4-0",
+                    "audioAsset": "w-merhaba",
+                    "prompt": "What do you hear?",
+                    "options": [
+                      "merhaba",
+                      "teşekkürler",
+                      "hayır"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "listenAndPick",
+                    "id": "lp-s1-l4-1",
+                    "audioAsset": "w-gunaydin",
+                    "prompt": "What do you hear?",
+                    "options": [
+                      "günaydın",
+                      "iyi geceler",
+                      "hoşça kal"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "listenAndPick",
+                    "id": "lp-s1-l4-2",
+                    "audioAsset": "w-tesekkurler",
+                    "prompt": "What do you hear?",
+                    "options": [
+                      "teşekkürler",
+                      "merhaba",
+                      "evet"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "listenAndPick",
+                    "id": "lp-s1-l4-3",
+                    "audioAsset": "w-hoscakal",
+                    "prompt": "What do you hear?",
+                    "options": [
+                      "hoşça kal",
+                      "merhaba",
+                      "lütfen"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              },
+              {
+                "id": "lp-s1-l4-dialogue",
+                "name": "Dialogue",
+                "type": "dialogue",
+                "audioAsset": "w-merhaba",
+                "transcript": "A: Merhaba! Nasılsın?\nB: İyiyim, teşekkürler. Sen nasılsın?\nA: Ben de iyiyim.",
+                "items": [
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-s1-ld1",
+                    "prompt": "What does A ask?",
+                    "options": [
+                      "How are you?",
+                      "Where is the hotel?",
+                      "How much is it?"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-s1-ld2",
+                    "prompt": "How does B feel?",
+                    "options": [
+                      "Fine",
+                      "Hungry",
+                      "Lost"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              },
+              {
+                "id": "lp-s1-l4-summary",
+                "name": "Summary",
+                "type": "summary",
+                "audioAsset": "w-hoscakal",
+                "transcript": "Today we practiced merhaba, nasılsın, iyiyim, and teşekkürler.",
+                "items": []
+              }
+            ]
+          }
+        },
+        {
+          "id": "s1-l5",
+          "name": "Reading: a short hello",
+          "description": "Read a tiny greeting dialogue.",
+          "type": "reading",
+          "template": "reading",
+          "prerequisiteLessonIds": [
+            "s1-l4"
+          ],
+          "content": {
+            "readingPassage": {
+              "title": "Merhaba, Ali!",
+              "paragraphs": [
+                "Ali: Merhaba, Ayşe! Nasılsın?",
+                "Ayşe: İyiyim, teşekkürler. Sen nasılsın?",
+                "Ali: Ben de iyiyim. Hoşça kal!",
+                "Ayşe: Güle güle!"
+              ],
+              "difficulty": 1,
+              "linkedWordIds": [
+                "w-merhaba",
+                "w-nasilsin",
+                "w-iyiyim",
+                "w-tesekkurler",
+                "w-hoscakal",
+                "w-gule-gule"
+              ],
+              "linkedExpressionIds": [
+                "e-selam",
+                "e-nasilsin",
+                "e-rica-ederim",
+                "e-lutfen"
+              ]
+            },
+            "stages": [
+              {
+                "id": "st-s1-l5-q",
+                "name": "Comprehension",
+                "items": [
+                  {
+                    "runtimeType": "readingMcq",
+                    "id": "rq-s1-1",
+                    "prompt": "Who greets Ayşe first?",
+                    "options": [
+                      "Ali",
+                      "Ayşe",
+                      "A teacher"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "readingTrueFalse",
+                    "id": "rq-s1-2",
+                    "statement": "Ayşe says she is fine.",
+                    "answer": true
+                  },
+                  {
+                    "runtimeType": "readingMcq",
+                    "id": "rq-s1-3",
+                    "prompt": "How does the dialogue end?",
+                    "options": [
+                      "With goodbye",
+                      "With shopping",
+                      "With food"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              }
+            ],
+            "linkedGrammarPointIds": [
+              "g-present-to-be"
+            ]
+          }
+        },
+        {
+          "id": "s1-l6",
+          "name": "Review: greetings",
+          "description": "Mixed review of Section 1 greetings.",
+          "type": "review",
+          "template": "review",
+          "prerequisiteLessonIds": [
+            "s1-l5"
+          ],
+          "content": {
+            "subLessons": [
+              {
+                "id": "sl-s1-l6-1",
+                "name": "Mixed review",
+                "stages": [
+                  {
+                    "id": "st-sl-s1-l6-1",
+                    "name": "Recall",
+                    "items": [
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s1-r1",
+                        "prompt": "What is \"günaydın\"?",
+                        "options": [
+                          "Good morning",
+                          "Good night",
+                          "Thank you",
+                          "Please"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s1-r2",
+                        "prompt": "What is \"rica ederim\"?",
+                        "options": [
+                          "You're welcome",
+                          "Excuse me",
+                          "Hello",
+                          "No"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s1-r1",
+                        "source": "Excuse me.",
+                        "expected": "Affedersiniz.",
+                        "hints": [
+                          "affedersiniz"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-s1-r1",
+                        "sentence": "_____ kal!",
+                        "answer": "Hoşça",
+                        "hint": "goodbye"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s1-r-iyi-a",
+                        "wordId": "w-iyi-aksamlar",
+                        "context": "iyi akşamlar — good evening"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s1-r-iyi-g",
+                        "wordId": "w-iyi-geceler",
+                        "context": "iyi geceler — good night"
                       }
                     ]
                   }

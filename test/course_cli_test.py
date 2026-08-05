@@ -46,6 +46,52 @@ class TestCourseCli(unittest.TestCase):
         args = Args(course_dir=self.course_dir)
         self.assertEqual(cmd_validate(args), 0)
 
+    def test_lint_passes_for_bundled_course(self) -> None:
+        args = Args(course_dir=self.course_dir, strict=False)
+        self.assertEqual(cmd_lint(args), 0)
+
+    def test_bundled_course_has_no_placeholder_lessons(self) -> None:
+        for path in sorted((self.course_dir / "sections").glob("section*.json")):
+            section = load_json(path)
+            for unit in section.get("units", []):
+                for lesson in unit.get("lessons", []):
+                    desc = (lesson.get("description") or "").lower()
+                    self.assertNotIn(
+                        "placeholder",
+                        desc,
+                        msg=f"placeholder lesson {lesson.get('id')} in {path.name}",
+                    )
+
+    def test_bundled_course_has_listening_and_reading_per_section(self) -> None:
+        for path in sorted((self.course_dir / "sections").glob("section*.json")):
+            section = load_json(path)
+            templates: set[str] = set()
+            lesson_count = 0
+            for unit in section.get("units", []):
+                for lesson in unit.get("lessons", []):
+                    lesson_count += 1
+                    templates.add(lesson.get("template") or "legacy")
+            self.assertGreaterEqual(
+                lesson_count,
+                4,
+                msg=f"{path.name} must have multi-lesson structure",
+            )
+            self.assertIn("listening", templates, msg=f"{path.name} missing listening")
+            self.assertIn("reading", templates, msg=f"{path.name} missing reading")
+
+    def test_bundled_pool_is_materially_enriched(self) -> None:
+        vocab = load_vocab(self.course_dir)
+        expressions = load_json(self.course_dir / "expressions.json").get(
+            "expressions", []
+        )
+        grammar = load_json(self.course_dir / "grammar_points.json").get(
+            "grammarPoints", []
+        )
+        # Pre-goal baseline: ~30 words / 6 expressions / 0 grammar.
+        self.assertGreaterEqual(len(vocab), 100)
+        self.assertGreaterEqual(len(expressions), 12)
+        self.assertGreaterEqual(len(grammar), 4)
+
     def test_validate_fails_on_dangling_word_id(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             tmp_course = Path(tmp) / "turkish"

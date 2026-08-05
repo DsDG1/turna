@@ -8,36 +8,684 @@
   "units": [
     {
       "id": "s8-u1",
-      "name": "Fluency",
-      "description": "Speaking fluently across topics.",
+      "name": "Toplum ve fikirler",
+      "description": "Culture, media, and abstract discussion.",
       "prerequisiteUnitIds": [],
       "lessons": [
         {
           "id": "s8-l1",
-          "name": "Travel advanced",
-          "description": "Placeholder lesson — Turkish content to be authored.",
+          "name": "Welcome",
+          "description": "",
           "type": "normal",
           "template": "legacy",
           "prerequisiteLessonIds": [],
           "content": {
             "stages": [
               {
-                "id": "stage-welcome",
+                "id": "stage-s8-l1",
                 "name": "Welcome",
                 "description": "",
                 "prerequisiteStageIds": [],
                 "items": [
                   {
                     "runtimeType": "multipleChoice",
-                    "id": "mc-welcome",
-                    "prompt": "Which Turkish word means \"journey\"?",
+                    "id": "mc-s8-l1",
+                    "prompt": "Which word means \"future\"?",
                     "options": [
-                      "yolculuk",
-                      "merhaba",
-                      "evet",
-                      "su"
+                      "gelecek",
+                      "geçmiş",
+                      "haber",
+                      "müzik"
                     ],
                     "correctIndex": 0
+                  }
+                ]
+              }
+            ],
+            "subLessons": []
+          }
+        },
+        {
+          "id": "s8-l2",
+          "name": "Kültür",
+          "description": "Abstract and cultural vocabulary.",
+          "type": "normal",
+          "template": "intro",
+          "prerequisiteLessonIds": [
+            "s8-l1"
+          ],
+          "content": {
+            "subLessons": [
+              {
+                "id": "sl-s8-l2-w-kultur",
+                "name": "Kültür",
+                "stages": [
+                  {
+                    "id": "st-sl-s8-l2-w-kultur",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s8-l2-0",
+                        "wordId": "w-kultur",
+                        "context": "kültür — culture"
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s8-l2-0",
+                        "source": "Culture.",
+                        "expected": "Kültür.",
+                        "hints": [
+                          "kültür"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-s8-l2-0",
+                        "sentence": "Türk _____.",
+                        "answer": "kültürü",
+                        "hint": "culture"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-s8-l2-w-sanat",
+                "name": "Sanat",
+                "stages": [
+                  {
+                    "id": "st-sl-s8-l2-w-sanat",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s8-l2-1",
+                        "wordId": "w-sanat",
+                        "context": "sanat — art"
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s8-l2-1",
+                        "source": "Art.",
+                        "expected": "Sanat.",
+                        "hints": [
+                          "sanat"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-s8-l2-1",
+                        "sentence": "Modern _____.",
+                        "answer": "sanat",
+                        "hint": "art"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-s8-l2-w-teknoloji",
+                "name": "Teknoloji",
+                "stages": [
+                  {
+                    "id": "st-sl-s8-l2-w-teknoloji",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s8-l2-2",
+                        "wordId": "w-teknoloji",
+                        "context": "teknoloji — technology"
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s8-l2-2",
+                        "source": "Technology.",
+                        "expected": "Teknoloji.",
+                        "hints": [
+                          "teknoloji"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-s8-l2-2",
+                        "sentence": "Yeni _____.",
+                        "answer": "teknoloji",
+                        "hint": "technology"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-s8-l2-w-toplum",
+                "name": "Toplum",
+                "stages": [
+                  {
+                    "id": "st-sl-s8-l2-w-toplum",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s8-l2-3",
+                        "wordId": "w-toplum",
+                        "context": "toplum — society"
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s8-l2-3",
+                        "source": "Society.",
+                        "expected": "Toplum.",
+                        "hints": [
+                          "toplum"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-s8-l2-3",
+                        "sentence": "Bizim _____.",
+                        "answer": "toplumumuz",
+                        "hint": "society"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-s8-l2-w-gelecek",
+                "name": "Gelecek",
+                "stages": [
+                  {
+                    "id": "st-sl-s8-l2-w-gelecek",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s8-l2-4",
+                        "wordId": "w-gelecek",
+                        "context": "gelecek — future"
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s8-l2-4",
+                        "source": "Future.",
+                        "expected": "Gelecek.",
+                        "hints": [
+                          "gelecek"
+                        ]
+                      },
+                      {
+                        "runtimeType": "typeTheWord",
+                        "id": "ttw-s8-l2-4",
+                        "audioAsset": "w-gelecek",
+                        "prompt": "Type the word you hear",
+                        "expected": "gelecek"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-s8-l2-review",
+                "name": "Review",
+                "stages": [
+                  {
+                    "id": "st-sl-s8-l2-review",
+                    "name": "Put it together",
+                    "items": [
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s8-l2-rev-0",
+                        "prompt": "What is \"kültür\"?",
+                        "options": [
+                          "culture",
+                          "art",
+                          "technology",
+                          "society"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s8-l2-rev-1",
+                        "prompt": "What is \"sanat\"?",
+                        "options": [
+                          "art",
+                          "culture",
+                          "technology",
+                          "society"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s8-l2-rev-2",
+                        "prompt": "What is \"teknoloji\"?",
+                        "options": [
+                          "technology",
+                          "culture",
+                          "art",
+                          "society"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s8-l2-rev",
+                        "source": "Culture.",
+                        "expected": "Kültür.",
+                        "hints": [
+                          "kültür"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "linkedGrammarPointIds": [
+              "g-abstract-nouns",
+              "g-opinion"
+            ]
+          }
+        },
+        {
+          "id": "s8-l3",
+          "name": "Discuss & explain",
+          "description": "Practice and expand the unit theme.",
+          "type": "normal",
+          "template": "practice",
+          "prerequisiteLessonIds": [
+            "s8-l2"
+          ],
+          "content": {
+            "subLessons": [
+              {
+                "id": "sl-s8-l3-1",
+                "name": "Practice",
+                "stages": [
+                  {
+                    "id": "st-sl-s8-l3-1",
+                    "name": "Drill",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s8-muzik",
+                        "wordId": "w-muzik",
+                        "context": "müzik — music"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s8-haber",
+                        "wordId": "w-haber",
+                        "context": "haber — news"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s8-cevre",
+                        "wordId": "w-cevre",
+                        "context": "çevre — environment"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s8-gecmis",
+                        "wordId": "w-gecmis",
+                        "context": "geçmiş — past"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s8-ozgur",
+                        "wordId": "w-ozgurluk",
+                        "context": "özgürlük — freedom"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s8-sorum",
+                        "wordId": "w-sorumluluk",
+                        "context": "sorumluluk — responsibility"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s8-farkli",
+                        "wordId": "w-farkli",
+                        "context": "farklı — different"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s8-benzer",
+                        "wordId": "w-benzer",
+                        "context": "benzer — similar"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s8-tartis",
+                        "wordId": "w-tartismak",
+                        "context": "tartışmak — to discuss"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s8-acikla",
+                        "wordId": "w-aciklamak",
+                        "context": "açıklamak — to explain"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s8-inan",
+                        "wordId": "w-inanmak",
+                        "context": "inanmak — to believe"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s8-gelis",
+                        "wordId": "w-gelismek",
+                        "context": "gelişmek — to develop"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s8-egitim",
+                        "wordId": "w-egitim",
+                        "context": "eğitim — education"
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s8-p1",
+                        "prompt": "What is \"kültür\"?",
+                        "options": [
+                          "culture",
+                          "ticket",
+                          "cheese",
+                          "left"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s8-p1",
+                        "source": "What do you think?",
+                        "expected": "Ne düşünüyorsun?",
+                        "hints": [
+                          "ne düşünüyorsun"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-s8-p1",
+                        "sentence": "_____ çok önemli.",
+                        "answer": "Eğitim",
+                        "hint": "education"
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s8-p2",
+                        "prompt": "What does \"tartışmak\" mean?",
+                        "options": [
+                          "to discuss",
+                          "to sleep",
+                          "to order tea",
+                          "to turn left"
+                        ],
+                        "correctIndex": 0
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "linkedGrammarPointIds": [
+              "g-abstract-nouns",
+              "g-opinion"
+            ]
+          }
+        },
+        {
+          "id": "s8-l4",
+          "name": "Listening: society topics",
+          "description": "Listening practice with TTS-backed word audio.",
+          "type": "listening",
+          "template": "listening",
+          "prerequisiteLessonIds": [
+            "s8-l3"
+          ],
+          "content": {
+            "listeningPhases": [
+              {
+                "id": "lp-s8-l4-word",
+                "name": "Word pairing",
+                "type": "wordPairing",
+                "transcript": "Listen and choose the matching form.",
+                "items": [
+                  {
+                    "runtimeType": "listenAndPick",
+                    "id": "lp-s8-l4-0",
+                    "audioAsset": "w-kultur",
+                    "prompt": "What do you hear?",
+                    "options": [
+                      "kültür",
+                      "otobüs",
+                      "peynir"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "listenAndPick",
+                    "id": "lp-s8-l4-1",
+                    "audioAsset": "w-teknoloji",
+                    "prompt": "What do you hear?",
+                    "options": [
+                      "teknoloji",
+                      "yağmur",
+                      "kapı"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "listenAndPick",
+                    "id": "lp-s8-l4-2",
+                    "audioAsset": "w-gelecek",
+                    "prompt": "What do you hear?",
+                    "options": [
+                      "gelecek",
+                      "geçmiş",
+                      "sabah"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "listenAndPick",
+                    "id": "lp-s8-l4-3",
+                    "audioAsset": "w-sorumluluk",
+                    "prompt": "What do you hear?",
+                    "options": [
+                      "sorumluluk",
+                      "bilet",
+                      "mavi"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              },
+              {
+                "id": "lp-s8-l4-dialogue",
+                "name": "Dialogue",
+                "type": "dialogue",
+                "audioAsset": "w-kultur",
+                "transcript": "A: Bence teknoloji toplumu değiştiriyor.\nB: Katılıyorum, ama sorumluluk da önemli.\nA: Gelecek için eğitim şart.",
+                "items": [
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-s8-ld1",
+                    "prompt": "What is changing society according to A?",
+                    "options": [
+                      "Technology",
+                      "Bread prices only",
+                      "Bus colors"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-s8-ld2",
+                    "prompt": "What does B stress?",
+                    "options": [
+                      "Responsibility",
+                      "Snow",
+                      "Hotel rooms"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              },
+              {
+                "id": "lp-s8-l4-summary",
+                "name": "Summary",
+                "type": "summary",
+                "audioAsset": "w-sorumluluk",
+                "transcript": "You practiced B2 discussion vocabulary with short opinion exchanges.",
+                "items": []
+              }
+            ]
+          }
+        },
+        {
+          "id": "s8-l5",
+          "name": "Reading: our future",
+          "description": "Short reading for this unit.",
+          "type": "reading",
+          "template": "reading",
+          "prerequisiteLessonIds": [
+            "s8-l4"
+          ],
+          "content": {
+            "readingPassage": {
+              "title": "Geleceğimiz",
+              "paragraphs": [
+                "Sanat ve müzik kültürümüzün parçasıdır.",
+                "Teknoloji gelişiyor. Bu fırsat ve sorun getirir.",
+                "Bence özgürlük ve sorumluluk birlikte olmalı. Ne düşünüyorsun?"
+              ],
+              "difficulty": 1,
+              "linkedWordIds": [
+                "w-sanat",
+                "w-muzik",
+                "w-kultur",
+                "w-teknoloji",
+                "w-gelismek",
+                "w-sorun",
+                "w-bence",
+                "w-ozgurluk",
+                "w-sorumluluk"
+              ],
+              "linkedExpressionIds": [
+                "e-ne-dusunuyorsun",
+                "e-anladim",
+                "e-tekrar-eder-misiniz",
+                "e-bence",
+                "e-katiliyorum"
+              ]
+            },
+            "stages": [
+              {
+                "id": "st-s8-l5-q",
+                "name": "Comprehension",
+                "items": [
+                  {
+                    "runtimeType": "readingMcq",
+                    "id": "rq-s8-1",
+                    "prompt": "What are part of culture in the text?",
+                    "options": [
+                      "Art and music",
+                      "Only airports",
+                      "Only tickets"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "readingTrueFalse",
+                    "id": "rq-s8-2",
+                    "statement": "Technology only brings problems.",
+                    "answer": false
+                  },
+                  {
+                    "runtimeType": "readingMcq",
+                    "id": "rq-s8-3",
+                    "prompt": "What should go together according to the writer?",
+                    "options": [
+                      "Freedom and responsibility",
+                      "Rain and snow",
+                      "Left and right only"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              }
+            ],
+            "linkedGrammarPointIds": [
+              "g-abstract-nouns",
+              "g-opinion"
+            ]
+          }
+        },
+        {
+          "id": "s8-l6",
+          "name": "Unit review",
+          "description": "Mixed review of this unit.",
+          "type": "review",
+          "template": "review",
+          "prerequisiteLessonIds": [
+            "s8-l5"
+          ],
+          "content": {
+            "subLessons": [
+              {
+                "id": "sl-s8-l6-1",
+                "name": "Mixed review",
+                "stages": [
+                  {
+                    "id": "st-sl-s8-l6-1",
+                    "name": "Recall",
+                    "items": [
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s8-r1",
+                        "prompt": "What is \"çevre\"?",
+                        "options": [
+                          "environment",
+                          "cheese",
+                          "ticket",
+                          "sister"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s8-r1",
+                        "source": "I understand.",
+                        "expected": "Anladım.",
+                        "hints": [
+                          "anladım"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-s8-r1",
+                        "sentence": "_____ inanıyorum.",
+                        "answer": "Buna",
+                        "hint": "I believe in this"
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s8-r2",
+                        "prompt": "What is \"haber\"?",
+                        "options": [
+                          "news",
+                          "future",
+                          "engineer",
+                          "pink"
+                        ],
+                        "correctIndex": 0
+                      }
+                    ]
                   }
                 ]
               }

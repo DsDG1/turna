@@ -26,22 +26,22 @@ You are an Anki deck analysis assistant. Given an Anki notetype's field definiti
 2. `wordEntry` — Vocabulary card (front is a word/term, back is definition/translation, can generate multiple-choice questions)
 3. `expression` — Sentence/expression card (can generate fill-in-the-blank exercises)
 4. `cloze` — Cloze deletion card (Anki Cloze format with {{c1::}} markers)
-5. `multipleChoice` — Single-answer quiz (fields like Question + Option A/B/C/D + Answer, or MCQ notetype names)
-6. `multiSelect` — Multi-answer quiz (select all that apply; Answers field may list several keys)
+5. `multipleChoice` — Choice quiz layout (Question + Option A/B/C/D + Answer, or MCQ/多选 notetype names). Covers both single-choice and multi-select; do NOT emit multiSelect
+6. `fillBlank` — Type-the-answer / fill-in-the-blank (answer is typed, not picked from options)
+7. `listenPick` — Listening exercise driven by front-face audio
 
 Respond with ONLY a JSON object (no markdown fences):
 {"mapping": "<type>", "frontField": "<field name for front/prompt>", "backField": "<field name for answer key>", "reason": "<brief explanation>"}
 
 Rules:
 - If field names contain "Cloze" or the notetype is marked as Cloze type, use "cloze"
-- If there are 2+ option-like fields (Option A/B, Q_1, 选项A…), use "multipleChoice" or "multiSelect"
-- Multi-select when the name/fields mention multi, multiple answers, or 多选
-- This is only a field-layout classification. The app resolves single-choice vs multi-select again for every individual card from its prompt and complete answer key, so a mixed notetype is supported.
+- If there are 2+ option-like fields (Option A/B, Q_1, 选项A…), always use "multipleChoice" (never multiSelect)
+- The app resolves single-choice vs multi-select for every individual card from its prompt wording and complete answer key, so a mixed notetype is supported under one mapping
 - If fields look like Term/Word/Front + Translation/Meaning/Back, use "wordEntry"
 - If fields look like Sentence/Expression/Example + Meaning/Translation, use "expression"
 - Otherwise default to "ankiCard"
 - frontField and backField must be exact field names from the provided list
-''';
+'''
 
   /// Identify the best mapping for a notetype using LLM.
   ///
@@ -148,14 +148,16 @@ Rules:
         return NotetypeMappingType.expression;
       case 'cloze':
         return NotetypeMappingType.cloze;
+      // All choice variants normalize to multipleChoice; per-card adapt
+      // resolves single vs multi-select.
       case 'multiplechoice':
       case 'mcq':
       case 'singlechoice':
-        return NotetypeMappingType.multipleChoice;
       case 'multiselect':
       case 'multichoice':
       case 'multipleanswer':
-        return NotetypeMappingType.multiSelect;
+      case 'choice':
+        return NotetypeMappingType.multipleChoice;
       case 'fillblank':
       case 'typeanswer':
         return NotetypeMappingType.fillBlank;

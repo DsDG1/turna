@@ -14,8 +14,11 @@ import 'package:flutter/foundation.dart' as _i29;
 import 'package:flutter/material.dart' as _i27;
 import 'package:turna/application/ai/ai_hint_provider.dart' as _i28;
 import 'package:turna/domain/course/mistake_entry.dart' as _i30;
+import 'package:turna/views/ai/ai_diagnosis_page.dart' as _i31;
 import 'package:turna/views/ai/ai_hint_chat_page.dart' as _i1;
 import 'package:turna/views/ai/ai_hub_page.dart' as _i2;
+import 'package:turna/views/ai/ai_saved_list_page.dart' as _i32;
+import 'package:turna/views/ai/ai_tutor_chat_page.dart' as _i33;
 import 'package:turna/views/ai/ai_wish_chat_page.dart' as _i3;
 import 'package:turna/views/ai/textbook/textbook_import_page.dart' as _i23;
 import 'package:turna/views/anki/anki_card_browser_page.dart' as _i4;
@@ -117,6 +120,54 @@ class AiWishChatRoute extends _i26.PageRouteInfo<void> {
     name,
     builder: (data) {
       return const _i3.AiWishChatPage();
+    },
+  );
+}
+
+/// generated route for
+/// [_i33.AiTutorChatPage]
+class AiTutorChatRoute extends _i26.PageRouteInfo<void> {
+  const AiTutorChatRoute({List<_i26.PageRouteInfo>? children})
+      : super(AiTutorChatRoute.name, initialChildren: children);
+
+  static const String name = 'AiTutorChatRoute';
+
+  static _i26.PageInfo page = _i26.PageInfo(
+    name,
+    builder: (data) {
+      return const _i33.AiTutorChatPage();
+    },
+  );
+}
+
+/// generated route for
+/// [_i31.AiDiagnosisPage]
+class AiDiagnosisRoute extends _i26.PageRouteInfo<void> {
+  const AiDiagnosisRoute({List<_i26.PageRouteInfo>? children})
+      : super(AiDiagnosisRoute.name, initialChildren: children);
+
+  static const String name = 'AiDiagnosisRoute';
+
+  static _i26.PageInfo page = _i26.PageInfo(
+    name,
+    builder: (data) {
+      return const _i31.AiDiagnosisPage();
+    },
+  );
+}
+
+/// generated route for
+/// [_i32.AiSavedListPage]
+class AiSavedListRoute extends _i26.PageRouteInfo<void> {
+  const AiSavedListRoute({List<_i26.PageRouteInfo>? children})
+      : super(AiSavedListRoute.name, initialChildren: children);
+
+  static const String name = 'AiSavedListRoute';
+
+  static _i26.PageInfo page = _i26.PageInfo(
+    name,
+    builder: (data) {
+      return const _i32.AiSavedListPage();
     },
   );
 }

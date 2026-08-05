@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "language": "tr",
   "expressions": [
     {
@@ -17,45 +17,155 @@
       "translation": "How are you?",
       "pronunciation": "na-sıl-sın",
       "tags": [
-        "greeting"
+        "greeting",
+        "question"
       ]
     },
     {
       "id": "e-adim",
       "term": "Adım ...",
-      "translation": "我叫……",
-      "pronunciation": null,
-      "audioAsset": null,
-      "tags": []
+      "translation": "My name is ...",
+      "pronunciation": "a-dım",
+      "tags": [
+        "greeting"
+      ]
     },
     {
       "id": "e-ne-kadar",
       "term": "Ne kadar?",
-      "translation": "多少钱？",
-      "pronunciation": null,
-      "audioAsset": null,
+      "translation": "How much?",
+      "pronunciation": "ne ka-dar",
       "tags": [
-        "shopping"
+        "question"
       ]
     },
     {
       "id": "e-istiyorum",
       "term": "... istiyorum",
-      "translation": "我想要……",
-      "pronunciation": null,
-      "audioAsset": null,
+      "translation": "I want ...",
+      "pronunciation": "is-ti-yo-rum",
       "tags": [
-        "request"
+        "verb"
       ]
     },
     {
       "id": "e-lutfen",
       "term": "Lütfen",
-      "translation": "请",
-      "pronunciation": null,
-      "audioAsset": null,
+      "translation": "Please",
+      "pronunciation": "lüt-fen",
       "tags": [
-        "polite"
+        "adverb"
+      ]
+    },
+    {
+      "id": "e-rica-ederim",
+      "term": "Rica ederim.",
+      "translation": "You're welcome.",
+      "pronunciation": "ri-ca e-de-rim",
+      "tags": [
+        "greeting"
+      ]
+    },
+    {
+      "id": "e-memnun-oldum",
+      "term": "Memnun oldum.",
+      "translation": "Nice to meet you.",
+      "pronunciation": "mem-nun ol-dum",
+      "tags": [
+        "greeting"
+      ]
+    },
+    {
+      "id": "e-nerede",
+      "term": "... nerede?",
+      "translation": "Where is ...?",
+      "pronunciation": "ne-re-de",
+      "tags": [
+        "question",
+        "travel"
+      ]
+    },
+    {
+      "id": "e-hesap-lutfen",
+      "term": "Hesap, lütfen.",
+      "translation": "The bill, please.",
+      "pronunciation": "he-sap lüt-fen",
+      "tags": [
+        "food"
+      ]
+    },
+    {
+      "id": "e-bir-cay",
+      "term": "Bir çay, lütfen.",
+      "translation": "One tea, please.",
+      "pronunciation": "bir çay lüt-fen",
+      "tags": [
+        "food"
+      ]
+    },
+    {
+      "id": "e-nasil-gidilir",
+      "term": "... nasıl gidilir?",
+      "translation": "How do you get to ...?",
+      "pronunciation": "na-sıl gi-di-lir",
+      "tags": [
+        "travel",
+        "question"
+      ]
+    },
+    {
+      "id": "e-hava-nasil",
+      "term": "Hava nasıl?",
+      "translation": "How is the weather?",
+      "pronunciation": "ha-va na-sıl",
+      "tags": [
+        "nature",
+        "question"
+      ]
+    },
+    {
+      "id": "e-bence",
+      "term": "Bence ...",
+      "translation": "In my opinion ...",
+      "pronunciation": "ben-ce",
+      "tags": [
+        "adverb"
+      ]
+    },
+    {
+      "id": "e-katiliyorum",
+      "term": "Katılıyorum.",
+      "translation": "I agree.",
+      "pronunciation": "ka-tı-lı-yo-rum",
+      "tags": [
+        "verb"
+      ]
+    },
+    {
+      "id": "e-ne-dusunuyorsun",
+      "term": "Ne düşünüyorsun?",
+      "translation": "What do you think?",
+      "pronunciation": "ne dü-şü-nü-yor-sun",
+      "tags": [
+        "question"
+      ]
+    },
+    {
+      "id": "e-anladim",
+      "term": "Anladım.",
+      "translation": "I understand.",
+      "pronunciation": "a-na-dım",
+      "tags": [
+        "verb"
+      ]
+    },
+    {
+      "id": "e-tekrar-eder-misiniz",
+      "term": "Tekrar eder misiniz?",
+      "translation": "Could you repeat?",
+      "pronunciation": "tek-rar e-der mi-si-niz",
+      "tags": [
+        "question"
       ]
     }
   ]

@@ -3,11 +3,14 @@ import 'package:flutter/foundation.dart';
 
 // Project imports:
 import 'package:turna/application/ai/ai_course_spec.dart';
+import 'package:turna/application/ai/ai_error_mapper.dart';
+import 'package:turna/application/ai/ai_explain_prefs.dart';
 import 'package:turna/application/ai/hint_genres.dart';
 import 'package:turna/application/ai/engine/ai_cancel_token.dart';
 import 'package:turna/application/ai/engine/ai_engine.dart';
 import 'package:turna/application/ai/engine/ai_engine_config.dart';
 import 'package:turna/application/ai/engine/ai_recent_tasks_provider.dart';
+import 'package:turna/application/ai/learner_ai_context.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/di/injection.dart';
 
@@ -47,21 +50,37 @@ class AiQuestionContext {
 
   /// What the learner answered, if they have already submitted.
   final String? userAnswer;
+
+  bool get hasSubmittedAnswer =>
+      userAnswer != null && userAnswer!.trim().isNotEmpty;
 }
 
 /// Provider backing the in-lesson AI hint assistant (the right-corner AI
 /// button -> explanation sheet -> follow-up chat page).
 ///
 /// Holds a single question's context plus the conversation history built on
-/// top of it. The [AiEngineConfig] is sourced from [AiEngineConfigHolder]; all
-/// LLM traffic routes through the shared [AiEngine] (the single choke point),
-/// so hint replies are cacheable and an in-flight generation can be cancelled
-/// mid-flight via [cancel].
+/// top of it. Streams via [AiEngine.chat] `onChunk`; cancel keeps partial
+/// text and generation tokens block superseded chunks.
 class AiHintProvider extends ChangeNotifier {
-  AiHintProvider({AiEngine? engine}) : _engine = engine ?? getIt<AiEngine>();
-  AiHintProvider.withEngine(this._engine);
+  AiHintProvider({
+    AiEngine? engine,
+    AiExplainPrefsStore? prefs,
+  })  : _engine = engine ?? getIt<AiEngine>(),
+        _prefs = AiExplainPrefsStore.resolve(
+          prefs: prefs,
+          allowEphemeral: true,
+        );
+
+  AiHintProvider.withEngine(
+    this._engine, {
+    AiExplainPrefsStore? prefs,
+  }) : _prefs = AiExplainPrefsStore.resolve(
+          prefs: prefs,
+          allowEphemeral: true,
+        );
 
   final AiEngine _engine;
+  final AiExplainPrefsStore _prefs;
 
   /// Active cancel token for the in-flight generation, if any. Cancelled on
   /// [reset] / [cancel] / when a newer request supersedes it.
@@ -81,6 +100,10 @@ class AiHintProvider extends ChangeNotifier {
   AiQuestionContext? _context;
   AiQuestionContext? get context => _context;
 
+  /// Optional learner snapshot injected into system prompts when prefs allow.
+  LearnerAiContext? _learnerContext;
+  LearnerAiContext? get learnerContext => _learnerContext;
+
   /// Monotonic token bumped on every [explainQuestion] / [reset]. Each
   /// request captures the token at start and refuses to mutate state if the
   /// token changed while it was awaiting the network - so a stale in-flight
@@ -92,9 +115,14 @@ class AiHintProvider extends ChangeNotifier {
   /// scanning the message list.
   String? get latestReply {
     for (final m in _messages.reversed) {
-      if (m.role == 'assistant') return m.content;
+      if (m.role == 'assistant' && m.content.isNotEmpty) return m.content;
     }
     return null;
+  }
+
+  /// Inject (or clear) learner context for subsequent system prompts.
+  void setLearnerContext(LearnerAiContext? ctx) {
+    _learnerContext = ctx;
   }
 
   /// Cancel any in-flight generation, clear history/context/state, and return
@@ -111,7 +139,7 @@ class AiHintProvider extends ChangeNotifier {
   }
 
   /// Cancel the in-flight generation (if any) and return to idle, keeping the
-  /// conversation history. A no-op when nothing is loading.
+  /// conversation history **including partial streamed assistant text**.
   void cancel() {
     if (_state != AiHintState.loading) return;
     _cancelToken?.cancel();
@@ -120,13 +148,14 @@ class AiHintProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Ask the AI to explain the current question. Builds the system prompt
-  /// from [ctx], seeds the conversation with a "explain this" user turn, and
-  /// appends the assistant's reply.
+  /// Ask the AI to explain the current question. Streams assistant text via
+  /// `onChunk`; seeds the conversation with a user turn + empty assistant.
   Future<void> explainQuestion({
     required AiEngineConfig config,
     required AiQuestionContext ctx,
   }) async {
+    // No acquire-gate here: supersede / new-question must always start.
+    // Debounce double-taps via cancel of the previous in-flight token.
     _cancelToken?.cancel();
     _generation++;
     final gen = _generation;
@@ -136,41 +165,58 @@ class AiHintProvider extends ChangeNotifier {
     _context = ctx;
     _state = AiHintState.loading;
     _messages.clear();
+    final userText = _buildExplainPrompt(ctx);
+    _messages.add(AiChatMessage(role: 'user', content: userText));
+    _messages.add(const AiChatMessage(role: 'assistant', content: ''));
+    final assistantIndex = _messages.length - 1;
     notifyListeners();
     try {
-      final userText = _buildExplainPrompt(ctx);
-      _messages.add(AiChatMessage(role: 'user', content: userText));
-      notifyListeners();
+      final apiMessages = <Map<String, dynamic>>[
+        {'role': 'system', 'content': buildSystemPrompt(ctx)},
+        _messages[0].toApiDict(),
+      ];
       final result = await _engine.chat(
         config: config,
-        messages: <Map<String, dynamic>>[
-          {'role': 'system', 'content': _buildSystemPrompt(ctx)},
-          ..._messages.map((m) => m.toApiDict()),
-        ],
+        messages: apiMessages,
         cancelToken: token,
+        onChunk: (delta) {
+          if (gen != _generation) return;
+          if (delta.isEmpty) return;
+          final cur = _messages[assistantIndex].content;
+          _messages[assistantIndex] =
+              AiChatMessage(role: 'assistant', content: cur + delta);
+          notifyListeners();
+        },
       );
       if (gen != _generation) return; // superseded by a newer request/reset
-      _messages.add(AiChatMessage(role: 'assistant', content: result.content));
+      if (_messages[assistantIndex].content.isEmpty &&
+          result.content.isNotEmpty) {
+        _messages[assistantIndex] =
+            AiChatMessage(role: 'assistant', content: result.content);
+      }
       _state = AiHintState.ready;
       _recordRecent(ctx.language);
     } on AiCancelled {
       if (gen != _generation) return; // superseded - expected
-      _state = AiHintState.idle; // user-cancelled
+      // Keep partial assistant text.
+      _state = AiHintState.idle;
     } catch (e) {
       if (gen != _generation) return; // superseded - drop the stale error
       logger.w('AiHintProvider.explainQuestion failed: $e');
-      _error = e.toString();
+      _error = AiErrorMapper.map(e).message;
       _state = AiHintState.error;
+      if (assistantIndex < _messages.length &&
+          _messages[assistantIndex].content.isEmpty) {
+        _messages.removeAt(assistantIndex);
+      }
     } finally {
       if (identical(_cancelToken, token)) _cancelToken = null;
     }
     if (gen == _generation) notifyListeners();
   }
 
-  /// Append a follow-up question and the assistant's reply. Returns `true`
-  /// when the turn was actually started (context present, text non-empty),
-  /// `false` when it was a no-op - callers can use the return value to avoid
-  /// clearing the input field on a no-op so the user's text isn't lost.
+  /// Append a follow-up question and stream the assistant's reply. Returns
+  /// `true` when the turn was actually started.
   Future<bool> ask({
     required AiEngineConfig config,
     required String text,
@@ -181,51 +227,66 @@ class AiHintProvider extends ChangeNotifier {
     final gen = _generation;
     final token = AiCancelToken();
     _cancelToken = token;
-    final userIndex = _messages.length; // for orphan cleanup if superseded
+    final userIndex = _messages.length;
     _error = null;
     _state = AiHintState.loading;
     _messages.add(AiChatMessage(role: 'user', content: text));
+    _messages.add(const AiChatMessage(role: 'assistant', content: ''));
+    final assistantIndex = _messages.length - 1;
     notifyListeners();
+    final userText = text;
     try {
+      final apiMessages = <Map<String, dynamic>>[
+        {'role': 'system', 'content': buildSystemPrompt(_context!)},
+        for (var i = 0; i < _messages.length; i++)
+          if (i != assistantIndex) _messages[i].toApiDict(),
+      ];
       final result = await _engine.chat(
         config: config,
-        messages: <Map<String, dynamic>>[
-          {'role': 'system', 'content': _buildSystemPrompt(_context!)},
-          ..._messages.map((m) => m.toApiDict()),
-        ],
+        messages: apiMessages,
         cancelToken: token,
+        onChunk: (delta) {
+          if (gen != _generation) return;
+          if (delta.isEmpty) return;
+          if (assistantIndex >= _messages.length) return;
+          final cur = _messages[assistantIndex].content;
+          _messages[assistantIndex] =
+              AiChatMessage(role: 'assistant', content: cur + delta);
+          notifyListeners();
+        },
       );
       if (gen != _generation) {
-        // Superseded - remove this turn's orphan user message so the stale
-        // question doesn't linger in the transcript or the newer request's
-        // history. Only do this if it's still ours at that index (a newer
-        // ask that already cleaned up would have shifted indices).
-        if (userIndex < _messages.length) {
-          _messages.removeAt(userIndex);
-        }
+        _removeOrphanTurn(userIndex, assistantIndex, userText);
         return true;
       }
-      _messages.add(AiChatMessage(role: 'assistant', content: result.content));
+      if (assistantIndex < _messages.length &&
+          _messages[assistantIndex].content.isEmpty &&
+          result.content.isNotEmpty) {
+        _messages[assistantIndex] =
+            AiChatMessage(role: 'assistant', content: result.content);
+      }
       _state = AiHintState.ready;
       _recordRecent(_context!.language);
     } on AiCancelled {
       if (gen != _generation) {
-        if (userIndex < _messages.length) {
-          _messages.removeAt(userIndex);
-        }
-        return true; // superseded - expected
+        _removeOrphanTurn(userIndex, assistantIndex, userText);
+        return true;
       }
-      _state = AiHintState.idle; // user-cancelled
+      // Keep partial text on user cancel.
+      _state = AiHintState.idle;
     } catch (e) {
       if (gen != _generation) {
-        if (userIndex < _messages.length) {
-          _messages.removeAt(userIndex);
-        }
-        return true; // superseded - drop the stale error
+        _removeOrphanTurn(userIndex, assistantIndex, userText);
+        return true;
       }
       logger.w('AiHintProvider.ask failed: $e');
-      _error = e.toString();
+      _error = AiErrorMapper.map(e).message;
       _state = AiHintState.error;
+      if (assistantIndex < _messages.length &&
+          _messages[assistantIndex].role == 'assistant' &&
+          _messages[assistantIndex].content.isEmpty) {
+        _messages.removeAt(assistantIndex);
+      }
     } finally {
       if (identical(_cancelToken, token)) _cancelToken = null;
     }
@@ -233,23 +294,61 @@ class AiHintProvider extends ChangeNotifier {
     return true;
   }
 
-  /// Persona + rules for the hint assistant. The correct answer is NOT
-  /// included - the assistant explains the knowledge point and reasoning
-  /// rather than revealing the answer, to keep it a learning aid.
-  String _buildSystemPrompt(AiQuestionContext ctx) {
-    return 'You are a language-learning tutor. The learner is practicing '
-        '${ctx.language}. Explain practice questions to the learner in plain '
-        'Chinese.\n'
-        'Requirements:\n'
-        '- First state what this question is testing (grammar point, word '
-        'meaning, sentence pattern, etc.).\n'
-        '- Then give the solving approach or related knowledge points, '
-        'concisely as bullet points.\n'
-        '- Do not directly restate the correct answer; guide the learner to '
-        'reach it themselves.\n'
-        '- If the learner asks a follow-up, you may give more specific hints '
-        'step by step, but keep it primarily heuristic.\n'
-        '- Reply in Chinese throughout.';
+  /// Drop a superseded turn's user + assistant only when those slots still
+  /// belong to that turn (avoids clobbering a newer ask's messages).
+  void _removeOrphanTurn(int userIndex, int assistantIndex, String userText) {
+    if (assistantIndex < _messages.length &&
+        _messages[assistantIndex].role == 'assistant') {
+      // Drop empty or partial assistant from the superseded stream.
+      _messages.removeAt(assistantIndex);
+    }
+    if (userIndex < _messages.length &&
+        _messages[userIndex].role == 'user' &&
+        _messages[userIndex].content == userText) {
+      _messages.removeAt(userIndex);
+    }
+  }
+
+  /// Persona + rules for the hint assistant. Public for snapshot tests.
+  @visibleForTesting
+  String buildSystemPrompt(AiQuestionContext ctx) {
+    final prefs = _prefs.snapshot;
+    final hasAnswer = ctx.hasSubmittedAnswer;
+    final reveal = prefs.allowRevealAnswer || hasAnswer;
+
+    final buf = StringBuffer()
+      ..writeln(
+          'You are a language-learning tutor. The learner is practicing '
+          '${ctx.language}.')
+      ..writeln(prefs.toSystemPromptRules())
+      ..writeln('Requirements:')
+      ..writeln(
+          '- First state what this question is testing (grammar point, word '
+          'meaning, sentence pattern, etc.).')
+      ..writeln(
+          '- Then give the solving approach or related knowledge points, '
+          'concisely as bullet points.');
+    if (reveal) {
+      buf.writeln(
+          '- The learner has submitted or allow-reveal is on; you may compare '
+          'their answer and clarify the correct form when helpful.');
+    } else {
+      buf.writeln(
+          '- Do not directly restate the correct answer; guide the learner to '
+          'reach it themselves.');
+    }
+    buf
+      ..writeln(
+          '- If the learner asks a follow-up, you may give more specific hints '
+          'step by step, but keep it primarily heuristic.')
+      ..writeln(buildQuestionTypeStrategy(ctx.typeLabel));
+
+    if (prefs.injectLearnerContext &&
+        _learnerContext != null &&
+        !_learnerContext!.isEmpty) {
+      buf.writeln(_learnerContext!.toPromptBlock());
+    }
+    return buf.toString();
   }
 
   /// The first user turn: describe the question for the model.
@@ -265,18 +364,16 @@ class AiHintProvider extends ChangeNotifier {
     if (ctx.userAnswer != null && ctx.userAnswer!.isNotEmpty) {
       buf.writeln('My answer: ${ctx.userAnswer}');
     }
-    buf.writeln('Explain according to your rules; do not give the answer '
-        'directly.');
+    if (!ctx.hasSubmittedAnswer && !_prefs.snapshot.allowRevealAnswer) {
+      buf.writeln(
+          'Explain according to your rules; do not give the answer directly.');
+    } else {
+      buf.writeln('Explain according to your rules.');
+    }
     return buf.toString();
   }
 
   // ─── Depth-learning tutor genres ─────────────────────────────────────
-  //
-  // Each genre is a one-shot `chat()` round-trip whose reply is a small JSON
-  // object, decoded and parsed into a typed result. They do NOT touch the
-  // conversation state machine above (no `_messages` / `_state` mutation) -
-  // they are stateless helpers the depth-tutor sheet calls directly. Errors
-  // (network or JSON parse) propagate to the caller; the sheet surfaces them.
 
   /// Shared hop for the genres: one `chat()` call whose reply is a JSON
   /// object, decoded and parsed into [T] by [parse].
@@ -300,8 +397,7 @@ class AiHintProvider extends ChangeNotifier {
     return parse(decodeJsonObject(result.content));
   }
 
-  /// Explain a grammar point illustrated by [sentence]. Returns a structured
-  /// explanation with related examples and points it contrasts with.
+  /// Explain a grammar point illustrated by [sentence].
   Future<GrammarExplanation> explainGrammarPoint({
     required AiEngineConfig config,
     required String language,
@@ -326,7 +422,7 @@ class AiHintProvider extends ChangeNotifier {
     );
   }
 
-  /// Compare near-synonymous [words], returning pairwise nuance and usage.
+  /// Compare near-synonymous [words].
   Future<SynonymComparison> compareSynonyms({
     required AiEngineConfig config,
     required String language,
@@ -350,8 +446,7 @@ class AiHintProvider extends ChangeNotifier {
     );
   }
 
-  /// Decompose [sentence] token-by-token with glosses and roles, plus a
-  /// one-line structure summary.
+  /// Decompose [sentence] token-by-token.
   Future<SentenceBreakdown> decomposeSentence({
     required AiEngineConfig config,
     required String language,
@@ -373,8 +468,7 @@ class AiHintProvider extends ChangeNotifier {
     );
   }
 
-  /// Explain why [userAnswer] was wrong for [questionContext], what the
-  /// learner likely confused it with, and how to remember [correctAnswer].
+  /// Explain why [userAnswer] was wrong.
   Future<WhyWrongExplanation> explainWhyWrong({
     required AiEngineConfig config,
     required String language,
@@ -400,8 +494,6 @@ class AiHintProvider extends ChangeNotifier {
     );
   }
 
-  /// Append a hint task to the AI Hub's recent list. Called from the success
-  /// branches of [explainQuestion] / [ask] so Continue shows hint flows.
   void _recordRecent(String language) {
     final context = _context;
     if (context == null) return;
@@ -411,31 +503,11 @@ class AiHintProvider extends ChangeNotifier {
               kind: AiTaskKind.hintChat,
               summary: '${context.typeLabel} · $language',
               timestamp: DateTime.now(),
+              route: 'AiHintChatRoute',
             ),
           );
     } catch (_) {
       // Recent tasks are advisory; never let a record failure break the flow.
     }
   }
-}
-
-/// Build a self-contained Chinese prompt handed to HarmonyOS 小艺 when the
-/// learner taps the AI button with "用小艺解答" enabled. Unlike
-/// [AiHintProvider._buildExplainPrompt] (which tells the tutor model not to
-/// reveal the answer), this asks 小艺 to directly explain and answer the
-/// question, because 小艺 is a general assistant outside the app's learning
-/// flow and the learner chose it precisely to get the answer.
-String buildXiaoyiPrompt(AiQuestionContext ctx) {
-  final buf = StringBuffer()
-    ..writeln('这是一道${ctx.language}语言学习练习题，请帮我解答并讲解：')
-    ..writeln('题型：${ctx.typeLabel}')
-    ..writeln('题目：${ctx.promptLabel}');
-  if (ctx.optionsLabel != null && ctx.optionsLabel!.isNotEmpty) {
-    buf.writeln('选项：${ctx.optionsLabel}');
-  }
-  if (ctx.userAnswer != null && ctx.userAnswer!.isNotEmpty) {
-    buf.writeln('我的答案：${ctx.userAnswer}');
-  }
-  buf.writeln('请给出正确答案并简要讲解相关知识点。');
-  return buf.toString();
 }

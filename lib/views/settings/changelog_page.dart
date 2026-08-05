@@ -43,10 +43,27 @@ class ChangelogPage extends StatelessWidget {
       title: 'FSRS / AI / Anki',
       subtitle: '连续记忆模型、AI 引擎重构、Anki 智能化',
     ),
+    JourneyStep(
+      label: '1.2.0',
+      title: 'AI 伴学与内容扩充',
+      subtitle: '自由问答 / 诊断 / 收藏；土耳其语八章真实内容',
+    ),
   ];
 
   /// 硬编码后援:asset 加载失败时使用。
   static const List<ChangelogRelease> fallbackReleases = [
+    ChangelogRelease(
+      version: '1.2.0',
+      title: 'AI 伴学与土耳其语内容扩充',
+      items: [
+        'AI 伴学全面升级：自由问答、学习诊断、讲解收藏、词典 AI 扩展、Anki 卡片讲解',
+        '课内提示支持流式回复，并注入学习者上下文（水平、错题、讲解偏好）',
+        'AI Hub 重组为伴学优先：自由问答 / 诊断 / 收藏讲解与创作类入口分区更清晰',
+        '统一讲解偏好（回复语言、深度、是否允许给答案）与友好错误提示',
+        '土耳其语内置课程大幅扩充：约 148 词、18 表达、8 语法点、54 课（A1→B2 八章）',
+        '进度导出不再包含 API Key；移除小艺（Xiaoyi）桥接，统一走本地 AI 引擎',
+      ],
+    ),
     ChangelogRelease(
       version: '1.1.0',
       title: '间隔重复与 AI 引擎升级',
@@ -60,7 +77,7 @@ class ChangelogPage extends StatelessWidget {
     ),
     ChangelogRelease(
       version: '1.0.0',
-      title: '当前版本',
+      title: '土耳其语转向',
       items: [
         '界面文案全面中文化，设置与关于页统一体验',
         'Anki 牌组导入（.apkg / .colpkg）与 Anki 复习入口',

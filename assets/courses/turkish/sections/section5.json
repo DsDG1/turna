@@ -8,36 +8,679 @@
   "units": [
     {
       "id": "s5-u1",
-      "name": "Daily life",
-      "description": "Everyday situations and routines.",
+      "name": "Seyahat",
+      "description": "Travel, hotels, and asking the way.",
       "prerequisiteUnitIds": [],
       "lessons": [
         {
           "id": "s5-l1",
-          "name": "Food and eating",
-          "description": "Placeholder lesson — Turkish content to be authored.",
+          "name": "Welcome",
+          "description": "",
           "type": "normal",
           "template": "legacy",
           "prerequisiteLessonIds": [],
           "content": {
             "stages": [
               {
-                "id": "stage-welcome",
+                "id": "stage-s5-l1",
                 "name": "Welcome",
                 "description": "",
                 "prerequisiteStageIds": [],
                 "items": [
                   {
                     "runtimeType": "multipleChoice",
-                    "id": "mc-welcome",
-                    "prompt": "Which Turkish word means \"bread\"?",
+                    "id": "mc-s5-l1",
+                    "prompt": "Which word means \"hotel\"?",
                     "options": [
-                      "ekmek",
-                      "çay",
-                      "su",
-                      "merhaba"
+                      "otel",
+                      "bilet",
+                      "tren",
+                      "sol"
                     ],
                     "correctIndex": 0
+                  }
+                ]
+              }
+            ],
+            "subLessons": []
+          }
+        },
+        {
+          "id": "s5-l2",
+          "name": "Yolculuk",
+          "description": "Airports, hotels, and tickets.",
+          "type": "normal",
+          "template": "intro",
+          "prerequisiteLessonIds": [
+            "s5-l1"
+          ],
+          "content": {
+            "subLessons": [
+              {
+                "id": "sl-s5-l2-w-havaalani",
+                "name": "Havaalanı",
+                "stages": [
+                  {
+                    "id": "st-sl-s5-l2-w-havaalani",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s5-l2-0",
+                        "wordId": "w-havaalani",
+                        "context": "havaalanı — airport"
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s5-l2-0",
+                        "source": "Airport.",
+                        "expected": "Havaalanı.",
+                        "hints": [
+                          "havaalanı"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-s5-l2-0",
+                        "sentence": "_____ nerede?",
+                        "answer": "Havaalanı",
+                        "hint": "airport"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-s5-l2-w-otel",
+                "name": "Otel",
+                "stages": [
+                  {
+                    "id": "st-sl-s5-l2-w-otel",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s5-l2-1",
+                        "wordId": "w-otel",
+                        "context": "otel — hotel"
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s5-l2-1",
+                        "source": "Hotel.",
+                        "expected": "Otel.",
+                        "hints": [
+                          "otel"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-s5-l2-1",
+                        "sentence": "İyi bir _____.",
+                        "answer": "otel",
+                        "hint": "hotel"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-s5-l2-w-bilet",
+                "name": "Bilet",
+                "stages": [
+                  {
+                    "id": "st-sl-s5-l2-w-bilet",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s5-l2-2",
+                        "wordId": "w-bilet",
+                        "context": "bilet — ticket"
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s5-l2-2",
+                        "source": "Ticket.",
+                        "expected": "Bilet.",
+                        "hints": [
+                          "bilet"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-s5-l2-2",
+                        "sentence": "İki _____ lütfen.",
+                        "answer": "bilet",
+                        "hint": "ticket"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-s5-l2-w-otobus",
+                "name": "Otobüs",
+                "stages": [
+                  {
+                    "id": "st-sl-s5-l2-w-otobus",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s5-l2-3",
+                        "wordId": "w-otobus",
+                        "context": "otobüs — bus"
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s5-l2-3",
+                        "source": "Bus.",
+                        "expected": "Otobüs.",
+                        "hints": [
+                          "otobüs"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-s5-l2-3",
+                        "sentence": "_____ durağı.",
+                        "answer": "Otobüs",
+                        "hint": "bus"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-s5-l2-w-nerede",
+                "name": "Nerede",
+                "stages": [
+                  {
+                    "id": "st-sl-s5-l2-w-nerede",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s5-l2-4",
+                        "wordId": "w-nerede",
+                        "context": "nerede — where?"
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s5-l2-4",
+                        "source": "Where?",
+                        "expected": "Nerede?",
+                        "hints": [
+                          "nerede"
+                        ]
+                      },
+                      {
+                        "runtimeType": "typeTheWord",
+                        "id": "ttw-s5-l2-4",
+                        "audioAsset": "w-nerede",
+                        "prompt": "Type the word you hear",
+                        "expected": "nerede"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-s5-l2-review",
+                "name": "Review",
+                "stages": [
+                  {
+                    "id": "st-sl-s5-l2-review",
+                    "name": "Put it together",
+                    "items": [
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s5-l2-rev-0",
+                        "prompt": "What is \"havaalanı\"?",
+                        "options": [
+                          "airport",
+                          "hotel",
+                          "ticket",
+                          "bus"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s5-l2-rev-1",
+                        "prompt": "What is \"otel\"?",
+                        "options": [
+                          "hotel",
+                          "airport",
+                          "ticket",
+                          "bus"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s5-l2-rev-2",
+                        "prompt": "What is \"bilet\"?",
+                        "options": [
+                          "ticket",
+                          "airport",
+                          "hotel",
+                          "bus"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s5-l2-rev",
+                        "source": "Airport.",
+                        "expected": "Havaalanı.",
+                        "hints": [
+                          "havaalanı"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "linkedGrammarPointIds": [
+              "g-locative"
+            ]
+          }
+        },
+        {
+          "id": "s5-l3",
+          "name": "Directions",
+          "description": "Practice and expand the unit theme.",
+          "type": "normal",
+          "template": "practice",
+          "prerequisiteLessonIds": [
+            "s5-l2"
+          ],
+          "content": {
+            "subLessons": [
+              {
+                "id": "sl-s5-l3-1",
+                "name": "Practice",
+                "stages": [
+                  {
+                    "id": "st-sl-s5-l3-1",
+                    "name": "Drill",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s5-tren",
+                        "wordId": "w-tren",
+                        "context": "tren — train"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s5-taksi",
+                        "wordId": "w-taksi",
+                        "context": "taksi — taxi"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s5-ist",
+                        "wordId": "w-istasyon",
+                        "context": "istasyon — station"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s5-sol",
+                        "wordId": "w-sol",
+                        "context": "sol — left"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s5-sag",
+                        "wordId": "w-sag",
+                        "context": "sağ — right"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s5-duz",
+                        "wordId": "w-duz",
+                        "context": "düz — straight"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s5-yakin",
+                        "wordId": "w-yakin",
+                        "context": "yakın — near"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s5-uzak",
+                        "wordId": "w-uzak",
+                        "context": "uzak — far"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s5-pasaport",
+                        "wordId": "w-pasaport",
+                        "context": "pasaport — passport"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s5-valiz",
+                        "wordId": "w-valiz",
+                        "context": "valiz — suitcase"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s5-tuvalet",
+                        "wordId": "w-tuvalet",
+                        "context": "tuvalet — restroom"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s5-harita",
+                        "wordId": "w-harita",
+                        "context": "harita — map"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s5-nasil",
+                        "wordId": "w-nasil-giderim",
+                        "context": "nasıl giderim — how do I get there?"
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s5-p1",
+                        "prompt": "What is \"otel\"?",
+                        "options": [
+                          "hotel",
+                          "airport",
+                          "ticket",
+                          "bus"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s5-p1",
+                        "source": "Where is the station?",
+                        "expected": "İstasyon nerede?",
+                        "hints": [
+                          "istasyon",
+                          "nerede"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-s5-p1",
+                        "sentence": "_____ gidin.",
+                        "answer": "Düz",
+                        "hint": "straight"
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s5-p2",
+                        "prompt": "What does \"uzak\" mean?",
+                        "options": [
+                          "far",
+                          "near",
+                          "left",
+                          "ticket"
+                        ],
+                        "correctIndex": 0
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "linkedGrammarPointIds": [
+              "g-locative"
+            ]
+          }
+        },
+        {
+          "id": "s5-l4",
+          "name": "Listening: directions",
+          "description": "Listening practice with TTS-backed word audio.",
+          "type": "listening",
+          "template": "listening",
+          "prerequisiteLessonIds": [
+            "s5-l3"
+          ],
+          "content": {
+            "listeningPhases": [
+              {
+                "id": "lp-s5-l4-word",
+                "name": "Word pairing",
+                "type": "wordPairing",
+                "transcript": "Listen and choose the matching form.",
+                "items": [
+                  {
+                    "runtimeType": "listenAndPick",
+                    "id": "lp-s5-l4-0",
+                    "audioAsset": "w-otel",
+                    "prompt": "What do you hear?",
+                    "options": [
+                      "otel",
+                      "tren",
+                      "çay"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "listenAndPick",
+                    "id": "lp-s5-l4-1",
+                    "audioAsset": "w-bilet",
+                    "prompt": "What do you hear?",
+                    "options": [
+                      "bilet",
+                      "valiz",
+                      "kar"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "listenAndPick",
+                    "id": "lp-s5-l4-2",
+                    "audioAsset": "w-sol",
+                    "prompt": "What do you hear?",
+                    "options": [
+                      "sol",
+                      "sağ",
+                      "düz"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "listenAndPick",
+                    "id": "lp-s5-l4-3",
+                    "audioAsset": "w-taksi",
+                    "prompt": "What do you hear?",
+                    "options": [
+                      "taksi",
+                      "otobüs",
+                      "harita"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              },
+              {
+                "id": "lp-s5-l4-dialogue",
+                "name": "Dialogue",
+                "type": "dialogue",
+                "audioAsset": "w-otel",
+                "transcript": "A: Otel nerede?\nB: Düz gidin, sonra sola dönün. Otel yakın.\nA: Teşekkürler. Bir taksi de istiyorum.",
+                "items": [
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-s5-ld1",
+                    "prompt": "Where is the hotel?",
+                    "options": [
+                      "Nearby, after going straight and left",
+                      "At the airport only",
+                      "Far and unknown"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-s5-ld2",
+                    "prompt": "What else does A want?",
+                    "options": [
+                      "A taxi",
+                      "Tea",
+                      "A book"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              },
+              {
+                "id": "lp-s5-l4-summary",
+                "name": "Summary",
+                "type": "summary",
+                "audioAsset": "w-taksi",
+                "transcript": "You practiced travel words and simple directions.",
+                "items": []
+              }
+            ]
+          }
+        },
+        {
+          "id": "s5-l5",
+          "name": "Reading: at the station",
+          "description": "Short reading for this unit.",
+          "type": "reading",
+          "template": "reading",
+          "prerequisiteLessonIds": [
+            "s5-l4"
+          ],
+          "content": {
+            "readingPassage": {
+              "title": "İstasyonda",
+              "paragraphs": [
+                "Mehmet istasyonda. Tren bileti alır.",
+                "Tuvalet solda. Otobüs durağı ise yakındır.",
+                "Valizi ağırdır. Taksi çağırır."
+              ],
+              "difficulty": 1,
+              "linkedWordIds": [
+                "w-istasyon",
+                "w-tren",
+                "w-bilet",
+                "w-tuvalet",
+                "w-sol",
+                "w-otobus",
+                "w-yakin",
+                "w-valiz",
+                "w-taksi"
+              ],
+              "linkedExpressionIds": [
+                "e-nerede",
+                "e-nasil-gidilir"
+              ]
+            },
+            "stages": [
+              {
+                "id": "st-s5-l5-q",
+                "name": "Comprehension",
+                "items": [
+                  {
+                    "runtimeType": "readingMcq",
+                    "id": "rq-s5-1",
+                    "prompt": "What ticket does Mehmet buy?",
+                    "options": [
+                      "Train",
+                      "Bus",
+                      "Plane"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "readingTrueFalse",
+                    "id": "rq-s5-2",
+                    "statement": "The restroom is on the left.",
+                    "answer": true
+                  },
+                  {
+                    "runtimeType": "readingMcq",
+                    "id": "rq-s5-3",
+                    "prompt": "Why does he call a taxi?",
+                    "options": [
+                      "His suitcase is heavy",
+                      "It is raining",
+                      "He is hungry"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              }
+            ],
+            "linkedGrammarPointIds": [
+              "g-locative"
+            ]
+          }
+        },
+        {
+          "id": "s5-l6",
+          "name": "Unit review",
+          "description": "Mixed review of this unit.",
+          "type": "review",
+          "template": "review",
+          "prerequisiteLessonIds": [
+            "s5-l5"
+          ],
+          "content": {
+            "subLessons": [
+              {
+                "id": "sl-s5-l6-1",
+                "name": "Mixed review",
+                "stages": [
+                  {
+                    "id": "st-sl-s5-l6-1",
+                    "name": "Recall",
+                    "items": [
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s5-r1",
+                        "prompt": "What is \"havaalanı\"?",
+                        "options": [
+                          "airport",
+                          "hotel",
+                          "map",
+                          "news"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s5-r1",
+                        "source": "Passport.",
+                        "expected": "Pasaport.",
+                        "hints": [
+                          "pasaport"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-s5-r1",
+                        "sentence": "_____ dönün.",
+                        "answer": "Sağa",
+                        "hint": "right"
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s5-r2",
+                        "prompt": "What is \"harita\"?",
+                        "options": [
+                          "map",
+                          "ticket",
+                          "train",
+                          "job"
+                        ],
+                        "correctIndex": 0
+                      }
+                    ]
                   }
                 ]
               }

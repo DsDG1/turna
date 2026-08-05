@@ -1,7 +1,11 @@
 // Flutter imports:
 import 'package:flutter/material.dart';
 
+// Package imports:
+import 'package:provider/provider.dart';
+
 // Project imports:
+import 'package:turna/application/ai/ai_explain_prefs.dart';
 import 'package:turna/application/ai/engine/ai_cache.dart';
 import 'package:turna/application/ai/engine/ai_engine.dart';
 import 'package:turna/application/ai/engine/ai_engine_config.dart';
@@ -158,6 +162,68 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
     return '${trimmed.substring(0, 3)}…${trimmed.substring(trimmed.length - 4)}';
   }
 
+  Widget _explainPrefsCard(BuildContext context) {
+    return Consumer<AiExplainPrefsStore>(
+      builder: (context, prefs, _) {
+        return AiGroupCard(
+          icon: Icons.school_outlined,
+          title: AppStrings.aiPrefsSectionTitle,
+          children: [
+            _fieldLabel(context, AppStrings.aiPrefsReplyLanguage),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: [
+                for (final e in [
+                  (AiReplyLanguage.zh, AppStrings.aiPrefsReplyZh),
+                  (AiReplyLanguage.en, AppStrings.aiPrefsReplyEn),
+                  (AiReplyLanguage.target, AppStrings.aiPrefsReplyTarget),
+                ])
+                  ChoiceChip(
+                    label: Text(e.$2),
+                    selected: prefs.replyLanguage == e.$1,
+                    onSelected: (_) => prefs.setReplyLanguage(e.$1),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _fieldLabel(context, AppStrings.aiPrefsDepth),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: [
+                for (final e in [
+                  (AiExplainDepth.brief, AppStrings.aiPrefsDepthBrief),
+                  (AiExplainDepth.standard, AppStrings.aiPrefsDepthStandard),
+                  (AiExplainDepth.detailed, AppStrings.aiPrefsDepthDetailed),
+                ])
+                  ChoiceChip(
+                    label: Text(e.$2),
+                    selected: prefs.depth == e.$1,
+                    onSelected: (_) => prefs.setDepth(e.$1),
+                  ),
+              ],
+            ),
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: Text(AppStrings.aiPrefsAllowReveal),
+              value: prefs.allowRevealAnswer,
+              onChanged: (v) => prefs.setAllowRevealAnswer(v),
+            ),
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: Text(AppStrings.aiPrefsInjectContext),
+              value: prefs.injectLearnerContext,
+              onChanged: (v) => prefs.setInjectLearnerContext(v),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   ({IconData icon, Color color}) _providerVisual(AiProvider p) {
     switch (p) {
       case AiProvider.deepseek:
@@ -231,6 +297,8 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
                   _baseUrlBlock(context),
                 ],
               ),
+              const SizedBox(height: 12),
+              _explainPrefsCard(context),
               const SizedBox(height: 12),
               AiGroupCard(
                 icon: Icons.key_rounded,

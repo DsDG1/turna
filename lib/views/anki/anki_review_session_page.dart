@@ -20,6 +20,7 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/domain/course/srs_word.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/ai/components/ai_card_explain_sheet.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/lesson/components/lesson_dialogs.dart';
 import 'package:turna/views/lesson/components/lesson_stage_widgets.dart';
@@ -462,6 +463,27 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
       ),
       centerTitle: true,
       actions: [
+        IconButton(
+          tooltip: AppStrings.aiExplainCard,
+          icon: const Icon(Icons.auto_awesome_rounded),
+          onPressed: _loading || _empty || _error != null
+              ? null
+              : () {
+                  final interaction = _vm.currentInteraction;
+                  final front = interaction == null
+                      ? 'card'
+                      : interactionPromptLabel(interaction);
+                  final back = interaction == null
+                      ? null
+                      : interactionCorrectAnswerLabel(interaction);
+                  showAiCardExplainSheet(
+                    context,
+                    language: 'Turkish',
+                    front: front,
+                    back: back,
+                  );
+                },
+        ),
         IconButton(
           tooltip: '撤销上一张评分',
           icon: const Icon(Icons.undo_rounded),

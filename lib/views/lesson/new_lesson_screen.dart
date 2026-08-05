@@ -4,16 +4,17 @@ import 'dart:math';
 
 // Flutter imports:
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 // Package imports:
 import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
+import 'package:turna/application/ai/ai_explain_prefs.dart';
 import 'package:turna/application/ai/ai_hint_provider.dart';
 import 'package:turna/application/ai/ai_lesson_helper_provider.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
+import 'package:turna/application/ai/learner_ai_context_assembler.dart';
 import 'package:turna/application/fun_provider.dart';
 import 'package:turna/application/game_provider.dart';
 import 'package:turna/application/gems_provider.dart';
@@ -24,9 +25,7 @@ import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/domain/course/lesson.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
-import 'package:turna/application/settings_provider.dart';
 import 'package:turna/service/tab_router.dart';
-import 'package:turna/service/xiaoyi_service.dart';
 import 'package:turna/views/lesson/components/ai_hint_sheet.dart';
 import 'package:turna/views/ai/ai_lesson_helper_sheet.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
@@ -153,50 +152,6 @@ class _NewLessonPageState extends State<NewLessonPage> {
     final interaction = vm.currentInteraction;
     if (interaction == null) return;
 
-    // Capture ScaffoldMessenger before any await that may background the app
-    // (startAbility deactivates the widget tree; looking it up afterwards
-    // throws "deactivated widget's ancestor is unsafe").
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    final settings = context.read<SettingsProvider>();
-
-    // HarmonyOS 小艺 branch: when the learner enabled "用小艺解答" and the
-    // native XiaoyiPlugin is present, hand the question to 小艺 and return —
-    // no API key required. On Android/Web, XiaoyiService.isSupported is
-    // false (channel missing), so the original DeepSeek flow below runs
-    // unchanged.
-    try {
-      final xiaoyi = getIt<XiaoyiService>();
-      final useXiaoyi = settings.useXiaoyiHint && await xiaoyi.isSupported;
-      if (useXiaoyi) {
-        final ctx = AiQuestionContext(
-          language: TargetLanguage.turkish.displayName,
-          typeLabel: interactionTypeLabel(interaction),
-          promptLabel: interactionPromptLabel(interaction),
-          optionsLabel: interactionOptionsLabel(interaction),
-          correctLabel: interactionCorrectAnswerLabel(interaction),
-          userAnswer: vm.currentInteractionState.userAnswerText,
-        );
-        // Unfocus before handing off to 小艺: startAbility backgrounds the
-        // app and deactivates the widget tree, which would otherwise leave
-        // the tapped IconButton's InkResponse querying MediaQuery on a
-        // deactivated element ("Looking up a deactivated widget's ancestor
-        // is unsafe").
-        FocusScope.of(context).unfocus();
-        await xiaoyi.ask(buildXiaoyiPrompt(ctx));
-        return;
-      }
-    } on PlatformException catch (e) {
-      // 小艺 launch failed (e.g. not installed / action unsupported). Only
-      // surface a SnackBar if the messenger is still usable; never touch
-      // `context` here — it may be deactivated by the backgrounding.
-      if (messenger != null) {
-        messenger.showSnackBar(
-          SnackBar(content: Text(e.message ?? '无法拉起小艺')),
-        );
-      }
-      return;
-    }
-
     final config = context.read<AiEngineConfigHolder>().config;
     if (!config.isComplete) {
       await _showAiConfigPrompt(context);
@@ -218,9 +173,22 @@ class _NewLessonPageState extends State<NewLessonPage> {
 
     final hintProvider = context.read<AiHintProvider>();
     hintProvider.reset();
-    unawaited(hintProvider.explainQuestion(config: config, ctx: ctx));
+
+    // Inject learner context (mistakes/weak terms) when the shared prefs
+    // allow it, so the first streamed reply already sees the snapshot.
+    AiExplainPrefsStore? prefsStore;
+    try {
+      prefsStore = context.read<AiExplainPrefsStore>();
+    } catch (_) {}
+    final learner = await LearnerAiContextAssembler.assembleIfInjectEnabled(
+      languageName: ctx.language,
+      prefs: prefsStore,
+    );
+    hintProvider.setLearnerContext(learner.isEmpty ? null : learner);
 
     if (!mounted) return;
+    unawaited(hintProvider.explainQuestion(config: config, ctx: ctx));
+
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,

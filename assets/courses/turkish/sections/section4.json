@@ -8,36 +8,690 @@
   "units": [
     {
       "id": "s4-u1",
-      "name": "Conversations",
-      "description": "Speaking Turkish with confidence.",
+      "name": "Yemek ve kafe",
+      "description": "Food, café orders, and prices.",
       "prerequisiteUnitIds": [],
       "lessons": [
         {
           "id": "s4-l1",
-          "name": "At the cafe",
-          "description": "Placeholder lesson — Turkish content to be authored.",
+          "name": "Welcome",
+          "description": "",
           "type": "normal",
           "template": "legacy",
           "prerequisiteLessonIds": [],
           "content": {
             "stages": [
               {
-                "id": "stage-welcome",
+                "id": "stage-s4-l1",
                 "name": "Welcome",
                 "description": "",
                 "prerequisiteStageIds": [],
                 "items": [
                   {
                     "runtimeType": "multipleChoice",
-                    "id": "mc-welcome",
-                    "prompt": "Which phrase would you use to order tea in Turkish?",
+                    "id": "mc-s4-l1",
+                    "prompt": "Which word means \"tea\"?",
                     "options": [
-                      "Bir çay, lütfen",
-                      "Hoşça kal",
-                      "Günaydın",
-                      "Evet"
+                      "çay",
+                      "kahve",
+                      "su",
+                      "ekmek"
                     ],
                     "correctIndex": 0
+                  }
+                ]
+              }
+            ],
+            "subLessons": []
+          }
+        },
+        {
+          "id": "s4-l2",
+          "name": "Kafe",
+          "description": "Order food and ask for the bill.",
+          "type": "normal",
+          "template": "intro",
+          "prerequisiteLessonIds": [
+            "s4-l1"
+          ],
+          "content": {
+            "subLessons": [
+              {
+                "id": "sl-s4-l2-w-ekmek",
+                "name": "Ekmek",
+                "stages": [
+                  {
+                    "id": "st-sl-s4-l2-w-ekmek",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s4-l2-0",
+                        "wordId": "w-ekmek",
+                        "context": "ekmek — bread"
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s4-l2-0",
+                        "source": "Bread.",
+                        "expected": "Ekmek.",
+                        "hints": [
+                          "ekmek"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-s4-l2-0",
+                        "sentence": "Taze _____.",
+                        "answer": "ekmek",
+                        "hint": "bread"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-s4-l2-w-cay",
+                "name": "Çay",
+                "stages": [
+                  {
+                    "id": "st-sl-s4-l2-w-cay",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s4-l2-1",
+                        "wordId": "w-cay",
+                        "context": "çay — tea"
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s4-l2-1",
+                        "source": "Tea.",
+                        "expected": "Çay.",
+                        "hints": [
+                          "çay"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-s4-l2-1",
+                        "sentence": "Bir _____ lütfen.",
+                        "answer": "çay",
+                        "hint": "tea"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-s4-l2-w-kahve",
+                "name": "Kahve",
+                "stages": [
+                  {
+                    "id": "st-sl-s4-l2-w-kahve",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s4-l2-2",
+                        "wordId": "w-kahve",
+                        "context": "kahve — coffee"
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s4-l2-2",
+                        "source": "Coffee.",
+                        "expected": "Kahve.",
+                        "hints": [
+                          "kahve"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-s4-l2-2",
+                        "sentence": "_____ istiyorum.",
+                        "answer": "Kahve",
+                        "hint": "coffee"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-s4-l2-w-restoran",
+                "name": "Restoran",
+                "stages": [
+                  {
+                    "id": "st-sl-s4-l2-w-restoran",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s4-l2-3",
+                        "wordId": "w-restoran",
+                        "context": "restoran — restaurant"
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s4-l2-3",
+                        "source": "Restaurant.",
+                        "expected": "Restoran.",
+                        "hints": [
+                          "restoran"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-s4-l2-3",
+                        "sentence": "İyi bir _____.",
+                        "answer": "restoran",
+                        "hint": "restaurant"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-s4-l2-w-hesap",
+                "name": "Hesap",
+                "stages": [
+                  {
+                    "id": "st-sl-s4-l2-w-hesap",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s4-l2-4",
+                        "wordId": "w-hesap",
+                        "context": "hesap — the bill"
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s4-l2-4",
+                        "source": "The bill.",
+                        "expected": "Hesap.",
+                        "hints": [
+                          "hesap"
+                        ]
+                      },
+                      {
+                        "runtimeType": "typeTheWord",
+                        "id": "ttw-s4-l2-4",
+                        "audioAsset": "w-hesap",
+                        "prompt": "Type the word you hear",
+                        "expected": "hesap"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-s4-l2-review",
+                "name": "Review",
+                "stages": [
+                  {
+                    "id": "st-sl-s4-l2-review",
+                    "name": "Put it together",
+                    "items": [
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s4-l2-rev-0",
+                        "prompt": "What is \"ekmek\"?",
+                        "options": [
+                          "bread",
+                          "tea",
+                          "coffee",
+                          "restaurant"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s4-l2-rev-1",
+                        "prompt": "What is \"çay\"?",
+                        "options": [
+                          "tea",
+                          "bread",
+                          "coffee",
+                          "restaurant"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s4-l2-rev-2",
+                        "prompt": "What is \"kahve\"?",
+                        "options": [
+                          "coffee",
+                          "bread",
+                          "tea",
+                          "restaurant"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s4-l2-rev",
+                        "source": "Bread.",
+                        "expected": "Ekmek.",
+                        "hints": [
+                          "ekmek"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "linkedGrammarPointIds": [
+              "g-istiyorum",
+              "g-question-mi"
+            ]
+          }
+        },
+        {
+          "id": "s4-l3",
+          "name": "Menu & money",
+          "description": "Practice and expand the unit theme.",
+          "type": "normal",
+          "template": "practice",
+          "prerequisiteLessonIds": [
+            "s4-l2"
+          ],
+          "content": {
+            "subLessons": [
+              {
+                "id": "sl-s4-l3-1",
+                "name": "Practice",
+                "stages": [
+                  {
+                    "id": "st-sl-s4-l3-1",
+                    "name": "Drill",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s4-peynir",
+                        "wordId": "w-peynir",
+                        "context": "peynir — cheese"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s4-meyve",
+                        "wordId": "w-meyve",
+                        "context": "meyve — fruit"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s4-sebze",
+                        "wordId": "w-sebze",
+                        "context": "sebze — vegetable"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s4-sut",
+                        "wordId": "w-sut",
+                        "context": "süt — milk"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s4-et",
+                        "wordId": "w-et",
+                        "context": "et — meat"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s4-menu",
+                        "wordId": "w-menu",
+                        "context": "menü — menu"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s4-lezzetli",
+                        "wordId": "w-lezzetli",
+                        "context": "lezzetli — delicious"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s4-ucuz",
+                        "wordId": "w-ucuz",
+                        "context": "ucuz — cheap"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s4-pahali",
+                        "wordId": "w-pahali",
+                        "context": "pahalı — expensive"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s4-fiyat",
+                        "wordId": "w-fiyat",
+                        "context": "fiyat — price"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s4-istiyorum",
+                        "wordId": "w-istiyorum",
+                        "context": "istiyorum — I want"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s4-acim",
+                        "wordId": "w-acim",
+                        "context": "açım — I am hungry"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s4-susa",
+                        "wordId": "w-susadim",
+                        "context": "susadım — I am thirsty"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s4-alis",
+                        "wordId": "w-alisveris",
+                        "context": "alışveriş — shopping"
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s4-p1",
+                        "prompt": "What is \"çay\"?",
+                        "options": [
+                          "tea",
+                          "coffee",
+                          "milk",
+                          "bread"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s4-p1",
+                        "source": "One tea, please.",
+                        "expected": "Bir çay, lütfen.",
+                        "hints": [
+                          "çay",
+                          "lütfen"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-s4-p1",
+                        "sentence": "_____, lütfen.",
+                        "answer": "Hesap",
+                        "hint": "the bill"
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s4-p2",
+                        "prompt": "What does \"pahalı\" mean?",
+                        "options": [
+                          "expensive",
+                          "cheap",
+                          "delicious",
+                          "hungry"
+                        ],
+                        "correctIndex": 0
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "linkedGrammarPointIds": [
+              "g-istiyorum",
+              "g-question-mi"
+            ]
+          }
+        },
+        {
+          "id": "s4-l4",
+          "name": "Listening: café",
+          "description": "Listening practice with TTS-backed word audio.",
+          "type": "listening",
+          "template": "listening",
+          "prerequisiteLessonIds": [
+            "s4-l3"
+          ],
+          "content": {
+            "listeningPhases": [
+              {
+                "id": "lp-s4-l4-word",
+                "name": "Word pairing",
+                "type": "wordPairing",
+                "transcript": "Listen and choose the matching form.",
+                "items": [
+                  {
+                    "runtimeType": "listenAndPick",
+                    "id": "lp-s4-l4-0",
+                    "audioAsset": "w-cay",
+                    "prompt": "What do you hear?",
+                    "options": [
+                      "çay",
+                      "kahve",
+                      "süt"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "listenAndPick",
+                    "id": "lp-s4-l4-1",
+                    "audioAsset": "w-kahve",
+                    "prompt": "What do you hear?",
+                    "options": [
+                      "kahve",
+                      "çay",
+                      "ekmek"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "listenAndPick",
+                    "id": "lp-s4-l4-2",
+                    "audioAsset": "w-hesap",
+                    "prompt": "What do you hear?",
+                    "options": [
+                      "hesap",
+                      "fiyat",
+                      "menü"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "listenAndPick",
+                    "id": "lp-s4-l4-3",
+                    "audioAsset": "w-lezzetli",
+                    "prompt": "What do you hear?",
+                    "options": [
+                      "lezzetli",
+                      "ucuz",
+                      "uzak"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              },
+              {
+                "id": "lp-s4-l4-dialogue",
+                "name": "Dialogue",
+                "type": "dialogue",
+                "audioAsset": "w-cay",
+                "transcript": "A: Bir çay ve bir ekmek, lütfen.\nB: Buyurun. Başka bir şey?\nA: Hayır, teşekkürler. Hesap, lütfen.",
+                "items": [
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-s4-ld1",
+                    "prompt": "What did A order?",
+                    "options": [
+                      "Tea and bread",
+                      "Only coffee",
+                      "Fruit"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-s4-ld2",
+                    "prompt": "What does A ask for at the end?",
+                    "options": [
+                      "The bill",
+                      "A taxi",
+                      "A map"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              },
+              {
+                "id": "lp-s4-l4-summary",
+                "name": "Summary",
+                "type": "summary",
+                "audioAsset": "w-lezzetli",
+                "transcript": "You practiced café orders and asking for the bill.",
+                "items": []
+              }
+            ]
+          }
+        },
+        {
+          "id": "s4-l5",
+          "name": "Reading: at the café",
+          "description": "Short reading for this unit.",
+          "type": "reading",
+          "template": "reading",
+          "prerequisiteLessonIds": [
+            "s4-l4"
+          ],
+          "content": {
+            "readingPassage": {
+              "title": "Kafede",
+              "paragraphs": [
+                "Ayşe bir kafeye girer. Menüde çay, kahve ve ekmek vardır.",
+                "Ayşe bir çay ister. Çay ucuz ve lezzetlidir.",
+                "Sonunda hesap ister. Fiyat on lira."
+              ],
+              "difficulty": 1,
+              "linkedWordIds": [
+                "w-cay",
+                "w-kahve",
+                "w-ekmek",
+                "w-menu",
+                "w-ucuz",
+                "w-lezzetli",
+                "w-hesap",
+                "w-fiyat"
+              ],
+              "linkedExpressionIds": [
+                "e-ne-kadar",
+                "e-istiyorum",
+                "e-lutfen",
+                "e-hesap-lutfen",
+                "e-bir-cay"
+              ]
+            },
+            "stages": [
+              {
+                "id": "st-s4-l5-q",
+                "name": "Comprehension",
+                "items": [
+                  {
+                    "runtimeType": "readingMcq",
+                    "id": "rq-s4-1",
+                    "prompt": "What does Ayşe drink?",
+                    "options": [
+                      "Tea",
+                      "Coffee",
+                      "Milk"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "readingTrueFalse",
+                    "id": "rq-s4-2",
+                    "statement": "The tea is expensive.",
+                    "answer": false
+                  },
+                  {
+                    "runtimeType": "readingMcq",
+                    "id": "rq-s4-3",
+                    "prompt": "How much is the bill?",
+                    "options": [
+                      "Ten lira",
+                      "Two lira",
+                      "Unknown"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              }
+            ],
+            "linkedGrammarPointIds": [
+              "g-istiyorum",
+              "g-question-mi"
+            ]
+          }
+        },
+        {
+          "id": "s4-l6",
+          "name": "Unit review",
+          "description": "Mixed review of this unit.",
+          "type": "review",
+          "template": "review",
+          "prerequisiteLessonIds": [
+            "s4-l5"
+          ],
+          "content": {
+            "subLessons": [
+              {
+                "id": "sl-s4-l6-1",
+                "name": "Mixed review",
+                "stages": [
+                  {
+                    "id": "st-sl-s4-l6-1",
+                    "name": "Recall",
+                    "items": [
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s4-r1",
+                        "prompt": "What is \"restoran\"?",
+                        "options": [
+                          "restaurant",
+                          "airport",
+                          "school",
+                          "ticket"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s4-r1",
+                        "source": "How much?",
+                        "expected": "Ne kadar?",
+                        "hints": [
+                          "ne kadar"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-s4-r1",
+                        "sentence": "Bir _____ istiyorum.",
+                        "answer": "kahve",
+                        "hint": "coffee"
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s4-r2",
+                        "prompt": "What is \"açım\"?",
+                        "options": [
+                          "I am hungry",
+                          "I am cold",
+                          "I agree",
+                          "I walk"
+                        ],
+                        "correctIndex": 0
+                      }
+                    ]
                   }
                 ]
               }

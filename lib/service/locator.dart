@@ -11,6 +11,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 
 // Project imports:
+import 'package:turna/application/ai/ai_explain_prefs.dart';
+import 'package:turna/application/ai/ai_saved_explanations.dart';
 import 'package:turna/application/guide_return_controller.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/core/verbose.dart';
@@ -192,9 +194,6 @@ class LocalStateKeys {
   static const String dailyReminderHour = 'settings.dailyReminderHour';
   static const String dailyReminderMinute = 'settings.dailyReminderMinute';
 
-  // HarmonyOS 小艺 AI hint switch (no-op on other platforms).
-  static const String useXiaoyiHint = 'settings.useXiaoyiHint';
-
   // AI engine config (JSON): preset, API key, models, strictSchema, cache.
   // Persisted so the user's AI setup (including the key) survives an app
   // restart. Written through the raw StreamingSharedPreferences to avoid
@@ -260,6 +259,16 @@ Future<void> setupLocator() async {
 
   getIt.registerLazySingleton<ExportService>(
       () => ExportService(getIt<AppPrefs>()));
+
+  // Companion stores — single instances for all AI surfaces (hardens against
+  // orphan prefs that ignore settings UI changes).
+  if (!getIt.isRegistered<AiExplainPrefsStore>()) {
+    getIt.registerLazySingleton<AiExplainPrefsStore>(() => AiExplainPrefsStore());
+  }
+  if (!getIt.isRegistered<AiSavedExplanationsStore>()) {
+    getIt.registerLazySingleton<AiSavedExplanationsStore>(
+        () => AiSavedExplanationsStore());
+  }
 
   if (!kIsWeb) {
     getIt.registerLazySingleton<FlutterTts>(() => FlutterTts());

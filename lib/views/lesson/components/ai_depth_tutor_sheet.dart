@@ -6,11 +6,13 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
+import 'package:turna/application/ai/ai_error_mapper.dart';
 import 'package:turna/application/ai/ai_hint_provider.dart';
 import 'package:turna/application/ai/engine/ai_cancel_token.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/ai/hint_genres.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
 import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
 import 'package:turna/views/theme.dart';
 
@@ -47,6 +49,30 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
       _genre == DepthGenre.grammar || _genre == DepthGenre.synonyms;
 
   @override
+  void initState() {
+    super.initState();
+    // Prefill from current question when available (Phase B5).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = _qctx;
+      if (ctx == null || !mounted) return;
+      if (_grammarCtrl.text.isEmpty) {
+        _grammarCtrl.text = ''; // AI infers when empty
+      }
+      if (_synonymCtrl.text.isEmpty &&
+          ctx.optionsLabel != null &&
+          ctx.optionsLabel!.isNotEmpty) {
+        final opts = ctx.optionsLabel!
+            .split(RegExp(r'[/|,，]'))
+            .map((s) => s.trim())
+            .where((s) => s.isNotEmpty)
+            .take(4)
+            .join(', ');
+        if (opts.isNotEmpty) _synonymCtrl.text = opts;
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _cancelToken?.cancel();
     _grammarCtrl.dispose();
@@ -68,6 +94,13 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
 
   Future<void> _generate() async {
     final config = context.read<AiEngineConfigHolder>().config;
+    if (!config.isComplete) {
+      setState(() {
+        _error = AppStrings.aiErrorNotConfigured;
+        _result = null;
+      });
+      return;
+    }
     final provider = context.read<AiHintProvider>();
     final ctx = _qctx;
     if (ctx == null) return;
@@ -108,7 +141,7 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
             cancelToken: token,
           );
           _result = _grammarWidget(r);
-          _resultCopyText = _grammarText(r);
+          _resultCopyText = r.toPlainText();
           break;
         case DepthGenre.synonyms:
           final words = _synonymCtrl.text
@@ -123,7 +156,7 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
             cancelToken: token,
           );
           _result = _synonymsWidget(r);
-          _resultCopyText = _synonymsText(r);
+          _resultCopyText = r.toPlainText();
           break;
         case DepthGenre.decompose:
           final r = await provider.decomposeSentence(
@@ -133,7 +166,7 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
             cancelToken: token,
           );
           _result = _decomposeWidget(r);
-          _resultCopyText = _decomposeText(r);
+          _resultCopyText = r.toPlainText();
           break;
         case DepthGenre.whyWrong:
           final r = await provider.explainWhyWrong(
@@ -145,14 +178,14 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
             cancelToken: token,
           );
           _result = _whyWrongWidget(r);
-          _resultCopyText = _whyWrongText(r);
+          _resultCopyText = r.toPlainText();
           break;
       }
     } on AiCancelled {
       // User cancelled - leave the previous state, no error.
       return;
     } catch (e) {
-      _error = AppStrings.aiDepthError(e);
+      _error = AiErrorMapper.map(e).message;
     } finally {
       if (identical(_cancelToken, token)) _cancelToken = null;
       if (mounted) setState(() => _loading = false);
@@ -169,6 +202,8 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final configured =
+        context.watch<AiEngineConfigHolder>().config.isComplete;
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
@@ -181,28 +216,32 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
             Text(AppStrings.aiDepthTutorSubtitle,
                 style: Theme.of(context).textTheme.bodySmall),
             const SizedBox(height: 12),
-            AiSurfaceCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _genreGrid(context),
-                  if (_needsInput) ...[
-                    const SizedBox(height: 12),
-                    _inputField(context),
+            if (!configured)
+              const AiNotConfiguredPanel(compact: true)
+            else ...[
+              AiSurfaceCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _genreGrid(context),
+                    if (_needsInput) ...[
+                      const SizedBox(height: 12),
+                      _inputField(context),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            _generateButton(context),
-            const SizedBox(height: 12),
-            Flexible(
-              fit: FlexFit.loose,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 320),
-                child: _resultArea(context),
+              const SizedBox(height: 12),
+              _generateButton(context),
+              const SizedBox(height: 12),
+              Flexible(
+                fit: FlexFit.loose,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 320),
+                  child: _resultArea(context),
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),
@@ -432,53 +471,5 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
             ),
       );
 
-  // ─── Copy-text builders (plain text mirrors of the renderers) ─────────
-
-  String _grammarText(GrammarExplanation r) {
-    final buf = StringBuffer(r.explanation);
-    if (r.relatedExamples.isNotEmpty) {
-      buf.writeln();
-      buf.writeln(AppStrings.aiDepthRelatedExamples);
-      for (final e in r.relatedExamples) {
-        buf.writeln('- $e');
-      }
-    }
-    if (r.contrastWith.isNotEmpty) {
-      buf.writeln();
-      buf.writeln(AppStrings.aiDepthContrastWith);
-      for (final e in r.contrastWith) {
-        buf.writeln('- $e');
-      }
-    }
-    return buf.toString();
-  }
-
-  String _synonymsText(SynonymComparison r) {
-    final buf = StringBuffer();
-    for (final p in r.pairs) {
-      buf.writeln('${p.a} vs ${p.b}');
-      buf.writeln('${AppStrings.aiDepthNuance}：${p.nuance}');
-      buf.writeln('${AppStrings.aiDepthWhenToUseA}：${p.whenToUseA}');
-      buf.writeln('${AppStrings.aiDepthWhenToUseB}：${p.whenToUseB}');
-      if (p.examples.isNotEmpty) buf.writeln(p.examples.join('\n'));
-      buf.writeln();
-    }
-    return buf.toString().trim();
-  }
-
-  String _decomposeText(SentenceBreakdown r) {
-    final buf = StringBuffer();
-    for (final t in r.tokens) {
-      buf.writeln(
-          '${t.surface}${t.lemma == null || t.lemma!.isEmpty ? '' : ' (${t.lemma})'} — ${t.gloss} [${t.role}]');
-    }
-    buf.writeln('${AppStrings.aiDepthStructure}：${r.structure}');
-    return buf.toString().trim();
-  }
-
-  String _whyWrongText(WhyWrongExplanation r) {
-    return '${AppStrings.aiDepthWhyWrongLabel}：${r.whyWrong}\n'
-        '${AppStrings.aiDepthProbablyThought}：${r.whatYouProbablyThought}\n'
-        '${AppStrings.aiDepthHowToRemember}：${r.howToRemember}';
-  }
 }
+

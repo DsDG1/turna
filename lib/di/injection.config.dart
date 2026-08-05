@@ -69,7 +69,6 @@ import '../routing/routing.dart' as _i936;
 import '../service/local_reminder_service.dart' as _i711;
 import '../service/locator.dart' as _i523;
 import '../service/tts_availability_checker.dart' as _i307;
-import '../service/xiaoyi_service.dart' as _i274;
 import '../views/lesson/components/interactions/anki_card_renderer.dart'
     as _i940;
 import '../views/lesson/components/interactions/anki_html_card_renderer.dart'
@@ -145,7 +144,6 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i180.AnkiAudioResolver>(() => _i180.AnkiAudioResolver());
     gh.lazySingleton<_i711.LocalReminderService>(
         () => _i711.LocalReminderService());
-    gh.lazySingleton<_i274.XiaoyiService>(() => _i274.XiaoyiService());
     gh.lazySingleton<_i656.AudioPlayer>(
       () => audioModule.speechPlayer,
       instanceName: 'speechPlayer',

@@ -21,6 +21,24 @@
       ]
     },
     {
+      "id": "w-iyi-aksamlar",
+      "term": "iyi akşamlar",
+      "translation": "good evening",
+      "pronunciation": "i-yi ak-şam-lar",
+      "tags": [
+        "greeting"
+      ]
+    },
+    {
+      "id": "w-iyi-geceler",
+      "term": "iyi geceler",
+      "translation": "good night",
+      "pronunciation": "i-yi ge-ce-ler",
+      "tags": [
+        "greeting"
+      ]
+    },
+    {
       "id": "w-tesekkurler",
       "term": "teşekkürler",
       "translation": "thank you",
@@ -30,10 +48,37 @@
       ]
     },
     {
+      "id": "w-tesekkur",
+      "term": "teşekkür ederim",
+      "translation": "thank you (formal)",
+      "pronunciation": "te-şek-kür e-de-rim",
+      "tags": [
+        "greeting"
+      ]
+    },
+    {
+      "id": "w-rica-ederim",
+      "term": "rica ederim",
+      "translation": "you're welcome",
+      "pronunciation": "ri-ca e-de-rim",
+      "tags": [
+        "greeting"
+      ]
+    },
+    {
       "id": "w-hoscakal",
       "term": "hoşça kal",
-      "translation": "goodbye",
+      "translation": "goodbye (to one staying)",
       "pronunciation": "hoş-ça kal",
+      "tags": [
+        "greeting"
+      ]
+    },
+    {
+      "id": "w-gule-gule",
+      "term": "güle güle",
+      "translation": "goodbye (to one leaving)",
+      "pronunciation": "gü-le gü-le",
       "tags": [
         "greeting"
       ]
@@ -58,11 +103,12 @@
     },
     {
       "id": "w-nasilsin",
-      "term": "nasılsın?",
+      "term": "nasılsın",
       "translation": "how are you?",
       "pronunciation": "na-sıl-sın",
       "tags": [
-        "greeting"
+        "greeting",
+        "question"
       ]
     },
     {
@@ -71,83 +117,32 @@
       "translation": "I am fine",
       "pronunciation": "i-yi-yim",
       "tags": [
+        "greeting",
+        "emotion"
+      ]
+    },
+    {
+      "id": "w-lutfen",
+      "term": "lütfen",
+      "translation": "please",
+      "pronunciation": "lüt-fen",
+      "tags": [
+        "adverb"
+      ]
+    },
+    {
+      "id": "w-affedersiniz",
+      "term": "affedersiniz",
+      "translation": "excuse me",
+      "pronunciation": "af-fe-der-si-niz",
+      "tags": [
         "greeting"
-      ]
-    },
-    {
-      "id": "w-tesekkur",
-      "term": "Teşekkür ederim",
-      "translation": "谢谢",
-      "pronunciation": null,
-      "audioAsset": null,
-      "tags": [
-        "polite"
-      ]
-    },
-    {
-      "id": "w-tuvalet",
-      "term": "tuvalet",
-      "translation": "厕所",
-      "pronunciation": null,
-      "audioAsset": null,
-      "tags": [
-        "place"
-      ]
-    },
-    {
-      "id": "w-havaalani",
-      "term": "havaalanı",
-      "translation": "机场",
-      "pronunciation": null,
-      "audioAsset": null,
-      "tags": [
-        "transport"
-      ]
-    },
-    {
-      "id": "w-otel",
-      "term": "otel",
-      "translation": "酒店",
-      "pronunciation": null,
-      "audioAsset": null,
-      "tags": [
-        "accommodation"
-      ]
-    },
-    {
-      "id": "w-restoran",
-      "term": "restoran",
-      "translation": "餐馆",
-      "pronunciation": null,
-      "audioAsset": null,
-      "tags": [
-        "food"
-      ]
-    },
-    {
-      "id": "w-su",
-      "term": "su",
-      "translation": "水",
-      "pronunciation": null,
-      "audioAsset": null,
-      "tags": [
-        "drink"
-      ]
-    },
-    {
-      "id": "w-fiyat",
-      "term": "fiyat",
-      "translation": "价格",
-      "pronunciation": null,
-      "audioAsset": null,
-      "tags": [
-        "shopping"
       ]
     },
     {
       "id": "w-bir",
       "term": "bir",
-      "translation": "1",
+      "translation": "one",
       "pronunciation": "bir",
       "tags": [
         "number"
@@ -156,7 +151,7 @@
     {
       "id": "w-iki",
       "term": "iki",
-      "translation": "2",
+      "translation": "two",
       "pronunciation": "i-ki",
       "tags": [
         "number"
@@ -165,7 +160,7 @@
     {
       "id": "w-uc",
       "term": "üç",
-      "translation": "3",
+      "translation": "three",
       "pronunciation": "üç",
       "tags": [
         "number"
@@ -174,7 +169,7 @@
     {
       "id": "w-dort",
       "term": "dört",
-      "translation": "4",
+      "translation": "four",
       "pronunciation": "dört",
       "tags": [
         "number"
@@ -183,8 +178,53 @@
     {
       "id": "w-bes",
       "term": "beş",
-      "translation": "5",
+      "translation": "five",
       "pronunciation": "beş",
+      "tags": [
+        "number"
+      ]
+    },
+    {
+      "id": "w-alti",
+      "term": "altı",
+      "translation": "six",
+      "pronunciation": "al-tı",
+      "tags": [
+        "number"
+      ]
+    },
+    {
+      "id": "w-yedi",
+      "term": "yedi",
+      "translation": "seven",
+      "pronunciation": "ye-di",
+      "tags": [
+        "number"
+      ]
+    },
+    {
+      "id": "w-sekiz",
+      "term": "sekiz",
+      "translation": "eight",
+      "pronunciation": "se-kiz",
+      "tags": [
+        "number"
+      ]
+    },
+    {
+      "id": "w-dokuz",
+      "term": "dokuz",
+      "translation": "nine",
+      "pronunciation": "do-kuz",
+      "tags": [
+        "number"
+      ]
+    },
+    {
+      "id": "w-on",
+      "term": "on",
+      "translation": "ten",
+      "pronunciation": "on",
       "tags": [
         "number"
       ]
@@ -192,7 +232,7 @@
     {
       "id": "w-kirmizi",
       "term": "kırmızı",
-      "translation": "红色",
+      "translation": "red",
       "pronunciation": "kır-mı-zı",
       "tags": [
         "color"
@@ -201,7 +241,7 @@
     {
       "id": "w-mavi",
       "term": "mavi",
-      "translation": "蓝色",
+      "translation": "blue",
       "pronunciation": "ma-vi",
       "tags": [
         "color"
@@ -210,7 +250,7 @@
     {
       "id": "w-yesil",
       "term": "yeşil",
-      "translation": "绿色",
+      "translation": "green",
       "pronunciation": "ye-şil",
       "tags": [
         "color"
@@ -219,7 +259,7 @@
     {
       "id": "w-sari",
       "term": "sarı",
-      "translation": "黄色",
+      "translation": "yellow",
       "pronunciation": "sa-rı",
       "tags": [
         "color"
@@ -228,7 +268,7 @@
     {
       "id": "w-siyah",
       "term": "siyah",
-      "translation": "黑色",
+      "translation": "black",
       "pronunciation": "si-yah",
       "tags": [
         "color"
@@ -237,8 +277,26 @@
     {
       "id": "w-beyaz",
       "term": "beyaz",
-      "translation": "白色",
+      "translation": "white",
       "pronunciation": "be-yaz",
+      "tags": [
+        "color"
+      ]
+    },
+    {
+      "id": "w-turuncu",
+      "term": "turuncu",
+      "translation": "orange (color)",
+      "pronunciation": "tu-run-cu",
+      "tags": [
+        "color"
+      ]
+    },
+    {
+      "id": "w-pembe",
+      "term": "pembe",
+      "translation": "pink",
+      "pronunciation": "pem-be",
       "tags": [
         "color"
       ]
@@ -246,7 +304,7 @@
     {
       "id": "w-ev",
       "term": "ev",
-      "translation": "家",
+      "translation": "home / house",
       "pronunciation": "ev",
       "tags": [
         "noun"
@@ -255,7 +313,7 @@
     {
       "id": "w-kitap",
       "term": "kitap",
-      "translation": "书",
+      "translation": "book",
       "pronunciation": "ki-tap",
       "tags": [
         "noun"
@@ -264,7 +322,7 @@
     {
       "id": "w-araba",
       "term": "araba",
-      "translation": "车",
+      "translation": "car",
       "pronunciation": "a-ra-ba",
       "tags": [
         "noun"
@@ -273,11 +331,1044 @@
     {
       "id": "w-yemek",
       "term": "yemek",
-      "translation": "食物/吃饭",
+      "translation": "food / to eat",
       "pronunciation": "ye-mek",
       "tags": [
         "noun",
         "food"
+      ]
+    },
+    {
+      "id": "w-su",
+      "term": "su",
+      "translation": "water",
+      "pronunciation": "su",
+      "tags": [
+        "noun",
+        "food"
+      ]
+    },
+    {
+      "id": "w-masa",
+      "term": "masa",
+      "translation": "table",
+      "pronunciation": "ma-sa",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-kapi",
+      "term": "kapı",
+      "translation": "door",
+      "pronunciation": "ka-pı",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-pencere",
+      "term": "pencere",
+      "translation": "window",
+      "pronunciation": "pen-ce-re",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-anne",
+      "term": "anne",
+      "translation": "mother",
+      "pronunciation": "an-ne",
+      "tags": [
+        "family",
+        "noun"
+      ]
+    },
+    {
+      "id": "w-baba",
+      "term": "baba",
+      "translation": "father",
+      "pronunciation": "ba-ba",
+      "tags": [
+        "family",
+        "noun"
+      ]
+    },
+    {
+      "id": "w-kardes",
+      "term": "kardeş",
+      "translation": "sibling",
+      "pronunciation": "kar-deş",
+      "tags": [
+        "family",
+        "noun"
+      ]
+    },
+    {
+      "id": "w-kiz-kardes",
+      "term": "kız kardeş",
+      "translation": "sister",
+      "pronunciation": "kız kar-deş",
+      "tags": [
+        "family",
+        "noun"
+      ]
+    },
+    {
+      "id": "w-erkek-kardes",
+      "term": "erkek kardeş",
+      "translation": "brother",
+      "pronunciation": "er-kek kar-deş",
+      "tags": [
+        "family",
+        "noun"
+      ]
+    },
+    {
+      "id": "w-cocuk",
+      "term": "çocuk",
+      "translation": "child",
+      "pronunciation": "ço-cuk",
+      "tags": [
+        "family",
+        "noun"
+      ]
+    },
+    {
+      "id": "w-arkadas",
+      "term": "arkadaş",
+      "translation": "friend",
+      "pronunciation": "ar-ka-daş",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-ben",
+      "term": "ben",
+      "translation": "I",
+      "pronunciation": "ben",
+      "tags": [
+        "pronoun"
+      ]
+    },
+    {
+      "id": "w-sen",
+      "term": "sen",
+      "translation": "you (singular)",
+      "pronunciation": "sen",
+      "tags": [
+        "pronoun"
+      ]
+    },
+    {
+      "id": "w-o",
+      "term": "o",
+      "translation": "he / she / it",
+      "pronunciation": "o",
+      "tags": [
+        "pronoun"
+      ]
+    },
+    {
+      "id": "w-biz",
+      "term": "biz",
+      "translation": "we",
+      "pronunciation": "biz",
+      "tags": [
+        "pronoun"
+      ]
+    },
+    {
+      "id": "w-ad",
+      "term": "ad",
+      "translation": "name",
+      "pronunciation": "ad",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-memnun-oldum",
+      "term": "memnun oldum",
+      "translation": "nice to meet you",
+      "pronunciation": "mem-nun ol-dum",
+      "tags": [
+        "greeting"
+      ]
+    },
+    {
+      "id": "w-nerelisin",
+      "term": "nerelisin",
+      "translation": "where are you from?",
+      "pronunciation": "ne-re-li-sin",
+      "tags": [
+        "question"
+      ]
+    },
+    {
+      "id": "w-turkiyeliyim",
+      "term": "Türkiyeliyim",
+      "translation": "I am from Turkey",
+      "pronunciation": "tür-ki-ye-li-yim",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-ekmek",
+      "term": "ekmek",
+      "translation": "bread",
+      "pronunciation": "ek-mek",
+      "tags": [
+        "food",
+        "noun"
+      ]
+    },
+    {
+      "id": "w-peynir",
+      "term": "peynir",
+      "translation": "cheese",
+      "pronunciation": "pey-nir",
+      "tags": [
+        "food",
+        "noun"
+      ]
+    },
+    {
+      "id": "w-cay",
+      "term": "çay",
+      "translation": "tea",
+      "pronunciation": "çay",
+      "tags": [
+        "food",
+        "noun"
+      ]
+    },
+    {
+      "id": "w-kahve",
+      "term": "kahve",
+      "translation": "coffee",
+      "pronunciation": "kah-ve",
+      "tags": [
+        "food",
+        "noun"
+      ]
+    },
+    {
+      "id": "w-sut",
+      "term": "süt",
+      "translation": "milk",
+      "pronunciation": "süt",
+      "tags": [
+        "food",
+        "noun"
+      ]
+    },
+    {
+      "id": "w-meyve",
+      "term": "meyve",
+      "translation": "fruit",
+      "pronunciation": "mey-ve",
+      "tags": [
+        "food",
+        "noun"
+      ]
+    },
+    {
+      "id": "w-et",
+      "term": "et",
+      "translation": "meat",
+      "pronunciation": "et",
+      "tags": [
+        "food",
+        "noun"
+      ]
+    },
+    {
+      "id": "w-sebze",
+      "term": "sebze",
+      "translation": "vegetable",
+      "pronunciation": "seb-ze",
+      "tags": [
+        "food",
+        "noun"
+      ]
+    },
+    {
+      "id": "w-restoran",
+      "term": "restoran",
+      "translation": "restaurant",
+      "pronunciation": "res-to-ran",
+      "tags": [
+        "food",
+        "noun"
+      ]
+    },
+    {
+      "id": "w-menu",
+      "term": "menü",
+      "translation": "menu",
+      "pronunciation": "me-nü",
+      "tags": [
+        "food",
+        "noun"
+      ]
+    },
+    {
+      "id": "w-hesap",
+      "term": "hesap",
+      "translation": "the bill",
+      "pronunciation": "he-sap",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-fiyat",
+      "term": "fiyat",
+      "translation": "price",
+      "pronunciation": "fi-yat",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-ucuz",
+      "term": "ucuz",
+      "translation": "cheap",
+      "pronunciation": "u-cuz",
+      "tags": [
+        "adjective"
+      ]
+    },
+    {
+      "id": "w-pahali",
+      "term": "pahalı",
+      "translation": "expensive",
+      "pronunciation": "pa-ha-lı",
+      "tags": [
+        "adjective"
+      ]
+    },
+    {
+      "id": "w-lezzetli",
+      "term": "lezzetli",
+      "translation": "delicious",
+      "pronunciation": "lez-zet-li",
+      "tags": [
+        "adjective",
+        "food"
+      ]
+    },
+    {
+      "id": "w-acim",
+      "term": "açım",
+      "translation": "I am hungry",
+      "pronunciation": "a-çım",
+      "tags": [
+        "emotion"
+      ]
+    },
+    {
+      "id": "w-susadim",
+      "term": "susadım",
+      "translation": "I am thirsty",
+      "pronunciation": "su-sa-dım",
+      "tags": [
+        "emotion"
+      ]
+    },
+    {
+      "id": "w-istiyorum",
+      "term": "istiyorum",
+      "translation": "I want",
+      "pronunciation": "is-ti-yo-rum",
+      "tags": [
+        "verb"
+      ]
+    },
+    {
+      "id": "w-alisveris",
+      "term": "alışveriş",
+      "translation": "shopping",
+      "pronunciation": "a-lış-ve-riş",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-havaalani",
+      "term": "havaalanı",
+      "translation": "airport",
+      "pronunciation": "ha-va-a-la-nı",
+      "tags": [
+        "travel",
+        "noun"
+      ]
+    },
+    {
+      "id": "w-otel",
+      "term": "otel",
+      "translation": "hotel",
+      "pronunciation": "o-tel",
+      "tags": [
+        "travel",
+        "noun"
+      ]
+    },
+    {
+      "id": "w-tuvalet",
+      "term": "tuvalet",
+      "translation": "toilet / restroom",
+      "pronunciation": "tu-va-let",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-istasyon",
+      "term": "istasyon",
+      "translation": "station",
+      "pronunciation": "is-tas-yon",
+      "tags": [
+        "travel",
+        "noun"
+      ]
+    },
+    {
+      "id": "w-otobus",
+      "term": "otobüs",
+      "translation": "bus",
+      "pronunciation": "o-to-büs",
+      "tags": [
+        "travel",
+        "noun"
+      ]
+    },
+    {
+      "id": "w-tren",
+      "term": "tren",
+      "translation": "train",
+      "pronunciation": "tren",
+      "tags": [
+        "travel",
+        "noun"
+      ]
+    },
+    {
+      "id": "w-taksi",
+      "term": "taksi",
+      "translation": "taxi",
+      "pronunciation": "tak-si",
+      "tags": [
+        "travel",
+        "noun"
+      ]
+    },
+    {
+      "id": "w-bilet",
+      "term": "bilet",
+      "translation": "ticket",
+      "pronunciation": "bi-let",
+      "tags": [
+        "travel",
+        "noun"
+      ]
+    },
+    {
+      "id": "w-harita",
+      "term": "harita",
+      "translation": "map",
+      "pronunciation": "ha-ri-ta",
+      "tags": [
+        "travel",
+        "noun"
+      ]
+    },
+    {
+      "id": "w-sol",
+      "term": "sol",
+      "translation": "left",
+      "pronunciation": "sol",
+      "tags": [
+        "adjective"
+      ]
+    },
+    {
+      "id": "w-sag",
+      "term": "sağ",
+      "translation": "right",
+      "pronunciation": "sağ",
+      "tags": [
+        "adjective"
+      ]
+    },
+    {
+      "id": "w-duz",
+      "term": "düz",
+      "translation": "straight",
+      "pronunciation": "düz",
+      "tags": [
+        "adjective"
+      ]
+    },
+    {
+      "id": "w-yakin",
+      "term": "yakın",
+      "translation": "near",
+      "pronunciation": "ya-kın",
+      "tags": [
+        "adjective"
+      ]
+    },
+    {
+      "id": "w-uzak",
+      "term": "uzak",
+      "translation": "far",
+      "pronunciation": "u-zak",
+      "tags": [
+        "adjective"
+      ]
+    },
+    {
+      "id": "w-nerede",
+      "term": "nerede",
+      "translation": "where?",
+      "pronunciation": "ne-re-de",
+      "tags": [
+        "question"
+      ]
+    },
+    {
+      "id": "w-nasil-giderim",
+      "term": "nasıl giderim",
+      "translation": "how do I get there?",
+      "pronunciation": "na-sıl gi-de-rim",
+      "tags": [
+        "question",
+        "travel"
+      ]
+    },
+    {
+      "id": "w-pasaport",
+      "term": "pasaport",
+      "translation": "passport",
+      "pronunciation": "pa-sa-port",
+      "tags": [
+        "travel",
+        "noun"
+      ]
+    },
+    {
+      "id": "w-valiz",
+      "term": "valiz",
+      "translation": "suitcase",
+      "pronunciation": "va-liz",
+      "tags": [
+        "travel",
+        "noun"
+      ]
+    },
+    {
+      "id": "w-sabah",
+      "term": "sabah",
+      "translation": "morning",
+      "pronunciation": "sa-bah",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-ogle",
+      "term": "öğle",
+      "translation": "noon",
+      "pronunciation": "öğ-le",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-aksam",
+      "term": "akşam",
+      "translation": "evening",
+      "pronunciation": "ak-şam",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-gece",
+      "term": "gece",
+      "translation": "night",
+      "pronunciation": "ge-ce",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-bugun",
+      "term": "bugün",
+      "translation": "today",
+      "pronunciation": "bu-gün",
+      "tags": [
+        "adverb"
+      ]
+    },
+    {
+      "id": "w-yarin",
+      "term": "yarın",
+      "translation": "tomorrow",
+      "pronunciation": "ya-rın",
+      "tags": [
+        "adverb"
+      ]
+    },
+    {
+      "id": "w-dun",
+      "term": "dün",
+      "translation": "yesterday",
+      "pronunciation": "dün",
+      "tags": [
+        "adverb"
+      ]
+    },
+    {
+      "id": "w-saat",
+      "term": "saat",
+      "translation": "hour / clock",
+      "pronunciation": "sa-at",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-dakika",
+      "term": "dakika",
+      "translation": "minute",
+      "pronunciation": "da-ki-ka",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-hava",
+      "term": "hava",
+      "translation": "weather / air",
+      "pronunciation": "ha-va",
+      "tags": [
+        "nature",
+        "noun"
+      ]
+    },
+    {
+      "id": "w-gunes",
+      "term": "güneş",
+      "translation": "sun",
+      "pronunciation": "gü-neş",
+      "tags": [
+        "nature",
+        "noun"
+      ]
+    },
+    {
+      "id": "w-yagmur",
+      "term": "yağmur",
+      "translation": "rain",
+      "pronunciation": "yağ-mur",
+      "tags": [
+        "nature",
+        "noun"
+      ]
+    },
+    {
+      "id": "w-kar",
+      "term": "kar",
+      "translation": "snow",
+      "pronunciation": "kar",
+      "tags": [
+        "nature",
+        "noun"
+      ]
+    },
+    {
+      "id": "w-sicak",
+      "term": "sıcak",
+      "translation": "hot / warm",
+      "pronunciation": "sı-cak",
+      "tags": [
+        "adjective"
+      ]
+    },
+    {
+      "id": "w-soguk",
+      "term": "soğuk",
+      "translation": "cold",
+      "pronunciation": "so-ğuk",
+      "tags": [
+        "adjective"
+      ]
+    },
+    {
+      "id": "w-calisiyorum",
+      "term": "çalışıyorum",
+      "translation": "I am working / studying",
+      "pronunciation": "ça-lı-şı-yo-rum",
+      "tags": [
+        "verb"
+      ]
+    },
+    {
+      "id": "w-okuyorum",
+      "term": "okuyorum",
+      "translation": "I am reading",
+      "pronunciation": "o-ku-yo-rum",
+      "tags": [
+        "verb"
+      ]
+    },
+    {
+      "id": "w-yuruyorum",
+      "term": "yürüyorum",
+      "translation": "I am walking",
+      "pronunciation": "yü-rü-yo-rum",
+      "tags": [
+        "verb"
+      ]
+    },
+    {
+      "id": "w-uyuyorum",
+      "term": "uyuyorum",
+      "translation": "I am sleeping",
+      "pronunciation": "u-yu-yo-rum",
+      "tags": [
+        "verb"
+      ]
+    },
+    {
+      "id": "w-is",
+      "term": "iş",
+      "translation": "work / job",
+      "pronunciation": "iş",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-okul",
+      "term": "okul",
+      "translation": "school",
+      "pronunciation": "o-kul",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-universite",
+      "term": "üniversite",
+      "translation": "university",
+      "pronunciation": "ü-ni-ver-si-te",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-ogretmen",
+      "term": "öğretmen",
+      "translation": "teacher",
+      "pronunciation": "öğ-ret-men",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-ogrenci",
+      "term": "öğrenci",
+      "translation": "student",
+      "pronunciation": "öğ-ren-ci",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-doktor",
+      "term": "doktor",
+      "translation": "doctor",
+      "pronunciation": "dok-tor",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-muhendis",
+      "term": "mühendis",
+      "translation": "engineer",
+      "pronunciation": "mü-hen-dis",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-bence",
+      "term": "bence",
+      "translation": "in my opinion",
+      "pronunciation": "ben-ce",
+      "tags": [
+        "adverb"
+      ]
+    },
+    {
+      "id": "w-katiliyorum",
+      "term": "katılıyorum",
+      "translation": "I agree",
+      "pronunciation": "ka-tı-lı-yo-rum",
+      "tags": [
+        "verb"
+      ]
+    },
+    {
+      "id": "w-katilmiyorum",
+      "term": "katılmıyorum",
+      "translation": "I disagree",
+      "pronunciation": "ka-tıl-mı-yo-rum",
+      "tags": [
+        "verb"
+      ]
+    },
+    {
+      "id": "w-onemli",
+      "term": "önemli",
+      "translation": "important",
+      "pronunciation": "ö-nem-li",
+      "tags": [
+        "adjective"
+      ]
+    },
+    {
+      "id": "w-zor",
+      "term": "zor",
+      "translation": "difficult",
+      "pronunciation": "zor",
+      "tags": [
+        "adjective"
+      ]
+    },
+    {
+      "id": "w-kolay",
+      "term": "kolay",
+      "translation": "easy",
+      "pronunciation": "ko-lay",
+      "tags": [
+        "adjective"
+      ]
+    },
+    {
+      "id": "w-basarili",
+      "term": "başarılı",
+      "translation": "successful",
+      "pronunciation": "ba-şa-rı-lı",
+      "tags": [
+        "adjective"
+      ]
+    },
+    {
+      "id": "w-deneyim",
+      "term": "deneyim",
+      "translation": "experience",
+      "pronunciation": "de-ne-yim",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-hedef",
+      "term": "hedef",
+      "translation": "goal",
+      "pronunciation": "he-def",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-sorun",
+      "term": "sorun",
+      "translation": "problem",
+      "pronunciation": "so-run",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-cozum",
+      "term": "çözüm",
+      "translation": "solution",
+      "pronunciation": "çö-züm",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-kultur",
+      "term": "kültür",
+      "translation": "culture",
+      "pronunciation": "kül-tür",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-sanat",
+      "term": "sanat",
+      "translation": "art",
+      "pronunciation": "sa-nat",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-muzik",
+      "term": "müzik",
+      "translation": "music",
+      "pronunciation": "mü-zik",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-haber",
+      "term": "haber",
+      "translation": "news",
+      "pronunciation": "ha-ber",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-cevre",
+      "term": "çevre",
+      "translation": "environment",
+      "pronunciation": "çev-re",
+      "tags": [
+        "nature",
+        "noun"
+      ]
+    },
+    {
+      "id": "w-teknoloji",
+      "term": "teknoloji",
+      "translation": "technology",
+      "pronunciation": "tek-no-lo-ji",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-gelecek",
+      "term": "gelecek",
+      "translation": "future",
+      "pronunciation": "ge-le-cek",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-gecmis",
+      "term": "geçmiş",
+      "translation": "past",
+      "pronunciation": "geç-miş",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-ozgurluk",
+      "term": "özgürlük",
+      "translation": "freedom",
+      "pronunciation": "öz-gür-lük",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-sorumluluk",
+      "term": "sorumluluk",
+      "translation": "responsibility",
+      "pronunciation": "so-rum-lu-luk",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-farkli",
+      "term": "farklı",
+      "translation": "different",
+      "pronunciation": "fark-lı",
+      "tags": [
+        "adjective"
+      ]
+    },
+    {
+      "id": "w-benzer",
+      "term": "benzer",
+      "translation": "similar",
+      "pronunciation": "ben-zer",
+      "tags": [
+        "adjective"
+      ]
+    },
+    {
+      "id": "w-tartismak",
+      "term": "tartışmak",
+      "translation": "to discuss",
+      "pronunciation": "tar-tış-mak",
+      "tags": [
+        "verb"
+      ]
+    },
+    {
+      "id": "w-aciklamak",
+      "term": "açıklamak",
+      "translation": "to explain",
+      "pronunciation": "a-çık-la-mak",
+      "tags": [
+        "verb"
+      ]
+    },
+    {
+      "id": "w-inanmak",
+      "term": "inanmak",
+      "translation": "to believe",
+      "pronunciation": "i-nan-mak",
+      "tags": [
+        "verb"
+      ]
+    },
+    {
+      "id": "w-gelismek",
+      "term": "gelişmek",
+      "translation": "to develop",
+      "pronunciation": "ge-liş-mek",
+      "tags": [
+        "verb"
+      ]
+    },
+    {
+      "id": "w-toplum",
+      "term": "toplum",
+      "translation": "society",
+      "pronunciation": "top-lum",
+      "tags": [
+        "noun"
+      ]
+    },
+    {
+      "id": "w-egitim",
+      "term": "eğitim",
+      "translation": "education",
+      "pronunciation": "e-ği-tim",
+      "tags": [
+        "noun"
       ]
     }
   ]

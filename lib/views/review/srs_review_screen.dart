@@ -21,6 +21,7 @@ import 'package:turna/domain/course/srs_word.dart';
 import 'package:turna/domain/course/word_entry.dart';
 import 'package:turna/domain/study/study_log.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/ai/components/ai_card_explain_sheet.dart';
 import 'package:turna/views/review/components/review_components.dart';
 import 'package:turna/views/theme.dart';
 
@@ -183,6 +184,21 @@ class _SrsReviewPageState extends State<SrsReviewPage> {
       appBar: AppBar(
         title: Text(AppStrings.reviewSrsAppBarTitle),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.auto_awesome_rounded),
+            tooltip: AppStrings.aiExplainCard,
+            onPressed: () {
+              final front =
+                  wordEntry?.term ?? expression?.term ?? word.wordId;
+              final back = wordEntry?.translation ?? expression?.translation;
+              showAiCardExplainSheet(
+                context,
+                language: 'Turkish',
+                front: front,
+                back: back,
+              );
+            },
+          ),
           IconButton(
             icon: Text(
               AppStrings.reviewSrsTtsSpeed(

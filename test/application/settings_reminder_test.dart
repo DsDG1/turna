@@ -53,11 +53,10 @@ void main() {
     expect(seenTime, const TimeOfDay(hour: 9, minute: 15));
   });
 
-  test('resetLearningDefaults restores TTS, reminder, and Xiaoyi', () async {
+  test('resetLearningDefaults restores TTS and reminder', () async {
     await settings.setTtsSpeed(1.5);
     await settings.setDailyReminderEnabled(true);
     await settings.setDailyReminderTime(const TimeOfDay(hour: 8, minute: 15));
-    await settings.setUseXiaoyiHint(true);
 
     await settings.resetLearningDefaults();
 
@@ -65,13 +64,11 @@ void main() {
     expect(settings.dailyReminderEnabled, isFalse);
     expect(settings.dailyReminderHour, 19);
     expect(settings.dailyReminderMinute, 0);
-    expect(settings.useXiaoyiHint, isFalse);
 
     final reloaded = SettingsProvider(prefs);
     expect(reloaded.ttsSpeed, 1.0);
     expect(reloaded.dailyReminderEnabled, isFalse);
     expect(reloaded.dailyReminderHour, 19);
-    expect(reloaded.useXiaoyiHint, isFalse);
   });
 
   test('setTtsSpeed clamps to 0.5–2.0 and persists', () async {

@@ -111,7 +111,10 @@ void main() {
         expect(mapping.backFieldIndex, 5);
       });
 
-      test('detects multi-select from notetype name + option fields', () {
+      test('multi-select notetype name still maps to multipleChoice', () {
+        // Notetype-level multiSelect was collapsed: single vs multi is
+        // resolved per card at adapt time, so inference always emits
+        // multipleChoice (import UI has one "choice" option).
         final notetype = AnkiNotetype(
           id: 8,
           name: '多选题',
@@ -119,7 +122,8 @@ void main() {
         );
 
         final mapping = AnkiCardAdapter.inferMapping(notetype);
-        expect(mapping.type, NotetypeMappingType.multiSelect);
+        expect(mapping.type, NotetypeMappingType.multipleChoice);
+        expect(mapping.reason, contains('per card'));
       });
     });
 

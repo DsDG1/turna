@@ -140,6 +140,185 @@ class WhyWrongExplanation {
         whatYouProbablyThought: (m['whatYouProbablyThought'] ?? '').toString(),
         howToRemember: (m['howToRemember'] ?? '').toString(),
       );
+
+  String toPlainText() {
+    final buf = StringBuffer()
+      ..writeln('错在哪：$whyWrong')
+      ..writeln('你可能以为：$whatYouProbablyThought')
+      ..writeln('如何记住：$howToRemember');
+    return buf.toString().trimRight();
+  }
+}
+
+/// Dictionary AI enrichment (examples + mnemonic; optional synonyms/gloss).
+class DictionaryEnrichment {
+  const DictionaryEnrichment({
+    required this.term,
+    this.expandedGloss = '',
+    this.examples = const [],
+    this.pairs = const [],
+    this.mnemonic = '',
+  });
+
+  final String term;
+  final String expandedGloss;
+  final List<String> examples;
+  final List<SynonymPair> pairs;
+  final String mnemonic;
+
+  static DictionaryEnrichment fromJson(
+    Map<String, dynamic> m, {
+    String term = '',
+  }) =>
+      DictionaryEnrichment(
+        term: term.isNotEmpty ? term : (m['term'] ?? '').toString(),
+        expandedGloss: (m['expandedGloss'] ?? '').toString(),
+        examples: _stringList(m['examples']),
+        pairs: _objectList(m['pairs']).map(SynonymPair.fromJson).toList(),
+        mnemonic: (m['mnemonic'] ?? '').toString(),
+      );
+
+  String toPlainText() {
+    final buf = StringBuffer();
+    if (term.isNotEmpty) buf.writeln(term);
+    if (expandedGloss.isNotEmpty) buf.writeln(expandedGloss);
+    if (examples.isNotEmpty) {
+      buf.writeln('例句：');
+      for (final e in examples) {
+        buf.writeln('- $e');
+      }
+    }
+    if (mnemonic.isNotEmpty) buf.writeln('记忆钩：$mnemonic');
+    if (pairs.isNotEmpty) {
+      buf.writeln('近义：');
+      for (final p in pairs) {
+        buf.writeln('- ${p.a} / ${p.b}: ${p.nuance}');
+      }
+    }
+    return buf.toString().trimRight();
+  }
+}
+
+/// One weak area inside a diagnosis report.
+class DiagnosisWeakArea {
+  const DiagnosisWeakArea({
+    required this.title,
+    this.severity = 'medium',
+    this.evidence = const [],
+  });
+
+  final String title;
+  final String severity;
+  final List<String> evidence;
+
+  static DiagnosisWeakArea fromJson(Map<String, dynamic> m) =>
+      DiagnosisWeakArea(
+        title: (m['title'] ?? '').toString(),
+        severity: (m['severity'] ?? 'medium').toString(),
+        evidence: _stringList(m['evidence']),
+      );
+}
+
+/// Text-only learning diagnosis (not a course tree).
+class DiagnosisReport {
+  DiagnosisReport({
+    this.weakAreas = const [],
+    this.priorityTips = const [],
+    this.exampleDrillIdeas = const [],
+    DateTime? generatedAt,
+  }) : generatedAt = generatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+
+  final List<DiagnosisWeakArea> weakAreas;
+  final List<String> priorityTips;
+  final List<String> exampleDrillIdeas;
+  final DateTime generatedAt;
+
+  static DiagnosisReport fromJson(Map<String, dynamic> m) => DiagnosisReport(
+        weakAreas: _objectList(m['weakAreas'])
+            .map(DiagnosisWeakArea.fromJson)
+            .toList(),
+        priorityTips: _stringList(m['priorityTips']),
+        exampleDrillIdeas: _stringList(m['exampleDrillIdeas']),
+        generatedAt: DateTime.now(),
+      );
+
+  String toPlainText() {
+    final buf = StringBuffer();
+    if (weakAreas.isNotEmpty) {
+      buf.writeln('薄弱点：');
+      for (final a in weakAreas) {
+        buf.writeln('- [${a.severity}] ${a.title}');
+        for (final e in a.evidence) {
+          buf.writeln('  · $e');
+        }
+      }
+    }
+    if (priorityTips.isNotEmpty) {
+      buf.writeln('优先建议：');
+      for (final t in priorityTips) {
+        buf.writeln('- $t');
+      }
+    }
+    if (exampleDrillIdeas.isNotEmpty) {
+      buf.writeln('可练想法：');
+      for (final t in exampleDrillIdeas) {
+        buf.writeln('- $t');
+      }
+    }
+    return buf.toString().trimRight();
+  }
+}
+
+// Extension methods for existing genres' plain-text export.
+extension GrammarExplanationPlainText on GrammarExplanation {
+  String toPlainText() {
+    final buf = StringBuffer()..writeln(explanation);
+    if (relatedExamples.isNotEmpty) {
+      buf.writeln('相关例句：');
+      for (final e in relatedExamples) {
+        buf.writeln('- $e');
+      }
+    }
+    if (contrastWith.isNotEmpty) {
+      buf.writeln('易混淆：');
+      for (final c in contrastWith) {
+        buf.writeln('- $c');
+      }
+    }
+    return buf.toString().trimRight();
+  }
+}
+
+extension SynonymComparisonPlainText on SynonymComparison {
+  String toPlainText() {
+    final buf = StringBuffer();
+    for (final p in pairs) {
+      buf
+        ..writeln('${p.a} vs ${p.b}')
+        ..writeln('差异：${p.nuance}')
+        ..writeln('用 A：${p.whenToUseA}')
+        ..writeln('用 B：${p.whenToUseB}');
+      if (p.examples.isNotEmpty) {
+        for (final e in p.examples) {
+          buf.writeln('- $e');
+        }
+      }
+      buf.writeln();
+    }
+    return buf.toString().trimRight();
+  }
+}
+
+extension SentenceBreakdownPlainText on SentenceBreakdown {
+  String toPlainText() {
+    final buf = StringBuffer();
+    if (structure.isNotEmpty) buf.writeln('句型：$structure');
+    for (final t in tokens) {
+      final lemma = t.lemma == null || t.lemma!.isEmpty ? '' : ' (${t.lemma})';
+      buf.writeln('${t.surface}$lemma — ${t.gloss} [${t.role}]');
+    }
+    return buf.toString().trimRight();
+  }
 }
 
 /// Strip a leading ```lang fence and trailing ``` so a model reply that

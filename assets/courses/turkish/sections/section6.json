@@ -8,36 +8,683 @@
   "units": [
     {
       "id": "s6-u1",
-      "name": "Opinions",
-      "description": "Expressing opinions in context.",
+      "name": "Günlük hayat",
+      "description": "Time of day, weather, and routines.",
       "prerequisiteUnitIds": [],
       "lessons": [
         {
           "id": "s6-l1",
-          "name": "Agreeing and disagreeing",
-          "description": "Placeholder lesson — Turkish content to be authored.",
+          "name": "Welcome",
+          "description": "",
           "type": "normal",
           "template": "legacy",
           "prerequisiteLessonIds": [],
           "content": {
             "stages": [
               {
-                "id": "stage-welcome",
+                "id": "stage-s6-l1",
                 "name": "Welcome",
                 "description": "",
                 "prerequisiteStageIds": [],
                 "items": [
                   {
                     "runtimeType": "multipleChoice",
-                    "id": "mc-welcome",
-                    "prompt": "Which Turkish phrase expresses agreement?",
+                    "id": "mc-s6-l1",
+                    "prompt": "Which word means \"today\"?",
                     "options": [
-                      "Kesinlikle",
-                      "Hayır",
-                      "Hoşça kal",
-                      "Günaydın"
+                      "bugün",
+                      "yarın",
+                      "dün",
+                      "gece"
                     ],
                     "correctIndex": 0
+                  }
+                ]
+              }
+            ],
+            "subLessons": []
+          }
+        },
+        {
+          "id": "s6-l2",
+          "name": "Zaman ve hava",
+          "description": "Talk about time and weather.",
+          "type": "normal",
+          "template": "intro",
+          "prerequisiteLessonIds": [
+            "s6-l1"
+          ],
+          "content": {
+            "subLessons": [
+              {
+                "id": "sl-s6-l2-w-sabah",
+                "name": "Sabah",
+                "stages": [
+                  {
+                    "id": "st-sl-s6-l2-w-sabah",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s6-l2-0",
+                        "wordId": "w-sabah",
+                        "context": "sabah — morning"
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s6-l2-0",
+                        "source": "Morning.",
+                        "expected": "Sabah.",
+                        "hints": [
+                          "sabah"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-s6-l2-0",
+                        "sentence": "Her _____.",
+                        "answer": "sabah",
+                        "hint": "morning"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-s6-l2-w-bugun",
+                "name": "Bugün",
+                "stages": [
+                  {
+                    "id": "st-sl-s6-l2-w-bugun",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s6-l2-1",
+                        "wordId": "w-bugun",
+                        "context": "bugün — today"
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s6-l2-1",
+                        "source": "Today.",
+                        "expected": "Bugün.",
+                        "hints": [
+                          "bugün"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-s6-l2-1",
+                        "sentence": "_____ çalışıyorum.",
+                        "answer": "Bugün",
+                        "hint": "today"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-s6-l2-w-yarin",
+                "name": "Yarın",
+                "stages": [
+                  {
+                    "id": "st-sl-s6-l2-w-yarin",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s6-l2-2",
+                        "wordId": "w-yarin",
+                        "context": "yarın — tomorrow"
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s6-l2-2",
+                        "source": "Tomorrow.",
+                        "expected": "Yarın.",
+                        "hints": [
+                          "yarın"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-s6-l2-2",
+                        "sentence": "_____ buluşalım.",
+                        "answer": "Yarın",
+                        "hint": "tomorrow"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-s6-l2-w-hava",
+                "name": "Hava",
+                "stages": [
+                  {
+                    "id": "st-sl-s6-l2-w-hava",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s6-l2-3",
+                        "wordId": "w-hava",
+                        "context": "hava — weather / air"
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s6-l2-3",
+                        "source": "Weather.",
+                        "expected": "Hava.",
+                        "hints": [
+                          "hava"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-s6-l2-3",
+                        "sentence": "_____ nasıl?",
+                        "answer": "Hava",
+                        "hint": "weather"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-s6-l2-w-sicak",
+                "name": "Sıcak",
+                "stages": [
+                  {
+                    "id": "st-sl-s6-l2-w-sicak",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s6-l2-4",
+                        "wordId": "w-sicak",
+                        "context": "sıcak — hot / warm"
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s6-l2-4",
+                        "source": "Hot.",
+                        "expected": "Sıcak.",
+                        "hints": [
+                          "sıcak"
+                        ]
+                      },
+                      {
+                        "runtimeType": "typeTheWord",
+                        "id": "ttw-s6-l2-4",
+                        "audioAsset": "w-sicak",
+                        "prompt": "Type the word you hear",
+                        "expected": "sıcak"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-s6-l2-review",
+                "name": "Review",
+                "stages": [
+                  {
+                    "id": "st-sl-s6-l2-review",
+                    "name": "Put it together",
+                    "items": [
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s6-l2-rev-0",
+                        "prompt": "What is \"sabah\"?",
+                        "options": [
+                          "morning",
+                          "today",
+                          "tomorrow",
+                          "weather / air"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s6-l2-rev-1",
+                        "prompt": "What is \"bugün\"?",
+                        "options": [
+                          "today",
+                          "morning",
+                          "tomorrow",
+                          "weather / air"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s6-l2-rev-2",
+                        "prompt": "What is \"yarın\"?",
+                        "options": [
+                          "tomorrow",
+                          "morning",
+                          "today",
+                          "weather / air"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s6-l2-rev",
+                        "source": "Morning.",
+                        "expected": "Sabah.",
+                        "hints": [
+                          "sabah"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "linkedGrammarPointIds": [
+              "g-present-continuous"
+            ]
+          }
+        },
+        {
+          "id": "s6-l3",
+          "name": "Routines",
+          "description": "Practice and expand the unit theme.",
+          "type": "normal",
+          "template": "practice",
+          "prerequisiteLessonIds": [
+            "s6-l2"
+          ],
+          "content": {
+            "subLessons": [
+              {
+                "id": "sl-s6-l3-1",
+                "name": "Practice",
+                "stages": [
+                  {
+                    "id": "st-sl-s6-l3-1",
+                    "name": "Drill",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s6-ogle",
+                        "wordId": "w-ogle",
+                        "context": "öğle — noon"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s6-aksam",
+                        "wordId": "w-aksam",
+                        "context": "akşam — evening"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s6-gece",
+                        "wordId": "w-gece",
+                        "context": "gece — night"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s6-dun",
+                        "wordId": "w-dun",
+                        "context": "dün — yesterday"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s6-saat",
+                        "wordId": "w-saat",
+                        "context": "saat — hour/clock"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s6-dakika",
+                        "wordId": "w-dakika",
+                        "context": "dakika — minute"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s6-yagmur",
+                        "wordId": "w-yagmur",
+                        "context": "yağmur — rain"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s6-gunes",
+                        "wordId": "w-gunes",
+                        "context": "güneş — sun"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s6-kar",
+                        "wordId": "w-kar",
+                        "context": "kar — snow"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s6-soguk",
+                        "wordId": "w-soguk",
+                        "context": "soğuk — cold"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s6-calis",
+                        "wordId": "w-calisiyorum",
+                        "context": "çalışıyorum — I am working"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s6-oku",
+                        "wordId": "w-okuyorum",
+                        "context": "okuyorum — I am reading"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s6-yuru",
+                        "wordId": "w-yuruyorum",
+                        "context": "yürüyorum — I am walking"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s6-uyu",
+                        "wordId": "w-uyuyorum",
+                        "context": "uyuyorum — I am sleeping"
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s6-p1",
+                        "prompt": "What is \"yarın\"?",
+                        "options": [
+                          "tomorrow",
+                          "today",
+                          "yesterday",
+                          "night"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s6-p1",
+                        "source": "How is the weather?",
+                        "expected": "Hava nasıl?",
+                        "hints": [
+                          "hava"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-s6-p1",
+                        "sentence": "Bugün _____.",
+                        "answer": "yağmur",
+                        "hint": "rain"
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s6-p2",
+                        "prompt": "What does \"çalışıyorum\" mean?",
+                        "options": [
+                          "I am working",
+                          "I am sleeping",
+                          "I agree",
+                          "I am hungry"
+                        ],
+                        "correctIndex": 0
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "linkedGrammarPointIds": [
+              "g-present-continuous"
+            ]
+          }
+        },
+        {
+          "id": "s6-l4",
+          "name": "Listening: daily plan",
+          "description": "Listening practice with TTS-backed word audio.",
+          "type": "listening",
+          "template": "listening",
+          "prerequisiteLessonIds": [
+            "s6-l3"
+          ],
+          "content": {
+            "listeningPhases": [
+              {
+                "id": "lp-s6-l4-word",
+                "name": "Word pairing",
+                "type": "wordPairing",
+                "transcript": "Listen and choose the matching form.",
+                "items": [
+                  {
+                    "runtimeType": "listenAndPick",
+                    "id": "lp-s6-l4-0",
+                    "audioAsset": "w-sabah",
+                    "prompt": "What do you hear?",
+                    "options": [
+                      "sabah",
+                      "gece",
+                      "kar"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "listenAndPick",
+                    "id": "lp-s6-l4-1",
+                    "audioAsset": "w-bugun",
+                    "prompt": "What do you hear?",
+                    "options": [
+                      "bugün",
+                      "dün",
+                      "saat"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "listenAndPick",
+                    "id": "lp-s6-l4-2",
+                    "audioAsset": "w-yagmur",
+                    "prompt": "What do you hear?",
+                    "options": [
+                      "yağmur",
+                      "güneş",
+                      "sıcak"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "listenAndPick",
+                    "id": "lp-s6-l4-3",
+                    "audioAsset": "w-calisiyorum",
+                    "prompt": "What do you hear?",
+                    "options": [
+                      "çalışıyorum",
+                      "uyuyorum",
+                      "istiyorum"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              },
+              {
+                "id": "lp-s6-l4-dialogue",
+                "name": "Dialogue",
+                "type": "dialogue",
+                "audioAsset": "w-sabah",
+                "transcript": "A: Bugün hava nasıl?\nB: Yağmur var, soğuk.\nA: Sabah çalışıyorum, akşam okuyorum.",
+                "items": [
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-s6-ld1",
+                    "prompt": "How is the weather?",
+                    "options": [
+                      "Rainy and cold",
+                      "Hot and sunny",
+                      "Snowy only"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-s6-ld2",
+                    "prompt": "What does A do in the morning?",
+                    "options": [
+                      "Works",
+                      "Sleeps",
+                      "Travels"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              },
+              {
+                "id": "lp-s6-l4-summary",
+                "name": "Summary",
+                "type": "summary",
+                "audioAsset": "w-calisiyorum",
+                "transcript": "You practiced daily routines and weather talk.",
+                "items": []
+              }
+            ]
+          }
+        },
+        {
+          "id": "s6-l5",
+          "name": "Reading: a weekday",
+          "description": "Short reading for this unit.",
+          "type": "reading",
+          "template": "reading",
+          "prerequisiteLessonIds": [
+            "s6-l4"
+          ],
+          "content": {
+            "readingPassage": {
+              "title": "Bir günüm",
+              "paragraphs": [
+                "Sabah erken kalkarım. Kahve içerim.",
+                "Öğleden sonra çalışıyorum. Hava bugün sıcak.",
+                "Akşam yürüyorum. Yarın de aynı plan."
+              ],
+              "difficulty": 1,
+              "linkedWordIds": [
+                "w-sabah",
+                "w-kahve",
+                "w-ogle",
+                "w-calisiyorum",
+                "w-hava",
+                "w-sicak",
+                "w-aksam",
+                "w-yuruyorum",
+                "w-yarin"
+              ],
+              "linkedExpressionIds": [
+                "e-hava-nasil"
+              ]
+            },
+            "stages": [
+              {
+                "id": "st-s6-l5-q",
+                "name": "Comprehension",
+                "items": [
+                  {
+                    "runtimeType": "readingMcq",
+                    "id": "rq-s6-1",
+                    "prompt": "What does the writer drink in the morning?",
+                    "options": [
+                      "Coffee",
+                      "Tea",
+                      "Milk"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "readingTrueFalse",
+                    "id": "rq-s6-2",
+                    "statement": "Today is hot.",
+                    "answer": true
+                  },
+                  {
+                    "runtimeType": "readingMcq",
+                    "id": "rq-s6-3",
+                    "prompt": "What happens in the evening?",
+                    "options": [
+                      "Walking",
+                      "Flying",
+                      "Shopping only"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              }
+            ],
+            "linkedGrammarPointIds": [
+              "g-present-continuous"
+            ]
+          }
+        },
+        {
+          "id": "s6-l6",
+          "name": "Unit review",
+          "description": "Mixed review of this unit.",
+          "type": "review",
+          "template": "review",
+          "prerequisiteLessonIds": [
+            "s6-l5"
+          ],
+          "content": {
+            "subLessons": [
+              {
+                "id": "sl-s6-l6-1",
+                "name": "Mixed review",
+                "stages": [
+                  {
+                    "id": "st-sl-s6-l6-1",
+                    "name": "Recall",
+                    "items": [
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s6-r1",
+                        "prompt": "What is \"dakika\"?",
+                        "options": [
+                          "minute",
+                          "hour",
+                          "snow",
+                          "job"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s6-r1",
+                        "source": "Yesterday.",
+                        "expected": "Dün.",
+                        "hints": [
+                          "dün"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-s6-r1",
+                        "sentence": "_____ okuyorum.",
+                        "answer": "Şimdi",
+                        "hint": "now"
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s6-r2",
+                        "prompt": "What is \"güneş\"?",
+                        "options": [
+                          "sun",
+                          "rain",
+                          "cold",
+                          "map"
+                        ],
+                        "correctIndex": 0
+                      }
+                    ]
                   }
                 ]
               }

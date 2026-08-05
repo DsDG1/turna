@@ -1,3 +1,6 @@
+// Dart imports:
+import 'dart:async';
+
 // Package imports:
 import 'package:provider/provider.dart';
 
@@ -5,10 +8,13 @@ import 'package:provider/provider.dart';
 import 'package:turna/application/achievements_provider.dart';
 import 'package:turna/application/accessibility_provider.dart';
 import 'package:turna/application/ai/ai_course_provider.dart';
+import 'package:turna/application/ai/ai_explain_prefs.dart';
 import 'package:turna/application/ai/ai_grounded_resource_provider.dart';
 import 'package:turna/application/ai/ai_hint_provider.dart';
 import 'package:turna/application/ai/ai_lesson_helper_provider.dart';
+import 'package:turna/application/ai/ai_saved_explanations.dart';
 import 'package:turna/application/ai/ai_wish_provider.dart';
+import 'package:turna/application/ai/dictionary_ai_provider.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/ai/engine/ai_recent_tasks_provider.dart';
 import 'package:turna/application/ai/textbook/textbook_import_provider.dart';
@@ -52,8 +58,34 @@ final providers = [
   ChangeNotifierProvider<TextbookImportProvider>(
     create: (_) => TextbookImportProvider(),
   ),
+  // Companion explain prefs: same GetIt singleton as setupLocator (no orphan).
+  ChangeNotifierProvider<AiExplainPrefsStore>(
+    create: (_) {
+      final store = getIt.isRegistered<AiExplainPrefsStore>()
+          ? getIt<AiExplainPrefsStore>()
+          : AiExplainPrefsStore();
+      unawaited(store.load());
+      return store;
+    },
+  ),
   ChangeNotifierProvider<AiHintProvider>(
-    create: (_) => AiHintProvider(),
+    create: (ctx) => AiHintProvider(
+      prefs: ctx.read<AiExplainPrefsStore>(),
+    ),
+  ),
+  ChangeNotifierProvider<AiSavedExplanationsStore>(
+    create: (_) {
+      final store = getIt.isRegistered<AiSavedExplanationsStore>()
+          ? getIt<AiSavedExplanationsStore>()
+          : AiSavedExplanationsStore();
+      unawaited(store.load());
+      return store;
+    },
+  ),
+  ChangeNotifierProvider<DictionaryAiProvider>(
+    create: (ctx) => DictionaryAiProvider(
+      prefs: ctx.read<AiExplainPrefsStore>(),
+    ),
   ),
   // In-memory AI engine config (provider / models / cache toggle). The engine
   // singletons (AiHttpClient, AiCache, AiEngine) are resolved via GetIt; this
@@ -64,9 +96,13 @@ final providers = [
   // Recent AI tasks the engine consumers have completed. The Hub's Continue
   // section reads from this provider. Cache hits are intentionally NOT
   // recorded (the engine stays domain-agnostic; only the calling provider
-  // pushes to the ring).
+  // pushes to the ring). Companion kinds are prefs-persisted.
   ChangeNotifierProvider<AiRecentTasksProvider>(
-    create: (_) => getIt<AiRecentTasksProvider>(),
+    create: (_) {
+      final p = getIt<AiRecentTasksProvider>();
+      unawaited(p.loadPersisted());
+      return p;
+    },
   ),
   ChangeNotifierProvider<ThemeProvider>(
     create: (_) => getIt<ThemeProvider>(),

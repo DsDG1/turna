@@ -72,9 +72,6 @@ class AppStrings {
   static String get settingsAppearanceSectionTitle => '外观';
   static String get settingsAiSectionTitle => 'AI 工具';
   static String get settingsDataSectionTitle => '数据管理';
-  static String get settingsXiaoyiTitle => '用小艺解答题目';
-  static String get settingsXiaoyiSubtitle =>
-      '鸿蒙端：点击题目 AI 按钮直接拉起小艺，无需配置 API Key';
   static String get settingsBack => '返回';
   static String get settingsSoundEffectsTitle => '音效';
   static String get settingsSoundEffectsSubtitle => '为错误和升级播放音效';
@@ -120,10 +117,10 @@ class AppStrings {
   static String get beginnerGuideStatsTitle => '学习统计';
   static String get settingsResetLearningDefaultsTitle => '重置为默认';
   static String get settingsResetLearningDefaultsSubtitle =>
-      '恢复语速、提醒、小艺与 Anki 限额等学习偏好';
+      '恢复语速、提醒与 Anki 限额等学习偏好';
   static String get settingsResetLearningDefaultsDialogTitle => '重置学习设置为默认？';
   static String get settingsResetLearningDefaultsDialogMessage =>
-      '将恢复语速、每日提醒、小艺提示和 Anki 每日限额等默认值。不会更改学习语言或课程进度。';
+      '将恢复语速、每日提醒和 Anki 每日限额等默认值。不会更改学习语言或课程进度。';
   static String get settingsResetLearningDefaultsConfirm => '重置';
   static String get settingsResetLearningDefaultsDone => '学习设置已恢复为默认';
   static String get settingsClearMistakeDialogTitle => '清除错题记录？';
@@ -766,6 +763,80 @@ class AppStrings {
   static String get aiDepthProbablyThought => '你可能以为';
   static String get aiDepthHowToRemember => '如何记住';
 
+  // ── AI companion errors (unified) ──
+  static String get aiErrorNotConfigured => '请先配置 AI API';
+  static String get aiErrorNetwork => '网络异常，请检查连接';
+  static String get aiErrorTimeout => '响应超时，请重试或换模型';
+  static String get aiErrorUnauthorized => '密钥无效或无权限';
+  static String get aiErrorRateLimited => '请求过于频繁或额度不足';
+  static String get aiErrorCancelled => '已停止生成';
+  static String get aiErrorParseFailed => '模型返回格式异常，请重试';
+  static String get aiErrorUnknown => 'AI 请求失败，请稍后重试';
+  static String get aiStopGenerating => '停止';
+  static String get aiDisclaimer => 'AI 可能有误，请以课程与词典为准';
+  static String get aiNotConfiguredBody => '配置 AI 后即可使用伴学功能';
+  static String get aiNotConfiguredCta => '去配置';
+  static String get aiSaveExplanation => '收藏讲解';
+  static String get aiExplanationSaved => '已收藏';
+  static String get aiRetry => '重试';
+
+  // ── AI explain prefs ──
+  static String get aiPrefsSectionTitle => '讲解偏好';
+  static String get aiPrefsReplyLanguage => '回复语言';
+  static String get aiPrefsReplyZh => '中文';
+  static String get aiPrefsReplyEn => '英文';
+  static String get aiPrefsReplyTarget => '目标语';
+  static String get aiPrefsDepth => '讲解深度';
+  static String get aiPrefsDepthBrief => '简略';
+  static String get aiPrefsDepthStandard => '标准';
+  static String get aiPrefsDepthDetailed => '详细';
+  static String get aiPrefsAllowReveal => '允许最终揭示答案';
+  static String get aiPrefsInjectContext => '注入学习数据（错题/弱词）';
+
+  // ── Free tutor chat ──
+  static String get aiTutorChatTitle => '自由问答';
+  static String get aiTutorChatModeQa => '答疑';
+  static String get aiTutorChatModeSentence => '造句批改';
+  static String get aiTutorChatModeRoleplay => '情景对话';
+  static String get aiTutorChatEmpty => '随便问语法、用法或造句。不会生成课程。';
+  static String get aiTutorChatHint => '输入你的问题…';
+  static String get aiTutorNewSession => '新会话';
+  static String get aiRoleplayDining => '点餐';
+  static String get aiRoleplayDirections => '问路';
+  static String get aiRoleplayIntro => '自我介绍';
+  static String get aiRoleplayShopping => '购物';
+
+  // ── Diagnosis ──
+  static String get aiDiagnosisTitle => '学习诊断';
+  static String get aiDiagnosisGenerate => '生成诊断报告';
+  static String get aiDiagnosisEmpty => '先积累一些错题或弱词，再来生成文字诊断。';
+  static String get aiDiagnosisWeakAreas => '薄弱点';
+  static String get aiDiagnosisTips => '优先建议';
+  static String get aiDiagnosisDrills => '可练想法';
+  static String get aiDiagnosisRateLimited => '请稍后再生成（约 1 分钟内限一次）';
+  static String get aiDiagnosisSecondaryCta => '用这些薄弱点生成练习课';
+
+  // ── Dictionary AI ──
+  static String get aiDictEnrich => 'AI 扩展';
+  static String get aiDictExamples => '例句';
+  static String get aiDictMnemonic => '记忆钩';
+  static String get aiDictEnriching => '正在生成扩展…';
+
+  // ── Saved explanations ──
+  static String get aiSavedListTitle => '收藏的讲解';
+  static String get aiSavedListEmpty => '还没有收藏。在讲解气泡或深度卡上点收藏即可。';
+  static String get aiSavedSearchHint => '搜索标题或正文…';
+  static String get aiSavedDelete => '删除';
+
+  // ── Review companion ──
+  static String get aiExplainCard => '讲讲这张';
+  static String get aiExplainCardTitle => '卡片讲解';
+  static String get aiExplainCardDisclaimer => '解释仅供理解，以卡片答案为准。';
+
+  // ── Mistake / weak one-tap ──
+  static String get aiExplainWhyWrong => '为什么错';
+  static String get aiExplainWeakWord => 'AI 讲解';
+
   // ── AI tutor (Phase 2.2) ──
   static String get tutorLaunchTitle => 'AI 伴学';
   static String get tutorLaunchSubtitle => '让 AI 基于你的最近错题 / 弱词，生成一节定制化复习课。';
@@ -781,21 +852,26 @@ class AppStrings {
   static String get tutorLaunchErrorUnknown => '生成失败，请稍后再试。';
   static String tutorLaunchSaved(String name) => '已生成：$name，跳转中...';
 
-  // ── AI Hub (Phase 2.3) ──
+  // ── AI Hub (Phase 2.3 + companion) ──
   static String get commonNavAiHub => 'AI';
   static String get aiHubTitle => 'AI Hub';
   static String get aiHubHeroReconfigure => '重新配置';
   static String get aiHubHeroIncomplete => '请先填写 API Key + Base URL + 模型';
   static String get aiHubContinue => '继续';
-  static String get aiHubContinueEmpty => '还没有 AI 任务，去生成一个吧';
-  static String get aiHubNew => '开始新的';
+  static String get aiHubContinueEmpty => '完成一次 AI 讲解后会出现在这里';
+  static String get aiHubNew => '开始伴学';
+  static String get aiHubCompanionSection => '伴学';
+  static String get aiHubAuthoringSection => '内容创作';
   static String get aiHubStartWish => '设计课程（AI）';
   static String get aiHubStartTextbook => '导入教材';
-  static String get aiHubStartTutorMistakes => '按错题复习';
-  static String get aiHubStartTutorWeak => '弱词专项';
-  static String get aiHubStartDepthTutor => '深度讲解当前题';
-  static String get aiHubDepthTutorSubtitleOn => '基于当前题目深度讲解';
-  static String get aiHubDepthTutorSubtitleOff => '请先在课程中打开一道题';
+  static String get aiHubStartTutorChat => '自由问答';
+  static String get aiHubStartDiagnosis => '学习诊断';
+  static String get aiHubStartSaved => '收藏的讲解';
+  static String get aiHubStartTutorMistakes => '按错题生成练习';
+  static String get aiHubStartTutorWeak => '按弱词生成练习';
+  static String get aiHubStartDepthTutor => '深度讲解';
+  static String get aiHubDepthTutorSubtitleOn => '基于当前题目或手动粘贴';
+  static String get aiHubDepthTutorSubtitleOff => '可打开深度讲解并粘贴句子';
   static String get aiHubTools => '工具';
   static String get aiHubToolsTestConnection => '测试连接';
   static String aiHubToolsTestConnectionOk(int latencyMs) =>

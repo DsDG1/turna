@@ -192,6 +192,11 @@ def collect_expression_ids(obj: Any) -> set[str]:
     if isinstance(obj, dict):
         if obj.get("runtimeType") == "showExpression" and "expressionId" in obj:
             ids.add(obj["expressionId"])
+        # showWord may carry an optional expressionId (same field name)
+        if "expressionId" in obj and isinstance(obj["expressionId"], str):
+            ids.add(obj["expressionId"])
+        if "linkedExpressionIds" in obj:
+            ids.update(obj["linkedExpressionIds"])
         if "exampleExpressionIds" in obj:
             ids.update(obj["exampleExpressionIds"])
         for value in obj.values():

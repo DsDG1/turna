@@ -6,7 +6,6 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:turna/application/ai/ai_hint_provider.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/ai/engine/ai_recent_tasks_provider.dart';
 import 'package:turna/application/srs_tutor_provider.dart';
@@ -16,6 +15,7 @@ import 'package:turna/views/lesson/components/ai_depth_tutor_sheet.dart';
 import 'package:turna/views/lesson/tutor_launch_sheet.dart';
 import 'package:turna/views/play/components/play_tiles.dart';
 import 'package:turna/views/ai/ai_api_config_page.dart';
+import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
 import 'package:turna/views/theme.dart';
 
 /// Centralized AI surface (Phase 2.3 / Phase 3 of floofy-hugging-hopper).
@@ -402,6 +402,12 @@ class _RecentRow extends StatelessWidget {
         return Icons.build_circle_outlined;
       case AiTaskKind.courseGenerate:
         return Icons.school_rounded;
+      case AiTaskKind.tutorChat:
+        return Icons.forum_outlined;
+      case AiTaskKind.diagnosis:
+        return Icons.analytics_outlined;
+      case AiTaskKind.dictionary:
+        return Icons.menu_book_rounded;
       default:
         return Icons.bolt_rounded;
     }
@@ -425,25 +431,45 @@ class _RecentRow extends StatelessWidget {
         return '课内助手';
       case AiTaskKind.courseGenerate:
         return '一键生成';
+      case AiTaskKind.tutorChat:
+        return '自由问答';
+      case AiTaskKind.diagnosis:
+        return '学习诊断';
+      case AiTaskKind.dictionary:
+        return '词典扩展';
       default:
         return kind;
     }
   }
 }
 
-// ─── Start ─────────────────────────────────────────────────────────────────
+// ─── Start (companion first; authoring demoted) ─────────────────────────────
 
 class _StartSection extends StatelessWidget {
   const _StartSection();
 
   @override
   Widget build(BuildContext context) {
+    final complete =
+        context.select<AiEngineConfigHolder, bool>((h) => h.config.isComplete);
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SectionTitle(title: AppStrings.aiHubNew),
+          if (!complete) ...[
+            SoftCard(
+              accentColor: TurnaTheme.warning,
+              child: const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: AiNotConfiguredPanel(compact: true),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+          SectionTitle(title: AppStrings.aiHubCompanionSection),
           GridView.count(
             crossAxisCount: 2,
             shrinkWrap: true,
@@ -453,50 +479,93 @@ class _StartSection extends StatelessWidget {
             childAspectRatio: 1.6,
             children: [
               ReviewTile(
-                title: AppStrings.aiHubStartWish,
-                icon: Icons.auto_awesome_rounded,
-                accentColor: TurnaTheme.amethystLeague,
-                onTap: () => context.router.push(const AiWishChatRoute()),
-              ),
-              ReviewTile(
-                title: AppStrings.aiHubStartTextbook,
-                icon: Icons.menu_book_rounded,
-                accentColor: TurnaTheme.brandSky,
-                onTap: () => context.router.push(const TextbookImportRoute()),
-              ),
-              ReviewTile(
-                title: AppStrings.aiHubStartTutorMistakes,
-                icon: Icons.history_toggle_off_rounded,
+                title: AppStrings.aiHubStartTutorChat,
+                icon: Icons.chat_bubble_outline_rounded,
                 accentColor: TurnaTheme.brandTeal,
-                onTap: () => _openSheet(
-                    context, const TutorLaunchSheet(), SrsTutorFocus.mistakes),
+                onTap: () => context.router.push(const AiTutorChatRoute()),
               ),
               ReviewTile(
-                title: AppStrings.aiHubStartTutorWeak,
-                icon: Icons.quiz_rounded,
+                title: AppStrings.aiHubStartDiagnosis,
+                icon: Icons.analytics_outlined,
+                accentColor: TurnaTheme.brandSky,
+                onTap: () => context.router.push(const AiDiagnosisRoute()),
+              ),
+              ReviewTile(
+                title: AppStrings.aiHubStartSaved,
+                icon: Icons.bookmark_outline_rounded,
+                accentColor: TurnaTheme.amethystLeague,
+                onTap: () => context.router.push(const AiSavedListRoute()),
+              ),
+              ReviewTile(
+                title: AppStrings.aiHubStartDepthTutor,
+                icon: Icons.account_tree_outlined,
                 accentColor: TurnaTheme.brandReed,
-                onTap: () => _openSheet(
-                    context, const TutorLaunchSheet(), SrsTutorFocus.weakWords),
+                onTap: () =>
+                    _openSheet(context, const AiDepthTutorSheet(), null),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          Selector<AiHintProvider, bool>(
-            selector: (_, p) => p.context != null,
-            builder: (context, hasQuestion, _) {
-              return ToolsTile(
-                title: AppStrings.aiHubStartDepthTutor,
-                subtitle: hasQuestion
-                    ? AppStrings.aiHubDepthTutorSubtitleOn
-                    : AppStrings.aiHubDepthTutorSubtitleOff,
-                icon: Icons.account_tree_outlined,
-                accentColor: TurnaTheme.amethystLeague,
-                enabled: hasQuestion,
-                onTap: hasQuestion
-                    ? () => _openSheet(context, const AiDepthTutorSheet(), null)
-                    : null,
-              );
-            },
+          // Secondary: generate practice from mistakes/weak words (SRS tutor).
+          ToolsTile(
+            title: AppStrings.aiHubStartTutorMistakes,
+            subtitle: AppStrings.tutorLaunchByMistakesCta,
+            icon: Icons.history_toggle_off_rounded,
+            accentColor: TurnaTheme.brandTeal.withValues(alpha: 0.85),
+            onTap: () => _openSheet(
+                context, const TutorLaunchSheet(), SrsTutorFocus.mistakes),
+          ),
+          const SizedBox(height: 8),
+          ToolsTile(
+            title: AppStrings.aiHubStartTutorWeak,
+            subtitle: AppStrings.tutorLaunchByWeakWordsCta,
+            icon: Icons.quiz_rounded,
+            accentColor: TurnaTheme.brandReed.withValues(alpha: 0.85),
+            onTap: () => _openSheet(
+                context, const TutorLaunchSheet(), SrsTutorFocus.weakWords),
+          ),
+          const SizedBox(height: 16),
+          // Authoring demoted / collapsed.
+          Theme(
+            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              initiallyExpanded: false,
+              tilePadding: EdgeInsets.zero,
+              childrenPadding: const EdgeInsets.only(top: 8),
+              title: Text(
+                AppStrings.aiHubAuthoringSection,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: TurnaTheme.textSecondaryColor(context),
+                    ),
+              ),
+              children: [
+                GridView.count(
+                  crossAxisCount: 2,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  childAspectRatio: 1.6,
+                  children: [
+                    ReviewTile(
+                      title: AppStrings.aiHubStartWish,
+                      icon: Icons.auto_awesome_rounded,
+                      accentColor: TurnaTheme.textHintColor(context),
+                      onTap: () =>
+                          context.router.push(const AiWishChatRoute()),
+                    ),
+                    ReviewTile(
+                      title: AppStrings.aiHubStartTextbook,
+                      icon: Icons.menu_book_rounded,
+                      accentColor: TurnaTheme.textHintColor(context),
+                      onTap: () =>
+                          context.router.push(const TextbookImportRoute()),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -545,6 +614,18 @@ void _navigateByRoute(BuildContext context, String name) {
       break;
     case 'TextbookImportRoute':
       context.router.push(const TextbookImportRoute());
+      break;
+    case 'AiTutorChatRoute':
+      context.router.push(const AiTutorChatRoute());
+      break;
+    case 'AiDiagnosisRoute':
+      context.router.push(const AiDiagnosisRoute());
+      break;
+    case 'AiSavedListRoute':
+      context.router.push(const AiSavedListRoute());
+      break;
+    case 'AiHintChatRoute':
+      context.router.push(AiHintChatRoute());
       break;
     default:
       // Unknown route - ignore. The Continue tile is informational only.

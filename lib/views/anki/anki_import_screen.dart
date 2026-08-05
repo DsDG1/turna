@@ -897,10 +897,11 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
     required String sourcePath,
     required bool isSample,
   }) async {
-    // Infer notetype mappings
+    // Infer notetype mappings (canonicalize so UI never stores legacy aliases)
     final mappings = <int, NotetypeMapping>{};
     for (final entry in collection.notetypes.entries) {
-      mappings[entry.key] = AnkiCardAdapter.inferMapping(entry.value);
+      mappings[entry.key] =
+          _canonicalizeMapping(AnkiCardAdapter.inferMapping(entry.value));
     }
 
     // The source hash was computed once during parsing (from the bytes
@@ -1005,7 +1006,9 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
           .identifyAll(config: config, notetypes: collection.notetypes);
       if (!mounted) return;
       setState(() {
-        _mappings = result;
+        _mappings = {
+          for (final e in result.entries) e.key: _canonicalizeMapping(e.value),
+        };
         _isAiIdentifying = false;
       });
     } catch (_) {
@@ -1495,10 +1498,47 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
+/// Canonical types shown in the import mapping editor. Legacy aliases
+/// ([NotetypeMappingType.multiSelect], [NotetypeMappingType.typeAnswer]) are
+/// omitted so the dropdown never lists two identical labels.
+const List<NotetypeMappingType> _userSelectableMappingTypes = [
+  NotetypeMappingType.ankiCard,
+  NotetypeMappingType.wordEntry,
+  NotetypeMappingType.expression,
+  NotetypeMappingType.cloze,
+  NotetypeMappingType.multipleChoice,
+  NotetypeMappingType.fillBlank,
+  NotetypeMappingType.listenPick,
+];
+
+/// Collapse legacy aliases so dropdown [initialValue] always matches an item.
+NotetypeMappingType _canonicalizeMappingType(NotetypeMappingType type) {
+  switch (type) {
+    case NotetypeMappingType.multiSelect:
+      return NotetypeMappingType.multipleChoice;
+    case NotetypeMappingType.typeAnswer:
+      return NotetypeMappingType.fillBlank;
+    case NotetypeMappingType.ankiCard:
+    case NotetypeMappingType.wordEntry:
+    case NotetypeMappingType.expression:
+    case NotetypeMappingType.cloze:
+    case NotetypeMappingType.multipleChoice:
+    case NotetypeMappingType.fillBlank:
+    case NotetypeMappingType.listenPick:
+      return type;
+  }
+}
+
+/// Rewrite legacy type aliases on a [NotetypeMapping] (no field clamping).
+NotetypeMapping _canonicalizeMapping(NotetypeMapping m) {
+  final canonical = _canonicalizeMappingType(m.type);
+  return canonical == m.type ? m : m.copyWith(type: canonical);
+}
+
 /// Human-readable label for the automatic layout classification shown in the
 /// import preview and sample-card dialog.
 String _mappingTypeLabel(NotetypeMappingType type) {
-  switch (type) {
+  switch (_canonicalizeMappingType(type)) {
     case NotetypeMappingType.ankiCard:
       return AppStrings.ankiMappingTypeAnkiCard;
     case NotetypeMappingType.wordEntry:
@@ -1508,13 +1548,11 @@ String _mappingTypeLabel(NotetypeMappingType type) {
     case NotetypeMappingType.cloze:
       return AppStrings.ankiMappingTypeCloze;
     case NotetypeMappingType.multipleChoice:
-      return AppStrings.ankiMappingTypeAutoChoice;
     case NotetypeMappingType.multiSelect:
       return AppStrings.ankiMappingTypeAutoChoice;
     case NotetypeMappingType.fillBlank:
-      return AppStrings.ankiMappingTypeFillBlank;
     case NotetypeMappingType.typeAnswer:
-      return AppStrings.ankiMappingTypeTypeAnswer;
+      return AppStrings.ankiMappingTypeFillBlank;
     case NotetypeMappingType.listenPick:
       return AppStrings.ankiMappingTypeListenPick;
   }
@@ -1643,9 +1681,17 @@ class _NotetypeMappingEditorState extends State<_NotetypeMappingEditor> {
   @override
   void initState() {
     super.initState();
-    _draft = _clampFields(
+    _draft = _normalizeMapping(
       widget.initialMapping ?? AnkiCardAdapter.inferMapping(widget.notetype),
     );
+  }
+
+  /// Clamp field indices and collapse legacy type aliases so the dropdown
+  /// value is always one of [_userSelectableMappingTypes].
+  NotetypeMapping _normalizeMapping(NotetypeMapping m) {
+    final canonical = _canonicalizeMappingType(m.type);
+    final next = canonical == m.type ? m : m.copyWith(type: canonical);
+    return _clampFields(next);
   }
 
   /// Clamp front/back indices to the notetype's actual field range so the
@@ -1665,7 +1711,7 @@ class _NotetypeMappingEditorState extends State<_NotetypeMappingEditor> {
   /// Cloze and choice types resolve their fields per-card at adapt time, so
   /// exposing manual field selectors there would be misleading.
   bool _typeUsesFrontBackFields(NotetypeMappingType t) {
-    switch (t) {
+    switch (_canonicalizeMappingType(t)) {
       case NotetypeMappingType.ankiCard:
       case NotetypeMappingType.wordEntry:
       case NotetypeMappingType.expression:
@@ -1705,19 +1751,21 @@ class _NotetypeMappingEditorState extends State<_NotetypeMappingEditor> {
             _fieldLabel(context, AppStrings.ankiMappingFieldType),
             const SizedBox(height: 6),
             DropdownButtonFormField<NotetypeMappingType>(
-              initialValue: _draft.type,
+              initialValue: _canonicalizeMappingType(_draft.type),
               isExpanded: true,
               decoration: _dropdownDecoration(context),
               items: [
-                for (final t in NotetypeMappingType.values)
+                for (final t in _userSelectableMappingTypes)
                   DropdownMenuItem(
                     value: t,
                     child: Text(_mappingTypeLabel(t)),
                   ),
               ],
               onChanged: (t) {
-                if (t == null || t == _draft.type) return;
-                setState(() => _draft = _draft.copyWith(type: t));
+                if (t == null) return;
+                final next = _canonicalizeMappingType(t);
+                if (next == _draft.type) return;
+                setState(() => _draft = _draft.copyWith(type: next));
               },
             ),
             const SizedBox(height: 12),
@@ -1798,8 +1846,9 @@ class _NotetypeMappingEditorState extends State<_NotetypeMappingEditor> {
       actions: [
         TextButton(
           onPressed: () {
-            setState(() => _draft =
-                _clampFields(AnkiCardAdapter.inferMapping(widget.notetype)));
+            setState(() => _draft = _normalizeMapping(
+                  AnkiCardAdapter.inferMapping(widget.notetype),
+                ));
           },
           child: Text(AppStrings.ankiMappingResetAuto),
         ),

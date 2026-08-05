@@ -103,7 +103,6 @@ flutter run
 | **许愿生成** | 多轮对话对齐需求 + 附件 -> 滑动确认生成 section JSON + 通俗解释。 |
 | **教材导入** | 从 PDF/Word/图片/文本提取词汇/表达/语法点，多阶段向导导入。 |
 | **Lesson 助手** | 课程内 AI 辅助。 |
-| **小艺 (Xiaoyi)** | HarmonyOS 系统 AI 助手桥接（`XiaoyiService` + 原生插件）；仅 OHOS 支持，其他平台自动回退 DeepSeek。 |
 
 ### 检索与统计
 

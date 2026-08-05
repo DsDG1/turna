@@ -8,36 +8,680 @@
   "units": [
     {
       "id": "s7-u1",
-      "name": "Abstract topics",
-      "description": "Discussing ideas, dreams, and plans.",
+      "name": "İş ve görüş",
+      "description": "Work, school, and giving opinions.",
       "prerequisiteUnitIds": [],
       "lessons": [
         {
           "id": "s7-l1",
-          "name": "Dreams and goals",
-          "description": "Placeholder lesson — Turkish content to be authored.",
+          "name": "Welcome",
+          "description": "",
           "type": "normal",
           "template": "legacy",
           "prerequisiteLessonIds": [],
           "content": {
             "stages": [
               {
-                "id": "stage-welcome",
+                "id": "stage-s7-l1",
                 "name": "Welcome",
                 "description": "",
                 "prerequisiteStageIds": [],
                 "items": [
                   {
                     "runtimeType": "multipleChoice",
-                    "id": "mc-welcome",
-                    "prompt": "Which Turkish word means \"dream\"?",
+                    "id": "mc-s7-l1",
+                    "prompt": "Which word means \"school\"?",
                     "options": [
-                      "rüya",
-                      "merhaba",
-                      "evet",
-                      "ekmek"
+                      "okul",
+                      "iş",
+                      "hedef",
+                      "sorun"
                     ],
                     "correctIndex": 0
+                  }
+                ]
+              }
+            ],
+            "subLessons": []
+          }
+        },
+        {
+          "id": "s7-l2",
+          "name": "İş hayatı",
+          "description": "Jobs and education words.",
+          "type": "normal",
+          "template": "intro",
+          "prerequisiteLessonIds": [
+            "s7-l1"
+          ],
+          "content": {
+            "subLessons": [
+              {
+                "id": "sl-s7-l2-w-is",
+                "name": "Iş",
+                "stages": [
+                  {
+                    "id": "st-sl-s7-l2-w-is",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s7-l2-0",
+                        "wordId": "w-is",
+                        "context": "iş — work / job"
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s7-l2-0",
+                        "source": "Job.",
+                        "expected": "İş.",
+                        "hints": [
+                          "iş"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-s7-l2-0",
+                        "sentence": "Benim _____.",
+                        "answer": "işim",
+                        "hint": "job"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-s7-l2-w-okul",
+                "name": "Okul",
+                "stages": [
+                  {
+                    "id": "st-sl-s7-l2-w-okul",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s7-l2-1",
+                        "wordId": "w-okul",
+                        "context": "okul — school"
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s7-l2-1",
+                        "source": "School.",
+                        "expected": "Okul.",
+                        "hints": [
+                          "okul"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-s7-l2-1",
+                        "sentence": "_____ büyük.",
+                        "answer": "Okul",
+                        "hint": "school"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-s7-l2-w-ogretmen",
+                "name": "Öğretmen",
+                "stages": [
+                  {
+                    "id": "st-sl-s7-l2-w-ogretmen",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s7-l2-2",
+                        "wordId": "w-ogretmen",
+                        "context": "öğretmen — teacher"
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s7-l2-2",
+                        "source": "Teacher.",
+                        "expected": "Öğretmen.",
+                        "hints": [
+                          "öğretmen"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-s7-l2-2",
+                        "sentence": "İyi bir _____.",
+                        "answer": "öğretmen",
+                        "hint": "teacher"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-s7-l2-w-bence",
+                "name": "Bence",
+                "stages": [
+                  {
+                    "id": "st-sl-s7-l2-w-bence",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s7-l2-3",
+                        "wordId": "w-bence",
+                        "context": "bence — in my opinion"
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s7-l2-3",
+                        "source": "In my opinion.",
+                        "expected": "Bence.",
+                        "hints": [
+                          "bence"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-s7-l2-3",
+                        "sentence": "_____ önemli.",
+                        "answer": "Bence",
+                        "hint": "in my opinion"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-s7-l2-w-onemli",
+                "name": "Önemli",
+                "stages": [
+                  {
+                    "id": "st-sl-s7-l2-w-onemli",
+                    "name": "Learn & produce",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s7-l2-4",
+                        "wordId": "w-onemli",
+                        "context": "önemli — important"
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s7-l2-4",
+                        "source": "Important.",
+                        "expected": "Önemli.",
+                        "hints": [
+                          "önemli"
+                        ]
+                      },
+                      {
+                        "runtimeType": "typeTheWord",
+                        "id": "ttw-s7-l2-4",
+                        "audioAsset": "w-onemli",
+                        "prompt": "Type the word you hear",
+                        "expected": "önemli"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "sl-s7-l2-review",
+                "name": "Review",
+                "stages": [
+                  {
+                    "id": "st-sl-s7-l2-review",
+                    "name": "Put it together",
+                    "items": [
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s7-l2-rev-0",
+                        "prompt": "What is \"iş\"?",
+                        "options": [
+                          "work / job",
+                          "school",
+                          "teacher",
+                          "in my opinion"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s7-l2-rev-1",
+                        "prompt": "What is \"okul\"?",
+                        "options": [
+                          "school",
+                          "work / job",
+                          "teacher",
+                          "in my opinion"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s7-l2-rev-2",
+                        "prompt": "What is \"öğretmen\"?",
+                        "options": [
+                          "teacher",
+                          "work / job",
+                          "school",
+                          "in my opinion"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s7-l2-rev",
+                        "source": "Job.",
+                        "expected": "İş.",
+                        "hints": [
+                          "iş"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "linkedGrammarPointIds": [
+              "g-opinion"
+            ]
+          }
+        },
+        {
+          "id": "s7-l3",
+          "name": "Opinions",
+          "description": "Practice and expand the unit theme.",
+          "type": "normal",
+          "template": "practice",
+          "prerequisiteLessonIds": [
+            "s7-l2"
+          ],
+          "content": {
+            "subLessons": [
+              {
+                "id": "sl-s7-l3-1",
+                "name": "Practice",
+                "stages": [
+                  {
+                    "id": "st-sl-s7-l3-1",
+                    "name": "Drill",
+                    "items": [
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s7-uni",
+                        "wordId": "w-universite",
+                        "context": "üniversite — university"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s7-ogrenci",
+                        "wordId": "w-ogrenci",
+                        "context": "öğrenci — student"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s7-doktor",
+                        "wordId": "w-doktor",
+                        "context": "doktor — doctor"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s7-muh",
+                        "wordId": "w-muhendis",
+                        "context": "mühendis — engineer"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s7-kat",
+                        "wordId": "w-katiliyorum",
+                        "context": "katılıyorum — I agree"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s7-katilme",
+                        "wordId": "w-katilmiyorum",
+                        "context": "katılmıyorum — I disagree"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s7-zor",
+                        "wordId": "w-zor",
+                        "context": "zor — difficult"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s7-kolay",
+                        "wordId": "w-kolay",
+                        "context": "kolay — easy"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s7-basarili",
+                        "wordId": "w-basarili",
+                        "context": "başarılı — successful"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s7-deneyim",
+                        "wordId": "w-deneyim",
+                        "context": "deneyim — experience"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s7-hedef",
+                        "wordId": "w-hedef",
+                        "context": "hedef — goal"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s7-sorun",
+                        "wordId": "w-sorun",
+                        "context": "sorun — problem"
+                      },
+                      {
+                        "runtimeType": "showWord",
+                        "id": "sw-s7-cozum",
+                        "wordId": "w-cozum",
+                        "context": "çözüm — solution"
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s7-p1",
+                        "prompt": "What is \"öğretmen\"?",
+                        "options": [
+                          "teacher",
+                          "student",
+                          "doctor",
+                          "goal"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s7-p1",
+                        "source": "I agree.",
+                        "expected": "Katılıyorum.",
+                        "hints": [
+                          "katılıyorum"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-s7-p1",
+                        "sentence": "_____ bu önemli.",
+                        "answer": "Bence",
+                        "hint": "in my opinion"
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s7-p2",
+                        "prompt": "What does \"zor\" mean?",
+                        "options": [
+                          "difficult",
+                          "easy",
+                          "successful",
+                          "future"
+                        ],
+                        "correctIndex": 0
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "linkedGrammarPointIds": [
+              "g-opinion"
+            ]
+          }
+        },
+        {
+          "id": "s7-l4",
+          "name": "Listening: opinions",
+          "description": "Listening practice with TTS-backed word audio.",
+          "type": "listening",
+          "template": "listening",
+          "prerequisiteLessonIds": [
+            "s7-l3"
+          ],
+          "content": {
+            "listeningPhases": [
+              {
+                "id": "lp-s7-l4-word",
+                "name": "Word pairing",
+                "type": "wordPairing",
+                "transcript": "Listen and choose the matching form.",
+                "items": [
+                  {
+                    "runtimeType": "listenAndPick",
+                    "id": "lp-s7-l4-0",
+                    "audioAsset": "w-is",
+                    "prompt": "What do you hear?",
+                    "options": [
+                      "iş",
+                      "okul",
+                      "kar"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "listenAndPick",
+                    "id": "lp-s7-l4-1",
+                    "audioAsset": "w-bence",
+                    "prompt": "What do you hear?",
+                    "options": [
+                      "bence",
+                      "lütfen",
+                      "merhaba"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "listenAndPick",
+                    "id": "lp-s7-l4-2",
+                    "audioAsset": "w-katiliyorum",
+                    "prompt": "What do you hear?",
+                    "options": [
+                      "katılıyorum",
+                      "katılmıyorum",
+                      "istiyorum"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "listenAndPick",
+                    "id": "lp-s7-l4-3",
+                    "audioAsset": "w-onemli",
+                    "prompt": "What do you hear?",
+                    "options": [
+                      "önemli",
+                      "ucuz",
+                      "sol"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              },
+              {
+                "id": "lp-s7-l4-dialogue",
+                "name": "Dialogue",
+                "type": "dialogue",
+                "audioAsset": "w-is",
+                "transcript": "A: Bence eğitim çok önemli.\nB: Katılıyorum. Hedefim üniversite.\nA: Bu bazen zor, ama çözüm var.",
+                "items": [
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-s7-ld1",
+                    "prompt": "What does A think is important?",
+                    "options": [
+                      "Education",
+                      "Snow",
+                      "Tickets"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "mc-s7-ld2",
+                    "prompt": "What is B's goal?",
+                    "options": [
+                      "University",
+                      "Airport",
+                      "Café"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              },
+              {
+                "id": "lp-s7-l4-summary",
+                "name": "Summary",
+                "type": "summary",
+                "audioAsset": "w-onemli",
+                "transcript": "You practiced work vocabulary and agreeing with opinions.",
+                "items": []
+              }
+            ]
+          }
+        },
+        {
+          "id": "s7-l5",
+          "name": "Reading: my goal",
+          "description": "Short reading for this unit.",
+          "type": "reading",
+          "template": "reading",
+          "prerequisiteLessonIds": [
+            "s7-l4"
+          ],
+          "content": {
+            "readingPassage": {
+              "title": "Hedefim",
+              "paragraphs": [
+                "Ben bir öğrenciyim. Okul bazen zor, bazen kolay.",
+                "Bence deneyim önemli. İşimde başarılı olmak istiyorum.",
+                "Bir sorun olursa çözüm ararım. Katılıyor musun?"
+              ],
+              "difficulty": 1,
+              "linkedWordIds": [
+                "w-ogrenci",
+                "w-okul",
+                "w-zor",
+                "w-kolay",
+                "w-bence",
+                "w-deneyim",
+                "w-onemli",
+                "w-is",
+                "w-basarili",
+                "w-sorun",
+                "w-cozum"
+              ],
+              "linkedExpressionIds": [
+                "e-bence",
+                "e-katiliyorum"
+              ]
+            },
+            "stages": [
+              {
+                "id": "st-s7-l5-q",
+                "name": "Comprehension",
+                "items": [
+                  {
+                    "runtimeType": "readingMcq",
+                    "id": "rq-s7-1",
+                    "prompt": "What is the writer?",
+                    "options": [
+                      "A student",
+                      "A pilot",
+                      "A chef"
+                    ],
+                    "correctIndex": 0
+                  },
+                  {
+                    "runtimeType": "readingTrueFalse",
+                    "id": "rq-s7-2",
+                    "statement": "The writer thinks experience is important.",
+                    "answer": true
+                  },
+                  {
+                    "runtimeType": "readingMcq",
+                    "id": "rq-s7-3",
+                    "prompt": "What does the writer look for when there is a problem?",
+                    "options": [
+                      "A solution",
+                      "A suitcase",
+                      "Rain"
+                    ],
+                    "correctIndex": 0
+                  }
+                ]
+              }
+            ],
+            "linkedGrammarPointIds": [
+              "g-opinion"
+            ]
+          }
+        },
+        {
+          "id": "s7-l6",
+          "name": "Unit review",
+          "description": "Mixed review of this unit.",
+          "type": "review",
+          "template": "review",
+          "prerequisiteLessonIds": [
+            "s7-l5"
+          ],
+          "content": {
+            "subLessons": [
+              {
+                "id": "sl-s7-l6-1",
+                "name": "Mixed review",
+                "stages": [
+                  {
+                    "id": "st-sl-s7-l6-1",
+                    "name": "Recall",
+                    "items": [
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s7-r1",
+                        "prompt": "What is \"mühendis\"?",
+                        "options": [
+                          "engineer",
+                          "teacher",
+                          "child",
+                          "ticket"
+                        ],
+                        "correctIndex": 0
+                      },
+                      {
+                        "runtimeType": "translateSentence",
+                        "id": "ts-s7-r1",
+                        "source": "I disagree.",
+                        "expected": "Katılmıyorum.",
+                        "hints": [
+                          "katılmıyorum"
+                        ]
+                      },
+                      {
+                        "runtimeType": "fillBlank",
+                        "id": "fb-s7-r1",
+                        "sentence": "_____ başarılı.",
+                        "answer": "O",
+                        "hint": "he/she"
+                      },
+                      {
+                        "runtimeType": "multipleChoice",
+                        "id": "mc-s7-r2",
+                        "prompt": "What is \"deneyim\"?",
+                        "options": [
+                          "experience",
+                          "freedom",
+                          "music",
+                          "bread"
+                        ],
+                        "correctIndex": 0
+                      }
+                    ]
                   }
                 ]
               }

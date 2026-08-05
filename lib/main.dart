@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 // Project imports:
+import 'package:turna/application/ai/ai_explain_prefs.dart';
+import 'package:turna/application/ai/engine/ai_engine.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/grammar_review_provider.dart';
@@ -50,6 +52,14 @@ Future<void> main() async {
   // AppPrefs (and other async-native services) must be registered before the
   // first frame because MultiProvider creates ThemeProvider immediately.
   await setupLocator();
+
+  // When companion explain prefs change (language/depth), drop engine cache so
+  // stale replies in the wrong language are not replayed.
+  AiExplainPrefsStore.onCacheInvalidate = () {
+    try {
+      getIt<AiEngine>().clearCache();
+    } catch (_) {}
+  };
 
   // Lock the app to portrait unless the user has enabled auto-rotation in
   // Settings (default off). Applied before the first frame so the splash is
