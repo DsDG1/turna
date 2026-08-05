@@ -108,34 +108,44 @@ class _MistakesStatsHeader extends StatelessWidget {
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _StatItem(
-            icon: Icons.error_outline_rounded,
-            iconColor: TurnaTheme.error,
-            value: mistakes.length.toString(),
-            label: AppStrings.reviewMistakesLabel,
+          // Flexible 防止多语言长 label(德语 / 俄语 / 土耳其语)在窄屏上把整行挤爆
+          Flexible(
+            child: _StatItem(
+              icon: Icons.error_outline_rounded,
+              iconColor: TurnaTheme.error,
+              value: mistakes.length.toString(),
+              label: AppStrings.reviewMistakesLabel,
+            ),
           ),
           Container(
             width: 1,
             height: 40,
+            margin: const EdgeInsets.symmetric(horizontal: 4),
             color: TurnaTheme.dividerBg(context),
           ),
-          _StatItem(
-            icon: Icons.translate_rounded,
-            iconColor: TurnaTheme.brandTeal,
-            value: wordCount.toString(),
-            label: AppStrings.reviewWordsLabel,
+          Flexible(
+            child: _StatItem(
+              icon: Icons.translate_rounded,
+              iconColor: TurnaTheme.brandTeal,
+              value: wordCount.toString(),
+              label: AppStrings.reviewWordsLabel,
+            ),
           ),
           Container(
             width: 1,
             height: 40,
+            margin: const EdgeInsets.symmetric(horizontal: 4),
             color: TurnaTheme.dividerBg(context),
           ),
-          _StatItem(
-            icon: Icons.school_rounded,
-            iconColor: TurnaTheme.leagueAmethyst,
-            value: grammarCount.toString(),
-            label: AppStrings.reviewGrammarLabel,
+          Flexible(
+            child: _StatItem(
+              icon: Icons.school_rounded,
+              iconColor: TurnaTheme.leagueAmethyst,
+              value: grammarCount.toString(),
+              label: AppStrings.reviewGrammarLabel,
+            ),
           ),
         ],
       ),
@@ -159,11 +169,14 @@ class _StatItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, color: iconColor, size: 22),
         const SizedBox(height: 6),
         Text(
           value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w800,
               ),
@@ -171,6 +184,9 @@ class _StatItem extends StatelessWidget {
         const SizedBox(height: 2),
         Text(
           label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: TurnaTheme.textHintColor(context),
                 fontWeight: FontWeight.w500,
@@ -307,7 +323,13 @@ class _MistakeCard extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 12),
-            Row(
+            // 原来用 Row + Spacer 把"我学会了"推到右边;3 个按钮在窄屏(尤其是
+            // 出现"复习语法"条件按钮时)总宽会挤爆 Spacer。换成 Wrap 让按钮
+            // 空间不够时自然换行,保留全部可点性。
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              alignment: WrapAlignment.start,
               children: [
                 if (mistake.grammarPointId != null)
                   _TextActionButton(
@@ -332,7 +354,6 @@ class _MistakeCard extends StatelessWidget {
                     correctAnswer: correctAnswer,
                   ),
                 ),
-                const Spacer(),
                 _TextActionButton(
                   icon: Icons.check_circle_outline_rounded,
                   label: AppStrings.reviewGotItNow,
@@ -533,7 +554,11 @@ class _TextActionButton extends StatelessWidget {
     return TextButton.icon(
       onPressed: onTap,
       icon: Icon(icon, size: 18),
-      label: Text(label),
+      label: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
       style: TextButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         textStyle: const TextStyle(

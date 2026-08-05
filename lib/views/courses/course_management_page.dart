@@ -94,42 +94,49 @@ class _CourseManagementBody extends StatelessWidget {
           ),
         ),
         const Divider(height: 1),
+        // 底部「添加课程」区:内层 Column 必须用 MainAxisSize.min,
+        // 否则它会吃掉外层 Column 的全部剩余高度,把 Expanded(ReorderableListView)
+        // 挤成 0 高度,渲染出大面积红色溢出条。SingleChildScrollView 兜底,
+        // 小屏 / 大字体下也能滚出来。
         SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  AppStrings.courseManagementAddTitle,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: TurnaTheme.textSecondaryColor(context),
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    AppStrings.courseManagementAddTitle,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: TurnaTheme.textSecondaryColor(context),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                _AddCourseTile(
-                  icon: Icons.upload_file_rounded,
-                  title: AppStrings.homeFromAnki,
-                  subtitle: AppStrings.homeFromAnkiSubtitle,
-                  onTap: () => context.router
-                      .push(AnkiImportRoute(startWithSample: false)),
-                ),
-                _AddCourseTile(
-                  icon: Icons.auto_awesome_rounded,
-                  title: AppStrings.homeSampleAnki,
-                  subtitle: AppStrings.homeSampleAnkiSubtitle,
-                  onTap: () => context.router
-                      .push(AnkiImportRoute(startWithSample: true)),
-                ),
-                _AddCourseTile(
-                  icon: Icons.add_circle_outline_rounded,
-                  title: AppStrings.homeNewCourse,
-                  subtitle: AppStrings.homeNewCourseComingSoon,
-                  onTap: () => _showNewCourseDialog(context),
-                ),
-              ],
+                  const SizedBox(height: 8),
+                  _AddCourseTile(
+                    icon: Icons.upload_file_rounded,
+                    title: AppStrings.homeFromAnki,
+                    subtitle: AppStrings.homeFromAnkiSubtitle,
+                    onTap: () => context.router
+                        .push(AnkiImportRoute(startWithSample: false)),
+                  ),
+                  _AddCourseTile(
+                    icon: Icons.auto_awesome_rounded,
+                    title: AppStrings.homeSampleAnki,
+                    subtitle: AppStrings.homeSampleAnkiSubtitle,
+                    onTap: () => context.router
+                        .push(AnkiImportRoute(startWithSample: true)),
+                  ),
+                  _AddCourseTile(
+                    icon: Icons.add_circle_outline_rounded,
+                    title: AppStrings.homeNewCourse,
+                    subtitle: AppStrings.homeNewCourseComingSoon,
+                    onTap: () => _showNewCourseDialog(context),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
