@@ -41,7 +41,7 @@ Rules:
 - If fields look like Sentence/Expression/Example + Meaning/Translation, use "expression"
 - Otherwise default to "ankiCard"
 - frontField and backField must be exact field names from the provided list
-'''
+''';
 
   /// Identify the best mapping for a notetype using LLM.
   ///

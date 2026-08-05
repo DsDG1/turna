@@ -13,24 +13,14 @@ import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/auth/local_user.dart';
+import 'package:turna/domain/cosmetics/avatar.dart';
 import 'package:turna/service/locator.dart';
+import 'package:turna/views/profile/widgets/avatar_picker_sheet.dart';
 import 'package:turna/views/settings/avatar_rings_page.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/theme.dart';
 import 'package:turna/views/widgets/avatar_with_ring.dart';
-
-/// Available avatar background colors indexed by [LocalUser.avatarColorIndex].
-const _avatarColors = <Color>[
-  TurnaTheme.brandTeal,
-  TurnaTheme.brandSky,
-  TurnaTheme.brandReed,
-  TurnaTheme.brandReed,
-  TurnaTheme.error,
-  TurnaTheme.warning,
-  TurnaTheme.leagueEmerald,
-  TurnaTheme.leagueAmethyst,
-];
 
 /// Preset daily XP goal values for the slider.
 const _xpGoalSteps = [50, 100, 150, 200, 250, 300, 400, 500];
@@ -139,10 +129,7 @@ class _ProfileCard extends StatelessWidget {
             user.displayName ?? AppStrings.settingsAccountLearnerFallback;
         final email = user.email ?? '';
         final bio = user.bio;
-        final avatarColorIndex = user.avatarColorIndex ?? 0;
-        final avatarColor =
-            _avatarColors[avatarColorIndex.clamp(0, _avatarColors.length - 1)];
-        final initials = _initials(displayName);
+        final avatar = AvatarCatalog.resolve(user.avatarId);
         final equippedRing = context.watch<CosmeticProvider>().equippedRing;
 
         return SettingsCard(
@@ -154,20 +141,22 @@ class _ProfileCard extends StatelessWidget {
                   // Avatar + Name + Edit button
                   Row(
                     children: [
-                      // Avatar — tap to change color
-                      GestureDetector(
-                        onTap: () => _showAvatarColorPicker(context, user),
-                        child: AvatarWithRing(
-                          radius: 32,
-                          ring: equippedRing,
-                          gapColor: TurnaTheme.cardBg(context),
-                          backgroundColor: avatarColor.withValues(alpha: 0.15),
-                          child: Text(
-                            initials,
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w700,
-                              color: avatarColor,
+                      // Avatar — tap to open the preset avatar picker
+                      Semantics(
+                        button: true,
+                        label: AppStrings.accountAvatarChangeTooltip,
+                        child: GestureDetector(
+                          onTap: () =>
+                              showAvatarPickerSheet(context, user: user),
+                          child: AvatarWithRing(
+                            radius: 32,
+                            ring: equippedRing,
+                            gapColor: TurnaTheme.cardBg(context),
+                            backgroundColor:
+                                avatar.background.withValues(alpha: 0.15),
+                            child: Text(
+                              avatar.emoji,
+                              style: const TextStyle(fontSize: 30),
                             ),
                           ),
                         ),
@@ -236,14 +225,6 @@ class _ProfileCard extends StatelessWidget {
     );
   }
 
-  String _initials(String name) {
-    final parts = name.trim().split(RegExp(r'\s+'));
-    if (parts.length >= 2) {
-      return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
-    }
-    return name.isNotEmpty ? name[0].toUpperCase() : '?';
-  }
-
   Future<void> _showEditNameDialog(BuildContext context, LocalUser user) async {
     // Use a modal bottom sheet instead of AlertDialog. AlertDialog wraps its
     // content in an AnimatedPadding driven by MediaQuery.viewInsets (keyboard
@@ -272,62 +253,6 @@ class _ProfileCard extends StatelessWidget {
         },
       ),
     );
-  }
-
-  Future<void> _showAvatarColorPicker(
-      BuildContext context, LocalUser user) async {
-    final selectedIndex = await showDialog<int>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-        ),
-        title: Text(AppStrings.accountAvatarTitle),
-        content: SizedBox(
-          width: 280,
-          child: Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            alignment: WrapAlignment.center,
-            children: List.generate(_avatarColors.length, (i) {
-              final color = _avatarColors[i];
-              final isSelected = i == (user.avatarColorIndex ?? 0);
-              return GestureDetector(
-                onTap: () => Navigator.of(ctx).pop(i),
-                child: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.15),
-                    shape: BoxShape.circle,
-                    border:
-                        isSelected ? Border.all(color: color, width: 3) : null,
-                  ),
-                  child: Center(
-                    child: Icon(
-                      isSelected
-                          ? Icons.check_circle_rounded
-                          : Icons.person_rounded,
-                      color: color,
-                      size: 24,
-                    ),
-                  ),
-                ),
-              );
-            }),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(AppStrings.commonCancel),
-          ),
-        ],
-      ),
-    );
-    if (selectedIndex == null || !context.mounted) return;
-    final updated = user.copyWith(avatarColorIndex: selectedIndex);
-    await getIt<AppPrefs>().setLocalUser(updated);
   }
 }
 

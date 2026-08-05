@@ -267,6 +267,14 @@ class AppStrings {
   static String get accountEditBioTitle => '编辑座右铭';
   static String get accountEditBioSave => '保存';
   static String get accountAvatarTitle => '选择头像颜色';
+  static String get accountAvatarChangeTitle => '选择角色';
+  static String get accountAvatarChangeHint => '点一下卡片即可切换';
+  static String get accountAvatarChangeTooltip => '换头像';
+  static String accountAvatarName(String name) => name;
+  static String get accountAvatarReset => '重置默认';
+  static String get accountAvatarResetTooltip => '回到默认头像';
+  static String get accountAvatarResetDone => '已重置为默认头像';
+  static String accountAvatarChangedDone(String name) => '已切换为 $name';
   static String get accountGoalsTitle => '学习目标';
   static String get accountDailyXpGoal => '每日经验目标';
   static String get accountDailyStudyGoal => '每日学习时长';
@@ -371,6 +379,89 @@ class AppStrings {
 
   // ── Quick Start ──
   static String get quickStartLoadFallback => '无法读取 assets/quick_start.md';
+
+  // ── Privacy details ──
+  // Settings → 关于 → 隐私详情 页面文案。互联网隐私政策模板:
+  // 数据收集 / 存储 / 网络 / 第三方 / 用户权利 / 联系方式 / 政策更新。
+  static String get privacyDetailsTitle => '隐私详情';
+  static String get privacyDetailsEntry => '隐私详情';
+  static String get privacyDetailsEntrySubtitle => '数据收集、网络行为与你的权利';
+  static String get privacyDetailsLastUpdated => '最后更新：2026 年 8 月';
+  // 概述
+  static String get privacyDetailsOverviewTitle => '概述';
+  static String get privacyDetailsOverviewIntro => 'Turna 在隐私与数据上的整体立场';
+  static String get privacyDetailsOverviewBody =>
+      'Turna 是一款本地优先的语言学习应用。我们没有云端后端、没有账户体系、不接入任何分析或广告 SDK。默认情况下，你的一切学习数据都只保存在你自己的设备上，未经你主动允许，绝不离开本机。';
+  // 我们不收集什么
+  static String get privacyDetailsNotCollectTitle => '我们不收集什么';
+  static String get privacyDetailsNotCollectIntro => '明确列出 Turna 不会主动做的事';
+  static String get privacyDetailsNotCollectBody =>
+      'Turna 不会主动收集或上传：账号信息（无注册）、邮箱或手机号、姓名或头像、通讯录与位置、设备唯一标识符（IDFA / OAID / IMEI 等）、广告标识符、崩溃分析或性能埋点、任何形式的用户行为画像。';
+  // 数据存储
+  static String get privacyDetailsStorageTitle => '数据存储';
+  static String get privacyDetailsStorageIntro => '你的学习数据存放在哪里';
+  static String get privacyDetailsStorageBody =>
+      '课程进度、SRS 复习数据、错题本、收藏、成就、设置项、皮肤与主题等数据，全部保存在本机 SQLite 数据库与 SharedPreferences 中，受系统沙箱保护。卸载应用将一并删除这些数据——我们没有副本可恢复。建议定期使用「设置 → 数据 → 导出数据」进行本地备份。';
+  // 网络访问
+  static String get privacyDetailsNetworkTitle => '网络访问';
+  static String get privacyDetailsNetworkIntro => 'Turna 的网络行为分两类:非 AI 默认完全离线,AI 由你决定';
+  static String get privacyDetailsNonAiTitle => '非 AI 功能';
+  static String get privacyDetailsNonAiIntro => '默认完全离线,无需任何网络请求';
+  static String get privacyDetailsNonAiBody =>
+      '课程学习、间隔复习、错题练习、每日挑战、词典查询、统计与提醒等所有内置功能均完全离线运行，不发起任何网络请求。你可以关闭设备的移动数据和 Wi-Fi 正常使用所有非 AI 功能，不会出现任何网络依赖。';
+  static String get privacyDetailsAiTitle => 'AI 功能';
+  static String get privacyDetailsAiIntro => '联网行为由你在 AI API 配置中选择的平台决定';
+  static String get privacyDetailsAiBody =>
+      'AI 助手（自由问答、伴学、诊断、词典扩展、AI 课程设计、教材导入、Anki 卡片讲解等）仅在你主动配置并调用时才会联网。具体访问哪个服务器、传输哪些内容、是否留存日志，完全取决于你在「设置 → AI 工具 → AI API 配置」中选择的 AI 服务提供平台（例如 DeepSeek、OpenAI、自建网关、任何兼容 OpenAI 协议的端点等）。Turna 不代理、不中转、不存储你的对话到云端——所有请求直接由本机发往你配置的 Base URL，API 密钥仅保存在本机偏好中（退出输入框即丢弃输入），不会上传到任何第三方。';
+  // 可选网络行为：外部链接
+  static String get privacyDetailsExternalLinksTitle => '可选网络行为：外部链接';
+  static String get privacyDetailsExternalLinksIntro => '打开外部链接时 Turna 的行为';
+  static String get privacyDetailsExternalLinksBody =>
+      '当你在应用内点击 GitHub 仓库、问题反馈、发布页、课程编辑器等链接时，系统会调用操作系统的浏览器打开对应外部网页。该行为由你主动触发，Turna 不在打开前向这些网站发送任何数据。';
+  // 你的权利与控制
+  static String get privacyDetailsYourRightsTitle => '你的权利与控制';
+  static String get privacyDetailsYourRightsIntro => '你对自己的数据拥有完全控制';
+  static String get privacyDetailsYourRightsBody =>
+      '你始终拥有自己的数据。可随时在「设置 → 数据」中：导出完整进度为本地 JSON 文件；从导出文件恢复；清除错题记录；重置课程进度；或直接卸载应用彻底抹除全部数据。AI 相关数据可随时在「设置 → AI 工具 → AI API 配置」中清空 API 密钥、切换或停用。';
+  // 政策更新
+  static String get privacyDetailsUpdatesTitle => '政策更新';
+  static String get privacyDetailsUpdatesIntro => '政策的变更与通知方式';
+  static String get privacyDetailsUpdatesBody =>
+      '我们可能在产品迭代中调整本政策。任何实质变更都会随版本更新发布，并在「设置 → 关于 → 更新日志」中说明。我们不会以削弱离线优先承诺或扩大默认数据收集范围的方式修改本页内容。';
+  // 联系方式
+  static String get privacyDetailsContactTitle => '联系方式';
+  static String get privacyDetailsContactIntro => '如有问题,通过这里反馈';
+  static String get privacyDetailsContactBody =>
+      '如对本政策或数据实践有任何疑问，欢迎通过 GitHub Issues 反馈：github.com/rshrc/Varnamala/issues。';
+  static String get aboutPrivacyOpenDetails => '查看完整隐私详情 →';
+
+  // ── Transparency log (隐私详情页底部 pill 跳的页面)──
+  static String get transparencyPillHint => '一般的 app 会读什么？';
+  static String get transparencyPillHintSubtitle => '点我看 Turna 自己的透明日志';
+  static String get transparencyTitle => '透明度报告';
+  static String get transparencyIntro =>
+      '「我说不收集,那 Turna 自己到底产了什么日志?」——下面是你能看到的全部。';
+  static String get transparencyOpsTitle => '最近操作日志';
+  static String get transparencyOpsEmpty => '本会话暂无 info 级日志。';
+  static String get transparencyErrorTitle => '错误日志';
+  static String get transparencyErrorEmpty => '本会话一切正常,没有 warn / error。';
+  static String get transparencyDeviceTitle => '一般数据';
+  static String get transparencyDeviceIntro => '一次性读取,仅在内存展示:';
+  static String get transparencyDeviceAppVersion => '应用版本';
+  static String get transparencyDevicePlatform => '运行平台';
+  static String get transparencyDeviceOs => '操作系统';
+  static String get transparencyDeviceScreen => '屏幕尺寸';
+  static String get transparencyDeviceLocale => '系统语言';
+  static String get transparencyDeviceTimezone => '时区';
+  static String get transparencyFooter =>
+      '上述内容仅保存在本机:`transparency_log.jsonl`(应用沙箱内)与本次会话内存。绝不联网、绝不主动上传。';
+  static String get transparencyClearAll => '清空本机日志';
+  static String get transparencyClearAllDone => '本机日志已清空';
+  static String get transparencyLevelInfo => '信息';
+  static String get transparencyLevelWarn => '警告';
+  static String get transparencyLevelError => '错误';
+  static String transparencyLogCount(int n) => '共 $n 条';
+  static String get transparencyLogFileLabel => '本机文件';
 
   // ── Home ──
   static String get homeAiCourseDesigner => 'AI 课程设计器';
@@ -911,8 +1002,18 @@ class AppStrings {
   static String get ankiImportDialogTitle => '导入 Anki 牌组';
   static String get ankiImportSelectTitle => '导入 Anki 牌组';
   static String get ankiImportSelectSubtitle =>
-      '选择从 Anki 导出的 .apkg 或 .colpkg 文件';
+      '从 Anki 桌面端导出牌组文件 (.apkg / .colpkg)，然后从这里导入。';
+  static String get ankiImportSelectBodyHint =>
+      '想先看看效果？试用一个内置示例牌组';
+  static String get ankiImportFallbackScanHint =>
+      '系统选择器打不开？试试从已下载文件选择';
   static String get ankiChooseFile => '选择文件';
+  // Wizard step labels for the new step indicator at the top of the page.
+  static String get ankiStepSelect => '选择文件';
+  static String get ankiStepParse => '解析中';
+  static String get ankiStepPreview => '预览';
+  static String get ankiStepImport => '导入中';
+  static String get ankiStepDone => '完成';
   static String get ankiParsing => '正在解析 Anki 集合…';
   static String get ankiCollectionSummary => '集合概要';
   static String get ankiDecksLabel => '牌组';
@@ -931,12 +1032,14 @@ class AppStrings {
   static String get ankiDeckStructure => '牌组结构';
   static String ankiDeckCardCount(int cardCount) => '$cardCount 张卡片';
   static String get ankiNotetypeMapping => '自动识别结果';
-  static String get ankiMappingOverrideHint =>
-      '点按可修改识别结果；同一笔记类型中的单选和多选会按每张卡的题面与答案分别判断。';
+  static String get ankiMappingOverrideHint => '点按可手动调整识别结果';
+  static String get ankiMappingAutoChoiceHint =>
+      '同一笔记类型中的单选/多选会按每张卡的题面与答案分别判断。';
   static String get ankiAiIdentify => 'AI 智能识别';
   static String get ankiAiIdentifying => 'AI 识别中…';
   static String get ankiAiNotConfiguredMessage =>
       '未配置 AI，无法智能识别。请先在「设置 > AI 工具」中配置 AI API。';
+  static String get ankiAiIdentifyHint => '如未配置 AI，请先在「设置 > AI 工具」配置';
   static String get ankiNotetypePreview => '样例卡预览';
   static String get ankiNotetypeFields => '字段';
   static String get ankiNotetypeSampleFront => '正面';
@@ -971,6 +1074,18 @@ class AppStrings {
   static String get ankiNewCards => '新卡片';
   static String get ankiExistingCards => '已存在';
   static String get ankiImportStrategy => '导入策略';
+  // Section headers for the redesigned preview screen (3 grouped cards).
+  static String get ankiPreviewSectionContent => '牌组内容';
+  static String get ankiPreviewSectionContentHint => '你将导入什么';
+  static String get ankiPreviewSectionMapping => '卡片识别';
+  static String get ankiPreviewSectionMappingHint => '系统如何识别每张卡的题型';
+  static String get ankiPreviewSectionStrategy => '导入方式';
+  static String get ankiPreviewSectionStrategyHint =>
+      '如何处理已存在的卡片和学习进度';
+  static String get ankiPreviewCollisionVisualHint =>
+      '已存在卡片会按下方策略处理';
+  static String get ankiPreviewStartImport => '开始导入';
+  static String get ankiPreviewCancel => '取消';
   static String get ankiImportLearningProgress => '导入 Anki 学习进度';
   static String get ankiImportLearningProgressOnDesc =>
       '保留原卡片的到期时间、间隔、次数、暂停状态和复习历史。';
@@ -984,6 +1099,15 @@ class AppStrings {
       '数量已核对：源卡 $source · 已存储 $stored · 已索引 $indexed';
   static String get ankiImportSchedulingReset => '学习进度：按新卡重置';
   static String get ankiImportComplete => '导入完成！';
+  // Done-page headline (uses %s for card count), grouped details, and CTAs.
+  static String ankiDoneSummary(int cardCount) => '$cardCount 张卡片已就绪';
+  static String get ankiDoneLessonsHint => '已创建 N 节课，可立即开始学习';
+  static String get ankiDoneGroupSource => '源数据';
+  static String get ankiDoneGroupVocab => '词汇';
+  static String get ankiDoneGroupStatus => '状态提示';
+  static String get ankiDoneProgressKept => '学习进度：已保留';
+  static String get ankiDoneProgressReset => '学习进度：按新卡重置';
+  static String get ankiDoneViewDecks => '查看牌组';
   static String get ankiStartLearning => '立即学习';
   static String ankiCardsImported(int cardCount) => '已导入 $cardCount 张卡片';
   static String ankiLessonsCreated(int lessonCount) => '已创建 $lessonCount 节课';
@@ -1018,6 +1142,15 @@ class AppStrings {
   static String get ankiStrategySkipExistingDesc => '仅导入不存在的卡片';
   static String get ankiStrategyForceReplaceDesc => '替换所有已存在数据';
   static String get ankiStrategyAppendAsNewDesc => '全部作为新卡片添加（加后缀）';
+  // Data consequences shown under each strategy as a small hint line. Keeping
+  // these explicit (not on a tooltip) so users can compare tradeoffs at a
+  // glance instead of tapping each option to learn the cost.
+  static String get ankiStrategyMergeConsequence => 'SRS 与复习历史保留';
+  static String get ankiStrategySkipExistingConsequence => 'SRS 与复习历史保留';
+  static String get ankiStrategyForceReplaceConsequence =>
+      'SRS 状态与复习历史会丢失';
+  static String get ankiStrategyAppendAsNewConsequence => '两份数据共存';
+  static String get ankiStrategyWarningBadge => '注意';
   static String get ankiReviewTitle => 'Anki 复习';
   static String get ankiNoCardsDue => '暂无待复习的 Anki 卡片。';
   static String get ankiReviewPreparing => '正在准备本批卡片…';
@@ -1317,7 +1450,7 @@ class AppStrings {
   // ── Anki sample ──
   static String get ankiTrySample => '试用示例牌组';
   static String get ankiSampleDeckName => '示例 · 土耳其语问候';
-  static String get ankiSampleHint => '无需选择文件，立即体验 Anki 导入流程';
+  static String get ankiSampleHint => '想先看看效果？试用一个内置示例牌组';
   static String get ankiSampleBadge => '示例';
 
   // ── Profile Anki ──

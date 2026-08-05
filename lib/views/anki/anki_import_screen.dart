@@ -84,6 +84,10 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
   ImportStrategy _strategy = ImportStrategy.merge;
   bool _smartGrouping = true;
   bool _importLearningProgress = false;
+  // Cached unit/lesson organization summary for the content section. Computed
+  // once in [_preparePreview] and read on every preview rebuild so the user
+  // does not pay the O(notes) cost each time they flip a strategy switch.
+  AnkiOrganizationPreview? _organizationPreview;
 
   // AI notetype identification (optional; runs LLM over all notetypes).
   bool _isAiIdentifying = false;
@@ -97,6 +101,33 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
   double _progress = 0; // 0..1, 0 means indeterminate
   bool _cancelRequested = false;
   AnkiImportSummary? _summary;
+
+  // ─── Perf instrumentation ──────────────────────────────────────────
+  //
+  // Set to false to silence every [debugPrint] the import flow emits. Kept
+  // on by default during the perf-investigation phase so we can collect real
+  // numbers from a 5K+ card file; flip once we have data.
+  static const bool _kEnableTimingLogs = true;
+
+  /// Compact, parseable log line for a single timed phase. Format is
+  /// `[AnkiImport] <label>: <ms>ms (<key>=<value> ...)` so the lines can be
+  /// grepped or piped into a quick spreadsheet without parsing JSON.
+  void _logTiming(String label, Stopwatch sw,
+      [Map<String, Object?>? extras]) {
+    if (!_kEnableTimingLogs) return;
+    final buf = StringBuffer('[AnkiImport] $label: ${sw.elapsedMilliseconds}ms');
+    if (extras != null && extras.isNotEmpty) {
+      buf.write(' (');
+      var first = true;
+      extras.forEach((k, v) {
+        if (!first) buf.write(' ');
+        buf.write('$k=$v');
+        first = false;
+      });
+      buf.write(')');
+    }
+    debugPrint(buf.toString());
+  }
 
   @override
   void dispose() {
@@ -137,8 +168,16 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.router.maybePop(),
         ),
+        // While parsing/importing (steps 1 and 3) the cancel action lives in
+        // the body for a clearer visual focus; suppress the trailing slot so
+        // the AppBar stays simple.
       ),
-      body: _buildBody(),
+      body: Column(
+        children: [
+          _WizardStepper(currentStep: _step),
+          Expanded(child: _buildBody()),
+        ],
+      ),
     );
   }
 
@@ -196,19 +235,13 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
                       color: TurnaTheme.brandTeal.withValues(alpha: 0.6),
                     ),
                     const SizedBox(height: 24),
-                    Text(
-                      AppStrings.ankiImportSelectTitle,
-                      style:
-                          Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 12),
+                    // No duplicate title here; the AppBar already shows it.
                     Text(
                       AppStrings.ankiImportSelectSubtitle,
                       style: TextStyle(
                         color: TurnaTheme.textSecondaryColor(context),
+                        fontSize: 15,
+                        height: 1.4,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -236,68 +269,21 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
                         ),
                       ),
                     ),
-                    // Manual fallbacks. Always available on OHos (where the
-                    // system file picker may be missing), and on every
-                    // platform the user can still prefer a direct path if
-                    // they copied it elsewhere.
-                    if (defaultTargetPlatform == TargetPlatform.ohos) ...[
-                      const SizedBox(height: 16),
-                      Text(
-                        AppStrings.ankiFallbackPickFileFirst,
-                        style: TextStyle(
-                          color: TurnaTheme.textHintColor(context),
-                          fontSize: 12,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 8),
-                      OutlinedButton.icon(
-                        onPressed: _showScanResults,
-                        icon: const Icon(Icons.search),
-                        label: Text(AppStrings.ankiFallbackScanTitle),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: TurnaTheme.brandTeal,
-                          side: const BorderSide(color: TurnaTheme.brandTeal),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 24, vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      TextButton.icon(
-                        onPressed: _showPathInputDialog,
-                        icon: const Icon(Icons.edit_note, size: 18),
-                        label: Text(AppStrings.ankiFallbackPathTitle),
-                        style: TextButton.styleFrom(
-                          foregroundColor: TurnaTheme.brandTeal,
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 16),
-                    OutlinedButton.icon(
-                      onPressed: _loadSampleDeck,
-                      icon: const Icon(Icons.auto_awesome_rounded),
-                      label: Text(AppStrings.ankiTrySample),
-                      style: OutlinedButton.styleFrom(
+                    // Always-available fallback so users on platforms with a
+                    // broken system picker (e.g. some OHOS ROMs) have a way in
+                    // before they hit an error. Cheap, low visual weight.
+                    TextButton.icon(
+                      onPressed: _showScanResults,
+                      icon: const Icon(Icons.search, size: 18),
+                      label: Text(AppStrings.ankiImportFallbackScanHint),
+                      style: TextButton.styleFrom(
                         foregroundColor: TurnaTheme.brandTeal,
-                        side: const BorderSide(color: TurnaTheme.brandTeal),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 28, vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      AppStrings.ankiSampleHint,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: TurnaTheme.textHintColor(context),
-                          ),
-                      textAlign: TextAlign.center,
-                    ),
+                    const SizedBox(height: 24),
+                    // Sample-deck entry: a visually distinct card so it does
+                    // not compete with the primary CTA but is still obvious.
+                    _SampleDeckCard(onTap: _loadSampleDeck),
                   ],
                 ),
               ),
@@ -328,18 +314,25 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
           else
             const CircularProgressIndicator(),
           const SizedBox(height: 24),
-          Text(AppStrings.ankiParsing),
+          Text(
+            AppStrings.ankiParsing,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           if (_progressMessage.isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(
               _progressMessage,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: TurnaTheme.textSecondaryColor(context),
-                  ),
+              style: TextStyle(
+                color: TurnaTheme.textSecondaryColor(context),
+                fontSize: 13,
+              ),
             ),
           ],
           const SizedBox(height: 24),
-          TextButton(
+          OutlinedButton.icon(
             onPressed: () {
               setState(() {
                 _cancelRequested = true;
@@ -348,7 +341,14 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
                 _progressMessage = '';
               });
             },
-            child: Text(AppStrings.commonCancel),
+            icon: const Icon(Icons.close, size: 18),
+            label: Text(AppStrings.commonCancel),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: TurnaTheme.textSecondaryColor(context),
+              side: BorderSide(
+                color: TurnaTheme.textHintColor(context).withValues(alpha: 0.5),
+              ),
+            ),
           ),
         ],
       ),
@@ -359,157 +359,73 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
 
   Widget _buildPreviewStep() {
     final collection = _collection!;
-    return ListView(
-      padding: const EdgeInsets.all(20),
+    return Column(
       children: [
-        // Summary card
-        _InfoCard(
-          title: AppStrings.ankiCollectionSummary,
-          children: [
-            _InfoRow(AppStrings.ankiDecksLabel, '${collection.decks.length}'),
-            _InfoRow(AppStrings.ankiNotesLabel, '${collection.notes.length}'),
-            _InfoRow(AppStrings.ankiCardsLabel, '${collection.cards.length}'),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            children: [
+              _buildContentSection(collection),
+              const SizedBox(height: 12),
+              _buildMappingSection(collection),
+              const SizedBox(height: 12),
+              _buildStrategySection(),
+            ],
+          ),
+        ),
+        _StickyImportBar(onPressed: _executeImport),
+      ],
+    );
+  }
+
+  /// Section 1: what is in the deck. Collection summary, deck structure,
+  /// and the auto-detected unit/lesson organization all live here.
+  Widget _buildContentSection(AnkiCollection collection) {
+    return _SectionCard(
+      icon: Icons.layers_rounded,
+      title: AppStrings.ankiPreviewSectionContent,
+      hint: AppStrings.ankiPreviewSectionContentHint,
+      children: [
+        // Stat strip: 4 compact stat boxes
+        _StatStrip(
+          items: [
+            (AppStrings.ankiDecksLabel, collection.decks.length),
+            (AppStrings.ankiNotesLabel, collection.notes.length),
+            (AppStrings.ankiCardsLabel, collection.cards.length),
+            (AppStrings.ankiMediaFilesLabel, collection.media.length),
+          ],
+        ),
+        if (collection.decks.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          const _Subheader(text: '牌组结构'),
+          const SizedBox(height: 4),
+          for (final deck in collection.decks.values)
             _InfoRow(
-                AppStrings.ankiMediaFilesLabel, '${collection.media.length}'),
-          ],
-        ),
-        const SizedBox(height: 16),
-
-        // Deck structure
-        _InfoCard(
-          title: AppStrings.ankiDeckStructure,
-          children: [
-            for (final deck in collection.decks.values)
-              _InfoRow(deck.name, AppStrings.ankiDeckCardCount(deck.cardCount)),
-          ],
-        ),
-        const SizedBox(height: 16),
-
-        // Smart organization preview (tags / notetype fields -> units & lessons)
-        _buildOrganizationCard(collection),
-        const SizedBox(height: 16),
-
-        // Automatic notetype mappings. Choice cardinality is resolved per
-        // card, so a single note type may safely mix single and multi choice
-        // without asking the user for a deck-wide override.
-        _InfoCard(
-          title: AppStrings.ankiNotetypeMapping,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Text(
-                AppStrings.ankiMappingOverrideHint,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: TurnaTheme.textHintColor(context),
-                    ),
-              ),
+              deck.name,
+              AppStrings.ankiDeckCardCount(deck.cardCount),
             ),
-            for (final entry in collection.notetypes.entries)
-              _NotetypeMappingRow(
-                notetype: entry.value,
-                mapping: _mappings[entry.key],
-                onEdit: () => _editNotetypeMapping(entry.key, entry.value),
-              ),
-          ],
-        ),
-        // AI notetype identification (optional; requires a configured AI API).
-        if (collection.notetypes.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 4, bottom: 16),
-            child: OutlinedButton.icon(
-              onPressed: _isAiIdentifying ? null : _onAiIdentify,
-              icon: _isAiIdentifying
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.auto_awesome_outlined),
-              label: Text(
-                _isAiIdentifying
-                    ? AppStrings.ankiAiIdentifying
-                    : AppStrings.ankiAiIdentify,
-              ),
-            ),
-          )
-        else
-          const SizedBox(height: 16),
-
-        // Collision report
-        _InfoCard(
-          title: AppStrings.ankiCollisionReport,
-          children: [
-            _InfoRow(AppStrings.ankiNewCards, '$_newCount'),
-            _InfoRow(AppStrings.ankiExistingCards, '$_existingCount'),
-          ],
-        ),
-        const SizedBox(height: 16),
-
-        // Strategy selection
-        Text(
-          AppStrings.ankiImportStrategy,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-        ),
-        const SizedBox(height: 8),
-        for (final s in ImportStrategy.values)
-          RadioListTile<ImportStrategy>(
-            title: Text(_strategyLabel(context, s)),
-            subtitle: Text(_strategyDescription(context, s)),
-            value: s,
-            groupValue: _strategy,
-            onChanged: (v) => setState(() => _strategy = v!),
-            dense: true,
-          ),
-        const SizedBox(height: 8),
-        SwitchListTile.adaptive(
-          contentPadding: EdgeInsets.zero,
-          title: Text(AppStrings.ankiImportLearningProgress),
-          subtitle: Text(
-            _importLearningProgress
-                ? AppStrings.ankiImportLearningProgressOnDesc
-                : AppStrings.ankiImportLearningProgressOffDesc,
-          ),
-          value: _importLearningProgress,
-          onChanged: (value) {
-            setState(() => _importLearningProgress = value);
-          },
-        ),
-        const SizedBox(height: 24),
-
-        // Import button
-        ElevatedButton(
-          onPressed: _executeImport,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: TurnaTheme.brandTeal,
-            foregroundColor: TurnaTheme.textOnPrimary,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-          child: Text(
-            AppStrings.commonImport,
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
-          ),
-        ),
+        ],
+        const SizedBox(height: 12),
+        _buildOrganizationBlock(),
       ],
     );
   }
 
   /// Preview of the unit/lesson organization detected from Anki tags and
   /// notetype fields, plus a toggle to enable smart grouping.
-  Widget _buildOrganizationCard(AnkiCollection collection) {
-    const resolver = AnkiOrganizationResolver();
-    final preview = resolver.preview(
-      notes: collection.notes,
-      notetypes: collection.notetypes,
-    );
-    return _InfoCard(
-      title: AppStrings.ankiOrganizationTitle,
+  ///
+  /// Reads the cached [_organizationPreview] populated by [_preparePreview]
+  /// instead of re-running the O(notes) scan on every rebuild. The block is
+  /// the only place in the preview screen that needs an O(notes) computation
+  /// — every other section is O(1) in the collection size.
+  Widget _buildOrganizationBlock() {
+    final preview = _organizationPreview;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (preview.hasAny) ...[
+        const _Subheader(text: '组织结构'),
+        const SizedBox(height: 4),
+        if (preview != null && preview.hasAny) ...[
           _InfoRow(AppStrings.ankiDetectedUnits, '${preview.unitCount}'),
           _InfoRow(AppStrings.ankiDetectedLessons, '${preview.lessonCount}'),
           _InfoRow(
@@ -517,13 +433,181 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         ] else
           _InfoRow(AppStrings.ankiOrganizationNone,
               AppStrings.ankiOrganizationNoneDesc),
+        const SizedBox(height: 4),
         SwitchListTile(
           value: _smartGrouping,
           onChanged: (v) => setState(() => _smartGrouping = v),
-          title: Text(AppStrings.ankiSmartGrouping),
-          subtitle: Text(AppStrings.ankiSmartGroupingDesc),
+          title: Text(
+            AppStrings.ankiSmartGrouping,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          ),
+          subtitle: Text(
+            AppStrings.ankiSmartGroupingDesc,
+            style: const TextStyle(fontSize: 12),
+          ),
           dense: true,
           contentPadding: EdgeInsets.zero,
+        ),
+      ],
+    );
+  }
+
+  /// Section 2: how each card type is identified. The notetype mapping
+  /// override list plus the optional AI re-identification button.
+  Widget _buildMappingSection(AnkiCollection collection) {
+    return _SectionCard(
+      icon: Icons.auto_awesome_outlined,
+      title: AppStrings.ankiPreviewSectionMapping,
+      hint: AppStrings.ankiPreviewSectionMappingHint,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Text(
+            AppStrings.ankiMappingOverrideHint,
+            style: TextStyle(
+              fontSize: 12,
+              color: TurnaTheme.textHintColor(context),
+            ),
+          ),
+        ),
+        for (final entry in collection.notetypes.entries)
+          _NotetypeMappingRow(
+            notetype: entry.value,
+            mapping: _mappings[entry.key],
+            onEdit: () => _editNotetypeMapping(entry.key, entry.value),
+          ),
+        if (collection.notetypes.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+            decoration: BoxDecoration(
+              color: TurnaTheme.brandTeal.withValues(alpha: 0.04),
+              borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
+              border: Border.all(
+                color: TurnaTheme.brandTeal.withValues(alpha: 0.12),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.lightbulb_outline,
+                  size: 16,
+                  color: TurnaTheme.textSecondaryColor(context),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    AppStrings.ankiMappingAutoChoiceHint,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: TurnaTheme.textSecondaryColor(context),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: _isAiIdentifying ? null : _onAiIdentify,
+            icon: _isAiIdentifying
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.auto_awesome_outlined, size: 18),
+            label: Text(
+              _isAiIdentifying
+                  ? AppStrings.ankiAiIdentifying
+                  : AppStrings.ankiAiIdentify,
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: TurnaTheme.brandTeal,
+              side: const BorderSide(color: TurnaTheme.brandTeal),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            AppStrings.ankiAiIdentifyHint,
+            style: TextStyle(
+              fontSize: 11,
+              color: TurnaTheme.textHintColor(context),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// Section 3: how collisions and learning progress are handled.
+  Widget _buildStrategySection() {
+    return _SectionCard(
+      icon: Icons.tune_rounded,
+      title: AppStrings.ankiPreviewSectionStrategy,
+      hint: AppStrings.ankiPreviewSectionStrategyHint,
+      children: [
+        // Collision report with a thin progress bar so users can eyeball
+        // the new-vs-existing ratio at a glance.
+        _CollisionStrip(
+          newCount: _newCount,
+          existingCount: _existingCount,
+        ),
+        const SizedBox(height: 6),
+        Text(
+          AppStrings.ankiPreviewCollisionVisualHint,
+          style: TextStyle(
+            fontSize: 11,
+            color: TurnaTheme.textHintColor(context),
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Strategy selection: 4 cards with title, description, and a
+        // "data consequence" line so users can compare tradeoffs side by
+        // side. Force Replace is the only one that destroys existing
+        // learning state, so it gets the warning-style hint.
+        for (final s in ImportStrategy.values) ...[
+          _StrategyOption(
+            value: s,
+            groupValue: _strategy,
+            title: _strategyLabel(context, s),
+            description: _strategyDescription(context, s),
+            consequence: _strategyConsequence(s),
+            isWarning: s == ImportStrategy.forceReplace,
+            onChanged: (v) => setState(() => _strategy = v),
+          ),
+          const SizedBox(height: 8),
+        ],
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+          decoration: BoxDecoration(
+            color: TurnaTheme.brandTeal.withValues(alpha: 0.04),
+            borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
+            border: Border.all(
+              color: TurnaTheme.brandTeal.withValues(alpha: 0.12),
+            ),
+          ),
+          child: SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            title: Text(
+              AppStrings.ankiImportLearningProgress,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+            subtitle: Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                _importLearningProgress
+                    ? AppStrings.ankiImportLearningProgressOnDesc
+                    : AppStrings.ankiImportLearningProgressOffDesc,
+                style: const TextStyle(fontSize: 12),
+              ),
+            ),
+            value: _importLearningProgress,
+            onChanged: (value) {
+              setState(() => _importLearningProgress = value);
+            },
+          ),
         ),
       ],
     );
@@ -549,17 +633,30 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
           else
             const CircularProgressIndicator(),
           const SizedBox(height: 24),
-          Text(_progressMessage.isEmpty
-              ? AppStrings.ankiPreparingImport
-              : _progressMessage),
+          Text(
+            _progressMessage.isEmpty
+                ? AppStrings.ankiPreparingImport
+                : _progressMessage,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(height: 24),
-          TextButton(
+          OutlinedButton.icon(
             onPressed: () {
               setState(() {
                 _cancelRequested = true;
               });
             },
-            child: Text(AppStrings.commonCancel),
+            icon: const Icon(Icons.close, size: 18),
+            label: Text(AppStrings.commonCancel),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: TurnaTheme.textSecondaryColor(context),
+              side: BorderSide(
+                color: TurnaTheme.textHintColor(context).withValues(alpha: 0.5),
+              ),
+            ),
           ),
         ],
       ),
@@ -570,73 +667,149 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
 
   Widget _buildDoneStep() {
     final summary = _summary;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Icon(
-              Icons.check_circle_outline,
-              size: 80,
-              color: TurnaTheme.success,
-            ),
-            const SizedBox(height: 24),
-            Text(
-              AppStrings.ankiImportComplete,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+            const SizedBox(height: 8),
+            const Center(
+              child: Icon(
+                Icons.check_circle_outline,
+                size: 72,
+                color: TurnaTheme.success,
+              ),
             ),
             const SizedBox(height: 16),
+            Center(
+              child: Text(
+                AppStrings.ankiImportComplete,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ),
             if (summary != null) ...[
-              Text(AppStrings.ankiCardsImported(summary.cardCount)),
-              Text(AppStrings.ankiImportSourceCards(summary.sourceCardCount)),
-              Text(AppStrings.ankiImportCountsVerified(
-                summary.sourceCardCount,
-                summary.cardCount,
-                summary.cardCount,
-              )),
-              Text(AppStrings.ankiImportStructuredCards(
-                  summary.structuredCardCount)),
-              Text(AppStrings.ankiImportFidelityCards(
-                  summary.fidelityCardCount)),
-              Text(AppStrings.ankiLessonsCreated(summary.lessonCount)),
-              if (summary.wordEntryCount > 0)
-                Text(AppStrings.ankiVocabAdded(summary.wordEntryCount)),
-              if (summary.unknownTemplateCount > 0)
-                Text(AppStrings.ankiImportUnknownTemplates(
-                    summary.unknownTemplateCount)),
-              if (summary.suspendedCardCount > 0)
-                Text(
-                    AppStrings.ankiImportSuspended(summary.suspendedCardCount)),
-              if (summary.buriedCardCount > 0)
-                Text(AppStrings.ankiImportBuried(summary.buriedCardCount)),
-              if (summary.missingMediaCount > 0 || summary.failedMediaCount > 0)
-                Text(AppStrings.ankiImportMissingMedia(
-                    summary.missingMediaCount + summary.failedMediaCount)),
-              if (_importLearningProgress && summary.hasScheduling)
-                Text(AppStrings.ankiImportSchedulingMigrated),
-              if (_importLearningProgress && summary.hasReviewHistory)
-                Text(AppStrings.ankiImportHistoryMigrated),
-              if (!_importLearningProgress)
-                Text(AppStrings.ankiImportSchedulingReset),
+              const SizedBox(height: 8),
+              Center(
+                child: Text(
+                  AppStrings.ankiDoneSummary(summary.cardCount),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: TurnaTheme.brandTeal,
+                  ),
+                ),
+              ),
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    AppStrings.ankiLessonsCreated(summary.lessonCount),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: TurnaTheme.textSecondaryColor(context),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Source data: counts the user can compare against the source file.
+              _DoneGroup(
+                title: AppStrings.ankiDoneGroupSource,
+                rows: [
+                  AppStrings.ankiImportSourceCards(summary.sourceCardCount),
+                  AppStrings.ankiImportStructuredCards(
+                      summary.structuredCardCount),
+                  AppStrings.ankiImportFidelityCards(
+                      summary.fidelityCardCount),
+                ],
+              ),
+              if (summary.wordEntryCount > 0) ...[
+                const SizedBox(height: 12),
+                _DoneGroup(
+                  title: AppStrings.ankiDoneGroupVocab,
+                  rows: [
+                    AppStrings.ankiVocabAdded(summary.wordEntryCount),
+                  ],
+                ),
+              ],
+              // Status notes: only show non-zero warnings so a clean import
+              // does not list "0 missing media" / "0 buried" etc.
+              if (summary.unknownTemplateCount > 0 ||
+                  summary.suspendedCardCount > 0 ||
+                  summary.buriedCardCount > 0 ||
+                  summary.missingMediaCount > 0 ||
+                  summary.failedMediaCount > 0) ...[
+                const SizedBox(height: 12),
+                _DoneGroup(
+                  title: AppStrings.ankiDoneGroupStatus,
+                  rows: [
+                    if (summary.unknownTemplateCount > 0)
+                      AppStrings.ankiImportUnknownTemplates(
+                          summary.unknownTemplateCount),
+                    if (summary.suspendedCardCount > 0)
+                      AppStrings.ankiImportSuspended(
+                          summary.suspendedCardCount),
+                    if (summary.buriedCardCount > 0)
+                      AppStrings.ankiImportBuried(summary.buriedCardCount),
+                    if (summary.missingMediaCount > 0 ||
+                        summary.failedMediaCount > 0)
+                      AppStrings.ankiImportMissingMedia(
+                          summary.missingMediaCount +
+                              summary.failedMediaCount),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 12),
+              // Single-line learning-progress summary (kept / reset). Avoids
+              // showing two redundant chips when only one is meaningful.
+              _LearningProgressBadge(
+                kept: _importLearningProgress,
+                hasScheduling: summary.hasScheduling,
+                hasReviewHistory: summary.hasReviewHistory,
+              ),
             ],
-            const SizedBox(height: 32),
-            ElevatedButton(
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
               onPressed: _startLearningNow,
+              icon: const Icon(Icons.play_arrow_rounded, size: 20),
+              label: Text(
+                AppStrings.ankiStartLearning,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                ),
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: TurnaTheme.brandTeal,
                 foregroundColor: TurnaTheme.textOnPrimary,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: Text(AppStrings.ankiStartLearning),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
+            // Secondary action: return to the deck list (the page that
+            // pushed this wizard onto the stack). Same destination as the
+            // "Done" text button, but more discoverable for users who
+            // explicitly want to review what was imported.
+            OutlinedButton.icon(
+              onPressed: () => context.router.maybePop(),
+              icon: const Icon(Icons.list_alt_rounded, size: 18),
+              label: Text(AppStrings.ankiDoneViewDecks),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: TurnaTheme.brandTeal,
+                side: const BorderSide(color: TurnaTheme.brandTeal),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
             TextButton(
               onPressed: () => context.router.maybePop(),
               child: Text(AppStrings.commonDone),
@@ -856,6 +1029,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
   }
 
   Future<void> _parseFile(String path) async {
+    final totalSw = Stopwatch()..start();
     setState(() {
       _cancelRequested = false;
       _progress = 0;
@@ -863,6 +1037,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       _isSample = false;
     });
     try {
+      final parseSw = Stopwatch()..start();
       final collection = await _importer.parse(
         path,
         onProgress: (p, msg) {
@@ -874,9 +1049,24 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         },
         isCancelled: () => _cancelRequested,
       );
+      parseSw.stop();
+      _logTiming('parse: _importer.parse', parseSw, {
+        'cards': collection.cards.length,
+        'notes': collection.notes.length,
+        'decks': collection.decks.length,
+        'media': collection.media.length,
+      });
 
+      final prepSw = Stopwatch()..start();
       await _preparePreview(collection, sourcePath: path, isSample: false);
+      prepSw.stop();
+      _logTiming('parse: _preparePreview', prepSw);
+
+      totalSw.stop();
+      _logTiming('parse: total', totalSw);
     } on AnkiImportCancelled {
+      totalSw.stop();
+      _logTiming('parse: cancelled', totalSw);
       // User pressed cancel — nothing was written; return to file picker.
       setState(() {
         _step = 0;
@@ -884,6 +1074,8 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         _progressMessage = '';
       });
     } catch (e) {
+      totalSw.stop();
+      _logTiming('parse: failed', totalSw, {'error': e.runtimeType.toString()});
       setState(() {
         _error = AppStrings.ankiParseFailed(e);
         _step = 0;
@@ -898,11 +1090,29 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
     required bool isSample,
   }) async {
     // Infer notetype mappings (canonicalize so UI never stores legacy aliases)
+    final mappingSw = Stopwatch()..start();
     final mappings = <int, NotetypeMapping>{};
     for (final entry in collection.notetypes.entries) {
       mappings[entry.key] =
           _canonicalizeMapping(AnkiCardAdapter.inferMapping(entry.value));
     }
+    mappingSw.stop();
+    _logTiming('preview: mapping inference', mappingSw,
+        {'notetypes': collection.notetypes.length});
+
+    // Run the unit/lesson organization scan once. preview() is O(notes) and
+    // was previously re-invoked on every preview rebuild (strategy change,
+    // smart-grouping toggle, mapping edit, etc.) — for multi-thousand-card
+    // decks that added visible jank to every tap. Caching it here means the
+    // build path just reads the field, which is O(1).
+    final orgSw = Stopwatch()..start();
+    const orgResolver = AnkiOrganizationResolver();
+    final orgPreview = orgResolver.preview(
+      notes: collection.notes,
+      notetypes: collection.notetypes,
+    );
+    orgSw.stop();
+    _logTiming('preview: org scan', orgSw, {'notes': collection.notes.length});
 
     // The source hash was computed once during parsing (from the bytes
     // already loaded for ZIP extraction), so we can detect re-imports here
@@ -915,10 +1125,15 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
     //   the SRS queue under the previous importId as "existing".
     // - Otherwise everything is new.
     final dao = AnkiImportDao(getIt<CourseDatabase>());
+    final daoSw = Stopwatch()..start();
     final existingImport = await dao.findByHash(hash);
+    daoSw.stop();
+    _logTiming('preview: dao.findByHash', daoSw,
+        {'hit': existingImport != null});
     if (!mounted) return;
     var existingCount = 0;
     if (existingImport != null) {
+      final srsSw = Stopwatch()..start();
       final srsIds = context.read<SrsProvider>().state.keys.toSet();
       // Card-level wordIds: a note is already imported if any of its
       // cards is in the SRS queue under the previous importId.
@@ -929,6 +1144,12 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       };
       existingCount =
           collection.notes.where((n) => existingNids.contains(n.id)).length;
+      srsSw.stop();
+      _logTiming('preview: srs compare', srsSw, {
+        'cards': collection.cards.length,
+        'srsSize': srsIds.length,
+        'existingNotes': existingCount,
+      });
     }
 
     if (!mounted) return;
@@ -940,6 +1161,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       _existingImport = existingImport;
       _newCount = collection.notes.length - existingCount;
       _existingCount = existingCount;
+      _organizationPreview = orgPreview;
       _isSample = isSample;
       // A re-import defaults to merge (update in place); first import keeps
       // merge as well — it behaves identically when nothing exists.
@@ -1023,6 +1245,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
     final hash = _sourceHash;
     if (collection == null || filePath == null || hash == null) return;
 
+    final totalSw = Stopwatch()..start();
     setState(() {
       _step = 3;
       _cancelRequested = false;
@@ -1087,12 +1310,23 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       // files); a catastrophic failure throws here, before the transaction
       // opens, so nothing is committed - same rollback semantics as before.
       setState(() => _progressMessage = AppStrings.ankiCopyingMedia);
+      final mediaSw = Stopwatch()..start();
       mediaReport = await AnkiAudioResolver().copyMedia(
         sourceDir: collection.mediaDir,
         importId: importId,
         mediaMapping: collection.media,
       );
+      mediaSw.stop();
+      _logTiming('import: copyMedia', mediaSw, {
+        'available': mediaReport.availableCount,
+        'missing': mediaReport.missingCount,
+        'failed': mediaReport.failedCount,
+      });
 
+      final txnSw = Stopwatch()..start();
+      final assembleSw = Stopwatch(); // started inside the txn
+      final migrateSw = Stopwatch();
+      final saveSw = Stopwatch();
       await database.transaction(() async {
         // NoteStore rows reference anki_imports(import_id). Create the parent
         // before the assembler writes notetypes, notes, and card metadata. The
@@ -1116,6 +1350,9 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
 
         // Assemble and write course tree
         final assembler = AnkiDeckAssembler();
+        assembleSw
+          ..reset()
+          ..start();
         summary = await assembler.assemble(
           collection: effectiveCollection,
           importId: importId,
@@ -1133,6 +1370,8 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
           },
           isCancelled: () => _cancelRequested,
         );
+        assembleSw.stop();
+        _logTiming('import: assemble', assembleSw, {'cards': summary.cardCount});
 
         if (_cancelRequested) throw const AnkiImportCancelled();
 
@@ -1143,6 +1382,9 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         // 5k-card import does not mark every card due on day one.
         final migrator = AnkiSrsMigrator();
         final dailyNew = getIt<AnkiDeckManager>().dailyNewLimit;
+        migrateSw
+          ..reset()
+          ..start();
         await migrator.migrate(
           cards: effectiveCollection.cards,
           importId: importId,
@@ -1153,10 +1395,16 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
           collectionCreationTime: effectiveCollection.collectionCreationTime,
           importScheduling: _importLearningProgress,
         );
+        migrateSw.stop();
+        _logTiming('import: migrate', migrateSw,
+            {'cards': effectiveCollection.cards.length});
 
         setState(() => _progressMessage = AppStrings.ankiSavingMetadata);
 
         // Save import metadata (media was copied before the transaction opened).
+        saveSw
+          ..reset()
+          ..start();
         await dao.upsert(AnkiImportRecord(
           importId: importId,
           sourcePath: filePath,
@@ -1180,11 +1428,16 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
           indexedCardCount: summary.cardCount,
           importedScheduling: _importLearningProgress,
         );
+        saveSw.stop();
+        _logTiming('import: save metadata', saveSw);
       });
+      txnSw.stop();
+      _logTiming('import: transaction total', txnSw);
 
       // Build Force Replace under a fresh id and remove the old copy only
       // after the replacement has committed successfully.
       if (_strategy == ImportStrategy.forceReplace && previous != null) {
+        final cleanupSw = Stopwatch()..start();
         try {
           await _removeExistingImport(
             previous.importId,
@@ -1196,6 +1449,8 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
           // Keeping both complete copies is safer than deleting the new one
           // after a cleanup-only failure.
         }
+        cleanupSw.stop();
+        _logTiming('import: forceReplace cleanup', cleanupSw);
       }
 
       // Promote the import to a first-class course entry:
@@ -1205,6 +1460,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       //    Turkish tree (built-in scope hides level=='Anki').
       // setCourseScope early-returns when already on the same scope (re-import),
       // so force a reload in that case.
+      final scopeSw = Stopwatch()..start();
       CourseLoader.invalidateCaches();
       final scope = 'anki:$importId';
       if (courseProvider.courseScope == scope) {
@@ -1220,6 +1476,8 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         scopes.add(scope);
       }
       await courseProvider.persistCourseOrder(scopes);
+      scopeSw.stop();
+      _logTiming('import: scope setup', scopeSw);
 
       setState(() {
         _summary = summary.copyWith(
@@ -1301,6 +1559,11 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         _step = 2;
       });
     } finally {
+      totalSw.stop();
+      _logTiming('import: total', totalSw, {
+        'cards': collection.cards.length,
+        'strategy': _strategy.name,
+      });
       AnkiImporter.cleanupExtractedDir(collection.mediaDir);
     }
   }
@@ -1361,9 +1624,755 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       ImportStrategy.appendAsNew => AppStrings.ankiStrategyAppendAsNewDesc,
     };
   }
+
+  /// Data-consequence caption shown beneath each strategy option so users can
+  /// tell at a glance which option will preserve vs destroy their existing
+  /// review state. Only "force replace" is destructive.
+  String _strategyConsequence(ImportStrategy s) {
+    return switch (s) {
+      ImportStrategy.merge => AppStrings.ankiStrategyMergeConsequence,
+      ImportStrategy.skipExisting =>
+        AppStrings.ankiStrategySkipExistingConsequence,
+      ImportStrategy.forceReplace =>
+        AppStrings.ankiStrategyForceReplaceConsequence,
+      ImportStrategy.appendAsNew =>
+        AppStrings.ankiStrategyAppendAsNewConsequence,
+    };
+  }
 }
 
 // ─── Shared widgets ─────────────────────────────────────────────────
+
+/// Top-of-page step indicator for the 5-step import wizard. Highlights the
+/// active step in brand teal and shows completed steps as filled dots so the
+/// user always knows where they are in the flow. The parsing/importing
+/// loading screens suppress the indicator because the [LinearProgressIndicator]
+/// already conveys "something is happening".
+class _WizardStepper extends StatelessWidget {
+  final int currentStep; // 0..4
+  const _WizardStepper({required this.currentStep});
+
+  // Non-const: AppStrings getters aren't const-evaluable, so the list of step
+  // labels has to be built at runtime.
+  static final _steps = <(String, IconData)>[
+    (AppStrings.ankiStepSelect, Icons.upload_file_rounded),
+    (AppStrings.ankiStepParse, Icons.manage_search_rounded),
+    (AppStrings.ankiStepPreview, Icons.preview_rounded),
+    (AppStrings.ankiStepImport, Icons.cloud_download_rounded),
+    (AppStrings.ankiStepDone, Icons.check_circle_outline_rounded),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+      child: Row(
+        children: [
+          for (var i = 0; i < _steps.length; i++) ...[
+            _StepDot(
+              label: _steps[i].$1,
+              icon: _steps[i].$2,
+              state: i < currentStep
+                  ? _StepState.done
+                  : i == currentStep
+                      ? _StepState.active
+                      : _StepState.idle,
+            ),
+            if (i < _steps.length - 1)
+              Expanded(
+                child: Container(
+                  height: 2,
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  color: i < currentStep
+                      ? TurnaTheme.brandTeal.withValues(alpha: 0.5)
+                      : TurnaTheme.textHintColor(context).withValues(alpha: 0.2),
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+enum _StepState { done, active, idle }
+
+class _StepDot extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final _StepState state;
+  const _StepDot({
+    required this.label,
+    required this.icon,
+    required this.state,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = switch (state) {
+      _StepState.done => TurnaTheme.brandTeal,
+      _StepState.active => TurnaTheme.brandTeal,
+      _StepState.idle => TurnaTheme.textHintColor(context),
+    };
+    final isActive = state == _StepState.active;
+    final isDone = state == _StepState.done;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: isActive || isDone
+                ? color.withValues(alpha: 0.12)
+                : Colors.transparent,
+            border: Border.all(color: color, width: 1.5),
+            shape: BoxShape.circle,
+          ),
+          alignment: Alignment.center,
+          child: isDone
+              ? Icon(Icons.check_rounded, size: 16, color: color)
+              : Icon(icon, size: 16, color: color),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Section card with an icon, title, and supporting hint. Replaces the
+/// stack of equal-weight [_InfoCard]s on the preview screen so the user
+/// sees three clear groups (content / mapping / strategy) instead of a
+/// flat list of seven.
+class _SectionCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String hint;
+  final List<Widget> children;
+
+  const _SectionCard({
+    required this.icon,
+    required this.title,
+    required this.hint,
+    required this.children,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: TurnaTheme.cardBg(context),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        border: Border.all(
+          color: TurnaTheme.brandTeal.withValues(alpha: 0.12),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
+                    borderRadius:
+                        BorderRadius.circular(TurnaTheme.radiusSmall),
+                  ),
+                  child: Icon(icon, color: TurnaTheme.brandTeal, size: 18),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        hint,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: TurnaTheme.textSecondaryColor(context),
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Divider(
+            height: 1,
+            thickness: 1,
+            color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: children,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Small uppercase-ish label used as an in-card subheader (e.g. "牌组结构").
+class _Subheader extends StatelessWidget {
+  final String text;
+  const _Subheader({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        color: TurnaTheme.textHintColor(context),
+        letterSpacing: 0.3,
+      ),
+    );
+  }
+}
+
+/// 4-up compact stat row for the content section. Avoids stacking the
+/// 牌组/笔记/卡片/媒体 counts as four separate rows that all look the same.
+class _StatStrip extends StatelessWidget {
+  final List<(String, int)> items;
+  const _StatStrip({required this.items});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        for (var i = 0; i < items.length; i++) ...[
+          Expanded(
+            child: _StatChip(label: items[i].$1, value: items[i].$2),
+          ),
+          if (i < items.length - 1) const SizedBox(width: 6),
+        ],
+      ],
+    );
+  }
+}
+
+class _StatChip extends StatelessWidget {
+  final String label;
+  final int value;
+  const _StatChip({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+      decoration: BoxDecoration(
+        color: TurnaTheme.brandTeal.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+        border: Border.all(
+          color: TurnaTheme.brandTeal.withValues(alpha: 0.12),
+        ),
+      ),
+      child: Column(
+        children: [
+          Text(
+            '$value',
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: TurnaTheme.brandTeal,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: TurnaTheme.textSecondaryColor(context),
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Compact new-vs-existing collision summary. The thin progress bar lets
+/// users see at a glance how much of this import is "new" vs "already in
+/// the system" without having to read two separate numbers.
+class _CollisionStrip extends StatelessWidget {
+  final int newCount;
+  final int existingCount;
+  const _CollisionStrip({required this.newCount, required this.existingCount});
+
+  @override
+  Widget build(BuildContext context) {
+    final total = newCount + existingCount;
+    final newFraction = total == 0 ? 0.0 : newCount / total;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                AppStrings.ankiNewCards,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: TurnaTheme.textSecondaryColor(context),
+                ),
+              ),
+            ),
+            Text(
+              '$newCount',
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: TurnaTheme.brandTeal,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                AppStrings.ankiExistingCards,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: TurnaTheme.textSecondaryColor(context),
+                ),
+              ),
+            ),
+            Text(
+              '$existingCount',
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: SizedBox(
+            height: 6,
+            child: Row(
+              children: [
+                Expanded(
+                  flex: (newFraction * 1000).round().clamp(0, 1000),
+                  child: Container(color: TurnaTheme.brandTeal),
+                ),
+                Expanded(
+                  flex: ((1 - newFraction) * 1000).round().clamp(0, 1000),
+                  child: Container(
+                    color: TurnaTheme.textHintColor(context)
+                        .withValues(alpha: 0.3),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// One strategy radio row. The "consequence" line is the key new affordance:
+/// it tells the user the data impact of choosing this option without
+/// forcing them to tap a tooltip. Force-replace is the only destructive
+/// option and is highlighted in red.
+class _StrategyOption extends StatelessWidget {
+  final ImportStrategy value;
+  final ImportStrategy groupValue;
+  final String title;
+  final String description;
+  final String consequence;
+  final bool isWarning;
+  final ValueChanged<ImportStrategy> onChanged;
+
+  const _StrategyOption({
+    required this.value,
+    required this.groupValue,
+    required this.title,
+    required this.description,
+    required this.consequence,
+    required this.isWarning,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = value == groupValue;
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+      child: InkWell(
+        onTap: () => onChanged(value),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+          decoration: BoxDecoration(
+            color: selected
+                ? TurnaTheme.brandTeal.withValues(alpha: 0.08)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+            border: Border.all(
+              color: selected
+                  ? TurnaTheme.brandTeal
+                  : TurnaTheme.textHintColor(context).withValues(alpha: 0.25),
+              width: selected ? 1.5 : 1,
+            ),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 1),
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: Radio<ImportStrategy>(
+                    value: value,
+                    groupValue: groupValue,
+                    onChanged: (v) => onChanged(v!),
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      description,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: TurnaTheme.textSecondaryColor(context),
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Icon(
+                          isWarning
+                              ? Icons.warning_amber_rounded
+                              : Icons.check_circle_outline,
+                          size: 13,
+                          color: isWarning
+                              ? TurnaTheme.error
+                              : TurnaTheme.textHintColor(context),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            consequence,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: isWarning
+                                  ? TurnaTheme.error
+                                  : TurnaTheme.textHintColor(context),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Bottom-anchored primary action bar on the preview step. Kept sticky so
+/// users do not have to scroll back to the bottom of the long preview page
+/// after adjusting strategy / learning-progress settings.
+class _StickyImportBar extends StatelessWidget {
+  final VoidCallback onPressed;
+  const _StickyImportBar({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: TurnaTheme.cardBg(context),
+        border: Border(
+          top: BorderSide(
+            color: TurnaTheme.brandTeal.withValues(alpha: 0.18),
+          ),
+        ),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
+          child: SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: onPressed,
+              icon: const Icon(Icons.cloud_download_rounded, size: 20),
+              label: Text(
+                AppStrings.ankiPreviewStartImport,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: TurnaTheme.brandTeal,
+                foregroundColor: TurnaTheme.textOnPrimary,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Grouped detail block on the done step. Collapses "源数据 / 词汇 / 状态"
+/// into one card with a subheader, so a clean import does not look like
+/// a wall of identical one-line texts.
+class _DoneGroup extends StatelessWidget {
+  final String title;
+  final List<String> rows;
+  const _DoneGroup({required this.title, required this.rows});
+
+  @override
+  Widget build(BuildContext context) {
+    if (rows.isEmpty) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        color: TurnaTheme.cardBg(context),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        border: Border.all(
+          color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: TurnaTheme.textHintColor(context),
+              letterSpacing: 0.3,
+            ),
+          ),
+          const SizedBox(height: 8),
+          for (final row in rows)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Text(
+                row,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: TurnaTheme.textSecondaryColor(context),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Single-line learning-progress summary on the done step. Distinguishes
+/// "kept" (with optional sub-stats) from "reset" so the user can confirm
+/// the import honored the choice they made on the preview step.
+class _LearningProgressBadge extends StatelessWidget {
+  final bool kept;
+  final bool hasScheduling;
+  final bool hasReviewHistory;
+  const _LearningProgressBadge({
+    required this.kept,
+    required this.hasScheduling,
+    required this.hasReviewHistory,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (!kept) {
+      return _Badge(
+        icon: Icons.restart_alt_rounded,
+        color: TurnaTheme.textSecondaryColor(context),
+        text: AppStrings.ankiDoneProgressReset,
+      );
+    }
+    if (!hasScheduling && !hasReviewHistory) {
+      return _Badge(
+        icon: Icons.check_circle_outline,
+        color: TurnaTheme.textHintColor(context),
+        text: '已导入',
+      );
+    }
+    return Row(
+      children: [
+        Expanded(
+          child: _Badge(
+            icon: Icons.check_circle_outline,
+            color: TurnaTheme.brandTeal,
+            text: AppStrings.ankiDoneProgressKept,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _Badge extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String text;
+  const _Badge({required this.icon, required this.color, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Tappable "try a sample deck" card used on the file-selection step. Sits
+/// below the primary CTA as a low-pressure alternative entry point so users
+/// can preview the import flow without picking a real file.
+class _SampleDeckCard extends StatelessWidget {
+  final VoidCallback onTap;
+  const _SampleDeckCard({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: TurnaTheme.brandTeal.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+            border: Border.all(
+              color: TurnaTheme.brandTeal.withValues(alpha: 0.2),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: TurnaTheme.brandTeal.withValues(alpha: 0.12),
+                  borderRadius:
+                      BorderRadius.circular(TurnaTheme.radiusMedium),
+                ),
+                child: const Icon(
+                  Icons.auto_awesome_rounded,
+                  color: TurnaTheme.brandTeal,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      AppStrings.ankiTrySample,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      AppStrings.ankiSampleHint,
+                      style: TextStyle(
+                        color: TurnaTheme.textSecondaryColor(context),
+                        fontSize: 12,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right,
+                color: TurnaTheme.brandTeal,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 /// Body of the manual-path input dialog used by [_showPathInputDialog].
 ///
@@ -1418,40 +2427,6 @@ class _AnkiPathInputDialogState extends State<_AnkiPathInputDialog> {
           child: Text(AppStrings.ankiFallbackPathAction),
         ),
       ],
-    );
-  }
-}
-
-class _InfoCard extends StatelessWidget {
-  final String title;
-  final List<Widget> children;
-
-  const _InfoCard({required this.title, required this.children});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: TurnaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-        border: Border.all(
-          color: TurnaTheme.brandTeal.withValues(alpha: 0.12),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
-          const SizedBox(height: 12),
-          ...children,
-        ],
-      ),
     );
   }
 }

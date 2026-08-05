@@ -10,7 +10,12 @@ class LocalUser {
   final String? bio;
 
   /// Index into a preset avatar color palette (0-7). Null = default (teal).
+  /// Retained for backward compat with older prefs; new code reads
+  /// [avatarId] instead.
   final int? avatarColorIndex;
+
+  /// Selected preset avatar id from `AvatarCatalog`. Null = default avatar.
+  final String? avatarId;
 
   /// Daily XP goal (default 100).
   final int? dailyXpGoal;
@@ -28,6 +33,7 @@ class LocalUser {
     required this.photoUrl,
     this.bio,
     this.avatarColorIndex,
+    this.avatarId,
     this.dailyXpGoal,
     this.dailyStudyMinutesGoal,
     this.dailyLessonGoal,
@@ -41,6 +47,7 @@ class LocalUser {
     photoUrl: '',
     bio: null,
     avatarColorIndex: null,
+    avatarId: null,
     dailyXpGoal: 100,
     dailyStudyMinutesGoal: 30,
     dailyLessonGoal: 5,
@@ -54,6 +61,7 @@ class LocalUser {
       'photoUrl': photoUrl,
       'bio': bio,
       'avatarColorIndex': avatarColorIndex,
+      'avatarId': avatarId,
       'dailyXpGoal': dailyXpGoal,
       'dailyStudyMinutesGoal': dailyStudyMinutesGoal,
       'dailyLessonGoal': dailyLessonGoal,
@@ -68,6 +76,7 @@ class LocalUser {
       photoUrl: json['photoUrl'] as String?,
       bio: json['bio'] as String?,
       avatarColorIndex: json['avatarColorIndex'] as int?,
+      avatarId: json['avatarId'] as String?,
       dailyXpGoal: json['dailyXpGoal'] as int?,
       dailyStudyMinutesGoal: json['dailyStudyMinutesGoal'] as int?,
       dailyLessonGoal: json['dailyLessonGoal'] as int?,
@@ -75,6 +84,10 @@ class LocalUser {
   }
 
   /// Returns a copy with the given fields replaced.
+  ///
+  /// Pass `clearAvatarId: true` to explicitly set [avatarId] back to null
+  /// (the standard `?? this.avatarId` pattern can't distinguish "not passed"
+  /// from "passed null"). Used by account reset to wipe the selection.
   LocalUser copyWith({
     String? uid,
     String? email,
@@ -82,6 +95,8 @@ class LocalUser {
     String? photoUrl,
     String? bio,
     int? avatarColorIndex,
+    String? avatarId,
+    bool clearAvatarId = false,
     int? dailyXpGoal,
     int? dailyStudyMinutesGoal,
     int? dailyLessonGoal,
@@ -93,6 +108,7 @@ class LocalUser {
       photoUrl: photoUrl ?? this.photoUrl,
       bio: bio ?? this.bio,
       avatarColorIndex: avatarColorIndex ?? this.avatarColorIndex,
+      avatarId: clearAvatarId ? null : (avatarId ?? this.avatarId),
       dailyXpGoal: dailyXpGoal ?? this.dailyXpGoal,
       dailyStudyMinutesGoal:
           dailyStudyMinutesGoal ?? this.dailyStudyMinutesGoal,

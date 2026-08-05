@@ -12,8 +12,10 @@ import 'package:turna/application/theme_provider.dart';
 import 'package:turna/core/extensions.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/auth/local_user.dart';
+import 'package:turna/domain/cosmetics/avatar.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/locator.dart';
+import 'package:turna/views/profile/widgets/avatar_picker_sheet.dart';
 import 'package:turna/views/theme.dart';
 import 'package:turna/views/widgets/avatar_with_ring.dart';
 
@@ -51,6 +53,7 @@ class AccountWidget extends StatelessWidget {
             user.displayName ?? AppStrings.profileLearnerFallback;
         final email = user.email ?? '';
         final bio = user.bio?.trim() ?? '';
+        final avatar = AvatarCatalog.resolve(user.avatarId);
 
         // Clip + column so the clay→sand brand strip sits under rounded corners.
         return Container(
@@ -102,16 +105,23 @@ class AccountWidget extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    AvatarWithRing(
-                      radius: 32,
-                      ring: equippedRing,
-                      gapColor: TurnaTheme.cardBg(context),
-                      backgroundColor:
-                          TurnaTheme.brandTeal.withValues(alpha: 0.15),
-                      child: const Icon(
-                        Icons.person_rounded,
-                        size: 32,
-                        color: TurnaTheme.brandTeal,
+                    Semantics(
+                      button: true,
+                      label: AppStrings.accountAvatarChangeTooltip,
+                      child: GestureDetector(
+                        onTap: () =>
+                            showAvatarPickerSheet(context, user: user),
+                        child: AvatarWithRing(
+                          radius: 32,
+                          ring: equippedRing,
+                          gapColor: TurnaTheme.cardBg(context),
+                          backgroundColor:
+                              avatar.background.withValues(alpha: 0.15),
+                          child: Text(
+                            avatar.emoji,
+                            style: const TextStyle(fontSize: 30),
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 14),

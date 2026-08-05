@@ -8,6 +8,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:turna/views/settings/about_turna_page.dart';
 import 'package:turna/views/settings/beginner_guide_page.dart';
 import 'package:turna/views/settings/changelog_page.dart';
+import 'package:turna/views/settings/privacy_details_page.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/theme.dart';
@@ -42,6 +43,17 @@ class SettingsAboutSection extends StatelessWidget {
           onTap: (context) => Navigator.of(context).push(
             MaterialPageRoute(
               builder: (_) => const AboutTurnaPage(),
+            ),
+          ),
+        ),
+        settingsTileDivider(context),
+        SettingsNavigationTile(
+          icon: Icons.shield_outlined,
+          title: AppStrings.privacyDetailsEntry,
+          subtitle: AppStrings.privacyDetailsEntrySubtitle,
+          onTap: (context) => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const PrivacyDetailsPage(),
             ),
           ),
         ),

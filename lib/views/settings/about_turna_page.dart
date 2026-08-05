@@ -11,6 +11,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/settings/beginner_guide_page.dart';
 import 'package:turna/views/settings/changelog_page.dart';
+import 'package:turna/views/settings/privacy_details_page.dart';
 import 'package:turna/views/theme.dart';
 
 /// Dedicated About page for Turna.
@@ -183,12 +184,60 @@ class _AboutTab extends StatelessWidget {
           _SectionHeader(text: AppStrings.aboutPrivacyTitle),
           const SizedBox(height: 10),
           _AboutCard(
-            child: Text(
-              AppStrings.aboutPrivacyBody,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    height: 1.5,
-                    color: TurnaTheme.textSecondaryColor(context),
+            padding: EdgeInsets.zero,
+            child: Material(
+              color: Colors.transparent,
+              borderRadius:
+                  BorderRadius.circular(TurnaTheme.radiusLarge),
+              child: InkWell(
+                borderRadius:
+                    BorderRadius.circular(TurnaTheme.radiusLarge),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const PrivacyDetailsPage(),
                   ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        AppStrings.aboutPrivacyBody,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(
+                              height: 1.5,
+                              color:
+                                  TurnaTheme.textSecondaryColor(context),
+                            ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Text(
+                            AppStrings.aboutPrivacyOpenDetails,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: TurnaTheme.brandTeal,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(
+                            Icons.arrow_forward_rounded,
+                            size: 16,
+                            color: TurnaTheme.brandTeal,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 20),

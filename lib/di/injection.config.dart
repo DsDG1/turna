@@ -28,12 +28,12 @@ import '../application/ai/engine/ai_recent_tasks_provider.dart' as _i687;
 import '../application/anki/anki_deck_manager.dart' as _i1045;
 import '../application/audio_controller.dart' as _i106;
 import '../application/character_provider.dart' as _i229;
+import '../application/cosmetic_provider.dart' as _i42;
 import '../application/course_provider.dart' as _i1051;
 import '../application/fun_lab_snapshot_service.dart' as _i141;
 import '../application/fun_provider.dart' as _i648;
 import '../application/game_milestone_provider.dart' as _i788;
 import '../application/game_provider.dart' as _i565;
-import '../application/cosmetic_provider.dart' as _iCosmetics;
 import '../application/gems_provider.dart' as _i417;
 import '../application/grammar_review_provider.dart' as _i1008;
 import '../application/language_provider.dart' as _i233;
@@ -168,11 +168,6 @@ extension GetItInjectableX on _i174.GetIt {
         () => _i788.GameMilestoneProvider(gh<_i523.AppPrefs>()));
     gh.lazySingleton<_i417.GemsProvider>(
         () => _i417.GemsProvider(gh<_i523.AppPrefs>()));
-    gh.lazySingleton<_iCosmetics.CosmeticProvider>(
-        () => _iCosmetics.CosmeticProvider(
-              gh<_i523.AppPrefs>(),
-              gh<_i417.GemsProvider>(),
-            ));
     gh.lazySingleton<_i233.LanguageProvider>(
         () => _i233.LanguageProvider(gh<_i523.AppPrefs>()));
     gh.lazySingleton<_i854.LessonLinkStore>(
@@ -189,6 +184,10 @@ extension GetItInjectableX on _i174.GetIt {
         () => _i151.ThemeProvider(gh<_i523.AppPrefs>()));
     gh.lazySingleton<_i889.StudyLogRepository>(
         () => _i889.StudyLogRepository(gh<_i523.AppPrefs>()));
+    gh.lazySingleton<_i42.CosmeticProvider>(() => _i42.CosmeticProvider(
+          gh<_i523.AppPrefs>(),
+          gh<_i417.GemsProvider>(),
+        ));
     gh.lazySingleton<_i151.AnkiImportDao>(
         () => _i151.AnkiImportDao(gh<_i604.CourseDatabase>()));
     gh.lazySingleton<_i696.AnkiNoteDao>(

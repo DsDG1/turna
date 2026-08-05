@@ -15,6 +15,7 @@ import 'package:turna/application/srs_provider.dart';
 import 'package:turna/courses/languages/expressions.dart';
 import 'package:turna/courses/languages/grammar_points.dart';
 import 'package:turna/courses/languages/vocab.dart';
+import 'package:turna/core/log_capture.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/application/settings_provider.dart';
@@ -52,6 +53,11 @@ Future<void> main() async {
   // AppPrefs (and other async-native services) must be registered before the
   // first frame because MultiProvider creates ThemeProvider immediately.
   await setupLocator();
+
+  // 透明度报告:挂上本地日志捕获,跨重启保留。
+  // 必须在 configureDependencies 之后,这样 logger 已是单例;
+  // 放在 runApp 之前,确保第一帧之前的早期日志也能进入。
+  await LogCapture.instance.install();
 
   // When companion explain prefs change (language/depth), drop engine cache so
   // stale replies in the wrong language are not replayed.

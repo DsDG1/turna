@@ -60,6 +60,13 @@ class AiHubPage extends StatelessWidget {
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            tooltip: '功能介绍',
+            icon: const Icon(Icons.help_outline_rounded),
+            onPressed: () => context.router.push(const AiFeatureGuideRoute()),
+          ),
+        ],
       ),
       body: SafeArea(
         top: false,
