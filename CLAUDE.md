@@ -1,298 +1,103 @@
 # Turna - Language Learning App
 
-> 当前状态：future4 框架已完成，并完成 Swahili->Turkish 迁移。8 个 CEFR 分级 Section（A1->B2）全部填充真实内容（148 词 / 18 表达 / 8 语法 / 54 课时）。最新内容清单见 [`docs/content_inventory_current.md`](./docs/content_inventory_current.md)，决策记录见 [`docs/decisions/`](./docs/decisions/)（ADR 0030–0035）。
-
-## Project Overview
-
-**Turna** is a Flutter-based, local-first language learning framework. Currently focused on **Turkish** as the primary target language. Ships 8 CEFR-graded sections (A1->B2) with inter-section prerequisites, all filled with real content (148 vocab / 18 expressions / 8 grammar points / 54 lessons, with listening + reading per section); Section 1 is the A1 greetings intro (`s1-l2`: 8 vocab + 2 expressions, 3 subLessons). See `docs/content_inventory_current.md` for the full inventory. The app follows a clean architecture pattern and is entirely offline - no Firebase backend, no social features, no pay-to-win mechanics.
+> 本地优先、离线 Flutter 语言学习框架，目标语 Turkish。复习引擎 FSRS，可导入 Anki 牌组，AI 能力由统一引擎层 + AI Hub 承载。
+>
+> **详尽架构 / 实现 / 教学法见 [`docs/project-guide.md`](./docs/project-guide.md)**（单一真理源）。本文件只给 Agent 路由所需的导航与命令，不重复 project-guide 的内容。
 
 ---
 
-## Architecture
+## 快速导航
 
-### Layer Structure
+- **当前状态**：8 个 CEFR 分级 Section（A1->B2）全部填充真实内容（148 词 / 18 表达 / 8 语法 / 54 课时）。schemaVersion 16，课程内容版本 12。
+- **目标语**：Turkish，TTS 语言码 `tr`。
+- **复习引擎**：FSRS（`lib/core/fsrs_engine.dart`），SM-2 后备。
+- **调色板**：Turna「湿地鹤」（ADR 0033/0035，主色 `#1F727E`，无 `peacock*` 别名）。真源 `lib/views/theme.dart` ↔ `tool/gui/src/theme_tokens.py`。
+- **构建**：OHOS Flutter fork（`3.35.8-ohos`），需 JDK 17 + `tool/apply_patches.sh`（见 [`docs/android-build-setup.md`](./docs/android-build-setup.md)）。
+- **AI 引擎层**：`lib/application/ai/engine/`（全应用唯一 LLM 出入口，API key 经 `flutter_secure_storage` 持久化）。
+- **决策记录**：`docs/decisions/`（ADR 0030–0035）。
+
+功能实现状态见 project-guide §4；已明确不做的功能见 §15。
+
+---
+
+## 架构（导航级）
+
+Clean Architecture + Provider + ChangeNotifier + GetIt/Injectable + Auto Route。
+
 ```
 lib/
-├── application/       # State management (Providers)
-│   ├── srs_provider.dart              # FSRS spaced repetition (SrsQueueProvider subclass)
-│   ├── grammar_review_provider.dart   # Grammar SRS queue (SrsQueueProvider subclass)
-│   ├── srs_queue_provider.dart        # Shared base class for SRS queues
-│   ├── mistake_provider.dart          # FIFO mistake log
-│   ├── study_stats_provider.dart      # Learning statistics aggregation
-│   ├── score_provider.dart            # XP / score
-│   ├── streak_provider.dart           # Streak tracking
-│   ├── lesson_progress_provider.dart  # Completed / perfect lesson ids
-│   ├── game_milestone_provider.dart   # Achievement / gem milestones
-│   ├── game_provider.dart             # Thin facade forwarding to the providers above
-│   ├── weak_word_quiz_assembler.dart  # Build weak-word review lesson
-│   └── ...
-├── core/              # Enums, extensions, utilities, pure functions
-│   └── streak_resolver.dart           # Pure streak resolution logic
-├── courses/           # Language course data
-│   ├── alphabets/     # Alphabet learning content
-│   ├── course_loader.dart
-│   ├── course_validator.dart
-│   └── languages/     # Language-specific course files
-├── data/              # Repository implementations
-│   ├── course_repository.dart         # implements ICourseRepository
-│   └── study_log_repository.dart      # implements IStudyLogRepository
-├── di/                # Dependency injection (GetIt + Injectable)
-├── domain/            # Domain models + repository interfaces
-│   ├── course/        # section, unit, lesson, stage, interaction,
-│   │                  # sub_lesson, listening_phase, expression,
-│   │                  # grammar_point, reading_passage, srs_word, mistake_entry
-│   ├── audio/         # VocabAudioResolver abstraction
-│   └── repositories/  # ICourseRepository, IStudyLogRepository
-├── routing/           # Auto Route configuration + CourseReadyGuard
-├── service/           # App services (Preferences, locator, TTS)
-└── views/             # UI layer organized by feature
-    ├── courses/       # Course tree
-    ├── dictionary/    # Dictionary / search page
-    ├── home/          # Bottom navigation / home shell
-    ├── lesson/        # Lesson player + interaction renderers
-    ├── play/          # Play hub (Match Madness, SRS Review, Mistakes, Weak Words)
-    ├── profile/       # User profile + settings (reminder, theme, sound)
-    ├── review/        # SRS review + mistake list + weak-word review
-    ├── theme.dart     # TurnaTheme: light/dark ThemeData + semantic color helpers
-    └── weak_words/    # Weak-word review UI
+├── application/   # Providers + 应用服务
+│   ├── ai/         # AI 能力（engine/ 统一引擎层 + hint/wish/course/tutor）
+│   ├── anki/       # Anki 导入 / 装配 / 渲染 / 复习 / SRS 迁移
+│   ├── srs_provider.dart          # 单词 SRS 队列（FSRS，SrsQueueProvider 子类）
+│   ├── grammar_review_provider.dart  # 语法 SRS 队列
+│   ├── srs_queue_provider.dart    # SRS 队列共享基类
+│   ├── mistake_provider.dart      # FIFO 错题本
+│   ├── study_stats_provider.dart  # 学习统计聚合
+│   ├── memory_curve_provider.dart # 记忆曲线
+│   ├── audio_controller.dart      # TTS / 音效统一接管
+│   ├── smart_speech.dart          # 智能朗读（语言检测 + 自动朗读）
+│   ├── accessibility_provider.dart # 6 项可访问性偏好
+│   └── game_provider.dart         # 薄 facade -> score/streak/progress/milestone
+├── core/          # fsrs_engine / sm2 / language_detector / html_stripper / streak / logger
+├── courses/       # 字母 + 语种 loader/validator（目标 Turkish）
+├── data/          # drift CourseDatabase（schemaVersion 16）+ Seeder + DAO + Repository
+├── di/            # GetIt + Injectable（renderer_module / audio_module）
+├── domain/        # 领域模型 + Repository 接口（course / audio / repositories）
+├── routing/       # Auto Route + CourseReadyGuard
+├── service/       # AppPrefs / locator / TTS / 本地提醒
+└── views/         # courses / dictionary / home / lesson / play / profile / review /
+                   # ai / anki / settings / theme.dart
 ```
 
-### Key Patterns
-- **State Management**: Provider + ChangeNotifier
-- **Dependency Injection**: GetIt with Injectable annotations
-- **Routing**: Auto Route with code generation + `CourseReadyGuard`
-- **Models**: Freezed for immutable data classes with JSON serialization
-- **Repositories**: Interface + concrete implementation; DB-as-derived-cache
+完整分层、关键模式、领域模型、13 种 Interaction、6 种 Lesson Template 见 project-guide §3-§4。
 
 ---
 
-## Duolingo Features - Implementation Status
+## Key Files（Agent 路由）
 
-### ✅ Currently Implemented
-- [x] Course tree with progressive levels
-- [x] Multiple choice questions
-- [x] Translation exercises
-- [x] Fill-in-the-blank
-- [x] Listening exercises (ListenAndPick / TypeTheWord using TTS)
-- [x] Reading exercises (ReadingMCQ / ReadingTrueFalse / ReadingShortAnswer)
-- [x] XP scoring system
-- [x] Basic streak tracking
-- [x] SRS engine (FSRS, SM-2 fallback) + review UI
-- [x] Mistake tracking with FIFO log + review list
-- [x] Match Madness word-matching mini-game
-- [x] Multi-language framework support (target language currently Turkish)
-- [x] Content model extended for sub-lessons, listening phases, expressions, grammar points, reading passages
-- [x] **Dark Mode** — full light/dark/system theme support with persistent preference, semantic color helpers, and theme-aware widget backgrounds
-- [x] **Learning Statistics Dashboard** — daily/weekly XP trends, study time tracking, accuracy metrics, weak-word analysis (Profile page)
-- [x] **Dictionary / Search** — search vocab, expressions, and grammar points; play audio via `VocabAudioResolver`
-- [x] **Weak-word Review** — 10-question mini-quiz built from recent mistakes (30d / ≥2 errors)
-- [x] **Local Daily Reminder** — `flutter_local_notifications` with time picker, no streak repair
-- [x] **Course Tree State** — completed / weak / due badges on unit cards
-- [x] **Content Update Prompt** — detect built-in course version changes and offer progress reset
-- [x] **Accessibility** — icon button tooltips, MCQ screen-reader semantics, input semantics, contrast-aware colors
-- [x] **Release Pipeline** — `tool/build_release.py` produces versioned APK/AAB/web artifacts + content inventory
-
-### ❌ Removed / Will Not Do
-- [ ] ~~Google Authentication~~ — Removed (local-only user)
-- [ ] ~~Leaderboard (top 30 users)~~ — Removed (no social features)
-- [ ] ~~Shop UI (streak freeze, power-ups, outfits)~~ — Removed (no monetization)
-- [ ] ~~Leagues/Tiers~~ — Removed (no social gamification)
-- [ ] ~~XP boost multipliers / Daily XP goals~~ — Removed
-- [ ] ~~Streak freeze / Weekend amulet / Streak repair with gems~~ — Removed
-- [ ] ~~Hearts/Lives System~~ — Removed (no friction on learning)
-- [ ] ~~Gems purchase / Power-ups~~ — Removed
-- [ ] ~~Friends System~~ — Removed (no social features)
-- [ ] ~~Social achievements~~ — Removed
-- [ ] ~~Push notifications~~ — Removed (no backend)
-- [ ] ~~Speaking exercises~~ — Removed (TTS route sufficient)
-- [ ] ~~External GUI editor~~ — Removed (JSON-first approach)
-
-### ✅ Completed framework milestones
-- [x] **Lesson Templates** — intro / practice / review / mastery / reading smoke lessons implemented and verified
-- [x] **Expression-level SRS** — end-to-end data pipeline (schema v9, seeder, repository, provider, review UI)
-- [x] **TTS language code** — switched to `tr` (Turkish) (supersedes the early `sw` decision)
-- [x] **Test coverage** — core ViewModel / Provider / Renderer / seeder / schema migration tests
-- [x] **System / Google TTS** — `flutter_tts` with language code `'tr'` (Android prefers `com.google.android.tts`). No bundled offline model in this build — the Piper Swahili model and `sherpa_onnx` dependency were removed. Pre-recorded `audioAsset` reserved for listening exercises.
-- [x] **future4 framework round** — DI consolidation, audio/content decoupling, performance fixes, repository interfaces, SRS queue base class, GameProvider split with facade, integration tests, golden baselines, release pipeline (see the ADRs in `docs/decisions/`)
-
-### 📋 Next Round
-- [ ] **Content enrichment** - All 8 sections ship real content (148 vocab / 18 expressions / 8 grammar / 54 lessons); continue expanding depth, high-frequency vocabulary coverage, and CEFR-graded grammar progression.
+| 文件 | 用途 |
+|------|------|
+| `lib/main.dart` | App 入口 |
+| `lib/views/app.dart` | 根 widget + providers |
+| `lib/routing/routing.dart` | Auto Route 配置 + guards |
+| `lib/routing/course_ready_guard.dart` | DB seed 完成前重定向 splash |
+| `lib/di/injection.dart` | GetIt DI 设置 |
+| `lib/service/locator.dart` | AppPrefs / preferences / TTS |
+| `lib/application/game_provider.dart` | 薄 facade -> score/streak/progress/milestone |
+| `lib/application/srs_provider.dart` | 单词 SRS 队列（FSRS） |
+| `lib/application/grammar_review_provider.dart` | 语法 SRS 队列 |
+| `lib/application/srs_queue_provider.dart` | SRS 队列共享基类 |
+| `lib/application/mistake_provider.dart` | FIFO 错题本 |
+| `lib/application/study_stats_provider.dart` | 学习统计聚合 |
+| `lib/application/memory_curve_provider.dart` | 记忆曲线 |
+| `lib/application/audio_controller.dart` | TTS / 音效统一接管 |
+| `lib/core/fsrs_engine.dart` | FSRS 调度器 |
+| `lib/core/language_detector.dart` | 智能朗读语言检测 |
+| `lib/domain/course/lesson.dart` | Lesson 模型 + LessonTemplate |
+| `lib/domain/course/interaction.dart` | Interaction 模型（13 种，runtimeType 区分） |
+| `lib/domain/audio/vocab_audio_resolver.dart` | 音频 / 内容解耦接口 |
+| `lib/data/course_repository.dart` | 课程仓库实现 |
+| `lib/views/theme.dart` | TurnaTheme（亮/暗/高对比 + 语义颜色 helper） |
+| `docs/project-guide.md` | 详尽设计与实现说明 |
+| `docs/decisions/` | ADR 0030–0035 |
 
 ---
 
-## UI Theming Guidelines
-
-### TurnaTheme (lib/views/theme.dart)
-
-The app uses a single `TurnaTheme` class that provides both `lightTheme` and `darkTheme` `ThemeData` getters, plus a suite of **semantic color helpers** that adapt to the current `Brightness` via `BuildContext`:
-
-```dart
-// Theme-aware helpers — use these instead of hard-coded Colors.white
-static Color cardBg(BuildContext context)
-static Color scaffoldBg(BuildContext context)
-static Color dividerBg(BuildContext context)
-static Color textHintColor(BuildContext context)
-static Color inputFillColor(BuildContext context)
-static Color statCardBorder(BuildContext context)
-static Color bottomNavBg(BuildContext context)
-static Color streakChipBg(BuildContext context)
-static Color scoreChipBg(BuildContext context)
-// ... and more
-```
-
-### Color Palette (Turna「湿地鹤」— ADR 0033, scheme A)
-
-Single source of truth: `lib/views/theme.dart` ↔ GUI `tool/gui/src/theme_tokens.py`.
-Primary CTA stays teal (`#1F727E`); clay is secondary warm accent only (~10% area).
-No `peacock*` aliases.
-
-```dart
-// Wetland cool axis (~20%)
-const brandNavy = Color(0xFF19324A);
-const brandTeal = Color(0xFF1F727E);      // primary — locked scheme A
-const brandTealLight = Color(0xFF2F7F8E);
-const brandTealDark = Color(0xFF145A64);  // ≡ primaryDark / BRAND_TEAL_DARK
-const brandSky = Color(0xFF4A95A8);
-const brandReed = Color(0xFF5FB8C4);
-
-// Anatolian warm accents (~10%)
-const anatolianClay = Color(0xFFB85C3F);  // secondary
-const warmSand = Color(0xFFEAD9B8);       // secondaryLight
-
-// Semantic
-const error = Color(0xFFE74C3C);
-const success = Color(0xFFFFD93D);
-const warning = Color(0xFFFF9F43);
-
-// League Colors (Jewel Tones)
-const amethystLeague = Color(0xFF9B59B6);
-const pearlLeague = Color(0xFFF5F5F5);
-const rubyLeague = Color(0xFFE74C3C);
-const emeraldLeague = Color(0xFF27AE60);
-const diamondLeague = Color(0xFF3498DB);
-```
-
-### Theme Switching
-
-- `ThemeProvider` (ChangeNotifier) manages `ThemeMode.light / dark / system`
-- Preference persisted to `StreamingSharedPreferences` (`settings.themeMode`)
-- `PlatformDispatcher.platformBrightness` used when `system` mode is active
-- Toggle available in Profile page (AccountWidget popup menu)
-- `MaterialApp.router` receives both `theme` and `darkTheme`
-
----
-
-## Course Data Structure
-
-### Question Types
-```dart
-enum QuestionType {
-  multipleChoice,    // Choose correct translation
-  translate,         // Translate sentence
-  fillBlank,         // Complete the sentence
-  matchWords,        // Match pairs
-  listening,         // Listen and select
-  speaking,          // Speak the phrase (not implemented)
-}
-```
-
-### Course Format (in assets/courses/turkish/)
-Course data is JSON, loaded by `CourseLoader` (`lib/courses/course_loader.dart`)
-and seeded into SQLite by `DatabaseSeeder`. See `docs/authoring/course-layout.md`
-for the full authoring contract. Minimal `index.json` shape:
-```dart
-{
-  "version": 12,
-  "language": "tr",
-  "displayName": "Turkish",
-  "sections": [
-    { "id": "section1", "name": "Section 1", "level": "A1",
-      "prerequisiteSectionIds": [], "file": "sections/section1.json" }
-  ]
-}
-```
-Each section file holds `units → lessons → content` (stages / subLessons /
-listeningPhases / readingPassage). Interaction variants are discriminated by
-`runtimeType` (see `lib/domain/course/interaction.dart`).
-
----
-
-## Development Commands
+## 开发命令
 
 ```bash
-# Install dependencies (generated code is committed, so build_runner is not required for a fresh clone)
-flutter pub get
-
-# Run app
+flutter pub get                                              # 生成代码已提交，无需 build_runner
 flutter run
-
-# Generate code (only needed after changing @freezed / @JsonSerializable / @AutoRoute / @injectable annotations)
-flutter pub run build_runner build --delete-conflicting-outputs
-
-# Run on specific device
-flutter run -d chrome
-flutter run -d ios
-flutter run -d android
-
-# Clean build
-flutter clean && flutter pub get && flutter pub run build_runner build --delete-conflicting-outputs
-
-# Run tests
-flutter test
+flutter pub run build_runner build --delete-conflicting-outputs  # 改 @freezed/@JsonSerializable/@AutoRoute/@injectable 后
+flutter test                                                 # 基线见 test/BASELINE.md
 flutter analyze
-
-# Run Python tool tests
-python -m unittest discover -s test -p "*_test.py"
-
-# Release build (one command)
-python tool/build_release.py --version 0.4.0-future4
-# Or via Makefile
-make build-release
+python -m unittest discover -s test -p "*_test.py"           # Python 工具测试
+python -m unittest discover -s tool/gui/tests -p "test_*.py" # GUI 测试
+python tool/build_release.py --version 0.4.0-future4         # 发布
 ```
 
----
-
-## Key Files Reference
-
-| File | Purpose |
-|------|---------|
-| `lib/main.dart` | App entry point |
-| `lib/views/app.dart` | Root widget with providers |
-| `lib/routing/routing.dart` | Auto Route configuration + guards |
-| `lib/routing/course_ready_guard.dart` | Redirect to splash until DB seeded |
-| `lib/di/injection.dart` | GetIt DI setup |
-| `lib/service/locator.dart` | AppPrefs, preferences, TTS setup |
-| `lib/application/game_provider.dart` | Thin facade to score/streak/progress/milestone providers |
-| `lib/application/score_provider.dart` | XP / score |
-| `lib/application/streak_provider.dart` | Streak state |
-| `lib/application/lesson_progress_provider.dart` | Completed / perfect lessons |
-| `lib/application/game_milestone_provider.dart` | Achievements / gems |
-| `lib/application/srs_queue_provider.dart` | Shared SRS queue base class |
-| `lib/application/srs_provider.dart` | Vocab SRS queue |
-| `lib/application/grammar_review_provider.dart` | Grammar SRS queue |
-| `lib/application/mistake_provider.dart` | FIFO mistake log |
-| `lib/application/study_stats_provider.dart` | Learning statistics aggregation |
-| `lib/application/weak_word_quiz_assembler.dart` | Build weak-word review lesson |
-| `lib/core/streak_resolver.dart` | Pure streak resolution |
-| `lib/domain/audio/vocab_audio_resolver.dart` | Audio/content decoupling interface |
-| `lib/domain/repositories/course_repository.dart` | `ICourseRepository` interface |
-| `lib/domain/repositories/study_log_repository.dart` | `IStudyLogRepository` interface |
-| `lib/data/course_repository.dart` | Concrete course repository |
-| `lib/data/study_log_repository.dart` | Concrete study log repository |
-| `lib/domain/course/lesson.dart` | Lesson model + LessonTemplate |
-| `lib/domain/course/lesson_content.dart` | Lesson content (stages/subLessons/listeningPhases/readingPassage) |
-| `lib/views/play/play_hub_screen.dart` | Play hub (Match Madness, SRS Review, Mistakes, Weak Words) |
-| `lib/views/review/srs_review_screen.dart` | SRS flashcard review |
-| `lib/views/review/mistake_list_page.dart` | Mistake list |
-| `lib/views/dictionary/dictionary_page.dart` | Dictionary / search |
-| `lib/views/weak_words/weak_words_page.dart` | Weak-word review |
-| `lib/views/profile/widgets/learning_stats.dart` | Profile learning statistics dashboard |
-| `lib/views/theme.dart` | TurnaTheme: light/dark ThemeData + semantic color helpers |
-| `tool/build_release.py` | One-command release builder |
-| `docs/decisions/0030-anki-deep-adaptation-review-fixes.md` | Anki deep-adaptation review fixes |
-| `docs/decisions/0033-turna-wetland-crane-palette.md` | Turna wetland-crane palette |
-| `test/BASELINE.md` | Latest test baseline |
-| `docs/decisions/` | Architecture Decision Records (0030–0035) |
+Windows 用 `python`（非 `python3`）。完整 Makefile / 平台 / 发布流水线见 project-guide §10；课程数据格式见 §13；测试基线见 `test/BASELINE.md`。
 
 ---
 
@@ -300,25 +105,19 @@ make build-release
 
 ### Flutter/Firebase Expert
 Location: `.claude/agents/FLUTTER_FIREBASE_EXPERT.md`
-- Architecture guidance
-- Firebase implementation
-- State management patterns
-- Performance optimization
+- 架构指导、Firebase 实现、状态管理、性能优化
 
 ### Course Generator Agent
 Location: `.claude/agents/COURSE_GENERATOR_AGENT.md`
-- Generate new language courses
-- Create question sets
-- Validate course structure
-- Subject matter expertise for languages
+- 生成新语言课程、创建题集、校验课程结构、语言学科专长
 
 ---
 
 ## Contributing
 
-1. Follow existing code patterns
-2. Run `build_runner` after model changes
-3. Run `flutter test` and `flutter analyze` before committing
-4. Update `test/BASELINE.md` when the test count changes
-5. Use the theming guidelines for UI consistency
-6. For architectural decisions, add an ADR to `docs/decisions/`
+1. 遵循现有代码模式
+2. 模型改动后跑 `build_runner`
+3. 提交前跑 `flutter test` + `flutter analyze`
+4. 测试数变化时更新 `test/BASELINE.md`
+5. UI 一致性用 theming 指南（project-guide §9）
+6. 架构决策加 ADR 到 `docs/decisions/`
