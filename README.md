@@ -77,8 +77,7 @@ python -m tool.gui.src.main
 | [`CLAUDE.md`](./CLAUDE.md) | AI Agent 路由与 Key Files |
 | [`docs/analysis/project-framework-analysis.md`](./docs/analysis/project-framework-analysis.md) | 产品 / 用户 / 商业化视角 |
 | [`docs/content_inventory_current.md`](./docs/content_inventory_current.md) | Turkish 内容清单 |
-| [`docs/anki-deep-adaptation-plan.md`](./docs/anki-deep-adaptation-plan.md) | Anki 深度适配设计 |
-| [`docs/anki-official-alignment-remediation-plan.md`](./docs/anki-official-alignment-remediation-plan.md) | Anki 官方语义对齐 |
+| [`docs/anki-integration-design.md`](./docs/anki-integration-design.md) | Anki 集成设计（已交付）|
 | [`docs/anki-import-usability.md`](./docs/anki-import-usability.md) | Anki 导入可用性 backlog |
 | [`docs/ai_companion_implementation.md`](./docs/ai_companion_implementation.md) | AI companion 实现边界 |
 | [`docs/advanced-settings-system-health.md`](./docs/advanced-settings-system-health.md) | 高级设置与系统健康 |

@@ -287,7 +287,7 @@ Explain → Practice → Rate 三段流（见 2.4 Skill Acquisition Theory）。
 
 ## 6. Anki 深度集成
 
-本应用可直接导入 Anki `.apkg` 牌组，将其作为课程树的一个 Section，并与 SRS / 错题 / 统计流水线双向打通。设计计划见 [`docs/anki-deep-adaptation-plan.md`](./anki-deep-adaptation-plan.md) 与 [`docs/anki-official-alignment-remediation-plan.md`](./anki-official-alignment-remediation-plan.md)。
+本应用可直接导入 Anki `.apkg` 牌组，将其作为课程树的一个 Section，并与 SRS / 错题 / 统计流水线双向打通。设计见 [`docs/anki-integration-design.md`](./anki-integration-design.md)。
 
 ### 6.1 导入流水线
 
@@ -659,8 +659,7 @@ JSON 位于 `assets/courses/turkish/`，由 `CourseLoader` 加载、`DatabaseSee
 - [`docs/authoring/lesson-type-templates.md`](./authoring/lesson-type-templates.md)
 - [`docs/authoring/listening-show-format.md`](./authoring/listening-show-format.md)
 - [`docs/authoring/textbook-import.md`](./authoring/textbook-import.md)
-- [`docs/authoring/teacher-usability-checklist.md`](./authoring/teacher-usability-checklist.md)
-- [`docs/authoring/teacher-zero-code-guide.md`](./authoring/teacher-zero-code-guide.md)
+- [`docs/authoring/teacher-guide.md`](./authoring/teacher-guide.md)
 
 ---
 
@@ -699,8 +698,7 @@ python -m unittest discover -s tool/gui/tests -p "test_*.py"  # GUI 804 项
 | [`README.md`](../README.md) | 项目概览与快速上手 |
 | [`CLAUDE.md`](../CLAUDE.md) | AI Agent 架构总览 |
 | [`docs/content_inventory_current.md`](./content_inventory_current.md) | Turkish 内容清单 |
-| [`docs/anki-deep-adaptation-plan.md`](./anki-deep-adaptation-plan.md) | Anki 深度适配计划 |
-| [`docs/anki-official-alignment-remediation-plan.md`](./anki-official-alignment-remediation-plan.md) | Anki 官方对齐补救计划 |
+| [`docs/anki-integration-design.md`](./anki-integration-design.md) | Anki 集成设计（已交付）|
 | [`docs/ai_companion_implementation.md`](./ai_companion_implementation.md) | AI companion 实现边界 |
 | [`docs/advanced-settings-system-health.md`](./advanced-settings-system-health.md) | 高级设置与系统健康 |
 | [`docs/decisions/`](./decisions/) | 架构决策记录（ADR 0030–0035） |
