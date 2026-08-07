@@ -211,32 +211,7 @@ S1U1L02,B
 S1U1L03,C
 ```
 
-批量合成命令：
-
-```bash
-# 1. 安装依赖
-pip install pydub
-
-# 2. 批量合成
-python tool/mix_listening_a1.py all \
-  --main-dir assets/sounds/turkish/listening/raw_a1 \
-  --debut-dir assets/sounds/turkish/listening/debut \
-  --fin-dir assets/sounds/turkish/listening/fin \
-  --bgm-dir assets/sounds/turkish/listening/bgm \
-  --mapping tool/mappings/a1_show_mapping.csv \
-  --output-dir assets/sounds/turkish/listening/mixed_a1
-```
-
-脚本行为：
-
-- 读取 `raw_a1/` 下每个 `S1U1LxxY.mp3`。
-- 根据 mapping 决定节目类型 A/B/C，进而选用：
-  - `debutA/B/C.mp3` 片头
-  - `finA/B/C.mp3` 结束语
-  - `bgmA/B/C.mp3` 正片背景音乐
-- 把对应节目的 BGM 循环/裁剪到与 main 等长，音量降低约 -18dB 后叠加到 main。
-- 拼接：`debut + (main+BGM) + fin`。
-- 输出 `mixed_a1/S1U1LxxY_mixed.mp3`。
+批量合成命令、脚本行为与混音结构（`debut + [main+BGM(-18dB)] + fin`，A/B/C variant）见 [`project-guide.md`](../project-guide.md) §12.2。
 
 单文件调试：
 
@@ -249,25 +224,7 @@ python tool/mix_listening_a1.py one \
 
 ### 4.4 批量生成 MiniMax 语音
 
-使用 `tool/generate_audio.py` 批量读取课程 JSON 中的 `listeningPhases`，调用 MiniMax API 生成 MP3。
-
-```bash
-# 生成全部听力音频
-MINIMAX_API_KEY=sk-xxx python tool/generate_audio.py all
-
-# 指定音色（默认使用 female-tianmei）
-MINIMAX_API_KEY=sk-xxx python tool/generate_audio.py all --voice-id male-qn-jingying
-
-# 生成单个文本到指定路径
-MINIMAX_API_KEY=sk-xxx python tool/generate_audio.py speak "Welcome to today's show" /tmp/welcome.mp3
-```
-
-脚本行为：
-
-- 扫描 `assets/courses/turkish/` 下所有 `template: listening` 的课程。
-- 收集每个 `ListeningPhase.audioAsset` 及其 `transcript`。
-- 调用 MiniMax `POST /v1/t2a_v2`，参数：`model=speech-2.8-hd`、`output_format=mp3`、`speed=0.9`。
-- 将返回的音频字节写入 `assets/sounds/turkish/listening/{audioAsset}.mp3`。
+批量生成命令、环境变量与脚本行为见 [`project-guide.md`](../project-guide.md) §12.1（`tool/generate_audio.py`，MiniMax T2A v2）。脚本扫描 `assets/courses/turkish/` 下 `template: listening` 的课程，按 `listeningPhases[].audioAsset` + `transcript` 生成 MP3 到 `assets/sounds/turkish/listening/`。
 
 ---
 
