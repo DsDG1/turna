@@ -1,10 +1,10 @@
 # Turna - Language Learning App
 
-> 当前状态：future4 框架已完成，并完成 Swahili→Turkish 迁移（ADR 0020）。真实 Turkish 内容已填充 Section 1 问候语单元（8 词 + 2 表达），Sections 2–8 仍为占位。最新内容清单见 [`docs/content_inventory_current.md`](./docs/content_inventory_current.md)，决策记录见 [`docs/decisions/`](./docs/decisions/)。
+> 当前状态：future4 框架已完成，并完成 Swahili->Turkish 迁移。8 个 CEFR 分级 Section（A1->B2）全部填充真实内容（148 词 / 18 表达 / 8 语法 / 54 课时）。最新内容清单见 [`docs/content_inventory_current.md`](./docs/content_inventory_current.md)，决策记录见 [`docs/decisions/`](./docs/decisions/)（ADR 0030–0035）。
 
 ## Project Overview
 
-**Turna** is a Flutter-based, local-first language learning framework. Currently focused on **Turkish** as the primary target language. Ships 8 CEFR-graded sections (A1→B2) with inter-section prerequisites; Section 1 contains a real greetings lesson (8 vocab words + 2 expressions), while Sections 2–8 are metadata-only placeholders awaiting content authoring (see ADR 0020 and `docs/content_inventory_current.md`). The app follows a clean architecture pattern and is entirely offline — no Firebase backend, no social features, no pay-to-win mechanics.
+**Turna** is a Flutter-based, local-first language learning framework. Currently focused on **Turkish** as the primary target language. Ships 8 CEFR-graded sections (A1->B2) with inter-section prerequisites, all filled with real content (148 vocab / 18 expressions / 8 grammar points / 54 lessons, with listening + reading per section); Section 1 is the A1 greetings intro (`s1-l2`: 8 vocab + 2 expressions, 3 subLessons). See `docs/content_inventory_current.md` for the full inventory. The app follows a clean architecture pattern and is entirely offline - no Firebase backend, no social features, no pay-to-win mechanics.
 
 ---
 
@@ -14,7 +14,7 @@
 ```
 lib/
 ├── application/       # State management (Providers)
-│   ├── srs_provider.dart              # SM-2 spaced repetition (SrsQueueProvider subclass)
+│   ├── srs_provider.dart              # FSRS spaced repetition (SrsQueueProvider subclass)
 │   ├── grammar_review_provider.dart   # Grammar SRS queue (SrsQueueProvider subclass)
 │   ├── srs_queue_provider.dart        # Shared base class for SRS queues
 │   ├── mistake_provider.dart          # FIFO mistake log
@@ -77,7 +77,7 @@ lib/
 - [x] Reading exercises (ReadingMCQ / ReadingTrueFalse / ReadingShortAnswer)
 - [x] XP scoring system
 - [x] Basic streak tracking
-- [x] SRS engine (SM-2) + review UI
+- [x] SRS engine (FSRS, SM-2 fallback) + review UI
 - [x] Mistake tracking with FIFO log + review list
 - [x] Match Madness word-matching mini-game
 - [x] Multi-language framework support (target language currently Turkish)
@@ -109,14 +109,14 @@ lib/
 
 ### ✅ Completed framework milestones
 - [x] **Lesson Templates** — intro / practice / review / mastery / reading smoke lessons implemented and verified
-- [x] **Expression-level SRS** — end-to-end data pipeline (schema v5, seeder, repository, provider, review UI)
-- [x] **TTS language code** — switched to `tr` (Turkish) per ADR 0020 (supersedes the old `sw` decision in ADR 0001)
+- [x] **Expression-level SRS** — end-to-end data pipeline (schema v9, seeder, repository, provider, review UI)
+- [x] **TTS language code** — switched to `tr` (Turkish) (supersedes the early `sw` decision)
 - [x] **Test coverage** — core ViewModel / Provider / Renderer / seeder / schema migration tests
-- [x] **System / Google TTS** — `flutter_tts` with language code `'tr'` (Android prefers `com.google.android.tts`). No bundled offline model in this build — the Piper Swahili model and `sherpa_onnx` dependency were removed (ADR 0020). Pre-recorded `audioAsset` reserved for listening exercises.
-- [x] **future4 framework round** — DI consolidation, audio/content decoupling, performance fixes, repository interfaces, SRS queue base class, GameProvider split with facade, integration tests, golden baselines, release pipeline (see ADR 0018 and ADRs 0009–0018)
+- [x] **System / Google TTS** — `flutter_tts` with language code `'tr'` (Android prefers `com.google.android.tts`). No bundled offline model in this build — the Piper Swahili model and `sherpa_onnx` dependency were removed. Pre-recorded `audioAsset` reserved for listening exercises.
+- [x] **future4 framework round** — DI consolidation, audio/content decoupling, performance fixes, repository interfaces, SRS queue base class, GameProvider split with facade, integration tests, golden baselines, release pipeline (see the ADRs in `docs/decisions/`)
 
 ### 📋 Next Round
-- [ ] **Content authoring** — Fill Sections 2–8 with real Turkish vocabulary, expressions, grammar points, listening phases, and reading passages. The framework ships **8 sections** (CEFR A1→B2, inter-section prerequisites wired) with a real **intro greetings lesson** in Section 1 (`s1-l2`: 8 vocab + 2 expressions, 3 subLessons). Sections 2–8 currently contain one placeholder unit/legacy MCQ lesson each (see ADR 0020 and `docs/content_inventory_current.md`).
+- [ ] **Content enrichment** - All 8 sections ship real content (148 vocab / 18 expressions / 8 grammar / 54 lessons); continue expanding depth, high-frequency vocabulary coverage, and CEFR-graded grammar progression.
 
 ---
 
@@ -153,7 +153,7 @@ const brandTeal = Color(0xFF1F727E);      // primary — locked scheme A
 const brandTealLight = Color(0xFF2F7F8E);
 const brandTealDark = Color(0xFF145A64);  // ≡ primaryDark / BRAND_TEAL_DARK
 const brandSky = Color(0xFF4A95A8);
-const brandReed = Color(0xFF78C7B8);
+const brandReed = Color(0xFF5FB8C4);
 
 // Anatolian warm accents (~10%)
 const anatolianClay = Color(0xFFB85C3F);  // secondary
@@ -202,7 +202,7 @@ and seeded into SQLite by `DatabaseSeeder`. See `docs/authoring/course-layout.md
 for the full authoring contract. Minimal `index.json` shape:
 ```dart
 {
-  "version": 5,
+  "version": 12,
   "language": "tr",
   "displayName": "Turkish",
   "sections": [
@@ -242,10 +242,10 @@ flutter test
 flutter analyze
 
 # Run Python tool tests
-python3 -m unittest discover -s test -p "*_test.py"
+python -m unittest discover -s test -p "*_test.py"
 
 # Release build (one command)
-python3 tool/build_release.py --version 0.4.0-future4
+python tool/build_release.py --version 0.4.0-future4
 # Or via Makefile
 make build-release
 ```
@@ -289,10 +289,10 @@ make build-release
 | `lib/views/profile/widgets/learning_stats.dart` | Profile learning statistics dashboard |
 | `lib/views/theme.dart` | TurnaTheme: light/dark ThemeData + semantic color helpers |
 | `tool/build_release.py` | One-command release builder |
-| `docs/decisions/0018-future4-completion-and-content-handoff.md` | Completed framework plan |
-| `docs/decisions/0020-swahili-to-turkish-pivot.md` | Swahili→Turkish pivot migration plan |
+| `docs/decisions/0030-anki-deep-adaptation-review-fixes.md` | Anki deep-adaptation review fixes |
+| `docs/decisions/0033-turna-wetland-crane-palette.md` | Turna wetland-crane palette |
 | `test/BASELINE.md` | Latest test baseline |
-| `docs/decisions/` | Architecture Decision Records (0001–0020) |
+| `docs/decisions/` | Architecture Decision Records (0030–0035) |
 
 ---
 

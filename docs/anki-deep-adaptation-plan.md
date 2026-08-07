@@ -1,8 +1,9 @@
 # Anki 深度适配计划：框架改造与强兼容匹配
 
-> 状态：已采纳（Adopted）  ·  4 项决策已冻结，见 §15  
-> 日期：2026-07-31  
-> 依据：Anki Desktop（AGPL）、AnkiDroid（GPL-3）、现有 `docs/anki-import-design.md` 与已实现导入/SRS/双轨适配代码  
+> 状态：已交付（Shipped）· 阶段 0–6 核心项全部完成，4 项决策已冻结（见 §15）
+> 日期：2026-07-31
+> 后续评审修复记录：ADR [`0030-anki-deep-adaptation-review-fixes`](./decisions/0030-anki-deep-adaptation-review-fixes.md)（`docs/decisions/` 现行活跃，ADR 0030–0035）
+> 依据：Anki Desktop（AGPL）、AnkiDroid（GPL-3）、已实现导入/SRS/双轨适配代码（架构总览见 `docs/project-guide.md` §6）  
 > 目标：在 **不整仓搬迁** 开源 Anki 客户端的前提下，按 Anki 生态的**原理与分层**改造 Turna，使复杂 notetype（含中文政治多选、模板 JS、媒体）达到接近 AnkiDroid 的兼容度，同时保留语言课与客观题引擎。
 
 ---
@@ -64,7 +65,7 @@
 
 1. **保真显示** = 模板渲染 + WebView（对标 AnkiDroid）  
 2. **结构练习** = 启发式/显式映射到 `Interaction`（对标当前双轨，但不可再当唯一路径）  
-3. **调度** = 统一 `SrsProvider` + `anki-<importId>-n<noteId>`（已有）
+3. **调度** = 统一 `SrsProvider` + card 级 wordId `anki-<importId>-c<cardId>`（见 §8/§15，已落地；早期 note 级 `n<noteId>` 已弃用）
 
 ---
 
@@ -387,7 +388,7 @@ Structured Interaction 继续：
 - [x] 记录协议边界：不复制 AnkiDroid 源码  
 - [x] 本文档评审通过  
 
-**交付**：本 plan 合入 `docs/`；本 plan 即活契约（`docs/decisions/` 已随 commit 4bce2fd 废弃，不另建 ADR）
+**交付**：本 plan 合入 `docs/`；后续评审修复与冻结决策见 ADR [`0030-anki-deep-adaptation-review-fixes`](./decisions/0030-anki-deep-adaptation-review-fixes.md)（`docs/decisions/` 现行活跃，ADR 0030–0035）。
 
 ---
 
@@ -513,7 +514,7 @@ Structured Interaction 继续：
 
 | 文档 | 关系 |
 |------|------|
-| `docs/anki-import-design.md` | 总设计；本 plan 是其 **显示层与兼容性深化** 的实施修订 |
+| `docs/project-guide.md` §6 | Anki 集成架构总览；本 plan 是显示层与兼容性深化的实施修订 |
 | 已实现：拆 Section、due 错开、行内选项、缓存 invalidate | 保留；纳入阶段 3/4 回归基线 |
 | 本文件 | **执行计划**；实施时按阶段开 PR，完成后可升格 ADR |
 

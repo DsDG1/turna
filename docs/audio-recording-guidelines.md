@@ -4,7 +4,7 @@ This document describes how to submit human-recorded audio for the **Turkish** c
 
 ## TTS background (what is already automated)
 
-Turna uses **runtime TTS** (`flutter_tts`, language code `tr`; Android prefers `com.google.android.tts`) for individual vocabulary words and expressions. No offline TTS model is bundled — see [ADR 0020](./decisions/0020-swahili-to-turkish-pivot.md) for the audio strategy.
+Turna uses **runtime TTS** (`flutter_tts`, language code `tr`; Android prefers `com.google.android.tts`) for individual vocabulary words and expressions. No offline TTS model is bundled — runtime TTS (`flutter_tts`, `tr`) covers single words and short expressions.
 
 For **listening lessons** only, we pre-generate longer-phrase / dialogue audio with MiniMax TTS via `tool/generate_audio.py` and bundle the MP3s under `assets/sounds/turkish/listening/`. These files may be mixed with BGM by `tool/mix_listening_a1.py` (see [`listening-show-format.md`](./authoring/listening-show-format.md)).
 

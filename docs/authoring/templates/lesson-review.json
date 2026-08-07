@@ -19,7 +19,7 @@
                 "runtimeType": "multipleChoice",
                 "id": "mc-1",
                 "prompt": "How do you say 'Thank you'?",
-                "options": ["Jambo", "Asante", "Kwaheri"],
+                "options": ["Merhaba", "Teşekkürler", "Hoşça kal"],
                 "correctIndex": 1
               }
             ]

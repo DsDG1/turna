@@ -13,7 +13,7 @@
 
 基于上游 [Turna](https://github.com/rshrc/Varnamala) 的 Section/Unit/Lesson/SRS/错题本骨架，聚焦 **Turkish**，持续深化：FSRS 复习引擎、Anki 牌组导入与高保真渲染、统一 AI 引擎层。
 
-- **纯本地**：SQLite（drift，schemaVersion 14），无云后端/推送/登录。
+- **纯本地**：SQLite（drift，schemaVersion 16），无云后端/推送/登录。
 - **单人离线**：无好友、排行榜、联赛、心数、宝石。
 - **多平台**：Android、HarmonyOS（OHOS Flutter 分支）、iOS、Web（有限）。
 - **教学法驱动**：功能取舍以二语习得研究为依据。
@@ -54,7 +54,7 @@ flutter run
 
 ### 当前内容状态
 
-课程为 Turkish。8 个 CEFR 分级 Section（A1->B2），含 inter-section 前置依赖；课程内容版本 10。Section 1（A1）有真实 intro 问候课（8 词 + 2 表达），Sections 2–8 为元数据占位。清单见 [`docs/content_inventory_current.md`](./docs/content_inventory_current.md)。
+课程为 Turkish。8 个 CEFR 分级 Section（A1->B2），含 inter-section 前置依赖；课程内容版本 12。全部 8 节均已填充真实内容（148 词 / 18 表达 / 8 语法点 / 54 课时）。清单见 [`docs/content_inventory_current.md`](./docs/content_inventory_current.md)。
 
 ---
 
@@ -65,7 +65,7 @@ flutter run
 - **层级模型**：`Section -> Unit -> Lesson -> SubLesson / ListeningPhase / ReadingPassage -> Stage -> Interaction`（freezed + JSON）。
 - **13 种 Interaction 题型**（`@injectable` 插件注册），按技能分类：词汇呈现（`showWord`）、接受性词汇（`multipleChoice` / `multiSelect`）、产出性句法（`fillBlank` / `translateSentence` / `reorderSentence` / `typeTheWord`）、听力（`listenAndPick` / `listenOnly`）、阅读（`readingMcq` / `readingTrueFalse` / `readingShortAnswer`）、Anki 保真（`ankiHtmlCard`）。
 - **6 种 Lesson Template**：intro（认识新词）/ practice（巩固）/ listening（三段式听力）/ reading（篇章理解）/ review（交错复习）/ mastery（综合测验），另含 `legacy` 兜底。
-- **按需加载**：`index.json` + per-section JSON + drift SQLite 缓存（schemaVersion 14，含 expressions 表），按内容版本号自动 reseed。
+- **按需加载**：`index.json` + per-section JSON + drift SQLite 缓存（schemaVersion 16，含 expressions 表），按内容版本号自动 reseed。
 
 ### 复习与练习
 
@@ -93,7 +93,7 @@ flutter run
 
 ### AI 能力
 
-统一 AI 引擎层（`lib/application/ai/engine/`）是全应用唯一 LLM 出入口：双模型配置（chat / JSON）+ 严格 schema 模式 + 流式/取消 + SHA-256 缓存 + 预设（deepseek 默认 / openai / moonshot / ollama / custom）。配置持久化到本地（API key 写入绕过日志）。集中入口为 **AI Hub**（从 Play Hub 进入）：Hero 配置 / Continue 最近任务 / Start 五大功能 / Tools 测试连接与清缓存。
+统一 AI 引擎层（`lib/application/ai/engine/`）是全应用唯一 LLM 出入口：双模型配置（chat / JSON）+ 严格 schema 模式 + 流式/取消 + SHA-256 缓存 + 预设（deepseek 默认 / openai / moonshot / ollama / custom）。配置持久化到本地（API key 经 `flutter_secure_storage` 写入，绕过日志）。集中入口为 **AI Hub**（从 Play Hub 进入）：Hero 配置 / Continue 最近任务 / Start 五大功能 / Tools 测试连接与清缓存。
 
 | 功能 | 说明 |
 |---|---|
@@ -115,7 +115,7 @@ flutter run
 
 ### 主题与可访问性
 
-- **主题**：亮 / 暗 / 跟随系统，`TurnaTheme` 语义化颜色 + 高对比主题变体 + Play Hub 毛玻璃。`ThemeProvider` 持久化。
+- **主题**：亮 / 暗 / 跟随系统，`TurnaTheme` 语义化颜色 + 高对比主题变体 + Play Hub 轻量 `SoftCard`（`softTint` / `softBorder`）。`ThemeProvider` 持久化。
 - **可访问性**（`AccessibilityProvider`，6 项持久化偏好）：文本缩放 100–200%、减少动画、高对比、阅读障碍字体（Lexend）、感官减负（静音音效/触觉）、专注模式。
 
 ### 音频 / TTS
@@ -160,7 +160,7 @@ flutter run
 python -m tool.gui.src.main
 ```
 
-完整功能、快捷键与打包说明见 [`tool/gui/README.md`](./tool/gui/README.md) 与 [`docs/authoring/gui-course-editor.md`](./docs/authoring/gui-course-editor.md)。
+完整功能、快捷键与打包说明见 [`tool/gui/README.md`](./tool/gui/README.md)。
 
 ---
 
@@ -193,7 +193,7 @@ lib/
 ├── core/          # fsrs_engine / sm2 / language_detector / html_stripper /
 │                  # streak_resolver / logger
 ├── courses/       # 字母 + 语种 loader/validator（目标 Turkish）
-├── data/          # drift CourseDatabase（schemaVersion 14）+ Seeder + DAO + Repository
+├── data/          # drift CourseDatabase（schemaVersion 16）+ Seeder + DAO + Repository
 ├── di/            # GetIt + Injectable（renderer_module / audio_module）
 ├── domain/        # 领域模型 + Repository 接口（course / audio / repositories）
 ├── routing/       # Auto Route + CourseReadyGuard
@@ -223,7 +223,7 @@ const primaryColor   = Color(0xFF1F727E);   // Brand Teal (locked)
 const primaryLight   = Color(0xFF2F7F8E);
 const primaryDark    = Color(0xFF145A64);
 const brandSky       = Color(0xFF4A95A8);
-const brandReed      = Color(0xFF78C7B8);
+const brandReed      = Color(0xFF5FB8C4);
 const secondary      = Color(0xFFB85C3F);   // Anatolian clay
 const secondaryLight = Color(0xFFEAD9B8);   // Warm sand
 const error   = Color(0xFFE74C3C);
@@ -241,7 +241,7 @@ JSON 位于 `assets/courses/turkish/`，由 `CourseLoader` 加载、`DatabaseSee
 
 ```json
 {
-  "version": 10,
+  "version": 12,
   "language": "tr",
   "displayName": "Turkish",
   "sections": [
@@ -290,9 +290,9 @@ make build-release VERSION=0.4.0-future4
 ## 测试
 
 ```bash
-flutter test                                  # 800/0 绿（最新数字见 test/BASELINE.md）
-python3 -m unittest discover -s test -p "*_test.py"            # Python 工具 14 项
-python3 -m unittest discover -s tool/gui/tests -p "test_*.py"  # GUI 804 项
+flutter test                                  # ~937 passed / 3 预存在环境失败（最新数字见 test/BASELINE.md）
+python -m unittest discover -s test -p "*_test.py"            # Python 工具测试
+python -m unittest discover -s tool/gui/tests -p "test_*.py"  # GUI 804 项
 ```
 
 `flutter analyze`：改动文件 0 error / 0 warning（仅历史 info 级 lint）。`tool/course_cli.py validate` 对 Turkish 课程通过。详情见 [`test/BASELINE.md`](./test/BASELINE.md)。
@@ -307,11 +307,11 @@ python3 -m unittest discover -s tool/gui/tests -p "test_*.py"  # GUI 804 项
 | [`CLAUDE.md`](./CLAUDE.md) | AI Agent 架构总览 |
 | [`docs/content_inventory_current.md`](./docs/content_inventory_current.md) | Turkish 内容清单 |
 | [`docs/anki-deep-adaptation-plan.md`](./docs/anki-deep-adaptation-plan.md) | Anki 深度适配计划 |
-| [`docs/anki-import-design.md`](./docs/anki-import-design.md) | Anki 导入设计 |
+| [`docs/anki-official-alignment-remediation-plan.md`](./docs/anki-official-alignment-remediation-plan.md) | Anki 官方对齐计划 |
 | [`docs/android-build-setup.md`](./docs/android-build-setup.md) | OHOS 分支构建配置 |
 | [`docs/authoring/course-layout.md`](./docs/authoring/course-layout.md) | authoring 契约 |
 | [`docs/authoring/lesson-type-templates.md`](./docs/authoring/lesson-type-templates.md) | Lesson Template JSON 模板 |
-| [`docs/authoring/gui-course-editor.md`](./docs/authoring/gui-course-editor.md) | GUI 编辑器设计契约 |
+| [`docs/authoring/textbook-import.md`](./docs/authoring/textbook-import.md) | 教材导入 |
 | [`docs/audio-recording-guidelines.md`](./docs/audio-recording-guidelines.md) | 人工录音提交规范 |
 | [`test/BASELINE.md`](./test/BASELINE.md) | 测试基线 |
 
@@ -330,7 +330,7 @@ python3 -m unittest discover -s tool/gui/tests -p "test_*.py"  # GUI 804 项
 
 ## 下一轮计划
 
-- **内容创作**：以真实 Turkish 词汇、表达、语法点、听力阶段、阅读篇章充实 Sections 2–8。优先级：高频词汇（前 2000 词族）、语法渐进（A1 现在时/格标记 -> A2 过去/将来 -> B1 关系从句/名物化 -> B2 语篇衔接）、语用真实性。
+- **内容深化**：全部 8 节已填充真实内容（148 词 / 18 表达 / 8 语法）；后续按高频词汇（前 2000 词族）、语法渐进（A1 现在时/格标记 -> A2 过去/将来 -> B1 关系从句/名物化 -> B2 语篇衔接）、语用真实性持续扩充。
 - **Anki 二期**：review-ops（undo/suspend/bury/flag）、per-deck stats/browser/export、`{{type:}}` 输入桥、OHOS import sqlite3 FFI。
 - 持续完善可访问性与统计指标。
 

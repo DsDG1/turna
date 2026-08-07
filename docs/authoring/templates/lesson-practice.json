@@ -18,7 +18,7 @@
               {
                 "runtimeType": "multipleChoice",
                 "id": "mc-1",
-                "prompt": "What does Jambo mean?",
+                "prompt": "What does Merhaba mean?",
                 "options": ["Hello", "Goodbye", "Thanks"],
                 "correctIndex": 0
               }

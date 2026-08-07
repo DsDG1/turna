@@ -320,13 +320,12 @@ MINIMAX_API_KEY=sk-xxx python tool/generate_audio.py speak "Welcome to today's s
 - [ ] 用 `tool/mix_listening_a1.py` 叠加片头 BGM
 - [ ] 输出 MP3 到 `assets/sounds/turkish/listening/`
 - [ ] 更新课程 JSON 的 `listeningPhases`
-- [ ] 运行 `python3 tool/course_cli.py validate`
+- [ ] 运行 `python tool/course_cli.py validate`
 
 ---
 
-## 7. 下一步可落地的事项
+## 7. 后续事项
 
-1. ~~**新增题型**：`multiSelect` 已完成。~~
-2. **混音脚本**：`tool/mix_listening_a1.py` 已完成。
-3. **节目模板库**：为每种 Show 写 2–3 个固定片头文案和 BGM 候选，方便轮换。
-4. **MiniMax API 脚本**：`tool/generate_audio.py` 已改为 MiniMax 版本，可直接用于批量生成听力音频。
+- **节目模板库**：为每种 Show 写 2-3 个固定片头文案和 BGM 候选，方便轮换。
+
+已完成：`multiSelect` 题型、`tool/mix_listening_a1.py` 混音脚本、`tool/generate_audio.py`（MiniMax 版）批量生成。

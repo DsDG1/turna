@@ -15,9 +15,9 @@
           {
             "runtimeType": "listenAndPick",
             "id": "lp-word-1",
-            "audioAsset": "sounds/example/jambo.mp3",
+            "audioAsset": "sounds/example/merhaba.mp3",
             "prompt": "What do you hear?",
-            "options": ["Jambo", "Asante", "Kwaheri"],
+            "options": ["Merhaba", "Teşekkürler", "Hoşça kal"],
             "correctIndex": 0
           }
         ]
@@ -27,7 +27,7 @@
         "name": "Dialogue",
         "type": "dialogue",
         "audioAsset": "sounds/example/dialogue_greetings.mp3",
-        "transcript": "A: Jambo! B: Jambo, habari?",
+        "transcript": "A: Merhaba! B: Merhaba, nasılsın?",
         "items": [
           {
             "runtimeType": "multipleChoice",

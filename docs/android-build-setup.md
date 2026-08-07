@@ -143,4 +143,4 @@ OHOS fork 生态滞后，未来可能还有插件在 Kotlin 2.0 / 新 Android SD
 - **环境层（JDK 17 的 `JAVA_HOME`）不在仓库里**，换机器需手动设一次。
 - **补丁层（`tool/`）在仓库里**，提交后换机器/新同事 `git pull` + 跑一次脚本即可。
 - OHOS fork 更新后，`flutter_tools-kgp-2.0.21.patch` 可能需要重新生成（若上游改了那一行）。脚本会报 `[WARN]` 提示。
-- 决策背景见 `docs/decisions/`（OHOS 迁移相关 ADR）。
+- 决策背景：使用 OpenHarmony Flutter fork（非官方 Flutter）；现存 ADR 见 `docs/decisions/`（0030–0035，不含 OHOS 迁移条目）。

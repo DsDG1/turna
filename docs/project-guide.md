@@ -2,7 +2,7 @@
 
 > 本文是 README 的深度补充。README 给出概览与快速上手，本文给出每个子系统的设计、实现要点与决策依据。阅读顺序建议：先读 README，再按需查阅本文相应章节。
 >
-> 所有信息以代码现状为准（schemaVersion 14、课程内容版本 10、`flutter test` 800/0 绿，截至 2026-08-01）。
+> 所有信息以代码现状为准（schemaVersion 16、课程内容版本 12、`flutter test` ~937 passed / 3 预存在环境失败，截至 2026-08-06）。
 
 ---
 
@@ -137,7 +137,7 @@ lib/
 │   └── streak_resolver.dart       # 纯 streak 解析
 ├── courses/            # 字母 + 语种 loader/validator（目标 Turkish）
 ├── data/               # drift CourseDatabase + Seeder + Repository 实现
-│   ├── course_database.dart       # schemaVersion 14
+│   ├── course_database.dart       # schemaVersion 16
 │   ├── anki_note_dao.dart         # Anki NoteStore 数据访问
 │   ├── srs_state_dao.dart         # SRS 状态持久化
 │   ├── review_history_dao.dart    # 复习历史事件
@@ -210,13 +210,13 @@ Section -> Unit -> Lesson -> SubLesson / ListeningPhase / ReadingPassage -> Stag
 
 ### 4.4 按需加载与缓存
 
-- `index.json` + per-section JSON + drift SQLite 缓存（**schemaVersion 14**）。
-- 按内容版本号（`index.json` 的 `version`，当前 10）自动 reseed；bump version 或清空 app data 可强制 reseed。
+- `index.json` + per-section JSON + drift SQLite 缓存（**schemaVersion 16**）。
+- 按内容版本号（`index.json` 的 `version`，当前 12）自动 reseed；bump version 或清空 app data 可强制 reseed。
 - `expressions` 表支持表达级 SRS。
 
 ### 4.5 当前内容状态
 
-8 个 CEFR 分级 Section（A1→B2），含 inter-section 前置依赖。Section 1（A1）有真实 intro 问候课（`s1-l2`：8 词 + 2 表达，3 subLessons）；Sections 2–8 为元数据占位（每节 1 unit / 1 legacy MCQ lesson）。完整清单见 [`docs/content_inventory_current.md`](./content_inventory_current.md)。
+8 个 CEFR 分级 Section（A1->B2），含 inter-section 前置依赖；**全部 8 节均已填充真实内容**——共 148 词汇 / 18 表达 / 8 语法点 / 54 课时，每节含听力与阅读练习，无占位。Section 1（A1）为问候入门（`s1-l2`：8 词 + 2 表达，3 subLessons）。完整清单见 [`docs/content_inventory_current.md`](./content_inventory_current.md)。
 
 ---
 
@@ -287,7 +287,7 @@ Explain → Practice → Rate 三段流（见 2.4 Skill Acquisition Theory）。
 
 ## 6. Anki 深度集成
 
-本应用可直接导入 Anki `.apkg` 牌组，将其作为课程树的一个 Section，并与 SRS / 错题 / 统计流水线双向打通。设计计划见 [`docs/anki-deep-adaptation-plan.md`](./anki-deep-adaptation-plan.md) 与 [`docs/anki-import-design.md`](./anki-import-design.md)。
+本应用可直接导入 Anki `.apkg` 牌组，将其作为课程树的一个 Section，并与 SRS / 错题 / 统计流水线双向打通。设计计划见 [`docs/anki-deep-adaptation-plan.md`](./anki-deep-adaptation-plan.md) 与 [`docs/anki-official-alignment-remediation-plan.md`](./anki-official-alignment-remediation-plan.md)。
 
 ### 6.1 导入流水线
 
@@ -324,11 +324,13 @@ Explain → Practice → Rate 三段流（见 2.4 Skill Acquisition Theory）。
 - `AnkiHtmlCardView`（`webview_flutter`）渲染原 notetype HTML + CSS，模板 `{{field}}` 替换、cloze 挖空。
 - **平台门控**：仅 Android/iOS 有 WebView 实现；HarmonyOS/桌面/Web 降级为文本兜底（决策 4），不实例化 `WebViewController`。
 - **暗色 CSS**：app 暗色主题时注入暗色 CSS（阶段 6）。
-- **JS 沙箱**：notetype `allowJs` 默认关；仅在受信 notetype 开启。
+- **JS 与网络隔离**：notetype `allowJs` 默认关；联网默认完全离线。离线/询问策略通过 CSP 实际阻断 `fetch`、XHR、WebSocket 和外部资源，不只拦页面跳转。
 
 ### 6.6 智能去解密（Pre-render Cache）
 
 部分牌组（如加密考研牌组）在 notetype CSS 中含混淆的解密 JS。首次复习时 `AnkiHtmlCardView` 在 WebView 中跑一次 JS，延迟捕获 `document.body.innerHTML`，去 `<script>`，缓存到 `anki_prerendered_html`（schema v10）。后续复习直接服缓存纯 HTML（`allowJs=false`，无 JS/无网络/无沙箱）。`allowJs` notetype 自动触发；卸载牌组按前缀清缓存。
+
+高级页提供渲染/网络与单牌组覆盖、失败降级、媒体与导入性能、三种排程继承、同胞卡与难卡规则、FSRS 实验室、存储维护、脱敏报告和实验功能中心。系统健康监控在启动时直接监听 `LogCapture`，用指纹、60 秒去重和分数阈值生成本机告警；详见 [`advanced-settings-system-health.md`](advanced-settings-system-health.md)。
 
 ### 6.7 复习入口与浏览
 
@@ -353,7 +355,7 @@ Explain → Practice → Rate 三段流（见 2.4 Skill Acquisition Theory）。
 |---|---|
 | `ai_engine.dart` | `@lazySingleton` facade：`chat()` + `requestJson()` + 缓存接线 |
 | `ai_engine_config.dart` | `AiEngineConfig`：双模型（modelChat / modelJson）+ `StrictSchemaMode` + reasoning 支持 |
-| `ai_engine_config_holder.dart` | `@lazySingleton ChangeNotifier`，单一配置真理源，**持久化到本地**（API key 经 raw `StreamingSharedPreferences` 写入，绕过日志） |
+| `ai_engine_config_holder.dart` | `@lazySingleton ChangeNotifier`，单一配置真理源，**持久化到本地**（API key 经 `flutter_secure_storage` 写入，非敏感元数据走 `StreamingSharedPreferences`，均绕过日志） |
 | `ai_http_client.dart` | `postJson` / `postStream` / `probeConnection`；json_schema→json_object 自动回退；`AiCancelToken` 协作式取消 |
 | `ai_cache.dart` | SHA-256 LRU + 磁盘镜像（条件编译 web/io）；key 不含 API key |
 | `ai_provider_preset.dart` | 预设：deepseek（默认 `deepseek-v4-flash`）/ openai / moonshot / ollama / custom |
@@ -439,7 +441,7 @@ Explain → Practice → Rate 三段流（见 2.4 Skill Acquisition Theory）。
 
 ### 9.1 TurnaTheme
 
-`lib/views/theme.dart` 提供 `lightTheme` / `darkTheme` / `highContrastLightTheme` / `highContrastDarkTheme`，及一组按 `Brightness` 自适应的语义化颜色 helper（`cardBg` / `scaffoldBg` / `textHintColor` / `inputFillColor` / `bottomNavBg` / `glassSurface` 等）。Play Hub 用毛玻璃（`_GlassCard` + `BackdropFilter` + 极光底层 `_AuroraBackground`）。
+`lib/views/theme.dart` 提供 `lightTheme` / `darkTheme` / `highContrastLightTheme` / `highContrastDarkTheme`，及一组按 `Brightness` 自适应的语义化颜色 helper（`cardBg` / `scaffoldBg` / `textHintColor` / `inputFillColor` / `bottomNavBg` / `glassSurface` 等）。Play Hub 用轻量 `SoftCard`（`TurnaTheme.softTint` / `softBorder`，毛玻璃栈已移除）。
 
 调色板（Turna「湿地鹤」ADR 0033 方案 A — 主色锁 `#1F727E`；无 peacock API）：
 
@@ -449,7 +451,7 @@ const primaryColor   = Color(0xFF1F727E);  // Brand Teal (locked)
 const primaryLight   = Color(0xFF2F7F8E);
 const primaryDark    = Color(0xFF145A64);  // brandTealDark ≡ GUI BRAND_TEAL_DARK
 const brandSky       = Color(0xFF4A95A8);
-const brandReed      = Color(0xFF78C7B8);
+const brandReed      = Color(0xFF5FB8C4);
 const secondary      = Color(0xFFB85C3F);  // anatolianClay — warm accent only
 const secondaryLight = Color(0xFFEAD9B8);  // warmSand
 const error   = Color(0xFFE74C3C);
@@ -641,7 +643,7 @@ JSON 位于 `assets/courses/turkish/`，由 `CourseLoader` 加载、`DatabaseSee
 
 ```json
 {
-  "version": 10,
+  "version": 12,
   "language": "tr",
   "displayName": "Turkish",
   "sections": [
@@ -665,9 +667,9 @@ JSON 位于 `assets/courses/turkish/`，由 `CourseLoader` 加载、`DatabaseSee
 ## 14. 测试与质量基线
 
 ```bash
-flutter test                                  # 800/0 绿（最新数字见 test/BASELINE.md）
-python3 -m unittest discover -s test -p "*_test.py"            # Python 工具 14 项
-python3 -m unittest discover -s tool/gui/tests -p "test_*.py"  # GUI 804 项
+flutter test                                  # ~937 passed / 3 预存在环境失败（最新数字见 test/BASELINE.md）
+python -m unittest discover -s test -p "*_test.py"            # Python 工具测试
+python -m unittest discover -s tool/gui/tests -p "test_*.py"  # GUI 804 项
 ```
 
 - `flutter analyze`：改动文件 0 error / 0 warning（仅历史 info 级 lint）。
@@ -698,9 +700,10 @@ python3 -m unittest discover -s tool/gui/tests -p "test_*.py"  # GUI 804 项
 | [`CLAUDE.md`](../CLAUDE.md) | AI Agent 架构总览 |
 | [`docs/content_inventory_current.md`](./content_inventory_current.md) | Turkish 内容清单 |
 | [`docs/anki-deep-adaptation-plan.md`](./anki-deep-adaptation-plan.md) | Anki 深度适配计划 |
-| [`docs/anki-import-design.md`](./anki-import-design.md) | Anki 导入设计 |
 | [`docs/anki-official-alignment-remediation-plan.md`](./anki-official-alignment-remediation-plan.md) | Anki 官方对齐补救计划 |
-| [`docs/play-hub-redesign.md`](./play-hub-redesign.md) | Play Hub 重设计 |
+| [`docs/ai_companion_implementation.md`](./ai_companion_implementation.md) | AI companion 实现边界 |
+| [`docs/advanced-settings-system-health.md`](./advanced-settings-system-health.md) | 高级设置与系统健康 |
+| [`docs/decisions/`](./decisions/) | 架构决策记录（ADR 0030–0035） |
 | [`docs/android-build-setup.md`](./android-build-setup.md) | OHOS 分支 Android 构建配置 |
 | [`docs/analysis/project-framework-analysis.md`](./analysis/project-framework-analysis.md) | 项目框架分析 |
 | [`docs/authoring/`](./authoring/) | Authoring 契约与教师指南 |
@@ -713,7 +716,7 @@ python3 -m unittest discover -s tool/gui/tests -p "test_*.py"  # GUI 804 项
 
 ### 下一轮
 
-- **内容创作**：以真实 Turkish 词汇、表达、语法点、听力阶段、阅读篇章充实 Sections 2–8。语言学优先级：
+- **内容深化**：全部 8 节已填充真实内容（148 词 / 18 表达 / 8 语法点）；后续按以下优先级持续扩充深度与覆盖度：
   1. **高频词汇优先**：以 Turkish National Corpus 词频数据为指导，优先覆盖前 2000 词族（覆盖日常文本约 85%）。
   2. **语法渐进**：A1 集中于现在时、格标记（主/宾/与/属/方位/离格）、简单句；A2 引入过去时与将来时；B1 引入关系从句与名物化；B2 涉及语篇衔接与语体变化。
   3. **语用真实性**：表达与对话应反映目标语真实使用场景（如 `Buyurun` 的多重语用功能），避免翻译腔。

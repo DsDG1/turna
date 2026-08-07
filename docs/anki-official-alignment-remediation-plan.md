@@ -498,6 +498,8 @@ UI 提供与现代 Anki 类似的更新选项：
 
 ## 12. 代码修改清单
 
+> 注：本节为改造前的计划清单；P0–P3 核心项已实施（见 §18 实施记录），实际落地模块名以 §18 与代码为准。
+
 ### P0：立即止损
 
 `lib/application/anki/anki_card_adapter.dart`
@@ -540,13 +542,13 @@ UI 提供与现代 Anki 类似的更新选项：
 - 建立 `card_id/note_id/did/guid` 索引；
 - schema migration 必须可回滚并保留旧数据。
 
-新增：
+新增（实际落地模块，详见 §18）：
 
-- `anki_import_validator.dart`
-- `anki_import_issue.dart`
-- `anki_import_transaction.dart`
-- `anki_answer_key_parser.dart`
-- `anki_practice_classifier.dart`
+- `lib/application/anki/anki_compatibility_diagnostics.dart`（兼容性诊断 + issue 记录，替代计划中的 validator/issue 独立模块）
+- `lib/application/anki/anki_deck_manager.dart`（牌组管理与恢复）
+- `lib/application/anki/anki_import_cleanup_service.dart`（导入暂存清理）
+- `anki_import_issues` 表（`lib/data/course_database.dart`）
+- 答案键解析与练习分类逻辑内联于 `anki_card_adapter.dart`（P0 拆出，未单列文件）
 
 ### P2：虚拟课程索引
 

@@ -17,7 +17,7 @@ assets/courses/<lang>/
     ...
 ```
 
-Swahili default: `assets/courses/swahili/`.
+Turkish default: `assets/courses/turkish/`.
 
 ### `index.json`
 
@@ -25,7 +25,7 @@ Swahili default: `assets/courses/swahili/`.
 - `sections[]`: `{ id, name, description, level?, prerequisiteSectionIds, file }`
 - `file` is relative to the course dir (e.g. `sections/section1.json`).
 
-Composite reseed key is `indexVersion+expressionsVersion` (see ADR 0002).
+Composite reseed key is `indexVersion+expressionsVersion`.
 
 ### Section file
 
@@ -62,18 +62,18 @@ Soft production layout for 8 sections may use unit counts like
 | L2 | lesson content JSON | open one lesson |
 
 Authors always edit **full** content in the JSON files. The L1/L2 split is a
-**runtime** concern only (ADR 0019).
+**runtime** concern only.
 
 ## Validate before commit
 
 ```bash
 # Human-readable
-python3 tool/course_cli.py validate --course-dir assets/courses/swahili
+python tool/course_cli.py validate --course-dir assets/courses/turkish
 
 # Machine-readable (GUI / CI)
-python3 tool/course_cli.py validate --format json --course-dir assets/courses/swahili
+python tool/course_cli.py validate --format json --course-dir assets/courses/turkish
 
-python3 tool/course_cli.py lint --course-dir assets/courses/swahili
+python tool/course_cli.py lint --course-dir assets/courses/turkish
 ```
 
 Exit code `0` = ok; non-zero = errors. JSON shape:
@@ -95,8 +95,8 @@ Also: `flutter test` runs Dart validators so Python/Dart rules stay aligned.
 1. Edit only the touched `sections/*.json` (and vocab/expressions/grammar if needed).
 2. Run `validate` + `lint`.
 3. **Bump** `index.json` `version` (and `expressions.json` version if that file changed).
-4. Optional: `python3 tool/export_content_inventory.py` for scale report.
-5. Commit; app users reseed via ADR 0002 prompt when the composite version changes.
+4. Optional: `python tool/export_content_inventory.py` for scale report.
+5. Commit; app users reseed via the content-update prompt when the composite version changes.
 
 ## Forbidden
 

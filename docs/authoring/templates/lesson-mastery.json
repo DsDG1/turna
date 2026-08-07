@@ -15,7 +15,7 @@
             "runtimeType": "multipleChoice",
             "id": "mc-1",
             "prompt": "Pick the greeting",
-            "options": ["Jambo", "Asante", "Kwaheri"],
+            "options": ["Merhaba", "Teşekkürler", "Hoşça kal"],
             "correctIndex": 0
           }
         ]

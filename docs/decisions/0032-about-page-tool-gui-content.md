@@ -106,7 +106,7 @@ _LinkTile(
 python -m tool.gui.src.main
 ```
 
-详见 [`tool/gui/README.md`](./tool/gui/README.md) 与 [`docs/authoring/gui-course-editor.md`](./docs/authoring/gui-course-editor.md)。
+详见 [`tool/gui/README.md`](./tool/gui/README.md) 与 [`docs/project-guide.md`](./docs/project-guide.md) §11。
 ```
 
 ## 6. 验收

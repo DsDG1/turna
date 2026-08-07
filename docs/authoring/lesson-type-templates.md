@@ -7,8 +7,8 @@
 > 所有 JSON 编写完成后必须运行：
 >
 > ```bash
-> python3 tool/course_cli.py validate --course-dir assets/courses/swahili
-> python3 tool/course_cli.py lint --course-dir assets/courses/swahili
+> python tool/course_cli.py validate --course-dir assets/courses/turkish
+> python tool/course_cli.py lint --course-dir assets/courses/turkish
 > ```
 
 ---
@@ -51,8 +51,8 @@
 
 ```json
 {
-  "id": "l-u1-intro-jambo",
-  "name": "Jambo",
+  "id": "l-u1-intro-merhaba",
+  "name": "Merhaba",
   "description": "学习基础问候语",
   "type": "normal",
   "template": "intro",
@@ -69,8 +69,8 @@
             "items": [
               {
                 "runtimeType": "showWord",
-                "id": "sw-jambo",
-                "wordId": "w-jambo"
+                "id": "sw-merhaba",
+                "wordId": "w-merhaba"
               }
             ]
           }
@@ -86,8 +86,8 @@
             "items": [
               {
                 "runtimeType": "multipleChoice",
-                "id": "mc-jambo",
-                "prompt": "What does 'Jambo' mean?",
+                "id": "mc-merhaba",
+                "prompt": "What does 'Merhaba' mean?",
                 "options": ["Hello", "Goodbye", "Thanks"],
                 "correctAnswer": "Hello"
               }
@@ -142,7 +142,7 @@
   "description": "练习听辨问候语",
   "type": "listening",
   "template": "listening",
-  "prerequisiteLessonIds": ["l-u1-intro-jambo"],
+  "prerequisiteLessonIds": ["l-u1-intro-merhaba"],
   "content": {
     "listeningPhases": [
       {
@@ -153,10 +153,10 @@
           {
             "runtimeType": "listenAndPick",
             "id": "lp-word-1",
-            "audioAsset": "sounds/swahili/jambo.mp3",
+            "audioAsset": "sounds/turkish/merhaba.mp3",
             "prompt": "What do you hear?",
-            "options": ["Jambo", "Asante", "Kwaheri"],
-            "correctAnswer": "Jambo"
+            "options": ["Merhaba", "Teşekkürler", "Hoşça kal"],
+            "correctAnswer": "Merhaba"
           }
         ]
       },
@@ -164,8 +164,8 @@
         "id": "lp-dialogue",
         "name": "Dialogue",
         "type": "dialogue",
-        "audioAsset": "sounds/swahili/dialogue_greetings.mp3",
-        "transcript": "A: Jambo! B: Jambo, habari?",
+        "audioAsset": "sounds/turkish/dialogue_greetings.mp3",
+        "transcript": "A: Merhaba! B: Merhaba, nasılsın?",
         "items": [
           {
             "runtimeType": "multipleChoice",
@@ -180,7 +180,7 @@
         "id": "lp-summary",
         "name": "Summary",
         "type": "summary",
-        "audioAsset": "sounds/swahili/summary_greetings.mp3",
+        "audioAsset": "sounds/turkish/summary_greetings.mp3",
         "transcript": "Today we learned common greetings."
       }
     ]
@@ -231,10 +231,10 @@
   "content": {
     "readingPassage": {
       "id": "rp-market",
-      "title": "Sokoni",
+      "title": "Pazarda",
       "paragraphs": [
-        "Leo ni Jumatatu. Anna anaenda sokoni.",
-        "Ananunua matunda na mboga. Mbili za parachichi ni shilingi mia moja."
+        "Bugün Pazartesi. Anna pazara gidiyor.",
+        "Meyve ve sebze alıyor. İki avokado yüz lira."
       ],
       "source": "Adapted from A1 reader"
     },
@@ -304,7 +304,7 @@
   "description": "复习第 1 单元的基础问候语",
   "type": "review",
   "template": "review",
-  "prerequisiteLessonIds": ["l-u1-intro-jambo", "l-u1-intro-asante"],
+  "prerequisiteLessonIds": ["l-u1-intro-merhaba", "l-u1-intro-tesekkurler"],
   "content": {
     "subLessons": [
       {
@@ -319,8 +319,8 @@
                 "runtimeType": "multipleChoice",
                 "id": "rv-1",
                 "prompt": "How do you say 'Thank you'?",
-                "options": ["Jambo", "Asante", "Kwaheri"],
-                "correctAnswer": "Asante"
+                "options": ["Merhaba", "Teşekkürler", "Hoşça kal"],
+                "correctAnswer": "Teşekkürler"
               }
             ]
           }
@@ -374,8 +374,8 @@
   "type": "challenge",
   "template": "mastery",
   "prerequisiteLessonIds": [
-    "l-u1-intro-jambo",
-    "l-u1-intro-asante",
+    "l-u1-intro-merhaba",
+    "l-u1-intro-tesekkurler",
     "l-u1-review-basics"
   ],
   "content": {
@@ -388,13 +388,13 @@
             "runtimeType": "translateSentence",
             "id": "ch-1",
             "source": "Hello, how are you?",
-            "expected": "Jambo, habari?"
+            "expected": "Merhaba, nasılsın?"
           },
           {
             "runtimeType": "fillBlank",
             "id": "ch-2",
-            "sentence": "_____, asante sana.",
-            "answer": "Jambo"
+            "sentence": "_____, çok teşekkürler.",
+            "answer": "Merhaba"
           }
         ]
       }
