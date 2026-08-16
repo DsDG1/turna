@@ -1,5 +1,6 @@
 // Dart imports:
 import 'dart:convert';
+import 'dart:isolate';
 
 // Project imports:
 import 'package:turna/application/anki_official/spike/official_anki_spike_ffi.dart';
@@ -11,6 +12,11 @@ abstract class OfficialAnkiSpikeEngine {
   OfficialAnkiSpikeSnapshot probe();
 
   Future<OfficialAnkiSpikeSnapshot> probeCollection(OfficialAnkiOpenRequest request);
+
+  Future<OfficialAnkiSpikeSnapshot> importPackage({
+    required OfficialAnkiOpenRequest collection,
+    required String packagePath,
+  });
 }
 
 class FfiOfficialAnkiSpikeEngine implements OfficialAnkiSpikeEngine {
@@ -86,6 +92,123 @@ class FfiOfficialAnkiSpikeEngine implements OfficialAnkiSpikeEngine {
       return _ok(
         ffi: ffi,
         lastOperation: 'engine_close',
+        handle: handle,
+        state: OfficialAnkiSpikeCollectionState.closed,
+      );
+    });
+  }
+
+  @override
+  Future<OfficialAnkiSpikeSnapshot> importPackage({
+    required OfficialAnkiOpenRequest collection,
+    required String packagePath,
+  }) {
+    try {
+      collection.validate();
+      _validatePackagePath(packagePath);
+    } on OfficialAnkiSpikeError catch (error) {
+      return Future.value(
+        OfficialAnkiSpikeSnapshot(
+          libraryLoaded: false,
+          backendCommit: kOfficialAnkiBackendCommit,
+          contractVersion: kOfficialAnkiSpikeContractVersion,
+          collectionState: OfficialAnkiSpikeCollectionState.uninitialized,
+          lastOperation: 'validate_paths',
+          lastError: error,
+        ),
+      );
+    }
+    OfficialAnkiSpikeSnapshot runImport() {
+      return _run((ffi) {
+        final created = _requireOk(ffi, 'engine_new', ffi.createEngine());
+        final handle = decodeTurnaAnkiHandle(ffi.takeBuffer(created));
+        final openPayload = utf8.encode(jsonEncode(collection.toJson()));
+        _requireOkAndFree(
+          ffi,
+          'open_collection',
+          ffi.openCollection(handle, openPayload),
+        );
+        final importPayload = utf8.encode(
+          jsonEncode(<String, Object>{
+            'package_path': packagePath,
+            'with_scheduling': true,
+            'with_deck_configs': true,
+          }),
+        );
+        _requireOkAndFree(
+          ffi,
+          'import_package',
+          ffi.call(
+            handle,
+            OfficialAnkiSpikeOperation.importPackage,
+            importPayload,
+          ),
+        );
+        _requireOkAndFree(
+          ffi,
+          'close_collection',
+          ffi.call(handle, OfficialAnkiSpikeOperation.closeCollection),
+        );
+        _requireOkAndFree(ffi, 'engine_close', ffi.closeEngine(handle));
+        return _ok(
+          ffi: ffi,
+          lastOperation: 'import_package',
+          handle: handle,
+          state: OfficialAnkiSpikeCollectionState.closed,
+        );
+      });
+    }
+
+    if (openLibrary != null) {
+      return Future<OfficialAnkiSpikeSnapshot>.value(runImport());
+    }
+    final android = isAndroid;
+    return Isolate.run(() {
+      return FfiOfficialAnkiSpikeEngine(isAndroid: android).importOnThisIsolate(
+        collection: collection,
+        packagePath: packagePath,
+      );
+    });
+  }
+
+  OfficialAnkiSpikeSnapshot importOnThisIsolate({
+    required OfficialAnkiOpenRequest collection,
+    required String packagePath,
+  }) {
+    return _run((ffi) {
+      final created = _requireOk(ffi, 'engine_new', ffi.createEngine());
+      final handle = decodeTurnaAnkiHandle(ffi.takeBuffer(created));
+      final openPayload = utf8.encode(jsonEncode(collection.toJson()));
+      _requireOkAndFree(
+        ffi,
+        'open_collection',
+        ffi.openCollection(handle, openPayload),
+      );
+      final importPayload = utf8.encode(
+        jsonEncode(<String, Object>{
+          'package_path': packagePath,
+          'with_scheduling': true,
+          'with_deck_configs': true,
+        }),
+      );
+      _requireOkAndFree(
+        ffi,
+        'import_package',
+        ffi.call(
+          handle,
+          OfficialAnkiSpikeOperation.importPackage,
+          importPayload,
+        ),
+      );
+      _requireOkAndFree(
+        ffi,
+        'close_collection',
+        ffi.call(handle, OfficialAnkiSpikeOperation.closeCollection),
+      );
+      _requireOkAndFree(ffi, 'engine_close', ffi.closeEngine(handle));
+      return _ok(
+        ffi: ffi,
+        lastOperation: 'import_package',
         handle: handle,
         state: OfficialAnkiSpikeCollectionState.closed,
       );
@@ -212,5 +335,26 @@ class FakeOfficialAnkiSpikeEngine implements OfficialAnkiSpikeEngine {
   ) async {
     request.validate();
     return collectionSnapshot ?? snapshot;
+  }
+
+  @override
+  Future<OfficialAnkiSpikeSnapshot> importPackage({
+    required OfficialAnkiOpenRequest collection,
+    required String packagePath,
+  }) async {
+    collection.validate();
+    _validatePackagePath(packagePath);
+    return collectionSnapshot ?? snapshot;
+  }
+}
+
+void _validatePackagePath(String packagePath) {
+  final absolute = packagePath.startsWith('/') ||
+      (packagePath.length > 2 && packagePath[1] == ':');
+  if (!absolute) {
+    throw const OfficialAnkiSpikeError(
+      code: OfficialAnkiSpikeErrorCode.invalidArgument,
+      message: 'package path must be absolute',
+    );
   }
 }

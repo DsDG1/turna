@@ -3,13 +3,16 @@
 use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use anki::collection::CollectionBuilder;
 use anki::collection::Collection;
+use anki::collection::CollectionBuilder;
+use anki::scheduler::states::SchedulingStates;
+use anki::ProgressState;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -22,10 +25,37 @@ pub const STATUS_INVALID_STATE: i32 = 16;
 pub const STATUS_COLLECTION_ALREADY_OPEN: i32 = 17;
 pub const STATUS_COLLECTION_LOCKED: i32 = 18;
 pub const STATUS_COLLECTION_OPEN_FAILED: i32 = 19;
+pub const STATUS_PACKAGE_NOT_FOUND: i32 = 20;
+pub const STATUS_PACKAGE_INVALID: i32 = 21;
+pub const STATUS_IMPORT_CANCELLED: i32 = 22;
+pub const STATUS_CARD_NOT_FOUND: i32 = 23;
+pub const STATUS_RENDER_FAILED: i32 = 24;
+pub const STATUS_QUEUE_EMPTY: i32 = 25;
+pub const STATUS_SCHEDULING_CONTEXT_STALE: i32 = 26;
+pub const STATUS_ANSWER_FAILED: i32 = 27;
+pub const STATUS_UNDO_UNAVAILABLE: i32 = 28;
+pub const STATUS_IO_ERROR: i32 = 29;
+pub const STATUS_COLLECTION_CORRUPT: i32 = 30;
+pub const STATUS_CONTRACT_VERSION_MISMATCH: i32 = 31;
+pub const STATUS_INTERNAL_ERROR: i32 = 32;
 
 pub const OP_OPEN_COLLECTION: u32 = 2;
 pub const OP_CLOSE_COLLECTION: u32 = 3;
 pub const OP_CHECK_COLLECTION: u32 = 4;
+pub const OP_IMPORT_PACKAGE: u32 = 5;
+pub const OP_LATEST_PROGRESS: u32 = 6;
+pub const OP_CANCEL_OPERATION: u32 = 7;
+pub const OP_LIST_DECK_TREE: u32 = 8;
+pub const OP_SEARCH_CARDS: u32 = 9;
+pub const OP_RENDER_CARD: u32 = 10;
+pub const OP_SET_CURRENT_DECK: u32 = 11;
+pub const OP_GET_REVIEW_QUEUE: u32 = 12;
+pub const OP_DESCRIBE_NEXT_STATES: u32 = 13;
+pub const OP_ANSWER_CARD: u32 = 14;
+pub const OP_GET_UNDO_STATUS: u32 = 15;
+pub const OP_UNDO: u32 = 16;
+
+pub const MAX_REQUEST_BYTES: usize = 1_048_576;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EngineState {
@@ -50,10 +80,19 @@ pub struct LifecycleResponse {
     pub created: Option<bool>,
 }
 
+pub struct AnswerToken {
+    pub session: u64,
+    pub card_id: i64,
+    pub states: SchedulingStates,
+}
+
 pub struct Engine {
-    state: EngineState,
-    collection: Option<Collection>,
-    collection_path: Option<PathBuf>,
+    pub state: EngineState,
+    pub collection: Option<Collection>,
+    pub collection_path: Option<PathBuf>,
+    pub session: u64,
+    pub next_token: u64,
+    pub tokens: HashMap<u64, AnswerToken>,
 }
 
 impl Engine {
@@ -62,16 +101,31 @@ impl Engine {
             state: EngineState::Created,
             collection: None,
             collection_path: None,
+            session: 1,
+            next_token: 1,
+            tokens: HashMap::new(),
+        }
+    }
+
+    pub fn invalidate_tokens(&mut self) {
+        self.tokens.clear();
+        self.session = self.session.wrapping_add(1);
+        if self.session == 0 {
+            self.session = 1;
         }
     }
 }
 
-static NEXT_HANDLE: AtomicU64 = AtomicU64::new(1);
-static REGISTRY: Mutex<Option<HashMap<u64, Arc<Mutex<Engine>>>>> = Mutex::new(None);
+pub struct EngineSlot {
+    pub engine: Mutex<Engine>,
+    pub progress: Arc<Mutex<ProgressState>>,
+    pub busy: AtomicBool,
+}
 
-fn with_registry<T>(
-    f: impl FnOnce(&mut HashMap<u64, Arc<Mutex<Engine>>>) -> T,
-) -> Result<T, i32> {
+static NEXT_HANDLE: AtomicU64 = AtomicU64::new(1);
+static REGISTRY: Mutex<Option<HashMap<u64, Arc<EngineSlot>>>> = Mutex::new(None);
+
+fn with_registry<T>(f: impl FnOnce(&mut HashMap<u64, Arc<EngineSlot>>) -> T) -> Result<T, i32> {
     let mut guard = REGISTRY.lock().map_err(|_| STATUS_BACKEND_PANIC)?;
     let map = guard.get_or_insert_with(HashMap::new);
     Ok(f(map))
@@ -80,17 +134,27 @@ fn with_registry<T>(
 pub fn alloc_engine() -> Result<u64, i32> {
     let handle = NEXT_HANDLE.fetch_add(1, Ordering::Relaxed);
     with_registry(|map| {
-        map.insert(handle, Arc::new(Mutex::new(Engine::new())));
+        map.insert(
+            handle,
+            Arc::new(EngineSlot {
+                engine: Mutex::new(Engine::new()),
+                progress: Arc::new(Mutex::new(ProgressState::default())),
+                busy: AtomicBool::new(false),
+            }),
+        );
     })?;
     Ok(handle)
 }
 
-fn engine_arc(handle: u64) -> Result<Arc<Mutex<Engine>>, i32> {
+pub fn slot(handle: u64) -> Result<Arc<EngineSlot>, i32> {
     if handle == 0 {
         return Err(STATUS_INVALID_HANDLE);
     }
-    with_registry(|map| map.get(&handle).cloned())?
-        .ok_or(STATUS_INVALID_HANDLE)
+    with_registry(|map| map.get(&handle).cloned())?.ok_or(STATUS_INVALID_HANDLE)
+}
+
+fn engine_arc(handle: u64) -> Result<Arc<EngineSlot>, i32> {
+    slot(handle)
 }
 
 pub fn engine_exists(handle: u64) -> Result<bool, i32> {
@@ -101,10 +165,33 @@ pub fn engine_exists(handle: u64) -> Result<bool, i32> {
 }
 
 pub fn free_engine(handle: u64) -> Result<(), i32> {
-    let arc = with_registry(|map| map.remove(&handle))?.ok_or(STATUS_INVALID_HANDLE)?;
-    let mut engine = arc.lock().map_err(|_| STATUS_BACKEND_PANIC)?;
+    let slot = with_registry(|map| map.remove(&handle))?.ok_or(STATUS_INVALID_HANDLE)?;
+    let mut engine = slot.engine.lock().map_err(|_| STATUS_BACKEND_PANIC)?;
     close_collection_inner(&mut engine)?;
     Ok(())
+}
+
+pub struct BusyGuard<'a> {
+    flag: &'a AtomicBool,
+}
+
+impl<'a> BusyGuard<'a> {
+    pub fn acquire(slot: &'a EngineSlot) -> Result<Self, i32> {
+        if slot
+            .busy
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .is_err()
+        {
+            return Err(STATUS_INVALID_STATE);
+        }
+        Ok(Self { flag: &slot.busy })
+    }
+}
+
+impl Drop for BusyGuard<'_> {
+    fn drop(&mut self) {
+        self.flag.store(false, Ordering::Release);
+    }
 }
 
 pub fn open_collection(handle: u64, request: &[u8]) -> Result<LifecycleResponse, i32> {
@@ -116,22 +203,28 @@ pub fn open_collection(handle: u64, request: &[u8]) -> Result<LifecycleResponse,
         return Err(STATUS_COLLECTION_LOCKED);
     }
 
-    let arc = engine_arc(handle)?;
-    let mut engine = arc.lock().map_err(|_| STATUS_BACKEND_PANIC)?;
+    let slot = engine_arc(handle)?;
+    let mut engine = slot.engine.lock().map_err(|_| STATUS_BACKEND_PANIC)?;
     if engine.state == EngineState::Open {
         return Err(STATUS_COLLECTION_ALREADY_OPEN);
     }
 
     let existed = paths.collection.exists();
     create_parents(&paths)?;
+    {
+        let mut progress = slot.progress.lock().map_err(|_| STATUS_BACKEND_PANIC)?;
+        progress.reset();
+    }
     let built = CollectionBuilder::new(&paths.collection)
         .set_media_paths(&paths.media_folder, &paths.media_db)
         .set_check_integrity(parsed.check_integrity)
+        .set_shared_progress_state(Arc::clone(&slot.progress))
         .build()
         .map_err(|_| STATUS_COLLECTION_OPEN_FAILED)?;
     engine.collection = Some(built);
     engine.collection_path = Some(paths.collection);
     engine.state = EngineState::Open;
+    engine.invalidate_tokens();
     Ok(LifecycleResponse {
         state: "open",
         created: Some(!existed),
@@ -139,12 +232,13 @@ pub fn open_collection(handle: u64, request: &[u8]) -> Result<LifecycleResponse,
 }
 
 pub fn close_collection(handle: u64) -> Result<LifecycleResponse, i32> {
-    let arc = engine_arc(handle)?;
-    let mut engine = arc.lock().map_err(|_| STATUS_BACKEND_PANIC)?;
+    let slot = engine_arc(handle)?;
+    let mut engine = slot.engine.lock().map_err(|_| STATUS_BACKEND_PANIC)?;
     if engine.state != EngineState::Open {
         return Err(STATUS_INVALID_STATE);
     }
     close_collection_inner(&mut engine)?;
+    engine.invalidate_tokens();
     Ok(LifecycleResponse {
         state: "closed",
         created: None,
@@ -152,8 +246,8 @@ pub fn close_collection(handle: u64) -> Result<LifecycleResponse, i32> {
 }
 
 pub fn check_collection(handle: u64) -> Result<LifecycleResponse, i32> {
-    let arc = engine_arc(handle)?;
-    let engine = arc.lock().map_err(|_| STATUS_BACKEND_PANIC)?;
+    let slot = engine_arc(handle)?;
+    let engine = slot.engine.lock().map_err(|_| STATUS_BACKEND_PANIC)?;
     match engine.state {
         EngineState::Open => Ok(LifecycleResponse {
             state: "open",
@@ -163,20 +257,20 @@ pub fn check_collection(handle: u64) -> Result<LifecycleResponse, i32> {
     }
 }
 
-pub fn dispatch(handle: u64, operation: u32, request: &[u8]) -> Result<LifecycleResponse, i32> {
-    match operation {
-        OP_OPEN_COLLECTION => open_collection(handle, request),
-        OP_CLOSE_COLLECTION => close_collection(handle),
-        OP_CHECK_COLLECTION => check_collection(handle),
-        _ => {
-            let arc = engine_arc(handle)?;
-            let engine = arc.lock().map_err(|_| STATUS_BACKEND_PANIC)?;
-            if engine.state != EngineState::Open && operation != 0 {
-                return Err(STATUS_INVALID_STATE);
-            }
-            Err(STATUS_UNIMPLEMENTED)
-        }
+pub fn dispatch(handle: u64, operation: u32, request: &[u8]) -> Result<serde_json::Value, i32> {
+    if request.len() > MAX_REQUEST_BYTES {
+        return Err(STATUS_INVALID_ARGUMENT);
     }
+    match operation {
+        OP_OPEN_COLLECTION => to_json(open_collection(handle, request)?),
+        OP_CLOSE_COLLECTION => to_json(close_collection(handle)?),
+        OP_CHECK_COLLECTION => to_json(check_collection(handle)?),
+        other => crate::ops::dispatch_op(handle, other, request),
+    }
+}
+
+fn to_json<T: Serialize>(value: T) -> Result<serde_json::Value, i32> {
+    serde_json::to_value(value).map_err(|_| STATUS_BACKEND_PANIC)
 }
 
 fn close_collection_inner(engine: &mut Engine) -> Result<(), i32> {
@@ -230,8 +324,8 @@ fn path_open_elsewhere(self_handle: u64, collection: &Path) -> Result<bool, i32>
             .map(|(_, arc)| Arc::clone(arc))
             .collect::<Vec<_>>()
     })?;
-    for arc in others {
-        let engine = arc.lock().map_err(|_| STATUS_BACKEND_PANIC)?;
+    for slot in others {
+        let engine = slot.engine.lock().map_err(|_| STATUS_BACKEND_PANIC)?;
         if engine.state == EngineState::Open
             && engine
                 .collection_path

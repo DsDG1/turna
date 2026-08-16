@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -62,6 +63,36 @@ void main() {
         ).code,
         OfficialAnkiSpikeErrorCode.collectionOpenFailed,
       );
+      expect(
+        errorFromNativeStatus(OfficialAnkiSpikeNativeStatus.packageNotFound)
+            .code,
+        OfficialAnkiSpikeErrorCode.packageNotFound,
+      );
+      expect(
+        errorFromNativeStatus(OfficialAnkiSpikeNativeStatus.packageInvalid)
+            .code,
+        OfficialAnkiSpikeErrorCode.packageInvalid,
+      );
+      expect(
+        errorFromNativeStatus(OfficialAnkiSpikeNativeStatus.importCancelled)
+            .code,
+        OfficialAnkiSpikeErrorCode.importCancelled,
+      );
+      expect(
+        errorFromNativeStatus(
+          OfficialAnkiSpikeNativeStatus.schedulingContextStale,
+        ).code,
+        OfficialAnkiSpikeErrorCode.schedulingContextStale,
+      );
+      expect(
+        errorFromNativeStatus(OfficialAnkiSpikeNativeStatus.undoUnavailable)
+            .code,
+        OfficialAnkiSpikeErrorCode.undoUnavailable,
+      );
+      expect(
+        errorFromNativeStatus(OfficialAnkiSpikeNativeStatus.backendPanic).code,
+        OfficialAnkiSpikeErrorCode.backendPanic,
+      );
     });
 
     test('maps missing-library load failures', () {
@@ -106,6 +137,24 @@ void main() {
         ),
       );
       expect(snapshot.libraryLoaded, isFalse);
+      expect(snapshot.lastOperation, 'validate_paths');
+      expect(
+        snapshot.lastError?.code,
+        OfficialAnkiSpikeErrorCode.invalidArgument,
+      );
+    });
+
+    test('rejects a relative package path before opening the library', () async {
+      final snapshot = await FfiOfficialAnkiSpikeEngine(
+        isAndroid: true,
+        openLibrary: (_) => throw StateError('library must not be opened'),
+      ).importPackage(
+        collection: OfficialAnkiOpenRequest.isolated(
+          supportDirectory: '/tmp/support',
+          runId: 'import-1',
+        ),
+        packagePath: 'relative.apkg',
+      );
       expect(snapshot.lastOperation, 'validate_paths');
       expect(
         snapshot.lastError?.code,
@@ -289,6 +338,35 @@ void main() {
         find.text('collection last error', skipOffstage: false),
         findsOneWidget,
       );
+    });
+  });
+
+  group('Dart spike contract', () {
+    test('does not parse package ZIP/SQLite/protobuf', () {
+      final root = Directory('lib/application/anki_official/spike');
+      final sources = root
+          .listSync()
+          .whereType<File>()
+          .where((file) => file.path.endsWith('.dart'))
+          .toList();
+      expect(sources, isNotEmpty);
+      final banned = <String>[
+        'package:sqlite3',
+        'package:archive',
+        'ZipDecoder',
+        'anki_proto',
+        'package:protobuf',
+      ];
+      for (final file in sources) {
+        final text = file.readAsStringSync();
+        for (final needle in banned) {
+          expect(
+            text.contains(needle),
+            isFalse,
+            reason: '${file.path} must not contain $needle',
+          );
+        }
+      }
     });
   });
 }

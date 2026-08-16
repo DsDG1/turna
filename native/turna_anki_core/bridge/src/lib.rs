@@ -5,6 +5,7 @@
 
 mod abi;
 mod engine;
+mod ops;
 
 pub use abi::turna_anki_buffer_free;
 pub use abi::turna_anki_call;

@@ -54,7 +54,7 @@ fn err(status: i32) -> TurnaAnkiResult {
     }
 }
 
-fn encode_ok(response: engine::LifecycleResponse) -> TurnaAnkiResult {
+fn encode_ok(response: serde_json::Value) -> TurnaAnkiResult {
     match serde_json::to_vec(&response) {
         Ok(bytes) => ok_bytes(bytes),
         Err(_) => err(STATUS_BACKEND_PANIC),
@@ -110,7 +110,10 @@ pub extern "C" fn turna_anki_engine_open(
 ) -> TurnaAnkiResult {
     guard(|| match request_bytes(request, request_len) {
         Ok(bytes) => match engine::open_collection(handle, bytes) {
-            Ok(response) => encode_ok(response),
+            Ok(response) => match serde_json::to_value(response) {
+                Ok(value) => encode_ok(value),
+                Err(_) => err(STATUS_BACKEND_PANIC),
+            },
             Err(status) => err(status),
         },
         Err(status) => err(status),
@@ -135,9 +138,8 @@ pub extern "C" fn turna_anki_call(
 
 #[no_mangle]
 pub extern "C" fn turna_anki_cancel(handle: u64) -> TurnaAnkiResult {
-    guard(|| match engine::engine_exists(handle) {
-        Ok(true) => err(STATUS_UNIMPLEMENTED),
-        Ok(false) => err(STATUS_INVALID_HANDLE),
+    guard(|| match crate::ops::request_cancel(handle) {
+        Ok(value) => encode_ok(value),
         Err(status) => err(status),
     })
 }

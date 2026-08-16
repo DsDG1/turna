@@ -19,12 +19,37 @@ abstract final class OfficialAnkiSpikeNativeStatus {
   static const int collectionAlreadyOpen = 17;
   static const int collectionLocked = 18;
   static const int collectionOpenFailed = 19;
+  static const int packageNotFound = 20;
+  static const int packageInvalid = 21;
+  static const int importCancelled = 22;
+  static const int cardNotFound = 23;
+  static const int renderFailed = 24;
+  static const int queueEmpty = 25;
+  static const int schedulingContextStale = 26;
+  static const int answerFailed = 27;
+  static const int undoUnavailable = 28;
+  static const int ioError = 29;
+  static const int collectionCorrupt = 30;
+  static const int contractVersionMismatch = 31;
+  static const int internalError = 32;
 }
 
 abstract final class OfficialAnkiSpikeOperation {
   static const int openCollection = 2;
   static const int closeCollection = 3;
   static const int checkCollection = 4;
+  static const int importPackage = 5;
+  static const int latestProgress = 6;
+  static const int cancelOperation = 7;
+  static const int listDeckTree = 8;
+  static const int searchCards = 9;
+  static const int renderCard = 10;
+  static const int setCurrentDeck = 11;
+  static const int getReviewQueue = 12;
+  static const int describeNextStates = 13;
+  static const int answerCard = 14;
+  static const int getUndoStatus = 15;
+  static const int undo = 16;
 }
 
 enum OfficialAnkiSpikeErrorCode {
@@ -39,6 +64,19 @@ enum OfficialAnkiSpikeErrorCode {
   collectionAlreadyOpen,
   collectionLocked,
   collectionOpenFailed,
+  packageNotFound,
+  packageInvalid,
+  importCancelled,
+  cardNotFound,
+  renderFailed,
+  queueEmpty,
+  schedulingContextStale,
+  answerFailed,
+  undoUnavailable,
+  ioError,
+  collectionCorrupt,
+  contractVersionMismatch,
+  internalError,
   unknown,
 }
 
@@ -229,6 +267,84 @@ OfficialAnkiSpikeError errorFromNativeStatus(int status) {
         code: OfficialAnkiSpikeErrorCode.collectionOpenFailed,
         message: 'official Collection failed to open or close',
         nativeStatus: OfficialAnkiSpikeNativeStatus.collectionOpenFailed,
+      );
+    case OfficialAnkiSpikeNativeStatus.packageNotFound:
+      return const OfficialAnkiSpikeError(
+        code: OfficialAnkiSpikeErrorCode.packageNotFound,
+        message: 'package file was not found',
+        nativeStatus: OfficialAnkiSpikeNativeStatus.packageNotFound,
+      );
+    case OfficialAnkiSpikeNativeStatus.packageInvalid:
+      return const OfficialAnkiSpikeError(
+        code: OfficialAnkiSpikeErrorCode.packageInvalid,
+        message: 'package is not a valid official Anki package',
+        nativeStatus: OfficialAnkiSpikeNativeStatus.packageInvalid,
+      );
+    case OfficialAnkiSpikeNativeStatus.importCancelled:
+      return const OfficialAnkiSpikeError(
+        code: OfficialAnkiSpikeErrorCode.importCancelled,
+        message: 'import was cancelled',
+        nativeStatus: OfficialAnkiSpikeNativeStatus.importCancelled,
+      );
+    case OfficialAnkiSpikeNativeStatus.cardNotFound:
+      return const OfficialAnkiSpikeError(
+        code: OfficialAnkiSpikeErrorCode.cardNotFound,
+        message: 'card was not found',
+        nativeStatus: OfficialAnkiSpikeNativeStatus.cardNotFound,
+      );
+    case OfficialAnkiSpikeNativeStatus.renderFailed:
+      return const OfficialAnkiSpikeError(
+        code: OfficialAnkiSpikeErrorCode.renderFailed,
+        message: 'official render failed',
+        nativeStatus: OfficialAnkiSpikeNativeStatus.renderFailed,
+      );
+    case OfficialAnkiSpikeNativeStatus.queueEmpty:
+      return const OfficialAnkiSpikeError(
+        code: OfficialAnkiSpikeErrorCode.queueEmpty,
+        message: 'review queue is empty',
+        nativeStatus: OfficialAnkiSpikeNativeStatus.queueEmpty,
+      );
+    case OfficialAnkiSpikeNativeStatus.schedulingContextStale:
+      return const OfficialAnkiSpikeError(
+        code: OfficialAnkiSpikeErrorCode.schedulingContextStale,
+        message: 'answer token is stale',
+        nativeStatus: OfficialAnkiSpikeNativeStatus.schedulingContextStale,
+      );
+    case OfficialAnkiSpikeNativeStatus.answerFailed:
+      return const OfficialAnkiSpikeError(
+        code: OfficialAnkiSpikeErrorCode.answerFailed,
+        message: 'official answer failed',
+        nativeStatus: OfficialAnkiSpikeNativeStatus.answerFailed,
+      );
+    case OfficialAnkiSpikeNativeStatus.undoUnavailable:
+      return const OfficialAnkiSpikeError(
+        code: OfficialAnkiSpikeErrorCode.undoUnavailable,
+        message: 'undo is not available',
+        nativeStatus: OfficialAnkiSpikeNativeStatus.undoUnavailable,
+      );
+    case OfficialAnkiSpikeNativeStatus.ioError:
+      return const OfficialAnkiSpikeError(
+        code: OfficialAnkiSpikeErrorCode.ioError,
+        message: 'native IO failed',
+        nativeStatus: OfficialAnkiSpikeNativeStatus.ioError,
+      );
+    case OfficialAnkiSpikeNativeStatus.collectionCorrupt:
+      return const OfficialAnkiSpikeError(
+        code: OfficialAnkiSpikeErrorCode.collectionCorrupt,
+        message: 'collection failed an integrity check',
+        nativeStatus: OfficialAnkiSpikeNativeStatus.collectionCorrupt,
+      );
+    case OfficialAnkiSpikeNativeStatus.contractVersionMismatch:
+      return const OfficialAnkiSpikeError(
+        code: OfficialAnkiSpikeErrorCode.contractVersionMismatch,
+        message: 'spike contract version mismatch',
+        nativeStatus: OfficialAnkiSpikeNativeStatus.contractVersionMismatch,
+      );
+    case OfficialAnkiSpikeNativeStatus.internalError:
+      return const OfficialAnkiSpikeError(
+        code: OfficialAnkiSpikeErrorCode.internalError,
+        message: 'native internal error',
+        nativeStatus: OfficialAnkiSpikeNativeStatus.internalError,
       );
     default:
       return OfficialAnkiSpikeError(

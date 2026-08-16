@@ -1,6 +1,15 @@
 # Turna patches against pinned Anki
 
-No patches yet.
+## 0001-export-progress-state
+
+- File: `anki/rslib/src/lib.rs`
+- Change: `pub use progress::ProgressState;`
+- Why: CollectionBuilder already accepts a shared `ProgressState` so a
+  second thread can set `want_abort` during `import_apkg`. The type was
+  public inside a private module, so the external bridge could not
+  construct it. One-line re-export, no behavior change.
+- Delete when: upstream re-exports `ProgressState` or offers another
+  abort handle on Collection.
 
 If a later P0 task needs an upstream change:
 

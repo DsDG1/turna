@@ -792,13 +792,13 @@ Spike contract 可以只包含必要字段，但编号一旦进入真机测试�
 
 ### 14.6 验收
 
-- [ ] 所有小 fixture 导入成功。
-- [ ] Note/Card 数与 manifest 一致。
-- [ ] Unicode 字段 round-trip 一致。
-- [ ] Import log 分类可获得。
-- [ ] 无效 package 返回结构化错误。
-- [ ] 取消后 Collection 完整性检查通过。
-- [ ] Dart 从未读取 package 内部 SQLite/Protobuf。
+- [x] 所有小 fixture 导入成功。
+- [x] Note/Card 数与 manifest 一致。
+- [x] Unicode 字段 round-trip 一致。
+- [x] Import log 分类可获得。
+- [x] 无效 package 返回结构化错误。
+- [x] 取消后 Collection 完整性检查通过。
+- [x] Dart 从未读取 package 内部 SQLite/Protobuf。
 
 ### 14.7 预计工作量
 
@@ -873,14 +873,14 @@ message SpikeRenderedCard {
 
 ### 15.7 验收
 
-- [ ] Basic 正反面一致。
-- [ ] Reverse 两张 Card 的方向一致。
-- [ ] `FrontSide` 正确。
-- [ ] Cloze c1/c2 正确。
-- [ ] 中文、梵文、组合字符逐字一致。
-- [ ] CSS 返回且未被 Dart 重写。
-- [ ] AV tags 可分 question/answer 提取。
-- [ ] 10 万 Card 的 ID/descriptor 获取不存在 10 万次 Dart FFI。
+- [x] Basic 正反面一致。
+- [x] Reverse 两张 Card 的方向一致。
+- [x] `FrontSide` 正确。
+- [x] Cloze c1/c2 正确。
+- [x] 中文、梵文、组合字符逐字一致。
+- [x] CSS 返回且未被 Dart 重写。
+- [x] AV tags 可分 question/answer 提取。
+- [x] 10 万 Card 的 ID/descriptor 获取不存在 10 万次 Dart FFI。
 
 ### 15.8 预计工作量
 
@@ -960,14 +960,14 @@ Undo 后必须恢复到回答前的官方可观察状态。
 
 ### 16.6 验收
 
-- [ ] Queue 可以取得 Card。
-- [ ] 四档下一状态存在。
-- [ ] 官方 next-state label 可取得。
-- [ ] Good 后 Card 状态改变。
-- [ ] revlog 增加。
-- [ ] Undo 后 Card 和 revlog 恢复。
-- [ ] 重启 Collection 后状态持久。
-- [ ] stale answer 被拒绝，不错误评分下一张卡。
+- [x] Queue 可以取得 Card。
+- [x] 四档下一状态存在。
+- [x] 官方 next-state label 可取得。
+- [x] Good 后 Card 状态改变。
+- [x] revlog 增加。
+- [x] Undo 后 Card 和 revlog 恢复。
+- [x] 重启 Collection 后状态持久。
+- [x] stale answer 被拒绝，不错误评分下一张卡。
 
 ### 16.7 预计工作量
 
@@ -1055,12 +1055,12 @@ INTERNAL_ERROR
 
 ### 17.7 验收
 
-- [ ] UI isolate 流畅性有实际证据。
-- [ ] 取消可观察且不会立即假报成功。
-- [ ] Collection 在取消后通过检查。
-- [ ] FFI panic 不导致进程未定义行为。
-- [ ] 所有错误有稳定 code。
-- [ ] 错误日志不泄露完整卡片内容。
+- [x] UI isolate 流畅性有实际证据。
+- [x] 取消可观察且不会立即假报成功。
+- [x] Collection 在取消后通过检查。
+- [x] FFI panic 不导致进程未定义行为。
+- [x] 所有错误有稳定 code。
+- [x] 错误日志不泄露完整卡片内容。
 
 ### 17.8 预计工作量
 
@@ -1142,11 +1142,11 @@ ABI split result
 
 ### 18.7 验收
 
-- [ ] 所有指标有原始记录。
-- [ ] 基线与接入后使用同一构建模式比较。
-- [ ] 指标区分 debug/release。
-- [ ] 无只报告平均值而隐藏 p95/p99。
-- [ ] 100k 测试成功或有明确 No-Go 证据。
+- [x] 所有指标有原始记录。
+- [x] 基线与接入后使用同一构建模式比较。
+- [x] 指标区分 debug/release。
+- [x] 无只报告平均值而隐藏 p95/p99。
+- [x] 100k 测试成功或有明确 No-Go 证据。
 
 ### 18.8 预计工作量
 

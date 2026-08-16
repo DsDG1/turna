@@ -1,6 +1,6 @@
 # Phase 0 结果报告
 
-> 状态：进行中（P0-000～P0-006；P0-004 真机仍缺）  
+> 状态：进行中（P0-000～P0-011 已落地；P0-004 真机仍缺；P0-012/013 未做）  
 > 分支：`spike/official-anki-core-android`  
 > 起始日期：2026-08-16
 
@@ -263,22 +263,86 @@ flutter analyze lib/application/anki_official test/application/anki_official
 
 ## 11. 生产路径
 
-未修改：
+本 spike 提交未改生产 Anki 入口，也未加入 Legacy fallback：
 
-- `lib/views/anki/anki_import_screen.dart`
-- `lib/application/anki/anki_importer.dart`
+- `lib/views/anki/anki_import_screen.dart`（工作区里另有既有脏改，未纳入本提交）
+- `lib/application/anki/anki_importer.dart`（同上）
 - 任何 Legacy 渲染 / SRS 文件
 
-## 12. 每日记录
+Dart spike 源码测试禁止 `package:sqlite3` / `package:archive` / `ZipDecoder` /
+`anki_proto` / `package:protobuf`。
+
+## 12. 导入 / 渲染 / 调度 / 取消（P0-007～P0-010）
+
+Host `cargo test --lib`：19 passed（含下列场景，不是 skip）：
+
+- `import_all_small_fixtures_matches_manifest_and_unicode`
+- `render_goldens_match_official_html`（Basic / Reverse 两 ord / Cloze c1+c2 /
+  FrontSide+CSS / media AV）
+- `queue_good_undo_reopen_and_stale_token`
+- `cancel_import_does_not_report_success_and_collection_checks`
+- `invalid_and_missing_packages_are_structured`
+- `empty_undo_and_missing_card_are_structured`
+- `import_100k_or_record_nogo`
+
+批量 card ID 在一次 `OP_SEARCH_CARDS` 内返回，Dart 不对每张卡做 FFI。
+
+取消：第二线程写共享 `ProgressState.want_abort`；官方
+`ThrottlingProgressHandler` 在非节流更新时返回 `Interrupted`。导入成功不会被
+改写成取消。
+
+极小上游 re-export：`pub use progress::ProgressState;`
+（`patches/0001-export-progress-state.patch`）。`CollectionBuilder` 本就可接收
+共享 progress，但类型在 private module 里，外部 crate 无法构造。
+
+## 13. 性能与体积（P0-011）
+
+Host debug `cargo test`，2026-08-16，同一进程测得的原始值（不是只报平均）：
+
+| 场景 | 原始值 |
+|---|---|
+| 5k import | 297 ms；notes=5000 cards=5000 |
+| first render | 350 µs |
+| warm render ×100 | p50=66 µs，p95=96 µs，p99=121 µs |
+| queue build | 2562 µs |
+| answer Good | 11307 µs |
+| undo | 12096 µs |
+| 100k generate | 18.95 s wall，max RSS 1 056 248 KiB |
+| 100k import | 3642 ms；notes=100000 cards=100000；cargo test 过程 max RSS 1 065 504 KiB |
+
+`.so`（本轮重编，含 import/render/scheduler）：
+
+| 产物 | bytes |
+|---|---:|
+| arm64-v8a unstripped | 19 245 480 |
+| arm64-v8a llvm-strip | 16 077 904 |
+| NEEDED | libdl.so, libm.so, libc.so |
+
+上一轮 P0-003 unstripped 16 294 656；本轮功能变多后 unstripped +2 950 824。
+
+APK / 真机（未发明数字）：
+
+```text
+flutter build apk --release --split-per-abi --target-platform android-arm64
+Error resolving plugin [id: 'dev.flutter.flutter-plugin-loader', version: '1.0.0']
+> 25.0.2
+adb devices → no devices attached
+```
+
+因此没有 with-core APK 体积对，也没有设备矩阵。这是环境失败，不是 host 指标失败。
+100k 在 host 上完成，不是 No-Go。
+
+## 14. 每日记录
 
 ### 2026-08-16
 
-- 完成任务：P0-000～P0-006（P0-004 真机 APK 仍缺）
-- 当前任务：P0-006 Collection 生命周期（Dart 页与测试已接完）
-- 实际命令：见 §5–§10
-- 新增事实：官方 Collection 可在 host 上 open/close/reopen；100 次循环 FD 无持续增长；Dart 路径隔离在 `anki-spike/<run-id>/`
-- 失败：官方 export 非 bit-stable（SHA 随 card ID 变）
-- 指标变化：无
-- 上游 API/patch 变化：无
-- 阻塞项：本机 release APK / 真机仍在
-- 下一步：P0-007 用冻结 fixture 走官方 `import_apkg`
+- 完成任务：P0-000～P0-011（P0-004 真机 APK 仍缺；P0-012/013 未做）
+- 当前任务：P0-011 测量已写入本报告
+- 实际命令：见 §5–§13
+- 新增事实：9 个小 fixture 官方 import+golden render 通过；Good/undo/reopen/stale
+  token 通过；5k/100k host import 完成；`.so` unstripped 19 245 480
+- 失败：官方 export 非 bit-stable；Gradle flutter-plugin-loader 25.0.2；无 adb
+- 指标变化：见 §13
+- 上游 API/patch 变化：1 行 `ProgressState` re-export
+- 阻塞项：release APK / 真机 DynamicLibrary.open
+- 下一步：P0-012 License 评审，或先修 P0-004 Gradle/adb
