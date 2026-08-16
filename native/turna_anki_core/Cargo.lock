@@ -3082,6 +3082,7 @@ name = "turna_anki_bridge"
 version = "0.0.1"
 dependencies = [
  "anki",
+ "anki_proto",
  "hex",
  "rusqlite",
  "serde",

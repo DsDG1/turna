@@ -59,6 +59,7 @@ pub const OP_CREATE_BACKUP: u32 = 17;
 pub const OP_SEARCH_CARDS_PAGE: u32 = 18;
 pub const OP_GET_NOTE_CARDS_BATCH: u32 = 19;
 pub const OP_GET_CARD_DESCRIPTORS_BATCH: u32 = 20;
+pub const OP_RESTORE_BACKUP: u32 = 21;
 
 pub const MAX_REQUEST_BYTES: usize = 1_048_576;
 
@@ -93,14 +94,23 @@ pub struct AnswerToken {
     pub states: SchedulingStates,
 }
 
+pub struct PageSnapshot {
+    pub generation: u64,
+    pub fingerprint: String,
+    pub ids: Arc<Vec<i64>>,
+}
+
 pub struct Engine {
     pub state: EngineState,
     pub collection: Option<Collection>,
     pub collection_path: Option<PathBuf>,
+    pub media_folder: Option<PathBuf>,
+    pub media_db: Option<PathBuf>,
     pub session: u64,
     pub next_token: u64,
     pub tokens: HashMap<u64, AnswerToken>,
     pub page_generation: u64,
+    pub page_snapshot: Option<PageSnapshot>,
     pub allowed_root: Option<PathBuf>,
 }
 
@@ -110,10 +120,13 @@ impl Engine {
             state: EngineState::Created,
             collection: None,
             collection_path: None,
+            media_folder: None,
+            media_db: None,
             session: 1,
             next_token: 1,
             tokens: HashMap::new(),
             page_generation: 1,
+            page_snapshot: None,
             allowed_root: None,
         }
     }
@@ -227,9 +240,12 @@ pub fn open_collection(handle: u64, request: &[u8]) -> Result<LifecycleResponse,
         .map_err(|_| STATUS_COLLECTION_OPEN_FAILED)?;
     engine.collection = Some(built);
     engine.collection_path = Some(paths.collection);
+    engine.media_folder = Some(paths.media_folder);
+    engine.media_db = Some(paths.media_db);
     engine.allowed_root = paths.allowed_root;
     engine.state = EngineState::Open;
     engine.page_generation = engine.page_generation.wrapping_add(1).max(1);
+    engine.page_snapshot = None;
     engine.invalidate_tokens();
     Ok(LifecycleResponse {
         state: "open",
@@ -269,6 +285,28 @@ pub fn check_collection(handle: u64) -> Result<LifecycleResponse, i32> {
 
 pub fn bump_page_generation(engine: &mut Engine) {
     engine.page_generation = engine.page_generation.wrapping_add(1).max(1);
+    engine.page_snapshot = None;
+}
+
+pub fn reopen_open_collection(engine: &mut Engine, slot: &EngineSlot) -> Result<(), i32> {
+    let collection = engine.collection_path.clone().ok_or(STATUS_INVALID_STATE)?;
+    let media_folder = engine.media_folder.clone().ok_or(STATUS_INVALID_STATE)?;
+    let media_db = engine.media_db.clone().ok_or(STATUS_INVALID_STATE)?;
+    {
+        let mut progress = slot.progress.lock().map_err(|_| STATUS_BACKEND_PANIC)?;
+        progress.reset();
+    }
+    let built = CollectionBuilder::new(&collection)
+        .set_media_paths(&media_folder, &media_db)
+        .set_shared_progress_state(Arc::clone(&slot.progress))
+        .build()
+        .map_err(|_| STATUS_COLLECTION_OPEN_FAILED)?;
+    engine.collection = Some(built);
+    engine.state = EngineState::Open;
+    engine.page_generation = engine.page_generation.wrapping_add(1).max(1);
+    engine.page_snapshot = None;
+    engine.invalidate_tokens();
+    Ok(())
 }
 
 pub fn dispatch(handle: u64, operation: u32, request: &[u8]) -> Result<serde_json::Value, i32> {
@@ -280,6 +318,7 @@ pub fn dispatch(handle: u64, operation: u32, request: &[u8]) -> Result<serde_jso
         OP_CLOSE_COLLECTION => to_json(close_collection(handle)?),
         OP_CHECK_COLLECTION => to_json(check_collection(handle)?),
         OP_CREATE_BACKUP => crate::import::create_backup(handle, request),
+        OP_RESTORE_BACKUP => crate::import::restore_backup(handle, request),
         OP_SEARCH_CARDS_PAGE => crate::query::search_cards_page(handle, request),
         OP_GET_NOTE_CARDS_BATCH => crate::query::get_note_cards_batch(handle, request),
         OP_GET_CARD_DESCRIPTORS_BATCH => crate::query::get_card_descriptors_batch(handle, request),
@@ -291,7 +330,7 @@ fn to_json<T: Serialize>(value: T) -> Result<serde_json::Value, i32> {
     serde_json::to_value(value).map_err(|_| STATUS_BACKEND_PANIC)
 }
 
-fn close_collection_inner(engine: &mut Engine) -> Result<(), i32> {
+pub(crate) fn close_collection_inner(engine: &mut Engine) -> Result<(), i32> {
     if let Some(col) = engine.collection.take() {
         col.close(None).map_err(|_| STATUS_COLLECTION_OPEN_FAILED)?;
     }

@@ -17,6 +17,7 @@ crate-type = ["cdylib", "rlib"]
 # This package is intentionally NOT a Cargo workspace: anki/rslib belongs
 # to the upstream Anki workspace and cannot be a member of ours.
 anki = { path = "anki/rslib" }
+anki_proto = { path = "anki/rslib/proto" }
 
 # Anki's workspace enables tokio features via other members (axum, sync
 # binary). Building rslib alone does not unify `io-util`, which

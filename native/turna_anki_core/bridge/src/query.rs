@@ -93,23 +93,41 @@ pub fn search_cards_page(handle: u64, request: &[u8]) -> Result<Value, i32> {
     } else {
         0
     };
-    let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
-    let mut ids = col
-        .search_cards(parsed.search.as_str(), SortMode::NoOrder)
-        .map_err(map_anki_error)?;
-    ids.sort_by_key(|id| id.0);
-    let start = ids.iter().position(|id| id.0 > after).unwrap_or(ids.len());
+    let ids = if let Some(snapshot) = engine.page_snapshot.as_ref() {
+        if snapshot.generation == generation && snapshot.fingerprint == expected_fp {
+            Some(std::sync::Arc::clone(&snapshot.ids))
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+    let ids = if let Some(ids) = ids {
+        ids
+    } else {
+        let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+        let mut found = col
+            .search_cards(parsed.search.as_str(), SortMode::NoOrder)
+            .map_err(map_anki_error)?;
+        found.sort_by_key(|id| id.0);
+        let raw: Vec<i64> = found.into_iter().map(|id| id.0).collect();
+        let arc = std::sync::Arc::new(raw);
+        engine.page_snapshot = Some(crate::engine::PageSnapshot {
+            generation,
+            fingerprint: expected_fp.clone(),
+            ids: std::sync::Arc::clone(&arc),
+        });
+        arc
+    };
+    let start = ids.iter().position(|id| *id > after).unwrap_or(ids.len());
     let end = (start + page_size).min(ids.len());
     let page = &ids[start..end];
-    let mut card_ids = Vec::with_capacity(page.len());
-    for id in page {
-        card_ids.push(id.0);
-    }
+    let card_ids = page.to_vec();
     let next = if end < ids.len() {
         Some(encode_token(&PageToken {
             generation,
             fingerprint: expected_fp,
-            after_card_id: page.last().map(|id| id.0).unwrap_or(after),
+            after_card_id: page.last().copied().unwrap_or(after),
         })?)
     } else {
         None

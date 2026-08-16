@@ -241,7 +241,7 @@ fn import_package(handle: u64, request: &[u8]) -> Result<Value, i32> {
                 "note_count": note_ids.len(),
                 "card_count": card_ids.len(),
                 "found_notes": log.found_notes,
-                "nativeImportToken": format!("imp-{handle}-{elapsed}"),
+                "operationToken": format!("op-{handle}-{elapsed}"),
             }))
         }
         Err(AnkiError::Interrupted) => Err(STATUS_IMPORT_CANCELLED),
@@ -351,7 +351,6 @@ fn render_card(handle: u64, request: &[u8]) -> Result<Value, i32> {
     let answer = rendered.answer().into_owned();
     let (q_text, q_tags) = extract_av_tags(question.clone(), true, col.tr());
     let (a_text, a_tags) = extract_av_tags(answer.clone(), false, col.tr());
-    let _ = (q_tags, a_tags);
     Ok(json!({
         "card_id": parsed.card_id,
         "question_html": question,
@@ -361,27 +360,29 @@ fn render_card(handle: u64, request: &[u8]) -> Result<Value, i32> {
         "is_empty": rendered.is_empty,
         "question_text_without_av": q_text,
         "answer_text_without_av": a_text,
-        "question_av_tags": sound_tags(&question),
-        "answer_av_tags": sound_tags(&answer),
+        "question_av_tags": q_tags.iter().map(proto_av_tag_json).collect::<Vec<_>>(),
+        "answer_av_tags": a_tags.iter().map(proto_av_tag_json).collect::<Vec<_>>(),
     }))
 }
 
-fn sound_tags(html: &str) -> Vec<Value> {
-    let mut out = Vec::new();
-    let mut rest = html;
-    while let Some(start) = rest.find("[sound:") {
-        let after = &rest[start + 7..];
-        if let Some(end) = after.find(']') {
-            out.push(json!({
-                "kind": "sound_or_video",
-                "filename": &after[..end],
-            }));
-            rest = &after[end + 1..];
-        } else {
-            break;
-        }
+fn proto_av_tag_json(tag: &anki_proto::card_rendering::AvTag) -> Value {
+    match tag.value.as_ref() {
+        Some(anki_proto::card_rendering::av_tag::Value::SoundOrVideo(name)) => json!({
+            "kind": "sound_or_video",
+            "filename": name,
+        }),
+        Some(anki_proto::card_rendering::av_tag::Value::Tts(tts)) => json!({
+            "kind": "tts",
+            "fieldText": tts.field_text,
+            "lang": tts.lang,
+            "voices": tts.voices,
+            "speed": tts.speed,
+            "otherArgs": tts.other_args,
+        }),
+        None => json!({
+            "kind": "unknown",
+        }),
     }
-    out
 }
 
 fn set_current_deck(handle: u64, request: &[u8]) -> Result<Value, i32> {
@@ -815,10 +816,16 @@ mod tests {
             if pkg == "06-media-paths.apkg" {
                 let av = rendered[0]["answer_av_tags"].as_array().unwrap();
                 assert!(
-                    av.iter()
-                        .any(|tag| tag["filename"].as_str() == Some("paren (1).mp3")),
+                    av.iter().any(|tag| {
+                        tag["kind"].as_str() == Some("sound_or_video")
+                            && tag["filename"].as_str() == Some("paren (1).mp3")
+                    }),
                     "{av:?}"
                 );
+                assert!(!rendered[0]["answer_text_without_av"]
+                    .as_str()
+                    .unwrap_or("")
+                    .contains("[sound:"));
             }
             if pkg == "05-frontside-css.apkg" {
                 assert!(rendered[0]["css"]
@@ -1126,5 +1133,30 @@ mod tests {
         );
         free_engine(handle).unwrap();
         let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn official_av_tags_distinguish_sound_and_tts() {
+        let col = anki::collection::CollectionBuilder::default()
+            .build()
+            .unwrap();
+        let html = "[sound:hello.mp3] [anki:tts lang=en_US]Hello[/anki:tts]";
+        let (text, tags) = extract_av_tags(html.to_string(), true, col.tr());
+        let mapped: Vec<Value> = tags.iter().map(proto_av_tag_json).collect();
+        assert!(
+            mapped
+                .iter()
+                .any(|tag| { tag["kind"] == "sound_or_video" && tag["filename"] == "hello.mp3" }),
+            "{mapped:?}"
+        );
+        assert!(
+            mapped.iter().any(|tag| {
+                tag["kind"] == "tts" && tag["lang"] == "en_US" && tag["fieldText"] == "Hello"
+            }),
+            "{mapped:?}"
+        );
+        assert!(!text.contains("[sound:"));
+        assert!(!text.contains("[anki:tts"));
+        col.close(None).unwrap();
     }
 }
