@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
+import 'package:turna/application/anki_official/official_anki_internal_page.dart';
 import 'package:turna/application/anki_official/spike/official_anki_spike_page.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/views/settings/system_health_page.dart';
@@ -67,6 +68,17 @@ class SettingsAdvancedSection extends StatelessWidget {
                 onTap: (ctx) => Navigator.of(ctx).push(
                   MaterialPageRoute<void>(
                     builder: (_) => const OfficialAnkiSpikePage(),
+                  ),
+                ),
+              ),
+              settingsTileDivider(context),
+              SettingsNavigationTile(
+                icon: Icons.inventory_2_outlined,
+                title: 'Official Anki 内部导入',
+                subtitle: '仅 debug：官方 Collection 导入，复习入口未开放',
+                onTap: (ctx) => Navigator.of(ctx).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const OfficialAnkiInternalPage(),
                   ),
                 ),
               ),

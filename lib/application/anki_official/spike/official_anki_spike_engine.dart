@@ -1,6 +1,7 @@
 // Dart imports:
 import 'dart:convert';
 import 'dart:isolate';
+import 'dart:typed_data';
 
 // Project imports:
 import 'package:turna/application/anki_official/spike/official_anki_spike_ffi.dart';
@@ -71,12 +72,20 @@ class FfiOfficialAnkiSpikeEngine implements OfficialAnkiSpikeEngine {
       _requireOkAndFree(
         ffi,
         'check_collection',
-        ffi.call(handle, OfficialAnkiSpikeOperation.checkCollection),
+        ffi.call(
+          handle,
+          OfficialAnkiSpikeOperation.checkCollection,
+          _envelope(OfficialAnkiSpikeOperation.checkCollectionName),
+        ),
       );
       _requireOkAndFree(
         ffi,
         'close_collection',
-        ffi.call(handle, OfficialAnkiSpikeOperation.closeCollection),
+        ffi.call(
+          handle,
+          OfficialAnkiSpikeOperation.closeCollection,
+          _envelope(OfficialAnkiSpikeOperation.closeCollectionName),
+        ),
       );
       _requireOkAndFree(
         ffi,
@@ -86,7 +95,11 @@ class FfiOfficialAnkiSpikeEngine implements OfficialAnkiSpikeEngine {
       _requireOkAndFree(
         ffi,
         'close_collection',
-        ffi.call(handle, OfficialAnkiSpikeOperation.closeCollection),
+        ffi.call(
+          handle,
+          OfficialAnkiSpikeOperation.closeCollection,
+          _envelope(OfficialAnkiSpikeOperation.closeCollectionName),
+        ),
       );
       _requireOkAndFree(ffi, 'engine_close', ffi.closeEngine(handle));
       return _ok(
@@ -128,26 +141,27 @@ class FfiOfficialAnkiSpikeEngine implements OfficialAnkiSpikeEngine {
           'open_collection',
           ffi.openCollection(handle, openPayload),
         );
-        final importPayload = utf8.encode(
-          jsonEncode(<String, Object>{
-            'package_path': packagePath,
-            'with_scheduling': true,
-            'with_deck_configs': true,
-          }),
-        );
         _requireOkAndFree(
           ffi,
           'import_package',
           ffi.call(
             handle,
             OfficialAnkiSpikeOperation.importPackage,
-            importPayload,
+            _envelope(OfficialAnkiSpikeOperation.importPackageName, {
+              'package_path': packagePath,
+              'with_scheduling': true,
+              'with_deck_configs': true,
+            }),
           ),
         );
         _requireOkAndFree(
           ffi,
           'close_collection',
-          ffi.call(handle, OfficialAnkiSpikeOperation.closeCollection),
+          ffi.call(
+            handle,
+            OfficialAnkiSpikeOperation.closeCollection,
+            _envelope(OfficialAnkiSpikeOperation.closeCollectionName),
+          ),
         );
         _requireOkAndFree(ffi, 'engine_close', ffi.closeEngine(handle));
         return _ok(
@@ -184,26 +198,27 @@ class FfiOfficialAnkiSpikeEngine implements OfficialAnkiSpikeEngine {
         'open_collection',
         ffi.openCollection(handle, openPayload),
       );
-      final importPayload = utf8.encode(
-        jsonEncode(<String, Object>{
-          'package_path': packagePath,
-          'with_scheduling': true,
-          'with_deck_configs': true,
-        }),
-      );
       _requireOkAndFree(
         ffi,
         'import_package',
         ffi.call(
           handle,
           OfficialAnkiSpikeOperation.importPackage,
-          importPayload,
+          _envelope(OfficialAnkiSpikeOperation.importPackageName, {
+            'package_path': packagePath,
+            'with_scheduling': true,
+            'with_deck_configs': true,
+          }),
         ),
       );
       _requireOkAndFree(
         ffi,
         'close_collection',
-        ffi.call(handle, OfficialAnkiSpikeOperation.closeCollection),
+        ffi.call(
+          handle,
+          OfficialAnkiSpikeOperation.closeCollection,
+          _envelope(OfficialAnkiSpikeOperation.closeCollectionName),
+        ),
       );
       _requireOkAndFree(ffi, 'engine_close', ffi.closeEngine(handle));
       return _ok(
@@ -292,10 +307,27 @@ class FfiOfficialAnkiSpikeEngine implements OfficialAnkiSpikeEngine {
     String operation,
     Object result,
   ) {
+    var taken = false;
     try {
       _requireOk(ffi, operation, result);
+      final bytes = ffi.takeBuffer(result);
+      taken = true;
+      if (bytes.isEmpty) {
+        return;
+      }
+      final decoded = jsonDecode(utf8.decode(bytes));
+      if (decoded is Map && decoded['ok'] == false) {
+        final error = decoded['error'];
+        final code = error is Map ? error['code']?.toString() : null;
+        throw OfficialAnkiSpikeError(
+          code: OfficialAnkiSpikeErrorCode.invalidArgument,
+          message: '$operation envelope ${code ?? "not_ok"}',
+        );
+      }
     } finally {
-      ffi.takeBuffer(result);
+      if (!taken) {
+        ffi.takeBuffer(result);
+      }
     }
   }
 
@@ -346,6 +378,19 @@ class FakeOfficialAnkiSpikeEngine implements OfficialAnkiSpikeEngine {
     _validatePackagePath(packagePath);
     return collectionSnapshot ?? snapshot;
   }
+}
+
+Uint8List _envelope(String operation, [Map<String, Object?>? payload]) {
+  return Uint8List.fromList(
+    utf8.encode(
+      jsonEncode(<String, Object?>{
+        'contractVersion': <String, int>{'major': 1, 'minor': 0},
+        'requestId': 'spike-$operation',
+        'operation': operation,
+        'payload': payload ?? const <String, Object?>{},
+      }),
+    ),
+  );
 }
 
 void _validatePackagePath(String packagePath) {

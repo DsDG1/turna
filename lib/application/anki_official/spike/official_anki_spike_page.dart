@@ -1,4 +1,5 @@
 // Flutter imports:
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 // Package imports:
@@ -42,12 +43,28 @@ class _OfficialAnkiSpikePageState extends State<OfficialAnkiSpikePage> {
     _engine = widget.engine ?? FfiOfficialAnkiSpikeEngine();
     registerOfficialAnkiLicenses();
     _snapshot = _engine.probe();
+    _logSnapshot('auto-probe', _snapshot);
+  }
+
+  void _logSnapshot(String phase, OfficialAnkiSpikeSnapshot? snap) {
+    if (snap == null) {
+      debugPrint('[OfficialAnkiSpike] $phase: no snapshot');
+      return;
+    }
+    debugPrint(
+      '[OfficialAnkiSpike] $phase library=${snap.libraryLoaded} '
+      'abi=${snap.abiVersion} backend=${snap.backendCommit} '
+      'op=${snap.lastOperation} state=${snap.collectionState.name} '
+      'error=${snap.lastError?.code.name ?? "none"} '
+      '${snap.lastError?.message ?? ""}',
+    );
   }
 
   void _probe() {
     setState(() {
       _snapshot = _engine.probe();
     });
+    _logSnapshot('refresh', _snapshot);
   }
 
   Future<void> _probeCollection() async {
@@ -71,6 +88,7 @@ class _OfficialAnkiSpikePageState extends State<OfficialAnkiSpikePage> {
         _collectionRoot = request.displayRoot;
         _probingCollection = false;
       });
+      _logSnapshot('probe-collection', snapshot);
     } on OfficialAnkiSpikeError catch (error) {
       if (!mounted) {
         return;
@@ -86,6 +104,7 @@ class _OfficialAnkiSpikePageState extends State<OfficialAnkiSpikePage> {
         );
         _probingCollection = false;
       });
+      _logSnapshot('probe-collection-error', _collectionSnapshot);
     } catch (error) {
       if (!mounted) {
         return;
@@ -104,6 +123,7 @@ class _OfficialAnkiSpikePageState extends State<OfficialAnkiSpikePage> {
         );
         _probingCollection = false;
       });
+      _logSnapshot('probe-collection-error', _collectionSnapshot);
     }
   }
 

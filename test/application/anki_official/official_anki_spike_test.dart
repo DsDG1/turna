@@ -11,6 +11,21 @@ import 'package:turna/application/anki_official/spike/official_anki_spike_page.d
 void main() {
   tearDown(OfficialAnkiSpikeFfi.debugResetCache);
 
+  test('stable call payloads are contract envelopes', () {
+    expect(
+      OfficialAnkiSpikeOperation.nameFor(
+        OfficialAnkiSpikeOperation.checkCollection,
+      ),
+      'CHECK_COLLECTION',
+    );
+    expect(
+      OfficialAnkiSpikeOperation.nameFor(
+        OfficialAnkiSpikeOperation.closeCollection,
+      ),
+      'CLOSE_COLLECTION',
+    );
+  });
+
   group('handle decoding', () {
     test('keeps the full 64-bit value', () {
       final bytes = Uint8List(8);

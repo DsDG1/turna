@@ -15,6 +15,7 @@ abstract class AnkiImportFacade {
   static AnkiImportFacade resolve({
     OfficialAnkiFeatureFlags? flags,
     OfficialAnkiImportOrchestrator? official,
+    OfficialAnkiImporter? officialImporter,
     AnkiImporter? legacyImporter,
   }) {
     final resolved = flags ?? OfficialAnkiFeatureFlags.current;
@@ -25,22 +26,23 @@ abstract class AnkiImportFacade {
       );
     }
     if (resolved.allowsOfficialImport) {
-      if (official == null) {
+      final importer = officialImporter ?? official;
+      if (importer == null) {
         throw const OfficialAnkiException(
           code: OfficialAnkiErrorCode.capabilityMissing,
           messageKey: 'official_anki.flag_fail_closed',
         );
       }
-      return OfficialAnkiImportFacade(official);
+      return OfficialAnkiImportFacade(importer);
     }
     return LegacyAnkiImportFacade(legacyImporter ?? AnkiImporter());
   }
 }
 
 class OfficialAnkiImportFacade implements AnkiImportFacade {
-  OfficialAnkiImportFacade(this._orchestrator);
+  OfficialAnkiImportFacade(this._importer);
 
-  final OfficialAnkiImportOrchestrator _orchestrator;
+  final OfficialAnkiImporter _importer;
 
   @override
   bool get isOfficial => true;
@@ -50,7 +52,7 @@ class OfficialAnkiImportFacade implements AnkiImportFacade {
     required String packagePath,
     required String displayName,
   }) {
-    return _orchestrator.importFile(
+    return _importer.importFile(
       packagePath: packagePath,
       displayName: displayName,
     );

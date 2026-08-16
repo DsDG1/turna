@@ -55,7 +55,7 @@ class AnkiImporter {
     void Function(double progress, String message)? onProgress,
     bool Function()? isCancelled,
   }) async {
-    if (defaultTargetPlatform == TargetPlatform.ohos) {
+    if (defaultTargetPlatform.name == 'ohos') {
       throw UnsupportedError(
         'Anki import is not available on HarmonyOS yet. '
         'Anki `.apkg` files are SQLite databases read via sqlite3 FFI, '

@@ -39,6 +39,23 @@ abstract final class OfficialAnkiSpikeOperation {
   static const int closeCollection = 3;
   static const int checkCollection = 4;
   static const int importPackage = 5;
+
+  static const closeCollectionName = 'CLOSE_COLLECTION';
+  static const checkCollectionName = 'CHECK_COLLECTION';
+  static const importPackageName = 'IMPORT_PACKAGE';
+
+  static String nameFor(int id) {
+    switch (id) {
+      case closeCollection:
+        return closeCollectionName;
+      case checkCollection:
+        return checkCollectionName;
+      case importPackage:
+        return importPackageName;
+      default:
+        return 'OP_$id';
+    }
+  }
   static const int latestProgress = 6;
   static const int cancelOperation = 7;
   static const int listDeckTree = 8;

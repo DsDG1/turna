@@ -21,6 +21,7 @@ import 'package:turna/application/anki/anki_deck_manager.dart';
 import 'package:turna/application/anki/anki_importer.dart';
 import 'package:turna/application/anki/anki_import_cleanup_service.dart';
 import 'package:turna/application/anki_official/import/anki_import_facade.dart';
+import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki/anki_models.dart';
 import 'package:turna/application/anki/anki_organization_resolver.dart';
@@ -865,7 +866,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       });
       // On OHos, picker failures are usually device-level (missing
       // pickersheet). Offer the manual fallbacks so the user isn't stuck.
-      if (defaultTargetPlatform == TargetPlatform.ohos) {
+      if (defaultTargetPlatform.name == 'ohos') {
         await _showFallbackSheet();
       }
     }
@@ -1039,8 +1040,10 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       _isSample = false;
     });
     try {
+      final flags = OfficialAnkiFeatureFlags.current;
       final facade = AnkiImportFacade.resolve(
-        flags: OfficialAnkiFeatureFlags.current,
+        flags: flags,
+        officialImporter: OfficialAnkiCompositionRoot.session,
         legacyImporter: _importer,
       );
       if (facade.isOfficial) {
