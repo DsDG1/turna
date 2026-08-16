@@ -1,6 +1,6 @@
 # Phase 0 结果报告
 
-> 状态：进行中（P0-000 / P0-001）  
+> 状态：进行中（P0-000～P0-006；P0-004 真机仍缺）  
 > 分支：`spike/official-anki-core-android`  
 > 起始日期：2026-08-16
 
@@ -222,7 +222,46 @@ flutter test test/application/anki_official/official_anki_fixture_manifest_test.
 
 官方导出每次会换 card ID，因此 SHA-256 只对冻结提交物有效。有意重生后必须连 `expected/` 和 `manifest.json` 一起更新。
 
-## 10. 生产路径
+## 10. Collection 生命周期结论（P0-006）
+
+已落地（2026-08-16）：
+
+- Rust `bridge/src/engine.rs`：`HashMap<u64, Engine>` handle registry，
+  状态机 `Created → Open → Closed`，路径必须绝对且互不相同，父目录自动创建。
+- 同 handle 再次 open → `COLLECTION_ALREADY_OPEN` (17)。
+- 同路径第二 handle → `COLLECTION_LOCKED` (18)。
+- 无效 handle / 相对路径 / 未 open 时 close → `INVALID_HANDLE` (11) /
+  `INVALID_ARGUMENT` (12) / `INVALID_STATE` (16)。
+- Dart 路径 DTO 只构造 `<support>/anki-spike/<run-id>/`；错误信息不回显完整目录。
+- Spike 页在 ABI 探测之外增加「探测 Collection」：open → check → close → reopen → close。
+- 诊断页仍只从 `kDebugMode` 设置入口进入，未加入 AutoRoute。
+
+Host 已验证：
+
+```text
+cd native/turna_anki_core
+PROTOC=... PROTOC_BINARY=... cargo test
+# engine::tests::open_close_reopen_creates_files
+# engine::tests::double_open_is_already_open
+# engine::tests::second_handle_same_path_is_locked
+# engine::tests::invalid_handle_and_relative_paths
+# engine::tests::one_hundred_open_close_cycles
+# abi::tests::engine_new_close_and_free_round_trip
+# abi::tests::invalid_handle_is_rejected
+```
+
+```text
+flutter test test/application/anki_official/official_anki_spike_test.dart
+# 14 passed
+flutter analyze lib/application/anki_official test/application/anki_official
+# No issues found
+```
+
+未在本机完成：真机 / APK 上的 FFI `open_collection`（仍受 P0-004 Gradle
+插件解析和缺 adb 阻塞）。Android `.so` 需在有交叉编译环境时重编，才能带上
+本刀新增的 registry 实现。
+
+## 11. 生产路径
 
 未修改：
 
@@ -230,18 +269,16 @@ flutter test test/application/anki_official/official_anki_fixture_manifest_test.
 - `lib/application/anki/anki_importer.dart`
 - 任何 Legacy 渲染 / SRS 文件
 
-## 11. 每日记录
+## 12. 每日记录
 
 ### 2026-08-16
 
-- 完成任务：P0-000～P0-005（P0-004 真机 APK 仍缺）
-- 当前任务：P0-006 Collection 生命周期
-- 实际命令：见 §5–§9
-- 新增事实：9 个官方 rslib 小 fixture + golden HTML 已冻结；5k 大包脚本已跑通
+- 完成任务：P0-000～P0-006（P0-004 真机 APK 仍缺）
+- 当前任务：P0-006 Collection 生命周期（Dart 页与测试已接完）
+- 实际命令：见 §5–§10
+- 新增事实：官方 Collection 可在 host 上 open/close/reopen；100 次循环 FD 无持续增长；Dart 路径隔离在 `anki-spike/<run-id>/`
 - 失败：官方 export 非 bit-stable（SHA 随 card ID 变）
 - 指标变化：无
 - 上游 API/patch 变化：无
 - 阻塞项：本机 release APK / 真机仍在
-- 下一步：P0-006 用这些 fixture 做 open/close/reopen
-- 阻塞项：无构建阻塞；下一刀是 Dart 加载
-- 下一步：P0-004，debug/release 真机 `DynamicLibrary.open('libturna_anki.so')`
+- 下一步：P0-007 用冻结 fixture 走官方 `import_apkg`

@@ -3,6 +3,9 @@ import 'dart:ffi';
 import 'dart:io';
 import 'dart:typed_data';
 
+// Package imports:
+import 'package:ffi/ffi.dart';
+
 // Project imports:
 import 'package:turna/application/anki_official/spike/official_anki_spike_models.dart';
 
@@ -33,6 +36,28 @@ typedef _EngineCloseNative = TurnaAnkiResult Function(Uint64 handle);
 typedef _EngineCloseDart = TurnaAnkiResult Function(int handle);
 typedef _BufferFreeNative = Void Function(Pointer<Uint8> ptr, Size len);
 typedef _BufferFreeDart = void Function(Pointer<Uint8> ptr, int len);
+typedef _EngineOpenNative = TurnaAnkiResult Function(
+  Uint64 handle,
+  Pointer<Uint8> request,
+  Size requestLen,
+);
+typedef _EngineOpenDart = TurnaAnkiResult Function(
+  int handle,
+  Pointer<Uint8> request,
+  int requestLen,
+);
+typedef _CallNative = TurnaAnkiResult Function(
+  Uint64 handle,
+  Uint32 operation,
+  Pointer<Uint8> request,
+  Size requestLen,
+);
+typedef _CallDart = TurnaAnkiResult Function(
+  int handle,
+  int operation,
+  Pointer<Uint8> request,
+  int requestLen,
+);
 
 /// Opens `libturna_anki.so` once per isolate and keeps it loaded.
 class OfficialAnkiSpikeFfi {
@@ -49,10 +74,11 @@ class OfficialAnkiSpikeFfi {
         ),
         _bufferFree = _lib.lookupFunction<_BufferFreeNative, _BufferFreeDart>(
           'turna_anki_buffer_free',
-        ) {
-    // Fail fast if the call symbol is missing; the operation itself is P0-007+.
-    _lib.lookup('turna_anki_call');
-  }
+        ),
+        _engineOpen = _lib.lookupFunction<_EngineOpenNative, _EngineOpenDart>(
+          'turna_anki_engine_open',
+        ),
+        _call = _lib.lookupFunction<_CallNative, _CallDart>('turna_anki_call');
 
   // Retained so the isolate does not drop the only handle to the .so.
   // ignore: unused_field
@@ -62,6 +88,8 @@ class OfficialAnkiSpikeFfi {
   final _EngineNewDart _engineNew;
   final _EngineCloseDart _engineClose;
   final _BufferFreeDart _bufferFree;
+  final _EngineOpenDart _engineOpen;
+  final _CallDart _call;
 
   static OfficialAnkiSpikeFfi? _cached;
 
@@ -117,7 +145,31 @@ class OfficialAnkiSpikeFfi {
 
   Object closeEngine(int handle) => _engineClose(handle);
 
+  Object openCollection(int handle, Uint8List request) =>
+      _withRequest(request, (ptr, len) => _engineOpen(handle, ptr, len));
+
+  Object call(int handle, int operation, [Uint8List? request]) =>
+      _withRequest(request ?? Uint8List(0), (ptr, len) {
+        return _call(handle, operation, ptr, len);
+      });
+
   int resultStatus(Object result) => (result as TurnaAnkiResult).status;
+
+  Object _withRequest(
+    Uint8List request,
+    Object Function(Pointer<Uint8> ptr, int len) invoke,
+  ) {
+    if (request.isEmpty) {
+      return invoke(nullptr, 0);
+    }
+    final ptr = calloc<Uint8>(request.length);
+    ptr.asTypedList(request.length).setAll(0, request);
+    try {
+      return invoke(ptr, request.length);
+    } finally {
+      calloc.free(ptr);
+    }
+  }
 }
 
 typedef OfficialAnkiLibraryOpener = Object Function(String name);

@@ -40,6 +40,28 @@ void main() {
         errorFromNativeStatus(OfficialAnkiSpikeNativeStatus.backendPanic).code,
         OfficialAnkiSpikeErrorCode.backendPanic,
       );
+      expect(
+        errorFromNativeStatus(OfficialAnkiSpikeNativeStatus.invalidState).code,
+        OfficialAnkiSpikeErrorCode.invalidState,
+      );
+      expect(
+        errorFromNativeStatus(
+          OfficialAnkiSpikeNativeStatus.collectionAlreadyOpen,
+        ).code,
+        OfficialAnkiSpikeErrorCode.collectionAlreadyOpen,
+      );
+      expect(
+        errorFromNativeStatus(
+          OfficialAnkiSpikeNativeStatus.collectionLocked,
+        ).code,
+        OfficialAnkiSpikeErrorCode.collectionLocked,
+      );
+      expect(
+        errorFromNativeStatus(
+          OfficialAnkiSpikeNativeStatus.collectionOpenFailed,
+        ).code,
+        OfficialAnkiSpikeErrorCode.collectionOpenFailed,
+      );
     });
 
     test('maps missing-library load failures', () {
@@ -71,6 +93,83 @@ void main() {
       );
     });
 
+    test('rejects relative collection paths before opening the library',
+        () async {
+      final snapshot = await FfiOfficialAnkiSpikeEngine(
+        isAndroid: true,
+        openLibrary: (_) => throw StateError('library must not be opened'),
+      ).probeCollection(
+        const OfficialAnkiOpenRequest(
+          collectionPath: 'collection.anki2',
+          mediaFolder: '/tmp/media',
+          mediaDb: '/tmp/media.db2',
+        ),
+      );
+      expect(snapshot.libraryLoaded, isFalse);
+      expect(snapshot.lastOperation, 'validate_paths');
+      expect(
+        snapshot.lastError?.code,
+        OfficialAnkiSpikeErrorCode.invalidArgument,
+      );
+    });
+
+    test('rejects overlapping collection and media paths', () async {
+      final snapshot = await FfiOfficialAnkiSpikeEngine(isAndroid: false)
+          .probeCollection(
+        const OfficialAnkiOpenRequest(
+          collectionPath: '/tmp/same',
+          mediaFolder: '/tmp/same',
+          mediaDb: '/tmp/media.db2',
+        ),
+      );
+      expect(
+        snapshot.lastError?.code,
+        OfficialAnkiSpikeErrorCode.invalidArgument,
+      );
+      expect(snapshot.lastError?.message, isNot(contains('/tmp/same')));
+    });
+  });
+
+  group('OfficialAnkiOpenRequest', () {
+    test('builds isolated absolute paths under anki-spike', () {
+      final request = OfficialAnkiOpenRequest.isolated(
+        supportDirectory: '/data/user/0/app/files',
+        runId: 'run-1',
+      );
+      expect(
+        request.collectionPath,
+        '/data/user/0/app/files/anki-spike/run-1/collection.anki2',
+      );
+      expect(
+        request.mediaFolder,
+        '/data/user/0/app/files/anki-spike/run-1/collection.media',
+      );
+      expect(
+        request.mediaDb,
+        '/data/user/0/app/files/anki-spike/run-1/collection.media.db2',
+      );
+      expect(request.displayRoot, 'anki-spike/run-1');
+      request.validate();
+    });
+
+    test('rejects a run id that could escape the isolation directory', () {
+      expect(
+        () => OfficialAnkiOpenRequest.isolated(
+          supportDirectory: '/tmp/support',
+          runId: '../escape',
+        ),
+        throwsA(
+          isA<OfficialAnkiSpikeError>().having(
+            (error) => error.code,
+            'code',
+            OfficialAnkiSpikeErrorCode.invalidArgument,
+          ),
+        ),
+      );
+    });
+  });
+
+  group('FfiOfficialAnkiSpikeEngine library failures', () {
     test('returns libraryMissing when the opener fails', () {
       final snapshot = FfiOfficialAnkiSpikeEngine(
         isAndroid: true,
@@ -136,6 +235,58 @@ void main() {
       expect(find.text('no'), findsOneWidget);
       expect(
         find.textContaining('libraryMissing'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('probes an isolated Collection path without path_provider',
+        (tester) async {
+      const abi = OfficialAnkiSpikeSnapshot(
+        libraryLoaded: true,
+        abiVersion: 1,
+        backendCommit: kOfficialAnkiBackendCommit,
+        contractVersion: kOfficialAnkiSpikeContractVersion,
+        collectionState: OfficialAnkiSpikeCollectionState.uninitialized,
+        lastOperation: 'engine_close',
+      );
+      const collection = OfficialAnkiSpikeSnapshot(
+        libraryLoaded: true,
+        abiVersion: 1,
+        backendCommit: kOfficialAnkiBackendCommit,
+        contractVersion: kOfficialAnkiSpikeContractVersion,
+        collectionState: OfficialAnkiSpikeCollectionState.closed,
+        lastOperation: 'engine_close',
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: OfficialAnkiSpikePage(
+            engine: FakeOfficialAnkiSpikeEngine(
+              abi,
+              collectionSnapshot: collection,
+            ),
+            resolveOpenRequest: () async => OfficialAnkiOpenRequest.isolated(
+              supportDirectory: '/tmp/support',
+              runId: 'widget-run',
+            ),
+          ),
+        ),
+      );
+      final probe = find.byKey(const Key('official-anki-spike-probe-collection'));
+      expect(probe, findsOneWidget);
+      await tester.ensureVisible(probe);
+      await tester.tap(probe);
+      await tester.pump();
+      await tester.pumpAndSettle();
+      final root = find.text('anki-spike/widget-run', skipOffstage: false);
+      await tester.ensureVisible(root);
+      expect(root, findsOneWidget);
+      expect(
+        find.text('collection probe state', skipOffstage: false),
+        findsOneWidget,
+      );
+      expect(find.text('closed', skipOffstage: false), findsOneWidget);
+      expect(
+        find.text('collection last error', skipOffstage: false),
         findsOneWidget,
       );
     });

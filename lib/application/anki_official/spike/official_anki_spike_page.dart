@@ -1,6 +1,9 @@
 // Flutter imports:
 import 'package:flutter/material.dart';
 
+// Package imports:
+import 'package:path_provider/path_provider.dart';
+
 // Project imports:
 import 'package:turna/application/anki_official/spike/official_anki_spike_engine.dart';
 import 'package:turna/application/anki_official/spike/official_anki_spike_models.dart';
@@ -13,9 +16,13 @@ class OfficialAnkiSpikePage extends StatefulWidget {
   const OfficialAnkiSpikePage({
     super.key,
     this.engine,
+    this.resolveOpenRequest,
   });
 
   final OfficialAnkiSpikeEngine? engine;
+
+  /// Tests inject a resolver so widget tests never call [path_provider].
+  final Future<OfficialAnkiOpenRequest> Function()? resolveOpenRequest;
 
   @override
   State<OfficialAnkiSpikePage> createState() => _OfficialAnkiSpikePageState();
@@ -24,6 +31,9 @@ class OfficialAnkiSpikePage extends StatefulWidget {
 class _OfficialAnkiSpikePageState extends State<OfficialAnkiSpikePage> {
   late final OfficialAnkiSpikeEngine _engine;
   OfficialAnkiSpikeSnapshot? _snapshot;
+  OfficialAnkiSpikeSnapshot? _collectionSnapshot;
+  String? _collectionRoot;
+  bool _probingCollection = false;
 
   @override
   void initState() {
@@ -38,9 +48,67 @@ class _OfficialAnkiSpikePageState extends State<OfficialAnkiSpikePage> {
     });
   }
 
+  Future<void> _probeCollection() async {
+    if (_probingCollection) {
+      return;
+    }
+    setState(() => _probingCollection = true);
+    try {
+      final request = widget.resolveOpenRequest != null
+          ? await widget.resolveOpenRequest!()
+          : OfficialAnkiOpenRequest.isolated(
+              supportDirectory: (await getApplicationSupportDirectory()).path,
+              runId: DateTime.now().millisecondsSinceEpoch.toString(),
+            );
+      final snapshot = await _engine.probeCollection(request);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _collectionSnapshot = snapshot;
+        _collectionRoot = request.displayRoot;
+        _probingCollection = false;
+      });
+    } on OfficialAnkiSpikeError catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _collectionSnapshot = OfficialAnkiSpikeSnapshot(
+          libraryLoaded: false,
+          backendCommit: kOfficialAnkiBackendCommit,
+          contractVersion: kOfficialAnkiSpikeContractVersion,
+          collectionState: OfficialAnkiSpikeCollectionState.uninitialized,
+          lastOperation: 'resolve_paths',
+          lastError: error,
+        );
+        _probingCollection = false;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _collectionSnapshot = OfficialAnkiSpikeSnapshot(
+          libraryLoaded: false,
+          backendCommit: kOfficialAnkiBackendCommit,
+          contractVersion: kOfficialAnkiSpikeContractVersion,
+          collectionState: OfficialAnkiSpikeCollectionState.unknown,
+          lastOperation: 'resolve_paths',
+          lastError: OfficialAnkiSpikeError(
+            code: OfficialAnkiSpikeErrorCode.unknown,
+            message: error.toString(),
+          ),
+        );
+        _probingCollection = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final snap = _snapshot;
+    final collection = _collectionSnapshot;
     return SettingsScaffold(
       title: 'Official Anki Spike',
       actions: [
@@ -71,6 +139,27 @@ class _OfficialAnkiSpikePageState extends State<OfficialAnkiSpikePage> {
                   : '${snap.lastError!.code.name}: ${snap.lastError!.message}',
             ),
             if (snap.handle != null) _row('last handle', '${snap.handle}'),
+          ],
+          const SizedBox(height: 8),
+          FilledButton.tonal(
+            key: const Key('official-anki-spike-probe-collection'),
+            onPressed: _probingCollection ? null : _probeCollection,
+            child: Text(_probingCollection ? '正在探测 Collection…' : '探测 Collection'),
+          ),
+          if (_collectionRoot != null) ...[
+            const SizedBox(height: 16),
+            _row('spike root', _collectionRoot!),
+          ],
+          if (collection != null) ...[
+            const SizedBox(height: 8),
+            _row('collection probe state', collection.collectionState.name),
+            _row('collection last operation', collection.lastOperation),
+            _row(
+              'collection last error',
+              collection.lastError == null
+                  ? 'none'
+                  : '${collection.lastError!.code.name}: ${collection.lastError!.message}',
+            ),
           ],
         ],
       ),

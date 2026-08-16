@@ -721,12 +721,15 @@ check_integrity
 
 ### 13.5 验收
 
-- [ ] 第一次 open 创建文件和媒体目录。
-- [ ] close 后数据库可再次打开。
-- [ ] 双 open 返回 `COLLECTION_ALREADY_OPEN/LOCKED`。
-- [ ] 无效 handle 返回 `INVALID_HANDLE`。
-- [ ] 并发操作被串行化或明确拒绝。
-- [ ] 100 次 open/close 无 FD 持续增长。
+- [x] 第一次 open 创建文件和媒体目录。
+- [x] close 后数据库可再次打开。
+- [x] 双 open 返回 `COLLECTION_ALREADY_OPEN/LOCKED`。
+- [x] 无效 handle 返回 `INVALID_HANDLE`。
+- [x] 并发操作被串行化或明确拒绝。
+- [x] 100 次 open/close 无 FD 持续增长。
+
+Host Rust 已覆盖上述项。Engine mutex 串行化同 handle 操作；同路径第二
+handle 返回 `COLLECTION_LOCKED`。真机 FFI open 仍随 P0-004 待验证。
 
 ### 13.6 预计工作量
 

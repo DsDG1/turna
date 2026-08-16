@@ -1,19 +1,16 @@
 //! Stable C ABI. Panic must not unwind across FFI.
 
-use std::collections::HashSet;
 use std::os::raw::c_uint;
 use std::panic::AssertUnwindSafe;
 use std::ptr;
-use std::sync::atomic::AtomicU64;
-use std::sync::atomic::Ordering;
-use std::sync::Mutex;
 
-pub const STATUS_OK: i32 = 0;
-pub const STATUS_UNIMPLEMENTED: i32 = 10;
-pub const STATUS_INVALID_HANDLE: i32 = 11;
-#[allow(dead_code)]
-pub const STATUS_INVALID_ARGUMENT: i32 = 12;
-pub const STATUS_BACKEND_PANIC: i32 = 13;
+use crate::engine;
+
+pub const STATUS_OK: i32 = engine::STATUS_OK;
+pub const STATUS_UNIMPLEMENTED: i32 = engine::STATUS_UNIMPLEMENTED;
+pub const STATUS_INVALID_HANDLE: i32 = engine::STATUS_INVALID_HANDLE;
+pub const STATUS_INVALID_ARGUMENT: i32 = engine::STATUS_INVALID_ARGUMENT;
+pub const STATUS_BACKEND_PANIC: i32 = engine::STATUS_BACKEND_PANIC;
 
 #[repr(C)]
 pub struct TurnaAnkiBuffer {
@@ -26,9 +23,6 @@ pub struct TurnaAnkiResult {
     pub status: i32,
     pub buffer: TurnaAnkiBuffer,
 }
-
-static NEXT_HANDLE: AtomicU64 = AtomicU64::new(1);
-static HANDLES: Mutex<Option<HashSet<u64>>> = Mutex::new(None);
 
 fn empty_buffer() -> TurnaAnkiBuffer {
     TurnaAnkiBuffer {
@@ -60,6 +54,13 @@ fn err(status: i32) -> TurnaAnkiResult {
     }
 }
 
+fn encode_ok(response: engine::LifecycleResponse) -> TurnaAnkiResult {
+    match serde_json::to_vec(&response) {
+        Ok(bytes) => ok_bytes(bytes),
+        Err(_) => err(STATUS_BACKEND_PANIC),
+    }
+}
+
 fn guard(f: impl FnOnce() -> TurnaAnkiResult) -> TurnaAnkiResult {
     match std::panic::catch_unwind(AssertUnwindSafe(f)) {
         Ok(result) => result,
@@ -67,17 +68,17 @@ fn guard(f: impl FnOnce() -> TurnaAnkiResult) -> TurnaAnkiResult {
     }
 }
 
-fn with_handles<T>(f: impl FnOnce(&mut HashSet<u64>) -> T) -> Result<T, TurnaAnkiResult> {
-    let mut guard = HANDLES
-        .lock()
-        .map_err(|_| err(STATUS_BACKEND_PANIC))?;
-    let set = guard.get_or_insert_with(HashSet::new);
-    Ok(f(set))
+fn request_bytes(ptr: *const u8, len: usize) -> Result<&'static [u8], i32> {
+    if len == 0 {
+        return Ok(&[]);
+    }
+    if ptr.is_null() {
+        return Err(STATUS_INVALID_ARGUMENT);
+    }
+    Ok(unsafe { std::slice::from_raw_parts(ptr, len) })
 }
 
 /// Force official Collection/sqlite into the Android cdylib.
-/// `CollectionBuilder::default()` alone is tiny and gets DCE'd; `build()`
-/// pulls rusqlite and the rest of rslib.
 fn touch_rslib() {
     static ONCE: std::sync::Once = std::sync::Once::new();
     ONCE.call_once(|| {
@@ -94,74 +95,61 @@ pub extern "C" fn turna_anki_engine_new(
 ) -> TurnaAnkiResult {
     guard(|| {
         touch_rslib();
-        let handle = NEXT_HANDLE.fetch_add(1, Ordering::Relaxed);
-        match with_handles(|set| {
-            set.insert(handle);
-        }) {
-            Ok(()) => ok_bytes(handle.to_le_bytes().to_vec()),
-            Err(result) => result,
+        match engine::alloc_engine() {
+            Ok(handle) => ok_bytes(handle.to_le_bytes().to_vec()),
+            Err(status) => err(status),
         }
     })
-}
-
-fn require_handle(handle: u64) -> Result<(), TurnaAnkiResult> {
-    if handle == 0 {
-        return Err(err(STATUS_INVALID_HANDLE));
-    }
-    match with_handles(|set| set.contains(&handle)) {
-        Ok(true) => Ok(()),
-        Ok(false) => Err(err(STATUS_INVALID_HANDLE)),
-        Err(result) => Err(result),
-    }
 }
 
 #[no_mangle]
 pub extern "C" fn turna_anki_engine_open(
     handle: u64,
-    _request: *const u8,
-    _request_len: usize,
+    request: *const u8,
+    request_len: usize,
 ) -> TurnaAnkiResult {
-    guard(|| match require_handle(handle) {
-        Ok(()) => err(STATUS_UNIMPLEMENTED),
-        Err(result) => result,
+    guard(|| match request_bytes(request, request_len) {
+        Ok(bytes) => match engine::open_collection(handle, bytes) {
+            Ok(response) => encode_ok(response),
+            Err(status) => err(status),
+        },
+        Err(status) => err(status),
     })
 }
 
 #[no_mangle]
 pub extern "C" fn turna_anki_call(
     handle: u64,
-    _operation: c_uint,
-    _request: *const u8,
-    _request_len: usize,
+    operation: c_uint,
+    request: *const u8,
+    request_len: usize,
 ) -> TurnaAnkiResult {
-    guard(|| match require_handle(handle) {
-        Ok(()) => err(STATUS_UNIMPLEMENTED),
-        Err(result) => result,
+    guard(|| match request_bytes(request, request_len) {
+        Ok(bytes) => match engine::dispatch(handle, operation, bytes) {
+            Ok(response) => encode_ok(response),
+            Err(status) => err(status),
+        },
+        Err(status) => err(status),
     })
 }
 
 #[no_mangle]
 pub extern "C" fn turna_anki_cancel(handle: u64) -> TurnaAnkiResult {
-    guard(|| match require_handle(handle) {
-        Ok(()) => err(STATUS_UNIMPLEMENTED),
-        Err(result) => result,
+    guard(|| match engine::engine_exists(handle) {
+        Ok(true) => err(STATUS_UNIMPLEMENTED),
+        Ok(false) => err(STATUS_INVALID_HANDLE),
+        Err(status) => err(status),
     })
 }
 
 #[no_mangle]
 pub extern "C" fn turna_anki_engine_close(handle: u64) -> TurnaAnkiResult {
-    guard(|| {
-        if handle == 0 {
-            return err(STATUS_INVALID_HANDLE);
-        }
-        match with_handles(|set| set.remove(&handle)) {
-            Ok(true) => TurnaAnkiResult {
-                status: STATUS_OK,
-                buffer: empty_buffer(),
-            },
-            Ok(false) => err(STATUS_INVALID_HANDLE),
-            Err(result) => result,
-        }
+    guard(|| match engine::free_engine(handle) {
+        Ok(()) => TurnaAnkiResult {
+            status: STATUS_OK,
+            buffer: empty_buffer(),
+        },
+        Err(status) => err(status),
     })
 }
 
@@ -188,9 +176,6 @@ mod tests {
         assert_eq!(created.buffer.len, 8);
         let handle = unsafe { u64::from_le_bytes(*(created.buffer.ptr as *const [u8; 8])) };
         unsafe { turna_anki_buffer_free(created.buffer.ptr, created.buffer.len) };
-
-        let call = turna_anki_call(handle, 0, ptr::null(), 0);
-        assert_eq!(call.status, STATUS_UNIMPLEMENTED);
 
         let closed = turna_anki_engine_close(handle);
         assert_eq!(closed.status, STATUS_OK);

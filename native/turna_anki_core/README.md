@@ -88,6 +88,17 @@ See `build-android/README.md` for the frozen toolchain table.
 Small packages live in `test/fixtures/anki_official/`. Large ones are
 gitignored under `generated/`.
 
+## Collection lifecycle (P0-006)
+
+Handles are `u64` registry IDs, never raw `Collection` pointers. The
+engine state machine is `Created → Open → Closed → released`. Dart
+opens files only under `<app-support>/anki-spike/<run-id>/`.
+
+```bash
+cd native/turna_anki_core
+PROTOC="$PWD/tools/protoc/bin/protoc" PROTOC_BINARY="$PROTOC" cargo test
+```
+
 ## Spike isolation
 
 - Temporary collections live under `<app-support>/anki-spike/<run-id>/`.

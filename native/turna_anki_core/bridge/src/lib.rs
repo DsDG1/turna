@@ -1,9 +1,10 @@
 //! Minimal C ABI for the official Anki core spike.
 //!
-//! Collection open/import/render/scheduler operations land in later P0
-//! tasks. P0-003 only requires the symbol surface to exist and link rslib.
+//! P0-006 implements Collection open/close/check and handle lifecycle.
+//! Import/render/scheduler operations still land in later P0 tasks.
 
 mod abi;
+mod engine;
 
 pub use abi::turna_anki_buffer_free;
 pub use abi::turna_anki_call;

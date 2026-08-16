@@ -29,6 +29,10 @@ class OfficialAnkiSpikeFfi {
 
   Object closeEngine(int handle) => 0;
 
+  Object openCollection(int handle, Uint8List request) => 0;
+
+  Object call(int handle, int operation, [Uint8List? request]) => 0;
+
   int resultStatus(Object result) => OfficialAnkiSpikeNativeStatus.backendPanic;
 }
 
