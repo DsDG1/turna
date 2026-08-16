@@ -134,12 +134,36 @@ test tests::collection_builder_is_visible_and_closes ... ok
 - 需要 Anki 的 `ftl/core-repo` 与 `ftl/qt-repo` 子模块。
 - 需要 Anki 钉死的 `protoc` 31.1。
 
-## 7. 尚未执行
+## 7. Android arm64 交叉编译结论（P0-003）
 
-- Android `cargo-ndk` 交叉编译
-- Dart FFI
-- Fixture golden
-- 本轮无 Native arm64 release 重构建
+已验证（2026-08-16）：
+
+```bash
+rustup target add aarch64-linux-android
+cargo install cargo-ndk --version 4.1.2 --locked
+ANDROID_HOME=/home/whwen/Android/Sdk ./native/turna_anki_core/build-android/build.sh
+```
+
+```text
+cargo-ndk:              4.1.2
+NDK:                    28.2.13676358
+platform / API level:   24
+target:                 aarch64-linux-android
+ABI:                    arm64-v8a
+libturna_anki.so:       16294656 bytes (unstripped)
+llvm-strip copy:        13816680 bytes
+NEEDED:                 libdl.so, libm.so, libc.so
+host glibc:             none
+symbols:                abi_version, engine_new, call, buffer_free
+sqlite3_open:           present in .so
+```
+
+第一次交叉编译只调用 `CollectionBuilder::default()` 时，产物仅 467 KiB，官方
+Collection 被 DCE。`engine_new` 现在会 `build()` 一次内存 Collection，release
+`.so` 约 15.5 MiB，含 bundled sqlite。
+
+`verify_symbols.sh` 必须使用 NDK `llvm-nm`。本机自带的 `llvm-readelf` 会漏报
+Android dynsym，造成假阴性。
 
 ## 8. 生产路径
 
@@ -153,12 +177,12 @@ test tests::collection_builder_is_visible_and_closes ... ok
 
 ### 2026-08-16
 
-- 完成任务：P0-000 环境盘点（部分）、P0-001 目录与上游钉死、P0-002 Host 编译与 Collection 可见性
-- 当前任务：P0-003 Android arm64 交叉编译
-- 实际命令：见 §5、§6
-- 新增事实：本机是官方 Flutter 3.44.8；minSdk=24；NDK 28.2 已安装；Rust 1.97.1 已装；cargo-ndk 仍缺；外部 crate 可直接持有 `anki::Collection`
-- 失败：`git clone --reference` 因浅克隆被拒绝；独立 workspace 不能包含 `rslib`；缺 tokio `io-util` 时 rslib 编不过
-- 指标变化：无 Android `.so`
+- 完成任务：P0-000 环境盘点（部分）、P0-001 目录与上游钉死、P0-002 Host 编译、P0-003 Android arm64 `.so`
+- 当前任务：P0-004 Dart FFI 加载
+- 实际命令：见 §5、§6、§7
+- 新增事实：cargo-ndk 4.1.2 + NDK 28.2 + API 24 可交叉编译；unstripped `.so` 16 294 656 字节；动态依赖只有 Bionic `libc/libm/libdl`
+- 失败：`git clone --reference` 因浅克隆被拒绝；独立 workspace 不能包含 `rslib`；缺 tokio `io-util` 时 rslib 编不过；只 touch `CollectionBuilder::default()` 会被 DCE 成 467 KiB；host `llvm-readelf` 漏报 Android 符号
+- 指标变化：arm64 `libturna_anki.so` 已产出（未提交）
 - 上游 API/patch 变化：无 patch
-- 阻塞项：P0-003 需要 cargo-ndk
-- 下一步：安装固定版本 cargo-ndk，交叉编译 arm64 `libturna_anki.so`
+- 阻塞项：无构建阻塞；下一刀是 Dart 加载
+- 下一步：P0-004，debug/release 真机 `DynamicLibrary.open('libturna_anki.so')`

@@ -1,7 +1,16 @@
 //! Minimal C ABI for the official Anki core spike.
 //!
-//! P0-001 only exports the contract version probe. Collection / import /
-//! render / scheduler operations land in later P0 tasks.
+//! Collection open/import/render/scheduler operations land in later P0
+//! tasks. P0-003 only requires the symbol surface to exist and link rslib.
+
+mod abi;
+
+pub use abi::turna_anki_buffer_free;
+pub use abi::turna_anki_call;
+pub use abi::turna_anki_cancel;
+pub use abi::turna_anki_engine_close;
+pub use abi::turna_anki_engine_new;
+pub use abi::turna_anki_engine_open;
 
 pub const TURNA_ANKI_ABI_VERSION: u32 = 1;
 

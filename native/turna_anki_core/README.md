@@ -67,10 +67,16 @@ standalone package (not a Cargo workspace) because `rslib` already
 belongs to the Anki workspace. Host builds also enable tokio `io-util`
 so feature unification matches Anki’s full workspace.
 
-## Android commands
+## Android commands (P0-003, verified)
 
-See `build-android/README.md`. Commands there are **candidates** until a
-clean environment reproduces `libturna_anki.so`.
+```bash
+rustup target add aarch64-linux-android
+cargo install cargo-ndk --version 4.1.2 --locked
+export ANDROID_HOME=...   # NDK 28.2.13676358 must be installed
+./build-android/build.sh
+```
+
+See `build-android/README.md` for the frozen toolchain table.
 
 ## Spike isolation
 
