@@ -283,6 +283,45 @@ class $AssetsImagesGen {
   /// File path: assets/images/tree.png
   AssetGenImage get tree => const AssetGenImage('assets/images/tree.png');
 
+  /// Directory path: assets/images/turna
+  $AssetsImagesTurnaGen get turna => const $AssetsImagesTurnaGen();
+
+  /// File path: assets/images/turna_app_logo.jpg
+  AssetGenImage get turnaAppLogo =>
+      const AssetGenImage('assets/images/turna_app_logo.jpg');
+
+  /// File path: assets/images/turna_celebrate.jpg
+  AssetGenImage get turnaCelebrate =>
+      const AssetGenImage('assets/images/turna_celebrate.jpg');
+
+  /// File path: assets/images/turna_encourage.jpg
+  AssetGenImage get turnaEncourage =>
+      const AssetGenImage('assets/images/turna_encourage.jpg');
+
+  /// File path: assets/images/turna_listening.jpg
+  AssetGenImage get turnaListening =>
+      const AssetGenImage('assets/images/turna_listening.jpg');
+
+  /// File path: assets/images/turna_mascot_concept.jpg
+  AssetGenImage get turnaMascotConcept =>
+      const AssetGenImage('assets/images/turna_mascot_concept.jpg');
+
+  /// File path: assets/images/turna_mascot_flat.jpg
+  AssetGenImage get turnaMascotFlat =>
+      const AssetGenImage('assets/images/turna_mascot_flat.jpg');
+
+  /// File path: assets/images/turna_reading.jpg
+  AssetGenImage get turnaReading =>
+      const AssetGenImage('assets/images/turna_reading.jpg');
+
+  /// File path: assets/images/turna_thinking.jpg
+  AssetGenImage get turnaThinking =>
+      const AssetGenImage('assets/images/turna_thinking.jpg');
+
+  /// File path: assets/images/turna_waving.jpg
+  AssetGenImage get turnaWaving =>
+      const AssetGenImage('assets/images/turna_waving.jpg');
+
   /// File path: assets/images/white.png
   AssetGenImage get white => const AssetGenImage('assets/images/white.png');
 
@@ -368,6 +407,15 @@ class $AssetsImagesGen {
         student,
         telenganaFlag,
         tree,
+        turnaAppLogo,
+        turnaCelebrate,
+        turnaEncourage,
+        turnaListening,
+        turnaMascotConcept,
+        turnaMascotFlat,
+        turnaReading,
+        turnaThinking,
+        turnaWaving,
         white,
         woman,
         yellow
@@ -486,6 +534,54 @@ class $AssetsImagesMalaGen {
       ];
 }
 
+class $AssetsImagesTurnaGen {
+  const $AssetsImagesTurnaGen();
+
+  /// File path: assets/images/turna/app_logo.png
+  AssetGenImage get appLogo =>
+      const AssetGenImage('assets/images/turna/app_logo.png');
+
+  /// File path: assets/images/turna/turna_celebrate.png
+  AssetGenImage get turnaCelebrate =>
+      const AssetGenImage('assets/images/turna/turna_celebrate.png');
+
+  /// File path: assets/images/turna/turna_encourage.png
+  AssetGenImage get turnaEncourage =>
+      const AssetGenImage('assets/images/turna/turna_encourage.png');
+
+  /// File path: assets/images/turna/turna_listening.png
+  AssetGenImage get turnaListening =>
+      const AssetGenImage('assets/images/turna/turna_listening.png');
+
+  /// File path: assets/images/turna/turna_reading.png
+  AssetGenImage get turnaReading =>
+      const AssetGenImage('assets/images/turna/turna_reading.png');
+
+  /// File path: assets/images/turna/turna_standing.png
+  AssetGenImage get turnaStanding =>
+      const AssetGenImage('assets/images/turna/turna_standing.png');
+
+  /// File path: assets/images/turna/turna_thinking.png
+  AssetGenImage get turnaThinking =>
+      const AssetGenImage('assets/images/turna/turna_thinking.png');
+
+  /// File path: assets/images/turna/turna_waving.png
+  AssetGenImage get turnaWaving =>
+      const AssetGenImage('assets/images/turna/turna_waving.png');
+
+  /// List of all assets
+  List<AssetGenImage> get values => [
+        appLogo,
+        turnaCelebrate,
+        turnaEncourage,
+        turnaListening,
+        turnaReading,
+        turnaStanding,
+        turnaThinking,
+        turnaWaving
+      ];
+}
+
 class $AssetsCoursesTurkishSectionsGen {
   const $AssetsCoursesTurkishSectionsGen();
 
@@ -527,9 +623,14 @@ class $AssetsCoursesTurkishSectionsGen {
 }
 
 abstract final class Assets {
+  static const String changelog = 'assets/changelog.md';
   static const $AssetsCoursesGen courses = $AssetsCoursesGen();
   static const $AssetsImagesGen images = $AssetsImagesGen();
+  static const String quickStart = 'assets/quick_start.md';
   static const $AssetsSoundsGen sounds = $AssetsSoundsGen();
+
+  /// List of all assets
+  static List<String> get values => [changelog, quickStart];
 }
 
 class AssetGenImage {
