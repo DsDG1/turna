@@ -22,11 +22,26 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 PATCHES="$HERE/patches"
 
 # --- locate Flutter SDK + pub cache ----------------------------------------
-FLUTTER_SDK="${FLUTTER_SDK:-/c/Users/DsDogs/Desktop/developper/flutter_flutter}"
-if [ -n "${LOCALAPPDATA:-}" ]; then
-  PUB_CACHE="${PUB_CACHE:-$(cygpath -u "$LOCALAPPDATA/Pub/Cache")}"
-else
-  PUB_CACHE="${PUB_CACHE:-$HOME/AppData/Local/Pub/Cache}"
+if [ -z "${FLUTTER_SDK:-}" ]; then
+  if command -v flutter >/dev/null 2>&1; then
+    FLUTTER_BIN="$(command -v flutter)"
+    FLUTTER_BIN_REAL="$(readlink -f "$FLUTTER_BIN" 2>/dev/null || echo "$FLUTTER_BIN")"
+    FLUTTER_SDK="$(cd "$(dirname "$FLUTTER_BIN_REAL")/.." && pwd)"
+  else
+    FLUTTER_SDK="/c/Users/DsDogs/Desktop/developper/flutter_flutter"
+  fi
+fi
+
+if [ -z "${PUB_CACHE:-}" ]; then
+  if [ -d "$HOME/.pub-cache" ]; then
+    PUB_CACHE="$HOME/.pub-cache"
+  elif [ -n "${LOCALAPPDATA:-}" ]; then
+    PUB_CACHE="$(cygpath -u "$LOCALAPPDATA/Pub/Cache" 2>/dev/null || echo "$LOCALAPPDATA/Pub/Cache")"
+  elif [ -d "$HOME/AppData/Local/Pub/Cache" ]; then
+    PUB_CACHE="$HOME/AppData/Local/Pub/Cache"
+  else
+    PUB_CACHE="$HOME/.pub-cache"
+  fi
 fi
 
 # Find a pub-cache checkout dir by glob (robust to hash in dir name).
@@ -39,7 +54,7 @@ find_checkout() {
   echo "$found"
 }
 
-JNI=$(find_checkout "hosted/pub.flutter-io.cn/jni-1.0.1")
+JNI=$(find_checkout "hosted/*/jni-1.0.1")
 FLN=$(find_checkout "git/fluttertpc_flutter_local_notifications-*/flutter_local_notifications")
 PIP=$(find_checkout "git/flutter_plus_plugins-*/packages/package_info_plus/package_info_plus")
 

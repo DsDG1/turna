@@ -42,7 +42,7 @@ class OhosFilePicker {
   }) async {
     final suffixes = _normalizedSuffixes(allowedExtensions);
 
-    if (defaultTargetPlatform != TargetPlatform.ohos) {
+    if (defaultTargetPlatform.name != 'ohos') {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.any,
         dialogTitle: dialogTitle,
@@ -58,31 +58,32 @@ class OhosFilePicker {
     final path =
         await _channel.invokeMethod<String>('pickFile', <String, dynamic>{
       // Native DocumentSelectOptions.fileSuffixFilters expects extensions
-      // with a leading dot (e.g. '.apkg'). Normalize the caller's input.
-      'extensions':
-          allowedExtensions.map((e) => e.startsWith('.') ? e : '.$e').toList(),
+      // with a leading dot.
+      'suffixes': suffixes.toList(),
       'dialogTitle': dialogTitle ?? '',
     });
     if (path == null) return null;
-
-    final name = path.split('/').last;
-    return FilePickerResult([PlatformFile(path: path, name: name, size: 0)]);
+    if (!_hasAllowedSuffix(path, suffixes)) {
+      throw const OhosFilePickerInvalidExtension();
+    }
+    return FilePickerResult([
+      PlatformFile(
+        path: path,
+        name: path.split('/').last,
+        size: 0,
+      ),
+    ]);
   }
 
-  /// Scan well-known locations for files matching [allowedExtensions].
+  /// Scan for files matching [allowedExtensions] inside the app sandbox.
   ///
-  /// OHos-only. Returns at most ~200 matches (the native side caps the scan
-  /// depth and total). Returns an empty list when the scan completes but no
-  /// matches are found, or the platform is not OHos.
-  ///
-  /// This is the recovery path for environments where the system FilePicker
-  /// sheet (`com.huawei.hmos.security.pickersheet`) is missing — e.g.
+  /// OHos-only. Used because standard file picker is unavailable on
   /// trimmed emulator ROMs and some test devices. The native side walks
   /// `filesDir`, `cacheDir`, and any 'Download' sub-folders.
   static Future<List<PlatformFile>> scanForFiles({
     required List<String> allowedExtensions,
   }) async {
-    if (defaultTargetPlatform != TargetPlatform.ohos) {
+    if (defaultTargetPlatform.name != 'ohos') {
       return const <PlatformFile>[];
     }
     final raw = await _channel.invokeMethod<List<Object?>>(
@@ -119,7 +120,7 @@ class OhosFilePicker {
     required String path,
     required List<String> allowedExtensions,
   }) async {
-    if (defaultTargetPlatform != TargetPlatform.ohos) {
+    if (defaultTargetPlatform.name != 'ohos') {
       throw PlatformException(
         code: 'UNSUPPORTED_PLATFORM',
         message: 'importFromPath is only supported on OpenHarmony',

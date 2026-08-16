@@ -274,7 +274,7 @@ class TtsAvailabilityChecker {
   Future<bool> isPreferredSystemTtsAvailable(String languageCode) async {
     if (kIsWeb) return false;
 
-    if (defaultTargetPlatform == TargetPlatform.ohos) {
+    if (defaultTargetPlatform.name == 'ohos') {
       return false;
     }
 
