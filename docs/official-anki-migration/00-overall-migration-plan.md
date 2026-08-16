@@ -1536,15 +1536,15 @@ officialAnkiLegacyMigration
 
 最低检查项：
 
-- [ ] 保存官方 Anki LICENSE。
-- [ ] 清点所用 reviewer Web assets 的许可证。
-- [ ] 清点 Rust transitive dependencies。
-- [ ] 记录修改过的官方源文件。
-- [ ] 提供对应版本完整源代码获取方式。
-- [ ] 提供可重建 bridge 的脚本和说明。
-- [ ] 在 App About/License 页面展示声明。
-- [ ] 检查 Turna 当前 GPLv3 声明与组合分发义务。
-- [ ] 审查 AnkiWeb/network 功能引入后的 AGPL 条款影响。
+- [x] 保存官方 Anki LICENSE。
+- [x] 清点所用 reviewer Web assets 的许可证。
+- [x] 清点 Rust transitive dependencies。
+- [x] 记录修改过的官方源文件。
+- [x] 提供对应版本完整源代码获取方式。
+- [x] 提供可重建 bridge 的脚本和说明。
+- [x] 在 App About/License 页面展示声明。
+- [x] 检查 Turna 当前 GPLv3 声明与组合分发义务。
+- [x] 审查 AnkiWeb/network 功能引入后的 AGPL 条款影响。
 - [ ] 在正式发布前获得法律确认。
 
 本文不构成法律意见。

@@ -1,6 +1,6 @@
 # Phase 0 结果报告
 
-> 状态：进行中（P0-000～P0-011 已落地；P0-004 真机仍缺；P0-012/013 未做）  
+> 状态：进行中（P0-000～P0-012 已落地；P0-004 真机仍缺；P0-013 未做）  
 > 分支：`spike/official-anki-core-android`  
 > 起始日期：2026-08-16
 
@@ -332,17 +332,42 @@ adb devices → no devices attached
 因此没有 with-core APK 体积对，也没有设备矩阵。这是环境失败，不是 host 指标失败。
 100k 在 host 上完成，不是 No-Go。
 
-## 14. 每日记录
+## 14. License 评审（P0-012）
+
+工程结论：**GO WITH CONDITIONS**。不是法律意见。
+
+已核实：
+
+- `licenses/ANKI-LICENSE` 与 pin 上 `anki/LICENSE` 字节一致。
+- `Cargo.lock` 358 个 crate：353 条对上 `anki/cargo/licenses.json`；
+  其余 5 个已从 cargo cache 的 `Cargo.toml` 补齐（本 crate AGPL；
+  `find-msvc-tools` / `symlink` / `toml_parser` MIT/Apache；`zmij` MIT）。
+- 5 个 AGPL crate 都是 Anki workspace。`priority-queue` 双许可，Turna
+  取 MPL-2.0。
+- 未捆绑官方 Reviewer Web/Qt/MathJax/logo。
+- 唯一修改：`0001-export-progress-state`。
+- 源码与重建步骤见 `licenses/SOURCE-OFFER.md`。
+- 未把 Turna GPLv3 写成已经完成 AGPL。
+- Phase 0 无 AnkiWeb/sync，AGPL §13 未触发。
+
+发布前仍阻塞：
+
+1. 法律确认。
+2. 生产 About / `showLicensePage` 调用 `registerOfficialAnkiLicenses()`
+   （debug Spike 页已注册并展示）。
+3. 每个发版 APK 写明对应 git commit。
+
+## 15. 每日记录
 
 ### 2026-08-16
 
-- 完成任务：P0-000～P0-011（P0-004 真机 APK 仍缺；P0-012/013 未做）
-- 当前任务：P0-011 测量已写入本报告
-- 实际命令：见 §5–§13
-- 新增事实：9 个小 fixture 官方 import+golden render 通过；Good/undo/reopen/stale
-  token 通过；5k/100k host import 完成；`.so` unstripped 19 245 480
+- 完成任务：P0-000～P0-012（P0-004 真机 APK 仍缺；P0-013 未做）
+- 当前任务：P0-012 License 评审
+- 实际命令：`python3 licenses/inventory_lockfile.py`；
+  `cmp licenses/ANKI-LICENSE anki/LICENSE`
+- 新增事实：lockfile 许可证分桶见 Notices；结论 GO WITH CONDITIONS
 - 失败：官方 export 非 bit-stable；Gradle flutter-plugin-loader 25.0.2；无 adb
 - 指标变化：见 §13
 - 上游 API/patch 变化：1 行 `ProgressState` re-export
-- 阻塞项：release APK / 真机 DynamicLibrary.open
-- 下一步：P0-012 License 评审，或先修 P0-004 Gradle/adb
+- 阻塞项：法律确认；About 钩子；release APK / 真机
+- 下一步：P0-013 阶段报告与 Go/No-Go；或先修 P0-004

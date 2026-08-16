@@ -12,7 +12,7 @@ must not change production import, render, or SRS paths.
 | git describe | `25.09.2-370-g967aa0d57` |
 | Rust toolchain | `1.97.1` (see `rust-toolchain.toml`) |
 | Anki license | GNU AGPL v3 or later (`licenses/ANKI-LICENSE`) |
-| Turna patches | none yet (`patches/` is empty) |
+| Turna patches | `0001-export-progress-state` (`pub use ProgressState`) |
 | last compatibility run | not run; Phase 0 in progress |
 
 Do **not** follow `origin/main`. Do **not** add a Cargo path that points at
@@ -39,7 +39,7 @@ native/turna_anki_core/
 ├── contract/             # Turna-owned schema, not upstream protobuf
 ├── build-android/        # Android arm64 scripts (commands unverified)
 ├── licenses/
-└── patches/              # replayable Turna patches; none yet
+└── patches/              # 0001-export-progress-state only
 ```
 
 ## Host commands (P0-002)
@@ -98,6 +98,12 @@ opens files only under `<app-support>/anki-spike/<run-id>/`.
 cd native/turna_anki_core
 PROTOC="$PWD/tools/protoc/bin/protoc" PROTOC_BINARY="$PROTOC" cargo test
 ```
+
+## License / source offer (P0-012)
+
+Engineering conclusion: **GO WITH CONDITIONS**.
+See `licenses/THIRD-PARTY-NOTICES-DRAFT.md` and `licenses/SOURCE-OFFER.md`.
+Turna GPLv3 does not finish Anki AGPL duties.
 
 ## Spike isolation
 

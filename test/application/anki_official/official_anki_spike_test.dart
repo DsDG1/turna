@@ -256,6 +256,11 @@ void main() {
         ),
       );
       expect(find.text('library loaded'), findsOneWidget);
+      expect(find.text('license', skipOffstage: false), findsOneWidget);
+      expect(
+        find.textContaining('AGPL-3.0-or-later', skipOffstage: false),
+        findsOneWidget,
+      );
       expect(find.text('yes'), findsOneWidget);
       expect(find.text('1'), findsWidgets);
       expect(find.text('engine_close'), findsOneWidget);

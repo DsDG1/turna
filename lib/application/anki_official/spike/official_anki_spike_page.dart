@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 
 // Project imports:
+import 'package:turna/application/anki_official/official_anki_license_notices.dart';
 import 'package:turna/application/anki_official/spike/official_anki_spike_engine.dart';
 import 'package:turna/application/anki_official/spike/official_anki_spike_models.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
@@ -39,6 +40,7 @@ class _OfficialAnkiSpikePageState extends State<OfficialAnkiSpikePage> {
   void initState() {
     super.initState();
     _engine = widget.engine ?? FfiOfficialAnkiSpikeEngine();
+    registerOfficialAnkiLicenses();
     _snapshot = _engine.probe();
   }
 
@@ -161,6 +163,8 @@ class _OfficialAnkiSpikePageState extends State<OfficialAnkiSpikePage> {
                   : '${collection.lastError!.code.name}: ${collection.lastError!.message}',
             ),
           ],
+          const SizedBox(height: 16),
+          const _LicenseNotice(),
         ],
       ),
     );
@@ -203,6 +207,41 @@ class _DevOnlyBanner extends StatelessWidget {
       child: const Text(
         '开发诊断页。不进入普通用户导航，也不改生产 Anki 导入路径。',
       ),
+    );
+  }
+}
+
+class _LicenseNotice extends StatelessWidget {
+  const _LicenseNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'license',
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: TurnaTheme.textSecondaryColor(context),
+              ),
+        ),
+        const SizedBox(height: 4),
+        const SelectableText(
+          'Anki rslib: AGPL-3.0-or-later. Turna GPLv3 does not finish that duty. '
+          '$kOfficialAnkiSourceOfferSummary',
+        ),
+        const SizedBox(height: 8),
+        TextButton(
+          onPressed: () {
+            registerOfficialAnkiLicenses();
+            showLicensePage(
+              context: context,
+              applicationName: 'Turna',
+            );
+          },
+          child: const Text('查看开源许可证'),
+        ),
+      ],
     );
   }
 }
