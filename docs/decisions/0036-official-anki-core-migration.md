@@ -1,6 +1,6 @@
 # ADR 0036 - 官方 Anki rslib 作为唯一 Anki 事实源
 
-- **状态：** 已接受（实施从 Phase 0 Spike 开始）
+- **状态：** 已接受（Phase 0 = Conditional Go，见 `docs/official-anki-migration/02-phase-0-result-report.md` §19）
 - **日期：** 2026-08-16
 - **前置：** `docs/official-anki-migration/00-overall-migration-plan.md`
 - **真源：** `native/turna_anki_core/`、`docs/official-anki-migration/`

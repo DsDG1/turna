@@ -1,6 +1,6 @@
 # 官方 Anki Core 迁移文档索引
 
-> 状态：Phase 0 进行中（`spike/official-anki-core-android`）  
+> 状态：Phase 0 **Conditional Go**（`spike/official-anki-core-android`）  
 > 首发目标：Android arm64  
 > 总原则：官方 Anki Collection 是唯一 Anki 事实源，Turna 只维护课程投影  
 > 执行记录：[02-phase-0-result-report.md](./02-phase-0-result-report.md)
@@ -10,8 +10,8 @@
 | 顺序 | 文档 | 用途 | 当前状态 |
 |---|---|---|---|
 | 00 | [总体迁移方案](./00-overall-migration-plan.md) | 目标架构、数据所有权、渲染、调度、Legacy 迁移和完整阶段划分 | 提案 |
-| 01 | [第一阶段实施方案](./01-phase-0-implementation-plan.md) | Android arm64 技术 Spike 的逐任务施工、验收和 Go/No-Go 门禁 | 执行中 |
-| 02 | [第一阶段结果报告](./02-phase-0-result-report.md) | 基线、命令、指标、Go/No-Go 证据 | 进行中 |
+| 01 | [第一阶段实施方案](./01-phase-0-implementation-plan.md) | Android arm64 技术 Spike 的逐任务施工、验收和 Go/No-Go 门禁 | 已收口 |
+| 02 | [第一阶段结果报告](./02-phase-0-result-report.md) | 基线、命令、指标、Conditional Go | 已决策 |
 
 ## 阶段命名
 

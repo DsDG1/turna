@@ -1624,13 +1624,13 @@ Android-only、由一名熟悉 Flutter 和 Rust/NDK 的资深工程师执行，�
 
 ### 阶段 0 后确认
 
-- 最终固定的 Anki release/commit。
-- 直接 Rust FFI 或包装 AAR 的最终构建形式。
-- Turna contract 使用 Protobuf、MessagePack 还是其他二进制编码。
-- 动态库和 APK 体积预算。
-- 100k Card 性能门槛。
-- Reviewer shell 复用哪些官方 Web assets。
-- 是否为 batch descriptor 维护极小 Anki patch。
+- 最终固定的 Anki release/commit。→ **钉死** `967aa0d578fc75181e292e95326f9b58698da25c`。
+- 直接 Rust FFI 或包装 AAR 的最终构建形式。→ **直接** Turna `cdylib` + C ABI，不用 AAR。
+- Turna contract 使用 Protobuf、MessagePack 还是其他二进制编码。→ Phase 0 用 **JSON + 自有 operation 号**；编号进真机产物后不得重排。
+- 动态库和 APK 体积预算。→ strip 后 **16 077 904** 字节；产品尚未签字（条件 C2）。
+- 100k Card 性能门槛。→ host 导入 **3642 ms**；真机门槛待 C1 后补。
+- Reviewer shell 复用哪些官方 Web assets。→ Phase 0 **不捆绑**；留第三阶段。
+- 是否为 batch descriptor 维护极小 Anki patch。→ **只要** `ProgressState` 一行 re-export。
 
 ### 产品需要确认
 

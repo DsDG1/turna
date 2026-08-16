@@ -1,16 +1,30 @@
 # Phase 0 结果报告
 
-> 状态：进行中（P0-000～P0-012 已落地；P0-004 真机仍缺；P0-013 未做）  
+> 状态：**Conditional Go**（P0-000～P0-013 收口；P0-004 真机仍缺）  
 > 分支：`spike/official-anki-core-android`  
-> 起始日期：2026-08-16
+> 决策日：2026-08-16  
+> 决策提交：在本文件之后的 P0-013 commit
 
 本文件只记录已测量事实。未验证的命令标为候选。
 
 ## 1. 执行摘要
 
-Phase 0 已开工。本机已建立 `native/turna_anki_core`，并把官方 Anki 钉在
-`967aa0d578fc75181e292e95326f9b58698da25c`。尚未安装 Rust，尚未交叉编译，
-尚未改动生产 Anki 导入入口。
+Phase 0 Spike **证明了官方 `rslib` 可以在本机作为唯一 Anki 核心跑通**
+open → import → render → queue → Good → undo → close/reopen，以及 5k/100k
+host 导入。生产 `AnkiImporter` / Legacy 渲染 / Turna SRS **未被替换**。
+
+| 问题 | 结论 |
+|---|---|
+| 官方 rslib 能否编成 Android arm64 `.so`？ | 能。`build.sh` 已验证。 |
+| Flutter release APK 能否稳定加载？ | **未证明。** Gradle `flutter-plugin-loader` / `25.0.2`；无 adb。 |
+| open / import / render / queue / answer / undo？ | Host 已证明。真机 FFI 未证明。 |
+| Unicode / Reverse / Cloze / 媒体？ | 冻结 fixture + golden HTML 通过。 |
+| 体积 / 大牌组？ | strip 后 `.so` 16 077 904 字节；100k import 3642 ms。产品尚未签字。 |
+| AGPL 是否挡住发布？ | **GO WITH CONDITIONS**，不是自动通过。 |
+
+**决策：Conditional Go。** 可以开始规划第二阶段（稳定 Engine 与官方导入），
+但在 debug/release 真机加载 `.so`、About 许可证钩子和法律确认完成之前，
+不得把生产导入切到官方 Collection，也不得删除 Legacy。
 
 ## 2. 基线环境
 
@@ -125,7 +139,8 @@ test tests::collection_builder_is_visible_and_closes ... ok
 - `Collection::import_apkg`
 - `Collection::render_existing_card`
 
-未修改官方数据库 schema，无 Anki 源码 patch。
+未修改官方数据库 schema。P0-010 起有 1 行可见性 patch：
+`pub use progress::ProgressState`（见 §16）。
 
 构建方式结论：
 
@@ -361,13 +376,185 @@ adb devices → no devices attached
 
 ### 2026-08-16
 
-- 完成任务：P0-000～P0-012（P0-004 真机 APK 仍缺；P0-013 未做）
-- 当前任务：P0-012 License 评审
-- 实际命令：`python3 licenses/inventory_lockfile.py`；
-  `cmp licenses/ANKI-LICENSE anki/LICENSE`
-- 新增事实：lockfile 许可证分桶见 Notices；结论 GO WITH CONDITIONS
+- 完成任务：P0-000～P0-013
+- 当前任务：P0-013 阶段报告与 Go/No-Go
+- 决策：Conditional Go（§19）
 - 失败：官方 export 非 bit-stable；Gradle flutter-plugin-loader 25.0.2；无 adb
-- 指标变化：见 §13
 - 上游 API/patch 变化：1 行 `ProgressState` re-export
-- 阻塞项：法律确认；About 钩子；release APK / 真机
-- 下一步：P0-013 阶段报告与 Go/No-Go；或先修 P0-004
+- 阻塞项：C1 Gradle/真机；C2 体积；C3/C4 许可展示与法律确认
+- 下一步：修 `flutter-plugin-loader` / 真机加载，作为第二阶段第一张票
+
+## 16. 上游 patch
+
+| Patch | 文件 | 作用 | 删除条件 |
+|---|---|---|---|
+| `0001-export-progress-state` | `anki/rslib/src/lib.rs` | 对外 re-export `ProgressState`，取消导入时不必持有 Collection 锁 | 上游自己导出 abort handle |
+
+子模块指针仍钉在 `967aa0d578fc75181e292e95326f9b58698da25c`。
+`host-test.sh` / `build.sh` 在干净树上会 apply 该 patch。
+这落在实施方案「很小且可维护的 visibility patch」Conditional Go 允许范围内。
+
+## 17. 未解决风险
+
+| ID | 风险 | 现状 | 对决策的影响 |
+|---|---|---|---|
+| R-APK | 本机无法 `flutter build apk` | `flutter-plugin-loader` 1.0.0 → `25.0.2` | 挡住无条件 Go |
+| R-DEV | 无 adb 设备 | `adb devices` 为空 | 真机 load / 冷启动 / 低内存未测 |
+| R-VOL | Native +16 MiB（strip 后） | 产品未确认预算 | Conditional：arm64-only / 拆分 |
+| R-LIC | AGPL 源码提供与 About 钩子 | 工程清单完成；法律未签；生产 About 未钩 | 挡住含 `.so` 的商店包 |
+| R-OHOS | 文档写的是 OHOS Flutter fork | 本机用官方 Flutter 3.44.8 | OHOS 打包另做 Spike |
+| R-PIN | 上游无 semver | 已钉 commit | 升级必须独立 PR + 重跑 fixture |
+
+没有发现「必须大规模 fork Anki」或「必须让 Dart 读官方 SQLite / RPC index」。
+
+## 18. Go 条件对照（P0-013）
+
+| 硬门禁 | 结果 | 证据 |
+|---|---|---|
+| Android arm64 debug/release 均能加载 `.so` | **未过** | §8、§13 Gradle/adb 失败 |
+| 构建脚本在干净环境可复现 | 部分 | `build.sh` / `host-test.sh` 已在本机复跑；干净 CI 未跑 |
+| Collection create/open/close/reopen | **过**（host） | §10 |
+| Legacy/current package 可导入 | **过**（host） | §9、§12，含 `09-legacy-package` |
+| Unicode 零字段损坏 | **过** | `01-basic-unicode` fields + golden |
+| Basic / Reverse / Cloze / FrontSide | **过** | `render_goldens_match_official_html` |
+| Queue / Good / Undo | **过**（host） | `queue_good_undo_reopen_and_stale_token` |
+| 取消后 Collection 可继续用 | **过**（host） | cancel 测试 |
+| 100k 可接受或有规模方案 | **过**（host） | 3642 ms / 100 000 notes；产品仍可再设门槛 |
+| Native 体积得到产品确认 | **未过** | 16 077 904 字节已测，未签字 |
+| Dart 不必读官方 SQLite/schema | **过** | spike 源码扫描 |
+| Dart 不必暴露数字 RPC index | **过** | Turna C ABI + JSON |
+| AGPL 至少 GO WITH CONDITIONS | **过** | §14 |
+
+No-Go 条款（大规模 fork、核心模板不可控、取消损坏库、100k 不能跑、AGPL 不可接受）**均不成立**。
+Release 无法加载是**尚未测到**，不是已经证明官方 Core 不能进 APK。
+
+## 19. 决策
+
+```text
+CONDITIONAL GO
+```
+
+允许进入第二阶段（稳定 Engine 与官方导入）的设计与脚手架，条件如下。
+每个条件有 owner、截止阶段和验收。未关闭前 **禁止** 切换生产导入默认路径、
+**禁止** 删除 Legacy。
+
+| # | 条件 | Owner | 截止 | 验收 |
+|---|---|---|---|---|
+| C1 | 修 Gradle，打出 arm64 debug **和** release APK，真机 `DynamicLibrary.open('libturna_anki.so')` | 构建 / 平台 | 第二阶段开工后、生产切流前 | 两份 APK + adb 日志，符号与 ABI 检查通过 |
+| C2 | 产品书面接受 strip 后约 16 MiB native，或改 arm64-only / 按需下载 | 产品 | 第二阶段开工 | 预算写进 ADR 0036 或产品纪要 |
+| C3 | 生产 About / `showLicensePage` 调用 `registerOfficialAnkiLicenses()`；发版记录 git commit | 应用 | 第一个含 `.so` 的对外包 | License 页可见 Anki AGPL |
+| C4 | 法律确认 P0-012 清单 | 许可负责人 | 同上 | 书面 GO / GO WITH CONDITIONS |
+| C5 | 继续携带 `0001-export-progress-state`，直到上游导出 abort API | Native | 第二阶段全程 | patch 可 replay；升级 pin 时重打 |
+
+允许留到正式 Renderer（第三阶段）的前端工作：隔离 WebView Reviewer、
+MathJax、typed-answer 外壳。Phase 0 只保证官方 HTML/CSS/AV 字符串。
+
+## 20. 第二阶段工期调整
+
+总体方案原估计（一名熟 Flutter+Rust 的工程师，Android-only）：
+
+| 阶段 | 原估计 | Phase 0 之后 |
+|---|---|---|
+| 0 Spike | 1–2 周 | **已完成** |
+| 1 稳定 Engine 与官方导入 | 2–3 周 | **2–3 周**，另加 **3–5 日** 专攻 C1（Gradle/APK/真机）。导入/渲染 API 已不必再探路 |
+| 2 官方原卡渲染 | 3–4 周 | **维持 3–4 周**（WebView 安全壳未做） |
+| 3 课程投影 | 2–3 周 | 维持 |
+| 4 官方 Scheduler | 2–3 周 | **可压到 1.5–2.5 周**：Good/Undo/revlog 已在 host 闭环，剩下 session 持久化与 UI |
+| 5 Legacy 迁移删除 | 2–4 周 | 维持；取决于是否已有正式用户数据（产品仍未回答） |
+| 6 AnkiWeb Sync | 不计入首期 | 维持；会重开 AGPL §13 |
+
+核心迁移总量仍按 **12–18 周**，但第一刀必须先关掉 C1，否则第二阶段会在「能不能装进 APK」上原地打转。
+
+建议第二阶段第一张票就是 C1，而不是立刻改 `anki_import_screen.dart`。
+
+## 16. 上游 patch
+
+| Patch | 文件 | 作用 | 删除条件 |
+|---|---|---|---|
+| `0001-export-progress-state` | `anki/rslib/src/lib.rs` | 对外 re-export `ProgressState`，取消导入时不必持有 Collection 锁 | 上游自己导出 abort handle |
+
+子模块指针仍钉在 `967aa0d578fc75181e292e95326f9b58698da25c`。
+`host-test.sh` / `build.sh` 在干净树上会 apply 该 patch。
+这落在实施方案「很小且可维护的 visibility patch」Conditional Go 允许范围内。
+
+## 17. 未解决风险
+
+| ID | 风险 | 现状 | 对决策的影响 |
+|---|---|---|---|
+| R-APK | 本机无法 `flutter build apk` | `flutter-plugin-loader` 1.0.0 → `25.0.2` | 挡住无条件 Go |
+| R-DEV | 无 adb 设备 | `adb devices` 为空 | 真机 load / 冷启动 / 低内存未测 |
+| R-VOL | Native +16 MiB（strip 后） | 产品未确认预算 | Conditional：arm64-only / 拆分 |
+| R-LIC | AGPL 源码提供与 About 钩子 | 工程清单完成；法律未签；生产 About 未钩 | 挡住含 `.so` 的商店包 |
+| R-OHOS | 文档写的是 OHOS Flutter fork | 本机用官方 Flutter 3.44.8 | OHOS 打包另做 Spike |
+| R-PIN | 上游无 semver | 已钉 commit | 升级必须独立 PR + 重跑 fixture |
+
+没有发现「必须大规模 fork Anki」或「必须让 Dart 读官方 SQLite / RPC index」。
+
+## 18. Go 条件对照（P0-013）
+
+| 硬门禁 | 结果 | 证据 |
+|---|---|---|
+| Android arm64 debug/release 均能加载 `.so` | **未过** | §8、§13 Gradle/adb 失败 |
+| 构建脚本在干净环境可复现 | 部分 | `build.sh` / `host-test.sh` 已在本机复跑；干净 CI 未跑 |
+| Collection create/open/close/reopen | **过**（host） | §10 |
+| Legacy/current package 可导入 | **过**（host） | §9、§12，含 `09-legacy-package` |
+| Unicode 零字段损坏 | **过** | `01-basic-unicode` fields + golden |
+| Basic / Reverse / Cloze / FrontSide | **过** | `render_goldens_match_official_html` |
+| Queue / Good / Undo | **过**（host） | `queue_good_undo_reopen_and_stale_token` |
+| 取消后 Collection 可继续用 | **过**（host） | `cancel_import_does_not_report_success_and_collection_checks` |
+| 100k 可接受或有规模方案 | **过**（host） | 3642 ms / 100 000 notes；产品仍可再设门槛 |
+| Native 体积得到产品确认 | **未过** | 16 077 904 字节已测，未签字 |
+| Dart 不必读官方 SQLite/schema | **过** | spike 源码扫描 |
+| Dart 不必暴露数字 RPC index | **过** | Turna C ABI + JSON |
+| AGPL 至少 GO WITH CONDITIONS | **过** | §14 |
+
+No-Go 条款（大规模 fork、核心模板不可控、取消损坏库、100k 不能跑、AGPL 不可接受）**均不成立**。
+Release 无法加载是**尚未测到**，不是已经证明官方 Core 不能进 APK。
+
+## 19. 决策
+
+```text
+CONDITIONAL GO
+```
+
+允许进入第二阶段（稳定 Engine 与官方导入）的设计与脚手架，条件如下。
+每个条件有 owner、截止阶段和验收。未关闭前 **禁止** 切换生产导入默认路径、
+**禁止** 删除 Legacy。
+
+| # | 条件 | Owner | 截止 | 验收 |
+|---|---|---|---|---|
+| C1 | 修 Gradle，打出 arm64 debug **和** release APK，真机 `DynamicLibrary.open('libturna_anki.so')` | 构建 / 平台 | 第二阶段开工后、生产切流前 | 两份 APK + adb 日志，符号与 ABI 检查通过 |
+| C2 | 产品书面接受 strip 后约 16 MiB native，或改 arm64-only / 按需下载 | 产品 | 第二阶段开工 | 预算写进 ADR 0036 或产品纪要 |
+| C3 | 生产 About / `showLicensePage` 调用 `registerOfficialAnkiLicenses()`；发版记录 git commit | 应用 | 第一个含 `.so` 的对外包 | License 页可见 Anki AGPL |
+| C4 | 法律确认 P0-012 清单 | 许可负责人 | 同上 | 书面 GO / GO WITH CONDITIONS |
+| C5 | 继续携带 `0001-export-progress-state`，直到上游导出 abort API | Native | 第二阶段全程 | patch 可 replay；升级 pin 时重打 |
+
+允许留到正式 Renderer（第三阶段）的前端工作：隔离 WebView Reviewer、
+MathJax、typed-answer 外壳。Phase 0 只保证官方 HTML/CSS/AV 字符串。
+
+## 20. 第二阶段工期调整
+
+总体方案原估计（一名熟 Flutter+Rust 的工程师，Android-only）：
+
+| 阶段 | 原估计 | Phase 0 之后 |
+|---|---|---|
+| 0 Spike | 1–2 周 | **已完成**（本机约 1 个日历日集中落地 + 既有脏树未清） |
+| 1 稳定 Engine 与官方导入 | 2–3 周 | **2–3 周**，另加 **3–5 日** 专攻 C1（Gradle/APK/真机）。导入/渲染 API 已不必再探路 |
+| 2 官方原卡渲染 | 3–4 周 | **维持 3–4 周**（WebView 安全壳未做） |
+| 3 课程投影 | 2–3 周 | 维持 |
+| 4 官方 Scheduler | 2–3 周 | **可压到 1.5–2.5 周**：Good/Undo/revlog 已在 host 闭环，剩下 session 持久化与 UI |
+| 5 Legacy 迁移删除 | 2–4 周 | 维持；取决于是否已有正式用户数据（产品仍未回答） |
+| 6 AnkiWeb Sync | 不计入首期 | 维持；会重开 AGPL §13 |
+
+核心迁移总量仍按 **12–18 周**，但第一刀必须先关掉 C1，否则第二阶段会在「能不能装进 APK」上原地打转。
+
+建议第二阶段第一张票就是 C1，而不是立刻改 `anki_import_screen.dart`。
+
+## 21. 每日记录（P0-013）
+
+### 2026-08-16
+
+- 完成任务：P0-000～P0-013
+- 决策：Conditional Go
+- 阻塞项：C1 Gradle/真机；C2 体积；C3/C4 许可展示与法律确认
+- 下一步：修 `flutter-plugin-loader` / 真机加载，或按第二阶段方案开工但把 C1 当第一张票

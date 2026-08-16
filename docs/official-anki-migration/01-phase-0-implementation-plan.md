@@ -1,7 +1,7 @@
 # 第一阶段实施方案：官方 Anki Core Android 技术 Spike
 
 > 阶段编号：Phase 0  
-> 文档状态：待执行  
+> 文档状态：Phase 0 已收口（Conditional Go，见结果报告 §19）  
 > 前置文档：[总体迁移方案](./00-overall-migration-plan.md)  
 > 文档索引：[README](./README.md)  
 > 目标平台：Android arm64-v8a  
