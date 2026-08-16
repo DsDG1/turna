@@ -223,6 +223,42 @@ void main() {
     expect(constructed, 0);
   });
 
+  test('recovery cursor resumes from nextOffset not zero', () async {
+    final harness = _Harness();
+    addTearDown(harness.dispose);
+    final file = File(
+      p.join(fixtureRoot.path, 'packages', '01-basic-unicode.apkg'),
+    );
+    harness.engine.seedPackage(packagePath: file.path, notes: 3, cards: 3);
+    final first = OfficialAnkiImportOrchestrator(
+      engine: harness.engine,
+      sources: harness.sources,
+      attempts: harness.attempts,
+      paths: harness.paths,
+      fault: OfficialAnkiFaultPoint.afterMidBatchCursor,
+      batchSize: 1,
+    );
+    try {
+      await first.importFile(packagePath: file.path, displayName: 'cursor');
+      fail('expected mid-batch fault');
+    } on Object {
+      // expected
+    }
+    expect(harness.engine.noteBatchCalls, 1);
+    final attempt = harness.attempts.unfinished().single;
+    expect(attempt.nextOffset, 1);
+    final recovered = await OfficialAnkiImportOrchestrator(
+      engine: harness.engine,
+      sources: harness.sources,
+      attempts: harness.attempts,
+      paths: harness.paths,
+      batchSize: 1,
+    ).resumeIndexing(attempt);
+    expect(recovered.state, OfficialAnkiSourceState.active);
+    expect(harness.engine.noteBatchCalls, 3);
+    expect(harness.sources.cardCount(recovered.sourceId), 3);
+  });
+
   test('worker serializes overlapping open/import/close', () async {
     final harness = _Harness();
     addTearDown(harness.dispose);

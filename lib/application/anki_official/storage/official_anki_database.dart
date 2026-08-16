@@ -1,8 +1,10 @@
+import 'dart:convert';
+
 import 'package:sqlite3/sqlite3.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/storage/official_anki_sqlite.dart';
 
-const int kOfficialAnkiCatalogSchemaVersion = 1;
+const int kOfficialAnkiCatalogSchemaVersion = 2;
 
 /// Independent catalog. Must not live in CourseDatabase (downgrade wipes it).
 class OfficialAnkiDatabase {
@@ -38,8 +40,27 @@ class OfficialAnkiDatabase {
         messageKey: 'official_anki.catalog_future_version',
       );
     }
-    if (version == 0) {
-      _db.execute('''
+    if (version == kOfficialAnkiCatalogSchemaVersion) {
+      return;
+    }
+    _db.execute('BEGIN');
+    try {
+      if (version == 0) {
+        _createV1();
+      }
+      if (version <= 1) {
+        _upgradeToV2();
+      }
+      _db.execute('PRAGMA user_version = $kOfficialAnkiCatalogSchemaVersion');
+      _db.execute('COMMIT');
+    } catch (_) {
+      _db.execute('ROLLBACK');
+      rethrow;
+    }
+  }
+
+  void _createV1() {
+    _db.execute('''
 CREATE TABLE anki_sources (
   source_id TEXT PRIMARY KEY,
   profile_id TEXT NOT NULL,
@@ -61,7 +82,7 @@ CREATE TABLE anki_sources (
   UNIQUE(profile_id, source_hash)
 );
 ''');
-      _db.execute('''
+    _db.execute('''
 CREATE TABLE anki_source_cards (
   source_id TEXT NOT NULL REFERENCES anki_sources(source_id) ON DELETE CASCADE,
   card_id INTEGER NOT NULL,
@@ -72,10 +93,10 @@ CREATE TABLE anki_source_cards (
   PRIMARY KEY(source_id, card_id)
 );
 ''');
-      _db.execute(
-        'CREATE INDEX anki_source_cards_card_idx ON anki_source_cards(card_id)',
-      );
-      _db.execute('''
+    _db.execute(
+      'CREATE INDEX anki_source_cards_card_idx ON anki_source_cards(card_id)',
+    );
+    _db.execute('''
 CREATE TABLE anki_import_attempts (
   attempt_id TEXT PRIMARY KEY,
   source_id TEXT NOT NULL REFERENCES anki_sources(source_id),
@@ -92,7 +113,45 @@ CREATE TABLE anki_import_attempts (
   recovery_count INTEGER NOT NULL DEFAULT 0
 );
 ''');
-      _db.execute('PRAGMA user_version = $kOfficialAnkiCatalogSchemaVersion');
+  }
+
+  void _upgradeToV2() {
+    _db.execute('''
+CREATE TABLE IF NOT EXISTS anki_import_attempt_notes (
+  attempt_id TEXT NOT NULL REFERENCES anki_import_attempts(attempt_id) ON DELETE CASCADE,
+  ordinal INTEGER NOT NULL,
+  note_id INTEGER NOT NULL,
+  PRIMARY KEY(attempt_id, ordinal)
+);
+''');
+    _db.execute(
+      'CREATE INDEX IF NOT EXISTS anki_import_attempt_notes_attempt_idx '
+      'ON anki_import_attempt_notes(attempt_id)',
+    );
+    final rows = _db.select(
+      'SELECT attempt_id, imported_note_ids_json FROM anki_import_attempts '
+      "WHERE imported_note_ids_json IS NOT NULL AND imported_note_ids_json != ''",
+    );
+    final insert = _db.prepare(
+      'INSERT OR IGNORE INTO anki_import_attempt_notes '
+      '(attempt_id, ordinal, note_id) VALUES (?, ?, ?)',
+    );
+    try {
+      for (final row in rows) {
+        final attemptId = row['attempt_id'] as String;
+        final raw = row['imported_note_ids_json'] as String?;
+        if (raw == null || raw.isEmpty) continue;
+        final decoded = jsonDecode(raw);
+        if (decoded is! List) continue;
+        for (var i = 0; i < decoded.length; i++) {
+          final value = decoded[i];
+          if (value is num) {
+            insert.execute([attemptId, i, value.toInt()]);
+          }
+        }
+      }
+    } finally {
+      insert.dispose();
     }
   }
 

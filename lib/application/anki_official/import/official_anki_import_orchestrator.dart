@@ -5,6 +5,7 @@ import 'package:turna/application/anki_official/contract/official_anki_errors.da
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
 import 'package:turna/application/anki_official/import/official_anki_source_hasher.dart';
+import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
@@ -12,7 +13,7 @@ import 'package:turna/application/anki_official/storage/official_anki_source_dao
 typedef OfficialAnkiClock = int Function();
 
 /// Official import saga. Never calls [AnkiImporter] or [AnkiImportService].
-class OfficialAnkiImportOrchestrator {
+class OfficialAnkiImportOrchestrator implements OfficialAnkiImporter {
   OfficialAnkiImportOrchestrator({
     required this.engine,
     required this.sources,
@@ -45,7 +46,44 @@ class OfficialAnkiImportOrchestrator {
     }
   }
 
+  @override
   Future<OfficialAnkiImportResult> importFile({
+    required String packagePath,
+    required String displayName,
+    String? requestId,
+    bool cancel = false,
+  }) async {
+    try {
+      return await _importFile(
+        packagePath: packagePath,
+        displayName: displayName,
+        requestId: requestId,
+        cancel: cancel,
+      );
+    } on OfficialAnkiException catch (error) {
+      if (error.messageKey != 'official_anki.fault_injected') {
+        _persistClassifiedFailure(error);
+      }
+      rethrow;
+    }
+  }
+
+  void _persistClassifiedFailure(OfficialAnkiException error) {
+    final unfinished = attempts.unfinished();
+    if (unfinished.isEmpty) return;
+    final attempt = unfinished.last;
+    try {
+      attempts.transition(
+        attemptId: attempt.attemptId,
+        expectedState: attempt.state,
+        nextState: OfficialAnkiSourceState.needsReconciliation.wire,
+        nowMillis: _now,
+        errorCode: error.code.name,
+      );
+    } catch (_) {}
+  }
+
+  Future<OfficialAnkiImportResult> _importFile({
     required String packagePath,
     required String displayName,
     String? requestId,
@@ -82,10 +120,20 @@ class OfficialAnkiImportOrchestrator {
       if (unfinished.isNotEmpty) {
         return recoverAttempt(unfinished.first);
       }
+      if (existing.state == OfficialAnkiSourceState.needsReconciliation.wire) {
+        final leftover = attempts.find(existing.sourceId);
+        return OfficialAnkiImportResult(
+          sourceId: existing.sourceId,
+          attemptId: leftover?.attemptId ?? existing.sourceId,
+          state: OfficialAnkiSourceState.needsReconciliation,
+          cardCount: sources.cardCount(existing.sourceId),
+          noteCount: leftover?.importedNoteCount ?? 0,
+        );
+      }
     }
 
-    final sourceId = existing?.sourceId ?? 'src-${digest.sha256.substring(0, 16)}';
-    final attemptId = 'att-${_now.toRadixString(16)}-${digest.sha256.substring(0, 8)}';
+    final sourceId = existing?.sourceId ?? newOfficialAnkiId('src');
+    final attemptId = newOfficialAnkiId('att');
     final rid = requestId ?? 'req-$attemptId';
 
     sources.upsertSource(
@@ -162,15 +210,17 @@ class OfficialAnkiImportOrchestrator {
       expectedState: OfficialAnkiSourceState.importingOfficial.wire,
       nextState: OfficialAnkiSourceState.indexingNotes.wire,
       nowMillis: _now,
-      nativeImportToken: imported.nativeImportToken,
+      operationToken: imported.operationToken,
       importedNoteIds: imported.associatedNoteIds,
     );
     _trip(OfficialAnkiFaultPoint.afterNoteIdsBeforeCards);
     return _indexCards(
       sourceId: sourceId,
       attemptId: attemptId,
-      noteIds: imported.associatedNoteIds,
       expectedState: OfficialAnkiSourceState.indexingNotes.wire,
+      startOffset: 0,
+      collectionNoteCount: imported.noteCount,
+      collectionCardCount: imported.cardCount,
     );
   }
 
@@ -192,21 +242,21 @@ class OfficialAnkiImportOrchestrator {
             attemptId: attempt.attemptId,
             state: decision.state,
             cardCount: sources.cardCount(attempt.sourceId),
-            noteCount: attempt.importedNoteIds.length,
+            noteCount: attempt.importedNoteCount,
           ),
         );
     }
   }
 
   Future<OfficialAnkiImportResult> resumeIndexing(OfficialAnkiAttemptRow attempt) {
-    if (attempt.importedNoteIds.isEmpty) {
+    if (!attempt.hasImportedNotes) {
       return markNeedsReconciliation(attempt);
     }
     return _indexCards(
       sourceId: attempt.sourceId,
       attemptId: attempt.attemptId,
-      noteIds: attempt.importedNoteIds,
       expectedState: attempt.state,
+      startOffset: attempt.nextOffset,
       incrementRecovery: true,
     );
   }
@@ -263,18 +313,20 @@ class OfficialAnkiImportOrchestrator {
       attemptId: attempt.attemptId,
       state: OfficialAnkiSourceState.needsReconciliation,
       cardCount: sources.cardCount(attempt.sourceId),
-      noteCount: attempt.importedNoteIds.length,
+      noteCount: attempt.importedNoteCount,
     );
   }
 
   Future<OfficialAnkiImportResult> _indexCards({
     required String sourceId,
     required String attemptId,
-    required List<int> noteIds,
     required String expectedState,
+    required int startOffset,
     bool incrementRecovery = false,
+    int? collectionNoteCount,
+    int? collectionCardCount,
   }) async {
-    if (noteIds.isEmpty) {
+    if (attempts.noteIdCount(attemptId) == 0) {
       final attempt = attempts.find(attemptId);
       if (attempt != null) {
         return markNeedsReconciliation(attempt);
@@ -291,26 +343,27 @@ class OfficialAnkiImportOrchestrator {
       nowMillis: _now,
       incrementRecovery: incrementRecovery,
     );
-    final descriptors = <OfficialAnkiCardDescriptor>[];
-    for (var offset = 0; offset < noteIds.length; offset += batchSize) {
-      final batch = noteIds.sublist(
-        offset,
-        offset + batchSize > noteIds.length ? noteIds.length : offset + batchSize,
-      );
+    var offset = startOffset;
+    var firstBatchDone = false;
+    while (true) {
+      final batch = attempts.noteIdPage(attemptId, offset, batchSize);
+      if (batch.isEmpty) break;
       final noteCards = await engine.getNoteCardsBatch(batch);
       final cardIds = noteCards.values.expand((ids) => ids).toList();
-      if (cardIds.isNotEmpty) {
-        descriptors.addAll(await engine.getCardDescriptorsBatch(cardIds));
-      }
-      sources.upsertCardBatch(sourceId: sourceId, cards: descriptors);
-      attempts.transition(
+      final descriptors = cardIds.isEmpty
+          ? const <OfficialAnkiCardDescriptor>[]
+          : await engine.getCardDescriptorsBatch(cardIds);
+      final nextOffset = offset + batch.length;
+      attempts.commitIndexBatch(
         attemptId: attemptId,
-        expectedState: OfficialAnkiSourceState.indexingCards.wire,
-        nextState: OfficialAnkiSourceState.indexingCards.wire,
+        sourceId: sourceId,
+        cards: descriptors,
+        nextOffset: nextOffset,
         nowMillis: _now,
-        cursorJson: '{"offset":$offset}',
       );
-      if (offset == 0) {
+      offset = nextOffset;
+      if (!firstBatchDone) {
+        firstBatchDone = true;
         _trip(OfficialAnkiFaultPoint.afterMidBatchCursor);
       }
     }
@@ -322,21 +375,23 @@ class OfficialAnkiImportOrchestrator {
       nextState: OfficialAnkiSourceState.active.wire,
       nowMillis: _now,
     );
+    final source = sources.findById(sourceId);
     sources.transitionSource(
       sourceId: sourceId,
-      expectedState: OfficialAnkiSourceState.selected.wire,
+      expectedState: source?.state ?? OfficialAnkiSourceState.selected.wire,
       nextState: OfficialAnkiSourceState.active.wire,
       nowMillis: _now,
       importedAtMillis: _now,
     );
     _trip(OfficialAnkiFaultPoint.afterActiveRestart);
-    final uniqueNotes = descriptors.map((card) => card.noteId).toSet().length;
     return OfficialAnkiImportResult(
       sourceId: sourceId,
       attemptId: attemptId,
       state: OfficialAnkiSourceState.active,
       cardCount: sources.cardCount(sourceId),
-      noteCount: uniqueNotes,
+      noteCount: attempts.noteIdCount(attemptId),
+      collectionNoteCount: collectionNoteCount,
+      collectionCardCount: collectionCardCount,
     );
   }
 }

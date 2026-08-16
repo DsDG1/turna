@@ -63,7 +63,7 @@ class OfficialAnkiImportLog {
     required this.conflictingNoteIds,
     required this.noteCount,
     required this.cardCount,
-    this.nativeImportToken,
+    this.operationToken,
     this.elapsedMillis = 0,
   });
 
@@ -73,7 +73,7 @@ class OfficialAnkiImportLog {
   final List<int> conflictingNoteIds;
   final int noteCount;
   final int cardCount;
-  final String? nativeImportToken;
+  final String? operationToken;
   final int elapsedMillis;
 
   List<int> get associatedNoteIds {
@@ -102,7 +102,8 @@ class OfficialAnkiImportLog {
           .toInt(),
       cardCount: (json['card_count'] as num? ?? json['cardCount'] as num? ?? 0)
           .toInt(),
-      nativeImportToken: json['nativeImportToken'] as String?,
+      operationToken: (json['operationToken'] ?? json['nativeImportToken'])
+          as String?,
       elapsedMillis:
           (json['elapsed_millis'] as num? ?? json['elapsedMillis'] as num? ?? 0)
               .toInt(),

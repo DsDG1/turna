@@ -1,5 +1,14 @@
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
 
+abstract class OfficialAnkiImporter {
+  Future<OfficialAnkiImportResult> importFile({
+    required String packagePath,
+    required String displayName,
+    String? requestId,
+    bool cancel = false,
+  });
+}
+
 enum OfficialAnkiRecoveryAction { resume, retry, reconcile, leave }
 
 class OfficialAnkiRecoveryDecision {
@@ -104,7 +113,7 @@ OfficialAnkiRecoveryDecision decideOfficialAnkiRecovery(
     );
   }
   if (state == OfficialAnkiSourceState.importingOfficial &&
-      (attempt.nativeImportToken == null || attempt.importedNoteIds.isEmpty)) {
+      !attempt.hasImportedNotes) {
     return const OfficialAnkiRecoveryDecision(
       action: OfficialAnkiRecoveryAction.reconcile,
       state: OfficialAnkiSourceState.needsReconciliation,
@@ -113,7 +122,7 @@ OfficialAnkiRecoveryDecision decideOfficialAnkiRecovery(
   if (state == OfficialAnkiSourceState.indexingNotes ||
       state == OfficialAnkiSourceState.indexingCards ||
       (state == OfficialAnkiSourceState.importingOfficial &&
-          attempt.importedNoteIds.isNotEmpty)) {
+          attempt.hasImportedNotes)) {
     return const OfficialAnkiRecoveryDecision(
       action: OfficialAnkiRecoveryAction.resume,
       state: OfficialAnkiSourceState.recovering,
@@ -151,6 +160,8 @@ class OfficialAnkiImportResult {
     required this.cardCount,
     required this.noteCount,
     this.alreadyImported = false,
+    this.collectionNoteCount,
+    this.collectionCardCount,
   });
 
   final String sourceId;
@@ -159,4 +170,6 @@ class OfficialAnkiImportResult {
   final int cardCount;
   final int noteCount;
   final bool alreadyImported;
+  final int? collectionNoteCount;
+  final int? collectionCardCount;
 }

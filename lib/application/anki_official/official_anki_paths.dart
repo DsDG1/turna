@@ -26,6 +26,7 @@ class OfficialAnkiPaths {
   File get mediaDb => File('${profileRoot.path}/collection.media.db2');
   Directory get backups => Directory('${profileRoot.path}/backups');
   File get engineJson => File('${profileRoot.path}/engine.json');
+  File get catalogFile => File('${profileRoot.path}/official_catalog.sqlite');
 
   Map<String, String> openPayload({required String backendCommit}) {
     return <String, String>{
