@@ -13,7 +13,7 @@ import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 // Project imports:
 import 'package:turna/application/ai/ai_explain_prefs.dart';
 import 'package:turna/application/ai/ai_saved_explanations.dart';
-import 'package:turna/application/guide_return_controller.dart';
+import 'package:turna/application/system_health_monitor.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/core/verbose.dart';
 import 'package:turna/data/course_database.dart';
@@ -213,11 +213,11 @@ class LocalStateKeys {
   static String nativeLanguageKey(String scope) =>
       'settings.nativeLang.${scope.isEmpty ? 'builtin' : scope}';
 
-  // Anki advanced settings (deep-adaptation plan) - see SettingsProvider.
   static const String ankiPreRenderEnabled = 'anki.preRenderEnabled';
   static const String ankiCaptureDelaySec = 'anki.captureDelaySec';
   static const String ankiLiteThreshold = 'anki.liteThreshold';
   static const String ankiForceDisableJs = 'anki.forceDisableJs';
+  static const String systemHealthEvent = 'system.healthEvent';
 
   // Accessibility / neurodiversity settings — see AccessibilityProvider.
   // textScale is an int percent (100 = 1.0, 200 = 2.0); the rest are bool flags.
@@ -252,10 +252,11 @@ Future<void> setupLocator() async {
   // route (e.g. lesson dialog) can resolve it synchronously.
   getIt.registerLazySingleton<TabRouter>(() => TabRouter());
 
-  // Beginner-guide 「返回」 bubble session — framework-only, no prefs.
-  getIt.registerLazySingleton<GuideReturnController>(
-    () => GuideReturnController(),
-  );
+  if (!getIt.isRegistered<SystemHealthMonitor>()) {
+    getIt.registerLazySingleton<SystemHealthMonitor>(
+      () => SystemHealthMonitor(getIt<AppPrefs>()),
+    );
+  }
 
   getIt.registerLazySingleton<ExportService>(
       () => ExportService(getIt<AppPrefs>()));
@@ -300,7 +301,7 @@ Future<void> setupLocator() async {
 Future<CourseDatabase> _openAndSeedCourseDatabase() async {
   final CourseDatabase db;
 
-  if (defaultTargetPlatform == TargetPlatform.ohos) {
+  if (defaultTargetPlatform.name == 'ohos') {
     final executor = HarmonyOsRdbExecutor('course.db');
     db = CourseDatabase(executor);
     await executor.ensureOpen(db);

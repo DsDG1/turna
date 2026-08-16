@@ -36,6 +36,7 @@ import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/application/srs_tutor_provider.dart';
 import 'package:turna/application/study_stats_provider.dart';
+import 'package:turna/application/system_health_monitor.dart';
 import 'package:turna/application/theme_provider.dart';
 import 'package:turna/di/injection.dart';
 
@@ -160,6 +161,9 @@ final providers = [
   ),
   ChangeNotifierProvider<FunProvider>(
     create: (_) => getIt<FunProvider>(),
+  ),
+  ChangeNotifierProvider<SystemHealthMonitor>(
+    create: (_) => getIt<SystemHealthMonitor>(),
   ),
   Provider<MemoryCurveProvider>(
     create: (_) => getIt<MemoryCurveProvider>(),

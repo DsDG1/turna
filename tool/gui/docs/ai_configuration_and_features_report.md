@@ -17,11 +17,11 @@ Turna GUI 采用了 **“Open → Save 全流程超级共生体”（Experience 
 
 ## 二、 AI 基础服务与模型配置
 
-AI 配置体系集中在 [settings.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/application/settings.py)、[ai_presets.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/backend/ai_presets.py) 与 [ai_generator.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/backend/ai_generator.py) 中，提供了高度可定制的服务接入与模型路由机制。
+AI 配置体系集中在 [settings.py](../src/application/settings.py)、[ai_presets.py](../src/backend/ai_presets.py) 与 [ai_generator.py](../src/backend/ai_generator.py) 中，提供了高度可定制的服务接入与模型路由机制。
 
 ### 2.1 厂商预设与开箱即用支持 (Provider Presets)
 
-系统内置了 5 大主流 AI 服务提供商预设（位于 [ai_presets.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/backend/ai_presets.py)）：
+系统内置了 5 大主流 AI 服务提供商预设（位于 [ai_presets.py](../src/backend/ai_presets.py)）：
 
 | 预设标识 (`ai_provider`) | 显示名称 | 默认 Base URL | 默认模型 (`ai_model`) | 推理链支持 (`supports_reasoning`) |
 | :--- | :--- | :--- | :--- | :--- |
@@ -39,7 +39,7 @@ AI 配置体系集中在 [settings.py](file:///home/whwen/documents/reso/languag
 
 ### 2.3 基础与高级网络参数配置
 
-在 [Settings](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/application/settings.py) 与 [AiApiConfig](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/backend/ai_generator.py) 中，包含以下核心参数：
+在 [Settings](../src/application/settings.py) 与 [AiApiConfig](../src/backend/ai_generator.py) 中，包含以下核心参数：
 
 ```python
 # 核心网络与生成参数
@@ -58,13 +58,13 @@ ai_pipeline_default_mode: str   # 默认生成模式：fast (单次全量) | ref
 
 ### 2.4 零磁盘凭据安全机制
 
-* **内存限定 (Memory-Only)**：`ai_api_key` 在 [Settings.load_from_qsettings](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/application/settings.py#L132) 中被排除在持久化逻辑之外。
+* **内存限定 (Memory-Only)**：`ai_api_key` 在 [Settings.load_from_qsettings](../src/application/settings.py#L132) 中被排除在持久化逻辑之外。
 * **磁盘自动清理**：应用启动时若检测到历史版本残留的 `ai/api_key` 磁盘键值，会自动执行 `qsettings.remove("ai/api_key")`。
-* **脱敏日志**：所有 [Telemetry](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/infrastructure/telemetry.py) 与操作日志严格过滤 API Key 与 Authorization Header。
+* **脱敏日志**：所有 [Telemetry](../src/infrastructure/telemetry.py) 与操作日志严格过滤 API Key 与 Authorization Header。
 
 ### 2.5 实时成本计算与预算控制 (Cost & Budget Control)
 
-在 [ai_presets.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/backend/ai_presets.py) 与 [ai_usage.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/backend/ai_usage.py) 中，系统内置了主流模型的计费单价表（以 1M Tokens 为单位）：
+在 [ai_presets.py](../src/backend/ai_presets.py) 与 [ai_usage.py](../src/backend/ai_usage.py) 中，系统内置了主流模型的计费单价表（以 1M Tokens 为单位）：
 * **DeepSeek-v4-pro**：输入 ¥2.0 / 输出 ¥8.0 (CNY)
 * **GPT-4o**：输入 $2.5 / 输出 $10.0 (USD)
 * **Moonshot-v1-8k**：输入 ¥1.2 / 输出 ¥1.2 (CNY)
@@ -95,7 +95,7 @@ ai_pipeline_default_mode: str   # 默认生成模式：fast (单次全量) | ref
 
 ### 1. 教材工坊与知识资产提取 (Textbook Workshop & Knowledge Extraction)
 
-* **核心模块文件**：[textbook_import_dialog.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/dialogs/textbook_import_dialog.py)、[knowledge_extractor.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/backend/knowledge_extractor.py)、[knowledge_prompt.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/backend/knowledge_prompt.py)、[markdown_chopper.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/backend/markdown_chopper.py)。
+* **核心模块文件**：[textbook_import_dialog.py](../src/dialogs/textbook_import_dialog.py)、[knowledge_extractor.py](../src/backend/knowledge_extractor.py)、[knowledge_prompt.py](../src/backend/knowledge_prompt.py)、[markdown_chopper.py](../src/backend/markdown_chopper.py)。
 * **功能描述**：
   允许用户导入原始 PDF/Markdown/TXT 格式的外部教材，AI 自动进行长文档智能切块，从中精炼并抽取出标准的课程语言资产（包含单词 Vocab、语法点 Grammar Points、常用表达 Expressions、文化背景 Cultural Context）。
 
@@ -112,7 +112,7 @@ ai_pipeline_default_mode: str   # 默认生成模式：fast (单次全量) | ref
 
 ### 2. 分阶段课程生成流水线 (Phased Course Generator & Pipeline)
 
-* **核心模块文件**：[ai_generator_dialog.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/dialogs/ai_generator_dialog.py)、[ai_pipeline.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/backend/ai_pipeline.py)、[ai_phased.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/backend/ai_phased.py)。
+* **核心模块文件**：[ai_generator_dialog.py](../src/dialogs/ai_generator_dialog.py)、[ai_pipeline.py](../src/backend/ai_pipeline.py)、[ai_phased.py](../src/backend/ai_phased.py)。
 * **功能描述**：
   根据教师输入的课程主题或教学大纲，自动生成符合 Turna 规格的多 Unit/Lesson/Stage 完整课程 JSON。
 
@@ -132,7 +132,7 @@ ai_pipeline_default_mode: str   # 默认生成模式：fast (单次全量) | ref
 
 ### 3. 交互式 AI 协同工坊与 Prompt 引擎 (Copilot Interactive Chat & Prompt Bar)
 
-* **核心模块文件**：[design_controller.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/dialogs/ai/design_controller.py)、[design_panel.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/dialogs/ai/design_panel.py)、[chat_view.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/dialogs/ai/chat_view.py)、[review_panel.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/dialogs/ai/review_panel.py)。
+* **核心模块文件**：[design_controller.py](../src/dialogs/ai/design_controller.py)、[design_panel.py](../src/dialogs/ai/design_panel.py)、[chat_view.py](../src/dialogs/ai/chat_view.py)、[review_panel.py](../src/dialogs/ai/review_panel.py)。
 * **功能描述**：
   在工坊界面提供多轮交互式对话与生成对比面板，教师可以如同与资深教研专家对话一般，打磨课程结构。
 
@@ -150,13 +150,13 @@ ai_pipeline_default_mode: str   # 默认生成模式：fast (单次全量) | ref
 
 ### 4. 智能校验诊断与一键 AI 修复 (Validation Error Diagnostic & AI Fixer)
 
-* **核心模块文件**：[ai_fix_dialog.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/dialogs/ai_fix_dialog.py)、[ai_error_analyzer.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/dialogs/ai_error_analyzer.py)、[ai_fixer.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/backend/ai_fixer.py)、[ai_fix_batch.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/backend/ai_fix_batch.py)。
+* **核心模块文件**：[ai_fix_dialog.py](../src/dialogs/ai_fix_dialog.py)、[ai_error_analyzer.py](../src/dialogs/ai_error_analyzer.py)、[ai_fixer.py](../src/backend/ai_fixer.py)、[ai_fix_batch.py](../src/backend/ai_fix_batch.py)。
 * **功能描述**：
   当课程校验引擎 `course_cli` 检测到错误（如单元引用无效、缺少语音 TTS 标识、Tag 不合规、JSON 语法错乱）时，AI 能自动分析错误原因并生成修复方案。
 
 * **实际配置与技术效果**：
   1. **上下文诊断精准定位**：`ai_error_analyzer` 提取具体的错误 Path 与 Problem Message，构建包含故障片段的精简 Prompt。
-  2. **JSON Patch 原子修复**：AI 并不重新生成整个文件，而是返回轻量级的 [Patch 结构](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/backend/experience/patch.py)，仅修改出错的局部节点。
+  2. **JSON Patch 原子修复**：AI 并不重新生成整个文件，而是返回轻量级的 [Patch 结构](../src/backend/experience/patch.py)，仅修改出错的局部节点。
   3. **批量自动纠错 (`ai_fix_batch.py`)**：支持一键扫描全课错误并自动循环调用 AI 修正。
 
 * **效果亮点**：
@@ -174,19 +174,19 @@ ai_pipeline_default_mode: str   # 默认生成模式：fast (单次全量) | ref
 
 | 组件名称 | 核心文件 | 对应的配置开关 | 实际功能与运行效果 |
 | :--- | :--- | :--- | :--- |
-| **Context Bus** | [context_bus.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/backend/experience/context_bus.py) | 无（核心总线） | 以 `<50ms` 的超低延迟，实时抓取用户当前光标所在的 Lesson、Section 结构、选中的词汇以及最近 10 次编辑历史，为所有 AI 功能提供上下文支持。 |
-| **Ghost LLM** | [ghost_llm.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/backend/experience/ghost_llm.py) | `ghost_llm_enabled` | 当本地规则补全未命中时，在文本框/表格单元格中静默触发 AI 补全（如自动填充单词翻译、选项译文、例句翻译），呈灰色虚影提示。 |
-| **⌘K 意图路由** | [intent_router.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/backend/experience/intent_router.py) | `experience_llm_intent` | 快捷键 ⌘K 唤起指令板。优先进行本地规则速配（如 `/listening` 快速添加听力题）；当规则落空时，调度 LLM 进行自然语言意图分类。 |
-| **Soft Autopilot** | [soft_autopilot.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/backend/experience/soft_autopilot.py) | `experience_soft_autopilot` | **软自动驾驶**：在文件保存前，自动执行无损的资源卫生清理（如整理未引用的孤立词汇、规范格式缩进），无需人类人工干预。 |
-| **Goal Agent & 沙箱预演** | [planner.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/backend/experience/planner.py)、[sandbox.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/backend/experience/sandbox.py) | `experience_goal_enabled`<br>`experience_goal_llm` | 支持多步骤复杂目标（如“将 Section 3 重构为听力强化单元”）。AI 在**隔离内存沙箱**中预演修改步骤并生成预览，确同后再写入主树，杜绝误操作。 |
-| **高危 Skill 防护** | [policy.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/backend/experience/policy.py) | `experience_allow_dangerous_skills` | **安全总开关**：管控删 ID、跨节重写、硬导入与发布类动作。在 Observer 观察者模式下强制拦截所有危险指令。 |
-| **Ambient 静音控制** | [proactive.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/backend/experience/proactive.py) | `experience_mute_json`<br>`experience_mode` | 支持智能静音。教师可选择 `copilot`（主动助手）或 `observer`（被动观察者），并可设定静音时长与静音级别，防止主动弹窗打扰创作。 |
+| **Context Bus** | [context_bus.py](../src/backend/experience/context_bus.py) | 无（核心总线） | 以 `<50ms` 的超低延迟，实时抓取用户当前光标所在的 Lesson、Section 结构、选中的词汇以及最近 10 次编辑历史，为所有 AI 功能提供上下文支持。 |
+| **Ghost LLM** | [precognition.py](../src/backend/experience/precognition.py) | `ghost_llm_enabled` | 当本地规则补全未命中时，在文本框/表格单元格中静默触发 AI 补全（如自动填充单词翻译、选项译文、例句翻译），呈灰色虚影提示。 |
+| **⌘K 意图路由** | [intent_router.py](../src/backend/experience/intent_router.py) | `experience_llm_intent` | 快捷键 ⌘K 唤起指令板。优先进行本地规则速配（如 `/listening` 快速添加听力题）；当规则落空时，调度 LLM 进行自然语言意图分类。 |
+| **Soft Autopilot** | [soft_autopilot.py](../src/backend/experience/soft_autopilot.py) | `experience_soft_autopilot` | **软自动驾驶**：在文件保存前，自动执行无损的资源卫生清理（如整理未引用的孤立词汇、规范格式缩进），无需人类人工干预。 |
+| **Goal Agent & 沙箱预演** | [planner.py](../src/backend/experience/planner.py)、[sandbox.py](../src/backend/experience/sandbox.py) | `experience_goal_enabled`<br>`experience_goal_llm` | 支持多步骤复杂目标（如“将 Section 3 重构为听力强化单元”）。AI 在**隔离内存沙箱**中预演修改步骤并生成预览，确同后再写入主树，杜绝误操作。 |
+| **高危 Skill 防护** | [policy.py](../src/backend/experience/policy.py) | `experience_allow_dangerous_skills` | **安全总开关**：管控删 ID、跨节重写、硬导入与发布类动作。在 Observer 观察者模式下强制拦截所有危险指令。 |
+| **Ambient 静音控制** | [proactive.py](../src/backend/experience/proactive.py) | `experience_mute_json`<br>`experience_mode` | 支持智能静音。教师可选择 `copilot`（主动助手）或 `observer`（被动观察者），并可设定静音时长与静音级别，防止主动弹窗打扰创作。 |
 
 ---
 
 ### 6. 多模态能力扩展 (Multimodal Skills)
 
-* **核心模块文件**：[screenshot_skill.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/backend/experience/screenshot_skill.py)、[ocr_skill.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/backend/experience/ocr_skill.py)、[voice_skill.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/backend/experience/voice_skill.py)。
+* **核心模块文件**：[screenshot_skill.py](../src/backend/experience/screenshot_skill.py)、[ocr_skill.py](../src/backend/experience/ocr_skill.py)、[voice_skill.py](../src/backend/experience/voice_skill.py)。
 * **功能描述与效果**：
   1. **主窗截图视效诊断 (`screenshot_explain`)**：
      * **配置开关**：`experience_screenshot_explain`（默认关闭，保护隐私与开销）。
@@ -202,7 +202,7 @@ ai_pipeline_default_mode: str   # 默认生成模式：fast (单次全量) | ref
 
 ### 7. 教学法约束与语言学范围管控 (Pedagogy & Scope Control)
 
-* **核心模块文件**：[ai_scope.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/backend/ai_scope.py)、[ai_pedagogy.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/backend/ai_pedagogy.py)、[ai_genre.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/backend/ai_genre.py)。
+* **核心模块文件**：[ai_scope.py](../src/backend/ai_scope.py)、[ai_pedagogy.py](../src/backend/ai_pedagogy.py)、[ai_genre.py](../src/backend/ai_genre.py)。
 * **功能描述**：
   为通用大模型戴上“语言教学枷锁”，确保生成的课文与练习严格符合教学法要求。
 
@@ -218,7 +218,7 @@ ai_pipeline_default_mode: str   # 默认生成模式：fast (单次全量) | ref
 
 ### 8. AI 性能评测与安全护栏 (Benchmarking & Security Guards)
 
-* **核心模块文件**：[ai_bench.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/backend/ai_bench.py)、[telemetry.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/infrastructure/telemetry.py)、[conflict_guard.py](file:///home/whwen/documents/reso/languageapp/Varnamalaplus/tool/gui/src/backend/experience/conflict_guard.py)。
+* **核心模块文件**：[ai_bench.py](../src/backend/ai_bench.py)、[telemetry.py](../src/infrastructure/telemetry.py)、[conflict_guard.py](../src/backend/experience/conflict_guard.py)。
 * **功能描述**：
   提供离线 quality 探针与实时遥测审计，确保 AI 系统的稳定性、性能与安全性。
 

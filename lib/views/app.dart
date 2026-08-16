@@ -9,11 +9,12 @@ import 'package:provider/provider.dart';
 import 'package:turna/application/accessibility_provider.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/providers.dart';
+import 'package:turna/application/system_health_monitor.dart';
 import 'package:turna/application/theme_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/routing/routing.dart';
+import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/app_fonts.dart';
-import 'package:turna/views/settings/widgets/guide_return_bubble.dart';
 import 'package:turna/views/theme.dart';
 
 final router = getIt<AppRouter>();
@@ -41,10 +42,48 @@ class _AppShell extends StatefulWidget {
 
 class _AppShellState extends State<_AppShell> {
   late final _routeConfig = router.config();
+  SystemHealthMonitor? _healthMonitor;
 
   @override
   void initState() {
     super.initState();
+    if (getIt.isRegistered<SystemHealthMonitor>()) {
+      _healthMonitor = getIt<SystemHealthMonitor>();
+      _healthMonitor?.addListener(_onHealthChanged);
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkHealthRedirect());
+  }
+
+  @override
+  void dispose() {
+    _healthMonitor?.removeListener(_onHealthChanged);
+    super.dispose();
+  }
+
+  void _onHealthChanged() {
+    _checkHealthRedirect();
+  }
+
+  void _checkHealthRedirect() {
+    final monitor = _healthMonitor;
+    if (monitor == null || !mounted) return;
+    if (monitor.shouldForceRedirect) {
+      try {
+        final currentRouteName = router.current.name;
+        if (currentRouteName != SystemHealthRoute.name) {
+          router.push(const SystemHealthRoute());
+        }
+      } catch (_) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          try {
+            if (router.current.name != SystemHealthRoute.name) {
+              router.push(const SystemHealthRoute());
+            }
+          } catch (_) {}
+        });
+      }
+    }
   }
 
   @override
@@ -110,14 +149,7 @@ class _AppShellState extends State<_AppShell> {
               disableAnimations:
                   acc.reducedMotion ? true : mq.disableAnimations,
             ),
-            // Stack the beginner-guide return bubble above all routes so it
-            // survives tab switches and pushed experience pages.
-            child: Stack(
-              children: [
-                child!,
-                const GuideReturnBubbleOverlay(),
-              ],
-            ),
+            child: child!,
           );
         },
       ),

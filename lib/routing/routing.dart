@@ -49,5 +49,6 @@ class AppRouter extends RootStackRouter {
             page: AnkiReviewSessionRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(
             page: CourseManagementRoute.page, guards: [_courseReadyGuard]),
+        AutoRoute(page: SystemHealthRoute.page),
       ];
 }

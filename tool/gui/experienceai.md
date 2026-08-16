@@ -2,13 +2,13 @@
 
 > **状态**：规划稿 v2（超级融合愿景）  
 > **日期**：2026-07-21  
-> **定位**：在 [`aiEnhance.md`](./aiEnhance.md) 引擎能力之上，把 AI 从「工坊功能」升级为 **课程编辑器的中枢神经系统** —— 感知、决策、执行、解释、记忆五层贯通  
+> **定位**：在 [`ai_configuration_and_features_report.md`](./docs/ai_configuration_and_features_report.md) 引擎能力之上，把 AI 从「工坊功能」升级为 **课程编辑器的中枢神经系统** —— 感知、决策、执行、解释、记忆五层贯通  
 > **范围**：`tool/gui` 全部表面 + 编辑手势 + 数据生命周期 + 协作/发布边界  
 > **层级关系**：
 >
 > | 文档 | 解决什么 |
 > |------|----------|
-> | `aiEnhance.md` | 生成稳、质量分、流水线、可感知补丁 |
+> | `docs/ai_configuration_and_features_report.md` | 生成稳、质量分、流水线、可感知补丁 |
 > | 布局压缩（工坊） | 参数不重复、一屏可用 |
 > | **本文件 experienceai** | **AI 如何成为默认交互语言，而不是附加按钮** |
 
@@ -681,9 +681,9 @@ P4 风格一致/优化类
 
 | 资源 | 路径 |
 |------|------|
-| 引擎与感知 | `tool/gui/aiEnhance.md` |
+| 引擎与感知 | `tool/gui/docs/ai_configuration_and_features_report.md` |
 | GUI README | `tool/gui/README.md` |
 | 测试基线 | `tool/gui/tests/BASELINE.md` |
 | 课程契约 | `docs/authoring/course-layout.md` |
-| 教师零代码 | `docs/authoring/teacher-zero-code-guide.md` |
+| 教师指南 | `docs/authoring/teacher-guide.md` |
 | Git ADR | `docs/decisions/0021`–`0026` |

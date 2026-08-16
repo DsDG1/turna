@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:turna/application/anki_official/spike/official_anki_spike_page.dart';
 import 'package:turna/application/settings_provider.dart';
+import 'package:turna/views/settings/system_health_page.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/views/settings/widgets/settings_sound_section.dart';
 import 'package:turna/views/theme.dart';
@@ -45,6 +46,17 @@ class SettingsAdvancedSection extends StatelessWidget {
               subtitle: '永不执行模板 JS(加密牌组会显示密文)',
               valueSelector: (p) => p.ankiForceDisableJs,
               onChanged: (p, v) => p.setAnkiForceDisableJs(v),
+            ),
+            settingsTileDivider(context),
+            SettingsNavigationTile(
+              icon: Icons.monitor_heart_outlined,
+              title: '系统健康',
+              subtitle: '诊断、安全模式与脱敏报告',
+              onTap: (ctx) => Navigator.of(ctx).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const SystemHealthPage(),
+                ),
+              ),
             ),
             if (kDebugMode) ...[
               settingsTileDivider(context),

@@ -19,6 +19,7 @@ import 'package:turna/core/log_capture.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/application/settings_provider.dart';
+import 'package:turna/application/system_health_monitor.dart';
 import 'package:turna/service/local_reminder_service.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/service/tts_availability_checker.dart';
@@ -58,6 +59,7 @@ Future<void> main() async {
   // 必须在 configureDependencies 之后,这样 logger 已是单例;
   // 放在 runApp 之前,确保第一帧之前的早期日志也能进入。
   await LogCapture.instance.install();
+  await getIt<SystemHealthMonitor>().install(LogCapture.instance.entries);
 
   // When companion explain prefs change (language/depth), drop engine cache so
   // stale replies in the wrong language are not replayed.
