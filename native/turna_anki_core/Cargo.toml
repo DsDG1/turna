@@ -22,3 +22,10 @@ anki = { path = "anki/rslib" }
 # binary). Building rslib alone does not unify `io-util`, which
 # Collection/sync code requires. Enabling it here is not an Anki patch.
 tokio = { version = "1.45", features = ["fs", "rt-multi-thread", "macros", "signal", "io-util"] }
+hex = "0.4"
+serde_json = "1"
+sha2 = "0.10"
+
+[[bin]]
+name = "turna_anki_gen_fixtures"
+path = "tools/gen_fixtures.rs"

@@ -78,6 +78,16 @@ export ANDROID_HOME=...   # NDK 28.2.13676358 must be installed
 
 See `build-android/README.md` for the frozen toolchain table.
 
+## Fixtures (P0-005)
+
+```bash
+./tool/official_anki_spike/generate_fixtures.sh
+./tool/official_anki_spike/generate_fixtures.sh --large 5000
+```
+
+Small packages live in `test/fixtures/anki_official/`. Large ones are
+gitignored under `generated/`.
+
 ## Spike isolation
 
 - Temporary collections live under `<app-support>/anki-spike/<run-id>/`.

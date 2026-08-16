@@ -1,0 +1,12 @@
+{
+  "cards": [
+    {
+      "answerHtml": "FrontSideProbe\n\n<hr id=answer>\n\nBackSideProbe",
+      "cardId": 1786873382891,
+      "css": ".card {\n    font-family: arial;\n    font-size: 20px;\n    line-height: 1.5;\n    text-align: center;\n    color: black;\n    background-color: white;\n}\n\n.turna-fixture { color: #123456; }\n",
+      "isEmpty": false,
+      "questionHtml": "FrontSideProbe"
+    }
+  ],
+  "file": "05-frontside-css.apkg"
+}

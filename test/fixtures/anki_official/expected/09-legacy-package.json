@@ -1,0 +1,12 @@
+{
+  "cards": [
+    {
+      "answerHtml": "legacy-front\n\n<hr id=answer>\n\nlegacy-back",
+      "cardId": 1786873383943,
+      "css": ".card {\n    font-family: arial;\n    font-size: 20px;\n    line-height: 1.5;\n    text-align: center;\n    color: black;\n    background-color: white;\n}\n",
+      "isEmpty": false,
+      "questionHtml": "legacy-front"
+    }
+  ],
+  "file": "09-legacy-package.apkg"
+}

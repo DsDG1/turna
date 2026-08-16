@@ -1,0 +1,12 @@
+{
+  "cards": [
+    {
+      "answerHtml": "typed-front\n\n<hr id=answer>\n\n[[type:Back]]",
+      "cardId": 1786873383456,
+      "css": ".card {\n    font-family: arial;\n    font-size: 20px;\n    line-height: 1.5;\n    text-align: center;\n    color: black;\n    background-color: white;\n}\n",
+      "isEmpty": false,
+      "questionHtml": "typed-front\n\n[[type:Back]]"
+    }
+  ],
+  "file": "07-typed-answer.apkg"
+}

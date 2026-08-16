@@ -1,0 +1,19 @@
+{
+  "cards": [
+    {
+      "answerHtml": "teşekkürler\n\n<hr id=answer>\n\n谢谢",
+      "cardId": 1786873382155,
+      "css": ".card {\n    font-family: arial;\n    font-size: 20px;\n    line-height: 1.5;\n    text-align: center;\n    color: black;\n    background-color: white;\n}\n",
+      "isEmpty": false,
+      "questionHtml": "teşekkürler"
+    },
+    {
+      "answerHtml": "谢谢\n\n<hr id=answer>\n\nteşekkürler",
+      "cardId": 1786873382156,
+      "css": ".card {\n    font-family: arial;\n    font-size: 20px;\n    line-height: 1.5;\n    text-align: center;\n    color: black;\n    background-color: white;\n}\n",
+      "isEmpty": false,
+      "questionHtml": "谢谢"
+    }
+  ],
+  "file": "02-basic-reversed.apkg"
+}

@@ -92,3 +92,6 @@ android/.kotlin/errors/
 # hand-copied into git as a substitute for a reproducible build.
 native/turna_anki_core/target/
 android/app/src/main/jniLibs/**/libturna_anki.so
+
+# Official Anki spike large packages are generated on demand.
+test/fixtures/anki_official/generated/

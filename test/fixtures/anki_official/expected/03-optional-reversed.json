@@ -1,0 +1,26 @@
+{
+  "cards": [
+    {
+      "answerHtml": "evet\n\n<hr id=answer>\n\nyes",
+      "cardId": 1786873382393,
+      "css": ".card {\n    font-family: arial;\n    font-size: 20px;\n    line-height: 1.5;\n    text-align: center;\n    color: black;\n    background-color: white;\n}\n",
+      "isEmpty": false,
+      "questionHtml": "evet"
+    },
+    {
+      "answerHtml": "yes\n\n<hr id=answer>\n\nevet",
+      "cardId": 1786873382394,
+      "css": ".card {\n    font-family: arial;\n    font-size: 20px;\n    line-height: 1.5;\n    text-align: center;\n    color: black;\n    background-color: white;\n}\n",
+      "isEmpty": false,
+      "questionHtml": "yes"
+    },
+    {
+      "answerHtml": "hayır\n\n<hr id=answer>\n\nno",
+      "cardId": 1786873382400,
+      "css": ".card {\n    font-family: arial;\n    font-size: 20px;\n    line-height: 1.5;\n    text-align: center;\n    color: black;\n    background-color: white;\n}\n",
+      "isEmpty": false,
+      "questionHtml": "hayır"
+    }
+  ],
+  "file": "03-optional-reversed.apkg"
+}

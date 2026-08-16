@@ -193,7 +193,36 @@ Error resolving plugin [id: 'dev.flutter.flutter-plugin-loader', version: '1.0.0
 本机无 `adb` 设备。debug/release 真机 `DynamicLibrary.open` 仍待验证。
 `android/app/src/main/jniLibs/arm64-v8a/libturna_anki.so` 仍在标准 jniLibs 路径（16 294 656 字节）。
 
-## 9. 生产路径
+## 9. Fixture 结论（P0-005）
+
+9 个小包由 pinned official `rslib` 导出，已提交：
+
+```text
+test/fixtures/anki_official/packages/01-basic-unicode.apkg … 09-legacy-package.apkg
+test/fixtures/anki_official/expected/*.json
+test/fixtures/anki_official/manifest.json
+```
+
+生成命令：
+
+```text
+./tool/official_anki_spike/generate_fixtures.sh
+./tool/official_anki_spike/generate_fixtures.sh --large 5000
+```
+
+本机已跑通 5k（`generated/10-large-generated-5000.apkg`，274 KiB，gitignored）。
+100k 用 `--large 100000`。`--large` 不再改写冻结的小包。
+
+校验：
+
+```text
+dart run tool/official_anki_spike/verify_fixture_results.dart   # ok 9 packages
+flutter test test/application/anki_official/official_anki_fixture_manifest_test.dart
+```
+
+官方导出每次会换 card ID，因此 SHA-256 只对冻结提交物有效。有意重生后必须连 `expected/` 和 `manifest.json` 一起更新。
+
+## 10. 生产路径
 
 未修改：
 
@@ -201,18 +230,18 @@ Error resolving plugin [id: 'dev.flutter.flutter-plugin-loader', version: '1.0.0
 - `lib/application/anki/anki_importer.dart`
 - 任何 Legacy 渲染 / SRS 文件
 
-## 10. 每日记录
+## 11. 每日记录
 
 ### 2026-08-16
 
-- 完成任务：P0-000～P0-003，以及 P0-004 的 Dart FFI / 诊断页 / 单测
-- 当前任务：P0-004 真机加载；随后 P0-005 fixture
-- 实际命令：见 §5、§6、§7、§8
-- 新增事实：`ffi` 已是直接依赖；fake engine 测试 9 过；非 Android / 缺库有结构化错误；本机 `flutter build apk` 卡在既有 `flutter-plugin-loader` / `25.0.2`；无 adb
-- 失败：Gradle 插件解析 `25.0.2`（与本刀无关）；真机 ABI 调用未测
-- 指标变化：无新 `.so`
+- 完成任务：P0-000～P0-005（P0-004 真机 APK 仍缺）
+- 当前任务：P0-006 Collection 生命周期
+- 实际命令：见 §5–§9
+- 新增事实：9 个官方 rslib 小 fixture + golden HTML 已冻结；5k 大包脚本已跑通
+- 失败：官方 export 非 bit-stable（SHA 随 card ID 变）
+- 指标变化：无
 - 上游 API/patch 变化：无
-- 阻塞项：本机 release APK / 真机
-- 下一步：能编 APK 的环境上解包确认 `lib/arm64-v8a/libturna_anki.so`，真机跑 Spike 页
+- 阻塞项：本机 release APK / 真机仍在
+- 下一步：P0-006 用这些 fixture 做 open/close/reopen
 - 阻塞项：无构建阻塞；下一刀是 Dart 加载
 - 下一步：P0-004，debug/release 真机 `DynamicLibrary.open('libturna_anki.so')`

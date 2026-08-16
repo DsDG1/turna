@@ -1,0 +1,19 @@
+{
+  "cards": [
+    {
+      "answerHtml": "The capital of <span class=\"cloze\" data-ordinal=\"1\">Türkiye</span> is <span class=\"cloze-inactive\" data-ordinal=\"2\">安卡拉</span>.<br>\n",
+      "cardId": 1786873382638,
+      "css": ".card {\n    font-family: arial;\n    font-size: 20px;\n    line-height: 1.5;\n    text-align: center;\n    color: black;\n    background-color: white;\n}\n.cloze {\n    font-weight: bold;\n    color: blue;\n}\n.nightMode .cloze {\n    color: lightblue;\n}\n",
+      "isEmpty": false,
+      "questionHtml": "The capital of <span class=\"cloze\" data-cloze=\"T&#xFC;rkiye\" data-ordinal=\"1\">[...]</span> is <span class=\"cloze-inactive\" data-ordinal=\"2\">安卡拉</span>."
+    },
+    {
+      "answerHtml": "The capital of <span class=\"cloze-inactive\" data-ordinal=\"1\">Türkiye</span> is <span class=\"cloze\" data-ordinal=\"2\">安卡拉</span>.<br>\n",
+      "cardId": 1786873382639,
+      "css": ".card {\n    font-family: arial;\n    font-size: 20px;\n    line-height: 1.5;\n    text-align: center;\n    color: black;\n    background-color: white;\n}\n.cloze {\n    font-weight: bold;\n    color: blue;\n}\n.nightMode .cloze {\n    color: lightblue;\n}\n",
+      "isEmpty": false,
+      "questionHtml": "The capital of <span class=\"cloze-inactive\" data-ordinal=\"1\">Türkiye</span> is <span class=\"cloze\" data-cloze=\"安卡拉\" data-ordinal=\"2\">[...]</span>."
+    }
+  ],
+  "file": "04-cloze-multi-ord.apkg"
+}

@@ -1,0 +1,145 @@
+{
+  "fixtureVersion": 1,
+  "generatedWithAnkiCommit": "967aa0d578fc75181e292e95326f9b58698da25c",
+  "generatedWithAnkiDescribe": "25.09.2-370-g967aa0d57",
+  "normalization": "official-html-as-rendered; no timestamp stripping required for these stock templates",
+  "packages": [
+    {
+      "assertions": [
+        "question-contains:你好",
+        "question-contains:merhaba",
+        "question-contains:İstanbul",
+        "question-contains:नमस्ते",
+        "question-contains:café",
+        "question-contains:🙂",
+        "answer-contains:&amp;",
+        "answer-contains:Türkiye"
+      ],
+      "expected": "expected/01-basic-unicode.json",
+      "expectedCards": 1,
+      "expectedNotes": 1,
+      "file": "01-basic-unicode.apkg",
+      "legacy": false,
+      "sha256": "65dfa64e305edaab6bae7690c66e54918a5d944dc702f2b6fe2821f27f170570",
+      "withMedia": false,
+      "withScheduling": false
+    },
+    {
+      "assertions": [
+        "question-contains:teşekkürler",
+        "answer-contains:谢谢",
+        "question-contains:谢谢",
+        "answer-contains:teşekkürler"
+      ],
+      "expected": "expected/02-basic-reversed.json",
+      "expectedCards": 2,
+      "expectedNotes": 1,
+      "file": "02-basic-reversed.apkg",
+      "legacy": false,
+      "sha256": "1d2f1284644961ac713c1ebcd8225d464cc156339f42665a0b6bd3c65168cd84",
+      "withMedia": false,
+      "withScheduling": false
+    },
+    {
+      "assertions": [
+        "question-contains:evet",
+        "question-contains:hayır"
+      ],
+      "expected": "expected/03-optional-reversed.json",
+      "expectedCards": 3,
+      "expectedNotes": 2,
+      "file": "03-optional-reversed.apkg",
+      "legacy": false,
+      "sha256": "86c6e5e0235828ddf4f0e9f050716ae23b3ab3d05e2532a92fef48e46d06aa51",
+      "withMedia": false,
+      "withScheduling": false
+    },
+    {
+      "assertions": [
+        "question-contains:data-ordinal=\"1\"",
+        "question-contains:data-ordinal=\"2\"",
+        "question-contains:Türkiye",
+        "question-contains:安卡拉"
+      ],
+      "expected": "expected/04-cloze-multi-ord.json",
+      "expectedCards": 2,
+      "expectedNotes": 1,
+      "file": "04-cloze-multi-ord.apkg",
+      "legacy": false,
+      "sha256": "bbe354db3925f4b4d7e8d66b0770e83f2ce38586e1071398e762d821636cad58",
+      "withMedia": false,
+      "withScheduling": false
+    },
+    {
+      "assertions": [
+        "question-contains:FrontSideProbe",
+        "answer-contains:FrontSideProbe",
+        "css-contains:.turna-fixture"
+      ],
+      "expected": "expected/05-frontside-css.json",
+      "expectedCards": 1,
+      "expectedNotes": 1,
+      "file": "05-frontside-css.apkg",
+      "legacy": false,
+      "sha256": "ecf2f78585dd12f289e9bcc6b4885e1a2789b8e0561a9f22fd1a20edfbb828f5",
+      "withMedia": false,
+      "withScheduling": false
+    },
+    {
+      "assertions": [
+        "question-contains:hello world.png",
+        "answer-contains:paren (1).mp3",
+        "question-contains:中文图片.jpg"
+      ],
+      "expected": "expected/06-media-paths.json",
+      "expectedCards": 1,
+      "expectedNotes": 1,
+      "file": "06-media-paths.apkg",
+      "legacy": false,
+      "sha256": "933ecfed269658b30d2fe7f5b0edd452de305f2daa4c2c495d3341271568079c",
+      "withMedia": true,
+      "withScheduling": false
+    },
+    {
+      "assertions": [
+        "question-contains:[[type:Back]]",
+        "question-contains:typed-front",
+        "answer-contains:[[type:Back]]"
+      ],
+      "expected": "expected/07-typed-answer.json",
+      "expectedCards": 1,
+      "expectedNotes": 1,
+      "file": "07-typed-answer.apkg",
+      "legacy": false,
+      "sha256": "6ff83dd5f5fad3c4425e977d498a16a5821260b0ec9d84a25afc63424824064f",
+      "withMedia": false,
+      "withScheduling": false
+    },
+    {
+      "assertions": [
+        "question-contains:sched-front"
+      ],
+      "expected": "expected/08-scheduling.json",
+      "expectedCards": 1,
+      "expectedNotes": 1,
+      "file": "08-scheduling.apkg",
+      "legacy": false,
+      "sha256": "739e7b6ba91eaf2227794359831f2474c432dd1a1f2dc99ff7712b0531c7ce9d",
+      "withMedia": false,
+      "withScheduling": true
+    },
+    {
+      "assertions": [
+        "question-contains:legacy-front"
+      ],
+      "expected": "expected/09-legacy-package.json",
+      "expectedCards": 1,
+      "expectedNotes": 1,
+      "file": "09-legacy-package.apkg",
+      "legacy": true,
+      "sha256": "54751949017469d5da7ebe6c9a2e5166a7ea21fb09d189e7c330d243bd52a7ac",
+      "withMedia": false,
+      "withScheduling": false
+    }
+  ]
+}

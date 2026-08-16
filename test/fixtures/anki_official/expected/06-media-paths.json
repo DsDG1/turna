@@ -1,0 +1,12 @@
+{
+  "cards": [
+    {
+      "answerHtml": "<img src=\"hello world.png\"><img src=\"中文图片.jpg\">\n\n<hr id=answer>\n\n[sound:paren (1).mp3] # % ( )",
+      "cardId": 1786873383209,
+      "css": ".card {\n    font-family: arial;\n    font-size: 20px;\n    line-height: 1.5;\n    text-align: center;\n    color: black;\n    background-color: white;\n}\n",
+      "isEmpty": false,
+      "questionHtml": "<img src=\"hello world.png\"><img src=\"中文图片.jpg\">"
+    }
+  ],
+  "file": "06-media-paths.apkg"
+}

@@ -1,0 +1,12 @@
+{
+  "cards": [
+    {
+      "answerHtml": "你好 merhaba İstanbul नमस्ते café é 🙂\n\n<hr id=answer>\n\nTürkiye &amp; friends",
+      "cardId": 1786873381916,
+      "css": ".card {\n    font-family: arial;\n    font-size: 20px;\n    line-height: 1.5;\n    text-align: center;\n    color: black;\n    background-color: white;\n}\n",
+      "isEmpty": false,
+      "questionHtml": "你好 merhaba İstanbul नमस्ते café é 🙂"
+    }
+  ],
+  "file": "01-basic-unicode.apkg"
+}
