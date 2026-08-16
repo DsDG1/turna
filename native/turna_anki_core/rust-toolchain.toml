@@ -4,4 +4,6 @@
 channel = "1.97.1"
 profile = "minimal"
 components = ["rustfmt", "clippy"]
-targets = ["aarch64-linux-android"]
+# aarch64-linux-android is installed explicitly in P0-003.
+# Listing it here would force every host cargo invocation to download
+# the Android std before tests can run.

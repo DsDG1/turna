@@ -20,4 +20,27 @@ mod tests {
     fn abi_version_is_one() {
         assert_eq!(turna_anki_abi_version(), 1);
     }
+
+    #[test]
+    fn collection_builder_is_visible_and_closes() {
+        let col = anki::collection::CollectionBuilder::default()
+            .build()
+            .expect("in-memory Collection");
+        col.close(None).expect("close in-memory Collection");
+    }
+
+    #[test]
+    fn import_apkg_is_callable_and_rejects_missing_file() {
+        let mut builder = anki::collection::CollectionBuilder::new(":memory:");
+        builder.set_media_paths("/tmp/turna-anki-spike-media", "/tmp/turna-anki-spike-media.db");
+        let mut col = builder.build().expect("in-memory Collection");
+        let err = col
+            .import_apkg(
+                "/no/such/turna-spike.apkg",
+                anki::import_export::package::ImportAnkiPackageOptions::default(),
+            )
+            .expect_err("missing package must fail");
+        let _ = format!("{err:?}");
+        col.close(None).expect("close after failed import");
+    }
 }

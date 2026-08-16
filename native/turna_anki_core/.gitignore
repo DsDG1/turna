@@ -1,3 +1,4 @@
 /target/
+/tools/protoc/
 **/*.rs.bk
 Cargo.lock.bak

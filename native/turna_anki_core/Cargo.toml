@@ -1,10 +1,24 @@
-[workspace]
-resolver = "2"
-members = ["bridge"]
-
-[workspace.package]
+[package]
+name = "turna_anki_bridge"
 version = "0.0.1"
 edition = "2021"
 publish = false
 license = "AGPL-3.0-or-later"
 rust-version = "1.80"
+description = "Turna C ABI around a pinned official Anki rslib"
+
+[lib]
+name = "turna_anki"
+path = "bridge/src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Repository-relative paths only. Do not point Cargo at /home/.../anki.
+# This package is intentionally NOT a Cargo workspace: anki/rslib belongs
+# to the upstream Anki workspace and cannot be a member of ours.
+anki = { path = "anki/rslib" }
+
+# Anki's workspace enables tokio features via other members (axum, sync
+# binary). Building rslib alone does not unify `io-util`, which
+# Collection/sync code requires. Enabling it here is not an Anki patch.
+tokio = { version = "1.45", features = ["fs", "rt-multi-thread", "macros", "signal", "io-util"] }

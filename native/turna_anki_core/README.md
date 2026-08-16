@@ -44,16 +44,28 @@ native/turna_anki_core/
 
 ## Host commands (P0-002)
 
-Once Rust `1.97.1` is installed:
+Once Rust `1.97.1` is installed. `rslib` proto codegen needs `protoc` 31.1
+(the version Anki’s ninja graph pins). A verified copy can live in
+`tools/protoc/` (gitignored):
 
 ```bash
 cd native/turna_anki_core
+export PROTOC="$PWD/tools/protoc/bin/protoc"
+export PROTOC_BINARY="$PROTOC"
 cargo test -p turna_anki_bridge
 cargo build -p turna_anki_bridge
 ```
 
-P0-001 only implements `turna_anki_abi_version()`. Official `anki::Collection`
-path dependencies are added in P0-002.
+The first `anki` path-dep build also requires Anki’s FTL submodules:
+
+```bash
+git -C anki submodule update --init --depth 1 ftl/core-repo ftl/qt-repo
+```
+
+P0-002 adds `anki = { path = "anki/rslib" }`. The root crate is a
+standalone package (not a Cargo workspace) because `rslib` already
+belongs to the Anki workspace. Host builds also enable tokio `io-util`
+so feature unification matches Anki’s full workspace.
 
 ## Android commands
 

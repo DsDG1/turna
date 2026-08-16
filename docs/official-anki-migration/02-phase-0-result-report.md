@@ -15,7 +15,7 @@ Phase 0 已开工。本机已建立 `native/turna_anki_core`，并把官方 Anki
 ## 2. 基线环境
 
 ```text
-Turna commit:           8fb07d9eda3c5ed3c32eb6a6493ef6a1bffa5f24
+Turna commit:           bdd40f8 (spike start) on 8fb07d9eda3c5ed3c32eb6a6493ef6a1bffa5f24
 Turna branch at start:  master → spike/official-anki-core-android
 Working tree:           dirty（约 300 条既有未提交改动，本阶段未纳入）
 Anki commit:            967aa0d578fc75181e292e95326f9b58698da25c
@@ -34,8 +34,9 @@ Android NDK (declared): 28.2.13676358 via ndkVersion flutter.ndkVersion
 Android NDK (installed): 26.3.11579264, 27.0.12077973, 28.2.13676358
 ANDROID_NDK_HOME:       unset
 ANDROID_HOME:           /home/whwen/Android/Sdk
-Rust toolchain:         not installed
+Rust toolchain:         rustc 1.97.1 (8bab26f4f 2026-07-14), cargo 1.97.1
 cargo-ndk version:      not installed
+protoc:                 31.1 (Anki-pinned zip, sha256 96553041…044d8065)
 Host:                   Linux x86_64, Ubuntu 24.04 kernel 7.0.0-28-generic
 App versionName:        1.3.0
 ```
@@ -102,16 +103,45 @@ git -C native/turna_anki_core/anki checkout --detach 967aa0d578fc75181e292e95326
 
 `--reference` 因本地 Anki 是浅克隆而失败，改用直接本地 clone。
 
-## 6. 尚未执行
+## 6. Host Rust 结论（P0-002）
 
-- Host `cargo test -p turna_anki_bridge`（Rust 未安装）
-- `CollectionBuilder` / `import_apkg` / `render_existing_card` 外部 crate 可见性
+已验证（2026-08-16）：
+
+```bash
+git -C native/turna_anki_core/anki submodule update --init --depth 1 ftl/core-repo ftl/qt-repo
+# protoc 31.1 at native/turna_anki_core/tools/protoc/bin/protoc
+PROTOC=... PROTOC_BINARY=... cargo test
+```
+
+```text
+test tests::abi_version_is_one ... ok
+test tests::collection_builder_is_visible_and_closes ... ok
+```
+
+外部 bridge 可以直接调用：
+
+- `CollectionBuilder::new` / `default` / `set_media_paths` / `set_shared_progress_state` / `build`
+- `Collection::close`
+- `Collection::import_apkg`
+- `Collection::render_existing_card`
+
+未修改官方数据库 schema，无 Anki 源码 patch。
+
+构建方式结论：
+
+- 不能把 `turna_anki_core` 做成包含 `anki/rslib` 的 Cargo workspace（`rslib` 已声明 `workspace = ".."`）。
+- 单独编 `rslib` 时必须在本 crate 打开 tokio `io-util`，否则 Anki workspace 里由其他 member 合并进来的 feature 会缺失。
+- 需要 Anki 的 `ftl/core-repo` 与 `ftl/qt-repo` 子模块。
+- 需要 Anki 钉死的 `protoc` 31.1。
+
+## 7. 尚未执行
+
 - Android `cargo-ndk` 交叉编译
 - Dart FFI
 - Fixture golden
 - 本轮无 Native arm64 release 重构建
 
-## 7. 生产路径
+## 8. 生产路径
 
 未修改：
 
@@ -119,16 +149,16 @@ git -C native/turna_anki_core/anki checkout --detach 967aa0d578fc75181e292e95326
 - `lib/application/anki/anki_importer.dart`
 - 任何 Legacy 渲染 / SRS 文件
 
-## 8. 每日记录
+## 9. 每日记录
 
 ### 2026-08-16
 
-- 完成任务：P0-000 环境盘点（部分）、P0-001 目录与上游钉死
-- 当前任务：P0-002 Host Rust 最小编译
-- 实际命令：见 §5
-- 新增事实：本机是官方 Flutter 3.44.8；minSdk=24；NDK 28.2 已安装；Rust/cargo-ndk 缺失
-- 失败：`git clone --reference` 因浅克隆被拒绝
-- 指标变化：无 Native 新产物
-- 上游 API/patch 变化：无
-- 阻塞项：需要安装 Rust 1.97.1 才能做 P0-002
-- 下一步：安装 pinned Rust，编译 `turna_anki_abi_version`，再接入 `anki` path 依赖
+- 完成任务：P0-000 环境盘点（部分）、P0-001 目录与上游钉死、P0-002 Host 编译与 Collection 可见性
+- 当前任务：P0-003 Android arm64 交叉编译
+- 实际命令：见 §5、§6
+- 新增事实：本机是官方 Flutter 3.44.8；minSdk=24；NDK 28.2 已安装；Rust 1.97.1 已装；cargo-ndk 仍缺；外部 crate 可直接持有 `anki::Collection`
+- 失败：`git clone --reference` 因浅克隆被拒绝；独立 workspace 不能包含 `rslib`；缺 tokio `io-util` 时 rslib 编不过
+- 指标变化：无 Android `.so`
+- 上游 API/patch 变化：无 patch
+- 阻塞项：P0-003 需要 cargo-ndk
+- 下一步：安装固定版本 cargo-ndk，交叉编译 arm64 `libturna_anki.so`
