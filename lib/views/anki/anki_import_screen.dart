@@ -20,6 +20,8 @@ import 'package:turna/application/anki/anki_deck_assembler.dart';
 import 'package:turna/application/anki/anki_deck_manager.dart';
 import 'package:turna/application/anki/anki_importer.dart';
 import 'package:turna/application/anki/anki_import_cleanup_service.dart';
+import 'package:turna/application/anki_official/import/anki_import_facade.dart';
+import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki/anki_models.dart';
 import 'package:turna/application/anki/anki_organization_resolver.dart';
 import 'package:turna/application/anki/anki_sample_deck.dart';
@@ -1037,6 +1039,22 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       _isSample = false;
     });
     try {
+      final facade = AnkiImportFacade.resolve(
+        flags: OfficialAnkiFeatureFlags.current,
+        legacyImporter: _importer,
+      );
+      if (facade.isOfficial) {
+        await facade.importOfficialOrNull(
+          packagePath: path,
+          displayName: path.split(RegExp(r'[/\\]')).last,
+        );
+        if (!mounted) return;
+        setState(() {
+          _step = 4;
+          _progress = 1;
+        });
+        return;
+      }
       final parseSw = Stopwatch()..start();
       final collection = await _importer.parse(
         path,

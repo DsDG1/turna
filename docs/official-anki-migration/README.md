@@ -14,6 +14,7 @@
 | 02 | [第一阶段结果报告](./02-phase-0-result-report.md) | 基线、命令、指标、Conditional Go | 已决策 |
 | 03 | [第二阶段实施方案](./03-phase-1-implementation-plan.md) | 稳定 Engine、contract v1、官方导入 Saga、恢复与生产入口门禁 | 已实施（Conditional Go） |
 | 04 | [第二阶段结果报告](./04-phase-1-result-report.md) | 基线、命令、指标、Conditional Go | 已决策 |
+| 05 | [Phase 0 + Phase 1 技术修补计划](./05-phase-0-phase-1-technical-remediation-plan.md) | 排除 License 后的 ABI、Engine、Saga、Android、CI 与文档联合收口 | 待实施 |
 
 ## 阶段命名
 
