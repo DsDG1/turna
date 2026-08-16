@@ -13,6 +13,8 @@ abstract class OfficialAnkiEngine {
 
   Future<String> createBackup();
 
+  Future<void> restoreBackup(String backupId);
+
   Future<OfficialAnkiImportLog> importPackage({
     required String packagePath,
     bool withScheduling = true,

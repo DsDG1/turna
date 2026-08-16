@@ -47,7 +47,10 @@ class OfficialAnkiException implements Exception {
   }
 
   @override
-  String toString() => 'OfficialAnkiException(${code.name}: $messageKey)';
+  String toString() {
+    final extra = debugDetails == null ? '' : ' $debugDetails';
+    return 'OfficialAnkiException(${code.name}: $messageKey$extra)';
+  }
 }
 
 OfficialAnkiErrorCode officialAnkiErrorCodeFromName(String? name) {

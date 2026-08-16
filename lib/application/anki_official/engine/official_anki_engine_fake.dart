@@ -14,6 +14,8 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
   final String backendCommit;
   int openCount;
   int importCount = 0;
+  int noteBatchCalls = 0;
+  int descriptorBatchCalls = 0;
   bool cancelRequested = false;
   bool disposed = false;
   String? openProfileId;
@@ -68,7 +70,7 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
       conflictingNoteIds: const <int>[],
       noteCount: notes,
       cardCount: this.cards.length,
-      nativeImportToken: 'tok-$packagePath',
+      operationToken: 'tok-$packagePath',
     );
   }
 
@@ -113,6 +115,9 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
   Future<String> createBackup() async => 'bk-fake';
 
   @override
+  Future<void> restoreBackup(String backupId) async {}
+
+  @override
   Future<OfficialAnkiImportLog> importPackage({
     required String packagePath,
     bool withScheduling = true,
@@ -141,7 +146,7 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
           conflictingNoteIds: <int>[],
           noteCount: 1,
           cardCount: 1,
-          nativeImportToken: 'tok-default',
+          operationToken: 'tok-default',
         );
   }
 
@@ -176,6 +181,7 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
 
   @override
   Future<Map<int, List<int>>> getNoteCardsBatch(List<int> noteIds) async {
+    noteBatchCalls++;
     return {
       for (final id in noteIds) id: List<int>.from(cardsByNote[id] ?? const <int>[]),
     };
@@ -185,6 +191,7 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
   Future<List<OfficialAnkiCardDescriptor>> getCardDescriptorsBatch(
     List<int> cardIds,
   ) async {
+    descriptorBatchCalls++;
     return [
       for (final id in cardIds)
         if (cards[id] != null) cards[id]!,

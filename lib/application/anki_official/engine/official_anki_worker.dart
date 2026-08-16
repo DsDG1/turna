@@ -76,6 +76,11 @@ class OfficialAnkiWorker implements OfficialAnkiEngine {
   Future<String> createBackup() => _enqueue(_inner.createBackup);
 
   @override
+  Future<void> restoreBackup(String backupId) {
+    return _enqueue(() => _inner.restoreBackup(backupId));
+  }
+
+  @override
   Future<OfficialAnkiImportLog> importPackage({
     required String packagePath,
     bool withScheduling = true,

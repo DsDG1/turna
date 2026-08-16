@@ -4,6 +4,7 @@ import 'package:turna/application/anki_official/contract/official_anki_contract.
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
+import 'package:turna/application/anki_official/engine/official_anki_native_transport.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 
 typedef OfficialAnkiNativeCall = OfficialAnkiEnvelopeResponse Function({
@@ -11,25 +12,47 @@ typedef OfficialAnkiNativeCall = OfficialAnkiEnvelopeResponse Function({
   required OfficialAnkiEnvelopeRequest request,
 });
 
-/// Production FFI adapter. Tests inject [nativeCall] instead of loading `.so`.
+/// Production FFI adapter. Tests may inject [nativeCall]; production uses
+/// [OfficialAnkiNativeTransport.open].
 class FfiOfficialAnkiEngine implements OfficialAnkiEngine {
-  FfiOfficialAnkiEngine({required this.nativeCall});
+  FfiOfficialAnkiEngine({required this.nativeCall})
+      : transport = null,
+        handle = 0;
 
-  final OfficialAnkiNativeCall nativeCall;
+  FfiOfficialAnkiEngine.connect(OfficialAnkiNativeTransport this.transport)
+      : nativeCall = null,
+        handle = transport.engineNew();
+
+  final OfficialAnkiNativeCall? nativeCall;
+  final OfficialAnkiNativeTransport? transport;
+  final int handle;
   var _requestSerial = 0;
   OfficialAnkiPaths? _paths;
+  bool _closed = false;
 
-  OfficialAnkiEnvelopeResponse _call(String operation, [Map<String, Object?>? payload]) {
+  OfficialAnkiEnvelopeResponse _call(
+    String operation, [
+    Map<String, Object?>? payload,
+  ]) {
     _requestSerial += 1;
     final request = OfficialAnkiEnvelopeRequest(
       requestId: 'dart-$_requestSerial',
       operation: operation,
       payload: payload ?? const <String, Object?>{},
     );
-    final response = nativeCall(
-      operationId: OfficialAnkiOperation.idFor(operation),
-      request: request,
-    );
+    final OfficialAnkiEnvelopeResponse response;
+    if (transport != null) {
+      response = transport!.call(
+        handle,
+        OfficialAnkiOperation.idFor(operation),
+        request,
+      );
+    } else {
+      response = nativeCall!(
+        operationId: OfficialAnkiOperation.idFor(operation),
+        request: request,
+      );
+    }
     if (response.engine.contractMajor != kOfficialAnkiContractMajor) {
       throw const OfficialAnkiException(
         code: OfficialAnkiErrorCode.contractVersionMismatch,
@@ -48,8 +71,16 @@ class FfiOfficialAnkiEngine implements OfficialAnkiEngine {
   @override
   Future<void> openProfile(OfficialAnkiPaths paths) async {
     await paths.ensureLayout();
-    _paths = paths;
-    _call(OfficialAnkiOperation.openCollection, paths.openPayload(backendCommit: ''));
+    try {
+      _call(
+        OfficialAnkiOperation.openCollection,
+        paths.openPayload(backendCommit: ''),
+      ).requirePayload();
+      _paths = paths;
+    } catch (_) {
+      _paths = null;
+      rethrow;
+    }
   }
 
   @override
@@ -70,6 +101,11 @@ class FfiOfficialAnkiEngine implements OfficialAnkiEngine {
   }
 
   @override
+  Future<void> restoreBackup(String backupId) async {
+    _call(OfficialAnkiOperation.restoreBackup, {'backup_id': backupId});
+  }
+
+  @override
   Future<OfficialAnkiImportLog> importPackage({
     required String packagePath,
     bool withScheduling = true,
@@ -86,14 +122,23 @@ class FfiOfficialAnkiEngine implements OfficialAnkiEngine {
   @override
   Future<OfficialAnkiProgress> latestProgress() async {
     final payload = _call(OfficialAnkiOperation.latestProgress).requirePayload();
+    final wantAbort = payload['want_abort'] == true;
+    final busy = payload['can_cancel'] == true;
     return OfficialAnkiProgress(
-      stage: payload['operation_kind'] as String? ?? 'idle',
-      canCancel: payload['can_cancel'] == true,
+      stage: wantAbort
+          ? 'cancelling'
+          : (payload['operation_kind'] as String? ?? 'idle'),
+      canCancel: busy,
     );
   }
 
   @override
   Future<void> cancel() async {
+    final native = transport;
+    if (native != null && handle != 0) {
+      native.cancel(handle);
+      return;
+    }
     _call(OfficialAnkiOperation.cancelOperation);
   }
 
@@ -151,9 +196,16 @@ class FfiOfficialAnkiEngine implements OfficialAnkiEngine {
 
   @override
   Future<void> dispose() async {
-    if (_paths != null) {
-      await closeCollection();
+    if (_closed) return;
+    _closed = true;
+    try {
+      if (_paths != null) {
+        await closeCollection();
+      }
+    } catch (_) {
+      _paths = null;
     }
+    transport?.engineClose(handle);
   }
 }
 

@@ -11,6 +11,7 @@ abstract final class OfficialAnkiOperation {
   static const closeCollection = 'CLOSE_COLLECTION';
   static const checkCollection = 'CHECK_COLLECTION';
   static const createBackup = 'CREATE_BACKUP';
+  static const restoreBackup = 'RESTORE_BACKUP';
   static const importPackage = 'IMPORT_PACKAGE';
   static const latestProgress = 'LATEST_PROGRESS';
   static const cancelOperation = 'CANCEL_OPERATION';
@@ -31,6 +32,7 @@ abstract final class OfficialAnkiOperation {
   static const searchCardsPageId = 18;
   static const getNoteCardsBatchId = 19;
   static const getCardDescriptorsBatchId = 20;
+  static const restoreBackupId = 21;
 
   static int idFor(String name) {
     switch (name) {
@@ -52,6 +54,8 @@ abstract final class OfficialAnkiOperation {
         return listDeckTreeId;
       case createBackup:
         return createBackupId;
+      case restoreBackup:
+        return restoreBackupId;
       case searchCardsPage:
         return searchCardsPageId;
       case getNoteCardsBatch:
