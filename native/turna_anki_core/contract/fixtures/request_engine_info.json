@@ -1,0 +1,6 @@
+{
+  "contractVersion": { "major": 1, "minor": 0 },
+  "requestId": "01JENGINEINFO",
+  "operation": "ENGINE_INFO",
+  "payload": {}
+}

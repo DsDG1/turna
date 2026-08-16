@@ -1,6 +1,5 @@
 //! Official Collection operations: import, query, render, queue, answer, undo.
 
-use std::path::Path;
 use std::path::PathBuf;
 use std::time::Instant;
 
@@ -44,7 +43,6 @@ use crate::engine::STATUS_COLLECTION_CORRUPT;
 use crate::engine::STATUS_IMPORT_CANCELLED;
 use crate::engine::STATUS_INTERNAL_ERROR;
 use crate::engine::STATUS_INVALID_ARGUMENT;
-use crate::engine::STATUS_INVALID_HANDLE;
 use crate::engine::STATUS_INVALID_STATE;
 use crate::engine::STATUS_IO_ERROR;
 use crate::engine::STATUS_PACKAGE_INVALID;
@@ -206,11 +204,6 @@ fn import_package(handle: u64, request: &[u8]) -> Result<Value, i32> {
     if engine.state != EngineState::Open {
         return Err(STATUS_INVALID_STATE);
     }
-    let col = engine
-        .collection
-        .as_mut()
-        .ok_or(STATUS_INVALID_STATE)?;
-
     let options = ImportAnkiPackageOptions {
         merge_notetypes: parsed.merge_notetypes,
         update_notes: parsed.update_notes,
@@ -219,17 +212,24 @@ fn import_package(handle: u64, request: &[u8]) -> Result<Value, i32> {
         with_deck_configs: parsed.with_deck_configs,
     };
     let started = Instant::now();
-    let imported = col.import_apkg(&path, options);
+    let imported = {
+        let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+        col.import_apkg(&path, options)
+    };
     let elapsed = started.elapsed().as_millis() as u64;
     match imported {
         Ok(output) => {
             let log = output.output;
-            let note_ids = col
-                .search_notes("", SortMode::NoOrder)
-                .map_err(map_anki_error)?;
-            let card_ids = col
-                .search_cards("", SortMode::NoOrder)
-                .map_err(map_anki_error)?;
+            let (note_ids, card_ids) = {
+                let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+                (
+                    col.search_notes("", SortMode::NoOrder)
+                        .map_err(map_anki_error)?,
+                    col.search_cards("", SortMode::NoOrder)
+                        .map_err(map_anki_error)?,
+                )
+            };
+            crate::engine::bump_page_generation(&mut engine);
             Ok(json!({
                 "new_note_ids": log_ids(&log.new),
                 "updated_note_ids": log_ids(&log.updated),
@@ -241,6 +241,7 @@ fn import_package(handle: u64, request: &[u8]) -> Result<Value, i32> {
                 "note_count": note_ids.len(),
                 "card_count": card_ids.len(),
                 "found_notes": log.found_notes,
+                "nativeImportToken": format!("imp-{handle}-{elapsed}"),
             }))
         }
         Err(AnkiError::Interrupted) => Err(STATUS_IMPORT_CANCELLED),
@@ -253,29 +254,20 @@ fn list_deck_tree(handle: u64) -> Result<Value, i32> {
     let mut engine = require_open(&slot)?;
     let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
     let tree = col.deck_tree(None).map_err(map_anki_error)?;
-    let mut decks = vec![json!({
-        "deck_id": tree.deck_id,
-        "name": tree.name,
-        "level": tree.level,
-        "new_count": tree.new_count,
-        "learn_count": tree.learn_count,
-        "review_count": tree.review_count,
-    })];
-    for child in &tree.children {
+    let mut decks = Vec::new();
+    let mut stack = vec![tree];
+    while let Some(node) = stack.pop() {
         decks.push(json!({
-            "deck_id": child.deck_id,
-            "name": child.name,
-            "level": child.level,
-            "new_count": child.new_count,
-            "learn_count": child.learn_count,
-            "review_count": child.review_count,
+            "deckId": node.deck_id,
+            "deck_id": node.deck_id,
+            "name": node.name,
+            "level": node.level,
+            "new_count": node.new_count,
+            "learn_count": node.learn_count,
+            "review_count": node.review_count,
         }));
-        for grandchild in &child.children {
-            decks.push(json!({
-                "deck_id": grandchild.deck_id,
-                "name": grandchild.name,
-                "level": grandchild.level,
-            }));
+        for child in node.children.into_iter().rev() {
+            stack.push(child);
         }
     }
     Ok(json!({ "decks": decks }))
@@ -346,7 +338,10 @@ fn render_card(handle: u64, request: &[u8]) -> Result<Value, i32> {
     let rendered = col
         .render_existing_card(CardId(parsed.card_id), parsed.browser, false)
         .map_err(|err| {
-            if matches!(err, AnkiError::NotFound { .. } | AnkiError::InvalidInput { .. }) {
+            if matches!(
+                err,
+                AnkiError::NotFound { .. } | AnkiError::InvalidInput { .. }
+            ) {
                 STATUS_CARD_NOT_FOUND
             } else {
                 STATUS_RENDER_FAILED
@@ -486,9 +481,7 @@ fn describe_next_states(handle: u64, request: &[u8]) -> Result<Value, i32> {
     }
     let states = token.states.clone();
     let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
-    let labels = col
-        .describe_next_states(&states)
-        .map_err(map_anki_error)?;
+    let labels = col.describe_next_states(&states).map_err(map_anki_error)?;
     Ok(json!({
         "answer_token": parsed.answer_token,
         "labels": {
@@ -607,7 +600,7 @@ fn map_import_error(err: AnkiError) -> i32 {
     }
 }
 
-fn map_anki_error(err: AnkiError) -> i32 {
+pub(crate) fn map_anki_error(err: AnkiError) -> i32 {
     match err {
         AnkiError::Interrupted => STATUS_IMPORT_CANCELLED,
         AnkiError::UndoEmpty => STATUS_UNDO_UNAVAILABLE,
@@ -639,6 +632,7 @@ mod tests {
     use crate::engine::STATUS_INVALID_HANDLE;
     use serde_json::Value;
     use std::fs;
+    use std::path::Path;
     use std::time::Instant;
     use std::time::SystemTime;
     use std::time::UNIX_EPOCH;
@@ -674,6 +668,7 @@ mod tests {
             media_folder: root.join("collection.media").to_string_lossy().into(),
             media_db: root.join("collection.media.db2").to_string_lossy().into(),
             check_integrity: false,
+            allowed_root: None,
         };
         let body = serde_json::to_vec(&serde_json::json!({
             "collection_path": request.collection_path,
@@ -709,8 +704,12 @@ mod tests {
         for pkg in packages {
             let file = package_path(pkg["file"].as_str().unwrap());
             let (root, handle, _) = temp_open();
-            let imported = import(handle, &file, pkg["withScheduling"].as_bool().unwrap_or(false))
-                .unwrap_or_else(|status| panic!("{} status {status}", file.display()));
+            let imported = import(
+                handle,
+                &file,
+                pkg["withScheduling"].as_bool().unwrap_or(false),
+            )
+            .unwrap_or_else(|status| panic!("{} status {status}", file.display()));
             assert_eq!(
                 imported["note_count"].as_u64().unwrap(),
                 pkg["expectedNotes"].as_u64().unwrap(),
@@ -784,8 +783,12 @@ mod tests {
             let mut rendered = Vec::new();
             for card in searched["cards"].as_array().unwrap() {
                 let card_id = card["card_id"].as_i64().unwrap();
-                let one = call(handle, OP_RENDER_CARD, json!({"card_id": card_id, "browser": false}))
-                    .unwrap();
+                let one = call(
+                    handle,
+                    OP_RENDER_CARD,
+                    json!({"card_id": card_id, "browser": false}),
+                )
+                .unwrap();
                 rendered.push(one);
             }
             let expected: Value =

@@ -12,6 +12,8 @@
 | 00 | [总体迁移方案](./00-overall-migration-plan.md) | 目标架构、数据所有权、渲染、调度、Legacy 迁移和完整阶段划分 | 提案 |
 | 01 | [第一阶段实施方案](./01-phase-0-implementation-plan.md) | Android arm64 技术 Spike 的逐任务施工、验收和 Go/No-Go 门禁 | 已收口 |
 | 02 | [第一阶段结果报告](./02-phase-0-result-report.md) | 基线、命令、指标、Conditional Go | 已决策 |
+| 03 | [第二阶段实施方案](./03-phase-1-implementation-plan.md) | 稳定 Engine、contract v1、官方导入 Saga、恢复与生产入口门禁 | 已实施（Conditional Go） |
+| 04 | [第二阶段结果报告](./04-phase-1-result-report.md) | 基线、命令、指标、Conditional Go | 已决策 |
 
 ## 阶段命名
 
@@ -55,4 +57,3 @@
 - AnkiDroid Backend：<https://github.com/ankidroid/Anki-Android-Backend>
 - cargo-ndk：<https://github.com/bbqsrc/cargo-ndk>
 - Flutter Android FFI：<https://docs.flutter.dev/platform-integration/android/c-interop>
-

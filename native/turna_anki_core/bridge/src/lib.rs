@@ -1,11 +1,12 @@
-//! Minimal C ABI for the official Anki core spike.
-//!
-//! P0-006 implements Collection open/close/check and handle lifecycle.
-//! Import/render/scheduler operations still land in later P0 tasks.
+//! Turna C ABI around pinned official Anki rslib.
 
 mod abi;
+mod contract;
 mod engine;
+mod errors;
+mod import;
 mod ops;
+mod query;
 
 pub use abi::turna_anki_buffer_free;
 pub use abi::turna_anki_call;
@@ -43,7 +44,10 @@ mod tests {
     #[test]
     fn import_apkg_is_callable_and_rejects_missing_file() {
         let mut builder = anki::collection::CollectionBuilder::new(":memory:");
-        builder.set_media_paths("/tmp/turna-anki-spike-media", "/tmp/turna-anki-spike-media.db");
+        builder.set_media_paths(
+            "/tmp/turna-anki-spike-media",
+            "/tmp/turna-anki-spike-media.db",
+        );
         let mut col = builder.build().expect("in-memory Collection");
         let err = col
             .import_apkg(

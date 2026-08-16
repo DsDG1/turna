@@ -38,6 +38,7 @@ pub const STATUS_IO_ERROR: i32 = 29;
 pub const STATUS_COLLECTION_CORRUPT: i32 = 30;
 pub const STATUS_CONTRACT_VERSION_MISMATCH: i32 = 31;
 pub const STATUS_INTERNAL_ERROR: i32 = 32;
+pub const STATUS_PAGE_TOKEN_STALE: i32 = 33;
 
 pub const OP_OPEN_COLLECTION: u32 = 2;
 pub const OP_CLOSE_COLLECTION: u32 = 3;
@@ -54,6 +55,10 @@ pub const OP_DESCRIBE_NEXT_STATES: u32 = 13;
 pub const OP_ANSWER_CARD: u32 = 14;
 pub const OP_GET_UNDO_STATUS: u32 = 15;
 pub const OP_UNDO: u32 = 16;
+pub const OP_CREATE_BACKUP: u32 = 17;
+pub const OP_SEARCH_CARDS_PAGE: u32 = 18;
+pub const OP_GET_NOTE_CARDS_BATCH: u32 = 19;
+pub const OP_GET_CARD_DESCRIPTORS_BATCH: u32 = 20;
 
 pub const MAX_REQUEST_BYTES: usize = 1_048_576;
 
@@ -71,6 +76,8 @@ pub struct OpenRequest {
     pub media_db: String,
     #[serde(default)]
     pub check_integrity: bool,
+    #[serde(default)]
+    pub allowed_root: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -93,6 +100,8 @@ pub struct Engine {
     pub session: u64,
     pub next_token: u64,
     pub tokens: HashMap<u64, AnswerToken>,
+    pub page_generation: u64,
+    pub allowed_root: Option<PathBuf>,
 }
 
 impl Engine {
@@ -104,6 +113,8 @@ impl Engine {
             session: 1,
             next_token: 1,
             tokens: HashMap::new(),
+            page_generation: 1,
+            allowed_root: None,
         }
     }
 
@@ -155,13 +166,6 @@ pub fn slot(handle: u64) -> Result<Arc<EngineSlot>, i32> {
 
 fn engine_arc(handle: u64) -> Result<Arc<EngineSlot>, i32> {
     slot(handle)
-}
-
-pub fn engine_exists(handle: u64) -> Result<bool, i32> {
-    if handle == 0 {
-        return Ok(false);
-    }
-    with_registry(|map| map.contains_key(&handle))
 }
 
 pub fn free_engine(handle: u64) -> Result<(), i32> {
@@ -223,7 +227,9 @@ pub fn open_collection(handle: u64, request: &[u8]) -> Result<LifecycleResponse,
         .map_err(|_| STATUS_COLLECTION_OPEN_FAILED)?;
     engine.collection = Some(built);
     engine.collection_path = Some(paths.collection);
+    engine.allowed_root = paths.allowed_root;
     engine.state = EngineState::Open;
+    engine.page_generation = engine.page_generation.wrapping_add(1).max(1);
     engine.invalidate_tokens();
     Ok(LifecycleResponse {
         state: "open",
@@ -247,14 +253,22 @@ pub fn close_collection(handle: u64) -> Result<LifecycleResponse, i32> {
 
 pub fn check_collection(handle: u64) -> Result<LifecycleResponse, i32> {
     let slot = engine_arc(handle)?;
-    let engine = slot.engine.lock().map_err(|_| STATUS_BACKEND_PANIC)?;
+    let mut engine = slot.engine.lock().map_err(|_| STATUS_BACKEND_PANIC)?;
     match engine.state {
-        EngineState::Open => Ok(LifecycleResponse {
-            state: "open",
-            created: None,
-        }),
+        EngineState::Open => {
+            let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+            crate::ops::integrity_ok(col)?;
+            Ok(LifecycleResponse {
+                state: "open",
+                created: None,
+            })
+        }
         EngineState::Created | EngineState::Closed => Err(STATUS_INVALID_STATE),
     }
+}
+
+pub fn bump_page_generation(engine: &mut Engine) {
+    engine.page_generation = engine.page_generation.wrapping_add(1).max(1);
 }
 
 pub fn dispatch(handle: u64, operation: u32, request: &[u8]) -> Result<serde_json::Value, i32> {
@@ -265,6 +279,10 @@ pub fn dispatch(handle: u64, operation: u32, request: &[u8]) -> Result<serde_jso
         OP_OPEN_COLLECTION => to_json(open_collection(handle, request)?),
         OP_CLOSE_COLLECTION => to_json(close_collection(handle)?),
         OP_CHECK_COLLECTION => to_json(check_collection(handle)?),
+        OP_CREATE_BACKUP => crate::import::create_backup(handle, request),
+        OP_SEARCH_CARDS_PAGE => crate::query::search_cards_page(handle, request),
+        OP_GET_NOTE_CARDS_BATCH => crate::query::get_note_cards_batch(handle, request),
+        OP_GET_CARD_DESCRIPTORS_BATCH => crate::query::get_card_descriptors_batch(handle, request),
         other => crate::ops::dispatch_op(handle, other, request),
     }
 }
@@ -287,22 +305,77 @@ struct ValidatedPaths {
     collection: PathBuf,
     media_folder: PathBuf,
     media_db: PathBuf,
+    allowed_root: Option<PathBuf>,
+}
+
+fn contains_nul(path: &str) -> bool {
+    path.as_bytes().contains(&0)
+}
+
+fn resolve_path(raw: &str) -> Result<PathBuf, i32> {
+    if raw.is_empty() || contains_nul(raw) {
+        return Err(STATUS_INVALID_ARGUMENT);
+    }
+    let path = PathBuf::from(raw);
+    if !path.is_absolute() {
+        return Err(STATUS_INVALID_ARGUMENT);
+    }
+    if path.exists() {
+        return path.canonicalize().map_err(|_| STATUS_INVALID_ARGUMENT);
+    }
+    let mut ancestor = path.as_path();
+    let mut missing = Vec::new();
+    while !ancestor.exists() {
+        let name = ancestor.file_name().ok_or(STATUS_INVALID_ARGUMENT)?;
+        missing.push(name.to_os_string());
+        ancestor = ancestor.parent().ok_or(STATUS_INVALID_ARGUMENT)?;
+    }
+    let mut resolved = ancestor
+        .canonicalize()
+        .map_err(|_| STATUS_INVALID_ARGUMENT)?;
+    for part in missing.into_iter().rev() {
+        resolved.push(part);
+    }
+    Ok(resolved)
+}
+
+fn ensure_inside_root(path: &Path, root: &Path) -> Result<(), i32> {
+    let root_canon = if root.exists() {
+        root.canonicalize().map_err(|_| STATUS_INVALID_ARGUMENT)?
+    } else {
+        return Err(STATUS_INVALID_ARGUMENT);
+    };
+    if !path.starts_with(&root_canon) {
+        return Err(STATUS_INVALID_ARGUMENT);
+    }
+    Ok(())
 }
 
 fn validate_paths(request: &OpenRequest) -> Result<ValidatedPaths, i32> {
-    let collection = PathBuf::from(&request.collection_path);
-    let media_folder = PathBuf::from(&request.media_folder);
-    let media_db = PathBuf::from(&request.media_db);
-    if !collection.is_absolute() || !media_folder.is_absolute() || !media_db.is_absolute() {
-        return Err(STATUS_INVALID_ARGUMENT);
-    }
+    let collection = resolve_path(&request.collection_path)?;
+    let media_folder = resolve_path(&request.media_folder)?;
+    let media_db = resolve_path(&request.media_db)?;
     if collection == media_folder || collection == media_db || media_folder == media_db {
         return Err(STATUS_INVALID_ARGUMENT);
     }
+    if media_folder.starts_with(&collection) || collection.starts_with(&media_folder) {
+        return Err(STATUS_INVALID_ARGUMENT);
+    }
+    let allowed_root = match request.allowed_root.as_deref() {
+        Some(root) => {
+            let resolved = resolve_path(root)?;
+            ensure_inside_root(&collection, &resolved)?;
+            ensure_inside_root(&media_folder, &resolved)?;
+            ensure_inside_root(&media_db, &resolved)?;
+            Some(resolved)
+        }
+        None => None,
+    };
     Ok(ValidatedPaths {
         collection,
         media_folder,
         media_db,
+        allowed_root,
     })
 }
 
@@ -357,6 +430,7 @@ mod tests {
             media_folder: root.join("collection.media").to_string_lossy().into(),
             media_db: root.join("collection.media.db2").to_string_lossy().into(),
             check_integrity: false,
+            allowed_root: None,
         };
         (root, request)
     }
@@ -367,6 +441,7 @@ mod tests {
             "media_folder": request.media_folder,
             "media_db": request.media_db,
             "check_integrity": request.check_integrity,
+            "allowed_root": request.allowed_root,
         }))
         .unwrap()
     }
@@ -420,6 +495,21 @@ mod tests {
     }
 
     #[test]
+    fn allowed_root_rejects_escape() {
+        let (root, mut request) = temp_paths();
+        std::fs::create_dir_all(&root).unwrap();
+        request.allowed_root = Some(root.to_string_lossy().into());
+        request.collection_path = "/tmp/turna-escape-collection.anki2".into();
+        let handle = alloc_engine().unwrap();
+        assert_eq!(
+            open_collection(handle, &encode(&request)).unwrap_err(),
+            STATUS_INVALID_ARGUMENT
+        );
+        free_engine(handle).unwrap();
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
     fn invalid_handle_and_relative_paths() {
         assert!(matches!(engine_arc(0), Err(STATUS_INVALID_HANDLE)));
         assert_eq!(free_engine(9_999_999).unwrap_err(), STATUS_INVALID_HANDLE);
@@ -429,10 +519,7 @@ mod tests {
             open_collection(handle, bad).unwrap_err(),
             STATUS_INVALID_ARGUMENT
         );
-        assert_eq!(
-            close_collection(handle).unwrap_err(),
-            STATUS_INVALID_STATE
-        );
+        assert_eq!(close_collection(handle).unwrap_err(), STATUS_INVALID_STATE);
         free_engine(handle).unwrap();
     }
 

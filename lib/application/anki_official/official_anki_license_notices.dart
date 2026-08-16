@@ -1,5 +1,6 @@
 // Flutter imports:
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 
 /// Anki AGPL notice for Flutter's [LicenseRegistry].
 ///
@@ -46,4 +47,18 @@ void registerOfficialAnkiLicenses() {
       kOfficialAnkiLicenseText,
     );
   });
+}
+
+/// Production license page entry. Registers Anki AGPL before showing licenses.
+void showTurnaLicensePage({
+  required BuildContext context,
+  String applicationName = 'Turna',
+  String? applicationVersion,
+}) {
+  registerOfficialAnkiLicenses();
+  showLicensePage(
+    context: context,
+    applicationName: applicationName,
+    applicationVersion: applicationVersion,
+  );
 }

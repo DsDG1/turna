@@ -19,4 +19,6 @@ if [[ ! -d "$root/anki/ftl/core-repo/core" ]]; then
   echo "  git -C anki submodule update --init --depth 1 ftl/core-repo ftl/qt-repo" >&2
   exit 2
 fi
+cargo fmt --manifest-path "$root/Cargo.toml" --check
+cargo clippy --manifest-path "$root/Cargo.toml" --lib -- -D warnings
 exec cargo test
