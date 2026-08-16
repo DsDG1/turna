@@ -94,5 +94,26 @@ class ValidationReportMultiSelectTest(unittest.TestCase):
         self.assertEqual(len(selected), 2)
 
 
+class JumpToNodeTest(unittest.TestCase):
+    def test_routes_kinds(self) -> None:
+        from src.application.validation_controller import jump_to_node
+        from types import SimpleNamespace
+
+        tree = MagicMock()
+        host = SimpleNamespace(tree=tree)
+        jump_to_node(host, ("lesson", "l1"))
+        tree.select_lesson.assert_called_with("l1")
+        jump_to_node(host, ("section", "s1"))
+        tree.select_section.assert_called_with("s1")
+        jump_to_node(host, ("unit", "u1"))
+        tree.select_unit.assert_called_with("u1")
+
+    def test_missing_tree_safe(self) -> None:
+        from src.application.validation_controller import jump_to_node
+        from types import SimpleNamespace
+
+        jump_to_node(SimpleNamespace(tree=None), ("lesson", "x"))
+
+
 if __name__ == "__main__":
     unittest.main()

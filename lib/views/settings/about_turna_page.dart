@@ -8,9 +8,10 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 // Project imports:
+import 'package:turna/application/anki_official/official_anki_license_notices.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/settings/beginner_guide_page.dart';
 import 'package:turna/views/settings/changelog_page.dart';
+import 'package:turna/views/settings/quick_start_from_asset.dart';
 import 'package:turna/views/settings/privacy_details_page.dart';
 import 'package:turna/views/theme.dart';
 
@@ -254,9 +255,8 @@ class _AboutTab extends StatelessWidget {
                 _LinkTile(
                   icon: Icons.code_rounded,
                   title: AppStrings.settingsOpenSourceLicenses,
-                  onTap: () => showLicensePage(
+                  onTap: () => showTurnaLicensePage(
                     context: context,
-                    applicationName: 'Turna',
                     applicationVersion: _fallbackVersion,
                   ),
                 ),
@@ -388,7 +388,7 @@ class _AboutTab extends StatelessWidget {
   }
 }
 
-const String _fallbackVersion = '1.0.0';
+const String _fallbackVersion = '1.3.0';
 
 /// Short bar + title, matching the learning page's `UnitHeader` rhythm.
 class _SectionHeader extends StatelessWidget {

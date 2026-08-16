@@ -19,7 +19,7 @@ import 'package:turna/views/theme.dart';
 ///   7. 政策更新
 ///   8. 联系方式
 ///
-/// 视觉语言与 `AboutTurnaPage` / `BeginnerGuidePage` 一致:
+/// 视觉语言与 `AboutTurnaPage` 一致:
 ///   - `courseTreeGradientFor` 薄荷渐变背景
 ///   - `_AboutCard` 圆角白卡 + 1px 边框 + `softShadow`
 ///   - `_SectionHeader` 短 teal 横条 + 小标题

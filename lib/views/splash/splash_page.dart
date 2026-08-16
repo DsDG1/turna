@@ -27,7 +27,7 @@ class _SplashPageState extends State<SplashPage> {
   @override
   void initState() {
     super.initState();
-    if (!kIsWeb && defaultTargetPlatform != TargetPlatform.ohos) {
+    if (!kIsWeb && defaultTargetPlatform.name != 'ohos') {
       WidgetsBinding.instance
           .addPostFrameCallback((_) => _checkTtsAvailability());
     }

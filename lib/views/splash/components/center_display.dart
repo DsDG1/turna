@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 // Project imports:
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/app_fonts.dart';
-import 'package:turna/views/home/mala_welcomes.dart';
+import 'package:turna/views/home/turna_welcomes.dart';
 import 'package:turna/views/theme.dart';
 
 class CenterDisplay extends StatefulWidget {
@@ -85,7 +85,7 @@ class _CenterDisplayState extends State<CenterDisplay>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const RepaintBoundary(child: MalaWelcomes()),
+          const RepaintBoundary(child: TurnaWelcomes()),
           const SizedBox(height: 24),
           Text(
             AppStrings.splashAppName,

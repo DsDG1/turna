@@ -10,11 +10,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:turna/application/guide_return_controller.dart';
-import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/service/tab_router.dart';
-import 'package:turna/views/settings/beginner_guide_page.dart';
+import 'package:turna/views/settings/quick_start_from_asset.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -119,27 +116,5 @@ void main() {
     }
     // asset 返回 null 触发 load 抛错 → 显示 fallback 文本。
     expect(find.text(AppStrings.quickStartLoadFallback), findsWidgets);
-  });
-
-  testWidgets('BeginnerGuidePage is compact: feature titles, no quick-start',
-      (tester) async {
-    await getIt.reset();
-    getIt.registerLazySingleton<GuideReturnController>(
-      () => GuideReturnController(),
-    );
-    getIt.registerLazySingleton<TabRouter>(() => TabRouter());
-    addTearDown(() async => getIt.reset());
-
-    await tester.pumpWidget(
-      const MaterialApp(home: BeginnerGuidePage()),
-    );
-    await tester.pumpAndSettle();
-
-    // Compact guide: feature titles + try-now pills are present.
-    expect(find.text(AppStrings.beginnerGuideTitle), findsWidgets);
-    expect(find.text(AppStrings.beginnerGuideLearnTitle), findsOneWidget);
-    expect(find.text(AppStrings.beginnerGuideTryNow), findsWidgets);
-    // Long-form markdown helper is not embedded on this page.
-    expect(find.byType(QuickStartFromAsset), findsNothing);
   });
 }

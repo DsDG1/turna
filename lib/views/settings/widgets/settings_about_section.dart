@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 // Project imports:
+import 'package:turna/application/anki_official/official_anki_license_notices.dart';
 import 'package:turna/views/settings/about_turna_page.dart';
-import 'package:turna/views/settings/beginner_guide_page.dart';
 import 'package:turna/views/settings/changelog_page.dart';
 import 'package:turna/views/settings/privacy_details_page.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
@@ -26,17 +26,6 @@ class SettingsAboutSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return SettingsCard(
       children: [
-        SettingsNavigationTile(
-          icon: Icons.menu_book_rounded,
-          title: AppStrings.beginnerGuideEntry,
-          subtitle: AppStrings.beginnerGuideEntrySubtitle,
-          onTap: (context) => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const BeginnerGuidePage(),
-            ),
-          ),
-        ),
-        settingsTileDivider(context),
         SettingsNavigationTile(
           icon: Icons.school_rounded,
           title: AppStrings.settingsAboutTurna,
@@ -74,9 +63,8 @@ class SettingsAboutSection extends StatelessWidget {
           onTap: (context) async {
             final info = await _loadPackageInfo();
             if (!context.mounted) return;
-            showLicensePage(
+            showTurnaLicensePage(
               context: context,
-              applicationName: 'Turna',
               applicationVersion: info.version,
             );
           },
@@ -96,7 +84,7 @@ class SettingsVersionFooter extends StatelessWidget {
     return FutureBuilder<PackageInfo>(
       future: _loadPackageInfo(),
       builder: (context, snapshot) {
-        final version = snapshot.data?.version ?? '1.0.0';
+        final version = snapshot.data?.version ?? '1.3.0';
         final build = snapshot.data?.buildNumber ?? '';
         final label = build.isEmpty
             ? AppStrings.settingsVersionFooter(version)

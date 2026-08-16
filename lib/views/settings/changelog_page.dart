@@ -48,10 +48,27 @@ class ChangelogPage extends StatelessWidget {
       title: 'AI 伴学与内容扩充',
       subtitle: '自由问答 / 诊断 / 收藏；土耳其语八章真实内容',
     ),
+    JourneyStep(
+      label: '1.3.0',
+      title: 'Anki 原生渲染与吉祥物',
+      subtitle: '原生展开卡面、练习解耦、全新湿地鹤视觉系统',
+    ),
   ];
 
   /// 硬编码后援:asset 加载失败时使用。
   static const List<ChangelogRelease> fallbackReleases = [
+    ChangelogRelease(
+      version: '1.3.0',
+      title: 'Anki 原生渲染与吉祥物升级',
+      items: [
+        'Anki 渲染重构：原生 HTML 展开式问答卡面，告别卡顿与 300px 翻转',
+        '复习与练习双轨解耦：复习专注原卡四档评分，练习独立支持多题型交互',
+        'Anki 导入体系优化：差异对比与映射编辑器，导入操作事务日志与恢复',
+        '全新 Turna 湿地鹤吉祥物形象系统与全套学习场景插画',
+        '系统健康诊断中心与全链路兼容性检测',
+        'AI 伴学证据链沉淀、知识检索与上下文预算控制',
+      ],
+    ),
     ChangelogRelease(
       version: '1.2.0',
       title: 'AI 伴学与土耳其语内容扩充',

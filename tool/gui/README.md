@@ -2,7 +2,7 @@
 
 `Turna GUI` 是基于 **PySide6** 开发的高效、本地化二语习得（SLA）课程编辑器。它是底层 CLI 工具 [`tool/course_cli.py`](../course_cli.py) 的图形前端，结合严格的结构校验与 AI 辅助能力，为课程创作者提供可视化设计、教材智能化提取、资源集中管理、交互审校与一键发布的全流程解决方案。
 
-> 💡 **新手快速入门**：若您是初次使用的课程创作者或教师，无需命令行背景，可参考 [图形界面新手指南](../../docs/authoring/gui-beginner-guide.md)。  
+> 💡 **新手快速入门**：若您是初次使用的课程创作者或教师，无需命令行背景，可参考 [零代码教师指南](../../docs/authoring/teacher-guide.md)。  
 > 🛠️ **开发者与高级用户**：本 README 涵盖安装运行、主界面使用、课程工坊（AI 创作中心）全流程、架构设计、测试与打包指南。
 
 ---
@@ -191,7 +191,7 @@ python -m tool.gui.src.main
   - **安全保护**：API Key **仅在当前会话内存中保存**，关闭应用程序后自动销毁，坚决不写入磁盘；Base URL 与 Model 配置持久化保存。
   - **参数微调**：可自定义思考过程 (Reasoning)、请求超时时间 (5–600 秒)、生成温度 (0.0–2.0) 及自动重试轮数 (0–5)。
   - **连接测试**：提供「测试连接」按钮，发送最小 1-token 请求验证配置有效性。
-  - **生成稳定性（aiEnhance 第一枪）**：课程生成走统一「生成 → 校验 → 回灌错误重试」闭环；prompt 强制资源先于 units、注入 CEFR/干扰项/土耳其语教学法约束；可选对 `[待补]`/needs-review 词条做第二趟补全（API 参数 `fill_needs_review`，默认关）。度量探针见 `backend/ai_bench.py` 与 `tests/ai_goldens/`，路线图见 [`aiEnhance.md`](./aiEnhance.md)。
+  - **生成稳定性（aiEnhance 第一枪）**：课程生成走统一「生成 → 校验 → 回灌错误重试」闭环；prompt 强制资源先于 units、注入 CEFR/干扰项/土耳其语教学法约束；可选对 `[待补]`/needs-review 词条做第二趟补全（API 参数 `fill_needs_review`，默认关）。度量探针见 `backend/ai_bench.py` 与 `tests/ai_goldens/`，详见 [`docs/ai_configuration_and_features_report.md`](./docs/ai_configuration_and_features_report.md)。
   - **内容质量与精修（aiEnhance 第二枪）**：审阅区展示规则质量分（复现/题型/干扰项/难度/听力/资源卫生），可「按质量分修复」；局部重生成支持自定义指令与预设条；生成模式可选 **快速（整节）** 或 **精修（大纲→分课）**（`backend/ai_phased.py`）。质量分**不阻断**保存/导入。
   - **高级 AI 选项（aiEnhance 第三枪 批次①）**：展开「AI 配置」tab 底部的「高级」折叠区可配置：
     - **双模型**：`model_chat`（对齐对话 / 课程解释）与 `model_json`（课程 / 课时 / 题目 JSON 生成与修复）。留空则使用主模型，实现成本分流。
@@ -207,7 +207,7 @@ python -m tool.gui.src.main
 
 ## 创作者五条主路径（AI 感知增强）
 
-日常创作优先走下列路径（详见 [`aiEnhance.md`](./aiEnhance.md)）：
+日常创作优先走下列路径（详见 [`docs/ai_configuration_and_features_report.md`](./docs/ai_configuration_and_features_report.md)）：
 
 | 路径 | 怎么做 | 你应感到 |
 |------|--------|----------|

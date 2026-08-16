@@ -23,7 +23,8 @@ Varnamala Plus 的完整更新历程。本文件按时间顺序记录从最初�
 | 5. 1.0.0 土耳其语 | 2026-07-12 | 目标语言改为土耳其语,AI 助手 + 教材导入 | `389f453` … `2119469` |
 | 6. 1.1.0 FSRS/AI/Anki | 2026-07-30 | FSRS 连续记忆、AI 引擎重构、Anki 智能化 | `980224e` |
 | 7. 维护 | 2026-07-30 → 2026-08-01 | OHOS gitlink 修复、settings 同步 | `f62a727`, `9b5a172` |
-| 8. 1.2.0 伴学与内容 | 2026-08-05 | AI 伴学工具链 + 土耳其语八章内容扩充 | （工作区） |
+| 8. 1.2.0 伴学与内容 | 2026-08-05 | AI 伴学工具链 + 土耳其语八章内容扩充 | `8fb07d9` |
+| 9. 1.3.0 Anki渲染与视觉 | 2026-08-15 | Anki 原生渲染与练习解耦 + Turna 吉祥物系统 + 系统健康监控 | （当前） |
 
 ---
 
@@ -416,8 +417,7 @@ in spanish and kannda"。
 
 ## 4. future4 框架收尾 (2026-07-11)
 
-[future4 框架文档](./docs/decisions/0018-future4-completion-and-content-handoff.md)
-一次性完成 13 个 `[phase-N]`。
+**future4 框架归档**，一次性完成 13 个 `[phase-N]`。
 
 ### 4.1 Phase 17 — 卫生 + 守卫
 
@@ -518,7 +518,7 @@ v0.4.0-future4:
 
 ## 5. 1.0.0 土耳其语转向 (2026-07-12)
 
-> 详细迁移计划: [ADR 0020 - 斯瓦希里语→土耳其语转向](./docs/decisions/0020-swahili-to-turkish-pivot.md)
+> 详细迁移背景见 [`docs/project-guide.md`](./docs/project-guide.md) §13 / §15。
 
 ### 5.1 一次性土耳其语迁移
 
@@ -642,10 +642,7 @@ v0.4.0-future4:
 
 ## 6. 1.1.0 FSRS / AI / Anki 智能化 (2026-07-30)
 
-> 详细 ADR:
-> - [0027-anki-smart-organization-and-srs-sqlite.md](./docs/decisions/0027-anki-smart-organization-and-srs-sqlite.md)
-> - [0028-fsrs-continuous-memory-model.md](./docs/decisions/0028-fsrs-continuous-memory-model.md)
-> - [0029-fsrs-relearn-and-local-weights.md](./docs/decisions/0029-fsrs-relearn-and-local-weights.md)
+> 历史实现规范见 [`docs/project-guide.md`](./docs/project-guide.md) §5、§6、§7（原 ADR 0027–0029）。
 
 `980224e` feat(srs,anki,ai): FSRS engine, anki smart organization, AI
 engine refresh, app icon & l10n — 368 files changed, 27727 insertions(+),
@@ -835,9 +832,61 @@ Git 在每个 gitlink 上递归跑 `git status --porcelain=2`,内部子仓库的
 
 ---
 
+## 8. 1.2.0 伴学与内容扩充 (2026-08-05)
+
+- AI 伴学工具链全面上线：自由问答、学习诊断、讲解收藏、词典扩展与 Anki 问答解析。
+- 课内提示支持流式回复，并注入学习者上下文（水平、错题本、讲解偏好）。
+- 土耳其语内置课程大幅扩充：A1→B2 八章真实内容（约 148 词 / 18 表达 / 8 语法 / 54 课）。
+- 宝石与装扮兑换支持、湿地鹤品牌色板锁定（ADR 0033/0035）。
+
+---
+
+## 9. 1.3.0 Anki 原生渲染、练习解耦与吉祥物升级 (2026-08-15)
+
+### 9.1 Anki 原生渲染与展开式卡面
+- **展开式问答卡面**（`AnkiRevealScaffold`）：问题留在上方，答案在下方平滑展开，四档评分（Again/Hard/Good/Easy）固定在底部，彻底移除旧版 300px 3D 翻转卡顿。
+- **Flutter 原生 HTML 渲染链**（`AnkiFacePaintEngine` + `AnkiFlutterHtmlView`）：默认走高效 Flutter 原生渲染，仅在复杂 MathJax / JS 脚本时降级 WebView，无 WebView 环境自动文本兜底。
+- **卡面预热与元数据**：显示 Deck、Tags、旗标标记，`{{hint:}}` 字段提为可点提示，异步预热下一张 NoteStore 原卡。
+
+### 9.2 复习与练习独立解耦
+- **双轨分离**：复习仅走 NoteStore 原卡四档评分，练习独立提供多种交互题型。
+- **练习复用题型**：将 Cloze / `{{type:}}` 智能映射为原生填空（`FillBlank` / `TypeTheWord`），支持选择与听选，练习不污染 FSRS 复习调度。
+
+### 9.3 导入体系与容错恢复
+- **导入差异规划**（`AnkiImportDiffPlanner`）：支持 merge / forceReplace / appendAsNew 导入策略，提供直观的差异对比预览。
+- **操作事务恢复**（`AnkiImportOperationRecovery`）：导入过程全链路事务日志记录，支持失败/取消恢复。
+- **字段映射编辑器**（`AnkiImportMappingEditor`）：可视化调整字段与题型映射。
+
+### 9.4 Turna 湿地鹤吉祥物形象系统
+- **全新形象**：2D 扁平现代卡通风格，微翘陶土暖红羽冠、湿地青绿羽翼、安纳托利亚信使小邮差包。
+- **场景插画全覆盖**：主页动态欢迎（`turna_waving`）、课文阅读（`turna_reading`）、听力沉浸（`turna_listening`）、AI 思考（`turna_thinking`）、通关庆祝（`turna_celebrate`）、错题鼓励（`turna_encourage`）与全新 App 图标（`turna_app_logo`）。
+- **交互组件集成**：主页欢迎轮播（`TurnaWelcomes`）与统一轻量提示（`TurnaToast`）。
+
+### 9.5 系统健康与诊断
+- **全链路健康监控**（`SystemHealthMonitor`）：提供数据库、文件系统、AI 引擎、Anki 兼容性诊断与可视化诊断页面（`system_health_page.dart`）。
+- **AI 伴学证据沉淀**：引入学习证据链记录、会话知识检索与 AI Token 预算管理。
+
+---
+
 ## 简版
 
 (以下仅给应用内置更新日志页使用,完整版见上方正文与 `assets/changelog.md`)
+
+### [1.3.0] - 2026-08-15
+
+### Added
+- Anki 原生展开式卡面（`AnkiRevealScaffold`）与高性能 Flutter 原生 HTML 渲染。
+- 复习与练习双轨解耦：复习专注原卡四档评分，练习独立支持多题型交互。
+- Anki 导入差异对比预览、字段映射编辑与导入操作事务恢复。
+- Turna 湿地鹤扁平现代卡通形象系统与全套多场景插画。
+- 系统健康监控中心与全链路诊断（`SystemHealthMonitor`）。
+- AI 伴学证据链沉淀、知识检索与 Token 预算控制。
+
+### Changed
+- 废弃 Anki 300px 3D 翻转卡面与「跳过已存在」策略，默认不再强依赖 WebView。
+- 主页欢迎卡片与全局 Toast 统一集成 Turna 吉祥物。
+
+---
 
 ### [1.2.0] - 2026-08-05
 

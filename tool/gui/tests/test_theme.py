@@ -235,5 +235,57 @@ class ValidThemesTest(unittest.TestCase):
             vt.add("neon")  # type: ignore[attr-defined]
 
 
+class ButtonSizePolicyFilterTest(unittest.TestCase):
+    def setUp(self) -> None:
+        from tests._qtapp import _App
+        from src.app import _ButtonSizePolicyFilter
+
+        self.app = _App.get()
+        self.f = _ButtonSizePolicyFilter()
+        self.app.installEventFilter(self.f)
+
+    def tearDown(self) -> None:
+        self.app.removeEventFilter(self.f)
+
+    def test_button_gets_minimum_horizontal_policy(self) -> None:
+        from PySide6.QtWidgets import QPushButton, QSizePolicy
+
+        b = QPushButton("一个较长的按钮文字")
+        b.ensurePolished()
+        self.assertEqual(
+            b.sizePolicy().horizontalPolicy(), QSizePolicy.Policy.Minimum
+        )
+
+    def test_filter_is_idempotent(self) -> None:
+        from PySide6.QtWidgets import QPushButton, QSizePolicy
+
+        b = QPushButton("x")
+        b.ensurePolished()
+        b.ensurePolished()
+        self.assertEqual(
+            b.sizePolicy().horizontalPolicy(), QSizePolicy.Policy.Minimum
+        )
+
+
+class FlowLayoutWrapTest(unittest.TestCase):
+    def setUp(self) -> None:
+        from tests._qtapp import _App
+        _App.get()
+
+    def test_height_for_width_increases_when_narrow(self) -> None:
+        from PySide6.QtWidgets import QApplication, QPushButton, QWidget
+        from src.widgets.flow_layout import FlowLayout
+
+        container = QWidget()
+        flow = FlowLayout(container)
+        for text in ("按钮一", "按钮二", "按钮三", "按钮四", "按钮五"):
+            flow.addWidget(QPushButton(text))
+        container.show()
+        QApplication.processEvents()
+        wide = flow.heightForWidth(4000)
+        narrow = flow.heightForWidth(40)
+        self.assertGreater(narrow, wide)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -11,8 +11,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/views/settings/about_turna_page.dart';
-import 'package:turna/views/settings/beginner_guide_page.dart';
 import 'package:turna/views/settings/changelog_page.dart';
+import 'package:turna/views/settings/quick_start_from_asset.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

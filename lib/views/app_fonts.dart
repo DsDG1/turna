@@ -15,7 +15,7 @@ class AppFonts {
 
   /// Whether to bypass [GoogleFonts] on this platform.
   static bool get _bypass =>
-      kIsWeb || defaultTargetPlatform == TargetPlatform.ohos;
+      kIsWeb || defaultTargetPlatform.name == 'ohos';
 
   /// Nunito (used by splash + onboarding).
   static TextStyle nunito({

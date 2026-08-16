@@ -528,6 +528,23 @@ class TurnaTheme {
   static Color scoreChipText(BuildContext context) =>
       _isDark(context) ? const Color(0xFFFFD54F) : const Color(0xFFE5A800);
 
+  /// Tinted surface for warning / hint banners (FSRS risk, experimental
+  /// warnings, etc.). Replaces hard-coded `Color(0xFFFFF3E0)` in legacy
+  /// settings sub-pages. Dark variant is a low-alpha warm brown that won't
+  /// "贴亮块" on the dark scaffold.
+  static Color warningSurface(BuildContext context) =>
+      _isDark(context) ? const Color(0xFF3A2A14) : const Color(0xFFFFF3E0);
+
+  /// Tinted surface for success / safe-state banners (cache cleared,
+  /// database intact, etc.). Dark variant is a low-alpha deep green.
+  static Color successSurface(BuildContext context) =>
+      _isDark(context) ? const Color(0xFF1F3A2A) : const Color(0xFFE8F5E9);
+
+  /// Tinted surface for danger / destructive-state banners (safe mode,
+  /// critical alert, etc.). Dark variant is a low-alpha deep red.
+  static Color dangerSurface(BuildContext context) =>
+      _isDark(context) ? const Color(0xFF3A1414) : const Color(0xFFFFEBEE);
+
   // ---------------------------------------------------------------------------
   // CLAY / SAND HELPERS (secondary brand — restrained warm accents)
   // ---------------------------------------------------------------------------

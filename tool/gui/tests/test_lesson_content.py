@@ -317,5 +317,30 @@ class LessonBuilderTest(unittest.TestCase):
         self.assertEqual(lesson["content"]["subLessons"], [])
 
 
+class LabelsTest(unittest.TestCase):
+    def test_every_runtime_type_has_label(self) -> None:
+        from src.backend.lesson_content import CONTENT_BY_TEMPLATE
+        from src.i18n import labels
+
+        for rt in ALLOWED_RUNTIME_TYPES:
+            self.assertIn(rt, labels.INTERACTION_LABELS, f"missing label for {rt}")
+            self.assertTrue(labels.interaction_label(rt))
+
+        for tpl in CONTENT_BY_TEMPLATE:
+            self.assertIn(tpl, labels.TEMPLATE_LABELS, f"missing label for {tpl}")
+            self.assertTrue(labels.template_label(tpl))
+
+    def test_field_label_and_hidden(self) -> None:
+        from src.i18n import labels
+
+        self.assertEqual(labels.field_label("wordId"), "词")
+        self.assertEqual(labels.field_label("correctIndex"), "正确答案")
+        self.assertEqual(labels.field_label("unknown_field"), "unknown_field")
+        self.assertTrue(labels.is_hidden("id"))
+        self.assertTrue(labels.is_hidden("runtimeType"))
+        self.assertFalse(labels.is_hidden("wordId"))
+        self.assertFalse(labels.is_hidden("prompt"))
+
+
 if __name__ == "__main__":
     unittest.main()

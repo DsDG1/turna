@@ -1,8 +1,8 @@
 # 教材导入（Textbook Import）使用指南
 
 > 本文件面向课程作者,说明如何用 GUI 的「导入教材」功能把一本 Markdown / 文本 PDF
-> 教材半自动地转成 `assets/courses/<lang>/` 下的 section。功能规划与边界见
-> [`tool/gui/bookplan2.md`](../../tool/gui/bookplan2.md);课程 JSON 契约本体见
+> 教材半自动地转成 `assets/courses/<lang>/` 下的 section。功能说明见
+> [`tool/gui/README.md`](../../tool/gui/README.md);课程 JSON 契约本体见
 > [`course-layout.md`](./course-layout.md),本文不重复契约。
 >
 > 导入是**半自动**的:LLM 抽取的知识点仅供参考,作者必须在审校页核对后才能导入。

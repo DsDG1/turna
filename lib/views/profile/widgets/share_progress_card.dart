@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:turna/core/enums.dart';
 import 'package:turna/core/extensions.dart';
 import 'package:turna/domain/auth/local_user.dart';
+import 'package:turna/gen/assets.gen.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/theme.dart';
 
@@ -145,7 +146,7 @@ class ShareProgressCard extends StatelessWidget {
                       Positioned(
                         top: -4,
                         child: Image.asset(
-                          'assets/images/mala/mala_reading.png',
+                          Assets.images.turna.turnaReading.path,
                           height: 88,
                           fit: BoxFit.contain,
                         ),
@@ -158,7 +159,7 @@ class ShareProgressCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Image.asset(
-                        'assets/images/mala/mala_waving.png',
+                        Assets.images.turna.turnaWaving.path,
                         height: 76,
                         fit: BoxFit.contain,
                       ),

@@ -97,7 +97,7 @@ Turna 是一款**本地优先、离线可用、类 Duolingo 体验的语言学�
 |------|------|
 | **TTS 依赖系统语音包** | 土耳其语语音包未装时 splash 引导安装，可能劝退。 |
 | **无跨设备同步** | 换机 / 重装进度丢失（可手动导出 / 导入 JSON）。 |
-| **Anki 保真平台差异** | WebView 保真仅 Android/iOS；HarmonyOS / Web / 桌面文本兜底。 |
+| **Anki 原卡平台差异** | 默认 Flutter HTML（全平台）；WebView 逃逸舱仅 Android/iOS。鸿蒙无 WebView 时 Flutter HTML / 文本降级。 |
 | **AI 依赖外部 key** | AI 功能需用户自配 API key；未配置时不可用。 |
 
 ### 5.2 改进方向

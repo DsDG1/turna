@@ -11,11 +11,11 @@
 
 ## 这是什么
 
-基于上游 [Turna](https://github.com/rshrc/Varnamala) 的 Section/Unit/Lesson/SRS/错题本骨架，聚焦 **Turkish**，持续深化：FSRS 复习引擎、Anki 牌组导入与高保真渲染、统一 AI 引擎层。
+基于上游 [Turna](https://github.com/rshrc/Varnamala) 的 Section/Unit/Lesson/SRS/错题本骨架，聚焦 **Turkish**，持续深化：FSRS 复习引擎、Anki 牌组导入与原卡复习（默认 Flutter HTML）、统一 AI 引擎层。
 
 - **纯本地**：SQLite（drift，schemaVersion 16），无云后端 / 推送 / 登录。
 - **单人离线**：无好友、排行榜、联赛、心数、宝石购买。
-- **多平台**：Android、HarmonyOS（OHOS Flutter 分支）、iOS、Web（有限）。
+- **主打 Android**：以 **Android** 为核心主力平台，兼顾 HarmonyOS（OHOS Flutter 分支）、iOS 与 Web（有限支持）。
 - **教学法驱动**：功能取舍以二语习得研究为依据（见 project-guide §2 / §15）。
 
 > 本仓库非上游官方版本；纯原版功能请访问 [rshrc/Turna](https://github.com/rshrc/Varnamala)。
@@ -52,7 +52,8 @@ make ci                                             # analyze + test + test-pyth
 python tool/build_release.py --version 0.4.0-future4
 ```
 
-- **平台**：Android / iOS / HarmonyOS / Web（有限）。HarmonyOS 基于 OpenHarmony Flutter fork，需 JDK 17 + 源码补丁，配置见 [`docs/android-build-setup.md`](./docs/android-build-setup.md)。Anki 保真 WebView 仅 Android / iOS，其余平台文本兜底。
+- **核心平台**：**Android**（主战场；Anki 默认 Flutter HTML，WebView 仅 JS；Google/系统离线 TTS 与 FSRS SQLite）。
+- **多端兼顾**：iOS、HarmonyOS（基于 OpenHarmony Flutter fork，需 JDK 17 + 源码补丁，配置见 [`docs/android-build-setup.md`](./docs/android-build-setup.md)）及有限 Web 支持。
 - **环境**：Flutter SDK `>=3.2.3 <4.0.0`（OHOS 分支 3.35.8）。Windows 上用 `python` 而非 `python3`。
 
 构建、Makefile、发布流水线、平台门控详见 project-guide §10；课程数据格式见 §13；主题与调色板见 §9。
@@ -77,7 +78,7 @@ python -m tool.gui.src.main
 | [`CLAUDE.md`](./CLAUDE.md) | AI Agent 路由与 Key Files |
 | [`docs/analysis/project-framework-analysis.md`](./docs/analysis/project-framework-analysis.md) | 产品 / 用户 / 商业化视角 |
 | [`docs/content_inventory_current.md`](./docs/content_inventory_current.md) | Turkish 内容清单 |
-| [`docs/anki-integration-design.md`](./docs/anki-integration-design.md) | Anki 集成设计（已交付）|
+| [`docs/anki-integration-design.md`](./docs/anki-integration-design.md) | Anki 数据与铁律 |
 | [`docs/anki-import-usability.md`](./docs/anki-import-usability.md) | Anki 导入可用性 backlog |
 | [`docs/ai_companion_implementation.md`](./docs/ai_companion_implementation.md) | AI companion 实现边界 |
 | [`docs/advanced-settings-system-health.md`](./docs/advanced-settings-system-health.md) | 高级设置与系统健康 |
@@ -85,6 +86,7 @@ python -m tool.gui.src.main
 | [`docs/authoring/`](./docs/authoring/) | Authoring 契约与教师指南 |
 | [`docs/audio-recording-guidelines.md`](./docs/audio-recording-guidelines.md) | 人工录音提交规范 |
 | [`docs/decisions/`](./docs/decisions/) | 架构决策记录（ADR 0030–0035） |
+| [`docs/turna-mascot-design-and-replacement-plan.md`](./docs/turna-mascot-design-and-replacement-plan.md) | 吉祥物设计规范与资产替代方案 |
 | [`test/BASELINE.md`](./test/BASELINE.md) | 测试基线 |
 
 ---
