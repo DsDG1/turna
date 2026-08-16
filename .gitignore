@@ -72,6 +72,24 @@ __pycache__/
 # Flutter run logs
 flutter_run.log
 flutter_run.err.log
+flutter_0*.log
+flutter_*.log
+
+# JVM / Gradle crash dumps accidentally left in android/
+android/hs_err_pid*.log
+android/replay_pid*.log
+
+# Local scratch, editor, and Dart analysis caches
+.tmp/
+.tmp_appdata/
+.tmp_localappdata/
+.dart-appdata/
+.commandcode/
+readmetest.md
+pubspec_overrides.yaml.disabled
+
+# Teacher-tool local textbook workspaces
+tool/var/
 
 # Golden pixel failure dumps (regenerate locally; do not commit)
 test/golden/failures/
