@@ -18,5 +18,6 @@ the codec.
 | 18 | SEARCH_CARDS_PAGE | yes |
 | 19 | GET_NOTE_CARDS_BATCH | yes |
 | 20 | GET_CARD_DESCRIPTORS_BATCH | yes |
+| 21 | RESTORE_BACKUP | yes |
 
 Numbers are append-only after this document ships.

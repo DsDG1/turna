@@ -15,6 +15,8 @@ use crate::errors;
 pub const CONTRACT_MAJOR: u32 = 1;
 pub const CONTRACT_MINOR: u32 = 0;
 pub const OP_ENGINE_INFO: u32 = 1;
+const MAX_REQUEST_ID_BYTES: usize = 128;
+const MAX_ENVELOPE_PAYLOAD_BYTES: usize = 1_048_576;
 
 pub fn backend_commit() -> &'static str {
     option_env!("TURNA_ANKI_BACKEND_COMMIT").unwrap_or("967aa0d578fc75181e292e95326f9b58698da25c")
@@ -112,6 +114,7 @@ pub fn engine_info_payload() -> Value {
             "CLOSE_COLLECTION",
             "CHECK_COLLECTION",
             "CREATE_BACKUP",
+            "RESTORE_BACKUP",
             "IMPORT_PACKAGE",
             "LATEST_PROGRESS",
             "CANCEL_OPERATION",
@@ -170,6 +173,7 @@ fn operation_name_to_id(name: &str) -> Option<u32> {
         "SEARCH_CARDS_PAGE" => Some(engine::OP_SEARCH_CARDS_PAGE),
         "GET_NOTE_CARDS_BATCH" => Some(engine::OP_GET_NOTE_CARDS_BATCH),
         "GET_CARD_DESCRIPTORS_BATCH" => Some(engine::OP_GET_CARD_DESCRIPTORS_BATCH),
+        "RESTORE_BACKUP" => Some(engine::OP_RESTORE_BACKUP),
         "RENDER_CARD" => Some(engine::OP_RENDER_CARD),
         "SET_CURRENT_DECK" => Some(engine::OP_SET_CURRENT_DECK),
         "GET_REVIEW_QUEUE" => Some(engine::OP_GET_REVIEW_QUEUE),
@@ -181,18 +185,43 @@ fn operation_name_to_id(name: &str) -> Option<u32> {
     }
 }
 
-/// Production entry: envelope in, envelope out. Raw spike payloads stay raw
-/// so Phase 0 host tests keep calling `engine::dispatch` directly.
+fn payload_bytes(payload: &Value) -> Result<Vec<u8>, i32> {
+    let object = match payload {
+        Value::Null => json!({}),
+        Value::Object(_) => payload.clone(),
+        _ => return Err(engine::STATUS_INVALID_ARGUMENT),
+    };
+    let bytes = serde_json::to_vec(&object).map_err(|_| engine::STATUS_INVALID_ARGUMENT)?;
+    if bytes.len() > MAX_ENVELOPE_PAYLOAD_BYTES {
+        return Err(engine::STATUS_INVALID_ARGUMENT);
+    }
+    Ok(bytes)
+}
+
+fn validate_request_id(request_id: &str) -> Result<(), i32> {
+    if request_id.is_empty() || request_id.len() > MAX_REQUEST_ID_BYTES {
+        return Err(engine::STATUS_INVALID_ARGUMENT);
+    }
+    if !request_id
+        .bytes()
+        .all(|b| b.is_ascii_graphic() || b == b' ')
+    {
+        return Err(engine::STATUS_INVALID_ARGUMENT);
+    }
+    Ok(())
+}
+
+/// Production entry: contract v1 envelope in, envelope out.
+/// Raw Spike JSON is not accepted on `turna_anki_call`. Host tests that need
+/// the raw payload must call `engine::dispatch` directly.
 pub fn dispatch_call(handle: u64, operation: u32, bytes: &[u8]) -> Result<Value, i32> {
     let started = Instant::now();
-    if operation == OP_ENGINE_INFO && !looks_like_envelope(bytes) {
-        return Ok(encode_ok("engine-info", engine_info_payload(), started));
-    }
     if !looks_like_envelope(bytes) {
-        return engine::dispatch(handle, operation, bytes);
+        return Err(engine::STATUS_INVALID_ARGUMENT);
     }
     let parsed: EnvelopeRequest =
         serde_json::from_slice(bytes).map_err(|_| engine::STATUS_INVALID_ARGUMENT)?;
+    validate_request_id(&parsed.request_id)?;
     if parsed.contract_version.major != CONTRACT_MAJOR {
         return Ok(encode_err(
             &parsed.request_id,
@@ -200,21 +229,39 @@ pub fn dispatch_call(handle: u64, operation: u32, bytes: &[u8]) -> Result<Value,
             started,
         ));
     }
-    let op = if !parsed.operation.is_empty() {
-        operation_name_to_id(&parsed.operation).unwrap_or(operation)
-    } else {
-        operation
+    if parsed.operation.is_empty() {
+        return Ok(encode_err(
+            &parsed.request_id,
+            engine::STATUS_INVALID_ARGUMENT,
+            started,
+        ));
+    }
+    let named = match operation_name_to_id(&parsed.operation) {
+        Some(id) => id,
+        None => {
+            return Ok(encode_err(
+                &parsed.request_id,
+                engine::STATUS_UNIMPLEMENTED,
+                started,
+            ));
+        }
     };
-    if op == OP_ENGINE_INFO {
+    if named != operation {
+        return Ok(encode_err(
+            &parsed.request_id,
+            engine::STATUS_INVALID_ARGUMENT,
+            started,
+        ));
+    }
+    if named == OP_ENGINE_INFO {
         return Ok(encode_ok(
             &parsed.request_id,
             engine_info_payload(),
             started,
         ));
     }
-    let payload_bytes =
-        serde_json::to_vec(&parsed.payload).map_err(|_| engine::STATUS_INVALID_ARGUMENT)?;
-    match engine::dispatch(handle, op, &payload_bytes) {
+    let payload_bytes = payload_bytes(&parsed.payload)?;
+    match engine::dispatch(handle, named, &payload_bytes) {
         Ok(payload) => Ok(encode_ok(&parsed.request_id, payload, started)),
         Err(status)
             if status == engine::STATUS_INVALID_HANDLE
@@ -242,15 +289,88 @@ mod tests {
         serde_json::from_str(&fs::read_to_string(fixture(name)).unwrap()).unwrap()
     }
 
+    fn engine_info_request() -> Vec<u8> {
+        serde_json::to_vec(&json!({
+            "contractVersion": {"major": 1, "minor": 0},
+            "requestId": "engine-info",
+            "operation": "ENGINE_INFO",
+            "payload": {}
+        }))
+        .unwrap()
+    }
+
     #[test]
     fn engine_info_returns_build_injected_commit() {
-        let response = dispatch_call(0, OP_ENGINE_INFO, b"").unwrap();
+        let response = dispatch_call(0, OP_ENGINE_INFO, &engine_info_request()).unwrap();
         assert_eq!(response["ok"], true);
         assert_eq!(response["payload"]["backendCommit"], backend_commit());
         assert_eq!(response["engine"]["backendCommit"], backend_commit());
         assert_eq!(response["engine"]["contractMajor"], 1);
         assert!(!backend_commit().is_empty());
         assert_ne!(backend_commit(), "unknown");
+        assert_eq!(response["requestId"], "engine-info");
+        assert!(response["error"].is_null());
+    }
+
+    #[test]
+    fn raw_spike_payload_is_rejected() {
+        assert_eq!(
+            dispatch_call(0, OP_ENGINE_INFO, b"").unwrap_err(),
+            engine::STATUS_INVALID_ARGUMENT
+        );
+        assert_eq!(
+            dispatch_call(0, OP_ENGINE_INFO, br#"{"operation":"ENGINE_INFO"}"#).unwrap_err(),
+            engine::STATUS_INVALID_ARGUMENT
+        );
+    }
+
+    #[test]
+    fn name_id_mismatch_is_rejected() {
+        let request = json!({
+            "contractVersion": {"major": 1, "minor": 0},
+            "requestId": "req-mismatch",
+            "operation": "ENGINE_INFO",
+            "payload": {}
+        });
+        let response = dispatch_call(
+            0,
+            engine::OP_IMPORT_PACKAGE,
+            &serde_json::to_vec(&request).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(response["ok"], false);
+        assert_eq!(response["error"]["code"], "INVALID_ARGUMENT");
+        assert_eq!(response["requestId"], "req-mismatch");
+        assert!(response["payload"].is_null());
+    }
+
+    #[test]
+    fn unknown_operation_does_not_fall_back_to_numeric_id() {
+        let request = json!({
+            "contractVersion": {"major": 1, "minor": 0},
+            "requestId": "req-unknown",
+            "operation": "NOT_A_REAL_OP",
+            "payload": {}
+        });
+        let response =
+            dispatch_call(0, OP_ENGINE_INFO, &serde_json::to_vec(&request).unwrap()).unwrap();
+        assert_eq!(response["ok"], false);
+        assert_eq!(response["error"]["code"], "UNIMPLEMENTED");
+        assert_eq!(response["requestId"], "req-unknown");
+    }
+
+    #[test]
+    fn empty_request_id_is_rejected() {
+        let request = json!({
+            "contractVersion": {"major": 1, "minor": 0},
+            "requestId": "",
+            "operation": "ENGINE_INFO",
+            "payload": {}
+        });
+        assert_eq!(
+            dispatch_call(0, OP_ENGINE_INFO, &serde_json::to_vec(&request).unwrap()).unwrap_err(),
+            engine::STATUS_INVALID_ARGUMENT
+        );
     }
 
     #[test]
