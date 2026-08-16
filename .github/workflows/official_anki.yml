@@ -1,0 +1,83 @@
+name: Official Anki
+
+on:
+  push:
+    paths:
+      - "native/turna_anki_core/**"
+      - "lib/application/anki_official/**"
+      - "test/application/anki_official/**"
+      - "test/fixtures/anki_official/**"
+      - ".github/workflows/official_anki.yml"
+  pull_request:
+    paths:
+      - "native/turna_anki_core/**"
+      - "lib/application/anki_official/**"
+      - "test/application/anki_official/**"
+      - "test/fixtures/anki_official/**"
+      - ".github/workflows/official_anki.yml"
+
+jobs:
+  official-anki-host:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Verify pin and patch
+        run: bash native/turna_anki_core/build-android/verify_pin.sh
+      - name: Host fmt clippy test
+        working-directory: native/turna_anki_core
+        env:
+          PROTOC: ${{ github.workspace }}/native/turna_anki_core/tools/protoc/bin/protoc
+          PROTOC_BINARY: ${{ github.workspace }}/native/turna_anki_core/tools/protoc/bin/protoc
+        run: bash build-android/host-test.sh
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Host Dart FFI integration
+        env:
+          TURNA_ANKI_REQUIRE_NATIVE: "1"
+          TURNA_ANKI_LIB: ${{ github.workspace }}/native/turna_anki_core/target/debug/libturna_anki.so
+        run: flutter test test/application/anki_official/official_anki_host_ffi_test.dart
+
+  official-anki-dart:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: dart analyze lib/application/anki_official
+      - run: flutter test test/application/anki_official
+
+  official-anki-android-arm64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r28c
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk --version 4.1.2 --locked
+      - name: Build arm64 .so
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: bash native/turna_anki_core/build-android/build.sh
+      - name: Inspect .so
+        run: |
+          so=android/app/src/main/jniLibs/arm64-v8a/libturna_anki.so
+          test -f "$so"
+          llvm-readelf -d "$so" || readelf -d "$so"
+          nm -D "$so" | grep turna_anki_abi_version
+          stat -c '%s %n' "$so"
+          sha256sum "$so"
