@@ -1,4 +1,8 @@
 //! Stable C ABI. Panic must not unwind across FFI.
+//!
+//! Request bytes are valid only for the duration of the exported function.
+//! Callers must not free a buffer twice; a second free is caller UB and is
+//! not a supported operation.
 
 use std::os::raw::c_uint;
 use std::panic::AssertUnwindSafe;
@@ -70,16 +74,18 @@ fn guard(f: impl FnOnce() -> TurnaAnkiResult) -> TurnaAnkiResult {
 
 const MAX_FFI_REQUEST_BYTES: usize = 8 * 1024 * 1024;
 
-/// Request bytes live only for this FFI entry. Never store the slice on Engine.
-fn request_bytes<'a>(ptr: *const u8, len: usize) -> Result<&'a [u8], i32> {
+/// Validate the C pointer, then invoke `f` with a slice that cannot outlive
+/// this call. There is no lifetime parameter the caller can inflate.
+fn with_request_bytes<T>(ptr: *const u8, len: usize, f: impl FnOnce(&[u8]) -> T) -> Result<T, i32> {
     if len == 0 {
-        return Ok(&[]);
+        return Ok(f(&[]));
     }
     if ptr.is_null() || len > MAX_FFI_REQUEST_BYTES {
         return Err(STATUS_INVALID_ARGUMENT);
     }
     // Safety: the C caller keeps [ptr, ptr+len) valid for this call only.
-    Ok(unsafe { std::slice::from_raw_parts(ptr, len) })
+    let bytes = unsafe { std::slice::from_raw_parts(ptr, len) };
+    Ok(f(bytes))
 }
 
 /// Force official Collection/sqlite into the Android cdylib.
@@ -93,11 +99,16 @@ fn touch_rslib() {
 }
 
 #[no_mangle]
-pub extern "C" fn turna_anki_engine_new(_config: *const u8, _config_len: usize) -> TurnaAnkiResult {
+pub extern "C" fn turna_anki_engine_new(config: *const u8, config_len: usize) -> TurnaAnkiResult {
     guard(|| {
-        touch_rslib();
-        match engine::alloc_engine() {
-            Ok(handle) => ok_bytes(handle.to_le_bytes().to_vec()),
+        match with_request_bytes(config, config_len, |_config| {
+            touch_rslib();
+            match engine::alloc_engine() {
+                Ok(handle) => ok_bytes(handle.to_le_bytes().to_vec()),
+                Err(status) => err(status),
+            }
+        }) {
+            Ok(result) => result,
             Err(status) => err(status),
         }
     })
@@ -109,15 +120,19 @@ pub extern "C" fn turna_anki_engine_open(
     request: *const u8,
     request_len: usize,
 ) -> TurnaAnkiResult {
-    guard(|| match request_bytes(request, request_len) {
-        Ok(bytes) => match engine::open_collection(handle, bytes) {
+    guard(|| {
+        match with_request_bytes(request, request_len, |bytes| match engine::open_collection(
+            handle, bytes,
+        ) {
             Ok(response) => match serde_json::to_value(response) {
                 Ok(value) => encode_ok(value),
                 Err(_) => err(STATUS_BACKEND_PANIC),
             },
             Err(status) => err(status),
-        },
-        Err(status) => err(status),
+        }) {
+            Ok(result) => result,
+            Err(status) => err(status),
+        }
     })
 }
 
@@ -128,12 +143,18 @@ pub extern "C" fn turna_anki_call(
     request: *const u8,
     request_len: usize,
 ) -> TurnaAnkiResult {
-    guard(|| match request_bytes(request, request_len) {
-        Ok(bytes) => match crate::contract::dispatch_call(handle, operation, bytes) {
-            Ok(response) => encode_ok(response),
+    guard(|| {
+        match with_request_bytes(
+            request,
+            request_len,
+            |bytes| match crate::contract::dispatch_call(handle, operation, bytes) {
+                Ok(response) => encode_ok(response),
+                Err(status) => err(status),
+            },
+        ) {
+            Ok(result) => result,
             Err(status) => err(status),
-        },
-        Err(status) => err(status),
+        }
     })
 }
 
@@ -191,7 +212,13 @@ mod tests {
 
     #[test]
     fn invalid_handle_is_rejected() {
-        let body = br#"{"package_path":"/tmp/missing-turna.apkg"}"#;
+        let body = serde_json::to_vec(&serde_json::json!({
+            "contractVersion": {"major": 1, "minor": 0},
+            "requestId": "abi-invalid-handle",
+            "operation": "IMPORT_PACKAGE",
+            "payload": {"package_path": "/tmp/missing-turna.apkg"}
+        }))
+        .unwrap();
         let result = turna_anki_call(
             0,
             crate::engine::OP_IMPORT_PACKAGE,
@@ -250,11 +277,40 @@ mod tests {
     }
 
     #[test]
-    fn request_bytes_are_not_static() {
+    fn request_bytes_cannot_leave_the_closure() {
         let data = [1u8, 2, 3];
-        let slice = request_bytes(data.as_ptr(), data.len()).unwrap();
-        assert_eq!(slice, &data);
-        // Compiling this test with a non-'static lifetime is the assertion.
-        let _borrowed: &[u8] = slice;
+        let copied = with_request_bytes(data.as_ptr(), data.len(), |bytes| {
+            assert_eq!(bytes, &data);
+            bytes.to_vec()
+        })
+        .unwrap();
+        assert_eq!(copied, data);
+    }
+
+    #[test]
+    fn engine_new_rejects_null_nonzero_config() {
+        let result = turna_anki_engine_new(ptr::null(), 4);
+        assert_eq!(result.status, STATUS_INVALID_ARGUMENT);
+    }
+
+    #[test]
+    fn eight_mib_request_is_accepted_then_rejected_as_non_envelope() {
+        let body = vec![b'x'; MAX_FFI_REQUEST_BYTES];
+        let result = turna_anki_call(1, 1, body.as_ptr(), body.len());
+        assert_eq!(result.status, STATUS_INVALID_ARGUMENT);
+    }
+
+    #[test]
+    fn eight_mib_plus_one_is_rejected() {
+        let one = 1u8;
+        let result = turna_anki_call(1, 1, &one, MAX_FFI_REQUEST_BYTES + 1);
+        assert_eq!(result.status, STATUS_INVALID_ARGUMENT);
+    }
+
+    #[test]
+    fn invalid_utf8_request_is_rejected() {
+        let body = [0xffu8, 0xfe, 0xfd];
+        let result = turna_anki_call(1, 1, body.as_ptr(), body.len());
+        assert_eq!(result.status, STATUS_INVALID_ARGUMENT);
     }
 }

@@ -21,7 +21,7 @@ pub const TURNA_ANKI_ABI_VERSION: u32 = 1;
 /// before any other symbol.
 #[no_mangle]
 pub extern "C" fn turna_anki_abi_version() -> u32 {
-    TURNA_ANKI_ABI_VERSION
+    std::panic::catch_unwind(|| TURNA_ANKI_ABI_VERSION).unwrap_or(0)
 }
 
 #[cfg(test)]

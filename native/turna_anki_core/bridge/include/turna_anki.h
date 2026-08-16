@@ -23,6 +23,10 @@ typedef struct TurnaAnkiResult {
 /* Contract / probe. Implemented in P0-001. */
 uint32_t turna_anki_abi_version(void);
 
+/* Request pointers are valid only for the duration of the call.
+ * Output buffers are Box<[u8]> (capacity == length) and must be freed
+ * exactly once with turna_anki_buffer_free. A second free is caller UB. */
+
 /* Lifecycle and call surface. Declared now so the header is the ABI
  * source of truth; implementations land in later P0 tasks. */
 TurnaAnkiResult turna_anki_engine_new(const uint8_t* config, size_t config_len);
