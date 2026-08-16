@@ -4,6 +4,7 @@
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
+bash "$root/build-android/verify_pin.sh"
 export PROTOC="${PROTOC:-$root/tools/protoc/bin/protoc}"
 export PROTOC_BINARY="${PROTOC_BINARY:-$PROTOC}"
 if [[ ! -x "$PROTOC" ]]; then
