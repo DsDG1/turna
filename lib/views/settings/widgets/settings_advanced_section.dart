@@ -1,10 +1,12 @@
 // Flutter imports:
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 // Package imports:
 import 'package:provider/provider.dart';
 
 // Project imports:
+import 'package:turna/application/anki_official/spike/official_anki_spike_page.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/views/settings/widgets/settings_sound_section.dart';
@@ -44,6 +46,19 @@ class SettingsAdvancedSection extends StatelessWidget {
               valueSelector: (p) => p.ankiForceDisableJs,
               onChanged: (p, v) => p.setAnkiForceDisableJs(v),
             ),
+            if (kDebugMode) ...[
+              settingsTileDivider(context),
+              SettingsNavigationTile(
+                icon: Icons.memory_rounded,
+                title: 'Official Anki Spike',
+                subtitle: '加载 libturna_anki.so 并探测 ABI（仅 debug）',
+                onTap: (ctx) => Navigator.of(ctx).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const OfficialAnkiSpikePage(),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
         const SizedBox(height: 20),

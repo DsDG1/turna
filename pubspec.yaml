@@ -12,6 +12,7 @@ dependencies:
   cupertino_icons: ^1.0.2
   drift: ^2.22.1
   file_picker: ^8.1.4
+  ffi: ^2.2.0
   fl_chart: ^0.69.0
   flutter:
     sdk: flutter

@@ -165,7 +165,35 @@ Collection 被 DCE。`engine_new` 现在会 `build()` 一次内存 Collection，
 `verify_symbols.sh` 必须使用 NDK `llvm-nm`。本机自带的 `llvm-readelf` 会漏报
 Android dynsym，造成假阴性。
 
-## 8. 生产路径
+## 8. Dart FFI 加载结论（P0-004）
+
+已落地：
+
+- `ffi: ^2.2.0` 升为 `pubspec.yaml` 直接依赖（lock 仍为 2.2.0）。
+- `lib/application/anki_official/spike/`：手写 C ABI、engine、fake engine、诊断页。
+- 设置 → 系统实验室在 `kDebugMode` 下显示入口；未加入 AutoRoute。
+- `DynamicLibrary` 按 isolate 缓存，页面销毁不 `close()`。
+- 非 Android 返回 `unsupportedPlatform`；缺库返回 `libraryMissing`。
+- `flutter test test/application/anki_official/official_anki_spike_test.dart`：9 passed。
+- `flutter analyze lib/application/anki_official`：No issues.
+
+未在本机完成：
+
+```text
+flutter build apk --release --split-per-abi --target-platform android-arm64
+```
+
+失败点在既有 Gradle/Flutter 插件解析，与本刀 Dart 无关：
+
+```text
+Error resolving plugin [id: 'dev.flutter.flutter-plugin-loader', version: '1.0.0']
+> 25.0.2
+```
+
+本机无 `adb` 设备。debug/release 真机 `DynamicLibrary.open` 仍待验证。
+`android/app/src/main/jniLibs/arm64-v8a/libturna_anki.so` 仍在标准 jniLibs 路径（16 294 656 字节）。
+
+## 9. 生产路径
 
 未修改：
 
@@ -173,16 +201,18 @@ Android dynsym，造成假阴性。
 - `lib/application/anki/anki_importer.dart`
 - 任何 Legacy 渲染 / SRS 文件
 
-## 9. 每日记录
+## 10. 每日记录
 
 ### 2026-08-16
 
-- 完成任务：P0-000 环境盘点（部分）、P0-001 目录与上游钉死、P0-002 Host 编译、P0-003 Android arm64 `.so`
-- 当前任务：P0-004 Dart FFI 加载
-- 实际命令：见 §5、§6、§7
-- 新增事实：cargo-ndk 4.1.2 + NDK 28.2 + API 24 可交叉编译；unstripped `.so` 16 294 656 字节；动态依赖只有 Bionic `libc/libm/libdl`
-- 失败：`git clone --reference` 因浅克隆被拒绝；独立 workspace 不能包含 `rslib`；缺 tokio `io-util` 时 rslib 编不过；只 touch `CollectionBuilder::default()` 会被 DCE 成 467 KiB；host `llvm-readelf` 漏报 Android 符号
-- 指标变化：arm64 `libturna_anki.so` 已产出（未提交）
-- 上游 API/patch 变化：无 patch
+- 完成任务：P0-000～P0-003，以及 P0-004 的 Dart FFI / 诊断页 / 单测
+- 当前任务：P0-004 真机加载；随后 P0-005 fixture
+- 实际命令：见 §5、§6、§7、§8
+- 新增事实：`ffi` 已是直接依赖；fake engine 测试 9 过；非 Android / 缺库有结构化错误；本机 `flutter build apk` 卡在既有 `flutter-plugin-loader` / `25.0.2`；无 adb
+- 失败：Gradle 插件解析 `25.0.2`（与本刀无关）；真机 ABI 调用未测
+- 指标变化：无新 `.so`
+- 上游 API/patch 变化：无
+- 阻塞项：本机 release APK / 真机
+- 下一步：能编 APK 的环境上解包确认 `lib/arm64-v8a/libturna_anki.so`，真机跑 Spike 页
 - 阻塞项：无构建阻塞；下一刀是 Dart 加载
 - 下一步：P0-004，debug/release 真机 `DynamicLibrary.open('libturna_anki.so')`
