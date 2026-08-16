@@ -1,0 +1,7 @@
+[toolchain]
+# Must match the pinned Anki rust-toolchain.toml.
+# Older versions may fail to compile; newer versions may fail clippy.
+channel = "1.97.1"
+profile = "minimal"
+components = ["rustfmt", "clippy"]
+targets = ["aarch64-linux-android"]

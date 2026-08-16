@@ -86,3 +86,9 @@ android/.kotlin/errors/
 
 # Textbook project migration backups (project.v1.json.bak etc.)
 *.bak
+
+# Official Anki native spike outputs. The .so is produced by
+# native/turna_anki_core/build-android/build.sh and must not be
+# hand-copied into git as a substitute for a reproducible build.
+native/turna_anki_core/target/
+android/app/src/main/jniLibs/**/libturna_anki.so

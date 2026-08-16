@@ -1,0 +1,5 @@
+[submodule "native/turna_anki_core/anki"]
+	path = native/turna_anki_core/anki
+	url = https://github.com/ankitects/anki.git
+	# Spike pin is a detached commit (see native/turna_anki_core/README.md).
+	# Do not follow origin/main.

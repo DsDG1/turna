@@ -1,0 +1,84 @@
+syntax = "proto3";
+
+package turna.anki.spike;
+
+// Turna-owned spike contract. Field numbers must not be reordered after the
+// first on-device test artifact is produced. Dart must never see upstream
+// Anki service/method indexes.
+
+enum SpikeOperation {
+  SPIKE_OPERATION_UNSPECIFIED = 0;
+  ENGINE_INFO = 1;
+  OPEN_COLLECTION = 2;
+  CLOSE_COLLECTION = 3;
+  CHECK_COLLECTION = 4;
+  IMPORT_PACKAGE = 5;
+  LATEST_PROGRESS = 6;
+  CANCEL_OPERATION = 7;
+  LIST_DECK_TREE = 8;
+  SEARCH_CARDS = 9;
+  RENDER_CARD = 10;
+  SET_CURRENT_DECK = 11;
+  GET_REVIEW_QUEUE = 12;
+  DESCRIBE_NEXT_STATES = 13;
+  ANSWER_CARD = 14;
+  GET_UNDO_STATUS = 15;
+  UNDO = 16;
+}
+
+message SpikeRequest {
+  uint32 contract_version = 1;
+  uint64 request_id = 2;
+  SpikeOperation operation = 3;
+  bytes payload = 4;
+}
+
+message SpikeError {
+  string code = 1;
+  string message = 2;
+  string debug_details = 3;
+  bool recoverable = 4;
+}
+
+message SpikeResponse {
+  uint32 contract_version = 1;
+  uint64 request_id = 2;
+  bool ok = 3;
+  bytes payload = 4;
+  SpikeError error = 5;
+  string backend_commit = 6;
+  uint64 duration_millis = 7;
+}
+
+message SpikeImportPackageRequest {
+  string package_path = 1;
+  bool merge_notetypes = 2;
+  uint32 update_notes = 3;
+  uint32 update_notetypes = 4;
+  bool with_scheduling = 5;
+  bool with_deck_configs = 6;
+}
+
+message SpikeImportPackageResponse {
+  repeated int64 new_note_ids = 1;
+  repeated int64 updated_note_ids = 2;
+  repeated int64 duplicate_note_ids = 3;
+  repeated int64 conflicting_note_ids = 4;
+  repeated int64 missing_notetype_note_ids = 5;
+  uint64 elapsed_millis = 6;
+  repeated string warnings = 7;
+}
+
+message SpikeRenderCardRequest {
+  int64 card_id = 1;
+  bool browser = 2;
+}
+
+message SpikeRenderedCard {
+  int64 card_id = 1;
+  string question_html = 2;
+  string answer_html = 3;
+  string css = 4;
+  bool latex_svg = 5;
+  bool is_empty = 6;
+}

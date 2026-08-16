@@ -1,0 +1,19 @@
+[package]
+name = "turna_anki_bridge"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Turna C ABI around a pinned official Anki rslib"
+
+[lib]
+name = "turna_anki"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# P0-002 will add the official crates via repository-relative paths only:
+#   anki = { path = "../anki/rslib" }
+#   anki_proto = { path = "../anki/rslib/proto" }
+# Do not point Cargo at /home/.../anki. Prost versions must match the
+# pinned Anki workspace when those path deps are introduced.

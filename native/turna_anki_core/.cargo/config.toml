@@ -1,0 +1,9 @@
+# Host and Android linker settings belong in build-android/build.sh after
+# they are verified. Do not put machine-specific ANDROID_NDK_HOME paths here.
+#
+# Candidate (unverified) Android target flags will be recorded in
+# build-android/README.md and only moved here once a clean CI build passes.
+
+[build]
+# Keep incremental artifacts inside this workspace.
+target-dir = "target"
