@@ -1,13 +1,17 @@
 # Phase 1 结果报告：稳定 Engine 与官方导入
 
-> 结论：**Conditional Go**  
+> 结论：**Conditional Go**（技术修补见 `06-phase-0-phase-1-technical-remediation-result.md`）  
 > 日期：2026-08-16  
 > 工作树基线：`f422c840efb019098af5f9aec32746817516c824`（Phase 1 代码尚未单独提交）  
 > 上游 Anki：`967aa0d578fc75181e292e95326f9b58698da25c`  
 > 生产切流：**禁止**。官方导入 flag 默认关闭。  
 > 打开 release import 的前提：用 **本轮 ABI 修复后的 commit** 重编 debug **和** release APK，并在真机跑完 `ENGINE_INFO → open → import fixture → close → reopen`。当前磁盘上的 8 月 14 日 release APK 与 19:02 jniLibs `.so` 都不算。
 
-本文件只记录本轮已测量事实。未测项不写“通过”。
+本文件记录修补前的 Phase 1 骨架结果。2026-08-17 技术修补后的最终技术结论以
+`06-phase-0-phase-1-technical-remediation-result.md` 为准。下列原表述已降级：
+稳定 Engine/worker 当时只是 interface + same-isolate queue；9 fixture orchestrator
+当时是 Fake Engine；backup 当时是 raw copy；resume 当时从 0 重跑；生产入口当时是
+fail-closed hook。
 
 ## 1. 决策
 

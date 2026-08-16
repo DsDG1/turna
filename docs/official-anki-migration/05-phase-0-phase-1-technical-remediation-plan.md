@@ -1,6 +1,6 @@
 # Phase 0 + Phase 1 技术修补与收口计划
 
-> 状态：待实施  
+> 状态：已实施（技术结论见 `06-phase-0-phase-1-technical-remediation-result.md`）  
 > 制定日期：2026-08-16  
 > 范围：Phase 0 技术 Spike、Phase 1 稳定 Engine 与官方导入  
 > 明确排除：License、AGPL 展示、源码要约、法律确认及其签字  
