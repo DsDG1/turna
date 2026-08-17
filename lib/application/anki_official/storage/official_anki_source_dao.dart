@@ -1,6 +1,11 @@
 import 'package:sqlite3/sqlite3.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
+import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
+import 'package:turna/application/anki_official/projection/official_anki_projection_paging.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
+
+export 'package:turna/application/anki_official/projection/official_anki_projection_paging.dart'
+    show OfficialAnkiSourceCardPage;
 
 class OfficialAnkiSourceRow {
   const OfficialAnkiSourceRow({
@@ -190,12 +195,72 @@ WHERE source_id = ? AND state = ?
     }
   }
 
+  OfficialAnkiSourceCardPage pageSourceCardIds({
+    required String sourceId,
+    int? afterCardId,
+    int limit = officialAnkiProjectionPageDefault,
+  }) {
+    if (limit < 1 || limit > officialAnkiProjectionPageMax) {
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.invalidArgument,
+        messageKey: 'official_anki.invalid_argument',
+        debugDetails: 'page limit must be 1..500',
+      );
+    }
+    final after = afterCardId ?? 0;
+    final rows = _db.select(
+      'SELECT card_id FROM anki_source_cards '
+      'WHERE source_id = ? AND card_id > ? '
+      'ORDER BY card_id LIMIT ?',
+      [sourceId, after, limit],
+    );
+    final ids = <int>[];
+    var previous = after;
+    for (final row in rows) {
+      final id = (row['card_id'] as num).toInt();
+      if (id <= previous) {
+        throw const OfficialAnkiException(
+          code: OfficialAnkiErrorCode.projectionSourceChanged,
+          messageKey: 'official_anki.projection_source_changed',
+          recoverable: true,
+          debugDetails: 'card_id not strictly ascending',
+        );
+      }
+      ids.add(id);
+      previous = id;
+    }
+    return OfficialAnkiSourceCardPage(
+      cardIds: ids,
+      lastCardId: ids.isEmpty ? afterCardId : ids.last,
+      hasMore: ids.length == limit,
+    );
+  }
+
   int cardCount(String sourceId) {
     final row = _db.select(
       'SELECT COUNT(*) AS n FROM anki_source_cards WHERE source_id = ?',
       [sourceId],
     ).first;
     return row['n'] as int;
+  }
+
+  List<OfficialAnkiCardDescriptor> listCards(String sourceId) {
+    return _db
+        .select(
+          'SELECT card_id, note_id, deck_id, note_guid, template_ord '
+          'FROM anki_source_cards WHERE source_id = ? ORDER BY card_id',
+          [sourceId],
+        )
+        .map(
+          (row) => OfficialAnkiCardDescriptor(
+            cardId: (row['card_id'] as num).toInt(),
+            noteId: (row['note_id'] as num).toInt(),
+            deckId: (row['deck_id'] as num).toInt(),
+            templateOrd: (row['template_ord'] as num).toInt(),
+            noteGuid: row['note_guid'] as String?,
+          ),
+        )
+        .toList();
   }
 
   List<OfficialAnkiSourceRow> listSources(String profileId) {

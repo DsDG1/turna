@@ -107,6 +107,8 @@ flutter:
     - assets/courses/turkish/sections/
     - assets/changelog.md
     - assets/quick_start.md
+    - assets/anki_reviewer/
+    - assets/anki_reviewer/mathjax/
 flutter_gen:
 flutter_launcher_icons:
   android: launcher_icon

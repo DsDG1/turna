@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/application/anki_official/contract/official_anki_contract.dart';
+import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine_ffi.dart';
 
@@ -107,6 +108,33 @@ void main() {
     final info = await engine.engineInfo();
     expect(info.backendCommit, '967aa0d578fc75181e292e95326f9b58698da25c');
     expect(info.has('IMPORT_PACKAGE'), isTrue);
+  });
+
+  test('1.1 client ignores unknown 1.2 capabilities', () {
+    final info = OfficialAnkiEngineInfo.fromJson({
+      'abiVersion': 1,
+      'backendCommit': '967aa0d578fc75181e292e95326f9b58698da25c',
+      'contractMajor': 1,
+      'contractMinor': 2,
+      'capabilities': [
+        'ENGINE_INFO',
+        'GET_PROJECTION_SCHEMAS',
+        'BEGIN_PROJECTION_READ',
+        'GET_PROJECTION_ROWS_BATCH',
+        'FUTURE_OP',
+      ],
+    });
+    expect(info.contractMinor, 2);
+    expect(info.has('GET_PROJECTION_SCHEMAS'), isTrue);
+    expect(info.has('FUTURE_OP'), isTrue);
+    expect(
+      () => OfficialAnkiOperation.idFor('FUTURE_OP'),
+      throwsA(isA<OfficialAnkiException>()),
+    );
+    expect(
+      OfficialAnkiOperation.idFor(OfficialAnkiOperation.getProjectionSchemas),
+      OfficialAnkiOperation.getProjectionSchemasId,
+    );
   });
 
   test('archived proto is not the wire truth', () {

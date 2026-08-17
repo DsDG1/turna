@@ -13,7 +13,7 @@ use crate::engine;
 use crate::errors;
 
 pub const CONTRACT_MAJOR: u32 = 1;
-pub const CONTRACT_MINOR: u32 = 0;
+pub const CONTRACT_MINOR: u32 = 3;
 pub const OP_ENGINE_INFO: u32 = 1;
 const MAX_REQUEST_ID_BYTES: usize = 128;
 const MAX_ENVELOPE_PAYLOAD_BYTES: usize = 1_048_576;
@@ -121,7 +121,23 @@ pub fn engine_info_payload() -> Value {
             "LIST_DECK_TREE",
             "SEARCH_CARDS_PAGE",
             "GET_NOTE_CARDS_BATCH",
-            "GET_CARD_DESCRIPTORS_BATCH"
+            "GET_CARD_DESCRIPTORS_BATCH",
+            "RENDER_CARD",
+            "COMPARE_TYPED_ANSWER",
+            "EXTRACT_CLOZE_FOR_TYPING",
+            "GET_PROJECTION_SCHEMAS",
+            "BEGIN_PROJECTION_READ",
+            "GET_PROJECTION_ROWS_BATCH",
+            "SET_CURRENT_DECK",
+            "GET_REVIEW_QUEUE",
+            "DESCRIBE_NEXT_STATES",
+            "ANSWER_CARD",
+            "GET_UNDO_STATUS",
+            "UNDO",
+            "REDO",
+            "BURY_OR_SUSPEND_CARDS",
+            "COUNTS_FOR_DECK_TODAY",
+            "CONGRATS_INFO"
         ],
     })
 }
@@ -175,12 +191,21 @@ fn operation_name_to_id(name: &str) -> Option<u32> {
         "GET_CARD_DESCRIPTORS_BATCH" => Some(engine::OP_GET_CARD_DESCRIPTORS_BATCH),
         "RESTORE_BACKUP" => Some(engine::OP_RESTORE_BACKUP),
         "RENDER_CARD" => Some(engine::OP_RENDER_CARD),
+        "COMPARE_TYPED_ANSWER" => Some(engine::OP_COMPARE_TYPED_ANSWER),
+        "EXTRACT_CLOZE_FOR_TYPING" => Some(engine::OP_EXTRACT_CLOZE_FOR_TYPING),
+        "GET_PROJECTION_SCHEMAS" => Some(engine::OP_GET_PROJECTION_SCHEMAS),
+        "BEGIN_PROJECTION_READ" => Some(engine::OP_BEGIN_PROJECTION_READ),
+        "GET_PROJECTION_ROWS_BATCH" => Some(engine::OP_GET_PROJECTION_ROWS_BATCH),
         "SET_CURRENT_DECK" => Some(engine::OP_SET_CURRENT_DECK),
         "GET_REVIEW_QUEUE" => Some(engine::OP_GET_REVIEW_QUEUE),
         "DESCRIBE_NEXT_STATES" => Some(engine::OP_DESCRIBE_NEXT_STATES),
         "ANSWER_CARD" => Some(engine::OP_ANSWER_CARD),
         "GET_UNDO_STATUS" => Some(engine::OP_GET_UNDO_STATUS),
         "UNDO" => Some(engine::OP_UNDO),
+        "REDO" => Some(engine::OP_REDO),
+        "BURY_OR_SUSPEND_CARDS" => Some(engine::OP_BURY_OR_SUSPEND_CARDS),
+        "COUNTS_FOR_DECK_TODAY" => Some(engine::OP_COUNTS_FOR_DECK_TODAY),
+        "CONGRATS_INFO" => Some(engine::OP_CONGRATS_INFO),
         _ => None,
     }
 }

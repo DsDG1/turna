@@ -1,0 +1,25 @@
+date: 2026-08-17
+
+# baseline
+git -C Varnamalaplus rev-parse HEAD
+git -C Varnamalaplus submodule status
+git -C Varnamalaplus status --short
+
+# Android native
+ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.2.13676358 \
+  ./native/turna_anki_core/build-android/build.sh
+
+# debug APK
+flutter build apk --debug --no-pub
+unzip -l build/app/outputs/flutter-apk/app-debug.apk
+unzip -p build/app/outputs/flutter-apk/app-debug.apk lib/arm64-v8a/libturna_anki.so | sha256sum
+
+# Host / Dart / Kotlin
+PROTOC=native/turna_anki_core/tools/protoc/bin/protoc cargo test --lib   # x3+ default parallel
+flutter test --no-pub test/application/anki_official test/data/schema_migration_test.dart   # x2
+./gradlew :app:testDebugUnitTest
+node test/application/anki_official/js/card_frame_protocol_test.mjs
+flutter analyze --no-pub lib/application/anki_official lib/views/anki_official test/application/anki_official test/data/schema_migration_test.dart
+
+# devices
+adb devices -l   # empty; Device A/B, connected instrumentation, 5k/RSS, release not run

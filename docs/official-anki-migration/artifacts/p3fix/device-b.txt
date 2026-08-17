@@ -1,0 +1,5 @@
+P3FIX Device B: UNAVAILABLE
+date: 2026-08-17
+adb devices -l empty. No second Android/WebView device attached.
+Release APK was not built (debug-only this round).
+This is an environment skip, not a passing result.

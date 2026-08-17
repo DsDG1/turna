@@ -37,5 +37,70 @@ abstract class OfficialAnkiEngine {
     List<int> cardIds,
   );
 
+  Future<OfficialAnkiRenderedCard> renderCard({
+    required int cardId,
+    bool browser = false,
+    bool includeAvTags = true,
+  });
+
+  Future<OfficialAnkiTypedComparison> compareTypedAnswer({
+    required int cardId,
+    required String marker,
+    required String provided,
+  });
+
+  Future<String> extractClozeForTyping({
+    required String text,
+    required int ordinal,
+  });
+
+  Future<List<OfficialAnkiDeckNode>> listDeckTree();
+
+  Future<List<OfficialAnkiProjectionSchema>> getProjectionSchemas({
+    List<int> notetypeIds = const <int>[],
+    bool includeSamples = false,
+    int sampleLimit = 3,
+  });
+
+  Future<OfficialAnkiProjectionSnapshot> beginProjectionRead({
+    required String cardSetFingerprint,
+    int mappingVersion = 1,
+  });
+
+  Future<OfficialAnkiProjectionPage> getProjectionRowsBatch({
+    required List<int> cardIds,
+    required String snapshotToken,
+  });
+
+  Future<void> setCurrentDeck(int deckId);
+
+  Future<OfficialReviewQueue> getReviewQueue({int fetchLimit = 1});
+
+  Future<OfficialAnswerResult> answerCard({
+    required String sessionId,
+    required int queueEpoch,
+    required String answerToken,
+    required int cardId,
+    required String rating,
+    required int millisecondsTaken,
+    int? answeredAtMillis,
+  });
+
+  Future<OfficialUndoStatus> getUndoStatus();
+
+  Future<OfficialMutationResult> undo();
+
+  Future<OfficialMutationResult> redo();
+
+  Future<OfficialDeckCounts> countsForDeckToday(int deckId);
+
+  Future<OfficialCongratsInfo> congratsInfo();
+
+  Future<void> buryOrSuspendCards({
+    required OfficialBuryOrSuspendAction action,
+    List<int> cardIds = const <int>[],
+    int? deckId,
+  });
+
   Future<void> dispose();
 }

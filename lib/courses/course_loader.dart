@@ -115,11 +115,24 @@ class CourseLoader {
     invalidateCaches();
   }
 
+  @visibleForTesting
+  static void clearDatabaseOverride() {
+    _dbProvider = null;
+    invalidateCaches();
+  }
+
   /// Drop process-lifetime load caches (call after content reseed).
   static void invalidateCaches() {
     _instance = null;
     _sectionLoads.clear();
     _lessonLoads.clear();
+  }
+
+  static CourseDatabase? databaseOrNull() {
+    final provider = _dbProvider;
+    if (provider != null) return provider();
+    if (getIt.isRegistered<CourseDatabase>()) return getIt<CourseDatabase>();
+    return null;
   }
 
   static CourseDatabase get _db {

@@ -2,11 +2,14 @@
 
 mod abi;
 mod contract;
+mod display;
 mod engine;
 mod errors;
 mod import;
 mod ops;
+mod projection;
 mod query;
+mod typed;
 
 pub use abi::turna_anki_buffer_free;
 pub use abi::turna_anki_call;

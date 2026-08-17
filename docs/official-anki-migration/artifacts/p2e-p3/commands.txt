@@ -1,0 +1,39 @@
+# P2E-P3 evidence commands (run from Varnamalaplus/)
+
+git rev-parse HEAD
+git rev-parse --abbrev-ref HEAD
+git status --short
+git submodule status
+sha256sum native/turna_anki_core/target/debug/libturna_anki.so
+sha256sum android/app/src/main/jniLibs/arm64-v8a/libturna_anki.so
+find assets/anki_reviewer -type f -exec sha256sum {} \;
+
+# P2E-001 card-frame protocol (loads shipped JS)
+node test/application/anki_official/js/card_frame_protocol_test.mjs
+flutter test --no-pub test/application/anki_official/official_anki_card_frame_protocol_test.dart
+
+# P2E-002 present ack
+cd android && ./gradlew :app:testDebugUnitTest --tests 'me.dsdogs.turna.anki.reviewer.PresentAckCoordinatorTest'
+flutter test --no-pub test/application/anki_official/official_anki_present_ack_test.dart
+
+# P2E-003/004 UI + AV + render error
+flutter test --no-pub test/application/anki_official/official_anki_reviewer_ui_av_error_test.dart
+
+# P2E-005 session cleanup
+flutter test --no-pub test/application/anki_official/official_anki_session_cleanup_test.dart
+
+# Existing official suite
+flutter test --no-pub test/application/anki_official
+
+# P2E-006 rebuild
+bash native/turna_anki_core/build-android/build.sh
+flutter build apk --debug
+sha256sum android/app/src/main/jniLibs/arm64-v8a/libturna_anki.so
+sha256sum build/app/outputs/flutter-apk/app-debug.apk
+unzip -l build/app/outputs/flutter-apk/app-debug.apk | rg 'anki_reviewer|libturna_anki|mathjax'
+
+# P2E-007 instrumented (device required)
+cd android && ./gradlew :app:connectedDebugAndroidTest --tests 'me.dsdogs.turna.anki.reviewer.OfficialAnkiReviewerFlipPathTest'
+
+# P2E-008 device
+adb devices -l

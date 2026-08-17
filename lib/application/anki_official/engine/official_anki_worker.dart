@@ -129,6 +129,159 @@ class OfficialAnkiWorker implements OfficialAnkiEngine {
   }
 
   @override
+  Future<OfficialAnkiRenderedCard> renderCard({
+    required int cardId,
+    bool browser = false,
+    bool includeAvTags = true,
+  }) {
+    return _enqueue(
+      () => _inner.renderCard(
+        cardId: cardId,
+        browser: browser,
+        includeAvTags: includeAvTags,
+      ),
+    );
+  }
+
+  @override
+  Future<OfficialAnkiTypedComparison> compareTypedAnswer({
+    required int cardId,
+    required String marker,
+    required String provided,
+  }) {
+    return _enqueue(
+      () => _inner.compareTypedAnswer(
+        cardId: cardId,
+        marker: marker,
+        provided: provided,
+      ),
+    );
+  }
+
+  @override
+  Future<String> extractClozeForTyping({
+    required String text,
+    required int ordinal,
+  }) {
+    return _enqueue(
+      () => _inner.extractClozeForTyping(text: text, ordinal: ordinal),
+    );
+  }
+
+  @override
+  Future<List<OfficialAnkiDeckNode>> listDeckTree() {
+    return _enqueue(_inner.listDeckTree);
+  }
+
+  @override
+  Future<List<OfficialAnkiProjectionSchema>> getProjectionSchemas({
+    List<int> notetypeIds = const <int>[],
+    bool includeSamples = false,
+    int sampleLimit = 3,
+  }) {
+    return _enqueue(
+      () => _inner.getProjectionSchemas(
+        notetypeIds: notetypeIds,
+        includeSamples: includeSamples,
+        sampleLimit: sampleLimit,
+      ),
+    );
+  }
+
+  @override
+  Future<OfficialAnkiProjectionSnapshot> beginProjectionRead({
+    required String cardSetFingerprint,
+    int mappingVersion = 1,
+  }) {
+    return _enqueue(
+      () => _inner.beginProjectionRead(
+        cardSetFingerprint: cardSetFingerprint,
+        mappingVersion: mappingVersion,
+      ),
+    );
+  }
+
+  @override
+  Future<OfficialAnkiProjectionPage> getProjectionRowsBatch({
+    required List<int> cardIds,
+    required String snapshotToken,
+  }) {
+    return _enqueue(
+      () => _inner.getProjectionRowsBatch(
+        cardIds: cardIds,
+        snapshotToken: snapshotToken,
+      ),
+    );
+  }
+
+  @override
+  Future<void> setCurrentDeck(int deckId) {
+    return _enqueue(() => _inner.setCurrentDeck(deckId));
+  }
+
+  @override
+  Future<OfficialReviewQueue> getReviewQueue({int fetchLimit = 1}) {
+    return _enqueue(() => _inner.getReviewQueue(fetchLimit: fetchLimit));
+  }
+
+  @override
+  Future<OfficialAnswerResult> answerCard({
+    required String sessionId,
+    required int queueEpoch,
+    required String answerToken,
+    required int cardId,
+    required String rating,
+    required int millisecondsTaken,
+    int? answeredAtMillis,
+  }) {
+    return _enqueue(
+      () => _inner.answerCard(
+        sessionId: sessionId,
+        queueEpoch: queueEpoch,
+        answerToken: answerToken,
+        cardId: cardId,
+        rating: rating,
+        millisecondsTaken: millisecondsTaken,
+        answeredAtMillis: answeredAtMillis,
+      ),
+    );
+  }
+
+  @override
+  Future<OfficialUndoStatus> getUndoStatus() {
+    return _enqueue(_inner.getUndoStatus);
+  }
+
+  @override
+  Future<OfficialMutationResult> undo() => _enqueue(_inner.undo);
+
+  @override
+  Future<OfficialMutationResult> redo() => _enqueue(_inner.redo);
+
+  @override
+  Future<OfficialDeckCounts> countsForDeckToday(int deckId) {
+    return _enqueue(() => _inner.countsForDeckToday(deckId));
+  }
+
+  @override
+  Future<OfficialCongratsInfo> congratsInfo() => _enqueue(_inner.congratsInfo);
+
+  @override
+  Future<void> buryOrSuspendCards({
+    required OfficialBuryOrSuspendAction action,
+    List<int> cardIds = const <int>[],
+    int? deckId,
+  }) {
+    return _enqueue(
+      () => _inner.buryOrSuspendCards(
+        action: action,
+        cardIds: cardIds,
+        deckId: deckId,
+      ),
+    );
+  }
+
+  @override
   Future<void> dispose() {
     return _enqueue(() async {
       await _inner.dispose();

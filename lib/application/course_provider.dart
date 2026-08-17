@@ -5,6 +5,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
+import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/courses/languages/course_lookup.dart';
@@ -276,7 +277,14 @@ class CourseProvider extends ChangeNotifier {
     }
     logger.w('CourseProvider.load: first load, fetching from DB');
     _restoreScopeFromPrefs();
-    _allSections = await loadSectionShells();
+    Set<String>? officialActive;
+    if (OfficialAnkiCourseEntry.flagsOf().allowsCourseEntry) {
+      officialActive = await OfficialAnkiCourseEntry.resolveActiveSectionIds();
+    }
+    _allSections = OfficialAnkiCourseEntry.filterShells(
+      await loadSectionShells(),
+      activeIds: officialActive,
+    );
     _sections = _applyScopeFilter(_allSections);
     if (_courseScope.isNotEmpty && _sections.isEmpty) {
       // The scoped deck was uninstalled — fall back to the built-in course.
@@ -438,7 +446,13 @@ class CourseProvider extends ChangeNotifier {
   /// id prefix.
   List<Section> _applyScopeFilter(List<Section> shells) {
     if (_courseScope.isEmpty) {
-      return shells.where((s) => s.level != 'Anki').toList(growable: false);
+      return shells
+          .where(
+            (s) =>
+                s.level != 'Anki' ||
+                OfficialAnkiCourseEntry.isOfficialSectionId(s.id),
+          )
+          .toList(growable: false);
     }
     if (_courseScope.startsWith('anki:')) {
       final prefix = 'anki-${_courseScope.substring(5)}-';

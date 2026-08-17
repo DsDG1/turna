@@ -1,0 +1,44 @@
+{
+  "assetVersion": "p2e-1",
+  "backendCommit": "967aa0d578fc75181e292e95326f9b58698da25c",
+  "mathjaxVersion": "3.2.2",
+  "mathjaxFile": "mathjax/tex-svg-full.js",
+  "source": "npm mathjax@3.2.2 es5/tex-svg-full.js vendored offline; no CDN at runtime",
+  "files": [
+    {
+      "path": "card-frame.html",
+      "sha256": "ae13fb8da776dfc77548b4bdb3ceb54a483f86ca41100b91414a69d3cdca203d",
+      "bytes": 910
+    },
+    {
+      "path": "card-frame.js",
+      "sha256": "79f04f0b3ff4482773e08b8aa6b6c1394f8676f53640ca67532a147c97caa9e5",
+      "bytes": 8511
+    },
+    {
+      "path": "mathjax-config.js",
+      "sha256": "1b9f738e55d3ce52c0397f941e4f7df64fd0962dddcf5717726ba16b9205eae3",
+      "bytes": 248
+    },
+    {
+      "path": "mathjax/tex-svg-full.js",
+      "sha256": "a4354ff94fd868aea0cc6eaaa79a57fda0588646fc46ee3700a349ee0a11cbe6",
+      "bytes": 2275113
+    },
+    {
+      "path": "reviewer.css",
+      "sha256": "63aacdcf22a10e54fed526340494ce4511726c60e4503c830d01262b69be3810",
+      "bytes": 445
+    },
+    {
+      "path": "reviewer.html",
+      "sha256": "2144ea811314ce612bf693c3b5026295c9037f05fd98de0ae10827e93d4754b1",
+      "bytes": 855
+    },
+    {
+      "path": "reviewer.js",
+      "sha256": "fbeb7eb93371f16320c15f177c8001876936dd2b95220eefcbb49cd93dbe9080",
+      "bytes": 8508
+    }
+  ]
+}

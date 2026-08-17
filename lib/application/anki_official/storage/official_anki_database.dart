@@ -4,7 +4,7 @@ import 'package:sqlite3/sqlite3.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/storage/official_anki_sqlite.dart';
 
-const int kOfficialAnkiCatalogSchemaVersion = 2;
+const int kOfficialAnkiCatalogSchemaVersion = 5;
 
 /// Independent catalog. Must not live in CourseDatabase (downgrade wipes it).
 class OfficialAnkiDatabase {
@@ -50,6 +50,15 @@ class OfficialAnkiDatabase {
       }
       if (version <= 1) {
         _upgradeToV2();
+      }
+      if (version <= 2) {
+        _upgradeToV3();
+      }
+      if (version <= 3) {
+        _upgradeToV4();
+      }
+      if (version <= 4) {
+        _upgradeToV5();
       }
       _db.execute('PRAGMA user_version = $kOfficialAnkiCatalogSchemaVersion');
       _db.execute('COMMIT');
@@ -153,6 +162,116 @@ CREATE TABLE IF NOT EXISTS anki_import_attempt_notes (
     } finally {
       insert.dispose();
     }
+  }
+
+  void _upgradeToV3() {
+    _db.execute('''
+CREATE TABLE IF NOT EXISTS anki_projection_mappings (
+  profile_id TEXT NOT NULL,
+  notetype_id INTEGER NOT NULL,
+  schema_fingerprint TEXT NOT NULL,
+  mapping_json TEXT NOT NULL,
+  status TEXT NOT NULL,
+  user_confirmed INTEGER NOT NULL,
+  mapping_version INTEGER NOT NULL,
+  updated_at_millis INTEGER NOT NULL,
+  PRIMARY KEY(profile_id, notetype_id)
+);
+''');
+    _db.execute('''
+CREATE TABLE IF NOT EXISTS anki_projection_jobs (
+  job_id TEXT PRIMARY KEY,
+  source_id TEXT NOT NULL REFERENCES anki_sources(source_id),
+  state TEXT NOT NULL,
+  projection_version INTEGER NOT NULL,
+  source_fingerprint TEXT NOT NULL,
+  cursor_card_id INTEGER,
+  processed_cards INTEGER NOT NULL DEFAULT 0,
+  total_cards INTEGER NOT NULL DEFAULT 0,
+  started_at_millis INTEGER NOT NULL,
+  heartbeat_at_millis INTEGER NOT NULL,
+  completed_at_millis INTEGER,
+  last_error_code TEXT
+);
+''');
+    _db.execute('''
+CREATE TABLE IF NOT EXISTS anki_course_placement_overrides (
+  source_id TEXT NOT NULL REFERENCES anki_sources(source_id),
+  card_id INTEGER NOT NULL,
+  section_key TEXT,
+  unit_key TEXT,
+  lesson_key TEXT,
+  locked INTEGER NOT NULL,
+  updated_at_millis INTEGER NOT NULL,
+  PRIMARY KEY(source_id, card_id)
+);
+''');
+    _db.execute('''
+CREATE TABLE IF NOT EXISTS anki_source_projection_state (
+  source_id TEXT PRIMARY KEY REFERENCES anki_sources(source_id),
+  state TEXT NOT NULL,
+  active_projection_version INTEGER,
+  source_fingerprint TEXT,
+  projected_card_count INTEGER NOT NULL DEFAULT 0,
+  last_projected_at_millis INTEGER,
+  active_job_id TEXT
+);
+''');
+  }
+
+  void _upgradeToV4() {
+    _db.execute(
+      "ALTER TABLE anki_projection_jobs ADD COLUMN owner_token TEXT NOT NULL DEFAULT ''",
+    );
+    _db.execute(
+      'ALTER TABLE anki_projection_jobs ADD COLUMN algorithm_version INTEGER NOT NULL DEFAULT 1',
+    );
+    _db.execute(
+      'ALTER TABLE anki_projection_jobs ADD COLUMN retry_count INTEGER NOT NULL DEFAULT 0',
+    );
+    _db.execute(
+      'ALTER TABLE anki_projection_jobs ADD COLUMN cancel_requested INTEGER NOT NULL DEFAULT 0',
+    );
+    _db.execute(
+      "ALTER TABLE anki_projection_jobs ADD COLUMN card_set_fingerprint TEXT NOT NULL DEFAULT ''",
+    );
+    _db.execute(
+      "ALTER TABLE anki_projection_jobs ADD COLUMN schema_fingerprint TEXT NOT NULL DEFAULT ''",
+    );
+    _db.execute(
+      "ALTER TABLE anki_projection_jobs ADD COLUMN mapping_fingerprint TEXT NOT NULL DEFAULT ''",
+    );
+    _db.execute(
+      'ALTER TABLE anki_projection_jobs ADD COLUMN last_error_safe_message TEXT',
+    );
+  }
+
+  void _upgradeToV5() {
+    final rows = _db.select(
+      "SELECT job_id, source_id, owner_token, heartbeat_at_millis "
+      "FROM anki_projection_jobs WHERE state IN ("
+      "'created','scanning_source','scanning_schema','needs_mapping',"
+      "'projecting','publishing','retry_wait','cancel_requested'"
+      ') ORDER BY source_id, heartbeat_at_millis DESC, started_at_millis DESC',
+    );
+    final keep = <String>{};
+    for (final row in rows) {
+      final sourceId = row['source_id'] as String;
+      if (keep.add(sourceId)) continue;
+      _db.execute(
+        "UPDATE anki_projection_jobs SET state = 'abandoned', "
+        "last_error_code = 'migration_duplicate_writer', "
+        'completed_at_millis = heartbeat_at_millis '
+        'WHERE job_id = ?',
+        [row['job_id']],
+      );
+    }
+    _db.execute(
+      'CREATE UNIQUE INDEX IF NOT EXISTS anki_projection_one_active_writer '
+      'ON anki_projection_jobs(source_id) WHERE state IN ('
+      "'created','scanning_source','scanning_schema','needs_mapping',"
+      "'projecting','publishing','retry_wait','cancel_requested')",
+    );
   }
 
   void close() => _db.dispose();

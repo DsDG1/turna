@@ -5,12 +5,14 @@ import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import me.dsdogs.turna.anki.reviewer.OfficialAnkiReviewerPlugin
 
 class MainActivity : FlutterActivity() {
     private val ttsSettingsChannel = "turna/tts_settings"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        OfficialAnkiReviewerPlugin.register(this, flutterEngine)
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             ttsSettingsChannel,

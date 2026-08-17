@@ -3084,6 +3084,7 @@ dependencies = [
  "anki",
  "anki_proto",
  "hex",
+ "regex",
  "rusqlite",
  "serde",
  "serde_json",

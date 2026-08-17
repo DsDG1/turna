@@ -30,6 +30,10 @@ class _TestPathProvider extends PathProviderPlatform {
   @override
   Future<String?> getApplicationDocumentsPath() async =>
       Directory.systemTemp.path;
+
+  @override
+  Future<String?> getApplicationSupportPath() async =>
+      Directory.systemTemp.path;
 }
 
 void ensurePathProviderMockForTest() {

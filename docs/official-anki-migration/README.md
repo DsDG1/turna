@@ -1,6 +1,6 @@
 # 官方 Anki Core 迁移文档索引
 
-> 状态：Phase 0 **Conditional Go**（`spike/official-anki-core-android`）  
+> 状态：Phase 0 + Phase 1 **TECHNICAL CONDITIONAL GO**；Phase 2 + Phase 3 **TECHNICAL NO-GO**；Phase 4 **ENTRY NO-GO**
 > 首发目标：Android arm64  
 > 总原则：官方 Anki Collection 是唯一 Anki 事实源，Turna 只维护课程投影  
 > 执行记录：[02-phase-0-result-report.md](./02-phase-0-result-report.md)
@@ -16,6 +16,13 @@
 | 04 | [第二阶段结果报告](./04-phase-1-result-report.md) | 基线、命令、指标、Conditional Go | 已降级；以 06 为准 |
 | 05 | [Phase 0 + Phase 1 技术修补计划](./05-phase-0-phase-1-technical-remediation-plan.md) | 排除 License 后的 ABI、Engine、Saga、Android、CI 与文档联合收口 | 已实施 |
 | 06 | [Phase 0 + Phase 1 技术修补结果](./06-phase-0-phase-1-technical-remediation-result.md) | Host 真实 FFI、Saga、backup、CI 与技术决策 | TECHNICAL CONDITIONAL GO |
+| 07 | [Phase 2 官方原卡渲染实施计划](./07-phase-2-implementation-plan.md) | P1 遗留修补、官方 render contract、安全 Reviewer、media origin、AV/TTS、Typed Answer、MathJax 与验收 | 已实施施工；见 08 |
+| 08 | [Phase 2 结果报告](./08-phase-2-result-report.md) | Host/Dart/Android 产物、未测项和 Go/No-Go | IMPLEMENTATION IN PROGRESS；TECHNICAL NO-GO |
+| P2FIX | [Phase 2 官方原卡渲染修补计划](./p2fix.md) | 修复媒体 base/IRI/Range、MathJax 打包、真实 AV、脚本隔离、生命周期与 Android 验收 | 施工中；TECHNICAL ACCEPTANCE NO-GO |
+| 09 | [P2 必要补齐 + Phase 3 课程投影实施计划](./09-p2-entry-remediation-and-phase-3-plan.md) | 先关闭 P3 开工所需的 P2 硬阻断，再实施 contract 1.2、字段 mapping、可重建课程投影和设备验收 | HOST CONSTRUCTION GO；STRICT ENTRY NO-GO |
+| P3FIX | [Phase 3 官方 Anki 课程投影修补计划](./p3fix.md) | 修复 Android contract 产物、source 分页一致性、job/recovery、mapping wizard、Interaction 和 CourseProvider 端到端接入 | P3 FIX CONSTRUCTION GO；TECHNICAL ACCEPTANCE NO-GO |
+| 10 | [Phase 3 修补结果报告](./10-phase-3-fix-result-report.md) | 记录 P3 Host 施工、Android 产物、测试证据和未通过的设备硬门禁 | P3 TECHNICAL/PRODUCTION NO-GO |
+| 11 | [P3 阻断修补 + Phase 4 官方 Scheduler 实施计划](./11-p3-remediation-and-phase-4-scheduler-plan.md) | 先关闭 P3 生产接线、job、课程推进、容量和 mapping 阻断，再正式化官方 Scheduler contract、session、UI 与设备验收 | P3 REMEDIATION REQUIRED；P4 ENTRY NO-GO |
 
 ## 阶段命名
 

@@ -18,10 +18,17 @@ use crate::engine::STATUS_PACKAGE_INVALID;
 use crate::engine::STATUS_PACKAGE_NOT_FOUND;
 use crate::engine::STATUS_PAGE_TOKEN_STALE;
 use crate::engine::STATUS_QUEUE_EMPTY;
+use crate::engine::STATUS_TYPED_CLOZE_EMPTY;
+use crate::engine::STATUS_TYPED_FIELD_NOT_FOUND;
+use crate::engine::STATUS_PROJECTION_SNAPSHOT_STALE;
 use crate::engine::STATUS_RENDER_FAILED;
 use crate::engine::STATUS_SCHEDULING_CONTEXT_STALE;
 use crate::engine::STATUS_UNDO_UNAVAILABLE;
 use crate::engine::STATUS_UNIMPLEMENTED;
+use crate::engine::STATUS_DECK_NOT_FOUND;
+use crate::engine::STATUS_REDO_UNAVAILABLE;
+use crate::engine::STATUS_SCHEDULER_BUSY;
+use crate::engine::STATUS_SCHEDULER_CAPABILITY_MISSING;
 
 pub fn code_for_status(status: i32) -> &'static str {
     match status {
@@ -46,6 +53,13 @@ pub fn code_for_status(status: i32) -> &'static str {
         STATUS_COLLECTION_CORRUPT => "COLLECTION_CORRUPT",
         STATUS_CONTRACT_VERSION_MISMATCH => "CONTRACT_VERSION_MISMATCH",
         STATUS_PAGE_TOKEN_STALE => "PAGE_TOKEN_STALE",
+        STATUS_TYPED_FIELD_NOT_FOUND => "TYPED_FIELD_NOT_FOUND",
+        STATUS_TYPED_CLOZE_EMPTY => "TYPED_CLOZE_EMPTY",
+        STATUS_PROJECTION_SNAPSHOT_STALE => "PROJECTION_SNAPSHOT_STALE",
+        STATUS_REDO_UNAVAILABLE => "REDO_UNAVAILABLE",
+        STATUS_DECK_NOT_FOUND => "DECK_NOT_FOUND",
+        STATUS_SCHEDULER_BUSY => "SCHEDULER_BUSY",
+        STATUS_SCHEDULER_CAPABILITY_MISSING => "SCHEDULER_CAPABILITY_MISSING",
         STATUS_INTERNAL_ERROR => "INTERNAL_ERROR",
         _ => "INTERNAL_ERROR",
     }
@@ -58,6 +72,20 @@ pub fn message_key_for_status(status: i32) -> &'static str {
         STATUS_IMPORT_CANCELLED => "official_anki.import_cancelled",
         STATUS_CONTRACT_VERSION_MISMATCH => "official_anki.contract_version_mismatch",
         STATUS_PAGE_TOKEN_STALE => "official_anki.page_token_stale",
+        STATUS_CARD_NOT_FOUND => "official_anki.card_not_found",
+        STATUS_RENDER_FAILED => "official_anki.render_failed",
+        STATUS_TYPED_FIELD_NOT_FOUND => "official_anki.typed_field_not_found",
+        STATUS_TYPED_CLOZE_EMPTY => "official_anki.typed_cloze_empty",
+        STATUS_PROJECTION_SNAPSHOT_STALE => "official_anki.projection_snapshot_stale",
+        STATUS_INVALID_STATE => "official_anki.invalid_state",
+        STATUS_QUEUE_EMPTY => "official_anki.queue_empty",
+        STATUS_SCHEDULING_CONTEXT_STALE => "official_anki.scheduling_context_stale",
+        STATUS_ANSWER_FAILED => "official_anki.answer_failed",
+        STATUS_UNDO_UNAVAILABLE => "official_anki.undo_unavailable",
+        STATUS_REDO_UNAVAILABLE => "official_anki.redo_unavailable",
+        STATUS_DECK_NOT_FOUND => "official_anki.deck_not_found",
+        STATUS_SCHEDULER_BUSY => "official_anki.scheduler_busy",
+        STATUS_SCHEDULER_CAPABILITY_MISSING => "official_anki.scheduler_capability_missing",
         _ => "official_anki.backend_error",
     }
 }
@@ -65,6 +93,9 @@ pub fn message_key_for_status(status: i32) -> &'static str {
 pub fn recoverable(status: i32) -> bool {
     matches!(
         status,
-        STATUS_IMPORT_CANCELLED | STATUS_PAGE_TOKEN_STALE | STATUS_INVALID_STATE
+        STATUS_IMPORT_CANCELLED
+            | STATUS_PAGE_TOKEN_STALE
+            | STATUS_PROJECTION_SNAPSHOT_STALE
+            | STATUS_INVALID_STATE
     )
 }

@@ -8,6 +8,8 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/anki/anki_review_assembler.dart';
+import 'package:turna/application/anki_official/engine/official_anki_home_due.dart';
+import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/srs_provider.dart';
@@ -38,6 +40,10 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
           .where((w) => w.wordId.startsWith(AnkiReviewAssembler.ankiPrefix))
           .length,
     );
+    OfficialAnkiHomeDue.turnaDue = srsDue;
+    final officialDue = OfficialAnkiFeatureFlags.current.allowsOfficialScheduler
+        ? OfficialAnkiHomeDue.officialDue
+        : 0;
 
     return RepaintBoundary(
       child: CustomScrollView(
@@ -113,6 +119,16 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
               child: SectionTitle(title: AppStrings.playReviewCenterTitle),
             ),
           ),
+          if (OfficialAnkiFeatureFlags.current.allowsOfficialScheduler)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                child: Text(
+                  key: const Key('official-anki-due'),
+                  'Official Anki due: $officialDue',
+                ),
+              ),
+            ),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),

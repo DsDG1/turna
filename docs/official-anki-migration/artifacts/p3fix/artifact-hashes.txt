@@ -1,0 +1,10 @@
+=== artifact hashes 2026-08-17T19:03:29+08:00 ===
+1f0391bd31b925e13db0d27e4f6b7ee040a3372eb5804f697484157aa7d73c0c  /home/whwen/documents/reso/Varnamalaplus/Varnamalaplus/android/app/src/main/jniLibs/arm64-v8a/libturna_anki.so
+7cd34748f60d0326c351631b79800f7d498b458ec9e928507a764adb519a55f5  /home/whwen/documents/reso/Varnamalaplus/Varnamalaplus/build/app/outputs/flutter-apk/app-debug.apk
+8f97eb185a5d7a10d5df4fd7bb9cada5c84deb5fb52175dc0b331010904d2c65  /tmp/grok-goal-85a0432f002a/implementer/apk-unpack/lib/arm64-v8a/libturna_anki.so
+44c0df5e3b0889831d6bfad62f26176a9e77fbed35d8410f47665a1dbab3d234  /home/whwen/documents/reso/Varnamalaplus/Varnamalaplus/native/turna_anki_core/bridge/src/contract.rs
+a3211e003021742c9c71bf51169ec57c05e24f66b709c3b899a13c72b3d18676  /home/whwen/documents/reso/Varnamalaplus/Varnamalaplus/native/turna_anki_core/bridge/src/ops.rs
+28fa0ade749f6e9c543cf32813b2909ad21eb5fbae2cb22b4af3ece8a0843bf5  /home/whwen/documents/reso/Varnamalaplus/Varnamalaplus/native/turna_anki_core/bridge/src/projection.rs
+44804414f85bef9588f60086587fd6e8871b39123c831ec129624f4d81a95fea  /home/whwen/documents/reso/Varnamalaplus/Varnamalaplus/native/turna_anki_core/contract/VERSION
+ad8e85e70b34cdf24cfd8c64001ec3252b71b4031ff195fbad890e232378ecc2  /home/whwen/documents/reso/Varnamalaplus/Varnamalaplus/docs/official-anki-migration/10-phase-3-fix-result-report.md
+46db15550f7a7f9cfe2fb25bdf891f09a8bfa71d8f842b2b024f4ae48c8584d6  /home/whwen/documents/reso/Varnamalaplus/Varnamalaplus/docs/official-anki-migration/artifacts/p3fix/exit-decision.txt

@@ -1185,7 +1185,8 @@ migrated_source_id
 - [ ] 离线 MathJax。
 - [ ] 实现 JS/navigation/network policy。
 - [ ] 新 Reviewer 加 feature flag。
-- [ ] 删除旧模板渲染与 fallback。
+- [ ] 移除 official source 到 Legacy renderer 的运行时 fallback；Legacy 源码留到 Phase 5 再删除。
+- [ ] P2 reviewer 只做预览：不写 Again/Hard/Good/Easy，不写入 Turna SRS 或官方 Scheduler。
 
 退出门槛：
 

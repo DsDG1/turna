@@ -2,6 +2,7 @@ import 'package:turna/application/anki_official/contract/official_anki_contract.
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
+import 'package:turna/application/anki_official/engine/official_anki_scheduler_audit.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 
 /// In-process engine for tests. Does not reimplement the import saga.
@@ -22,7 +23,21 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
   final Map<String, OfficialAnkiImportLog> logsByPackage = {};
   final Map<int, List<int>> cardsByNote = {};
   final Map<int, OfficialAnkiCardDescriptor> cards = {};
+  final Map<int, OfficialAnkiRenderedCard> renders = {};
+  var renderCount = 0;
+  var compareCount = 0;
   bool failImport = false;
+  bool failRender = false;
+  var collectionGeneration = 1;
+  String? projectionToken;
+  String? projectionFingerprint;
+  final projectionRowOverrides = <int, OfficialAnkiProjectionRow>{};
+  final projectionBatchSizes = <int>[];
+  var projectionBatchCalls = 0;
+  final missingOnRead = <int>{};
+  var emitDuplicateRows = false;
+  var invalidateSnapshotOnRead = false;
+  var projectionSchemaFingerprint = 'fake-basic';
 
   void seedPackage({
     required String packagePath,
@@ -87,6 +102,23 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
         OfficialAnkiOperation.searchCardsPage,
         OfficialAnkiOperation.getNoteCardsBatch,
         OfficialAnkiOperation.getCardDescriptorsBatch,
+        OfficialAnkiOperation.renderCard,
+        OfficialAnkiOperation.compareTypedAnswer,
+        OfficialAnkiOperation.extractClozeForTyping,
+        OfficialAnkiOperation.listDeckTree,
+        OfficialAnkiOperation.getProjectionSchemas,
+        OfficialAnkiOperation.beginProjectionRead,
+        OfficialAnkiOperation.getProjectionRowsBatch,
+        OfficialAnkiOperation.setCurrentDeck,
+        OfficialAnkiOperation.getReviewQueue,
+        OfficialAnkiOperation.describeNextStates,
+        OfficialAnkiOperation.answerCard,
+        OfficialAnkiOperation.getUndoStatus,
+        OfficialAnkiOperation.undo,
+        OfficialAnkiOperation.redo,
+        OfficialAnkiOperation.buryOrSuspendCards,
+        OfficialAnkiOperation.countsForDeckToday,
+        OfficialAnkiOperation.congratsInfo,
       },
     );
   }
@@ -138,6 +170,8 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
       );
     }
     importCount++;
+    collectionGeneration += 1;
+    projectionToken = null;
     return logsByPackage[packagePath] ??
         const OfficialAnkiImportLog(
           newNoteIds: <int>[1],
@@ -196,6 +230,391 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
       for (final id in cardIds)
         if (cards[id] != null) cards[id]!,
     ];
+  }
+
+  @override
+  Future<OfficialAnkiRenderedCard> renderCard({
+    required int cardId,
+    bool browser = false,
+    bool includeAvTags = true,
+  }) async {
+    if (failRender) {
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.renderFailed,
+        messageKey: 'official_anki.render_failed',
+      );
+    }
+    renderCount++;
+    final seeded = renders[cardId];
+    if (seeded != null) return seeded;
+    if (cards[cardId] == null) {
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.cardNotFound,
+        messageKey: 'official_anki.card_not_found',
+      );
+    }
+    return OfficialAnkiRenderedCard(
+      cardId: cardId,
+      questionHtml: 'Q$cardId',
+      answerHtml: 'A$cardId',
+      questionDisplayHtml: 'Q$cardId',
+      answerDisplayHtml: 'A$cardId',
+      css: '.card{}',
+      templateOrdinal: 0,
+      bodyClass: 'card card1',
+    );
+  }
+
+  @override
+  Future<OfficialAnkiTypedComparison> compareTypedAnswer({
+    required int cardId,
+    required String marker,
+    required String provided,
+  }) async {
+    compareCount++;
+    if (cards[cardId] == null && renders[cardId] == null) {
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.cardNotFound,
+        messageKey: 'official_anki.card_not_found',
+      );
+    }
+    if (marker.contains('NoSuchField')) {
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.typedFieldNotFound,
+        messageKey: 'official_anki.typed_field_not_found',
+      );
+    }
+    final expected = renders[cardId]?.typedAnswer?.marker == marker
+        ? provided
+        : provided;
+    return OfficialAnkiTypedComparison(
+      comparisonHtml: '<code id=typeans><span class=typeGood>$expected</span></code>',
+      hasExpected: true,
+    );
+  }
+
+  @override
+  Future<String> extractClozeForTyping({
+    required String text,
+    required int ordinal,
+  }) async {
+    final match = RegExp('\\{\\{c$ordinal::([^}]+)\\}\\}').firstMatch(text);
+    final value = match?.group(1) ?? '';
+    if (value.isEmpty) {
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.typedClozeEmpty,
+        messageKey: 'official_anki.typed_cloze_empty',
+      );
+    }
+    return value;
+  }
+
+  @override
+  Future<List<OfficialAnkiDeckNode>> listDeckTree() async {
+    return const [
+      OfficialAnkiDeckNode(deckId: 1, name: 'Default', level: 0),
+    ];
+  }
+
+  @override
+  Future<List<OfficialAnkiProjectionSchema>> getProjectionSchemas({
+    List<int> notetypeIds = const <int>[],
+    bool includeSamples = false,
+    int sampleLimit = 3,
+  }) async {
+    return [
+      OfficialAnkiProjectionSchema(
+        notetypeId: 1,
+        name: 'Basic',
+        kind: 'normal',
+        fieldNames: const ['Front', 'Back'],
+        templateNames: const ['Card 1'],
+        schemaFingerprint: projectionSchemaFingerprint,
+        samples: includeSamples
+            ? const [
+                OfficialAnkiProjectionSample(
+                  noteId: 1,
+                  fields: ['hello', '你好'],
+                ),
+              ]
+            : const <OfficialAnkiProjectionSample>[],
+      ),
+    ];
+  }
+
+  @override
+  Future<OfficialAnkiProjectionSnapshot> beginProjectionRead({
+    required String cardSetFingerprint,
+    int mappingVersion = 1,
+  }) async {
+    projectionFingerprint = cardSetFingerprint;
+    projectionToken = 'fake-$collectionGeneration-$mappingVersion';
+    return OfficialAnkiProjectionSnapshot(
+      snapshotToken: projectionToken!,
+      collectionGeneration: collectionGeneration,
+      backendCommit: backendCommit,
+    );
+  }
+
+  @override
+  Future<OfficialAnkiProjectionPage> getProjectionRowsBatch({
+    required List<int> cardIds,
+    required String snapshotToken,
+  }) async {
+    if (cardIds.length > 500) {
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.invalidArgument,
+        messageKey: 'official_anki.invalid_argument',
+      );
+    }
+    if (snapshotToken != projectionToken) {
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.projectionSnapshotStale,
+        messageKey: 'official_anki.projection_snapshot_stale',
+        recoverable: true,
+      );
+    }
+    if (invalidateSnapshotOnRead) {
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.projectionSnapshotStale,
+        messageKey: 'official_anki.projection_snapshot_stale',
+        recoverable: true,
+      );
+    }
+    projectionBatchCalls += 1;
+    projectionBatchSizes.add(cardIds.length);
+    final rows = <OfficialAnkiProjectionRow>[];
+    final missing = <int>[];
+    for (final id in cardIds) {
+      if (missingOnRead.contains(id)) {
+        missing.add(id);
+        continue;
+      }
+      final override = projectionRowOverrides[id];
+      if (override != null) {
+        rows.add(override);
+        continue;
+      }
+      final card = cards[id];
+      if (card == null) {
+        missing.add(id);
+        continue;
+      }
+      rows.add(
+        OfficialAnkiProjectionRow(
+          cardId: id,
+          noteId: card.noteId,
+          noteGuid: card.noteGuid ?? 'guid-$id',
+          notetypeId: 1,
+          deckId: card.deckId,
+          deckPath: const ['Default'],
+          templateOrdinal: card.templateOrd,
+          tags: const <String>[],
+          fields: const ['hello', '你好'],
+          sourceFingerprint: 'row-$id',
+        ),
+      );
+    }
+    if (emitDuplicateRows && rows.isNotEmpty) {
+      rows.add(rows.first);
+    }
+    return OfficialAnkiProjectionPage(rows: rows, missingCardIds: missing);
+  }
+
+  var queueEpoch = 0;
+  var sessionSerial = 0;
+  String? activeSessionId;
+  final issuedTokens = <String, int>{};
+  final consumedTokens = <String>{};
+  var officialAnswers = 0;
+  var officialUndos = 0;
+  var officialRedos = 0;
+  var lastMillisecondsTaken = 0;
+  var currentDeckId = 1;
+  final buried = <int>{};
+  final suspended = <int>{};
+
+  @override
+  Future<void> setCurrentDeck(int deckId) async {
+    currentDeckId = deckId;
+    _invalidateTokens();
+  }
+
+  @override
+  Future<OfficialReviewQueue> getReviewQueue({int fetchLimit = 1}) async {
+    if (fetchLimit < 1 || fetchLimit > 100) {
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.invalidArgument,
+        messageKey: 'official_anki.invalid_argument',
+      );
+    }
+    _invalidateTokens();
+    final ids = cards.keys.where((id) => !buried.contains(id) && !suspended.contains(id)).toList()
+      ..sort();
+    if (ids.isEmpty) {
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.queueEmpty,
+        messageKey: 'official_anki.queue_empty',
+      );
+    }
+    final take = ids.take(fetchLimit).toList();
+    final queued = <OfficialReviewQueueCard>[];
+    for (final id in take) {
+      final token = 'tok-$activeSessionId-$queueEpoch-$id';
+      issuedTokens[token] = id;
+      queued.add(
+        OfficialReviewQueueCard(
+          cardId: id,
+          noteId: cards[id]?.noteId ?? id,
+          deckId: cards[id]?.deckId ?? currentDeckId,
+          templateOrdinal: cards[id]?.templateOrd ?? 0,
+          queueKind: 'review',
+          answerToken: token,
+          labels: const OfficialReviewIntervalLabels(
+            again: '1m',
+            hard: '6d',
+            good: '15d',
+            easy: '1mo',
+          ),
+        ),
+      );
+    }
+    return OfficialReviewQueue(
+      sessionId: activeSessionId!,
+      queueEpoch: queueEpoch,
+      newCount: take.length,
+      learningCount: 0,
+      reviewCount: 0,
+      cards: queued,
+    );
+  }
+
+  @override
+  Future<OfficialAnswerResult> answerCard({
+    required String sessionId,
+    required int queueEpoch,
+    required String answerToken,
+    required int cardId,
+    required String rating,
+    required int millisecondsTaken,
+    int? answeredAtMillis,
+  }) async {
+    if (millisecondsTaken < 0 || millisecondsTaken > 24 * 60 * 60 * 1000) {
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.invalidArgument,
+        messageKey: 'official_anki.invalid_argument',
+      );
+    }
+    final expected = issuedTokens[answerToken];
+    if (expected == null ||
+        consumedTokens.contains(answerToken) ||
+        sessionId != activeSessionId ||
+        queueEpoch != this.queueEpoch ||
+        expected != cardId) {
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.schedulingContextStale,
+        messageKey: 'official_anki.scheduling_context_stale',
+      );
+    }
+    consumedTokens.add(answerToken);
+    officialAnswers += 1;
+    lastMillisecondsTaken = millisecondsTaken;
+    OfficialAnkiSchedulerAudit.officialSchedulerAnswers += 1;
+    _invalidateTokens();
+    return OfficialAnswerResult(
+      cardId: cardId,
+      queue: rating,
+      revlogCount: officialAnswers,
+      millisecondsTaken: millisecondsTaken,
+    );
+  }
+
+  @override
+  Future<OfficialUndoStatus> getUndoStatus() async {
+    return OfficialUndoStatus(
+      canUndo: officialAnswers > officialUndos,
+      canRedo: officialUndos > officialRedos,
+    );
+  }
+
+  @override
+  Future<OfficialMutationResult> undo() async {
+    if (officialAnswers <= officialUndos) {
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.undoUnavailable,
+        messageKey: 'official_anki.undo_unavailable',
+      );
+    }
+    officialUndos += 1;
+    OfficialAnkiSchedulerAudit.officialSchedulerUndo += 1;
+    _invalidateTokens();
+    return const OfficialMutationResult(ok: true, undone: true);
+  }
+
+  @override
+  Future<OfficialMutationResult> redo() async {
+    if (officialUndos <= officialRedos) {
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.redoUnavailable,
+        messageKey: 'official_anki.redo_unavailable',
+      );
+    }
+    officialRedos += 1;
+    OfficialAnkiSchedulerAudit.officialSchedulerRedo += 1;
+    _invalidateTokens();
+    return const OfficialMutationResult(ok: true, redone: true);
+  }
+
+  @override
+  Future<OfficialDeckCounts> countsForDeckToday(int deckId) async {
+    return OfficialDeckCounts(
+      deckId: deckId,
+      newStudied: officialAnswers,
+      reviewStudied: officialAnswers,
+    );
+  }
+
+  @override
+  Future<OfficialCongratsInfo> congratsInfo() async {
+    final remaining = cards.keys.any((id) => !buried.contains(id) && !suspended.contains(id));
+    return OfficialCongratsInfo(
+      learnRemaining: remaining ? 1 : 0,
+      reviewRemaining: remaining,
+      newRemaining: remaining,
+      haveSchedBuried: buried.isNotEmpty,
+      haveUserBuried: buried.isNotEmpty,
+      isFilteredDeck: false,
+      secsUntilNextLearn: remaining ? 60 : 86400,
+    );
+  }
+
+  @override
+  Future<void> buryOrSuspendCards({
+    required OfficialBuryOrSuspendAction action,
+    List<int> cardIds = const <int>[],
+    int? deckId,
+  }) async {
+    switch (action) {
+      case OfficialBuryOrSuspendAction.buryCard:
+      case OfficialBuryOrSuspendAction.burySiblings:
+        buried.addAll(cardIds);
+      case OfficialBuryOrSuspendAction.unburyDeck:
+        buried.clear();
+      case OfficialBuryOrSuspendAction.suspendCards:
+        suspended.addAll(cardIds);
+      case OfficialBuryOrSuspendAction.unsuspendCards:
+        for (final id in cardIds) {
+          suspended.remove(id);
+        }
+    }
+    _invalidateTokens();
+  }
+
+  void _invalidateTokens() {
+    issuedTokens.clear();
+    queueEpoch += 1;
+    sessionSerial += 1;
+    activeSessionId = 'session-$sessionSerial';
   }
 
   @override

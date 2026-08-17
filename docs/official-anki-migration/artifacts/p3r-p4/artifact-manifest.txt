@@ -1,0 +1,24 @@
+P3R-P4 artifact directory
+date: 2026-08-17
+HEAD: cc1484b30739bceeba07fe1a3be98b8b0e11018d + dirty worktree
+upstream pin: 967aa0d578fc75181e292e95326f9b58698da25c
+contract source: 1.3
+packaged so: still 1.2 (1f0391bd31b925e13db0d27e4f6b7ee040a3372eb5804f697484157aa7d73c0c)
+
+files:
+  baseline.txt
+  artifact-manifest.txt
+  commands.txt
+  p3r-host-tests.txt
+  p3r-device-a.txt
+  p3r-performance.json
+  p4-contract-tests.txt
+  p4-differential.json
+  p4-device-a.txt
+  p4-device-b.txt
+  p4-performance.json
+  scheduler-write-audit.json
+  release-probe.txt
+  device-env-block.txt
+  gradle-unit.txt
+  final-decision.txt

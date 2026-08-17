@@ -1,0 +1,29 @@
+html, body {
+  margin: 0;
+  padding: 12px;
+  background: #fff;
+  color: #111;
+}
+body.nightMode {
+  background: #111;
+  color: #eee;
+}
+#qa {
+  min-height: 40px;
+}
+#card-host, #card-frame {
+  width: 100%;
+  min-height: 100%;
+  border: 0;
+  display: block;
+  background: transparent;
+}
+.typeans-ph {
+  display: inline-block;
+  min-width: 8em;
+  min-height: 1.4em;
+  border-bottom: 1px solid currentColor;
+}
+img, video, audio {
+  max-width: 100%;
+}

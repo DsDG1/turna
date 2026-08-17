@@ -326,7 +326,7 @@ class CourseDatabase extends _$CourseDatabase {
   CourseDatabase(QueryExecutor e) : super(e);
 
   @override
-  int get schemaVersion => 15;
+  int get schemaVersion => 17;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -335,6 +335,8 @@ class CourseDatabase extends _$CourseDatabase {
           await _addAnkiStateColumns(m.database);
           await _ensureAnkiCanonicalV2(m.database);
           await _ensureFunLabSnapshotTables(m.database);
+          await _ensureOfficialProjectionIndex(m.database);
+          await _ensureOfficialProjectionManifest(m.database);
         },
         onUpgrade: (m, from, to) async {
           if (from > to) {
@@ -371,6 +373,8 @@ class CourseDatabase extends _$CourseDatabase {
               'fun_lab_snapshot_review_events',
               'fun_lab_snapshot_srs',
               'fun_lab_snapshot_meta',
+              'official_anki_projection_index',
+              'official_anki_projection_manifest',
             ]) {
               await m.deleteTable(tableName);
             }
@@ -378,6 +382,8 @@ class CourseDatabase extends _$CourseDatabase {
             await _addAnkiStateColumns(m.database);
             await _ensureAnkiCanonicalV2(m.database);
             await _ensureFunLabSnapshotTables(m.database);
+            await _ensureOfficialProjectionIndex(m.database);
+            await _ensureOfficialProjectionManifest(m.database);
             return;
           }
           if (from < 2) {
@@ -498,8 +504,58 @@ class CourseDatabase extends _$CourseDatabase {
             // restored with transactional INSERT ... SELECT statements.
             await _ensureFunLabSnapshotTables(m.database);
           }
+          if (from < 16) {
+            // v16: derived official Anki projection index only. User mapping
+            // and placement stay in Official catalog so a CourseDatabase
+            // downgrade wipe cannot delete them. Do not reuse this version
+            // for unrelated tables (ai_sessions must use a later version).
+            await _ensureOfficialProjectionIndex(m.database);
+          }
+          if (from < 17) {
+            await _ensureOfficialProjectionManifest(m.database);
+          }
         },
       );
+
+  static Future<void> _ensureOfficialProjectionIndex(
+    GeneratedDatabase database,
+  ) async {
+    await database.customStatement('''
+      CREATE TABLE IF NOT EXISTS official_anki_projection_index (
+        source_id TEXT NOT NULL,
+        card_id INTEGER NOT NULL,
+        word_id TEXT NOT NULL,
+        section_id TEXT NOT NULL,
+        unit_id TEXT NOT NULL,
+        lesson_id TEXT NOT NULL,
+        projection_kind TEXT NOT NULL,
+        source_fingerprint TEXT NOT NULL,
+        projection_version INTEGER NOT NULL,
+        PRIMARY KEY(source_id, card_id, projection_kind)
+      )
+    ''');
+    await database.customStatement('''
+      CREATE UNIQUE INDEX IF NOT EXISTS official_anki_projection_word_source_idx
+      ON official_anki_projection_index(source_id, word_id, projection_kind)
+    ''');
+  }
+
+  static Future<void> _ensureOfficialProjectionManifest(
+    GeneratedDatabase database,
+  ) async {
+    await database.customStatement('''
+      CREATE TABLE IF NOT EXISTS official_anki_projection_manifest (
+        source_id TEXT PRIMARY KEY NOT NULL,
+        active_generation TEXT NOT NULL,
+        source_fingerprint TEXT NOT NULL,
+        projection_version INTEGER NOT NULL,
+        section_count INTEGER NOT NULL,
+        lesson_count INTEGER NOT NULL,
+        item_count INTEGER NOT NULL,
+        published_at_millis INTEGER NOT NULL
+      )
+    ''');
+  }
 
   static Future<void> _ensureFunLabSnapshotTables(
     GeneratedDatabase database,

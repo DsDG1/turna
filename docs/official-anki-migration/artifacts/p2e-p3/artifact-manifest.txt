@@ -1,0 +1,56 @@
+P2E-P3 artifact manifest
+date: 2026-08-17
+
+baseline.txt
+  HEAD cc1484b30739bceeba07fe1a3be98b8b0e11018d
+  Host debug .so (freeze) sha256 57590f2586cb2e34d706e2dc5e95302c94fcbe192412454a6ff41f71a20f20cb
+  Android .so (freeze) sha256 111b0faee969d3766248a81189650b7ef4c10c975635f8766213ef541177a928
+
+entry-decision.txt
+  P2 → P3 ENTRY GO
+  08 remains P2 TECHNICAL ACCEPTANCE NO-GO
+
+rebuilt Android arm64 .so
+  path: android/app/src/main/jniLibs/arm64-v8a/libturna_anki.so
+  bytes: 20260288
+  sha256: 554e5601c539e9c6cb873fec0f0806141e6adf36295c3e75dcd439021109ce32
+  mtime: 2026-08-17 13:59:50 +0800
+  later than display.rs / typed.rs / ops.rs
+  second hash check: identical
+
+rebuilt Host debug .so
+  path: native/turna_anki_core/target/debug/libturna_anki.so
+  sha256: 7769807eabd4d777ed638876403717c53f6bc04b739f2c01f0883c0a60a8a0ec
+
+debug APK (acceptance package, not 39b404...)
+  path: build/app/outputs/flutter-apk/app-debug.apk
+  bytes: 225660227
+  sha256: 77cc6f8c545c80e60e199b81de5227ebc710bbe468f59c50503ed9bb8a1df306
+  contains: assets/anki_reviewer/{card-frame.js,reviewer.js,mathjax/tex-svg-full.js}
+  contains: lib/arm64-v8a/libturna_anki.so
+
+reviewer assets after P2E-001
+  card-frame.js sha256 048b81d3649511a9648d553e5fe5ffea3672fbd220849366473d408e262dfee4
+  reviewer.js sha256 fbeb7eb93371f16320c15f177c8001876936dd2b95220eefcbb49cd93dbe9080
+
+commands / scratch logs
+  {SCRATCH}/p2e-000-baseline.log
+  {SCRATCH}/p2e-001-card-frame.log
+  {SCRATCH}/p2e-002-present.log
+  {SCRATCH}/p2e-002-present-kotlin.log
+  {SCRATCH}/p2e-003-004-ui-av-error.log
+  {SCRATCH}/p2e-005-cleanup.log
+  {SCRATCH}/p2e-006-build.log
+  {SCRATCH}/p2e-006-render-card.log
+  {SCRATCH}/p2e-007-androidTest-unavailable.log
+  {SCRATCH}/p2e-008-no-device.log
+  {SCRATCH}/p3-010-011-contract.log
+  {SCRATCH}/p3-020-031-db.log
+  {SCRATCH}/p3-040-061-projection.log
+  {SCRATCH}/p3-official-schema-rerun.log
+  {SCRATCH}/p3-widget-skip.txt
+
+P3 contract: 1.2
+Official catalog schema: 3
+CourseDatabase.schemaVersion: 16 (derived official_anki_projection_index only)
+Flags: TURNA_OFFICIAL_ANKI_PROJECTION / TURNA_OFFICIAL_ANKI_COURSE_ENTRY default false

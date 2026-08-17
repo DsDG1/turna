@@ -1,8 +1,10 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:turna/application/anki_official/contract/official_anki_contract.dart';
+import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine_ffi.dart';
 import 'package:turna/application/anki_official/engine/official_anki_native_transport.dart';
 import 'package:turna/application/anki_official/engine/official_anki_session.dart';
@@ -36,6 +38,30 @@ void main() {
     expect(info.backendCommit, isNotEmpty);
     expect(info.backendCommit, isNot('unknown'));
     expect(info.has(OfficialAnkiOperation.importPackage), isTrue);
+    expect(info.has(OfficialAnkiOperation.renderCard), isTrue);
+    expect(info.has(OfficialAnkiOperation.compareTypedAnswer), isTrue);
+    expect(info.contractMinor, anyOf(2, 3));
+  });
+
+  test('Host FFI openProfile is idempotent when Collection is already open', () async {
+    if (libraryPath == null) {
+      if (_requireNative) {
+        fail('libturna_anki.so missing; TURNA_ANKI_REQUIRE_NATIVE=1');
+      }
+      return;
+    }
+    final root = Directory.systemTemp.createTempSync('turna-reopen-');
+    addTearDown(() => root.deleteSync(recursive: true));
+    final paths = OfficialAnkiPaths(
+      profileId: 'profile-reopen01',
+      profileRoot: Directory('${root.path}/profile'),
+    );
+    final transport = OfficialAnkiNativeTransport.open(libraryPath: libraryPath);
+    final engine = FfiOfficialAnkiEngine.connect(transport);
+    addTearDown(engine.dispose);
+    await engine.openProfile(paths);
+    await engine.openProfile(paths);
+    await engine.checkCollection();
   });
 
   test('Dart allocator → C ABI → rslib → catalog for unicode fixture', () async {
@@ -101,5 +127,96 @@ void main() {
     );
     expect(imported.state, OfficialAnkiSourceState.active);
     expect(ticks, greaterThan(0));
+  });
+
+  test('Host FFI renders nine official fixtures and compares typed answer', () async {
+    if (libraryPath == null) {
+      if (_requireNative) {
+        fail('libturna_anki.so missing; TURNA_ANKI_REQUIRE_NATIVE=1');
+      }
+      return;
+    }
+    final expectedDir = Directory('test/fixtures/anki_official/expected');
+    final packages = [
+      '01-basic-unicode',
+      '02-basic-reversed',
+      '03-optional-reversed',
+      '04-cloze-multi-ord',
+      '05-frontside-css',
+      '06-media-paths',
+      '07-typed-answer',
+      '08-scheduling',
+      '09-legacy-package',
+    ];
+    for (final name in packages) {
+      final root = Directory.systemTemp.createTempSync('turna-render-$name-');
+      addTearDown(() => root.deleteSync(recursive: true));
+      final paths = OfficialAnkiPaths(
+        profileId: 'profile-r${name.substring(0, 2)}01',
+        profileRoot: Directory('${root.path}/profile'),
+      );
+      final transport = OfficialAnkiNativeTransport.open(libraryPath: libraryPath);
+      final engine = FfiOfficialAnkiEngine.connect(transport);
+      addTearDown(engine.dispose);
+      final db = OfficialAnkiDatabase.file('${root.path}/catalog.sqlite');
+      addTearDown(db.close);
+      final pkg = File('test/fixtures/anki_official/packages/$name.apkg');
+      final imported = await OfficialAnkiImportOrchestrator(
+        engine: engine,
+        sources: OfficialAnkiSourceDao(db),
+        attempts: OfficialAnkiImportAttemptDao(db),
+        paths: paths,
+      ).importFile(packagePath: pkg.absolute.path, displayName: name);
+      expect(imported.state, OfficialAnkiSourceState.active);
+      final page = await engine.searchCardsPage();
+      expect(page.cardIds, isNotEmpty);
+      final expected = jsonDecode(
+        File('${expectedDir.path}/$name.json').readAsStringSync(),
+      ) as Map<String, dynamic>;
+      final expectedCards = expected['cards'] as List;
+      final rendered = <OfficialAnkiRenderedCard>[];
+      for (final cardId in page.cardIds) {
+        rendered.add(await engine.renderCard(cardId: cardId));
+      }
+      expect(rendered.length, expectedCards.length, reason: name);
+      for (final exp in expectedCards) {
+        final expMap = Map<String, Object?>.from(exp as Map);
+        expect(
+          rendered.any(
+            (got) =>
+                got.questionHtml == expMap['questionHtml'] &&
+                got.answerHtml == expMap['answerHtml'],
+          ),
+          isTrue,
+          reason: '$name missing ${expMap['questionHtml']}',
+        );
+      }
+      if (name == '07-typed-answer') {
+        final card = rendered.single;
+        expect(card.typedAnswer?.marker, '[[type:Back]]');
+        final compared = await engine.compareTypedAnswer(
+          cardId: card.cardId,
+          marker: '[[type:Back]]',
+          provided: 'typed-back',
+        );
+        expect(compared.hasExpected, isTrue);
+        expect(compared.comparisonHtml, contains('typeans'));
+      }
+      if (name == '02-basic-reversed') {
+        expect(rendered.length, 2);
+        expect(rendered.any((card) => card.templateOrdinal == 1), isTrue);
+        expect(rendered.any((card) => card.bodyClass.contains('card2')), isTrue);
+        for (final card in rendered) {
+          expect(card.bodyClass, contains('card${card.templateOrdinal + 1}'));
+        }
+      }
+      if (name == '06-media-paths') {
+        expect(
+          rendered.first.answerAvTags.any((tag) => tag.filename == 'paren (1).mp3'),
+          isTrue,
+        );
+        expect(rendered.first.answerDisplayHtml.contains('[sound:'), isFalse);
+      }
+    }
   });
 }

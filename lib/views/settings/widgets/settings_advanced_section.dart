@@ -75,7 +75,7 @@ class SettingsAdvancedSection extends StatelessWidget {
               SettingsNavigationTile(
                 icon: Icons.inventory_2_outlined,
                 title: 'Official Anki 内部导入',
-                subtitle: '仅 debug：官方 Collection 导入，复习入口未开放',
+                subtitle: '仅 debug：官方导入与原卡预览（生产 flag 默认关闭）',
                 onTap: (ctx) => Navigator.of(ctx).push(
                   MaterialPageRoute<void>(
                     builder: (_) => const OfficialAnkiInternalPage(),

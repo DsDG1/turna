@@ -1,0 +1,14 @@
+{
+  "fixture": "08-scheduling.apkg",
+  "host": "ops::tests::queue_good_undo_reopen_and_stale_token + redo_bury_counts_and_congrats_use_official_apis",
+  "observations": {
+    "answerUsesMillisecondsTaken": true,
+    "duplicateTokenDoesNotDoubleWrite": true,
+    "undoRestoresCardPublicFields": true,
+    "redoReapplies": true,
+    "burySuspendInvalidatesEpoch": true,
+    "countsAndCongratsFromOfficialApis": true,
+    "fetchLimitZeroFailClosed": true
+  },
+  "deviceDifferential": "UNAVAILABLE"
+}

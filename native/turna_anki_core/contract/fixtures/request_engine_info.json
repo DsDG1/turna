@@ -1,5 +1,5 @@
 {
-  "contractVersion": { "major": 1, "minor": 0 },
+  "contractVersion": { "major": 1, "minor": 3 },
   "requestId": "01JENGINEINFO",
   "operation": "ENGINE_INFO",
   "payload": {}

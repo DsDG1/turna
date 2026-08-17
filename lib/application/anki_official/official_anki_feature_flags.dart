@@ -7,6 +7,11 @@ class OfficialAnkiFeatureFlags {
     this.catalogReady = false,
     this.runtimeCapable = false,
     this.platformReady = false,
+    this.renderer = false,
+    this.reviewerDiagnostics = false,
+    this.projection = false,
+    this.courseEntry = false,
+    this.scheduler = false,
   });
 
   factory OfficialAnkiFeatureFlags.fromEnvironment() {
@@ -16,6 +21,13 @@ class OfficialAnkiFeatureFlags {
     const catalogReady = bool.fromEnvironment('TURNA_OFFICIAL_ANKI_CATALOG');
     const runtimeCapable = bool.fromEnvironment('TURNA_OFFICIAL_ANKI_RUNTIME');
     const platformReady = bool.fromEnvironment('TURNA_OFFICIAL_ANKI_PLATFORM');
+    const renderer = bool.fromEnvironment('TURNA_OFFICIAL_ANKI_RENDERER');
+    const reviewerDiagnostics =
+        bool.fromEnvironment('TURNA_OFFICIAL_ANKI_REVIEWER_DIAGNOSTICS');
+    const projection = bool.fromEnvironment('TURNA_OFFICIAL_ANKI_PROJECTION');
+    const courseEntry =
+        bool.fromEnvironment('TURNA_OFFICIAL_ANKI_COURSE_ENTRY');
+    const scheduler = bool.fromEnvironment('TURNA_OFFICIAL_ANKI_SCHEDULER');
     return const OfficialAnkiFeatureFlags(
       engine: engine,
       import: import,
@@ -23,6 +35,11 @@ class OfficialAnkiFeatureFlags {
       catalogReady: catalogReady,
       runtimeCapable: runtimeCapable,
       platformReady: platformReady,
+      renderer: renderer,
+      reviewerDiagnostics: reviewerDiagnostics,
+      projection: projection,
+      courseEntry: courseEntry,
+      scheduler: scheduler,
     );
   }
 
@@ -32,12 +49,35 @@ class OfficialAnkiFeatureFlags {
   final bool catalogReady;
   final bool runtimeCapable;
   final bool platformReady;
+  final bool renderer;
+  final bool reviewerDiagnostics;
+  final bool projection;
+  final bool courseEntry;
+  final bool scheduler;
 
   static OfficialAnkiFeatureFlags current =
       OfficialAnkiFeatureFlags.fromEnvironment();
 
   bool get allowsOfficialImport =>
       import && engine && catalogReady && runtimeCapable && platformReady;
+
+  bool get allowsOfficialRenderer =>
+      renderer && engine && catalogReady && runtimeCapable && platformReady;
+
+  bool get allowsProjection =>
+      engine && import && catalogReady && runtimeCapable && projection;
+
+  bool get allowsCourseEntry =>
+      allowsProjection && courseEntry;
+
+  bool get allowsOfficialScheduler =>
+      engine &&
+      import &&
+      catalogReady &&
+      runtimeCapable &&
+      platformReady &&
+      renderer &&
+      scheduler;
 
   OfficialAnkiFeatureFlags copyWith({
     bool? engine,
@@ -46,6 +86,11 @@ class OfficialAnkiFeatureFlags {
     bool? catalogReady,
     bool? runtimeCapable,
     bool? platformReady,
+    bool? renderer,
+    bool? reviewerDiagnostics,
+    bool? projection,
+    bool? courseEntry,
+    bool? scheduler,
   }) {
     return OfficialAnkiFeatureFlags(
       engine: engine ?? this.engine,
@@ -54,6 +99,18 @@ class OfficialAnkiFeatureFlags {
       catalogReady: catalogReady ?? this.catalogReady,
       runtimeCapable: runtimeCapable ?? this.runtimeCapable,
       platformReady: platformReady ?? this.platformReady,
+      renderer: renderer ?? this.renderer,
+      reviewerDiagnostics: reviewerDiagnostics ?? this.reviewerDiagnostics,
+      projection: projection ?? this.projection,
+      courseEntry: courseEntry ?? this.courseEntry,
+      scheduler: scheduler ?? this.scheduler,
     );
   }
+}
+
+enum OfficialAnkiExecutionMode {
+  none,
+  worker,
+  inProcess,
+  fake,
 }

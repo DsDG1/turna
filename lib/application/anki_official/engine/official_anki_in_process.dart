@@ -4,6 +4,7 @@ import 'package:turna/application/anki_official/engine/official_anki_worker.dart
 import 'package:turna/application/anki_official/import/official_anki_import_orchestrator.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
+import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
@@ -23,6 +24,7 @@ class OfficialAnkiInProcessHost implements OfficialAnkiImporter {
     final transport = OfficialAnkiNativeTransport.open(libraryPath: libraryPath);
     final engine = OfficialAnkiWorker(FfiOfficialAnkiEngine.connect(transport));
     final db = OfficialAnkiDatabase.file(paths.catalogFile.path);
+    OfficialAnkiCourseEntry.catalogOf = () => db;
     return OfficialAnkiInProcessHost._(
       OfficialAnkiImportOrchestrator(
         engine: engine,

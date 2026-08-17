@@ -14,6 +14,9 @@ enum OfficialAnkiErrorCode {
   packageInvalid,
   importCancelled,
   cardNotFound,
+  renderFailed,
+  typedFieldNotFound,
+  typedClozeEmpty,
   pageTokenStale,
   contractVersionMismatch,
   ioError,
@@ -21,6 +24,16 @@ enum OfficialAnkiErrorCode {
   internalError,
   capabilityMissing,
   needsReconciliation,
+  projectionSnapshotStale,
+  projectionSourceChanged,
+  queueEmpty,
+  schedulingContextStale,
+  answerFailed,
+  undoUnavailable,
+  redoUnavailable,
+  deckNotFound,
+  schedulerBusy,
+  schedulerCapabilityMissing,
   unknown,
 }
 
@@ -79,8 +92,34 @@ OfficialAnkiErrorCode officialAnkiErrorCodeFromName(String? name) {
       return OfficialAnkiErrorCode.importCancelled;
     case 'CARD_NOT_FOUND':
       return OfficialAnkiErrorCode.cardNotFound;
+    case 'RENDER_FAILED':
+      return OfficialAnkiErrorCode.renderFailed;
+    case 'TYPED_FIELD_NOT_FOUND':
+      return OfficialAnkiErrorCode.typedFieldNotFound;
+    case 'TYPED_CLOZE_EMPTY':
+      return OfficialAnkiErrorCode.typedClozeEmpty;
     case 'PAGE_TOKEN_STALE':
       return OfficialAnkiErrorCode.pageTokenStale;
+    case 'PROJECTION_SNAPSHOT_STALE':
+      return OfficialAnkiErrorCode.projectionSnapshotStale;
+    case 'PROJECTION_SOURCE_CHANGED':
+      return OfficialAnkiErrorCode.projectionSourceChanged;
+    case 'QUEUE_EMPTY':
+      return OfficialAnkiErrorCode.queueEmpty;
+    case 'SCHEDULING_CONTEXT_STALE':
+      return OfficialAnkiErrorCode.schedulingContextStale;
+    case 'ANSWER_FAILED':
+      return OfficialAnkiErrorCode.answerFailed;
+    case 'UNDO_UNAVAILABLE':
+      return OfficialAnkiErrorCode.undoUnavailable;
+    case 'REDO_UNAVAILABLE':
+      return OfficialAnkiErrorCode.redoUnavailable;
+    case 'DECK_NOT_FOUND':
+      return OfficialAnkiErrorCode.deckNotFound;
+    case 'SCHEDULER_BUSY':
+      return OfficialAnkiErrorCode.schedulerBusy;
+    case 'SCHEDULER_CAPABILITY_MISSING':
+      return OfficialAnkiErrorCode.schedulerCapabilityMissing;
     case 'CONTRACT_VERSION_MISMATCH':
       return OfficialAnkiErrorCode.contractVersionMismatch;
     case 'IO_ERROR':

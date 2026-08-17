@@ -1,0 +1,13 @@
+date: 2026-08-17
+PROTOC=Varnamalaplus/native/turna_anki_core/tools/protoc/bin/protoc
+cargo test --manifest-path native/turna_anki_core/Cargo.toml --lib
+  run1: 61 passed EXIT 0
+  run2: 61 passed EXIT 0
+flutter test --no-pub test/application/anki_official test/data/schema_migration_test.dart test/views/lesson/renderers/show_word_test.dart
+  run1: 168 passed EXIT 0
+  run2: 168 passed EXIT 0
+flutter analyze --no-pub lib/application/anki_official lib/views/anki_official test/application/anki_official
+  EXIT 0 (no issues after unused/deprecated cleanup)
+./gradlew :app:testDebugUnitTest --offline
+  BUILD SUCCESSFUL EXIT 0
+adb devices: empty

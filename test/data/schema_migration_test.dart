@@ -154,14 +154,27 @@ class _CourseDatabaseV6 extends db.CourseDatabase {
       );
 }
 
-/// A hypothetical newer schema (v16) used to verify downgrade behavior: opening
-/// a v16 DB with the current v15 code must not crash - it wipes + recreates the
+/// A hypothetical newer schema (v18) used to verify downgrade behavior: opening
+/// a v18 DB with the current v17 code must not crash - it wipes + recreates the
 /// schema (the course DB is a reseedable derived cache).
-class _CourseDatabaseV16 extends db.CourseDatabase {
-  _CourseDatabaseV16(super.e);
+class _CourseDatabaseV18 extends db.CourseDatabase {
+  _CourseDatabaseV18(super.e);
 
   @override
-  int get schemaVersion => 16;
+  int get schemaVersion => 18;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (m) async => await m.createAll(),
+      );
+}
+
+/// v15 is the last schema before the official Anki derived projection index.
+class _CourseDatabaseV15 extends db.CourseDatabase {
+  _CourseDatabaseV15(super.e);
+
+  @override
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -499,10 +512,58 @@ void main() {
       await File(path).parent.delete(recursive: true);
     });
 
-    test('v16 -> v15 downgrade wipes and recreates instead of crashing',
+    test('v15 -> v17 adds projection index and manifest and keeps rows',
         () async {
       final path = await _tempDbPath();
-      final newer = _CourseDatabaseV16(NativeDatabase(File(path)));
+      final oldDb = _CourseDatabaseV15(NativeDatabase(File(path)));
+      await _forceOpen(oldDb);
+      await oldDb.into(oldDb.sections).insert(
+            const db.SectionsCompanion(
+              id: Value('s-v15'),
+              name: Value('Section V15'),
+            ),
+          );
+      await oldDb.close();
+
+      final migrated = db.CourseDatabase(NativeDatabase(File(path)));
+      await _forceOpen(migrated);
+      expect(
+        (await migrated.select(migrated.sections).get()).single.id,
+        's-v15',
+      );
+      final tables = await migrated
+          .customSelect(
+            "SELECT name FROM sqlite_master WHERE type = 'table' "
+            "AND name IN ('official_anki_projection_index',"
+            "'official_anki_projection_manifest') ORDER BY name",
+          )
+          .get();
+      expect(tables.map((row) => row.read<String>('name')), [
+        'official_anki_projection_index',
+        'official_anki_projection_manifest',
+      ]);
+      final legacy = await migrated
+          .customSelect(
+            "SELECT name FROM sqlite_master WHERE type = 'table' "
+            "AND name IN ('anki_notes','anki_notetypes','anki_cards_meta') "
+            "ORDER BY name",
+          )
+          .get();
+      expect(legacy.map((row) => row.read<String>('name')), [
+        'anki_cards_meta',
+        'anki_notes',
+        'anki_notetypes',
+      ]);
+      expect(migrated.schemaVersion, 17);
+
+      await migrated.close();
+      await File(path).parent.delete(recursive: true);
+    });
+
+    test('v18 -> v17 downgrade wipes and recreates instead of crashing',
+        () async {
+      final path = await _tempDbPath();
+      final newer = _CourseDatabaseV18(NativeDatabase(File(path)));
       await _forceOpen(newer);
       await newer.into(newer.sections).insert(
             const db.SectionsCompanion(
@@ -512,7 +573,7 @@ void main() {
           );
       await newer.close();
 
-      // Opening a v16 DB with the current v15 code must downgrade gracefully
+      // Opening a v18 DB with the current v17 code must downgrade gracefully
       // (wipe + recreate) rather than throw.
       final downgraded = db.CourseDatabase(NativeDatabase(File(path)));
       await _forceOpen(downgraded);

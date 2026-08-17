@@ -1,0 +1,6 @@
+{
+  "contractVersion": { "major": 1, "minor": 3 },
+  "requestId": "01JQUEUE",
+  "operation": "GET_REVIEW_QUEUE",
+  "payload": { "fetchLimit": 1 }
+}

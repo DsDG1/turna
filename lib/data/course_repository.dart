@@ -7,6 +7,8 @@ import 'package:drift/drift.dart' hide Expression;
 // Project imports:
 import 'package:turna/core/logger.dart';
 import 'package:turna/core/utils.dart';
+import 'package:turna/application/anki_official/projection/official_anki_projection_projector.dart';
+import 'package:turna/application/anki_official/projection/official_anki_projection_store.dart';
 import 'package:turna/data/course_database.dart' as db;
 import 'package:turna/data/course_database_seeder.dart';
 import 'package:turna/domain/course/expression.dart';
@@ -532,6 +534,27 @@ class CourseRepository implements ICourseRepository {
       logger.w('Unknown LessonTemplate "$name", falling back to legacy');
     }
     return resolved;
+  }
+
+  Future<void> replaceOfficialProjection({
+    required String sourceId,
+    required OfficialAnkiProjectionPlan plan,
+    OfficialAnkiCourseProjectionStore? store,
+  }) {
+    return (store ?? OfficialAnkiCourseProjectionStore(database))
+        .replaceOfficialProjection(sourceId: sourceId, plan: plan);
+  }
+
+  Future<void> deleteOfficialProjection(String sourceId) {
+    return OfficialAnkiCourseProjectionStore(database)
+        .deleteOfficialProjection(sourceId);
+  }
+
+  Future<OfficialProjectionSummary> readOfficialProjectionSummary(
+    String sourceId,
+  ) {
+    return OfficialAnkiCourseProjectionStore(database)
+        .readOfficialProjectionSummary(sourceId);
   }
 
   List<String> _decodeStringList(String encoded) {

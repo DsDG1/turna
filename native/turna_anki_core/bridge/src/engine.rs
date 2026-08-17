@@ -39,6 +39,9 @@ pub const STATUS_COLLECTION_CORRUPT: i32 = 30;
 pub const STATUS_CONTRACT_VERSION_MISMATCH: i32 = 31;
 pub const STATUS_INTERNAL_ERROR: i32 = 32;
 pub const STATUS_PAGE_TOKEN_STALE: i32 = 33;
+pub const STATUS_TYPED_FIELD_NOT_FOUND: i32 = 34;
+pub const STATUS_TYPED_CLOZE_EMPTY: i32 = 35;
+pub const STATUS_PROJECTION_SNAPSHOT_STALE: i32 = 36;
 
 pub const OP_OPEN_COLLECTION: u32 = 2;
 pub const OP_CLOSE_COLLECTION: u32 = 3;
@@ -60,8 +63,23 @@ pub const OP_SEARCH_CARDS_PAGE: u32 = 18;
 pub const OP_GET_NOTE_CARDS_BATCH: u32 = 19;
 pub const OP_GET_CARD_DESCRIPTORS_BATCH: u32 = 20;
 pub const OP_RESTORE_BACKUP: u32 = 21;
+pub const OP_COMPARE_TYPED_ANSWER: u32 = 22;
+pub const OP_EXTRACT_CLOZE_FOR_TYPING: u32 = 23;
+pub const OP_GET_PROJECTION_SCHEMAS: u32 = 24;
+pub const OP_BEGIN_PROJECTION_READ: u32 = 25;
+pub const OP_GET_PROJECTION_ROWS_BATCH: u32 = 26;
+pub const OP_REDO: u32 = 27;
+pub const OP_BURY_OR_SUSPEND_CARDS: u32 = 28;
+pub const OP_COUNTS_FOR_DECK_TODAY: u32 = 29;
+pub const OP_CONGRATS_INFO: u32 = 30;
+pub const STATUS_REDO_UNAVAILABLE: i32 = 37;
+pub const STATUS_DECK_NOT_FOUND: i32 = 38;
+pub const STATUS_SCHEDULER_BUSY: i32 = 39;
+pub const STATUS_SCHEDULER_CAPABILITY_MISSING: i32 = 40;
 
 pub const MAX_REQUEST_BYTES: usize = 1_048_576;
+pub const MAX_RESPONSE_BYTES: usize = 8_388_608;
+pub const MAX_RENDER_HTML_BYTES: usize = 4_194_304;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EngineState {
@@ -89,7 +107,8 @@ pub struct LifecycleResponse {
 }
 
 pub struct AnswerToken {
-    pub session: u64,
+    pub session_id: String,
+    pub queue_epoch: u64,
     pub card_id: i64,
     pub states: SchedulingStates,
 }
@@ -107,10 +126,13 @@ pub struct Engine {
     pub media_folder: Option<PathBuf>,
     pub media_db: Option<PathBuf>,
     pub session: u64,
+    pub session_id: String,
+    pub queue_epoch: u64,
     pub next_token: u64,
-    pub tokens: HashMap<u64, AnswerToken>,
+    pub tokens: HashMap<String, AnswerToken>,
     pub page_generation: u64,
     pub page_snapshot: Option<PageSnapshot>,
+    pub projection_snapshot: Option<crate::projection::ProjectionSnapshot>,
     pub allowed_root: Option<PathBuf>,
 }
 
@@ -123,10 +145,13 @@ impl Engine {
             media_folder: None,
             media_db: None,
             session: 1,
+            session_id: "session-1".to_string(),
+            queue_epoch: 1,
             next_token: 1,
             tokens: HashMap::new(),
             page_generation: 1,
             page_snapshot: None,
+            projection_snapshot: None,
             allowed_root: None,
         }
     }
@@ -137,6 +162,15 @@ impl Engine {
         if self.session == 0 {
             self.session = 1;
         }
+        self.queue_epoch = self.queue_epoch.wrapping_add(1);
+        if self.queue_epoch == 0 {
+            self.queue_epoch = 1;
+        }
+        self.session_id = format!("session-{}", self.session);
+    }
+
+    pub fn begin_queue_epoch(&mut self) {
+        self.invalidate_tokens();
     }
 }
 
@@ -186,6 +220,11 @@ pub fn free_engine(handle: u64) -> Result<(), i32> {
     let mut engine = slot.engine.lock().map_err(|_| STATUS_BACKEND_PANIC)?;
     close_collection_inner(&mut engine)?;
     Ok(())
+}
+
+#[allow(dead_code)]
+pub fn live_handle_count() -> Result<usize, i32> {
+    with_registry(|map| map.len())
 }
 
 pub struct BusyGuard<'a> {
@@ -246,6 +285,7 @@ pub fn open_collection(handle: u64, request: &[u8]) -> Result<LifecycleResponse,
     engine.state = EngineState::Open;
     engine.page_generation = engine.page_generation.wrapping_add(1).max(1);
     engine.page_snapshot = None;
+    engine.projection_snapshot = None;
     engine.invalidate_tokens();
     Ok(LifecycleResponse {
         state: "open",
@@ -286,6 +326,7 @@ pub fn check_collection(handle: u64) -> Result<LifecycleResponse, i32> {
 pub fn bump_page_generation(engine: &mut Engine) {
     engine.page_generation = engine.page_generation.wrapping_add(1).max(1);
     engine.page_snapshot = None;
+    engine.projection_snapshot = None;
 }
 
 pub fn reopen_open_collection(engine: &mut Engine, slot: &EngineSlot) -> Result<(), i32> {
@@ -305,6 +346,7 @@ pub fn reopen_open_collection(engine: &mut Engine, slot: &EngineSlot) -> Result<
     engine.state = EngineState::Open;
     engine.page_generation = engine.page_generation.wrapping_add(1).max(1);
     engine.page_snapshot = None;
+    engine.projection_snapshot = None;
     engine.invalidate_tokens();
     Ok(())
 }
@@ -322,6 +364,11 @@ pub fn dispatch(handle: u64, operation: u32, request: &[u8]) -> Result<serde_jso
         OP_SEARCH_CARDS_PAGE => crate::query::search_cards_page(handle, request),
         OP_GET_NOTE_CARDS_BATCH => crate::query::get_note_cards_batch(handle, request),
         OP_GET_CARD_DESCRIPTORS_BATCH => crate::query::get_card_descriptors_batch(handle, request),
+        OP_GET_PROJECTION_SCHEMAS => crate::projection::get_projection_schemas(handle, request),
+        OP_BEGIN_PROJECTION_READ => crate::projection::begin_projection_read(handle, request),
+        OP_GET_PROJECTION_ROWS_BATCH => {
+            crate::projection::get_projection_rows_batch(handle, request)
+        }
         other => crate::ops::dispatch_op(handle, other, request),
     }
 }

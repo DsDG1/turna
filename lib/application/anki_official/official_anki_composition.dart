@@ -1,14 +1,22 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:turna/application/anki_official/contract/official_anki_contract.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
+import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/engine/official_anki_in_process.dart';
 import 'package:turna/application/anki_official/engine/official_anki_native_transport.dart';
 import 'package:turna/application/anki_official/engine/official_anki_session.dart';
+import 'package:turna/application/anki_official/engine/official_anki_session_engine.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
+import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
+import 'package:turna/application/anki_official/projection/official_anki_projection_paging.dart';
+import 'package:turna/application/anki_official/projection/official_anki_projection_service.dart';
+import 'package:turna/application/anki_official/storage/official_anki_database.dart';
+import 'package:turna/data/course_database.dart';
 
 class OfficialAnkiRuntimeProbe {
   const OfficialAnkiRuntimeProbe({
@@ -18,6 +26,8 @@ class OfficialAnkiRuntimeProbe {
     this.abiVersion,
     this.backendCommit,
     this.contractMajor,
+    this.contractMinor,
+    this.executionMode = OfficialAnkiExecutionMode.none,
   });
 
   final bool ok;
@@ -26,32 +36,40 @@ class OfficialAnkiRuntimeProbe {
   final int? abiVersion;
   final String? backendCommit;
   final int? contractMajor;
+  final int? contractMinor;
+  final OfficialAnkiExecutionMode executionMode;
 }
 
 class OfficialAnkiCompositionRoot {
   OfficialAnkiCompositionRoot._();
 
   static OfficialAnkiImporter? session;
+  static OfficialAnkiExecutionMode executionMode = OfficialAnkiExecutionMode.none;
+  static OfficialAnkiDatabase? readOnlyCatalog;
+  static OfficialAnkiPaths? locatorPaths;
 
   static OfficialAnkiRuntimeProbe probe({String? libraryPath}) {
     final flags = OfficialAnkiFeatureFlags.current;
-    if (!flags.allowsOfficialImport) {
-      return const OfficialAnkiRuntimeProbe(
+    if (!flags.allowsOfficialImport && !flags.allowsOfficialRenderer) {
+      return OfficialAnkiRuntimeProbe(
         ok: false,
         reason: 'flags_off',
+        executionMode: executionMode,
       );
     }
     if (!(Platform.isAndroid || Platform.isLinux || Platform.isMacOS)) {
-      return const OfficialAnkiRuntimeProbe(
+      return OfficialAnkiRuntimeProbe(
         ok: false,
         reason: 'unsupported_platform',
+        executionMode: executionMode,
       );
     }
     final resolved = libraryPath ?? resolveOfficialAnkiLibraryPath();
     if (resolved == null) {
-      return const OfficialAnkiRuntimeProbe(
+      return OfficialAnkiRuntimeProbe(
         ok: false,
         reason: 'library_missing',
+        executionMode: executionMode,
       );
     }
     try {
@@ -63,6 +81,7 @@ class OfficialAnkiCompositionRoot {
           reason: 'abi_mismatch',
           libraryPath: resolved,
           abiVersion: abi,
+          executionMode: executionMode,
         );
       }
       final handle = transport.engineNew();
@@ -83,6 +102,8 @@ class OfficialAnkiCompositionRoot {
           abiVersion: abi,
           backendCommit: payload['backendCommit'] as String?,
           contractMajor: (payload['contractMajor'] as num?)?.toInt(),
+          contractMinor: (payload['contractMinor'] as num?)?.toInt(),
+          executionMode: executionMode,
         );
       } finally {
         transport.engineClose(handle);
@@ -92,6 +113,17 @@ class OfficialAnkiCompositionRoot {
         ok: false,
         reason: error.messageKey,
         libraryPath: resolved,
+        executionMode: executionMode,
+      );
+    }
+  }
+
+  static void rejectInProcessForProduction(OfficialAnkiFeatureFlags flags) {
+    if (executionMode != OfficialAnkiExecutionMode.inProcess) return;
+    if (flags.allowsOfficialImport || flags.allowsOfficialRenderer) {
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.capabilityMissing,
+        messageKey: 'official_anki.in_process_forbidden',
       );
     }
   }
@@ -100,21 +132,28 @@ class OfficialAnkiCompositionRoot {
     required Directory supportDir,
     String? libraryPath,
     bool useFake = false,
+    bool allowInProcessFallback = false,
   }) async {
     final flags = OfficialAnkiFeatureFlags.current;
-    if (!flags.allowsOfficialImport) {
+    if (!flags.allowsOfficialImport && !useFake) {
       throw const OfficialAnkiException(
         code: OfficialAnkiErrorCode.capabilityMissing,
         messageKey: 'official_anki.flag_fail_closed',
       );
     }
-    if (session != null) return session!;
+    if (session != null) {
+      rejectInProcessForProduction(flags);
+      return session!;
+    }
     final root = Directory('${supportDir.path}/official_anki/default');
     final paths = OfficialAnkiPaths(
       profileId: 'profile-default-01',
       profileRoot: root,
     );
     await paths.ensureLayout();
+    OfficialAnkiCourseEntry.catalogOf = () {
+      return OfficialAnkiDatabase.file(paths.catalogFile.path);
+    };
     final resolved = libraryPath ??
         resolveOfficialAnkiLibraryPath() ??
         (Platform.isAndroid ? 'libturna_anki.so' : null);
@@ -123,6 +162,7 @@ class OfficialAnkiCompositionRoot {
         paths: paths,
         useFake: true,
       );
+      executionMode = OfficialAnkiExecutionMode.fake;
       return session!;
     }
     try {
@@ -130,15 +170,83 @@ class OfficialAnkiCompositionRoot {
         paths: paths,
         libraryPath: resolved,
       );
+      executionMode = OfficialAnkiExecutionMode.worker;
     } on OfficialAnkiException catch (error) {
+      if (!allowInProcessFallback ||
+          flags.allowsOfficialImport ||
+          flags.allowsOfficialRenderer) {
+        debugPrint(
+          '[OfficialAnki] worker isolate failed ($error); fail closed',
+        );
+        executionMode = OfficialAnkiExecutionMode.none;
+        rethrow;
+      }
       debugPrint(
-        '[OfficialAnki] worker isolate failed ($error); using in-process engine',
+        '[OfficialAnki] worker isolate failed ($error); '
+        'diagnostics in-process host enabled',
       );
       session = OfficialAnkiInProcessHost.open(
         paths: paths,
         libraryPath: resolved,
       );
+      executionMode = OfficialAnkiExecutionMode.inProcess;
     }
     return session!;
+  }
+
+  /// Cold-start catalog locator. Opens catalog only — no Collection writer.
+  static Future<void> initializeReadOnlyLocator({
+    Directory? supportDir,
+  }) async {
+    if (readOnlyCatalog != null) return;
+    final support = supportDir ?? await getApplicationSupportDirectory();
+    final paths = OfficialAnkiPaths(
+      profileId: 'profile-default-01',
+      profileRoot: Directory('${support.path}/official_anki/default'),
+    );
+    await paths.ensureLayout();
+    readOnlyCatalog = OfficialAnkiDatabase.file(paths.catalogFile.path);
+    locatorPaths = paths;
+    OfficialAnkiCourseEntry.catalogOf = () => readOnlyCatalog!;
+  }
+
+  static OfficialAnkiCourseProjectionService createProjectionService({
+    required OfficialAnkiEngine engine,
+    required OfficialAnkiDatabase catalog,
+    required CourseDatabase course,
+    required String sourceId,
+    required String profileId,
+    OfficialAnkiFeatureFlags? flags,
+  }) {
+    return OfficialAnkiCourseProjectionService(
+      engine: engine,
+      catalog: catalog,
+      course: course,
+      sourceId: sourceId,
+      profileId: profileId,
+      flags: flags ?? OfficialAnkiFeatureFlags.current,
+      ownerToken: officialAnkiProjectionOwnerToken(profileId),
+    );
+  }
+
+  static OfficialAnkiEngine? projectionEngineFromSession() {
+    final current = session;
+    if (current is OfficialAnkiInProcessHost) return current.engine;
+    if (current is OfficialAnkiSession) {
+      return OfficialAnkiSessionEngine(current);
+    }
+    return null;
+  }
+
+  static OfficialAnkiSession requireWorkerSession() {
+    final current = session;
+    if (current is! OfficialAnkiSession ||
+        executionMode != OfficialAnkiExecutionMode.worker) {
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.capabilityMissing,
+        messageKey: 'official_anki.worker_required',
+      );
+    }
+    return current;
   }
 }

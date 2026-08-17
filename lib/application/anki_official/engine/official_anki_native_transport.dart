@@ -350,6 +350,12 @@ OfficialAnkiErrorCode officialAnkiErrorCodeFromStatus(int status) {
       return OfficialAnkiErrorCode.importCancelled;
     case 23:
       return OfficialAnkiErrorCode.cardNotFound;
+    case 24:
+      return OfficialAnkiErrorCode.renderFailed;
+    case 34:
+      return OfficialAnkiErrorCode.typedFieldNotFound;
+    case 35:
+      return OfficialAnkiErrorCode.typedClozeEmpty;
     case 29:
       return OfficialAnkiErrorCode.ioError;
     case 30:
@@ -358,6 +364,8 @@ OfficialAnkiErrorCode officialAnkiErrorCodeFromStatus(int status) {
       return OfficialAnkiErrorCode.contractVersionMismatch;
     case 33:
       return OfficialAnkiErrorCode.pageTokenStale;
+    case 36:
+      return OfficialAnkiErrorCode.projectionSnapshotStale;
     default:
       return OfficialAnkiErrorCode.unknown;
   }

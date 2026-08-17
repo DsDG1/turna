@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 
 const int kOfficialAnkiContractMajor = 1;
-const int kOfficialAnkiContractMinor = 0;
+const int kOfficialAnkiContractMinor = 3;
 
 abstract final class OfficialAnkiOperation {
   static const engineInfo = 'ENGINE_INFO';
@@ -19,6 +19,22 @@ abstract final class OfficialAnkiOperation {
   static const searchCardsPage = 'SEARCH_CARDS_PAGE';
   static const getNoteCardsBatch = 'GET_NOTE_CARDS_BATCH';
   static const getCardDescriptorsBatch = 'GET_CARD_DESCRIPTORS_BATCH';
+  static const renderCard = 'RENDER_CARD';
+  static const compareTypedAnswer = 'COMPARE_TYPED_ANSWER';
+  static const extractClozeForTyping = 'EXTRACT_CLOZE_FOR_TYPING';
+  static const getProjectionSchemas = 'GET_PROJECTION_SCHEMAS';
+  static const beginProjectionRead = 'BEGIN_PROJECTION_READ';
+  static const getProjectionRowsBatch = 'GET_PROJECTION_ROWS_BATCH';
+  static const setCurrentDeck = 'SET_CURRENT_DECK';
+  static const getReviewQueue = 'GET_REVIEW_QUEUE';
+  static const describeNextStates = 'DESCRIBE_NEXT_STATES';
+  static const answerCard = 'ANSWER_CARD';
+  static const getUndoStatus = 'GET_UNDO_STATUS';
+  static const undo = 'UNDO';
+  static const redo = 'REDO';
+  static const buryOrSuspendCards = 'BURY_OR_SUSPEND_CARDS';
+  static const countsForDeckToday = 'COUNTS_FOR_DECK_TODAY';
+  static const congratsInfo = 'CONGRATS_INFO';
 
   static const engineInfoId = 1;
   static const openCollectionId = 2;
@@ -33,6 +49,54 @@ abstract final class OfficialAnkiOperation {
   static const getNoteCardsBatchId = 19;
   static const getCardDescriptorsBatchId = 20;
   static const restoreBackupId = 21;
+  static const renderCardId = 10;
+  static const compareTypedAnswerId = 22;
+  static const extractClozeForTypingId = 23;
+  static const getProjectionSchemasId = 24;
+  static const beginProjectionReadId = 25;
+  static const getProjectionRowsBatchId = 26;
+  static const setCurrentDeckId = 11;
+  static const getReviewQueueId = 12;
+  static const describeNextStatesId = 13;
+  static const answerCardId = 14;
+  static const getUndoStatusId = 15;
+  static const undoId = 16;
+  static const redoId = 27;
+  static const buryOrSuspendCardsId = 28;
+  static const countsForDeckTodayId = 29;
+  static const congratsInfoId = 30;
+
+  static const productionNames = <String>{
+    engineInfo,
+    openCollection,
+    closeCollection,
+    checkCollection,
+    createBackup,
+    restoreBackup,
+    importPackage,
+    latestProgress,
+    cancelOperation,
+    listDeckTree,
+    searchCardsPage,
+    getNoteCardsBatch,
+    getCardDescriptorsBatch,
+    renderCard,
+    compareTypedAnswer,
+    extractClozeForTyping,
+    getProjectionSchemas,
+    beginProjectionRead,
+    getProjectionRowsBatch,
+    setCurrentDeck,
+    getReviewQueue,
+    describeNextStates,
+    answerCard,
+    getUndoStatus,
+    undo,
+    redo,
+    buryOrSuspendCards,
+    countsForDeckToday,
+    congratsInfo,
+  };
 
   static int idFor(String name) {
     switch (name) {
@@ -62,6 +126,38 @@ abstract final class OfficialAnkiOperation {
         return getNoteCardsBatchId;
       case getCardDescriptorsBatch:
         return getCardDescriptorsBatchId;
+      case renderCard:
+        return renderCardId;
+      case compareTypedAnswer:
+        return compareTypedAnswerId;
+      case extractClozeForTyping:
+        return extractClozeForTypingId;
+      case getProjectionSchemas:
+        return getProjectionSchemasId;
+      case beginProjectionRead:
+        return beginProjectionReadId;
+      case getProjectionRowsBatch:
+        return getProjectionRowsBatchId;
+      case setCurrentDeck:
+        return setCurrentDeckId;
+      case getReviewQueue:
+        return getReviewQueueId;
+      case describeNextStates:
+        return describeNextStatesId;
+      case answerCard:
+        return answerCardId;
+      case getUndoStatus:
+        return getUndoStatusId;
+      case undo:
+        return undoId;
+      case redo:
+        return redoId;
+      case buryOrSuspendCards:
+        return buryOrSuspendCardsId;
+      case countsForDeckToday:
+        return countsForDeckTodayId;
+      case congratsInfo:
+        return congratsInfoId;
       default:
         throw OfficialAnkiException(
           code: OfficialAnkiErrorCode.invalidArgument,

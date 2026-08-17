@@ -27,15 +27,10 @@ fn main() {
         match arg.as_str() {
             "--out" => out = args.next().map(PathBuf::from),
             "--large" => {
-                large = args
-                    .next()
-                    .and_then(|s| s.parse().ok())
-                    .or(Some(5_000));
+                large = args.next().and_then(|s| s.parse().ok()).or(Some(5_000));
             }
             "--help" | "-h" => {
-                eprintln!(
-                    "usage: turna_anki_gen_fixtures --out <dir> [--large [count]]"
-                );
+                eprintln!("usage: turna_anki_gen_fixtures --out <dir> [--large [count]]");
                 return;
             }
             other => {
@@ -45,8 +40,7 @@ fn main() {
         }
     }
     let out = out.unwrap_or_else(|| {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../test/fixtures/anki_official")
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../test/fixtures/anki_official")
     });
     if let Err(err) = run(&out, large) {
         eprintln!("gen_fixtures failed: {err:?}");
@@ -132,7 +126,10 @@ impl Col {
         ));
         fs::create_dir_all(&root).expect("temp collection");
         let col = CollectionBuilder::new(root.join("collection.anki2"))
-            .set_media_paths(root.join("collection.media"), root.join("collection.media.db2"))
+            .set_media_paths(
+                root.join("collection.media"),
+                root.join("collection.media.db2"),
+            )
             .build()?;
         Ok(Self { col, root })
     }
@@ -144,12 +141,7 @@ impl Col {
             .or_invalid(name)
     }
 
-    fn add_basic(
-        &mut self,
-        notetype: &str,
-        guid: &str,
-        fields: &[&str],
-    ) -> Result<NoteId> {
+    fn add_basic(&mut self, notetype: &str, guid: &str, fields: &[&str]) -> Result<NoteId> {
         let nt = self.notetype(notetype)?;
         let mut note = nt.new_note();
         note.guid = guid.to_string();
@@ -242,7 +234,10 @@ fn write_package(
     )
     .expect("write expected");
     let sha = sha256_file(&package_path)?;
-    println!("  {file} notes={notes} cards={} sha256={sha}", rendered.len());
+    println!(
+        "  {file} notes={notes} cards={} sha256={sha}",
+        rendered.len()
+    );
     Ok(json!({
         "file": file,
         "sha256": sha,
@@ -324,10 +319,7 @@ fn build_optional_reversed(packages: &Path, expected: &Path) -> Result<serde_jso
         "03-optional-reversed.apkg",
         2,
         3,
-        vec![
-            "question-contains:evet",
-            "question-contains:hayır",
-        ],
+        vec!["question-contains:evet", "question-contains:hayır"],
         false,
         false,
         false,
@@ -367,10 +359,7 @@ fn build_cloze(packages: &Path, expected: &Path) -> Result<serde_json::Value> {
             col.add_basic(
                 "Cloze",
                 "turnafix000005",
-                &[
-                    "The capital of {{c1::Türkiye}} is {{c2::安卡拉}}.",
-                    "",
-                ],
+                &["The capital of {{c1::Türkiye}} is {{c2::安卡拉}}.", ""],
             )?;
             Ok(())
         },
@@ -394,9 +383,15 @@ fn build_frontside_css(packages: &Path, expected: &Path) -> Result<serde_json::V
         false,
         |col| {
             let mut nt = col.notetype("Basic")?;
-            nt.config.css.push_str("\n.turna-fixture { color: #123456; }\n");
+            nt.config
+                .css
+                .push_str("\n.turna-fixture { color: #123456; }\n");
             col.col.update_notetype(&mut nt, true)?;
-            col.add_basic("Basic", "turnafix000006", &["FrontSideProbe", "BackSideProbe"])?;
+            col.add_basic(
+                "Basic",
+                "turnafix000006",
+                &["FrontSideProbe", "BackSideProbe"],
+            )?;
             Ok(())
         },
     )

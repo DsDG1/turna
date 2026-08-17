@@ -1,0 +1,24 @@
+P2/P3 HOST CONSTRUCTION: GO
+P2 → P3 STRICT ENTRY: NO-GO
+date: 2026-08-17
+HEAD at freeze: cc1484b30739bceeba07fe1a3be98b8b0e11018d
+08-phase-2-result-report.md: remains P2 TECHNICAL ACCEPTANCE NO-GO
+P2 PRODUCTION: NO-GO
+
+Split:
+- HOST CONSTRUCTION covers JS host, Dart/Kotlin unit, and Host FFI. That is GO.
+- STRICT ENTRY requires Device A import→reopen→question/answer/next/media/AV/TTS/Typed/MathJax and instrumented WebView flip-path on a contract 1.2 APK. Those have not run. STRICT ENTRY is NO-GO.
+
+Evidence (host only):
+- P2E-001 executable JS host loaded shipped card-frame.js + reviewer.js; five protocol cases passed
+- P2E-002 PresentAckCoordinator + OfficialAnkiPresentGate; Kotlin JVM + Dart unit tests passed
+- P2E-003/004 controller presents side before autoplay; recoverable/fatal UI offers retry/back
+- P2E-005 injectable cleanup + Android libraryPath == null path tested
+- P2E-006 older Android arm64 .so / APK 77cc6f8c545c80e60e199b81de5227ebc710bbe468f59c50503ed9bb8a1df306 is a P2E intermediate, not a P3FIX acceptance package
+- P2E-007 androidTest source exists; no device so instrumented WebView cannot run
+- P2E-008 no device attached (adb empty)
+
+Known gaps (block STRICT ENTRY and P2/P3 Technical/Production):
+- No instrumented WebView run
+- No Device A smoke
+- Hostile-card / SW / 100-cycle / release / second device remain P2FIX
