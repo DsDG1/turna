@@ -8,7 +8,7 @@
     "answerToken": "opaque-token",
     "cardId": 123,
     "rating": "good",
-    "answeredAtMillis": 1786965000000,
-    "millisecondsTaken": 8421
+    "millisecondsTaken": 8421,
+    "clientMutationId": "opaque-uuid"
   }
 }

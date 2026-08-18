@@ -15,7 +15,9 @@ class OfficialAnkiReviewerClient(
     private val onError: (String) -> Unit,
 ) : WebViewClient() {
     override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-        return !OfficialAnkiWebPolicy.isShellUrl(request.url.toString())
+        // Allow every https://anki.local navigation (shell + sandboxed card
+        // iframe). Blocking non-shell anki.local URLs cancels card-frame.html.
+        return request.url.host != OfficialAnkiCsp.ORIGIN_HOST
     }
 
     override fun shouldInterceptRequest(

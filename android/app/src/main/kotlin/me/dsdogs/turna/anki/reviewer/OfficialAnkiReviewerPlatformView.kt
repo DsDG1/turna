@@ -42,8 +42,10 @@ class OfficialAnkiReviewerPlatformView(
     private var pendingPayload: JSONObject? = null
     private var pendingSide: String = "question"
     private var applyAttempts = 0
-    private var waitingResult: MethodChannel.Result? = null
     private var pollCount = 0
+    private var waitingResult: MethodChannel.Result? = null
+    private var applying = false
+    private var presentDeadlineToken = 0L
     private val presentAck = PresentAckCoordinator()
 
     init {
@@ -140,6 +142,8 @@ class OfficialAnkiReviewerPlatformView(
     override fun dispose() {
         if (disposed) return
         disposed = true
+        presentDeadlineToken += 1
+        applying = false
         mainHandler.removeCallbacksAndMessages(null)
         channel.setMethodCallHandler(null)
         val leftover = waitingResult
@@ -211,7 +215,8 @@ class OfficialAnkiReviewerPlatformView(
     private fun onShellFinished() {
         notifyReady()
         val active = presentAck.activeRequest()
-        if (pendingPayload != null && waitingResult != null && active != null) {
+        if (pendingPayload != null && waitingResult != null && active != null && !applying) {
+            Log.i(TAG, "shell ready, flush present requestId=${active.id}")
             applyPending(active.id)
         }
     }
@@ -227,108 +232,197 @@ class OfficialAnkiReviewerPlatformView(
         val request = presentAck.begin(generation, pendingSide) { superseded ->
             val pending = waitingResult
             waitingResult = null
+            applying = false
             pending?.success(superseded.toMap())
         }
         waitingResult = result
-        pollCount = 0
         applyAttempts = 0
+        pollCount = 0
+        applying = false
+        armDeadline(request.id)
+        Log.i(TAG, "startPresent requestId=${request.id} gen=$generation")
         applyPending(request.id)
+    }
+
+    private fun armDeadline(requestId: Long) {
+        val token = ++presentDeadlineToken
+        mainHandler.postDelayed({
+            if (token != presentDeadlineToken) return@postDelayed
+            if (!presentAck.isActive(requestId)) return@postDelayed
+            Log.w(TAG, "present deadline requestId=$requestId attempts=$applyAttempts")
+            finishTimeout(requestId, "RENDER_TIMEOUT")
+        }, PRESENT_DEADLINE_MS)
     }
 
     private fun applyPending(requestId: Long) {
         if (disposed) return
         if (!presentAck.isActive(requestId)) return
+        if (applying) return
         val payload = pendingPayload
         if (payload == null) {
             eval("(function(){ return window.OfficialReviewer ? 'ready' : 'not_ready'; })()") { value ->
                 if (!presentAck.isActive(requestId)) return@eval
-                if ((value?.trim('"') ?: "") == "not_ready" && applyAttempts < 40) {
+                val raw = unwrapJs(value)
+                if (raw != "ready" && applyAttempts < APPLY_LIMIT) {
                     applyAttempts += 1
-                    mainHandler.postDelayed({ applyPending(requestId) }, 50)
-                } else {
-                    notifyReady()
-                    finishPresent(
-                        requestId,
-                        PresentAckCoordinator.PresentResult(ok = true, side = "ready"),
-                    )
+                    mainHandler.postDelayed({ applyPending(requestId) }, APPLY_DELAY_MS)
+                    return@eval
                 }
+                if (raw != "ready") {
+                    finishTimeout(requestId, "SHELL_NOT_READY")
+                    return@eval
+                }
+                notifyReady()
+                finishPresent(
+                    requestId,
+                    PresentAckCoordinator.PresentResult(ok = true, side = "ready"),
+                )
             }
             return
         }
         val side = JSONObject.quote(pendingSide)
+        // Do not await the present() Promise here. This WebView serializes a
+        // pending Promise as "{}", which we used to treat as RENDER_TIMEOUT.
         val script =
             "(function(){ if (!window.OfficialReviewer) return 'not_ready'; " +
                 "window.__turnaLastRender = null; " +
                 "OfficialReviewer.present($payload, $side); return 'started'; })()"
+        applying = true
+        Log.i(TAG, "apply present requestId=$requestId attempt=$applyAttempts")
         eval(script) { value ->
-            if (!presentAck.isActive(requestId)) return@eval
-            val raw = value?.trim('"') ?: ""
-            if (raw == "not_ready" && applyAttempts < 40) {
-                applyAttempts += 1
-                mainHandler.postDelayed({ applyPending(requestId) }, 50)
+            if (!presentAck.isActive(requestId)) {
+                applying = false
+                return@eval
+            }
+            val raw = unwrapJs(value)
+            Log.i(TAG, "apply result requestId=$requestId raw=${raw.take(160)}")
+            if (raw != "started") {
+                applying = false
+                if (applyAttempts < APPLY_LIMIT) {
+                    applyAttempts += 1
+                    mainHandler.postDelayed({ applyPending(requestId) }, APPLY_DELAY_MS)
+                } else {
+                    finishTimeout(requestId, "SHELL_NOT_READY")
+                }
                 return@eval
             }
             notifyReady()
+            pollCount = 0
             pollCompletion(requestId)
         }
     }
 
     private fun pollCompletion(requestId: Long) {
         if (disposed) return
-        if (!presentAck.isActive(requestId)) return
+        if (!presentAck.isActive(requestId)) {
+            applying = false
+            return
+        }
         eval("(function(){ var a = window.__turnaLastRender; return a ? JSON.stringify(a) : ''; })()") { value ->
-            if (!presentAck.isActive(requestId)) return@eval
-            val raw = value?.trim() ?: ""
-            val json = raw.trim('"').replace("\\\"", "\"")
-            if (json.isNotEmpty() && json != "null" && json != "undefined") {
-                try {
-                    val parsed = JSONObject(if (json.startsWith("{")) json else raw.trim('"'))
-                    val height = parsed.optDouble("height", 0.0)
-                    val generation = parsed.optLong("generation")
-                    if (height > 0 && presentAck.shouldPublishHeight(generation, height)) {
-                        channel.invokeMethod("pageHeightChanged", height)
+            if (!presentAck.isActive(requestId)) {
+                applying = false
+                return@eval
+            }
+            val raw = unwrapJs(value)
+            if (raw.startsWith("{") && raw.contains("\"type\"")) {
+                val type = jsonType(raw)
+                // cardAccepted / frameReady are mid-present. Completing here
+                // used to fire RENDER_TIMEOUT before renderComplete arrived.
+                if (type == "cardAccepted" || type == "frameReady") {
+                    if (pollCount < POLL_LIMIT) {
+                        pollCount += 1
+                        mainHandler.postDelayed({ pollCompletion(requestId) }, APPLY_DELAY_MS)
+                        return@eval
                     }
-                    val code = parsed.optString("stableCode")
-                    if (parsed.optString("type") == "renderError" ||
-                        code == "MATHJAX_ASSET_MISSING" ||
-                        code == "RENDER_TIMEOUT" ||
-                        code == PresentAckCoordinator.CODE_SUPERSEDED
-                    ) {
-                        channel.invokeMethod("renderError", code.ifEmpty { parsed.toString() })
-                    }
-                    finishPresent(
-                        requestId,
-                        PresentAckCoordinator.PresentResult(
-                            ok = parsed.optString("type") == "renderComplete",
-                            code = code.ifEmpty { null },
-                            generation = if (parsed.has("generation")) generation else null,
-                            side = parsed.optString("side"),
-                            height = height,
-                            recoverable = code == "RENDER_TIMEOUT" ||
-                                code == PresentAckCoordinator.CODE_SUPERSEDED ||
-                                code == "MATHJAX_ASSET_MISSING" ||
-                                code == "MATHJAX_TYPESET_FAILED",
-                        ),
-                    )
+                } else if (type == "renderComplete" || type == "renderError") {
+                    Log.i(TAG, "poll complete requestId=$requestId raw=${raw.take(160)}")
+                    applying = false
+                    completeFromJs(requestId, raw)
                     return@eval
-                } catch (_: Exception) {
                 }
             }
-            if (pollCount < 40) {
+            if (pollCount < POLL_LIMIT) {
                 pollCount += 1
-                mainHandler.postDelayed({ pollCompletion(requestId) }, 50)
+                if (pollCount == 1 || pollCount % 20 == 0) {
+                    Log.i(TAG, "poll wait requestId=$requestId n=$pollCount")
+                }
+                mainHandler.postDelayed({ pollCompletion(requestId) }, APPLY_DELAY_MS)
             } else {
-                channel.invokeMethod("renderError", "RENDER_TIMEOUT")
-                finishPresent(
-                    requestId,
-                    PresentAckCoordinator.PresentResult(
-                        ok = false,
-                        code = "RENDER_TIMEOUT",
-                        recoverable = true,
-                    ),
-                )
+                applying = false
+                finishTimeout(requestId, "RENDER_TIMEOUT")
             }
         }
+    }
+
+    private fun jsonType(raw: String): String {
+        val key = "\"type\""
+        val start = raw.indexOf(key)
+        if (start < 0) return ""
+        val colon = raw.indexOf(':', start + key.length)
+        if (colon < 0) return ""
+        val firstQuote = raw.indexOf('"', colon + 1)
+        if (firstQuote < 0) return ""
+        val secondQuote = raw.indexOf('"', firstQuote + 1)
+        if (secondQuote < 0) return ""
+        return raw.substring(firstQuote + 1, secondQuote)
+    }
+
+    private fun unwrapJs(value: String?): String {
+        if (value == null || value == "null") return ""
+        var raw = value.trim()
+        if (raw.length >= 2 && raw.startsWith("\"") && raw.endsWith("\"")) {
+            raw = raw.substring(1, raw.length - 1)
+                .replace("\\\\", "\\")
+                .replace("\\\"", "\"")
+                .replace("\\n", "\n")
+        }
+        return raw
+    }
+
+    private fun completeFromJs(requestId: Long, raw: String) {
+        try {
+            val parsed = JSONObject(raw)
+            val height = parsed.optDouble("height", 0.0)
+            val generation = parsed.optLong("generation")
+            if (height > 0 && presentAck.shouldPublishHeight(generation, height)) {
+                channel.invokeMethod("pageHeightChanged", height)
+            }
+            val code = parsed.optString("stableCode").ifEmpty { parsed.optString("code") }
+            val type = parsed.optString("type")
+            val ok = type == "renderComplete"
+            if (!ok) {
+                channel.invokeMethod("renderError", code.ifEmpty { "RENDER_TIMEOUT" })
+            }
+            finishPresent(
+                requestId,
+                PresentAckCoordinator.PresentResult(
+                    ok = ok,
+                    code = code.ifEmpty { if (ok) null else "RENDER_TIMEOUT" },
+                    generation = if (parsed.has("generation")) generation else null,
+                    side = parsed.optString("side").ifEmpty { pendingSide },
+                    height = height,
+                    recoverable = !ok,
+                ),
+            )
+        } catch (error: Exception) {
+            Log.e(TAG, "present parse failed raw=$raw", error)
+            finishTimeout(requestId, "RENDER_TIMEOUT")
+        }
+    }
+
+    private fun finishTimeout(requestId: Long, code: String) {
+        applying = false
+        if (!presentAck.isActive(requestId)) return
+        Log.w(TAG, "present timeout requestId=$requestId code=$code")
+        channel.invokeMethod("renderError", code)
+        finishPresent(
+            requestId,
+            PresentAckCoordinator.PresentResult(
+                ok = false,
+                code = code,
+                recoverable = true,
+            ),
+        )
     }
 
     private fun finishPresent(
@@ -354,5 +448,9 @@ class OfficialAnkiReviewerPlatformView(
 
     companion object {
         private const val TAG = "OfficialAnkiReviewer"
+        private const val APPLY_LIMIT = 200
+        private const val POLL_LIMIT = 400
+        private const val APPLY_DELAY_MS = 50L
+        private const val PRESENT_DEADLINE_MS = 20_000L
     }
 }

@@ -43,3 +43,13 @@
 
 # ── streaming_shared_preferences ────────────────────────────────────────────
 -keep class com.jrdbnntt.** { *; }
+
+# ── Official Anki reviewer PlatformView (Flutter embedding calls create()
+# via the registry; R8 cannot see that and will drop the factory/WebView
+# client. That left a blank formal-review surface in minify release.)
+-keep class me.dsdogs.turna.anki.reviewer.** { *; }
+-keep class * extends io.flutter.plugin.platform.PlatformViewFactory { *; }
+-keep class * extends io.flutter.plugin.platform.PlatformView { *; }
+-keepclassmembers class * implements io.flutter.plugin.common.MethodChannel$MethodCallHandler {
+    <methods>;
+}

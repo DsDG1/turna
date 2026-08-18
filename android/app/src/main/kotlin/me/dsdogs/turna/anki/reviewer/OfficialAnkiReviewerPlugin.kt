@@ -9,6 +9,7 @@ object OfficialAnkiReviewerPlugin {
     private const val TAG = "OfficialAnkiReviewer"
 
     fun register(context: Context, flutterEngine: FlutterEngine) {
+        Log.i(TAG, "register factory $VIEW_TYPE")
         flutterEngine
             .platformViewsController
             .registry

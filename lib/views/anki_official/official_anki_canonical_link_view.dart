@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:turna/application/anki_official/engine/official_anki_scheduler_audit.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
 import 'package:turna/application/anki_official/render/official_anki_reviewer_router.dart';
@@ -150,8 +149,6 @@ class OfficialAnkiCanonicalCompletion {
   void acknowledgeOnce(void Function(bool correct) onSubmit) {
     if (submitCount > 0) return;
     submitCount += 1;
-    assert(OfficialAnkiSchedulerAudit.officialSchedulerAnswers ==
-            OfficialAnkiSchedulerAudit.officialSchedulerAnswers);
     onSubmit(true);
   }
 }

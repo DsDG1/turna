@@ -18,7 +18,7 @@
   }
 
   function ackTimeoutMs() {
-    return window.__turnaAckTimeoutMs || 2000;
+    return window.__turnaAckTimeoutMs || 8000;
   }
 
   function publishDebug() {

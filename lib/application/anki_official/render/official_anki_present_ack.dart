@@ -1,3 +1,20 @@
+/// Host-level present acknowledgement. Scoring binds to this, not the tap.
+class OfficialPresentAck {
+  const OfficialPresentAck({
+    required this.cardId,
+    required this.generation,
+    required this.side,
+    required this.ok,
+    this.code,
+  });
+
+  final int cardId;
+  final int generation;
+  final String side;
+  final bool ok;
+  final String? code;
+}
+
 /// Result of one native `present` invocation.
 class OfficialAnkiPresentResult {
   const OfficialAnkiPresentResult({
@@ -31,10 +48,17 @@ class OfficialAnkiPresentResult {
       );
     }
     final map = Map<String, Object?>.from(raw);
-    final code = map['code'] as String?;
+    var code = map['code'] as String?;
+    if (code != null && code.isEmpty) {
+      code = null;
+    }
+    final ok = map['ok'] == true;
+    if (!ok && (code == null || code == 'renderError')) {
+      code = code == 'renderError' ? 'UNRENDERABLE_CARD' : 'RENDER_TIMEOUT';
+    }
     return OfficialAnkiPresentResult(
-      ok: map['ok'] == true,
-      code: (code == null || code.isEmpty) ? null : code,
+      ok: ok,
+      code: code,
       generation: (map['generation'] as num?)?.toInt(),
       side: map['side'] as String?,
       height: (map['height'] as num?)?.toDouble(),
@@ -70,6 +94,7 @@ class OfficialAnkiPresentResult {
     'SHELL_ASSET_MISSING',
     'FRAME_ASSET_MISSING',
     'WEBVIEW_MAIN_FRAME_ERROR',
+    'SHELL_NOT_READY',
   };
 }
 
@@ -113,5 +138,37 @@ class OfficialAnkiPresentGate {
     _acceptedGeneration = generation;
     lastHeight = height;
     return true;
+  }
+}
+
+/// Drops a second in-flight `present` for the same card / side / generation.
+/// After the call settles (ok or fail), the same generation may retry.
+/// A newer generation (flip, retry, next card) always goes through.
+class OfficialAnkiPresentDeduper {
+  int? _cardId;
+  int? _generation;
+  String? _side;
+  var inFlight = false;
+
+  bool shouldSkip({
+    required int cardId,
+    required int generation,
+    required String side,
+  }) {
+    if (inFlight &&
+        _cardId == cardId &&
+        _generation == generation &&
+        _side == side) {
+      return true;
+    }
+    _cardId = cardId;
+    _generation = generation;
+    _side = side;
+    inFlight = true;
+    return false;
+  }
+
+  void markSettled() {
+    inFlight = false;
   }
 }

@@ -29,6 +29,7 @@ enum OfficialAnkiErrorCode {
   queueEmpty,
   schedulingContextStale,
   answerFailed,
+  answerCommitUnknown,
   undoUnavailable,
   redoUnavailable,
   deckNotFound,
@@ -110,6 +111,8 @@ OfficialAnkiErrorCode officialAnkiErrorCodeFromName(String? name) {
       return OfficialAnkiErrorCode.schedulingContextStale;
     case 'ANSWER_FAILED':
       return OfficialAnkiErrorCode.answerFailed;
+    case 'ANSWER_COMMIT_UNKNOWN':
+      return OfficialAnkiErrorCode.answerCommitUnknown;
     case 'UNDO_UNAVAILABLE':
       return OfficialAnkiErrorCode.undoUnavailable;
     case 'REDO_UNAVAILABLE':

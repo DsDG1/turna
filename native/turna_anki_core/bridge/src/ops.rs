@@ -24,6 +24,7 @@ use serde_json::Value;
 use crate::engine::slot;
 use crate::engine::AnswerToken;
 use crate::engine::BusyGuard;
+use crate::engine::TokenConsumption;
 use crate::engine::Engine;
 use crate::engine::EngineSlot;
 use crate::engine::EngineState;
@@ -47,9 +48,11 @@ use crate::engine::OP_SEARCH_CARDS;
 use crate::engine::OP_SET_CURRENT_DECK;
 use crate::engine::OP_UNDO;
 use crate::engine::STATUS_DECK_NOT_FOUND;
+use crate::engine::STATUS_SCHEDULER_BUSY;
 use crate::engine::STATUS_REDO_UNAVAILABLE;
 use crate::engine::MAX_RENDER_HTML_BYTES;
 use crate::engine::MAX_RESPONSE_BYTES;
+use crate::engine::STATUS_ANSWER_COMMIT_UNKNOWN;
 use crate::engine::STATUS_ANSWER_FAILED;
 use crate::engine::STATUS_BACKEND_PANIC;
 use crate::engine::STATUS_CARD_NOT_FOUND;
@@ -119,10 +122,12 @@ fn default_deck() -> i64 {
 struct QueueRequest {
     #[serde(default = "default_fetch", alias = "fetch_limit")]
     fetch_limit: usize,
+    #[serde(default, alias = "intraday_learning_only")]
+    intraday_learning_only: bool,
 }
 
 fn default_fetch() -> usize {
-    10
+    1
 }
 
 #[derive(Debug, Deserialize)]
@@ -153,15 +158,22 @@ struct AnswerRequest {
     #[serde(default)]
     answered_at_millis: Option<i64>,
     #[serde(default)]
-    milliseconds_taken: u32,
+    milliseconds_taken: i64,
+    #[serde(default, alias = "client_mutation_id")]
+    client_mutation_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct BuryOrSuspendRequest {
-    action: String,
+    #[serde(default)]
+    mode: Option<String>,
+    #[serde(default)]
+    action: Option<String>,
     #[serde(default)]
     card_ids: Vec<i64>,
+    #[serde(default)]
+    note_ids: Vec<i64>,
     #[serde(default)]
     deck_id: Option<i64>,
 }
@@ -487,17 +499,36 @@ fn set_current_deck(handle: u64, request: &[u8]) -> Result<Value, i32> {
     } else {
         serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?
     };
+    if parsed.deck_id <= 0 {
+        return Err(STATUS_INVALID_ARGUMENT);
+    }
     let slot = slot(handle)?;
     let mut engine = require_open(&slot)?;
-    let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
-    col.set_current_deck(DeckId(parsed.deck_id))
-        .map_err(map_anki_error)?;
-    Ok(json!({ "deck_id": parsed.deck_id }))
+    {
+        let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+        if col
+            .get_deck(DeckId(parsed.deck_id))
+            .map_err(map_anki_error)?
+            .is_none()
+        {
+            return Err(STATUS_DECK_NOT_FOUND);
+        }
+        col.set_current_deck(DeckId(parsed.deck_id))
+            .map_err(map_anki_error)?;
+    }
+    engine.invalidate_tokens();
+    Ok(json!({
+        "deckId": parsed.deck_id,
+        "queueEpoch": engine.queue_epoch,
+    }))
 }
 
 fn get_review_queue(handle: u64, request: &[u8]) -> Result<Value, i32> {
     let parsed: QueueRequest = if request.is_empty() {
-        QueueRequest { fetch_limit: 10 }
+        QueueRequest {
+            fetch_limit: 1,
+            intraday_learning_only: false,
+        }
     } else {
         serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?
     };
@@ -511,7 +542,7 @@ fn get_review_queue(handle: u64, request: &[u8]) -> Result<Value, i32> {
     let queue_epoch = engine.queue_epoch;
     let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
     let queued = col
-        .get_queued_cards(parsed.fetch_limit, false)
+        .get_queued_cards(parsed.fetch_limit, parsed.intraday_learning_only)
         .map_err(map_anki_error)?;
     let mut prepared = Vec::new();
     for queued_card in queued.cards {
@@ -542,6 +573,7 @@ fn get_review_queue(handle: u64, request: &[u8]) -> Result<Value, i32> {
                 queue_epoch,
                 card_id,
                 states,
+                consumption: TokenConsumption::Pending,
             },
         );
         cards.push(json!({
@@ -601,68 +633,150 @@ fn describe_next_states(handle: u64, request: &[u8]) -> Result<Value, i32> {
 fn answer_card(handle: u64, request: &[u8]) -> Result<Value, i32> {
     let parsed: AnswerRequest =
         serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?;
-    if parsed.milliseconds_taken > MAX_ELAPSED_MS {
+    if parsed.milliseconds_taken < 0 || parsed.milliseconds_taken > i64::from(MAX_ELAPSED_MS) {
         return Err(STATUS_INVALID_ARGUMENT);
     }
+    let milliseconds_taken = parsed.milliseconds_taken as u32;
     let rating = parse_rating(&parsed.rating)?;
     let slot = slot(handle)?;
     let mut engine = require_open(&slot)?;
-    let token = engine
-        .tokens
-        .remove(&parsed.answer_token)
-        .ok_or(STATUS_SCHEDULING_CONTEXT_STALE)?;
-    if token.session_id != engine.session_id
-        || token.queue_epoch != engine.queue_epoch
-        || token.card_id != parsed.card_id
+    if let Some(mutation_id) = parsed.client_mutation_id.as_deref() {
+        if !mutation_id.is_empty() && engine.committed_mutations.contains(mutation_id) {
+            return Err(STATUS_SCHEDULING_CONTEXT_STALE);
+        }
+    }
     {
-        return Err(STATUS_SCHEDULING_CONTEXT_STALE);
-    }
-    if let Some(session_id) = parsed.session_id.as_deref() {
-        if session_id != token.session_id {
+        let token = engine
+            .tokens
+            .get(&parsed.answer_token)
+            .ok_or(STATUS_SCHEDULING_CONTEXT_STALE)?;
+        match token.consumption {
+            TokenConsumption::Committed => return Err(STATUS_SCHEDULING_CONTEXT_STALE),
+            TokenConsumption::InFlight => return Err(STATUS_SCHEDULER_BUSY),
+            TokenConsumption::Unknown => return Err(STATUS_ANSWER_COMMIT_UNKNOWN),
+            TokenConsumption::Pending | TokenConsumption::FailedUnwritten => {}
+        }
+        if token.session_id != engine.session_id
+            || token.queue_epoch != engine.queue_epoch
+            || token.card_id != parsed.card_id
+        {
             return Err(STATUS_SCHEDULING_CONTEXT_STALE);
         }
-    }
-    if let Some(epoch) = parsed.queue_epoch {
-        if epoch != token.queue_epoch {
-            return Err(STATUS_SCHEDULING_CONTEXT_STALE);
+        if let Some(session_id) = parsed.session_id.as_deref() {
+            if session_id != token.session_id {
+                return Err(STATUS_SCHEDULING_CONTEXT_STALE);
+            }
+        }
+        if let Some(epoch) = parsed.queue_epoch {
+            if epoch != token.queue_epoch {
+                return Err(STATUS_SCHEDULING_CONTEXT_STALE);
+            }
         }
     }
+    let states = engine
+        .tokens
+        .get(&parsed.answer_token)
+        .ok_or(STATUS_SCHEDULING_CONTEXT_STALE)?
+        .states
+        .clone();
+    if let Some(token) = engine.tokens.get_mut(&parsed.answer_token) {
+        token.consumption = TokenConsumption::InFlight;
+    }
+    if engine.debug_fail_before_answer {
+        if let Some(token) = engine.tokens.get_mut(&parsed.answer_token) {
+            token.consumption = TokenConsumption::FailedUnwritten;
+        }
+        return Err(STATUS_ANSWER_FAILED);
+    }
+    let pre_revlog = {
+        let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+        revlog_count(col, parsed.card_id)?
+    };
+    let answered_at = if engine.allow_injected_answered_at {
+        parsed
+            .answered_at_millis
+            .map(TimestampMillis)
+            .unwrap_or_else(TimestampMillis::now)
+    } else {
+        TimestampMillis::now()
+    };
     let new_state = match rating {
-        Rating::Again => token.states.again,
-        Rating::Hard => token.states.hard,
-        Rating::Good => token.states.good,
-        Rating::Easy => token.states.easy,
+        Rating::Again => states.again,
+        Rating::Hard => states.hard,
+        Rating::Good => states.good,
+        Rating::Easy => states.easy,
     };
-    let answered_at = parsed
-        .answered_at_millis
-        .map(TimestampMillis)
-        .unwrap_or_else(TimestampMillis::now);
-    let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
-    let mut answer = CardAnswer {
-        card_id: CardId(parsed.card_id),
-        current_state: token.states.current,
-        new_state,
-        rating,
-        answered_at,
-        milliseconds_taken: parsed.milliseconds_taken,
-        custom_data: None,
-        from_queue: true,
+    let answer_result = {
+        let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+        let mut answer = CardAnswer {
+            card_id: CardId(parsed.card_id),
+            current_state: states.current,
+            new_state,
+            rating,
+            answered_at,
+            milliseconds_taken,
+            custom_data: None,
+            from_queue: true,
+        };
+        col.answer_card(&mut answer)
     };
-    col.answer_card(&mut answer)
-        .map_err(|_| STATUS_ANSWER_FAILED)?;
-    let card = col
-        .storage
-        .get_card(CardId(parsed.card_id))
-        .map_err(map_anki_error)?
-        .ok_or(STATUS_CARD_NOT_FOUND)?;
-    let revlog = revlog_count(col, parsed.card_id)?;
-    engine.invalidate_tokens();
-    Ok(json!({
-        "cardId": parsed.card_id,
-        "queue": queue_name(card.queue_number()),
-        "revlogCount": revlog,
-        "millisecondsTaken": parsed.milliseconds_taken,
-    }))
+    match answer_result {
+        Ok(_) => {
+            if engine.debug_fail_after_commit {
+                if let Some(token) = engine.tokens.get_mut(&parsed.answer_token) {
+                    token.consumption = TokenConsumption::Unknown;
+                }
+                return Err(STATUS_ANSWER_COMMIT_UNKNOWN);
+            }
+            let (queue, revlog) = {
+                let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+                let card = col
+                    .storage
+                    .get_card(CardId(parsed.card_id))
+                    .map_err(map_anki_error)?
+                    .ok_or(STATUS_CARD_NOT_FOUND)?;
+                let revlog = revlog_count(col, parsed.card_id)?;
+                (queue_name(card.queue_number()), revlog)
+            };
+            if let Some(token) = engine.tokens.get_mut(&parsed.answer_token) {
+                token.consumption = TokenConsumption::Committed;
+            }
+            if let Some(mutation_id) = parsed.client_mutation_id.as_deref() {
+                if !mutation_id.is_empty() {
+                    engine.committed_mutations.insert(mutation_id.to_string());
+                }
+            }
+            engine.invalidate_tokens();
+            Ok(json!({
+                "clientMutationId": parsed.client_mutation_id,
+                "cardId": parsed.card_id,
+                "rating": parsed.rating,
+                "queue": queue,
+                "revlogCount": revlog,
+                "queueEpoch": engine.queue_epoch,
+                "committed": true,
+                "millisecondsTaken": milliseconds_taken,
+            }))
+        }
+        Err(_) => {
+            let post_revlog = engine
+                .collection
+                .as_mut()
+                .and_then(|col| revlog_count(col, parsed.card_id).ok())
+                .unwrap_or(pre_revlog);
+            if post_revlog > pre_revlog {
+                if let Some(token) = engine.tokens.get_mut(&parsed.answer_token) {
+                    token.consumption = TokenConsumption::Unknown;
+                }
+                Err(STATUS_ANSWER_COMMIT_UNKNOWN)
+            } else {
+                if let Some(token) = engine.tokens.get_mut(&parsed.answer_token) {
+                    token.consumption = TokenConsumption::FailedUnwritten;
+                }
+                Err(STATUS_ANSWER_FAILED)
+            }
+        }
+    }
 }
 
 fn get_undo_status(handle: u64) -> Result<Value, i32> {
@@ -673,96 +787,129 @@ fn get_undo_status(handle: u64) -> Result<Value, i32> {
     Ok(json!({
         "canUndo": status.undo.is_some(),
         "canRedo": status.redo.is_some(),
+        "undoLabel": status.undo.as_ref().map(|op| format!("{op:?}")),
+        "redoLabel": status.redo.as_ref().map(|op| format!("{op:?}")),
         "can_undo": status.undo.is_some(),
         "can_redo": status.redo.is_some(),
-        "undo": status.undo.map(|op| format!("{op:?}")),
-        "redo": status.redo.map(|op| format!("{op:?}")),
     }))
 }
 
 fn undo(handle: u64) -> Result<Value, i32> {
     let slot = slot(handle)?;
     let mut engine = require_open(&slot)?;
-    let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
-    let result = match col.undo() {
-        Ok(_) => Ok(json!({ "undone": true })),
-        Err(AnkiError::UndoEmpty) => Err(STATUS_UNDO_UNAVAILABLE),
-        Err(err) => Err(map_anki_error(err)),
+    let result = {
+        let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+        match col.undo() {
+            Ok(_) => Ok(()),
+            Err(AnkiError::UndoEmpty) => Err(STATUS_UNDO_UNAVAILABLE),
+            Err(err) => Err(map_anki_error(err)),
+        }
     };
+    result?;
     engine.invalidate_tokens();
-    result
+    Ok(json!({
+        "ok": true,
+        "undone": true,
+        "queueEpoch": engine.queue_epoch,
+    }))
 }
 
 fn redo(handle: u64) -> Result<Value, i32> {
     let slot = slot(handle)?;
     let mut engine = require_open(&slot)?;
-    let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
-    let result = match col.redo() {
-        Ok(_) => Ok(json!({ "redone": true })),
-        Err(AnkiError::UndoEmpty) => Err(STATUS_REDO_UNAVAILABLE),
-        Err(err) => Err(map_anki_error(err)),
+    let result = {
+        let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+        match col.redo() {
+            Ok(_) => Ok(()),
+            Err(AnkiError::UndoEmpty) => Err(STATUS_REDO_UNAVAILABLE),
+            Err(err) => Err(map_anki_error(err)),
+        }
     };
+    result?;
     engine.invalidate_tokens();
-    result
+    Ok(json!({
+        "ok": true,
+        "redone": true,
+        "queueEpoch": engine.queue_epoch,
+    }))
 }
 
 fn bury_or_suspend(handle: u64, request: &[u8]) -> Result<Value, i32> {
     let parsed: BuryOrSuspendRequest =
         serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?;
-    if parsed.card_ids.len() > MAX_BURY_IDS {
+    if parsed.card_ids.len() + parsed.note_ids.len() > MAX_BURY_IDS {
         return Err(STATUS_INVALID_ARGUMENT);
     }
-    let mut ids = parsed.card_ids;
-    ids.sort_unstable();
-    ids.dedup();
-    if ids.iter().any(|id| *id <= 0) {
-        return Err(STATUS_INVALID_ARGUMENT);
-    }
+    let mode = parsed
+        .mode
+        .as_deref()
+        .or(parsed.action.as_deref())
+        .unwrap_or("");
     let slot = slot(handle)?;
     let mut engine = require_open(&slot)?;
+    let mut ids = parsed.card_ids;
+    if parsed.note_ids.iter().any(|id| *id <= 0) || ids.iter().any(|id| *id <= 0) {
+        return Err(STATUS_INVALID_ARGUMENT);
+    }
+    {
+        let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+        for note_id in &parsed.note_ids {
+            let found = col
+                .search_cards(format!("nid:{note_id}").as_str(), SortMode::NoOrder)
+                .map_err(map_anki_error)?;
+            ids.extend(found.into_iter().map(|id| id.0));
+        }
+    }
+    ids.sort_unstable();
+    ids.dedup();
+    if ids.len() > MAX_BURY_IDS {
+        return Err(STATUS_INVALID_ARGUMENT);
+    }
     let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
     let deck = col.get_current_deck().map_err(map_anki_error)?;
     if matches!(deck.kind, DeckKind::Filtered(_)) {
         return Err(STATUS_INVALID_STATE);
     }
     let card_ids: Vec<CardId> = ids.iter().copied().map(CardId).collect();
-    match parsed.action.as_str() {
-        "bury_card" => {
+    match mode {
+        "buryUser" | "bury_card" => {
             col.bury_or_suspend_cards(&card_ids, BuryOrSuspendMode::BuryUser)
                 .map_err(map_anki_error)?;
         }
-        "bury_siblings" => {
-            if card_ids.len() != 1 {
-                return Err(STATUS_INVALID_ARGUMENT);
-            }
-            let card = col
-                .storage
-                .get_card(card_ids[0])
-                .map_err(map_anki_error)?
-                .ok_or(STATUS_CARD_NOT_FOUND)?;
-            col.bury_or_suspend_cards(&card_ids, BuryOrSuspendMode::BuryUser)
+        "burySched" | "bury_siblings" => {
+            col.bury_or_suspend_cards(&card_ids, BuryOrSuspendMode::BurySched)
                 .map_err(map_anki_error)?;
-            let _ = card;
         }
-        "unbury_deck" => {
+        "suspend" | "suspend_cards" => {
+            col.bury_or_suspend_cards(&card_ids, BuryOrSuspendMode::Suspend)
+                .map_err(map_anki_error)?;
+        }
+        "restoreCards" | "unsuspend_cards" => {
+            col.unbury_or_unsuspend_cards(&card_ids)
+                .map_err(map_anki_error)?;
+        }
+        "unburyDeckAll" | "unbury_deck" => {
             let deck_id = DeckId(parsed.deck_id.unwrap_or(deck.id.0));
             col.unbury_deck(deck_id, UnburyDeckMode::All)
                 .map_err(map_anki_error)?;
         }
-        "suspend_cards" => {
-            col.bury_or_suspend_cards(&card_ids, BuryOrSuspendMode::Suspend)
+        "unburyDeckSchedOnly" => {
+            let deck_id = DeckId(parsed.deck_id.unwrap_or(deck.id.0));
+            col.unbury_deck(deck_id, UnburyDeckMode::SchedOnly)
                 .map_err(map_anki_error)?;
         }
-        "unsuspend_cards" => {
-            col.unbury_or_unsuspend_cards(&card_ids)
+        "unburyDeckUserOnly" => {
+            let deck_id = DeckId(parsed.deck_id.unwrap_or(deck.id.0));
+            col.unbury_deck(deck_id, UnburyDeckMode::UserOnly)
                 .map_err(map_anki_error)?;
         }
         _ => return Err(STATUS_INVALID_ARGUMENT),
     }
     engine.invalidate_tokens();
     Ok(json!({
-        "action": parsed.action,
+        "mode": mode,
         "cardIds": ids,
+        "queueEpoch": engine.queue_epoch,
     }))
 }
 
@@ -782,6 +929,8 @@ fn counts_for_deck_today(handle: u64, request: &[u8]) -> Result<Value, i32> {
     .map_err(|_| STATUS_DECK_NOT_FOUND)?;
     Ok(json!({
         "deckId": parsed.deck_id,
+        "new": counts.new,
+        "review": counts.review,
         "newStudied": counts.new,
         "reviewStudied": counts.review,
     }))
@@ -800,6 +949,7 @@ fn congrats_info(handle: u64) -> Result<Value, i32> {
         "haveUserBuried": info.have_user_buried,
         "isFilteredDeck": info.is_filtered_deck,
         "secsUntilNextLearn": info.secs_until_next_learn,
+        "deckDescription": info.deck_description,
     }))
 }
 
@@ -1259,8 +1409,445 @@ mod tests {
             call(handle, OP_GET_REVIEW_QUEUE, json!({"fetchLimit": 0})).unwrap_err(),
             STATUS_INVALID_ARGUMENT
         );
+        assert_eq!(
+            call(
+                handle,
+                OP_BURY_OR_SUSPEND_CARDS,
+                json!({"action": "not-a-real-action", "cardIds": [cid2]}),
+            )
+            .unwrap_err(),
+            STATUS_INVALID_ARGUMENT
+        );
         free_engine(handle).unwrap();
         let _ = fs::remove_dir_all(root);
+    }
+
+    fn card_public_summary(col: &Collection, card_id: i64) -> (i64, i64, i64, i64, i64, i64, i64, i64) {
+        let (queue, due, ivl, reps, lapses): (i64, i64, i64, i64, i64) = col
+            .storage
+            .db()
+            .query_row(
+                "select queue, due, ivl, reps, lapses from cards where id = ?",
+                [card_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
+            )
+            .unwrap();
+        let revlog_count: i64 = col
+            .storage
+            .db()
+            .query_row(
+                "select count(*) from revlog where cid = ?",
+                [card_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let last_ease: i64 = col
+            .storage
+            .db()
+            .query_row(
+                "select coalesce((select ease from revlog where cid = ? order by id desc limit 1), -1)",
+                [card_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let last_time: i64 = col
+            .storage
+            .db()
+            .query_row(
+                "select coalesce((select time from revlog where cid = ? order by id desc limit 1), -1)",
+                [card_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        (queue, due, ivl, reps, lapses, revlog_count, last_ease, last_time)
+    }
+
+    fn summary_via_handle(handle: u64, card_id: i64) -> (i64, i64, i64, i64, i64, i64, i64, i64) {
+        let slot = slot(handle).unwrap();
+        let engine = slot.engine.lock().unwrap();
+        let col = engine.collection.as_ref().unwrap();
+        card_public_summary(col, card_id)
+    }
+
+    fn last_revlog_count(handle: u64, card_id: i64) -> i64 {
+        summary_via_handle(handle, card_id).5
+    }
+
+    #[test]
+    fn token_survives_confirmed_unwritten_failure_and_unknown_does_not_replay() {
+        let (root, handle, _) = temp_open();
+        import(handle, &package_path("08-scheduling.apkg"), true).unwrap();
+        call(handle, OP_SET_CURRENT_DECK, json!({"deckId": 1})).unwrap();
+        let queue = call(handle, OP_GET_REVIEW_QUEUE, json!({"fetchLimit": 1})).unwrap();
+        let card_id = queue["cards"][0]["cardId"].as_i64().unwrap();
+        let token = queue["cards"][0]["answerToken"].as_str().unwrap().to_string();
+        let session_id = queue["sessionId"].as_str().unwrap().to_string();
+        let epoch = queue["queueEpoch"].as_u64().unwrap();
+        let before = last_revlog_count(handle, card_id);
+        {
+            let slot = slot(handle).unwrap();
+            let mut engine = slot.engine.lock().unwrap();
+            engine.debug_fail_before_answer = true;
+        }
+        assert_eq!(
+            call(
+                handle,
+                OP_ANSWER_CARD,
+                json!({
+                    "cardId": card_id,
+                    "rating": "good",
+                    "answerToken": token,
+                    "sessionId": session_id,
+                    "queueEpoch": epoch,
+                    "millisecondsTaken": 1200
+                }),
+            )
+            .unwrap_err(),
+            STATUS_ANSWER_FAILED
+        );
+        assert_eq!(last_revlog_count(handle, card_id), before);
+        {
+            let slot = slot(handle).unwrap();
+            let mut engine = slot.engine.lock().unwrap();
+            engine.debug_fail_before_answer = false;
+        }
+        let committed = call(
+            handle,
+            OP_ANSWER_CARD,
+            json!({
+                "cardId": card_id,
+                "rating": "good",
+                "answerToken": token,
+                "sessionId": session_id,
+                "queueEpoch": epoch,
+                "millisecondsTaken": 1200,
+                "clientMutationId": "mut-1"
+            }),
+        )
+        .unwrap();
+        assert_eq!(committed["committed"], true);
+        assert_eq!(committed["millisecondsTaken"], 1200);
+        assert!(committed["queueEpoch"].as_u64().unwrap() > epoch);
+        let after = last_revlog_count(handle, card_id);
+        assert_eq!(after, before + 1);
+        assert_eq!(
+            call(
+                handle,
+                OP_ANSWER_CARD,
+                json!({
+                    "cardId": card_id,
+                    "rating": "good",
+                    "answerToken": token,
+                    "clientMutationId": "mut-1",
+                    "millisecondsTaken": 10
+                }),
+            )
+            .unwrap_err(),
+            STATUS_SCHEDULING_CONTEXT_STALE
+        );
+        assert_eq!(last_revlog_count(handle, card_id), after);
+
+        let queue2 = call(handle, OP_GET_REVIEW_QUEUE, json!({"fetchLimit": 1})).unwrap();
+        let card2 = queue2["cards"][0]["cardId"].as_i64().unwrap();
+        let token2 = queue2["cards"][0]["answerToken"].as_str().unwrap().to_string();
+        let before2 = last_revlog_count(handle, card2);
+        {
+            let slot = slot(handle).unwrap();
+            let mut engine = slot.engine.lock().unwrap();
+            engine.debug_fail_after_commit = true;
+        }
+        assert_eq!(
+            call(
+                handle,
+                OP_ANSWER_CARD,
+                json!({
+                    "cardId": card2,
+                    "rating": "easy",
+                    "answerToken": token2,
+                    "millisecondsTaken": 900
+                }),
+            )
+            .unwrap_err(),
+            STATUS_ANSWER_COMMIT_UNKNOWN
+        );
+        let unknown_count = last_revlog_count(handle, card2);
+        assert!(unknown_count >= before2 + 1);
+        assert_eq!(
+            call(
+                handle,
+                OP_ANSWER_CARD,
+                json!({
+                    "cardId": card2,
+                    "rating": "easy",
+                    "answerToken": token2,
+                    "millisecondsTaken": 900
+                }),
+            )
+            .unwrap_err(),
+            STATUS_ANSWER_COMMIT_UNKNOWN
+        );
+        assert_eq!(last_revlog_count(handle, card2), unknown_count);
+        free_engine(handle).unwrap();
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn four_ratings_elapsed_bounds_and_deck_switch_stale() {
+        for rating in ["again", "hard", "good", "easy"] {
+            let (root, handle, _) = temp_open();
+            import(handle, &package_path("08-scheduling.apkg"), true).unwrap();
+            let set = call(handle, OP_SET_CURRENT_DECK, json!({"deckId": 1})).unwrap();
+            assert!(set.get("deckId").is_some());
+            assert!(set["queueEpoch"].as_u64().is_some());
+            let queue = call(handle, OP_GET_REVIEW_QUEUE, json!({"fetchLimit": 1})).unwrap();
+            let card_id = queue["cards"][0]["cardId"].as_i64().unwrap();
+            let token = queue["cards"][0]["answerToken"].as_str().unwrap();
+            let answered = call(
+                handle,
+                OP_ANSWER_CARD,
+                json!({
+                    "cardId": card_id,
+                    "rating": rating,
+                    "answerToken": token,
+                    "millisecondsTaken": 0
+                }),
+            )
+            .unwrap();
+            assert_eq!(answered["millisecondsTaken"], 0);
+            assert_eq!(answered["rating"], rating);
+            assert_eq!(answered["committed"], true);
+            free_engine(handle).unwrap();
+            let _ = fs::remove_dir_all(root);
+        }
+
+        let (root, handle, _) = temp_open();
+        import(handle, &package_path("08-scheduling.apkg"), true).unwrap();
+        call(handle, OP_SET_CURRENT_DECK, json!({"deckId": 1})).unwrap();
+        let queue = call(handle, OP_GET_REVIEW_QUEUE, json!({"fetchLimit": 1})).unwrap();
+        let card_id = queue["cards"][0]["cardId"].as_i64().unwrap();
+        let token = queue["cards"][0]["answerToken"].as_str().unwrap().to_string();
+        call(handle, OP_SET_CURRENT_DECK, json!({"deckId": 1})).unwrap();
+        assert_eq!(
+            call(
+                handle,
+                OP_ANSWER_CARD,
+                json!({
+                    "cardId": card_id,
+                    "rating": "good",
+                    "answerToken": token,
+                    "millisecondsTaken": 100
+                }),
+            )
+            .unwrap_err(),
+            STATUS_SCHEDULING_CONTEXT_STALE
+        );
+        assert_eq!(
+            call(
+                handle,
+                OP_ANSWER_CARD,
+                json!({
+                    "cardId": card_id,
+                    "rating": "good",
+                    "answerToken": token,
+                    "millisecondsTaken": -1
+                }),
+            )
+            .unwrap_err(),
+            STATUS_INVALID_ARGUMENT
+        );
+        assert_eq!(
+            call(
+                handle,
+                OP_ANSWER_CARD,
+                json!({
+                    "cardId": card_id,
+                    "rating": "good",
+                    "answerToken": token,
+                    "millisecondsTaken": 24 * 60 * 60 * 1000 + 1
+                }),
+            )
+            .unwrap_err(),
+            STATUS_INVALID_ARGUMENT
+        );
+        assert_eq!(
+            call(handle, OP_SET_CURRENT_DECK, json!({"deckId": 9_999_999})).unwrap_err(),
+            STATUS_DECK_NOT_FOUND
+        );
+        free_engine(handle).unwrap();
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn bridge_matches_direct_rslib_public_card_and_revlog() {
+        const ANSWERED_AT: i64 = 1_700_000_123_000;
+        for rating_name in ["again", "hard", "good", "easy"] {
+            let (root_a, handle, _) = temp_open();
+            import(handle, &package_path("08-scheduling.apkg"), true).unwrap();
+            close_collection(handle).unwrap();
+            let root_b = root_a.parent().unwrap().join(format!(
+                "{}-direct",
+                root_a.file_name().unwrap().to_string_lossy()
+            ));
+            fs::create_dir_all(&root_b).unwrap();
+            fs::copy(
+                root_a.join("collection.anki2"),
+                root_b.join("collection.anki2"),
+            )
+            .unwrap();
+            if root_a.join("collection.media.db2").exists() {
+                let _ = fs::copy(
+                    root_a.join("collection.media.db2"),
+                    root_b.join("collection.media.db2"),
+                );
+            }
+            let open_body = serde_json::to_vec(&json!({
+                "collection_path": root_a.join("collection.anki2").to_string_lossy(),
+                "media_folder": root_a.join("collection.media").to_string_lossy(),
+                "media_db": root_a.join("collection.media.db2").to_string_lossy(),
+                "check_integrity": false,
+            }))
+            .unwrap();
+            open_collection(handle, &open_body).unwrap();
+            {
+                let slot = slot(handle).unwrap();
+                let mut engine = slot.engine.lock().unwrap();
+                engine.allow_injected_answered_at = true;
+            }
+            call(handle, OP_SET_CURRENT_DECK, json!({"deckId": 1})).unwrap();
+            let queue = call(handle, OP_GET_REVIEW_QUEUE, json!({"fetchLimit": 1})).unwrap();
+            let card_id = queue["cards"][0]["cardId"].as_i64().unwrap();
+            let token = queue["cards"][0]["answerToken"].as_str().unwrap();
+            call(
+                handle,
+                OP_ANSWER_CARD,
+                json!({
+                    "cardId": card_id,
+                    "rating": rating_name,
+                    "answerToken": token,
+                    "millisecondsTaken": 3210,
+                    "answeredAtMillis": ANSWERED_AT
+                }),
+            )
+            .unwrap();
+            let bridge = summary_via_handle(handle, card_id);
+
+            let mut direct = anki::collection::CollectionBuilder::new(root_b.join("collection.anki2"))
+                .set_media_paths(root_b.join("collection.media"), root_b.join("collection.media.db2"))
+                .build()
+                .unwrap();
+            direct.set_current_deck(DeckId(1)).unwrap();
+            let queued = direct.get_queued_cards(1, false).unwrap();
+            let queued_card = queued.cards.into_iter().next().expect("direct queue");
+            assert_eq!(queued_card.card.id().0, card_id);
+            let states = queued_card.states;
+            let rating = parse_rating(rating_name).unwrap();
+            let new_state = match rating {
+                Rating::Again => states.again,
+                Rating::Hard => states.hard,
+                Rating::Good => states.good,
+                Rating::Easy => states.easy,
+            };
+            direct
+                .answer_card(&mut CardAnswer {
+                    card_id: CardId(card_id),
+                    current_state: states.current,
+                    new_state,
+                    rating,
+                    answered_at: TimestampMillis(ANSWERED_AT),
+                    milliseconds_taken: 3210,
+                    custom_data: None,
+                    from_queue: true,
+                })
+                .unwrap();
+            let direct_summary = card_public_summary(&direct, card_id);
+            assert_eq!(bridge, direct_summary, "rating={rating_name}");
+            drop(direct);
+            free_engine(handle).unwrap();
+            let _ = fs::remove_dir_all(root_a);
+            let _ = fs::remove_dir_all(root_b);
+        }
+
+        let (root_a, handle, _) = temp_open();
+        import(handle, &package_path("08-scheduling.apkg"), true).unwrap();
+        close_collection(handle).unwrap();
+        let root_b = root_a.parent().unwrap().join(format!(
+            "{}-undo",
+            root_a.file_name().unwrap().to_string_lossy()
+        ));
+        fs::create_dir_all(&root_b).unwrap();
+        fs::copy(
+            root_a.join("collection.anki2"),
+            root_b.join("collection.anki2"),
+        )
+        .unwrap();
+        let open_body = serde_json::to_vec(&json!({
+            "collection_path": root_a.join("collection.anki2").to_string_lossy(),
+            "media_folder": root_a.join("collection.media").to_string_lossy(),
+            "media_db": root_a.join("collection.media.db2").to_string_lossy(),
+            "check_integrity": false,
+        }))
+        .unwrap();
+        open_collection(handle, &open_body).unwrap();
+        {
+            let slot = slot(handle).unwrap();
+            let mut engine = slot.engine.lock().unwrap();
+            engine.allow_injected_answered_at = true;
+        }
+        call(handle, OP_SET_CURRENT_DECK, json!({"deckId": 1})).unwrap();
+        let queue = call(handle, OP_GET_REVIEW_QUEUE, json!({"fetchLimit": 1})).unwrap();
+        let card_id = queue["cards"][0]["cardId"].as_i64().unwrap();
+        let token = queue["cards"][0]["answerToken"].as_str().unwrap();
+        call(
+            handle,
+            OP_ANSWER_CARD,
+            json!({
+                "cardId": card_id,
+                "rating": "good",
+                "answerToken": token,
+                "millisecondsTaken": 1800,
+                "answeredAtMillis": ANSWERED_AT
+            }),
+        )
+        .unwrap();
+        call(handle, OP_UNDO, json!({})).unwrap();
+        call(handle, OP_REDO, json!({})).unwrap();
+        let bridge = summary_via_handle(handle, card_id);
+
+        let mut direct = anki::collection::CollectionBuilder::new(root_b.join("collection.anki2"))
+            .set_media_paths(root_b.join("collection.media"), root_b.join("collection.media.db2"))
+            .build()
+            .unwrap();
+        direct.set_current_deck(DeckId(1)).unwrap();
+        let queued = direct.get_queued_cards(1, false).unwrap();
+        let queued_card = queued.cards.into_iter().next().unwrap();
+        let states = queued_card.states;
+        direct
+            .answer_card(&mut CardAnswer {
+                card_id: CardId(card_id),
+                current_state: states.current,
+                new_state: states.good,
+                rating: Rating::Good,
+                answered_at: TimestampMillis(ANSWERED_AT),
+                milliseconds_taken: 1800,
+                custom_data: None,
+                from_queue: true,
+            })
+            .unwrap();
+        direct.undo().unwrap();
+        direct.redo().unwrap();
+        assert_eq!(bridge, card_public_summary(&direct, card_id));
+        drop(direct);
+
+        let empty = call(handle, OP_GET_REVIEW_QUEUE, json!({"fetchLimit": 1}));
+        if empty.is_err() {
+            assert_eq!(empty.unwrap_err(), STATUS_QUEUE_EMPTY);
+            let congrats = call(handle, OP_CONGRATS_INFO, json!({})).unwrap();
+            assert!(congrats.get("learnRemaining").is_some());
+            assert!(congrats.get("deckDescription").is_some());
+        }
+        free_engine(handle).unwrap();
+        let _ = fs::remove_dir_all(root_a);
+        let _ = fs::remove_dir_all(root_b);
     }
 
     #[test]
@@ -1301,6 +1888,10 @@ mod tests {
         assert_eq!(
             call(handle, OP_UNDO, json!({})).unwrap_err(),
             STATUS_UNDO_UNAVAILABLE
+        );
+        assert_eq!(
+            call(handle, OP_REDO, json!({})).unwrap_err(),
+            STATUS_REDO_UNAVAILABLE
         );
         assert_eq!(
             call(handle, OP_RENDER_CARD, json!({"card_id": 1})).unwrap_err(),
@@ -1541,17 +2132,31 @@ mod tests {
     }
 
     #[test]
-    fn alloc_free_returns_handle_count_to_baseline() {
+    fn alloc_free_returns_owned_handles_to_invalid() {
+        use std::collections::HashSet;
         let handles: Vec<u64> = (0..20).map(|_| alloc_engine().unwrap()).collect();
-        let mid = crate::engine::live_handle_count().unwrap();
+        let unique: HashSet<u64> = handles.iter().copied().collect();
+        assert_eq!(unique.len(), 20, "duplicate handles issued");
+        for handle in &handles {
+            assert!(
+                crate::engine::slot(*handle).is_ok(),
+                "owned handle {handle} missing after alloc"
+            );
+        }
         for handle in handles {
             free_engine(handle).unwrap();
+            assert!(
+                matches!(
+                    crate::engine::slot(handle),
+                    Err(crate::engine::STATUS_INVALID_HANDLE)
+                ),
+                "handle {handle} still live after free"
+            );
+            assert_eq!(
+                free_engine(handle).unwrap_err(),
+                crate::engine::STATUS_INVALID_HANDLE
+            );
         }
-        let after = crate::engine::live_handle_count().unwrap();
-        assert!(
-            after + 20 <= mid + 4,
-            "owned handles leaked mid={mid} after={after}"
-        );
     }
 
     #[test]

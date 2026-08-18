@@ -1,3 +1,5 @@
+import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
+
 class OfficialAnkiEngineInfo {
   const OfficialAnkiEngineInfo({
     required this.abiVersion,
@@ -330,17 +332,32 @@ class OfficialAnkiDeckNode {
     required this.deckId,
     required this.name,
     this.level = 0,
+    this.newCount = 0,
+    this.learnCount = 0,
+    this.reviewCount = 0,
   });
 
   final int deckId;
   final String name;
   final int level;
+  final int newCount;
+  final int learnCount;
+  final int reviewCount;
+
+  int get dueCount => newCount + learnCount + reviewCount;
 
   factory OfficialAnkiDeckNode.fromJson(Map<String, Object?> json) {
+    int count(String camel, String snake) {
+      return (json[camel] as num? ?? json[snake] as num?)?.toInt() ?? 0;
+    }
+
     return OfficialAnkiDeckNode(
       deckId: (json['deckId'] as num? ?? json['deck_id'] as num? ?? 0).toInt(),
       name: json['name'] as String? ?? '',
       level: (json['level'] as num?)?.toInt() ?? 0,
+      newCount: count('newCount', 'new_count'),
+      learnCount: count('learnCount', 'learn_count'),
+      reviewCount: count('reviewCount', 'review_count'),
     );
   }
 }
@@ -545,10 +562,10 @@ class OfficialReviewIntervalLabels {
 
   factory OfficialReviewIntervalLabels.fromJson(Map<String, Object?> json) {
     return OfficialReviewIntervalLabels(
-      again: json['again'] as String? ?? '',
-      hard: json['hard'] as String? ?? '',
-      good: json['good'] as String? ?? '',
-      easy: json['easy'] as String? ?? '',
+      again: officialRequireNonEmpty(json, 'again'),
+      hard: officialRequireNonEmpty(json, 'hard'),
+      good: officialRequireNonEmpty(json, 'good'),
+      easy: officialRequireNonEmpty(json, 'easy'),
     );
   }
 }
@@ -574,21 +591,19 @@ class OfficialReviewQueueCard {
 
   factory OfficialReviewQueueCard.fromJson(Map<String, Object?> json) {
     final labels = json['labels'];
+    if (labels is! Map) {
+      officialContractError('labels', labels);
+    }
     return OfficialReviewQueueCard(
-      cardId: (json['cardId'] as num? ?? 0).toInt(),
-      noteId: (json['noteId'] as num? ?? 0).toInt(),
-      deckId: (json['deckId'] as num? ?? 0).toInt(),
-      templateOrdinal: (json['templateOrdinal'] as num? ?? 0).toInt(),
-      queueKind: json['queueKind'] as String? ?? '',
-      answerToken: json['answerToken'] as String? ?? '',
-      labels: labels is Map
-          ? OfficialReviewIntervalLabels.fromJson(Map<String, Object?>.from(labels))
-          : const OfficialReviewIntervalLabels(
-              again: '',
-              hard: '',
-              good: '',
-              easy: '',
-            ),
+      cardId: officialRequirePositiveId(json, 'cardId'),
+      noteId: officialRequirePositiveId(json, 'noteId'),
+      deckId: officialRequirePositiveId(json, 'deckId'),
+      templateOrdinal: officialRequireNonNegativeInt(json, 'templateOrdinal'),
+      queueKind: officialRequireNonEmpty(json, 'queueKind'),
+      answerToken: officialRequireNonEmpty(json, 'answerToken'),
+      labels: OfficialReviewIntervalLabels.fromJson(
+        Map<String, Object?>.from(labels),
+      ),
     );
   }
 }
@@ -612,22 +627,23 @@ class OfficialReviewQueue {
 
   factory OfficialReviewQueue.fromJson(Map<String, Object?> json) {
     final cards = json['cards'];
+    if (cards is! List) {
+      officialContractError('cards', cards);
+    }
     return OfficialReviewQueue(
-      sessionId: json['sessionId'] as String? ?? '',
-      queueEpoch: (json['queueEpoch'] as num? ?? 0).toInt(),
-      newCount: (json['newCount'] as num? ?? 0).toInt(),
-      learningCount: (json['learningCount'] as num? ?? 0).toInt(),
-      reviewCount: (json['reviewCount'] as num? ?? 0).toInt(),
-      cards: cards is List
-          ? cards
-              .whereType<Map>()
-              .map(
-                (item) => OfficialReviewQueueCard.fromJson(
-                  Map<String, Object?>.from(item),
-                ),
-              )
-              .toList()
-          : const <OfficialReviewQueueCard>[],
+      sessionId: officialRequireNonEmpty(json, 'sessionId'),
+      queueEpoch: officialRequirePositiveId(json, 'queueEpoch'),
+      newCount: officialRequireNonNegativeInt(json, 'newCount'),
+      learningCount: officialRequireNonNegativeInt(json, 'learningCount'),
+      reviewCount: officialRequireNonNegativeInt(json, 'reviewCount'),
+      cards: [
+        for (final item in cards)
+          OfficialReviewQueueCard.fromJson(
+            item is Map
+                ? Map<String, Object?>.from(item)
+                : officialContractError('cards[]', item),
+          ),
+      ],
     );
   }
 }
@@ -638,19 +654,31 @@ class OfficialAnswerResult {
     required this.queue,
     required this.revlogCount,
     required this.millisecondsTaken,
+    this.clientMutationId,
+    this.rating = '',
+    this.queueEpoch = 0,
+    this.committed = true,
   });
 
   final int cardId;
   final String queue;
   final int revlogCount;
   final int millisecondsTaken;
+  final String? clientMutationId;
+  final String rating;
+  final int queueEpoch;
+  final bool committed;
 
   factory OfficialAnswerResult.fromJson(Map<String, Object?> json) {
     return OfficialAnswerResult(
-      cardId: (json['cardId'] as num? ?? 0).toInt(),
-      queue: json['queue'] as String? ?? '',
-      revlogCount: (json['revlogCount'] as num? ?? 0).toInt(),
-      millisecondsTaken: (json['millisecondsTaken'] as num? ?? 0).toInt(),
+      cardId: officialRequirePositiveId(json, 'cardId'),
+      queue: officialRequireNonEmpty(json, 'queue'),
+      revlogCount: officialRequireNonNegativeInt(json, 'revlogCount'),
+      millisecondsTaken: officialRequireNonNegativeInt(json, 'millisecondsTaken'),
+      clientMutationId: json['clientMutationId'] as String?,
+      rating: officialRequireNonEmpty(json, 'rating'),
+      queueEpoch: officialRequirePositiveId(json, 'queueEpoch'),
+      committed: officialRequireBool(json, 'committed'),
     );
   }
 }
@@ -659,15 +687,21 @@ class OfficialUndoStatus {
   const OfficialUndoStatus({
     required this.canUndo,
     required this.canRedo,
+    this.undoLabel,
+    this.redoLabel,
   });
 
   final bool canUndo;
   final bool canRedo;
+  final String? undoLabel;
+  final String? redoLabel;
 
   factory OfficialUndoStatus.fromJson(Map<String, Object?> json) {
     return OfficialUndoStatus(
       canUndo: json['canUndo'] == true || json['can_undo'] == true,
       canRedo: json['canRedo'] == true || json['can_redo'] == true,
+      undoLabel: json['undoLabel'] as String?,
+      redoLabel: json['redoLabel'] as String?,
     );
   }
 }
@@ -677,17 +711,21 @@ class OfficialMutationResult {
     required this.ok,
     this.undone = false,
     this.redone = false,
+    this.queueEpoch = 0,
   });
 
   final bool ok;
   final bool undone;
   final bool redone;
+  final int queueEpoch;
 
   factory OfficialMutationResult.fromJson(Map<String, Object?> json) {
+    final ok = officialRequireBool(json, 'ok');
     return OfficialMutationResult(
-      ok: true,
+      ok: ok,
       undone: json['undone'] == true,
       redone: json['redone'] == true,
+      queueEpoch: officialRequirePositiveId(json, 'queueEpoch'),
     );
   }
 }
@@ -695,19 +733,39 @@ class OfficialMutationResult {
 class OfficialDeckCounts {
   const OfficialDeckCounts({
     required this.deckId,
-    required this.newStudied,
-    required this.reviewStudied,
+    required this.newCount,
+    required this.reviewCount,
   });
 
   final int deckId;
-  final int newStudied;
-  final int reviewStudied;
+  final int newCount;
+  final int reviewCount;
+
+  @Deprecated('Use newCount')
+  int get newStudied => newCount;
+
+  @Deprecated('Use reviewCount')
+  int get reviewStudied => reviewCount;
 
   factory OfficialDeckCounts.fromJson(Map<String, Object?> json) {
+    final newRaw = json['new'] ?? json['newStudied'];
+    final reviewRaw = json['review'] ?? json['reviewStudied'];
+    if (newRaw is! num) {
+      officialContractError('new', newRaw);
+    }
+    if (reviewRaw is! num) {
+      officialContractError('review', reviewRaw);
+    }
+    if (newRaw.toInt() < 0) {
+      officialContractError('new', newRaw);
+    }
+    if (reviewRaw.toInt() < 0) {
+      officialContractError('review', reviewRaw);
+    }
     return OfficialDeckCounts(
-      deckId: (json['deckId'] as num? ?? 0).toInt(),
-      newStudied: (json['newStudied'] as num? ?? 0).toInt(),
-      reviewStudied: (json['reviewStudied'] as num? ?? 0).toInt(),
+      deckId: officialRequirePositiveId(json, 'deckId'),
+      newCount: newRaw.toInt(),
+      reviewCount: reviewRaw.toInt(),
     );
   }
 }
@@ -721,6 +779,7 @@ class OfficialCongratsInfo {
     required this.haveUserBuried,
     required this.isFilteredDeck,
     required this.secsUntilNextLearn,
+    this.deckDescription = '',
   });
 
   final int learnRemaining;
@@ -730,6 +789,7 @@ class OfficialCongratsInfo {
   final bool haveUserBuried;
   final bool isFilteredDeck;
   final int secsUntilNextLearn;
+  final String deckDescription;
 
   factory OfficialCongratsInfo.fromJson(Map<String, Object?> json) {
     return OfficialCongratsInfo(
@@ -740,31 +800,100 @@ class OfficialCongratsInfo {
       haveUserBuried: json['haveUserBuried'] == true,
       isFilteredDeck: json['isFilteredDeck'] == true,
       secsUntilNextLearn: (json['secsUntilNextLearn'] as num? ?? 0).toInt(),
+      deckDescription: json['deckDescription'] as String? ?? '',
     );
   }
 }
 
 enum OfficialBuryOrSuspendAction {
-  buryCard,
-  burySiblings,
-  unburyDeck,
-  suspendCards,
-  unsuspendCards,
+  suspend,
+  burySched,
+  buryUser,
+  restoreCards,
+  unburyDeckAll,
+  unburyDeckSchedOnly,
+  unburyDeckUserOnly;
+
+  static OfficialBuryOrSuspendAction parse(String? wire) {
+    final name = wire ?? '';
+    for (final action in OfficialBuryOrSuspendAction.values) {
+      if (action.wireName == name) return action;
+    }
+    throw OfficialAnkiException(
+      code: OfficialAnkiErrorCode.invalidArgument,
+      messageKey: 'official_anki.invalid_bury_action',
+      debugDetails: name,
+    );
+  }
+
+  bool get requiresCardIds =>
+      this == OfficialBuryOrSuspendAction.suspend ||
+      this == OfficialBuryOrSuspendAction.burySched ||
+      this == OfficialBuryOrSuspendAction.buryUser ||
+      this == OfficialBuryOrSuspendAction.restoreCards;
 }
 
 extension OfficialBuryOrSuspendActionX on OfficialBuryOrSuspendAction {
   String get wireName {
     switch (this) {
-      case OfficialBuryOrSuspendAction.buryCard:
-        return 'bury_card';
-      case OfficialBuryOrSuspendAction.burySiblings:
-        return 'bury_siblings';
-      case OfficialBuryOrSuspendAction.unburyDeck:
-        return 'unbury_deck';
-      case OfficialBuryOrSuspendAction.suspendCards:
-        return 'suspend_cards';
-      case OfficialBuryOrSuspendAction.unsuspendCards:
-        return 'unsuspend_cards';
+      case OfficialBuryOrSuspendAction.suspend:
+        return 'suspend';
+      case OfficialBuryOrSuspendAction.burySched:
+        return 'burySched';
+      case OfficialBuryOrSuspendAction.buryUser:
+        return 'buryUser';
+      case OfficialBuryOrSuspendAction.restoreCards:
+        return 'restoreCards';
+      case OfficialBuryOrSuspendAction.unburyDeckAll:
+        return 'unburyDeckAll';
+      case OfficialBuryOrSuspendAction.unburyDeckSchedOnly:
+        return 'unburyDeckSchedOnly';
+      case OfficialBuryOrSuspendAction.unburyDeckUserOnly:
+        return 'unburyDeckUserOnly';
     }
   }
+}
+
+Never officialContractError(String field, Object? value) {
+  throw OfficialAnkiException(
+    code: OfficialAnkiErrorCode.invalidArgument,
+    messageKey: 'official_anki.contract_decode_failed',
+    debugDetails: 'field=$field value=$value',
+  );
+}
+
+int officialRequirePositiveId(Map<String, Object?> json, String key) {
+  final raw = json[key];
+  if (raw is! num) officialContractError(key, raw);
+  final value = raw.toInt();
+  if (value <= 0) officialContractError(key, value);
+  return value;
+}
+
+int officialRequireNonNegativeInt(Map<String, Object?> json, String key) {
+  final raw = json[key];
+  if (raw is! num) officialContractError(key, raw);
+  final value = raw.toInt();
+  if (value < 0) officialContractError(key, value);
+  return value;
+}
+
+String officialRequireNonEmpty(Map<String, Object?> json, String key) {
+  final raw = json[key];
+  if (raw is! String || raw.isEmpty) officialContractError(key, raw);
+  return raw;
+}
+
+bool officialRequireBool(
+  Map<String, Object?> json,
+  String key, {
+  List<String> aliases = const <String>[],
+}) {
+  for (final candidate in [key, ...aliases]) {
+    if (!json.containsKey(candidate)) continue;
+    final raw = json[candidate];
+    if (raw is bool) return raw;
+    officialContractError(candidate, raw);
+  }
+  officialContractError(key, null);
 }

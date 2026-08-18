@@ -28,6 +28,7 @@ object OfficialAnkiWebPolicy {
         settings.blockNetworkImage = false
         // Interceptor is the network firewall. Blocking loads here also
         // prevents https://anki.local from reaching shouldInterceptRequest.
+        // Chromium throws SecurityException if INTERNET is missing.
         settings.blockNetworkLoads = false
         settings.cacheMode = WebSettings.LOAD_NO_CACHE
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

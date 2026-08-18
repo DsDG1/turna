@@ -4,7 +4,7 @@ import 'package:sqlite3/sqlite3.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/storage/official_anki_sqlite.dart';
 
-const int kOfficialAnkiCatalogSchemaVersion = 5;
+const int kOfficialAnkiCatalogSchemaVersion = 7;
 
 /// Independent catalog. Must not live in CourseDatabase (downgrade wipes it).
 class OfficialAnkiDatabase {
@@ -59,6 +59,12 @@ class OfficialAnkiDatabase {
       }
       if (version <= 4) {
         _upgradeToV5();
+      }
+      if (version <= 5) {
+        _upgradeToV6();
+      }
+      if (version <= 6) {
+        _upgradeToV7();
       }
       _db.execute('PRAGMA user_version = $kOfficialAnkiCatalogSchemaVersion');
       _db.execute('COMMIT');
@@ -271,6 +277,71 @@ CREATE TABLE IF NOT EXISTS anki_source_projection_state (
       'ON anki_projection_jobs(source_id) WHERE state IN ('
       "'created','scanning_source','scanning_schema','needs_mapping',"
       "'projecting','publishing','retry_wait','cancel_requested')",
+    );
+  }
+
+  void _upgradeToV6() {
+    _db.execute('''
+CREATE TABLE IF NOT EXISTS legacy_anki_migrations (
+  migration_id TEXT PRIMARY KEY,
+  profile_id TEXT NOT NULL,
+  legacy_import_id TEXT NOT NULL,
+  official_source_id TEXT REFERENCES anki_sources(source_id),
+  state TEXT NOT NULL,
+  scheduling_policy TEXT NOT NULL,
+  source_hash TEXT,
+  backup_id TEXT,
+  backup_manifest_hash TEXT,
+  legacy_card_count INTEGER NOT NULL DEFAULT 0,
+  matched_card_count INTEGER NOT NULL DEFAULT 0,
+  unresolved_card_count INTEGER NOT NULL DEFAULT 0,
+  cursor_legacy_card_id INTEGER,
+  official_mutation_count_at_cutover INTEGER NOT NULL DEFAULT 0,
+  started_at_millis INTEGER NOT NULL,
+  updated_at_millis INTEGER NOT NULL,
+  completed_at_millis INTEGER,
+  last_error_code TEXT,
+  last_error_safe_message TEXT,
+  UNIQUE(profile_id, legacy_import_id)
+);
+''');
+    _db.execute('''
+CREATE TABLE IF NOT EXISTS legacy_anki_card_map (
+  migration_id TEXT NOT NULL REFERENCES legacy_anki_migrations(migration_id),
+  legacy_card_id INTEGER NOT NULL,
+  legacy_word_id TEXT NOT NULL,
+  legacy_note_id INTEGER,
+  note_guid TEXT,
+  template_ord INTEGER NOT NULL,
+  official_card_id INTEGER,
+  match_method TEXT NOT NULL,
+  match_state TEXT NOT NULL,
+  content_fingerprint TEXT,
+  PRIMARY KEY(migration_id, legacy_card_id)
+);
+''');
+    _db.execute(
+      'CREATE INDEX IF NOT EXISTS legacy_anki_card_map_migration_idx '
+      'ON legacy_anki_card_map(migration_id)',
+    );
+  }
+
+  void _upgradeToV7() {
+    _db.execute('''
+CREATE TABLE IF NOT EXISTS anki_scheduler_mutations (
+  mutation_id TEXT PRIMARY KEY,
+  profile_id TEXT NOT NULL,
+  card_id INTEGER NOT NULL,
+  queue_epoch INTEGER NOT NULL,
+  rating TEXT,
+  state TEXT NOT NULL,
+  created_at_millis INTEGER NOT NULL,
+  updated_at_millis INTEGER NOT NULL
+);
+''');
+    _db.execute(
+      'CREATE INDEX IF NOT EXISTS anki_scheduler_mutations_card_idx '
+      'ON anki_scheduler_mutations(profile_id, card_id, state)',
     );
   }
 

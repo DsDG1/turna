@@ -5,11 +5,14 @@ import 'dart:isolate';
 import 'package:turna/application/anki_official/contract/official_anki_contract.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
+import 'package:turna/application/anki_official/engine/official_anki_audit_log.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine_fake.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine_ffi.dart';
 import 'package:turna/application/anki_official/engine/official_anki_native_transport.dart';
+import 'package:turna/application/anki_official/engine/official_anki_operation_coordinator.dart';
 import 'package:turna/application/anki_official/engine/official_anki_session_cleanup.dart';
+import 'package:turna/application/anki_official/migration/official_anki_write_owner.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_orchestrator.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
 import 'package:turna/application/anki_official/import/official_anki_recovery_service.dart';
@@ -396,6 +399,113 @@ class OfficialAnkiSession implements OfficialAnkiImporter {
     await _rpc('ensureOpen');
   }
 
+  Future<void> setCurrentDeck(int deckId) async {
+    await _rpc('scheduler', {'op': 'setCurrentDeck', 'deckId': deckId});
+  }
+
+  Future<OfficialReviewQueue> getReviewQueue({int fetchLimit = 1}) async {
+    final raw = await _rpc('scheduler', {
+      'op': 'getReviewQueue',
+      'fetchLimit': fetchLimit,
+    });
+    return OfficialReviewQueue.fromJson(
+      Map<String, Object?>.from(raw['payload'] as Map? ?? raw),
+    );
+  }
+
+  Future<OfficialReviewIntervalLabels> describeNextStates({
+    required String sessionId,
+    required int queueEpoch,
+    required String answerToken,
+  }) async {
+    final raw = await _rpc('scheduler', {
+      'op': 'describeNextStates',
+      'sessionId': sessionId,
+      'queueEpoch': queueEpoch,
+      'answerToken': answerToken,
+    });
+    return OfficialReviewIntervalLabels.fromJson(
+      Map<String, Object?>.from(raw['payload'] as Map? ?? raw),
+    );
+  }
+
+  Future<OfficialAnswerResult> answerCard({
+    required String sessionId,
+    required int queueEpoch,
+    required String answerToken,
+    required int cardId,
+    required String rating,
+    required int millisecondsTaken,
+    int? answeredAtMillis,
+    String? clientMutationId,
+  }) async {
+    final raw = await _rpc('scheduler', {
+      'op': 'answerCard',
+      'sessionId': sessionId,
+      'queueEpoch': queueEpoch,
+      'answerToken': answerToken,
+      'cardId': cardId,
+      'rating': rating,
+      'millisecondsTaken': millisecondsTaken,
+      if (answeredAtMillis != null) 'answeredAtMillis': answeredAtMillis,
+      if (clientMutationId != null) 'clientMutationId': clientMutationId,
+    });
+    return OfficialAnswerResult.fromJson(
+      Map<String, Object?>.from(raw['payload'] as Map? ?? raw),
+    );
+  }
+
+  Future<OfficialUndoStatus> getUndoStatus() async {
+    final raw = await _rpc('scheduler', {'op': 'getUndoStatus'});
+    return OfficialUndoStatus.fromJson(
+      Map<String, Object?>.from(raw['payload'] as Map? ?? raw),
+    );
+  }
+
+  Future<OfficialMutationResult> undo() async {
+    final raw = await _rpc('scheduler', {'op': 'undo'});
+    return OfficialMutationResult.fromJson(
+      Map<String, Object?>.from(raw['payload'] as Map? ?? raw),
+    );
+  }
+
+  Future<OfficialMutationResult> redo() async {
+    final raw = await _rpc('scheduler', {'op': 'redo'});
+    return OfficialMutationResult.fromJson(
+      Map<String, Object?>.from(raw['payload'] as Map? ?? raw),
+    );
+  }
+
+  Future<OfficialDeckCounts> countsForDeckToday(int deckId) async {
+    final raw = await _rpc('scheduler', {
+      'op': 'countsForDeckToday',
+      'deckId': deckId,
+    });
+    return OfficialDeckCounts.fromJson(
+      Map<String, Object?>.from(raw['payload'] as Map? ?? raw),
+    );
+  }
+
+  Future<OfficialCongratsInfo> congratsInfo() async {
+    final raw = await _rpc('scheduler', {'op': 'congratsInfo'});
+    return OfficialCongratsInfo.fromJson(
+      Map<String, Object?>.from(raw['payload'] as Map? ?? raw),
+    );
+  }
+
+  Future<void> buryOrSuspendCards({
+    required OfficialBuryOrSuspendAction action,
+    List<int> cardIds = const <int>[],
+    int? deckId,
+  }) async {
+    await _rpc('scheduler', {
+      'op': 'buryOrSuspendCards',
+      'action': action.wireName,
+      'cardIds': cardIds,
+      if (deckId != null) 'deckId': deckId,
+    });
+  }
+
   Future<void> dispose() {
     return _disposeFuture ??= _disposeOnce();
   }
@@ -447,6 +557,8 @@ void officialAnkiWorkerEntrypoint(SendPort ready) {
   OfficialAnkiImportOrchestrator? orchestrator;
   OfficialAnkiRecoveryService? recovery;
   OfficialAnkiPaths? paths;
+  final ops = OfficialAnkiOperationCoordinator();
+  final audit = OfficialAnkiAuditLog();
 
   Future<void> handle(Map<String, Object?> message) async {
     final reply = message['reply'] as SendPort;
@@ -508,13 +620,19 @@ void officialAnkiWorkerEntrypoint(SendPort ready) {
           });
           return;
         case 'importFile':
-          final result = await orchestrator!.importFile(
-            packagePath: message['packagePath'] as String,
-            displayName: message['displayName'] as String,
-            requestId: message['requestId'] as String?,
-            cancel: message['cancel'] == true,
-          );
-          reply.send(_resultMap(result));
+          ops.guardCollectionMutation();
+          ops.acquire(OfficialAnkiOperationPhase.importing);
+          try {
+            final result = await orchestrator!.importFile(
+              packagePath: message['packagePath'] as String,
+              displayName: message['displayName'] as String,
+              requestId: message['requestId'] as String?,
+              cancel: message['cancel'] == true,
+            );
+            reply.send(_resultMap(result));
+          } finally {
+            ops.release(OfficialAnkiOperationPhase.importing);
+          }
           return;
         case 'recoverUnfinished':
           final results = await recovery!.recoverUnfinished();
@@ -710,6 +828,7 @@ void officialAnkiWorkerEntrypoint(SendPort ready) {
           });
           return;
         case 'ensureOpen':
+          ops.guardCollectionMutation();
           try {
             await engine!.openProfile(paths!);
           } on OfficialAnkiException catch (error) {
@@ -719,6 +838,19 @@ void officialAnkiWorkerEntrypoint(SendPort ready) {
           }
           await engine!.checkCollection();
           reply.send(const <String, Object?>{'ok': true});
+          return;
+        case 'scheduler':
+          final payload = await dispatchOfficialAnkiScheduler(
+            engine!,
+            message,
+            coordinator: ops,
+            audit: audit,
+          );
+          reply.send(<String, Object?>{
+            'ok': true,
+            'payload': payload,
+            'audit': audit.aggregate(),
+          });
           return;
         case 'dispose':
           try {
@@ -749,7 +881,7 @@ void officialAnkiWorkerEntrypoint(SendPort ready) {
       }
       reply.send(<String, Object?>{
         'ok': false,
-        'code': error.code.name.toUpperCase(),
+        'code': _wireErrorCode(error.code),
         'messageKey': error.messageKey,
         'debug': error.debugDetails ?? error.toString(),
       });
@@ -774,6 +906,188 @@ void officialAnkiWorkerEntrypoint(SendPort ready) {
       handle(Map<String, Object?>.from(raw));
     }
   });
+}
+
+String _wireErrorCode(OfficialAnkiErrorCode code) {
+  return code.name
+      .replaceAllMapped(RegExp(r'[A-Z]'), (match) => '_${match[0]}')
+      .toUpperCase();
+}
+
+const _schedulerWriteOps = {
+  'setCurrentDeck',
+  'answerCard',
+  'undo',
+  'redo',
+  'buryOrSuspendCards',
+};
+
+Future<Map<String, Object?>> dispatchOfficialAnkiScheduler(
+  OfficialAnkiEngine engine,
+  Map<String, Object?> message, {
+  OfficialAnkiOperationCoordinator? coordinator,
+  OfficialAnkiAuditLog? audit,
+}) async {
+  final op = message['op'] as String? ?? '';
+  if (_schedulerWriteOps.contains(op)) {
+    coordinator?.guardSchedulerWrite();
+  }
+  switch (op) {
+    case 'setCurrentDeck':
+      await engine.setCurrentDeck((message['deckId'] as num).toInt());
+      return const <String, Object?>{};
+    case 'getReviewQueue':
+      final queue = await engine.getReviewQueue(
+        fetchLimit: (message['fetchLimit'] as num?)?.toInt() ?? 1,
+      );
+      return <String, Object?>{
+        'sessionId': queue.sessionId,
+        'queueEpoch': queue.queueEpoch,
+        'newCount': queue.newCount,
+        'learningCount': queue.learningCount,
+        'reviewCount': queue.reviewCount,
+        'cards': queue.cards
+            .map(
+              (card) => <String, Object?>{
+                'cardId': card.cardId,
+                'noteId': card.noteId,
+                'deckId': card.deckId,
+                'templateOrdinal': card.templateOrdinal,
+                'queueKind': card.queueKind,
+                'answerToken': card.answerToken,
+                'labels': <String, Object?>{
+                  'again': card.labels.again,
+                  'hard': card.labels.hard,
+                  'good': card.labels.good,
+                  'easy': card.labels.easy,
+                },
+              },
+            )
+            .toList(),
+      };
+    case 'describeNextStates':
+      final labels = await engine.describeNextStates(
+        sessionId: message['sessionId'] as String,
+        queueEpoch: (message['queueEpoch'] as num).toInt(),
+        answerToken: message['answerToken'] as String,
+      );
+      return <String, Object?>{
+        'again': labels.again,
+        'hard': labels.hard,
+        'good': labels.good,
+        'easy': labels.easy,
+      };
+    case 'answerCard':
+      final answered = await engine.answerCard(
+        sessionId: message['sessionId'] as String,
+        queueEpoch: (message['queueEpoch'] as num).toInt(),
+        answerToken: message['answerToken'] as String,
+        cardId: (message['cardId'] as num).toInt(),
+        rating: message['rating'] as String,
+        millisecondsTaken: (message['millisecondsTaken'] as num).toInt(),
+        answeredAtMillis: (message['answeredAtMillis'] as num?)?.toInt(),
+        clientMutationId: message['clientMutationId'] as String?,
+      );
+      audit?.record(
+        owner: AnkiWriteOwner.officialScheduler,
+        operation: 'answer',
+        requestId: message['clientMutationId'] as String? ?? 'answer',
+        cardId: answered.cardId,
+      );
+      return <String, Object?>{
+        'cardId': answered.cardId,
+        'queue': answered.queue,
+        'revlogCount': answered.revlogCount,
+        'millisecondsTaken': answered.millisecondsTaken,
+        'clientMutationId': answered.clientMutationId,
+        'rating': answered.rating,
+        'queueEpoch': answered.queueEpoch,
+        'committed': answered.committed,
+      };
+    case 'getUndoStatus':
+      final status = await engine.getUndoStatus();
+      return <String, Object?>{
+        'canUndo': status.canUndo,
+        'canRedo': status.canRedo,
+        'undoLabel': status.undoLabel,
+        'redoLabel': status.redoLabel,
+      };
+    case 'undo':
+      final undone = await engine.undo();
+      audit?.record(
+        owner: AnkiWriteOwner.officialScheduler,
+        operation: 'undo',
+        requestId: 'undo',
+      );
+      return <String, Object?>{
+        'ok': undone.ok,
+        'undone': undone.undone,
+        'queueEpoch': undone.queueEpoch,
+      };
+    case 'redo':
+      final redone = await engine.redo();
+      audit?.record(
+        owner: AnkiWriteOwner.officialScheduler,
+        operation: 'redo',
+        requestId: 'redo',
+      );
+      return <String, Object?>{
+        'ok': redone.ok,
+        'redone': redone.redone,
+        'queueEpoch': redone.queueEpoch,
+      };
+    case 'countsForDeckToday':
+      final counts = await engine.countsForDeckToday(
+        (message['deckId'] as num).toInt(),
+      );
+      return <String, Object?>{
+        'deckId': counts.deckId,
+        'new': counts.newCount,
+        'review': counts.reviewCount,
+      };
+    case 'congratsInfo':
+      final info = await engine.congratsInfo();
+      return <String, Object?>{
+        'learnRemaining': info.learnRemaining,
+        'reviewRemaining': info.reviewRemaining,
+        'newRemaining': info.newRemaining,
+        'haveSchedBuried': info.haveSchedBuried,
+        'haveUserBuried': info.haveUserBuried,
+        'isFilteredDeck': info.isFilteredDeck,
+        'secsUntilNextLearn': info.secsUntilNextLearn,
+        'deckDescription': info.deckDescription,
+      };
+    case 'buryOrSuspendCards':
+      final action = OfficialBuryOrSuspendAction.parse(
+        message['action'] as String?,
+      );
+      final cardIds = ((message['cardIds'] as List?) ?? const [])
+          .map((item) {
+            if (item is! num) {
+              officialContractError('cardIds[]', item);
+            }
+            return item.toInt();
+          })
+          .toList();
+      if (cardIds.any((id) => id <= 0)) {
+        officialContractError('cardIds', cardIds);
+      }
+      if (action.requiresCardIds && cardIds.isEmpty) {
+        officialContractError('cardIds', cardIds);
+      }
+      await engine.buryOrSuspendCards(
+        action: action,
+        cardIds: cardIds,
+        deckId: (message['deckId'] as num?)?.toInt(),
+      );
+      return const <String, Object?>{};
+    default:
+      throw OfficialAnkiException(
+        code: OfficialAnkiErrorCode.invalidArgument,
+        messageKey: 'official_anki.unknown_worker_command',
+        debugDetails: message['op']?.toString(),
+      );
+  }
 }
 
 Map<String, Object?> _resultPayload(OfficialAnkiImportResult result) {

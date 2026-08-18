@@ -4,6 +4,10 @@
       Google TTS (and other TTS engines) can fail even when the package is installed.
       See flutter_tts README and TextToSpeech.Engine.INTENT_ACTION_TTS_SERVICE.
     -->
+    <!-- Official reviewer WebView intercepts https://anki.local. Chromium
+         refuses settings.blockNetworkLoads=false without INTERNET; debug/profile
+         already declare this, release did not, so factory create crashed. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <queries>
         <intent>
             <action android:name="android.intent.action.TTS_SERVICE" />
@@ -40,5 +44,11 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- Flutter 3.44 Hybrid Composition++. Required for WebView platform
+             views on Impeller/Vulkan (API 34+). Without this, release
+             formal review can attach no native WebView. -->
+        <meta-data
+            android:name="io.flutter.embedding.android.EnableHcpp"
+            android:value="true" />
     </application>
 </manifest>

@@ -331,6 +331,27 @@ class FfiOfficialAnkiEngine implements OfficialAnkiEngine {
   }
 
   @override
+  Future<OfficialReviewIntervalLabels> describeNextStates({
+    required String sessionId,
+    required int queueEpoch,
+    required String answerToken,
+  }) async {
+    _requireScheduler(OfficialAnkiOperation.describeNextStates);
+    final payload = _call(OfficialAnkiOperation.describeNextStates, {
+      'sessionId': sessionId,
+      'queueEpoch': queueEpoch,
+      'answerToken': answerToken,
+    }).requirePayload();
+    final labels = payload['labels'];
+    if (labels is! Map) {
+      officialContractError('labels', labels);
+    }
+    return OfficialReviewIntervalLabels.fromJson(
+      Map<String, Object?>.from(labels),
+    );
+  }
+
+  @override
   Future<OfficialAnswerResult> answerCard({
     required String sessionId,
     required int queueEpoch,
@@ -339,6 +360,7 @@ class FfiOfficialAnkiEngine implements OfficialAnkiEngine {
     required String rating,
     required int millisecondsTaken,
     int? answeredAtMillis,
+    String? clientMutationId,
   }) async {
     _requireScheduler(OfficialAnkiOperation.answerCard);
     final payload = _call(OfficialAnkiOperation.answerCard, {
@@ -349,6 +371,7 @@ class FfiOfficialAnkiEngine implements OfficialAnkiEngine {
       'rating': rating,
       'millisecondsTaken': millisecondsTaken,
       if (answeredAtMillis != null) 'answeredAtMillis': answeredAtMillis,
+      if (clientMutationId != null) 'clientMutationId': clientMutationId,
     }).requirePayload();
     OfficialAnkiSchedulerAudit.officialSchedulerAnswers += 1;
     return OfficialAnswerResult.fromJson(payload);
@@ -403,10 +426,11 @@ class FfiOfficialAnkiEngine implements OfficialAnkiEngine {
   }) async {
     _requireScheduler(OfficialAnkiOperation.buryOrSuspendCards);
     _call(OfficialAnkiOperation.buryOrSuspendCards, {
-      'action': action.wireName,
+      'mode': action.wireName,
       'cardIds': cardIds,
       if (deckId != null) 'deckId': deckId,
     });
+    OfficialAnkiSchedulerAudit.officialSchedulerBurySuspend += 1;
   }
 
   @override

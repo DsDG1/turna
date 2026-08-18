@@ -28,6 +28,20 @@ class OfficialAnkiPaths {
   File get engineJson => File('${profileRoot.path}/engine.json');
   File get catalogFile => File('${profileRoot.path}/official_catalog.sqlite');
 
+  int diskFreeBytes() {
+    try {
+      final result = Process.runSync('df', ['-Pk', profileRoot.path]);
+      if (result.exitCode != 0) return 0;
+      final lines = (result.stdout as String).trim().split('\n');
+      if (lines.length < 2) return 0;
+      final cols = lines.last.trim().split(RegExp(r'\s+'));
+      if (cols.length < 4) return 0;
+      return (int.tryParse(cols[3]) ?? 0) * 1024;
+    } catch (_) {
+      return 0;
+    }
+  }
+
   Map<String, String> openPayload({required String backendCommit}) {
     return <String, String>{
       'collection_path': collectionFile.path,

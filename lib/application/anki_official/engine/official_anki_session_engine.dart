@@ -143,11 +143,25 @@ class OfficialAnkiSessionEngine implements OfficialAnkiEngine {
   }
 
   @override
-  Future<void> setCurrentDeck(int deckId) => throw _missing;
+  Future<void> setCurrentDeck(int deckId) => session.setCurrentDeck(deckId);
 
   @override
-  Future<OfficialReviewQueue> getReviewQueue({int fetchLimit = 1}) =>
-      throw _missing;
+  Future<OfficialReviewQueue> getReviewQueue({int fetchLimit = 1}) {
+    return session.getReviewQueue(fetchLimit: fetchLimit);
+  }
+
+  @override
+  Future<OfficialReviewIntervalLabels> describeNextStates({
+    required String sessionId,
+    required int queueEpoch,
+    required String answerToken,
+  }) {
+    return session.describeNextStates(
+      sessionId: sessionId,
+      queueEpoch: queueEpoch,
+      answerToken: answerToken,
+    );
+  }
 
   @override
   Future<OfficialAnswerResult> answerCard({
@@ -158,31 +172,49 @@ class OfficialAnkiSessionEngine implements OfficialAnkiEngine {
     required String rating,
     required int millisecondsTaken,
     int? answeredAtMillis,
-  }) =>
-      throw _missing;
+    String? clientMutationId,
+  }) {
+    return session.answerCard(
+      sessionId: sessionId,
+      queueEpoch: queueEpoch,
+      answerToken: answerToken,
+      cardId: cardId,
+      rating: rating,
+      millisecondsTaken: millisecondsTaken,
+      answeredAtMillis: answeredAtMillis,
+      clientMutationId: clientMutationId,
+    );
+  }
 
   @override
-  Future<OfficialUndoStatus> getUndoStatus() => throw _missing;
+  Future<OfficialUndoStatus> getUndoStatus() => session.getUndoStatus();
 
   @override
-  Future<OfficialMutationResult> undo() => throw _missing;
+  Future<OfficialMutationResult> undo() => session.undo();
 
   @override
-  Future<OfficialMutationResult> redo() => throw _missing;
+  Future<OfficialMutationResult> redo() => session.redo();
 
   @override
-  Future<OfficialDeckCounts> countsForDeckToday(int deckId) => throw _missing;
+  Future<OfficialDeckCounts> countsForDeckToday(int deckId) {
+    return session.countsForDeckToday(deckId);
+  }
 
   @override
-  Future<OfficialCongratsInfo> congratsInfo() => throw _missing;
+  Future<OfficialCongratsInfo> congratsInfo() => session.congratsInfo();
 
   @override
   Future<void> buryOrSuspendCards({
     required OfficialBuryOrSuspendAction action,
     List<int> cardIds = const <int>[],
     int? deckId,
-  }) =>
-      throw _missing;
+  }) {
+    return session.buryOrSuspendCards(
+      action: action,
+      cardIds: cardIds,
+      deckId: deckId,
+    );
+  }
 
   @override
   Future<void> dispose() => session.dispose();

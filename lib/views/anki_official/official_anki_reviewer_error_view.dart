@@ -92,6 +92,8 @@ class OfficialAnkiReviewerErrorView extends StatelessWidget {
     switch (key) {
       case 'official_anki.card_not_found':
         return '这张官方卡片不存在。';
+      case 'official_anki.unrenderable_card':
+        return '该卡片模板不可渲染或已损坏，可手动跳过或搁置。';
       case 'official_anki.render_failed':
         return '官方模板渲染失败。';
       case 'official_anki.renderer_flag_fail_closed':
@@ -102,6 +104,32 @@ class OfficialAnkiReviewerErrorView extends StatelessWidget {
         return '生产路径禁止使用进程内回退。';
       case 'official_anki.flag_fail_closed':
         return '官方 Anki 功能未打开。';
+      case 'official_anki.scheduler_flag_fail_closed':
+        return '官方复习调度未启用。';
+      case 'official_anki.internal_error':
+        return '官方复习遇到内部错误。';
+      case 'official_anki.answer_commit_unknown':
+        return '官方评分结果未确认，正在等待核对。';
+      case 'official_anki.scheduling_context_stale':
+        return '官方复习上下文已过期，请重试。';
+      case 'official_anki.invalid_review_state':
+        return '官方复习状态无效。';
+      case 'official_anki.invalid_bury_action':
+        return '官方搁置或暂停操作无效。';
+      case 'official_anki.contract_decode_failed':
+        return '官方复习数据不完整。';
+      case 'official_anki.write_owner_denied':
+        return '该复习路径不允许写入。';
+      case 'official_anki.unknown_migration_state':
+        return '未知的 Legacy 迁移状态。';
+      case 'official_anki.illegal_migration_transition':
+        return 'Legacy 迁移状态不能这样切换。';
+      case 'official_anki.migration_cas_failed':
+        return 'Legacy 迁移状态已被其他操作更新。';
+      case 'official_anki.operation_conflict':
+        return '官方复习正在进行，不能同时导入或重开牌组。';
+      case 'official_anki.filtered_deck_unsupported':
+        return '当前过滤牌组不支持搁置或暂停。';
       case 'official_anki.capability_missing':
         return '当前 native 没有 RENDER_CARD，需要重编 libturna_anki.so。';
       case 'official_anki.collection_already_open':

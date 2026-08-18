@@ -11,6 +11,7 @@ class OfficialAnkiReviewerFactory(
     private val assetLoader: (String) -> ByteArray?,
 ) : PlatformViewFactory(StandardMessageCodec.INSTANCE) {
     override fun create(context: Context, viewId: Int, args: Any?): PlatformView {
+        android.util.Log.i(TAG, "create viewId=$viewId args=${args != null}")
         @Suppress("UNCHECKED_CAST")
         val params = args as? Map<*, *>
         return OfficialAnkiReviewerPlatformView(
@@ -20,5 +21,9 @@ class OfficialAnkiReviewerFactory(
             params,
             assetLoader,
         )
+    }
+
+    companion object {
+        private const val TAG = "OfficialAnkiReviewer"
     }
 }

@@ -1,5 +1,6 @@
 //! Stable Turna error codes. Business errors belong in the JSON envelope.
 
+use crate::engine::STATUS_ANSWER_COMMIT_UNKNOWN;
 use crate::engine::STATUS_ANSWER_FAILED;
 use crate::engine::STATUS_BACKEND_PANIC;
 use crate::engine::STATUS_CARD_NOT_FOUND;
@@ -48,6 +49,7 @@ pub fn code_for_status(status: i32) -> &'static str {
         STATUS_QUEUE_EMPTY => "QUEUE_EMPTY",
         STATUS_SCHEDULING_CONTEXT_STALE => "SCHEDULING_CONTEXT_STALE",
         STATUS_ANSWER_FAILED => "ANSWER_FAILED",
+        STATUS_ANSWER_COMMIT_UNKNOWN => "ANSWER_COMMIT_UNKNOWN",
         STATUS_UNDO_UNAVAILABLE => "UNDO_UNAVAILABLE",
         STATUS_IO_ERROR => "IO_ERROR",
         STATUS_COLLECTION_CORRUPT => "COLLECTION_CORRUPT",
@@ -81,6 +83,7 @@ pub fn message_key_for_status(status: i32) -> &'static str {
         STATUS_QUEUE_EMPTY => "official_anki.queue_empty",
         STATUS_SCHEDULING_CONTEXT_STALE => "official_anki.scheduling_context_stale",
         STATUS_ANSWER_FAILED => "official_anki.answer_failed",
+        STATUS_ANSWER_COMMIT_UNKNOWN => "official_anki.answer_commit_unknown",
         STATUS_UNDO_UNAVAILABLE => "official_anki.undo_unavailable",
         STATUS_REDO_UNAVAILABLE => "official_anki.redo_unavailable",
         STATUS_DECK_NOT_FOUND => "official_anki.deck_not_found",
@@ -97,5 +100,10 @@ pub fn recoverable(status: i32) -> bool {
             | STATUS_PAGE_TOKEN_STALE
             | STATUS_PROJECTION_SNAPSHOT_STALE
             | STATUS_INVALID_STATE
+            | STATUS_QUEUE_EMPTY
+            | STATUS_SCHEDULING_CONTEXT_STALE
+            | STATUS_ANSWER_FAILED
+            | STATUS_ANSWER_COMMIT_UNKNOWN
+            | STATUS_SCHEDULER_BUSY
     )
 }

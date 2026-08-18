@@ -48,6 +48,10 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
     final cardIds = <int>[];
     cardsByNote.clear();
     this.cards.clear();
+    answeredIds.clear();
+    officialAnswers = 0;
+    buried.clear();
+    suspended.clear();
     var cardId = 1;
     for (final noteId in noteIds) {
       final ids = <int>[];
@@ -309,11 +313,13 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
     return value;
   }
 
+  List<OfficialAnkiDeckNode> deckTree = const [
+    OfficialAnkiDeckNode(deckId: 1, name: 'Default', level: 0),
+  ];
+
   @override
   Future<List<OfficialAnkiDeckNode>> listDeckTree() async {
-    return const [
-      OfficialAnkiDeckNode(deckId: 1, name: 'Default', level: 0),
-    ];
+    return List<OfficialAnkiDeckNode>.of(deckTree);
   }
 
   @override
@@ -433,6 +439,8 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
   var currentDeckId = 1;
   final buried = <int>{};
   final suspended = <int>{};
+  final answeredIds = <int>{};
+  int? newPerDayLimit;
 
   @override
   Future<void> setCurrentDeck(int deckId) async {
@@ -449,9 +457,20 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
       );
     }
     _invalidateTokens();
-    final ids = cards.keys.where((id) => !buried.contains(id) && !suspended.contains(id)).toList()
+    final ids = cards.entries
+        .where(
+          (entry) =>
+              !buried.contains(entry.key) &&
+              !suspended.contains(entry.key) &&
+              !answeredIds.contains(entry.key) &&
+              entry.value.deckId == currentDeckId,
+        )
+        .map((entry) => entry.key)
+        .toList()
       ..sort();
-    if (ids.isEmpty) {
+    final dayCapped = newPerDayLimit != null &&
+        officialAnswers >= newPerDayLimit!;
+    if (ids.isEmpty || dayCapped) {
       throw const OfficialAnkiException(
         code: OfficialAnkiErrorCode.queueEmpty,
         messageKey: 'official_anki.queue_empty',
@@ -490,6 +509,33 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
   }
 
   @override
+  Future<OfficialReviewIntervalLabels> describeNextStates({
+    required String sessionId,
+    required int queueEpoch,
+    required String answerToken,
+  }) async {
+    if (sessionId != activeSessionId ||
+        queueEpoch != this.queueEpoch ||
+        !issuedTokens.containsKey(answerToken) ||
+        consumedTokens.contains(answerToken)) {
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.schedulingContextStale,
+        messageKey: 'official_anki.scheduling_context_stale',
+      );
+    }
+    return const OfficialReviewIntervalLabels(
+      again: '1m',
+      hard: '6d',
+      good: '15d',
+      easy: '1mo',
+    );
+  }
+
+  var failNextAnswerUnwritten = false;
+  var failNextAnswerUnknown = false;
+  String? lastClientMutationId;
+
+  @override
   Future<OfficialAnswerResult> answerCard({
     required String sessionId,
     required int queueEpoch,
@@ -498,6 +544,7 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
     required String rating,
     required int millisecondsTaken,
     int? answeredAtMillis,
+    String? clientMutationId,
   }) async {
     if (millisecondsTaken < 0 || millisecondsTaken > 24 * 60 * 60 * 1000) {
       throw const OfficialAnkiException(
@@ -516,9 +563,27 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
         messageKey: 'official_anki.scheduling_context_stale',
       );
     }
+    if (failNextAnswerUnwritten) {
+      failNextAnswerUnwritten = false;
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.answerFailed,
+        messageKey: 'official_anki.answer_failed',
+        recoverable: true,
+      );
+    }
+    if (failNextAnswerUnknown) {
+      failNextAnswerUnknown = false;
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.answerCommitUnknown,
+        messageKey: 'official_anki.answer_commit_unknown',
+        recoverable: true,
+      );
+    }
     consumedTokens.add(answerToken);
     officialAnswers += 1;
+    answeredIds.add(cardId);
     lastMillisecondsTaken = millisecondsTaken;
+    lastClientMutationId = clientMutationId;
     OfficialAnkiSchedulerAudit.officialSchedulerAnswers += 1;
     _invalidateTokens();
     return OfficialAnswerResult(
@@ -526,6 +591,10 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
       queue: rating,
       revlogCount: officialAnswers,
       millisecondsTaken: millisecondsTaken,
+      clientMutationId: clientMutationId,
+      rating: rating,
+      queueEpoch: this.queueEpoch,
+      committed: true,
     );
   }
 
@@ -548,7 +617,7 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
     officialUndos += 1;
     OfficialAnkiSchedulerAudit.officialSchedulerUndo += 1;
     _invalidateTokens();
-    return const OfficialMutationResult(ok: true, undone: true);
+    return OfficialMutationResult(ok: true, undone: true, queueEpoch: queueEpoch);
   }
 
   @override
@@ -562,15 +631,15 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
     officialRedos += 1;
     OfficialAnkiSchedulerAudit.officialSchedulerRedo += 1;
     _invalidateTokens();
-    return const OfficialMutationResult(ok: true, redone: true);
+    return OfficialMutationResult(ok: true, redone: true, queueEpoch: queueEpoch);
   }
 
   @override
   Future<OfficialDeckCounts> countsForDeckToday(int deckId) async {
     return OfficialDeckCounts(
       deckId: deckId,
-      newStudied: officialAnswers,
-      reviewStudied: officialAnswers,
+      newCount: officialAnswers,
+      reviewCount: officialAnswers,
     );
   }
 
@@ -595,18 +664,21 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
     int? deckId,
   }) async {
     switch (action) {
-      case OfficialBuryOrSuspendAction.buryCard:
-      case OfficialBuryOrSuspendAction.burySiblings:
+      case OfficialBuryOrSuspendAction.buryUser:
+      case OfficialBuryOrSuspendAction.burySched:
         buried.addAll(cardIds);
-      case OfficialBuryOrSuspendAction.unburyDeck:
+      case OfficialBuryOrSuspendAction.unburyDeckAll:
+      case OfficialBuryOrSuspendAction.unburyDeckSchedOnly:
+      case OfficialBuryOrSuspendAction.unburyDeckUserOnly:
         buried.clear();
-      case OfficialBuryOrSuspendAction.suspendCards:
+      case OfficialBuryOrSuspendAction.suspend:
         suspended.addAll(cardIds);
-      case OfficialBuryOrSuspendAction.unsuspendCards:
+      case OfficialBuryOrSuspendAction.restoreCards:
         for (final id in cardIds) {
           suspended.remove(id);
         }
     }
+    OfficialAnkiSchedulerAudit.officialSchedulerBurySuspend += 1;
     _invalidateTokens();
   }
 

@@ -1,6 +1,7 @@
 //! Collection engine state machine. Handles are never raw Collection pointers.
 
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
@@ -76,6 +77,7 @@ pub const STATUS_REDO_UNAVAILABLE: i32 = 37;
 pub const STATUS_DECK_NOT_FOUND: i32 = 38;
 pub const STATUS_SCHEDULER_BUSY: i32 = 39;
 pub const STATUS_SCHEDULER_CAPABILITY_MISSING: i32 = 40;
+pub const STATUS_ANSWER_COMMIT_UNKNOWN: i32 = 41;
 
 pub const MAX_REQUEST_BYTES: usize = 1_048_576;
 pub const MAX_RESPONSE_BYTES: usize = 8_388_608;
@@ -106,11 +108,21 @@ pub struct LifecycleResponse {
     pub created: Option<bool>,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TokenConsumption {
+    Pending,
+    InFlight,
+    Committed,
+    FailedUnwritten,
+    Unknown,
+}
+
 pub struct AnswerToken {
     pub session_id: String,
     pub queue_epoch: u64,
     pub card_id: i64,
     pub states: SchedulingStates,
+    pub consumption: TokenConsumption,
 }
 
 pub struct PageSnapshot {
@@ -130,6 +142,10 @@ pub struct Engine {
     pub queue_epoch: u64,
     pub next_token: u64,
     pub tokens: HashMap<String, AnswerToken>,
+    pub committed_mutations: HashSet<String>,
+    pub debug_fail_before_answer: bool,
+    pub debug_fail_after_commit: bool,
+    pub allow_injected_answered_at: bool,
     pub page_generation: u64,
     pub page_snapshot: Option<PageSnapshot>,
     pub projection_snapshot: Option<crate::projection::ProjectionSnapshot>,
@@ -149,6 +165,10 @@ impl Engine {
             queue_epoch: 1,
             next_token: 1,
             tokens: HashMap::new(),
+            committed_mutations: HashSet::new(),
+            debug_fail_before_answer: false,
+            debug_fail_after_commit: false,
+            allow_injected_answered_at: false,
             page_generation: 1,
             page_snapshot: None,
             projection_snapshot: None,
@@ -286,6 +306,7 @@ pub fn open_collection(handle: u64, request: &[u8]) -> Result<LifecycleResponse,
     engine.page_generation = engine.page_generation.wrapping_add(1).max(1);
     engine.page_snapshot = None;
     engine.projection_snapshot = None;
+    engine.committed_mutations.clear();
     engine.invalidate_tokens();
     Ok(LifecycleResponse {
         state: "open",

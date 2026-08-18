@@ -48,10 +48,35 @@ class OfficialAnkiReviewerView extends StatefulWidget {
 }
 
 class OfficialAnkiReviewerViewState extends State<OfficialAnkiReviewerView> {
+  /// Isolate cache so a later reviewer State does not wait on the HCPP probe.
+  static bool? _hcppCached;
+
   MethodChannel? _channel;
   var _setCardGeneration = 0;
   late final OfficialAnkiPresentGate _gate =
       widget.presentGate ?? OfficialAnkiPresentGate();
+  final _deduper = OfficialAnkiPresentDeduper();
+
+  /// Frozen in [initState]. Default HCPP; never flipped after the view exists.
+  var _hcpp = true;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!Platform.isAndroid) {
+      _hcpp = false;
+      return;
+    }
+    final cached = _hcppCached;
+    if (cached != null) {
+      _hcpp = cached;
+      return;
+    }
+    _hcpp = true;
+    HybridAndroidViewController.checkIfSupported().then((supported) {
+      _hcppCached = supported;
+    });
+  }
 
   @override
   void didUpdateWidget(covariant OfficialAnkiReviewerView oldWidget) {
@@ -78,8 +103,10 @@ class OfficialAnkiReviewerViewState extends State<OfficialAnkiReviewerView> {
   Future<dynamic> _onNative(MethodCall call) async {
     switch (call.method) {
       case 'ready':
-        // Shell ready only. The initial present is sent once from _onCreated.
+        // Shell just became ready. Re-present if the first call raced the
+        // iframe/shell (deduper lets a settled generation through again).
         widget.onReady?.call();
+        _present();
         return null;
       case 'pageHeightChanged':
         final height = (call.arguments as num?)?.toDouble() ?? 0;
@@ -90,7 +117,11 @@ class OfficialAnkiReviewerViewState extends State<OfficialAnkiReviewerView> {
         return null;
       case 'renderError':
         debugPrint('[OfficialAnkiReviewer] renderError ${call.arguments}');
-        widget.onRenderError?.call(call.arguments?.toString() ?? 'renderError');
+        final raw = call.arguments?.toString() ?? '';
+        final code = raw.isEmpty || raw == 'renderError'
+            ? 'UNRENDERABLE_CARD'
+            : raw;
+        widget.onRenderError?.call(code);
         return null;
       default:
         return null;
@@ -104,37 +135,49 @@ class OfficialAnkiReviewerViewState extends State<OfficialAnkiReviewerView> {
     if (widget.presentGeneration == null) {
       _setCardGeneration = token;
     }
-    final result = await _gate.run(token, () async {
-      try {
-        final raw = await channel.invokeMethod<dynamic>('present', <String, Object?>{
-          'cardId': widget.card.cardId,
-          'generation': token,
-          'questionDisplayHtml': widget.card.questionDisplayHtml,
-          'answerDisplayHtml': widget.card.answerDisplayHtml,
-          'css': widget.card.css,
-          'theme': widget.dark ? 'night' : 'day',
-          'comparisonHtml': widget.comparisonHtml,
-          'side': widget.showingAnswer ? 'answer' : 'question',
-          'templateOrdinal': widget.card.templateOrdinal,
-          'bodyClass': widget.card.bodyClass,
-        });
-        return OfficialAnkiPresentResult.fromNative(raw);
-      } catch (error) {
-        debugPrint('[OfficialAnkiReviewer] present failed $error');
-        return OfficialAnkiPresentResult(
-          ok: false,
-          code: 'RENDER_TIMEOUT',
-          generation: token,
-          recoverable: true,
-        );
-      }
-    });
-    if (!mounted) return;
-    if (result.ok) {
-      widget.onRenderComplete?.call(result);
+    final side = widget.showingAnswer ? 'answer' : 'question';
+    if (_deduper.shouldSkip(
+      cardId: widget.card.cardId,
+      generation: token,
+      side: side,
+    )) {
       return;
     }
-    widget.onRenderError?.call(result.code ?? 'renderError');
+    try {
+      final result = await _gate.run(token, () async {
+        try {
+          final raw = await channel.invokeMethod<dynamic>('present', <String, Object?>{
+            'cardId': widget.card.cardId,
+            'generation': token,
+            'questionDisplayHtml': widget.card.questionDisplayHtml,
+            'answerDisplayHtml': widget.card.answerDisplayHtml,
+            'css': widget.card.css,
+            'theme': widget.dark ? 'night' : 'day',
+            'comparisonHtml': widget.comparisonHtml,
+            'side': side,
+            'templateOrdinal': widget.card.templateOrdinal,
+            'bodyClass': widget.card.bodyClass,
+          });
+          return OfficialAnkiPresentResult.fromNative(raw);
+        } catch (error) {
+          debugPrint('[OfficialAnkiReviewer] present failed $error');
+          return OfficialAnkiPresentResult(
+            ok: false,
+            code: 'RENDER_TIMEOUT',
+            generation: token,
+            recoverable: true,
+          );
+        }
+      });
+      if (!mounted) return;
+      if (result.ok) {
+        widget.onRenderComplete?.call(result);
+        return;
+      }
+      widget.onRenderError?.call(result.code ?? 'RENDER_TIMEOUT');
+    } finally {
+      _deduper.markSettled();
+    }
   }
 
   @override
@@ -165,19 +208,28 @@ class OfficialAnkiReviewerViewState extends State<OfficialAnkiReviewerView> {
           hitTestBehavior: PlatformViewHitTestBehavior.opaque,
         );
       },
-      onCreatePlatformView: (paramsId) {
-        final controller = PlatformViewsService.initExpensiveAndroidView(
-          id: paramsId.id,
-          viewType: officialAnkiReviewerViewType,
-          layoutDirection: TextDirection.ltr,
-          creationParams: params,
-          creationParamsCodec: const StandardMessageCodec(),
-        );
-        controller.addOnPlatformViewCreatedListener((id) {
-          paramsId.onPlatformViewCreated(id);
-          _onCreated(id);
-        });
-        return controller..create();
+      onCreatePlatformView: (viewParams) {
+        final AndroidViewController controller = _hcpp
+            ? PlatformViewsService.initHybridAndroidView(
+                id: viewParams.id,
+                viewType: officialAnkiReviewerViewType,
+                layoutDirection: TextDirection.ltr,
+                creationParams: params,
+                creationParamsCodec: const StandardMessageCodec(),
+                onFocus: () => viewParams.onFocusChanged(true),
+              )
+            : PlatformViewsService.initExpensiveAndroidView(
+                id: viewParams.id,
+                viewType: officialAnkiReviewerViewType,
+                layoutDirection: TextDirection.ltr,
+                creationParams: params,
+                creationParamsCodec: const StandardMessageCodec(),
+                onFocus: () => viewParams.onFocusChanged(true),
+              );
+        return controller
+          ..addOnPlatformViewCreatedListener(viewParams.onPlatformViewCreated)
+          ..addOnPlatformViewCreatedListener(_onCreated)
+          ..create();
       },
     );
   }

@@ -225,6 +225,21 @@ class OfficialAnkiWorker implements OfficialAnkiEngine {
   }
 
   @override
+  Future<OfficialReviewIntervalLabels> describeNextStates({
+    required String sessionId,
+    required int queueEpoch,
+    required String answerToken,
+  }) {
+    return _enqueue(
+      () => _inner.describeNextStates(
+        sessionId: sessionId,
+        queueEpoch: queueEpoch,
+        answerToken: answerToken,
+      ),
+    );
+  }
+
+  @override
   Future<OfficialAnswerResult> answerCard({
     required String sessionId,
     required int queueEpoch,
@@ -233,6 +248,7 @@ class OfficialAnkiWorker implements OfficialAnkiEngine {
     required String rating,
     required int millisecondsTaken,
     int? answeredAtMillis,
+    String? clientMutationId,
   }) {
     return _enqueue(
       () => _inner.answerCard(
@@ -243,6 +259,7 @@ class OfficialAnkiWorker implements OfficialAnkiEngine {
         rating: rating,
         millisecondsTaken: millisecondsTaken,
         answeredAtMillis: answeredAtMillis,
+        clientMutationId: clientMutationId,
       ),
     );
   }
