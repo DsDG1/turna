@@ -1,0 +1,14 @@
+{
+  "legacy": [
+    {"legacyCardId": 8, "legacyWordId": "mt-0", "noteGuid": "guid-mt", "templateOrd": 0},
+    {"legacyCardId": 9, "legacyWordId": "mt-1", "noteGuid": "guid-mt", "templateOrd": 1}
+  ],
+  "official": [
+    {"officialCardId": 108, "noteGuid": "guid-mt", "templateOrd": 0},
+    {"officialCardId": 109, "noteGuid": "guid-mt", "templateOrd": 1}
+  ],
+  "expected": [
+    {"legacyCardId": 8, "matchState": "matched", "officialCardId": 108},
+    {"legacyCardId": 9, "matchState": "matched", "officialCardId": 109}
+  ]
+}

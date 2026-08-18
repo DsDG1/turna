@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:turna/application/anki_official/contract/official_anki_contract.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
+import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine_ffi.dart';
 import 'package:turna/application/anki_official/engine/official_anki_native_transport.dart';
 import 'package:turna/application/anki_official/engine/official_anki_session.dart';
@@ -218,5 +219,67 @@ void main() {
         expect(rendered.first.answerDisplayHtml.contains('[sound:'), isFalse);
       }
     }
+  });
+
+  test('Host FFI set-deck queue answer good then stale token', () async {
+    if (libraryPath == null) {
+      if (_requireNative) {
+        fail('libturna_anki.so missing; TURNA_ANKI_REQUIRE_NATIVE=1');
+      }
+      return;
+    }
+    final root = Directory.systemTemp.createTempSync('turna-host-sched-');
+    addTearDown(() => root.deleteSync(recursive: true));
+    final paths = OfficialAnkiPaths(
+      profileId: 'profile-host-sched01',
+      profileRoot: Directory('${root.path}/profile'),
+    );
+    final transport = OfficialAnkiNativeTransport.open(libraryPath: libraryPath);
+    final engine = FfiOfficialAnkiEngine.connect(transport);
+    addTearDown(engine.dispose);
+    final db = OfficialAnkiDatabase.file('${root.path}/catalog.sqlite');
+    addTearDown(db.close);
+    final pkg = File(
+      p.absolute('test/fixtures/anki_official/packages/08-scheduling.apkg'),
+    );
+    final imported = await OfficialAnkiImportOrchestrator(
+      engine: engine,
+      sources: OfficialAnkiSourceDao(db),
+      attempts: OfficialAnkiImportAttemptDao(db),
+      paths: paths,
+    ).importFile(packagePath: pkg.path, displayName: 'scheduling');
+    expect(imported.state, OfficialAnkiSourceState.active);
+    await engine.setCurrentDeck(1);
+    final queue = await engine.getReviewQueue(fetchLimit: 1);
+    expect(queue.cards, isNotEmpty);
+    expect(queue.cards.single.answerToken, isNotEmpty);
+    final first = await engine.answerCard(
+      sessionId: queue.sessionId,
+      queueEpoch: queue.queueEpoch,
+      answerToken: queue.cards.single.answerToken,
+      cardId: queue.cards.single.cardId,
+      rating: 'good',
+      millisecondsTaken: 3210,
+    );
+    expect(first.millisecondsTaken, 3210);
+    expect(first.committed, isTrue);
+    expect(first.revlogCount, greaterThan(0));
+    await expectLater(
+      engine.answerCard(
+        sessionId: queue.sessionId,
+        queueEpoch: queue.queueEpoch,
+        answerToken: queue.cards.single.answerToken,
+        cardId: queue.cards.single.cardId,
+        rating: 'good',
+        millisecondsTaken: 10,
+      ),
+      throwsA(
+        isA<OfficialAnkiException>().having(
+          (e) => e.code,
+          'code',
+          OfficialAnkiErrorCode.schedulingContextStale,
+        ),
+      ),
+    );
   });
 }

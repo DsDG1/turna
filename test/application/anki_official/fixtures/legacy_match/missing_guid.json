@@ -1,0 +1,9 @@
+{
+  "legacy": [
+    {"legacyCardId": 6, "legacyWordId": "missing", "noteGuid": "", "templateOrd": 0}
+  ],
+  "official": [],
+  "expected": [
+    {"legacyCardId": 6, "matchState": "needsUserAction"}
+  ]
+}

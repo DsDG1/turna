@@ -1,0 +1,14 @@
+{
+  "legacy": [
+    {"legacyCardId": 4, "legacyWordId": "dup-a", "noteGuid": "guid-dup", "templateOrd": 0},
+    {"legacyCardId": 5, "legacyWordId": "dup-b", "noteGuid": "guid-dup", "templateOrd": 0}
+  ],
+  "official": [
+    {"officialCardId": 104, "noteGuid": "guid-dup", "templateOrd": 0},
+    {"officialCardId": 105, "noteGuid": "guid-dup", "templateOrd": 0}
+  ],
+  "expected": [
+    {"legacyCardId": 4, "matchState": "collision"},
+    {"legacyCardId": 5, "matchState": "collision"}
+  ]
+}

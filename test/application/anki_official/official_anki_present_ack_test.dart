@@ -78,4 +78,55 @@ void main() {
     expect(parsed.isSuperseded, isTrue);
     expect(parsed.recoverable, isTrue);
   });
+
+  test('deduper skips same card/side/generation and lets a newer generation through', () {
+    final deduper = OfficialAnkiPresentDeduper();
+    expect(
+      deduper.shouldSkip(cardId: 10, generation: 1, side: 'question'),
+      isFalse,
+    );
+    expect(
+      deduper.shouldSkip(cardId: 10, generation: 1, side: 'question'),
+      isTrue,
+    );
+    expect(
+      deduper.shouldSkip(cardId: 10, generation: 2, side: 'question'),
+      isFalse,
+    );
+    expect(
+      deduper.shouldSkip(cardId: 10, generation: 2, side: 'answer'),
+      isFalse,
+    );
+    expect(
+      deduper.shouldSkip(cardId: 11, generation: 2, side: 'answer'),
+      isFalse,
+    );
+  });
+
+  test('deduper allows the same generation again after it settles', () {
+    final deduper = OfficialAnkiPresentDeduper();
+    expect(
+      deduper.shouldSkip(cardId: 10, generation: 1, side: 'question'),
+      isFalse,
+    );
+    expect(
+      deduper.shouldSkip(cardId: 10, generation: 1, side: 'question'),
+      isTrue,
+    );
+    deduper.markSettled();
+    expect(
+      deduper.shouldSkip(cardId: 10, generation: 1, side: 'question'),
+      isFalse,
+    );
+  });
+
+  test('fromNative empty failure code becomes recoverable RENDER_TIMEOUT', () {
+    final parsed = OfficialAnkiPresentResult.fromNative(<String, Object?>{
+      'ok': false,
+      'code': '',
+    });
+    expect(parsed.ok, isFalse);
+    expect(parsed.code, 'RENDER_TIMEOUT');
+    expect(parsed.recoverable, isTrue);
+  });
 }

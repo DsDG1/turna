@@ -1,0 +1,11 @@
+{
+  "legacy": [
+    {"legacyCardId": 2, "legacyWordId": "reverse", "noteGuid": "guid-rev", "templateOrd": 1}
+  ],
+  "official": [
+    {"officialCardId": 102, "noteGuid": "guid-rev", "templateOrd": 1}
+  ],
+  "expected": [
+    {"legacyCardId": 2, "matchState": "matched", "officialCardId": 102}
+  ]
+}

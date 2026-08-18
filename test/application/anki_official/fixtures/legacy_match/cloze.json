@@ -1,0 +1,11 @@
+{
+  "legacy": [
+    {"legacyCardId": 3, "legacyWordId": "cloze", "noteGuid": "guid-cloze", "templateOrd": 0}
+  ],
+  "official": [
+    {"officialCardId": 103, "noteGuid": "guid-cloze", "templateOrd": 0}
+  ],
+  "expected": [
+    {"legacyCardId": 3, "matchState": "matched", "officialCardId": 103}
+  ]
+}

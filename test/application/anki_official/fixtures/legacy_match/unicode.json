@@ -1,0 +1,11 @@
+{
+  "legacy": [
+    {"legacyCardId": 7, "legacyWordId": "unicode", "noteGuid": "guid-你好", "templateOrd": 0}
+  ],
+  "official": [
+    {"officialCardId": 107, "noteGuid": "guid-你好", "templateOrd": 0}
+  ],
+  "expected": [
+    {"legacyCardId": 7, "matchState": "matched", "officialCardId": 107}
+  ]
+}

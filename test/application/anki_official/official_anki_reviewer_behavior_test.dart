@@ -97,6 +97,52 @@ void main() {
     expect(controller.typed.hint, isNull);
   });
 
+  test('loadAndShowQuestion does not expose a card before present generation is reserved',
+      () async {
+    final fake = FakeOfficialAnkiEngine();
+    fake.seedPackage(packagePath: 'x.apkg', notes: 1, cards: 1);
+    fake.renders[1] = const OfficialAnkiRenderedCard(
+      cardId: 1,
+      questionHtml: 'Q',
+      answerHtml: 'A',
+      questionDisplayHtml: 'Q',
+      answerDisplayHtml: 'A',
+      css: '',
+    );
+    final facade = OfficialAnkiRenderFacade(
+      info: await fake.engineInfo(),
+      engine: fake,
+    );
+    final root = Directory.systemTemp.createTempSync('turna-present-once-');
+    addTearDown(() => root.deleteSync(recursive: true));
+    final controller = OfficialAnkiReviewerController(
+      facade: facade,
+      av: OfficialAnkiAvCoordinator(
+        resolver: OfficialAnkiMediaResolver(root),
+        player: RecordingOfficialAnkiAvPlayer(),
+      ),
+      typed: OfficialAnkiTypedAnswerController(facade),
+    );
+    final seen = <({int? cardId, int gen, OfficialAnkiReviewerPhase phase})>[];
+    controller.addListener(() {
+      seen.add((
+        cardId: controller.card?.cardId,
+        gen: controller.presentGeneration,
+        phase: controller.phase,
+      ));
+    });
+    await controller.loadAndShowQuestion(1);
+    expect(seen, isNotEmpty);
+    final firstWithCard = seen.firstWhere((n) => n.cardId != null);
+    expect(firstWithCard.gen, greaterThan(0));
+    expect(firstWithCard.phase, OfficialAnkiReviewerPhase.showingQuestion);
+    expect(controller.presentGeneration, firstWithCard.gen);
+    expect(
+      seen.where((n) => n.cardId != null && n.gen == 0),
+      isEmpty,
+    );
+  });
+
   test('AV coordinator stops on flip even when autoplay is false', () async {
     final root = Directory.systemTemp.createTempSync('turna-av-flip-');
     addTearDown(() => root.deleteSync(recursive: true));
@@ -300,6 +346,51 @@ void main() {
     expect(first.contains('card1'), isFalse);
     expect(first.contains('isWin'), isFalse);
     expect(OfficialAnkiBodyClass.fromNative(templateOrdinal: 0), 'card card1');
+  });
+
+  test('reviewer view uses HCPP then HC for Android platform views', () {
+    final source = File(
+      'lib/views/anki_official/official_anki_reviewer_view.dart',
+    ).readAsStringSync();
+    expect(source.contains('initHybridAndroidView'), isTrue);
+    expect(source.contains('initExpensiveAndroidView'), isTrue);
+    expect(source.contains('return AndroidView('), isFalse);
+    expect(
+      source.contains('if (_hcpp == null)'),
+      isFalse,
+      reason: 'HCPP probe must not swap CircularProgressIndicator for PlatformViewLink',
+    );
+    expect(source.contains('CircularProgressIndicator'), isFalse);
+    expect(source.contains('_hcppCached'), isTrue);
+    final manifest = File('android/app/src/main/AndroidManifest.xml').readAsStringSync();
+    expect(manifest.contains('io.flutter.embedding.android.EnableHcpp'), isTrue);
+    expect(
+      manifest.contains('android.permission.INTERNET'),
+      isTrue,
+      reason: 'release WebView setBlockNetworkLoads(false) needs INTERNET',
+    );
+    final platform = File(
+      'android/app/src/main/kotlin/me/dsdogs/turna/anki/reviewer/OfficialAnkiReviewerPlatformView.kt',
+    ).readAsStringSync();
+    expect(platform.contains('PRESENT_DEADLINE_MS'), isTrue);
+    expect(platform.contains("return 'started'"), isTrue);
+    expect(platform.contains('if (applying) return'), isTrue);
+    expect(platform.contains('POLL_LIMIT'), isTrue);
+    expect(
+      platform.contains('cardAccepted / frameReady are mid-present'),
+      isTrue,
+      reason: 'poll must not treat cardAccepted as RENDER_TIMEOUT',
+    );
+    expect(platform.contains('type == "renderComplete"'), isTrue);
+    final client = File(
+      'android/app/src/main/kotlin/me/dsdogs/turna/anki/reviewer/OfficialAnkiReviewerClient.kt',
+    ).readAsStringSync();
+    expect(client.contains('OfficialAnkiCsp.ORIGIN_HOST'), isTrue);
+    expect(
+      client.contains('!OfficialAnkiWebPolicy.isShellUrl'),
+      isFalse,
+      reason: 'iframe card-frame.html is not the shell URL',
+    );
   });
 
   test('production reviewer page does not construct the recording AV player', () {
