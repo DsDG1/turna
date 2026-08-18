@@ -12,6 +12,7 @@ class OfficialAnkiFeatureFlags {
     this.projection = false,
     this.courseEntry = false,
     this.scheduler = false,
+    this.migrationPilot = false,
   });
 
   factory OfficialAnkiFeatureFlags.fromEnvironment() {
@@ -28,6 +29,8 @@ class OfficialAnkiFeatureFlags {
     const courseEntry =
         bool.fromEnvironment('TURNA_OFFICIAL_ANKI_COURSE_ENTRY');
     const scheduler = bool.fromEnvironment('TURNA_OFFICIAL_ANKI_SCHEDULER');
+    const migrationPilot =
+        bool.fromEnvironment('TURNA_OFFICIAL_ANKI_MIGRATION_PILOT');
     return const OfficialAnkiFeatureFlags(
       engine: engine,
       import: import,
@@ -40,6 +43,7 @@ class OfficialAnkiFeatureFlags {
       projection: projection,
       courseEntry: courseEntry,
       scheduler: scheduler,
+      migrationPilot: migrationPilot,
     );
   }
 
@@ -54,6 +58,7 @@ class OfficialAnkiFeatureFlags {
   final bool projection;
   final bool courseEntry;
   final bool scheduler;
+  final bool migrationPilot;
 
   static OfficialAnkiFeatureFlags current =
       OfficialAnkiFeatureFlags.fromEnvironment();
@@ -91,6 +96,7 @@ class OfficialAnkiFeatureFlags {
     bool? projection,
     bool? courseEntry,
     bool? scheduler,
+    bool? migrationPilot,
   }) {
     return OfficialAnkiFeatureFlags(
       engine: engine ?? this.engine,
@@ -104,6 +110,7 @@ class OfficialAnkiFeatureFlags {
       projection: projection ?? this.projection,
       courseEntry: courseEntry ?? this.courseEntry,
       scheduler: scheduler ?? this.scheduler,
+      migrationPilot: migrationPilot ?? this.migrationPilot,
     );
   }
 }

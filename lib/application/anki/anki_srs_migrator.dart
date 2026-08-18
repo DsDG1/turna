@@ -1,6 +1,7 @@
-// Project imports:
 import 'package:turna/application/anki/anki_deck_manager.dart';
 import 'package:turna/application/anki/anki_models.dart';
+import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
+import 'package:turna/application/anki_official/migration/official_anki_write_owner.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/data/review_history_dao.dart';
@@ -42,7 +43,14 @@ class AnkiSrsMigrator {
     int newCardsPerDay = AnkiDeckManager.defaultDailyNewLimit,
     int collectionCreationTime = 0,
     bool importScheduling = true,
+    AnkiEngineKind? sourceEngine,
+    AnkiWriteGuard writeGuard = const AnkiWriteGuard(),
   }) async {
+    writeGuard.assertAllowed(
+      sourceEngine: sourceEngine ?? AnkiEngineKind.legacy,
+      owner: AnkiWriteOwner.turnaSrs,
+      operation: 'migrate',
+    );
     final now = DateTime.now();
     final srsWords = <String, SrsWord>{};
     final perDay = newCardsPerDay < 1 ? 1 : newCardsPerDay;

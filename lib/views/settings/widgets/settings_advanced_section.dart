@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
+import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/official_anki_internal_page.dart';
 import 'package:turna/application/anki_official/spike/official_anki_spike_page.dart';
 import 'package:turna/application/settings_provider.dart';
@@ -71,11 +72,14 @@ class SettingsAdvancedSection extends StatelessWidget {
                   ),
                 ),
               ),
+            ],
+            if (kDebugMode ||
+                OfficialAnkiFeatureFlags.current.allowsOfficialImport) ...[
               settingsTileDivider(context),
               SettingsNavigationTile(
                 icon: Icons.inventory_2_outlined,
                 title: 'Official Anki 内部导入',
-                subtitle: '仅 debug：官方导入与原卡预览（生产 flag 默认关闭）',
+                subtitle: '内部构建：官方导入与正式复习（生产 flag 默认关闭）',
                 onTap: (ctx) => Navigator.of(ctx).push(
                   MaterialPageRoute<void>(
                     builder: (_) => const OfficialAnkiInternalPage(),
