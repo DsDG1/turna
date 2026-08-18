@@ -1,6 +1,6 @@
 # 官方 Anki Core 迁移文档索引
 
-> 状态：Phase 0 + Phase 1 **TECHNICAL CONDITIONAL GO**；Phase 2 + Phase 3 **TECHNICAL NO-GO**；Phase 4 **ENTRY NO-GO**
+> 状态：Phase 0 + Phase 1 **TECHNICAL CONDITIONAL GO**；Phase 2 + Phase 3 **TECHNICAL NO-GO**；Phase 4 **HOST CONDITIONAL GO / FORMAL REVIEW (Device A) CONDITIONAL GO / PRODUCTION NO-GO**；Phase 5 **P5-C CONDITIONAL GO (Host + Device A) / USER CUTOVER NO-GO / P5-D·E HOLD**
 > 首发目标：Android arm64  
 > 总原则：官方 Anki Collection 是唯一 Anki 事实源，Turna 只维护课程投影  
 > 执行记录：[02-phase-0-result-report.md](./02-phase-0-result-report.md)
@@ -23,6 +23,17 @@
 | P3FIX | [Phase 3 官方 Anki 课程投影修补计划](./p3fix.md) | 修复 Android contract 产物、source 分页一致性、job/recovery、mapping wizard、Interaction 和 CourseProvider 端到端接入 | P3 FIX CONSTRUCTION GO；TECHNICAL ACCEPTANCE NO-GO |
 | 10 | [Phase 3 修补结果报告](./10-phase-3-fix-result-report.md) | 记录 P3 Host 施工、Android 产物、测试证据和未通过的设备硬门禁 | P3 TECHNICAL/PRODUCTION NO-GO |
 | 11 | [P3 阻断修补 + Phase 4 官方 Scheduler 实施计划](./11-p3-remediation-and-phase-4-scheduler-plan.md) | 先关闭 P3 生产接线、job、课程推进、容量和 mapping 阻断，再正式化官方 Scheduler contract、session、UI 与设备验收 | P3 REMEDIATION REQUIRED；P4 ENTRY NO-GO |
+| 12 | [Phase 4 官方 Anki Scheduler 实施计划](./12-phase-4-official-scheduler-implementation-plan.md) | 独立定义 Scheduler contract 1.3、opaque token、正式复习状态机、Undo/Redo、Bury/Suspend、差分测试及设备发布门禁 | 已实施 Host；见 13 |
+| 13 | [Phase 4 结果报告](./13-phase-4-result-report.md) | Host/contract/session 证据和诚实的 Technical/Production NO-GO | P4 HOST GO；TECHNICAL ACCEPTANCE NO-GO；PRODUCTION NO-GO |
+| 14 | [Phase 4 验货、修补与 Phase 5 Legacy 迁移实施计划](./14-phase-4-audit-remediation-and-phase-5-execution-plan.md) | 复核 P4 源码、测试、APK/设备证据，定义 P4R2 修补包、P5 migration registry、分批切换、回滚和删除门禁 | Formal Reviewer 结论以 16 / artifact 为准；P5 CUTOVER/DELETE 仍 NO-GO |
+| 15 | [P5-A Legacy 依赖盘点](./15-p5-legacy-inventory.md) | 只读列出 Legacy 30 个文件与目录外生产引用 | 已落地；不改变用户 engine |
+| 16 | [P4R3 生产门禁收口与 P5-B 准备计划](./16-p4r3-production-gate-and-p5b-prep-plan.md) | Device A 剩余硬证据、不可渲染卡、hash 闭环、补完 P5-B Saga；不开 cutover | 已收口闭环 |
+| 17 | [P4R3 结果报告](./17-p4r3-result-report.md) | 记录 P4R3 真机闭环、性能抽样、P5-B Saga 落盘与收口决策 | P5-C HOLD；生产仍 NO-GO |
+| 18 | [P4R3 验货报告](./18-p4r3-audit.md) | 对照 16/17、测试复跑、APK `.so`、artifact；撤销过早的 P5-C GO | 验货口径；GO 须能复算 |
+| 19 | [P4R3 / P5-B 实施手册](./19-p4r3-implementation-playbook.md) | 逐项怎么改、怎么跑设备、怎么写 artifact；P5-C 仅写准入 | timeout 已修；P5-C 施工见 21 |
+| 20 | [P4 其余完善计划](./20-p4-remaining-polish-plan.md) | remount、20/100 门禁、内部页 worker 口径；不开 P5 | Device A 20/100 已记入 artifact |
+| 21 | [P5-C Fixture Pilot 施工手册](./21-p5c-fixture-pilot-implementation-playbook.md) | 单来源 fixture Saga 到 observing；不改生产路由、不删 Legacy | 已实施施工；见 22 |
+| 22 | [P5-C Fixture Pilot 结果报告](./22-p5c-result-report.md) | 记录单来源 Pilot 状态机、真实物理备份、WriteGuard 拦截与 Host 验证收据 | P5-C HOST CONDITIONAL GO；P5-D·E HOLD |
 
 ## 阶段命名
 

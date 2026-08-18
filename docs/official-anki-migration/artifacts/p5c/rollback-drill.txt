@@ -1,0 +1,21 @@
+P5-C ROLLBACK DRILL RECORD
+date: 2026-08-18
+drill_test: test('cutover_with_official_mutation_cannot_restore_legacy_schedule')
+
+SCENARIO 1: Cutover completed, official_mutation_count delta = 0 (No review ratings written in official collection)
+- Input: migrationId=mig-rollback-test, state=observing, mutationDelta=0
+- Action: saga.rollback(...)
+- Resulting State: rollbackEligible
+- Route resolution: Source can be safely switched back to Legacy without data divergence.
+- Status: PASS
+
+SCENARIO 2: Cutover completed, official_mutation_count delta > 0 (1 or more review ratings written in official collection)
+- Input: migrationId=mig-rollback-mutated, state=observing, mutationDelta=1
+- Action: saga.rollback(...)
+- Resulting State: noLegacyScheduleRollback
+- Guardrail: Hard stop prevents reverting to old Turna SRS schedule to protect official review progress from being overwritten.
+- Status: PASS
+
+DRILL VERIFICATION:
+- All edge transitions conform strictly to legacyAnkiMigrationAllowsTransition state machine.
+- Unauthorized scheduler rollbacks are rejected fail-closed.

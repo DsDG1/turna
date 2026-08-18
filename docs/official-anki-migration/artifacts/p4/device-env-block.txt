@@ -1,0 +1,15 @@
+adb devices -l
+3B15AG00FPB00000       device usb:1-1 product:PLG110 model:PLG110 device:OP5E11L1
+
+ro.build.version.release=16
+ro.build.version.sdk=36
+ro.product.model=PLG110
+ro.product.cpu.abi=arm64-v8a
+
+Device A candidate: PRESENT
+Device A P4 debug/release 100-card smoke: NOT RUN
+  reason: no instrumented official scheduler session; production flags default false;
+  no rebuilt contract 1.3 release APK; this goal did not install or drive the review UI on device.
+Device B: UNAVAILABLE (only one adb device)
+connectedDebugAndroidTest / pixel readback: NOT RUN
+Do not treat device presence as a passed smoke.

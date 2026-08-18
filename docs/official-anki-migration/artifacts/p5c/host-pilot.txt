@@ -1,0 +1,26 @@
+P5-C HOST FIXTURE PILOT SAGA RECEIPT
+date: 2026-08-18
+host_test: flutter test --no-pub test/application/anki_official/official_anki_p5_prep_test.dart
+target_source: p5c-fixture-crash (basic-cloze.apkg)
+source_sha256: bbe354db3925f4b4d7e8d66b0770e83f2ce38586e1071398e762d821636cad58
+migration_id: mig-crash-resume
+profile_id: profile-crash-01
+allowlist_match: true (sha256 in fixture-allowlist.txt)
+
+SAGA CHECKPOINTS:
+1. detected -> awaitingPackage: PASS (migrating lease acquired, coordinator exclusive lock held)
+2. awaitingPackage -> validatingSource: PASS (sha256 verified against census sourceHash)
+3. validatingSource -> backingUp: PASS (physical backup created: legacy-manifest.json, legacy-subset.sqlite, collection.anki2, collection.media/, official_catalog.sqlite, SHA256SUMS; zero card html in backup)
+4. backingUp -> importingOfficial: PASS (OfficialAnkiImporter.importFile called)
+5. importingOfficial -> indexingOfficial: PASS (officialSourceId recorded in catalog)
+6. indexingOfficial -> mappingCards: PASS (LegacyAnkiDryRunSaga processed, unresolved=0, collision=0)
+7. mappingCards -> projectingCourse: PASS (100% matched, course projection job executed)
+8. projectingCourse -> verifying: PASS (deck/card/note counts equal, zero mismatch)
+9. verifying -> cutoverReady: PASS (allowlist source only)
+10. cutoverReady -> cutover: PASS (catalog recordedKind=official, official_mutation_count_at_cutover recorded)
+11. cutover -> observing: PASS (migrating lease released, observing state reached)
+
+RESULT: HOST CONDITIONAL GO
+P5 USER CUTOVER: NO-GO
+P5-D PRODUCTION ROUTING: HOLD
+P5 LEGACY DELETION: NO-GO

@@ -1,0 +1,13 @@
+P5-C BASELINE
+date: 2026-08-18
+git_head: 81ba44b3bf11fc91846f787346245a17fd96a897
+cutoverEnabled: false
+migrationPilotDefault: false
+device_a_apk_sha256: a8161e8877b848aad7d6cb6f2a18d5002b25595c1cf904e1e822b1fe52545cac
+native_so_sha256: 824def69076389a505787ad52285f1bee4fbe056b4c8f6e541d3979217e75ad5
+p4r2_formal_reviewer: PASS (rated=100, revlog delta=100, stall=0)
+p5c_status: HOST CONDITIONAL GO
+p5_user_cutover: NO-GO
+p5d_production_routing: HOLD
+p5_legacy_deletion: NO-GO
+device_b: out of scope

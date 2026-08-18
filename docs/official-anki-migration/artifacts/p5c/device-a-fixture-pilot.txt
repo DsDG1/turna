@@ -1,0 +1,24 @@
+P5-C DEVICE A FIXTURE PILOT RECORD
+date: 2026-08-18
+device_serial: 3B15AG00FPB00000
+device_model: PLG110 (Android API 36, arm64-v8a)
+apk_sha256: d3bf329e7c6fd946676d821bc8fa06d15e17fcbf477d313be7cc7c6bcbe03089
+native_so_sha256: 824def69076389a505787ad52285f1bee4fbe056b4c8f6e541d3979217e75ad5
+native_hash_chain: CLOSED (built == jniLibs, stripped == apkSo == deviceSo, apk == deviceApk)
+
+TEST MATRIX:
+1. Package Installation: PASS (Release APK with TURNA_OFFICIAL_ANKI_* defines)
+2. Settings & Navigation: PASS (Settings -> Advanced -> Official Anki Internal -> Migration Preview)
+3. Non-Allowlist Guard: PASS (Non-allowlist legacy source shows cards=10, unmatched=10, Cutover disabled, Pilot disabled)
+4. Official Formal Review: PASS (rated=1, again=0, hard=0, good=1, easy=0, timeout=0, superseded=0, unrenderable=0)
+5. User Collection Protection: PASS (no user collections touched or wiped)
+6. Performance: Peak PSS 289MB, Native Heap 80MB, 0 UI stalls > 500ms
+7. Artifact Screenshot: docs/official-anki-migration/artifacts/p5c/device-a-pilot-review.png
+
+CONCLUSION:
+DEVICE A ISOLATED PILOT VERIFICATION: PASS
+P4 PRODUCTION DEFAULT FLAGS: still false
+P5-C FIXTURE PILOT: CONDITIONAL GO
+P5 USER CUTOVER: NO-GO
+P5-D PRODUCTION ROUTING: HOLD
+P5 LEGACY DELETION: NO-GO
