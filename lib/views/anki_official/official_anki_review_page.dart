@@ -20,6 +20,7 @@ class OfficialAnkiReviewPage extends StatefulWidget {
     required this.engine,
     required this.paths,
     this.deckId,
+    this.allowedCardIds,
     this.flags,
     this.session,
     this.presenter,
@@ -30,6 +31,7 @@ class OfficialAnkiReviewPage extends StatefulWidget {
   final OfficialAnkiEngine engine;
   final OfficialAnkiPaths paths;
   final int? deckId;
+  final Set<int>? allowedCardIds;
   final OfficialAnkiFeatureFlags? flags;
   final OfficialReviewSession? session;
   final OfficialAnswerPresenter? presenter;
@@ -55,6 +57,7 @@ class _OfficialAnkiReviewPageState extends State<OfficialAnkiReviewPage> {
         OfficialReviewSession(
           engine: widget.engine,
           flags: widget.flags ?? OfficialAnkiFeatureFlags.current,
+          allowedCardIds: widget.allowedCardIds,
         );
     final injected = widget.presenter;
     if (injected != null) {

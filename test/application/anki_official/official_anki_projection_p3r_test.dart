@@ -254,7 +254,7 @@ void main() {
       ),
       isNotEmpty,
     );
-    expect(catalog.handle.select('PRAGMA user_version').first['user_version'], 7);
+    expect(catalog.handle.select('PRAGMA user_version').first['user_version'], kOfficialAnkiCatalogSchemaVersion);
   });
 
   test('identical mapping does not bump version; direction and kinds do', () {

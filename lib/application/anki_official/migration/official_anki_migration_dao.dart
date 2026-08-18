@@ -23,6 +23,7 @@ class LegacyAnkiMigrationRow {
     this.backupManifestHash,
     this.cursorLegacyCardId,
     this.completedAtMillis,
+    this.recordedKind,
   });
 
   final String migrationId;
@@ -42,6 +43,7 @@ class LegacyAnkiMigrationRow {
   final int startedAtMillis;
   final int updatedAtMillis;
   final int? completedAtMillis;
+  final String? recordedKind;
 }
 
 class OfficialAnkiMigrationDao {
@@ -88,6 +90,18 @@ INSERT INTO legacy_anki_migrations (
       'SELECT * FROM legacy_anki_migrations '
       'WHERE profile_id = ? AND legacy_import_id = ?',
       [profileId, legacyImportId],
+    );
+    if (rows.isEmpty) return null;
+    return _row(rows.first);
+  }
+
+  LegacyAnkiMigrationRow? findObservingFixture({required String profileId}) {
+    final rows = _db.select(
+      "SELECT * FROM legacy_anki_migrations "
+      "WHERE profile_id = ? AND state = 'observing' "
+      "AND legacy_import_id LIKE 'p5c-fixture-%' "
+      'ORDER BY updated_at_millis DESC LIMIT 1',
+      [profileId],
     );
     if (rows.isEmpty) return null;
     return _row(rows.first);
@@ -266,6 +280,56 @@ INSERT INTO legacy_anki_card_map (
         .toList();
   }
 
+  void setOfficialMutationCountAtCutover({
+    required String migrationId,
+    required int count,
+    required int nowMillis,
+  }) {
+    _db.execute(
+      '''
+UPDATE legacy_anki_migrations
+SET official_mutation_count_at_cutover = ?, updated_at_millis = ?
+WHERE migration_id = ?
+''',
+      [count, nowMillis, migrationId],
+    );
+  }
+
+  void setRecordedKind({
+    required String migrationId,
+    required String? recordedKind,
+    required int nowMillis,
+  }) {
+    _db.execute(
+      '''
+UPDATE legacy_anki_migrations
+SET recorded_kind = ?, updated_at_millis = ?
+WHERE migration_id = ?
+''',
+      [recordedKind, nowMillis, migrationId],
+    );
+  }
+
+  String? recordedKindForSource({
+    required String profileId,
+    required String legacyImportId,
+  }) {
+    final row = findByLegacyImport(
+      profileId: profileId,
+      legacyImportId: legacyImportId,
+    );
+    return row?.recordedKind;
+  }
+
+  LegacyAnkiMigrationRow? findById(String migrationId) {
+    final rows = _db.select(
+      'SELECT * FROM legacy_anki_migrations WHERE migration_id = ?',
+      [migrationId],
+    );
+    if (rows.isEmpty) return null;
+    return _row(rows.first);
+  }
+
   void setBackupInfo({
     required String migrationId,
     required String backupId,
@@ -292,6 +356,12 @@ WHERE migration_id = ?
   }
 
   LegacyAnkiMigrationRow _row(Row row) {
+    String? recordedKind;
+    try {
+      recordedKind = row['recorded_kind'] as String?;
+    } catch (_) {
+      recordedKind = null;
+    }
     return LegacyAnkiMigrationRow(
       migrationId: row['migration_id'] as String,
       profileId: row['profile_id'] as String,
@@ -312,6 +382,7 @@ WHERE migration_id = ?
       startedAtMillis: (row['started_at_millis'] as num).toInt(),
       updatedAtMillis: (row['updated_at_millis'] as num).toInt(),
       completedAtMillis: (row['completed_at_millis'] as num?)?.toInt(),
+      recordedKind: recordedKind,
     );
   }
 }

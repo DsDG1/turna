@@ -1,24 +1,70 @@
 P5-C DEVICE A FIXTURE PILOT RECORD
-date: 2026-08-18
+date: 2026-08-19
 device_serial: 3B15AG00FPB00000
 device_model: PLG110 (Android API 36, arm64-v8a)
-apk_sha256: d3bf329e7c6fd946676d821bc8fa06d15e17fcbf477d313be7cc7c6bcbe03089
-native_so_sha256: 824def69076389a505787ad52285f1bee4fbe056b4c8f6e541d3979217e75ad5
-native_hash_chain: CLOSED (built == jniLibs, stripped == apkSo == deviceSo, apk == deviceApk)
+apk: build/app/outputs/flutter-apk/app-debug.apk
+apk_sha256:  5930f615fea505dfdea76e787c065912ac7c45c3d8904cb0814e80063850fa1c
+git_head: 42042472bb8751c4addbb2b8d2354ee2be616220
+dart-defines: ENGINE/IMPORT/CATALOG/RUNTIME/PLATFORM/RENDERER/SCHEDULER/PROJECTION/DIAGNOSTICS/REVIEWER_DIAGNOSTICS/MIGRATION_PILOT=true
+production defaults: still false
+cutoverEnabled: false
 
-TEST MATRIX:
-1. Package Installation: PASS (Release APK with TURNA_OFFICIAL_ANKI_* defines)
-2. Settings & Navigation: PASS (Settings -> Advanced -> Official Anki Internal -> Migration Preview)
-3. Non-Allowlist Guard: PASS (Non-allowlist legacy source shows cards=10, unmatched=10, Cutover disabled, Pilot disabled)
-4. Official Formal Review: PASS (rated=1, again=0, hard=0, good=1, easy=0, timeout=0, superseded=0, unrenderable=0)
-5. User Collection Protection: PASS (no user collections touched or wiped)
-6. Performance: Peak PSS 289MB, Native Heap 80MB, 0 UI stalls > 500ms
-7. Artifact Screenshot: docs/official-anki-migration/artifacts/p5c/device-a-pilot-review.png
+NATIVE HASH CHAIN (built/jniLibs/apkSo/deviceSo)
+- built/jnilibs: 207ea17e6e60d54a1465214fe85d7718260f4ef94bad64a8da8df93ce96b0950
+- stripped/apkSo/deviceSo: 824def69076389a505787ad52285f1bee4fbe056b4c8f6e541d3979217e75ad5
+- apk sha: 5930f615fea505dfdea76e787c065912ac7c45c3d8904cb0814e80063850fa1c == device apk (verified via official_anki_native_hash_manifest.sh OK)
+- this APK was built from HEAD 42042472bb8751c4addbb2b8d2354ee2be616220 with TURNA_OFFICIAL_ANKI_MIGRATION_PILOT=true
 
-CONCLUSION:
-DEVICE A ISOLATED PILOT VERIFICATION: PASS
-P4 PRODUCTION DEFAULT FLAGS: still false
-P5-C FIXTURE PILOT: CONDITIONAL GO
+WHAT BLOCKED THE PREVIOUS RUN (mapping_unresolved) — now resolved
+- test/.../p5c/basic-cloze.apkg is Anki 25+ (collection.anki21b) stub; replaced by classic-basic.apkg for device default
+- Re-seed now deleteByImport before upsert
+
+WHAT RAN (this session — re-verification on new HEAD 42042472bb8751c4addbb2b8d2354ee2be616220)
+1. Installed -r APK 5930f615fea505dfdea76e787c065912ac7c45c3d8904cb0814e80063850fa1c over previous a6eed1ea... build. User collection preserved.
+2. Verified catalog migrated 7 -> 8 on app launch; column recorded_kind added.
+   Existing observing row mig-p5c-fixture-device patched recorded_kind=official (v7 had no column).
+3. Catalog after:
+   - mig-p5c-fixture-device state=observing official_source_id=src-fe08222149924cd08acb4b947f3b44a3 recorded_kind=official mutations_at_cutover=0
+   - map: legacy 1375933503610 -> official 1375933503610 method=noteGuidAndOrdinal matched 1/1
+   - sources:
+       src-bc0f1dab... 181 cards  display=blank (1).apkg   (user 考研政治默写, untouched)
+       src-00bfd3b5...   2 cards  display=p5c-fixture-...  (previous stub leftover)
+       src-fe0822...     1 card   display=p5c-fixture-...  hash=28d89bb7... (classic hello/world)
+   - official_anki_projection_state: src-fe0822... state=active count=1
+4. Collection (WAL merged):
+   - cards 184 (includes Default + 考研政治默写 Deck 1787046637039)
+   - fixture card 1375933503610 exists in collection, deckId=1
+   - revlog total 160; fixture cid 1375933503610 has 2 rows (both ease=3, from prior 2 Goods) — not wiped
+   - collection.anki2 still present (no wipe)
+5. Backup p5c/mig-p5c-fixture-device: 5 files present (legacy-manifest.json, legacy-subset.sqlite, collection.anki2, official_catalog.sqlite, SHA256SUMS) — not re-created this session, still valid
+6. Internal page warmup: ensureCollectionOpen + projectSourceForFixturePilot on observing source; projection items=1
+7. Formal review gate: now uses allowedCardIds = observing source card set (src-fe0822...). Leftover Default cloze (1786873382638/2639) not shown.
+
+P5C-20 CHECKLIST (after apk swap, before re-rating)
+[✓] apk sha == device apk == artifact (5930f615fea505dfdea76e787c065912ac7c45c3d8904cb0814e80063850fa1c)
+[✓] native hash closed (built==jniLibs, stripped==apkSo==deviceSo 824def69076389a505787ad52285f1bee4fbe056b4c8f6e541d3979217e75ad5)
+[✓] fixture seed importId=p5c-fixture-device 1 card; official source 1 card; matched==legacy 1/1
+[✓] Fixture pilot = observing (recorded_kind=official)
+[✓] 投影 itemCount == matched == 1
+[✓] 正式复习 only allowedCardIds (fixture); leftover Default cards excluded
+[✓] 用户 考研政治默写 181 张不动 (src-bc0f...)
+[✓] cutoverEnabled false; 考研政治默写 无 Pilot (not in allowlist)
+[✓] 不 wipe collection.anki2 (revlog 160, fixture 2 rows)
+[✓] catalog v8
+
+FOLLOW-UP 2026-08-19 isolation + projection (prior APK a6eed1ea...)
+- Formal review now passes allowedCardIds; projection 1 item verified
+
+WHAT THIS RECORD STILL DOES NOT PROVE
+- A fresh Formal Review rating on *this* APK (fixture already has 2 revlogs; needs a 3rd Good for full re-proof if required)
+- P5-D routing, cutoverEnabled=true, Legacy delete, user-deck migration
+
+CONCLUSION
+DEVICE A UI WIRING: PASS (catalog v8, observing persists)
+DEVICE A SAGA TO OBSERVING: PASS (recorded_kind=official, hash chain OK)
+DEVICE A FIXTURE FORMAL REVIEW: PASS (allowedCardIds gate, prior 2 revlogs on fixture cid)
+DEVICE A PROJECTION: PASS (1 item)
+P5-C FIXTURE PILOT: DEVICE PATH RE-VERIFIED on HEAD 42042472bb8751c4addbb2b8d2354ee2be616220; full P5C-20 re-rating available on demand
 P5 USER CUTOVER: NO-GO
-P5-D PRODUCTION ROUTING: HOLD
-P5 LEGACY DELETION: NO-GO
+P5-D / DELETE: HOLD
+Device B: out of scope

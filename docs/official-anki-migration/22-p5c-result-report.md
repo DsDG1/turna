@@ -1,11 +1,12 @@
 # P5-C Fixture Pilot 实施验收与结果报告
 
 > 文档代号：P5C-RESULT  
-> 日期：2026-08-18  
+> 日期：2026-08-19  
 > 仓库：`Varnamalaplus`  
-> 实施依据：[`21-p5c-fixture-pilot-implementation-playbook.md`](./21-p5c-fixture-pilot-implementation-playbook.md)、[`14-phase-4-audit-remediation-and-phase-5-execution-plan.md`](./14-phase-4-audit-remediation-and-phase-5-execution-plan.md) §8、[`15-p5-legacy-inventory.md`](./15-p5-legacy-inventory.md)  
+> 实施依据：[`21-p5c-fixture-pilot-implementation-playbook.md`](./21-p5c-fixture-pilot-implementation-playbook.md)、[`14-phase-4-audit-remediation-and-phase-5-execution-plan.md`](./14-phase-4-audit-remediation-and-phase-5-execution-plan.md) §8、[`15-p5-legacy-inventory.md`](./15-p5-legacy-inventory.md)、[`24-p5-remainder-and-p6-ankiweb-plan.md`](./24-p5-remainder-and-p6-ankiweb-plan.md) §4  
 > 官方 Anki pin：`967aa0d578fc75181e292e95326f9b58698da25c`  
 > 产物位置：`artifacts/p5c/`  
+> 审计口径：[`23-p5c-audit.md`](./23-p5c-audit.md) 已撤销 22 的过早 GO；本报告按 24 §4 收口重验  
 
 ---
 
@@ -13,12 +14,15 @@
 
 ```text
 P4 PRODUCTION DEFAULT FLAGS: still false
-P5-C FIXTURE PILOT: CONDITIONAL GO (Host + Device A)
+P5-C FIXTURE PILOT: HOST CONDITIONAL GO + DEVICE RE-VERIFIED (P5C-20)
 P5 USER CUTOVER: NO-GO
 P5-D PRODUCTION ROUTING: HOLD
 P5 LEGACY DELETION: NO-GO
 Device B: out of scope
+catalog: v8 (recordedKind)
 ```
+
+Host 已满足 24 §4 P5C-14…18 + flutter test 34 passed + Cutover disabled。Device A 已在 HEAD 5930f615...（catalog 7→8，hash 闭环）上重验：`mig-p5c-fixture-device=observing recorded_kind=official mutations=0`，投影 1/1，`allowedCardIds` 过滤，受 `考研政治默写` 181 张不动，revlog 160 fixture 2 行未 wipe。
 
 ---
 
@@ -27,33 +31,31 @@ Device B: out of scope
 | 工作包 | 任务项 | 状态 | 交付物 / 核心逻辑 |
 |---|---|---|---|
 | **P5C-00** | 基线、Allowlist 与 MIGRATION_PILOT 开关 | **PASS** | `OfficialAnkiFeatureFlags` 增加 `migrationPilot`（默认 `false`）；`isFixturePilotSource` 仅放行 allowlist 测试源；`artifacts/p5c/baseline.txt`。 |
-| **P5C-01** | Fixture 包与身份校验 | **PASS** | `test/application/anki_official/fixtures/p5c/basic-cloze.apkg` 及 `.sha256`。 |
+| **P5C-01** | Fixture 包与身份校验 | **PASS** | `classic-basic.apkg`（经典 `collection.anki2`，1 卡 hello/world，可复现）+ `basic-cloze.apkg`（anki21b stub，文档已标 Legacy≠Official）及 `.sha256`。 |
 | **P5C-02** | Coordinator migrating lease 互斥 | **PASS** | `OfficialAnkiOperationCoordinator` 增加 `migrating` phase，与 `reviewing`/`importing`/`backupRestore` 互斥。 |
 | **P5C-03** | 重选原包与 Hash 校验 | **PASS** | `OfficialAnkiFixturePilotSaga.pickAndValidatePackage`，Hash 不匹配停在 `needsUserAction`。 |
-| **P5C-04** | 真实物理文件备份（非仅 JSON 收据） | **PASS** | `LegacyAnkiBackupService.createPhysicalBackup` 产出 `legacy-manifest.json`、`legacy-subset.sqlite`、`collection.anki2`、`collection.media/`、`official_catalog.sqlite`、`SHA256SUMS`（**无卡片 HTML/正文**）。 |
+| **P5C-04** | 真实物理文件备份（非仅 JSON 收据） | **PASS** | `createPhysicalBackup` 缺文件/空文件时抛错；5 文件 `existsSync` 且非空（`backup_files_exist_and_contain_no_card_html`）。 |
 | **P5C-05** | 官方 Import Saga 复用 | **PASS** | 复用 `OfficialAnkiImporter.importFile`，CAS 写入 `official_source_id`。 |
 | **P5C-06** | Dry-Run 100% 唯一匹配 | **PASS** | 复用 `LegacyAnkiDryRunSaga`，未全匹配停在 `needsUserAction`。 |
 | **P5C-07** | 课程投影重建 | **PASS** | `projectingCourse` 成功推进至 `verifying`，失败流转至 `failedRecoverable`。 |
 | **P5C-08** | Verifying 计数与结构对账 | **PASS** | 比对 notes/cards/decks/media 与投影项数量。 |
-| **P5C-09** | cutoverReady / cutover / observing | **PASS** | 仅 allowlist 来源推进至 `cutoverReady` $\rightarrow$ `cutover`（写入 catalog `recordedKind=official` 及 `official_mutation_count_at_cutover`）$\rightarrow$ `observing`。 |
-| **P5C-10** | Legacy 来源只读保护与 AnkiWriteGuard | **PASS** | `AnkiSrsMigrator` 接入 `AnkiWriteGuard`，拒绝向已 cutover 的 official source 写入 Turna SRS。 |
-| **P5C-11** | 双路径回滚演练 | **PASS** | 验证 mutation=0 允许 `rollbackEligible`，mutation>0 保护为 `noLegacyScheduleRollback`；`artifacts/p5c/rollback-drill.txt`。 |
-| **P5C-12** | Host 完整集成测试与产物收据 | **PASS** | 216 项测试全绿，0 分析警告；产物收据已写入 `artifacts/p5c/`。 |
-| **P5C-13** | Device A 隔离演练与用户数据防篡改 | **PASS** | 安装 release APK（`d3bf329...`），验证非 allowlist 来源禁用 Pilot/Cutover，官方复习评分 1 次成功，0 UI stall；`artifacts/p5c/device-a-fixture-pilot.txt`。 |
+| **P5C-09** | cutoverReady / cutover / observing | **PASS** | 仅 allowlist 来源推进至 `cutoverReady` $\rightarrow$ `cutover`（catalog 行写 `recordedKind=official` 及 `official_mutation_count_at_cutover`）$\rightarrow$ `observing`；`cutoverEnabled` 仍 false。 |
+| **P5C-10** | Legacy 来源只读保护与 AnkiWriteGuard | **PASS** | `AnkiSrsMigrator` + `AnkiDeckManager.recordCardReviewed` + `AnkiNoteDao.setCardState` 均接 `AnkiWriteGuard`（`cutover_fixture_source_denies_turna_srs_answer` / `legacyAnkiDao setCardState denies`）。 |
+| **P5C-11** | 双路径回滚演练 | **PASS** | 回滚读 `official_mutation_count_at_cutover` 列；mutation=0 → `rollbackEligible` 且 `recordedKind→legacy`，mutation>0 → `noLegacyScheduleRollback`。 |
+| **P5C-12** | Host 完整集成测试与产物收据 | **PASS** | `230` 项测试全绿（含 P5C-16/17/18），0 分析警告；产物 `artifacts/p5c/host-pilot.txt` / `baseline.txt`。 |
+| **P5C-13** | Device A 隔离演练与用户数据防篡改 | **PASS** | HEAD `5930f615...` 已重验：observing `recorded_kind=official`，投影 1/1，hash 闭环，revlog 160；`artifacts/p5c/device-a-fixture-pilot.txt`。 |
 
 ---
 
 ## 3. 测试与静态分析证据
 
-- **Flutter 测试套件**：`test/application/anki_official/` 全量 **216 passed / 0 failed**。
+- **Flutter 测试套件**：`test/application/anki_official/` 全量 **230 passed / 0 failed**。
 - **静态代码分析**：`flutter analyze lib/application/anki_official lib/views/anki_official test/application/anki_official` **0 issues found**。
-- **Device A 真机验证（PLG110，API 36）**：
-  - Release APK SHA256: `d3bf329e7c6fd946676d821bc8fa06d15e17fcbf477d313be7cc7c6bcbe03089`
-  - Native `.so` SHA256: `824def69076389a505787ad52285f1bee4fbe056b4c8f6e541d3979217e75ad5`
-  - 5 段哈希链一致闭环（`official_native_hash_manifest.sh` exit 0）
-  - 官方复习打分：`rated=1 good=1 timeout=0 superseded=0 unrenderable=0`
-  - 内存与性能：Peak PSS 289MB, Native Heap 80MB, 0 stall > 500ms
-- **关键审计测试清单（全部通过）**：
+- **Device A 真机验证（PLG110，API 36）**：HEAD `5930f615...` 已重验（`artifacts/p5c/device-a-fixture-pilot.txt`）。
+  - APK SHA256: `5930f615fea505dfdea76e787c065912ac7c45c3d8904cb0814e80063850fa1c` == device apk；`official_anki_native_hash_manifest.sh` OK
+  - Native `.so` SHA256: `824def69076389a505787ad52285f1bee4fbe056b4c8f6e541d3979217e75ad5`（built==jniLibs==apkSo==deviceSo）
+  - catalog v8 `observing recorded_kind=official mutations=0`；投影 1/1；`allowedCardIds` 过滤；用户 `考研政治默写` 181 张不动；revlog 160 fixture 2 行未 wipe
+- **关键审计测试清单（本版全部通过）**：
   1. `legacy_migration_dry_run_is_read_only_and_idempotent`
   2. `legacy_migration_crash_resumes_every_checkpoint`
   3. `legacy_source_never_has_two_writable_engines`
@@ -64,6 +66,12 @@ Device B: out of scope
   8. `cutoverEnabled_stays_false`
   9. `preview_cutover_button_stays_disabled`
   10. `cutover_fixture_source_denies_turna_srs_answer`
+  11. `recordedKind writes official at cutover and reverts on rollback`
+  12. `recordedKind stays per source and cutoverEnabled false`
+  13. `legacyAnkiDao setCardState denies official source after observing`
+  14. `rollback reads official_mutation_count column not caller delta`
+  15. `ankiweb not linked from production routes`
+  16. `p5c-19 host real import path for classic-basic.apkg`
 
 ---
 

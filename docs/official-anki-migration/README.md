@@ -1,6 +1,6 @@
 # 官方 Anki Core 迁移文档索引
 
-> 状态：Phase 0 + Phase 1 **TECHNICAL CONDITIONAL GO**；Phase 2 + Phase 3 **TECHNICAL NO-GO**；Phase 4 **HOST CONDITIONAL GO / FORMAL REVIEW (Device A) CONDITIONAL GO / PRODUCTION NO-GO**；Phase 5 **P5-C CONDITIONAL GO (Host + Device A) / USER CUTOVER NO-GO / P5-D·E HOLD**
+> 状态：Phase 0 + Phase 1 **TECHNICAL CONDITIONAL GO**；Phase 2 + Phase 3 **TECHNICAL NO-GO**；Phase 4 **HOST CONDITIONAL GO / FORMAL REVIEW (Device A) CONDITIONAL GO / PRODUCTION NO-GO**；Phase 5 **P5-C HOST CONDITIONAL GO + DEVICE RE-VERIFIED (P5C-20) / USER CUTOVER NO-GO / P5-D·E HOLD**；Phase 6 **AnkiWeb 未开工**
 > 首发目标：Android arm64  
 > 总原则：官方 Anki Collection 是唯一 Anki 事实源，Turna 只维护课程投影  
 > 执行记录：[02-phase-0-result-report.md](./02-phase-0-result-report.md)
@@ -32,8 +32,10 @@
 | 18 | [P4R3 验货报告](./18-p4r3-audit.md) | 对照 16/17、测试复跑、APK `.so`、artifact；撤销过早的 P5-C GO | 验货口径；GO 须能复算 |
 | 19 | [P4R3 / P5-B 实施手册](./19-p4r3-implementation-playbook.md) | 逐项怎么改、怎么跑设备、怎么写 artifact；P5-C 仅写准入 | timeout 已修；P5-C 施工见 21 |
 | 20 | [P4 其余完善计划](./20-p4-remaining-polish-plan.md) | remount、20/100 门禁、内部页 worker 口径；不开 P5 | Device A 20/100 已记入 artifact |
-| 21 | [P5-C Fixture Pilot 施工手册](./21-p5c-fixture-pilot-implementation-playbook.md) | 单来源 fixture Saga 到 observing；不改生产路由、不删 Legacy | 已实施施工；见 22 |
-| 22 | [P5-C Fixture Pilot 结果报告](./22-p5c-result-report.md) | 记录单来源 Pilot 状态机、真实物理备份、WriteGuard 拦截与 Host 验证收据 | P5-C HOST CONDITIONAL GO；P5-D·E HOLD |
+| 21 | [P5-C Fixture Pilot 施工手册](./21-p5c-fixture-pilot-implementation-playbook.md) | 单来源 fixture Saga 到 observing；不改生产路由、不删 Legacy | 规格可用；落地以 23 为准 |
+| 22 | [P5-C Fixture Pilot 结果报告](./22-p5c-result-report.md) | 记录单来源 Pilot 状态机、真实物理备份、WriteGuard 拦截与 Host 验证收据 | **GO 作废**；见 23 |
+| 23 | [P5-C 验货报告](./23-p5c-audit.md) | 对照 14/21/22、源码、artifact；撤销过早的 Device A / Host GO | **验货口径**（后续设备进度以 `artifacts/p5c/` 为准） |
+| 24 | [P5 收口、生产切换与 P6 AnkiWeb 计划](./24-p5-remainder-and-p6-ankiweb-plan.md) | P5-C 收口票、P5-D/E 门禁、P6 Sync 边界；不改生产路由 | 计划；P5-D/E/P6 未开工 |
 
 ## 阶段命名
 

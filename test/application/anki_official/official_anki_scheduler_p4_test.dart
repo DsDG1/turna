@@ -325,6 +325,60 @@ void main() {
     expect(find.byKey(const Key('official-review-easy')), findsOneWidget);
   });
 
+  test('allowedCardIds skips leftover deck mates and does not answer them', () async {
+    OfficialAnkiSchedulerAudit.reset();
+    final fake = FakeOfficialAnkiEngine();
+    fake.seedPackage(packagePath: 'x.apkg', notes: 2, cards: 2);
+    const flags = OfficialAnkiFeatureFlags(
+      engine: true,
+      import: true,
+      catalogReady: true,
+      runtimeCapable: true,
+      platformReady: true,
+      renderer: true,
+      scheduler: true,
+    );
+    final session = OfficialReviewSession(
+      engine: fake,
+      flags: flags,
+      allowedCardIds: {2},
+    );
+    await session.openDeck(1);
+    expect(session.phase, OfficialReviewPhase.showingQuestion);
+    expect(session.current?.cardId, 2);
+    session.showAnswer();
+    await session.answer('good');
+    expect(fake.answeredIds, {2});
+    expect(fake.answeredIds.contains(1), isFalse);
+    expect(session.phase, OfficialReviewPhase.completed);
+    expect(session.current, isNull);
+  });
+
+  test('allowedCardIds completes when only leftover cards remain', () async {
+    OfficialAnkiSchedulerAudit.reset();
+    final fake = FakeOfficialAnkiEngine();
+    fake.seedPackage(packagePath: 'x.apkg', notes: 2, cards: 2);
+    fake.answeredIds.add(2);
+    const flags = OfficialAnkiFeatureFlags(
+      engine: true,
+      import: true,
+      catalogReady: true,
+      runtimeCapable: true,
+      platformReady: true,
+      renderer: true,
+      scheduler: true,
+    );
+    final session = OfficialReviewSession(
+      engine: fake,
+      flags: flags,
+      allowedCardIds: {2},
+    );
+    await session.openDeck(1);
+    expect(session.phase, OfficialReviewPhase.completed);
+    expect(session.current, isNull);
+    expect(fake.answeredIds.contains(1), isFalse);
+  });
+
   test('queueEmpty clears current so completed is not an invalid state', () async {
     OfficialAnkiSchedulerAudit.reset();
     final fake = FakeOfficialAnkiEngine();

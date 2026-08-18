@@ -533,6 +533,16 @@ void main() {
     );
   });
 
+  test('projectSourceForFixturePilot auto-confirms source notetype and publishes',
+      () async {
+    final env = _Env(confirm: false, cards: 2);
+    addTearDown(env.dispose);
+    final result = await env.service.projectSourceForFixturePilot();
+    expect(result.failed, isFalse);
+    expect(result.needsMapping, isFalse);
+    expect(result.itemCount, 2);
+  });
+
   test('schema change enters needs_review and keeps the old tree', () async {
     final env = _env();
     addTearDown(env.dispose);

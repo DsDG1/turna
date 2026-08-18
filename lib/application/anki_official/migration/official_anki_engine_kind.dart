@@ -12,9 +12,10 @@ class LegacyAnkiMigrationFlags {
 }
 
 const _p5cFixtureHashes = <String>{
-  'bbe354db3925f4b4d7e8d66b0770e83f2ce38586e1071398e762d821636cad58', // 04-cloze / basic-cloze
+  'bbe354db3925f4b4d7e8d66b0770e83f2ce38586e1071398e762d821636cad58', // 04-cloze / basic-cloze (anki21b stub)
   '65dfa64e305edaab6bae7690c66e54918a5d944dc702f2b6fe2821f27f170570', // 01-basic-unicode
   '1d2f1284644961ac713c1ebcd8225d464cc156339f42665a0b6bd3c65168cd84', // 02-basic-reversed
+  '28d89bb7bf41df25513e148e96acbdac93bcc71fadcee8e552b57d4413394d02', // update1.apkg classic hello/world
 };
 
 /// Allowlist check for P5-C single-source fixture pilot.
@@ -22,12 +23,8 @@ const _p5cFixtureHashes = <String>{
 bool isFixturePilotSource({
   String? importId,
   String? sourceHash,
-  String? displayName,
 }) {
   if (importId != null && importId.startsWith('p5c-fixture-')) {
-    return true;
-  }
-  if (displayName != null && displayName.contains('p5c-fixture')) {
     return true;
   }
   if (sourceHash != null && _p5cFixtureHashes.contains(sourceHash)) {

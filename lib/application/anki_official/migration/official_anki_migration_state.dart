@@ -163,6 +163,8 @@ const _forward = <LegacyAnkiMigrationState, Set<LegacyAnkiMigrationState>>{
   },
   LegacyAnkiMigrationState.needsUserAction: {
     LegacyAnkiMigrationState.mappingCards,
+    LegacyAnkiMigrationState.awaitingPackage,
+    LegacyAnkiMigrationState.validatingSource,
     LegacyAnkiMigrationState.rolledBackLegacy,
   },
   LegacyAnkiMigrationState.rollbackRequired: {

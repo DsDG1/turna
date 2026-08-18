@@ -6,7 +6,15 @@ import 'package:drift/drift.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
+import 'dart:io';
+
 import 'package:turna/application/anki/anki_models.dart';
+import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
+import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
+import 'package:turna/application/anki_official/migration/official_anki_migration_state.dart';
+import 'package:turna/application/anki_official/migration/official_anki_write_owner.dart';
+import 'package:turna/application/anki_official/official_anki_composition.dart';
+import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/data/course_database.dart';
 
 /// Data access object for the Anki NoteStore tables (`anki_notetypes`,
@@ -278,10 +286,6 @@ class AnkiNoteDao {
     return result;
   }
 
-  /// Update user-facing Anki state without touching scheduling provenance.
-  /// Omitted values are left unchanged.
-  /// Update user-facing Anki state without touching scheduling provenance.
-  /// Omitted values are left unchanged.
   Future<void> setCardState(
     String importId,
     int cardId, {
@@ -290,6 +294,7 @@ class AnkiNoteDao {
     bool? marked,
     int? flag,
   }) async {
+    _assertLegacyDaoWriteAllowed(importId);
     final updates = <String>[];
     final args = <Object?>[];
     if (suspended != null) {
@@ -317,6 +322,50 @@ class AnkiNoteDao {
       'WHERE import_id = ? AND card_id = ?',
       args,
     );
+  }
+
+  void _assertLegacyDaoWriteAllowed(String importId) {
+    try {
+      final catalog = _resolveOfficialCatalogPath();
+      if (catalog == null) return;
+      final file = File(catalog);
+      if (!file.existsSync()) return;
+      final db = OfficialAnkiDatabase.file(file.path);
+      try {
+        final dao = OfficialAnkiMigrationDao(db);
+        final row = dao.findByLegacyImport(
+          profileId: 'profile-default-01',
+          legacyImportId: importId,
+        );
+        if (row == null) return;
+        const locked = {
+          LegacyAnkiMigrationState.cutoverReady,
+          LegacyAnkiMigrationState.cutover,
+          LegacyAnkiMigrationState.observing,
+          LegacyAnkiMigrationState.completed,
+          LegacyAnkiMigrationState.noLegacyScheduleRollback,
+        };
+        if (!locked.contains(row.state)) return;
+        const AnkiWriteGuard().assertAllowed(
+          sourceEngine: AnkiEngineKind.official,
+          owner: AnkiWriteOwner.legacyAnkiDao,
+          operation: 'setCardState',
+        );
+      } finally {
+        db.close();
+      }
+    } on AnkiWriteDenied {
+      rethrow;
+    } catch (_) {}
+  }
+
+  String? _resolveOfficialCatalogPath() {
+    try {
+      final paths = OfficialAnkiCompositionRoot.locatorPaths;
+      return paths?.catalogFile.path;
+    } catch (_) {
+      return null;
+    }
   }
   /// Clear expired buried cards and leave future buries untouched.
   /// Clear expired buried cards and leave future buries untouched.

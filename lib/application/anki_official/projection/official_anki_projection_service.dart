@@ -282,6 +282,21 @@ class OfficialAnkiCourseProjectionService {
     );
   }
 
+  /// P5-C fixture only: map just this source's notetypes and auto-confirm
+  /// high-confidence Basic Front/Back candidates. Does not confirm other
+  /// collection notetypes.
+  Future<OfficialAnkiProjectionPublishResult> projectSourceForFixturePilot({
+    int mappingVersion = 1,
+  }) {
+    return _project(
+      mappingVersion: mappingVersion,
+      typeAnswerEnabled: false,
+      failPublish: false,
+      restrictSchemasToSource: true,
+      autoConfirmAutoCandidates: true,
+    );
+  }
+
   /// Production Generate: resume the existing `needs_mapping` job.
   Future<OfficialAnkiProjectionPublishResult> generateCourse({
     String? jobId,
@@ -330,6 +345,8 @@ class OfficialAnkiCourseProjectionService {
     required bool typeAnswerEnabled,
     required bool failPublish,
     String? resumeJobId,
+    bool restrictSchemasToSource = false,
+    bool autoConfirmAutoCandidates = false,
   }) async {
     if (!flags.allowsProjection) {
       return const OfficialAnkiProjectionPublishResult(
@@ -387,10 +404,19 @@ class OfficialAnkiCourseProjectionService {
         cardSetFingerprint: scan.cardSetFingerprint,
         totalCards: scan.total,
       );
-      final schemas = await engine.getProjectionSchemas(
+      var schemas = await engine.getProjectionSchemas(
         includeSamples: true,
         sampleLimit: 3,
       );
+      if (restrictSchemasToSource) {
+        final notetypeIds = await _notetypeIdsForSource();
+        if (notetypeIds.isNotEmpty) {
+          schemas = [
+            for (final schema in schemas)
+              if (notetypeIds.contains(schema.notetypeId)) schema,
+          ];
+        }
+      }
       final mappings = <int, OfficialAnkiMappingSuggestion>{
         for (final schema in schemas)
           schema.notetypeId: mapper.suggest(schema: schema).copyWith(
@@ -398,7 +424,12 @@ class OfficialAnkiCourseProjectionService {
                 schemaFingerprint: schema.schemaFingerprint,
               ),
       };
-      final mappingOutcome = _mergeAndPersistMappings(schemas, mappings, mappingVersion);
+      final mappingOutcome = _mergeAndPersistMappings(
+        schemas,
+        mappings,
+        mappingVersion,
+        autoConfirmAutoCandidates: autoConfirmAutoCandidates,
+      );
       if (mappingOutcome == _MappingOutcome.needsMapping) {
         jobs.heartbeat(
           jobId: job.jobId,
@@ -826,11 +857,44 @@ class OfficialAnkiCourseProjectionService {
     );
   }
 
+  Future<Set<int>> _notetypeIdsForSource() async {
+    final ids = <int>{};
+    int? after;
+    OfficialAnkiProjectionSnapshot? snapshot;
+    try {
+      snapshot = await engine.beginProjectionRead(
+        cardSetFingerprint: 'fixture-notetype-$sourceId',
+        mappingVersion: 1,
+      );
+      while (true) {
+        final page = sources.pageSourceCardIds(
+          sourceId: sourceId,
+          afterCardId: after,
+          limit: batchSize,
+        );
+        if (page.cardIds.isEmpty) break;
+        final batch = await engine.getProjectionRowsBatch(
+          cardIds: page.cardIds,
+          snapshotToken: snapshot.snapshotToken,
+        );
+        for (final row in batch.rows) {
+          if (row.notetypeId != 0) ids.add(row.notetypeId);
+        }
+        after = page.lastCardId;
+        if (!page.hasMore) break;
+      }
+    } on OfficialAnkiException {
+      return ids;
+    }
+    return ids;
+  }
+
   _MappingOutcome _mergeAndPersistMappings(
     List<OfficialAnkiProjectionSchema> schemas,
     Map<int, OfficialAnkiMappingSuggestion> mappings,
-    int mappingVersion,
-  ) {
+    int mappingVersion, {
+    bool autoConfirmAutoCandidates = false,
+  }) {
     final now = DateTime.now().millisecondsSinceEpoch;
     final lookup = catalog.handle.prepare(
       'SELECT schema_fingerprint, mapping_json, user_confirmed, status, '
@@ -887,17 +951,25 @@ class OfficialAnkiCourseProjectionService {
           continue;
         }
         final suggestion = mappings[schema.notetypeId]!;
+        final confirm = autoConfirmAutoCandidates &&
+            suggestion.status == OfficialAnkiMappingStatus.autoCandidate;
+        final stored = confirm
+            ? suggestion.copyWith(userConfirmed: true, updatedAtMillis: now)
+            : suggestion;
+        mappings[schema.notetypeId] = stored;
         insert.execute([
           profileId,
           schema.notetypeId,
           schema.schemaFingerprint,
-          jsonEncode(suggestion.toJson()),
-          suggestion.status.name,
-          0,
+          jsonEncode(stored.toJson()),
+          stored.status.name,
+          confirm ? 1 : 0,
           mappingVersion,
           now,
         ]);
-        needsMapping = true;
+        if (!confirm) {
+          needsMapping = true;
+        }
       }
     } finally {
       lookup.dispose();

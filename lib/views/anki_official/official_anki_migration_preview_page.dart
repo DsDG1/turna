@@ -14,6 +14,8 @@ class OfficialAnkiMigrationPreviewPage extends StatefulWidget {
     required this.dryRun,
     this.diskFreeBytes = 0,
     this.displayName = 'Legacy source',
+    this.importId,
+    this.sourceHash,
     this.flags = const OfficialAnkiFeatureFlags(),
     this.coordinator,
     this.onFixturePilot,
@@ -23,6 +25,8 @@ class OfficialAnkiMigrationPreviewPage extends StatefulWidget {
   final LegacyAnkiDryRunResult dryRun;
   final int diskFreeBytes;
   final String displayName;
+  final String? importId;
+  final String? sourceHash;
   final OfficialAnkiFeatureFlags flags;
   final OfficialAnkiOperationCoordinator? coordinator;
   final VoidCallback? onFixturePilot;
@@ -42,8 +46,10 @@ class _OfficialAnkiMigrationPreviewPageState
         .where((row) => row.matchState != LegacyAnkiMatchState.matched)
         .toList();
     final allowPilot = widget.flags.migrationPilot &&
-        isFixturePilotSource(displayName: widget.displayName) &&
-        unmatched.isEmpty &&
+        isFixturePilotSource(
+          importId: widget.importId,
+          sourceHash: widget.sourceHash,
+        ) &&
         (widget.coordinator == null ||
             widget.coordinator!.phase == OfficialAnkiOperationPhase.idle);
 

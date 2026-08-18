@@ -244,6 +244,21 @@ WHERE source_id = ? AND state = ?
     return row['n'] as int;
   }
 
+  /// Cards for [sourceId], or the source with [sourceHash] if the id is empty
+  /// or not yet visible on this connection after a worker import.
+  List<OfficialAnkiCardDescriptor> listCardsForImport({
+    required String sourceId,
+    required String profileId,
+    String? sourceHash,
+  }) {
+    final first = listCards(sourceId);
+    if (first.isNotEmpty) return first;
+    if (sourceHash == null || sourceHash.isEmpty) return first;
+    final byHash = findByHash(profileId, sourceHash);
+    if (byHash == null || byHash.sourceId == sourceId) return first;
+    return listCards(byHash.sourceId);
+  }
+
   List<OfficialAnkiCardDescriptor> listCards(String sourceId) {
     return _db
         .select(

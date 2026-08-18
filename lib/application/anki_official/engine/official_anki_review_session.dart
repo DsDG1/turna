@@ -31,6 +31,7 @@ class OfficialReviewSession {
     this.coordinator,
     this.audit,
     this.profileId = 'profile-default-01',
+    this.allowedCardIds,
   }) : flags = flags ?? OfficialAnkiFeatureFlags.current;
 
   final OfficialAnkiEngine engine;
@@ -39,6 +40,8 @@ class OfficialReviewSession {
   final OfficialAnkiOperationCoordinator? coordinator;
   final OfficialAnkiAuditLog? audit;
   final String profileId;
+  /// When set, only these card IDs may be shown or answered.
+  final Set<int>? allowedCardIds;
 
   OfficialReviewPhase phase = OfficialReviewPhase.idle;
   OfficialReviewQueue? queue;
@@ -161,8 +164,8 @@ class OfficialReviewSession {
     _requireFlag();
     phase = OfficialReviewPhase.loadingQueue;
     try {
-      queue = await engine.getReviewQueue(fetchLimit: 1);
-      current = queue!.cards.isEmpty ? null : queue!.cards.first;
+      queue = await engine.getReviewQueue(fetchLimit: _queueFetchLimit);
+      current = _selectCurrent(queue!);
       if (current == null) {
         congrats = await engine.congratsInfo();
         phase = OfficialReviewPhase.completed;
@@ -215,6 +218,12 @@ class OfficialReviewSession {
     final card = current;
     final q = queue;
     if (card == null || q == null) return;
+    final allowed = allowedCardIds;
+    if (allowed != null &&
+        allowed.isNotEmpty &&
+        !allowed.contains(card.cardId)) {
+      return;
+    }
     if (receipts?.hasBlocking(card.cardId) == true) {
       phase = OfficialReviewPhase.reconciling;
       lastError = const OfficialAnkiException(
@@ -377,6 +386,22 @@ class OfficialReviewSession {
     disposed = true;
     answerVisibleElapsed.stop();
     coordinator?.release(OfficialAnkiOperationPhase.reviewing);
+  }
+
+  int get _queueFetchLimit {
+    final allowed = allowedCardIds;
+    if (allowed == null || allowed.isEmpty) return 1;
+    return 50;
+  }
+
+  OfficialReviewQueueCard? _selectCurrent(OfficialReviewQueue queued) {
+    if (queued.cards.isEmpty) return null;
+    final allowed = allowedCardIds;
+    if (allowed == null || allowed.isEmpty) return queued.cards.first;
+    for (final card in queued.cards) {
+      if (allowed.contains(card.cardId)) return card;
+    }
+    return null;
   }
 
   void _requireFlag() {

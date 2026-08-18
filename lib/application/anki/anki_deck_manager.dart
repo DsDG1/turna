@@ -8,6 +8,7 @@ import 'package:injectable/injectable.dart';
 // Project imports:
 import 'package:turna/application/anki/anki_models.dart';
 import 'package:turna/application/anki/anki_review_assembler.dart';
+import 'package:turna/application/anki_official/migration/official_anki_write_owner.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/data/anki_note_dao.dart';
@@ -178,6 +179,7 @@ class AnkiDeckManager {
     required bool isNewCard,
     String? importId,
   }) async {
+    assertLegacySrsAnswerAllowed(importId: importId);
     _resetCountersIfNewDay();
     if (importId != null) {
       final limit = isNewCard

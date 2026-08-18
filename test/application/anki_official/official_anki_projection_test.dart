@@ -327,7 +327,7 @@ void main() {
       nowMillis: 2,
     );
     final version = catalog.handle.select('PRAGMA user_version').first;
-    expect(version['user_version'], 7);
+    expect(version['user_version'], kOfficialAnkiCatalogSchemaVersion);
     final sources = catalog.handle.select('SELECT source_id FROM anki_sources');
     expect(sources.first['source_id'], 'src-keep');
     expect(

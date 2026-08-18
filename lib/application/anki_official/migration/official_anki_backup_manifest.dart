@@ -201,12 +201,17 @@ CREATE TABLE legacy_backup_metadata (
       db.dispose();
     }
 
-    // 3. collection.anki2 (Official Collection copy)
+    // 3. collection.anki2 (Official Collection copy). Missing or empty file is not a backup.
     final colCopy = File('${backupDir.path}/collection.anki2');
-    if (paths.collectionFile.existsSync()) {
-      paths.collectionFile.copySync(colCopy.path);
-    } else {
-      colCopy.writeAsStringSync('');
+    if (!paths.collectionFile.existsSync() ||
+        paths.collectionFile.lengthSync() == 0) {
+      throw StateError(
+        'official collection missing or empty at ${paths.collectionFile.path}',
+      );
+    }
+    paths.collectionFile.copySync(colCopy.path);
+    if (!colCopy.existsSync() || colCopy.lengthSync() == 0) {
+      throw StateError('backup collection.anki2 not written or empty');
     }
 
     // 4. collection.media/ (Media directory copy)
@@ -227,25 +232,38 @@ CREATE TABLE legacy_backup_metadata (
       }
     }
 
-    // 5. official_catalog.sqlite (Catalog database copy)
+    // 5. official_catalog.sqlite (Catalog database copy). Missing or empty file is not a backup.
     final catalogCopy = File('${backupDir.path}/official_catalog.sqlite');
-    if (paths.catalogFile.existsSync()) {
-      paths.catalogFile.copySync(catalogCopy.path);
-    } else {
-      catalogCopy.writeAsStringSync('');
+    if (!paths.catalogFile.existsSync() ||
+        paths.catalogFile.lengthSync() == 0) {
+      throw StateError(
+        'official catalog missing or empty at ${paths.catalogFile.path}',
+      );
+    }
+    paths.catalogFile.copySync(catalogCopy.path);
+    if (!catalogCopy.existsSync() || catalogCopy.lengthSync() == 0) {
+      throw StateError('backup official_catalog.sqlite not written or empty');
     }
 
-    // 6. SHA256SUMS (All backup files sha256)
+    if (manifestFile.lengthSync() == 0 || subsetDbFile.lengthSync() == 0) {
+      throw StateError('backup manifest or subset is empty');
+    }
+
+    // 6. SHA256SUMS (All backup files sha256) — every listed file must be non-empty
     final sumsFile = File('${backupDir.path}/SHA256SUMS');
     final lines = <String>[];
     for (final file in [manifestFile, subsetDbFile, colCopy, catalogCopy]) {
-      if (file.existsSync()) {
-        final bytes = file.readAsBytesSync();
-        final digest = sha256.convert(bytes).toString();
-        lines.add('$digest  ${file.uri.pathSegments.last}');
+      if (!file.existsSync() || file.lengthSync() == 0) {
+        throw StateError('backup file missing or empty: ${file.path}');
       }
+      final bytes = file.readAsBytesSync();
+      final digest = sha256.convert(bytes).toString();
+      lines.add('$digest  ${file.uri.pathSegments.last}');
     }
     await sumsFile.writeAsString('${lines.join('\n')}\n', flush: true);
+    if (!sumsFile.existsSync() || sumsFile.lengthSync() == 0) {
+      throw StateError('SHA256SUMS not written or empty');
+    }
 
     return backupDir;
   }

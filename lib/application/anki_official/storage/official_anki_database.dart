@@ -4,7 +4,7 @@ import 'package:sqlite3/sqlite3.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/storage/official_anki_sqlite.dart';
 
-const int kOfficialAnkiCatalogSchemaVersion = 7;
+const int kOfficialAnkiCatalogSchemaVersion = 8;
 
 /// Independent catalog. Must not live in CourseDatabase (downgrade wipes it).
 class OfficialAnkiDatabase {
@@ -65,6 +65,9 @@ class OfficialAnkiDatabase {
       }
       if (version <= 6) {
         _upgradeToV7();
+      }
+      if (version <= 7) {
+        _upgradeToV8();
       }
       _db.execute('PRAGMA user_version = $kOfficialAnkiCatalogSchemaVersion');
       _db.execute('COMMIT');
@@ -343,6 +346,17 @@ CREATE TABLE IF NOT EXISTS anki_scheduler_mutations (
       'CREATE INDEX IF NOT EXISTS anki_scheduler_mutations_card_idx '
       'ON anki_scheduler_mutations(profile_id, card_id, state)',
     );
+  }
+
+  void _upgradeToV8() {
+    final hasColumn = _db
+        .select("SELECT name FROM pragma_table_info('legacy_anki_migrations') WHERE name='recorded_kind'")
+        .isNotEmpty;
+    if (!hasColumn) {
+      _db.execute(
+        "ALTER TABLE legacy_anki_migrations ADD COLUMN recorded_kind TEXT",
+      );
+    }
   }
 
   void close() => _db.dispose();

@@ -1,5 +1,9 @@
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
+import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
+import 'package:turna/application/anki_official/migration/official_anki_migration_state.dart';
+import 'package:turna/application/anki_official/official_anki_composition.dart';
+import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 
 enum AnkiWriteOwner {
   officialScheduler,
@@ -60,4 +64,51 @@ class AnkiWriteGuard {
       debugDetails: denied.toString(),
     );
   }
+}
+
+const _legacySrsLockedStates = <LegacyAnkiMigrationState>{
+  LegacyAnkiMigrationState.cutoverReady,
+  LegacyAnkiMigrationState.cutover,
+  LegacyAnkiMigrationState.observing,
+  LegacyAnkiMigrationState.completed,
+  LegacyAnkiMigrationState.noLegacyScheduleRollback,
+};
+
+/// Denies Turna SRS writes for a Legacy import that P5-C has already cut over.
+void assertLegacySrsAnswerAllowed({
+  required String? importId,
+  OfficialAnkiMigrationDao? dao,
+  String profileId = 'profile-default-01',
+}) {
+  if (importId == null || importId.isEmpty) return;
+  if (dao != null) {
+    _denyIfOfficialOwned(dao, importId, profileId);
+    return;
+  }
+  final paths = OfficialAnkiCompositionRoot.locatorPaths;
+  final catalog = paths?.catalogFile;
+  if (catalog == null || !catalog.existsSync()) return;
+  final db = OfficialAnkiDatabase.file(catalog.path);
+  try {
+    _denyIfOfficialOwned(OfficialAnkiMigrationDao(db), importId, profileId);
+  } finally {
+    db.close();
+  }
+}
+
+void _denyIfOfficialOwned(
+  OfficialAnkiMigrationDao dao,
+  String importId,
+  String profileId,
+) {
+  final row = dao.findByLegacyImport(
+    profileId: profileId,
+    legacyImportId: importId,
+  );
+  if (row == null || !_legacySrsLockedStates.contains(row.state)) return;
+  const AnkiWriteGuard().assertAllowed(
+    sourceEngine: AnkiEngineKind.official,
+    owner: AnkiWriteOwner.turnaSrs,
+    operation: 'answer',
+  );
 }

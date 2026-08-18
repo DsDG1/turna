@@ -4,6 +4,7 @@ import 'package:turna/application/anki_official/migration/official_anki_backup_m
 import 'package:turna/application/anki_official/migration/official_anki_census.dart';
 import 'package:turna/application/anki_official/migration/official_anki_dry_run_matcher.dart';
 import 'package:turna/application/anki_official/migration/official_anki_dry_run_saga.dart';
+import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_state.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
@@ -16,6 +17,7 @@ class OfficialAnkiMigrationPreviewModel {
     required this.dryRun,
     required this.diskFreeBytes,
     required this.displayName,
+    this.selectedImport,
     this.backupFile,
   });
 
@@ -23,6 +25,7 @@ class OfficialAnkiMigrationPreviewModel {
   final LegacyAnkiDryRunResult dryRun;
   final int diskFreeBytes;
   final String displayName;
+  final LegacyAnkiImportCensus? selectedImport;
   final File? backupFile;
 }
 
@@ -55,26 +58,36 @@ class OfficialAnkiMigrationPreviewLoader {
                 noteGuid: card.noteGuid,
               ),
         ];
-        final first = census.imports.first;
+        final target = selectLegacyAnkiPilotImport(census.imports) ??
+            census.imports.first;
         final existing = dao.findByLegacyImport(
           profileId: paths.profileId,
-          legacyImportId: first.importId,
+          legacyImportId: target.importId,
         );
-        final migrationId = existing?.migrationId ?? 'mig-${first.importId}';
+        final migrationId = existing?.migrationId ?? 'mig-${target.importId}';
         if (existing == null) {
           dao.insertDetected(
             migrationId: migrationId,
             profileId: paths.profileId,
-            legacyImportId: first.importId,
+            legacyImportId: target.importId,
             policy: LegacyAnkiSchedulingPolicy.preservePackageScheduling,
             nowMillis: now,
-            sourceHash: first.sourceHash,
-            legacyCardCount: first.cardCount,
+            sourceHash: target.sourceHash,
+            legacyCardCount: target.cardCount,
           );
         }
         final legacy = identityReader == null
             ? const <LegacyAnkiCardIdentity>[]
-            : await identityReader.loadCardIdentities(first.importId);
+            : await identityReader.loadCardIdentities(target.importId);
+        dao.replaceDryRunMap(
+          migrationId: migrationId,
+          result: const LegacyAnkiDryRunResult(rows: []),
+        );
+        dao.setCursor(
+          migrationId: migrationId,
+          cursorLegacyCardId: 0,
+          nowMillis: now,
+        );
         dryRun = await const LegacyAnkiDryRunSaga().run(
           dao: dao,
           migrationId: migrationId,
@@ -100,14 +113,73 @@ class OfficialAnkiMigrationPreviewLoader {
         catalog.close();
       }
     }
+    final selected = selectLegacyAnkiPilotImport(census.imports);
     return OfficialAnkiMigrationPreviewModel(
       census: census,
       dryRun: dryRun,
       diskFreeBytes: paths.diskFreeBytes(),
-      displayName: census.imports.isNotEmpty
-          ? 'Legacy (${census.imports.first.importId})'
-          : 'Legacy source (0 detected)',
+      displayName: selected != null
+          ? 'Legacy (${selected.importId})'
+          : census.imports.isNotEmpty
+              ? 'Legacy (${census.imports.first.importId})'
+              : 'Legacy source (0 detected)',
+      selectedImport: selected,
       backupFile: backupFile,
     );
   }
+}
+
+class OfficialAnkiFixtureReviewTarget {
+  const OfficialAnkiFixtureReviewTarget({
+    required this.sourceId,
+    required this.deckId,
+    required this.cardIds,
+  });
+
+  final String sourceId;
+  final int deckId;
+  final Set<int> cardIds;
+}
+
+OfficialAnkiFixtureReviewTarget? officialAnkiObservingFixtureReviewTarget({
+  required OfficialAnkiMigrationDao dao,
+  required OfficialAnkiSourceDao sources,
+  required String profileId,
+}) {
+  final row = dao.findObservingFixture(profileId: profileId);
+  final sourceId = row?.officialSourceId;
+  if (sourceId == null || sourceId.isEmpty) return null;
+  final cards = sources.listCards(sourceId);
+  if (cards.isEmpty) return null;
+  return OfficialAnkiFixtureReviewTarget(
+    sourceId: sourceId,
+    deckId: cards.first.deckId,
+    cardIds: {for (final card in cards) card.cardId},
+  );
+}
+
+int? officialAnkiObservingFixtureDeckId({
+  required OfficialAnkiMigrationDao dao,
+  required OfficialAnkiSourceDao sources,
+  required String profileId,
+}) {
+  return officialAnkiObservingFixtureReviewTarget(
+    dao: dao,
+    sources: sources,
+    profileId: profileId,
+  )?.deckId;
+}
+
+LegacyAnkiImportCensus? selectLegacyAnkiPilotImport(
+  List<LegacyAnkiImportCensus> imports,
+) {
+  for (final row in imports) {
+    if (isFixturePilotSource(
+      importId: row.importId,
+      sourceHash: row.sourceHash,
+    )) {
+      return row;
+    }
+  }
+  return null;
 }
