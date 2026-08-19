@@ -28,11 +28,11 @@ void main() {
     expect(RegExp(r'(?<!Turna)showLicensePage\(').hasMatch(settings), isFalse);
   });
 
-  test('official import stays opt-in', () {
+  test('official import constructor stays off; production current is on', () {
     expect(const OfficialAnkiFeatureFlags().import, isFalse);
     expect(const OfficialAnkiFeatureFlags().renderer, isFalse);
-    expect(OfficialAnkiFeatureFlags.current.allowsOfficialImport, isFalse);
-    expect(OfficialAnkiFeatureFlags.current.allowsOfficialRenderer, isFalse);
+    expect(OfficialAnkiFeatureFlags.current.allowsOfficialImport, isTrue);
+    expect(OfficialAnkiFeatureFlags.current.allowsOfficialRenderer, isTrue);
     final screen = File('lib/views/anki/anki_import_screen.dart').readAsStringSync();
     expect(screen.contains('AnkiImporter'), isTrue);
     expect(screen.contains('AnkiImportFacade.resolve'), isTrue);

@@ -19,7 +19,7 @@ P5-C 作为「可迁用户数据」: NO-GO
 P5 USER CUTOVER: NO-GO
 P5-D 生产路由: HOLD（要产品书面「进入 P5-D」）
 P5-E 删 Legacy: HOLD（至少跨一个正式 release 观察）
-P6 AnkiWeb Sync: 不开工
+P6 AnkiWeb Sync: 已取消（2026-08-20；本报告当时为不开工）
 catalog: v8 (recordedKind)
 ```
 
@@ -63,7 +63,7 @@ routing still Legacy (ankiweb_not_linked_from_production_routes)
 - `P5 USER CUTOVER: NO-GO` — fixture observing 不代表用户牌组可迁；用户既有牌组仍不在 allowlist
 - `P5-D HOLD` — 未收到产品书面「进入 P5-D」；未改 `AnkiReviewRoute` / `AnkiImportRoute`，未动 `TURNA_OFFICIAL_ANKI_*` 默认
 - `P5-E HOLD` — 需至少跨一个正式 release 观察
-- `P6 不开工` — `00` §2.3 按 24 §7 仅文档；AGPL §13 未签字前不写 sync 代码
+- `P6 已取消` — 2026-08-20 书面不考虑与 AnkiWeb / 官方 Anki 同步；不写 sync 代码
 - `Device B: out of scope`
 
 ## 6. 后续入口
@@ -71,4 +71,4 @@ routing still Legacy (ankiweb_not_linked_from_production_routes)
 - Device A §5.4 回滚两条路径已演练（`artifacts/p5c/rollback-drill.txt`）：mutation>0 → `noLegacyScheduleRollback`/`official`；mutation=0 → `rollbackEligible`/`legacy`。用户 181 张与 collection 未 wipe。
 - 若继续收 fixture：可在 `P5-C+` 加第二个 isolated fixture（≤20 张）
 - 若产品说进入 P5-D：先书面确认方案 B，再另写 P5-D HOWTO（对标 24 §5），再改路由
-- 若有人提 AnkiWeb：只开 P6-00 法律备忘（24 §7）
+- 若有人提 AnkiWeb / 官方同步：拒绝。P6 已取消（24 §7）

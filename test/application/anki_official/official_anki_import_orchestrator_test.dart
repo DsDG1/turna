@@ -206,9 +206,11 @@ void main() {
     );
   });
 
-  test('flags default off and fail closed; official never constructs AnkiImporter', () {
-    expect(OfficialAnkiFeatureFlags.current.import, isFalse);
-    expect(OfficialAnkiFeatureFlags.current.allowsOfficialImport, isFalse);
+  test('empty constructor stays off; production fromEnvironment import is on', () {
+    expect(const OfficialAnkiFeatureFlags().import, isFalse);
+    expect(const OfficialAnkiFeatureFlags().allowsOfficialImport, isFalse);
+    expect(OfficialAnkiFeatureFlags.current.import, isTrue);
+    expect(OfficialAnkiFeatureFlags.current.allowsOfficialImport, isTrue);
     var constructed = 0;
     AnkiImportFacade.resolve(
       flags: const OfficialAnkiFeatureFlags(),

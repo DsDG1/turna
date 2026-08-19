@@ -321,8 +321,9 @@ void main() {
         );
 
         final today = DateTime(now.year, now.month, now.day);
+        final checkTime = DateTime.now();
         final dueToday = srs.state.values.where((w) {
-          return !w.dueAt.isAfter(now);
+          return !w.dueAt.isAfter(checkTime);
         }).length;
         // Positions 0-19 due today (dueAt ≈ now).
         expect(dueToday, 20);

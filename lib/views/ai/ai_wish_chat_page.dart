@@ -50,7 +50,11 @@ class _AiWishChatPageState extends State<AiWishChatPage> {
     _sourceLanguageCtrl = TextEditingController(text: 'Chinese');
     _topicCtrl = TextEditingController();
     _extraCtrl = TextEditingController();
-    context.read<AiWishProvider>().reset();
+    // Defer: reset() notifies listeners, which is illegal while the router is
+    // still building this page's ancestors (setState during build).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<AiWishProvider>().reset();
+    });
   }
 
   @override
@@ -601,11 +605,17 @@ class _SwipeConfirmBarState extends State<_SwipeConfirmBar>
   double _trackWidth = 0;
   bool _fired = false;
 
-  late final AnimationController _spring = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 200),
-  );
+  late final AnimationController _spring;
   Animation<double>? _springAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _spring = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    );
+  }
 
   @override
   void dispose() {

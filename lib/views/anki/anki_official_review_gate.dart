@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:turna/application/anki/anki_review_assembler.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_session.dart';
 import 'package:turna/application/anki_official/engine/official_anki_session_engine.dart';
@@ -10,9 +9,12 @@ import 'package:turna/application/anki_official/migration/official_anki_producti
 import 'package:turna/application/anki_official/migration/official_anki_review_gate_decision.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
+import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
+import 'package:turna/courses/course_loader.dart';
+import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/views/anki_official/official_anki_review_page.dart';
 
 /// Opens Formal Reviewer for official-routed sources. Fail-closed if
@@ -48,7 +50,7 @@ class AnkiOfficialReviewGate {
     bool? cutoverEnabledOverride,
   }) async {
     final importId =
-        AnkiReviewAssembler.importIdFromSectionId(sectionId ?? '');
+        LegacyAnkiIdentifiers.importIdFromSectionId(sectionId ?? '');
     if (importId.isEmpty) return false;
     final cutoverEnabled =
         cutoverEnabledOverride ?? LegacyAnkiMigrationFlags.cutoverEnabled;
@@ -75,17 +77,28 @@ class AnkiOfficialReviewGate {
     try {
       final dao = OfficialAnkiMigrationDao(catalog);
       final sources = OfficialAnkiSourceDao(catalog);
+      final sourceHash = await _sourceHashForImport(importId);
+      if (sourceHash != null && sourceHash.isNotEmpty) {
+        router.adoptExistingIfCatalogMatches(
+          dao: dao,
+          sources: sources,
+          importId: importId,
+          sourceHash: sourceHash,
+        );
+      }
       final routed = router.engineForImport(
         importId: importId,
         dao: dao,
         sources: sources,
         cutoverEnabled: cutoverEnabled,
+        sourceHash: sourceHash,
       );
       final target = router.reviewTargetForImport(
         dao: dao,
         sources: sources,
         importId: importId,
         cutoverEnabled: cutoverEnabled,
+        sourceHash: sourceHash,
       );
       final canOpen = routerCanOpenOfficialReviewOverride != null
           ? routerCanOpenOfficialReviewOverride!(router)
@@ -158,6 +171,16 @@ class AnkiOfficialReviewGate {
     if (routed != AnkiEngineKind.official) return false;
     _snackFailClosed(context);
     return true;
+  }
+
+  Future<String?> _sourceHashForImport(String importId) async {
+    try {
+      final course = CourseLoader.databaseOrNull();
+      if (course == null) return null;
+      return (await AnkiImportDao(course).getById(importId))?.sourceHash;
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<bool> _ensureCollectionReady(OfficialAnkiSession session) async {

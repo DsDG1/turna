@@ -9,6 +9,7 @@ import 'package:turna/application/anki_official/import/anki_import_facade.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 import 'package:turna/application/anki_official/migration/official_anki_gray_config.dart';
 import 'package:turna/application/anki_official/migration/official_anki_user_allowlist.dart';
+import 'package:turna/application/anki_official/migration/official_anki_new_import_cutover.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_state.dart';
 import 'package:turna/application/anki_official/migration/official_anki_production_router.dart';
@@ -19,8 +20,10 @@ import 'package:turna/application/anki_official/storage/official_anki_source_dao
 import 'package:turna/domain/course/srs_word.dart';
 
 void main() {
-  test('p5d_default_build_still_routes_legacy', () {
-    expect(LegacyAnkiMigrationFlags.cutoverEnabled, isFalse);
+  test('p5d_default_build_routes_official_on_android', () {
+    expect(LegacyAnkiMigrationFlags.cutoverEnabled, isTrue);
+    expect(OfficialAnkiGrayConfig.fromEnvironment().cohort, OfficialAnkiGrayCohort.g4);
+    expect(OfficialAnkiFeatureFlags.fromEnvironment().allowsOfficialScheduler, isTrue);
     const resolver = AnkiSourceRouteResolver();
     expect(
       resolver.resolve(
@@ -28,16 +31,38 @@ void main() {
         recordedKind: AnkiEngineKind.official,
         officialCatalogHasSource: true,
       ),
+      AnkiEngineKind.official,
+    );
+    expect(
+      resolver.resolve(
+        sourceKey: 'user-deck',
+        recordedKind: null,
+        officialCatalogHasSource: false,
+        platform: 'android',
+      ),
+      AnkiEngineKind.official,
+    );
+    expect(
+      resolver.resolve(
+        sourceKey: 'user-deck',
+        recordedKind: null,
+        officialCatalogHasSource: false,
+        platform: 'ohos',
+      ),
       AnkiEngineKind.legacy,
     );
     expect(
-      AnkiImportFacade.decisionFor(const OfficialAnkiFeatureFlags(
-        engine: true,
-        import: true,
-        catalogReady: true,
-        runtimeCapable: true,
-        platformReady: true,
-      )),
+      AnkiImportFacade.decisionFor(
+        OfficialAnkiFeatureFlags.fromEnvironment(),
+        platform: 'android',
+      ),
+      AnkiImportDecision.official,
+    );
+    expect(
+      AnkiImportFacade.decisionFor(
+        OfficialAnkiFeatureFlags.fromEnvironment(),
+        platform: 'ohos',
+      ),
       AnkiImportDecision.legacy,
     );
   });
@@ -69,7 +94,7 @@ void main() {
     );
   });
 
-  test('p5d_user_deck_without_recordedKind_stays_legacy', () {
+  test('p5d_unmarked_android_source_routes_official_when_cutover', () {
     const resolver = AnkiSourceRouteResolver();
     expect(
       resolver.resolve(
@@ -77,6 +102,17 @@ void main() {
         recordedKind: null,
         officialCatalogHasSource: false,
         cutoverEnabled: true,
+        platform: 'android',
+      ),
+      AnkiEngineKind.official,
+    );
+    expect(
+      resolver.resolve(
+        sourceKey: 'user-deck',
+        recordedKind: AnkiEngineKind.legacy,
+        officialCatalogHasSource: true,
+        cutoverEnabled: true,
+        platform: 'android',
       ),
       AnkiEngineKind.legacy,
     );
@@ -570,9 +606,9 @@ void main() {
     );
   });
 
-  test('p5d_gray_default_cohort_is_off', () {
-    expect(OfficialAnkiGrayConfig.fromEnvironment().cohort, OfficialAnkiGrayCohort.off);
-    expect(OfficialAnkiGrayConfig.fromEnvironment().isOn, isFalse);
+  test('p5d_gray_default_cohort_is_g4', () {
+    expect(OfficialAnkiGrayConfig.fromEnvironment().cohort, OfficialAnkiGrayCohort.g4);
+    expect(OfficialAnkiGrayConfig.fromEnvironment().isOn, isTrue);
     expect(
       const OfficialAnkiGrayConfig(cohort: OfficialAnkiGrayCohort.off).isOn,
       isFalse,
@@ -627,6 +663,85 @@ void main() {
     expect(const OfficialAnkiGrayConfig(cohort: OfficialAnkiGrayCohort.g4).thresholdPercent, 100);
     expect(OfficialAnkiGrayConfig.parseGrayCohort('g2'), OfficialAnkiGrayCohort.g2);
     expect(OfficialAnkiGrayConfig.parseGrayCohort('10%'), OfficialAnkiGrayCohort.g2);
+    expect(OfficialAnkiGrayConfig.parseGrayCohort('g3'), OfficialAnkiGrayCohort.g3);
+    expect(OfficialAnkiGrayConfig.parseGrayCohort('50%'), OfficialAnkiGrayCohort.g3);
+    expect(OfficialAnkiGrayConfig.parseGrayCohort('g4'), OfficialAnkiGrayCohort.g4);
+    expect(OfficialAnkiGrayConfig.parseGrayCohort('100%'), OfficialAnkiGrayCohort.g4);
+    expect(
+      const OfficialAnkiGrayConfig(cohort: OfficialAnkiGrayCohort.g4)
+          .allowsNewOfficialImport(platform: 'android', cutoverEnabled: true),
+      isTrue,
+    );
+    expect(
+      AnkiImportFacade.decisionFor(
+        const OfficialAnkiFeatureFlags(
+          engine: true,
+          import: true,
+          catalogReady: true,
+          runtimeCapable: true,
+          platformReady: true,
+        ),
+        cutoverEnabled: true,
+        platform: 'android',
+        gray: const OfficialAnkiGrayConfig(cohort: OfficialAnkiGrayCohort.g4),
+      ),
+      AnkiImportDecision.official,
+    );
+    expect(
+      const OfficialAnkiGrayConfig(cohort: OfficialAnkiGrayCohort.g3)
+          .allowsNewOfficialImport(platform: 'android', cutoverEnabled: true),
+      isTrue,
+    );
+    expect(
+      AnkiImportFacade.decisionFor(
+        const OfficialAnkiFeatureFlags(
+          engine: true,
+          import: true,
+          catalogReady: true,
+          runtimeCapable: true,
+          platformReady: true,
+        ),
+        cutoverEnabled: true,
+        platform: 'android',
+        gray: const OfficialAnkiGrayConfig(cohort: OfficialAnkiGrayCohort.g3),
+      ),
+      AnkiImportDecision.official,
+    );
+    expect(
+      const OfficialAnkiGrayConfig(cohort: OfficialAnkiGrayCohort.g2)
+          .allowsNewOfficialImport(platform: 'android', cutoverEnabled: true),
+      isTrue,
+    );
+    expect(
+      AnkiImportFacade.decisionFor(
+        const OfficialAnkiFeatureFlags(
+          engine: true,
+          import: true,
+          catalogReady: true,
+          runtimeCapable: true,
+          platformReady: true,
+        ),
+        cutoverEnabled: true,
+        platform: 'android',
+        gray: const OfficialAnkiGrayConfig(cohort: OfficialAnkiGrayCohort.g2),
+      ),
+      AnkiImportDecision.official,
+    );
+    expect(
+      AnkiImportFacade.decisionFor(
+        const OfficialAnkiFeatureFlags(
+          engine: true,
+          import: true,
+          catalogReady: true,
+          runtimeCapable: true,
+          platformReady: true,
+        ),
+        cutoverEnabled: true,
+        platform: 'android',
+        gray: const OfficialAnkiGrayConfig(cohort: OfficialAnkiGrayCohort.off),
+      ),
+      AnkiImportDecision.legacy,
+    );
   });
 
   test('p5d_gray_import_requires_cutover_and_android', () {
@@ -688,8 +803,17 @@ void main() {
   test('p5d_user_allowlist_is_per_source_hash_and_rejects_bulk', () {
     expect(isUserAllowlistedSource(importId: 'p5c-fixture-device'), isTrue);
     expect(isUserAllowlistedSource(sourceHash: '28d89bb7bf41df25513e148e96acbdac93bcc71fadcee8e552b57d4413394d02'), isTrue);
+    expect(
+      isUserAllowlistedSource(
+        importId: 'd4srcd7cdafb7',
+        sourceHash:
+            'd7cdafb74537722ea9ba07762c5b56c4845c2b687142f3ac52102497ae15ca07',
+      ),
+      isTrue,
+    );
     expect(isUserAllowlistedSource(importId: 'user-deck', sourceHash: 'deadbeef'), isFalse);
     expect(isUserAllowlistedSource(importId: 'user-deck'), isFalse);
+    expect(isUserAllowlistedSource(importId: 'mszs6hml'), isFalse);
   });
 
   test('p5d_gray_config_does_not_import_coursedatabase_or_census', () {
@@ -702,5 +826,105 @@ void main() {
       'lib/application/anki_official/migration/official_anki_user_allowlist.dart',
     ).readAsStringSync();
     expect(allowSrc.toLowerCase().contains('coursedatabase'), isFalse);
+  });
+
+  test('p5d_new_official_import_writes_recorded_kind', () {
+    const hash =
+        'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789';
+    expect(OfficialAnkiNewImportCutover.importIdForSourceHash(hash), 'g1abcdef0123');
+    expect(isFixturePilotSource(importId: 'g1abcdef0123'), isFalse);
+    expect(isUserAllowlistedSource(importId: 'g1abcdef0123', sourceHash: hash), isFalse);
+
+    final db = OfficialAnkiDatabase.memory();
+    addTearDown(db.close);
+    OfficialAnkiSourceDao(db).upsertSource(
+      sourceId: 'src-g1probe',
+      profileId: 'profile-default-01',
+      sourceHash: hash,
+      sourceSize: 1,
+      displayName: 'g1-probe',
+      state: 'active',
+      backendCommit: 'x',
+      nowMillis: 1,
+    );
+    db.handle.execute(
+      'INSERT INTO anki_source_cards '
+      '(source_id, card_id, note_id, deck_id, note_guid, template_ord) '
+      "VALUES ('src-g1probe', 42, 1, 9, 'g', 0)",
+    );
+    final dao = OfficialAnkiMigrationDao(db);
+    dao.insertObservingOfficial(
+      migrationId: 'mig-g1probe',
+      profileId: 'profile-default-01',
+      legacyImportId: 'g1abcdef0123',
+      officialSourceId: 'src-g1probe',
+      sourceHash: hash,
+      nowMillis: 2,
+      cardCount: 1,
+    );
+    expect(dao.findById('mig-g1probe')?.recordedKind, 'official');
+    expect(dao.findById('mig-g1probe')?.officialSourceId, 'src-g1probe');
+    const router = OfficialAnkiProductionRouter();
+    expect(
+      router.engineForImport(
+        importId: 'g1abcdef0123',
+        dao: dao,
+        sources: OfficialAnkiSourceDao(db),
+        cutoverEnabled: true,
+      ),
+      AnkiEngineKind.official,
+    );
+    final target = router.reviewTargetForImport(
+      dao: dao,
+      sources: OfficialAnkiSourceDao(db),
+      importId: 'g1abcdef0123',
+      cutoverEnabled: true,
+    );
+    expect(target?.cardIds, {42});
+    expect(target?.deckId, 9);
+  });
+
+  test('p5d_adopt_existing_links_unmarked_import_to_catalog_hash', () {
+    final db = OfficialAnkiDatabase.memory();
+    addTearDown(db.close);
+    const hash =
+        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+    OfficialAnkiSourceDao(db).upsertSource(
+      sourceId: 'src-old',
+      profileId: 'profile-default-01',
+      sourceHash: hash,
+      sourceSize: 1,
+      displayName: 'old',
+      state: 'active',
+      backendCommit: 'x',
+      nowMillis: 1,
+    );
+    db.handle.execute(
+      'INSERT INTO anki_source_cards '
+      '(source_id, card_id, note_id, deck_id, note_guid, template_ord) '
+      "VALUES ('src-old', 99, 1, 7, 'g', 0)",
+    );
+    final dao = OfficialAnkiMigrationDao(db);
+    const router = OfficialAnkiProductionRouter();
+    router.adoptExistingIfCatalogMatches(
+      dao: dao,
+      sources: OfficialAnkiSourceDao(db),
+      importId: 'mszs6hml',
+      sourceHash: hash,
+      nowMillis: 3,
+    );
+    expect(dao.findByLegacyImport(
+      profileId: 'profile-default-01',
+      legacyImportId: 'mszs6hml',
+    )?.recordedKind, 'official');
+    final target = router.reviewTargetForImport(
+      dao: dao,
+      sources: OfficialAnkiSourceDao(db),
+      importId: 'mszs6hml',
+      cutoverEnabled: true,
+      sourceHash: hash,
+    );
+    expect(target?.cardIds, {99});
+    expect(target?.deckId, 7);
   });
 }

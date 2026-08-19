@@ -2,7 +2,7 @@
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:turna/application/anki/anki_review_assembler.dart';
+import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/memory_curve_provider.dart';
 import 'package:turna/application/srs_provider.dart';
@@ -170,7 +170,7 @@ class ReviewProgressProvider {
   /// decision 2). The `<cardId>` segment is always last, so `lastIndexOf('-c')`
   /// finds the importId / cardId separator.
   static String? importIdFromWordId(String wordId) {
-    if (!wordId.startsWith(AnkiReviewAssembler.ankiPrefix)) return null;
+    if (!wordId.startsWith(LegacyAnkiIdentifiers.ankiPrefix)) return null;
     final cIdx = wordId.lastIndexOf('-c');
     if (cIdx > 5) return wordId.substring(5, cIdx);
     return null;

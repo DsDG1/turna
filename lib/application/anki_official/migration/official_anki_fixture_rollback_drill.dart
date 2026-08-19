@@ -3,7 +3,7 @@ import 'dart:math';
 
 import 'package:sqlite3/sqlite3.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
-import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
+import 'package:turna/application/anki_official/migration/official_anki_user_allowlist.dart';
 import 'package:turna/application/anki_official/migration/official_anki_fixture_pilot_saga.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_state.dart';
@@ -96,7 +96,10 @@ class OfficialAnkiFixtureRollbackDrill {
         messageKey: 'official_anki.migration_missing',
       );
     }
-    if (!isFixturePilotSource(importId: row.legacyImportId)) {
+    if (!isUserAllowlistedSource(
+      importId: row.legacyImportId,
+      sourceHash: row.sourceHash,
+    )) {
       throw const OfficialAnkiException(
         code: OfficialAnkiErrorCode.invalidArgument,
         messageKey: 'official_anki.non_allowlist_source',

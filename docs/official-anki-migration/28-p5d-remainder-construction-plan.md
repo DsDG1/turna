@@ -21,11 +21,9 @@
   D4 按源 allowlist CONSTRUCTION GO  一个 hash = 一次书面确认；禁止 census.first / 批量迁；按源产出 backup→dry-run→recordedKind→评1张→rollback 双路径
 
 明确 NO-GO / HOLD
-  D5 生产默认 / 预览按钮 可施工（单独 commit，不改 TURNA_OFFICIAL_ANKI_* 默认；P5-D GO 声明）
-  P5 USER CUTOVER        NO-GO
-  P5-D GO / PRODUCTION   NO
+  D5 生产默认 已书面翻转（2026-08-20）：Android 新导入 + 能对上 catalog hash 的旧源默认官方；OHOS 仍 Legacy
   P5-E 删 Legacy         HOLD（14 §10.4 + 一版正式 release）
-  P6 AnkiWeb             HOLD（法律未签字；禁止新增 sync 包）
+  P6 AnkiWeb             已取消（不考虑与 AnkiWeb / 官方 Anki 同步）
 
 方案 B、Device A only、默认 flag 全 false：不变
 用户既有牌组默认不进 allowlist：不变（D4 仅对书面 hash 的逐源例外）
@@ -40,9 +38,9 @@
 | P5-A / B / C | 已收口 | 不再重做 |
 | D1 P5D-01…04 | 路由骨架 + fixture 评分已收口 | 不再重做 |
 | D2 P5D-11…13 | 已补齐（host-d2 + host-d3-prep；cutover 仍 false） | 不再重做 |
-| 灰度百分比 | D3-PREP 管道默认 off 已落地；gray_config 仅被默认测试读取 | **D3 G1-G4 可施工（本批 GO）** |
-| 用户源 | 仅 fixture 允许；用户源未以书面 hash 逐源放行 | **D4 可施工（本批 GO，逐源书面 hash）** |
-| 生产默认 | 仍关 | D5 HOLD |
+| 灰度百分比 | D3-PREP 默关；G1–G4 Host+Device 已收口（gray-g1..g4 + device-gray-g1..g4） | **D3 灰度序列完成；G4≠P5-D GO** |
+| 用户源 | fixture + 第一隔离 hash `d7cdafb7…` 已书面放行并在 Device A 跑完 backup→评1→rollback 双路径（allowlist-d7cdafb7） | **D4 第一源已收口；其它用户 hash 仍逐源书面** |
+| 生产默认 | Android：CUTOVER 默认 true，GRAY 默认 g4，能力 flag 默认开 | **D5 已翻转** |
 
 ## 3. 总顺序
 
@@ -52,7 +50,8 @@ D3-PREP   灰度配置默认关（已收口 host-d3-prep，禁止打开 cohort�
 D3 G1–G4  本批 CONSTRUCTION GO（G0=内部 CUTOVER 现状；每级单独 gray-gN.txt，可回退 G0；跳级作废）
 D4        本批 CONSTRUCTION GO（逐源书面 hash；每源单独 allowlist-<hash>.txt + host-d4.txt）
 D5        另 go，单独 commit
-E / P6    HOLD
+E         HOLD
+P6        已取消
 ```
 
 同一版本禁止「切 100% 并删 Legacy」。D3 G4 若发生，只表示 Android **新导入**走 official，不是 P5-D GO。
@@ -151,7 +150,7 @@ Device 复算另开，不绑 Host 必过。
 
 | ID | 做什么 | 过线 |
 |---|---|---|
-| P5D-21 | `grayCohort` 默认 `off`（或 0）。未配置 = G0 内部 define 现状 | `p5d_gray_default_cohort_is_off` |
+| P5D-21 | `grayCohort` 默认 `g4`（生产 Android 新导入 100% official） | `p5d_gray_default_cohort_is_g4` |
 | P5D-22 | 配置源不进 `CourseDatabase` / census JSON | 源码检索 |
 | P5D-23 | 预览 Cutover 仍 `onPressed: null` | `preview_cutover_button_stays_disabled` |
 
@@ -182,17 +181,17 @@ G0 = 内部 CUTOVER APK 现状。G1–G4 见 §7，本批已 CONSTRUCTION GO。
 
 ### D5 生产 GO 清单（本批可施工，单独 commit）
 
-已书面确认可进 D5。单独 commit 声明 `P5-D GO`，不把 `TURNA_OFFICIAL_ANKI_*`/`cutoverEnabled` 默认改 `true`。
+2026-08-20 已翻转生产默认（见 `artifacts/p5d/host-d5.txt` + `written-go-d5-defaults.txt`）。
 
-**清单**（缺一项即保持 `P5-D GO: NO`）：
-- 默认行为写清（`cutoverEnabled = bool.fromEnvironment(TURNA_OFFICIAL_ANKI_CUTOVER)` 默认 `false`，`gray off/g0→legacy`）
+**清单**（已按书面 go 落地）：
+- 默认行为：`cutoverEnabled` 默认 `true`，`gray` 默认 `g4`；Android 新导入 official；OHOS 仍 legacy
 - due 与 owner 一致（`getReviewQueue` 口径 `new+learning+review` 去重 `deckId`）
 - fail-closed（`AnkiImportFacade.decisionFor` 半套 flag → `capabilityMissing`，Review gate 无 target/canOpen→`SnackBar` 不进 Legacy）
-- 未 allowlist 仍 Legacy；Device A `collection.anki2` 仍在；AnkiWeb 未接线；未删 Legacy
+- 未 allowlist 仍 Legacy；Device A `collection.anki2` 仍在；不接 AnkiWeb；未删 Legacy
 
-### P5-E / P6（HOLD）
+### P5-E（HOLD）/ P6（已取消）
 
-E1–E4 与 `14` §10.4、`24` §6 相同。P6 只允许改 `00` / `24` / 本文段落，禁止新增 sync 包。
+E1–E4 与 `14` §10.4、`24` §6 相同。P6 已取消：不另开设计、不写 sync 包、不接官方 Anki 账号。
 
 ---
 
@@ -217,7 +216,7 @@ p5d_official_due_zero_when_only_future_review
 p5d_due_refresh_does_not_treat_lock_as_zero
 p5d_start_review_pushes_official_page_when_cutover_official
 p5d_start_review_fail_closed_does_not_push_legacy_session
-p5d_gray_default_cohort_is_off
+p5d_gray_default_cohort_is_g4
 answer_non_head_card_retries_off_queue
 preview_cutover_button_stays_disabled
 ankiweb_not_linked_from_production_routes
@@ -239,9 +238,10 @@ ankiweb_not_linked_from_production_routes
 | D2 | **已收口** | 3–5 天 |
 | D3-PREP | **已收口**（默关） | 1–2 天 |
 | D3 G1–G4 | **本批 CONSTRUCTION GO** | 每级 2–4 天 + 观察 |
-| D4 | **本批 CONSTRUCTION GO**（逐源） | 每源 1–2 天 |
-| D5 | HOLD | 2–3 天 |
-| E / P6 | HOLD | 见 `24` |
+| D4 | **第一隔离源 Device A PASS**（allowlist-d7cdafb7）；其它 hash 仍逐源 | 每源 1–2 天 |
+| D5 | **生产默认已翻转**（host-d5） | — |
+| E | HOLD | 见 `24` §6 |
+| P6 | 已取消 | 见 `24` §7 |
 
 ## 12. 不要做的改法
 
@@ -260,13 +260,17 @@ ankiweb_not_linked_from_production_routes
 | D2 做完 | `host-d2.txt`；验货另开 |
 | D3 做完 | `gray-gN.txt`（每级单独） |
 | D4 做完 | `allowlist-<hash>.txt` + `host-d4.txt` |
-| 进入 D5 / E / P6 | 另一次书面 go + 可另开 HOWTO |
+| 进入 E | 另一次书面 go + 可另开 HOWTO |
+| 有人提 AnkiWeb | 拒绝。P6 已取消 |
 
 ## 14. 下一步
 
 ```text
 D2 + D3-PREP 已收口
-D3 G1–G4 本批 CONSTRUCTION GO：按 G1→G2→G3→G4 顺序施工，每级单独 gray-gN.txt，可回退 G0，跳级作废
+D3 G1 Host + Device A 已收口（gray-g1.txt + device-gray-g1.txt）
+D3 G2 Host + Device A 已收口（gray-g2.txt + device-gray-g2.txt）
+D3 G3 Host + Device A 已收口（gray-g3.txt + device-gray-g3.txt）
+D3 G4 Host + Device A 已收口（gray-g4.txt + device-gray-g4.txt）；G4≠P5-D GO
 D4 本批 CONSTRUCTION GO：逐源书面 hash，显式 importId，禁止 census.first / 批量迁，每源 allowlist-<hash>.txt
-不要开 D5、E、P6；D3 G4≠P5-D GO
+D5 已翻转。不要开 E。P6 已取消。D3 G4≠P5-D GO
 ```

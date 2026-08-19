@@ -4,7 +4,7 @@
 > 日期：2026-08-19  
 > 前置：[`24`](./24-p5-remainder-and-p6-ankiweb-plan.md) §5、[`25`](./25-p5c-closeout-result-report.md)、`artifacts/p5c/rollback-drill.txt`  
 > 产品指示：进入 P5-D。方案 B（Android 先行，OHOS 留 Legacy）。  
-> 本文件是 **P5D-01…04 怎么改、怎么算过**。不是 P5D-05 灰度，不是 P5-E，不是 P6。
+> 本文件是 **P5D-01…04 怎么改、怎么算过**。不是 P5D-05 灰度，不是 P5-E。P6 已取消。
 
 ## 1. 结论先行
 
@@ -15,7 +15,8 @@ TURNA_OFFICIAL_ANKI_ENGINE/IMPORT/… 默认仍 false
 预览页 Cutover 按钮保持源码 disabled
 用户既有牌组不进 allowlist
 P5 USER CUTOVER: NO-GO
-P5-E / P6: HOLD
+P5-E: HOLD
+P6: 已取消（本手册当时写 HOLD）
 Device B: out of scope
 ```
 

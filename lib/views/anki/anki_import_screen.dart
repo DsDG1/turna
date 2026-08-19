@@ -1,6 +1,7 @@
 // Dart imports:
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 // Flutter imports:
 import 'package:file_picker/file_picker.dart';
@@ -10,6 +11,7 @@ import 'package:flutter/services.dart';
 
 // Package imports:
 import 'package:auto_route/auto_route.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:turna/application/settings_provider.dart';
 
@@ -21,6 +23,8 @@ import 'package:turna/application/anki/anki_deck_manager.dart';
 import 'package:turna/application/anki/anki_importer.dart';
 import 'package:turna/application/anki/anki_import_cleanup_service.dart';
 import 'package:turna/application/anki_official/import/anki_import_facade.dart';
+import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
+import 'package:turna/application/anki_official/migration/official_anki_new_import_cutover.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki/anki_models.dart';
@@ -918,13 +922,51 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
 
   /// Scan the app sandbox + cached/known directories for .apkg/.colpkg and
   /// show them in a simple chooser dialog.
+  Future<List<PlatformFile>> _scanLocalApkgFiles() async {
+    final dirs = <Directory>[];
+    try {
+      dirs.add(await getApplicationSupportDirectory());
+    } catch (_) {}
+    try {
+      dirs.add(await getApplicationDocumentsDirectory());
+    } catch (_) {}
+    // Device A G1: do not scan shared Download. User apkgs live there.
+    final seen = <String>{};
+    final hits = <PlatformFile>[];
+    for (final dir in dirs) {
+      if (!dir.existsSync()) continue;
+      try {
+        for (final entity in dir.listSync()) {
+          if (entity is! File) continue;
+          final path = entity.path;
+          final lower = path.toLowerCase();
+          if (!lower.endsWith('.apkg') && !lower.endsWith('.colpkg')) {
+            continue;
+          }
+          if (!seen.add(path)) continue;
+          hits.add(
+            PlatformFile(
+              path: path,
+              name: path.split(RegExp(r'[/\\]')).last,
+              size: entity.lengthSync(),
+            ),
+          );
+        }
+      } catch (_) {}
+    }
+    return hits;
+  }
+
   Future<void> _showScanResults() async {
     if (!mounted) return;
     setState(() => _error = null);
     List<PlatformFile> hits;
     try {
-      hits =
-          await OhosFilePicker.scanForFiles(allowedExtensions: _ankiExtensions);
+      hits = defaultTargetPlatform.name == 'ohos'
+          ? await OhosFilePicker.scanForFiles(
+              allowedExtensions: _ankiExtensions,
+            )
+          : await _scanLocalApkgFiles();
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = '${AppStrings.ankiFallbackScanFailed}$e');
@@ -1047,10 +1089,17 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         legacyImporter: _importer,
       );
       if (facade.isOfficial) {
-        await facade.importOfficialOrNull(
+        final official = await facade.importOfficialOrNull(
           packagePath: path,
           displayName: path.split(RegExp(r'[/\\]')).last,
         );
+        if (official != null &&
+            official.state == OfficialAnkiSourceState.active) {
+          await const OfficialAnkiNewImportCutover().attachFromApp(
+            packagePath: path,
+            sourceId: official.sourceId,
+          );
+        }
         if (!mounted) return;
         setState(() {
           _step = 4;

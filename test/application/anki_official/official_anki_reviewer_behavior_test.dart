@@ -405,7 +405,7 @@ void main() {
     expect(const OfficialAnkiFeatureFlags().reviewerDiagnostics, isFalse);
     expect(const OfficialAnkiFeatureFlags().projection, isFalse);
     expect(const OfficialAnkiFeatureFlags().courseEntry, isFalse);
-    expect(OfficialAnkiFeatureFlags.current.allowsOfficialRenderer, isFalse);
+    expect(OfficialAnkiFeatureFlags.current.allowsOfficialRenderer, isTrue);
     expect(OfficialAnkiFeatureFlags.current.allowsProjection, isFalse);
   });
 }

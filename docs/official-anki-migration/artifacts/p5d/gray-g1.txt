@@ -35,5 +35,4 @@ ROLLBACK TO G0
   or --dart-define=TURNA_OFFICIAL_ANKI_GRAY_COHORT=off
 
 NEXT
-- G2 requires this file present; jumping to G2/G3 without G1 is void
-- Device re-verify for this G1: internal CUTOVER APK (--dart-define=TURNA_OFFICIAL_ANKI_CUTOVER=true --dart-define=TURNA_OFFICIAL_ANKI_GRAY_COHORT=g1) on Device A 3B15AG00FPB00000, import 1 small ≤20-card package, verify recordedKind→official + allowedCardIds + rate 1 card revlog, then clear artifact device-gray-g1.txt; collection.anki2 must remain
+- Device A G1 re-verify is in artifacts/p5d/device-gray-g1.txt (PASS). G2 requires that file; jumping to G2/G3 without it is void.

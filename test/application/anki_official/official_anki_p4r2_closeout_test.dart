@@ -310,7 +310,7 @@ void main() {
   });
 
   testWidgets('migration preview cannot cut over', (tester) async {
-    expect(LegacyAnkiMigrationFlags.cutoverEnabled, isFalse);
+    expect(LegacyAnkiMigrationFlags.cutoverEnabled, isTrue);
     const census = LegacyAnkiCensusReport(
       generatedAtMillis: 1,
       platform: 'linux',

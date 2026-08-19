@@ -320,6 +320,54 @@ WHERE migration_id = ?
     );
   }
 
+  void insertObservingOfficial({
+    required String migrationId,
+    required String profileId,
+    required String legacyImportId,
+    required String officialSourceId,
+    required String sourceHash,
+    required int nowMillis,
+    int cardCount = 0,
+  }) {
+    _db.execute(
+      '''
+INSERT INTO legacy_anki_migrations (
+  migration_id, profile_id, legacy_import_id, official_source_id, state,
+  scheduling_policy, source_hash, legacy_card_count, matched_card_count,
+  recorded_kind, started_at_millis, updated_at_millis
+) VALUES (?, ?, ?, ?, 'observing', 'preservePackageScheduling', ?, ?, ?,
+  'official', ?, ?)
+''',
+      [
+        migrationId,
+        profileId,
+        legacyImportId,
+        officialSourceId,
+        sourceHash,
+        cardCount,
+        cardCount,
+        nowMillis,
+        nowMillis,
+      ],
+    );
+  }
+
+  void setOfficialSourceAndRecordedKind({
+    required String migrationId,
+    required String officialSourceId,
+    required String recordedKind,
+    required int nowMillis,
+  }) {
+    _db.execute(
+      '''
+UPDATE legacy_anki_migrations
+SET official_source_id = ?, recorded_kind = ?, updated_at_millis = ?
+WHERE migration_id = ?
+''',
+      [officialSourceId, recordedKind, nowMillis, migrationId],
+    );
+  }
+
   void setRecordedKind({
     required String migrationId,
     required String? recordedKind,

@@ -1,4 +1,4 @@
-import 'package:turna/application/anki/anki_review_assembler.dart';
+import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/domain/course/srs_word.dart';
 
 /// Dual-source home due. Never merge Official and Turna stores into one writer.
@@ -22,8 +22,8 @@ class OfficialAnkiHomeDue {
   static int legacyAnkiDueExcludingOfficial(Iterable<SrsWord> dueWords) {
     var n = 0;
     for (final word in dueWords) {
-      if (!word.wordId.startsWith(AnkiReviewAssembler.ankiPrefix)) continue;
-      final importId = AnkiReviewAssembler.importIdFromWordId(word.wordId);
+      if (!word.wordId.startsWith(LegacyAnkiIdentifiers.ankiPrefix)) continue;
+      final importId = LegacyAnkiIdentifiers.importIdFromWordId(word.wordId);
       if (officialImportIds.contains(importId)) continue;
       n++;
     }

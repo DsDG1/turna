@@ -159,7 +159,7 @@ void main() {
     expect(OfficialAnkiReviewPage.routeName, '/official-anki/review');
     expect(
       OfficialAnkiFeatureFlags.fromEnvironment().scheduler,
-      isFalse,
+      isTrue,
     );
   });
 

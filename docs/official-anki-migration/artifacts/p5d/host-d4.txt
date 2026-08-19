@@ -7,7 +7,7 @@ working_tree: includes D4 scaffolding + D3 gray plumbing (see git status)
 device: Device A 3B15AG00FPB00000 (only device; no wipe)
 
 WHAT LANDED (code)
-- lib/application/anki_official/migration/official_anki_user_allowlist.dart (new): isUserAllowlistedSource({importId, sourceHash}) = isFixturePilotSource OR hash in written per-source set (_userAllowlistedHashes, currently empty → only fixture passes until per-source written docs add hashes). No CourseDatabase/census import. Separate from fixture 4-hash set.
+- lib/application/anki_official/migration/official_anki_user_allowlist.dart (new): isUserAllowlistedSource({importId, sourceHash}) = isFixturePilotSource OR hash in written per-source set (_userAllowlistedHashes). First written hash d7cdafb7… (isolated 1-card; see allowlist-d7cdafb7.txt). No CourseDatabase/census import. Separate from fixture 4-hash set.
 - lib/application/anki_official/migration/official_anki_user_migration_saga.dart (new): OfficialAnkiUserMigrationSaga — start + pickAndValidatePackage with explicit importId+sourceHash allowlist check, backup via LegacyAnkiBackupService (legacy-manifest.json / legacy-subset.sqlite / collection.anki2 / official_catalog.sqlite / SHA256SUMS), reuses dao/coordinator contract. Prohibits census.first / bulk: caller must pass explicit importId + expectedSourceHash.
 - lib/application/anki_official/migration/official_anki_gray_config.dart: thresholdPercent + allowsNewOfficialImport (off→legacy gate)
 - lib/application/anki_official/import/anki_import_facade.dart: decisionFor now threads gray (off/g0→legacy for new imports)
@@ -30,26 +30,39 @@ HOW TO USE (per source)
   saga.releaseLease()
 
 VERIFY (this host)
-- flutter test --no-pub test/application/anki_official: 258 passed
+- flutter test --no-pub test/application/anki_official: 258 passed (host scaffolding day)
   - p5d_user_allowlist_is_per_source_hash_and_rejects_bulk: PASS
-  - p5d_gray_config_does_not_import_coursedatabase_or_census: PASS (gray_config + user_allowlist contain no CourseDatabase/census string)
-  - ankiweb_not_linked_from_production_routes: PASS (routing/review/preview/gray+allowlist contain no ankiweb)
-- grep -rn "official_anki_gray|GrayCohort|TURNA_OFFICIAL_ANKI_GRAY" Varnamalaplus/lib -- only gray_config.dart (+ import_facade ref)
-- Device per-source run: HOLD for this host record — first source must be ≤20 cards, non-primary deck, executed on Device A with artifact allowlist-<hash>.txt. No per-source device artifact yet in this commit.
+  - p5d_gray_config_does_not_import_coursedatabase_or_census: PASS
+  - ankiweb_not_linked_from_production_routes: PASS
+- Device first source: DONE 2026-08-20 — see allowlist-d7cdafb7.txt
+
+DEVICE FIRST SOURCE (2026-08-20, Device A 3B15AG00FPB00000, no wipe)
+- isolated 1-card package files/p5d-d4-src.apkg
+- sourceHash d7cdafb74537722ea9ba07762c5b56c4845c2b687142f3ac52102497ae15ca07
+- importId d4srcd7cdafb7 (explicit; not census.first)
+- apk 0b20b04c341cef0937173f571f7cdd07bb7fc800e1f6b52de2b16b87e35c06da (CUTOVER+g4+full official flags)
+- census 1 → backup 5 files → dry-run matched 1 → recordedKind=official
+- Official Review + 1 Good (revlog 165→166, cid 1787240000002 ease=3)
+- 24 §5.4: sibling d4srcrb0d7cd rollbackEligible/legacy (mutation=0);
+  main d4srcd7cdafb7 noLegacyScheduleRollback/official (mutation>0, revlog=1 stored=0)
+- collection.anki2 remains; srs_states=5956 review_events=10 unchanged
+- 5945-card source hash 8a9ac7f3ae… still no recorded_kind; not opened; not allowlisted
+- fail-closed on first hub taps was collectionLocked (second engine handle in long-lived process); force-stop released it; not a missing-target miss
 
 NOT IN THIS BATCH (correctly held)
 - D5 production default / preview Cutover enable
 - P5-E legacy delete; P6 AnkiWeb sync package
 - P5 USER CUTOVER: NO-GO; P5-D GO / PRODUCTION GO: NO
-- No user deck has been written to _userAllowlistedHashes (set is empty); any real user hash requires a follow-up written-go + code change
+- No existing user deck hash is in _userAllowlistedHashes; only the isolated d7cdafb7… source
 
 ARTIFACTS
 this file: artifacts/p5d/host-d4.txt
-per-source: artifacts/p5d/allowlist-<hash>.txt (to be created per written hash)
-gray level: artifacts/p5d/gray-g1.txt (G1 1% landed; G2..G4 pending sequential)
+per-source: artifacts/p5d/allowlist-d7cdafb7.txt
+screenshots: device-d4-review-question.png / device-d4-review-after.png / device-d4-gt0-rollback.png
+gray level: artifacts/p5d/gray-g1.txt … gray-g4.txt + device-gray-g1..g4 (D3 sequence already closed)
 prior: artifacts/p5d/host-d2.txt, host-d3-prep.txt, rollback-drill.txt, fixture-allowlist.txt
 
 NEXT
-- pick first D4 source candidate (≤20 cards, low risk), obtain written hash confirmation, add hash to _userAllowlistedHashes with a commit that only touches that file + its allowlist-<hash>.txt
-- run the full census→backup→dry-run→recordedKind→Official Review→rate1→rollback-both-paths drill on Device A, write allowlist-<hash>.txt
-- then G2 (10%) may be opened only after G1 artifact exists
+- further D4 sources still require one written hash each (no bulk)
+- D5 remains a separate commit and does not flip TURNA_OFFICIAL_ANKI_* defaults
+- do not write P5-D GO from this isolated source

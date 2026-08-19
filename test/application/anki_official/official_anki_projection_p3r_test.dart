@@ -70,7 +70,7 @@ void main() {
     expect(flags.allowsOfficialScheduler, isFalse);
     expect(
       OfficialAnkiFeatureFlags.fromEnvironment().scheduler,
-      isFalse,
+      isTrue,
     );
   });
 

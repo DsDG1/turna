@@ -6,7 +6,10 @@ class OfficialAnkiGrayConfig {
   final OfficialAnkiGrayCohort cohort;
 
   factory OfficialAnkiGrayConfig.fromEnvironment() {
-    const raw = String.fromEnvironment('TURNA_OFFICIAL_ANKI_GRAY_COHORT');
+    const raw = String.fromEnvironment(
+      'TURNA_OFFICIAL_ANKI_GRAY_COHORT',
+      defaultValue: 'g4',
+    );
     return OfficialAnkiGrayConfig(cohort: parseGrayCohort(raw));
   }
 

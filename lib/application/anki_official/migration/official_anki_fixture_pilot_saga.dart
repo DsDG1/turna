@@ -8,7 +8,7 @@ import 'package:turna/application/anki_official/migration/official_anki_backup_m
 import 'package:turna/application/anki_official/migration/official_anki_census.dart';
 import 'package:turna/application/anki_official/migration/official_anki_dry_run_matcher.dart';
 import 'package:turna/application/anki_official/migration/official_anki_dry_run_saga.dart';
-import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
+import 'package:turna/application/anki_official/migration/official_anki_user_allowlist.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_state.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
@@ -38,14 +38,14 @@ class OfficialAnkiFixturePilotSaga {
     int legacyCardCount = 0,
     int? nowMillis,
   }) {
-    if (!isFixturePilotSource(
+    if (!isUserAllowlistedSource(
       importId: legacyImportId,
       sourceHash: sourceHash,
     )) {
       throw const OfficialAnkiException(
         code: OfficialAnkiErrorCode.invalidArgument,
         messageKey: 'official_anki.non_allowlist_source',
-        debugDetails: 'Source not in P5-C fixture allowlist',
+        debugDetails: 'Source not in fixture or written per-source allowlist',
       );
     }
 

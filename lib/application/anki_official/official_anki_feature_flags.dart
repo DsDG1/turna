@@ -1,4 +1,6 @@
-/// Release defaults are all false. Internal builds may pass `--dart-define`.
+/// Production Android replica defaults: import/render/scheduler on.
+/// Constructor stays all-false for tests. Disable with `--dart-define=…=false`.
+/// Diagnostics, projection, course-entry, and migration pilot stay opt-in.
 class OfficialAnkiFeatureFlags {
   const OfficialAnkiFeatureFlags({
     this.engine = false,
@@ -16,19 +18,40 @@ class OfficialAnkiFeatureFlags {
   });
 
   factory OfficialAnkiFeatureFlags.fromEnvironment() {
-    const engine = bool.fromEnvironment('TURNA_OFFICIAL_ANKI_ENGINE');
-    const import = bool.fromEnvironment('TURNA_OFFICIAL_ANKI_IMPORT');
+    const engine = bool.fromEnvironment(
+      'TURNA_OFFICIAL_ANKI_ENGINE',
+      defaultValue: true,
+    );
+    const import = bool.fromEnvironment(
+      'TURNA_OFFICIAL_ANKI_IMPORT',
+      defaultValue: true,
+    );
     const diagnostics = bool.fromEnvironment('TURNA_OFFICIAL_ANKI_DIAGNOSTICS');
-    const catalogReady = bool.fromEnvironment('TURNA_OFFICIAL_ANKI_CATALOG');
-    const runtimeCapable = bool.fromEnvironment('TURNA_OFFICIAL_ANKI_RUNTIME');
-    const platformReady = bool.fromEnvironment('TURNA_OFFICIAL_ANKI_PLATFORM');
-    const renderer = bool.fromEnvironment('TURNA_OFFICIAL_ANKI_RENDERER');
+    const catalogReady = bool.fromEnvironment(
+      'TURNA_OFFICIAL_ANKI_CATALOG',
+      defaultValue: true,
+    );
+    const runtimeCapable = bool.fromEnvironment(
+      'TURNA_OFFICIAL_ANKI_RUNTIME',
+      defaultValue: true,
+    );
+    const platformReady = bool.fromEnvironment(
+      'TURNA_OFFICIAL_ANKI_PLATFORM',
+      defaultValue: true,
+    );
+    const renderer = bool.fromEnvironment(
+      'TURNA_OFFICIAL_ANKI_RENDERER',
+      defaultValue: true,
+    );
     const reviewerDiagnostics =
         bool.fromEnvironment('TURNA_OFFICIAL_ANKI_REVIEWER_DIAGNOSTICS');
     const projection = bool.fromEnvironment('TURNA_OFFICIAL_ANKI_PROJECTION');
     const courseEntry =
         bool.fromEnvironment('TURNA_OFFICIAL_ANKI_COURSE_ENTRY');
-    const scheduler = bool.fromEnvironment('TURNA_OFFICIAL_ANKI_SCHEDULER');
+    const scheduler = bool.fromEnvironment(
+      'TURNA_OFFICIAL_ANKI_SCHEDULER',
+      defaultValue: true,
+    );
     const migrationPilot =
         bool.fromEnvironment('TURNA_OFFICIAL_ANKI_MIGRATION_PILOT');
     return const OfficialAnkiFeatureFlags(

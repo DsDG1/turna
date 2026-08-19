@@ -58,16 +58,20 @@ void main() {
     expect(row['sourceFilePresent'], isFalse);
   });
 
-  test('resolver keeps current engines and cutover stays false', () {
-    expect(LegacyAnkiMigrationFlags.cutoverEnabled, isFalse);
+  test('resolver keeps current engines and cutover stays on by default', () {
+    expect(LegacyAnkiMigrationFlags.cutoverEnabled, isTrue);
     const resolver = AnkiSourceRouteResolver();
     expect(
-      resolver.resolve(sourceKey: 'legacy-1'),
+      resolver.resolve(sourceKey: 'legacy-1', platform: 'ohos'),
       AnkiEngineKind.legacy,
     );
     expect(
-      resolver.resolve(sourceKey: 'src-official', officialCatalogHasSource: true),
-      AnkiEngineKind.legacy,
+      resolver.resolve(
+        sourceKey: 'src-official',
+        officialCatalogHasSource: true,
+        platform: 'ohos',
+      ),
+      AnkiEngineKind.official,
     );
     expect(
       resolver.resolve(
@@ -160,7 +164,8 @@ void main() {
   test('capability matrix keeps OHOS on legacy fallback', () {
     final android = OfficialAnkiCapabilityMatrix.forPlatform('android');
     expect(android.officialCore, isTrue);
-    expect(android.legacyFallbackRequired, isTrue);
+    expect(android.officialScheduler, isTrue);
+    expect(android.legacyFallbackRequired, isFalse);
     final ohos = OfficialAnkiCapabilityMatrix.forPlatform('ohos');
     expect(ohos.officialCore, isFalse);
     expect(ohos.officialReviewer, isFalse);
@@ -571,7 +576,7 @@ void main() {
   test('P5C-00 flags migrationPilot default false and allowlist check', () {
     const flags = OfficialAnkiFeatureFlags();
     expect(flags.migrationPilot, isFalse);
-    expect(LegacyAnkiMigrationFlags.cutoverEnabled, isFalse);
+    expect(LegacyAnkiMigrationFlags.cutoverEnabled, isTrue);
     expect(isFixturePilotSource(importId: 'user-deck'), isFalse);
     expect(isFixturePilotSource(importId: '1787046637039'), isFalse);
     expect(isFixturePilotSource(importId: 'p5c-fixture-basic'), isTrue);
@@ -983,12 +988,12 @@ void main() {
     expect(manifestJson.contains('{{'), isFalse);
   });
 
-  test('cutoverEnabled_stays_false', () {
-    expect(LegacyAnkiMigrationFlags.cutoverEnabled, isFalse);
+  test('cutoverEnabled_defaults_true', () {
+    expect(LegacyAnkiMigrationFlags.cutoverEnabled, isTrue);
   });
 
   test('preview_cutover_button_stays_disabled', () {
-    expect(LegacyAnkiMigrationFlags.cutoverEnabled, isFalse);
+    expect(LegacyAnkiMigrationFlags.cutoverEnabled, isTrue);
     final source = File(
       'lib/views/anki_official/official_anki_migration_preview_page.dart',
     ).readAsStringSync();
@@ -1347,15 +1352,24 @@ void main() {
     coord.release(OfficialAnkiOperationPhase.migrating);
   });
 
-  test('recordedKind stays per source and cutoverEnabled false', () {
-    expect(LegacyAnkiMigrationFlags.cutoverEnabled, isFalse);
+  test('recordedKind stays per source; explicit legacy still wins', () {
+    expect(LegacyAnkiMigrationFlags.cutoverEnabled, isTrue);
     const resolver = AnkiSourceRouteResolver();
     expect(
-      resolver.resolve(sourceKey: 'p5c-fixture-a', recordedKind: AnkiEngineKind.official),
-      AnkiEngineKind.legacy,
+      resolver.resolve(
+        sourceKey: 'p5c-fixture-a',
+        recordedKind: AnkiEngineKind.official,
+        platform: 'android',
+      ),
+      AnkiEngineKind.official,
     );
     expect(
-      resolver.resolve(sourceKey: 'p5c-fixture-b', recordedKind: null),
+      resolver.resolve(
+        sourceKey: 'p5c-fixture-b',
+        recordedKind: AnkiEngineKind.legacy,
+        officialCatalogHasSource: true,
+        platform: 'android',
+      ),
       AnkiEngineKind.legacy,
     );
   });

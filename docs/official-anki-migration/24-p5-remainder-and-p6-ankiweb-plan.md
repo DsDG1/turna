@@ -3,30 +3,25 @@
 > 文档代号：P5-REMAINDER / P6-PLAN  
 > 日期：2026-08-19  
 > 前置：[`14`](./14-phase-4-audit-remediation-and-phase-5-execution-plan.md) §8–11、[`15`](./15-p5-legacy-inventory.md)、[`16`](./16-p4r3-production-gate-and-p5b-prep-plan.md) / [`18`](./18-p4r3-audit.md) / [`19`](./19-p4r3-implementation-playbook.md)、[`21`](./21-p5c-fixture-pilot-implementation-playbook.md) / [`23`](./23-p5c-audit.md)、[`25`](./25-p5c-closeout-result-report.md)、`artifacts/p4r2/`、`artifacts/p5c/`  
-> 范围：P5 还没做完的部分、P5-D 生产路由、P5-E 删除、Phase 6 AnkiWeb Sync  
+> 范围：P5 还没做完的部分、P5-D 生产路由、P5-E 删除。Phase 6 AnkiWeb Sync **已取消**  
 > 不是施工手册：本文件定阶段、门禁和禁止项。某一批开工前另写 HOWTO。  
 > P5-C §4（P5C-14…20）已收口，结论以 [`25`](./25-p5c-closeout-result-report.md) 为准；`23` 只保留作废 GO 记录。
 
 ## 1. 结论先行
 
 ```text
-P4 PRODUCTION DEFAULT FLAGS: still false
-P5-A 只读盘点 / resolver / write-owner: 已落地，不再重做
-P5-B registry / dry-run / 预览: 已落地，不再重做
-P5-C isolated fixture (Device A): 已收口 observing + source 过滤正式复习 + 投影 1 行（见 25）
-P5-C §4 P5C-14…20: 已落地，不再重做
-P5-C 作为「可迁用户数据」: NO-GO
-P5 USER CUTOVER: NO-GO
-P5-D 生产路由: Sprint D1 已收口 HOST+DEVICE CONDITIONAL GO（仅 fixture；默认构建仍 Legacy；P5-D GO NO）；D2+D3-PREP+ G1 已收口（host-d2/host-d3-prep/gray-g1，见 28）；D4 逐源空集已落地（host-d4，written-go-d3d4）；D4/D5 本批书面可进单独 commit（written-go-d4d5）
+P4 / P5-A / P5-B / P5-C: 已收口，不再重做
+P5-D D1–D4: 已收口（路由、灰度 G1–G4、D4 第一隔离源）
+P5-D D5 生产默认（2026-08-20 书面）: Android 新导入默认官方；catalog hash 能对上的旧源认领为 official；OHOS/iOS/Windows 仍 Legacy
 P5-E 删 Legacy: HOLD（至少跨一个正式 release 观察）
-P6 AnkiWeb Sync: 不开工；会重开 AGPL §13
+P6 AnkiWeb Sync: 已取消（2026-08-20 书面：不考虑与 AnkiWeb / 官方 Anki 同步）
 设备：只认 Device A（3B15AG00FPB00000）。不设第二台，不把 Device B 当门禁
 OHOS official Core: 不在本计划施工范围
 ```
 
-P5 不是一块。已经做完的是「内部 allowlist fixture 能迁到 observing 并观察官方 Collection」。还没做的是「用户牌组、生产入口、删 Legacy」。P6 是另一件事，不能跟 P5-D 绑在同一个 PR。
+P5 不是一块。已经做完的是「内部 allowlist fixture 能迁到 observing 并观察官方 Collection」。还没做的是「用户牌组、生产入口、删 Legacy」。P6 已取消，不能当后续票。
 
-产品已进入 P5-D（方案 B）。本批只允许 Sprint D1（P5D-01…04），施工见 [`26`](./26-p5d-production-routing-playbook.md)。禁止把 `TURNA_OFFICIAL_ANKI_*` 默认改 true，禁止 `cutoverEnabled` 默认 true，禁止 P5D-05 灰度 / P5-E / P6。§4 已收口，见 `25`。
+产品已进入 P5-D（方案 B）。本批只允许 Sprint D1（P5D-01…04），施工见 [`26`](./26-p5d-production-routing-playbook.md)。禁止把 `TURNA_OFFICIAL_ANKI_*` 默认改 true，禁止 `cutoverEnabled` 默认 true，禁止 P5D-05 灰度 / P5-E。P6 已取消。§4 已收口，见 `25`。
 
 ## 2. 现在到底到哪了
 
@@ -51,10 +46,10 @@ P5-C+   第二个隔离 fixture / 多卡      可选；用户牌组仍禁止
 P5-D    生产路由 + 灰度 + 回滚演练      HOLD；产品书面进入
 P5-E    断引用 → 删写路径 → 删实现 → tombstone
                                       HOLD；至少一个正式 release 之后
-P6      AnkiWeb Collection / Media     不开工；先过法律 / 产品
+P6      AnkiWeb Collection / Media     已取消；不排期、不写 sync 包
 ```
 
-编号沿用 `14` §8。不要发明 P5-F。P6 就是 README 的「第七阶段 = Phase 6：可选 AnkiWeb Sync」。
+编号沿用 `14` §8。不要发明 P5-F。原「第七阶段 = Phase 6」已取消，见 `00` 阶段 6。
 
 平台策略必须先定，再谈删代码（`14` §9）：
 
@@ -137,7 +132,7 @@ cutoverEnabled 仍 false；用户既有牌组无 Pilot
 
 ## 5. P5-D 生产入口切换（Sprint D1 已收口）
 
-产品已书面进入。施工手册：[`26`](./26-p5d-production-routing-playbook.md)。P5D-05 / P5-E / P6 仍 HOLD。
+产品已书面进入。施工手册：[`26`](./26-p5d-production-routing-playbook.md)。P5D-05 已由 D3 灰度收口；P5-E 仍 HOLD；P6 已取消。
 
 ### 5.1 入口条件
 
@@ -196,41 +191,14 @@ rollback 次数与原因
 
 每一波：`rg` 证明生产引用为 0 → 再删 → 更新 `15` 盘点。OHOS 若仍走 Legacy，E2–E4 在共享文件上 **停**。
 
-## 7. P6 可选 AnkiWeb Sync（不开工）
+## 7. P6 已取消（不与 AnkiWeb / 官方 Anki 同步）
 
-`00` §2.3 已写明首期不提供。P6 另行设计，本文件只锁边界。
+2026-08-20 产品书面：「删掉 P6，不考虑同步 Anki 本身」。
 
-### 7.1 为什么现在不能做
-
-- 官方 Collection 一旦和 AnkiWeb 互通，AGPL §13 网络源码提供义务被触发。法律/产品未签字前写代码 = 超范围。
-- 现生产事实源仍是 Turna SRS + Legacy 导入。P5-D 没切完就 Sync，等于两套调度再加云端第三套。
-- Device A 上有用户 Collection，P6 绝不能「顺便把用户库同步上去」。
-
-### 7.2 若产品以后要做，P6 才包含
-
-```text
-P6-00  法律/产品备忘：AGPL §13、源码分发 URL、隐私政策
-P6-01  凭证与登录态（不进 CourseDatabase，不进 census JSON）
-P6-02  Collection Sync（官方 rslib 语义，禁止自研差分协议）
-P6-03  Media Sync
-P6-04  冲突 UI（完整同步 / 普通同步）
-P6-05  后台网络任务与计量
-P6-06  同一 AnkiWeb 账号的 Collection 一致性（产品语义）+ 与 P5 observing source 互斥
-         不是本仓第二台测试机
-```
-
-P6 **不包含**：add-on、Anki Desktop 插件 hook、把 Turna 自有课程推进 Anki Collection、OHOS 上先做 Sync。
-
-### 7.3 P6 入口条件
-
-```text
-P5-D Android official 已是新导入默认（或产品书面「只对内部号 Sync」）
-P5-E 可以仍 HOLD
-AGPL / 隐私 / 账号条款已签字
-禁止用设备上的用户 Collection 当第一个 Sync 目标
-```
-
-入口未满足时，本仓库只允许改本文件和 `00` 的 P6 段落，不允许新增 sync 包。
+- 不另开设计文档，不写 sync 包，不接 AnkiWeb / 官方 Anki 账号。
+- 生产路由、复习、预览、灰度配置不得出现 AnkiWeb 入口；`ankiweb_not_linked_from_production_routes` 永久保持绿。
+- 不把 Device A 用户 Collection 同步到任何 Anki 云。
+- P6-00…06 票作废，不再是入口或后续待办。
 
 ## 8. 设备与产物
 
@@ -239,8 +207,8 @@ AGPL / 隐私 / 账号条款已签字
 | 唯一设备 Device A `3B15AG00FPB00000` | 继续用；禁止 wipe `files/official_anki/default/collection.anki2` |
 | 第二台 / Device B | **不考虑**。不进门禁、不进工期、不写 PASS/FAIL |
 | 用户牌组 | 默认不在 allowlist；要迁必须新产品指令 + 新 hash |
-| APK | 内部 debug/release 继续用 dart-define；生产默认全 false |
-| Artifact | P5-C 继续写 `artifacts/p5c/`；P5-D 起新目录 `artifacts/p5d/`；P6 起 `artifacts/p6/` |
+| APK | Android 生产默认 official 复刻（CUTOVER+g4+能力 flag）；可用 `--dart-define=…=false` 关回 |
+| Artifact | P5-C 继续写 `artifacts/p5c/`；P5-D 起新目录 `artifacts/p5d/`；不建 `artifacts/p6/` |
 | 收据 | 禁止卡片正文、字段、媒体文件名里的用户内容 |
 
 ## 9. 工期（1 人，不含商店观察）
@@ -253,7 +221,7 @@ AGPL / 隐私 / 账号条款已签字
 | Sprint D2 | 灰度、观察指标、Device A 上回滚两次（0 / >0 mutation） | 5–8 天 + 日历观察 |
 | 下一版本 | P5-E Wave 1 | 3–5 天 |
 | 再下一版本 | E2–E4 | 5–10 天 + 一版观察 |
-| 未排期 | P6 | 单独立项；法律先于代码 |
+| 已取消 | P6 | 不排期；不写 sync 代码 |
 
 编码可以压缩。OHOS 决策和 release 观察是日历约束。不因为没有第二台设备停工。
 
@@ -270,7 +238,7 @@ rollback_reads_official_mutation_count_column
 allowedCardIds_skips_foreign_deck_mates
 preview_cutover_button_stays_disabled          # 必须读 preview_page.dart 源码
 p5d_default_build_still_routes_legacy          # 仅 P5-D 开工后
-ankiweb_not_linked_from_production_routes      # P6 前保持绿
+ankiweb_not_linked_from_production_routes      # 永久：生产不得接 AnkiWeb
 ```
 
 ## 11. 明确不要做的改法
@@ -280,12 +248,12 @@ ankiweb_not_linked_from_production_routes      # P6 前保持绿
 - 不要改 `AnkiReviewRoute` / `AnkiImportRoute` 默认，除非已进入 P5-D
 - 不要把 `TURNA_OFFICIAL_ANKI_*` 默认改 true
 - 不要 wipe Device A 用户 Collection
-- 不要把 Device A 用户 100 张 P4 会话当成 P5/P6 证据
+- 不要把 Device A 用户 100 张 P4 会话当成 P5 证据
 - 不要把「没有第二台设备」写成 NO-GO 或 HOLD 理由
 - 不要在 worker 之外再加一把 migration 锁
 - 不要把 Turna SRS 次数翻译成官方 revlog
-- 不要为 OHOS 先做 official Core 或 AnkiWeb
-- 不要把 AnkiWeb 凭证写进 `CourseDatabase` 或 census
+- 不要为 OHOS 先做 official Core
+- 不要接 AnkiWeb / 官方 Anki 同步，也不要把凭证写进 `CourseDatabase` 或 census
 - 不要在 README 写 PRODUCTION GO / P5-D GO / DELETE GO / P6 GO
 
 ## 12. 文档怎么改
@@ -296,7 +264,7 @@ ankiweb_not_linked_from_production_routes      # P6 前保持绿
 | P5-C 收口做完 | 已写 [`25`](./25-p5c-closeout-result-report.md)；本文 §1/§2/§4/§9/§13 回写为已收口。不要覆写 `23` |
 | 进入 P5-D | 单独 HOWTO，对标本文 §5 |
 | 进入 P5-E | 单独删除 PR 说明 + 更新 `15` |
-| 进入 P6 | 单独设计文档；先改 `00` §2.3 / 阶段 6 |
+| 有人提 AnkiWeb / 官方同步 | 拒绝。P6 已取消，见 §7 |
 
 架构变化先改 `00`。已执行任务必须带 commit、命令、apk sha、指标。未跑的命令标「未跑」。
 
@@ -305,6 +273,6 @@ ankiweb_not_linked_from_production_routes      # P6 前保持绿
 ```text
 P5-C §4 已收口，见 25。Device A §5.4 已演练
 P5-D D1 已收口，见 27 / artifacts/p5d/host-d1-closeout.txt；D2+D3-PREP 已收口见 artifacts/p5d/host-d2.txt + host-d3-prep.txt；D3 G1-G4 + D4 本批 CONSTRUCTION GO 见 28 §7 + artifacts/p5d/written-go-d3d4.txt（逐源书面 hash）
-后续大施工见 28。适合 go 的已批：D2、D3-PREP、D3 G1-G4、D4 逐源。D5/E/P6 仍要另 go
-若有人提 AnkiWeb：只开 P6-00 法律备忘，不写 sync 代码
+后续大施工见 28。D5 生产默认已翻转。P5-E 仍要另 go。P6 已取消，不另 go
+若有人提 AnkiWeb / 官方 Anki 同步：拒绝，不写 sync 代码
 ```

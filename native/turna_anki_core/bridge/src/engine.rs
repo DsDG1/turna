@@ -202,6 +202,9 @@ pub struct EngineSlot {
 
 static NEXT_HANDLE: AtomicU64 = AtomicU64::new(1);
 static REGISTRY: Mutex<Option<HashMap<u64, Arc<EngineSlot>>>> = Mutex::new(None);
+/// Serializes open/reclaim so two handles cannot both pass the "not open
+/// elsewhere" check against the same collection path.
+static OPEN_GATE: Mutex<()> = Mutex::new(());
 
 fn with_registry<T>(f: impl FnOnce(&mut HashMap<u64, Arc<EngineSlot>>) -> T) -> Result<T, i32> {
     let mut guard = REGISTRY.lock().map_err(|_| STATUS_BACKEND_PANIC)?;
@@ -275,11 +278,22 @@ pub fn open_collection(handle: u64, request: &[u8]) -> Result<LifecycleResponse,
         serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?;
     let paths = validate_paths(&parsed)?;
 
+    let _gate = OPEN_GATE.lock().map_err(|_| STATUS_BACKEND_PANIC)?;
+    let slot = engine_arc(handle)?;
+    {
+        let engine = slot.engine.lock().map_err(|_| STATUS_BACKEND_PANIC)?;
+        if engine.state == EngineState::Open {
+            return Err(STATUS_COLLECTION_ALREADY_OPEN);
+        }
+    }
+
+    // Dead FlutterEngine / killed worker can leave an Open handle in REGISTRY.
+    // Reclaim idle holders so a new session can open without force-stop.
+    reclaim_other_open_holders(handle, &paths.collection)?;
     if path_open_elsewhere(handle, &paths.collection)? {
         return Err(STATUS_COLLECTION_LOCKED);
     }
 
-    let slot = engine_arc(handle)?;
     let mut engine = slot.engine.lock().map_err(|_| STATUS_BACKEND_PANIC)?;
     if engine.state == EngineState::Open {
         return Err(STATUS_COLLECTION_ALREADY_OPEN);
@@ -497,14 +511,17 @@ fn create_parents(paths: &ValidatedPaths) -> Result<(), i32> {
     Ok(())
 }
 
-fn path_open_elsewhere(self_handle: u64, collection: &Path) -> Result<bool, i32> {
-    let others = with_registry(|map| {
+fn other_slots(self_handle: u64) -> Result<Vec<Arc<EngineSlot>>, i32> {
+    with_registry(|map| {
         map.iter()
             .filter(|(id, _)| **id != self_handle)
             .map(|(_, arc)| Arc::clone(arc))
             .collect::<Vec<_>>()
-    })?;
-    for slot in others {
+    })
+}
+
+fn path_open_elsewhere(self_handle: u64, collection: &Path) -> Result<bool, i32> {
+    for slot in other_slots(self_handle)? {
         let engine = slot.engine.lock().map_err(|_| STATUS_BACKEND_PANIC)?;
         if engine.state == EngineState::Open
             && engine
@@ -516,6 +533,21 @@ fn path_open_elsewhere(self_handle: u64, collection: &Path) -> Result<bool, i32>
         }
     }
     Ok(false)
+}
+
+fn reclaim_other_open_holders(self_handle: u64, collection: &Path) -> Result<(), i32> {
+    for slot in other_slots(self_handle)? {
+        let mut engine = slot.engine.lock().map_err(|_| STATUS_BACKEND_PANIC)?;
+        if engine.state == EngineState::Open
+            && engine
+                .collection_path
+                .as_deref()
+                .is_some_and(|open| open == collection)
+        {
+            close_collection_inner(&mut engine)?;
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -587,15 +619,31 @@ mod tests {
     }
 
     #[test]
-    fn second_handle_same_path_is_locked() {
+    fn second_handle_reclaims_idle_first() {
         let (root, request) = temp_paths();
         let first = alloc_engine().unwrap();
         let second = alloc_engine().unwrap();
         open_collection(first, &encode(&request)).unwrap();
-        assert_eq!(
-            open_collection(second, &encode(&request)).unwrap_err(),
-            STATUS_COLLECTION_LOCKED
-        );
+        let opened = open_collection(second, &encode(&request)).unwrap();
+        assert_eq!(opened.state, "open");
+        assert_eq!(opened.created, Some(false));
+        assert_eq!(close_collection(first).unwrap_err(), STATUS_INVALID_STATE);
+        assert!(check_collection(second).is_ok());
+        free_engine(first).unwrap();
+        free_engine(second).unwrap();
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn reclaim_then_original_handle_can_reopen() {
+        let (root, request) = temp_paths();
+        let first = alloc_engine().unwrap();
+        let second = alloc_engine().unwrap();
+        let body = encode(&request);
+        open_collection(first, &body).unwrap();
+        open_collection(second, &body).unwrap();
+        assert_eq!(close_collection(second).unwrap().state, "closed");
+        assert_eq!(open_collection(first, &body).unwrap().created, Some(false));
         free_engine(first).unwrap();
         free_engine(second).unwrap();
         let _ = std::fs::remove_dir_all(root);

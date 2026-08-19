@@ -10,3 +10,25 @@ String newOfficialAnkiId(String prefix) {
   final hex = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
   return '$prefix-$hex';
 }
+
+/// Legacy Anki identifier helpers for parsing importId and prefixes without depending on Legacy assembler.
+abstract class LegacyAnkiIdentifiers {
+  static const String ankiPrefix = 'anki-';
+
+  static String importIdFromWordId(String wordId) {
+    final cIdx = wordId.lastIndexOf('-c');
+    if (cIdx > 5) {
+      return wordId.substring(5, cIdx);
+    }
+    return '';
+  }
+
+  static String importIdFromSectionId(String sectionId) {
+    final sIdx = sectionId.lastIndexOf('-s');
+    if (sIdx > 5) {
+      return sectionId.substring(5, sIdx);
+    }
+    return '';
+  }
+}
+

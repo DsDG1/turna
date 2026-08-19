@@ -92,7 +92,7 @@ Rust FFI bridge（libturna_anki.so）
 - 运行 add-on 注入的模板 hook 或 Python 自定义过滤器。
 - 复制 Qt 菜单、Browser、编辑器和插件管理界面。
 - 完全兼容任意访问互联网或本地文件的卡片 JavaScript。
-- 首期提供 AnkiWeb Collection Sync 和 Media Sync。
+- 与 AnkiWeb 或官方 Anki 账号做 Collection / Media 同步（P6 已取消，不考虑）。
 - 首期完成 OHOS、iOS、macOS、Windows 和 Linux 的官方 Core 打包。
 - 把 Turna 自有课程也迁入 Anki Collection。
 
@@ -604,7 +604,7 @@ SQLite exclusive collection
 - Deck 层次保持官方语义。
 - FSRS 和每日限制无需跨 Collection 合并。
 - 同一 Note 的重复导入和更新遵循官方规则。
-- 为未来 AnkiWeb Sync 保留正确拓扑。
+- 官方 Scheduler / FSRS / 每日限制只需一套生命周期。
 - 只需维护一个 Collection 生命周期。
 
 ### 8.2 不推荐：每个 `.apkg` 一个 Collection
@@ -613,7 +613,7 @@ SQLite exclusive collection
 
 - 多 Collection 队列需要 Turna 自行合并。
 - 每日限制、Filtered Deck 和 Scheduler context 被分裂。
-- 未来 AnkiWeb Sync 难以定义。
+- 与官方全局调度、每日限制、重复 Note 语义冲突。
 - 重复 Note 无法按官方全局语义更新。
 - 同时打开多个 SQLite Collection 的资源成本更高。
 
@@ -1250,16 +1250,9 @@ migrated_source_id
 - 数据删除前存在可验证 backup。
 - 官方 feature flag 可成为默认且 legacy 不再自动启动。
 
-### 阶段 6：可选 AnkiWeb Sync
+### 阶段 6：已取消
 
-另行设计：
-
-- Collection Sync。
-- Media Sync。
-- 登录凭证。
-- 完整/普通同步冲突 UI。
-- 后台网络任务。
-- 多设备一致性。
+2026-08-20 产品书面：不考虑与 AnkiWeb / 官方 Anki 同步。不另开设计、不写 sync 包、不接账号凭证。生产路由须保持 `ankiweb_not_linked_from_production_routes`。
 
 ## 17. 测试与验收矩阵
 
@@ -1402,7 +1395,7 @@ migrated_source_id
 - 用户 typed answer。
 - 音频内容。
 - Collection path 的敏感前缀。
-- AnkiWeb credentials。
+- AnkiWeb / 官方 Anki 账号凭证（本迁移不实现登录）。
 
 兼容性报告应能导出：
 
@@ -1484,7 +1477,6 @@ officialAnkiLegacyMigration
 - Import package。
 - Legacy migration。
 - Backend 大版本升级。
-- AnkiWeb full sync。
 
 ### 21.2 回滚条件
 
@@ -1545,7 +1537,7 @@ officialAnkiLegacyMigration
 - [x] 提供可重建 bridge 的脚本和说明。
 - [x] 在 App About/License 页面展示声明。
 - [x] 检查 Turna 当前 GPLv3 声明与组合分发义务。
-- [x] 审查 AnkiWeb/network 功能引入后的 AGPL 条款影响。
+- [x] 审查 AnkiWeb/network 功能引入后的 AGPL 条款影响。→ **不做 AnkiWeb Sync**；§13 不因同步触发。本地嵌入 rslib 仍按现有 AGPL 处理。
 - [ ] 在正式发布前获得法律确认。
 
 本文不构成法律意见。
@@ -1621,7 +1613,7 @@ Android-only、由一名熟悉 Flutter 和 Rust/NDK 的资深工程师执行，�
 - 原卡固定 WebView，派生练习固定 Flutter。
 - Anki scheduling 只由官方 Scheduler 管理。
 - Legacy 不作为官方失败的自动 fallback。
-- AnkiWeb Sync 不阻塞首期迁移。
+- 不与 AnkiWeb / 官方 Anki 同步（P6 已取消）。
 
 ### 阶段 0 后确认
 
@@ -1639,7 +1631,7 @@ Android-only、由一名熟悉 Flutter 和 Rust/NDK 的资深工程师执行，�
 - Legacy scheduling 迁移产品文案。
 - JavaScript 兼容模式是否存在。
 - Android 首发后 OHOS 的优先级。
-- 是否计划 AnkiWeb Sync。
+- 是否计划 AnkiWeb Sync。→ **否**（2026-08-20 书面取消 P6）。
 - 来源删除时是否提供“同时删除孤儿原卡”。
 
 ## 27. Definition of Done

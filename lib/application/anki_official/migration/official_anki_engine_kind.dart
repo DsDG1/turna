@@ -9,8 +9,10 @@ enum AnkiEngineKind { legacy, official }
 class LegacyAnkiMigrationFlags {
   const LegacyAnkiMigrationFlags._();
 
-  static const cutoverEnabled =
-      bool.fromEnvironment('TURNA_OFFICIAL_ANKI_CUTOVER');
+  static const cutoverEnabled = bool.fromEnvironment(
+    'TURNA_OFFICIAL_ANKI_CUTOVER',
+    defaultValue: true,
+  );
 }
 
 AnkiEngineKind? parseRecordedKind(String? raw) {
@@ -61,6 +63,7 @@ class AnkiSourceRouteResolver {
     AnkiEngineKind? recordedKind,
     bool officialCatalogHasSource = false,
     bool? cutoverEnabled,
+    String? platform,
   }) {
     if (sourceKey.isEmpty) return AnkiEngineKind.legacy;
     final cutover =
@@ -72,6 +75,11 @@ class AnkiSourceRouteResolver {
     if (recordedKind == AnkiEngineKind.legacy) {
       return AnkiEngineKind.legacy;
     }
+    final plat =
+        platform ?? OfficialAnkiCapabilityMatrix.current().platform;
+    if (plat == 'android') {
+      return AnkiEngineKind.official;
+    }
     return officialCatalogHasSource
         ? AnkiEngineKind.official
         : AnkiEngineKind.legacy;
@@ -82,6 +90,7 @@ class AnkiSourceRouteResolver {
     AnkiEngineKind? recordedKind,
     bool officialCatalogHasSource = false,
     bool? cutoverEnabled,
+    String? platform,
   }) {
     return AnkiSourceRoute(
       sourceKey: sourceKey,
@@ -90,6 +99,7 @@ class AnkiSourceRouteResolver {
         recordedKind: recordedKind,
         officialCatalogHasSource: officialCatalogHasSource,
         cutoverEnabled: cutoverEnabled,
+        platform: platform,
       ),
     );
   }

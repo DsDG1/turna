@@ -1,5 +1,6 @@
 // Project imports:
 import 'package:turna/application/anki/anki_canonical_card_loader.dart';
+import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/courses/course_loader.dart';
@@ -29,7 +30,7 @@ class AnkiReviewAssembler {
   static const int batchSize = 20;
 
   /// Prefix used to identify Anki card word ids in the SRS queue.
-  static const String ankiPrefix = 'anki-';
+  static const String ankiPrefix = LegacyAnkiIdentifiers.ankiPrefix;
 
   /// [noteDao] enables the fidelity review path: cards whose
   /// `anki_cards_meta.render_mode` is `fidelity` are rendered on demand from
@@ -397,23 +398,11 @@ class AnkiReviewAssembler {
   String _extractImportIdFromSection(String sectionId) =>
       importIdFromSectionId(sectionId);
 
-  /// Public static form of [_extractImportIdFromSection], for UI code that
-  /// needs the import id behind a section (e.g. deck uninstall).
-  static String importIdFromWordId(String wordId) {
-    final cIdx = wordId.lastIndexOf('-c');
-    if (cIdx > 5) {
-      return wordId.substring(5, cIdx);
-    }
-    return '';
-  }
+  static String importIdFromWordId(String wordId) =>
+      LegacyAnkiIdentifiers.importIdFromWordId(wordId);
 
-  static String importIdFromSectionId(String sectionId) {
-    final sIdx = sectionId.lastIndexOf('-s');
-    if (sIdx > 5) {
-      return sectionId.substring(5, sIdx);
-    }
-    return '';
-  }
+  static String importIdFromSectionId(String sectionId) =>
+      LegacyAnkiIdentifiers.importIdFromSectionId(sectionId);
 
   static int? _deckIdFromSectionId(String sectionId) {
     final sIdx = sectionId.lastIndexOf('-s');

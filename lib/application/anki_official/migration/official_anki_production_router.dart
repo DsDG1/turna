@@ -1,11 +1,11 @@
 import 'dart:io';
 
-import 'package:turna/application/anki/anki_review_assembler.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_home_due.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
+import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
@@ -36,6 +36,8 @@ class OfficialAnkiProductionRouter {
     OfficialAnkiSourceDao? sources,
     String profileId = defaultProfileId,
     bool? cutoverEnabled,
+    String? sourceHash,
+    String? platform,
   }) {
     if (importId.isEmpty) return AnkiEngineKind.legacy;
     final cutover =
@@ -45,19 +47,26 @@ class OfficialAnkiProductionRouter {
       return const AnkiSourceRouteResolver().resolve(
         sourceKey: importId,
         cutoverEnabled: cutover,
+        platform: platform,
       );
     }
     final row = dao.findByLegacyImport(
       profileId: profileId,
       legacyImportId: importId,
     );
-    final hasOfficial = row?.officialSourceId != null &&
-        row!.officialSourceId!.isNotEmpty;
+    final hash = (sourceHash ?? row?.sourceHash)?.trim();
+    final byHash = hash == null || hash.isEmpty || sources == null
+        ? null
+        : sources.findByHash(profileId, hash);
+    final hasOfficial = (row?.officialSourceId != null &&
+            row!.officialSourceId!.isNotEmpty) ||
+        byHash != null;
     return const AnkiSourceRouteResolver().resolve(
       sourceKey: importId,
       recordedKind: parseRecordedKind(row?.recordedKind),
       officialCatalogHasSource: hasOfficial,
       cutoverEnabled: cutover,
+      platform: platform,
     );
   }
 
@@ -67,6 +76,8 @@ class OfficialAnkiProductionRouter {
     required String importId,
     String profileId = defaultProfileId,
     bool? cutoverEnabled,
+    String? sourceHash,
+    String? platform,
   }) {
     if (engineForImport(
           importId: importId,
@@ -74,6 +85,8 @@ class OfficialAnkiProductionRouter {
           sources: sources,
           profileId: profileId,
           cutoverEnabled: cutoverEnabled,
+          sourceHash: sourceHash,
+          platform: platform,
         ) !=
         AnkiEngineKind.official) {
       return null;
@@ -82,7 +95,13 @@ class OfficialAnkiProductionRouter {
       profileId: profileId,
       legacyImportId: importId,
     );
-    final sourceId = row?.officialSourceId;
+    var sourceId = row?.officialSourceId;
+    if (sourceId == null || sourceId.isEmpty) {
+      final hash = (sourceHash ?? row?.sourceHash)?.trim();
+      if (hash != null && hash.isNotEmpty) {
+        sourceId = sources.findByHash(profileId, hash)?.sourceId;
+      }
+    }
     if (sourceId == null || sourceId.isEmpty) return null;
     final cards = sources.listCards(sourceId);
     if (cards.isEmpty) return null;
@@ -92,6 +111,50 @@ class OfficialAnkiProductionRouter {
       deckId: cards.first.deckId,
       cardIds: {for (final card in cards) card.cardId},
     );
+  }
+
+  /// Link a course import to an official catalog source. Skips explicit
+  /// `recordedKind=legacy` rollback rows.
+  void adoptExistingIfCatalogMatches({
+    required OfficialAnkiMigrationDao dao,
+    required OfficialAnkiSourceDao sources,
+    required String importId,
+    required String sourceHash,
+    String profileId = defaultProfileId,
+    int? nowMillis,
+  }) {
+    if (importId.isEmpty || sourceHash.isEmpty) return;
+    final src = sources.findByHash(profileId, sourceHash);
+    if (src == null) return;
+    final now = nowMillis ?? DateTime.now().millisecondsSinceEpoch;
+    final row = dao.findByLegacyImport(
+      profileId: profileId,
+      legacyImportId: importId,
+    );
+    if (parseRecordedKind(row?.recordedKind) == AnkiEngineKind.legacy) {
+      return;
+    }
+    if (row == null) {
+      dao.insertObservingOfficial(
+        migrationId: 'mig-$importId',
+        profileId: profileId,
+        legacyImportId: importId,
+        officialSourceId: src.sourceId,
+        sourceHash: sourceHash,
+        nowMillis: now,
+        cardCount: sources.cardCount(src.sourceId),
+      );
+      return;
+    }
+    if (row.recordedKind != 'official' ||
+        row.officialSourceId != src.sourceId) {
+      dao.setOfficialSourceAndRecordedKind(
+        migrationId: row.migrationId,
+        officialSourceId: src.sourceId,
+        recordedKind: 'official',
+        nowMillis: now,
+      );
+    }
   }
 
   Set<String> officialImportIds({
@@ -247,5 +310,5 @@ Set<String> officialRoutedImportIdsFromCatalogFile({
 }
 
 String ankiImportIdFromWordId(String wordId) {
-  return AnkiReviewAssembler.importIdFromWordId(wordId);
+  return LegacyAnkiIdentifiers.importIdFromWordId(wordId);
 }

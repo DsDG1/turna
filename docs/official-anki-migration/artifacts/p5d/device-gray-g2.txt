@@ -1,0 +1,68 @@
+P5-D D3 G2 DEVICE A RE-VERIFY
+date: 2026-08-19
+plan: 28 §7 D3 G2 + gray-g2.txt NEXT
+written-go: artifacts/p5d/written-go-d3d4.txt
+prerequisite: gray-g1.txt + device-gray-g1.txt
+device_serial: 3B15AG00FPB00000
+device_model: PLG110
+git_head: d493aeed070275eb0cc6cfde59e23356866d3cc9
+working_tree: G1 attach + G2 host/device (not a separate G2 product commit)
+install: adb install -r (no wipe)
+apk: build/app/outputs/flutter-apk/app-debug.apk
+apk_sha256: 8cb30e9a817ed85aeb5fe813f92949849e15f5d48fc31a1794f5c05e82a4b4dd
+device_apk_sha256: 8cb30e9a817ed85aeb5fe813f92949849e15f5d48fc31a1794f5c05e82a4b4dd
+dart-defines: ENGINE/IMPORT/CATALOG/RUNTIME/PLATFORM/RENDERER/SCHEDULER/PROJECTION/DIAGNOSTICS/REVIEWER_DIAGNOSTICS/MIGRATION_PILOT/CUTOVER=true GRAY_COHORT=g2
+production defaults: still false
+gray default unset → off; this APK is g2 only
+
+PACKAGE (1 card, not user deck, not G1 probe, not fixture allowlist)
+- files/p5d-g2-probe.apkg sha256=5f47f9277520c0749304bba6efc515773607582fc1003d8f1bde53c2681eaf6a
+- importId g15f47f92775
+- official source src-74014fa4bf054a03823769827edec121 cards=1
+- cid 1787210000002 (not g1 1787200000002, not fixture 1375933503610)
+
+WHAT RAN
+1. Production AnkiImportRoute scan listed sandbox apkgs; selected p5d-g2-probe.apkg only
+2. AnkiImportFacade + GRAY=g2 → official import; attach wrote section anki-g15f47f92775-s1
+3. Hub after import: g2probe new; g1probe still listed; 5945-card section still Legacy tile; fixture still listed
+4. Tapped g2probe only (not g1probe, not sample, not 5945, not 全部复习, not fixture)
+5. Official Review (not Legacy) → Show Answer → Good
+6. official_anki_device_rate.py --count 1 --ratings good → rated=1 timeout=0 superseded=0
+
+AFTER (force-stop, WAL copied)
+- collection.anki2 present
+- cards 6131→6132 notes 2403→2404 revlog 162→163
+- g2 cid 1787210000002 revlog=1 ease=3 ivl=-600 type=0 time=2312; card reps=1 type=1 queue=1
+- g1 cid 1787200000002 revlog still 1
+- fixture cid 1375933503610 revlog still 3
+- user official source src-bc0f… cards=181 unchanged
+- srs_states=5956 review_events=10 unchanged this rating
+- mig-d7663101… legacy_import_id=g15f47f92775 state=observing recorded_kind=official official_source_id=src-74014fa4…
+- G1 mig-35440b5c… still observing/official
+
+COLLATERAL (unchanged from G1)
+- 5945-card official catalog source hash 8a9ac7f3ae… still has NO recorded_kind and is not the hub tile that was opened
+- Did not rate it. Did not allowlist it. Did not wipe
+
+SCREENSHOTS
+- device-gray-g2-import-done.png
+- device-gray-g2-review-question.png
+- device-gray-g2-review-after.png
+
+WHAT THIS PROVES
+- G2 internal CUTOVER APK: new Android import → official Collection
+- recordedKind=official + allowedCardIds (1) + Official Review + 1 Good revlog
+- existing official (G1 probe + fixture) stay official; unmarked user section stays Legacy
+- collection.anki2 remains; defaults still false
+
+WHAT THIS DOES NOT PROVE
+- G3/G4
+- D4 per-source user hash
+- P5-D GO / user cutover / Legacy delete / AnkiWeb
+
+CONCLUSION
+DEVICE A G2 NEW-IMPORT + RATE: PASS
+P5 USER CUTOVER: NO-GO
+P5-D GO / PRODUCTION GO: NO
+P5-E / P6: HOLD
+G3: not opened (needs this file + separate gray-g3.txt)

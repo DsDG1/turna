@@ -12,7 +12,8 @@ P5-D D1 HOST CONDITIONAL GO
 P5-D D1 DEVICE CONDITIONAL GO（仅 fixture Official Rating）
 P5 USER CUTOVER: NO-GO
 P5-D GO / PRODUCTION GO: NO
-P5-E / P6: HOLD
+P5-E: HOLD
+P6: 已取消（本验货当时写 HOLD）
 cutoverEnabled 默认 false（属实）
 TURNA_OFFICIAL_ANKI_* 现有默认仍 false（属实）
 预览 Cutover 按钮源码 disabled（属实）
@@ -84,7 +85,8 @@ P5-D D1 HOST CONDITIONAL GO
 P5-D D1 DEVICE CONDITIONAL GO（fixture Official Rating only）
 P5 USER CUTOVER: NO-GO
 P5-D GO: NO
-P5-E / P6: HOLD
+P5-E: HOLD
+P6: 已取消（本验货当时写 HOLD）
 ```
 
-下一步：D1 已收口。后续大施工见 [`28`](./28-p5d-remainder-construction-plan.md)；先 D2，不要直接开灰度 / 用户源 / E / P6。
+下一步：D1 已收口。后续大施工见 [`28`](./28-p5d-remainder-construction-plan.md)；先 D2，不要直接开灰度 / 用户源 / E。P6 已取消。

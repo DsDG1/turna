@@ -9,6 +9,8 @@ import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
+import 'package:turna/courses/course_loader.dart';
+import 'package:turna/data/anki_import_dao.dart';
 
 /// Refreshes official-routed import ids (exclusion) and optional deck counts.
 /// Safe to call from Play Hub, Profile, and Anki review hub.
@@ -48,7 +50,7 @@ class OfficialAnkiHomeDueSync {
     final savedUnavailable = OfficialAnkiHomeDue.officialDueUnavailable;
     try {
       final support = await getApplicationSupportDirectory();
-      final router = const OfficialAnkiProductionRouter();
+      const router = OfficialAnkiProductionRouter();
       final paths = router.pathsForDefaultProfile(support);
       if (!paths.catalogFile.existsSync()) {
         OfficialAnkiHomeDue.officialImportIds = {};
@@ -60,6 +62,8 @@ class OfficialAnkiHomeDueSync {
       final catalog = OfficialAnkiDatabase.file(paths.catalogFile.path);
       try {
         final dao = OfficialAnkiMigrationDao(catalog);
+        final sources = OfficialAnkiSourceDao(catalog);
+        await _adoptCourseImports(router, dao, sources);
         OfficialAnkiHomeDue.officialImportIds = router.officialImportIds(
           dao: dao,
         );
@@ -106,7 +110,7 @@ class OfficialAnkiHomeDueSync {
         }
         await router.refreshHomeDueFromQueue(
           dao: dao,
-          sources: OfficialAnkiSourceDao(catalog),
+          sources: sources,
           getReviewQueue: () => session.getReviewQueue(fetchLimit: 50),
         );
       } finally {
@@ -132,5 +136,24 @@ class OfficialAnkiHomeDueSync {
       }
       OfficialAnkiHomeDue.officialDueUnavailable = true;
     }
+  }
+
+  Future<void> _adoptCourseImports(
+    OfficialAnkiProductionRouter router,
+    OfficialAnkiMigrationDao dao,
+    OfficialAnkiSourceDao sources,
+  ) async {
+    try {
+      final course = CourseLoader.databaseOrNull();
+      if (course == null) return;
+      for (final row in await AnkiImportDao(course).getAll()) {
+        router.adoptExistingIfCatalogMatches(
+          dao: dao,
+          sources: sources,
+          importId: row.importId,
+          sourceHash: row.sourceHash,
+        );
+      }
+    } catch (_) {}
   }
 }

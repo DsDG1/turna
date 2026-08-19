@@ -196,7 +196,7 @@ Anki Deck/Subdeck 对应学习范围，是导航主来源（tags/自定义字段
 
 ## 13. 明确不做
 
-- 不宣称实现 AnkiWeb 同步。
+- 不实现、不宣称与 AnkiWeb / 官方 Anki 账号同步。
 - 未使用 Anki 官方调度后端前，不宣称下一间隔与 Anki 完全一致。
 - 不自动执行 `.colpkg` 覆盖 Turna 全部本地数据的官方桌面行为。
 - 不把 AI 识别包装成 Anki 官方功能。

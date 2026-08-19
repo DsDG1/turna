@@ -65,6 +65,39 @@ void main() {
     await engine.checkCollection();
   });
 
+  test('second engine reclaims an idle collection holder', () async {
+    if (libraryPath == null) {
+      if (_requireNative) {
+        fail('libturna_anki.so missing; TURNA_ANKI_REQUIRE_NATIVE=1');
+      }
+      return;
+    }
+    final root = Directory.systemTemp.createTempSync('turna-reclaim-');
+    addTearDown(() => root.deleteSync(recursive: true));
+    final paths = OfficialAnkiPaths(
+      profileId: 'profile-reclaim01',
+      profileRoot: Directory('${root.path}/profile'),
+    );
+    final transport = OfficialAnkiNativeTransport.open(libraryPath: libraryPath);
+    final leaked = FfiOfficialAnkiEngine.connect(transport);
+    addTearDown(leaked.dispose);
+    final next = FfiOfficialAnkiEngine.connect(transport);
+    addTearDown(next.dispose);
+    await leaked.openProfile(paths);
+    await next.openProfile(paths);
+    await next.checkCollection();
+    await expectLater(
+      leaked.closeCollection(),
+      throwsA(
+        isA<OfficialAnkiException>().having(
+          (e) => e.code,
+          'code',
+          OfficialAnkiErrorCode.invalidState,
+        ),
+      ),
+    );
+  });
+
   test('Dart allocator → C ABI → rslib → catalog for unicode fixture', () async {
     if (libraryPath == null) {
       if (_requireNative) {
