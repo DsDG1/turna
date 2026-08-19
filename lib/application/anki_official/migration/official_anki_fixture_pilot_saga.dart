@@ -409,17 +409,14 @@ class OfficialAnkiFixturePilotSaga {
     final storedRow = dao.findById(migrationId);
     final stored = storedRow?.officialMutationCountAtCutover ?? 0;
     final delta = officialMutationDelta ?? stored;
-    final useColumnDelta = officialMutationDelta == null;
     if (currentState == LegacyAnkiMigrationState.cutover ||
         currentState == LegacyAnkiMigrationState.observing) {
       if (delta == 0) {
-        if (useColumnDelta || delta == stored) {
-          dao.setRecordedKind(
-            migrationId: migrationId,
-            recordedKind: 'legacy',
-            nowMillis: now,
-          );
-        }
+        dao.setRecordedKind(
+          migrationId: migrationId,
+          recordedKind: 'legacy',
+          nowMillis: now,
+        );
         dao.transition(
           migrationId: migrationId,
           expected: currentState,

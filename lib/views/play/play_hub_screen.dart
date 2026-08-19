@@ -1,3 +1,6 @@
+// Dart imports:
+import 'dart:async';
+
 // Flutter imports:
 import 'package:flutter/material.dart';
 
@@ -7,8 +10,8 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
-import 'package:turna/application/anki/anki_review_assembler.dart';
 import 'package:turna/application/anki_official/engine/official_anki_home_due.dart';
+import 'package:turna/application/anki_official/engine/official_anki_home_due_sync.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/mistake_provider.dart';
@@ -28,22 +31,29 @@ class PlayHubScreen extends StatefulWidget {
 
 class _PlayHubScreenState extends State<PlayHubScreen> {
   @override
+  void initState() {
+    super.initState();
+    unawaited(_refreshOfficialDue());
+  }
+
+  Future<void> _refreshOfficialDue() async {
+    await const OfficialAnkiHomeDueSync().refresh();
+    if (mounted) setState(() {});
+  }
+
+  @override
   Widget build(BuildContext context) {
     final mistakes = context.select((MistakeProvider p) => p.entries);
     final mistakesCount = mistakes.length;
     final weakCount = WeakWordQuizAssembler.aggregateWeakWords(mistakes).length;
     final srsDue = context.select((SrsProvider p) => p.dueCount);
     final grammarDue = context.select((GrammarReviewProvider p) => p.dueCount);
-    final ankiDue = context.select(
-      (SrsProvider p) => p
-          .getDueWords()
-          .where((w) => w.wordId.startsWith(AnkiReviewAssembler.ankiPrefix))
-          .length,
-    );
+    final ankiDueWords = context.select((SrsProvider p) => p.getDueWords());
     OfficialAnkiHomeDue.turnaDue = srsDue;
     final officialDue = OfficialAnkiFeatureFlags.current.allowsOfficialScheduler
         ? OfficialAnkiHomeDue.officialDue
         : 0;
+    final ankiDue = OfficialAnkiHomeDue.aggregatedAnkiDue(ankiDueWords);
 
     return RepaintBoundary(
       child: CustomScrollView(

@@ -54,6 +54,29 @@ void main() {
     }
   });
 
+  test('requireImporter single-flights parallel fake spawns', () async {
+    OfficialAnkiFeatureFlags.current = const OfficialAnkiFeatureFlags(
+      engine: true,
+      import: true,
+      catalogReady: true,
+      runtimeCapable: true,
+      platformReady: true,
+    );
+    final root = Directory.systemTemp.createTempSync('turna-comp-single-');
+    addTearDown(() => root.deleteSync(recursive: true));
+    final first = OfficialAnkiCompositionRoot.requireImporter(
+      supportDir: root,
+      useFake: true,
+    );
+    final second = OfficialAnkiCompositionRoot.requireImporter(
+      supportDir: root,
+      useFake: true,
+    );
+    final results = await Future.wait([first, second]);
+    expect(identical(results[0], results[1]), isTrue);
+    expect(identical(results[0], OfficialAnkiCompositionRoot.session), isTrue);
+  });
+
   test('production flags reject an in-process execution mode', () {
     OfficialAnkiFeatureFlags.current = const OfficialAnkiFeatureFlags(
       engine: true,

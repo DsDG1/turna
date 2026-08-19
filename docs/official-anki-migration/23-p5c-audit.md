@@ -74,7 +74,7 @@ cutoverEnabled: false（属实）
 ```text
 导入 fixtures/p5c 小牌组到 Legacy     未做
 重选同一 .apkg → Fixture pilot       未做（UI 没接线）
-考研政治默写 Pilot disabled           无法区分：flags 默认 false，所有来源都没有 Pilot 按钮
+用户既有牌组 Pilot disabled           无法区分：flags 默认 false，所有来源都没有 Pilot 按钮
 内部正式复习评 1 张                    做了，但是用户牌组
 revlog 增量只来自 fixture official    未做
 ```
@@ -116,7 +116,7 @@ OfficialAnkiMigrationPreviewPage(
 - 默认 `TURNA_OFFICIAL_ANKI_*` 仍 false
 - 未删 Legacy
 - `migrating` lease 单测成立
-- allowlist 拒绝 `user-deck` / 考研政治 importId
+- allowlist 拒绝非名单 `user-deck` importId
 - hash 不匹配会到 `needsUserAction`
 - Dry-run matcher / census / DAO CAS 仍是 P5-B 那套，应继续复用
 - Device B 仍应写 out of scope
@@ -141,7 +141,7 @@ P4 PRODUCTION DEFAULT FLAGS: still false
 4. `AnkiWriteGuard` 接到评分/undo，而不只是 `migrate()`
 5. `preview_cutover_button_stays_disabled` 读 **源文件**
 6. P5C-01 对 `.apkg` 字节做 sha256
-7. Device：另导 fixture 小牌组，重选包，跑通 Pilot；用户 `考研政治默写` 无 Pilot；revlog 增量可归因到 fixture official source
+7. Device：另导 fixture 小牌组，重选包，跑通 Pilot；用户既有牌组无 Pilot；revlog 增量可归因到 fixture official source
 8. 所有 p5c / p4r2 artifact 的 apk sha 与当次已装包一致，禁止混用 `a8161e88` 与 `d3bf329e`
 
 ## 8. 下一步施工（回到 `21`，不要另起炉灶）

@@ -5,7 +5,9 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/foundation.dart';
+import 'package:turna/application/anki/anki_deck_assembler.dart';
 import 'package:turna/application/anki/anki_importer.dart';
+import 'package:turna/domain/repositories/i_course_repository.dart';
 import 'package:turna/application/anki_official/engine/official_anki_in_process.dart';
 import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/data/anki_note_dao.dart';
@@ -15,6 +17,7 @@ import 'package:turna/application/anki_official/engine/official_anki_session_eng
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
 import 'package:turna/application/anki_official/migration/official_anki_dry_run_matcher.dart';
 import 'package:turna/application/anki_official/migration/official_anki_fixture_pilot_saga.dart';
+import 'package:turna/application/anki_official/migration/official_anki_fixture_rollback_drill.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_state.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
@@ -682,6 +685,20 @@ class _OfficialAnkiInternalPageState extends State<OfficialAnkiInternalPage> {
           ),
         );
       }
+      if (getIt.isRegistered<ICourseRepository>()) {
+        await AnkiDeckAssembler().assemble(
+          collection: collection,
+          importId: importId,
+          repo: getIt<ICourseRepository>(),
+          noteDao: noteDao,
+          smartGrouping: false,
+        );
+        try {
+          if (getIt.isRegistered<CourseProvider>()) {
+            await getIt<CourseProvider>().reloadCourse();
+          }
+        } catch (_) {}
+      }
       setState(() {
         _status = 'fixture_seeded';
         _detail =
@@ -892,6 +909,63 @@ class _OfficialAnkiInternalPageState extends State<OfficialAnkiInternalPage> {
     }
   }
 
+  Future<void> _runFixtureRollbackDrill() async {
+    setState(() {
+      _busy = true;
+      _status = 'rollback_drill';
+      _detail = '';
+    });
+    OfficialAnkiDatabase? catalog;
+    OfficialAnkiFixturePilotSaga? saga;
+    try {
+      if (!OfficialAnkiFeatureFlags.current.migrationPilot) {
+        setState(() {
+          _status = 'pilot_off';
+          _detail = '需要 TURNA_OFFICIAL_ANKI_MIGRATION_PILOT=true';
+        });
+        return;
+      }
+      final support = await getApplicationSupportDirectory();
+      final paths = OfficialAnkiPaths(
+        profileId: 'profile-default-01',
+        profileRoot: Directory('${support.path}/official_anki/default'),
+      );
+      await paths.ensureLayout();
+      catalog = OfficialAnkiDatabase.file(paths.catalogFile.path);
+      final dao = OfficialAnkiMigrationDao(catalog);
+      saga = OfficialAnkiFixturePilotSaga(dao: dao, coordinator: _ops);
+      _ops.acquire(OfficialAnkiOperationPhase.migrating);
+      final report = await const OfficialAnkiFixtureRollbackDrill().runBothPaths(
+        saga: saga,
+        dao: dao,
+        paths: paths,
+        profileId: paths.profileId,
+      );
+      final gt0 = report.mutationGt0;
+      final eq0 = report.mutationEq0;
+      setState(() {
+        _status = report.bothPassed ? 'rollback_drill_ok' : 'rollback_drill_partial';
+        _detail = 'gt0=${gt0?.state.name}/${gt0?.recordedKind}/delta=${gt0?.delta} '
+            'eq0=${eq0?.state.name}/${eq0?.recordedKind}/delta=${eq0?.delta} '
+            'collection=${report.collectionPresent} ${report.detail}';
+      });
+    } catch (error, stack) {
+      debugPrint('[OfficialAnkiPilot] rollback drill error $error\n$stack');
+      setState(() {
+        _status = 'error';
+        _detail = error.toString();
+      });
+    } finally {
+      try {
+        saga?.releaseLease();
+      } catch (_) {
+        _ops.release(OfficialAnkiOperationPhase.migrating);
+      }
+      catalog?.close();
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _cancel() async {
     final session = OfficialAnkiCompositionRoot.session;
     if (session is OfficialAnkiSession) {
@@ -965,6 +1039,12 @@ class _OfficialAnkiInternalPageState extends State<OfficialAnkiInternalPage> {
               key: const Key('official-p5c-seed-fixture'),
               onPressed: _busy ? null : _seedP5cFixtureLegacy,
               child: const Text('导入 P5C fixture（Legacy）'),
+            ),
+            const SizedBox(height: 8),
+            FilledButton(
+              key: const Key('official-p5c-rollback-drill'),
+              onPressed: _busy ? null : _runFixtureRollbackDrill,
+              child: const Text('Fixture 回滚演练'),
             ),
           ],
           const SizedBox(height: 8),

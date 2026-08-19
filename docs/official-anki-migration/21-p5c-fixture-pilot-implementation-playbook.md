@@ -4,7 +4,8 @@
 > 日期：2026-08-18  
 > 前置：[`14`](./14-phase-4-audit-remediation-and-phase-5-execution-plan.md) §8、[`15`](./15-p5-legacy-inventory.md)、[`16`](./16-p4r3-production-gate-and-p5b-prep-plan.md) / [`18`](./18-p4r3-audit.md) / [`19`](./19-p4r3-implementation-playbook.md)、[`20`](./20-p4-remaining-polish-plan.md)、`artifacts/p4r2/`  
 > 产品指示：进入 P5。本文件是 **P5-C 怎么改、怎么跑、怎么才算过**。  
-> 不是 P5-D 生产路由，不是 P5-E 删 Legacy。
+> 不是 P5-D 生产路由，不是 P5-E 删 Legacy。  
+> 早期验货看 [`23`](./23-p5c-audit.md)（作废过早 GO）；收口结论看 [`25`](./25-p5c-closeout-result-report.md)。
 
 ## 1. 结论先行
 
@@ -61,7 +62,7 @@ Device A 当前已记账 APK：`a8161e8877b848aad7d6cb6f2a18d5002b25595c1cf904e1
 不把 TURNA_OFFICIAL_ANKI_* 默认改成 true
 不删 lib/application/anki 或 lib/views/anki
 不伪造官方 revlog / 不把 Turna SRS 翻译成 revlog
-不迁移用户真实牌组（考研政治默写、German、任何非 allowlist 来源）
+不迁移任何非 allowlist 用户牌组
 不 wipe files/official_anki/default/collection.anki2
 不为超时重建 WebView
 不补 OHOS official Core
@@ -116,7 +117,7 @@ Android 先行：OHOS 继续 Legacy。P5-C 成功也不等于可以删共享实�
 2. 设备：事先写入 `artifacts/p5c/fixture-allowlist.txt` 的 **sourceHash**（sha256 of the re-picked `.apkg`）。当前不要把用户牌组 hash 写进去。
 3. 显示名 / 路径包含 `p5c-fixture` 且内部页显式确认。
 
-用户 Collection 里的 `考研政治默写`（deck `1787046637039`）和任何 German 来源 **不在名单**。预览页对它们只显示 census / unmatched，Pilot 按钮保持 disabled。
+用户 Collection 里既有牌组 **不在名单**（无 `p5c-fixture-` 前缀、无 allowlist hash）。预览页对它们只显示 census / unmatched，Pilot 按钮保持 disabled。
 
 建议 Host fixture：用现有 Basic/Reverse/Cloze golden 身份，再做一个 **很小的** `.apkg`（≤ 20 张，含 1 张 Cloze 或 Reverse）。放在：
 
@@ -211,7 +212,7 @@ isFixturePilotSource(importId: 'p5c-fixture-basic') == true
 - sha256 文件与 `.apkg` 并排，测试里当场 `sha256sum` 对账
 - Host 用 Fake engine + 这份身份，不要依赖 Device A 用户库
 
-**禁止** 把用户 `collection.anki2` / 考研政治默写导出当 fixture。
+**禁止** 把用户 `collection.anki2` / 既有用户牌组导出当 fixture。
 
 ### P5C-02 migration lease
 
@@ -448,7 +449,7 @@ rollback-drill.txt      两条回滚路径
 另装内部 debug/release（带 MIGRATION_PILOT=true）
 导入 fixtures/p5c 小牌组到 Legacy（Anki 导入），不要用已有用户牌组
 设置 → 高级（大行）→ Official Anki 内部导入 → Legacy 迁移预览
-确认 考研政治默写 的 Pilot 按钮 disabled
+确认非 allowlist 用户牌组的 Pilot 按钮 disabled
 对 fixture 来源：重选同一 .apkg → Fixture pilot
 内部页「正式复习」评 1 张 Good
 adb 确认用户 collection 仍在、revlog 增量只来自 fixture 官方 source

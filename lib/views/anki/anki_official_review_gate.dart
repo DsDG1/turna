@@ -1,0 +1,187 @@
+import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:turna/application/anki/anki_review_assembler.dart';
+import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
+import 'package:turna/application/anki_official/engine/official_anki_session.dart';
+import 'package:turna/application/anki_official/engine/official_anki_session_engine.dart';
+import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
+import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
+import 'package:turna/application/anki_official/migration/official_anki_production_router.dart';
+import 'package:turna/application/anki_official/migration/official_anki_review_gate_decision.dart';
+import 'package:turna/application/anki_official/official_anki_composition.dart';
+import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
+import 'package:turna/application/anki_official/official_anki_paths.dart';
+import 'package:turna/application/anki_official/storage/official_anki_database.dart';
+import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
+import 'package:turna/views/anki_official/official_anki_review_page.dart';
+
+/// Opens Formal Reviewer for official-routed sources. Fail-closed if
+/// cutover says official but the official page cannot be opened.
+class AnkiOfficialReviewGate {
+  const AnkiOfficialReviewGate({
+    this.catalogExists,
+    this.routerOverride,
+    this.catalogOverride,
+    this.navigatorOverride,
+    this.ensureCollectionReadyOverride,
+    this.routerCanOpenOfficialReviewOverride,
+  });
+
+  final bool Function(OfficialAnkiPaths paths)? catalogExists;
+  final OfficialAnkiProductionRouter? routerOverride;
+  final OfficialAnkiDatabase Function(String path)? catalogOverride;
+  final Future<void> Function(
+    BuildContext context,
+    OfficialAnkiProductionRouter router,
+    OfficialAnkiPaths paths,
+    OfficialAnkiSession session,
+    OfficialAnkiRoutedSource target,
+  )? navigatorOverride;
+  final Future<bool> Function(OfficialAnkiSession session)?
+      ensureCollectionReadyOverride;
+  final bool Function(OfficialAnkiProductionRouter router)?
+      routerCanOpenOfficialReviewOverride;
+
+  Future<bool> openInsteadOfLegacy(
+    BuildContext context, {
+    required String? sectionId,
+    bool? cutoverEnabledOverride,
+  }) async {
+    final importId =
+        AnkiReviewAssembler.importIdFromSectionId(sectionId ?? '');
+    if (importId.isEmpty) return false;
+    final cutoverEnabled =
+        cutoverEnabledOverride ?? LegacyAnkiMigrationFlags.cutoverEnabled;
+    if (!cutoverEnabled) return false;
+
+    final support = await getApplicationSupportDirectory();
+    if (!context.mounted) return false;
+    final router = routerOverride ?? const OfficialAnkiProductionRouter();
+    final paths = router.pathsForDefaultProfile(support);
+    final catalogPresent = catalogExists != null
+        ? catalogExists!(paths)
+        : paths.catalogFile.existsSync();
+    if (!catalogPresent) {
+      return _failClosedIfOfficialWithoutCatalog(
+        context,
+        importId,
+        cutoverEnabledOverride: cutoverEnabled,
+      );
+    }
+
+    final catalog = catalogOverride != null
+        ? catalogOverride!(paths.catalogFile.path)
+        : OfficialAnkiDatabase.file(paths.catalogFile.path);
+    try {
+      final dao = OfficialAnkiMigrationDao(catalog);
+      final sources = OfficialAnkiSourceDao(catalog);
+      final routed = router.engineForImport(
+        importId: importId,
+        dao: dao,
+        sources: sources,
+        cutoverEnabled: cutoverEnabled,
+      );
+      final target = router.reviewTargetForImport(
+        dao: dao,
+        sources: sources,
+        importId: importId,
+        cutoverEnabled: cutoverEnabled,
+      );
+      final canOpen = routerCanOpenOfficialReviewOverride != null
+          ? routerCanOpenOfficialReviewOverride!(router)
+          : router.canOpenOfficialReview();
+      final decision = decideOfficialReviewGate(
+        cutoverEnabled: cutoverEnabled,
+        routedEngine: routed,
+        catalogPresent: true,
+        hasReviewTarget: target != null,
+        canOpenOfficialReview: canOpen,
+      );
+      if (decision == OfficialAnkiReviewGateDecision.useLegacy) {
+        return false;
+      }
+      if (decision == OfficialAnkiReviewGateDecision.failClosed) {
+        _snackFailClosed(context);
+        return true;
+      }
+      await OfficialAnkiCompositionRoot.requireImporter(supportDir: support);
+      if (!context.mounted) return true;
+      final session = OfficialAnkiCompositionRoot.session;
+      if (session is! OfficialAnkiSession) {
+        _snackFailClosed(context);
+        return true;
+      }
+      final opened = ensureCollectionReadyOverride != null
+          ? await ensureCollectionReadyOverride!(session)
+          : await _ensureCollectionReady(session);
+      if (!opened) {
+        _snackFailClosed(context);
+        return true;
+      }
+      if (!context.mounted) return true;
+      if (navigatorOverride != null) {
+        await navigatorOverride!(
+          context,
+          router,
+          paths,
+          session,
+          target!,
+        );
+        return true;
+      }
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => OfficialAnkiReviewPage(
+            engine: OfficialAnkiSessionEngine(session),
+            paths: paths,
+            deckId: target!.deckId,
+            allowedCardIds: target.cardIds,
+            flags: OfficialAnkiFeatureFlags.current,
+          ),
+        ),
+      );
+      return true;
+    } finally {
+      catalog.close();
+    }
+  }
+
+  bool _failClosedIfOfficialWithoutCatalog(
+    BuildContext context,
+    String importId, {
+    bool? cutoverEnabledOverride,
+  }) {
+    final routed = const OfficialAnkiProductionRouter().engineForImport(
+      importId: importId,
+      cutoverEnabled: cutoverEnabledOverride,
+    );
+    if (routed != AnkiEngineKind.official) return false;
+    _snackFailClosed(context);
+    return true;
+  }
+
+  Future<bool> _ensureCollectionReady(OfficialAnkiSession session) async {
+    for (var attempt = 0; attempt < 6; attempt++) {
+      try {
+        await session.ensureCollectionOpen();
+        return true;
+      } on OfficialAnkiException catch (error) {
+        if (error.code == OfficialAnkiErrorCode.collectionAlreadyOpen) {
+          return true;
+        }
+        if (error.code != OfficialAnkiErrorCode.collectionLocked) {
+          return false;
+        }
+        await Future<void>.delayed(Duration(milliseconds: 80 * (attempt + 1)));
+      }
+    }
+    return false;
+  }
+
+  void _snackFailClosed(BuildContext context) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('official_anki.review_fail_closed')),
+    );
+  }
+}

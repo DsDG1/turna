@@ -96,7 +96,7 @@ class _OfficialAnkiMigrationPreviewPageState
           const SizedBox(height: 8),
           FilledButton(
             key: const Key('official-migration-cutover-disabled'),
-            onPressed: LegacyAnkiMigrationFlags.cutoverEnabled ? () {} : null,
+            onPressed: null,
             child: const Text('Cutover (disabled)'),
           ),
         ],

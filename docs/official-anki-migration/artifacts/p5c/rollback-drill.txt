@@ -1,21 +1,50 @@
-P5-C ROLLBACK DRILL RECORD
-date: 2026-08-18
-drill_test: test('cutover_with_official_mutation_cannot_restore_legacy_schedule')
+P5-C DEVICE A ROLLBACK DRILL (§5.4)
+date: 2026-08-19
+device_serial: 3B15AG00FPB00000
+device_model: PLG110
+cutoverEnabled: false
+production routes: unchanged
+collection wipe: no
 
-SCENARIO 1: Cutover completed, official_mutation_count delta = 0 (No review ratings written in official collection)
-- Input: migrationId=mig-rollback-test, state=observing, mutationDelta=0
-- Action: saga.rollback(...)
-- Resulting State: rollbackEligible
-- Route resolution: Source can be safely switched back to Legacy without data divergence.
+METHOD
+- Same saga code as in-app button OfficialAnkiFixtureRollbackDrill
+- App force-stopped; catalog pulled; drill applied; catalog pushed back
+- collection.anki2 was read-only (revlog count) and was NOT pushed
+
+BEFORE
+- mig-p5c-fixture-device state=observing recorded_kind=official mutations_at_cutover=0
+- fixture cid 1375933503610 revlog=2 (post-cutover Goods)
+- user src-bc0f1dab... cards=181
+- collection cards=184 revlog=160
+
+PATH mutation>0 (real post-cutover increment 2-0=2)
+- migrationId=mig-p5c-fixture-device
+- Action: rollbackObserving(currentRevlog=2)
+- Result: noLegacyScheduleRollback recorded_kind=official
+- Legacy scheduling NOT restored as source of truth
 - Status: PASS
 
-SCENARIO 2: Cutover completed, official_mutation_count delta > 0 (1 or more review ratings written in official collection)
-- Input: migrationId=mig-rollback-mutated, state=observing, mutationDelta=1
-- Action: saga.rollback(...)
-- Resulting State: noLegacyScheduleRollback
-- Guardrail: Hard stop prevents reverting to old Turna SRS schedule to protect official review progress from being overwritten.
+PATH mutation=0 (sibling p5c-fixture-rb0, baseline=current fixture revlog=2, no new ratings)
+- migrationId=mig-p5c-fixture-rb0
+- official_mutation_count_at_cutover=2
+- Action: rollbackObserving(currentRevlog=2) delta=0
+- Result: rollbackEligible recorded_kind=legacy
+- Official Collection retained; this sibling source no longer official fact
 - Status: PASS
 
-DRILL VERIFICATION:
-- All edge transitions conform strictly to legacyAnkiMigrationAllowsTransition state machine.
-- Unauthorized scheduler rollbacks are rejected fail-closed.
+AFTER (device catalog sha matched push)
+- mig-p5c-fixture-device noLegacyScheduleRollback official
+- mig-p5c-fixture-rb0 rollbackEligible legacy
+- user src-bc0f cards=181
+- collection cards=184 revlog=160 fixture revlog=2
+- collection.anki2 still present
+
+IN-APP
+- Official Anki 内部导入 now has "Fixture 回滚演练" when MIGRATION_PILOT=true
+- Re-tap is idempotent (both terminal states already recorded)
+
+CONCLUSION
+DEVICE A §5.4 BOTH PATHS: PASS
+P5 USER CUTOVER: NO-GO
+P5-D / DELETE: HOLD
+Device B: out of scope

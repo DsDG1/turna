@@ -399,6 +399,14 @@ class AnkiReviewAssembler {
 
   /// Public static form of [_extractImportIdFromSection], for UI code that
   /// needs the import id behind a section (e.g. deck uninstall).
+  static String importIdFromWordId(String wordId) {
+    final cIdx = wordId.lastIndexOf('-c');
+    if (cIdx > 5) {
+      return wordId.substring(5, cIdx);
+    }
+    return '';
+  }
+
   static String importIdFromSectionId(String sectionId) {
     final sIdx = sectionId.lastIndexOf('-s');
     if (sIdx > 5) {

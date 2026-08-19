@@ -1,0 +1,39 @@
+P5-D D3 G1 GRAY RECORD — 1%
+date: 2026-08-19
+plan: 28-p5d-remainder-construction-plan.md §7 D3 G1-G4 (CONSTRUCTION GO)
+written-go: artifacts/p5d/written-go-d3d4.txt
+git_head: e8f7ccddaae9200702bb9100db485a70fd21d5be
+working_tree: includes D3 gray plumbing + D4 per-source allowlist scaffolding (see git status)
+
+SCOPE (this level)
+- cohort: TURNA_OFFICIAL_ANKI_GRAY_COHORT=g1 (1%); covers Android new import + already recordedKind=official allowlist source
+- not covered: bulk migration of existing user decks, census.first, device-lottery, production default flag change, legacy delete, AnkiWeb
+- G0 remains: off/g0 still maps to legacy for new imports; existing official sources keep routing via recordedKind regardless of cohort
+
+WHAT LANDED
+- lib/application/anki_official/migration/official_anki_gray_config.dart: thresholdPercent (off/g0=0, g1=1, g2=10, g3=50, g4=100) + allowsNewOfficialImport(platform,cutoverEnabled)
+- lib/application/anki_official/import/anki_import_facade.dart: decisionFor now checks OfficialAnkiGrayConfig.fromEnvironment().allowsNewOfficialImport; off/g0 → legacy, g1+ → official (failClosed unchanged); extra gray param available for tests
+- defaults still off: TURNA_OFFICIAL_ANKI_GRAY_COHORT unset → off; fromEnvironment().cohort==off, isOn==false, threshold 0
+- not in CourseDatabase/census: gray_config contains no CourseDatabase/census import (see p5d_gray_config_does_not_import_coursedatabase_or_census)
+
+VERIFY (this host)
+flutter test --no-pub test/application/anki_official/official_anki_p5d_routing_test.dart
+  p5d_gray_default_cohort_is_off: PASS (off threshold 0, g1 threshold 1, off+cutover→legacy)
+  p5d_gray_g_cohort_thresholds_are_sequential: PASS (g2=10, g3=50, g4=100, parse g2/10%)
+  p5d_gray_import_requires_cutover_and_android: PASS (cutover false→legacy, ohos→legacy even with g4)
+  p5d_user_allowlist_is_per_source_hash_and_rejects_bulk: PASS (fixture prefix/hash true, user-deck false)
+flutter test --no-pub test/application/anki_official: 258 passed (full suite green)
+
+RED LINES (still true)
+- LegacyAnkiMigrationFlags.cutoverEnabled still false by default; OfficialAnkiFeatureFlags still all false
+- preview Cutover still onPressed:null; no AnkiWeb production route
+- rollback: P5-D GO / P5 USER CUTOVER: NO-GO
+- gray does not downgrade existing official sources (recordedKind path unchanged)
+
+ROLLBACK TO G0
+  flutter run/test without --dart-define=TURNA_OFFICIAL_ANKI_GRAY_COHORT  → off (legacy for new imports)
+  or --dart-define=TURNA_OFFICIAL_ANKI_GRAY_COHORT=off
+
+NEXT
+- G2 requires this file present; jumping to G2/G3 without G1 is void
+- Device re-verify for this G1: internal CUTOVER APK (--dart-define=TURNA_OFFICIAL_ANKI_CUTOVER=true --dart-define=TURNA_OFFICIAL_ANKI_GRAY_COHORT=g1) on Device A 3B15AG00FPB00000, import 1 small ≤20-card package, verify recordedKind→official + allowedCardIds + rate 1 card revlog, then clear artifact device-gray-g1.txt; collection.anki2 must remain

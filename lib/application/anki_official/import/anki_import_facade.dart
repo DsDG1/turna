@@ -2,6 +2,8 @@ import 'package:turna/application/anki/anki_importer.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_orchestrator.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
+import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
+import 'package:turna/application/anki_official/migration/official_anki_gray_config.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 
 enum AnkiImportDecision { official, legacy, failClosed }
@@ -14,10 +16,26 @@ abstract class AnkiImportFacade {
     required String displayName,
   });
 
-  static AnkiImportDecision decisionFor(OfficialAnkiFeatureFlags flags) {
-    if (flags.allowsOfficialImport) return AnkiImportDecision.official;
-    if (flags.import) return AnkiImportDecision.failClosed;
-    return AnkiImportDecision.legacy;
+  static AnkiImportDecision decisionFor(
+    OfficialAnkiFeatureFlags flags, {
+    bool? cutoverEnabled,
+    String? platform,
+    OfficialAnkiGrayConfig? gray,
+  }) {
+    final cutover =
+        cutoverEnabled ?? LegacyAnkiMigrationFlags.cutoverEnabled;
+    final plat = platform ?? OfficialAnkiCapabilityMatrix.current().platform;
+    if (!cutover) return AnkiImportDecision.legacy;
+    if (plat != 'android') return AnkiImportDecision.legacy;
+    if (!flags.allowsOfficialImport) return AnkiImportDecision.failClosed;
+    final g = gray ?? OfficialAnkiGrayConfig.fromEnvironment();
+    if (!g.allowsNewOfficialImport(
+      platform: plat,
+      cutoverEnabled: cutover,
+    )) {
+      return AnkiImportDecision.legacy;
+    }
+    return AnkiImportDecision.official;
   }
 
   static AnkiImportFacade resolve({
@@ -25,9 +43,15 @@ abstract class AnkiImportFacade {
     OfficialAnkiImportOrchestrator? official,
     OfficialAnkiImporter? officialImporter,
     AnkiImporter? legacyImporter,
+    bool? cutoverEnabled,
+    String? platform,
   }) {
     final resolved = flags ?? OfficialAnkiFeatureFlags.current;
-    final decision = decisionFor(resolved);
+    final decision = decisionFor(
+      resolved,
+      cutoverEnabled: cutoverEnabled,
+      platform: platform,
+    );
     if (decision == AnkiImportDecision.failClosed) {
       throw const OfficialAnkiException(
         code: OfficialAnkiErrorCode.capabilityMissing,

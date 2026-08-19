@@ -215,8 +215,16 @@ void main() {
       legacyImporter: AnkiImporter(),
     );
     expect(
+      AnkiImportFacade.resolve(
+        flags: const OfficialAnkiFeatureFlags(import: true, engine: false),
+      ),
+      isA<LegacyAnkiImportFacade>(),
+    );
+    expect(
       () => AnkiImportFacade.resolve(
         flags: const OfficialAnkiFeatureFlags(import: true, engine: false),
+        cutoverEnabled: true,
+        platform: 'android',
       ),
       throwsA(isA<Object>()),
     );

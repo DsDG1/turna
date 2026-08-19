@@ -27,12 +27,12 @@ WHAT RAN (this session — re-verification on new HEAD 42042472bb8751c4addbb2b8d
    - mig-p5c-fixture-device state=observing official_source_id=src-fe08222149924cd08acb4b947f3b44a3 recorded_kind=official mutations_at_cutover=0
    - map: legacy 1375933503610 -> official 1375933503610 method=noteGuidAndOrdinal matched 1/1
    - sources:
-       src-bc0f1dab... 181 cards  display=blank (1).apkg   (user 考研政治默写, untouched)
+       src-bc0f1dab... 181 cards  display=blank (1).apkg   (user deck, untouched)
        src-00bfd3b5...   2 cards  display=p5c-fixture-...  (previous stub leftover)
        src-fe0822...     1 card   display=p5c-fixture-...  hash=28d89bb7... (classic hello/world)
    - official_anki_projection_state: src-fe0822... state=active count=1
 4. Collection (WAL merged):
-   - cards 184 (includes Default + 考研政治默写 Deck 1787046637039)
+   - cards 184 (includes Default + user deck 1787046637039)
    - fixture card 1375933503610 exists in collection, deckId=1
    - revlog total 160; fixture cid 1375933503610 has 2 rows (both ease=3, from prior 2 Goods) — not wiped
    - collection.anki2 still present (no wipe)
@@ -47,8 +47,8 @@ P5C-20 CHECKLIST (after apk swap, before re-rating)
 [✓] Fixture pilot = observing (recorded_kind=official)
 [✓] 投影 itemCount == matched == 1
 [✓] 正式复习 only allowedCardIds (fixture); leftover Default cards excluded
-[✓] 用户 考研政治默写 181 张不动 (src-bc0f...)
-[✓] cutoverEnabled false; 考研政治默写 无 Pilot (not in allowlist)
+[✓] 用户牌组 181 张不动 (src-bc0f...)
+[✓] cutoverEnabled false; 用户既有牌组无 Pilot (not in allowlist)
 [✓] 不 wipe collection.anki2 (revlog 160, fixture 2 rows)
 [✓] catalog v8
 

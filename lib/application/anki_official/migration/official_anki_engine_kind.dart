@@ -4,11 +4,19 @@ import 'package:turna/application/anki_official/official_anki_feature_flags.dart
 
 enum AnkiEngineKind { legacy, official }
 
-/// Hard stop for P5-C/D. This batch must not switch user sources.
+/// Production cutover gate. Default false; internal APKs may pass
+/// `--dart-define=TURNA_OFFICIAL_ANKI_CUTOVER=true`.
 class LegacyAnkiMigrationFlags {
   const LegacyAnkiMigrationFlags._();
 
-  static const cutoverEnabled = false;
+  static const cutoverEnabled =
+      bool.fromEnvironment('TURNA_OFFICIAL_ANKI_CUTOVER');
+}
+
+AnkiEngineKind? parseRecordedKind(String? raw) {
+  if (raw == 'official') return AnkiEngineKind.official;
+  if (raw == 'legacy') return AnkiEngineKind.legacy;
+  return null;
 }
 
 const _p5cFixtureHashes = <String>{
@@ -43,7 +51,8 @@ class AnkiSourceRoute {
   final AnkiEngineKind engine;
 }
 
-/// Resolves review/import ownership. Does not write. Cutover stays false.
+/// Resolves review/import ownership. Does not write.
+/// Official only when cutover is on and the source is official-owned.
 class AnkiSourceRouteResolver {
   const AnkiSourceRouteResolver();
 
@@ -51,15 +60,18 @@ class AnkiSourceRouteResolver {
     required String sourceKey,
     AnkiEngineKind? recordedKind,
     bool officialCatalogHasSource = false,
+    bool? cutoverEnabled,
   }) {
     if (sourceKey.isEmpty) return AnkiEngineKind.legacy;
-    if (!LegacyAnkiMigrationFlags.cutoverEnabled) {
-      if (recordedKind != null) return recordedKind;
-      return officialCatalogHasSource
-          ? AnkiEngineKind.official
-          : AnkiEngineKind.legacy;
+    final cutover =
+        cutoverEnabled ?? LegacyAnkiMigrationFlags.cutoverEnabled;
+    if (!cutover) return AnkiEngineKind.legacy;
+    if (recordedKind == AnkiEngineKind.official) {
+      return AnkiEngineKind.official;
     }
-    if (recordedKind != null) return recordedKind;
+    if (recordedKind == AnkiEngineKind.legacy) {
+      return AnkiEngineKind.legacy;
+    }
     return officialCatalogHasSource
         ? AnkiEngineKind.official
         : AnkiEngineKind.legacy;
@@ -69,6 +81,7 @@ class AnkiSourceRouteResolver {
     required String sourceKey,
     AnkiEngineKind? recordedKind,
     bool officialCatalogHasSource = false,
+    bool? cutoverEnabled,
   }) {
     return AnkiSourceRoute(
       sourceKey: sourceKey,
@@ -76,6 +89,7 @@ class AnkiSourceRouteResolver {
         sourceKey: sourceKey,
         recordedKind: recordedKind,
         officialCatalogHasSource: officialCatalogHasSource,
+        cutoverEnabled: cutoverEnabled,
       ),
     );
   }

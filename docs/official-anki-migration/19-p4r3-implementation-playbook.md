@@ -232,7 +232,7 @@ adb -s 3B15AG00FPB00000 logcat -d | rg 'OfficialAnkiReviewer|viewId|renderComple
 
 **准备**
 
-- 使用已导入的 German 牌组（约 5945 张）。`openDueDeck` 不要钉死 `deckId=1`
+- 使用设备上已导入的用户牌组。`openDueDeck` 不要钉死 `deckId=1`
 - 若今日 new 队列被 `new_per_day` 卡住：只对该 deck 的 `deck_config` 把 `new_per_day` 调到 ≥ 100，并写进 artifact
 - 四档尽量 25/25/25/25；做不到就如实记，不要改数字
 

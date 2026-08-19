@@ -17,6 +17,8 @@ import 'package:turna/application/anki_official/migration/official_anki_dry_run_
 import 'package:turna/application/anki_official/migration/official_anki_dry_run_saga.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 import 'package:turna/application/anki_official/migration/official_anki_fixture_pilot_saga.dart';
+import 'package:turna/application/anki_official/migration/official_anki_fixture_rollback_drill.dart';
+import 'package:turna/application/anki_official/migration/official_anki_gray_config.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
 import 'package:turna/application/anki_official/migration/official_anki_preview_loader.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_state.dart';
@@ -65,6 +67,15 @@ void main() {
     );
     expect(
       resolver.resolve(sourceKey: 'src-official', officialCatalogHasSource: true),
+      AnkiEngineKind.legacy,
+    );
+    expect(
+      resolver.resolve(
+        sourceKey: 'src-official',
+        officialCatalogHasSource: true,
+        recordedKind: AnkiEngineKind.official,
+        cutoverEnabled: true,
+      ),
       AnkiEngineKind.official,
     );
     expect(
@@ -72,6 +83,7 @@ void main() {
         sourceKey: 'src-official',
         officialCatalogHasSource: true,
         recordedKind: AnkiEngineKind.legacy,
+        cutoverEnabled: true,
       ),
       AnkiEngineKind.legacy,
     );
@@ -123,6 +135,8 @@ void main() {
     expect(
       AnkiImportFacade.decisionFor(
         const OfficialAnkiFeatureFlags(import: true, engine: true),
+        cutoverEnabled: true,
+        platform: 'android',
       ),
       AnkiImportDecision.failClosed,
     );
@@ -135,6 +149,9 @@ void main() {
           runtimeCapable: true,
           platformReady: true,
         ),
+        cutoverEnabled: true,
+        platform: 'android',
+        gray: const OfficialAnkiGrayConfig(cohort: OfficialAnkiGrayCohort.g1),
       ),
       AnkiImportDecision.official,
     );
@@ -977,10 +994,7 @@ void main() {
     ).readAsStringSync();
     expect(source.contains('Cutover (disabled)'), isTrue);
     expect(source.contains('official-migration-cutover-disabled'), isTrue);
-    expect(
-      source.contains('onPressed: LegacyAnkiMigrationFlags.cutoverEnabled'),
-      isTrue,
-    );
+    expect(source.contains('onPressed: null'), isTrue);
   });
 
   test('legacy_migration_crash_resumes_every_checkpoint', () async {
@@ -1316,7 +1330,11 @@ void main() {
     expect(dao.findById('mig-recorded')?.state, LegacyAnkiMigrationState.observing);
     const resolver = AnkiSourceRouteResolver();
     expect(
-      resolver.resolve(sourceKey: 'p5c-fixture-recorded', recordedKind: AnkiEngineKind.official),
+      resolver.resolve(
+        sourceKey: 'p5c-fixture-recorded',
+        recordedKind: AnkiEngineKind.official,
+        cutoverEnabled: true,
+      ),
       AnkiEngineKind.official,
     );
     saga.rollback(
@@ -1334,7 +1352,7 @@ void main() {
     const resolver = AnkiSourceRouteResolver();
     expect(
       resolver.resolve(sourceKey: 'p5c-fixture-a', recordedKind: AnkiEngineKind.official),
-      AnkiEngineKind.official,
+      AnkiEngineKind.legacy,
     );
     expect(
       resolver.resolve(sourceKey: 'p5c-fixture-b', recordedKind: null),
@@ -1477,6 +1495,140 @@ void main() {
     expect(sourceId, 'src-host-real');
     expect(dao.findByLegacyImport(profileId: 'profile-host-real-01', legacyImportId: 'p5c-fixture-host-real')?.state, LegacyAnkiMigrationState.indexingOfficial);
     saga.releaseLease();
+  });
+
+  test('postCutoverDelta treats column as baseline not the increment', () {
+    expect(
+      OfficialAnkiFixtureRollbackDrill.postCutoverDelta(
+        storedAtCutover: 0,
+        currentSourceRevlog: 2,
+      ),
+      2,
+    );
+    expect(
+      OfficialAnkiFixtureRollbackDrill.postCutoverDelta(
+        storedAtCutover: 2,
+        currentSourceRevlog: 2,
+      ),
+      0,
+    );
+  });
+
+  test('countRevlogForCards reads only listed cids', () {
+    final dir = Directory.systemTemp.createTempSync('turna-revlog-count-');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    final col = File('${dir.path}/collection.anki2');
+    final db = sqlite3.open(col.path);
+    db.execute('CREATE TABLE revlog (id INTEGER PRIMARY KEY, cid INTEGER)');
+    db.execute('INSERT INTO revlog (id, cid) VALUES (1, 10), (2, 10), (3, 99)');
+    db.dispose();
+    expect(
+      OfficialAnkiFixtureRollbackDrill.countRevlogForCards(
+        collectionFile: col,
+        cardIds: const [10],
+      ),
+      2,
+    );
+    expect(
+      OfficialAnkiFixtureRollbackDrill.countRevlogForCards(
+        collectionFile: col,
+        cardIds: const [99],
+      ),
+      1,
+    );
+  });
+
+  test('device rollback drill mutation zero and positive', () async {
+    final db = OfficialAnkiDatabase.memory();
+    addTearDown(db.close);
+    final dao = OfficialAnkiMigrationDao(db);
+    final coord = OfficialAnkiOperationCoordinator();
+    final saga = OfficialAnkiFixturePilotSaga(dao: dao, coordinator: coord);
+    dao.insertDetected(
+      migrationId: 'mig-p5c-fixture-device',
+      profileId: 'profile-default-01',
+      legacyImportId: 'p5c-fixture-device',
+      policy: LegacyAnkiSchedulingPolicy.preservePackageScheduling,
+      nowMillis: 1,
+    );
+    for (final step in [
+      (LegacyAnkiMigrationState.detected, LegacyAnkiMigrationState.awaitingPackage),
+      (LegacyAnkiMigrationState.awaitingPackage, LegacyAnkiMigrationState.validatingSource),
+      (LegacyAnkiMigrationState.validatingSource, LegacyAnkiMigrationState.backingUp),
+      (LegacyAnkiMigrationState.backingUp, LegacyAnkiMigrationState.importingOfficial),
+      (LegacyAnkiMigrationState.importingOfficial, LegacyAnkiMigrationState.indexingOfficial),
+      (LegacyAnkiMigrationState.indexingOfficial, LegacyAnkiMigrationState.mappingCards),
+      (LegacyAnkiMigrationState.mappingCards, LegacyAnkiMigrationState.projectingCourse),
+      (LegacyAnkiMigrationState.projectingCourse, LegacyAnkiMigrationState.verifying),
+    ]) {
+      dao.transition(
+        migrationId: 'mig-p5c-fixture-device',
+        expected: step.$1,
+        next: step.$2,
+        nowMillis: 2,
+      );
+    }
+    dao.upsertCardMapRows(
+      migrationId: 'mig-p5c-fixture-device',
+      rows: const [
+        LegacyAnkiCardMapDraft(
+          legacyCardId: 1375933503610,
+          legacyWordId: 'anki-p5c-fixture-device-c1375933503610',
+          templateOrd: 0,
+          matchMethod: LegacyAnkiMatchMethod.noteGuidAndOrdinal,
+          matchState: LegacyAnkiMatchState.matched,
+          officialCardId: 1375933503610,
+          noteGuid: 'cU1%zNUzk1',
+        ),
+      ],
+    );
+    final cutover = await saga.verifyAndCutover(
+      migrationId: 'mig-p5c-fixture-device',
+      legacyCardCount: 1,
+      officialCardCount: 1,
+      matchedCount: 1,
+      projectionItemCount: 1,
+      officialMutationCountAtCutover: 0,
+    );
+    expect(cutover, isTrue);
+    expect(dao.findById('mig-p5c-fixture-device')?.state, LegacyAnkiMigrationState.observing);
+    expect(dao.findById('mig-p5c-fixture-device')?.recordedKind, 'official');
+
+    final root = Directory.systemTemp.createTempSync('turna-rb-drill-');
+    addTearDown(() => root.deleteSync(recursive: true));
+    final paths = OfficialAnkiPaths(
+      profileId: 'profile-default-01',
+      profileRoot: root,
+    );
+    await paths.ensureLayout();
+    paths.collectionFile.writeAsBytesSync(const [0x53, 0x51, 0x4c, 0x69]);
+
+    final report = await const OfficialAnkiFixtureRollbackDrill().runBothPaths(
+      saga: saga,
+      dao: dao,
+      paths: paths,
+      profileId: 'profile-default-01',
+      userCardCount: 181,
+      currentSourceRevlogOverride: 2,
+    );
+    expect(report.bothPassed, isTrue);
+    expect(report.mutationGt0?.migrationId, 'mig-p5c-fixture-device');
+    expect(report.mutationGt0?.state, LegacyAnkiMigrationState.noLegacyScheduleRollback);
+    expect(report.mutationGt0?.recordedKind, 'official');
+    expect(report.mutationGt0?.delta, 2);
+    expect(report.mutationEq0?.legacyImportId, 'p5c-fixture-rb0');
+    expect(report.mutationEq0?.state, LegacyAnkiMigrationState.rollbackEligible);
+    expect(report.mutationEq0?.recordedKind, 'legacy');
+    expect(report.mutationEq0?.delta, 0);
+    expect(report.userCardCount, 181);
+    expect(report.collectionPresent, isTrue);
+    expect(
+      dao.findByLegacyImport(
+        profileId: 'profile-default-01',
+        legacyImportId: 'p5c-fixture-device',
+      )?.state,
+      LegacyAnkiMigrationState.noLegacyScheduleRollback,
+    );
   });
 }
 

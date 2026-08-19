@@ -72,6 +72,7 @@ class _OfficialAnkiReviewPageState extends State<OfficialAnkiReviewPage> {
 
   Future<void> _start() async {
     try {
+      await widget.engine.openProfile(widget.paths);
       final deckId = widget.deckId;
       if (deckId == null) {
         await _session.openDueDeck();

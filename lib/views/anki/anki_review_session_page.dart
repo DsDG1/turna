@@ -23,6 +23,7 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/components/ai_card_explain_sheet.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/lesson/components/lesson_dialogs.dart';
+import 'package:turna/views/anki/anki_official_review_gate.dart';
 import 'package:turna/views/lesson/components/lesson_stage_widgets.dart';
 import 'package:turna/views/theme.dart';
 
@@ -103,6 +104,16 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
     });
 
     try {
+      final openedOfficial =
+          await const AnkiOfficialReviewGate().openInsteadOfLegacy(
+        context,
+        sectionId: widget.sectionId,
+      );
+      if (!mounted) return;
+      if (openedOfficial) {
+        Navigator.of(context).maybePop();
+        return;
+      }
       final courseProvider = context.read<CourseProvider>();
       final srsProvider = context.read<SrsProvider>();
       final noteDao = getIt<AnkiNoteDao>();

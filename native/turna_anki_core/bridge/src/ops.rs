@@ -718,7 +718,26 @@ fn answer_card(handle: u64, request: &[u8]) -> Result<Value, i32> {
             custom_data: None,
             from_queue: true,
         };
-        col.answer_card(&mut answer)
+        match col.answer_card(&mut answer) {
+            Ok(output) => Ok(output),
+            Err(err) => {
+                let post_revlog = revlog_count(col, parsed.card_id).unwrap_or(pre_revlog);
+                if post_revlog > pre_revlog {
+                    Err(err)
+                } else {
+                    // Isolated review (allowedCardIds) may grade a card that is
+                    // not the study-queue head. Anki then rejects from_queue.
+                    answer.from_queue = false;
+                    match col.answer_card(&mut answer) {
+                        Ok(output) => {
+                            col.clear_study_queues();
+                            Ok(output)
+                        }
+                        Err(retry_err) => Err(retry_err),
+                    }
+                }
+            }
+        }
     };
     match answer_result {
         Ok(_) => {
@@ -1368,6 +1387,51 @@ mod tests {
             STATUS_UNDO_UNAVAILABLE
         );
 
+        free_engine(handle).unwrap();
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn answer_non_head_card_retries_off_queue() {
+        let (root, handle, _) = temp_open();
+        import(handle, &package_path("04-cloze-multi-ord.apkg"), false).unwrap();
+        let decks = call(handle, OP_LIST_DECK_TREE, json!({})).unwrap();
+        let deck_id = decks["decks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|deck| deck["deckId"].as_i64().unwrap_or(0) > 0)
+            .and_then(|deck| deck["deckId"].as_i64())
+            .unwrap();
+        call(handle, OP_SET_CURRENT_DECK, json!({"deckId": deck_id})).unwrap();
+        let queue = call(handle, OP_GET_REVIEW_QUEUE, json!({"fetchLimit": 10})).unwrap();
+        let cards = queue["cards"].as_array().unwrap();
+        assert!(
+            cards.len() >= 2,
+            "04-cloze-multi-ord should queue 2+ cards, got {}",
+            cards.len()
+        );
+        let skipped = &cards[1];
+        let card_id = skipped["cardId"].as_i64().unwrap();
+        let token = skipped["answerToken"].as_str().unwrap();
+        let session_id = queue["sessionId"].as_str().unwrap();
+        let epoch = queue["queueEpoch"].as_u64().unwrap();
+        let answered = call(
+            handle,
+            OP_ANSWER_CARD,
+            json!({
+                "cardId": card_id,
+                "rating": "good",
+                "answerToken": token,
+                "sessionId": session_id,
+                "queueEpoch": epoch,
+                "millisecondsTaken": 1500
+            }),
+        )
+        .expect("non-head answer should retry off-queue instead of ANSWER_FAILED");
+        assert_eq!(answered["committed"], true);
+        assert_eq!(answered["cardId"], card_id);
+        assert!(answered["revlogCount"].as_u64().unwrap() >= 1);
         free_engine(handle).unwrap();
         let _ = fs::remove_dir_all(root);
     }

@@ -11,7 +11,7 @@ dart-defines: ENGINE/IMPORT/CATALOG/RUNTIME/PLATFORM/RENDERER/SCHEDULER/DIAGNOST
 production defaults: still false
 P5-C: HOLD
 
-deck: 考研政治默写 (181 cards; Default id=1 empty). openDueDeck, not pinned deckId=1
+deck: user collection (181 cards; Default id=1 empty). openDueDeck, not pinned deckId=1
 note: raised shared Default deck_config new_per_day 20 → 400 (protobuf field 9 H\x14 → H\x90\x03) so today's new queue could exceed the 20-card cap. Did not wipe user cards.
 
 ENGINE_INFO (OfficialAnkiInternalPage, engine-info.json handFilled=false):

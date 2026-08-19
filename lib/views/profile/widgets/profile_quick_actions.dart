@@ -1,3 +1,6 @@
+// Dart imports:
+import 'dart:async';
+
 // Flutter imports:
 import 'package:flutter/material.dart';
 
@@ -6,7 +9,8 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:turna/application/anki/anki_review_assembler.dart';
+import 'package:turna/application/anki_official/engine/official_anki_home_due.dart';
+import 'package:turna/application/anki_official/engine/official_anki_home_due_sync.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/l10n/app_strings.dart';
@@ -14,8 +18,24 @@ import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/theme.dart';
 
 /// Tappable due chips: SRS review, mistakes, Anki review.
-class ProfileQuickActions extends StatelessWidget {
+class ProfileQuickActions extends StatefulWidget {
   const ProfileQuickActions({super.key});
+
+  @override
+  State<ProfileQuickActions> createState() => _ProfileQuickActionsState();
+}
+
+class _ProfileQuickActionsState extends State<ProfileQuickActions> {
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_refreshOfficialDue());
+  }
+
+  Future<void> _refreshOfficialDue() async {
+    await const OfficialAnkiHomeDueSync().refresh();
+    if (mounted) setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,10 +43,7 @@ class ProfileQuickActions extends StatelessWidget {
     final mistakesCount =
         context.select((MistakeProvider p) => p.entries.length);
     final ankiDue = context.select(
-      (SrsProvider p) => p
-          .getDueWords()
-          .where((w) => w.wordId.startsWith(AnkiReviewAssembler.ankiPrefix))
-          .length,
+      (SrsProvider p) => OfficialAnkiHomeDue.aggregatedAnkiDue(p.getDueWords()),
     );
 
     return Padding(

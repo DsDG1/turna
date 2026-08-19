@@ -1,3 +1,6 @@
+// Dart imports:
+import 'dart:async';
+
 // Flutter imports:
 import 'package:flutter/material.dart';
 
@@ -8,6 +11,8 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:turna/application/anki/anki_deck_manager.dart';
 import 'package:turna/application/anki/anki_review_assembler.dart';
+import 'package:turna/application/anki_official/engine/official_anki_home_due.dart';
+import 'package:turna/application/anki_official/engine/official_anki_home_due_sync.dart';
 import 'package:turna/data/anki_note_dao.dart';
 import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/application/course_provider.dart';
@@ -17,6 +22,7 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/anki/anki_card_browser_page.dart';
 import 'package:turna/views/anki/anki_deck_stats_page.dart';
+import 'package:turna/views/anki/anki_official_review_gate.dart';
 import 'package:turna/views/theme.dart';
 
 /// Anki review hub — lists imported Anki sections with due counts,
@@ -47,8 +53,24 @@ class AnkiReviewPage extends StatelessWidget {
   }
 }
 
-class _AnkiReviewBody extends StatelessWidget {
+class _AnkiReviewBody extends StatefulWidget {
   const _AnkiReviewBody();
+
+  @override
+  State<_AnkiReviewBody> createState() => _AnkiReviewBodyState();
+}
+
+class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_refreshOfficialDue());
+  }
+
+  Future<void> _refreshOfficialDue() async {
+    await const OfficialAnkiHomeDueSync().refresh();
+    if (mounted) setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -76,7 +98,7 @@ class _AnkiReviewBody extends StatelessWidget {
     // One pass over the SRS map for total + per-import due badges (not one
     // full collectDue sort per section tile).
     final dueSnap = assembler.dueSnapshot();
-    final totalDue = dueSnap.total;
+    final totalDue = _aggregatedDue(ankiSections, dueSnap.byImportId);
     final deckManager = getIt<AnkiDeckManager>();
     final newLeft = deckManager.newRemainingToday;
     final reviewLeft = deckManager.reviewRemainingToday;
@@ -170,10 +192,10 @@ class _AnkiReviewBody extends StatelessWidget {
                 sectionId: section.id,
                 sectionName: section.name,
                 description: section.description,
-                dueCount: dueSnap.byImportId[
-                        AnkiReviewAssembler.importIdFromSectionId(
-                            section.id)] ??
-                    0,
+                dueCount: _dueForSection(
+                  AnkiReviewAssembler.importIdFromSectionId(section.id),
+                  dueSnap.byImportId,
+                ),
                 onTap: () => _startReview(context, section.id),
                 onStats: () => Navigator.of(context).push(
                   MaterialPageRoute(
@@ -420,7 +442,40 @@ class _AnkiReviewBody extends StatelessWidget {
     );
   }
 
+  int _dueForSection(String importId, Map<String, int> byImportId) {
+    if (OfficialAnkiHomeDue.officialImportIds.contains(importId)) {
+      return OfficialAnkiHomeDue.officialDueByImport[importId] ?? 0;
+    }
+    return byImportId[importId] ?? 0;
+  }
+
+  int _aggregatedDue(
+    List<dynamic> ankiSections,
+    Map<String, int> byImportId,
+  ) {
+    var total = 0;
+    for (final section in ankiSections) {
+      total += _dueForSection(
+        AnkiReviewAssembler.importIdFromSectionId(section.id as String),
+        byImportId,
+      );
+    }
+    return total;
+  }
+
   void _startReview(BuildContext context, String? sectionId) {
+    unawaited(_startReviewAsync(context, sectionId));
+  }
+
+  Future<void> _startReviewAsync(
+    BuildContext context,
+    String? sectionId,
+  ) async {
+    final opened = await const AnkiOfficialReviewGate().openInsteadOfLegacy(
+      context,
+      sectionId: sectionId,
+    );
+    if (opened || !context.mounted) return;
     context.router.push(AnkiReviewSessionRoute(sectionId: sectionId));
   }
 }

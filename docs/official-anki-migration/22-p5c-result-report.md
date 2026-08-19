@@ -22,7 +22,7 @@ Device B: out of scope
 catalog: v8 (recordedKind)
 ```
 
-Host 已满足 24 §4 P5C-14…18 + flutter test 34 passed + Cutover disabled。Device A 已在 HEAD 5930f615...（catalog 7→8，hash 闭环）上重验：`mig-p5c-fixture-device=observing recorded_kind=official mutations=0`，投影 1/1，`allowedCardIds` 过滤，受 `考研政治默写` 181 张不动，revlog 160 fixture 2 行未 wipe。
+Host 已满足 24 §4 P5C-14…18 + flutter test 34 passed + Cutover disabled。Device A 已在 HEAD 5930f615...（catalog 7→8，hash 闭环）上重验：`mig-p5c-fixture-device=observing recorded_kind=official mutations=0`，投影 1/1，`allowedCardIds` 过滤，用户牌组 181 张不动，revlog 160 fixture 2 行未 wipe。
 
 ---
 
@@ -54,7 +54,7 @@ Host 已满足 24 §4 P5C-14…18 + flutter test 34 passed + Cutover disabled。
 - **Device A 真机验证（PLG110，API 36）**：HEAD `5930f615...` 已重验（`artifacts/p5c/device-a-fixture-pilot.txt`）。
   - APK SHA256: `5930f615fea505dfdea76e787c065912ac7c45c3d8904cb0814e80063850fa1c` == device apk；`official_anki_native_hash_manifest.sh` OK
   - Native `.so` SHA256: `824def69076389a505787ad52285f1bee4fbe056b4c8f6e541d3979217e75ad5`（built==jniLibs==apkSo==deviceSo）
-  - catalog v8 `observing recorded_kind=official mutations=0`；投影 1/1；`allowedCardIds` 过滤；用户 `考研政治默写` 181 张不动；revlog 160 fixture 2 行未 wipe
+  - catalog v8 `observing recorded_kind=official mutations=0`；投影 1/1；`allowedCardIds` 过滤；用户牌组 181 张不动；revlog 160 fixture 2 行未 wipe
 - **关键审计测试清单（本版全部通过）**：
   1. `legacy_migration_dry_run_is_read_only_and_idempotent`
   2. `legacy_migration_crash_resumes_every_checkpoint`

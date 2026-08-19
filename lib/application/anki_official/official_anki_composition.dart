@@ -47,6 +47,7 @@ class OfficialAnkiCompositionRoot {
   static OfficialAnkiExecutionMode executionMode = OfficialAnkiExecutionMode.none;
   static OfficialAnkiDatabase? readOnlyCatalog;
   static OfficialAnkiPaths? locatorPaths;
+  static Future<OfficialAnkiImporter>? _opening;
 
   static OfficialAnkiRuntimeProbe probe({String? libraryPath}) {
     final flags = OfficialAnkiFeatureFlags.current;
@@ -141,6 +142,33 @@ class OfficialAnkiCompositionRoot {
         messageKey: 'official_anki.flag_fail_closed',
       );
     }
+    if (session != null) {
+      rejectInProcessForProduction(flags);
+      return session!;
+    }
+    final inFlight = _opening;
+    if (inFlight != null) return inFlight;
+    final opening = _openImporter(
+      supportDir: supportDir,
+      libraryPath: libraryPath,
+      useFake: useFake,
+      allowInProcessFallback: allowInProcessFallback,
+    );
+    _opening = opening;
+    try {
+      return await opening;
+    } finally {
+      if (identical(_opening, opening)) _opening = null;
+    }
+  }
+
+  static Future<OfficialAnkiImporter> _openImporter({
+    required Directory supportDir,
+    String? libraryPath,
+    required bool useFake,
+    required bool allowInProcessFallback,
+  }) async {
+    final flags = OfficialAnkiFeatureFlags.current;
     if (session != null) {
       rejectInProcessForProduction(flags);
       return session!;

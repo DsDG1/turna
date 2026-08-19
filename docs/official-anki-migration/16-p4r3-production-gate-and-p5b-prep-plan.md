@@ -110,7 +110,7 @@ APK / native / device 身份可复算
    - `ENGINE_INFO` 从设备读，不手填
    - 写入 `artifacts/p4r2/native-hash-manifest.txt`（覆盖过期的 2026-08-17 文件）
 2. Device A **internal-release 100 张**
-   - 同一 German 牌组；不要 wipe 用户卡
+   - 同一已导入用户牌组；不要 wipe 用户卡
    - 记录 rated / retries / timeout / superseded / bury-unrenderable / revlog delta
    - 若 `new_per_day` 仍挡住队列，只改该 deck_config，并写进 artifact
 3. 性能抽样（可与 100 张同一 session）

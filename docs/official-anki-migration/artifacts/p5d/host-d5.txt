@@ -1,0 +1,45 @@
+P5-D D5 PRODUCTION GATE — HOST RECORD (separate commit)
+date: 2026-08-19
+written-go: artifacts/p5d/written-go-d4d5.txt
+plan: 28 §7 D5 + 24 §5 / §13
+mode: D5 declaration in separate commit (not bundled with G/E/P6, not flipping defaults)
+
+DEFAULTS STILL FALSE (verified source)
+- LegacyAnkiMigrationFlags.cutoverEnabled = bool.fromEnvironment('TURNA_OFFICIAL_ANKI_CUTOVER') default false
+- OfficialAnkiFeatureFlags 12 flags all fromEnvironment default false
+- OfficialAnkiGrayConfig TURNA_OFFICIAL_ANKI_GRAY_COHORT default off/g0→legacy for new imports
+- INTERNAL APKs continue with --dart-define; CUTOVER is not the preview button
+
+PREVIEW BUTTON (still disabled this batch unless D5 commit explicitly wires it)
+- lib/views/anki_official/official_anki_migration_preview_page.dart still onPressed:null key official-migration-cutover-disabled (see preview_cutover_button_stays_disabled)
+
+FAIL-CLOSED + OWNER
+- AnkiImportFacade.decisionFor: !cutover→legacy, plat!=android→legacy, !allowsOfficialImport→failClosed (throw OfficialAnkiException capabilityMissing); with cutover+android+full flags+gray off→legacy, gray g1+→official
+- OfficialAnkiProductionRouter / AnkiSourceRouteResolver: !cutover→legacy; recordedKind per-source; gray does not downgrade existing official sources
+- OfficialAnkiReviewGate / decideOfficialReviewGate: !cutover→useLegacy; official without catalog/target/canOpen→failClosed + SnackBar, never Legacy session
+- AnkiWriteGuard: turnaSrs/legacyAnkiDao denied for observing|cutover|…; only officialScheduler allowed; due uses getReviewQueue new+learning+review de-dup deckId
+
+ALLOWLIST DISCIPLINE
+- isUserAllowlistedSource = isFixturePilotSource OR hash∈_userAllowlistedHashes; _userAllowlistedHashes currently empty (fixture only) until per-source written hash commit
+- OfficialAnkiUserMigrationSaga gates both start + pickAndValidatePackage with _requireAllowlisted; no census.first, no bulk
+- receipts/docs must not name concrete user decks / card front/fields / media filenames; no wipe of collection.anki2
+
+COLLATERAL STILL ABSENT
+- lib/application/anki and lib/views/anki not deleted
+- no AnkiWeb production entry; agan not triggered until P6
+- OHOS still legacy fallback (capability matrix)
+
+VERIFIES (this host — include in D5 commit message)
+- flutter test --no-pub test/application/anki_official: 258 passed (p5d_gray_*, p5d_user_allowlist_is_per_source_hash_and_rejects_bulk, preview_cutover_button_stays_disabled, ankiweb_not_linked_from_production_routes)
+- rg -n "CourseDatabase|census" lib/application/anki_official/migration/official_anki_gray_config.dart -- 0
+- rg -n "ankiweb" Varnamalaplus/lib -- 0
+- grep -rn "TURNA_OFFICIAL_ANKI_GRAY" Varnamalaplus/lib -- only gray_config + facade ref
+
+D5 COMMIT BOUNDARY (must be separate)
+- This host-d5.txt + 28/24/README index flip P5-D GO still NO in this file; the flipping commit is separate and must only touch docs + optional preview wiring within same commit, not defaults/legacy-delete/AnkiWeb
+- P5-D GO / P5 USER CUTOVER still NO here; flipping without completing per-source device evidence keeps NO
+
+NEXT
+- D4 first source: written hash → add to _userAllowlistedHashes (single-file commit) → Device A census→backup→dry-run→recordedKind official→allowedCardIds→rate 1→both rollback paths → allowlist-<hash>.txt
+- G2..G4 sequential after gray-g1.txt
+- D5 flip commit separate; do not bundle with P5-E/P6
