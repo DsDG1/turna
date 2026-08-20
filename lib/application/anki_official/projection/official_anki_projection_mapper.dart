@@ -48,10 +48,13 @@ class OfficialAnkiMappingSuggestion {
     this.userConfirmed = false,
     this.updatedAtMillis = 0,
     this.enabledKinds = const <String>[
+      'showWord',
       'flip',
       'multipleChoice',
+      'multiSelect',
       'listenPick',
       'typeAnswer',
+      'fillBlank',
       'canonicalLink',
     ],
     this.singleFieldMode = false,
@@ -204,8 +207,8 @@ class OfficialAnkiProjectionMapper {
     if (target != null &&
         native != null &&
         target.fieldIndex != native.fieldIndex &&
-        target.confidence >= 0.90 &&
-        native.confidence >= 0.90) {
+        target.confidence >= 0.85 &&
+        native.confidence >= 0.85) {
       return OfficialAnkiMappingStatus.autoCandidate;
     }
     final strongest = candidates.isEmpty
@@ -222,33 +225,59 @@ class OfficialAnkiProjectionMapper {
     List<String> tags,
     List<String> deckPath,
   ) {
-    final lower = name.toLowerCase();
+    final lower = name.toLowerCase().trim();
     final evidence = <String>[];
     OfficialAnkiFieldRole? role;
     var confidence = 0.40;
     if (lower.contains('front') ||
         lower.contains('target') ||
         lower == 'word' ||
-        lower.contains('expression')) {
+        lower.contains('expression') ||
+        lower == 'q' ||
+        lower.contains('question') ||
+        lower.contains('正面') ||
+        lower.contains('单词') ||
+        lower.contains('词') ||
+        lower.contains('问题') ||
+        lower.contains('前面') ||
+        lower.contains('题目') ||
+        lower.contains('题干')) {
       role = OfficialAnkiFieldRole.targetText;
       confidence = 0.92;
-      evidence.add('name:${lower.contains('front') ? 'front' : 'target'}');
+      evidence.add('name:${lower.contains('front') || lower.contains('正面') ? 'front' : 'target'}');
     } else if (lower.contains('back') ||
         lower.contains('native') ||
         lower.contains('meaning') ||
-        lower.contains('translation')) {
+        lower.contains('translation') ||
+        lower == 'a' ||
+        lower.contains('answer') ||
+        lower.contains('反面') ||
+        lower.contains('释义') ||
+        lower.contains('翻译') ||
+        lower.contains('答案') ||
+        lower.contains('后面')) {
       role = OfficialAnkiFieldRole.nativeText;
       confidence = 0.91;
-      evidence.add('name:${lower.contains('back') ? 'back' : 'native'}');
-    } else if (lower.contains('audio') || lower.contains('sound')) {
+      evidence.add('name:${lower.contains('back') || lower.contains('反面') ? 'back' : 'native'}');
+    } else if (lower.contains('audio') ||
+        lower.contains('sound') ||
+        lower.contains('音频') ||
+        lower.contains('发音') ||
+        lower.contains('声音')) {
       role = OfficialAnkiFieldRole.audio;
       confidence = 0.88;
       evidence.add('name:audio');
-    } else if (lower.contains('image') || lower.contains('picture')) {
+    } else if (lower.contains('image') ||
+        lower.contains('picture') ||
+        lower.contains('图片') ||
+        lower.contains('插图')) {
       role = OfficialAnkiFieldRole.image;
       confidence = 0.86;
       evidence.add('name:image');
-    } else if (lower.contains('pronun') || lower.contains('ipa')) {
+    } else if (lower.contains('pronun') ||
+        lower.contains('ipa') ||
+        lower.contains('音标') ||
+        lower.contains('拼音')) {
       role = OfficialAnkiFieldRole.pronunciation;
       confidence = 0.84;
       evidence.add('name:pronunciation');
@@ -256,7 +285,7 @@ class OfficialAnkiProjectionMapper {
       role = OfficialAnkiFieldRole.exampleNative;
       confidence = 0.80;
       evidence.add('name:exampleNative');
-    } else if (lower.contains('example')) {
+    } else if (lower.contains('example') || lower.contains('例句')) {
       role = OfficialAnkiFieldRole.exampleTarget;
       confidence = 0.78;
       evidence.add('name:exampleTarget');
@@ -268,7 +297,9 @@ class OfficialAnkiProjectionMapper {
       role = OfficialAnkiFieldRole.lessonLabel;
       confidence = 0.82;
       evidence.add('name:lesson');
-    } else if (lower.contains('option') || lower.contains('choice')) {
+    } else if (lower.contains('option') ||
+        lower.contains('choice') ||
+        lower.contains('选项')) {
       role = OfficialAnkiFieldRole.optionPool;
       confidence = 0.75;
       evidence.add('name:optionPool');

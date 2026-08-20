@@ -24,6 +24,13 @@ abstract class LegacyAnkiIdentifiers {
   }
 
   static String importIdFromSectionId(String sectionId) {
+    if (sectionId.startsWith('official-anki-')) {
+      final sIdx = sectionId.lastIndexOf('-s');
+      if (sIdx > 14) {
+        return sectionId.substring(14, sIdx);
+      }
+      return sectionId.substring(14);
+    }
     final sIdx = sectionId.lastIndexOf('-s');
     if (sIdx > 5) {
       return sectionId.substring(5, sIdx);

@@ -12,6 +12,18 @@ import 'package:turna/domain/course/section.dart';
 import 'package:turna/domain/course/srs_word.dart';
 import 'package:turna/domain/course/stage.dart';
 
+/// One legacy Anki scheduling row paired with its canonical render content.
+/// Review UI consumes this directly instead of manufacturing a course Lesson.
+class AnkiReviewBatchCard {
+  const AnkiReviewBatchCard({
+    required this.scheduled,
+    required this.interaction,
+  });
+
+  final SrsWord scheduled;
+  final Interaction interaction;
+}
+
 /// Assembles Anki review sessions by collecting due Anki cards from the SRS
 /// queue and packaging them into temporary [Lesson]s for [LessonViewModel].
 ///
@@ -175,6 +187,25 @@ class AnkiReviewAssembler {
     int? maxNew,
     int? maxReview,
   }) async {
+    final cards = await assembleReviewBatchAsync(
+      sectionId: sectionId,
+      offset: offset,
+      count: count,
+      maxNew: maxNew,
+      maxReview: maxReview,
+    );
+    if (cards.isEmpty) return null;
+    return _buildLessonFromDue(cards.map((card) => card.scheduled).toList());
+  }
+
+  /// Production review batch without the historical synthetic-Lesson layer.
+  Future<List<AnkiReviewBatchCard>> assembleReviewBatchAsync({
+    String? sectionId,
+    int offset = 0,
+    int? count,
+    int? maxNew,
+    int? maxReview,
+  }) async {
     var candidates = collectDue(sectionId: sectionId);
     if (sectionId != null && _noteDao != null) {
       final importId = importIdFromSectionId(sectionId);
@@ -189,9 +220,8 @@ class AnkiReviewAssembler {
             await _noteDao.deckIdsIncludingDescendants(importId, rootDid);
         final allowedWordIds =
             await _noteDao.wordIdsForDecks(importId, allowed);
-        candidates = candidates
-            .where((w) => allowedWordIds.contains(w.wordId))
-            .toList();
+        candidates =
+            candidates.where((w) => allowedWordIds.contains(w.wordId)).toList();
       }
     }
     final due = _sliceDueBatch(
@@ -202,10 +232,24 @@ class AnkiReviewAssembler {
       maxNew: maxNew,
       maxReview: maxReview,
     );
-    if (due == null || due.isEmpty) return null;
+    if (due == null || due.isEmpty) return const <AnkiReviewBatchCard>[];
 
     await preloadInteractionsFor(due.map((w) => w.wordId));
-    return _buildLessonFromDue(due);
+    final cards = <AnkiReviewBatchCard>[];
+    for (final scheduled in due) {
+      final interaction = _preloadedInteractions[scheduled.wordId] ??
+          _findInteractionForWord(scheduled.wordId);
+      if (interaction == null) continue;
+      cards.add(
+        AnkiReviewBatchCard(
+          scheduled: scheduled,
+          interaction: interaction.copyWith(
+            id: 'anki-review-${scheduled.wordId}',
+          ),
+        ),
+      );
+    }
+    return cards;
   }
 
   /// Assemble the next batch of due cards into a temporary [Lesson].
@@ -384,7 +428,7 @@ class AnkiReviewAssembler {
   }
 
   /// Extract import id from a word id (card-level, decision 2):
-  /// "anki-<importId>-c<cardId>". The <cardId> segment is always last,
+  /// `anki-<importId>-c<cardId>`. The `<cardId>` segment is always last,
   /// so lastIndexOf('-c') finds the importId / cardId separator.
   String _extractImportId(String wordId) {
     final cIdx = wordId.lastIndexOf('-c');
@@ -394,7 +438,7 @@ class AnkiReviewAssembler {
     return '';
   }
 
-  /// Extract import id from a section id: "anki-<importId>-s<deckId>" → importId
+  /// Extract import id from a section id: `anki-<importId>-s<deckId>` → importId
   String _extractImportIdFromSection(String sectionId) =>
       importIdFromSectionId(sectionId);
 

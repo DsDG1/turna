@@ -1,6 +1,6 @@
 const officialAnkiProjectionPageDefault = 200;
 const officialAnkiProjectionPageMax = 500;
-const officialAnkiProjectionAlgorithmVersion = 1;
+const officialAnkiProjectionAlgorithmVersion = 2;
 const officialAnkiProjectionItemJsonMaxBytes = 32 * 1024;
 const officialAnkiProjectionLessonJsonMaxBytes = 512 * 1024;
 const officialAnkiProjectionStaleHeartbeatMillis = 30 * 1000;

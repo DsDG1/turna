@@ -109,8 +109,17 @@ class ReviewHistoryDao {
           ..limit(1))
         .getSingleOrNull();
     if (row == null) return false;
-    await (_db.delete(_db.reviewEvents)..where((t) => t.id.equals(row.id))).go();
+    await (_db.delete(_db.reviewEvents)..where((t) => t.id.equals(row.id)))
+        .go();
     return true;
+  }
+
+  /// Remove the exact product review event identified by its ledger receipt.
+  Future<bool> deleteBySourceKey(String sourceKey) async {
+    final deleted = await (_db.delete(_db.reviewEvents)
+          ..where((table) => table.sourceKey.equals(sourceKey)))
+        .go();
+    return deleted > 0;
   }
 
   ReviewEventsCompanion _toCompanion(ReviewEventRecord e) {
@@ -143,7 +152,8 @@ class ReviewHistoryDao {
       nextEase: row.nextEase,
       reps: row.reps,
       lapses: row.lapses,
-      type: row.type == 'expression' ? SrsItemType.expression : SrsItemType.word,
+      type:
+          row.type == 'expression' ? SrsItemType.expression : SrsItemType.word,
       sourceKey: row.sourceKey,
     );
   }

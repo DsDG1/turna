@@ -40,8 +40,7 @@ class OfficialAnkiProductionRouter {
     String? platform,
   }) {
     if (importId.isEmpty) return AnkiEngineKind.legacy;
-    final cutover =
-        cutoverEnabled ?? LegacyAnkiMigrationFlags.cutoverEnabled;
+    final cutover = cutoverEnabled ?? LegacyAnkiMigrationFlags.cutoverEnabled;
     if (!cutover) return AnkiEngineKind.legacy;
     if (dao == null) {
       return const AnkiSourceRouteResolver().resolve(
@@ -58,9 +57,11 @@ class OfficialAnkiProductionRouter {
     final byHash = hash == null || hash.isEmpty || sources == null
         ? null
         : sources.findByHash(profileId, hash);
-    final hasOfficial = (row?.officialSourceId != null &&
-            row!.officialSourceId!.isNotEmpty) ||
-        byHash != null;
+    final byId = sources?.findById(importId);
+    final hasOfficial =
+        (row?.officialSourceId != null && row!.officialSourceId!.isNotEmpty) ||
+            byHash != null ||
+            byId != null;
     return const AnkiSourceRouteResolver().resolve(
       sourceKey: importId,
       recordedKind: parseRecordedKind(row?.recordedKind),
@@ -73,10 +74,10 @@ class OfficialAnkiProductionRouter {
   OfficialAnkiRoutedSource? reviewTargetForImport({
     required OfficialAnkiMigrationDao dao,
     required OfficialAnkiSourceDao sources,
-    required String importId,
     String profileId = defaultProfileId,
     bool? cutoverEnabled,
     String? sourceHash,
+    required String importId,
     String? platform,
   }) {
     if (engineForImport(
@@ -97,9 +98,13 @@ class OfficialAnkiProductionRouter {
     );
     var sourceId = row?.officialSourceId;
     if (sourceId == null || sourceId.isEmpty) {
-      final hash = (sourceHash ?? row?.sourceHash)?.trim();
-      if (hash != null && hash.isNotEmpty) {
-        sourceId = sources.findByHash(profileId, hash)?.sourceId;
+      if (sources.findById(importId) != null) {
+        sourceId = importId;
+      } else {
+        final hash = (sourceHash ?? row?.sourceHash)?.trim();
+        if (hash != null && hash.isNotEmpty) {
+          sourceId = sources.findByHash(profileId, hash)?.sourceId;
+        }
       }
     }
     if (sourceId == null || sourceId.isEmpty) return null;
@@ -162,16 +167,15 @@ class OfficialAnkiProductionRouter {
     String profileId = defaultProfileId,
     bool? cutoverEnabled,
   }) {
-    final cutover =
-        cutoverEnabled ?? LegacyAnkiMigrationFlags.cutoverEnabled;
+    final cutover = cutoverEnabled ?? LegacyAnkiMigrationFlags.cutoverEnabled;
     if (!cutover) return const {};
     final out = <String>{};
     for (final row in dao.listMigrations(profileId: profileId)) {
       final engine = const AnkiSourceRouteResolver().resolve(
         sourceKey: row.legacyImportId,
         recordedKind: parseRecordedKind(row.recordedKind),
-        officialCatalogHasSource: row.officialSourceId != null &&
-            row.officialSourceId!.isNotEmpty,
+        officialCatalogHasSource:
+            row.officialSourceId != null && row.officialSourceId!.isNotEmpty,
         cutoverEnabled: cutover,
       );
       if (engine == AnkiEngineKind.official) {
@@ -268,16 +272,108 @@ class OfficialAnkiProductionRouter {
     }
     final queue = await getReviewQueue();
     final total = queue.newCount + queue.learningCount + queue.reviewCount;
-    final perImport = total ~/ targets.length;
-    var remainder = total % targets.length;
-    for (final importId in targets.keys) {
-      final extra = remainder > 0 ? 1 : 0;
-      if (remainder > 0) remainder--;
-      OfficialAnkiHomeDue.officialDueByImport[importId] = perImport + extra;
+    if (targets.length == 1) {
+      OfficialAnkiHomeDue.officialDueByImport[targets.keys.first] = total;
+    } else {
+      for (final importId in targets.keys) {
+        OfficialAnkiHomeDue.officialDueByImport[importId] = 0;
+      }
     }
     for (final importId in ids) {
       OfficialAnkiHomeDue.officialDueByImport.putIfAbsent(importId, () => 0);
     }
+    OfficialAnkiHomeDue.officialDue = total;
+    OfficialAnkiHomeDue.officialDueUnavailable = false;
+    return total;
+  }
+
+  /// Refresh due counts from one authoritative official deck-tree snapshot.
+  /// Counts are assigned once per effective deck; a selected parent deck owns
+  /// any selected descendants because Anki parent counts already include them.
+  Future<int> refreshHomeDueFromDeckTree({
+    required OfficialAnkiMigrationDao dao,
+    required OfficialAnkiSourceDao sources,
+    required Future<List<OfficialAnkiDeckNode>> Function() getDeckTree,
+    String profileId = defaultProfileId,
+    bool? cutoverEnabled,
+  }) async {
+    final ids = officialImportIds(
+      dao: dao,
+      profileId: profileId,
+      cutoverEnabled: cutoverEnabled,
+    );
+    OfficialAnkiHomeDue.officialImportIds = ids;
+    OfficialAnkiHomeDue.officialDueByImport = {};
+    if (ids.isEmpty) {
+      OfficialAnkiHomeDue.officialDue = 0;
+      OfficialAnkiHomeDue.officialDueUnavailable = false;
+      return 0;
+    }
+
+    final targets = <String, OfficialAnkiRoutedSource>{};
+    for (final importId in ids) {
+      final target = reviewTargetForImport(
+        dao: dao,
+        sources: sources,
+        importId: importId,
+        profileId: profileId,
+        cutoverEnabled: cutoverEnabled,
+      );
+      if (target != null) targets[importId] = target;
+    }
+
+    final nodes = await getDeckTree();
+    final nodeById = <int, OfficialAnkiDeckNode>{
+      for (final node in nodes) node.deckId: node,
+    };
+    final ancestorsById = <int, List<int>>{};
+    final stack = <OfficialAnkiDeckNode>[];
+    for (final node in nodes) {
+      while (stack.isNotEmpty && stack.last.level >= node.level) {
+        stack.removeLast();
+      }
+      ancestorsById[node.deckId] = [for (final parent in stack) parent.deckId];
+      stack.add(node);
+    }
+
+    final selectedDeckIds =
+        targets.values.map((target) => target.deckId).toSet();
+    int representativeFor(int deckId) {
+      final ancestors = ancestorsById[deckId] ?? const <int>[];
+      for (final ancestorId in ancestors) {
+        if (selectedDeckIds.contains(ancestorId)) return ancestorId;
+      }
+      return deckId;
+    }
+
+    final importsByRepresentative = <int, List<String>>{};
+    for (final importId in ids) {
+      final target = targets[importId];
+      if (target == null) {
+        OfficialAnkiHomeDue.officialDueByImport[importId] = 0;
+        continue;
+      }
+      final representative = representativeFor(target.deckId);
+      importsByRepresentative
+          .putIfAbsent(representative, () => <String>[])
+          .add(importId);
+      OfficialAnkiHomeDue.officialDueByImport[importId] = 0;
+    }
+
+    var total = 0;
+    for (final entry in importsByRepresentative.entries) {
+      final representative = entry.key;
+      final node = nodeById[representative];
+      if (node == null) continue;
+      final importIds = entry.value..sort();
+      final owner = importIds.firstWhere(
+        (importId) => targets[importId]?.deckId == representative,
+        orElse: () => importIds.first,
+      );
+      OfficialAnkiHomeDue.officialDueByImport[owner] = node.dueCount;
+      total += node.dueCount;
+    }
+
     OfficialAnkiHomeDue.officialDue = total;
     OfficialAnkiHomeDue.officialDueUnavailable = false;
     return total;

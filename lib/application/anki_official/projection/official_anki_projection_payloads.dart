@@ -6,6 +6,8 @@ import 'package:turna/application/anki_official/projection/official_anki_project
 import 'package:turna/application/anki_official/projection/official_anki_projection_mapper.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_paging.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_projector.dart';
+import 'package:turna/application/anki_practice/card_classifier.dart';
+import 'package:turna/application/anki_practice/card_classifier_models.dart';
 import 'package:turna/domain/course/interaction.dart';
 
 class OfficialAnkiPayloadOverflow implements Exception {
@@ -22,6 +24,7 @@ class OfficialAnkiRoleValues {
     required this.image,
     required this.options,
     required this.truncatedRequired,
+    this.classification,
   });
 
   final String target;
@@ -32,6 +35,7 @@ class OfficialAnkiRoleValues {
   final String? image;
   final List<String> options;
   final bool truncatedRequired;
+  final AnkiPracticeClassification? classification;
 }
 
 class OfficialAnkiProjectionPayloads {
@@ -42,8 +46,9 @@ class OfficialAnkiProjectionPayloads {
 
   OfficialAnkiRoleValues values(
     OfficialAnkiProjectionRow row,
-    OfficialAnkiMappingSuggestion? mapping,
-  ) {
+    OfficialAnkiMappingSuggestion? mapping, {
+    List<String> siblingAnswers = const <String>[],
+  }) {
     String text(OfficialAnkiFieldRole role) {
       final candidate = mapping?.role(role);
       if (candidate == null) return '';
@@ -69,15 +74,41 @@ class OfficialAnkiProjectionPayloads {
         (mapping?.role(OfficialAnkiFieldRole.targetText) != null ||
             mapping?.role(OfficialAnkiFieldRole.nativeText) != null ||
             mapping?.role(OfficialAnkiFieldRole.audio) != null);
+
+    final targetText = text(OfficialAnkiFieldRole.targetText);
+    final nativeText = text(OfficialAnkiFieldRole.nativeText);
+
+    final input = AnkiPracticeCardInput(
+      cardId: row.cardId,
+      notetypeId: row.notetypeId,
+      fields: row.fields,
+      fieldNames: mapping?.candidates.map((c) => c.fieldName).toList() ?? const <String>[],
+      questionText: targetText,
+      answerText: nativeText,
+      rawQuestionHtml: raw(OfficialAnkiFieldRole.targetText),
+      rawAnswerHtml: raw(OfficialAnkiFieldRole.nativeText),
+      tags: row.tags,
+      deckPath: row.deckPath,
+      siblingAnswers: siblingAnswers,
+    );
+    final classification = AnkiPracticeCardClassifier.classify(input);
+
     return OfficialAnkiRoleValues(
-      target: text(OfficialAnkiFieldRole.targetText),
-      native: text(OfficialAnkiFieldRole.nativeText),
-      pronunciation: text(OfficialAnkiFieldRole.pronunciation),
-      example: text(OfficialAnkiFieldRole.exampleTarget),
-      audio: audio,
-      image: image,
-      options: options,
+      target: targetText.isNotEmpty ? targetText : classification.term,
+      native: nativeText.isNotEmpty ? nativeText : classification.meaning,
+      pronunciation: text(OfficialAnkiFieldRole.pronunciation).isNotEmpty
+          ? text(OfficialAnkiFieldRole.pronunciation)
+          : (classification.pronunciation ?? ''),
+      example: text(OfficialAnkiFieldRole.exampleTarget).isNotEmpty
+          ? text(OfficialAnkiFieldRole.exampleTarget)
+          : (classification.example ?? ''),
+      audio: audio ?? classification.audioFilename,
+      image: image ?? classification.imageFilename,
+      options: options.isNotEmpty
+          ? options
+          : (classification.options.isNotEmpty ? classification.options : siblingAnswers),
       truncatedRequired: requiredTruncated,
+      classification: classification,
     );
   }
 
@@ -86,44 +117,105 @@ class OfficialAnkiProjectionPayloads {
     required OfficialAnkiMappingSuggestion? mapping,
     required bool typeAnswerEnabled,
   }) {
+    if (values.truncatedRequired) {
+      return const [OfficialAnkiProjectionKind.canonicalLink];
+    }
+    final classification = values.classification;
     if (mapping == null ||
         mapping.status == OfficialAnkiMappingStatus.needsMapping ||
         mapping.status == OfficialAnkiMappingStatus.needsReview ||
         mapping.status == OfficialAnkiMappingStatus.skipped) {
-      return const [OfficialAnkiProjectionKind.canonicalLink];
+      if (classification == null ||
+          classification.confidence < 0.85 ||
+          classification.shape == AnkiPracticeShape.fidelity) {
+        return const [OfficialAnkiProjectionKind.canonicalLink];
+      }
     }
-    final enabled = mapping.enabledKinds.toSet();
-    final kinds = <OfficialAnkiProjectionKind>[];
-    if (values.truncatedRequired) {
-      return const [OfficialAnkiProjectionKind.canonicalLink];
+
+    final enabled = mapping?.enabledKinds.toSet() ??
+        const <String>{
+          'showWord',
+          'flip',
+          'multipleChoice',
+          'multiSelect',
+          'listenPick',
+          'typeAnswer',
+          'fillBlank',
+          'translate',
+          'canonicalLink',
+        };
+
+    if (classification != null) {
+      switch (classification.shape) {
+        case AnkiPracticeShape.fidelity:
+          return const [OfficialAnkiProjectionKind.canonicalLink];
+        case AnkiPracticeShape.cloze:
+          return const [OfficialAnkiProjectionKind.fillBlank];
+        case AnkiPracticeShape.quiz:
+          if (classification.correctIndices != null &&
+              classification.correctIndices!.length >= 2) {
+            return const [OfficialAnkiProjectionKind.multiSelect];
+          }
+          return const [OfficialAnkiProjectionKind.multipleChoice];
+        case AnkiPracticeShape.listen:
+          if (enabled.contains('listenPick') && values.audio != null) {
+            return const [OfficialAnkiProjectionKind.listenPick];
+          }
+          return const [OfficialAnkiProjectionKind.flip];
+        case AnkiPracticeShape.vocab:
+          final list = <OfficialAnkiProjectionKind>[];
+          if (enabled.contains('flip')) {
+            list.add(OfficialAnkiProjectionKind.flip);
+          }
+          if (enabled.contains('showWord') && !list.contains(OfficialAnkiProjectionKind.flip)) {
+            list.add(OfficialAnkiProjectionKind.showWord);
+          }
+          final uniqueDistractors = values.options
+              .where((o) => o.toLowerCase() != values.target.toLowerCase())
+              .toSet()
+              .toList();
+          if (enabled.contains('multipleChoice') &&
+              values.target.isNotEmpty &&
+              uniqueDistractors.length >= 2) {
+            list.add(OfficialAnkiProjectionKind.multipleChoice);
+          }
+          if (enabled.contains('listenPick') &&
+              values.audio != null &&
+              uniqueDistractors.length >= 2) {
+            list.add(OfficialAnkiProjectionKind.listenPick);
+          }
+          if (typeAnswerEnabled &&
+              enabled.contains('typeAnswer') &&
+              values.native.isNotEmpty) {
+            list.add(OfficialAnkiProjectionKind.typeAnswer);
+          }
+          if (list.isEmpty) {
+            list.add(enabled.contains('flip')
+                ? OfficialAnkiProjectionKind.flip
+                : OfficialAnkiProjectionKind.showWord);
+          }
+          return list;
+        case AnkiPracticeShape.expression:
+          return const [OfficialAnkiProjectionKind.fillBlank];
+        case AnkiPracticeShape.typeAnswer:
+          if (typeAnswerEnabled &&
+              enabled.contains('typeAnswer') &&
+              values.audio != null &&
+              values.audio!.isNotEmpty) {
+            return const [OfficialAnkiProjectionKind.typeAnswer];
+          }
+          return const [OfficialAnkiProjectionKind.flip];
+        case AnkiPracticeShape.flip:
+          return const [OfficialAnkiProjectionKind.flip];
+      }
     }
+
     if (enabled.contains('flip') &&
         values.target.isNotEmpty &&
         values.native.isNotEmpty) {
-      kinds.add(OfficialAnkiProjectionKind.flip);
+      return const [OfficialAnkiProjectionKind.flip];
     }
-    final uniqueDistractors = values.options
-        .where((option) => option.toLowerCase() != values.target.toLowerCase())
-        .toSet()
-        .toList();
-    if (enabled.contains('multipleChoice') &&
-        values.target.isNotEmpty &&
-        uniqueDistractors.length >= 3) {
-      kinds.add(OfficialAnkiProjectionKind.multipleChoice);
-    }
-    if (enabled.contains('listenPick') &&
-        values.audio != null &&
-        values.target.isNotEmpty &&
-        uniqueDistractors.length >= 3) {
-      kinds.add(OfficialAnkiProjectionKind.listenPick);
-    }
-    if (typeAnswerEnabled &&
-        enabled.contains('typeAnswer') &&
-        values.native.isNotEmpty) {
-      kinds.add(OfficialAnkiProjectionKind.typeAnswer);
-    }
-    if (kinds.isEmpty) kinds.add(OfficialAnkiProjectionKind.canonicalLink);
-    return kinds;
+    return const [OfficialAnkiProjectionKind.canonicalLink];
   }
 
   Map<String, Object?> interactionJson({
@@ -145,6 +237,24 @@ class OfficialAnkiProjectionPayloads {
       kind: kind.name,
     );
     final interaction = switch (kind) {
+      OfficialAnkiProjectionKind.showWord => Interaction.showWord(
+          id: id,
+          wordId: item.wordId,
+          term: values.target.isNotEmpty
+              ? values.target
+              : (values.classification?.term ?? ''),
+          translation: values.native.isNotEmpty
+              ? values.native
+              : (values.classification?.meaning ?? ''),
+          pronunciation: values.pronunciation.isNotEmpty
+              ? values.pronunciation
+              : values.classification?.pronunciation,
+          audioAsset: values.audio ?? values.classification?.audioFilename,
+          imageAsset: values.image ?? values.classification?.imageFilename,
+          example: values.example.isNotEmpty
+              ? values.example
+              : values.classification?.example,
+        ),
       OfficialAnkiProjectionKind.flip => Interaction.ankiCard(
           id: id,
           front: values.target,
@@ -156,23 +266,60 @@ class OfficialAnkiProjectionPayloads {
         ),
       OfficialAnkiProjectionKind.multipleChoice => Interaction.multipleChoice(
           id: id,
-          prompt: values.native.isEmpty ? 'Choose the target' : values.native,
-          options: shuffled.options,
-          correctIndex: shuffled.correctIndex,
+          prompt: values.classification?.options.isNotEmpty == true &&
+                  values.classification!.term.isNotEmpty
+              ? values.classification!.term
+              : (values.native.isEmpty ? 'Choose the target' : values.native),
+          options: values.classification?.options.isNotEmpty == true
+              ? values.classification!.options
+              : shuffled.options,
+          correctIndex: values.classification?.correctIndex ?? shuffled.correctIndex,
           imageAsset: values.image,
           audioAssets: values.audio == null ? const <String>[] : [values.audio!],
         ),
+      OfficialAnkiProjectionKind.multiSelect => Interaction.multiSelect(
+          id: id,
+          prompt: values.classification?.term.isNotEmpty == true
+              ? values.classification!.term
+              : values.native,
+          options: values.classification?.options.isNotEmpty == true
+              ? values.classification!.options
+              : shuffled.options,
+          correctIndices: values.classification?.correctIndices ?? const [0],
+          minSelections: values.classification?.correctIndices?.length ?? 1,
+          maxSelections: values.classification?.correctIndices?.length ?? 1,
+          imageAsset: values.image,
+        ),
+      OfficialAnkiProjectionKind.fillBlank => Interaction.fillBlank(
+          id: id,
+          sentence: values.classification?.clozeSentence?.isNotEmpty == true
+              ? values.classification!.clozeSentence!
+              : values.target,
+          answer: values.classification?.clozeAnswer?.isNotEmpty == true
+              ? values.classification!.clozeAnswer!
+              : values.native,
+          hint: values.pronunciation.isNotEmpty
+              ? values.pronunciation
+              : values.classification?.pronunciation,
+          audioAssets: values.audio == null ? const <String>[] : [values.audio!],
+          imageAssets: values.image == null ? const <String>[] : [values.image!],
+        ),
       OfficialAnkiProjectionKind.listenPick => Interaction.listenAndPick(
           id: id,
-          audioAsset: values.audio ?? '',
+          audioAsset: values.audio ?? values.classification?.audioFilename ?? '',
           prompt: values.native.isEmpty ? 'Listen and pick' : values.native,
           options: shuffled.options,
           correctIndex: shuffled.correctIndex,
         ),
       OfficialAnkiProjectionKind.typeAnswer => Interaction.typeTheWord(
           id: id,
-          audioAsset: values.audio ?? '',
+          audioAsset: values.audio ?? values.classification?.audioFilename ?? '',
           prompt: values.target.isEmpty ? 'Type the answer' : values.target,
+          expected: values.native,
+        ),
+      OfficialAnkiProjectionKind.translate => Interaction.translateSentence(
+          id: id,
+          source: values.target,
           expected: values.native,
         ),
       OfficialAnkiProjectionKind.canonicalLink => Interaction.showWord(

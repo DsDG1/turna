@@ -83,8 +83,16 @@ class SrsProvider extends SrsQueueProvider {
       reviewWithOutcome(wordId, grade.outcome);
 
   /// Binary pass/fail for a word (记住·做对 / 没记住·做错).
-  Future<SrsWord?> reviewWordOutcome(String wordId, ReviewOutcome outcome) =>
-      reviewWithOutcome(wordId, outcome);
+  Future<SrsWord?> reviewWordOutcome(
+    String wordId,
+    ReviewOutcome outcome, {
+    String? eventSourceKey,
+  }) =>
+      reviewWithOutcome(
+        wordId,
+        outcome,
+        eventSourceKey: eventSourceKey,
+      );
 
   Future<bool> undoWordReview(String wordId, SrsWord previous) =>
       undoReview(wordId, previous);
@@ -107,9 +115,14 @@ class SrsProvider extends SrsQueueProvider {
 
   Future<SrsWord?> reviewExpressionOutcome(
     String expressionId,
-    ReviewOutcome outcome,
-  ) =>
-      reviewWithOutcome(expressionId, outcome);
+    ReviewOutcome outcome, {
+    String? eventSourceKey,
+  }) =>
+      reviewWithOutcome(
+        expressionId,
+        outcome,
+        eventSourceKey: eventSourceKey,
+      );
 
   /// Public surface for [LessonViewModel.undoLastInteraction] to roll back
   /// a word grade captured before the most recent submission. Delegates to
@@ -120,19 +133,56 @@ class SrsProvider extends SrsQueueProvider {
   /// saw before), we restore the in-memory fresh state, not a freshly
   /// re-registered one — otherwise the undo would silently re-register the
   /// id with a different timestamp.
-  Future<bool> rollbackWord(String wordId, SrsWord? previous) =>
-      undoReview(wordId, previous ?? state[wordId] ?? SrsWord.fresh(wordId));
+  Future<bool> rollbackWord(
+    String wordId,
+    SrsWord? previous, {
+    String? eventSourceKey,
+  }) =>
+      undoReview(
+        wordId,
+        previous ?? state[wordId] ?? SrsWord.fresh(wordId),
+        eventSourceKey: eventSourceKey,
+      );
 
   /// Same as [rollbackWord] but for the expression queue.
-  Future<bool> rollbackExpression(String expressionId, SrsWord? previous) =>
-      undoReview(expressionId, previous ?? state[expressionId] ?? SrsWord.fresh(expressionId));
+  Future<bool> rollbackExpression(
+    String expressionId,
+    SrsWord? previous, {
+    String? eventSourceKey,
+  }) =>
+      undoReview(
+        expressionId,
+        previous ?? state[expressionId] ?? SrsWord.fresh(expressionId),
+        eventSourceKey: eventSourceKey,
+      );
 
   /// Words whose `dueAt` is in the past or now (primary due cache).
+  /// Excludes Anki cards so general SRS only reviews course words.
   List<SrsWord> getDueWords([DateTime? now]) => getDueItems(
         typeFilter: SrsItemType.word,
         now: now,
         usePrimaryCache: true,
+        excludeAnki: true,
       );
+
+  /// Anki cards whose `dueAt` is in the past or now.
+  List<SrsWord> getDueAnkiWords([DateTime? now]) {
+    final cutoff = now ?? DateTime.now();
+    return state.values
+        .where(
+          (w) =>
+              (w.wordId.startsWith('anki-') ||
+                  w.wordId.startsWith('official-anki-')) &&
+              !w.isSuspended &&
+              !w.isBuried &&
+              !w.dueAt.isAfter(cutoff),
+        )
+        .toList()
+      ..sort((a, b) {
+        if (a.isLeech != b.isLeech) return a.isLeech ? 1 : -1;
+        return a.dueAt.compareTo(b.dueAt);
+      });
+  }
 
   /// Stable identity set of due word ids — cached alongside the primary due
   /// cache so `context.select` equality holds across notifies that don't
@@ -155,6 +205,7 @@ class SrsProvider extends SrsQueueProvider {
       typeFilter: SrsItemType.expression,
       now: cutoff,
       usePrimaryCache: false,
+      excludeAnki: true,
     );
     _cachedDueExpressions = result;
     _cachedExpressionDueAt = cutoff;
@@ -164,7 +215,11 @@ class SrsProvider extends SrsQueueProvider {
 
   List<SrsWord> getMixedWords(int n) {
     final seen = state.values
-        .where((w) => w.type == SrsItemType.word && w.reps >= 1)
+        .where((w) =>
+            w.type == SrsItemType.word &&
+            !w.wordId.startsWith('anki-') &&
+            !w.wordId.startsWith('official-anki-') &&
+            w.reps >= 1)
         .toList();
     seen.shuffle();
     return seen.take(n).toList();
@@ -172,7 +227,11 @@ class SrsProvider extends SrsQueueProvider {
 
   List<SrsWord> getMixedExpressions(int n) {
     final seen = state.values
-        .where((w) => w.type == SrsItemType.expression && w.reps >= 1)
+        .where((w) =>
+            w.type == SrsItemType.expression &&
+            !w.wordId.startsWith('anki-') &&
+            !w.wordId.startsWith('official-anki-') &&
+            w.reps >= 1)
         .toList();
     seen.shuffle();
     return seen.take(n).toList();
@@ -180,32 +239,56 @@ class SrsProvider extends SrsQueueProvider {
 
   List<SrsWord> getLapseWords() {
     return state.values
-        .where((w) => w.type == SrsItemType.word && w.lapses > 0)
+        .where((w) =>
+            w.type == SrsItemType.word &&
+            !w.wordId.startsWith('anki-') &&
+            !w.wordId.startsWith('official-anki-') &&
+            w.lapses > 0)
         .toList()
       ..sort((a, b) => b.lapses.compareTo(a.lapses));
   }
 
   List<SrsWord> getLapseExpressions() {
     return state.values
-        .where((w) => w.type == SrsItemType.expression && w.lapses > 0)
+        .where((w) =>
+            w.type == SrsItemType.expression &&
+            !w.wordId.startsWith('anki-') &&
+            !w.wordId.startsWith('official-anki-') &&
+            w.lapses > 0)
         .toList()
       ..sort((a, b) => b.lapses.compareTo(a.lapses));
   }
 
   int get dueCount => primaryCachedDueCount ?? getDueWords().length;
   int get totalSeen => state.values
-      .where((w) => w.type == SrsItemType.word && w.reps >= 1)
+      .where((w) =>
+          w.type == SrsItemType.word &&
+          !w.wordId.startsWith('anki-') &&
+          !w.wordId.startsWith('official-anki-') &&
+          w.reps >= 1)
       .length;
-  int get totalRegistered =>
-      state.values.where((w) => w.type == SrsItemType.word).length;
+  int get totalRegistered => state.values
+      .where((w) =>
+          w.type == SrsItemType.word &&
+          !w.wordId.startsWith('anki-') &&
+          !w.wordId.startsWith('official-anki-'))
+      .length;
 
   int get expressionDueCount =>
       _cachedExpressionDueCount ?? getDueExpressions().length;
   int get expressionTotalSeen => state.values
-      .where((w) => w.type == SrsItemType.expression && w.reps >= 1)
+      .where((w) =>
+          w.type == SrsItemType.expression &&
+          !w.wordId.startsWith('anki-') &&
+          !w.wordId.startsWith('official-anki-') &&
+          w.reps >= 1)
       .length;
-  int get expressionTotalRegistered =>
-      state.values.where((w) => w.type == SrsItemType.expression).length;
+  int get expressionTotalRegistered => state.values
+      .where((w) =>
+          w.type == SrsItemType.expression &&
+          !w.wordId.startsWith('anki-') &&
+          !w.wordId.startsWith('official-anki-'))
+      .length;
 
   @override
   void invalidateDueCaches() {

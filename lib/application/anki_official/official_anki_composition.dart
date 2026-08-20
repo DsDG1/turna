@@ -44,6 +44,7 @@ class OfficialAnkiCompositionRoot {
   OfficialAnkiCompositionRoot._();
 
   static OfficialAnkiImporter? session;
+  static OfficialAnkiEngine? get engine => projectionEngineFromSession();
   static OfficialAnkiExecutionMode executionMode = OfficialAnkiExecutionMode.none;
   static OfficialAnkiDatabase? readOnlyCatalog;
   static OfficialAnkiPaths? locatorPaths;
@@ -130,7 +131,7 @@ class OfficialAnkiCompositionRoot {
   }
 
   static Future<OfficialAnkiImporter> requireImporter({
-    required Directory supportDir,
+    Directory? supportDir,
     String? libraryPath,
     bool useFake = false,
     bool allowInProcessFallback = false,
@@ -146,10 +147,11 @@ class OfficialAnkiCompositionRoot {
       rejectInProcessForProduction(flags);
       return session!;
     }
+    final support = supportDir ?? await getApplicationSupportDirectory();
     final inFlight = _opening;
     if (inFlight != null) return inFlight;
     final opening = _openImporter(
-      supportDir: supportDir,
+      supportDir: support,
       libraryPath: libraryPath,
       useFake: useFake,
       allowInProcessFallback: allowInProcessFallback,

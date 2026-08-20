@@ -108,10 +108,10 @@ class OfficialAnkiHomeDueSync {
           OfficialAnkiHomeDue.officialDueUnavailable = true;
           return;
         }
-        await router.refreshHomeDueFromQueue(
+        await router.refreshHomeDueFromDeckTree(
           dao: dao,
           sources: sources,
-          getReviewQueue: () => session.getReviewQueue(fetchLimit: 50),
+          getDeckTree: session.listDeckTree,
         );
       } finally {
         catalog.close();

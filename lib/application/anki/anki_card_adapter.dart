@@ -5,6 +5,8 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:turna/application/anki/anki_media_reference_extractor.dart';
 import 'package:turna/application/anki/anki_models.dart';
 import 'package:turna/application/anki/anki_template_renderer.dart';
+import 'package:turna/application/anki_practice/card_text.dart';
+import 'package:turna/application/anki_practice/embedded_options.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/domain/course/word_entry.dart';
 
@@ -98,13 +100,6 @@ class AnkiCardAdapter {
   static final _clozeRegex = RegExp(
     r'\{\{c\d+::(.*?)(?:::([^}]*))?\}\}',
     dotAll: true,
-  );
-
-  /// Used only when reducing a field to visible text. Media extraction is
-  /// owned by [AnkiMediaReferenceExtractor].
-  static final _soundMarkerRegex = RegExp(
-    r'\[sound:[^\]]+\]',
-    caseSensitive: false,
   );
 
   /// Extract media references (images + sounds) from a raw Anki field value
@@ -573,11 +568,7 @@ class AnkiCardAdapter {
   }
 
   /// Whether [answer] is short enough to grade objectively (typed or picked).
-  static bool _isShortAnswer(String answer) {
-    return answer.isNotEmpty &&
-        answer.length <= shortAnswerMaxLength &&
-        !answer.contains('\n');
-  }
+  static bool _isShortAnswer(String answer) => CardText.isShortAnswer(answer);
 
   /// Unique distractor values excluding the correct [answer].
   static List<String> _usableDistractors(List<String> pool, String answer) {
@@ -597,33 +588,15 @@ class AnkiCardAdapter {
   }
 
   /// Strip basic HTML tags from Anki field content.
-  static String stripHtmlPublic(String html) => _stripHtml(html);
+  static String stripHtmlPublic(String html) => CardText.stripHtml(html);
 
   /// Public alias for the short-answer check, used by [AnkiRenderPolicy].
-  static bool isShortAnswerPublic(String answer) => _isShortAnswer(answer);
+  static bool isShortAnswerPublic(String answer) => CardText.isShortAnswer(answer);
 
   /// Split Anki's space-separated `tags` string into a clean list.
-  static List<String> splitTags(String tags) {
-    if (tags.isEmpty) return const [];
-    return tags
-        .split(' ')
-        .map((t) => t.trim())
-        .where((t) => t.isNotEmpty)
-        .toList();
-  }
+  static List<String> splitTags(String tags) => CardText.splitTags(tags);
 
-  static String _stripHtml(String html) {
-    return html
-        .replaceAll(_soundMarkerRegex, '')
-        .replaceAll(RegExp(r'<br\s*/?>'), '\n')
-        .replaceAll(RegExp(r'<[^>]+>'), '')
-        .replaceAll('&nbsp;', ' ')
-        .replaceAll('&amp;', '&')
-        .replaceAll('&lt;', '<')
-        .replaceAll('&gt;', '>')
-        .replaceAll('&quot;', '"')
-        .trim();
-  }
+  static String _stripHtml(String html) => CardText.stripHtml(html);
 
   static int? _findFieldIndex(List<String> lowerFields, List<String> patterns) {
     for (var i = 0; i < lowerFields.length; i++) {
@@ -1021,323 +994,63 @@ class AnkiCardAdapter {
   /// field indices, and whether the notetype is multi-select.
   @visibleForTesting
   static ChoiceFieldLayout? detectChoiceLayout(AnkiNotetype notetype) {
-    final fields = notetype.fieldNames;
-    if (fields.length < 3) return null;
-    final lower = fields.map((f) => f.toLowerCase().trim()).toList();
-
-    final optionIndices = <int>[];
-    for (var i = 0; i < lower.length; i++) {
-      if (isOptionFieldName(lower[i])) optionIndices.add(i);
-    }
-    if (optionIndices.length < 2) return null;
-
-    final optionSet = optionIndices.toSet();
-    final promptIndex = _findFieldIndex(lower, [
-          'question',
-          'prompt',
-          'title',
-          'stem',
-          'text',
-          '问题',
-          '题目',
-          '题干',
-          'front',
-        ]) ??
-        (() {
-          for (var i = 0; i < lower.length; i++) {
-            if (!optionSet.contains(i) && !_isAnswerFieldName(lower[i])) {
-              return i;
-            }
-          }
-          return 0;
-        })();
-
-    var answerIndex = _findFieldIndex(lower, [
-      'answers',
-      'answer',
-      'correct',
-      'correct answer',
-      'correct answers',
-      'key',
-      '答案',
-      '正确答案',
-      '正确选项',
-      '正解',
-    ]);
-    // Prefer an answer field that is not itself an option column.
-    if (answerIndex != null && optionSet.contains(answerIndex)) {
-      answerIndex = null;
-      for (var i = 0; i < lower.length; i++) {
-        if (!optionSet.contains(i) && _isAnswerFieldName(lower[i])) {
-          answerIndex = i;
-          break;
-        }
-      }
-    }
-    answerIndex ??= (() {
-      for (var i = lower.length - 1; i >= 0; i--) {
-        if (!optionSet.contains(i) && i != promptIndex) return i;
-      }
-      return optionIndices.last;
-    })();
-
-    final nameLower = notetype.name.toLowerCase();
-    final multi = _nameLooksLikeMultiSelect(nameLower) ||
-        lower.any((f) =>
-            f.contains('answers') ||
-            f.contains('correct answers') ||
-            f.contains('多选'));
-
+    final layout = EmbeddedOptionsParser.detectChoiceLayout(
+      fieldNames: notetype.fieldNames,
+      notetypeName: notetype.name,
+    );
+    if (layout == null) return null;
     return ChoiceFieldLayout(
-      promptIndex: promptIndex,
-      answerIndex: answerIndex,
-      optionIndices: List.unmodifiable(optionIndices),
-      multi: multi,
+      promptIndex: layout.promptIndex,
+      answerIndex: layout.answerIndex,
+      optionIndices: layout.optionIndices,
+      multi: layout.multi,
     );
   }
 
   /// Whether a (lowercased) field name looks like an MCQ option column.
   @visibleForTesting
-  static bool isOptionFieldName(String lower) {
-    final s = lower.trim();
-    if (s.isEmpty) return false;
-    // "answer" / "correct" are keys, not options.
-    if (_isAnswerFieldName(s)) return false;
-    if (RegExp(r'^(option|choice|opt|选项)\s*[_-]?\s*[a-f0-9]?$').hasMatch(s)) {
-      return true;
-    }
-    // Anki "Multiple Choice" add-on: Q_1, QA, Q B, Choice1 …
-    if (RegExp(r'^q[_-]?\s*[a-f1-9]$').hasMatch(s)) return true;
-    if (RegExp(r'^[a-f]$').hasMatch(s)) return true;
-    if (RegExp(r'^选项\s*[a-f甲乙丙丁1-9]$').hasMatch(s)) return true;
-    if (RegExp(r'^选项[一二三四五六]$').hasMatch(s)) return true;
-    if (RegExp(r'^(option|choice)\s*[a-f1-9]$').hasMatch(s)) return true;
-    return false;
-  }
+  static bool isOptionFieldName(String lower) =>
+      EmbeddedOptionsParser.isOptionFieldName(lower);
 
-  static bool _isAnswerFieldName(String lower) {
-    return lower == 'answer' ||
-        lower == 'answers' ||
-        lower == 'correct' ||
-        lower == 'key' ||
-        lower.contains('correct answer') ||
-        lower == '答案' ||
-        lower == '正确答案' ||
-        lower == '正确选项' ||
-        lower == '正解';
-  }
+  static bool _nameLooksLikeMcq(String nameLower) =>
+      EmbeddedOptionsParser.nameLooksLikeMcq(nameLower);
 
-  static bool _nameLooksLikeMcq(String nameLower) {
-    return nameLower.contains('multiple choice') ||
-        nameLower.contains('multiplechoice') ||
-        nameLower.contains('mcq') ||
-        nameLower.contains('单选') ||
-        nameLower.contains('选择题') ||
-        (nameLower.contains('choice') && !nameLower.contains('multi'));
-  }
-
-  static bool _nameLooksLikeMultiSelect(String nameLower) {
-    return nameLower.contains('multi select') ||
-        nameLower.contains('multiselect') ||
-        nameLower.contains('multi-choice') ||
-        nameLower.contains('multiple answer') ||
-        nameLower.contains('多选') ||
-        nameLower.contains('多选题');
-  }
+  static bool _nameLooksLikeMultiSelect(String nameLower) =>
+      EmbeddedOptionsParser.nameLooksLikeMultiSelect(nameLower);
 
   static _ChoiceCardinality _choiceCardinality({
     required AnkiNotetype? notetype,
     required String prompt,
   }) {
-    final normalizedPrompt = prompt.toLowerCase();
-    final promptSaysMulti = RegExp(
-      r'多项选择题|多选题|不定项选择题|可多选|请选择所有|选择所有|'
-      r'有多项.{0,8}正确|select\s+all|choose\s+all|multiple\s+answers?',
-    ).hasMatch(normalizedPrompt);
-    final promptSaysSingle = RegExp(
-      r'单项选择题|单选题|只有一项.{0,8}正确|唯一正确|'
-      r'single[-\s]?choice|select\s+one|choose\s+one',
-    ).hasMatch(normalizedPrompt);
-    if (promptSaysMulti && promptSaysSingle) {
-      return _ChoiceCardinality.conflict;
-    }
-    if (promptSaysMulti) {
-      return _ChoiceCardinality.multi;
-    }
-    if (promptSaysSingle) {
-      return _ChoiceCardinality.single;
-    }
-
-    // Note-type names are weaker than per-card wording. Only explicit names
-    // are used; generic "选择题" / "Multiple Choice" names may contain a mix
-    // and are intentionally left unknown for the answer key to resolve.
-    final name = notetype?.name.toLowerCase() ?? '';
-    final nameSaysMulti = _nameLooksLikeMultiSelect(name);
-    final nameSaysSingle = RegExp(r'single[-\s]?choice|单选').hasMatch(name);
-    if (nameSaysMulti && nameSaysSingle) return _ChoiceCardinality.unknown;
-    if (nameSaysMulti) return _ChoiceCardinality.multi;
-    if (nameSaysSingle) return _ChoiceCardinality.single;
-
-    return _ChoiceCardinality.unknown;
+    final c = EmbeddedOptionsParser.choiceCardinality(
+      notetypeName: notetype?.name ?? '',
+      prompt: prompt,
+    );
+    return switch (c) {
+      PracticeChoiceCardinality.single => _ChoiceCardinality.single,
+      PracticeChoiceCardinality.multi => _ChoiceCardinality.multi,
+      PracticeChoiceCardinality.unknown => _ChoiceCardinality.unknown,
+      PracticeChoiceCardinality.conflict => _ChoiceCardinality.conflict,
+    };
   }
 
   /// Parse correct option indices from an answer field.
-  ///
-  /// Supports: option text, `A`/`B` letters, 1-based numbers, lists
-  /// (`A,C` / `1;3` / `AB` / `答案：ABCD`), and Chinese separators.
   @visibleForTesting
-  static List<int> parseCorrectIndices(String answerRaw, List<String> options) {
-    // Strip common answer prefixes so "答案：ABCD" / "正确答案: A,C" still parse.
-    var answer = answerRaw.trim();
-    answer = answer
-        .replaceFirst(
-          RegExp(r'^(答案|正确答案|正确选项|正解|Answer|Ans)\s*[:：]?\s*',
-              caseSensitive: false),
-          '',
-        )
-        .trim();
-    if (answer.isEmpty || options.isEmpty) return const [];
-
-    final indices = <int>{};
-
-    void addIfValid(int i) {
-      if (i >= 0 && i < options.length) indices.add(i);
-    }
-
-    // Exact full-string match first (single correct option text).
-    final exact = options.indexWhere(
-      (o) => o == answer || o.toLowerCase() == answer.toLowerCase(),
-    );
-    if (exact >= 0) return [exact];
-
-    // Accept only a complete answer-key expression. Scanning arbitrary prose
-    // for isolated A/B/C tokens turns explanations and repeated option labels
-    // into false multi-select answers.
-    final compactLetters = answer.replaceAll(RegExp(r'[,;、|/＋+\s]+'), '');
-    if (RegExp(r'^[A-Fa-f]+$').hasMatch(compactLetters)) {
-      for (final c in compactLetters.toUpperCase().codeUnits) {
-        addIfValid(c - 65);
-      }
-    } else {
-      final numberParts = answer
-          .split(RegExp(r'[,;、|/＋+\s]+'))
-          .map((s) => s.trim())
-          .where((s) => s.isNotEmpty)
-          .toList();
-      if (numberParts.isNotEmpty &&
-          numberParts.every((part) => RegExp(r'^\d+$').hasMatch(part))) {
-        for (final part in numberParts) {
-          final n = int.parse(part);
-          // Numeric answers are 1-based: "1" = options[0], "4" = options[3].
-          // The 0-based fallback that previously handled "0..len-1" here
-          // silently corrupted decks where a teacher used "0" as a "no
-          // answer" sentinel — option A was always marked correct. Drop
-          // 0-based fallbacks and out-of-range values silently; teachers
-          // who want "no correct answer" should leave the field empty
-          // (which produces an empty correctIndices list and surfaces as
-          // a failed prompt instead of a silent corruption).
-          if (n >= 1 && n <= options.length) {
-            addIfValid(n - 1);
-          }
-        }
-      }
-    }
-
-    final sorted = indices.toList()..sort();
-    return sorted;
-  }
+  static List<int> parseCorrectIndices(String answerRaw, List<String> options) =>
+      EmbeddedOptionsParser.parseCorrectIndices(answerRaw, options);
 
   /// Whether [text] looks like it contains lettered options (A./B. …), even
   /// when they are jammed into one paragraph without newlines.
-  static bool looksLikeEmbeddedOptions(String text) {
-    // Need at least A. … B. … (or 1. … 2. …) markers.
-    // Lookbehind avoids matching mid-token letters; allows "合A." (CJK + A.).
-    final letterHits = RegExp(
-      r'(?<![A-Za-z0-9])([A-Da-d])\s*[.、．:：)）]',
-    ).allMatches(text).length;
-    if (letterHits >= 2) return true;
-    final numHits = RegExp(
-      r'(?<![A-Za-z0-9])([1-4])\s*[.、．:：)）]',
-    ).allMatches(text).length;
-    return numHits >= 2;
-  }
+  static bool looksLikeEmbeddedOptions(String text) =>
+      EmbeddedOptionsParser.looksLikeEmbeddedOptions(text);
 
   /// Extract `A. option` / `1) option` options from a front-face string.
-  ///
-  /// Supports:
-  /// - one option per line (classic);
-  /// - **inline** options in one paragraph (`…A. xxxB. yyyC. zzz`), which is
-  ///   how many Chinese quiz decks store MCQ stems after HTML stripping.
   static ({String prompt, List<String> options})? extractEmbeddedOptions(
     String front,
   ) {
-    // ── 1) Line-oriented parse ──────────────────────────────────────
-    final lines = front.split(RegExp(r'\r?\n'));
-    final lineOptions = <String>[];
-    final promptLines = <String>[];
-    final optionLine = RegExp(
-      r'^\s*(?:'
-      r'([A-Fa-f])\s*[.、．:：)）]\s*' // A. / A、 / A)
-      r'|\(([A-Fa-f])\)\s*' // (A)
-      r'|([1-9])\s*[.、．:：)）]\s*' // 1. / 1)
-      r')(.+)$',
-    );
-
-    for (final line in lines) {
-      final m = optionLine.firstMatch(line);
-      if (m != null) {
-        final text = (m.group(4) ?? '').trim();
-        if (text.isNotEmpty) lineOptions.add(text);
-      } else if (lineOptions.isEmpty) {
-        if (line.trim().isNotEmpty) promptLines.add(line.trim());
-      }
-    }
-
-    if (lineOptions.length >= 2) {
-      return (prompt: promptLines.join('\n').trim(), options: lineOptions);
-    }
-
-    // ── 2) Inline parse (no newlines between A./B./C./D.) ────────────
-    // Chinese quiz Anki cards often strip to: "…相结合A. 选项一B. 选项二C. …"
-    // with no space before A. Lookbehind allows CJK|punct before the letter.
-    final inline = RegExp(
-      r'(?<![A-Za-z0-9])([A-Da-d])\s*[.、．:：)）]\s*',
-    );
-    final matches = inline.allMatches(front).toList();
-    if (matches.length < 2) return null;
-
-    // Prefer a run that starts with A (restart at the last A if needed).
-    var start = 0;
-    for (var i = 0; i < matches.length; i++) {
-      if (matches[i].group(1)!.toUpperCase() == 'A') {
-        start = i;
-        break;
-      }
-    }
-    final run = matches.sublist(start);
-    if (run.length < 2) return null;
-
-    // First marker must be A for a clean quiz stem.
-    if (run.first.group(1)!.toUpperCase() != 'A') return null;
-
-    // Expect roughly sequential A,B,C… — drop runs that jump wildly.
-    final labels = [
-      for (final m in run) m.group(1)!.toUpperCase().codeUnitAt(0) - 65,
-    ];
-    if (labels.first != 0) return null;
-
-    final options = <String>[];
-    for (var i = 0; i < run.length; i++) {
-      final from = run[i].end;
-      final to = i + 1 < run.length ? run[i + 1].start : front.length;
-      final text = front.substring(from, to).trim();
-      if (text.isEmpty) continue;
-      options.add(text);
-    }
-    if (options.length < 2) return null;
-
-    final prompt = front.substring(0, run.first.start).trim();
-    return (prompt: prompt, options: options);
+    final parsed = EmbeddedOptionsParser.extractEmbeddedOptions(front);
+    if (parsed == null) return null;
+    return (prompt: parsed.prompt, options: parsed.options);
   }
 }
 

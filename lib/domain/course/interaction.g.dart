@@ -12,6 +12,12 @@ ShowWord _$ShowWordFromJson(Map<String, dynamic> json) => ShowWord(
       context: json['context'] as String?,
       grammarPointId: json['grammarPointId'] as String?,
       expressionId: json['expressionId'] as String?,
+      term: json['term'] as String?,
+      translation: json['translation'] as String?,
+      pronunciation: json['pronunciation'] as String?,
+      audioAsset: json['audioAsset'] as String?,
+      imageAsset: json['imageAsset'] as String?,
+      example: json['example'] as String?,
       $type: json['runtimeType'] as String?,
     );
 
@@ -21,6 +27,12 @@ Map<String, dynamic> _$ShowWordToJson(ShowWord instance) => <String, dynamic>{
       'context': instance.context,
       'grammarPointId': instance.grammarPointId,
       'expressionId': instance.expressionId,
+      'term': instance.term,
+      'translation': instance.translation,
+      'pronunciation': instance.pronunciation,
+      'audioAsset': instance.audioAsset,
+      'imageAsset': instance.imageAsset,
+      'example': instance.example,
       'runtimeType': instance.$type,
     };
 

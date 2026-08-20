@@ -216,13 +216,70 @@ class OfficialReviewSession {
       return;
     }
     final card = current;
+    if (card == null || queue == null) return;
+    try {
+      await answerAndConfirm(rating, expectedCardId: card.cardId);
+    } on OfficialAnkiException {
+      // The strict method has already moved the session into the matching
+      // recovery state. The legacy page observes that state and renders it.
+    }
+  }
+
+  /// Commit one answer and return the scheduler's authoritative result.
+  ///
+  /// Unlike [answer], this API never treats an invalid/no-op call as success.
+  /// It is the only API that review ledgers and unified sessions may use.
+  Future<OfficialAnswerResult> answerAndConfirm(
+    String rating, {
+    required int expectedCardId,
+  }) async {
+    if (disposed) {
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.invalidState,
+        messageKey: 'official_anki.review_session_disposed',
+      );
+    }
+    if (inFlight) {
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.schedulerBusy,
+        messageKey: 'official_anki.scheduler_busy',
+        recoverable: true,
+      );
+    }
+    if (phase != OfficialReviewPhase.showingAnswer) {
+      throw OfficialAnkiException(
+        code: OfficialAnkiErrorCode.invalidState,
+        messageKey: 'official_anki.answer_not_ready',
+        debugDetails: 'phase=${phase.name}',
+      );
+    }
+    final card = current;
     final q = queue;
-    if (card == null || q == null) return;
+    if (card == null || q == null) {
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.queueEmpty,
+        messageKey: 'official_anki.queue_empty',
+        recoverable: true,
+      );
+    }
+    if (card.cardId != expectedCardId) {
+      throw OfficialAnkiException(
+        code: OfficialAnkiErrorCode.schedulingContextStale,
+        messageKey: 'official_anki.scheduling_context_stale',
+        recoverable: true,
+        debugDetails:
+            'expectedCardId=$expectedCardId currentCardId=${card.cardId}',
+      );
+    }
     final allowed = allowedCardIds;
     if (allowed != null &&
         allowed.isNotEmpty &&
         !allowed.contains(card.cardId)) {
-      return;
+      throw OfficialAnkiException(
+        code: OfficialAnkiErrorCode.cardNotFound,
+        messageKey: 'official_anki.card_not_allowed',
+        debugDetails: 'cardId=${card.cardId}',
+      );
     }
     if (receipts?.hasBlocking(card.cardId) == true) {
       phase = OfficialReviewPhase.reconciling;
@@ -231,7 +288,7 @@ class OfficialReviewSession {
         messageKey: 'official_anki.answer_commit_unknown',
         recoverable: true,
       );
-      return;
+      throw lastError!;
     }
     coordinator?.guardSchedulerWrite();
     inFlight = true;
@@ -249,7 +306,7 @@ class OfficialReviewSession {
     );
     try {
       final elapsed = answerVisibleElapsed.elapsedMilliseconds;
-      await engine.answerCard(
+      final result = await engine.answerCard(
         sessionId: q.sessionId,
         queueEpoch: q.queueEpoch,
         answerToken: card.answerToken,
@@ -258,11 +315,21 @@ class OfficialReviewSession {
         millisecondsTaken: elapsed < 0 ? 0 : elapsed,
         clientMutationId: lastClientMutationId,
       );
+      if (!result.committed || result.cardId != card.cardId) {
+        throw OfficialAnkiException(
+          code: OfficialAnkiErrorCode.answerCommitUnknown,
+          messageKey: 'official_anki.answer_commit_unknown',
+          recoverable: true,
+          debugDetails:
+              'expectedCardId=${card.cardId} resultCardId=${result.cardId} committed=${result.committed}',
+        );
+      }
       receipts?.markCommitted(lastClientMutationId!, now);
       _audit('answer', card.cardId);
       phase = OfficialReviewPhase.refreshingQueue;
       await refreshQueue();
       await _refreshStatus();
+      return result;
     } on OfficialAnkiException catch (error) {
       lastError = error;
       if (error.code == OfficialAnkiErrorCode.schedulingContextStale) {
@@ -277,6 +344,7 @@ class OfficialReviewSession {
             ? OfficialReviewPhase.recoverableError
             : OfficialReviewPhase.fatalError;
       }
+      rethrow;
     } finally {
       inFlight = false;
     }

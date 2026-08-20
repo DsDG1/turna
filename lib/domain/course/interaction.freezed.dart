@@ -320,8 +320,18 @@ extension InteractionPatterns on Interaction {
 
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
-    TResult Function(String id, String wordId, String? context,
-            String? grammarPointId, String? expressionId)?
+    TResult Function(
+            String id,
+            String wordId,
+            String? context,
+            String? grammarPointId,
+            String? expressionId,
+            String? term,
+            String? translation,
+            String? pronunciation,
+            String? audioAsset,
+            String? imageAsset,
+            String? example)?
         showWord,
     TResult Function(
             String id,
@@ -401,8 +411,18 @@ extension InteractionPatterns on Interaction {
     final _that = this;
     switch (_that) {
       case ShowWord() when showWord != null:
-        return showWord(_that.id, _that.wordId, _that.context,
-            _that.grammarPointId, _that.expressionId);
+        return showWord(
+            _that.id,
+            _that.wordId,
+            _that.context,
+            _that.grammarPointId,
+            _that.expressionId,
+            _that.term,
+            _that.translation,
+            _that.pronunciation,
+            _that.audioAsset,
+            _that.imageAsset,
+            _that.example);
       case MultipleChoice() when multipleChoice != null:
         return multipleChoice(
             _that.id,
@@ -484,8 +504,18 @@ extension InteractionPatterns on Interaction {
 
   @optionalTypeArgs
   TResult when<TResult extends Object?>({
-    required TResult Function(String id, String wordId, String? context,
-            String? grammarPointId, String? expressionId)
+    required TResult Function(
+            String id,
+            String wordId,
+            String? context,
+            String? grammarPointId,
+            String? expressionId,
+            String? term,
+            String? translation,
+            String? pronunciation,
+            String? audioAsset,
+            String? imageAsset,
+            String? example)
         showWord,
     required TResult Function(
             String id,
@@ -564,8 +594,18 @@ extension InteractionPatterns on Interaction {
     final _that = this;
     switch (_that) {
       case ShowWord():
-        return showWord(_that.id, _that.wordId, _that.context,
-            _that.grammarPointId, _that.expressionId);
+        return showWord(
+            _that.id,
+            _that.wordId,
+            _that.context,
+            _that.grammarPointId,
+            _that.expressionId,
+            _that.term,
+            _that.translation,
+            _that.pronunciation,
+            _that.audioAsset,
+            _that.imageAsset,
+            _that.example);
       case MultipleChoice():
         return multipleChoice(
             _that.id,
@@ -644,8 +684,18 @@ extension InteractionPatterns on Interaction {
 
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function(String id, String wordId, String? context,
-            String? grammarPointId, String? expressionId)?
+    TResult? Function(
+            String id,
+            String wordId,
+            String? context,
+            String? grammarPointId,
+            String? expressionId,
+            String? term,
+            String? translation,
+            String? pronunciation,
+            String? audioAsset,
+            String? imageAsset,
+            String? example)?
         showWord,
     TResult? Function(
             String id,
@@ -724,8 +774,18 @@ extension InteractionPatterns on Interaction {
     final _that = this;
     switch (_that) {
       case ShowWord() when showWord != null:
-        return showWord(_that.id, _that.wordId, _that.context,
-            _that.grammarPointId, _that.expressionId);
+        return showWord(
+            _that.id,
+            _that.wordId,
+            _that.context,
+            _that.grammarPointId,
+            _that.expressionId,
+            _that.term,
+            _that.translation,
+            _that.pronunciation,
+            _that.audioAsset,
+            _that.imageAsset,
+            _that.example);
       case MultipleChoice() when multipleChoice != null:
         return multipleChoice(
             _that.id,
@@ -802,6 +862,12 @@ class ShowWord implements Interaction {
       this.context,
       this.grammarPointId,
       this.expressionId,
+      this.term,
+      this.translation,
+      this.pronunciation,
+      this.audioAsset,
+      this.imageAsset,
+      this.example,
       final String? $type})
       : $type = $type ?? 'showWord';
   factory ShowWord.fromJson(Map<String, dynamic> json) =>
@@ -814,6 +880,12 @@ class ShowWord implements Interaction {
   final String? context;
   final String? grammarPointId;
   final String? expressionId;
+  final String? term;
+  final String? translation;
+  final String? pronunciation;
+  final String? audioAsset;
+  final String? imageAsset;
+  final String? example;
 
   @JsonKey(name: 'runtimeType')
   final String $type;
@@ -844,17 +916,38 @@ class ShowWord implements Interaction {
             (identical(other.grammarPointId, grammarPointId) ||
                 other.grammarPointId == grammarPointId) &&
             (identical(other.expressionId, expressionId) ||
-                other.expressionId == expressionId));
+                other.expressionId == expressionId) &&
+            (identical(other.term, term) || other.term == term) &&
+            (identical(other.translation, translation) ||
+                other.translation == translation) &&
+            (identical(other.pronunciation, pronunciation) ||
+                other.pronunciation == pronunciation) &&
+            (identical(other.audioAsset, audioAsset) ||
+                other.audioAsset == audioAsset) &&
+            (identical(other.imageAsset, imageAsset) ||
+                other.imageAsset == imageAsset) &&
+            (identical(other.example, example) || other.example == example));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
-      runtimeType, id, wordId, context, grammarPointId, expressionId);
+      runtimeType,
+      id,
+      wordId,
+      context,
+      grammarPointId,
+      expressionId,
+      term,
+      translation,
+      pronunciation,
+      audioAsset,
+      imageAsset,
+      example);
 
   @override
   String toString() {
-    return 'Interaction.showWord(id: $id, wordId: $wordId, context: $context, grammarPointId: $grammarPointId, expressionId: $expressionId)';
+    return 'Interaction.showWord(id: $id, wordId: $wordId, context: $context, grammarPointId: $grammarPointId, expressionId: $expressionId, term: $term, translation: $translation, pronunciation: $pronunciation, audioAsset: $audioAsset, imageAsset: $imageAsset, example: $example)';
   }
 }
 
@@ -870,7 +963,13 @@ abstract mixin class $ShowWordCopyWith<$Res>
       String wordId,
       String? context,
       String? grammarPointId,
-      String? expressionId});
+      String? expressionId,
+      String? term,
+      String? translation,
+      String? pronunciation,
+      String? audioAsset,
+      String? imageAsset,
+      String? example});
 }
 
 /// @nodoc
@@ -890,6 +989,12 @@ class _$ShowWordCopyWithImpl<$Res> implements $ShowWordCopyWith<$Res> {
     Object? context = freezed,
     Object? grammarPointId = freezed,
     Object? expressionId = freezed,
+    Object? term = freezed,
+    Object? translation = freezed,
+    Object? pronunciation = freezed,
+    Object? audioAsset = freezed,
+    Object? imageAsset = freezed,
+    Object? example = freezed,
   }) {
     return _then(ShowWord(
       id: null == id
@@ -911,6 +1016,30 @@ class _$ShowWordCopyWithImpl<$Res> implements $ShowWordCopyWith<$Res> {
       expressionId: freezed == expressionId
           ? _self.expressionId
           : expressionId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      term: freezed == term
+          ? _self.term
+          : term // ignore: cast_nullable_to_non_nullable
+              as String?,
+      translation: freezed == translation
+          ? _self.translation
+          : translation // ignore: cast_nullable_to_non_nullable
+              as String?,
+      pronunciation: freezed == pronunciation
+          ? _self.pronunciation
+          : pronunciation // ignore: cast_nullable_to_non_nullable
+              as String?,
+      audioAsset: freezed == audioAsset
+          ? _self.audioAsset
+          : audioAsset // ignore: cast_nullable_to_non_nullable
+              as String?,
+      imageAsset: freezed == imageAsset
+          ? _self.imageAsset
+          : imageAsset // ignore: cast_nullable_to_non_nullable
+              as String?,
+      example: freezed == example
+          ? _self.example
+          : example // ignore: cast_nullable_to_non_nullable
               as String?,
     ));
   }

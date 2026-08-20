@@ -183,7 +183,7 @@ class _OfficialAnkiInternalPageState extends State<OfficialAnkiInternalPage> {
       setState(() {
         _status = result.state.wire;
         _detail =
-            'source=${result.sourceId} cards=${result.cardCount}\n已导入官方 Collection，复习入口尚未开放';
+            'source=${result.sourceId} cards=${result.cardCount}\n已导入官方 Collection，可通过正式复习入口进行复习';
       });
     } catch (error) {
       debugPrint('[OfficialAnkiImport] error $error');

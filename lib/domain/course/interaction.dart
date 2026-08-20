@@ -25,13 +25,19 @@ part 'interaction.g.dart';
 /// instead of throwing).
 @Freezed(fromJson: true, toJson: true)
 sealed class Interaction with _$Interaction {
-  /// Show a vocabulary item, optionally with context sentence.
+  /// Show a vocabulary item, optionally with context sentence or inline fields.
   const factory Interaction.showWord({
     @Default('') String id,
     required String wordId,
     String? context,
     String? grammarPointId,
     String? expressionId,
+    String? term,
+    String? translation,
+    String? pronunciation,
+    String? audioAsset,
+    String? imageAsset,
+    String? example,
   }) = ShowWord;
 
   /// Choose one option out of N.

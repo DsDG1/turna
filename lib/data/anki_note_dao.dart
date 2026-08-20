@@ -732,6 +732,16 @@ class AnkiNoteDao {
         .go();
   }
 
+  /// Get stats of pre-rendered cache for storage maintenance.
+  Future<AnkiPrerenderCacheStats> prerenderCacheStats() async {
+    final rows = await _db.select(_db.ankiPrerenderedHtml).get();
+    var bytes = 0;
+    for (final r in rows) {
+      bytes += (r.frontHtml?.length ?? 0) + (r.backHtml?.length ?? 0);
+    }
+    return AnkiPrerenderCacheStats(byteCount: bytes, count: rows.length);
+  }
+
   // --------------------------- row -> record ---------------------------
 
   AnkiNotetypeRecord _toNotetypeRecord(AnkiNotetypeRow row) {
@@ -1031,4 +1041,14 @@ class AnkiPrerenderedHtmlRecord {
   /// reveal) - the card can then be reviewed with JS disabled.
   bool get isComplete =>
       (frontHtml?.isNotEmpty ?? false) && (backHtml?.isNotEmpty ?? false);
+}
+
+class AnkiPrerenderCacheStats {
+  final int byteCount;
+  final int count;
+
+  const AnkiPrerenderCacheStats({
+    required this.byteCount,
+    required this.count,
+  });
 }

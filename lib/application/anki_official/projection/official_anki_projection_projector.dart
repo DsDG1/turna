@@ -5,10 +5,14 @@ import 'package:turna/application/anki_official/projection/official_anki_project
 import 'package:turna/application/anki_official/projection/official_anki_projection_payloads.dart';
 
 enum OfficialAnkiProjectionKind {
+  showWord,
   flip,
   multipleChoice,
+  multiSelect,
   listenPick,
   typeAnswer,
+  fillBlank,
+  translate,
   canonicalLink,
 }
 
@@ -128,6 +132,29 @@ class OfficialAnkiProjectionProjector {
       buckets.putIfAbsent(row.bucketKey, () => <_AssignedRow>[]).add(row);
     }
     for (final bucket in buckets.values) {
+      final siblingPool = <String>[];
+      final seenSiblings = <String>{};
+      for (final row in bucket) {
+        final m = mappings[row.row.notetypeId];
+        final nativeCand = m?.role(OfficialAnkiFieldRole.nativeText);
+        final targetCand = m?.role(OfficialAnkiFieldRole.targetText);
+        String s = '';
+        if (nativeCand != null &&
+            nativeCand.fieldIndex >= 0 &&
+            nativeCand.fieldIndex < row.row.fields.length) {
+          s = _mapper.shortText(row.row.fields[nativeCand.fieldIndex]);
+        } else if (targetCand != null &&
+            targetCand.fieldIndex >= 0 &&
+            targetCand.fieldIndex < row.row.fields.length) {
+          s = _mapper.shortText(row.row.fields[targetCand.fieldIndex]);
+        } else if (row.row.fields.isNotEmpty) {
+          s = _mapper.shortText(row.row.fields[0]);
+        }
+        if (s.trim().isNotEmpty && s.length <= 80 && seenSiblings.add(s.toLowerCase())) {
+          siblingPool.add(s.trim());
+        }
+      }
+
       for (var i = 0; i < bucket.length; i++) {
         final assignedRow = bucket[i];
         final part = assignedRow.hasExplicitLesson
@@ -141,7 +168,11 @@ class OfficialAnkiProjectionProjector {
             );
         final lessonName = assignedRow.lessonName ?? 'Lesson $part';
         final mapping = mappings[assignedRow.row.notetypeId];
-        final values = _payloads.values(assignedRow.row, mapping);
+        final values = _payloads.values(
+          assignedRow.row,
+          mapping,
+          siblingAnswers: siblingPool,
+        );
         if (values.truncatedRequired) {
           issues.add(
             OfficialAnkiProjectionIssue(
@@ -328,8 +359,28 @@ class OfficialAnkiProjectionProjector {
     final unitLabel = _fieldValue(row, mapping, OfficialAnkiFieldRole.unitLabel);
     final lessonLabel =
         _fieldValue(row, mapping, OfficialAnkiFieldRole.lessonLabel);
-    final unitTag = _tagValue(row.tags, 'unit');
-    final lessonTag = _tagValue(row.tags, 'lesson');
+    final unitTag = _tagValue(row.tags, const [
+      'unit::',
+      'unit:',
+      'chapter::',
+      'chapter:',
+      'section::',
+      'section:',
+      '单元::',
+      '单元:',
+      '章::',
+      '章:',
+    ]);
+    final lessonTag = _tagValue(row.tags, const [
+      'lesson::',
+      'lesson:',
+      'topic::',
+      'topic:',
+      '课::',
+      '课:',
+      '节::',
+      '节:',
+    ]);
     final unitKey = (unitLabel != null && unitLabel.isNotEmpty)
         ? unitLabel
         : (unitTag ??
@@ -368,18 +419,40 @@ class OfficialAnkiProjectionProjector {
     OfficialAnkiFieldRole role,
   ) {
     final match = mapping?.candidates.where((c) => c.role == role);
-    if (match == null || match.isEmpty) return null;
-    final index = match.first.fieldIndex;
-    if (index < 0 || index >= row.fields.length) return null;
-    final text = _mapper.shortText(row.fields[index]);
-    return text.isEmpty ? null : text;
+    if (match != null && match.isNotEmpty) {
+      final index = match.first.fieldIndex;
+      if (index >= 0 && index < row.fields.length) {
+        final text = _mapper.shortText(row.fields[index]);
+        if (text.isNotEmpty) return text;
+      }
+    }
+    // Heuristic lookup if not mapped explicitly:
+    if (mapping != null) {
+      final patterns = role == OfficialAnkiFieldRole.unitLabel
+          ? const ['unit', 'chapter', 'section', '单元', '章']
+          : const ['lesson', 'topic', 'subunit', '课', '节'];
+      for (final cand in mapping.candidates) {
+        final lower = cand.fieldName.toLowerCase();
+        if (patterns.any(lower.contains)) {
+          if (cand.fieldIndex >= 0 && cand.fieldIndex < row.fields.length) {
+            final text = _mapper.shortText(row.fields[cand.fieldIndex]);
+            if (text.isNotEmpty) return text;
+          }
+        }
+      }
+    }
+    return null;
   }
 
-  String? _tagValue(List<String> tags, String prefix) {
-    final needle = '$prefix::';
-    for (final tag in tags) {
-      if (tag.startsWith(needle) && tag.length > needle.length) {
-        return tag.substring(needle.length);
+  String? _tagValue(List<String> tags, List<String> prefixes) {
+    for (final rawTag in tags) {
+      final tag = rawTag.trim();
+      final lower = tag.toLowerCase();
+      for (final prefix in prefixes) {
+        if (lower.startsWith(prefix) && tag.length > prefix.length) {
+          final val = tag.substring(prefix.length).trim();
+          if (val.isNotEmpty) return val;
+        }
       }
     }
     return null;

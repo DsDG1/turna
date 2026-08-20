@@ -118,9 +118,38 @@ abstract class SrsQueueProvider extends ChangeNotifier {
   int previewOutcomeDays(SrsWord word, ReviewOutcome outcome) =>
       engine.previewIntervalDays(word, outcome.quality);
 
+  /// Preview the next failed-review delay with the same local-day history
+  /// context used by [reviewItem]. Returns `null` for non-FSRS schedulers.
+  Future<int?> previewFailMinutesFor(
+    SrsWord word, {
+    DateTime? now,
+  }) async {
+    final eng = engine;
+    if (eng is! FsrsEngine) return null;
+    final reviewedAt = now ?? DateTime.now();
+    var sameDayFails = 0;
+    final reviewDao = _effectiveReviewDao;
+    if (reviewDao != null) {
+      try {
+        sameDayFails =
+            await reviewDao.countFailsOnLocalDay(word.wordId, reviewedAt);
+      } catch (_) {
+        sameDayFails = 0;
+      }
+    }
+    return eng.previewFailMinutes(
+      word,
+      sameDayFailsBefore: sameDayFails,
+    );
+  }
+
   /// Binary review API (ADR 0028). Prefer this over raw quality ints.
-  Future<SrsWord?> reviewWithOutcome(String id, ReviewOutcome outcome) =>
-      reviewItem(id, outcome.quality);
+  Future<SrsWord?> reviewWithOutcome(
+    String id,
+    ReviewOutcome outcome, {
+    String? eventSourceKey,
+  }) =>
+      reviewItem(id, outcome.quality, eventSourceKey: eventSourceKey);
 
   /// Legacy prefs key for the JSON state blob. Used only as the migration
   /// source when hydrating from an empty SQLite table for the first time.
@@ -315,10 +344,18 @@ abstract class SrsQueueProvider extends ChangeNotifier {
   /// gate, an undo fired during the fail-path await would be overwritten when
   /// this resumes. See [_gradesInFlight].
   @protected
-  Future<SrsWord?> reviewItem(String id, int quality) async {
+  Future<SrsWord?> reviewItem(
+    String id,
+    int quality, {
+    String? eventSourceKey,
+  }) async {
     _gradesInFlight.add(id);
     try {
-      return await _doReviewItem(id, quality);
+      return await _doReviewItem(
+        id,
+        quality,
+        eventSourceKey: eventSourceKey,
+      );
     } finally {
       _gradesInFlight.remove(id);
     }
@@ -328,7 +365,11 @@ abstract class SrsQueueProvider extends ChangeNotifier {
   /// `review_events` (when a [ReviewHistoryDao] is available) so the
   /// memory-curve features have per-card history. Uses [engine] (FSRS by
   /// default).
-  Future<SrsWord?> _doReviewItem(String id, int quality) async {
+  Future<SrsWord?> _doReviewItem(
+    String id,
+    int quality, {
+    String? eventSourceKey,
+  }) async {
     final current = state;
     final word = current[id];
     if (word == null) return null;
@@ -379,6 +420,7 @@ abstract class SrsQueueProvider extends ChangeNotifier {
           reps: updated.reps,
           lapses: updated.lapses,
           type: updated.type,
+          sourceKey: eventSourceKey,
         ));
       } catch (e, st) {
         logger.w('$logTag reviewEvent record failed: $e', stackTrace: st);
@@ -413,13 +455,23 @@ abstract class SrsQueueProvider extends ChangeNotifier {
   /// resumes. The caller leaves the undo entry in place and retries once the
   /// grade completes.
   @protected
-  Future<bool> undoReview(String id, SrsWord previous) async {
+  Future<bool> undoReview(
+    String id,
+    SrsWord previous, {
+    String? eventSourceKey,
+  }) async {
     if (_gradesInFlight.contains(id)) return false;
     final reviewDao = _effectiveReviewDao;
     // The review write and its history event are persisted independently, so
     // the user can reach Undo before the event insert finishes. Restoring the
     // captured state is still safe; deleting the event is best-effort.
-    if (reviewDao != null) await reviewDao.deleteLatestForCard(id);
+    if (reviewDao != null) {
+      if (eventSourceKey == null) {
+        await reviewDao.deleteLatestForCard(id);
+      } else {
+        await reviewDao.deleteBySourceKey(eventSourceKey);
+      }
+    }
     state[id] = previous;
     _commit(state);
     try {
@@ -460,6 +512,7 @@ abstract class SrsQueueProvider extends ChangeNotifier {
     SrsItemType? typeFilter,
     DateTime? now,
     bool usePrimaryCache = true,
+    bool excludeAnki = false,
   }) {
     final cutoff = now ?? DateTime.now();
     if (usePrimaryCache &&
@@ -472,6 +525,9 @@ abstract class SrsQueueProvider extends ChangeNotifier {
         .where(
           (w) =>
               (typeFilter == null || w.type == typeFilter) &&
+              (!excludeAnki ||
+                  (!w.wordId.startsWith('anki-') &&
+                      !w.wordId.startsWith('official-anki-'))) &&
               !w.isSuspended &&
               !w.isBuried &&
               !w.dueAt.isAfter(cutoff),

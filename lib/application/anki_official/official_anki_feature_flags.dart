@@ -15,6 +15,7 @@ class OfficialAnkiFeatureFlags {
     this.courseEntry = false,
     this.scheduler = false,
     this.migrationPilot = false,
+    this.courseGradesScheduler = false,
   });
 
   factory OfficialAnkiFeatureFlags.fromEnvironment() {
@@ -45,15 +46,22 @@ class OfficialAnkiFeatureFlags {
     );
     const reviewerDiagnostics =
         bool.fromEnvironment('TURNA_OFFICIAL_ANKI_REVIEWER_DIAGNOSTICS');
-    const projection = bool.fromEnvironment('TURNA_OFFICIAL_ANKI_PROJECTION');
-    const courseEntry =
-        bool.fromEnvironment('TURNA_OFFICIAL_ANKI_COURSE_ENTRY');
+    const projection = bool.fromEnvironment(
+      'TURNA_OFFICIAL_ANKI_PROJECTION',
+      defaultValue: true,
+    );
+    const courseEntry = bool.fromEnvironment(
+      'TURNA_OFFICIAL_ANKI_COURSE_ENTRY',
+      defaultValue: true,
+    );
     const scheduler = bool.fromEnvironment(
       'TURNA_OFFICIAL_ANKI_SCHEDULER',
       defaultValue: true,
     );
     const migrationPilot =
         bool.fromEnvironment('TURNA_OFFICIAL_ANKI_MIGRATION_PILOT');
+    const courseGradesScheduler =
+        bool.fromEnvironment('TURNA_OFFICIAL_ANKI_COURSE_GRADES_SCHEDULER');
     return const OfficialAnkiFeatureFlags(
       engine: engine,
       import: import,
@@ -67,6 +75,7 @@ class OfficialAnkiFeatureFlags {
       courseEntry: courseEntry,
       scheduler: scheduler,
       migrationPilot: migrationPilot,
+      courseGradesScheduler: courseGradesScheduler,
     );
   }
 
@@ -82,6 +91,7 @@ class OfficialAnkiFeatureFlags {
   final bool courseEntry;
   final bool scheduler;
   final bool migrationPilot;
+  final bool courseGradesScheduler;
 
   static OfficialAnkiFeatureFlags current =
       OfficialAnkiFeatureFlags.fromEnvironment();
@@ -107,6 +117,9 @@ class OfficialAnkiFeatureFlags {
       renderer &&
       scheduler;
 
+  bool get allowsCourseGradesScheduler =>
+      allowsOfficialScheduler && courseGradesScheduler;
+
   OfficialAnkiFeatureFlags copyWith({
     bool? engine,
     bool? import,
@@ -120,6 +133,7 @@ class OfficialAnkiFeatureFlags {
     bool? courseEntry,
     bool? scheduler,
     bool? migrationPilot,
+    bool? courseGradesScheduler,
   }) {
     return OfficialAnkiFeatureFlags(
       engine: engine ?? this.engine,
@@ -134,6 +148,8 @@ class OfficialAnkiFeatureFlags {
       courseEntry: courseEntry ?? this.courseEntry,
       scheduler: scheduler ?? this.scheduler,
       migrationPilot: migrationPilot ?? this.migrationPilot,
+      courseGradesScheduler:
+          courseGradesScheduler ?? this.courseGradesScheduler,
     );
   }
 }

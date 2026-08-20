@@ -62,8 +62,10 @@ abstract class AnkiImportFacade {
       final importer = officialImporter ?? official;
       if (importer == null) {
         throw const OfficialAnkiException(
-          code: OfficialAnkiErrorCode.capabilityMissing,
-          messageKey: 'official_anki.flag_fail_closed',
+          code: OfficialAnkiErrorCode.invalidState,
+          messageKey: 'official_anki.importer_not_ready',
+          debugDetails:
+              'OfficialAnkiImporter must be initialized before resolving facade',
         );
       }
       return OfficialAnkiImportFacade(importer);

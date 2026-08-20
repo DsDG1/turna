@@ -102,7 +102,7 @@ class CourseProvider extends ChangeNotifier {
     final seen = <String>{};
     final entries = <({String importId, String name})>[];
     for (final s in _allSections) {
-      if (s.level != 'Anki') continue;
+      if (s.level != 'Anki' && s.level != 'OfficialAnki') continue;
       final importId = _importIdFromSectionId(s.id);
       if (importId.isEmpty || !seen.add(importId)) continue;
       entries.add((importId: importId, name: s.name));
@@ -111,12 +111,15 @@ class CourseProvider extends ChangeNotifier {
   }
 
   /// Extract the import id from an Anki section id
-  /// ('anki-<importId>-s<deckId>' → importId). Import ids are dash-free
-  /// (base36 timestamps), so the first dash-delimited segment after the
-  /// 'anki-' prefix is the import id.
+  /// ('anki-<importId>-s<deckId>' or 'official-anki-<sourceId>-s<deckId>' → importId).
   static String _importIdFromSectionId(String sectionId) {
-    if (!sectionId.startsWith('anki-')) return '';
-    return sectionId.substring(5).split('-').first;
+    if (sectionId.startsWith('anki-')) {
+      return sectionId.substring(5).split('-').first;
+    }
+    if (sectionId.startsWith('official-anki-')) {
+      return sectionId.substring('official-anki-'.length).split('-').first;
+    }
+    return '';
   }
 
   /// One entry per manageable course: the built-in course (scope `''`, marked
@@ -455,10 +458,14 @@ class CourseProvider extends ChangeNotifier {
           .toList(growable: false);
     }
     if (_courseScope.startsWith('anki:')) {
-      final prefix = 'anki-${_courseScope.substring(5)}-';
-      return shells.where((s) => s.id.startsWith(prefix)).toList(
-            growable: false,
-          );
+      final key = _courseScope.substring(5);
+      final legacyPrefix = 'anki-$key-';
+      final officialPrefix = 'official-anki-$key-';
+      return shells
+          .where((s) =>
+              s.id.startsWith(legacyPrefix) ||
+              s.id.startsWith(officialPrefix))
+          .toList(growable: false);
     }
     return shells;
   }

@@ -27,10 +27,11 @@ import 'package:turna/views/lesson/components/interactions/interaction_renderer.
 /// Derive the SRS wordId from an Anki card interaction id.
 ///
 /// Id conventions (see AnkiCardAdapter / AnkiReviewAssembler):
-/// - Course lessons: '<wordId>-c<ord>' where wordId = 'anki-<importId>-c<cardId>'
-/// - Review sessions: 'anki-review-<wordId>'
+/// - Course lessons: `<wordId>-c<ord>` where wordId is
+///   `anki-<importId>-c<cardId>`
+/// - Review sessions: `anki-review-<wordId>`
 ///
-/// Returns the wordId ('anki-<importId>-c<cardId>') in both cases; ids that
+/// Returns the wordId (`anki-<importId>-c<cardId>`) in both cases; ids that
 /// match neither convention are returned unchanged.
 String ankiWordIdFromInteractionId(String interactionId) {
   final id = interactionId.replaceFirst('anki-review-', '');
@@ -519,7 +520,8 @@ class LessonViewModel extends ChangeNotifier {
     // seen" condition the user expected before this lesson attempt).
     if (effectiveWordId != null &&
         effectiveWordId.isNotEmpty &&
-        !effectiveWordId.startsWith(unknownInteractionWordIdPrefix)) {
+        !effectiveWordId.startsWith(unknownInteractionWordIdPrefix) &&
+        !effectiveWordId.startsWith('official-anki-')) {
       _srsProvider.registerWord(effectiveWordId);
       _srsUndoStack.add(_SrsUndoEntry(
         wordId: effectiveWordId,
@@ -532,7 +534,9 @@ class LessonViewModel extends ChangeNotifier {
       );
     }
 
-    if (expressionId != null && expressionId.isNotEmpty) {
+    if (expressionId != null &&
+        expressionId.isNotEmpty &&
+        !expressionId.startsWith('official-anki-')) {
       _srsProvider.registerExpression(expressionId);
       _srsUndoStack.add(_SrsUndoEntry(
         wordId: expressionId,
@@ -551,7 +555,8 @@ class LessonViewModel extends ChangeNotifier {
         previous: _grammarReviewProvider.state[grammarPointId],
         isGrammarPoint: true,
       ));
-      unawaited(_grammarReviewProvider.reviewWithOutcome(grammarPointId, outcome));
+      unawaited(
+          _grammarReviewProvider.reviewWithOutcome(grammarPointId, outcome));
     }
   }
 
@@ -722,10 +727,13 @@ class LessonViewModel extends ChangeNotifier {
           // real vocab id. Registering it would pollute the SRS queue with a
           // phantom, unanswerable card and record a bogus lesson link.
           if (item.wordId.isNotEmpty &&
-              !item.wordId.startsWith(unknownInteractionWordIdPrefix)) {
+              !item.wordId.startsWith(unknownInteractionWordIdPrefix) &&
+              !item.wordId.startsWith('official-anki-')) {
             wordIds.add(item.wordId);
           }
-          if (item.expressionId != null && item.expressionId!.isNotEmpty) {
+          if (item.expressionId != null &&
+              item.expressionId!.isNotEmpty &&
+              !item.expressionId!.startsWith('official-anki-')) {
             expressionIds.add(item.expressionId!);
           }
         }
