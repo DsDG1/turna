@@ -588,6 +588,53 @@ void main() {
           reason: 'a passing grade should advance the card');
     });
 
+    test('official anki card submit does NOT register or grade Turna SRS (P0)',
+        () async {
+      final lesson = _buildLegacyLesson(
+        items: [
+          const Interaction.showWord(
+            id: 'official-anki-prof-c101-pshowWord-0',
+            wordId: 'official-anki-prof-c101',
+            term: 'Hello',
+            translation: '你好',
+          ),
+          const Interaction.ankiCard(
+            id: 'official-anki-prof-c102-pflip-0',
+            front: 'World',
+            back: '世界',
+          ),
+        ],
+      );
+      final harness = _buildHarness(lesson: lesson, appPrefs: appPrefs);
+      final vm = harness.vm;
+
+      await vm.loadLesson(lesson.id);
+      expect(
+        harness.srsProvider.state.keys
+            .where((k) => k.startsWith('official-anki-')),
+        isEmpty,
+        reason: 'official-anki cards must not register on lesson load',
+      );
+
+      // Submit first card (ShowWord)
+      vm.submitInteraction(true);
+      vm.advance();
+      await pumpEventQueue();
+
+      // Submit second card (Flip)
+      vm.submitInteraction(true);
+      vm.advance();
+      await pumpEventQueue();
+
+      expect(
+        harness.srsProvider.state.keys
+            .where((k) => k.startsWith('official-anki-')),
+        isEmpty,
+        reason: 'official-anki cards must never enter Turna SRS state',
+      );
+      expect(vm.isComplete, isTrue);
+    });
+
     test('ankiWordIdFromInteractionId strips review prefix and card ordinal',
         () {
       expect(ankiWordIdFromInteractionId('anki-imp1-n42-c0'), 'anki-imp1-n42');
@@ -713,6 +760,9 @@ class _GateHoldingReviewHistoryDao implements ReviewHistoryDao {
 
   @override
   Future<int> countFailsOnLocalDay(String cardId, DateTime localDay) => _hold;
+
+  @override
+  Future<void> insertEvent(ReviewEventRecord event) async {}
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

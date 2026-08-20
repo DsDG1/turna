@@ -38,7 +38,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('shows Anki four-grade buttons after reveal settles', (
+  testWidgets('shows Anki binary recall buttons after reveal settles', (
     tester,
   ) async {
     await pumpCard(
@@ -47,10 +47,8 @@ void main() {
     );
     await revealAnswer(tester);
 
-    expect(find.text('重来'), findsOneWidget);
-    expect(find.text('困难'), findsOneWidget);
-    expect(find.text('良好'), findsOneWidget);
-    expect(find.text('简单'), findsOneWidget);
+    expect(find.text('不记得'), findsOneWidget);
+    expect(find.text('记得'), findsOneWidget);
   });
 
   testWidgets('grade buttons are deferred until pulse completes',
@@ -63,15 +61,15 @@ void main() {
     await tester.tap(find.text('显示答案'));
     // Mid-pulse: face may already switch, but grades must not appear yet.
     await tester.pump(const Duration(milliseconds: 80));
-    expect(find.text('重来'), findsNothing);
+    expect(find.text('不记得'), findsNothing);
     expect(find.text('显示答案'), findsOneWidget);
 
     await tester.pumpAndSettle();
-    expect(find.text('重来'), findsOneWidget);
+    expect(find.text('不记得'), findsOneWidget);
     expect(find.text('显示答案'), findsNothing);
   });
 
-  testWidgets('Hard submits success with distinct quality 3', (tester) async {
+  testWidgets('Remembered submits success with quality 4', (tester) async {
     final results = <(bool, int?)>[];
     await pumpCard(
       tester,
@@ -80,11 +78,11 @@ void main() {
     );
     await revealAnswer(tester);
 
-    await tester.tap(find.text('困难'));
-    expect(results, [(true, 3)]);
+    await tester.tap(find.text('记得'));
+    expect(results, [(true, 4)]);
   });
 
-  testWidgets('Again submits failure with quality 1', (tester) async {
+  testWidgets('Forgotten submits failure with quality 1', (tester) async {
     final results = <(bool, int?)>[];
     await pumpCard(
       tester,
@@ -93,7 +91,7 @@ void main() {
     );
     await revealAnswer(tester);
 
-    await tester.tap(find.text('重来'));
+    await tester.tap(find.text('不记得'));
     expect(results, [(false, 1)]);
   });
 
@@ -114,7 +112,7 @@ void main() {
     expect(find.text('Front side'), findsOneWidget);
     expect(find.text('Back side'), findsNothing);
     expect(find.text('显示答案'), findsOneWidget);
-    expect(find.text('重来'), findsNothing);
+    expect(find.text('不记得'), findsNothing);
     expect(results, isEmpty);
   });
 }

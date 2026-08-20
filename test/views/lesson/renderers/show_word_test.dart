@@ -73,6 +73,34 @@ void main() {
     expect(harness.submissions, isEmpty);
   });
 
+  testWidgets('ShowWord renders long terms on narrow screens without overflow',
+      (tester) async {
+    tester.view.physicalSize = const Size(360, 640);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() => tester.view.resetPhysicalSize());
+    addTearDown(() => tester.view.resetDevicePixelRatio());
+
+    final audio = FakeAudioController();
+    final renderer = ShowWordRenderer(audio);
+    const interaction = Interaction.showWord(
+      id: 'sw-long',
+      wordId: 'w-long',
+      term: 'affedersiniz',
+      translation: 'excuse me',
+      context: 'affedersiniz — excuse me',
+    );
+
+    await tester.pumpWidget(harness.build(renderer, interaction));
+    expect(find.text('affedersiniz'), findsOneWidget);
+    expect(find.text('excuse me'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.text('affedersiniz'));
+    await tester.pumpAndSettle();
+    expect(audio.lastSpoken, 'affedersiniz');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('canonicalLink fail-closes without opening vocab or Legacy',
       (tester) async {
     OfficialAnkiCourseEntry.resetHooks();

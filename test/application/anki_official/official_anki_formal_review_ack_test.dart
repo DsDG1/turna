@@ -109,7 +109,6 @@ void main() {
     final harness = await mount(tester);
     expect(find.byType(AppBar), findsOneWidget);
     expect(find.text('官方卡片预览'), findsNothing);
-    expect(find.text('显示答案'), findsNothing);
     expect(find.byKey(const Key('official-review-show-answer')), findsOneWidget);
     expect(find.byKey(const Key('official-review-good')), findsNothing);
 
@@ -206,7 +205,7 @@ void main() {
     expect(harness.fake.lastMillisecondsTaken, greaterThanOrEqualTo(0));
     expect(OfficialAnkiSchedulerAudit.officialSchedulerAnswers, 1);
     expect(find.byType(AppBar), findsOneWidget);
-    expect(find.text('显示答案'), findsNothing);
+    expect(find.byKey(const Key('official-review-show-answer')), findsOneWidget);
   });
 
   testWidgets('formal_review_queue_error_is_not_congrats', (tester) async {
@@ -266,6 +265,8 @@ void main() {
 
   testWidgets('fatal_code_disables_rating_and_keeps_webview', (tester) async {
     final harness = await mount(tester);
+    await tester.tap(find.byKey(const Key('official-review-toggle-surface')));
+    await tester.pump();
     harness.presenter.acceptPresent(ack(harness.presenter, side: 'question'));
     await tester.pump();
     await tester.tap(find.byKey(const Key('official-review-show-answer')));

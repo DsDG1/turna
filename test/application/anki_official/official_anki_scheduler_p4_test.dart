@@ -320,9 +320,9 @@ void main() {
     );
     await tester.pump();
     expect(find.byKey(const Key('official-review-again')), findsOneWidget);
-    expect(find.byKey(const Key('official-review-hard')), findsOneWidget);
     expect(find.byKey(const Key('official-review-good')), findsOneWidget);
-    expect(find.byKey(const Key('official-review-easy')), findsOneWidget);
+    expect(find.byKey(const Key('official-review-hard')), findsNothing);
+    expect(find.byKey(const Key('official-review-easy')), findsNothing);
   });
 
   test('allowedCardIds skips leftover deck mates and does not answer them', () async {

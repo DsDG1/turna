@@ -676,13 +676,16 @@ void main() {
     );
   });
 
-  test('fromEnvironment flags stay false and CourseProvider hides official', () {
+  test('fromEnvironment flags enable projection and disabled flags hide official', () {
     final flags = OfficialAnkiFeatureFlags.fromEnvironment();
-    expect(flags.projection, isFalse);
-    expect(flags.courseEntry, isFalse);
+    expect(flags.projection, isTrue);
+    expect(flags.courseEntry, isTrue);
     OfficialAnkiCourseEntry.resetHooks();
     addTearDown(OfficialAnkiCourseEntry.resetHooks);
-    OfficialAnkiCourseEntry.flagsOf = () => flags;
+    OfficialAnkiCourseEntry.flagsOf = () => const OfficialAnkiFeatureFlags(
+          projection: false,
+          courseEntry: false,
+        );
     final provider = CourseProvider();
     expect(provider.sections, isEmpty);
   });

@@ -143,6 +143,19 @@ void main() {
     expect(items.single.id, 'anki-review-anki-deckaa-c1');
   });
 
+  test('assembleReviewBatchAsync returns scheduling and render data directly',
+      () async {
+    srs.registerWord('anki-deckaa-c1');
+    final assembler = AnkiReviewAssembler(srs, courseProvider);
+
+    final batch = await assembler.assembleReviewBatchAsync();
+
+    expect(batch, hasLength(1));
+    expect(batch.single.scheduled.wordId, 'anki-deckaa-c1');
+    expect(batch.single.interaction.id, 'anki-review-anki-deckaa-c1');
+    expect(batch.single.interaction, isA<AnkiCard>());
+  });
+
   test('section-scoped async batch only picks cards from that deck', () async {
     srs.registerWord('anki-deckaa-c1');
     final assembler = AnkiReviewAssembler(srs, courseProvider);

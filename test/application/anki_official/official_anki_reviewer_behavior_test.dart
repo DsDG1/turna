@@ -406,7 +406,8 @@ void main() {
     expect(const OfficialAnkiFeatureFlags().projection, isFalse);
     expect(const OfficialAnkiFeatureFlags().courseEntry, isFalse);
     expect(OfficialAnkiFeatureFlags.current.allowsOfficialRenderer, isTrue);
-    expect(OfficialAnkiFeatureFlags.current.allowsProjection, isFalse);
+    expect(OfficialAnkiFeatureFlags.current.allowsProjection, isTrue);
+    expect(OfficialAnkiFeatureFlags.current.allowsCourseEntry, isTrue);
   });
 }
 

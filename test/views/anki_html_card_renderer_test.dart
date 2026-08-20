@@ -66,7 +66,7 @@ void main() {
     expect(find.textContaining('Paris'), findsOneWidget);
   });
 
-  testWidgets('Easy submits success with quality 5', (tester) async {
+  testWidgets('Remembered submits success with quality 4', (tester) async {
     final results = <(bool, int?)>[];
     await pumpCard(
       tester,
@@ -75,11 +75,11 @@ void main() {
     );
     await tester.tap(find.text('显示答案'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('简单'));
-    expect(results, [(true, 5)]);
+    await tester.tap(find.text('记得'));
+    expect(results, [(true, 4)]);
   });
 
-  testWidgets('Again submits failure with quality 1', (tester) async {
+  testWidgets('Forgotten submits failure with quality 1', (tester) async {
     final results = <(bool, int?)>[];
     await pumpCard(
       tester,
@@ -88,7 +88,7 @@ void main() {
     );
     await tester.tap(find.text('显示答案'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('重来'));
+    await tester.tap(find.text('不记得'));
     expect(results, [(false, 1)]);
   });
 

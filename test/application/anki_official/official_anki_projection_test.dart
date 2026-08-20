@@ -6,6 +6,7 @@ import 'package:turna/application/anki_official/engine/official_anki_engine_fake
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_ids.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_mapper.dart';
+import 'package:turna/application/anki_official/projection/official_anki_projection_payloads.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_projector.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_service.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
@@ -499,6 +500,102 @@ void main() {
       variables: [Variable(first.read<String>('section_id'))],
     ).getSingle();
     expect(tree.data['n'], 1);
+  });
+
+  test('mapping goldens detect Chinese fields 正面 and 反面', () {
+    const schema = OfficialAnkiProjectionSchema(
+      notetypeId: 2,
+      name: '中文基础',
+      kind: 'normal',
+      fieldNames: ['正面', '反面', '发音', '例句'],
+      templateNames: ['卡片 1'],
+      schemaFingerprint: 'zh-fp',
+      samples: [
+        OfficialAnkiProjectionSample(
+          noteId: 1,
+          fields: ['apple', '苹果', 'píngguǒ', 'This is an apple.'],
+        ),
+      ],
+    );
+    final suggestion = OfficialAnkiProjectionMapper().suggest(schema: schema);
+    expect(suggestion.status, OfficialAnkiMappingStatus.autoCandidate);
+    final target = suggestion.candidates.firstWhere((c) => c.role == OfficialAnkiFieldRole.targetText);
+    expect(target.confidence, greaterThanOrEqualTo(0.90));
+    final native = suggestion.candidates.firstWhere((c) => c.role == OfficialAnkiFieldRole.nativeText);
+    expect(native.confidence, greaterThanOrEqualTo(0.90));
+  });
+
+  test('Basic 20 cards project to flip cards and 0 canonicalLinks', () {
+    final rows = [
+      for (var i = 1; i <= 20; i++)
+        OfficialAnkiProjectionRow(
+          cardId: i,
+          noteId: i,
+          noteGuid: 'guid-$i',
+          notetypeId: 1,
+          deckId: 1,
+          deckPath: const ['Default'],
+          templateOrdinal: 0,
+          tags: const <String>[],
+          fields: ['word-$i', 'meaning-$i'],
+          sourceFingerprint: 'fp-$i',
+        ),
+    ];
+    final mapping = _basicMapping().copyWith(enabledKinds: ['flip']);
+    final plan = OfficialAnkiProjectionProjector().project(
+      sourceId: 'src-basic',
+      profileId: 'profile-a',
+      rows: rows,
+      mappings: {1: mapping},
+    );
+    expect(plan.items, hasLength(20));
+    expect(plan.items.every((item) => item.kind == OfficialAnkiProjectionKind.flip), isTrue);
+    expect(plan.items.any((item) => item.kind == OfficialAnkiProjectionKind.canonicalLink), isFalse);
+  });
+
+  test('needsMapping with high-confidence classifier does not block to canonicalLink', () {
+    const row = OfficialAnkiProjectionRow(
+      cardId: 1,
+      noteId: 1,
+      noteGuid: 'g1',
+      notetypeId: 1,
+      deckId: 1,
+      deckPath: ['Default'],
+      templateOrdinal: 0,
+      tags: <String>[],
+      fields: ['cat', '猫'],
+      sourceFingerprint: 'fp1',
+    );
+    final mapping = OfficialAnkiMappingSuggestion(
+      candidates: const [],
+      status: OfficialAnkiMappingStatus.needsMapping,
+    );
+    final payloads = OfficialAnkiProjectionPayloads();
+    final values = payloads.values(row, mapping);
+    final kinds = payloads.kindsFor(values: values, mapping: mapping, typeAnswerEnabled: false);
+    expect(kinds, contains(OfficialAnkiProjectionKind.flip));
+    expect(kinds, isNot(contains(OfficialAnkiProjectionKind.canonicalLink)));
+  });
+
+  test('Unparsed embedded options fallback to canonicalLink and never MCQ', () {
+    const row = OfficialAnkiProjectionRow(
+      cardId: 1,
+      noteId: 1,
+      noteGuid: 'g1',
+      notetypeId: 1,
+      deckId: 1,
+      deckPath: ['Default'],
+      templateOrdinal: 0,
+      tags: <String>[],
+      fields: ['Which is right?\nA. Only A\nB. Only B', 'Unparsable Answer Key'],
+      sourceFingerprint: 'fp1',
+    );
+    final mapping = _basicMapping();
+    final payloads = OfficialAnkiProjectionPayloads();
+    final values = payloads.values(row, mapping);
+    final kinds = payloads.kindsFor(values: values, mapping: mapping, typeAnswerEnabled: false);
+    expect(kinds, [OfficialAnkiProjectionKind.canonicalLink]);
+    expect(kinds, isNot(contains(OfficialAnkiProjectionKind.multipleChoice)));
   });
 }
 

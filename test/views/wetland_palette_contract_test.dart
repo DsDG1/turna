@@ -144,6 +144,13 @@ void main() {
       );
     });
 
+    test('light theme ships expressive chip and segmented themes', () {
+      final chips = TurnaTheme.lightTheme.chipTheme;
+      expect(chips.selectedColor, isNotNull);
+      expect(chips.shape, isA<StadiumBorder>());
+      expect(TurnaTheme.lightTheme.segmentedButtonTheme.style, isNotNull);
+    });
+
     test('overlay colors are never brandTeal or clay fills', () {
       for (final style in [
         TurnaTheme.lightSystemUiOverlay,
