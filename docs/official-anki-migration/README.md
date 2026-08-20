@@ -41,6 +41,9 @@
 | 27 | [P5-D Sprint D1 验货](./27-p5d-d1-audit.md) | 对照 24/26、源码、点名测试、Device A 评分；不写 P5-D GO | **D1 HOST+DEVICE CONDITIONAL GO**（仅 fixture）；P5-D GO NO |
 | 28 | [P5-D 后续大施工计划](./28-p5d-remainder-construction-plan.md) | GO 板 + D2 施工手册 + D3–D5 | **D1–D4 已收口**；**D5 生产默认已翻转**（Android official；OHOS Legacy）；P5-E HOLD |
 | 29 | [P5-E Wave 1 生产解耦与架构约束报告](./29-p5e-wave1-production-decoupling-report.md) | 断生产引用、提取 LegacyAnkiIdentifiers、建立 Forbidden Import CI 约束测试 | **Wave 1 已收口**；Wave 2–4 HOLD |
+| 30 | [官方 Anki 卡按语言课体验投影与渲染](./30-course-like-card-experience-plan.md) | 在官方核心之上恢复自动题型识别、语言课渲染、翻面/展开动画；评分仍写官方 Scheduler | **已实施（Host / Unit 验证通过）**；生产默认与 chrome 见 31 |
+| 31 | [Anki 产品体验收口](./31-anki-product-experience-plan.md) | 先打通 Android 生产导入（session/summary/cutover），再课化复习、向导、实验室入口、课程投影、首页 due | **施工规格（未实施）**；第一刀 W2 硬阻断 |
+| 32 | [官方 Anki 与自研体验对齐](./32-official-anki-experience-parity-plan.md) | 官方核心之上对齐自研课壳：题型、课树、复习 renderer、SRS 隔离、产品层、浏览器换源 | **施工规格（未实施）**；第一刀 P0 官方卡不进 Turna SRS |
 
 
 ## 阶段命名

@@ -80,6 +80,7 @@ python -m tool.gui.src.main
 | [`docs/content_inventory_current.md`](./docs/content_inventory_current.md) | Turkish 内容清单 |
 | [`docs/anki-integration-design.md`](./docs/anki-integration-design.md) | Anki 数据与铁律 |
 | [`docs/anki-import-usability.md`](./docs/anki-import-usability.md) | Anki 导入可用性 backlog |
+| [`docs/official-anki-migration/31-anki-product-experience-plan.md`](./docs/official-anki-migration/31-anki-product-experience-plan.md) | Anki 产品体验收口：先打通导入，再课化/向导 |
 | [`docs/ai_companion_implementation.md`](./docs/ai_companion_implementation.md) | AI companion 实现边界 |
 | [`docs/advanced-settings-system-health.md`](./docs/advanced-settings-system-health.md) | 高级设置与系统健康 |
 | [`docs/android-build-setup.md`](./docs/android-build-setup.md) | OHOS 分支构建配置 |

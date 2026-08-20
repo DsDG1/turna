@@ -1,5 +1,8 @@
 # Anki 导入页 · 易用性设计
 
+> 施工优先级以 [`official-anki-migration/31-anki-product-experience-plan.md`](./official-anki-migration/31-anki-product-experience-plan.md) 为准。
+> Android 生产导入先有硬阻断（worker 未就绪 fail-closed、完成页无 summary、cutover 二次 Legacy parse），本文件的 A–F 是向导打通之后的易用性 backlog，不能单独当当前计划。
+>
 > 上一轮改造后页面 IA、文案、性能都到位了，这一轮专门谈**易用性**。
 > 不再改信息架构，而是看用户从「打开页面」到「学完第一张卡」这整条路上，哪里还在绊脚。
 
