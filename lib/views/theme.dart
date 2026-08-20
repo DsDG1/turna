@@ -516,6 +516,79 @@ class TurnaTheme {
   static Color bottomNavBg(BuildContext context) =>
       _isDark(context) ? const Color(0xFF182832) : Colors.white;
 
+  /// Frosted fill for the floating home tab bar. More opaque than
+  /// [glassSurface] so labels stay readable over scrolling content.
+  static Color floatingBarFill(BuildContext context) => _isDark(context)
+      ? const Color(0xFF182832).withValues(alpha: 0.78)
+      : Colors.white.withValues(alpha: 0.82);
+
+  /// Stadium chips with a soft selected fill — a light M3 Expressive nudge
+  /// without swapping in connected button-group widgets.
+  static ChipThemeData expressiveChipTheme({
+    required Color background,
+    required Color selectedFill,
+    required Color label,
+    required Color selectedLabel,
+    required Color outline,
+    bool highContrast = false,
+  }) {
+    final side = BorderSide(color: outline, width: highContrast ? 1.5 : 1);
+    return ChipThemeData(
+      backgroundColor: background,
+      selectedColor: selectedFill,
+      secondarySelectedColor: selectedFill,
+      disabledColor: background,
+      checkmarkColor: selectedLabel,
+      showCheckmark: false,
+      labelStyle: TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: label,
+      ),
+      secondaryLabelStyle: TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+        color: selectedLabel,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      shape: StadiumBorder(side: side),
+      side: side,
+    );
+  }
+
+  /// Rounder segmented control; selected segment uses a teal wash.
+  static SegmentedButtonThemeData expressiveSegmentedTheme({
+    required Color selectedFill,
+    required Color selectedForeground,
+    required Color foreground,
+    required Color outline,
+    bool highContrast = false,
+  }) {
+    return SegmentedButtonThemeData(
+      style: ButtonStyle(
+        visualDensity: VisualDensity.compact,
+        side: WidgetStateProperty.all(
+          BorderSide(color: outline, width: highContrast ? 1.5 : 1),
+        ),
+        backgroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return selectedFill;
+          return Colors.transparent;
+        }),
+        foregroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return selectedForeground;
+          }
+          return foreground;
+        }),
+        shape: WidgetStateProperty.all(
+          RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radiusRound),
+          ),
+        ),
+      ),
+    );
+  }
+
   static Color streakChipBg(BuildContext context) =>
       _isDark(context) ? const Color(0xFF3E2723) : const Color(0xFFFFF3E0);
 
@@ -661,13 +734,26 @@ class TurnaTheme {
           ),
         ),
         bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-          backgroundColor: Colors.white,
+          backgroundColor: Colors.transparent,
           selectedItemColor: brandTeal,
           unselectedItemColor: textHint,
-          showSelectedLabels: false,
-          showUnselectedLabels: false,
+          showSelectedLabels: true,
+          showUnselectedLabels: true,
           type: BottomNavigationBarType.fixed,
           elevation: 0,
+        ),
+        chipTheme: expressiveChipTheme(
+          background: const Color(0xFFF3F8F7),
+          selectedFill: brandTeal.withValues(alpha: 0.16),
+          label: textSecondary,
+          selectedLabel: brandTeal,
+          outline: divider,
+        ),
+        segmentedButtonTheme: expressiveSegmentedTheme(
+          selectedFill: brandTeal.withValues(alpha: 0.16),
+          selectedForeground: brandTeal,
+          foreground: textSecondary,
+          outline: divider,
         ),
         progressIndicatorTheme: const ProgressIndicatorThemeData(
           color: brandTeal,
@@ -809,13 +895,26 @@ class TurnaTheme {
           ),
         ),
         bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-          backgroundColor: Color(0xFF182832),
+          backgroundColor: Colors.transparent,
           selectedItemColor: brandReed,
           unselectedItemColor: Color(0xFF7D929C),
-          showSelectedLabels: false,
-          showUnselectedLabels: false,
+          showSelectedLabels: true,
+          showUnselectedLabels: true,
           type: BottomNavigationBarType.fixed,
           elevation: 0,
+        ),
+        chipTheme: expressiveChipTheme(
+          background: const Color(0xFF142129),
+          selectedFill: brandTeal.withValues(alpha: 0.28),
+          label: const Color(0xFFB6C4CB),
+          selectedLabel: brandReed,
+          outline: const Color(0xFF2B414C),
+        ),
+        segmentedButtonTheme: expressiveSegmentedTheme(
+          selectedFill: brandTeal.withValues(alpha: 0.28),
+          selectedForeground: brandReed,
+          foreground: const Color(0xFFB6C4CB),
+          outline: const Color(0xFF2B414C),
         ),
         progressIndicatorTheme: const ProgressIndicatorThemeData(
           color: brandTealLight,
@@ -925,6 +1024,21 @@ class TurnaTheme {
             borderSide: const BorderSide(color: errorDark, width: 2),
           ),
         ),
+        chipTheme: expressiveChipTheme(
+          background: Colors.white,
+          selectedFill: primaryDark.withValues(alpha: 0.18),
+          label: Colors.black,
+          selectedLabel: primaryDark,
+          outline: Colors.black,
+          highContrast: true,
+        ),
+        segmentedButtonTheme: expressiveSegmentedTheme(
+          selectedFill: primaryDark.withValues(alpha: 0.18),
+          selectedForeground: primaryDark,
+          foreground: Colors.black,
+          outline: Colors.black,
+          highContrast: true,
+        ),
         dividerTheme: const DividerThemeData(
           color: Colors.black54,
           thickness: 1,
@@ -1022,6 +1136,21 @@ class TurnaTheme {
             borderRadius: BorderRadius.circular(radiusMedium),
             borderSide: const BorderSide(color: errorLight, width: 2),
           ),
+        ),
+        chipTheme: expressiveChipTheme(
+          background: Colors.black,
+          selectedFill: brandReed.withValues(alpha: 0.28),
+          label: Colors.white,
+          selectedLabel: brandReed,
+          outline: Colors.white,
+          highContrast: true,
+        ),
+        segmentedButtonTheme: expressiveSegmentedTheme(
+          selectedFill: brandReed.withValues(alpha: 0.28),
+          selectedForeground: brandReed,
+          foreground: Colors.white,
+          outline: Colors.white,
+          highContrast: true,
         ),
         dividerTheme: const DividerThemeData(
           color: Colors.white54,

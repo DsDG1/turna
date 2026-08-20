@@ -11,6 +11,46 @@
 
 import 'package:flutter/widgets.dart';
 
+class $AssetsAnkiReviewerGen {
+  const $AssetsAnkiReviewerGen();
+
+  /// File path: assets/anki_reviewer/card-frame.html
+  String get cardFrameHtml => 'assets/anki_reviewer/card-frame.html';
+
+  /// File path: assets/anki_reviewer/card-frame.js
+  String get cardFrameJs => 'assets/anki_reviewer/card-frame.js';
+
+  /// File path: assets/anki_reviewer/manifest.json
+  String get manifest => 'assets/anki_reviewer/manifest.json';
+
+  /// Directory path: assets/anki_reviewer/mathjax
+  $AssetsAnkiReviewerMathjaxGen get mathjax =>
+      const $AssetsAnkiReviewerMathjaxGen();
+
+  /// File path: assets/anki_reviewer/mathjax-config.js
+  String get mathjaxConfig => 'assets/anki_reviewer/mathjax-config.js';
+
+  /// File path: assets/anki_reviewer/reviewer.css
+  String get reviewerCss => 'assets/anki_reviewer/reviewer.css';
+
+  /// File path: assets/anki_reviewer/reviewer.html
+  String get reviewerHtml => 'assets/anki_reviewer/reviewer.html';
+
+  /// File path: assets/anki_reviewer/reviewer.js
+  String get reviewerJs => 'assets/anki_reviewer/reviewer.js';
+
+  /// List of all assets
+  List<String> get values => [
+        cardFrameHtml,
+        cardFrameJs,
+        manifest,
+        mathjaxConfig,
+        reviewerCss,
+        reviewerHtml,
+        reviewerJs
+      ];
+}
+
 class $AssetsCoursesGen {
   const $AssetsCoursesGen();
 
@@ -454,6 +494,16 @@ class $AssetsSoundsGen {
       [error1, error2, error3, error4, levelUp1, levelUp2, levelUp3, levelUp4];
 }
 
+class $AssetsAnkiReviewerMathjaxGen {
+  const $AssetsAnkiReviewerMathjaxGen();
+
+  /// File path: assets/anki_reviewer/mathjax/tex-svg-full.js
+  String get texSvgFull => 'assets/anki_reviewer/mathjax/tex-svg-full.js';
+
+  /// List of all assets
+  List<String> get values => [texSvgFull];
+}
+
 class $AssetsCoursesTurkishGen {
   const $AssetsCoursesTurkishGen();
 
@@ -623,6 +673,7 @@ class $AssetsCoursesTurkishSectionsGen {
 }
 
 abstract final class Assets {
+  static const $AssetsAnkiReviewerGen ankiReviewer = $AssetsAnkiReviewerGen();
   static const String changelog = 'assets/changelog.md';
   static const $AssetsCoursesGen courses = $AssetsCoursesGen();
   static const $AssetsImagesGen images = $AssetsImagesGen();

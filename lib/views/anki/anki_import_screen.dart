@@ -22,11 +22,18 @@ import 'package:turna/application/anki/anki_deck_assembler.dart';
 import 'package:turna/application/anki/anki_deck_manager.dart';
 import 'package:turna/application/anki/anki_importer.dart';
 import 'package:turna/application/anki/anki_import_cleanup_service.dart';
+import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
+import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/import/anki_import_facade.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
+import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
 import 'package:turna/application/anki_official/migration/official_anki_new_import_cutover.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
+import 'package:turna/application/anki_official/official_anki_ids.dart';
+import 'package:turna/application/anki_official/official_anki_paths.dart';
+import 'package:turna/application/anki_official/projection/official_anki_projection_service.dart';
+import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki/anki_models.dart';
 import 'package:turna/application/anki/anki_organization_resolver.dart';
 import 'package:turna/application/anki/anki_sample_deck.dart';
@@ -441,19 +448,22 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
           _InfoRow(AppStrings.ankiOrganizationNone,
               AppStrings.ankiOrganizationNoneDesc),
         const SizedBox(height: 4),
-        SwitchListTile(
-          value: _smartGrouping,
-          onChanged: (v) => setState(() => _smartGrouping = v),
-          title: Text(
-            AppStrings.ankiSmartGrouping,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        Material(
+          type: MaterialType.transparency,
+          child: SwitchListTile(
+            value: _smartGrouping,
+            onChanged: (v) => setState(() => _smartGrouping = v),
+            title: Text(
+              AppStrings.ankiSmartGrouping,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+            subtitle: Text(
+              AppStrings.ankiSmartGroupingDesc,
+              style: const TextStyle(fontSize: 12),
+            ),
+            dense: true,
+            contentPadding: EdgeInsets.zero,
           ),
-          subtitle: Text(
-            AppStrings.ankiSmartGroupingDesc,
-            style: const TextStyle(fontSize: 12),
-          ),
-          dense: true,
-          contentPadding: EdgeInsets.zero,
         ),
       ],
     );
@@ -586,34 +596,36 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
           const SizedBox(height: 8),
         ],
         const SizedBox(height: 4),
-        Container(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-          decoration: BoxDecoration(
-            color: TurnaTheme.brandTeal.withValues(alpha: 0.04),
+        Material(
+          color: TurnaTheme.brandTeal.withValues(alpha: 0.04),
+          shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
-            border: Border.all(
+            side: BorderSide(
               color: TurnaTheme.brandTeal.withValues(alpha: 0.12),
             ),
           ),
-          child: SwitchListTile.adaptive(
-            contentPadding: EdgeInsets.zero,
-            title: Text(
-              AppStrings.ankiImportLearningProgress,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-            ),
-            subtitle: Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Text(
-                _importLearningProgress
-                    ? AppStrings.ankiImportLearningProgressOnDesc
-                    : AppStrings.ankiImportLearningProgressOffDesc,
-                style: const TextStyle(fontSize: 12),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+            child: SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                AppStrings.ankiImportLearningProgress,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
               ),
+              subtitle: Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  _importLearningProgress
+                      ? AppStrings.ankiImportLearningProgressOnDesc
+                      : AppStrings.ankiImportLearningProgressOffDesc,
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ),
+              value: _importLearningProgress,
+              onChanged: (value) {
+                setState(() => _importLearningProgress = value);
+              },
             ),
-            value: _importLearningProgress,
-            onChanged: (value) {
-              setState(() => _importLearningProgress = value);
-            },
           ),
         ),
       ],
@@ -713,7 +725,9 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
                 child: Padding(
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(
-                    AppStrings.ankiLessonsCreated(summary.lessonCount),
+                    summary.lessonCount > 0
+                        ? AppStrings.ankiLessonsCreated(summary.lessonCount)
+                        : AppStrings.anki21bTreeDeferred,
                     style: TextStyle(
                       fontSize: 13,
                       color: TurnaTheme.textSecondaryColor(context),
@@ -1082,40 +1096,16 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       _isSample = false;
     });
     try {
-      final flags = OfficialAnkiFeatureFlags.current;
-      final facade = AnkiImportFacade.resolve(
-        flags: flags,
-        officialImporter: OfficialAnkiCompositionRoot.session,
-        legacyImporter: _importer,
-      );
-      if (facade.isOfficial) {
-        final official = await facade.importOfficialOrNull(
-          packagePath: path,
-          displayName: path.split(RegExp(r'[/\\]')).last,
-        );
-        if (official != null &&
-            official.state == OfficialAnkiSourceState.active) {
-          await const OfficialAnkiNewImportCutover().attachFromApp(
-            packagePath: path,
-            sourceId: official.sourceId,
-          );
-        }
-        if (!mounted) return;
-        setState(() {
-          _step = 4;
-          _progress = 1;
-        });
-        return;
-      }
       final parseSw = Stopwatch()..start();
       final collection = await _importer.parse(
         path,
         onProgress: (p, msg) {
-          if (mounted)
+          if (mounted) {
             setState(() {
               _progress = p;
               _progressMessage = msg;
             });
+          }
         },
         isCancelled: () => _cancelRequested,
       );
@@ -1138,19 +1128,75 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       totalSw.stop();
       _logTiming('parse: cancelled', totalSw);
       // User pressed cancel — nothing was written; return to file picker.
-      setState(() {
-        _step = 0;
-        _progress = 0;
-        _progressMessage = '';
+      if (mounted) {
+        setState(() {
+          _step = 0;
+          _progress = 0;
+          _progressMessage = '';
+        });
+      }
+    } on OfficialAnkiException catch (e) {
+      totalSw.stop();
+      _logTiming('parse: official failed', totalSw, {
+        'code': e.code.name,
+        'key': e.messageKey,
       });
+      if (e.code == OfficialAnkiErrorCode.importCancelled) {
+        if (mounted) {
+          setState(() {
+            _step = 0;
+            _progress = 0;
+            _progressMessage = '';
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _error = _mapOfficialErrorToHuman(e);
+            _step = 0;
+          });
+        }
+      }
     } catch (e) {
       totalSw.stop();
       _logTiming('parse: failed', totalSw, {'error': e.runtimeType.toString()});
-      setState(() {
-        _error = AppStrings.ankiParseFailed(e);
-        _step = 0;
-      });
+      if (mounted) {
+        setState(() {
+          _error = _mapGeneralErrorToHuman(e);
+          _step = 0;
+        });
+      }
     }
+  }
+
+  String _mapOfficialErrorToHuman(OfficialAnkiException e) {
+    if (e.code == OfficialAnkiErrorCode.packageInvalid ||
+        e.code == OfficialAnkiErrorCode.collectionCorrupt) {
+      return AppStrings.ankiCorruptDeck;
+    }
+    if (e.code == OfficialAnkiErrorCode.packageNotFound ||
+        e.code == OfficialAnkiErrorCode.ioError) {
+      return AppStrings.ankiFileReadFailed;
+    }
+    if (e.code == OfficialAnkiErrorCode.unsupportedPlatform ||
+        e.code == OfficialAnkiErrorCode.contractVersionMismatch) {
+      return AppStrings.ankiPickFileError;
+    }
+    return '${AppStrings.ankiImportFailedHuman} (${e.code.name})';
+  }
+
+  String _mapGeneralErrorToHuman(Object error) {
+    if (error is FileSystemException || error is IOException) {
+      return AppStrings.ankiFileReadFailed;
+    }
+    if (error is AnkiImportException) {
+      return error.message;
+    }
+    final msg = error.toString();
+    if (msg.contains('.apkg') || msg.contains('.colpkg')) {
+      return AppStrings.ankiPickFileError;
+    }
+    return AppStrings.ankiParseFailed(error);
   }
 
   /// Shared path after a collection is available (parsed file or sample).
@@ -1523,6 +1569,80 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         _logTiming('import: forceReplace cleanup', cleanupSw);
       }
 
+      // If official engine is enabled and we are importing a real file, sync to official Anki collection & migration record
+      if (!_isSample) {
+        try {
+          final flags = OfficialAnkiFeatureFlags.current;
+          final decision = AnkiImportFacade.decisionFor(flags);
+          OfficialAnkiImporter? officialImporter =
+              OfficialAnkiCompositionRoot.session;
+          if (decision == AnkiImportDecision.official &&
+              officialImporter == null) {
+            final support = await getApplicationSupportDirectory();
+            officialImporter =
+                await OfficialAnkiCompositionRoot.requireImporter(
+              supportDir: support,
+            );
+          }
+          final facade = AnkiImportFacade.resolve(
+            flags: flags,
+            officialImporter: officialImporter,
+            legacyImporter: _importer,
+          );
+          if (facade.isOfficial) {
+            final official = await facade.importOfficialOrNull(
+              packagePath: filePath,
+              displayName: filePath.split(RegExp(r'[/\\]')).last,
+            );
+            if (official != null &&
+                official.state == OfficialAnkiSourceState.active) {
+              final support = await getApplicationSupportDirectory();
+              final paths = OfficialAnkiPaths(
+                profileId: 'profile-default-01',
+                profileRoot: Directory('${support.path}/official_anki/default'),
+              );
+              final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog ??
+                  OfficialAnkiDatabase.file(paths.catalogFile.path);
+              try {
+                final migrationDao = OfficialAnkiMigrationDao(catalog);
+                final now = DateTime.now().millisecondsSinceEpoch;
+                final existing = migrationDao.findByLegacyImport(
+                  profileId: paths.profileId,
+                  legacyImportId: importId,
+                );
+                if (existing == null) {
+                  migrationDao.insertObservingOfficial(
+                    migrationId: newOfficialAnkiId('mig'),
+                    profileId: paths.profileId,
+                    legacyImportId: importId,
+                    officialSourceId: official.sourceId,
+                    sourceHash: hash,
+                    nowMillis: now,
+                    cardCount: summary.cardCount,
+                  );
+                } else if (existing.recordedKind != 'official' ||
+                    existing.officialSourceId != official.sourceId) {
+                  migrationDao.setOfficialSourceAndRecordedKind(
+                    migrationId: existing.migrationId,
+                    officialSourceId: official.sourceId,
+                    recordedKind: 'official',
+                    nowMillis: now,
+                  );
+                }
+              } finally {
+                if (OfficialAnkiCompositionRoot.readOnlyCatalog == null) {
+                  catalog.close();
+                }
+              }
+            }
+          }
+        } catch (e) {
+          debugPrint(
+            '[AnkiImport] Official import cutover sync failed/deferred: $e',
+          );
+        }
+      }
+
       // Promote the import to a first-class course entry:
       // 1) Drop CourseLoader shells/vocab memo so the new Anki section(s)
       //    appear in [CourseProvider.courseEntries] without an app restart.
@@ -1837,11 +1957,11 @@ class _SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: TurnaTheme.cardBg(context),
+    return Material(
+      color: TurnaTheme.cardBg(context),
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-        border: Border.all(
+        side: BorderSide(
           color: TurnaTheme.brandTeal.withValues(alpha: 0.12),
         ),
       ),

@@ -27,6 +27,8 @@ class AppStrings {
   static String get commonSave => '保存';
   static String get commonImport => '导入';
   static String get commonLater => '稍后';
+  static String get commonUndo => '撤销';
+  static String get commonRedo => '重做';
   static String get commonNavLearn => '学习';
   static String get commonNavPlay => '练习';
   static String get commonNavProfile => '我的';
@@ -43,6 +45,7 @@ class AppStrings {
   static String get settingsCategoryAccountSubtitle => '资料、目标与统计';
   static String get settingsCategoryLearning => '学习';
   static String get settingsCategoryLearningSubtitle => '语言、语速、提醒与 Anki';
+
   /// Merged audio + accessibility category (was two separate entries).
   static String get settingsCategorySensoryA11y => '声音与无障碍';
   static String get settingsCategorySensoryA11ySubtitle => '音效、触感、字号与主题';
@@ -50,7 +53,8 @@ class AppStrings {
   static String get settingsCategoryAudioHaptics => settingsCategorySensoryA11y;
   static String get settingsCategoryAudioHapticsSubtitle =>
       settingsCategorySensoryA11ySubtitle;
-  static String get settingsCategoryAccessibility => settingsCategorySensoryA11y;
+  static String get settingsCategoryAccessibility =>
+      settingsCategorySensoryA11y;
   static String get settingsCategoryAccessibilitySubtitle =>
       settingsCategorySensoryA11ySubtitle;
   static String get settingsCategoryAiTools => 'AI 工具';
@@ -404,7 +408,8 @@ class AppStrings {
       '课程进度、SRS 复习数据、错题本、收藏、成就、设置项、皮肤与主题等数据，全部保存在本机 SQLite 数据库与 SharedPreferences 中，受系统沙箱保护。卸载应用将一并删除这些数据——我们没有副本可恢复。建议定期使用「设置 → 数据 → 导出数据」进行本地备份。';
   // 网络访问
   static String get privacyDetailsNetworkTitle => '网络访问';
-  static String get privacyDetailsNetworkIntro => 'Turna 的网络行为分两类:非 AI 默认完全离线,AI 由你决定';
+  static String get privacyDetailsNetworkIntro =>
+      'Turna 的网络行为分两类:非 AI 默认完全离线,AI 由你决定';
   static String get privacyDetailsNonAiTitle => '非 AI 功能';
   static String get privacyDetailsNonAiIntro => '默认完全离线,无需任何网络请求';
   static String get privacyDetailsNonAiBody =>
@@ -565,9 +570,11 @@ class AppStrings {
   static String get reviewContinueUpper => '继续';
   static String get reviewGotItUpper => '知道了';
   static String get reviewWeakWordsTitleAppBar => '薄弱单词';
-  static String get reviewDoYouKnow => '你认识这个单词吗？';
-  static String get reviewDontKnow => '不认识';
-  static String get reviewKnowIt => '认识';
+  static String get reviewDoYouKnow => '你记得这个内容吗？';
+  static String get reviewDontKnow => '不记得';
+  static String get reviewKnowIt => '记得';
+  static String get reviewBinaryForgotten => '不记得';
+  static String get reviewBinaryRemembered => '记得';
   static String get reviewAgain => '重来';
   static String get reviewHard => '困难';
   static String get reviewGood => '良好';
@@ -1003,10 +1010,8 @@ class AppStrings {
   static String get ankiImportSelectTitle => '导入 Anki 牌组';
   static String get ankiImportSelectSubtitle =>
       '从 Anki 桌面端导出牌组文件 (.apkg / .colpkg)，然后从这里导入。';
-  static String get ankiImportSelectBodyHint =>
-      '想先看看效果？试用一个内置示例牌组';
-  static String get ankiImportFallbackScanHint =>
-      '系统选择器打不开？试试从已下载文件选择';
+  static String get ankiImportSelectBodyHint => '想先看看效果？试用一个内置示例牌组';
+  static String get ankiImportFallbackScanHint => '系统选择器打不开？试试从已下载文件选择';
   static String get ankiChooseFile => '选择文件';
   // Wizard step labels for the new step indicator at the top of the page.
   static String get ankiStepSelect => '选择文件';
@@ -1080,10 +1085,8 @@ class AppStrings {
   static String get ankiPreviewSectionMapping => '卡片识别';
   static String get ankiPreviewSectionMappingHint => '系统如何识别每张卡的题型';
   static String get ankiPreviewSectionStrategy => '导入方式';
-  static String get ankiPreviewSectionStrategyHint =>
-      '如何处理已存在的卡片和学习进度';
-  static String get ankiPreviewCollisionVisualHint =>
-      '已存在卡片会按下方策略处理';
+  static String get ankiPreviewSectionStrategyHint => '如何处理已存在的卡片和学习进度';
+  static String get ankiPreviewCollisionVisualHint => '已存在卡片会按下方策略处理';
   static String get ankiPreviewStartImport => '开始导入';
   static String get ankiPreviewCancel => '取消';
   static String get ankiImportLearningProgress => '导入 Anki 学习进度';
@@ -1147,8 +1150,7 @@ class AppStrings {
   // glance instead of tapping each option to learn the cost.
   static String get ankiStrategyMergeConsequence => 'SRS 与复习历史保留';
   static String get ankiStrategySkipExistingConsequence => 'SRS 与复习历史保留';
-  static String get ankiStrategyForceReplaceConsequence =>
-      'SRS 状态与复习历史会丢失';
+  static String get ankiStrategyForceReplaceConsequence => 'SRS 状态与复习历史会丢失';
   static String get ankiStrategyAppendAsNewConsequence => '两份数据共存';
   static String get ankiStrategyWarningBadge => '注意';
   static String get ankiReviewTitle => 'Anki 复习';
@@ -1160,7 +1162,8 @@ class AppStrings {
   static String get ankiReviewScreenTitle => 'Anki 复习';
   static String get ankiImportNewDeck => '导入新牌组';
   static String ankiCardsDueReview(int totalDue) => '$totalDue 张卡片待复习';
-  static String get ankiReviewAll => '全部复习';
+  static String get ankiDueUnavailable => '到期数量暂不可用，请稍后刷新';
+  static String get ankiReviewAll => '开始复习';
   static String get ankiNoDecksTitle => '未导入 Anki 牌组';
   static String get ankiNoDecksSubtitle => '导入 .apkg 文件以开始复习';
   static String get ankiImportDeck => '导入牌组';
@@ -1171,6 +1174,27 @@ class AppStrings {
   static String get ankiUninstallConfirmTitle => '移除此牌组？';
   static String get ankiUninstallConfirmBody => '将删除该牌组的卡片、复习进度和媒体文件，此操作无法撤销。';
   static String get ankiDeckRemoved => '牌组已移除';
+  static String get ankiShowAnswer => '显示答案';
+  static String get ankiShowAnswerFlip => '显示答案 / 翻面';
+  static String get ankiBuryCard => '暂缓卡片';
+  static String get ankiBurySiblings => '暂缓同源卡片';
+  static String get ankiSuspendCard => '暂停卡片';
+  static String get ankiFilteredDeckBuryUnsupported => '筛选牌组不支持暂缓/暂停卡片。';
+  static String get ankiToggleSurfaceWebView => '切换至原版 WebView';
+  static String get ankiToggleSurfacePractice => '切换至课化卡片';
+  static String get ankiToggleSurfaceFidelityOnly => '该卡片含复杂排版或脚本，仅支持官方原版渲染';
+  static String get ankiChooseCorrectAnswer => '请选择正确答案';
+  static String get ankiAnswerExplanation => '答案解析：';
+  static String get ankiClozeAnswer => '填空答案：';
+  static String get ankiListenAudio => '播放音频';
+  static String get ankiAudioMissing => '音频缺失';
+  static String get ankiFileReadFailed => '无法读取该文件';
+  static String get ankiCorruptDeck => '文件已损坏或不是有效的 Anki 牌组';
+  static String get anki21bTreeDeferred => '已导入官方牌组；练习课稍后再生成';
+  static String get ankiImportFailedHuman => '导入失败，请重试';
+  static String get ankiAdvancedFidelityTitle =>
+      'Anki 保真 / 解密（仅旧版 / HarmonyOS）';
+  static String get ankiAdvancedFidelitySubtitle => '仅旧版 / HarmonyOS 导入源生效';
 
   // ── Courses ──
   static String get coursesCouldNotLoadCourse => '无法加载课程';

@@ -56,8 +56,6 @@ class AnkiDeckStatsPage extends StatelessWidget {
                     '${data.totalReviews} 次 · ${data.trackedCards}/${data.totalCards} 张已复习',
                 icon: Icons.history,
               ),
-              const SizedBox(height: 12),
-              _MaturityCard(maturity: data.maturity),
               if (data.retentionByInterval.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Card(
@@ -147,30 +145,5 @@ class _ForecastValue extends StatelessWidget {
                   ?.copyWith(fontWeight: FontWeight.w800)),
           Text(label),
         ],
-      );
-}
-
-class _MaturityCard extends StatelessWidget {
-  final MaturityBreakdown maturity;
-  const _MaturityCard({required this.maturity});
-
-  @override
-  Widget build(BuildContext context) => Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              Chip(label: Text('新卡 ${maturity.newCards}')),
-              Chip(label: Text('学习中 ${maturity.young}')),
-              Chip(label: Text('成熟 ${maturity.mature}')),
-              Chip(
-                avatar: const Icon(Icons.warning_amber, size: 18),
-                label: Text('Leech ${maturity.leech}'),
-              ),
-            ],
-          ),
-        ),
       );
 }

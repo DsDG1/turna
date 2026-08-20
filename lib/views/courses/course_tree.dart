@@ -234,7 +234,10 @@ class _CourseTreeState extends State<CourseTree> {
       physics: const BouncingScrollPhysics(),
       slivers: [
         SliverPadding(
-          padding: const EdgeInsets.only(top: 8, bottom: 40),
+          padding: EdgeInsets.only(
+            top: 8,
+            bottom: 16 + MediaQuery.paddingOf(context).bottom,
+          ),
           sliver: SliverList(
             delegate: SliverChildBuilderDelegate(
               (context, index) {

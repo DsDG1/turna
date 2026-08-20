@@ -6,11 +6,13 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
+import 'package:turna/application/accessibility_provider.dart';
 import 'package:turna/application/game_provider.dart';
 import 'package:turna/application/gems_provider.dart';
 import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/mistake_provider.dart';
+import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/data/course_repository.dart';
@@ -153,23 +155,36 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final mq = MediaQuery.of(context);
     return Scaffold(
       backgroundColor: currentIndex == 0
           ? TurnaTheme.scaffoldBg(context)
           : TurnaTheme.surfaceColor(context),
       appBar: appBars[currentIndex],
+      extendBody: true,
       bottomNavigationBar: BottomNavigator(
         currentIndex: currentIndex,
         onPress: onBottomNavigatorTapped,
       ),
-      body: IndexedStack(
-        index: currentIndex,
-        children: screens,
+      body: MediaQuery(
+        data: mq.copyWith(
+          padding: mq.padding.copyWith(
+            bottom: mq.padding.bottom + BottomNavigator.overlayExtent,
+          ),
+        ),
+        child: IndexedStack(
+          index: currentIndex,
+          children: screens,
+        ),
       ),
     );
   }
 
   void onBottomNavigatorTapped(int index) {
+    final a11y = context.read<AccessibilityProvider>();
+    if (!a11y.quietFeedback) {
+      context.read<SettingsProvider>().triggerHaptic(HapticFeedbackType.light);
+    }
     // Route through TabRouter so external callers (e.g. the lesson "去设置"
     // dialog) and the nav bar share one write path. The listener applies it.
     getIt<TabRouter>().switchTo(index);

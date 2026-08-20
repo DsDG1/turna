@@ -10,6 +10,7 @@ import 'package:turna/application/review_progress_provider.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/review/components/retention_curve_chart.dart';
 import 'package:turna/views/theme.dart';
+import 'package:turna/views/widgets/turna_select.dart';
 
 @RoutePage()
 class ReviewProgressPage extends StatefulWidget {
@@ -95,13 +96,6 @@ class _ReviewProgressPageState extends State<ReviewProgressPage> {
                     child: _CurveCard(snapshot: data),
                   ),
                 ),
-                if (data.aggregate.totalCards > 0)
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                      child: _MaturityCard(snapshot: data),
-                    ),
-                  ),
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
@@ -148,94 +142,56 @@ class _FilterPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _chipRow(
-            context,
             children: [
               for (final s in sources)
-                _chip(
-                  context,
+                TurnaFilterChip(
                   label: s.kind == ReviewSourceKind.all
                       ? AppStrings.reviewProgressSourceAll
                       : s.label,
                   selected: filter.source.id == s.id,
-                  onTap: () => onChanged(filter.copyWith(source: s)),
+                  onSelected: (_) => onChanged(filter.copyWith(source: s)),
                 ),
             ],
           ),
-          const SizedBox(height: 8),
-          _chipRow(
-            context,
-            children: [
+          const SizedBox(height: 10),
+          TurnaSegmented<ProgressTypeFilter>(
+            selected: filter.type,
+            onChanged: (t) => onChanged(filter.copyWith(type: t)),
+            segments: [
               for (final t in ProgressTypeFilter.values)
-                _chip(
-                  context,
-                  label: _typeLabel(t),
-                  selected: filter.type == t,
-                  onTap: () => onChanged(filter.copyWith(type: t)),
-                ),
+                ButtonSegment(value: t, label: Text(_typeLabel(t))),
             ],
           ),
-          const SizedBox(height: 8),
-          _chipRow(
-            context,
-            children: [
-              _chip(
-                context,
-                label: AppStrings.reviewProgressDueAny,
-                selected: filter.due == DueFilter.any,
-                onTap: () => onChanged(filter.copyWith(due: DueFilter.any)),
+          const SizedBox(height: 10),
+          TurnaSegmented<DueFilter>(
+            selected: filter.due,
+            onChanged: (d) => onChanged(filter.copyWith(due: d)),
+            segments: [
+              ButtonSegment(
+                value: DueFilter.any,
+                label: Text(AppStrings.reviewProgressDueAny),
               ),
-              _chip(
-                context,
-                label: AppStrings.reviewProgressDueOverdue,
-                selected: filter.due == DueFilter.overdue,
-                onTap: () => onChanged(filter.copyWith(due: DueFilter.overdue)),
+              ButtonSegment(
+                value: DueFilter.overdue,
+                label: Text(AppStrings.reviewProgressDueOverdue),
               ),
-              _chip(
-                context,
-                label: AppStrings.reviewProgressDue7,
-                selected: filter.due == DueFilter.due7,
-                onTap: () => onChanged(filter.copyWith(due: DueFilter.due7)),
+              ButtonSegment(
+                value: DueFilter.due7,
+                label: Text(AppStrings.reviewProgressDue7),
               ),
-              _chip(
-                context,
-                label: AppStrings.reviewProgressDue30,
-                selected: filter.due == DueFilter.due30,
-                onTap: () => onChanged(filter.copyWith(due: DueFilter.due30)),
+              ButtonSegment(
+                value: DueFilter.due30,
+                label: Text(AppStrings.reviewProgressDue30),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          _chipRow(
-            context,
-            children: [
-              for (final m in MaturityBucket.values)
-                _chip(
-                  context,
-                  label: _maturityLabel(m),
-                  selected: filter.maturity.contains(m),
-                  onTap: () {
-                    final next = Set<MaturityBucket>.from(filter.maturity);
-                    if (next.contains(m)) {
-                      next.remove(m);
-                    } else {
-                      next.add(m);
-                    }
-                    onChanged(filter.copyWith(maturity: next));
-                  },
-                ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          _chipRow(
-            context,
-            children: [
+          const SizedBox(height: 10),
+          TurnaSegmented<EventRange>(
+            selected: filter.eventRange,
+            onChanged: (r) => onChanged(filter.copyWith(eventRange: r)),
+            segments: [
               for (final r in EventRange.values)
-                _chip(
-                  context,
-                  label: _rangeLabel(r),
-                  selected: filter.eventRange == r,
-                  onTap: () => onChanged(filter.copyWith(eventRange: r)),
-                ),
+                ButtonSegment(value: r, label: Text(_rangeLabel(r))),
             ],
           ),
         ],
@@ -256,19 +212,6 @@ class _FilterPanel extends StatelessWidget {
     }
   }
 
-  String _maturityLabel(MaturityBucket m) {
-    switch (m) {
-      case MaturityBucket.newCards:
-        return AppStrings.profileMaturityNew;
-      case MaturityBucket.young:
-        return AppStrings.profileMaturityYoung;
-      case MaturityBucket.mature:
-        return AppStrings.profileMaturityMature;
-      case MaturityBucket.leech:
-        return AppStrings.profileMaturityLeech;
-    }
-  }
-
   String _rangeLabel(EventRange r) {
     switch (r) {
       case EventRange.all:
@@ -282,7 +225,7 @@ class _FilterPanel extends StatelessWidget {
     }
   }
 
-  Widget _chipRow(BuildContext context, {required List<Widget> children}) {
+  Widget _chipRow({required List<Widget> children}) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(children: [
@@ -291,36 +234,6 @@ class _FilterPanel extends StatelessWidget {
           children[i],
         ],
       ]),
-    );
-  }
-
-  Widget _chip(
-    BuildContext context, {
-    required String label,
-    required bool selected,
-    required VoidCallback onTap,
-  }) {
-    return FilterChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) => onTap(),
-      selectedColor: TurnaTheme.brandTeal.withValues(alpha: 0.18),
-      checkmarkColor: TurnaTheme.brandTeal,
-      labelStyle: TextStyle(
-        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-        color: selected
-            ? TurnaTheme.brandTeal
-            : TurnaTheme.textSecondaryColor(context),
-        fontSize: 13,
-      ),
-      side: BorderSide(
-        color: selected
-            ? TurnaTheme.brandTeal
-            : TurnaTheme.statCardBorder(context),
-      ),
-      backgroundColor: TurnaTheme.cardBg(context),
-      visualDensity: VisualDensity.compact,
-      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
   }
 }
@@ -460,71 +373,6 @@ class _CurveCard extends StatelessWidget {
           else
             RetentionCurveChart(curve: curve, height: 160),
         ],
-      ),
-    );
-  }
-}
-
-// ── Maturity ─────────────────────────────────────────────────────────────
-
-class _MaturityCard extends StatelessWidget {
-  final ReviewProgressSnapshot snapshot;
-
-  const _MaturityCard({required this.snapshot});
-
-  @override
-  Widget build(BuildContext context) {
-    final m = snapshot.aggregate.maturity;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: TurnaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-        border: Border.all(color: TurnaTheme.statCardBorder(context)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            AppStrings.profileMaturityTitle,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _chip(context, AppStrings.profileMaturityNew, m.newCards,
-                  TurnaTheme.textHintColor(context)),
-              _chip(context, AppStrings.profileMaturityYoung, m.young,
-                  TurnaTheme.primaryLight),
-              _chip(context, AppStrings.profileMaturityMature, m.mature,
-                  TurnaTheme.success),
-              _chip(context, AppStrings.profileMaturityLeech, m.leech,
-                  TurnaTheme.error),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _chip(BuildContext context, String label, int count, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
-      ),
-      child: Text(
-        '$label $count',
-        style: TextStyle(
-          color: color,
-          fontWeight: FontWeight.w700,
-          fontSize: 13,
-        ),
       ),
     );
   }

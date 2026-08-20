@@ -14,6 +14,7 @@ import 'package:turna/application/srs_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/theme.dart';
+import 'package:turna/views/widgets/turna_select.dart';
 
 @RoutePage()
 class AnkiCardBrowserPage extends StatefulWidget {
@@ -84,7 +85,9 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
       marked: marked,
       suspended: suspended,
     );
-    if (suspended != null && mounted) {
+    if (suspended != null &&
+        mounted &&
+        !row.card.wordId.startsWith('official-anki-')) {
       await context.read<SrsProvider>().setWordFlags(
             row.card.wordId,
             suspended: suspended,
@@ -215,8 +218,8 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Row(
               children: [
-                FilterChip(
-                  label: const Text('已标记'),
+                TurnaFilterChip(
+                  label: '已标记',
                   selected: _marked == true,
                   onSelected: (value) {
                     setState(() => _marked = value ? true : null);
@@ -224,8 +227,8 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
                   },
                 ),
                 const SizedBox(width: 8),
-                FilterChip(
-                  label: const Text('已暂停'),
+                TurnaFilterChip(
+                  label: '已暂停',
                   selected: _suspended == true,
                   onSelected: (value) {
                     setState(() => _suspended = value ? true : null);
@@ -239,9 +242,9 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
                   (3, Colors.blue),
                   (4, Colors.green),
                 ]) ...[
-                  FilterChip(
+                  TurnaFilterChip(
                     avatar: Icon(Icons.flag, color: entry.$2, size: 16),
-                    label: Text('${entry.$1}'),
+                    label: '${entry.$1}',
                     selected: _flag == entry.$1,
                     onSelected: (value) {
                       setState(() => _flag = value ? entry.$1 : null);

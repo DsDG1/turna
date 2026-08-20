@@ -79,8 +79,9 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
 
     // Find Anki sections (allSections: the review hub lists decks even when
     // the course scope hides them from the Learn-page tree).
-    final ankiSections =
-        courseProvider.allSections.where((s) => s.level == 'Anki').toList();
+    final ankiSections = courseProvider.allSections
+        .where((s) => s.level == 'Anki' || s.level == 'OfficialAnki')
+        .toList();
 
     final deckOrder = {
       for (var i = 0; i < courseProvider.courseEntries.length; i++)
@@ -99,6 +100,19 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
     // full collectDue sort per section tile).
     final dueSnap = assembler.dueSnapshot();
     final totalDue = _aggregatedDue(ankiSections, dueSnap.byImportId);
+    final hasLegacySections = ankiSections.any((section) {
+      final importId = AnkiReviewAssembler.importIdFromSectionId(section.id);
+      return !OfficialAnkiHomeDue.officialImportIds.contains(importId);
+    });
+    String? firstDueOfficialSectionId;
+    for (final section in ankiSections) {
+      final importId = AnkiReviewAssembler.importIdFromSectionId(section.id);
+      if (OfficialAnkiHomeDue.officialImportIds.contains(importId) &&
+          (OfficialAnkiHomeDue.officialDueByImport[importId] ?? 0) > 0) {
+        firstDueOfficialSectionId = section.id;
+        break;
+      }
+    }
     final deckManager = getIt<AnkiDeckManager>();
     final newLeft = deckManager.newRemainingToday;
     final reviewLeft = deckManager.reviewRemainingToday;
@@ -107,42 +121,71 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
       padding: const EdgeInsets.all(20),
       children: [
         // Daily quota summary
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          margin: const EdgeInsets.only(bottom: 16),
-          decoration: BoxDecoration(
-            color: TurnaTheme.cardBg(context),
-            borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-            border: Border.all(
-              color: TurnaTheme.brandTeal.withValues(alpha: 0.12),
-            ),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                Icons.today_rounded,
-                size: 18,
-                color: TurnaTheme.textSecondaryColor(context),
+        if (hasLegacySections)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              color: TurnaTheme.cardBg(context),
+              borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+              border: Border.all(
+                color: TurnaTheme.brandTeal.withValues(alpha: 0.12),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  (newLeft == 0 && reviewLeft == 0)
-                      ? AppStrings.ankiQuotaExhausted
-                      : AppStrings.ankiQuotaRemaining(newLeft, reviewLeft),
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: TurnaTheme.textSecondaryColor(context),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.today_rounded,
+                  size: 18,
+                  color: TurnaTheme.textSecondaryColor(context),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    (newLeft == 0 && reviewLeft == 0)
+                        ? AppStrings.ankiQuotaExhausted
+                        : AppStrings.ankiQuotaRemaining(newLeft, reviewLeft),
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: TurnaTheme.textSecondaryColor(context),
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
 
         // Total due summary
-        if (totalDue > 0)
+        if (OfficialAnkiHomeDue.officialDueUnavailable)
+          Container(
+            key: const Key('anki-due-unavailable'),
+            padding: const EdgeInsets.all(16),
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              color: TurnaTheme.warning.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.sync_problem_rounded,
+                    color: TurnaTheme.warning),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    AppStrings.ankiDueUnavailable,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+                IconButton(
+                  tooltip: AppStrings.ankiReviewRetry,
+                  onPressed: _refreshOfficialDue,
+                  icon: const Icon(Icons.refresh_rounded),
+                ),
+              ],
+            ),
+          )
+        else if (totalDue > 0)
           Container(
             padding: const EdgeInsets.all(16),
             margin: const EdgeInsets.only(bottom: 16),
@@ -165,7 +208,8 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
                   ),
                 ),
                 ElevatedButton(
-                  onPressed: () => _startReview(context, null),
+                  onPressed: () =>
+                      _startReview(context, firstDueOfficialSectionId),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: TurnaTheme.brandTeal,
                     foregroundColor: TurnaTheme.textOnPrimary,
@@ -179,13 +223,19 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
         // Section list. The order is persisted in the same course-order
         // preference used by the course-management screen.
         ReorderableListView.builder(
+          padding: EdgeInsets.zero,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: ankiSections.length,
-          onReorder: (oldIndex, newIndex) =>
+          onReorderItem: (oldIndex, newIndex) =>
               _reorderDecks(context, ankiSections, oldIndex, newIndex),
           itemBuilder: (context, index) {
             final section = ankiSections[index];
+            final importId = AnkiReviewAssembler.importIdFromSectionId(
+              section.id,
+            );
+            final isOfficial =
+                OfficialAnkiHomeDue.officialImportIds.contains(importId);
             return KeyedSubtree(
               key: ValueKey(section.id),
               child: _AnkiSectionCard(
@@ -193,42 +243,46 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
                 sectionName: section.name,
                 description: section.description,
                 dueCount: _dueForSection(
-                  AnkiReviewAssembler.importIdFromSectionId(section.id),
+                  importId,
                   dueSnap.byImportId,
                 ),
                 onTap: () => _startReview(context, section.id),
-                onStats: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => AnkiDeckStatsPage(
-                      importId: AnkiReviewAssembler.importIdFromSectionId(
-                        section.id,
-                      ),
-                      title: section.name,
-                    ),
-                  ),
-                ),
-                onBrowse: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => AnkiCardBrowserPage(
-                      importId: AnkiReviewAssembler.importIdFromSectionId(
-                        section.id,
-                      ),
-                      title: section.name,
-                      sectionId: section.id,
-                    ),
-                  ),
-                ),
+                onStats: isOfficial
+                    ? null
+                    : () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => AnkiDeckStatsPage(
+                              importId: importId,
+                              title: section.name,
+                            ),
+                          ),
+                        ),
+                onBrowse: isOfficial
+                    ? null
+                    : () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => AnkiCardBrowserPage(
+                              importId: importId,
+                              title: section.name,
+                              sectionId: section.id,
+                            ),
+                          ),
+                        ),
                 onPin: () => _pinDeck(context, section.id),
-                onOptions: () => _editDeckOptions(
-                  context,
-                  sectionId: section.id,
-                  title: section.name,
-                ),
-                onUninstall: () => _confirmUninstall(
-                  context,
-                  sectionId: section.id,
-                  sectionName: section.name,
-                ),
+                onOptions: isOfficial
+                    ? null
+                    : () => _editDeckOptions(
+                          context,
+                          sectionId: section.id,
+                          title: section.name,
+                        ),
+                onUninstall: isOfficial
+                    ? null
+                    : () => _confirmUninstall(
+                          context,
+                          sectionId: section.id,
+                          sectionName: section.name,
+                        ),
               ),
             );
           },
@@ -242,7 +296,6 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
 
   Future<void> _reorderDecks(
       BuildContext context, List sections, int oldIndex, int newIndex) async {
-    if (oldIndex < newIndex) newIndex--;
     final reordered = List.of(sections);
     final item = reordered.removeAt(oldIndex);
     reordered.insert(newIndex, item);
@@ -442,8 +495,9 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
     );
   }
 
-  int _dueForSection(String importId, Map<String, int> byImportId) {
+  int? _dueForSection(String importId, Map<String, int> byImportId) {
     if (OfficialAnkiHomeDue.officialImportIds.contains(importId)) {
+      if (OfficialAnkiHomeDue.officialDueUnavailable) return null;
       return OfficialAnkiHomeDue.officialDueByImport[importId] ?? 0;
     }
     return byImportId[importId] ?? 0;
@@ -456,9 +510,10 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
     var total = 0;
     for (final section in ankiSections) {
       total += _dueForSection(
-        AnkiReviewAssembler.importIdFromSectionId(section.id as String),
-        byImportId,
-      );
+            AnkiReviewAssembler.importIdFromSectionId(section.id as String),
+            byImportId,
+          ) ??
+          0;
     }
     return total;
   }
@@ -484,13 +539,13 @@ class _AnkiSectionCard extends StatelessWidget {
   final String sectionId;
   final String sectionName;
   final String description;
-  final int dueCount;
+  final int? dueCount;
   final VoidCallback onTap;
-  final VoidCallback onStats;
-  final VoidCallback onBrowse;
+  final VoidCallback? onStats;
+  final VoidCallback? onBrowse;
   final VoidCallback onPin;
-  final VoidCallback onOptions;
-  final VoidCallback onUninstall;
+  final VoidCallback? onOptions;
+  final VoidCallback? onUninstall;
 
   const _AnkiSectionCard({
     required this.sectionId,
@@ -562,7 +617,7 @@ class _AnkiSectionCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (dueCount > 0)
+                if (dueCount == null || dueCount! > 0)
                   Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -571,7 +626,7 @@ class _AnkiSectionCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      '$dueCount',
+                      dueCount?.toString() ?? '—',
                       style: const TextStyle(
                         color: TurnaTheme.textOnPrimary,
                         fontWeight: FontWeight.w800,
@@ -603,11 +658,11 @@ class _AnkiSectionCard extends StatelessWidget {
 }
 
 class _UninstallMenuButton extends StatelessWidget {
-  final VoidCallback onStats;
-  final VoidCallback onBrowse;
+  final VoidCallback? onStats;
+  final VoidCallback? onBrowse;
   final VoidCallback onPin;
-  final VoidCallback onOptions;
-  final VoidCallback onUninstall;
+  final VoidCallback? onOptions;
+  final VoidCallback? onUninstall;
 
   const _UninstallMenuButton({
     required this.onStats,
@@ -628,26 +683,28 @@ class _UninstallMenuButton extends StatelessWidget {
       padding: const EdgeInsets.all(4),
       tooltip: '',
       itemBuilder: (context) => [
-        const PopupMenuItem<String>(
-          value: 'stats',
-          child: Row(
-            children: [
-              Icon(Icons.insights_outlined, size: 20),
-              SizedBox(width: 12),
-              Text('统计'),
-            ],
+        if (onStats != null)
+          const PopupMenuItem<String>(
+            value: 'stats',
+            child: Row(
+              children: [
+                Icon(Icons.insights_outlined, size: 20),
+                SizedBox(width: 12),
+                Text('统计'),
+              ],
+            ),
           ),
-        ),
-        const PopupMenuItem<String>(
-          value: 'browse',
-          child: Row(
-            children: [
-              Icon(Icons.view_list_outlined, size: 20),
-              SizedBox(width: 12),
-              Text('浏览卡片'),
-            ],
+        if (onBrowse != null)
+          const PopupMenuItem<String>(
+            value: 'browse',
+            child: Row(
+              children: [
+                Icon(Icons.view_list_outlined, size: 20),
+                SizedBox(width: 12),
+                Text('浏览卡片'),
+              ],
+            ),
           ),
-        ),
         const PopupMenuItem<String>(
           value: 'pin',
           child: Row(
@@ -658,37 +715,39 @@ class _UninstallMenuButton extends StatelessWidget {
             ],
           ),
         ),
-        const PopupMenuItem<String>(
-          value: 'options',
-          child: Row(
-            children: [
-              Icon(Icons.tune_outlined, size: 20),
-              SizedBox(width: 12),
-              Text('牌组设置'),
-            ],
+        if (onOptions != null)
+          const PopupMenuItem<String>(
+            value: 'options',
+            child: Row(
+              children: [
+                Icon(Icons.tune_outlined, size: 20),
+                SizedBox(width: 12),
+                Text('牌组设置'),
+              ],
+            ),
           ),
-        ),
-        PopupMenuItem<String>(
-          value: 'uninstall',
-          child: Row(
-            children: [
-              const Icon(
-                Icons.delete_outline_rounded,
-                size: 20,
-                color: TurnaTheme.error,
-              ),
-              const SizedBox(width: 12),
-              Text(AppStrings.ankiUninstallDeck),
-            ],
+        if (onUninstall != null)
+          PopupMenuItem<String>(
+            value: 'uninstall',
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.delete_outline_rounded,
+                  size: 20,
+                  color: TurnaTheme.error,
+                ),
+                const SizedBox(width: 12),
+                Text(AppStrings.ankiUninstallDeck),
+              ],
+            ),
           ),
-        ),
       ],
       onSelected: (value) {
-        if (value == 'stats') onStats();
-        if (value == 'browse') onBrowse();
+        if (value == 'stats') onStats?.call();
+        if (value == 'browse') onBrowse?.call();
         if (value == 'pin') onPin();
-        if (value == 'options') onOptions();
-        if (value == 'uninstall') onUninstall();
+        if (value == 'options') onOptions?.call();
+        if (value == 'uninstall') onUninstall?.call();
       },
     );
   }

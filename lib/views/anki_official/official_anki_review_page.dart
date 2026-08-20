@@ -9,9 +9,16 @@ import 'package:turna/application/anki_official/official_anki_feature_flags.dart
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/render/official_anki_answer_presenter.dart';
 import 'package:turna/application/anki_official/render/official_anki_render_state.dart';
+import 'package:turna/application/anki_practice/card_classifier.dart';
+import 'package:turna/application/anki_practice/card_classifier_models.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/anki_official/official_anki_practice_review_surface.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_error_view.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_page.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_stage.dart';
+import 'package:turna/views/lesson/components/ai_depth_tutor_sheet.dart';
+import 'package:turna/views/review/components/review_progress_header.dart';
+import 'package:turna/views/review/components/unified_review_completion.dart';
 
 /// Formal Official Review. Separate from preview/`canonicalLink`.
 class OfficialAnkiReviewPage extends StatefulWidget {
@@ -48,7 +55,12 @@ class _OfficialAnkiReviewPageState extends State<OfficialAnkiReviewPage> {
   var _busy = true;
   var _awaitingAnswerAck = false;
   var _keepReviewerSurface = false;
+  var _practiceMode = true;
   OfficialReviewQueueCard? _heldReviewCard;
+  int _initialTotal = 0;
+  int _rememberedCount = 0;
+  int _forgottenCount = 0;
+  final DateTime _startedAt = DateTime.now();
 
   @override
   void initState() {
@@ -78,6 +90,11 @@ class _OfficialAnkiReviewPageState extends State<OfficialAnkiReviewPage> {
         await _session.openDueDeck();
       } else {
         await _session.openDeck(deckId);
+      }
+      final queue = _session.queue;
+      if (queue != null) {
+        _initialTotal =
+            queue.newCount + queue.learningCount + queue.reviewCount;
       }
       await _ensurePresenter();
       await _syncPresenter();
@@ -162,6 +179,22 @@ class _OfficialAnkiReviewPageState extends State<OfficialAnkiReviewPage> {
     return _run(_session.refreshQueue);
   }
 
+  Future<void> _rate(String rating) async {
+    final card = _session.current;
+    if (card == null) return;
+    await _run(() async {
+      await _session.answerAndConfirm(
+        rating,
+        expectedCardId: card.cardId,
+      );
+      if (rating == 'again') {
+        _forgottenCount++;
+      } else {
+        _rememberedCount++;
+      }
+    });
+  }
+
   @override
   void dispose() {
     _session.dispose();
@@ -185,30 +218,82 @@ class _OfficialAnkiReviewPageState extends State<OfficialAnkiReviewPage> {
         ),
       );
     }
+    final queue = _session.queue;
+    final remaining = queue == null
+        ? 0
+        : queue.newCount + queue.learningCount + queue.reviewCount;
+    final answered = _rememberedCount + _forgottenCount;
+    final observedTotal = answered + remaining;
+    final total = _initialTotal > observedTotal ? _initialTotal : observedTotal;
+    final current = total == 0 ? 0 : (answered + 1).clamp(1, total).toInt();
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Official Review'),
-        actions: [
-          IconButton(
-            key: const Key('official-review-undo'),
-            tooltip: 'Undo',
-            onPressed: _actionsEnabled && _session.canUndo
-                ? () => _run(_session.undo)
-                : null,
-            icon: const Icon(Icons.undo),
-          ),
-          IconButton(
-            key: const Key('official-review-redo'),
-            tooltip: 'Redo',
-            onPressed: _actionsEnabled && _session.canRedo
-                ? () => _run(_session.redo)
-                : null,
-            icon: const Icon(Icons.redo),
-          ),
-        ],
+        automaticallyImplyLeading: false,
+        toolbarHeight: 60,
+        titleSpacing: 0,
+        title: ReviewProgressHeader(
+          includeSafeArea: false,
+          progress: total == 0 ? 0 : answered / total,
+          currentIndex: current,
+          totalCount: total,
+          onBack: () => Navigator.of(context).maybePop(),
+          onAiExplain: () {
+            showModalBottomSheet<void>(
+              context: context,
+              isScrollControlled: true,
+              builder: (_) => const AiDepthTutorSheet(),
+            );
+          },
+          actions: [
+            IconButton(
+              key: const Key('official-review-undo'),
+              tooltip: AppStrings.commonUndo,
+              onPressed: _actionsEnabled && _session.canUndo
+                  ? () => _run(_session.undo)
+                  : null,
+              icon: const Icon(Icons.undo_rounded),
+            ),
+            IconButton(
+              key: const Key('official-review-toggle-surface'),
+              tooltip: !_isCardPracticeCompatible
+                  ? AppStrings.ankiToggleSurfaceFidelityOnly
+                  : (_practiceMode
+                      ? AppStrings.ankiToggleSurfaceWebView
+                      : AppStrings.ankiToggleSurfacePractice),
+              onPressed: _actionsEnabled && _isCardPracticeCompatible
+                  ? () => setState(() => _practiceMode = !_practiceMode)
+                  : null,
+              icon: Icon(
+                _practiceMode && _isCardPracticeCompatible
+                    ? Icons.web
+                    : Icons.auto_stories,
+              ),
+            ),
+            IconButton(
+              key: const Key('official-review-redo'),
+              tooltip: AppStrings.commonRedo,
+              onPressed: _actionsEnabled && _session.canRedo
+                  ? () => _run(_session.redo)
+                  : null,
+              icon: const Icon(Icons.redo),
+            ),
+          ],
+        ),
       ),
       body: _buildPhaseBody(),
     );
+  }
+
+  bool get _isCardPracticeCompatible {
+    final rendered = _reviewerController?.card;
+    if (rendered == null) return false;
+    final input = AnkiPracticeCardInput(
+      cardId: rendered.cardId,
+      rawQuestionHtml: rendered.questionHtml,
+      rawAnswerHtml: rendered.answerHtml,
+    );
+    final classification = AnkiPracticeCardClassifier.classify(input);
+    return classification.shape != AnkiPracticeShape.fidelity;
   }
 
   bool get _actionsEnabled =>
@@ -234,9 +319,7 @@ class _OfficialAnkiReviewPageState extends State<OfficialAnkiReviewPage> {
   }
 
   bool get _canBury =>
-      _actionsEnabled &&
-      !_session.isFilteredDeck &&
-      _session.current != null;
+      _actionsEnabled && !_session.isFilteredDeck && _session.current != null;
 
   Widget _buildPhaseBody() {
     switch (_session.phase) {
@@ -289,7 +372,13 @@ class _OfficialAnkiReviewPageState extends State<OfficialAnkiReviewPage> {
         );
       case OfficialReviewPhase.completed:
         if (_session.congrats != null && _session.current == null) {
-          return _CongratsView(info: _session.congrats);
+          return UnifiedReviewCompletion(
+            totalCount: _rememberedCount + _forgottenCount,
+            rememberedCount: _rememberedCount,
+            forgottenCount: _forgottenCount,
+            elapsed: DateTime.now().difference(_startedAt),
+            onFinish: () => Navigator.of(context).maybePop(),
+          );
         }
         return const _InvalidStateView();
     }
@@ -325,20 +414,20 @@ class _OfficialAnkiReviewPageState extends State<OfficialAnkiReviewPage> {
           FilledButton(
             key: const Key('official-review-show-answer'),
             onPressed: _canShowAnswer ? _onShowAnswer : null,
-            child: const Text('Show Answer'),
+            child: Text(AppStrings.ankiShowAnswer),
           ),
         if (_session.phase == OfficialReviewPhase.showingAnswer)
           _RatingRow(
             labels: surfaceCard.labels,
             enabled: _canRate,
-            onRate: (rating) => _run(() => _session.answer(rating)),
+            onRate: _rate,
           ),
         if (_session.isFilteredDeck)
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
             child: Text(
-              key: Key('official-review-filtered-unsupported'),
-              'Bury/Suspend is not supported in this filtered deck.',
+              key: const Key('official-review-filtered-unsupported'),
+              AppStrings.ankiFilteredDeckBuryUnsupported,
               textAlign: TextAlign.center,
             ),
           ),
@@ -353,7 +442,7 @@ class _OfficialAnkiReviewPageState extends State<OfficialAnkiReviewPage> {
                         ),
                       )
                   : null,
-              child: const Text('Bury card'),
+              child: Text(AppStrings.ankiBuryCard),
             ),
             TextButton(
               key: const Key('official-review-bury-siblings'),
@@ -364,7 +453,7 @@ class _OfficialAnkiReviewPageState extends State<OfficialAnkiReviewPage> {
                         ),
                       )
                   : null,
-              child: const Text('Bury siblings'),
+              child: Text(AppStrings.ankiBurySiblings),
             ),
             TextButton(
               key: const Key('official-review-suspend'),
@@ -375,7 +464,7 @@ class _OfficialAnkiReviewPageState extends State<OfficialAnkiReviewPage> {
                         ),
                       )
                   : null,
-              child: const Text('Suspend card'),
+              child: Text(AppStrings.ankiSuspendCard),
             ),
           ],
         ),
@@ -384,6 +473,24 @@ class _OfficialAnkiReviewPageState extends State<OfficialAnkiReviewPage> {
   }
 
   Widget _reviewerSurface() {
+    final card = _session.current ?? _heldReviewCard;
+    if (_practiceMode && _isCardPracticeCompatible && card != null) {
+      final rendered = _reviewerController?.card;
+      return OfficialAnkiPracticeReviewSurface(
+        key: ValueKey('practice-surface-${card.cardId}'),
+        card: card,
+        phase: _session.phase,
+        paths: widget.paths,
+        rawQuestionHtml: rendered?.questionHtml ?? '',
+        rawAnswerHtml: rendered?.answerHtml ?? '',
+        onShowAnswer: () {
+          if (_session.phase == OfficialReviewPhase.showingQuestion) {
+            _onShowAnswer();
+          }
+        },
+        onRate: _rate,
+      );
+    }
     final controller = _reviewerController;
     if (controller != null && Platform.isAndroid) {
       return OfficialAnkiReviewerStage(
@@ -423,10 +530,8 @@ class _RatingRow extends StatelessWidget {
       child: Row(
         children: [
           for (final entry in [
-            ('again', 'Again', labels.again),
-            ('hard', 'Hard', labels.hard),
-            ('good', 'Good', labels.good),
-            ('easy', 'Easy', labels.easy),
+            ('again', AppStrings.reviewBinaryForgotten, labels.again),
+            ('good', AppStrings.reviewBinaryRemembered, labels.good),
           ])
             Expanded(
               child: Padding(
@@ -434,30 +539,12 @@ class _RatingRow extends StatelessWidget {
                 child: FilledButton(
                   key: Key('official-review-${entry.$1}'),
                   onPressed: enabled ? () => onRate(entry.$1) : null,
-                  child: Text('${entry.$2}\n${entry.$3}', textAlign: TextAlign.center),
+                  child: Text('${entry.$2}\n${entry.$3}',
+                      textAlign: TextAlign.center),
                 ),
               ),
             ),
         ],
-      ),
-    );
-  }
-}
-
-class _CongratsView extends StatelessWidget {
-  const _CongratsView({this.info});
-
-  final OfficialCongratsInfo? info;
-
-  @override
-  Widget build(BuildContext context) {
-    final data = info;
-    return Center(
-      child: Text(
-        key: const Key('official-review-congrats'),
-        data == null
-            ? 'Congrats'
-            : 'Congrats · new=${data.newRemaining} review=${data.reviewRemaining}',
       ),
     );
   }
@@ -479,7 +566,11 @@ class _StatusView extends StatelessWidget {
   Widget build(BuildContext context) {
     return OfficialAnkiReviewerErrorView(
       messageKey: messageKey,
-      onRetry: onRetry == null ? null : () { onRetry!(); },
+      onRetry: onRetry == null
+          ? null
+          : () {
+              onRetry!();
+            },
       onBack: onBack,
     );
   }
