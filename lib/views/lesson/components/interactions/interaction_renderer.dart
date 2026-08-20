@@ -252,61 +252,88 @@ class _InteractionOptionTileState extends State<InteractionOptionTile> {
 
   @override
   Widget build(BuildContext context) {
-    Color border = TurnaTheme.borderMuted;
+    Color border = TurnaTheme.statCardBorder(context);
     Color background = TurnaTheme.cardBg(context);
-    Widget? trailing;
+    Color indicator = TurnaTheme.textHintColor(context);
+    var borderWidth = 1.0;
+    var filled = false;
 
     if (widget.isCorrect) {
       border = TurnaTheme.success;
-      background = TurnaTheme.success.withValues(alpha: 0.10);
-      trailing = const Icon(Icons.check_circle, color: TurnaTheme.success);
+      background = TurnaTheme.success.withValues(alpha: 0.12);
+      indicator = TurnaTheme.success;
+      borderWidth = 1.5;
+      filled = true;
     } else if (widget.isWrong) {
       border = TurnaTheme.error;
-      background = TurnaTheme.error.withValues(alpha: 0.08);
-      trailing = const Icon(Icons.cancel, color: TurnaTheme.error);
+      background = TurnaTheme.error.withValues(alpha: 0.10);
+      indicator = TurnaTheme.error;
+      borderWidth = 1.5;
+      filled = true;
     } else if (widget.isSelected) {
       border = TurnaTheme.brandTeal;
-      background = TurnaTheme.brandTeal.withValues(alpha: 0.06);
+      background = TurnaTheme.brandTeal.withValues(alpha: 0.12);
+      indicator = TurnaTheme.brandTeal;
+      borderWidth = 1.5;
+      filled = true;
     }
 
+    final radius = BorderRadius.circular(TurnaTheme.radiusLarge);
     return Semantics(
       button: true,
       label: widget.label,
       selected: widget.isSelected,
-      // 按下时缩放至 0.97, 与 InkWell 涟漪叠加, 选项条有"被按下"的物理反馈.
       child: AnimatedScale(
-        scale: _pressed ? 0.97 : 1.0,
-        duration: const Duration(milliseconds: 120),
-        curve: Curves.easeOut,
+        scale: _pressed ? 0.98 : 1.0,
+        duration: const Duration(milliseconds: 140),
+        curve: Curves.easeOutCubic,
         child: Material(
           color: background,
           shape: RoundedRectangleBorder(
-            side: BorderSide(color: border, width: 2),
-            borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+            side: BorderSide(color: border, width: borderWidth),
+            borderRadius: radius,
           ),
           child: InkWell(
-            borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+            borderRadius: radius,
             onTap: widget.onTap,
             onHighlightChanged: (v) {
-              // 涟漪的按下状态与缩放联动, 但只有 tile 可点时才有按下效果.
               if (widget.onTap == null) return;
               setState(() => _pressed = v);
             },
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
               child: Row(
                 children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    width: 20,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: filled ? indicator : Colors.transparent,
+                      border: Border.all(color: indicator, width: 1.5),
+                    ),
+                    child: filled
+                        ? Icon(
+                            widget.isWrong ? Icons.close : Icons.check,
+                            size: 12,
+                            color: Colors.white,
+                          )
+                        : null,
+                  ),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       widget.label,
                       style: TextStyle(
                         fontSize: 16,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: widget.isSelected
+                            ? FontWeight.w600
+                            : FontWeight.w500,
                         color: TurnaTheme.textPrimaryColor(context),
                       ),
                     ),
                   ),
-                  if (trailing != null) trailing,
                 ],
               ),
             ),

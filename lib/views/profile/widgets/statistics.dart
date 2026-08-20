@@ -91,11 +91,13 @@ class Statistics extends StatelessWidget {
         const Icon(Icons.insights_rounded,
             color: TurnaTheme.brandTeal, size: 20),
         const SizedBox(width: 8),
-        Text(
-          text,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+        Expanded(
+          child: Text(
+            text,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
         ),
       ],
     );

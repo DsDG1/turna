@@ -20,10 +20,7 @@ import 'package:turna/views/lesson/components/lesson_practice_card.dart';
 import 'package:turna/views/theme.dart';
 
 /// Anki-style flip card renderer. Shows the front, user taps "Show Answer",
-/// then grades with Anki's four answer buttons: Again / Hard / Good / Easy.
-///
-/// Again is an unsuccessful recall; Hard, Good and Easy are successful
-/// recalls with distinct scheduler qualities.
+/// then records the binary recall result: forgotten or remembered.
 ///
 /// Face changes use a light scale pulse (shrink → grow) rather than a 3D
 /// rotate, so word cards feel soft and the action row does not jump with
@@ -233,9 +230,8 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
                     scale: scale,
                     alignment: Alignment.center,
                     filterQuality: FilterQuality.medium,
-                    child: showFront
-                        ? _buildFront(context)
-                        : _buildBack(context),
+                    child:
+                        showFront ? _buildFront(context) : _buildBack(context),
                   );
                 },
               ),
@@ -275,7 +271,8 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
           // not jump the column after the pulse.
           if (!widget.state.submitted)
             ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: _actionAreaMinHeight),
+              constraints:
+                  const BoxConstraints(minHeight: _actionAreaMinHeight),
               child: Align(
                 alignment: Alignment.topCenter,
                 child: _showGradeButtons
@@ -393,60 +390,28 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          AppStrings.lessonHowWellDidYouKnow,
-          style: TextStyle(
-            fontSize: 14,
-            color: TurnaTheme.textSecondaryColor(context),
-          ),
-        ),
-        const SizedBox(height: 12),
         Row(
           children: [
             Expanded(
               child: _GradeButton(
-                label: AppStrings.reviewAgain,
+                label: AppStrings.reviewBinaryForgotten,
                 color: TurnaTheme.error,
                 onPressed: () => _grade(
                   correct: false,
-                  label: AppStrings.reviewAgain,
+                  label: AppStrings.reviewBinaryForgotten,
                   rating: AnkiReviewRating.again,
                 ),
               ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 12),
             Expanded(
               child: _GradeButton(
-                label: AppStrings.reviewHard,
-                color: TurnaTheme.warning,
-                onPressed: () => _grade(
-                  correct: true,
-                  label: AppStrings.reviewHard,
-                  rating: AnkiReviewRating.hard,
-                ),
-              ),
-            ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: _GradeButton(
-                label: AppStrings.reviewGood,
-                color: TurnaTheme.success,
-                onPressed: () => _grade(
-                  correct: true,
-                  label: AppStrings.reviewGood,
-                  rating: AnkiReviewRating.good,
-                ),
-              ),
-            ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: _GradeButton(
-                label: AppStrings.reviewEasy,
+                label: AppStrings.reviewBinaryRemembered,
                 color: TurnaTheme.brandTeal,
                 onPressed: () => _grade(
                   correct: true,
-                  label: AppStrings.reviewEasy,
-                  rating: AnkiReviewRating.easy,
+                  label: AppStrings.reviewBinaryRemembered,
+                  rating: AnkiReviewRating.good,
                 ),
               ),
             ),

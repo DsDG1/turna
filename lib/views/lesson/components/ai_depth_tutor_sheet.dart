@@ -15,6 +15,7 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
 import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
 import 'package:turna/views/theme.dart';
+import 'package:turna/views/widgets/turna_select.dart';
 
 /// The four depth-learning genres offered by the tutor sheet.
 enum DepthGenre { grammar, synonyms, decompose, whyWrong }
@@ -290,17 +291,11 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
         Icons.help_outline_rounded
       ),
     ];
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        for (final t in tiles)
-          ChoiceChip(
-            label: Text(t.$2),
-            avatar: Icon(t.$3, size: 18),
-            selected: _genre == t.$1,
-            onSelected: (_) => _select(t.$1),
-          ),
+    return TurnaChoiceGrid<DepthGenre>(
+      selected: _genre,
+      onSelected: _select,
+      items: [
+        for (final t in tiles) (t.$1, t.$2, t.$3),
       ],
     );
   }

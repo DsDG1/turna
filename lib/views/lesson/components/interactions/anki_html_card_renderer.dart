@@ -370,60 +370,28 @@ class _AnkiHtmlCardBodyState extends State<_AnkiHtmlCardBody> {
   Widget _buildGradeButtons(BuildContext context) {
     return Column(
       children: [
-        Text(
-          AppStrings.lessonHowWellDidYouKnow,
-          style: TextStyle(
-            fontSize: 14,
-            color: TurnaTheme.textSecondaryColor(context),
-          ),
-        ),
-        const SizedBox(height: 12),
         Row(
           children: [
             Expanded(
               child: _GradeButton(
-                label: AppStrings.reviewAgain,
+                label: AppStrings.reviewBinaryForgotten,
                 color: TurnaTheme.error,
                 onPressed: () => _grade(
                   correct: false,
-                  label: AppStrings.reviewAgain,
+                  label: AppStrings.reviewBinaryForgotten,
                   rating: AnkiReviewRating.again,
                 ),
               ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 12),
             Expanded(
               child: _GradeButton(
-                label: AppStrings.reviewHard,
-                color: TurnaTheme.warning,
-                onPressed: () => _grade(
-                  correct: true,
-                  label: AppStrings.reviewHard,
-                  rating: AnkiReviewRating.hard,
-                ),
-              ),
-            ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: _GradeButton(
-                label: AppStrings.reviewGood,
-                color: TurnaTheme.success,
-                onPressed: () => _grade(
-                  correct: true,
-                  label: AppStrings.reviewGood,
-                  rating: AnkiReviewRating.good,
-                ),
-              ),
-            ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: _GradeButton(
-                label: AppStrings.reviewEasy,
+                label: AppStrings.reviewBinaryRemembered,
                 color: TurnaTheme.brandTeal,
                 onPressed: () => _grade(
                   correct: true,
-                  label: AppStrings.reviewEasy,
-                  rating: AnkiReviewRating.easy,
+                  label: AppStrings.reviewBinaryRemembered,
+                  rating: AnkiReviewRating.good,
                 ),
               ),
             ),

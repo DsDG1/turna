@@ -12,6 +12,7 @@ import 'package:turna/application/srs_tutor_provider.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/theme.dart';
+import 'package:turna/views/widgets/turna_select.dart';
 
 /// Bottom sheet that launches the personalized companion flow
 /// (Phase 2.2 of floofy-hugging-hopper).
@@ -120,29 +121,20 @@ class _TutorLaunchSheetState extends State<TutorLaunchSheet> {
   }
 
   Widget _focusChooser(BuildContext context) {
-    final tiles = <(SrsTutorFocus, String, IconData)>[
-      (
-        SrsTutorFocus.mistakes,
-        AppStrings.tutorLaunchByMistakesCta,
-        Icons.history_toggle_off_rounded
-      ),
-      (
-        SrsTutorFocus.weakWords,
-        AppStrings.tutorLaunchByWeakWordsCta,
-        Icons.quiz_rounded
-      ),
-    ];
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        for (final t in tiles)
-          ChoiceChip(
-            label: Text(t.$2),
-            avatar: Icon(t.$3, size: 18),
-            selected: _focus == t.$1,
-            onSelected: (_) => setState(() => _focus = t.$1),
-          ),
+    return TurnaChoiceGrid<SrsTutorFocus>(
+      selected: _focus,
+      onSelected: (v) => setState(() => _focus = v),
+      items: [
+        (
+          SrsTutorFocus.mistakes,
+          AppStrings.tutorLaunchByMistakesCta,
+          Icons.history_toggle_off_rounded
+        ),
+        (
+          SrsTutorFocus.weakWords,
+          AppStrings.tutorLaunchByWeakWordsCta,
+          Icons.quiz_rounded
+        ),
       ],
     );
   }

@@ -29,7 +29,11 @@ class ProfilePage extends StatelessWidget {
         const SliverToBoxAdapter(child: SizedBox(height: 8)),
         const SliverToBoxAdapter(child: LearningStats()),
         const SliverToBoxAdapter(child: Achievements()),
-        const SliverPadding(padding: EdgeInsets.only(bottom: 24)),
+        SliverPadding(
+          padding: EdgeInsets.only(
+            bottom: 16 + MediaQuery.paddingOf(context).bottom,
+          ),
+        ),
       ],
     );
   }

@@ -199,11 +199,13 @@ class _AchievementsState extends State<Achievements> {
           // Achievement section uses secondary brand clay (ADR 0033 role boundary).
           Icon(icon, color: TurnaTheme.anatolianClay, size: 22),
           const SizedBox(width: 8),
-          Text(
-            text,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+          Expanded(
+            child: Text(
+              text,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
           ),
         ],
       ),

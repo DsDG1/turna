@@ -48,7 +48,9 @@ Future<String?> showAvatarPickerSheet(
     // Reset to default: explicitly null out the field so the user can tell
     // "I have no pick" apart from "I picked the default tile".
     final updated = user.copyWith(clearAvatarId: true);
-    await getIt<AppPrefs>().setLocalUser(updated);
+    if (getIt.isRegistered<AppPrefs>()) {
+      await getIt<AppPrefs>().setLocalUser(updated);
+    }
     messenger.showSnackBar(
       SnackBar(content: Text(AppStrings.accountAvatarResetDone)),
     );
@@ -58,7 +60,9 @@ Future<String?> showAvatarPickerSheet(
   // Normal pick. Equality is by id; passing the same id again is a no-op for
   // observers but still goes through the prefs pipeline.
   final updated = user.copyWith(avatarId: selected);
-  await getIt<AppPrefs>().setLocalUser(updated);
+  if (getIt.isRegistered<AppPrefs>()) {
+    await getIt<AppPrefs>().setLocalUser(updated);
+  }
   final name = AvatarCatalog.resolve(selected).name;
   messenger.showSnackBar(
     SnackBar(content: Text(AppStrings.accountAvatarChangedDone(name))),
@@ -83,9 +87,7 @@ class _AvatarPickerSheet extends StatelessWidget {
         padding: EdgeInsets.only(bottom: bottomInset),
         child: ConstrainedBox(
           // Cap the sheet height so the grid scrolls when the catalog grows
-          // past ~20 entries. The 0.72 headroom leaves room for subpixel
-          // rounding (Header + padding + 4-col grid totals) so the last row
-          // doesn't trip a 0.xpx overflow.
+          // past ~20 entries.
           constraints: BoxConstraints(
             maxHeight: MediaQuery.of(context).size.height * 0.72,
           ),
@@ -192,13 +194,18 @@ class _AvatarGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     const avatars = AvatarCatalog.all;
     return GridView.builder(
+      padding: EdgeInsets.zero,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: _columns,
         mainAxisSpacing: 10,
         crossAxisSpacing: 10,
-        childAspectRatio: 0.78,
+        // 0.72 (not 0.78) leaves ~6-8px of slack inside each tile so the
+        // selected border (width: 2) + bodySmall line-height variance don't
+        // trip a sub-pixel overflow on narrow screens. 0.78 was empirically
+        // ~0.5px short on 360dp Android.
+        childAspectRatio: 0.72,
       ),
       itemCount: avatars.length,
       itemBuilder: (context, i) {

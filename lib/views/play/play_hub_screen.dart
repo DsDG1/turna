@@ -12,7 +12,6 @@ import 'package:provider/provider.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/anki_official/engine/official_anki_home_due.dart';
 import 'package:turna/application/anki_official/engine/official_anki_home_due_sync.dart';
-import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/srs_provider.dart';
@@ -48,11 +47,8 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
     final weakCount = WeakWordQuizAssembler.aggregateWeakWords(mistakes).length;
     final srsDue = context.select((SrsProvider p) => p.dueCount);
     final grammarDue = context.select((GrammarReviewProvider p) => p.dueCount);
-    final ankiDueWords = context.select((SrsProvider p) => p.getDueWords());
+    final ankiDueWords = context.select((SrsProvider p) => p.getDueAnkiWords());
     OfficialAnkiHomeDue.turnaDue = srsDue;
-    final officialDue = OfficialAnkiFeatureFlags.current.allowsOfficialScheduler
-        ? OfficialAnkiHomeDue.officialDue
-        : 0;
     final ankiDue = OfficialAnkiHomeDue.aggregatedAnkiDue(ankiDueWords);
 
     return RepaintBoundary(
@@ -129,20 +125,11 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
               child: SectionTitle(title: AppStrings.playReviewCenterTitle),
             ),
           ),
-          if (OfficialAnkiFeatureFlags.current.allowsOfficialScheduler)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-                child: Text(
-                  key: const Key('official-anki-due'),
-                  'Official Anki due: $officialDue',
-                ),
-              ),
-            ),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: GridView.count(
+                padding: EdgeInsets.zero,
                 crossAxisCount: 2,
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -172,7 +159,9 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
                     title: AppStrings.playAnkiReviewTitle,
                     icon: Icons.style_rounded,
                     accentColor: TurnaTheme.brandSky,
-                    badge: ankiDue > 0 ? '$ankiDue' : null,
+                    badge: OfficialAnkiHomeDue.officialDueUnavailable
+                        ? '—'
+                        : (ankiDue > 0 ? '$ankiDue' : null),
                     onTap: () => context.router.push(const AnkiReviewRoute()),
                   ),
                   ReviewTile(
@@ -270,7 +259,11 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
               ),
             ),
           ),
-          const SliverToBoxAdapter(child: SizedBox(height: 32)),
+          SliverToBoxAdapter(
+            child: SizedBox(
+              height: 16 + MediaQuery.paddingOf(context).bottom,
+            ),
+          ),
         ],
       ),
     );
@@ -294,8 +287,7 @@ class _AiStatusBar extends StatelessWidget {
       (AiEngineConfigHolder h) => h.config.isComplete,
     );
     final statusColor = complete ? TurnaTheme.success : TurnaTheme.warning;
-    final actionColor =
-        TurnaTheme.accentOnCard(context, TurnaTheme.brandTeal);
+    final actionColor = TurnaTheme.accentOnCard(context, TurnaTheme.brandTeal);
 
     return SoftCard(
       accentColor: TurnaTheme.brandTeal,

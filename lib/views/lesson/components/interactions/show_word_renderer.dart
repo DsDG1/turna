@@ -47,21 +47,19 @@ class ShowWordRenderer extends InteractionRenderer {
         onSubmit: (correct) => onSubmit(correct),
       );
     }
-    final isUnknown = i.wordId.startsWith(unknownInteractionWordIdPrefix);
-    final vocab = isUnknown ? null : vocabById[i.wordId];
-    final term = vocab?.term ?? (isUnknown ? '' : i.wordId);
-    final translation = vocab?.translation ?? '';
+    final hasInline = i.term != null && i.term!.isNotEmpty;
+    final isUnknown = !hasInline && i.wordId.startsWith(unknownInteractionWordIdPrefix);
+    final vocab = (hasInline || isUnknown) ? null : vocabById[i.wordId];
+    final term = hasInline ? i.term! : (vocab?.term ?? (isUnknown ? '' : i.wordId));
+    final translation = hasInline ? (i.translation ?? '') : (vocab?.translation ?? '');
+    final contextSentence = i.example ?? (OfficialAnkiCourseEntry.parseCanonicalLink(i.context) == null ? i.context : null);
 
     return _ShowWordCard(
       term: term,
       translation: translation,
-      contextSentence: i.context,
+      contextSentence: contextSentence,
       audioController: _audioController,
       onTap: () => onSubmit(true),
-      // A sentinel ShowWord is a load-time parse failure (see
-      // Interaction.fromJson), not a real vocab card. Don't expose the
-      // speak/pronounce affordances on it — there's no term to speak, and
-      // surfacing the diagnostic wordId to TTS would read the sentinel aloud.
       isUnknown: isUnknown,
     );
   }
@@ -121,24 +119,27 @@ class _ShowWordCard extends StatelessWidget {
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       onTap: () => audioController.speak(term),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            term,
-                            style: TextStyle(
-                              fontSize: 44,
-                              fontWeight: FontWeight.w700,
-                              color: TurnaTheme.textPrimaryColor(context),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              term,
+                              style: TextStyle(
+                                fontSize: 44,
+                                fontWeight: FontWeight.w700,
+                                color: TurnaTheme.textPrimaryColor(context),
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          const Icon(
-                            Icons.volume_up_rounded,
-                            color: TurnaTheme.brandTeal,
-                            size: 28,
-                          ),
-                        ],
+                            const SizedBox(width: 12),
+                            const Icon(
+                              Icons.volume_up_rounded,
+                              color: TurnaTheme.brandTeal,
+                              size: 28,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -146,6 +147,7 @@ class _ShowWordCard extends StatelessWidget {
                   if (translation.isNotEmpty)
                     Text(
                       translation,
+                      textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 20,
                         color: TurnaTheme.textSecondaryColor(context),

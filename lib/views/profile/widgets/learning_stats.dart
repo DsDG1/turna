@@ -160,11 +160,13 @@ class _LearningStatsState extends State<LearningStats> {
         children: [
           Icon(icon, color: TurnaTheme.brandTeal, size: 22),
           const SizedBox(width: 8),
-          Text(
-            text,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+          Expanded(
+            child: Text(
+              text,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
           ),
         ],
       ),
@@ -375,6 +377,7 @@ class _OverallStatsGrid extends StatelessWidget {
     final totalReviews = (data['totalReviews'] as num?)?.toInt() ?? 0;
 
     return GridView.count(
+      padding: EdgeInsets.zero,
       primary: false,
       shrinkWrap: true,
       crossAxisCount: 2,
@@ -640,31 +643,6 @@ class _MemoryCurveCard extends StatelessWidget {
                   color: TurnaTheme.primary,
                 ),
           ),
-          const SizedBox(height: 12),
-          Text(
-            AppStrings.profileMaturityTitle,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _maturityChip(
-                  context,
-                  AppStrings.profileMaturityNew,
-                  snapshot.maturity.newCards,
-                  TurnaTheme.textHintColor(context)),
-              _maturityChip(context, AppStrings.profileMaturityYoung,
-                  snapshot.maturity.young, TurnaTheme.primaryLight),
-              _maturityChip(context, AppStrings.profileMaturityMature,
-                  snapshot.maturity.mature, TurnaTheme.success),
-              _maturityChip(context, AppStrings.profileMaturityLeech,
-                  snapshot.maturity.leech, TurnaTheme.error),
-            ],
-          ),
         ],
       ),
     );
@@ -675,7 +653,7 @@ class _MemoryCurveCard extends StatelessWidget {
       for (var i = 0; i < curve.length; i++)
         FlSpot(i.toDouble(), curve[i].retention),
     ];
-    final lineColor = TurnaTheme.brandTeal;
+    const lineColor = TurnaTheme.brandTeal;
     return LineChart(
       LineChartData(
         minY: 0,
@@ -798,38 +776,6 @@ class _MemoryCurveCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _maturityChip(
-      BuildContext context, String label, int count, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.w600,
-                ),
-          ),
-          const SizedBox(width: 4),
-          Text(
-            '$count',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
-        ],
       ),
     );
   }
