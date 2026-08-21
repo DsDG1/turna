@@ -1,4 +1,6 @@
 // Package imports:
+import 'dart:isolate';
+
 import 'package:injectable/injectable.dart';
 import 'package:path/path.dart' as p;
 
@@ -33,48 +35,17 @@ class AnkiAudioResolver implements VocabAudioResolver {
   }) async {
     if (mediaMapping.isEmpty) return const AnkiMediaCopyReport();
 
+    // Resolve the target directory here: getAnkiDocumentsPath goes through
+    // path_provider, which is only usable on the platform (main) isolate.
     final targetDir = await getImportMediaPath(importId);
-    platform.ankiCreateDirectory(targetDir);
 
-    var available = 0;
-    var missing = 0;
-    var failed = 0;
-    for (final entry in mediaMapping.entries) {
-      final numericName = _safeRelativePath(entry.key);
-      final originalName = _safeRelativePath(entry.value);
-      if (numericName == null || originalName == null) {
-        failed++;
-        continue;
-      }
-      final sourcePath = p.join(sourceDir, numericName);
-      if (!platform.ankiFileExists(sourcePath)) {
-        missing++;
-        continue;
-      }
-
-      final targetPath = p.join(targetDir, originalName);
-      if (!_isWithin(targetDir, targetPath)) {
-        failed++;
-        continue;
-      }
-      if (platform.ankiFileExists(targetPath)) {
-        available++;
-        continue;
-      }
-      try {
-        platform.ankiCreateDirectory(p.dirname(targetPath));
-        platform.ankiCopyFile(sourcePath, targetPath);
-        available++;
-      } catch (_) {
-        failed++;
-      }
-    }
-
-    return AnkiMediaCopyReport(
-      availableCount: available,
-      missingCount: missing,
-      failedCount: failed,
-    );
+    // The copy loop is thousands of synchronous file I/O calls — running it
+    // on the main isolate froze the import screen's progress animation.
+    return Isolate.run(() => _copyMediaEntries(
+          sourceDir: sourceDir,
+          targetDir: targetDir,
+          mediaMapping: mediaMapping,
+        ));
   }
 
   /// Get the base media directory path.
@@ -144,7 +115,7 @@ class AnkiAudioResolver implements VocabAudioResolver {
     return path != null && path.startsWith(ankiScheme);
   }
 
-  String? _safeRelativePath(String raw) {
+  static String? _safeRelativePath(String raw) {
     final normalized = raw.replaceAll('\\', '/');
     if (normalized.isEmpty ||
         normalized.startsWith('/') ||
@@ -156,7 +127,7 @@ class AnkiAudioResolver implements VocabAudioResolver {
     return parts.join(p.separator);
   }
 
-  bool _isWithin(String root, String candidate) {
+  static bool _isWithin(String root, String candidate) {
     final rootPath = p.normalize(root);
     final candidatePath = p.normalize(candidate);
     if (p.equals(rootPath, candidatePath)) return true;
@@ -186,4 +157,55 @@ class AnkiMediaCopyReport {
     this.missingCount = 0,
     this.failedCount = 0,
   });
+}
+
+/// Runs inside the [Isolate.run] spawned by [AnkiAudioResolver.copyMedia].
+/// Only receives and returns plain data, and touches pure `dart:io` platform
+/// helpers — no plugins, so it is isolate-safe.
+AnkiMediaCopyReport _copyMediaEntries({
+  required String sourceDir,
+  required String targetDir,
+  required Map<String, String> mediaMapping,
+}) {
+  platform.ankiCreateDirectory(targetDir);
+
+  var available = 0;
+  var missing = 0;
+  var failed = 0;
+  for (final entry in mediaMapping.entries) {
+    final numericName = AnkiAudioResolver._safeRelativePath(entry.key);
+    final originalName = AnkiAudioResolver._safeRelativePath(entry.value);
+    if (numericName == null || originalName == null) {
+      failed++;
+      continue;
+    }
+    final sourcePath = p.join(sourceDir, numericName);
+    if (!platform.ankiFileExists(sourcePath)) {
+      missing++;
+      continue;
+    }
+
+    final targetPath = p.join(targetDir, originalName);
+    if (!AnkiAudioResolver._isWithin(targetDir, targetPath)) {
+      failed++;
+      continue;
+    }
+    if (platform.ankiFileExists(targetPath)) {
+      available++;
+      continue;
+    }
+    try {
+      platform.ankiCreateDirectory(p.dirname(targetPath));
+      platform.ankiCopyFile(sourcePath, targetPath);
+      available++;
+    } catch (_) {
+      failed++;
+    }
+  }
+
+  return AnkiMediaCopyReport(
+    availableCount: available,
+    missingCount: missing,
+    failedCount: failed,
+  );
 }

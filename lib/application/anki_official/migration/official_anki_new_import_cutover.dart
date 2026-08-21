@@ -81,8 +81,11 @@ class OfficialAnkiNewImportCutover {
         indexedCardCount: collection.cards.length,
       ),
     );
-    for (final note in collection.notes) {
-      await noteDao.upsertNote(
+    // Batched inserts instead of per-row awaits: a multi-thousand-card deck
+    // would otherwise issue one auto-committing round-trip per note/card.
+    const batchChunk = 500;
+    final noteRecords = [
+      for (final note in collection.notes)
         AnkiNoteRecord(
           importId: importId,
           noteId: note.id,
@@ -93,10 +96,14 @@ class OfficialAnkiNewImportCutover {
           guid: note.guid,
           mod: note.mod,
         ),
+    ];
+    for (var i = 0; i < noteRecords.length; i += batchChunk) {
+      await noteDao.upsertNoteBatch(
+        noteRecords.skip(i).take(batchChunk).toList(),
       );
     }
-    for (final card in collection.cards) {
-      await noteDao.upsertCardMeta(
+    final cardRecords = [
+      for (final card in collection.cards)
         AnkiCardMetaRecord(
           importId: importId,
           cardId: card.id,
@@ -105,6 +112,10 @@ class OfficialAnkiNewImportCutover {
           did: card.did,
           wordId: 'anki-$importId-c${card.id}',
         ),
+    ];
+    for (var i = 0; i < cardRecords.length; i += batchChunk) {
+      await noteDao.upsertCardMetaBatch(
+        cardRecords.skip(i).take(batchChunk).toList(),
       );
     }
     await AnkiDeckAssembler().assemble(

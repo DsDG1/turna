@@ -1,15 +1,17 @@
 // Dart imports:
+import 'dart:async';
 import 'dart:convert';
+import 'dart:isolate';
 
 // Flutter imports:
 import 'package:flutter/foundation.dart';
 
 // Package imports:
-import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 
 // Project imports:
 import 'package:turna/application/anki/anki_models.dart';
+import 'package:turna/application/anki_official/storage/official_anki_sqlite.dart';
 import 'package:turna/core/logger.dart';
 
 // Platform imports:
@@ -21,7 +23,12 @@ import 'anki_import_platform_stub.dart'
 /// database.
 ///
 /// Implementation notes:
-/// - Uses `archive` package for ZIP extraction
+/// - Parsing runs on a dedicated worker isolate ([Isolate.spawn]) so a large
+///   deck never freezes the UI; progress and cancellation cross the isolate
+///   boundary over ports.
+/// - Extraction streams the ZIP straight to disk (`archive` package) and the
+///   source hash is computed in chunks, so memory stays flat regardless of
+///   deck size.
 /// - Uses `sqlite3` (ffi) for reading legacy-compatible
 ///   `collection.anki2` / `collection.anki21` exports
 /// - Large collections are read in pages (LIMIT/OFFSET) to avoid memory spikes
@@ -37,6 +44,12 @@ class AnkiImporter {
   static const int maxUncompressedBytes = 2 * 1024 * 1024 * 1024;
   static const int maxEntryBytes = 256 * 1024 * 1024;
 
+  /// How often the calling isolate polls [parse]'s `isCancelled` flag before
+  /// forwarding a cancel to the worker. Tests shrink this so cancellation is
+  /// deterministic on fast hosts where a small fixture parses in <100ms.
+  @visibleForTesting
+  static Duration cancelPollInterval = const Duration(milliseconds: 100);
+
   /// Parse an .apkg file and return the intermediate representation.
   ///
   /// [apkgPath] is the absolute path to the .apkg/.colpkg file.
@@ -45,6 +58,9 @@ class AnkiImporter {
   /// [onProgress] receives (0..1, message) during paginated note/card reads.
   /// [isCancelled] is polled between pages; returning true aborts parsing with
   /// an [AnkiImportCancelled] exception.
+  ///
+  /// The heavy work runs on a background isolate; [onProgress] and
+  /// [isCancelled] execute on the calling isolate.
   ///
   /// **Not available on HarmonyOS** — Anki `.apkg` files are SQLite databases
   /// read via `sqlite3` FFI, which has no HarmonyOS build. Callers on OHos
@@ -76,6 +92,113 @@ class AnkiImporter {
     final ownsExtractDir = tempDir == null;
     platform.ankiCreateDirectory(extractDir);
 
+    return _runParseIsolate(
+      apkgPath: apkgPath,
+      extractDir: extractDir,
+      ownsExtractDir: ownsExtractDir,
+      onProgress: onProgress,
+      isCancelled: isCancelled,
+    );
+  }
+
+  /// Spawns the parser worker isolate and bridges its messages back to the
+  /// caller's [onProgress] / [isCancelled] on this isolate.
+  static Future<AnkiCollection> _runParseIsolate({
+    required String apkgPath,
+    required String extractDir,
+    required bool ownsExtractDir,
+    required void Function(double progress, String message)? onProgress,
+    required bool Function()? isCancelled,
+  }) async {
+    final events = ReceivePort();
+    final completer = Completer<AnkiCollection>();
+    SendPort? commandPort;
+    Timer? cancelPoller;
+    var cancelSent = false;
+
+    final subscription = events.listen((message) {
+      if (message is SendPort) {
+        // Handshake: the worker's command channel. Poll the caller's cancel
+        // flag on this isolate and forward it to the worker when it flips.
+        commandPort = message;
+        if (isCancelled != null) {
+          cancelPoller =
+              Timer.periodic(AnkiImporter.cancelPollInterval, (_) {
+            if (cancelSent || !isCancelled()) return;
+            cancelSent = true;
+            commandPort?.send(_kAnkiParseCancelCommand);
+          });
+        }
+        return;
+      }
+      if (message is _AnkiParseProgress) {
+        onProgress?.call(message.progress, message.message);
+        return;
+      }
+      if (message is _AnkiParseDone) {
+        if (!completer.isCompleted) completer.complete(message.collection);
+        return;
+      }
+      if (message is _AnkiParseFailed) {
+        if (!completer.isCompleted) {
+          completer.completeError(
+            message.cancelled
+                ? const AnkiImportCancelled()
+                : AnkiImportException(
+                    message.message ?? 'Anki parse failed',
+                    code: message.code,
+                  ),
+          );
+        }
+        return;
+      }
+      if (message == _kAnkiParseExited) {
+        // The isolate terminated without a result (for example it was killed
+        // by the OS). Surface it instead of hanging forever.
+        if (!completer.isCompleted) {
+          completer.completeError(
+            const AnkiImportException(
+              '解析 Anki 文件时 worker 异常退出，请重试。',
+              code: 'PARSE_ISOLATE_DIED',
+            ),
+          );
+        }
+      }
+    });
+
+    Isolate? isolate;
+    try {
+      isolate = await Isolate.spawn(
+        _ankiParseWorker,
+        _AnkiParseWorkerParams(
+          apkgPath: apkgPath,
+          extractDir: extractDir,
+          ownsExtractDir: ownsExtractDir,
+          eventPort: events.sendPort,
+        ),
+        debugName: 'anki-import-parser',
+      );
+      // Distinct from every protocol message, so receiving it before a
+      // done/failed event means the worker died unexpectedly.
+      isolate.addOnExitListener(events.sendPort, response: _kAnkiParseExited);
+
+      return await completer.future;
+    } finally {
+      cancelPoller?.cancel();
+      await subscription.cancel();
+      events.close();
+      isolate?.kill(priority: Isolate.immediate);
+    }
+  }
+
+  /// The parse body, executed inside the worker isolate.
+  Future<AnkiCollection> _parseCollection({
+    required String apkgPath,
+    required String extractDir,
+    required bool ownsExtractDir,
+    required bool Function() isCancelled,
+    required void Function(double progress, String message) onProgress,
+  }) async {
     platform.AnkiSqlDatabase? db;
     var parseSucceeded = false;
     try {
@@ -87,38 +210,37 @@ class AnkiImporter {
         );
       }
 
-      final bytes = platform.ankiReadBytes(apkgPath);
-      // Hash the source bytes once here - they are already in memory for ZIP
-      // extraction - so callers can detect re-imports without a second full
-      // synchronous read of a potentially huge file on the main isolate.
-      final sourceHash = sha256.convert(bytes).toString();
-      final archive = platform.decodeAnkiArchive(bytes);
-      if (archive.length > maxEntries) {
-        throw AnkiImportException(
-          'Archive contains too many files (${archive.length}; limit $maxEntries)',
-        );
-      }
+      // Hash the source file in chunks — never hold the archive in memory.
+      final sourceHash = platform.ankiHashFileSha256(apkgPath);
 
+      // Stream-extract every entry straight to disk, enforcing the ZIP safety
+      // caps before each entry is written.
       var uncompressedBytes = 0;
-      for (final entry in archive) {
-        if (!entry.isFile) continue;
-        final safeName = _safeArchiveEntryName(entry.name);
-        final content = List<int>.from(entry.content);
-        if (content.length > maxEntryBytes) {
-          throw AnkiImportException(
-            'Archive entry is too large: ${entry.name}',
-          );
-        }
-        uncompressedBytes += content.length;
-        if (uncompressedBytes > maxUncompressedBytes) {
-          throw AnkiImportException(
-            'Archive expands beyond the ${maxUncompressedBytes ~/ (1024 * 1024)} MiB limit',
-          );
-        }
-        final outputPath = p.join(extractDir, safeName);
-        platform.ankiCreateDirectory(p.dirname(outputPath));
-        platform.ankiWriteBytes(outputPath, content);
-      }
+      var entryCount = 0;
+      await platform.ankiExtractArchiveToDisk(
+        apkgPath,
+        extractDir,
+        resolveEntryPath: _safeArchiveEntryName,
+        onEntry: (name, size) {
+          entryCount++;
+          if (entryCount > maxEntries) {
+            throw AnkiImportException(
+              'Archive contains too many files ($entryCount; limit $maxEntries)',
+            );
+          }
+          if (size > maxEntryBytes) {
+            throw AnkiImportException(
+              'Archive entry is too large: $name',
+            );
+          }
+          uncompressedBytes += size;
+          if (uncompressedBytes > maxUncompressedBytes) {
+            throw AnkiImportException(
+              'Archive expands beyond the ${maxUncompressedBytes ~/ (1024 * 1024)} MiB limit',
+            );
+          }
+        },
+      );
 
       // Determine database file
       final dbFile = _findDatabaseFile(extractDir);
@@ -165,7 +287,7 @@ class AnkiImporter {
       final notetypes = _parseNotetypes(modelsJson);
 
       // Parse notes (paginated)
-      final notes = _parseNotes(
+      final notes = await _parseNotes(
         db,
         onProgress: onProgress,
         isCancelled: isCancelled,
@@ -173,7 +295,7 @@ class AnkiImporter {
       );
 
       // Parse cards (paginated)
-      final cards = _parseCards(
+      final cards = await _parseCards(
         db,
         onProgress: onProgress,
         isCancelled: isCancelled,
@@ -182,7 +304,7 @@ class AnkiImporter {
 
       // Parse review log (paginated). Optional - some packages may lack the
       // table; a missing table degrades to an empty list (no history migration).
-      final revlog = _parseRevlog(
+      final revlog = await _parseRevlog(
         db,
         onProgress: onProgress,
         isCancelled: isCancelled,
@@ -472,12 +594,16 @@ class AnkiImporter {
   }
 
   /// Parse notes table with pagination.
-  List<AnkiNote> _parseNotes(
+  ///
+  /// Yields to the event loop between pages so the worker isolate can
+  /// service its command port — cancellation would otherwise stay queued
+  /// behind a fully synchronous parse.
+  Future<List<AnkiNote>> _parseNotes(
     platform.AnkiSqlDatabase db, {
     void Function(double, String)? onProgress,
     bool Function()? isCancelled,
     String label = 'notes',
-  }) {
+  }) async {
     final total =
         db.select('SELECT COUNT(*) AS c FROM notes').first['c'] as int;
     final notes = <AnkiNote>[];
@@ -515,18 +641,20 @@ class AnkiImporter {
         onProgress(p, 'Parsing $label… $offset / $total');
       }
       if (rows.length < _pageSize) break;
+      await Future<void>.delayed(Duration.zero);
     }
 
     return notes;
   }
 
-  /// Parse cards table with pagination.
-  List<AnkiCardData> _parseCards(
+  /// Parse cards table with pagination. Yields between pages for the same
+  /// reason as [_parseNotes].
+  Future<List<AnkiCardData>> _parseCards(
     platform.AnkiSqlDatabase db, {
     void Function(double, String)? onProgress,
     bool Function()? isCancelled,
     String label = 'cards',
-  }) {
+  }) async {
     final total =
         db.select('SELECT COUNT(*) AS c FROM cards').first['c'] as int;
     final cards = <AnkiCardData>[];
@@ -571,6 +699,7 @@ class AnkiImporter {
         onProgress(p, 'Parsing $label… $offset / $total');
       }
       if (rows.length < _pageSize) break;
+      await Future<void>.delayed(Duration.zero);
     }
 
     return cards;
@@ -578,13 +707,14 @@ class AnkiImporter {
 
   /// Parse the `revlog` (review log) table with pagination. Returns an empty
   /// list when the table is absent (older/trimmed packages) so revlog migration
-  /// is best-effort and never blocks import.
-  List<AnkiRevlogEntry> _parseRevlog(
+  /// is best-effort and never blocks import. Yields between pages for the
+  /// same reason as [_parseNotes].
+  Future<List<AnkiRevlogEntry>> _parseRevlog(
     platform.AnkiSqlDatabase db, {
     void Function(double, String)? onProgress,
     bool Function()? isCancelled,
     String label = 'revlog',
-  }) {
+  }) async {
     final total = (() {
       try {
         return db.select('SELECT COUNT(*) AS c FROM revlog').first['c'] as int;
@@ -628,6 +758,7 @@ class AnkiImporter {
         onProgress(p, 'Parsing $label… $offset / $total');
       }
       if (rows.length < _pageSize) break;
+      await Future<void>.delayed(Duration.zero);
     }
 
     return entries;
@@ -651,4 +782,84 @@ class AnkiImportCancelled implements Exception {
 
   @override
   String toString() => 'AnkiImportCancelled';
+}
+
+/// Cancel command sent from the calling isolate to the parse worker.
+const String _kAnkiParseCancelCommand = 'anki-parse-cancel';
+
+/// Exit-listener response distinct from every protocol message, used to
+/// detect a worker that died without reporting a result.
+const String _kAnkiParseExited = 'anki-parse-isolate-exited';
+
+/// Entry point of the parse worker isolate. Bridges the (synchronous, pure)
+/// parse body to the calling isolate: progress and results travel over
+/// [SendPort], cancellation travels back over a dedicated command port.
+Future<void> _ankiParseWorker(_AnkiParseWorkerParams params) async {
+  // sqlite3's `open.overrideFor` loader hints are per-isolate state; without
+  // re-applying them here, fresh isolates on Linux hosts (and some Android
+  // builds) cannot resolve the native library.
+  ensureOfficialAnkiSqlite();
+
+  final commands = ReceivePort();
+  var cancelled = false;
+  commands.listen((message) {
+    if (message == _kAnkiParseCancelCommand) cancelled = true;
+  });
+  params.eventPort.send(commands.sendPort);
+
+  try {
+    final collection = await AnkiImporter()._parseCollection(
+      apkgPath: params.apkgPath,
+      extractDir: params.extractDir,
+      ownsExtractDir: params.ownsExtractDir,
+      isCancelled: () => cancelled,
+      onProgress: (progress, message) =>
+          params.eventPort.send(_AnkiParseProgress(progress, message)),
+    );
+    Isolate.exit(params.eventPort, _AnkiParseDone(collection));
+  } on AnkiImportCancelled {
+    Isolate.exit(params.eventPort, const _AnkiParseFailed(cancelled: true));
+  } on AnkiImportException catch (e) {
+    Isolate.exit(
+      params.eventPort,
+      _AnkiParseFailed(message: e.message, code: e.code),
+    );
+  } catch (e) {
+    Isolate.exit(params.eventPort, _AnkiParseFailed(message: e.toString()));
+  }
+}
+
+class _AnkiParseWorkerParams {
+  final String apkgPath;
+  final String extractDir;
+  final bool ownsExtractDir;
+  final SendPort eventPort;
+
+  const _AnkiParseWorkerParams({
+    required this.apkgPath,
+    required this.extractDir,
+    required this.ownsExtractDir,
+    required this.eventPort,
+  });
+}
+
+class _AnkiParseProgress {
+  final double progress;
+  final String message;
+
+  const _AnkiParseProgress(this.progress, this.message);
+}
+
+class _AnkiParseDone {
+  final AnkiCollection collection;
+
+  const _AnkiParseDone(this.collection);
+}
+
+class _AnkiParseFailed {
+  final String? message;
+  final String? code;
+  final bool cancelled;
+
+  const _AnkiParseFailed({this.message, this.code, this.cancelled = false});
 }

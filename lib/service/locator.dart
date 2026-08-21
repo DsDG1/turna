@@ -13,6 +13,7 @@ import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 // Project imports:
 import 'package:turna/application/ai/ai_explain_prefs.dart';
 import 'package:turna/application/ai/ai_saved_explanations.dart';
+import 'package:turna/application/anki_official/storage/official_anki_sqlite.dart';
 import 'package:turna/application/system_health_monitor.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/core/verbose.dart';
@@ -317,7 +318,17 @@ Future<CourseDatabase> _openAndSeedCourseDatabase() async {
   } else {
     final dir = await getApplicationDocumentsDirectory();
     final file = File(p.join(dir.path, 'course.db'));
-    db = CourseDatabase(NativeDatabase(file));
+    // SQL runs on a dedicated background isolate so large imports (Anki deck
+    // assembly, SRS migration) never occupy the UI thread — every awaited
+    // statement becomes a real suspension point and progress UI keeps
+    // rendering. [ensureOfficialAnkiSqlite] resolves the native sqlite3
+    // library inside that isolate (open.overrideFor is per-isolate state).
+    db = CourseDatabase(
+      NativeDatabase.createInBackground(
+        file,
+        isolateSetup: ensureOfficialAnkiSqlite,
+      ),
+    );
   }
 
   try {

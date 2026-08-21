@@ -253,10 +253,11 @@ class AnkiDeckAssembler {
     var totalWordEntries = 0;
     final allWordEntries = <WordEntry>[];
     final practiceProjections = <AnkiPracticeProjectionRecord>[];
-    // Yield to the event loop every N cards so a multi-thousand-card import
-    // keeps the progress UI painting instead of freezing the main isolate.
-    const yieldEveryCards = 40;
-    var cardsSinceYield = 0;
+    // Yield to the event loop when the main isolate has been busy for a full
+    // frame so a multi-thousand-card import keeps the progress UI painting
+    // instead of freezing. Time-based (not card-count-based) because per-card
+    // cost varies widely between decks.
+    final yieldStopwatch = Stopwatch()..start();
 
     for (var deckIdx = 0; deckIdx < topLevelDecks.length; deckIdx++) {
       final deck = topLevelDecks[deckIdx];
@@ -358,9 +359,8 @@ class AnkiDeckAssembler {
           // a multi-thousand-card flat unit (e.g. 550 lessons > max 40).
           units.addAll(splitOversizedUnit(unit));
           totalCards += unitCards.length;
-          cardsSinceYield += unitCards.length;
-          if (cardsSinceYield >= yieldEveryCards) {
-            cardsSinceYield = 0;
+          if (yieldStopwatch.elapsedMilliseconds >= 16) {
+            yieldStopwatch.reset();
             // Let the progress indicator / cancel flag paint.
             await Future<void>.delayed(Duration.zero);
           }
