@@ -270,8 +270,8 @@ void main() {
           section.units.first.lessons.first.flattenedStages.first;
       final interaction = firstStage.items.first;
 
-      // Front/Back heuristic → wordEntry → MultipleChoice
-      expect(interaction, isA<MultipleChoice>());
+      // Front/Back heuristic → wordEntry → Flip (not sibling-distractor MCQ)
+      expect(interaction, isA<AnkiCard>());
     });
 
     test('mappingOverrides are respected (swapped front/back field indices)',
@@ -283,17 +283,17 @@ void main() {
       // swapped). If mappingOverrides were ignored, both prompts would match.
       final collection = _buildTestCollection(cardCount: 4);
 
-      // Default inferred mapping (Front=0/Back=1): prompt is the Front field.
+      // Default inferred mapping (Front=0/Back=1): front is the Front field.
       await AnkiDeckAssembler().assemble(
         collection: collection,
         importId: 'default',
         repo: repo,
       );
-      var mc = repo.writtenSections.first.units.first.lessons.first
-          .flattenedStages.first.items.first as MultipleChoice;
-      expect(mc.prompt, 'Question 0');
+      var face = repo.writtenSections.first.units.first.lessons.first
+          .flattenedStages.first.items.first as AnkiCard;
+      expect(face.front, 'Question 0');
 
-      // Override: swap front/back indices -> prompt becomes the Back field.
+      // Override: swap front/back indices -> front becomes the Back field.
       repo.writtenSections.clear();
       await AnkiDeckAssembler().assemble(
         collection: collection,
@@ -307,9 +307,9 @@ void main() {
           ),
         },
       );
-      mc = repo.writtenSections.first.units.first.lessons.first.flattenedStages
-          .first.items.first as MultipleChoice;
-      expect(mc.prompt, 'Answer 0');
+      face = repo.writtenSections.first.units.first.lessons.first.flattenedStages
+          .first.items.first as AnkiCard;
+      expect(face.front, 'Answer 0');
     });
 
     test('Lite mode keeps every card in navigable lazy lessons', () async {

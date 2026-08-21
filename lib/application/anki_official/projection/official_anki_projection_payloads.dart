@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:turna/application/anki/card_presentation_policy.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_canonical.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_ids.dart';
@@ -25,6 +26,7 @@ class OfficialAnkiRoleValues {
     required this.options,
     required this.truncatedRequired,
     this.classification,
+    this.hasExplicitOptions = false,
   });
 
   final String target;
@@ -36,6 +38,7 @@ class OfficialAnkiRoleValues {
   final List<String> options;
   final bool truncatedRequired;
   final AnkiPracticeClassification? classification;
+  final bool hasExplicitOptions;
 }
 
 class OfficialAnkiProjectionPayloads {
@@ -69,7 +72,8 @@ class OfficialAnkiProjectionPayloads {
 
     final audio = mapper.extractMediaFilename(raw(OfficialAnkiFieldRole.audio));
     final image = mapper.extractMediaFilename(raw(OfficialAnkiFieldRole.image));
-    final options = mapper.parseOptionPool(raw(OfficialAnkiFieldRole.optionPool));
+    final mappedOptions =
+        mapper.parseOptionPool(raw(OfficialAnkiFieldRole.optionPool));
     final requiredTruncated = row.truncated &&
         (mapping?.role(OfficialAnkiFieldRole.targetText) != null ||
             mapping?.role(OfficialAnkiFieldRole.nativeText) != null ||
@@ -104,118 +108,31 @@ class OfficialAnkiProjectionPayloads {
           : (classification.example ?? ''),
       audio: audio ?? classification.audioFilename,
       image: image ?? classification.imageFilename,
-      options: options.isNotEmpty
-          ? options
-          : (classification.options.isNotEmpty ? classification.options : siblingAnswers),
+      options: mappedOptions.isNotEmpty
+          ? mappedOptions
+          : (classification.options.isNotEmpty
+              ? classification.options
+              : siblingAnswers),
       truncatedRequired: requiredTruncated,
       classification: classification,
+      hasExplicitOptions: mappedOptions.isNotEmpty ||
+          classification.options.isNotEmpty,
     );
   }
 
+  /// Exactly one active kind per card. Extra drills are not formal placements.
   List<OfficialAnkiProjectionKind> kindsFor({
     required OfficialAnkiRoleValues values,
     required OfficialAnkiMappingSuggestion? mapping,
     required bool typeAnswerEnabled,
   }) {
-    if (values.truncatedRequired) {
-      return const [OfficialAnkiProjectionKind.canonicalLink];
-    }
-    final classification = values.classification;
-    if (mapping == null ||
-        mapping.status == OfficialAnkiMappingStatus.needsMapping ||
-        mapping.status == OfficialAnkiMappingStatus.needsReview ||
-        mapping.status == OfficialAnkiMappingStatus.skipped) {
-      if (classification == null ||
-          classification.confidence < 0.85 ||
-          classification.shape == AnkiPracticeShape.fidelity) {
-        return const [OfficialAnkiProjectionKind.canonicalLink];
-      }
-    }
-
-    final enabled = mapping?.enabledKinds.toSet() ??
-        const <String>{
-          'showWord',
-          'flip',
-          'multipleChoice',
-          'multiSelect',
-          'listenPick',
-          'typeAnswer',
-          'fillBlank',
-          'translate',
-          'canonicalLink',
-        };
-
-    if (classification != null) {
-      switch (classification.shape) {
-        case AnkiPracticeShape.fidelity:
-          return const [OfficialAnkiProjectionKind.canonicalLink];
-        case AnkiPracticeShape.cloze:
-          return const [OfficialAnkiProjectionKind.fillBlank];
-        case AnkiPracticeShape.quiz:
-          if (classification.correctIndices != null &&
-              classification.correctIndices!.length >= 2) {
-            return const [OfficialAnkiProjectionKind.multiSelect];
-          }
-          return const [OfficialAnkiProjectionKind.multipleChoice];
-        case AnkiPracticeShape.listen:
-          if (enabled.contains('listenPick') && values.audio != null) {
-            return const [OfficialAnkiProjectionKind.listenPick];
-          }
-          return const [OfficialAnkiProjectionKind.flip];
-        case AnkiPracticeShape.vocab:
-          final list = <OfficialAnkiProjectionKind>[];
-          if (enabled.contains('flip')) {
-            list.add(OfficialAnkiProjectionKind.flip);
-          }
-          if (enabled.contains('showWord') && !list.contains(OfficialAnkiProjectionKind.flip)) {
-            list.add(OfficialAnkiProjectionKind.showWord);
-          }
-          final uniqueDistractors = values.options
-              .where((o) => o.toLowerCase() != values.target.toLowerCase())
-              .toSet()
-              .toList();
-          if (enabled.contains('multipleChoice') &&
-              values.target.isNotEmpty &&
-              uniqueDistractors.length >= 2) {
-            list.add(OfficialAnkiProjectionKind.multipleChoice);
-          }
-          if (enabled.contains('listenPick') &&
-              values.audio != null &&
-              uniqueDistractors.length >= 2) {
-            list.add(OfficialAnkiProjectionKind.listenPick);
-          }
-          if (typeAnswerEnabled &&
-              enabled.contains('typeAnswer') &&
-              values.native.isNotEmpty) {
-            list.add(OfficialAnkiProjectionKind.typeAnswer);
-          }
-          if (list.isEmpty) {
-            list.add(enabled.contains('flip')
-                ? OfficialAnkiProjectionKind.flip
-                : OfficialAnkiProjectionKind.showWord);
-          }
-          return list;
-        case AnkiPracticeShape.expression:
-          return const [OfficialAnkiProjectionKind.fillBlank];
-        case AnkiPracticeShape.typeAnswer:
-          if (typeAnswerEnabled &&
-              enabled.contains('typeAnswer') &&
-              values.audio != null &&
-              values.audio!.isNotEmpty) {
-            return const [OfficialAnkiProjectionKind.typeAnswer];
-          }
-          return const [OfficialAnkiProjectionKind.flip];
-        case AnkiPracticeShape.flip:
-          return const [OfficialAnkiProjectionKind.flip];
-      }
-    }
-
-    if (enabled.contains('flip') &&
-        values.target.isNotEmpty &&
-        values.native.isNotEmpty) {
-      return const [OfficialAnkiProjectionKind.flip];
-    }
-    return const [OfficialAnkiProjectionKind.canonicalLink];
+    return [
+      const CardPresentationPolicy().selectOfficialKind(
+        values: values,
+        mapping: mapping,
+        typeAnswerEnabled: typeAnswerEnabled,
+      ),
+    ];
   }
 
   Map<String, Object?> interactionJson({

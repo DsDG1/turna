@@ -16,6 +16,8 @@ import 'package:turna/application/ai/ai_saved_explanations.dart';
 import 'package:turna/application/system_health_monitor.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/core/verbose.dart';
+import 'package:turna/application/anki/card_introduction_store.dart';
+import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/data/course_database_seeder.dart';
 import 'package:turna/data/rdb_query_executor.dart';
@@ -284,6 +286,8 @@ Future<void> setupLocator() async {
   // (HarmonyOsRdbExecutor). Android/iOS use sqlite3 FFI (NativeDatabase).
   final db = await _openAndSeedCourseDatabase();
   getIt.registerSingleton<CourseDatabase>(db);
+  getIt.registerSingleton(AnkiUnificationDao(db));
+  getIt.registerSingleton(CardIntroductionStore(dao: getIt<AnkiUnificationDao>()));
 
   // NOTE: the vocabulary / grammar / expression pre-loads
   // (loadVocabulary / loadGrammarPoints / loadExpressions)

@@ -39,6 +39,7 @@ import 'package:turna/application/anki/anki_organization_resolver.dart';
 import 'package:turna/application/anki/anki_sample_deck.dart';
 import 'package:turna/application/anki/anki_notetype_ai.dart';
 import 'package:turna/application/anki/anki_srs_migrator.dart';
+import 'package:turna/application/anki/unified_anki_import_orchestrator.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/courses/course_loader.dart';
@@ -1408,6 +1409,38 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
           _strategy == ImportStrategy.appendAsNew ||
           _strategy == ImportStrategy.forceReplace;
 
+      final officialCapable = AnkiImportFacade.decisionFor(
+            OfficialAnkiFeatureFlags.current,
+          ) ==
+          AnkiImportDecision.official;
+      final unifiedRequest = UnifiedAnkiImportRequest(
+        importId: importId,
+        sourceHash: hash,
+        canonicalCardIds: [
+          for (final card in collection.cards) card.id,
+        ],
+        officialCapable: officialCapable,
+        reuseExistingIdentity: _strategy != ImportStrategy.appendAsNew &&
+            _strategy != ImportStrategy.forceReplace,
+      );
+      final unifiedBegin =
+          await UnifiedAnkiImportOrchestrator.instance.begin(unifiedRequest);
+      if (unifiedBegin.noOp) {
+        setState(() {
+          _summary = AnkiImportSummary(
+            importId: importId,
+            sectionCount: 0,
+            unitCount: 0,
+            lessonCount: 0,
+            cardCount: unifiedBegin.canonicalCardCount,
+            wordEntryCount: unifiedBegin.canonicalCardCount,
+            sourceCardCount: unifiedBegin.canonicalCardCount,
+          );
+          _step = 4;
+        });
+        return;
+      }
+
       var effectiveCollection = collection;
 
       // Existing SRS states are always idempotently preserved by the
@@ -1493,27 +1526,27 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
 
         setState(() => _progressMessage = AppStrings.ankiMigratingSrs);
 
-        // Migrate SRS state + backfill review history from the revlog.
-        // New-queue cards are staggered by the user's daily new limit so a
-        // 5k-card import does not mark every card due on day one.
-        final migrator = AnkiSrsMigrator();
-        final dailyNew = getIt<AnkiDeckManager>().dailyNewLimit;
-        migrateSw
-          ..reset()
-          ..start();
-        await migrator.migrate(
-          cards: effectiveCollection.cards,
-          importId: importId,
-          srsProvider: srsProvider,
-          revlog: effectiveCollection.revlog,
-          reviewHistoryDao: getIt<ReviewHistoryDao>(),
-          newCardsPerDay: dailyNew,
-          collectionCreationTime: effectiveCollection.collectionCreationTime,
-          importScheduling: _importLearningProgress,
-        );
-        migrateSw.stop();
-        _logTiming('import: migrate', migrateSw,
-            {'cards': effectiveCollection.cards.length});
+        // Official-owned imports must not create Turna Anki SRS rows.
+        if (unifiedBegin.wroteTurnaSrs && !unifiedBegin.noOp) {
+          final migrator = AnkiSrsMigrator();
+          final dailyNew = getIt<AnkiDeckManager>().dailyNewLimit;
+          migrateSw
+            ..reset()
+            ..start();
+          await migrator.migrate(
+            cards: effectiveCollection.cards,
+            importId: importId,
+            srsProvider: srsProvider,
+            revlog: effectiveCollection.revlog,
+            reviewHistoryDao: getIt<ReviewHistoryDao>(),
+            newCardsPerDay: dailyNew,
+            collectionCreationTime: effectiveCollection.collectionCreationTime,
+            importScheduling: _importLearningProgress,
+          );
+          migrateSw.stop();
+          _logTiming('import: migrate', migrateSw,
+              {'cards': effectiveCollection.cards.length});
+        }
 
         setState(() => _progressMessage = AppStrings.ankiSavingMetadata);
 
@@ -1549,6 +1582,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       });
       txnSw.stop();
       _logTiming('import: transaction total', txnSw);
+      await UnifiedAnkiImportOrchestrator.instance.finalize(unifiedRequest);
 
       // Build Force Replace under a fresh id and remove the old copy only
       // after the replacement has committed successfully.
@@ -1570,7 +1604,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       }
 
       // If official engine is enabled and we are importing a real file, sync to official Anki collection & migration record
-      if (!_isSample) {
+      if (!_isSample && !unifiedBegin.noOp) {
         try {
           final flags = OfficialAnkiFeatureFlags.current;
           final decision = AnkiImportFacade.decisionFor(flags);

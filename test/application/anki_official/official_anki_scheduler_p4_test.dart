@@ -296,6 +296,15 @@ void main() {
       ),
     );
     await tester.pump();
+    await tester.pump();
+    final toggle = find.byKey(const Key('official-review-toggle-surface'));
+    if (toggle.evaluate().isNotEmpty) {
+      final button = tester.widget<IconButton>(toggle);
+      if (button.onPressed != null) {
+        await tester.tap(toggle);
+        await tester.pump();
+      }
+    }
     expect(find.byKey(const Key('official-review-show-answer')), findsOneWidget);
     expect(find.byKey(const Key('official-review-good')), findsNothing);
     presenter.acceptPresent(

@@ -99,10 +99,9 @@ class LearnerProfileAssembler {
       studyMinutes7Days: minutes7,
       studyMinutes30Days: minutes30,
       builtAt: at,
-      interests: companionPrefs?.interests ?? const <String>[],
+      interests: const <String>[],
       preferredExplanationStyle: companionPrefs?.depth.name ?? 'standard',
-      correctionIntensity:
-          companionPrefs?.correctionIntensity.name ?? 'balanced',
+      correctionIntensity: 'balanced',
       personalizationEnabled: companionPrefs?.injectLearnerContext ?? true,
     );
   }

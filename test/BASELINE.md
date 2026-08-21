@@ -1,5 +1,18 @@
 # Test Baseline
 
+Generated: 2026-08-21 (修复 ElevatedButton 按压阴影：Flutter 3.44 `ElevatedButton.styleFrom(elevation:)` 语义改为按状态缩放（pressed = base+6 / hovered+focused = base+2），`elevation: 0` 的按钮按下时海拔跳 6 冒浓阴影。7 处改链 `.copyWith(elevation: WidgetStatePropertyAll<double>(0))` 全状态钉平：light/dark `elevatedButtonTheme`（高对比主题 copyWith 继承）、BinaryRecallBar、UnifiedReviewPage 显示答案、UnifiedReviewCompletion、anki_card_renderer / anki_html_card_renderer `_GradeButton`；Filled/Outlined/Text 的 styleFrom 为 `allOrNull` 平铺语义不受影响，FAB/AppBar 等直接参数不涉及。`binary_recall_bar_test` +2 回归（widget style 与主题级 ElevatedButton 在全部 WidgetState 下 elevation==0）。`flutter analyze` 改动文件 0 issue。`flutter test --exclude-tags golden`：**1266 passed / 0 failed**。)
+
+Previous: Generated: 2026-08-21 (测试套件全量精简与治理：删除官方 Anki 迁移 Phase 0~5 过渡性 Spike/Prep/Playbook/Rollback 临时演练用例、波次灰度用例及冲突的旧架构守卫 9 份文件；合并重复的 Projection 切片；删除 verbose_test、srs_persist_benchmark_test、enum_by_name_test 等极低价值/已淘汰机制测试；删除 iOS/macOS 空模版桩；标记 Golden 视觉测试标签并修复 AiCompanionRepository 表初始化。`flutter test --exclude-tags golden`：**1264 passed / 0 failed**；Python `test/*_test.py`：**19 passed / 0 failed**。)
+
+Previous: Generated: 2026-08-21 (P5–P10 生产路径：Play Hub/统计/`FormalReviewLauncher.open` → `AnkiReviewSessionRoute`+`StudySessionController`；gate 不再 push Official 页；课程提交等 ledger receipt；导入 `begin` 同 hash no-op 跳过 assemble/Official；`StudyProductAnalytics` 接入 unified review。定向测试 **passed**。)
+
+Previous: Generated: 2026-08-21 (P4 生产接线：课程提交 markIntroduced；正式复习 due ∩ introduced；导入 reps/revlog 初始化；到期数拆成已学待复习/未学新卡。`card_introduction_eligibility_test` + assembler/fidelity/lesson/migrator 定向 **passed**。)
+
+Previous: Generated: 2026-08-20 (Anki 课程与复习大一统 P0–P5 切片：CanonicalCardKey / CardPresentation / introduction / StudySessionController；Official practice surface renderer-neutral ACK；kindsFor 一卡一种 presentation；schema v18 统一表。定向 `flutter test` 合同/守卫/DAO/ACK/adapter/projection/schema **passed**。)
+
+Previous: Generated: 2026-08-05 (Turkish content enrichment S1–S8: CEFR outlines → template shells → grounded pool 148 words / 18 expressions / 8 grammar; no placeholders; listening+reading per section; inventory v12; `turkish_enrichment_structure_test` +5; `course_cli_test` +4 structure/lint gates. Directed: flutter enrichment+loader **34 passed**; python course_cli **11 passed**. Full suite estimate **~880**.)
+
+
 Generated: 2026-08-05 (Turkish content enrichment S1–S8: CEFR outlines → template shells → grounded pool 148 words / 18 expressions / 8 grammar; no placeholders; listening+reading per section; inventory v12; `turkish_enrichment_structure_test` +5; `course_cli_test` +4 structure/lint gates. Directed: flutter enrichment+loader **34 passed**; python course_cli **11 passed**. Full suite estimate **~880**.)
 
 Previous: Generated: 2026-08-05 (宝石装饰兑换第一步：`GemsProvider.spendGems` + `CosmeticProvider` 头像环三款（晨雾/芦苇/湖光）；设置→账户→装扮列表；Profile/账户头像 `AvatarWithRing`；导出 key + 账户重置清装扮。新增 `gems_spend_test` 4 + `cosmetic_provider_test` 6；账户设置 widget 测试补 CosmeticProvider。相关定向测试 **13 passed**。全量预计 **875** = 865+10。)

@@ -8,11 +8,24 @@ import 'package:injectable/injectable.dart';
 import 'dart:async';
 
 // Project imports:
+import 'package:turna/application/anki/anki_study_session_host.dart';
+import 'package:turna/application/anki/card_introduction_eligibility.dart';
+import 'package:turna/application/anki/card_introduction_store.dart';
+import 'package:turna/application/anki/study_ledger_adapters.dart';
+import 'package:turna/application/anki/study_product_analytics.dart';
+import 'package:turna/application/anki/study_session_controller.dart';
+import 'package:turna/domain/anki/canonical_card_key.dart';
+import 'package:turna/domain/anki/card_presentation.dart';
+import 'package:turna/domain/anki/study_models.dart';
+import 'package:turna/domain/review/recall_outcome.dart';
+import 'package:turna/domain/review/turna_review_ledger.dart';
 import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/lesson_completion_coordinator.dart';
 import 'package:turna/application/mistake_provider.dart';
+import 'package:turna/application/mistake_review_assembler.dart';
+import 'package:turna/application/weak_word_quiz_assembler.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/core/sm2.dart';
 import 'package:turna/courses/course_loader.dart';
@@ -420,7 +433,37 @@ class LessonViewModel extends ChangeNotifier {
     String? mistakeWordId,
   }) {
     if (_lesson == null) return;
+    final interaction = currentInteraction;
+    if (interaction != null &&
+        _isAnkiOwnedInteraction(interaction, mistakeWordId)) {
+      unawaited(
+        _submitAnkiOwned(
+          correct: correct,
+          userAnswerText: userAnswerText,
+          recordMistake: recordMistake,
+          mistakeWordId: mistakeWordId,
+        ),
+      );
+      return;
+    }
 
+    _submitStandardInteraction(
+      correct,
+      userAnswerText: userAnswerText,
+      reviewQuality: reviewQuality,
+      recordMistake: recordMistake,
+      mistakeWordId: mistakeWordId,
+    );
+  }
+
+  void _submitStandardInteraction(
+    bool correct, {
+    String? userAnswerText,
+    int? reviewQuality,
+    bool? recordMistake,
+    String? mistakeWordId,
+  }) {
+    final interaction = currentInteraction;
     if (!correct) {
       _totalMistakes++;
       _incorrectAnswers++;
@@ -454,7 +497,6 @@ class LessonViewModel extends ChangeNotifier {
     // zip (which pairs results with entryIds by index) rely on one row per
     // item. retry/reset clear _questionResults, so re-submits after a reset
     // start fresh.
-    final interaction = currentInteraction;
     if (interaction != null && !wasAlreadySubmitted) {
       _questionResults.add(
         QuestionResult(
@@ -471,6 +513,7 @@ class LessonViewModel extends ChangeNotifier {
         wordId: mistakeWordId,
         interaction: interaction,
       );
+      _markAnkiIntroduced(interaction, mistakeWordId);
       _submittedInteractions.add(_SubmittedInteraction(
         stageIndex: _currentStageIndex,
         interactionIndex: _currentInteractionIndex,
@@ -521,7 +564,8 @@ class LessonViewModel extends ChangeNotifier {
     if (effectiveWordId != null &&
         effectiveWordId.isNotEmpty &&
         !effectiveWordId.startsWith(unknownInteractionWordIdPrefix) &&
-        !effectiveWordId.startsWith('official-anki-')) {
+        !effectiveWordId.startsWith('mistake-review-') &&
+        !_isAnkiOwnedInteraction(interaction, effectiveWordId)) {
       _srsProvider.registerWord(effectiveWordId);
       _srsUndoStack.add(_SrsUndoEntry(
         wordId: effectiveWordId,
@@ -536,7 +580,7 @@ class LessonViewModel extends ChangeNotifier {
 
     if (expressionId != null &&
         expressionId.isNotEmpty &&
-        !expressionId.startsWith('official-anki-')) {
+        !_isAnkiOwnedId(expressionId)) {
       _srsProvider.registerExpression(expressionId);
       _srsUndoStack.add(_SrsUndoEntry(
         wordId: expressionId,
@@ -560,10 +604,210 @@ class LessonViewModel extends ChangeNotifier {
     }
   }
 
+  CanonicalCardKey? _canonicalKeyForAnkiInteraction(Interaction interaction) {
+    const profileId = 'profile-default-01';
+    final rawId = ankiWordIdFromInteractionId(interaction.id);
+    final lessonId = _lesson?.id ?? '';
+    return CanonicalCardKeyAdapter.tryParseStoredWordId(
+          profileId: profileId,
+          rawId: rawId,
+        ) ??
+        CardIntroductionEligibility.keyFromLessonAndWordId(
+          lessonId: lessonId,
+          wordId: rawId,
+        ) ??
+        CardIntroductionEligibility.keyFromLessonAndWordId(
+          lessonId: lessonId,
+          wordId: interaction.id,
+        ) ??
+        _keyFromLooseAnkiId(rawId) ??
+        _keyFromLooseAnkiId(interaction.id);
+  }
+
+  CanonicalCardKey? _keyFromLooseAnkiId(String id) {
+    final cardId = CardIntroductionEligibility.cardIdFromWordId(id);
+    if (cardId == null) return null;
+    final official = RegExp(r'^official-anki-(.+)-c\d+').firstMatch(id);
+    if (official != null) {
+      return CanonicalCardKey(
+        backend: AnkiBackendKind.official,
+        profileId: 'profile-default-01',
+        sourceId: official.group(1)!,
+        cardId: cardId,
+      );
+    }
+    final legacy = RegExp(r'^anki-(.+)-c\d+').firstMatch(id);
+    if (legacy != null) {
+      return CanonicalCardKey(
+        backend: AnkiBackendKind.legacyTurna,
+        profileId: 'profile-default-01',
+        sourceId: legacy.group(1)!,
+        cardId: cardId,
+      );
+    }
+    return null;
+  }
+
+  bool _isAnkiOwnedId(String id) {
+    return CanonicalCardKeyAdapter.tryParseStoredWordId(
+          profileId: 'profile-default-01',
+          rawId: id,
+        ) !=
+        null;
+  }
+
+  bool _isAnkiOwnedInteraction(Interaction interaction, String? wordId) {
+    if (_lesson?.id == MistakeReviewAssembler.lessonId ||
+        _lesson?.id == WeakWordQuizAssembler.lessonId) {
+      return false;
+    }
+    if (_canonicalKeyForAnkiInteraction(interaction) != null) return true;
+    if (wordId != null && _isAnkiOwnedId(wordId)) return true;
+    return false;
+  }
+
+  AnkiStudySessionHost? _ankiHost;
+
+  AnkiStudySessionHost _ankiSessionHost() {
+    final override = AnkiStudySessionHost.debugOverride;
+    if (override != null) return override;
+    return _ankiHost ??= AnkiStudySessionHost(
+      resolver: StudyLedgerResolver(
+        turna: TurnaStudyLedger(TurnaReviewLedger(_srsProvider)),
+      ),
+    );
+  }
+
+  Future<void> _submitAnkiOwned({
+    required bool correct,
+    String? userAnswerText,
+    bool? recordMistake,
+    String? mistakeWordId,
+  }) async {
+    final interaction = currentInteraction;
+    if (interaction == null) return;
+    final controller = await _commitAnkiLearn(interaction, correct);
+    if (controller == null ||
+        controller.phase == StudyCardPhase.recoverableError ||
+        controller.lastReceipt == null) {
+      _submitStandardInteraction(
+        correct,
+        userAnswerText: userAnswerText,
+        recordMistake: recordMistake,
+        mistakeWordId: mistakeWordId,
+      );
+      return;
+    }
+    StudyProductAnalytics.instance.record(controller.lastReceipt!);
+
+    if (!correct) {
+      _totalMistakes++;
+      _incorrectAnswers++;
+      _audioController.playRandomErrorSound();
+      if (recordMistake ?? _recordsMistakes) {
+        _recordMistake(userAnswerText, wordId: mistakeWordId);
+      }
+    } else {
+      _correctAnswers++;
+      _audioController.playRandomLevelUpSound();
+    }
+    final wasAlreadySubmitted =
+        _interactionStates[currentInteractionId]?.submitted ?? false;
+    _interactionStates[currentInteractionId] = InteractionState(
+      submitted: true,
+      correct: correct,
+      userAnswerText: userAnswerText,
+    );
+    if (!wasAlreadySubmitted) {
+      _questionResults.add(
+        QuestionResult(
+          prompt: interactionPromptLabel(interaction),
+          correct: correct,
+          userAnswer: userAnswerText,
+          correctAnswer: interactionCorrectAnswerLabel(interaction),
+        ),
+      );
+      _markAnkiIntroduced(interaction, mistakeWordId);
+      _submittedInteractions.add(_SubmittedInteraction(
+        stageIndex: _currentStageIndex,
+        interactionIndex: _currentInteractionIndex,
+        itemId: currentInteractionId,
+        correct: correct,
+      ));
+    }
+    notifyListeners();
+  }
+
+  Future<StudySessionController?> _commitAnkiLearn(
+    Interaction interaction,
+    bool correct,
+  ) async {
+    final key = _canonicalKeyForAnkiInteraction(interaction);
+    if (key == null) return null;
+    final front = interaction is AnkiCard ? interaction.front : '';
+    final back = interaction is AnkiCard ? interaction.back : '';
+    final item = AnkiStudySessionHost.itemFor(
+      key: key,
+      presentation: FlipCardPresentation(
+        cardKey: key,
+        frontText: front,
+        backText: back,
+        sourceFingerprint: 'lesson',
+      ),
+      mode: StudyMode.learn,
+      courseId: _lesson?.id ?? '',
+      placementId: _lesson?.id ?? '',
+    );
+    try {
+      return await _ankiSessionHost().driveFlip(
+        item: item,
+        outcome: correct ? RecallOutcome.remembered : RecallOutcome.forgotten,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Course submit is the introduction writer. Mid-lesson exit keeps already
+  /// submitted cards; unsubmitted items stay unintroduced.
+  void _markAnkiIntroduced(Interaction interaction, String? mistakeWordId) {
+    final lessonId = _lesson?.id ?? '';
+    if (lessonId.isEmpty) return;
+    final candidates = <String>[
+      if (mistakeWordId != null && mistakeWordId.isNotEmpty) mistakeWordId,
+      if (interaction is ShowWord && interaction.wordId.isNotEmpty)
+        interaction.wordId,
+      ankiWordIdFromInteractionId(interaction.id),
+      interaction.id,
+    ];
+    for (final candidate in candidates) {
+      if (CardIntroductionEligibility.keyFromLessonAndWordId(
+            lessonId: lessonId,
+            wordId: candidate,
+          ) ==
+          null) {
+        continue;
+      }
+      unawaited(
+        CardIntroductionStore.resolve().markFromLesson(
+          wordId: candidate,
+          lessonId: lessonId,
+        ),
+      );
+      return;
+    }
+  }
+
   /// Advance to the next interaction (or stage). Called after the user
   /// acknowledges the current result (tap "Continue" / "Got It").
   void advance() {
     if (_lesson == null || _isComplete) return;
+    final interaction = currentInteraction;
+    if (interaction != null &&
+        _isAnkiOwnedInteraction(interaction, null) &&
+        !(_interactionStates[currentInteractionId]?.submitted ?? false)) {
+      return;
+    }
 
     _currentInteractionIndex++;
 
@@ -728,12 +972,12 @@ class LessonViewModel extends ChangeNotifier {
           // phantom, unanswerable card and record a bogus lesson link.
           if (item.wordId.isNotEmpty &&
               !item.wordId.startsWith(unknownInteractionWordIdPrefix) &&
-              !item.wordId.startsWith('official-anki-')) {
+              !_isAnkiOwnedId(item.wordId)) {
             wordIds.add(item.wordId);
           }
           if (item.expressionId != null &&
               item.expressionId!.isNotEmpty &&
-              !item.expressionId!.startsWith('official-anki-')) {
+              !_isAnkiOwnedId(item.expressionId!)) {
             expressionIds.add(item.expressionId!);
           }
         }

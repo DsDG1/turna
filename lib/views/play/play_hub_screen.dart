@@ -10,8 +10,10 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
+import 'package:turna/application/anki/formal_review_launcher.dart';
 import 'package:turna/application/anki_official/engine/official_anki_home_due.dart';
 import 'package:turna/application/anki_official/engine/official_anki_home_due_sync.dart';
+import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/srs_provider.dart';
@@ -38,6 +40,19 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
   Future<void> _refreshOfficialDue() async {
     await const OfficialAnkiHomeDueSync().refresh();
     if (mounted) setState(() {});
+  }
+
+  void _openAnkiReview(BuildContext context) {
+    unawaited(
+      const FormalReviewLauncher().open(
+        context,
+        entry: FormalReviewEntryKind.playHub,
+        courseId: 'anki',
+        officialOwner: OfficialAnkiHomeDue.officialImportIds.isNotEmpty,
+        officialCapable:
+            OfficialAnkiFeatureFlags.current.allowsOfficialScheduler,
+      ),
+    );
   }
 
   @override
@@ -162,7 +177,7 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
                     badge: OfficialAnkiHomeDue.officialDueUnavailable
                         ? '—'
                         : (ankiDue > 0 ? '$ankiDue' : null),
-                    onTap: () => context.router.push(const AnkiReviewRoute()),
+                    onTap: () => _openAnkiReview(context),
                   ),
                   ReviewTile(
                     title: AppStrings.playReviewTitle,

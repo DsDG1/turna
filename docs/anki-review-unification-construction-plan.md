@@ -1,6 +1,6 @@
 # Anki 复习统一施工计划
 
-> 状态：核心生产路径已实施；官方历史聚合与官方管理仓库留作后续切片
+> 状态：**部分 superseded**。二元评分、ledger adapter 与统一外壳仍有效；卡片身份、一卡一 presentation、课程 introduction 资格、renderer-neutral ACK 与统一 StudySession 以 [`# Anki 课程与复习大一统实施计划.md`](./# Anki 课程与复习大一统实施计划.md) 和 [ADR 0037](./decisions/0037-anki-course-review-unification.md) 为准。
 >
 > 日期：2026-08-20
 >

@@ -11,6 +11,8 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:turna/application/anki/anki_deck_manager.dart';
 import 'package:turna/application/anki/anki_review_assembler.dart';
+import 'package:turna/application/anki/formal_review_launcher.dart';
+import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/engine/official_anki_home_due.dart';
 import 'package:turna/application/anki_official/engine/official_anki_home_due_sync.dart';
 import 'package:turna/data/anki_note_dao.dart';
@@ -22,7 +24,6 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/anki/anki_card_browser_page.dart';
 import 'package:turna/views/anki/anki_deck_stats_page.dart';
-import 'package:turna/views/anki/anki_official_review_gate.dart';
 import 'package:turna/views/theme.dart';
 
 /// Anki review hub — lists imported Anki sections with due counts,
@@ -100,6 +101,8 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
     // full collectDue sort per section tile).
     final dueSnap = assembler.dueSnapshot();
     final totalDue = _aggregatedDue(ankiSections, dueSnap.byImportId);
+    final unintroducedNew = assembler.unintroducedDueCount() +
+        OfficialAnkiHomeDue.unintroducedOfficialDue;
     final hasLegacySections = ankiSections.any((section) {
       final importId = AnkiReviewAssembler.importIdFromSectionId(section.id);
       return !OfficialAnkiHomeDue.officialImportIds.contains(importId);
@@ -108,7 +111,7 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
     for (final section in ankiSections) {
       final importId = AnkiReviewAssembler.importIdFromSectionId(section.id);
       if (OfficialAnkiHomeDue.officialImportIds.contains(importId) &&
-          (OfficialAnkiHomeDue.officialDueByImport[importId] ?? 0) > 0) {
+          OfficialAnkiHomeDue.formalOfficialDueForImport(importId) > 0) {
         firstDueOfficialSectionId = section.id;
         break;
       }
@@ -185,7 +188,7 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
               ],
             ),
           )
-        else if (totalDue > 0)
+        else if (totalDue > 0 || unintroducedNew > 0)
           Container(
             padding: const EdgeInsets.all(16),
             margin: const EdgeInsets.only(bottom: 16),
@@ -200,22 +203,29 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    AppStrings.ankiCardsDueReview(totalDue),
+                    AppStrings.ankiFormalDueBreakdown(
+                      introducedDue: totalDue,
+                      unintroducedNew: unintroducedNew,
+                    ),
                     style: const TextStyle(
                       fontWeight: FontWeight.w600,
                       color: TurnaTheme.brandTeal,
                     ),
                   ),
                 ),
-                ElevatedButton(
-                  onPressed: () =>
-                      _startReview(context, firstDueOfficialSectionId),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: TurnaTheme.brandTeal,
-                    foregroundColor: TurnaTheme.textOnPrimary,
+                if (totalDue > 0)
+                  ElevatedButton(
+                    onPressed: () => _startReview(
+                      context,
+                      firstDueOfficialSectionId,
+                      entry: FormalReviewEntryKind.courseReview,
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: TurnaTheme.brandTeal,
+                      foregroundColor: TurnaTheme.textOnPrimary,
+                    ),
+                    child: Text(AppStrings.ankiReviewAll),
                   ),
-                  child: Text(AppStrings.ankiReviewAll),
-                ),
               ],
             ),
           ),
@@ -246,7 +256,11 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
                   importId,
                   dueSnap.byImportId,
                 ),
-                onTap: () => _startReview(context, section.id),
+                onTap: () => _startReview(
+                  context,
+                  section.id,
+                  entry: FormalReviewEntryKind.deckSection,
+                ),
                 onStats: isOfficial
                     ? null
                     : () => Navigator.of(context).push(
@@ -498,7 +512,7 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
   int? _dueForSection(String importId, Map<String, int> byImportId) {
     if (OfficialAnkiHomeDue.officialImportIds.contains(importId)) {
       if (OfficialAnkiHomeDue.officialDueUnavailable) return null;
-      return OfficialAnkiHomeDue.officialDueByImport[importId] ?? 0;
+      return OfficialAnkiHomeDue.formalOfficialDueForImport(importId);
     }
     return byImportId[importId] ?? 0;
   }
@@ -518,20 +532,32 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
     return total;
   }
 
-  void _startReview(BuildContext context, String? sectionId) {
-    unawaited(_startReviewAsync(context, sectionId));
+  void _startReview(
+    BuildContext context,
+    String? sectionId, {
+    FormalReviewEntryKind entry = FormalReviewEntryKind.ankiHub,
+  }) {
+    unawaited(_startReviewAsync(context, sectionId, entry: entry));
   }
 
   Future<void> _startReviewAsync(
     BuildContext context,
-    String? sectionId,
-  ) async {
-    final opened = await const AnkiOfficialReviewGate().openInsteadOfLegacy(
+    String? sectionId, {
+    FormalReviewEntryKind entry = FormalReviewEntryKind.ankiHub,
+  }) async {
+    final importId = sectionId == null
+        ? ''
+        : AnkiReviewAssembler.importIdFromSectionId(sectionId);
+    await const FormalReviewLauncher().open(
       context,
+      entry: entry,
+      courseId: importId.isEmpty ? 'anki' : 'anki-$importId',
       sectionId: sectionId,
+      officialOwner:
+          OfficialAnkiHomeDue.officialImportIds.contains(importId),
+      officialCapable:
+          OfficialAnkiFeatureFlags.current.allowsOfficialScheduler,
     );
-    if (opened || !context.mounted) return;
-    context.router.push(AnkiReviewSessionRoute(sectionId: sectionId));
   }
 }
 

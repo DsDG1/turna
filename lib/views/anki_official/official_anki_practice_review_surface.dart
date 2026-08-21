@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
-import 'package:turna/application/anki_practice/card_classifier.dart';
 import 'package:turna/application/anki_practice/card_classifier_models.dart';
 import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/mistake_provider.dart';
@@ -36,6 +35,10 @@ class OfficialAnkiPracticeReviewSurface extends StatefulWidget {
     this.rawQuestionHtml = '',
     this.rawAnswerHtml = '',
     this.renderers,
+    this.isAnswerVisible = false,
+    this.presentGeneration = 0,
+    this.presentedCardId = 0,
+    this.onPresented,
   });
 
   final OfficialReviewQueueCard card;
@@ -46,6 +49,10 @@ class OfficialAnkiPracticeReviewSurface extends StatefulWidget {
   final String rawQuestionHtml;
   final String rawAnswerHtml;
   final Set<InteractionRenderer>? renderers;
+  final bool isAnswerVisible;
+  final int presentGeneration;
+  final int presentedCardId;
+  final ValueChanged<String>? onPresented;
 
   @override
   State<OfficialAnkiPracticeReviewSurface> createState() =>
@@ -55,22 +62,62 @@ class OfficialAnkiPracticeReviewSurface extends StatefulWidget {
 class _OfficialAnkiPracticeReviewSurfaceState
     extends State<OfficialAnkiPracticeReviewSurface> {
   InteractionState _interactionState = InteractionState.idle;
+  String? _ackedSide;
+  int _ackedGeneration = 0;
+  int _ackedCardId = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _schedulePresentAck();
+  }
 
   @override
   void didUpdateWidget(covariant OfficialAnkiPracticeReviewSurface oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.card.cardId != widget.card.cardId) {
       _interactionState = InteractionState.idle;
+      _ackedSide = null;
+      _ackedGeneration = 0;
+      _ackedCardId = 0;
     }
+    _schedulePresentAck();
+  }
+
+  void _schedulePresentAck() {
+    final side = widget.isAnswerVisible ? 'answer' : 'question';
+    final generation = widget.presentGeneration;
+    final cardId = widget.presentedCardId == 0
+        ? widget.card.cardId
+        : widget.presentedCardId;
+    if (cardId <= 0 || generation <= 0) return;
+    if (_ackedSide == side &&
+        _ackedGeneration == generation &&
+        _ackedCardId == cardId) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final currentSide = widget.isAnswerVisible ? 'answer' : 'question';
+      if (currentSide != side) return;
+      if (widget.presentGeneration != generation) return;
+      _ackedSide = side;
+      _ackedGeneration = generation;
+      _ackedCardId = cardId;
+      widget.onPresented?.call(side);
+    });
   }
 
   AnkiPracticeClassification _classify() {
-    final input = AnkiPracticeCardInput(
-      cardId: widget.card.cardId,
-      rawQuestionHtml: widget.rawQuestionHtml,
-      rawAnswerHtml: widget.rawAnswerHtml,
+    final rawQ = widget.rawQuestionHtml.isNotEmpty
+        ? widget.rawQuestionHtml
+        : 'Card ${widget.card.cardId}';
+    return AnkiPracticeClassification(
+      shape: AnkiPracticeShape.flip,
+      confidence: 1,
+      term: rawQ,
+      meaning: widget.rawAnswerHtml,
     );
-    return AnkiPracticeCardClassifier.classify(input);
   }
 
   Interaction _toInteraction(AnkiPracticeClassification c) {
@@ -244,7 +291,8 @@ class _OfficialAnkiPracticeReviewSurfaceState
   Widget build(BuildContext context) {
     final classification = _classify();
     final interaction = _toInteraction(classification);
-    final isAnswerPhase = widget.phase == OfficialReviewPhase.showingAnswer;
+    final isAnswerPhase = widget.isAnswerVisible ||
+        widget.phase == OfficialReviewPhase.showingAnswer;
 
     Widget content;
     if (interaction is AnkiCard) {

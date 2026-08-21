@@ -1162,6 +1162,11 @@ class AppStrings {
   static String get ankiReviewScreenTitle => 'Anki 复习';
   static String get ankiImportNewDeck => '导入新牌组';
   static String ankiCardsDueReview(int totalDue) => '$totalDue 张卡片待复习';
+  static String ankiFormalDueBreakdown({
+    required int introducedDue,
+    required int unintroducedNew,
+  }) =>
+      '已学待复习 $introducedDue 张 · 未学新卡 $unintroducedNew 张';
   static String get ankiDueUnavailable => '到期数量暂不可用，请稍后刷新';
   static String get ankiReviewAll => '开始复习';
   static String get ankiNoDecksTitle => '未导入 Anki 牌组';
@@ -1277,10 +1282,10 @@ class AppStrings {
   static String get reviewProgressDueOverdue => '已到期';
   static String get reviewProgressDue7 => '7 日内';
   static String get reviewProgressDue30 => '30 日内';
-  static String get reviewProgressRangeAll => '全部时间';
-  static String get reviewProgressRange7 => '近 7 天';
-  static String get reviewProgressRange30 => '近 30 天';
-  static String get reviewProgressRange90 => '近 90 天';
+  static String get reviewProgressRangeAll => '全部';
+  static String get reviewProgressRange7 => '7天';
+  static String get reviewProgressRange30 => '30天';
+  static String get reviewProgressRange90 => '90天';
   static String get reviewProgressKpiRetention => '保留率';
   static String get reviewProgressKpiMastery => '掌握度';
   static String get reviewProgressKpiCards => '卡片';

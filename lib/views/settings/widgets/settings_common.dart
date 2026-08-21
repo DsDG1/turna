@@ -48,12 +48,14 @@ class SettingsSectionTitle extends StatelessWidget {
         children: [
           Icon(icon, color: TurnaTheme.brandTeal, size: 20),
           const SizedBox(width: 8),
-          Text(
-            title,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: TurnaTheme.textSecondaryColor(context),
-                ),
+          Expanded(
+            child: Text(
+              title,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: TurnaTheme.textSecondaryColor(context),
+                  ),
+            ),
           ),
         ],
       ),

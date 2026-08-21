@@ -1,5 +1,6 @@
 import 'package:turna/application/anki/anki_deck_manager.dart';
 import 'package:turna/application/anki/anki_models.dart';
+import 'package:turna/application/anki/card_introduction_store.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 import 'package:turna/application/anki_official/migration/official_anki_write_owner.dart';
 import 'package:turna/application/srs_provider.dart';
@@ -78,6 +79,15 @@ class AnkiSrsMigrator {
       // Batch register into SRS provider via public API
       await srsProvider.bulkImportStates(srsWords);
     }
+
+    final revlogCardIds = <int>{
+      for (final entry in revlog) entry.cid,
+    };
+    await CardIntroductionStore.resolve().seedLegacyImport(
+      importId: importId,
+      cards: cards,
+      revlogCardIds: revlogCardIds,
+    );
 
     if (importScheduling) {
       await _migrateRevlog(

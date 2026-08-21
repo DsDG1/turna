@@ -113,3 +113,6 @@ android/app/src/main/jniLibs/**/libturna_anki.so
 
 # Official Anki spike large packages are generated on demand.
 test/fixtures/anki_official/generated/
+
+# Temporarily vendored external reference repo (not part of this project)
+anki-decryptBack/

@@ -179,7 +179,6 @@ class AnkiCardAdapter {
           front: front,
           back: back,
           importId: importId,
-          distractors: answerPool,
           audioAssets: frontMedia.audios,
           imageAsset:
               frontMedia.images.isNotEmpty ? frontMedia.images.first : null,
@@ -208,14 +207,24 @@ class AnkiCardAdapter {
         // whole note type. multiSelect is a legacy notetype alias of
         // multipleChoice; both prefer structured options then flip fallback.
         if (choiceFromNote != null) return choiceFromNote;
-        return _adaptAnkiCard(
-          note: note,
+        return _adaptMcq(
           wordId: wordId,
           interactionId: interactionId,
           front: front,
           back: back,
-          audioAssets: [...frontMedia.audios, ...backMedia.audios],
-          imageAssets: [...frontMedia.images, ...backMedia.images],
+          distractors: answerPool,
+          audioAssets: frontMedia.audios,
+          imageAsset:
+              frontMedia.images.isNotEmpty ? frontMedia.images.first : null,
+          fallback: () => _adaptAnkiCard(
+            note: note,
+            wordId: wordId,
+            interactionId: interactionId,
+            front: front,
+            back: back,
+            audioAssets: [...frontMedia.audios, ...backMedia.audios],
+            imageAssets: [...frontMedia.images, ...backMedia.images],
+          ),
         );
 
       case NotetypeMappingType.fillBlank:
@@ -322,27 +331,10 @@ class AnkiCardAdapter {
 
     if (front.isEmpty) return flip();
 
-    // Short answer + enough distractors → MCQ; otherwise type the answer.
-    // Require only 2 usable distractors (3 options total) — quiz decks are
-    // often small and the old 3-distractor bar forced flip cards.
-    return _adaptMcq(
-      wordId: wordId,
-      interactionId: interactionId,
-      front: front,
-      back: back,
-      distractors: distractors,
-      minDistractors: 2,
-      audioAssets: frontMedia.audios,
-      imageAsset: frontMedia.images.isNotEmpty ? frontMedia.images.first : null,
-      fallback: () => _adaptTypeAnswer(
-        wordId: wordId,
-        interactionId: interactionId,
-        front: front,
-        back: back,
-        audioAssets: frontMedia.audios,
-        imageAssets: frontMedia.images,
-      ),
-    );
+    // Ordinary short-answer vocabulary stays Flip. Deck-mate distractors
+    // are not an option contract; explicit MCQ comes from note option
+    // fields / embedded A/B/C via [choiceFromNote].
+    return flip();
   }
 
   /// Infer a NotetypeMapping from field names using heuristics.
@@ -614,7 +606,6 @@ class AnkiCardAdapter {
     required String front,
     required String back,
     required String importId,
-    required List<String> distractors,
     List<String> audioAssets = const [],
     String? imageAsset,
   }) {
@@ -626,29 +617,16 @@ class AnkiCardAdapter {
       tags: ['anki:$importId', ...splitTags(note.tags)],
     );
 
-    // Build MultipleChoice from deck distractors — never pad with "—".
-    // Fewer than 2 real distractors → type-the-answer instead of a fake MCQ.
-    final usable = _usableDistractors(distractors, back)..shuffle();
-    final Interaction interaction;
-    if (usable.length >= 2) {
-      final options = <String>[back, ...usable.take(3)]..shuffle();
-      interaction = Interaction.multipleChoice(
-        id: interactionId,
-        prompt: front,
-        options: options,
-        correctIndex: options.indexOf(back),
-        imageAsset: imageAsset,
-        audioAssets: audioAssets,
-      );
-    } else {
-      interaction = Interaction.fillBlank(
-        id: interactionId,
-        sentence: front.contains('_____') ? front : '$front\n_____',
-        answer: back,
-        audioAssets: audioAssets,
-        imageAssets: imageAsset != null ? [imageAsset] : const [],
-      );
-    }
+    // Vocabulary stays a flip card. Sibling deck meanings are not a
+    // structured option contract and must not become a formal MCQ.
+    final interaction = Interaction.ankiCard(
+      id: interactionId,
+      front: front,
+      back: back,
+      audioAssets: audioAssets,
+      imageAssets: imageAsset != null ? [imageAsset] : const [],
+      sourceNoteId: wordId,
+    );
 
     return AnkiAdaptResult(
       wordEntry: wordEntry,

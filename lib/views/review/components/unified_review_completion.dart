@@ -117,14 +117,14 @@ class UnifiedReviewCompletion extends StatelessWidget {
               height: 52,
               child: ElevatedButton(
                 onPressed: onFinish,
+                // styleFrom treats elevation as a base level (pressed: +6); pin all states flat.
                 style: ElevatedButton.styleFrom(
                   backgroundColor: TurnaTheme.brandTeal,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  elevation: 0,
-                ),
+                ).copyWith(elevation: const WidgetStatePropertyAll<double>(0)),
                 child: Text(
                   AppStrings.commonDone,
                   style: const TextStyle(

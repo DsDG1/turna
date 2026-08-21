@@ -1,6 +1,6 @@
 # Anki 集成设计（已交付）
 
-> 状态：**已交付**。本文件合并原 `anki-deep-adaptation-plan`（渲染层）与 `anki-official-alignment-remediation-plan`（语义/可靠性）的持久设计；删除两份计划中已落地的实施清单、测试计划与里程碑。
+> 状态：**部分 superseded**。Note/Card 保真与导入语义仍有效；“默认 Again/Hard/Good/Easy”和词汇自动升级正式 MCQ 已被 [ADR 0037](./decisions/0037-anki-course-review-unification.md) 取代。课程/复习大一统主计划见 [`# Anki 课程与复习大一统实施计划.md`](./# Anki 课程与复习大一统实施计划.md)。
 > 当前实现概览见 [`project-guide.md`](../project-guide.md) §6；评审修复记录见 ADR [`0030-anki-deep-adaptation-review-fixes`](./decisions/0030-anki-deep-adaptation-review-fixes.md)。
 > 合并日期：2026-08-07（自 2026-07-31 两份计划）。
 

@@ -55,10 +55,9 @@ void main() {
           .getSingleOrNull();
 
       expect(sections1, isNotEmpty);
-      // The Turkish course ships real vocab (greeting words) + expressions;
-      // grammar points are still empty by design.
+      // The Turkish course ships real vocab + expressions + grammar points (S1-S8).
       expect(vocab1, isNotEmpty);
-      expect(grammar1, isEmpty);
+      expect(grammar1, isNotEmpty);
       // Expressions ship real content too.
       expect(expressions1, isNotEmpty);
       expect(meta1, isNotNull);

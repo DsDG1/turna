@@ -14,6 +14,14 @@ class TurnaReviewLedger implements ReviewLedger {
 
   TurnaReviewLedger(this._srsProvider);
 
+  /// Registers a Turna-owned Anki word the first time the study session
+  /// commits it. Official-owned cards never reach this ledger.
+  void ensureWord(String rawId) {
+    if (!_srsProvider.state.containsKey(rawId)) {
+      _srsProvider.registerWord(rawId);
+    }
+  }
+
   @override
   Future<ReviewDueSummary> dueSummary({String? scope}) async {
     if (scope != null && scope.startsWith('anki:')) {

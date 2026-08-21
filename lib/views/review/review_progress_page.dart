@@ -93,7 +93,12 @@ class _ReviewProgressPageState extends State<ReviewProgressPage> {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                    child: _CurveCard(snapshot: data),
+                    child: _CurveCard(
+                      snapshot: data,
+                      eventRange: _filter.eventRange,
+                      onRangeChanged: (r) =>
+                          _setFilter(_filter.copyWith(eventRange: r)),
+                    ),
                   ),
                 ),
                 SliverToBoxAdapter(
@@ -185,15 +190,6 @@ class _FilterPanel extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          TurnaSegmented<EventRange>(
-            selected: filter.eventRange,
-            onChanged: (r) => onChanged(filter.copyWith(eventRange: r)),
-            segments: [
-              for (final r in EventRange.values)
-                ButtonSegment(value: r, label: Text(_rangeLabel(r))),
-            ],
-          ),
         ],
       ),
     );
@@ -209,19 +205,6 @@ class _FilterPanel extends StatelessWidget {
         return AppStrings.reviewProgressTypeExpression;
       case ProgressTypeFilter.grammar:
         return AppStrings.reviewProgressTypeGrammar;
-    }
-  }
-
-  String _rangeLabel(EventRange r) {
-    switch (r) {
-      case EventRange.all:
-        return AppStrings.reviewProgressRangeAll;
-      case EventRange.d7:
-        return AppStrings.reviewProgressRange7;
-      case EventRange.d30:
-        return AppStrings.reviewProgressRange30;
-      case EventRange.d90:
-        return AppStrings.reviewProgressRange90;
     }
   }
 
@@ -319,7 +302,14 @@ class _KpiCard extends StatelessWidget {
 class _CurveCard extends StatelessWidget {
   final ReviewProgressSnapshot snapshot;
 
-  const _CurveCard({required this.snapshot});
+  final EventRange eventRange;
+  final ValueChanged<EventRange> onRangeChanged;
+
+  const _CurveCard({
+    required this.snapshot,
+    required this.eventRange,
+    required this.onRangeChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -335,24 +325,44 @@ class _CurveCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(Icons.show_chart_rounded,
-                  color: TurnaTheme.brandTeal, size: 20),
-              const SizedBox(width: 8),
+              Row(
+                children: [
+                  Icon(Icons.show_chart_rounded,
+                      color: TurnaTheme.brandTeal, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    AppStrings.profileMemoryCurveTitle,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                ],
+              ),
               Text(
-                AppStrings.profileMemoryCurveTitle,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
+                AppStrings.profileReviewsCount(snapshot.aggregate.totalReviews),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: TurnaTheme.textHintColor(context),
                     ),
               ),
             ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            AppStrings.profileReviewsCount(snapshot.aggregate.totalReviews),
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: TurnaTheme.textHintColor(context),
+          const SizedBox(height: 12),
+          TurnaSegmented<EventRange>(
+            selected: eventRange,
+            onChanged: onRangeChanged,
+            segments: [
+              for (final r in EventRange.values)
+                ButtonSegment(
+                  value: r,
+                  label: Text(
+                    _rangeLabel(r),
+                    maxLines: 1,
+                    style: const TextStyle(fontSize: 12),
+                  ),
                 ),
+            ],
           ),
           const SizedBox(height: 12),
           if (curve.isEmpty)
@@ -375,6 +385,19 @@ class _CurveCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _rangeLabel(EventRange r) {
+    switch (r) {
+      case EventRange.all:
+        return AppStrings.reviewProgressRangeAll;
+      case EventRange.d7:
+        return AppStrings.reviewProgressRange7;
+      case EventRange.d30:
+        return AppStrings.reviewProgressRange30;
+      case EventRange.d90:
+        return AppStrings.reviewProgressRange90;
+    }
   }
 }
 

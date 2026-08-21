@@ -24,7 +24,9 @@ class OfficialTemplateWebViewBody extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final html = isRevealed ? content.backHtml : content.frontHtml;
 
-    return Container(
+    return GestureDetector(
+      onTap: isRevealed ? null : onReveal,
+      child: Container(
       width: double.infinity,
       decoration: BoxDecoration(
         color: TurnaTheme.cardBg(context),
@@ -50,6 +52,7 @@ class OfficialTemplateWebViewBody extends StatelessWidget {
           isBack: isRevealed,
         ),
       ),
+    ),
     );
   }
 }

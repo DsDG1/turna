@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/views/lesson/components/interactions/multi_select_renderer.dart';

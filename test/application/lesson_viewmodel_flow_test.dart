@@ -8,6 +8,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
+import 'package:turna/application/anki/anki_study_session_host.dart';
+import 'package:turna/application/anki/card_introduction_store.dart';
+import 'package:turna/domain/anki/canonical_card_key.dart';
+import 'package:turna/domain/anki/study_models.dart';
+import 'package:turna/domain/review/recall_outcome.dart';
 import 'package:turna/application/achievements_provider.dart';
 import 'package:turna/application/accessibility_provider.dart';
 import 'package:turna/application/audio_controller.dart';
@@ -20,6 +25,8 @@ import 'package:turna/application/lesson_completion_coordinator.dart';
 import 'package:turna/application/lesson_link_store.dart';
 import 'package:turna/application/lesson_viewmodel.dart';
 import 'package:turna/application/mistake_provider.dart'; // MistakeProvider for StudyStatsProvider
+import 'package:turna/application/mistake_review_assembler.dart';
+import 'package:turna/domain/course/mistake_entry.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/study_stats_provider.dart';
@@ -257,6 +264,56 @@ _ViewModelHarness _buildHarness({
     mistakeProvider: mistakeProvider,
     srsProvider: srsProvider,
   );
+}
+
+void _installAnkiStudyHost() {
+  AnkiStudySessionHost.debugOverride = AnkiStudySessionHost(
+    resolver: StudyLedgerResolver(
+      official: _RecordingStudyLedger(StudyLedgerOwner.officialAnki),
+      turna: _RecordingStudyLedger(StudyLedgerOwner.turnaFsrs),
+    ),
+  );
+  addTearDown(() => AnkiStudySessionHost.debugOverride = null);
+}
+
+class _RecordingStudyLedger implements StudyLedger {
+  _RecordingStudyLedger(this.owner);
+
+  final StudyLedgerOwner owner;
+  int commits = 0;
+
+  @override
+  Future<DueSnapshot> dueSnapshot(StudyScope scope) async {
+    return const DueSnapshot(dueCardKeys: {});
+  }
+
+  @override
+  Future<SchedulePreview> preview(
+    CanonicalCardKey key,
+    RecallOutcome outcome,
+  ) async {
+    return const SchedulePreview(intervalLabel: '1d');
+  }
+
+  @override
+  Future<StudyEventReceipt> commit(
+    CanonicalCardKey key,
+    RecallOutcome outcome, {
+    required String idempotencyKey,
+  }) async {
+    commits++;
+    return StudyEventReceipt(
+      eventId: 'lesson-$commits',
+      idempotencyKey: idempotencyKey,
+      cardKey: key,
+      ledgerOwner: owner,
+      outcome: outcome,
+      reviewedAt: DateTime.now(),
+    );
+  }
+
+  @override
+  Future<bool> undo(StudyEventReceipt receipt) async => true;
 }
 
 void _answerMultipleChoice(
@@ -561,14 +618,11 @@ void main() {
       expect(harness.grammarProvider.state.containsKey('gp.present-a'), isTrue);
     });
 
-    test('anki flip card submit derives wordId and grades SRS state', () async {
-      // Course-path AnkiCard interactions are id'd '<wordId>-c<ord>' by the
-      // deck assembler; submitting one must register + grade the word in the
-      // SRS queue just like a ShowWord would.
+    test('anki flip card submit does not write Turna SRS', () async {
       final lesson = _buildLegacyLesson(
         items: [
           const Interaction.ankiCard(
-            id: 'anki-imp1-n42-c0',
+            id: 'official-anki-src1-c42-c0',
             front: 'Front side',
             back: 'Back side',
           ),
@@ -581,15 +635,61 @@ void main() {
       vm.submitInteraction(true);
       await pumpEventQueue();
 
-      final word = harness.srsProvider.state['anki-imp1-n42'];
-      expect(word, isNotNull,
-          reason: 'flip card wordId should be registered in the SRS queue');
-      expect(word!.reps, greaterThan(0),
-          reason: 'a passing grade should advance the card');
+      expect(
+        harness.srsProvider.state.keys
+            .where((k) => CanonicalCardKeyAdapter.tryParseStoredWordId(
+                  profileId: 'p',
+                  rawId: k,
+                ) !=
+                null),
+        isEmpty,
+        reason: 'Anki course learn must not double-write Turna SRS',
+      );
+    });
+
+    test('anki course submit marks introduction and mid-exit keeps only submitted',
+        () async {
+      _installAnkiStudyHost();
+      CardIntroductionStore.debugOverride = CardIntroductionStore();
+      addTearDown(() => CardIntroductionStore.debugOverride = null);
+      final lesson = Lesson(
+        id: 'official-anki-src1-l0123456789ab-p1',
+        name: 'Official lesson',
+        template: LessonTemplate.legacy,
+        content: LessonContent(
+          stages: [
+            Stage(
+              id: 'stage-1',
+              name: 'Stage 1',
+              items: const [
+                Interaction.ankiCard(
+                  id: 'official-anki-src1-c11-pflip-0',
+                  front: 'one',
+                  back: '1',
+                ),
+                Interaction.ankiCard(
+                  id: 'official-anki-src1-c12-pflip-0',
+                  front: 'two',
+                  back: '2',
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+      final harness = _buildHarness(lesson: lesson, appPrefs: appPrefs);
+      await harness.vm.loadLesson(lesson.id);
+      harness.vm.submitInteraction(true);
+      await pumpEventQueue();
+      harness.vm.advance();
+      final store = CardIntroductionStore.debugOverride!;
+      expect(store.isIntroducedCard(sourceId: 'src1', cardId: 11), isTrue);
+      expect(store.isIntroducedCard(sourceId: 'src1', cardId: 12), isFalse);
     });
 
     test('official anki card submit does NOT register or grade Turna SRS (P0)',
         () async {
+      _installAnkiStudyHost();
       final lesson = _buildLegacyLesson(
         items: [
           const Interaction.showWord(
@@ -618,11 +718,12 @@ void main() {
 
       // Submit first card (ShowWord)
       vm.submitInteraction(true);
-      vm.advance();
       await pumpEventQueue();
+      vm.advance();
 
       // Submit second card (Flip)
       vm.submitInteraction(true);
+      await pumpEventQueue();
       vm.advance();
       await pumpEventQueue();
 
@@ -699,19 +800,15 @@ void main() {
 
     test('undo returns false when SRS gate is held by an in-flight grade',
         () async {
-      // Use an Anki flip card so submitInteraction routes through
-      // _applySrsOutcome and captures a _SrsUndoEntry. The wordId is
-      // derived from the interaction id via ankiWordIdFromInteractionId.
-      // Wrap the SRS review in a Completer so the gate stays held while
-      // we attempt the undo; the undo must roll back the UI counters but
-      // return false (gate-held). After the gate releases, a second undo
-      // restores the SRS state.
+      // Use a course ShowWord so submitInteraction still writes Turna SRS
+      // (Anki cards no longer dual-write through LessonViewModel). Wrap the
+      // SRS review in a Completer so the gate stays held while we attempt
+      // the undo; the undo must roll back the UI counters but return false.
       final lesson = _buildLegacyLesson(
         items: const [
-          Interaction.ankiCard(
-            id: 'anki-imp1-n42-c0',
-            front: 'front',
-            back: 'back',
+          Interaction.showWord(
+            id: 'sw-gate-1',
+            wordId: 'w-gate-1',
           ),
         ],
       );
@@ -748,6 +845,118 @@ void main() {
       // is only asserting that the gate-held path returns false; a
       // follow-up success path is covered by the non-Anki case above
       // and the existing srs_provider undo-gate test.
+    });
+  });
+
+  group('Mistake Review Flow', () {
+    test('mistake review with AnkiCard: submit remembered and forgotten advances state',
+        () async {
+      final mistakes = [
+        MistakeEntry(
+          id: 'm-anki-1',
+          lessonId: 'lesson-1',
+          stageId: 'stage-1',
+          interactionId: 'item-1',
+          interactionSnapshot: const Interaction.ankiCard(
+            id: 'item-1',
+            front: 'elma',
+            back: 'apple',
+          ),
+          userAnswer: '不记得',
+          correctAnswer: 'apple',
+          timestamp: DateTime(2026, 8, 20),
+        ),
+        MistakeEntry(
+          id: 'm-anki-2',
+          lessonId: 'lesson-1',
+          stageId: 'stage-1',
+          interactionId: 'item-2',
+          interactionSnapshot: const Interaction.ankiCard(
+            id: 'item-2',
+            front: 'kitap',
+            back: 'book',
+          ),
+          userAnswer: '不记得',
+          correctAnswer: 'book',
+          timestamp: DateTime(2026, 8, 21),
+        ),
+      ];
+
+      final assembly = MistakeReviewAssembler.assemble(mistakes);
+      final harness = _buildHarness(lesson: assembly.lesson, appPrefs: appPrefs);
+      final vm = harness.vm;
+      vm.loadLessonInstance(assembly.lesson, recordMistakes: false);
+
+      expect(vm.currentInteraction, isA<AnkiCard>());
+      expect(vm.hasSubmitted, isFalse);
+
+      // 1. First card: user clicks "记得" (remembered)
+      vm.submitInteraction(true, userAnswerText: '记得', reviewQuality: 4);
+      await pumpEventQueue();
+
+      expect(vm.hasSubmitted, isTrue);
+      expect(vm.isAnswerCorrect, isTrue);
+      expect(vm.correctAnswers, 1);
+      expect(vm.questionResults, hasLength(1));
+      expect(vm.questionResults.first.correct, isTrue);
+
+      vm.advance();
+      expect(vm.hasSubmitted, isFalse);
+      expect(vm.currentInteraction, isA<AnkiCard>());
+
+      // 2. Second card: user clicks "不记得" (forgotten)
+      vm.submitInteraction(false, userAnswerText: '不记得', reviewQuality: 1);
+      await pumpEventQueue();
+
+      expect(vm.hasSubmitted, isTrue);
+      expect(vm.isAnswerCorrect, isFalse);
+      expect(vm.incorrectAnswers, 1);
+      expect(vm.questionResults, hasLength(2));
+      expect(vm.questionResults.last.correct, isFalse);
+
+      vm.advance();
+      await pumpEventQueue();
+
+      expect(vm.isComplete, isTrue);
+    });
+
+    test('mistake review with AnkiHtmlCard: submit completes without error',
+        () async {
+      final mistakes = [
+        MistakeEntry(
+          id: 'm-html-1',
+          lessonId: 'lesson-1',
+          stageId: 'stage-1',
+          interactionId: 'item-html-1',
+          interactionSnapshot: const Interaction.ankiHtmlCard(
+            id: 'item-html-1',
+            frontHtml: '<div>Front</div>',
+            backHtml: '<div>Back</div>',
+          ),
+          userAnswer: '不记得',
+          correctAnswer: 'Back',
+          timestamp: DateTime(2026, 8, 20),
+        ),
+      ];
+
+      final assembly = MistakeReviewAssembler.assemble(mistakes);
+      final harness = _buildHarness(lesson: assembly.lesson, appPrefs: appPrefs);
+      final vm = harness.vm;
+      vm.loadLessonInstance(assembly.lesson, recordMistakes: false);
+
+      expect(vm.currentInteraction, isA<AnkiHtmlCard>());
+      expect(vm.hasSubmitted, isFalse);
+
+      vm.submitInteraction(true, userAnswerText: '记得', reviewQuality: 4);
+      await pumpEventQueue();
+
+      expect(vm.hasSubmitted, isTrue);
+      expect(vm.isAnswerCorrect, isTrue);
+      expect(vm.questionResults, hasLength(1));
+
+      vm.advance();
+      await pumpEventQueue();
+      expect(vm.isComplete, isTrue);
     });
   });
 }

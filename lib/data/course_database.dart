@@ -326,7 +326,7 @@ class CourseDatabase extends _$CourseDatabase {
   CourseDatabase(QueryExecutor e) : super(e);
 
   @override
-  int get schemaVersion => 17;
+  int get schemaVersion => 18;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -337,6 +337,8 @@ class CourseDatabase extends _$CourseDatabase {
           await _ensureFunLabSnapshotTables(m.database);
           await _ensureOfficialProjectionIndex(m.database);
           await _ensureOfficialProjectionManifest(m.database);
+          await _ensureAnkiUnificationTables(m.database);
+          await _ensureAiCompanionTables(m.database);
         },
         onUpgrade: (m, from, to) async {
           if (from > to) {
@@ -375,6 +377,12 @@ class CourseDatabase extends _$CourseDatabase {
               'fun_lab_snapshot_meta',
               'official_anki_projection_index',
               'official_anki_projection_manifest',
+              'anki_course_sources',
+              'anki_course_card_placements',
+              'anki_card_presentations',
+              'anki_card_introduction_states',
+              'study_product_events',
+              'anki_import_jobs',
             ]) {
               await m.deleteTable(tableName);
             }
@@ -384,6 +392,8 @@ class CourseDatabase extends _$CourseDatabase {
             await _ensureFunLabSnapshotTables(m.database);
             await _ensureOfficialProjectionIndex(m.database);
             await _ensureOfficialProjectionManifest(m.database);
+            await _ensureAnkiUnificationTables(m.database);
+            await _ensureAiCompanionTables(m.database);
             return;
           }
           if (from < 2) {
@@ -505,17 +515,153 @@ class CourseDatabase extends _$CourseDatabase {
             await _ensureFunLabSnapshotTables(m.database);
           }
           if (from < 16) {
-            // v16: derived official Anki projection index only. User mapping
-            // and placement stay in Official catalog so a CourseDatabase
-            // downgrade wipe cannot delete them. Do not reuse this version
-            // for unrelated tables (ai_sessions must use a later version).
             await _ensureOfficialProjectionIndex(m.database);
+            await _ensureAiCompanionTables(m.database);
           }
           if (from < 17) {
             await _ensureOfficialProjectionManifest(m.database);
           }
+          if (from < 18) {
+            await _ensureAnkiUnificationTables(m.database);
+          }
         },
       );
+
+  static Future<void> _ensureAiCompanionTables(
+    GeneratedDatabase database,
+  ) async {
+    await database.customStatement('''
+      CREATE TABLE IF NOT EXISTS ai_sessions (
+        id TEXT PRIMARY KEY NOT NULL,
+        mode TEXT NOT NULL,
+        title TEXT NOT NULL,
+        language TEXT NOT NULL,
+        goal_id TEXT,
+        source_context_json TEXT NOT NULL DEFAULT '{}',
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        summary TEXT NOT NULL DEFAULT '',
+        status TEXT NOT NULL DEFAULT 'active',
+        prompt_version TEXT NOT NULL DEFAULT '',
+        model TEXT NOT NULL DEFAULT '',
+        total_tokens INTEGER NOT NULL DEFAULT 0,
+        estimated_cost REAL NOT NULL DEFAULT 0.0
+      )
+    ''');
+    await database.customStatement('''
+      CREATE TABLE IF NOT EXISTS ai_messages (
+        id TEXT PRIMARY KEY NOT NULL,
+        session_id TEXT NOT NULL,
+        role TEXT NOT NULL,
+        content TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        state TEXT NOT NULL DEFAULT 'complete',
+        citations_json TEXT NOT NULL DEFAULT '[]',
+        linked_knowledge_ids_json TEXT NOT NULL DEFAULT '[]',
+        feedback TEXT
+      )
+    ''');
+    await database.customStatement('''
+      CREATE TABLE IF NOT EXISTS learning_evidence (
+        id TEXT PRIMARY KEY NOT NULL,
+        timestamp INTEGER NOT NULL,
+        source_type TEXT NOT NULL,
+        source_id TEXT NOT NULL,
+        knowledge_type TEXT NOT NULL,
+        knowledge_id TEXT NOT NULL,
+        question_type TEXT,
+        result TEXT NOT NULL,
+        error_type TEXT NOT NULL,
+        response_time_ms INTEGER,
+        hint_level_used INTEGER NOT NULL DEFAULT 0,
+        confidence REAL NOT NULL DEFAULT 1.0,
+        metadata_json TEXT NOT NULL DEFAULT '{}',
+        model TEXT,
+        prompt_version TEXT,
+        user_confirmed INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+    await database.customStatement('''
+      CREATE TABLE IF NOT EXISTS knowledge_mastery (
+        knowledge_type TEXT NOT NULL,
+        knowledge_id TEXT NOT NULL,
+        mastery REAL NOT NULL,
+        confidence REAL NOT NULL,
+        evidence_count INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        last_successful_recall_at INTEGER,
+        stability_days REAL NOT NULL,
+        PRIMARY KEY (knowledge_type, knowledge_id)
+      )
+    ''');
+    await database.customStatement('''
+      CREATE TABLE IF NOT EXISTS diagnosis_snapshots (
+        id TEXT PRIMARY KEY NOT NULL,
+        created_at INTEGER NOT NULL,
+        data_window_days INTEGER NOT NULL,
+        data_sufficiency TEXT NOT NULL,
+        weak_areas_json TEXT NOT NULL,
+        narrative TEXT NOT NULL,
+        prompt_version TEXT NOT NULL
+      )
+    ''');
+    await database.customStatement('''
+      CREATE TABLE IF NOT EXISTS study_plans (
+        id TEXT PRIMARY KEY NOT NULL,
+        title TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        target_minutes INTEGER NOT NULL DEFAULT 15,
+        status TEXT NOT NULL DEFAULT 'active'
+      )
+    ''');
+    await database.customStatement('''
+      CREATE TABLE IF NOT EXISTS study_plan_items (
+        id TEXT PRIMARY KEY NOT NULL,
+        plan_id TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        title TEXT NOT NULL,
+        estimated_minutes INTEGER NOT NULL DEFAULT 5,
+        item_order INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'pending',
+        reason TEXT NOT NULL DEFAULT '',
+        route TEXT,
+        payload_json TEXT NOT NULL DEFAULT '{}'
+      )
+    ''');
+    await database.customStatement('''
+      CREATE TABLE IF NOT EXISTS ai_notes (
+        id TEXT PRIMARY KEY NOT NULL,
+        title TEXT NOT NULL,
+        body TEXT NOT NULL,
+        source TEXT NOT NULL,
+        language TEXT,
+        course_path TEXT,
+        tags_json TEXT NOT NULL DEFAULT '[]',
+        knowledge_ids_json TEXT NOT NULL DEFAULT '[]',
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        next_review_at INTEGER
+      )
+    ''');
+    await database.customStatement('''
+      CREATE TABLE IF NOT EXISTS ai_request_metrics (
+        request_id TEXT PRIMARY KEY NOT NULL,
+        feature TEXT NOT NULL,
+        session_id TEXT,
+        prompt_version TEXT NOT NULL,
+        model TEXT NOT NULL,
+        started_at INTEGER NOT NULL,
+        latency_ms INTEGER NOT NULL,
+        input_tokens INTEGER NOT NULL,
+        output_tokens INTEGER NOT NULL,
+        cache_hit INTEGER NOT NULL DEFAULT 0,
+        outcome TEXT NOT NULL,
+        estimated_cost REAL NOT NULL DEFAULT 0.0
+      )
+    ''');
+  }
 
   static Future<void> _ensureOfficialProjectionIndex(
     GeneratedDatabase database,
@@ -553,6 +699,127 @@ class CourseDatabase extends _$CourseDatabase {
         lesson_count INTEGER NOT NULL,
         item_count INTEGER NOT NULL,
         published_at_millis INTEGER NOT NULL
+      )
+    ''');
+  }
+
+  /// Canonical course identity, one-card placements, presentations,
+  /// introduction state, product events, and import saga jobs.
+  static Future<void> _ensureAnkiUnificationTables(
+    GeneratedDatabase database,
+  ) async {
+    await database.customStatement('''
+      CREATE TABLE IF NOT EXISTS anki_course_sources (
+        course_id TEXT PRIMARY KEY NOT NULL,
+        profile_id TEXT NOT NULL,
+        source_id TEXT NOT NULL,
+        backend_kind TEXT NOT NULL,
+        display_name TEXT NOT NULL DEFAULT '',
+        source_hash TEXT NOT NULL,
+        source_fingerprint TEXT NOT NULL,
+        state TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+    ''');
+    await database.customStatement('''
+      CREATE UNIQUE INDEX IF NOT EXISTS anki_course_sources_profile_source_idx
+      ON anki_course_sources(profile_id, source_id)
+    ''');
+    await database.customStatement('''
+      CREATE TABLE IF NOT EXISTS anki_course_card_placements (
+        placement_id TEXT PRIMARY KEY NOT NULL,
+        course_id TEXT NOT NULL,
+        profile_id TEXT NOT NULL,
+        source_id TEXT NOT NULL,
+        card_id INTEGER NOT NULL,
+        section_id TEXT NOT NULL,
+        unit_id TEXT NOT NULL,
+        lesson_id TEXT NOT NULL,
+        display_order INTEGER NOT NULL DEFAULT 0,
+        active INTEGER NOT NULL DEFAULT 1,
+        projection_version INTEGER NOT NULL DEFAULT 1,
+        source_fingerprint TEXT NOT NULL DEFAULT '',
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+    ''');
+    await database.customStatement('''
+      CREATE UNIQUE INDEX IF NOT EXISTS anki_course_card_placements_active_idx
+      ON anki_course_card_placements(course_id, source_id, card_id)
+      WHERE active = 1
+    ''');
+    await database.customStatement('''
+      CREATE TABLE IF NOT EXISTS anki_card_presentations (
+        course_id TEXT NOT NULL,
+        source_id TEXT NOT NULL,
+        card_id INTEGER NOT NULL,
+        presentation_kind TEXT NOT NULL,
+        payload_json TEXT NOT NULL,
+        status TEXT NOT NULL,
+        mapping_version INTEGER NOT NULL DEFAULT 1,
+        classifier_version INTEGER NOT NULL DEFAULT 1,
+        source_fingerprint TEXT NOT NULL DEFAULT '',
+        user_confirmed INTEGER NOT NULL DEFAULT 0,
+        updated_at INTEGER NOT NULL,
+        PRIMARY KEY(course_id, source_id, card_id, presentation_kind, status)
+      )
+    ''');
+    await database.customStatement('''
+      CREATE UNIQUE INDEX IF NOT EXISTS anki_card_presentations_active_idx
+      ON anki_card_presentations(course_id, source_id, card_id)
+      WHERE status = 'active'
+    ''');
+    await database.customStatement('''
+      CREATE TABLE IF NOT EXISTS anki_card_introduction_states (
+        course_id TEXT NOT NULL,
+        source_id TEXT NOT NULL,
+        card_id INTEGER NOT NULL,
+        status TEXT NOT NULL,
+        introduced_by TEXT,
+        introduced_at INTEGER,
+        first_lesson_id TEXT,
+        last_studied_at INTEGER,
+        version INTEGER NOT NULL DEFAULT 1,
+        PRIMARY KEY(course_id, source_id, card_id)
+      )
+    ''');
+    await database.customStatement('''
+      CREATE TABLE IF NOT EXISTS study_product_events (
+        event_id TEXT PRIMARY KEY NOT NULL,
+        idempotency_key TEXT NOT NULL UNIQUE,
+        course_id TEXT NOT NULL,
+        source_id TEXT NOT NULL,
+        card_id INTEGER NOT NULL,
+        ledger_owner TEXT NOT NULL,
+        mode TEXT NOT NULL,
+        outcome TEXT NOT NULL,
+        native_event_ref TEXT,
+        reviewed_at INTEGER NOT NULL,
+        next_due_at INTEGER,
+        session_id TEXT,
+        undone_at INTEGER,
+        effects_state TEXT NOT NULL DEFAULT 'applied'
+      )
+    ''');
+    await database.customStatement('''
+      CREATE TABLE IF NOT EXISTS anki_import_jobs (
+        job_id TEXT PRIMARY KEY NOT NULL,
+        course_id TEXT NOT NULL,
+        source_path TEXT NOT NULL,
+        source_hash TEXT NOT NULL,
+        state TEXT NOT NULL,
+        canonical_commit_ref TEXT,
+        expected_card_count INTEGER NOT NULL DEFAULT 0,
+        canonical_card_count INTEGER NOT NULL DEFAULT 0,
+        placement_count INTEGER NOT NULL DEFAULT 0,
+        active_presentation_count INTEGER NOT NULL DEFAULT 0,
+        introduced_count INTEGER NOT NULL DEFAULT 0,
+        error_code TEXT,
+        error_detail TEXT,
+        retry_count INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
       )
     ''');
   }

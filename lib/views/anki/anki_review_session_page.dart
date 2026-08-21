@@ -5,27 +5,35 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:turna/application/anki/anki_deck_manager.dart';
 import 'package:turna/application/anki/anki_review_assembler.dart';
+import 'package:turna/application/anki/anki_review_content.dart';
+import 'package:turna/application/anki/anki_study_session_host.dart';
+import 'package:turna/application/anki/formal_review_launcher.dart';
+import 'package:turna/application/anki/study_ledger_adapters.dart';
+import 'package:turna/application/anki/study_product_analytics.dart';
+import 'package:turna/application/anki/study_session_controller.dart';
+import 'package:turna/application/anki_official/engine/official_anki_home_due.dart';
+import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/data/anki_note_dao.dart';
 import 'package:turna/di/injection.dart';
+import 'package:turna/domain/anki/card_presentation.dart';
+import 'package:turna/domain/anki/study_models.dart';
 import 'package:turna/domain/course/interaction.dart';
-import 'package:turna/domain/course/srs_word.dart';
-import 'package:turna/domain/review/review_capabilities.dart';
 import 'package:turna/domain/review/review_item.dart';
-import 'package:turna/domain/review/review_ledger.dart';
-import 'package:turna/domain/review/review_ledger_resolver.dart';
-import 'package:turna/domain/review/review_source.dart';
 import 'package:turna/domain/review/turna_review_ledger.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/anki/anki_official_review_gate.dart';
-import 'package:turna/views/review/unified_review_page.dart';
+import 'package:turna/views/review/components/binary_recall_bar.dart';
+import 'package:turna/views/review/components/review_progress_header.dart';
+import 'package:turna/views/review/components/study_card_surface.dart';
+import 'package:turna/views/review/components/unified_review_completion.dart';
 import 'package:turna/views/theme.dart';
 
-/// Legacy-import Anki queue hosted by the shared course-style review session.
+/// Shared formal-review session for Turna-owned and Official-owned Anki cards.
 ///
-/// Official-routed imports are intercepted by [AnkiOfficialReviewGate]. The
-/// remaining cards write only to Turna SRS through [TurnaReviewLedger].
+/// Every production entry lands here. Official capability failures fail closed
+/// and never open a different-semantics page.
 @RoutePage()
 class AnkiReviewSessionPage extends StatefulWidget {
   const AnkiReviewSessionPage({super.key, this.sectionId});
@@ -43,8 +51,8 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
   bool _loading = true;
   bool _empty = false;
   Object? _error;
-  List<ReviewItem>? _items;
-  ReviewLedgerResolver? _resolver;
+  StudySessionController? _controller;
+  Map<String, AnkiHtmlCard> _fidelityInteractions = const {};
 
   @override
   void initState() {
@@ -53,25 +61,63 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_start()));
   }
 
+  @override
+  void dispose() {
+    _controller?.removeListener(_onController);
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  void _onController() {
+    if (mounted) setState(() {});
+  }
+
   Future<void> _start() async {
     setState(() {
       _loading = true;
       _empty = false;
       _error = null;
-      _items = null;
-      _resolver = null;
+      _controller?.removeListener(_onController);
+      _controller?.dispose();
+      _controller = null;
+      _fidelityInteractions = const {};
       _newCardInteractionIds.clear();
     });
 
     try {
-      final openedOfficial =
-          await const AnkiOfficialReviewGate().openInsteadOfLegacy(
+      final importId = widget.sectionId == null
+          ? ''
+          : AnkiReviewAssembler.importIdFromSectionId(widget.sectionId!);
+      final officialOwner = OfficialAnkiHomeDue.officialImportIds.contains(
+        importId,
+      );
+      final launch = const FormalReviewLauncher().resolve(
+        entry: FormalReviewEntryKind.ankiHub,
+        courseId: importId.isEmpty ? 'anki' : 'anki-$importId',
+        sectionId: widget.sectionId,
+        officialOwner: officialOwner,
+        officialCapable:
+            OfficialAnkiFeatureFlags.current.allowsOfficialScheduler,
+      );
+      if (launch.isFailClosed) {
+        if (!mounted) return;
+        setState(() {
+          _error = FormalReviewLauncher.failClosedMessage;
+          _loading = false;
+        });
+        return;
+      }
+
+      final blocked = await const AnkiOfficialReviewGate().openInsteadOfLegacy(
         context,
         sectionId: widget.sectionId,
       );
       if (!mounted) return;
-      if (openedOfficial) {
-        await Navigator.of(context).maybePop();
+      if (blocked) {
+        setState(() {
+          _error = FormalReviewLauncher.failClosedMessage;
+          _loading = false;
+        });
         return;
       }
 
@@ -112,36 +158,58 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
       );
       if (!mounted) return;
 
-      final items = <ReviewItem>[];
+      final courseId =
+          selectedImportId.isEmpty ? 'anki' : 'anki-$selectedImportId';
+      final items = <StudyItem>[];
+      final fidelityInteractions = <String, AnkiHtmlCard>{};
       for (final card in batch) {
         final interaction = card.interaction;
         final wordId = card.scheduled.wordId;
         if (card.scheduled.reps == 0) {
           _newCardInteractionIds.add(interaction.id);
         }
-        final source = LegacyAnkiSource(
-          importId: _importIdFromWordId(wordId) ?? 'legacy',
+        final item = AnkiStudySessionHost.itemFromReviewCard(
+          wordId: wordId,
+          interaction: interaction,
+          mode: StudyMode.review,
+          courseId: courseId,
         );
-        items.add(
-          ReviewItem(
-            sessionItemId: interaction.id,
-            source: source,
-            content: _contentFor(interaction),
-            capabilities: ReviewCapabilities.legacyAnki,
-            schedulingKey: ReviewSchedulingKey(
-              rawId: wordId,
-              source: source,
-            ),
-          ),
-        );
+        items.add(item);
+        if (interaction is AnkiHtmlCard) {
+          fidelityInteractions[item.sessionItemId] = interaction;
+        }
       }
 
+      if (items.isEmpty) {
+        setState(() {
+          _empty = true;
+          _loading = false;
+        });
+        return;
+      }
+
+      final host = AnkiStudySessionHost.debugOverride ??
+          AnkiStudySessionHost.resolveOrNull() ??
+          AnkiStudySessionHost(
+            resolver: StudyLedgerResolver(
+              turna: TurnaStudyLedger(TurnaReviewLedger(srs)),
+            ),
+            onEffects: (item, receipt) async {
+              StudyProductAnalytics.instance.record(receipt);
+              await _recordQuota(item);
+            },
+            onEffectsUndone: (receipt) async {
+              StudyProductAnalytics.instance.forget(receipt.eventId);
+              await _undoQuota(receipt);
+            },
+          );
+      final controller = host.open(items);
+      controller.addListener(_onController);
+      await controller.start();
+      if (!mounted) return;
       setState(() {
-        _items = items;
-        _resolver = ReviewLedgerResolver(
-          turnaLedger: TurnaReviewLedger(srs),
-        );
-        _empty = items.isEmpty;
+        _controller = controller;
+        _fidelityInteractions = fidelityInteractions;
         _loading = false;
       });
     } catch (error) {
@@ -153,27 +221,17 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
     }
   }
 
-  ReviewContentBodyData _contentFor(Interaction interaction) {
-    if (interaction is AnkiHtmlCard) {
-      return OfficialTemplateContent(
-        frontHtml: interaction.frontHtml,
-        backHtml: interaction.backHtml,
-        css: interaction.css,
-        mediaBasePath: interaction.mediaBasePath,
-      );
-    }
-    if (interaction is AnkiCard) {
-      return StandardCourseCardContent(
-        frontText: interaction.front,
-        backText: interaction.back,
-        backNote: interaction.hint,
-        interaction: interaction,
-      );
-    }
-    return StandardCourseCardContent(
-      frontText: interactionPromptLabel(interaction),
-      backText: interactionCorrectAnswerLabel(interaction) ?? '—',
-      interaction: interaction,
+  Future<void> _recordQuota(StudyItem item) {
+    return _deckManager.recordCardReviewed(
+      isNewCard: _newCardInteractionIds.contains(item.sessionItemId),
+      importId: _importIdFromWordId(TurnaStudyLedger.wordIdFor(item.cardKey)),
+    );
+  }
+
+  Future<void> _undoQuota(StudyEventReceipt receipt) {
+    return _deckManager.recordCardUnreviewed(
+      wasNewCard: false,
+      importId: _importIdFromWordId(TurnaStudyLedger.wordIdFor(receipt.cardKey)),
     );
   }
 
@@ -184,36 +242,13 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
     return wordId.substring(5, cardSeparator);
   }
 
-  Future<void> _recordQuota(ReviewItem item) {
-    return _deckManager.recordCardReviewed(
-      isNewCard: _newCardInteractionIds.contains(item.sessionItemId),
-      importId: _importIdFromWordId(item.schedulingKey.rawId),
-    );
-  }
-
-  Future<void> _undoQuota(ReviewEventReceipt receipt) {
-    final previous = receipt.opaqueUndoState;
-    return _deckManager.recordCardUnreviewed(
-      wasNewCard: previous is SrsWord && previous.reps == 0,
-      importId: _importIdFromWordId(receipt.schedulingKey.rawId),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final items = _items;
-    final resolver = _resolver;
-    if (!_loading &&
-        !_empty &&
-        _error == null &&
-        items != null &&
-        resolver != null) {
-      return UnifiedReviewPage(
-        items: items,
-        ledgerResolver: resolver,
-        title: AppStrings.ankiReviewTitle,
-        onOutcomeRecorded: (item, _) => _recordQuota(item),
-        onOutcomeUndone: _undoQuota,
+    final controller = _controller;
+    if (!_loading && _error == null && controller != null) {
+      return _AnkiStudySessionView(
+        controller: controller,
+        fidelityInteractions: _fidelityInteractions,
       );
     }
 
@@ -234,7 +269,11 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
                 ? Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(AppStrings.ankiReviewLoadFailed),
+                      Text(
+                        _error == FormalReviewLauncher.failClosedMessage
+                            ? FormalReviewLauncher.failClosedMessage
+                            : AppStrings.ankiReviewLoadFailed,
+                      ),
                       const SizedBox(height: 12),
                       FilledButton(
                         onPressed: _start,
@@ -245,5 +284,138 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
                 : Text(AppStrings.ankiNoCardsDue),
       ),
     );
+  }
+}
+
+class _AnkiStudySessionView extends StatelessWidget {
+  const _AnkiStudySessionView({
+    required this.controller,
+    this.fidelityInteractions = const {},
+  });
+
+  final StudySessionController controller;
+  final Map<String, AnkiHtmlCard> fidelityInteractions;
+
+  @override
+  Widget build(BuildContext context) {
+    if (controller.isComplete || controller.items.isEmpty) {
+      return Scaffold(
+        body: SafeArea(
+          child: UnifiedReviewCompletion(
+            totalCount: controller.totalCount,
+            rememberedCount: controller.rememberedCount,
+            forgottenCount: controller.forgottenCount,
+            elapsed: DateTime.now().difference(controller.startedAt),
+            onFinish: () => Navigator.of(context).maybePop(),
+          ),
+        ),
+      );
+    }
+
+    final item = controller.currentItem;
+    if (item == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    final revealed = controller.answerReceipt != null ||
+        controller.phase == StudyCardPhase.showingAnswer ||
+        controller.phase == StudyCardPhase.showingFeedback ||
+        controller.phase == StudyCardPhase.readyForNext;
+    final structured = item.presentation is StructuredCardPresentation;
+
+    return Scaffold(
+      backgroundColor: TurnaTheme.scaffoldBg(context),
+      appBar: ReviewProgressHeader(
+        progress: controller.totalCount == 0
+            ? 1
+            : controller.currentIndex / controller.totalCount,
+        currentIndex: controller.currentIndex + 1,
+        totalCount: controller.totalCount,
+        onBack: () => Navigator.of(context).maybePop(),
+        onUndo: () async {
+          final ok = await controller.undoLast();
+          if (!ok || !context.mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('已撤销上一张评分'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        },
+        canUndo: controller.lastReceipt != null && !controller.isLocked,
+      ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Column(
+            children: [
+              Expanded(
+                child: StudyCardSurface(
+                  presentation: item.presentation,
+                  content: _contentFor(item),
+                  isRevealed: revealed,
+                  generation: controller.generation,
+                  onReveal: () {
+                    unawaited(
+                      AnkiStudySessionHost.revealAndPresentAnswer(controller),
+                    );
+                  },
+                  onPresented: controller.acceptPresentation,
+                  onObjectiveResult: structured
+                      ? (correct) {
+                          unawaited(
+                            controller.submitObjectiveAnswer(correct: correct),
+                          );
+                        }
+                      : null,
+                ),
+              ),
+              const SizedBox(height: 24),
+              if (controller.phase == StudyCardPhase.recoverableError) ...[
+                const Text(
+                  '当前卡片无法安全写入，请重试或稍后返回。',
+                  key: Key('anki-study-session-error'),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                FilledButton(
+                  onPressed: controller.retryCurrent,
+                  child: Text(AppStrings.ankiReviewRetry),
+                ),
+              ] else if (structured)
+                const SizedBox.shrink()
+              else if (!revealed)
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: controller.canReveal
+                        ? () => unawaited(
+                              AnkiStudySessionHost.revealAndPresentAnswer(
+                                controller,
+                              ),
+                            )
+                        : null,
+                    child: Text(AppStrings.lessonShowAnswer),
+                  ),
+                )
+              else
+                BinaryRecallBar(
+                  onOutcome: (outcome) async {
+                    await controller.submitRecall(outcome);
+                    if (controller.phase == StudyCardPhase.readyForNext) {
+                      await controller.continueNext();
+                    }
+                  },
+                  enabled: controller.canSubmitRecall,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  ReviewContentBodyData _contentFor(StudyItem item) {
+    return reviewContentFor(item, fidelityInteractions: fidelityInteractions);
   }
 }

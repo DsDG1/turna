@@ -478,6 +478,7 @@ class _StartSection extends StatelessWidget {
           ],
           SectionTitle(title: AppStrings.aiHubCompanionSection),
           GridView.count(
+            padding: EdgeInsets.zero,
             crossAxisCount: 2,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -548,6 +549,7 @@ class _StartSection extends StatelessWidget {
               ),
               children: [
                 GridView.count(
+                  padding: EdgeInsets.zero,
                   crossAxisCount: 2,
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),

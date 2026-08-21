@@ -190,7 +190,12 @@ class _SettingsPageState extends State<SettingsPage> {
     return SingleChildScrollView(
       key: const ValueKey('settings-list'),
       physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.symmetric(vertical: 16),
+      padding: EdgeInsets.fromLTRB(
+        0,
+        0,
+        0,
+        16 + MediaQuery.paddingOf(context).bottom,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -253,7 +258,12 @@ class _SettingsPageState extends State<SettingsPage> {
     return SingleChildScrollView(
       key: ValueKey('settings-$category'),
       physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.symmetric(vertical: 16),
+      padding: EdgeInsets.fromLTRB(
+        0,
+        0,
+        0,
+        16 + MediaQuery.paddingOf(context).bottom,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: _sectionChildren(category),

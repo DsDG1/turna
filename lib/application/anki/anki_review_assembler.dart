@@ -1,5 +1,6 @@
 // Project imports:
 import 'package:turna/application/anki/anki_canonical_card_loader.dart';
+import 'package:turna/application/anki/card_introduction_store.dart';
 import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/srs_provider.dart';
@@ -154,6 +155,7 @@ class AnkiReviewAssembler {
         sectionId == null ? null : _extractImportIdFromSection(sectionId);
 
     final ankiDue = <SrsWord>[];
+    final intro = CardIntroductionStore.resolve();
     for (final w in _srsProvider.state.values) {
       if (!w.wordId.startsWith(ankiPrefix)) continue;
       if (w.isSuspended || w.isBuried) continue;
@@ -162,6 +164,7 @@ class AnkiReviewAssembler {
           _extractImportId(w.wordId) != sectionImportId) {
         continue;
       }
+      if (!intro.isFormallyEligibleWord(w)) continue;
       ankiDue.add(w);
     }
 
@@ -366,16 +369,39 @@ class AnkiReviewAssembler {
   /// Total due count across all Anki sections.
   int get totalAnkiDueCount => collectDue().length;
 
+  /// Scheduler-due Anki cards that are not yet introduced in the course.
+  int unintroducedDueCount({String? sectionId, DateTime? now}) {
+    final cutoff = now ?? DateTime.now();
+    final sectionImportId =
+        sectionId == null ? null : _extractImportIdFromSection(sectionId);
+    final intro = CardIntroductionStore.resolve();
+    var n = 0;
+    for (final w in _srsProvider.state.values) {
+      if (!w.wordId.startsWith(ankiPrefix)) continue;
+      if (w.isSuspended || w.isBuried) continue;
+      if (w.dueAt.isAfter(cutoff)) continue;
+      if (sectionImportId != null &&
+          _extractImportId(w.wordId) != sectionImportId) {
+        continue;
+      }
+      if (intro.isFormallyEligibleWord(w)) continue;
+      n++;
+    }
+    return n;
+  }
+
   /// Due count keyed by import id (one scan). Hub tiles for multiple sections
   /// of the same import share a count — word ids only carry importId, not
   /// deck/section id.
   Map<String, int> dueCountBySection() {
     final cutoff = DateTime.now();
     final result = <String, int>{};
+    final intro = CardIntroductionStore.resolve();
     for (final word in _srsProvider.state.values) {
       if (!word.wordId.startsWith(ankiPrefix)) continue;
       if (word.isSuspended || word.isBuried) continue;
       if (word.dueAt.isAfter(cutoff)) continue;
+      if (!intro.isFormallyEligibleWord(word)) continue;
       final importId = _extractImportId(word.wordId);
       if (importId.isEmpty) continue;
       result[importId] = (result[importId] ?? 0) + 1;

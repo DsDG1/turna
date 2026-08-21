@@ -147,6 +147,7 @@ void main() {
       SrsWord(
         wordId: 'anki-user-deck-c1',
         dueAt: DateTime.fromMillisecondsSinceEpoch(0),
+        reps: 1,
       ),
       SrsWord(
         wordId: 'not-anki',
@@ -154,7 +155,7 @@ void main() {
       ),
     ];
     expect(OfficialAnkiHomeDue.legacyAnkiDueExcludingOfficial(words), 1);
-    expect(OfficialAnkiHomeDue.aggregatedAnkiDue(words), 4);
+    expect(OfficialAnkiHomeDue.aggregatedAnkiDue(words), 1);
   });
 
   test('p5d production router lists official import ids only when cutover on',

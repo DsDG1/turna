@@ -229,6 +229,7 @@ class _LessonCompletionSummary extends StatelessWidget {
 
   Widget _buildStatsGrid(BuildContext context) {
     return GridView.count(
+      padding: EdgeInsets.zero,
       primary: false,
       shrinkWrap: true,
       crossAxisCount: 2,

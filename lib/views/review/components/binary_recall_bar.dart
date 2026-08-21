@@ -66,34 +66,42 @@ class _RecallButton extends StatelessWidget {
       height: 54,
       child: ElevatedButton(
         onPressed: onPressed,
+        // styleFrom treats elevation as a base level (pressed: +6); pin all states flat.
         style: ElevatedButton.styleFrom(
           backgroundColor: color.withValues(alpha: 0.12),
           foregroundColor: color,
-          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
             side: BorderSide(color: color.withValues(alpha: 0.35), width: 1.5),
           ),
-        ),
+        ).copyWith(elevation: const WidgetStatePropertyAll<double>(0)),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               label,
               style: const TextStyle(
                 fontWeight: FontWeight.w800,
                 fontSize: 16,
+                height: 1.15,
               ),
             ),
-            if (interval != null && interval!.isNotEmpty)
+            if (interval != null && interval!.isNotEmpty) ...[
+              const SizedBox(height: 2),
               Text(
                 interval!,
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                   color: color.withValues(alpha: 0.8),
+                  height: 1.15,
                 ),
               ),
+            ],
           ],
         ),
       ),

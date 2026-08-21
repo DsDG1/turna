@@ -458,14 +458,19 @@ class OfficialReviewSession {
 
   int get _queueFetchLimit {
     final allowed = allowedCardIds;
-    if (allowed == null || allowed.isEmpty) return 1;
-    return 50;
+    if (allowed == null) return 1;
+    if (allowed.isEmpty) return 1;
+    final wanted = allowed.length;
+    if (wanted < 20) return 20;
+    if (wanted > 200) return 200;
+    return wanted;
   }
 
   OfficialReviewQueueCard? _selectCurrent(OfficialReviewQueue queued) {
     if (queued.cards.isEmpty) return null;
     final allowed = allowedCardIds;
-    if (allowed == null || allowed.isEmpty) return queued.cards.first;
+    if (allowed == null) return queued.cards.first;
+    if (allowed.isEmpty) return null;
     for (final card in queued.cards) {
       if (allowed.contains(card.cardId)) return card;
     }

@@ -224,7 +224,7 @@ void main() {
         expect(result.wordEntry, isNull);
       });
 
-      test('adapts to MultipleChoice for wordEntry mapping', () {
+      test('wordEntry stays Flip even when deck-mate distractors exist', () {
         final note = AnkiNote(
           id: 99,
           mid: 2,
@@ -244,18 +244,16 @@ void main() {
           distractors: ['goodbye', 'thanks', 'please'],
         );
 
-        expect(result.interaction, isA<MultipleChoice>());
-        final mcq = result.interaction as MultipleChoice;
-        expect(mcq.prompt, 'merhaba');
-        expect(mcq.options, contains('hello'));
-        expect(mcq.options.length, 4);
-        expect(mcq.options, isNot(contains('—')));
+        expect(result.interaction, isA<AnkiCard>());
+        final cardFace = result.interaction as AnkiCard;
+        expect(cardFace.front, 'merhaba');
+        expect(cardFace.back, 'hello');
         expect(result.wordEntry, isNotNull);
         expect(result.wordEntry!.term, 'merhaba');
         expect(result.wordEntry!.translation, 'hello');
       });
 
-      test('wordEntry falls back to FillBlank without enough distractors', () {
+      test('wordEntry stays Flip without deck-mate distractors', () {
         final note = AnkiNote(
           id: 98,
           mid: 2,
@@ -272,10 +270,10 @@ void main() {
             frontFieldIndex: 0,
             backFieldIndex: 1,
           ),
-          distractors: const [], // no deck mates
+          distractors: const [],
         );
 
-        expect(result.interaction, isA<FillBlank>());
+        expect(result.interaction, isA<AnkiCard>());
         expect(result.wordEntry, isNotNull);
       });
 
@@ -703,7 +701,7 @@ void main() {
         backFieldIndex: 1,
       );
 
-      test('short answer + enough distractors → MultipleChoice', () {
+      test('short answer + deck distractors stay Flip, not formal MCQ', () {
         final note =
             AnkiNote(id: 1, mid: 1, fields: ['capital of France?', 'Paris']);
         final card = AnkiCardData(id: 1, nid: 1, did: 1);
@@ -716,15 +714,13 @@ void main() {
           distractors: const ['London', 'Berlin', 'Madrid', 'Paris'],
         );
 
-        expect(result.interaction, isA<MultipleChoice>());
-        final mcq = result.interaction as MultipleChoice;
-        expect(mcq.prompt, 'capital of France?');
-        expect(mcq.options.length, 4);
-        expect(mcq.options[mcq.correctIndex], 'Paris');
-        expect(mcq.options, isNot(contains('—')));
+        expect(result.interaction, isA<AnkiCard>());
+        final face = result.interaction as AnkiCard;
+        expect(face.front, 'capital of France?');
+        expect(face.back, 'Paris');
       });
 
-      test('short answer + few distractors → type-the-answer FillBlank', () {
+      test('short answer without distractors stays Flip', () {
         final note =
             AnkiNote(id: 2, mid: 1, fields: ['capital of France?', 'Paris']);
         final card = AnkiCardData(id: 2, nid: 2, did: 1);
@@ -737,10 +733,8 @@ void main() {
           distractors: const ['London'],
         );
 
-        expect(result.interaction, isA<FillBlank>());
-        final fb = result.interaction as FillBlank;
-        expect(fb.sentence, contains('_____'));
-        expect(fb.answer, 'Paris');
+        expect(result.interaction, isA<AnkiCard>());
+        expect((result.interaction as AnkiCard).back, 'Paris');
       });
 
       test('front audio + short answer + distractors → ListenAndPick', () {
@@ -881,9 +875,9 @@ void main() {
           notetype: notetype,
         );
 
-        final fb = result.interaction as FillBlank;
-        expect(fb.sentence, contains('merhaba'));
-        expect(fb.answer, 'hello');
+        final face = result.interaction as AnkiCard;
+        expect(face.front, contains('merhaba'));
+        expect(face.back, 'hello');
       });
 
       test('reversed card renders Back → Front (direction-correct)', () {
@@ -898,9 +892,9 @@ void main() {
           notetype: notetype,
         );
 
-        final fb = result.interaction as FillBlank;
-        expect(fb.sentence, contains('hello'));
-        expect(fb.answer, 'merhaba');
+        final face = result.interaction as AnkiCard;
+        expect(face.front, contains('hello'));
+        expect(face.back, 'merhaba');
       });
 
       test('falls back to field indexes when template missing for ord', () {

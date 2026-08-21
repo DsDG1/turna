@@ -8,6 +8,7 @@ import 'package:turna/application/game_provider.dart';
 import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/lesson_link_store.dart';
 import 'package:turna/application/mistake_provider.dart';
+import 'package:turna/application/anki/formal_review_launcher.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/views/play/play_hub_screen.dart';
@@ -79,5 +80,43 @@ void main() {
     expect(find.byType(PageView), findsNothing);
     expect(find.text('你的最佳'), findsNothing);
     expect(find.text('总经验值'), findsNothing);
+  });
+
+  testWidgets('Anki review tile opens the shared session host', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(400, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    String? opened;
+    FormalReviewNavigator.debugOpenSession = (context, sectionId) async {
+      opened = FormalReviewLauncher.sessionRouteName;
+    };
+    addTearDown(() => FormalReviewNavigator.debugOpenSession = null);
+
+    final srsDao = emptySrsStateDao();
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => MistakeProvider(prefs)),
+          ChangeNotifierProvider(
+            create: (_) => SrsProvider(prefs, LessonLinkStore(prefs), srsDao),
+          ),
+          ChangeNotifierProvider(
+            create: (_) =>
+                GrammarReviewProvider(prefs, LessonLinkStore(prefs), srsDao),
+          ),
+          ChangeNotifierProvider(create: (_) => GameProvider.forTesting(prefs)),
+          ChangeNotifierProvider<AiEngineConfigHolder>(
+            create: (_) => AiEngineConfigHolder(),
+          ),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(body: PlayHubScreen()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Anki 复习'));
+    await tester.tap(find.text('Anki 复习'));
+    await tester.pump();
+    expect(opened, FormalReviewLauncher.sessionRouteName);
   });
 }

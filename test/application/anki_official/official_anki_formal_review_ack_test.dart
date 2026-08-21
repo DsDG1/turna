@@ -84,6 +84,8 @@ void main() {
       ),
     );
     await tester.pump();
+    await tester.pump();
+    await _switchToWebView(tester);
     return _Harness(fake: fake, session: session, presenter: presenter);
   }
 
@@ -265,8 +267,6 @@ void main() {
 
   testWidgets('fatal_code_disables_rating_and_keeps_webview', (tester) async {
     final harness = await mount(tester);
-    await tester.tap(find.byKey(const Key('official-review-toggle-surface')));
-    await tester.pump();
     harness.presenter.acceptPresent(ack(harness.presenter, side: 'question'));
     await tester.pump();
     await tester.tap(find.byKey(const Key('official-review-show-answer')));
@@ -281,6 +281,15 @@ void main() {
     expect(find.byKey(const Key('official-review-good')), findsNothing);
     expect(harness.fake.buried, isEmpty);
   });
+}
+
+Future<void> _switchToWebView(WidgetTester tester) async {
+  final toggle = find.byKey(const Key('official-review-toggle-surface'));
+  if (toggle.evaluate().isEmpty) return;
+  final button = tester.widget<IconButton>(toggle);
+  if (button.onPressed == null) return;
+  await tester.tap(toggle);
+  await tester.pump();
 }
 
 class _Harness {

@@ -2,23 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_session.dart';
-import 'package:turna/application/anki_official/engine/official_anki_session_engine.dart';
+
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
 import 'package:turna/application/anki_official/migration/official_anki_production_router.dart';
 import 'package:turna/application/anki_official/migration/official_anki_review_gate_decision.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
-import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
+
 import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/data/anki_import_dao.dart';
-import 'package:turna/views/anki_official/official_anki_review_page.dart';
 
-/// Opens Formal Reviewer for official-routed sources. Fail-closed if
-/// cutover says official but the official page cannot be opened.
+/// Capability gate for official-routed sources. Fail-closed if cutover says
+/// official but the collection is not ready. Never opens a different-semantics
+/// review page — production always continues on the shared session host.
 class AnkiOfficialReviewGate {
   const AnkiOfficialReviewGate({
     this.catalogExists,
@@ -140,20 +140,11 @@ class AnkiOfficialReviewGate {
           session,
           target!,
         );
-        return true;
+        // Tests may still intercept; production stays on the shared session.
+        return false;
       }
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => OfficialAnkiReviewPage(
-            engine: OfficialAnkiSessionEngine(session),
-            paths: paths,
-            deckId: target!.deckId,
-            allowedCardIds: target.cardIds,
-            flags: OfficialAnkiFeatureFlags.current,
-          ),
-        ),
-      );
-      return true;
+      // Official-capable: stay on the shared AnkiReviewSessionRoute host.
+      return false;
     } finally {
       catalog.close();
     }

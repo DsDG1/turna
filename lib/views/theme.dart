@@ -678,10 +678,10 @@ class TurnaTheme {
           ),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
+          // styleFrom treats elevation as a base level (pressed: +6); pin all states flat.
           style: ElevatedButton.styleFrom(
             backgroundColor: primary,
             foregroundColor: textOnPrimary,
-            elevation: 0,
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(radiusMedium),
@@ -690,7 +690,7 @@ class TurnaTheme {
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
-          ),
+          ).copyWith(elevation: const WidgetStatePropertyAll<double>(0)),
         ),
         textButtonTheme: TextButtonThemeData(
           style: TextButton.styleFrom(
@@ -839,10 +839,10 @@ class TurnaTheme {
           ),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
+          // styleFrom treats elevation as a base level (pressed: +6); pin all states flat.
           style: ElevatedButton.styleFrom(
             backgroundColor: primary,
             foregroundColor: textOnPrimary,
-            elevation: 0,
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(radiusMedium),
@@ -851,7 +851,7 @@ class TurnaTheme {
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
-          ),
+          ).copyWith(elevation: const WidgetStatePropertyAll<double>(0)),
         ),
         textButtonTheme: TextButtonThemeData(
           style: TextButton.styleFrom(

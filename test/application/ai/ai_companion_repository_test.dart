@@ -9,7 +9,12 @@ import 'package:turna/domain/ai_companion/ai_session.dart';
 import 'package:turna/domain/ai_companion/learning_evidence.dart';
 import 'package:turna/domain/ai_companion/study_plan.dart';
 
+import '../../helpers/in_memory_course_db.dart';
+
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  ensureSqliteLibForTestHost();
+
   late CourseDatabase db;
   late AiCompanionRepository repository;
 

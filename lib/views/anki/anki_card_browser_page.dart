@@ -9,10 +9,13 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
+import 'package:turna/application/anki/anki_review_assembler.dart';
+import 'package:turna/application/anki/formal_review_launcher.dart';
+import 'package:turna/application/anki_official/engine/official_anki_home_due.dart';
+import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/data/anki_note_dao.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/di/injection.dart';
-import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/theme.dart';
 import 'package:turna/views/widgets/turna_select.dart';
 
@@ -161,6 +164,23 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
     );
   }
 
+  void _openFormalReview(BuildContext context) {
+    final importId = widget.importId.isNotEmpty
+        ? widget.importId
+        : AnkiReviewAssembler.importIdFromSectionId(widget.sectionId ?? '');
+    unawaited(
+      const FormalReviewLauncher().open(
+        context,
+        entry: FormalReviewEntryKind.deckSection,
+        courseId: importId.isEmpty ? 'anki' : 'anki-$importId',
+        sectionId: widget.sectionId,
+        officialOwner: OfficialAnkiHomeDue.officialImportIds.contains(importId),
+        officialCapable:
+            OfficialAnkiFeatureFlags.current.allowsOfficialScheduler,
+      ),
+    );
+  }
+
   String _projectionKindLabel(String kind) => switch (kind) {
         'structured' => '派生结构化练习',
         'canonical' => 'Anki 原卡',
@@ -184,9 +204,7 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
           IconButton(
             tooltip: '开始复习',
             icon: const Icon(Icons.play_arrow_rounded),
-            onPressed: () => context.router.push(
-              AnkiReviewSessionRoute(sectionId: widget.sectionId),
-            ),
+            onPressed: () => _openFormalReview(context),
           ),
         ],
       ),
@@ -289,8 +307,7 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
                                     _toggle(row,
                                         suspended: !row.card.suspended);
                                   } else if (value == 'review') {
-                                    context.router.push(AnkiReviewSessionRoute(
-                                        sectionId: widget.sectionId));
+                                    _openFormalReview(context);
                                   }
                                 },
                                 itemBuilder: (context) => [

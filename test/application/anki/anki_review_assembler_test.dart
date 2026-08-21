@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:turna/application/anki/anki_review_assembler.dart';
+import 'package:turna/application/anki/card_introduction_store.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/lesson_link_store.dart';
 import 'package:turna/application/srs_provider.dart';
@@ -73,6 +74,13 @@ Section _ankiDeckSection(String importId, String name, {int cardCount = 1}) {
   );
 }
 
+Future<void> _introduce(String wordId, {String lessonId = 'anki-deckaa-u10-0-l0'}) {
+  return CardIntroductionStore.debugOverride!.markFromLesson(
+    wordId: wordId,
+    lessonId: lessonId,
+  );
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -95,16 +103,22 @@ void main() {
     srs = SrsProvider(prefs, LessonLinkStore(prefs), emptySrsStateDao());
     courseProvider = CourseProvider(prefs);
     await courseProvider.load();
+    CardIntroductionStore.debugOverride = CardIntroductionStore();
+  });
+
+  tearDown(() {
+    CardIntroductionStore.debugOverride = null;
   });
 
   test(
       'due Anki card counts as due but sync batch is null while interactions '
-      'are not loaded (root cause reproduction)', () {
+      'are not loaded (root cause reproduction)', () async {
     srs.registerWord('anki-deckaa-c1');
+    await _introduce('anki-deckaa-c1');
     final assembler = AnkiReviewAssembler(srs, courseProvider);
 
     expect(assembler.totalAnkiDueCount, 1,
-        reason: 'the SRS queue reports the card as due');
+        reason: 'introduced due cards still count as formal due');
     expect(
       courseProvider.allSections
           .firstWhere((s) => s.id == 'anki-deckaa-s10')
@@ -119,6 +133,7 @@ void main() {
   test('assembleBatch returns a lesson once interactions are preloaded',
       () async {
     srs.registerWord('anki-deckaa-c1');
+    await _introduce('anki-deckaa-c1');
     final assembler = AnkiReviewAssembler(srs, courseProvider);
     await assembler.preloadInteractions();
 
@@ -133,6 +148,7 @@ void main() {
   test('assembleBatchAsync loads only the batch without full-deck preload',
       () async {
     srs.registerWord('anki-deckaa-c1');
+    await _introduce('anki-deckaa-c1');
     final assembler = AnkiReviewAssembler(srs, courseProvider);
 
     final lesson = await assembler.assembleBatchAsync();
@@ -146,6 +162,7 @@ void main() {
   test('assembleReviewBatchAsync returns scheduling and render data directly',
       () async {
     srs.registerWord('anki-deckaa-c1');
+    await _introduce('anki-deckaa-c1');
     final assembler = AnkiReviewAssembler(srs, courseProvider);
 
     final batch = await assembler.assembleReviewBatchAsync();
@@ -158,6 +175,7 @@ void main() {
 
   test('section-scoped async batch only picks cards from that deck', () async {
     srs.registerWord('anki-deckaa-c1');
+    await _introduce('anki-deckaa-c1');
     final assembler = AnkiReviewAssembler(srs, courseProvider);
 
     expect(
@@ -183,6 +201,7 @@ void main() {
     await courseProvider.reloadCourse();
 
     srs.registerWord('anki-bigdeck-c42');
+    await _introduce('anki-bigdeck-c42', lessonId: 'anki-bigdeck-u10-0-l2');
     final assembler = AnkiReviewAssembler(srs, courseProvider);
     final lesson = await assembler.assembleBatchAsync();
 
@@ -194,6 +213,7 @@ void main() {
 
   test('dueSnapshot counts due Anki cards in one pass by import id', () async {
     srs.registerWord('anki-deckaa-c1');
+    await _introduce('anki-deckaa-c1');
     // Future due — must not count.
     await srs.bulkImportStates({
       'anki-deckaa-c99': SrsWord(

@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:turna/application/anki/anki_models.dart';
 import 'package:turna/application/anki/anki_review_assembler.dart';
+import 'package:turna/application/anki/card_introduction_store.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/lesson_link_store.dart';
 import 'package:turna/application/srs_provider.dart';
@@ -72,6 +73,12 @@ void main() {
     await prefs.preferences.setString(LocalStateKeys.srsState, '{}');
     final srs = SrsProvider(prefs, LessonLinkStore(prefs), emptySrsStateDao());
     srs.registerWord('anki-imp-c1');
+    CardIntroductionStore.debugOverride = CardIntroductionStore();
+    addTearDown(() => CardIntroductionStore.debugOverride = null);
+    await CardIntroductionStore.debugOverride!.markFromLesson(
+      wordId: 'anki-imp-c1',
+      lessonId: 'anki-imp-u-l0',
+    );
 
     final courseProvider = CourseProvider(prefs);
     await courseProvider.load();
@@ -136,6 +143,12 @@ void main() {
     await prefs.preferences.setString(LocalStateKeys.srsState, '{}');
     final srs = SrsProvider(prefs, LessonLinkStore(prefs), emptySrsStateDao());
     srs.registerWord('anki-imp2-c9');
+    CardIntroductionStore.debugOverride = CardIntroductionStore();
+    addTearDown(() => CardIntroductionStore.debugOverride = null);
+    await CardIntroductionStore.debugOverride!.markFromLesson(
+      wordId: 'anki-imp2-c9',
+      lessonId: 'anki-imp2-u-l0',
+    );
 
     final courseProvider = CourseProvider(prefs);
     await courseProvider.load();
@@ -191,6 +204,12 @@ void main() {
     await prefs.preferences.setString(LocalStateKeys.srsState, '{}');
     final srs = SrsProvider(prefs, LessonLinkStore(prefs), emptySrsStateDao());
     srs.registerWord('anki-imp-c1');
+    CardIntroductionStore.debugOverride = CardIntroductionStore();
+    addTearDown(() => CardIntroductionStore.debugOverride = null);
+    await CardIntroductionStore.debugOverride!.markFromLesson(
+      wordId: 'anki-imp-c1',
+      lessonId: 'anki-imp-u-l0',
+    );
     final courseProvider = CourseProvider(prefs);
     await courseProvider.load();
 

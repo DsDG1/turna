@@ -15,6 +15,7 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
 import 'package:turna/views/theme.dart';
+import 'package:turna/views/widgets/turna_select.dart';
 
 /// Standalone AI API configuration page (replaces the former
 /// [AiApiConfigSheet] modal). Reached from the AI Hub hero and from
@@ -171,37 +172,43 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
           children: [
             _fieldLabel(context, AppStrings.aiPrefsReplyLanguage),
             const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              children: [
-                for (final e in [
-                  (AiReplyLanguage.zh, AppStrings.aiPrefsReplyZh),
-                  (AiReplyLanguage.en, AppStrings.aiPrefsReplyEn),
-                  (AiReplyLanguage.target, AppStrings.aiPrefsReplyTarget),
-                ])
-                  ChoiceChip(
-                    label: Text(e.$2),
-                    selected: prefs.replyLanguage == e.$1,
-                    onSelected: (_) => prefs.setReplyLanguage(e.$1),
-                  ),
+            TurnaSegmented<AiReplyLanguage>(
+              selected: prefs.replyLanguage,
+              onChanged: prefs.setReplyLanguage,
+              segments: [
+                ButtonSegment(
+                  value: AiReplyLanguage.zh,
+                  label: Text(AppStrings.aiPrefsReplyZh),
+                ),
+                ButtonSegment(
+                  value: AiReplyLanguage.en,
+                  label: Text(AppStrings.aiPrefsReplyEn),
+                ),
+                ButtonSegment(
+                  value: AiReplyLanguage.target,
+                  label: Text(AppStrings.aiPrefsReplyTarget),
+                ),
               ],
             ),
             const SizedBox(height: 12),
             _fieldLabel(context, AppStrings.aiPrefsDepth),
             const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              children: [
-                for (final e in [
-                  (AiExplainDepth.brief, AppStrings.aiPrefsDepthBrief),
-                  (AiExplainDepth.standard, AppStrings.aiPrefsDepthStandard),
-                  (AiExplainDepth.detailed, AppStrings.aiPrefsDepthDetailed),
-                ])
-                  ChoiceChip(
-                    label: Text(e.$2),
-                    selected: prefs.depth == e.$1,
-                    onSelected: (_) => prefs.setDepth(e.$1),
-                  ),
+            TurnaSegmented<AiExplainDepth>(
+              selected: prefs.depth,
+              onChanged: prefs.setDepth,
+              segments: [
+                ButtonSegment(
+                  value: AiExplainDepth.brief,
+                  label: Text(AppStrings.aiPrefsDepthBrief),
+                ),
+                ButtonSegment(
+                  value: AiExplainDepth.standard,
+                  label: Text(AppStrings.aiPrefsDepthStandard),
+                ),
+                ButtonSegment(
+                  value: AiExplainDepth.detailed,
+                  label: Text(AppStrings.aiPrefsDepthDetailed),
+                ),
               ],
             ),
             SwitchListTile(
@@ -518,6 +525,7 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
   Widget _providerGrid(BuildContext context) {
     final selected = _draft.preset.id;
     return GridView.count(
+      padding: EdgeInsets.zero,
       crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -644,21 +652,10 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
       runSpacing: 6,
       children: [
         for (final model in _draft.preset.supportedModels)
-          ActionChip(
-            label: Text(model),
-            visualDensity: VisualDensity.compact,
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            labelStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: _modelChatCtrl.text.trim() == model
-                      ? Colors.white
-                      : TurnaTheme.brandTeal,
-                  fontWeight: FontWeight.w600,
-                ),
-            backgroundColor: _modelChatCtrl.text.trim() == model
-                ? TurnaTheme.brandTeal
-                : TurnaTheme.tintLight,
-            side: BorderSide.none,
-            onPressed: () => _pickChatModel(model),
+          TurnaFilterChip(
+            label: model,
+            selected: _modelChatCtrl.text.trim() == model,
+            onSelected: (_) => _pickChatModel(model),
           ),
       ],
     );
@@ -733,20 +730,14 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
   }
 
   Widget _strictSchemaChips(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: SegmentedButton<StrictSchemaMode>(
-        segments: const [
-          ButtonSegment(value: StrictSchemaMode.auto, label: Text('Auto')),
-          ButtonSegment(value: StrictSchemaMode.on, label: Text('On')),
-          ButtonSegment(value: StrictSchemaMode.off, label: Text('Off')),
-        ],
-        selected: {_draft.strictSchema},
-        onSelectionChanged: (set) {
-          if (set.isEmpty) return;
-          _onStrictSchemaChanged(set.first);
-        },
-      ),
+    return TurnaSegmented<StrictSchemaMode>(
+      selected: _draft.strictSchema,
+      onChanged: _onStrictSchemaChanged,
+      segments: const [
+        ButtonSegment(value: StrictSchemaMode.auto, label: Text('Auto')),
+        ButtonSegment(value: StrictSchemaMode.on, label: Text('On')),
+        ButtonSegment(value: StrictSchemaMode.off, label: Text('Off')),
+      ],
     );
   }
 

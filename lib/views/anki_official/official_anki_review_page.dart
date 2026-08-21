@@ -8,9 +8,8 @@ import 'package:turna/application/anki_official/engine/official_anki_review_sess
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/render/official_anki_answer_presenter.dart';
+import 'package:turna/application/anki_official/render/official_anki_present_ack.dart';
 import 'package:turna/application/anki_official/render/official_anki_render_state.dart';
-import 'package:turna/application/anki_practice/card_classifier.dart';
-import 'package:turna/application/anki_practice/card_classifier_models.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/anki_official/official_anki_practice_review_surface.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_error_view.dart';
@@ -143,6 +142,26 @@ class _OfficialAnkiReviewPageState extends State<OfficialAnkiReviewPage> {
       _awaitingAnswerAck = false;
     }
     setState(() {});
+  }
+
+  void _acceptFlutterPresent(String side) {
+    final presenter = _presenter;
+    final card = _session.current ?? _heldReviewCard;
+    if (presenter == null || card == null) return;
+    if (presenter.presentedCardId != 0 &&
+        presenter.presentedCardId != card.cardId) {
+      return;
+    }
+    presenter.acceptPresent(
+      OfficialPresentAck(
+        cardId: presenter.presentedCardId == 0
+            ? card.cardId
+            : presenter.presentedCardId,
+        generation: presenter.presentGeneration,
+        side: side,
+        ok: true,
+      ),
+    );
   }
 
   Future<void> _run(Future<void> Function() work) async {
@@ -287,13 +306,8 @@ class _OfficialAnkiReviewPageState extends State<OfficialAnkiReviewPage> {
   bool get _isCardPracticeCompatible {
     final rendered = _reviewerController?.card;
     if (rendered == null) return false;
-    final input = AnkiPracticeCardInput(
-      cardId: rendered.cardId,
-      rawQuestionHtml: rendered.questionHtml,
-      rawAnswerHtml: rendered.answerHtml,
-    );
-    final classification = AnkiPracticeCardClassifier.classify(input);
-    return classification.shape != AnkiPracticeShape.fidelity;
+    final html = '${rendered.questionHtml}${rendered.answerHtml}';
+    return !html.contains('<script') && !html.contains('MathJax');
   }
 
   bool get _actionsEnabled =>
@@ -476,6 +490,9 @@ class _OfficialAnkiReviewPageState extends State<OfficialAnkiReviewPage> {
     final card = _session.current ?? _heldReviewCard;
     if (_practiceMode && _isCardPracticeCompatible && card != null) {
       final rendered = _reviewerController?.card;
+      final presenter = _presenter;
+      final isAnswerVisible = presenter?.currentSide == 'answer' ||
+          _session.phase == OfficialReviewPhase.showingAnswer;
       return OfficialAnkiPracticeReviewSurface(
         key: ValueKey('practice-surface-${card.cardId}'),
         card: card,
@@ -483,6 +500,10 @@ class _OfficialAnkiReviewPageState extends State<OfficialAnkiReviewPage> {
         paths: widget.paths,
         rawQuestionHtml: rendered?.questionHtml ?? '',
         rawAnswerHtml: rendered?.answerHtml ?? '',
+        isAnswerVisible: isAnswerVisible,
+        presentGeneration: presenter?.presentGeneration ?? 0,
+        presentedCardId: presenter?.presentedCardId ?? card.cardId,
+        onPresented: _acceptFlutterPresent,
         onShowAnswer: () {
           if (_session.phase == OfficialReviewPhase.showingQuestion) {
             _onShowAnswer();

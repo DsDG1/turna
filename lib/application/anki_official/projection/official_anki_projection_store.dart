@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'package:turna/application/anki/card_introduction_store.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_canonical.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_ids.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_projector.dart';
@@ -176,6 +177,10 @@ class OfficialAnkiCourseProjectionStore {
         ],
       );
     });
+    await CardIntroductionStore.resolve().seedOfficialProjection(
+      sourceId: sourceId,
+      cardIds: {for (final item in plan.items) item.cardId},
+    );
   }
 
   Future<void> deleteOfficialProjection(String sourceId) async {

@@ -5,6 +5,7 @@ import 'package:turna/application/game_provider.dart';
 import 'package:turna/application/gems_provider.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/review/review_session_controller.dart';
+import 'package:turna/application/anki/study_product_analytics.dart';
 import 'package:turna/application/study_stats_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/interaction.dart';
@@ -17,8 +18,8 @@ import 'package:turna/domain/study/study_log.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/components/ai_card_explain_sheet.dart';
 import 'package:turna/views/review/components/binary_recall_bar.dart';
-import 'package:turna/views/review/components/flutter_course_card_body.dart';
-import 'package:turna/views/review/components/official_template_webview_body.dart';
+import 'package:turna/domain/anki/objective_outcome.dart';
+import 'package:turna/views/review/components/study_card_surface.dart';
 import 'package:turna/views/review/components/review_progress_header.dart';
 import 'package:turna/views/review/components/unified_review_completion.dart';
 import 'package:auto_route/auto_route.dart';
@@ -77,8 +78,14 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
 
   Future<void> _onOutcomeRecorded(
       ReviewItem item, RecallOutcome outcome) async {
+    final receipt = _controller.lastReceipt;
+    if (receipt != null) {
+      StudyProductAnalytics.instance.recordEvent(
+        eventId: receipt.eventId,
+        outcome: outcome,
+      );
+    }
     if (outcome == RecallOutcome.forgotten) {
-      // Record into MistakeProvider if it was forgotten
       try {
         final mp = context.read<MistakeProvider?>();
         final content = item.content;
@@ -88,7 +95,7 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
         final translation =
             content is StandardCourseCardContent ? content.backText : '';
 
-        final mistakeId =
+        final mistakeId = receipt?.eventId ??
             'review_${DateTime.now().microsecondsSinceEpoch}_${item.sessionItemId}';
         await mp?.record(
           MistakeEntry(
@@ -113,6 +120,7 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
   }
 
   Future<void> _onOutcomeUndone(ReviewEventReceipt receipt) async {
+    StudyProductAnalytics.instance.forget(receipt.eventId);
     final mistakeId =
         _mistakeIdsBySchedulingKey.remove(receipt.schedulingKey.rawId);
     if (mistakeId == null) return;
@@ -216,6 +224,10 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
 
     final item = _controller.currentItem!;
     final content = item.content;
+    final structured = content is StandardCourseCardContent &&
+        content.interaction != null &&
+        content.interaction is! AnkiCard &&
+        content.interaction is! AnkiHtmlCard;
 
     return Scaffold(
       backgroundColor: TurnaTheme.scaffoldBg(context),
@@ -243,20 +255,23 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
           child: Column(
             children: [
               Expanded(
-                child: switch (content) {
-                  StandardCourseCardContent standard => FlutterCourseCardBody(
-                      content: standard,
-                      isRevealed: _controller.isRevealed,
-                      onReveal: _controller.reveal,
-                      onSpeak: () => _speakText(standard.frontText),
-                    ),
-                  OfficialTemplateContent template =>
-                    OfficialTemplateWebViewBody(
-                      content: template,
-                      isRevealed: _controller.isRevealed,
-                      onReveal: _controller.reveal,
-                    ),
-                },
+                child: StudyCardSurface(
+                  content: content,
+                  isRevealed: _controller.isRevealed,
+                  onReveal: _controller.reveal,
+                  onSpeak: content is StandardCourseCardContent
+                      ? () => _speakText(content.frontText)
+                      : null,
+                  onObjectiveResult: structured
+                      ? (correct) {
+                          _controller.reveal();
+                          _controller.answer(
+                            objectiveRecallOutcome(correct: correct),
+                          );
+                        }
+                      : null,
+                  generation: _controller.currentIndex,
+                ),
               ),
               const SizedBox(height: 24),
               if (_controller.lastError != null) ...[
@@ -281,21 +296,23 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
                 ),
                 const SizedBox(height: 12),
               ],
-              if (!_controller.isRevealed)
+              if (structured)
+                const SizedBox.shrink()
+              else if (!_controller.isRevealed)
                 SizedBox(
                   width: double.infinity,
                   height: 52,
                   child: ElevatedButton(
                     onPressed:
                         _controller.isSubmitting ? null : _controller.reveal,
+                    // styleFrom treats elevation as a base level (pressed: +6); pin all states flat.
                     style: ElevatedButton.styleFrom(
                       backgroundColor: TurnaTheme.brandTeal,
                       foregroundColor: Colors.white,
-                      elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
-                    ),
+                    ).copyWith(elevation: const WidgetStatePropertyAll<double>(0)),
                     child: Text(
                       AppStrings.lessonShowAnswer,
                       style: const TextStyle(
@@ -311,9 +328,7 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
                   forgottenPreview: _controller.forgottenPreview,
                   rememberedPreview: _controller.rememberedPreview,
                   enabled: !_controller.isSubmitting &&
-                      _controller.lastError == null &&
-                      _controller.forgottenPreview != null &&
-                      _controller.rememberedPreview != null,
+                      _controller.lastError == null,
                 ),
             ],
           ),

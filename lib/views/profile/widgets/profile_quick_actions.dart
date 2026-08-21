@@ -9,8 +9,10 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
+import 'package:turna/application/anki/formal_review_launcher.dart';
 import 'package:turna/application/anki_official/engine/official_anki_home_due.dart';
 import 'package:turna/application/anki_official/engine/official_anki_home_due_sync.dart';
+import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/l10n/app_strings.dart';
@@ -93,7 +95,19 @@ class _ProfileQuickActionsState extends State<ProfileQuickActions> {
                   label: AppStrings.profileQuickAnki,
                   count: ankiDue,
                   accent: TurnaTheme.leagueAmethyst,
-                  onTap: () => context.router.push(const AnkiReviewRoute()),
+                  onTap: () {
+                    unawaited(
+                      const FormalReviewLauncher().open(
+                        context,
+                        entry: FormalReviewEntryKind.statsContinue,
+                        courseId: 'anki',
+                        officialOwner:
+                            OfficialAnkiHomeDue.officialImportIds.isNotEmpty,
+                        officialCapable: OfficialAnkiFeatureFlags
+                            .current.allowsOfficialScheduler,
+                      ),
+                    );
+                  },
                 ),
               ),
             ],

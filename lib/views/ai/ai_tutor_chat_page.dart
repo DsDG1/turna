@@ -14,6 +14,7 @@ import 'package:turna/views/ai/chat_bubble.dart';
 import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
 import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
 import 'package:turna/views/theme.dart';
+import 'package:turna/views/widgets/turna_select.dart';
 
 @RoutePage()
 class AiTutorChatPage extends StatefulWidget {
@@ -135,7 +136,9 @@ class _AiTutorChatPageState extends State<AiTutorChatPage> {
   Widget _modeTabs(AiTutorChatProvider p) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-      child: SegmentedButton<AiTutorChatMode>(
+      child: TurnaSegmented<AiTutorChatMode>(
+        selected: p.mode,
+        onChanged: p.setMode,
         segments: [
           ButtonSegment(
             value: AiTutorChatMode.qa,
@@ -153,8 +156,6 @@ class _AiTutorChatPageState extends State<AiTutorChatPage> {
             icon: const Icon(Icons.theater_comedy_outlined, size: 16),
           ),
         ],
-        selected: {p.mode},
-        onSelectionChanged: (s) => p.setMode(s.first),
       ),
     );
   }

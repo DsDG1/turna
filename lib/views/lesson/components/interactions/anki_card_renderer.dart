@@ -439,15 +439,18 @@ class _GradeButton extends StatelessWidget {
       height: 48,
       child: ElevatedButton(
         onPressed: onPressed,
+        // styleFrom treats elevation as a base level (pressed: +6); pin all states flat.
         style: ElevatedButton.styleFrom(
           backgroundColor: color.withValues(alpha: 0.12),
           foregroundColor: color,
-          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
             side: BorderSide(color: color.withValues(alpha: 0.4)),
           ),
-        ),
+        ).copyWith(elevation: const WidgetStatePropertyAll<double>(0)),
         child: Text(
           label,
           style: const TextStyle(
