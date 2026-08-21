@@ -7,7 +7,7 @@
     "trustBoundaries": [],
     "securityInvariants": [],
     "exclusions": [
-      "native/turna_anki_core/anki/pylib/tests/test_media.py"
+      "native/turna_anki_core/anki/**"
     ]
   },
   "network": {

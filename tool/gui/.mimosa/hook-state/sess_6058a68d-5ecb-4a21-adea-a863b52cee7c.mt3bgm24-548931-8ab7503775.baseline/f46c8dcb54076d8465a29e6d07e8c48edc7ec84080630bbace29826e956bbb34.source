@@ -1,0 +1,220 @@
+<<<<<<< Updated upstream
+"""Tests for ValidationReport multi-select batch fix (aiEnhance U1-2)."""
+from __future__ import annotations
+
+import os
+import sys
+import unittest
+from pathlib import Path
+from unittest.mock import MagicMock
+
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+_GUI = Path(__file__).resolve().parents[1]
+if str(_GUI) not in sys.path:
+    sys.path.insert(0, str(_GUI))
+
+from PySide6.QtCore import Qt  # noqa: E402
+
+from src.widgets.validation_report import ValidationReportWidget  # noqa: E402
+from tests._qtapp import _App  # noqa: E402
+
+
+class ValidationReportMultiSelectTest(unittest.TestCase):
+    def setUp(self) -> None:
+        _App.get()
+        self.adapter = MagicMock()
+        self.adapter.sections = [
+            {
+                "id": "s1",
+                "units": [
+                    {
+                        "id": "u1",
+                        "lessons": [{"id": "l1"}, {"id": "l2"}],
+                    }
+                ],
+            }
+        ]
+        self.w = ValidationReportWidget(self.adapter)
+
+    def tearDown(self) -> None:
+        self.w.deleteLater()
+
+    def test_multi_select_emits_batch_only(self) -> None:
+        problems = [
+            {
+                "level": "error",
+                "path": "section:s1/unit:u1/lesson:l1",
+                "message": "a",
+            },
+            {
+                "level": "error",
+                "path": "section:s1/unit:u1/lesson:l2",
+                "message": "b",
+            },
+        ]
+        self.w.show_problems(problems)
+        self.w.list_widget.selectAll()
+        single: list = []
+        batch: list = []
+        self.w.ai_fix_requested.connect(lambda p, r: single.append((p, r)))
+        self.w.ai_batch_fix_requested.connect(lambda pairs: batch.append(pairs))
+        self.w.ai_fix_btn.click()
+        self.assertEqual(single, [])
+        self.assertEqual(len(batch), 1)
+        self.assertEqual(len(batch[0]), 2)
+
+    def test_single_select_emits_legacy(self) -> None:
+        problems = [
+            {
+                "level": "error",
+                "path": "section:s1/unit:u1/lesson:l1",
+                "message": "a",
+            },
+        ]
+        self.w.show_problems(problems)
+        self.w.list_widget.setCurrentRow(0)
+        single: list = []
+        batch: list = []
+        self.w.ai_fix_requested.connect(lambda p, r: single.append((p, r)))
+        self.w.ai_batch_fix_requested.connect(lambda pairs: batch.append(pairs))
+        self.w.ai_fix_btn.click()
+        self.assertEqual(len(single), 1)
+        self.assertEqual(batch, [])
+        self.assertEqual(single[0][1], ("lesson", "l1"))
+
+    def test_selected_problems_helper(self) -> None:
+        problems = [
+            {"level": "error", "path": "section:s1", "message": "x"},
+            {"level": "warning", "path": "section:s1", "message": "y"},
+        ]
+        self.w.show_problems(problems)
+        self.w.list_widget.item(0).setSelected(True)
+        self.w.list_widget.item(1).setSelected(True)
+        selected = self.w.selected_problems()
+        self.assertEqual(len(selected), 2)
+
+
+class JumpToNodeTest(unittest.TestCase):
+    def test_routes_kinds(self) -> None:
+        from src.application.validation_controller import jump_to_node
+        from types import SimpleNamespace
+
+        tree = MagicMock()
+        host = SimpleNamespace(tree=tree)
+        jump_to_node(host, ("lesson", "l1"))
+        tree.select_lesson.assert_called_with("l1")
+        jump_to_node(host, ("section", "s1"))
+        tree.select_section.assert_called_with("s1")
+        jump_to_node(host, ("unit", "u1"))
+        tree.select_unit.assert_called_with("u1")
+
+    def test_missing_tree_safe(self) -> None:
+        from src.application.validation_controller import jump_to_node
+        from types import SimpleNamespace
+
+        jump_to_node(SimpleNamespace(tree=None), ("lesson", "x"))
+
+
+if __name__ == "__main__":
+    unittest.main()
+=======
+"""Tests for ValidationReport multi-select batch fix (aiEnhance U1-2)."""
+from __future__ import annotations
+
+import os
+import sys
+import unittest
+from pathlib import Path
+from unittest.mock import MagicMock
+
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+_GUI = Path(__file__).resolve().parents[1]
+if str(_GUI) not in sys.path:
+    sys.path.insert(0, str(_GUI))
+
+from PySide6.QtCore import Qt  # noqa: E402
+
+from src.widgets.validation_report import ValidationReportWidget  # noqa: E402
+from tests._qtapp import _App  # noqa: E402
+
+
+class ValidationReportMultiSelectTest(unittest.TestCase):
+    def setUp(self) -> None:
+        _App.get()
+        self.adapter = MagicMock()
+        self.adapter.sections = [
+            {
+                "id": "s1",
+                "units": [
+                    {
+                        "id": "u1",
+                        "lessons": [{"id": "l1"}, {"id": "l2"}],
+                    }
+                ],
+            }
+        ]
+        self.w = ValidationReportWidget(self.adapter)
+
+    def tearDown(self) -> None:
+        self.w.deleteLater()
+
+    def test_multi_select_emits_batch_only(self) -> None:
+        problems = [
+            {
+                "level": "error",
+                "path": "section:s1/unit:u1/lesson:l1",
+                "message": "a",
+            },
+            {
+                "level": "error",
+                "path": "section:s1/unit:u1/lesson:l2",
+                "message": "b",
+            },
+        ]
+        self.w.show_problems(problems)
+        self.w.list_widget.selectAll()
+        single: list = []
+        batch: list = []
+        self.w.ai_fix_requested.connect(lambda p, r: single.append((p, r)))
+        self.w.ai_batch_fix_requested.connect(lambda pairs: batch.append(pairs))
+        self.w.ai_fix_btn.click()
+        self.assertEqual(single, [])
+        self.assertEqual(len(batch), 1)
+        self.assertEqual(len(batch[0]), 2)
+
+    def test_single_select_emits_legacy(self) -> None:
+        problems = [
+            {
+                "level": "error",
+                "path": "section:s1/unit:u1/lesson:l1",
+                "message": "a",
+            },
+        ]
+        self.w.show_problems(problems)
+        self.w.list_widget.setCurrentRow(0)
+        single: list = []
+        batch: list = []
+        self.w.ai_fix_requested.connect(lambda p, r: single.append((p, r)))
+        self.w.ai_batch_fix_requested.connect(lambda pairs: batch.append(pairs))
+        self.w.ai_fix_btn.click()
+        self.assertEqual(len(single), 1)
+        self.assertEqual(batch, [])
+        self.assertEqual(single[0][1], ("lesson", "l1"))
+
+    def test_selected_problems_helper(self) -> None:
+        problems = [
+            {"level": "error", "path": "section:s1", "message": "x"},
+            {"level": "warning", "path": "section:s1", "message": "y"},
+        ]
+        self.w.show_problems(problems)
+        self.w.list_widget.item(0).setSelected(True)
+        self.w.list_widget.item(1).setSelected(True)
+        selected = self.w.selected_problems()
+        self.assertEqual(len(selected), 2)
+
+
+if __name__ == "__main__":
+    unittest.main()
+>>>>>>> Stashed changes

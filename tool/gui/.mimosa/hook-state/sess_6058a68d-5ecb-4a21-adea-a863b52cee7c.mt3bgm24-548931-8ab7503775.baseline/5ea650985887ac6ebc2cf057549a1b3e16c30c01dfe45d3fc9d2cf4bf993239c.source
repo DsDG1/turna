@@ -1,0 +1,149 @@
+"""E2.0 K-16: campaign item builder."""
+from __future__ import annotations
+
+import sys
+import unittest
+from pathlib import Path
+
+_GUI = Path(__file__).resolve().parents[1]
+if str(_GUI) not in sys.path:
+    sys.path.insert(0, str(_GUI))
+
+from src.dialogs.quality_campaign_dialog import build_campaign_items  # noqa: E402
+
+
+class BuildCampaignItemsTest(unittest.TestCase):
+    def test_empty_and_weak(self) -> None:
+        items = build_campaign_items(
+            quality_by_section={"s-good": 0.9, "s-bad": 0.4, "s-mid": 0.65},
+            empty_lessons=["l1", "l2"],
+            sections=[{"id": "s-bad", "name": "Weak"}],
+            worst_n=3,
+        )
+        kinds = [i["kind"] for i in items]
+        self.assertIn("lesson", kinds)
+        self.assertTrue(any(i["id"] == "s-bad" for i in items if i["kind"] == "section"))
+        self.assertTrue(any(i["id"] == "l1" for i in items if i["kind"] == "lesson"))
+
+    def test_none_when_healthy(self) -> None:
+        items = build_campaign_items(
+            quality_by_section={"s1": 0.95},
+            empty_lessons=[],
+            worst_n=3,
+        )
+        self.assertEqual(items, [])
+
+class AmbientBannerSmokeTest(unittest.TestCase):
+    def test_show_and_accept(self) -> None:
+        from tests._qtapp import qt_app
+        from src.widgets.ambient_banner import AmbientBanner
+        from src.backend.experience.proactive import AmbientProposal
+
+        qt_app()
+        banner = AmbientBanner()
+        got = []
+        banner.accepted.connect(got.append)
+        prop = AmbientProposal(
+            id="x",
+            title="修错",
+            body="body",
+            action_id="validate.open_and_fix",
+            priority=0,
+        )
+        banner.show_proposal(prop)
+        self.assertTrue(banner.isVisible())
+        banner._on_accept()
+        self.assertEqual(len(got), 1)
+        self.assertEqual(got[0].action_id, "validate.open_and_fix")
+
+
+class CampaignGuardPreCheckTest(unittest.TestCase):
+    """v4.14: campaign AI path uses a read-only guard pre-check.
+
+    Regression: the old code acquired the guard with job ``campaign-X`` and
+    then delegated to ``_on_ai_edit`` which re-acquires the same node with a
+    different job id — always rejected ("节点忙碌"), so the campaign AI path
+    could never run. The pre-check must (a) block when the node is held and
+    record ``inc_guard("rejected")``, and (b) delegate when free.
+    """
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        from tests._qtapp import qt_app
+
+        qt_app()
+
+    class _Metrics:
+        def __init__(self) -> None:
+            self.calls: list[tuple] = []
+
+        def inc_guard(self, stage: str) -> None:
+            self.calls.append(("guard", stage))
+
+    class _StatusBar:
+        def __init__(self) -> None:
+            self.messages: list[str] = []
+
+        def showMessage(self, msg: str, _ms: int = 0) -> None:
+            self.messages.append(msg)
+
+    class _Tree:
+        def __init__(self) -> None:
+            self.selected: list[tuple[str, str]] = []
+
+        def select_section(self, sid: str) -> None:
+            self.selected.append(("section", sid))
+
+        def select_lesson(self, lid: str) -> None:
+            self.selected.append(("lesson", lid))
+
+    class _Ctx:
+        quality_by_section = {"s1": 0.4}
+        empty_lessons: list = []
+
+    def _run_campaign(self, *, busy: bool):
+        from unittest.mock import patch
+        from PySide6.QtWidgets import QDialog, QWidget
+        from src.application.experience_skills_mixin import ExperienceSkillsMixin
+        from src.backend.experience.conflict_guard import ConflictGuard
+        from src.dialogs.quality_campaign_dialog import QualityCampaignDialog
+
+        guard = ConflictGuard()
+        if busy:
+            self.assertTrue(guard.try_acquire("section:s1", "other-job"))
+        fake = QWidget()
+        self.addCleanup(fake.deleteLater)
+        fake.experience = type("E", (), {"context": self._Ctx()})()
+        fake.adapter = type("A", (), {"sections": [{"id": "s1"}]})()
+        fake.conflict_guard = guard
+        fake.experience_metrics = self._Metrics()
+        fake.tree = self._Tree()
+        fake._statusbar = self._StatusBar()
+        fake.statusBar = lambda: fake._statusbar
+        fake._record_experience_event = lambda *a, **k: None
+        fake.ai_edit_calls = []
+        fake._on_ai_edit = lambda kind, nid: fake.ai_edit_calls.append((kind, nid))
+        with patch.object(
+            QualityCampaignDialog, "exec", lambda _d: QDialog.DialogCode.Accepted
+        ), patch.object(
+            QualityCampaignDialog,
+            "chosen",
+            lambda _d: {"kind": "section", "id": "s1", "title": "Weak"},
+        ), patch.object(QualityCampaignDialog, "action", lambda _d: "ai"):
+            ExperienceSkillsMixin._experience_quality_campaign(fake, {})
+        return fake
+
+    def test_busy_node_blocks_and_records_rejected(self) -> None:
+        fake = self._run_campaign(busy=True)
+        self.assertEqual(fake.ai_edit_calls, [])
+        self.assertIn(("guard", "rejected"), fake.experience_metrics.calls)
+        self.assertTrue(any("节点忙碌" in m for m in fake._statusbar.messages))
+
+    def test_free_node_delegates_to_ai_edit(self) -> None:
+        fake = self._run_campaign(busy=False)
+        self.assertEqual(fake.ai_edit_calls, [("section", "s1")])
+        self.assertNotIn(("guard", "rejected"), fake.experience_metrics.calls)
+
+
+if __name__ == "__main__":
+    unittest.main()
