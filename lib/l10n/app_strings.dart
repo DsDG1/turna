@@ -1120,6 +1120,14 @@ class AppStrings {
   static String ankiPickFileFailed(Object error) => '选择文件失败：$error';
   static String ankiParseFailed(Object error) => '解析失败：$error';
   static String get ankiPreparingImport => '正在准备导入…';
+  static String get ankiImportingOfficialFirst => '正在导入到官方 Anki 集合…';
+  static String get ankiOfficialPreviewBody => '官方 Anki 集合导入完成，确认映射后生成课程树。';
+  static String get ankiOfficialMappingHint => '点按可调整字段映射；直接开始导入将采用推荐映射。';
+  static String get ankiOfficialDedupeHint => '重复导入同一文件会自动跳过（按文件哈希去重）。';
+  static String get ankiOfficialNeedsMapping => '有笔记类型尚未确认映射，请先完成映射。';
+  static String get ankiOfficialMappingConfirmed => '已确认';
+  static String get ankiOfficialMappingSkipped => '已跳过';
+  static String get ankiOfficialMappingSuggested => '推荐映射';
   static String get ankiAssemblingCourse => '正在构建课程树…';
   static String get ankiMigratingSrs => '正在迁移 SRS 状态…';
   static String get ankiCopyingMedia => '正在复制媒体文件…';

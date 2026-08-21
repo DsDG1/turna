@@ -38,6 +38,9 @@ class MockCourseRepository implements ICourseRepository {
   Future<void> deleteSection(String sectionId) async {}
 
   @override
+  Future<void> deleteOfficialProjection(String sourceId) async {}
+
+  @override
   Future<List<Section>> sectionShells() async => [];
 
   @override

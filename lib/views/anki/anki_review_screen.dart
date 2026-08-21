@@ -446,7 +446,7 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
 
     final importId = AnkiReviewAssembler.importIdFromSectionId(sectionId);
     if (importId.isEmpty) return;
-    await getIt<AnkiDeckManager>().uninstallDeck(importId);
+    await getIt<AnkiDeckManager>().uninstall(importId);
     if (!context.mounted) return;
     final courseProvider = context.read<CourseProvider>();
     if (courseProvider.courseScope == 'anki:$importId') {

@@ -116,3 +116,8 @@ test/fixtures/anki_official/generated/
 
 # Temporarily vendored external reference repo (not part of this project)
 anki-decryptBack/
+.mimosa/hook-state/
+.mimosa/hook-status/
+.mimosa/reports/
+.mimosa/finding-ledger/
+.mimosa/security-scans/

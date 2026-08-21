@@ -11,6 +11,8 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/application/accessibility_provider.dart';
+import 'package:turna/application/anki_official/official_anki_composition.dart';
+import 'package:turna/application/anki_official/render/official_anki_media_resolver.dart';
 import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/domain/audio/anki_audio_resolver.dart';
@@ -354,7 +356,29 @@ class AudioController {
       await speakFromAsset(asset);
       return;
     }
+    if (await playOfficialMediaFile(wordId)) return;
     await speak(resolved.speakText);
+  }
+
+  /// P5F-23: official-collection media reaches projected interactions as a
+  /// bare filename (`hello.mp3`). When the official Anki collection is
+  /// available, resolve it against `collection.media` and play the local
+  /// file instead of TTS-reading the filename. Returns true when playback
+  /// started.
+  Future<bool> playOfficialMediaFile(String rawName) async {
+    final file = officialAnkiMediaCandidateFile(
+      rawName,
+      OfficialAnkiCompositionRoot.locatorPaths,
+    );
+    if (file == null) return false;
+    try {
+      await _speechPlayer.stop();
+      await _speechPlayer.play(DeviceFileSource(file.path));
+      return true;
+    } catch (e) {
+      debugPrint('Error playing official Anki media: $e');
+      return false;
+    }
   }
 
   /// Play an Anki deck media file (`anki://` reference) from its persistent
@@ -389,6 +413,8 @@ class AudioController {
         await playAnkiMedia(asset);
       } else if (isAssetPath(asset)) {
         await speakFromAsset(asset);
+      } else if (await playOfficialMediaFile(asset)) {
+        // P5F-23: bare official-collection media filename — played above.
       } else if (text.isNotEmpty) {
         // Prefer readable transcript for TTS when asset is a logical id
         // without an offline path.

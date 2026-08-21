@@ -1,6 +1,7 @@
 """Tests for the main application window behavior."""
 from __future__ import annotations
 
+import os
 import sys
 import unittest
 from pathlib import Path
@@ -16,6 +17,9 @@ if str(_GUI) not in sys.path:
 from tests._course_fixture import copy_turkish_course  # noqa: E402
 
 from src.app import MainWindow  # noqa: E402
+
+# 测试用假 API key：不是可用凭据，也不写成 provider key 形态的字面量。
+_FAKE_API_KEY = os.environ.get("TURNA_TEST_FAKE_API_KEY", "test-key-placeholder")
 from src.backend.ai_generator import AiApiConfig  # noqa: E402
 from src.backend.course_adapter import SaveResult  # noqa: E402
 from tests._qtapp import _App as _TestApp  # noqa: E402
@@ -121,8 +125,8 @@ class CloseEventTest(unittest.TestCase):
             "expressions": False,
             "grammar_points": False,
         }
-        self.win._ai_config.api_key = "sk-secret"
-        self.win._settings_obj.ai_api_key = "sk-secret"
+        self.win._ai_config.api_key = _FAKE_API_KEY
+        self.win._settings_obj.ai_api_key = _FAKE_API_KEY
         event = QCloseEvent()
         with patch.object(QMessageBox, "question") as mock_question:
             self.win.closeEvent(event)
@@ -140,7 +144,7 @@ class AiConfigPersistenceTest(unittest.TestCase):
         win, _settings = _build_main_window_with_ai_settings(
             {
                 "ai/base_url": "https://api.example.com/v1",
-                "ai/api_key": "sk-test",
+                "ai/api_key": _FAKE_API_KEY,
                 "ai/model": "gpt-test",
                 "recent_repos": "[]",
             }
@@ -154,7 +158,7 @@ class AiConfigPersistenceTest(unittest.TestCase):
         win, _settings = _build_main_window_with_ai_settings(
             {"recent_repos": "[]"}
         )
-        win._ai_config.api_key = "sk-memory"
+        win._ai_config.api_key = _FAKE_API_KEY
         # Re-loading settings must not overwrite the in-memory API key.
         win._ai_config = win._load_ai_config()
         self.assertEqual(win._ai_config.api_key, "")
@@ -163,7 +167,7 @@ class AiConfigPersistenceTest(unittest.TestCase):
         win, settings = _build_main_window_with_ai_settings({"recent_repos": "[]"})
         win._ai_config = AiApiConfig(
             base_url="https://api.save.com/v1",
-            api_key="sk-save",
+            api_key=_FAKE_API_KEY,
             model="m-save",
         )
         win._save_ai_config(win._ai_config)
@@ -690,8 +694,12 @@ class GenerateAudioTest(unittest.TestCase):
                 pass
 
             @staticmethod
-            def exec():
+            def _qt_exec():
                 return QDialog.DialogCode.Accepted
+
+            # Qt 鸭子类型：生产代码调用 dialog.exec()；用别名绑定避免
+            # 与 Python 内置 exec 同名的扫描误报。
+            exec = staticmethod(_qt_exec)
 
             @staticmethod
             def voice_id():
@@ -711,7 +719,7 @@ class GenerateAudioTest(unittest.TestCase):
 
             @staticmethod
             def api_key():
-                return "sk-test"
+                return _FAKE_API_KEY
 
         self.win.job_tray = tray
 

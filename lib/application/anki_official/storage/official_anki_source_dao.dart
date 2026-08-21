@@ -296,4 +296,67 @@ WHERE source_id = ? AND state = ?
         )
         .toList();
   }
+
+  /// P5F-31: soft-uninstall bookkeeping for one source. Deletes every catalog
+  /// row owned by the source in foreign-key-safe order; the official Anki
+  /// collection itself keeps its cards (the user can re-project from source
+  /// management). Projection mappings are profile-wide per notetype and stay.
+  /// Returns true when the source row existed.
+  bool deleteSource({
+    required String profileId,
+    required String sourceId,
+  }) {
+    final existing = _db.select(
+      'SELECT 1 FROM anki_sources WHERE source_id = ? AND profile_id = ?',
+      [sourceId, profileId],
+    );
+    if (existing.isEmpty) return false;
+    _db.execute('BEGIN');
+    try {
+      _db.execute(
+        'DELETE FROM legacy_anki_card_map WHERE migration_id IN '
+        '(SELECT migration_id FROM legacy_anki_migrations '
+        ' WHERE official_source_id = ?)',
+        [sourceId],
+      );
+      _db.execute(
+        'DELETE FROM legacy_anki_migrations WHERE official_source_id = ?',
+        [sourceId],
+      );
+      _db.execute(
+        'DELETE FROM anki_import_attempt_notes WHERE attempt_id IN '
+        '(SELECT attempt_id FROM anki_import_attempts WHERE source_id = ?)',
+        [sourceId],
+      );
+      _db.execute(
+        'DELETE FROM anki_import_attempts WHERE source_id = ?',
+        [sourceId],
+      );
+      _db.execute(
+        'DELETE FROM anki_projection_jobs WHERE source_id = ?',
+        [sourceId],
+      );
+      _db.execute(
+        'DELETE FROM anki_course_placement_overrides WHERE source_id = ?',
+        [sourceId],
+      );
+      _db.execute(
+        'DELETE FROM anki_source_projection_state WHERE source_id = ?',
+        [sourceId],
+      );
+      _db.execute(
+        'DELETE FROM anki_source_cards WHERE source_id = ?',
+        [sourceId],
+      );
+      _db.execute(
+        'DELETE FROM anki_sources WHERE source_id = ? AND profile_id = ?',
+        [sourceId, profileId],
+      );
+      _db.execute('COMMIT');
+    } catch (_) {
+      _db.execute('ROLLBACK');
+      rethrow;
+    }
+    return true;
+  }
 }

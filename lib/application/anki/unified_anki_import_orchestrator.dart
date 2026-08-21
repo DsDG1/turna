@@ -1,4 +1,5 @@
 import 'package:turna/application/anki/card_introduction_eligibility.dart';
+import 'package:turna/application/anki_official/projection/official_anki_projection_store.dart';
 import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/di/injection.dart';
@@ -182,6 +183,75 @@ class UnifiedAnkiImportOrchestrator {
     if (started.noOp) return started;
     await finalize(request);
     return started;
+  }
+
+  /// P5F-22: publish placements/presentations for an official source from
+  /// its course projection index — real section/unit/lesson ids and the
+  /// projected presentation kind — instead of the Dart-parsed card list.
+  /// One row per projected card; duplicates keep the existing 1:1 identity.
+  Future<UnifiedAnkiImportResult> publishFromProjection({
+    required String sourceId,
+    required String sourceHash,
+  }) async {
+    _seenHashes.add(sourceHash);
+    final course = getIt<CourseDatabase>();
+    final rows = await OfficialAnkiCourseProjectionStore(course)
+        .listIndexRows(sourceId);
+    if (!getIt.isRegistered<AnkiUnificationDao>()) {
+      return UnifiedAnkiImportResult(
+        canonicalCardCount: rows.length,
+        placementCount: rows.length,
+        presentationCount: rows.length,
+        wroteTurnaSrs: false,
+        noOp: false,
+        turnaSrsWordIds: const {},
+      );
+    }
+    final dao = getIt<AnkiUnificationDao>();
+    final courseId =
+        CardIntroductionEligibility.courseIdForOfficialSource(sourceId);
+    final ids = [for (final row in rows) row.cardId];
+    var order = 0;
+    for (final row in rows) {
+      final key = CanonicalCardKey(
+        backend: AnkiBackendKind.official,
+        profileId: CardIntroductionEligibility.defaultProfileId,
+        sourceId: sourceId,
+        cardId: row.cardId,
+      );
+      try {
+        await dao.insertActivePlacement(
+          placementId: '$courseId-${row.cardId}',
+          courseId: courseId,
+          profileId: CardIntroductionEligibility.defaultProfileId,
+          key: key,
+          sectionId: row.sectionId,
+          unitId: row.unitId,
+          lessonId: row.lessonId,
+          order: order++,
+          sourceFingerprint: sourceHash,
+        );
+        await dao.insertActivePresentation(
+          courseId: courseId,
+          key: key,
+          kind: row.kind,
+          payloadJson: '{}',
+          sourceFingerprint: sourceHash,
+        );
+      } catch (_) {
+        // Duplicate identity rows stay 1:1; ignore unique conflicts.
+      }
+    }
+    _placementsByImport[sourceId] = ids;
+    _presentationsByImport[sourceId] = ids;
+    return UnifiedAnkiImportResult(
+      canonicalCardCount: ids.length,
+      placementCount: ids.length,
+      presentationCount: ids.length,
+      wroteTurnaSrs: false,
+      noOp: false,
+      turnaSrsWordIds: const {},
+    );
   }
 
   int placementCount(String importId) =>

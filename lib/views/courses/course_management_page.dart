@@ -203,7 +203,7 @@ class _CourseManagementBody extends StatelessWidget {
     if (confirmed != true || !context.mounted) return;
 
     final importId = entry.scope.substring('anki:'.length);
-    await getIt<AnkiDeckManager>().uninstallDeck(importId);
+    await getIt<AnkiDeckManager>().uninstall(importId);
     if (!context.mounted) return;
     final courseProvider = context.read<CourseProvider>();
     if (courseProvider.courseScope == entry.scope) {

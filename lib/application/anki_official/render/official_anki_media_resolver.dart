@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/render/official_anki_media_path.dart';
 import 'package:turna/application/anki_official/render/official_anki_mime.dart';
 
@@ -94,7 +95,6 @@ class OfficialAnkiMediaDecision {
     this.mimeType,
     this.reason,
   });
-
   factory OfficialAnkiMediaDecision.denied(String reason) =>
       OfficialAnkiMediaDecision._(allowed: false, reason: reason);
 
@@ -117,4 +117,20 @@ class OfficialAnkiMediaDecision {
   final String? assetName;
   final String? mimeType;
   final String? reason;
+}
+
+/// P5F-23: resolve a bare official-collection media filename (as it appears
+/// in projected interactions, e.g. `hello.mp3`) to a local file under the
+/// official `collection.media` folder. Returns null when [paths] is unset
+/// (official engine never opened), the name has no media extension, the file
+/// is missing, or the name is a traversal attempt.
+File? officialAnkiMediaCandidateFile(String rawName, OfficialAnkiPaths? paths) {
+  final trimmed = rawName.trim();
+  final dot = trimmed.lastIndexOf('.');
+  if (dot <= 0 || dot == trimmed.length - 1) return null;
+  if (paths == null) return null;
+  final decision = OfficialAnkiMediaResolver(paths.mediaFolder)
+      .resolveRelativeName(Uri.decodeComponent(trimmed));
+  if (!decision.allowed) return null;
+  return decision.file;
 }

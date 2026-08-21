@@ -8,10 +8,14 @@ import 'package:injectable/injectable.dart';
 // Project imports:
 import 'package:turna/application/anki/anki_models.dart';
 import 'package:turna/application/anki/anki_review_assembler.dart';
+import 'package:turna/application/anki/card_introduction_eligibility.dart';
 import 'package:turna/application/anki_official/migration/official_anki_write_owner.dart';
+import 'package:turna/application/anki_official/official_anki_composition.dart';
+import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/data/anki_note_dao.dart';
+import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/domain/audio/anki_audio_resolver.dart';
 import 'package:turna/domain/repositories/i_course_repository.dart';
 import 'package:turna/service/locator.dart';
@@ -31,6 +35,7 @@ class AnkiDeckManager {
   final AnkiImportDao _importDao;
   final AnkiNoteDao _noteDao;
   final AnkiAudioResolver _audioResolver;
+  final AnkiUnificationDao? _unificationDao;
   final AppPrefs _appPrefs;
 
   AnkiDeckManager({
@@ -40,12 +45,14 @@ class AnkiDeckManager {
     required AnkiNoteDao noteDao,
     required AppPrefs appPrefs,
     AnkiAudioResolver? audioResolver,
+    AnkiUnificationDao? unificationDao,
   })  : _repo = repo,
         _srsProvider = srsProvider,
         _importDao = importDao,
         _noteDao = noteDao,
         _appPrefs = appPrefs,
-        _audioResolver = audioResolver ?? AnkiAudioResolver();
+        _audioResolver = audioResolver ?? AnkiAudioResolver(),
+        _unificationDao = unificationDao;
 
   // ─── Review Limits ──────────────────────────────────────────────────
 
@@ -218,6 +225,47 @@ class AnkiDeckManager {
 
   // ─── Deck Uninstall ─────────────────────────────────────────────────
 
+  /// Route an uninstall to the right owner (P5F-31): official-projected
+  /// sources go through [uninstallOfficialSource] (soft uninstall — the
+  /// official Anki collection keeps its data); everything else through the
+  /// legacy [uninstallDeck].
+  Future<void> uninstall(String importId) async {
+    if (await _isOfficialSource(importId)) {
+      await uninstallOfficialSource(importId);
+      return;
+    }
+    await uninstallDeck(importId);
+  }
+
+  /// Official sources own `official-anki-<sourceId>-…` tree ids.
+  Future<bool> _isOfficialSource(String importId) async {
+    final prefix = 'official-anki-$importId-';
+    final sections = await _repo.sectionShells();
+    return sections.any((section) => section.id.startsWith(prefix));
+  }
+
+  /// Soft-uninstall an official source: drop the course projection, its
+  /// vocabulary rows (P5F-33 channel), unification bookkeeping, and catalog
+  /// rows. The official collection's cards stay — the course can be
+  /// regenerated from source management.
+  Future<void> uninstallOfficialSource(String sourceId) async {
+    await _repo.deleteOfficialProjection(sourceId);
+    await _repo.deleteByTag('official:$sourceId');
+    final unification = _unificationDao;
+    if (unification != null) {
+      await unification.deleteByCourseId(
+        CardIntroductionEligibility.courseIdForOfficialSource(sourceId),
+      );
+    }
+    final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+    if (catalog != null) {
+      OfficialAnkiSourceDao(catalog).deleteSource(
+        profileId: CardIntroductionEligibility.defaultProfileId,
+        sourceId: sourceId,
+      );
+    }
+  }
+
   /// Completely uninstall an imported Anki deck:
   /// 1. Delete vocabulary entries by tag
   /// 2. Delete section tree
@@ -230,10 +278,13 @@ class AnkiDeckManager {
     final tag = 'anki:$importId';
     await _repo.deleteByTag(tag);
 
-    // 2. Delete sections with this import id prefix
+    // 2. Delete sections with this import id prefix. Exact prefix match:
+    // `contains` used to delete `anki-user-…` sections while uninstalling a
+    // deck whose id is a prefix of another (`user` vs `user2`).
+    final prefix = 'anki-$importId-';
     final sections = await _repo.sectionShells();
     for (final section in sections) {
-      if (section.id.contains('anki-$importId')) {
+      if (section.id.startsWith(prefix)) {
         await _repo.deleteSection(section.id);
       }
     }

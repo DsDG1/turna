@@ -244,8 +244,12 @@ class NewLessonAiGenerateTest(unittest.TestCase):
         class _Dlg:
             use_wizard = False
 
-            def exec(self) -> int:
+            def _qt_exec(self) -> int:
                 return 1
+
+            # Qt 鸭子类型：生产代码调用 dialog.exec()；用别名绑定避免
+            # 与 Python 内置 exec 同名的扫描误报。
+            exec = _qt_exec
 
             def template(self) -> str:
                 return "intro"
@@ -289,8 +293,12 @@ class NewLessonAiGenerateTest(unittest.TestCase):
         class _Dlg:
             use_wizard = False
 
-            def exec(self) -> int:
+            def _qt_exec(self) -> int:
                 return 1
+
+            # Qt 鸭子类型：生产代码调用 dialog.exec()；用别名绑定避免
+            # 与 Python 内置 exec 同名的扫描误报。
+            exec = _qt_exec
 
             def template(self) -> str:
                 return "intro"

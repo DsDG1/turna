@@ -1,6 +1,7 @@
 /// Production Android replica defaults: import/render/scheduler on.
 /// Constructor stays all-false for tests. Disable with `--dart-define=…=false`.
-/// Diagnostics, projection, course-entry, and migration pilot stay opt-in.
+/// Diagnostics, migration pilot, course-grades scheduler, and the P5F
+/// official-first import path stay opt-in.
 class OfficialAnkiFeatureFlags {
   const OfficialAnkiFeatureFlags({
     this.engine = false,
@@ -16,6 +17,7 @@ class OfficialAnkiFeatureFlags {
     this.scheduler = false,
     this.migrationPilot = false,
     this.courseGradesScheduler = false,
+    this.officialFirstImport = false,
   });
 
   factory OfficialAnkiFeatureFlags.fromEnvironment() {
@@ -62,6 +64,8 @@ class OfficialAnkiFeatureFlags {
         bool.fromEnvironment('TURNA_OFFICIAL_ANKI_MIGRATION_PILOT');
     const courseGradesScheduler =
         bool.fromEnvironment('TURNA_OFFICIAL_ANKI_COURSE_GRADES_SCHEDULER');
+    const officialFirstImport =
+        bool.fromEnvironment('TURNA_OFFICIAL_ANKI_OFFICIAL_FIRST_IMPORT');
     return const OfficialAnkiFeatureFlags(
       engine: engine,
       import: import,
@@ -76,6 +80,7 @@ class OfficialAnkiFeatureFlags {
       scheduler: scheduler,
       migrationPilot: migrationPilot,
       courseGradesScheduler: courseGradesScheduler,
+      officialFirstImport: officialFirstImport,
     );
   }
 
@@ -92,6 +97,7 @@ class OfficialAnkiFeatureFlags {
   final bool scheduler;
   final bool migrationPilot;
   final bool courseGradesScheduler;
+  final bool officialFirstImport;
 
   static OfficialAnkiFeatureFlags current =
       OfficialAnkiFeatureFlags.fromEnvironment();
@@ -120,6 +126,12 @@ class OfficialAnkiFeatureFlags {
   bool get allowsCourseGradesScheduler =>
       allowsOfficialScheduler && courseGradesScheduler;
 
+  /// P5F: official saga runs before Turna-side writes and the course tree is
+  /// projected from the official collection (no Dart apkg parse on this path).
+  /// Opt-in only; requires the full projection/course-entry capability set.
+  bool get allowsOfficialFirstImport =>
+      officialFirstImport && allowsOfficialImport && allowsCourseEntry;
+
   OfficialAnkiFeatureFlags copyWith({
     bool? engine,
     bool? import,
@@ -134,6 +146,7 @@ class OfficialAnkiFeatureFlags {
     bool? scheduler,
     bool? migrationPilot,
     bool? courseGradesScheduler,
+    bool? officialFirstImport,
   }) {
     return OfficialAnkiFeatureFlags(
       engine: engine ?? this.engine,
@@ -150,6 +163,7 @@ class OfficialAnkiFeatureFlags {
       migrationPilot: migrationPilot ?? this.migrationPilot,
       courseGradesScheduler:
           courseGradesScheduler ?? this.courseGradesScheduler,
+      officialFirstImport: officialFirstImport ?? this.officialFirstImport,
     );
   }
 }

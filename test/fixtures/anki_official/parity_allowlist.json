@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "description": "P5F-42 parity allowlist: observable differences between the legacy Dart pipeline (AnkiImporter + AnkiDeckAssembler) and the official-first pipeline (official saga + projection service) that are accepted by design. Anything outside this list fails the parity test.",
+  "entries": [
+    {
+      "id": "tree-shape",
+      "summary": "Unit/lesson grouping differs: legacy uses AnkiOrganizationResolver smart grouping, official uses deck-path + unit::/lesson:: tag heuristics."
+    },
+    {
+      "id": "one-kind-per-card",
+      "summary": "Official projection emits exactly one presentation kind per card (CardPresentationPolicy); the legacy assembler may emit multiple drills."
+    },
+    {
+      "id": "vocabulary-subset",
+      "summary": "Vocabulary counts may differ in either direction: official rows exist only for cards with a usable term/translation pair (subset of cards), while the legacy adapter materializes vocabulary only for structured card kinds. Hard invariant: at most one official row per card."
+    },
+    {
+      "id": "no-legacy-bookkeeping",
+      "summary": "The official path writes no anki_imports rows, no NoteStore, and no Turna SRS states by design (official collection owns scheduling)."
+    },
+    {
+      "id": "card-id-parity-scope",
+      "summary": "Card-id-level equality between pipelines requires the real rslib import (host CI job with TURNA_ANKI_LIB); the fake engine mints sequential ids, so this harness compares counts and cardinality only."
+    }
+  ]
+}

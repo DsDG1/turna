@@ -25,15 +25,21 @@ import 'package:turna/application/anki/anki_import_cleanup_service.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/import/anki_import_facade.dart';
+import 'package:turna/application/anki_official/import/official_first_import_policy.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
-import 'package:turna/application/anki_official/migration/official_anki_new_import_cutover.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
+import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
+import 'package:turna/application/anki_official/projection/official_anki_projection_mapper.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_service.dart';
+import 'package:turna/application/anki_official/projection/official_anki_projection_store.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
+import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
+import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
+import 'package:turna/views/anki_official/official_anki_mapping_page.dart';
 import 'package:turna/application/anki/anki_models.dart';
 import 'package:turna/application/anki/anki_organization_resolver.dart';
 import 'package:turna/application/anki/anki_sample_deck.dart';
@@ -76,14 +82,26 @@ enum _AnkiFallbackChoice { scan, path }
 class AnkiImportPage extends StatefulWidget {
   final bool startWithSample;
 
-  const AnkiImportPage({super.key, this.startWithSample = false});
+  /// Test seam: inject a parser so widget tests can drive the whole wizard
+  /// without the parse worker isolate — fake-async cannot receive isolate
+  /// port messages. Production always leaves this null.
+  @visibleForTesting
+  final AnkiImporter? importerForTest;
+
+  const AnkiImportPage({
+    super.key,
+    this.startWithSample = false,
+    this.importerForTest,
+  });
 
   @override
   State<AnkiImportPage> createState() => _AnkiImportPageState();
 }
 
 class _AnkiImportPageState extends State<AnkiImportPage> {
-  final _importer = AnkiImporter();
+  AnkiImporter get _importer => widget.importerForTest ?? _productionImporter;
+
+  final _productionImporter = AnkiImporter();
 
   // Wizard state
   int _step = 0; // 0=select, 1=parsing, 2=preview, 3=importing, 4=done
@@ -116,6 +134,21 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
   double _progress = 0; // 0..1, 0 means indeterminate
   bool _cancelRequested = false;
   AnkiImportSummary? _summary;
+
+  // ─── P5F-2 official-first flow state ─────────────────────────────────
+  // Non-null once the official saga committed and the wizard switched to
+  // projection-based preview/execution (no Dart apkg parse on this path).
+  String? _officialSourceId;
+  String? _officialSourceHash;
+  int _officialCardCount = 0;
+  int _officialNoteCount = 0;
+  List<OfficialAnkiDeckNode> _officialDecks = const [];
+  List<OfficialAnkiProjectionSchema> _officialSchemas = const [];
+  Map<int, OfficialAnkiMappingSuggestion> _officialSuggestions = {};
+  Set<int> _officialConfirmedNotetypes = {};
+  Set<int> _officialSkippedNotetypes = {};
+  OfficialAnkiCourseProjectionService? _officialService;
+  bool _officialNeedsMapping = false;
 
   // ─── Perf instrumentation ──────────────────────────────────────────
   //
@@ -203,7 +236,10 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       case 1:
         return _buildParsingStep();
       case 2:
-        return _buildPreviewStep();
+        // P5F-2: the official-first flow has its own projection-based preview.
+        return _officialSourceId != null
+            ? _buildOfficialPreviewStep()
+            : _buildPreviewStep();
       case 3:
         return _buildImportingStep();
       case 4:
@@ -869,13 +905,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       final path = result.files.single.path;
       if (path == null) return;
 
-      setState(() {
-        _filePath = path;
-        _error = null;
-        _step = 1;
-      });
-
-      await _parseFile(path);
+      await _proceedWithPath(path);
     } on OhosFilePickerInvalidExtension {
       setState(() => _error = AppStrings.ankiPickFileError);
     } catch (e) {
@@ -1058,6 +1088,19 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       _error = null;
       _step = 1;
     });
+    // P5F-2: eligible files go straight into the official saga — no Dart
+    // apkg parse. Everything else keeps the legacy parse → preview flow.
+    final flags = OfficialAnkiFeatureFlags.current;
+    if (officialFirstImportEligible(
+      isSample: false,
+      officialCapable:
+          AnkiImportFacade.decisionFor(flags) == AnkiImportDecision.official,
+      flags: flags,
+      filePath: path,
+    )) {
+      await _runOfficialFirstFlow(path);
+      return;
+    }
     await _parseFile(path);
   }
 
@@ -1160,7 +1203,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       }
     } catch (e) {
       totalSw.stop();
-      _logTiming('parse: failed', totalSw, {'error': e.runtimeType.toString()});
+      _logTiming('parse: failed', totalSw, {'error': e.toString()});
       if (mounted) {
         setState(() {
           _error = _mapGeneralErrorToHuman(e);
@@ -1357,6 +1400,12 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
   }
 
   Future<void> _executeImport() async {
+    // P5F-2: the official-first flow executes via the projection service —
+    // no Dart collection, legacy transaction, or SRS migration involved.
+    if (_officialSourceId != null) {
+      await _executeOfficialProjectionImport();
+      return;
+    }
     final collection = _collection;
     final filePath = _filePath;
     final hash = _sourceHash;
@@ -1375,6 +1424,9 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
     var shouldRollbackOnFailure = false;
     var srsIdsBefore = <String>{};
     SrsProvider? activeSrsProvider;
+    // P5F-1: non-null once the official saga has committed (official-first
+    // order). Later failure handlers use it to log the reverse half-state.
+    OfficialAnkiImportResult? officialFirstResult;
     final dao = AnkiImportDao(getIt<CourseDatabase>());
     try {
       final courseProvider = context.read<CourseProvider>();
@@ -1447,6 +1499,39 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       // migrator. Rebuild navigation and canonical source from the complete
       // package even for Skip Existing; filtering the collection here used to
       // create an empty successful import when every card already existed.
+
+      // P5F-1: official-first sequencing. Run the official saga BEFORE any
+      // Turna-side write so a failed official import leaves zero Turna rows
+      // (the old order wrote the course tree first and only mirrored into the
+      // official collection afterwards, swallowing failures). Opt-in flag +
+      // real .apkg only; everything else keeps the legacy order.
+      final officialFirst = officialFirstImportEligible(
+        isSample: _isSample,
+        officialCapable: officialCapable,
+        flags: OfficialAnkiFeatureFlags.current,
+        filePath: filePath,
+      );
+      if (officialFirst) {
+        setState(
+          () => _progressMessage = AppStrings.ankiImportingOfficialFirst,
+        );
+        officialFirstResult = await _runOfficialImport(
+          filePath: filePath,
+          importId: importId,
+          hash: hash,
+          cardCount: collection.cards.length,
+        );
+        final state = officialFirstResult?.state;
+        if (officialFirstResult == null ||
+            state != OfficialAnkiSourceState.active) {
+          throw OfficialAnkiException(
+            code: OfficialAnkiErrorCode.invalidState,
+            messageKey: 'official_anki.import_not_active',
+            debugDetails:
+                'official-first import ended in state ${state?.name ?? 'none'}',
+          );
+        }
+      }
 
       late AnkiImportSummary summary;
       var mediaReport = const AnkiMediaCopyReport();
@@ -1603,73 +1688,17 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         _logTiming('import: forceReplace cleanup', cleanupSw);
       }
 
-      // If official engine is enabled and we are importing a real file, sync to official Anki collection & migration record
-      if (!_isSample && !unifiedBegin.noOp) {
+      // If official engine is enabled and we are importing a real file, sync
+      // to official Anki collection & migration record. Skipped when the
+      // official saga already ran first (P5F-1).
+      if (!_isSample && !unifiedBegin.noOp && !officialFirst) {
         try {
-          final flags = OfficialAnkiFeatureFlags.current;
-          final decision = AnkiImportFacade.decisionFor(flags);
-          OfficialAnkiImporter? officialImporter =
-              OfficialAnkiCompositionRoot.session;
-          if (decision == AnkiImportDecision.official &&
-              officialImporter == null) {
-            final support = await getApplicationSupportDirectory();
-            officialImporter =
-                await OfficialAnkiCompositionRoot.requireImporter(
-              supportDir: support,
-            );
-          }
-          final facade = AnkiImportFacade.resolve(
-            flags: flags,
-            officialImporter: officialImporter,
-            legacyImporter: _importer,
+          await _runOfficialImport(
+            filePath: filePath,
+            importId: importId,
+            hash: hash,
+            cardCount: summary.cardCount,
           );
-          if (facade.isOfficial) {
-            final official = await facade.importOfficialOrNull(
-              packagePath: filePath,
-              displayName: filePath.split(RegExp(r'[/\\]')).last,
-            );
-            if (official != null &&
-                official.state == OfficialAnkiSourceState.active) {
-              final support = await getApplicationSupportDirectory();
-              final paths = OfficialAnkiPaths(
-                profileId: 'profile-default-01',
-                profileRoot: Directory('${support.path}/official_anki/default'),
-              );
-              final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog ??
-                  OfficialAnkiDatabase.file(paths.catalogFile.path);
-              try {
-                final migrationDao = OfficialAnkiMigrationDao(catalog);
-                final now = DateTime.now().millisecondsSinceEpoch;
-                final existing = migrationDao.findByLegacyImport(
-                  profileId: paths.profileId,
-                  legacyImportId: importId,
-                );
-                if (existing == null) {
-                  migrationDao.insertObservingOfficial(
-                    migrationId: newOfficialAnkiId('mig'),
-                    profileId: paths.profileId,
-                    legacyImportId: importId,
-                    officialSourceId: official.sourceId,
-                    sourceHash: hash,
-                    nowMillis: now,
-                    cardCount: summary.cardCount,
-                  );
-                } else if (existing.recordedKind != 'official' ||
-                    existing.officialSourceId != official.sourceId) {
-                  migrationDao.setOfficialSourceAndRecordedKind(
-                    migrationId: existing.migrationId,
-                    officialSourceId: official.sourceId,
-                    recordedKind: 'official',
-                    nowMillis: now,
-                  );
-                }
-              } finally {
-                if (OfficialAnkiCompositionRoot.readOnlyCatalog == null) {
-                  catalog.close();
-                }
-              }
-            }
-          }
         } catch (e) {
           debugPrint(
             '[AnkiImport] Official import cutover sync failed/deferred: $e',
@@ -1711,6 +1740,15 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         _step = 4;
       });
     } on AnkiImportCancelled {
+      if (officialFirstResult != null) {
+        // P5F-1 reverse half-state (cancelled variant): official cards are
+        // committed; a retry resumes from the active official source.
+        debugPrint(
+          '[AnkiImport] official import committed '
+          '(source ${officialFirstResult.sourceId}) but Turna writes were '
+          'cancelled; official source stays active for retry',
+        );
+      }
       if (activeSrsProvider != null && activeImportId != null) {
         final addedIds = activeSrsProvider.state.keys
             .where((id) =>
@@ -1748,7 +1786,31 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         _progress = 0;
         _progressMessage = '';
       });
+    } on OfficialAnkiException catch (e) {
+      // P5F-1: the official-first saga runs before any Turna-side write, so
+      // there is nothing to roll back — surface the mapped error only.
+      debugPrint(
+        '[AnkiImport] official-first import failed before Turna writes: $e',
+      );
+      setState(() {
+        _error = _mapOfficialErrorToHuman(e);
+        _step = 2;
+        _progress = 0;
+        _progressMessage = '';
+      });
     } catch (e) {
+      debugPrint('[AnkiImport] import failed: $e');
+      if (officialFirstResult != null) {
+        // P5F-1 reverse half-state: the official collection holds the cards
+        // but the Turna tree/ledger writes failed. The official source stays
+        // active and the saga dedupes by hash, so retrying the import reuses
+        // it instead of duplicating.
+        debugPrint(
+          '[AnkiImport] official import committed '
+          '(source ${officialFirstResult.sourceId}) but Turna writes failed; '
+          'official source stays active and a retry resumes from it',
+        );
+      }
       if (activeSrsProvider != null && activeImportId != null) {
         final addedIds = activeSrsProvider.state.keys
             .where((id) =>
@@ -1789,6 +1851,452 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         'strategy': _strategy.name,
       });
       AnkiImporter.cleanupExtractedDir(collection.mediaDir);
+    }
+  }
+
+  /// Run the official Anki import saga for [filePath] (no bookkeeping).
+  /// Returns null when the facade resolves to the legacy engine; otherwise
+  /// the saga result whose state may be non-active (failed/cancelled).
+  Future<OfficialAnkiImportResult?> _importOfficialPackage(
+    String filePath,
+  ) async {
+    final flags = OfficialAnkiFeatureFlags.current;
+    final decision = AnkiImportFacade.decisionFor(flags);
+    OfficialAnkiImporter? officialImporter =
+        OfficialAnkiCompositionRoot.session;
+    if (decision == AnkiImportDecision.official && officialImporter == null) {
+      final support = await getApplicationSupportDirectory();
+      officialImporter = await OfficialAnkiCompositionRoot.requireImporter(
+        supportDir: support,
+      );
+    }
+    final facade = AnkiImportFacade.resolve(
+      flags: flags,
+      officialImporter: officialImporter,
+      legacyImporter: _importer,
+    );
+    if (!facade.isOfficial) return null;
+    return facade.importOfficialOrNull(
+      packagePath: filePath,
+      displayName: filePath.split(RegExp(r'[/\\]')).last,
+    );
+  }
+
+  /// Write/refresh the legacy↔official migration link for an official source.
+  Future<void> _recordOfficialMigration({
+    required String importId,
+    required OfficialAnkiImportResult official,
+    required String hash,
+    required int cardCount,
+  }) async {
+    final support = await getApplicationSupportDirectory();
+    final paths = OfficialAnkiPaths(
+      profileId: 'profile-default-01',
+      profileRoot: Directory('${support.path}/official_anki/default'),
+    );
+    final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog ??
+        OfficialAnkiDatabase.file(paths.catalogFile.path);
+    try {
+      final migrationDao = OfficialAnkiMigrationDao(catalog);
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final existing = migrationDao.findByLegacyImport(
+        profileId: paths.profileId,
+        legacyImportId: importId,
+      );
+      if (existing == null) {
+        migrationDao.insertObservingOfficial(
+          migrationId: newOfficialAnkiId('mig'),
+          profileId: paths.profileId,
+          legacyImportId: importId,
+          officialSourceId: official.sourceId,
+          sourceHash: hash,
+          nowMillis: now,
+          cardCount: cardCount,
+        );
+      } else if (existing.recordedKind != 'official' ||
+          existing.officialSourceId != official.sourceId) {
+        migrationDao.setOfficialSourceAndRecordedKind(
+          migrationId: existing.migrationId,
+          officialSourceId: official.sourceId,
+          recordedKind: 'official',
+          nowMillis: now,
+        );
+      }
+    } finally {
+      if (OfficialAnkiCompositionRoot.readOnlyCatalog == null) {
+        catalog.close();
+      }
+    }
+  }
+
+  /// Run the official Anki import saga for [filePath] and record the
+  /// legacy↔official migration link. Returns null when the facade resolves
+  /// to the legacy engine; otherwise returns the saga result whose [state]
+  /// may be non-active (failed/cancelled) — callers decide whether that is
+  /// fatal (P5F-1 official-first) or deferrable (legacy mirror order).
+  Future<OfficialAnkiImportResult?> _runOfficialImport({
+    required String filePath,
+    required String importId,
+    required String hash,
+    required int cardCount,
+  }) async {
+    final official = await _importOfficialPackage(filePath);
+    if (official == null) return null;
+    if (official.state != OfficialAnkiSourceState.active) return official;
+    await _recordOfficialMigration(
+      importId: importId,
+      official: official,
+      hash: hash,
+      cardCount: cardCount,
+    );
+    return official;
+  }
+
+  // ─── P5F-2: official-first flow (saga → schema preview → projection) ──
+
+  /// Official-first entry: run the official saga, record the migration link
+  /// (the official tree ids use the sourceId, so it doubles as importId),
+  /// then load the projection-based preview. No Dart apkg parse happens.
+  Future<void> _runOfficialFirstFlow(String path) async {
+    setState(() => _progressMessage = AppStrings.ankiImportingOfficialFirst);
+    try {
+      final official = await _importOfficialPackage(path);
+      final state = official?.state;
+      if (official == null || state != OfficialAnkiSourceState.active) {
+        throw OfficialAnkiException(
+          code: OfficialAnkiErrorCode.invalidState,
+          messageKey: 'official_anki.import_not_active',
+          debugDetails:
+              'official-first import ended in state ${state?.name ?? 'none'}',
+        );
+      }
+      // alreadyImported is also `active`: the dedupe short-circuits here and
+      // the wizard continues to the projection preview (publish is a
+      // fingerprint no-op when nothing changed).
+      final sourceHash =
+          _readOfficialSourceHash(official.sourceId) ?? 'official-unknown';
+      await _recordOfficialMigration(
+        importId: official.sourceId,
+        official: official,
+        hash: sourceHash,
+        cardCount: official.cardCount,
+      );
+      await _loadOfficialPreview(official, sourceHash);
+    } on OfficialAnkiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = _mapOfficialErrorToHuman(e);
+        _step = 0;
+        _progressMessage = '';
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = _mapGeneralErrorToHuman(e);
+        _step = 0;
+        _progressMessage = '';
+      });
+    }
+  }
+
+  String? _readOfficialSourceHash(String sourceId) {
+    final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+    if (catalog != null) {
+      return OfficialAnkiSourceDao(catalog).findById(sourceId)?.sourceHash;
+    }
+    final fallback = OfficialAnkiCourseEntry.catalogOf?.call();
+    if (fallback == null) return null;
+    try {
+      return OfficialAnkiSourceDao(fallback).findById(sourceId)?.sourceHash;
+    } finally {
+      fallback.close();
+    }
+  }
+
+  Future<void> _loadOfficialPreview(
+    OfficialAnkiImportResult official,
+    String sourceHash,
+  ) async {
+    final engine = OfficialAnkiCompositionRoot.projectionEngineFromSession();
+    if (engine == null) {
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.capabilityMissing,
+        messageKey: 'official_anki.importer_not_ready',
+      );
+    }
+    final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog ??
+        OfficialAnkiCourseEntry.catalogOf?.call();
+    if (catalog == null) {
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.capabilityMissing,
+        messageKey: 'official_anki.catalog_missing',
+      );
+    }
+    final service = OfficialAnkiCompositionRoot.createProjectionService(
+      engine: engine,
+      catalog: catalog,
+      course: getIt<CourseDatabase>(),
+      sourceId: official.sourceId,
+      profileId:
+          OfficialAnkiCompositionRoot.locatorPaths?.profileId ??
+              'profile-default-01',
+      flags: OfficialAnkiFeatureFlags.current,
+    );
+    final schemas = await engine.getProjectionSchemas(includeSamples: true);
+    final decks = await engine.listDeckTree();
+    if (!mounted) return;
+    setState(() {
+      _officialSourceId = official.sourceId;
+      _officialSourceHash = sourceHash;
+      _officialCardCount = official.cardCount;
+      _officialNoteCount = official.noteCount;
+      _officialDecks = decks;
+      _officialSchemas = schemas;
+      _officialSuggestions = {
+        for (final schema in schemas)
+          schema.notetypeId: service.suggestFor(schema),
+      };
+      _officialConfirmedNotetypes = {};
+      _officialSkippedNotetypes = {};
+      _officialService = service;
+      _officialNeedsMapping = false;
+      _step = 2;
+      _progress = 0;
+      _progressMessage = '';
+    });
+  }
+
+  /// Projection-based preview: deck list from the official collection,
+  /// per-notetype mapping confirmation, and the dedupe hint instead of the
+  /// four legacy collision strategies (same-hash re-imports no-op in the
+  /// saga).
+  Widget _buildOfficialPreviewStep() {
+    final schemas = _officialSchemas;
+    return Column(
+      children: [
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(color: TurnaTheme.error),
+                  ),
+                ),
+              if (_officialNeedsMapping)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Text(
+                    AppStrings.ankiOfficialNeedsMapping,
+                    style: const TextStyle(color: TurnaTheme.error),
+                  ),
+                ),
+              _SectionCard(
+                icon: Icons.layers_rounded,
+                title: AppStrings.ankiPreviewSectionContent,
+                hint: AppStrings.ankiOfficialPreviewBody,
+                children: [
+                  _StatStrip(
+                    items: [
+                      (AppStrings.ankiDecksLabel, _officialDecks.length),
+                      (AppStrings.ankiNotesLabel, _officialNoteCount),
+                      (AppStrings.ankiCardsLabel, _officialCardCount),
+                    ],
+                  ),
+                  if (_officialDecks.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    const _Subheader(text: '牌组结构'),
+                    const SizedBox(height: 4),
+                    for (final deck in _officialDecks)
+                      _InfoRow(
+                        deck.name,
+                        AppStrings.ankiDeckCardCount(
+                          deck.newCount + deck.learnCount + deck.reviewCount,
+                        ),
+                      ),
+                  ],
+                  const SizedBox(height: 12),
+                  Text(
+                    AppStrings.ankiOfficialDedupeHint,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: TurnaTheme.textSecondaryColor(context),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _SectionCard(
+                icon: Icons.category_rounded,
+                title: AppStrings.ankiPreviewSectionMapping,
+                hint: AppStrings.ankiOfficialMappingHint,
+                children: [
+                  for (final schema in schemas)
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      title: Text(schema.name),
+                      subtitle: Text(
+                        _officialSkippedNotetypes.contains(schema.notetypeId)
+                            ? AppStrings.ankiOfficialMappingSkipped
+                            : _officialConfirmedNotetypes
+                                    .contains(schema.notetypeId)
+                                ? AppStrings.ankiOfficialMappingConfirmed
+                                : AppStrings.ankiOfficialMappingSuggested,
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => _openOfficialMapping(schema),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        _StickyImportBar(onPressed: _executeImport),
+      ],
+    );
+  }
+
+  Future<void> _openOfficialMapping(
+    OfficialAnkiProjectionSchema schema,
+  ) async {
+    final service = _officialService;
+    if (service == null) return;
+    final suggestion =
+        _officialSuggestions[schema.notetypeId] ?? service.suggestFor(schema);
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => OfficialAnkiMappingPage(
+          notetypeName: schema.name,
+          suggestion: suggestion,
+          schema: schema,
+          onConfirm: (next) {
+            service.confirmMapping(schema: schema, suggestion: next);
+            setState(() {
+              _officialSuggestions[schema.notetypeId] = next;
+              _officialConfirmedNotetypes.add(schema.notetypeId);
+              _officialSkippedNotetypes.remove(schema.notetypeId);
+              _officialNeedsMapping = false;
+            });
+          },
+          onSkip: () {
+            service.skipNotetype(schema: schema);
+            setState(() {
+              _officialSkippedNotetypes.add(schema.notetypeId);
+              _officialConfirmedNotetypes.remove(schema.notetypeId);
+            });
+          },
+        ),
+      ),
+    );
+  }
+
+  /// Official-first execution: confirm remaining suggestions (the preview
+  /// offered explicit edits), project the course tree from the official
+  /// collection, publish placements from the projection index, then promote
+  /// the source to a course scope.
+  Future<void> _executeOfficialProjectionImport() async {
+    final service = _officialService;
+    final sourceId = _officialSourceId;
+    final sourceHash = _officialSourceHash;
+    if (service == null || sourceId == null || sourceHash == null) return;
+
+    setState(() {
+      _step = 3;
+      _cancelRequested = false;
+      _progress = 0;
+      _progressMessage = AppStrings.ankiAssemblingCourse;
+    });
+    try {
+      // Proceeding accepts the remaining suggested mappings; skipped
+      // notetypes stay skipped.
+      for (final schema in _officialSchemas) {
+        if (_officialSkippedNotetypes.contains(schema.notetypeId)) continue;
+        if (_officialConfirmedNotetypes.contains(schema.notetypeId)) continue;
+        final suggestion = _officialSuggestions[schema.notetypeId] ??
+            service.suggestFor(schema);
+        service.confirmMapping(schema: schema, suggestion: suggestion);
+        _officialConfirmedNotetypes.add(schema.notetypeId);
+      }
+
+      final result = await service.projectSource();
+      if (result.needsMapping) {
+        if (!mounted) return;
+        setState(() {
+          _officialNeedsMapping = true;
+          _step = 2;
+          _progress = 0;
+          _progressMessage = '';
+        });
+        return;
+      }
+      if (result.failed) {
+        throw OfficialAnkiException(
+          code: OfficialAnkiErrorCode.invalidState,
+          messageKey: 'official_anki.projection_failed',
+          debugDetails: result.errorCode ?? 'unknown',
+        );
+      }
+
+      await UnifiedAnkiImportOrchestrator.instance.publishFromProjection(
+        sourceId: sourceId,
+        sourceHash: sourceHash,
+      );
+
+      final courseProvider = context.read<CourseProvider>();
+      CourseLoader.invalidateCaches();
+      final scope = 'anki:$sourceId';
+      if (courseProvider.courseScope == scope) {
+        await courseProvider.reloadCourse();
+      } else {
+        await courseProvider.setCourseScope(scope);
+      }
+      final scopes = [
+        for (final e in courseProvider.courseEntries) e.scope,
+      ];
+      if (!scopes.contains(scope)) {
+        scopes.add(scope);
+      }
+      await courseProvider.persistCourseOrder(scopes);
+
+      final summary = await OfficialAnkiCourseProjectionStore(
+        getIt<CourseDatabase>(),
+      ).readOfficialProjectionSummary(sourceId);
+      if (!mounted) return;
+      setState(() {
+        _summary = AnkiImportSummary(
+          importId: sourceId,
+          sectionCount: summary.sectionIds.length,
+          unitCount: 0,
+          lessonCount: summary.lessonCount,
+          cardCount: result.itemCount,
+          wordEntryCount: result.itemCount,
+          sourceCardCount: _officialCardCount,
+        );
+        _step = 4;
+        _progress = 0;
+        _progressMessage = '';
+      });
+    } on OfficialAnkiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = _mapOfficialErrorToHuman(e);
+        _step = 2;
+        _progress = 0;
+        _progressMessage = '';
+      });
+    } catch (e) {
+      debugPrint('[AnkiImport] official-first projection failed: $e');
+      if (!mounted) return;
+      setState(() {
+        _error = AppStrings.ankiImportFailed(e);
+        _step = 2;
+        _progress = 0;
+        _progressMessage = '';
+      });
     }
   }
 

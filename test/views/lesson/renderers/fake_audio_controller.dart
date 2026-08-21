@@ -13,6 +13,9 @@ class FakeAudioController implements AudioController {
   double get ttsSpeed => 1.0;
 
   @override
+  Future<bool> playOfficialMediaFile(String rawName) async => false;
+
+  @override
   Future<void> playRandomErrorSound() async {}
 
   @override

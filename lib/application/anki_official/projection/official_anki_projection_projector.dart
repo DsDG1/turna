@@ -43,6 +43,7 @@ class OfficialAnkiProjectedItem {
     required this.lessonName,
     required this.payload,
     required this.sourceFingerprint,
+    this.vocabulary,
   });
 
   final OfficialAnkiProjectionKind kind;
@@ -56,6 +57,26 @@ class OfficialAnkiProjectedItem {
   final String lessonName;
   final Map<String, Object?> payload;
   final String sourceFingerprint;
+
+  /// P5F-33: dictionary-facing term data for this card, when the projected
+  /// values carry a usable term/translation pair. The store writes one
+  /// `vocabulary` row per card (tagged `official:<sourceId>`) so lookups and
+  /// weak-word features see official words the same way legacy imports do.
+  final OfficialAnkiProjectedVocabulary? vocabulary;
+}
+
+class OfficialAnkiProjectedVocabulary {
+  const OfficialAnkiProjectedVocabulary({
+    required this.term,
+    required this.translation,
+    this.pronunciation,
+    this.audioAsset,
+  });
+
+  final String term;
+  final String translation;
+  final String? pronunciation;
+  final String? audioAsset;
 }
 
 class OfficialAnkiProjectionIssue {
@@ -191,6 +212,17 @@ class OfficialAnkiProjectionProjector {
           profileId: profileId,
           cardId: assignedRow.row.cardId,
         );
+        final vocabulary =
+            (values.target.isNotEmpty && values.native.isNotEmpty)
+                ? OfficialAnkiProjectedVocabulary(
+                    term: values.target,
+                    translation: values.native,
+                    pronunciation: values.pronunciation.isNotEmpty
+                        ? values.pronunciation
+                        : null,
+                    audioAsset: values.audio,
+                  )
+                : null;
         for (final kind in kinds) {
           final draft = OfficialAnkiProjectedItem(
             kind: kind,
@@ -204,6 +236,7 @@ class OfficialAnkiProjectionProjector {
             lessonName: lessonName,
             sourceFingerprint: assignedRow.row.sourceFingerprint,
             payload: const <String, Object?>{},
+            vocabulary: vocabulary,
           );
           try {
             items.add(
@@ -224,6 +257,7 @@ class OfficialAnkiProjectionProjector {
                   values: values,
                   sourceId: sourceId,
                 ),
+                vocabulary: vocabulary,
               ),
             );
           } on OfficialAnkiPayloadOverflow {
@@ -247,6 +281,7 @@ class OfficialAnkiProjectionProjector {
                 lessonName: lessonName,
                 sourceFingerprint: assignedRow.row.sourceFingerprint,
                 payload: const <String, Object?>{},
+                vocabulary: vocabulary,
               );
               items.add(
                 OfficialAnkiProjectedItem(
@@ -266,6 +301,7 @@ class OfficialAnkiProjectionProjector {
                     values: values,
                     sourceId: sourceId,
                   ),
+                  vocabulary: vocabulary,
                 ),
               );
             }

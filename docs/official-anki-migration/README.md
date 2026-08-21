@@ -44,6 +44,7 @@
 | 30 | [官方 Anki 卡按语言课体验投影与渲染](./30-course-like-card-experience-plan.md) | 在官方核心之上恢复自动题型识别、语言课渲染、翻面/展开动画；评分仍写官方 Scheduler | **已实施（Host / Unit 验证通过）**；生产默认与 chrome 见 31 |
 | 31 | [Anki 产品体验收口](./31-anki-product-experience-plan.md) | 先打通 Android 生产导入（session/summary/cutover），再课化复习、向导、实验室入口、课程投影、首页 due | **施工规格（未实施）**；第一刀 W2 硬阻断 |
 | 32 | [官方 Anki 与自研体验对齐](./32-official-anki-experience-parity-plan.md) | 官方核心之上对齐自研课壳：题型、课树、复习 renderer、SRS 隔离、产品层、浏览器换源 | **施工规格（未实施）**；第一刀 P0 官方卡不进 Turna SRS |
+| 33 | [P5-F 官方先行导入施工计划](./33-official-first-import-construction-plan.md) | 官方 saga 先行消半态、投影替换 Dart 解析、清理面修复、parity 白名单门禁；opt-in flag 双分支 | **CONSTRUCTION GO（2026-08-22）**；四片 ①③②④ |
 
 
 ## 阶段命名

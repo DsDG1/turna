@@ -11,11 +11,32 @@ class OfficialProjectionSummary {
     required this.sourceId,
     required this.sectionIds,
     required this.itemCount,
+    this.lessonCount = 0,
   });
 
   final String sourceId;
   final Set<String> sectionIds;
   final int itemCount;
+  final int lessonCount;
+}
+
+/// One row of `official_anki_projection_index` (P5F-22 placement anchoring).
+class OfficialAnkiProjectionIndexRow {
+  const OfficialAnkiProjectionIndexRow({
+    required this.cardId,
+    required this.wordId,
+    required this.sectionId,
+    required this.unitId,
+    required this.lessonId,
+    required this.kind,
+  });
+
+  final int cardId;
+  final String wordId;
+  final String sectionId;
+  final String unitId;
+  final String lessonId;
+  final String kind;
 }
 
 /// Source-level CourseDatabase writes for official projection trees.
@@ -36,12 +57,20 @@ class OfficialAnkiCourseProjectionStore {
       'SELECT section_id FROM official_anki_projection_index WHERE source_id = ?',
       variables: [Variable(sourceId)],
     ).get();
+    final manifest = await course.customSelect(
+      'SELECT lesson_count FROM official_anki_projection_manifest '
+      'WHERE source_id = ?',
+      variables: [Variable(sourceId)],
+    ).get();
     return OfficialProjectionSummary(
       sourceId: sourceId,
       sectionIds: {
         for (final row in rows) row.read<String>('section_id'),
       },
       itemCount: rows.length,
+      lessonCount: manifest.isEmpty
+          ? 0
+          : manifest.single.read<int>('lesson_count'),
     );
   }
 
@@ -53,6 +82,15 @@ class OfficialAnkiCourseProjectionStore {
     int publishedAtMillis = 0,
   }) async {
     await course.transaction(() async {
+      // P5F-33: drop the previous projection's vocabulary rows before the
+      // index goes away (word ids are profile-scoped, so this index-driven
+      // delete is the only precise way to clean this source's rows).
+      await course.customStatement(
+        'DELETE FROM vocabulary WHERE id IN '
+        '(SELECT word_id FROM official_anki_projection_index '
+        ' WHERE source_id = ?)',
+        [sourceId],
+      );
       await _deleteOwnedTree(sourceId);
       await course.customStatement(
         'DELETE FROM official_anki_projection_index WHERE source_id = ?',
@@ -151,6 +189,26 @@ class OfficialAnkiCourseProjectionStore {
         );
         statements++;
         tick();
+        final vocab = item.vocabulary;
+        if (vocab != null) {
+          // P5F-33 controlled vocabulary channel: one row per card, tagged
+          // `official:<sourceId>`; built-in and legacy rows are never touched
+          // because ids are the official word ids and deletes are index-driven.
+          await course.customStatement(
+            'INSERT OR REPLACE INTO vocabulary '
+            '(id, term, translation, pronunciation, audio_asset, tags) '
+            "VALUES (?, ?, ?, ?, ?, '[\"official:$sourceId\"]')",
+            [
+              item.wordId,
+              vocab.term,
+              vocab.translation,
+              vocab.pronunciation,
+              vocab.audioAsset,
+            ],
+          );
+          statements++;
+          tick();
+        }
       }
       await course.customStatement(
         'DELETE FROM official_anki_projection_manifest WHERE source_id = ?',
@@ -185,6 +243,12 @@ class OfficialAnkiCourseProjectionStore {
 
   Future<void> deleteOfficialProjection(String sourceId) async {
     await course.transaction(() async {
+      await course.customStatement(
+        'DELETE FROM vocabulary WHERE id IN '
+        '(SELECT word_id FROM official_anki_projection_index '
+        ' WHERE source_id = ?)',
+        [sourceId],
+      );
       await _deleteOwnedTree(sourceId);
       await course.customStatement(
         'DELETE FROM official_anki_projection_index WHERE source_id = ?',
@@ -199,6 +263,30 @@ class OfficialAnkiCourseProjectionStore {
 
   static String lessonContentJson(List<OfficialAnkiProjectedItem> items) {
     return officialAnkiLessonJson(items);
+  }
+
+  /// P5F-22: the projection's own card list with real tree ids and the
+  /// projected presentation kind, in stable card-id order.
+  Future<List<OfficialAnkiProjectionIndexRow>> listIndexRows(
+    String sourceId,
+  ) async {
+    final rows = await course.customSelect(
+      'SELECT card_id, word_id, section_id, unit_id, lesson_id, '
+      'projection_kind FROM official_anki_projection_index '
+      'WHERE source_id = ? ORDER BY card_id',
+      variables: [Variable(sourceId)],
+    ).get();
+    return [
+      for (final row in rows)
+        OfficialAnkiProjectionIndexRow(
+          cardId: row.read<int>('card_id'),
+          wordId: row.read<String>('word_id'),
+          sectionId: row.read<String>('section_id'),
+          unitId: row.read<String>('unit_id'),
+          lessonId: row.read<String>('lesson_id'),
+          kind: row.read<String>('projection_kind'),
+        ),
+    ];
   }
 
   Future<void> _deleteOwnedTree(String sourceId) async {

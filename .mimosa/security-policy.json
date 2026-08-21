@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "threatModel": {
+    "inherit": true,
+    "assets": [],
+    "attackerControlledInputs": [],
+    "trustBoundaries": [],
+    "securityInvariants": [],
+    "exclusions": [
+      "native/turna_anki_core/anki/pylib/tests/test_media.py"
+    ]
+  },
+  "network": {
+    "allowedProtocols": [
+      "https:"
+    ],
+    "allowedHosts": [],
+    "blockPrivateNetworks": true,
+    "maxRedirects": 0
+  },
+  "command": {
+    "forbidShell": false,
+    "allowedBinaries": []
+  },
+  "path": {
+    "allowedWriteRoots": [],
+    "requireBasename": true
+  },
+  "data": {
+    "allowedSortFields": [],
+    "requireOwnerScope": true
+  }
+}

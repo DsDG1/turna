@@ -259,7 +259,13 @@ class OfficialAnkiCompositionRoot {
     );
   }
 
+  /// Test seam: engine used by [projectionEngineFromSession] regardless of
+  /// session state. Production never sets this.
+  static OfficialAnkiEngine? debugEngineOverride;
+
   static OfficialAnkiEngine? projectionEngineFromSession() {
+    final overridden = debugEngineOverride;
+    if (overridden != null) return overridden;
     final current = session;
     if (current is OfficialAnkiInProcessHost) return current.engine;
     if (current is OfficialAnkiSession) {

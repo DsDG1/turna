@@ -61,6 +61,11 @@ abstract class ICourseRepository {
   /// Delete a section and its whole tree (units, lessons, lesson contents).
   Future<void> deleteSection(String sectionId);
 
+  /// Delete the official-Anki course projection tree for [sourceId]
+  /// (sections/units/lessons with `official-anki-<sourceId>-` ids plus the
+  /// projection index/manifest). No-op when no projection exists. P5F-31.
+  Future<void> deleteOfficialProjection(String sourceId);
+
   /// List all recorded Anki imports, most recent first.
   Future<List<db.AnkiImport>> ankiImports();
 }

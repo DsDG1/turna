@@ -255,4 +255,21 @@ class AnkiUnificationDao {
       ],
     );
   }
+
+  /// P5F-31: drop every unification row owned by [courseId] (official source
+  /// uninstall). These tables have no inbound foreign keys, so plain deletes
+  /// in any order are safe inside the caller's flow.
+  Future<void> deleteByCourseId(String courseId) async {
+    for (final table in const [
+      'anki_course_card_placements',
+      'anki_card_presentations',
+      'anki_card_introduction_states',
+      'study_product_events',
+    ]) {
+      await _db.customStatement(
+        'DELETE FROM $table WHERE course_id = ?',
+        [courseId],
+      );
+    }
+  }
 }

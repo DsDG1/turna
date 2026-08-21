@@ -167,7 +167,14 @@ class OfficialAnkiCapabilityMatrix {
     }
   }
 
+  /// Test seam: force the host platform reported by [_hostPlatform] so host
+  /// tests can exercise the android-only production routing. Production code
+  /// never sets this.
+  static String? overrideHostPlatformForTests;
+
   static String _hostPlatform() {
+    final overridden = overrideHostPlatformForTests;
+    if (overridden != null) return overridden;
     if (Platform.isAndroid) return 'android';
     if (Platform.isIOS) return 'ios';
     if (Platform.isLinux) return 'linux';

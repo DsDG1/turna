@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -12,6 +13,9 @@ if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
 from src.application.settings import Settings
+
+# 测试用假 API key：不是可用凭据，也不写成 provider key 形态的字面量。
+_FAKE_API_KEY = os.environ.get("TURNA_TEST_FAKE_API_KEY", "test-key-placeholder")
 from src.backend import ai_config_file as acf
 
 
@@ -39,7 +43,7 @@ class AiConfigFileRoundTripTest(unittest.TestCase):
         s = Settings(
             ai_provider="deepseek",
             ai_base_url="https://api.example.com/v1",
-            ai_api_key="sk-secret-test",
+            ai_api_key=_FAKE_API_KEY,
             ai_model="demo-model",
             ai_timeout=90.0,
             ai_temperature=0.2,
@@ -59,13 +63,13 @@ class AiConfigFileRoundTripTest(unittest.TestCase):
             self.assertTrue(ok, msg)
             raw = json.loads(path.read_text(encoding="utf-8"))
             self.assertEqual(raw["kind"], acf.CONFIG_KIND)
-            self.assertEqual(raw["ai"]["api_key"], "sk-secret-test")
+            self.assertEqual(raw["ai"]["api_key"], _FAKE_API_KEY)
             self.assertEqual(raw["ai"]["model"], "demo-model")
 
             s2 = Settings()
             ok2, msg2 = acf.load_into_settings(path, s2)
             self.assertTrue(ok2, msg2)
-            self.assertEqual(s2.ai_api_key, "sk-secret-test")
+            self.assertEqual(s2.ai_api_key, _FAKE_API_KEY)
             self.assertEqual(s2.ai_base_url, "https://api.example.com/v1")
             self.assertEqual(s2.ai_model, "demo-model")
             self.assertEqual(s2.ai_provider, "deepseek")
@@ -108,7 +112,7 @@ class AiConfigFileRoundTripTest(unittest.TestCase):
             ai_config_file_path=r"C:\Users\me\.turna\ai.json",
             ai_config_file_autoload=True,
             ai_config_file_autosave=False,
-            ai_api_key="should-not-persist",
+            ai_api_key=_FAKE_API_KEY,
         )
         s.save_to_qsettings(qs)
         self.assertEqual(store.get("ai/config_file_path"), r"C:\Users\me\.turna\ai.json")

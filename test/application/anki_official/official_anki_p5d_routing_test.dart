@@ -9,7 +9,6 @@ import 'package:turna/application/anki_official/import/anki_import_facade.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 import 'package:turna/application/anki_official/migration/official_anki_gray_config.dart';
 import 'package:turna/application/anki_official/migration/official_anki_user_allowlist.dart';
-import 'package:turna/application/anki_official/migration/official_anki_new_import_cutover.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_state.dart';
 import 'package:turna/application/anki_official/migration/official_anki_production_router.dart';
@@ -832,7 +831,6 @@ void main() {
   test('p5d_new_official_import_writes_recorded_kind', () {
     const hash =
         'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789';
-    expect(OfficialAnkiNewImportCutover.importIdForSourceHash(hash), 'g1abcdef0123');
     expect(isFixturePilotSource(importId: 'g1abcdef0123'), isFalse);
     expect(isUserAllowlistedSource(importId: 'g1abcdef0123', sourceHash: hash), isFalse);
 
