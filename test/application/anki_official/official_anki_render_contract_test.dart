@@ -15,7 +15,7 @@ void main() {
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.renderCard), 10);
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.compareTypedAnswer), 22);
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.extractClozeForTyping), 23);
-    expect(kOfficialAnkiContractMinor, 3);
+    expect(kOfficialAnkiContractMinor, 4);
     for (final name in OfficialAnkiOperation.productionNames) {
       expect(doc.contains('| ${OfficialAnkiOperation.idFor(name)} | $name |'), isTrue);
     }
@@ -144,7 +144,7 @@ void main() {
     expect(caps, contains('RENDER_CARD'));
     expect(caps, contains('COMPARE_TYPED_ANSWER'));
     expect(caps, contains('EXTRACT_CLOZE_FOR_TYPING'));
-    expect((decoded['payload'] as Map)['contractMinor'], 3);
+    expect((decoded['payload'] as Map)['contractMinor'], 4);
     expect(caps, contains('GET_PROJECTION_SCHEMAS'));
   });
 }

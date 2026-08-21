@@ -109,5 +109,11 @@ abstract class OfficialAnkiEngine {
     int? deckId,
   });
 
+  /// Hard-delete for one imported source: removes [noteIds] and every card
+  /// that uses them from the official collection. Returns the number of
+  /// cards removed. Note-scoped so decks shared with other sources keep the
+  /// cards they own.
+  Future<int> deleteNotes(List<int> noteIds);
+
   Future<void> dispose();
 }

@@ -1,7 +1,10 @@
 // Project imports:
+import 'package:turna/application/anki/card_introduction_eligibility.dart';
+import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/data/anki_note_dao.dart';
+import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/data/course_repository.dart';
 import 'package:turna/data/review_history_dao.dart';
 import 'package:turna/domain/audio/anki_audio_resolver.dart';
@@ -9,8 +12,8 @@ import 'package:turna/domain/audio/anki_audio_resolver.dart';
 /// Removes every persisted resource belonging to one Anki import.
 ///
 /// Keeping this operation in one place prevents force-replace/uninstall paths
-/// from leaving SRS rows, review history, NoteStore snapshots, media, or
-/// decrypted HTML behind.
+/// from leaving SRS rows, review history, NoteStore snapshots, media,
+/// decrypted HTML, unification rows, or mistake-log entries behind.
 class AnkiImportCleanupService {
   final CourseRepository repository;
   final SrsProvider srsProvider;
@@ -18,6 +21,8 @@ class AnkiImportCleanupService {
   final AnkiNoteDao noteDao;
   final ReviewHistoryDao reviewHistoryDao;
   final AnkiAudioResolver audioResolver;
+  final AnkiUnificationDao? unificationDao;
+  final MistakeProvider? mistakeProvider;
 
   const AnkiImportCleanupService({
     required this.repository,
@@ -26,6 +31,8 @@ class AnkiImportCleanupService {
     required this.noteDao,
     required this.reviewHistoryDao,
     required this.audioResolver,
+    this.unificationDao,
+    this.mistakeProvider,
   });
 
   Future<void> deleteAll(String importId) async {
@@ -39,9 +46,13 @@ class AnkiImportCleanupService {
     final prefix = 'anki-$importId-';
     await srsProvider.removeByPrefix(prefix);
     await reviewHistoryDao.deleteByCardPrefix(prefix);
+    await unificationDao?.deleteByCourseId(
+      CardIntroductionEligibility.courseIdForLegacyImport(importId),
+    );
     await noteDao.deleteByImport(importId);
     await noteDao.deletePrerenderedByPrefix(prefix);
     await audioResolver.deleteImportMedia(importId);
     await importDao.delete(importId);
+    await mistakeProvider?.removeForAnkiDeletion(idPrefixes: [prefix]);
   }
 }

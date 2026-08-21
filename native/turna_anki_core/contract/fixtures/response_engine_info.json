@@ -1,12 +1,15 @@
 {
-  "contractVersion": { "major": 1, "minor": 3 },
+  "contractVersion": {
+    "major": 1,
+    "minor": 4
+  },
   "requestId": "01JENGINEINFO",
   "ok": true,
   "payload": {
     "abiVersion": 1,
     "backendCommit": "967aa0d578fc75181e292e95326f9b58698da25c",
     "contractMajor": 1,
-    "contractMinor": 3,
+    "contractMinor": 4,
     "capabilities": [
       "ENGINE_INFO",
       "OPEN_COLLECTION",
@@ -35,7 +38,8 @@
       "REDO",
       "BURY_OR_SUSPEND_CARDS",
       "COUNTS_FOR_DECK_TODAY",
-      "CONGRATS_INFO"
+      "CONGRATS_INFO",
+      "DELETE_NOTES"
     ]
   },
   "error": null,

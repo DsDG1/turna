@@ -9,18 +9,19 @@
 // coverage:ignore-file
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'dart:async' as _i40;
+import 'dart:async' as _i41;
 
 import 'package:auto_route/auto_route.dart' as _i33;
-import 'package:collection/collection.dart' as _i43;
+import 'package:collection/collection.dart' as _i44;
 import 'package:flutter/foundation.dart' as _i36;
 import 'package:flutter/material.dart' as _i34;
 import 'package:turna/application/ai/ai_hint_provider.dart' as _i35;
-import 'package:turna/domain/course/mistake_entry.dart' as _i37;
-import 'package:turna/domain/review/recall_outcome.dart' as _i41;
-import 'package:turna/domain/review/review_item.dart' as _i38;
-import 'package:turna/domain/review/review_ledger.dart' as _i42;
-import 'package:turna/domain/review/review_ledger_resolver.dart' as _i39;
+import 'package:turna/application/anki/anki_importer.dart' as _i37;
+import 'package:turna/domain/course/mistake_entry.dart' as _i38;
+import 'package:turna/domain/review/recall_outcome.dart' as _i42;
+import 'package:turna/domain/review/review_item.dart' as _i39;
+import 'package:turna/domain/review/review_ledger.dart' as _i43;
+import 'package:turna/domain/review/review_ledger_resolver.dart' as _i40;
 import 'package:turna/views/ai/ai_diagnosis_page.dart' as _i2;
 import 'package:turna/views/ai/ai_feature_guide_page.dart' as _i3;
 import 'package:turna/views/ai/ai_hint_chat_page.dart' as _i4;
@@ -358,10 +359,15 @@ class AnkiImportRoute extends _i33.PageRouteInfo<AnkiImportRouteArgs> {
   AnkiImportRoute({
     _i36.Key? key,
     bool startWithSample = false,
+    _i37.AnkiImporter? importerForTest,
     List<_i33.PageRouteInfo>? children,
   }) : super(
           AnkiImportRoute.name,
-          args: AnkiImportRouteArgs(key: key, startWithSample: startWithSample),
+          args: AnkiImportRouteArgs(
+            key: key,
+            startWithSample: startWithSample,
+            importerForTest: importerForTest,
+          ),
           initialChildren: children,
         );
 
@@ -376,32 +382,42 @@ class AnkiImportRoute extends _i33.PageRouteInfo<AnkiImportRouteArgs> {
       return _i11.AnkiImportPage(
         key: args.key,
         startWithSample: args.startWithSample,
+        importerForTest: args.importerForTest,
       );
     },
   );
 }
 
 class AnkiImportRouteArgs {
-  const AnkiImportRouteArgs({this.key, this.startWithSample = false});
+  const AnkiImportRouteArgs({
+    this.key,
+    this.startWithSample = false,
+    this.importerForTest,
+  });
 
   final _i36.Key? key;
 
   final bool startWithSample;
 
+  final _i37.AnkiImporter? importerForTest;
+
   @override
   String toString() {
-    return 'AnkiImportRouteArgs{key: $key, startWithSample: $startWithSample}';
+    return 'AnkiImportRouteArgs{key: $key, startWithSample: $startWithSample, importerForTest: $importerForTest}';
   }
 
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
     if (other is! AnkiImportRouteArgs) return false;
-    return key == other.key && startWithSample == other.startWithSample;
+    return key == other.key &&
+        startWithSample == other.startWithSample &&
+        importerForTest == other.importerForTest;
   }
 
   @override
-  int get hashCode => key.hashCode ^ startWithSample.hashCode;
+  int get hashCode =>
+      key.hashCode ^ startWithSample.hashCode ^ importerForTest.hashCode;
 }
 
 /// generated route for
@@ -591,7 +607,7 @@ class MistakePracticeRoute
     extends _i33.PageRouteInfo<MistakePracticeRouteArgs> {
   MistakePracticeRoute({
     _i34.Key? key,
-    required _i37.MistakeEntry entry,
+    required _i38.MistakeEntry entry,
     List<_i33.PageRouteInfo>? children,
   }) : super(
           MistakePracticeRoute.name,
@@ -615,7 +631,7 @@ class MistakePracticeRouteArgs {
 
   final _i34.Key? key;
 
-  final _i37.MistakeEntry entry;
+  final _i38.MistakeEntry entry;
 
   @override
   String toString() {
@@ -797,12 +813,12 @@ class TextbookImportRoute extends _i33.PageRouteInfo<void> {
 class UnifiedReviewRoute extends _i33.PageRouteInfo<UnifiedReviewRouteArgs> {
   UnifiedReviewRoute({
     _i34.Key? key,
-    required List<_i38.ReviewItem> items,
-    required _i39.ReviewLedgerResolver ledgerResolver,
+    required List<_i39.ReviewItem> items,
+    required _i40.ReviewLedgerResolver ledgerResolver,
     String? title,
-    _i40.Future<void> Function(_i38.ReviewItem, _i41.RecallOutcome)?
+    _i41.Future<void> Function(_i39.ReviewItem, _i42.RecallOutcome)?
         onOutcomeRecorded,
-    _i40.Future<void> Function(_i42.ReviewEventReceipt)? onOutcomeUndone,
+    _i41.Future<void> Function(_i43.ReviewEventReceipt)? onOutcomeUndone,
     List<_i33.PageRouteInfo>? children,
   }) : super(
           UnifiedReviewRoute.name,
@@ -847,16 +863,16 @@ class UnifiedReviewRouteArgs {
 
   final _i34.Key? key;
 
-  final List<_i38.ReviewItem> items;
+  final List<_i39.ReviewItem> items;
 
-  final _i39.ReviewLedgerResolver ledgerResolver;
+  final _i40.ReviewLedgerResolver ledgerResolver;
 
   final String? title;
 
-  final _i40.Future<void> Function(_i38.ReviewItem, _i41.RecallOutcome)?
+  final _i41.Future<void> Function(_i39.ReviewItem, _i42.RecallOutcome)?
       onOutcomeRecorded;
 
-  final _i40.Future<void> Function(_i42.ReviewEventReceipt)? onOutcomeUndone;
+  final _i41.Future<void> Function(_i43.ReviewEventReceipt)? onOutcomeUndone;
 
   @override
   String toString() {
@@ -868,7 +884,7 @@ class UnifiedReviewRouteArgs {
     if (identical(this, other)) return true;
     if (other is! UnifiedReviewRouteArgs) return false;
     return key == other.key &&
-        const _i43.ListEquality<_i38.ReviewItem>().equals(items, other.items) &&
+        const _i44.ListEquality<_i39.ReviewItem>().equals(items, other.items) &&
         ledgerResolver == other.ledgerResolver &&
         title == other.title;
   }
@@ -876,7 +892,7 @@ class UnifiedReviewRouteArgs {
   @override
   int get hashCode =>
       key.hashCode ^
-      const _i43.ListEquality<_i38.ReviewItem>().hash(items) ^
+      const _i44.ListEquality<_i39.ReviewItem>().hash(items) ^
       ledgerResolver.hashCode ^
       title.hashCode;
 }

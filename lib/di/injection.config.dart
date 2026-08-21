@@ -56,6 +56,7 @@ import '../application/theme_provider.dart' as _i151;
 import '../courses/languages/vocab_audio_resolver.dart' as _i73;
 import '../data/anki_import_dao.dart' as _i151;
 import '../data/anki_note_dao.dart' as _i696;
+import '../data/anki_unification_dao.dart' as _i1073;
 import '../data/course_database.dart' as _i604;
 import '../data/course_repository.dart' as _i848;
 import '../data/review_history_dao.dart' as _i68;
@@ -262,6 +263,9 @@ extension GetItInjectableX on _i174.GetIt {
           noteDao: gh<_i696.AnkiNoteDao>(),
           appPrefs: gh<_i523.AppPrefs>(),
           audioResolver: gh<_i180.AnkiAudioResolver>(),
+          unificationDao: gh<_i1073.AnkiUnificationDao>(),
+          mistakeProvider: gh<_i551.MistakeProvider>(),
+          reviewHistoryDao: gh<_i68.ReviewHistoryDao>(),
         ));
     gh.lazySingleton<_i495.LessonCompletionCoordinator>(
         () => _i495.LessonCompletionCoordinator(

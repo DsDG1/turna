@@ -18,8 +18,8 @@ import 'package:turna/views/anki_official/official_anki_review_page.dart';
 import 'official_anki_formal_review_ack_test.dart' show officialFormalReviewPresenter;
 
 void main() {
-  test('contract 1.3 publishes scheduler operations 11-16 and 27-30', () {
-    expect(kOfficialAnkiContractMinor, 3);
+  test('contract 1.4 publishes scheduler operations 11-16 and 27-31', () {
+    expect(kOfficialAnkiContractMinor, 4);
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.setCurrentDeck), 11);
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.getReviewQueue), 12);
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.describeNextStates), 13);
@@ -30,6 +30,7 @@ void main() {
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.buryOrSuspendCards), 28);
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.countsForDeckToday), 29);
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.congratsInfo), 30);
+    expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.deleteNotes), 31);
     expect(
       OfficialAnkiOperation.productionNames,
       containsAll([
@@ -41,6 +42,7 @@ void main() {
         'BURY_OR_SUSPEND_CARDS',
         'COUNTS_FOR_DECK_TODAY',
         'CONGRATS_INFO',
+        'DELETE_NOTES',
       ]),
     );
     final golden = jsonDecode(
@@ -50,7 +52,8 @@ void main() {
     final caps = (golden['payload'] as Map)['capabilities'] as List;
     expect(caps, contains('GET_REVIEW_QUEUE'));
     expect(caps, contains('REDO'));
-    expect(File('native/turna_anki_core/contract/VERSION').readAsStringSync().trim(), '1.3');
+    expect(caps, contains('DELETE_NOTES'));
+    expect(File('native/turna_anki_core/contract/VERSION').readAsStringSync().trim(), '1.4');
   });
 
   test('fake queue tokens are opaque and single-use', () async {

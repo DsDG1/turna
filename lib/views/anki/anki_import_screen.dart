@@ -47,10 +47,12 @@ import 'package:turna/application/anki/anki_notetype_ai.dart';
 import 'package:turna/application/anki/anki_srs_migrator.dart';
 import 'package:turna/application/anki/unified_anki_import_orchestrator.dart';
 import 'package:turna/application/course_provider.dart';
+import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/data/anki_note_dao.dart';
+import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/data/course_repository.dart';
 import 'package:turna/data/review_history_dao.dart';
@@ -1444,6 +1446,8 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         noteDao: noteDao,
         reviewHistoryDao: getIt<ReviewHistoryDao>(),
         audioResolver: AnkiAudioResolver(),
+        unificationDao: AnkiUnificationDao(database),
+        mistakeProvider: getIt<MistakeProvider>(),
       );
 
       // Re-imports of the same file reuse the previous importId so card ids
@@ -2315,6 +2319,8 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       noteDao: AnkiNoteDao(getIt<CourseDatabase>()),
       reviewHistoryDao: getIt<ReviewHistoryDao>(),
       audioResolver: AnkiAudioResolver(),
+      unificationDao: AnkiUnificationDao(getIt<CourseDatabase>()),
+      mistakeProvider: getIt<MistakeProvider>(),
     ).deleteAll(importId);
   }
 

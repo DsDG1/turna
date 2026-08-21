@@ -134,4 +134,72 @@ void main() {
       expect(corrupted.count, 0);
     });
   });
+
+  group('removeForAnkiDeletion', () {
+    MistakeEntry ankiEntry(
+      String id, {
+      required String lessonId,
+      String? wordId,
+    }) =>
+        entry(id: id, wordId: wordId).copyWith(lessonId: lessonId);
+
+    test('legacy prefix removes word-id and lesson-id entries, keeps others',
+        () async {
+      await mistakes.record(ankiEntry(
+        'm-course',
+        lessonId: 'anki-user-u1-l0-s0', // course-path mistake (wordId null)
+      ));
+      await mistakes.record(ankiEntry(
+        'm-review',
+        lessonId: 'srs-review',
+        wordId: 'anki-user-c42', // unified-review mistake
+      ));
+      await mistakes.record(ankiEntry(
+        'm-sibling',
+        lessonId: 'anki-user2-u1-l0-s0',
+        wordId: 'anki-user2-c42', // prefix sibling must survive
+      ));
+      await mistakes.record(entry(id: 'm-builtin', wordId: 'word-7'));
+
+      await mistakes.removeForAnkiDeletion(idPrefixes: ['anki-user-']);
+
+      expect(mistakes.entries.map((e) => e.id), {'m-sibling', 'm-builtin'});
+    });
+
+    test('official card ids catch word ids without the sourceId', () async {
+      await mistakes.record(ankiEntry(
+        'm-practice',
+        lessonId: 'official-review',
+        wordId: 'official-anki-review-c31', // practice-review format
+      ));
+      await mistakes.record(ankiEntry(
+        'm-projection',
+        lessonId: 'official-anki-src-o-l1-p1',
+        wordId: 'official-anki-a1b2c3d4e5f6-c31', // projection format
+      ));
+      await mistakes.record(ankiEntry(
+        'm-unified',
+        lessonId: 'srs-review',
+        wordId: 'official-anki-src-o-c31', // ledger format (prefix-matched)
+      ));
+      await mistakes.record(ankiEntry(
+        'm-other-card',
+        lessonId: 'official-review',
+        wordId: 'official-anki-review-c99',
+      ));
+
+      await mistakes.removeForAnkiDeletion(
+        idPrefixes: ['official-anki-src-o-'],
+        cardIds: const {31},
+      );
+
+      expect(mistakes.entries.map((e) => e.id), {'m-other-card'});
+    });
+
+    test('no prefixes and no card ids is a no-op', () async {
+      await mistakes.record(entry(id: 'm-1'));
+      await mistakes.removeForAnkiDeletion();
+      expect(mistakes.count, 1);
+    });
+  });
 }

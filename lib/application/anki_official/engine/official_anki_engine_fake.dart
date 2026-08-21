@@ -37,7 +37,8 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
   final missingOnRead = <int>{};
   var emitDuplicateRows = false;
   var invalidateSnapshotOnRead = false;
-  var projectionSchemaFingerprint = 'fake-basic';
+  final projectionSchemaFingerprint = 'fake-basic';
+  final deletedNoteIds = <int>{};
 
   void seedPackage({
     required String packagePath,
@@ -123,6 +124,7 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
         OfficialAnkiOperation.buryOrSuspendCards,
         OfficialAnkiOperation.countsForDeckToday,
         OfficialAnkiOperation.congratsInfo,
+        OfficialAnkiOperation.deleteNotes,
       },
     );
   }
@@ -680,6 +682,28 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
     }
     OfficialAnkiSchedulerAudit.officialSchedulerBurySuspend += 1;
     _invalidateTokens();
+  }
+
+  @override
+  Future<int> deleteNotes(List<int> noteIds) async {
+    final noteIdSet = noteIds.toSet();
+    final removedCards = <int>[];
+    cards.removeWhere((cardId, card) {
+      if (!noteIdSet.contains(card.noteId)) return false;
+      removedCards.add(cardId);
+      return true;
+    });
+    cardsByNote.removeWhere((noteId, _) => noteIdSet.contains(noteId));
+    for (final cardId in removedCards) {
+      buried.remove(cardId);
+      suspended.remove(cardId);
+      answeredIds.remove(cardId);
+    }
+    deletedNoteIds.addAll(noteIdSet);
+    collectionGeneration += 1;
+    projectionToken = null;
+    _invalidateTokens();
+    return removedCards.length;
   }
 
   void _invalidateTokens() {

@@ -13,7 +13,7 @@ use crate::engine;
 use crate::errors;
 
 pub const CONTRACT_MAJOR: u32 = 1;
-pub const CONTRACT_MINOR: u32 = 3;
+pub const CONTRACT_MINOR: u32 = 4;
 pub const OP_ENGINE_INFO: u32 = 1;
 const MAX_REQUEST_ID_BYTES: usize = 128;
 const MAX_ENVELOPE_PAYLOAD_BYTES: usize = 1_048_576;
@@ -137,7 +137,8 @@ pub fn engine_info_payload() -> Value {
             "REDO",
             "BURY_OR_SUSPEND_CARDS",
             "COUNTS_FOR_DECK_TODAY",
-            "CONGRATS_INFO"
+            "CONGRATS_INFO",
+            "DELETE_NOTES"
         ],
     })
 }
@@ -206,6 +207,7 @@ fn operation_name_to_id(name: &str) -> Option<u32> {
         "BURY_OR_SUSPEND_CARDS" => Some(engine::OP_BURY_OR_SUSPEND_CARDS),
         "COUNTS_FOR_DECK_TODAY" => Some(engine::OP_COUNTS_FOR_DECK_TODAY),
         "CONGRATS_INFO" => Some(engine::OP_CONGRATS_INFO),
+        "DELETE_NOTES" => Some(engine::OP_DELETE_NOTES),
         _ => None,
     }
 }

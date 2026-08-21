@@ -73,6 +73,7 @@ pub const OP_REDO: u32 = 27;
 pub const OP_BURY_OR_SUSPEND_CARDS: u32 = 28;
 pub const OP_COUNTS_FOR_DECK_TODAY: u32 = 29;
 pub const OP_CONGRATS_INFO: u32 = 30;
+pub const OP_DELETE_NOTES: u32 = 31;
 pub const STATUS_REDO_UNAVAILABLE: i32 = 37;
 pub const STATUS_DECK_NOT_FOUND: i32 = 38;
 pub const STATUS_SCHEDULER_BUSY: i32 = 39;

@@ -297,10 +297,11 @@ WHERE source_id = ? AND state = ?
         .toList();
   }
 
-  /// P5F-31: soft-uninstall bookkeeping for one source. Deletes every catalog
-  /// row owned by the source in foreign-key-safe order; the official Anki
-  /// collection itself keeps its cards (the user can re-project from source
-  /// management). Projection mappings are profile-wide per notetype and stay.
+  /// P5F-31: catalog bookkeeping for one source. Deletes every catalog row
+  /// owned by the source in foreign-key-safe order. The caller (hard
+  /// uninstall) removes the source's notes/cards from the official Anki
+  /// collection first, then drops these rows. Projection mappings are
+  /// profile-wide per notetype and stay.
   /// Returns true when the source row existed.
   bool deleteSource({
     required String profileId,

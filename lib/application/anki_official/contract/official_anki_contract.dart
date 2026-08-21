@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 
 const int kOfficialAnkiContractMajor = 1;
-const int kOfficialAnkiContractMinor = 3;
+const int kOfficialAnkiContractMinor = 4;
 
 abstract final class OfficialAnkiOperation {
   static const engineInfo = 'ENGINE_INFO';
@@ -35,6 +35,7 @@ abstract final class OfficialAnkiOperation {
   static const buryOrSuspendCards = 'BURY_OR_SUSPEND_CARDS';
   static const countsForDeckToday = 'COUNTS_FOR_DECK_TODAY';
   static const congratsInfo = 'CONGRATS_INFO';
+  static const deleteNotes = 'DELETE_NOTES';
 
   static const engineInfoId = 1;
   static const openCollectionId = 2;
@@ -65,6 +66,7 @@ abstract final class OfficialAnkiOperation {
   static const buryOrSuspendCardsId = 28;
   static const countsForDeckTodayId = 29;
   static const congratsInfoId = 30;
+  static const deleteNotesId = 31;
 
   static const productionNames = <String>{
     engineInfo,
@@ -96,6 +98,7 @@ abstract final class OfficialAnkiOperation {
     buryOrSuspendCards,
     countsForDeckToday,
     congratsInfo,
+    deleteNotes,
   };
 
   static int idFor(String name) {
@@ -158,6 +161,8 @@ abstract final class OfficialAnkiOperation {
         return countsForDeckTodayId;
       case congratsInfo:
         return congratsInfoId;
+      case deleteNotes:
+        return deleteNotesId;
       default:
         throw OfficialAnkiException(
           code: OfficialAnkiErrorCode.invalidArgument,

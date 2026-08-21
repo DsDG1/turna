@@ -1,6 +1,7 @@
 // P5F-3 cleanup-surface tests: catalog deleteSource, seeder reseed guard
 // for projection tables, uninstall routing (+ legacy substring regression),
-// and the projection vocabulary channel.
+// the projection vocabulary channel, and the hard-uninstall surface
+// (official collection deleteNotes + app-side records + mistake log).
 
 // Dart imports:
 import 'dart:convert';
@@ -13,7 +14,11 @@ import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:turna/application/anki/anki_deck_manager.dart';
+import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
+import 'package:turna/application/anki_official/engine/official_anki_engine_fake.dart';
+import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/lesson_link_store.dart';
+import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_projector.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_store.dart';
@@ -25,8 +30,12 @@ import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/data/course_database_seeder.dart';
 import 'package:turna/data/course_repository.dart';
+import 'package:turna/data/review_history_dao.dart';
 import 'package:turna/data/srs_state_dao.dart';
 import 'package:turna/domain/anki/canonical_card_key.dart';
+import 'package:turna/domain/anki/card_introduction_state.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/domain/course/mistake_entry.dart';
 import 'package:turna/domain/repositories/i_course_repository.dart';
 import 'package:turna/service/locator.dart';
 
@@ -388,6 +397,233 @@ void main() {
             db, 'SELECT COUNT(*) AS n FROM official_anki_projection_index'),
         0,
       );
+    });
+  });
+
+  group('hard uninstall', () {
+    late CourseDatabase db;
+    late AnkiDeckManager manager;
+    late MistakeProvider mistakes;
+    late ReviewHistoryDao reviewHistory;
+    late AnkiUnificationDao unification;
+    late OfficialAnkiDatabase catalog;
+    late FakeOfficialAnkiEngine engine;
+
+    setUp(() async {
+      ensurePathProviderMockForTest();
+      SharedPreferences.setMockInitialValues({});
+      final preferences = await StreamingSharedPreferences.instance;
+      final appPrefs = AppPrefs(preferences);
+      await appPrefs.preferences.setString(LocalStateKeys.mistakeLog, '[]');
+      db = CourseDatabase(NativeDatabase.memory());
+      mistakes = MistakeProvider(appPrefs);
+      reviewHistory = ReviewHistoryDao(db);
+      unification = AnkiUnificationDao(db);
+      final getIt = GetIt.instance;
+      await getIt.reset();
+      final repo = CourseRepository(db);
+      getIt.registerSingleton<ICourseRepository>(repo);
+      getIt.registerSingleton<AnkiImportDao>(AnkiImportDao(db));
+      getIt.registerSingleton<AnkiNoteDao>(AnkiNoteDao(db));
+      getIt.registerSingleton<AnkiUnificationDao>(unification);
+      manager = AnkiDeckManager(
+        repo: repo,
+        srsProvider: SrsProvider(
+          appPrefs,
+          LessonLinkStore(appPrefs),
+          SrsStateDao(db),
+        ),
+        importDao: getIt<AnkiImportDao>(),
+        noteDao: getIt<AnkiNoteDao>(),
+        appPrefs: appPrefs,
+        unificationDao: unification,
+        mistakeProvider: mistakes,
+        reviewHistoryDao: reviewHistory,
+      );
+
+      catalog = OfficialAnkiDatabase.memory();
+      OfficialAnkiCompositionRoot.readOnlyCatalog = catalog;
+      engine = FakeOfficialAnkiEngine();
+      OfficialAnkiCompositionRoot.debugEngineOverride = engine;
+    });
+
+    tearDown(() async {
+      OfficialAnkiCompositionRoot.debugEngineOverride = null;
+      OfficialAnkiCompositionRoot.readOnlyCatalog = null;
+      OfficialAnkiCompositionRoot.locatorPaths = null;
+      catalog.close();
+      await db.close();
+      await GetIt.instance.reset();
+    });
+
+    MistakeEntry mistake(
+      String id, {
+      required String lessonId,
+      String? wordId,
+    }) =>
+        MistakeEntry(
+          id: id,
+          lessonId: lessonId,
+          stageId: 'stage-1',
+          interactionId: 'item-$id',
+          wordId: wordId,
+          interactionSnapshot: Interaction.multipleChoice(
+            id: 'item-$id',
+            prompt: 'Pick one',
+            options: const ['a', 'b'],
+            correctIndex: 0,
+          ),
+          userAnswer: 'wrong',
+          correctAnswer: 'a',
+          timestamp: DateTime(2026, 8, 1),
+        );
+
+    test('official source uninstall deletes collection notes and mistakes',
+        () async {
+      final sources = OfficialAnkiSourceDao(catalog);
+      sources.upsertSource(
+        sourceId: 'src-h',
+        profileId: 'profile-default-01',
+        sourceHash: 'hash-h',
+        sourceSize: 10,
+        displayName: 'deck',
+        state: 'active',
+        backendCommit: 'test',
+        nowMillis: 1,
+      );
+      sources.replaceCards(
+        sourceId: 'src-h',
+        cards: const [
+          OfficialAnkiCardDescriptor(
+            cardId: 51,
+            noteId: 500,
+            deckId: 1,
+            templateOrd: 0,
+          ),
+          OfficialAnkiCardDescriptor(
+            cardId: 52,
+            noteId: 501,
+            deckId: 1,
+            templateOrd: 0,
+          ),
+        ],
+      );
+      await OfficialAnkiCourseProjectionStore(db).replaceOfficialProjection(
+        sourceId: 'src-h',
+        plan: OfficialAnkiProjectionPlan(
+          items: [_item('src-h', 51)],
+          issues: const [],
+        ),
+        sourceFingerprint: 'fp-h',
+      );
+      await mistakes.record(mistake(
+        'm-practice',
+        lessonId: 'official-review',
+        wordId: 'official-anki-review-c51',
+      ));
+      await mistakes.record(mistake(
+        'm-course',
+        lessonId: 'official-anki-src-h-l1-p1', // course path, wordId null
+      ));
+      await mistakes.record(mistake(
+        'm-kept',
+        lessonId: 'official-review',
+        wordId: 'official-anki-review-c77',
+      ));
+
+      await manager.uninstall('src-h');
+
+      expect(engine.deletedNoteIds, const {500, 501});
+      expect(
+        catalog.handle
+            .select('SELECT COUNT(*) AS n FROM anki_sources')
+            .first['n'],
+        0,
+      );
+      expect(
+        catalog.handle
+            .select('SELECT COUNT(*) AS n FROM anki_source_cards')
+            .first['n'],
+        0,
+      );
+      expect(mistakes.entries.map((e) => e.id), {'m-kept'});
+    });
+
+    test('legacy deck uninstall deletes records, history, and mistakes',
+        () async {
+      await db.customStatement(
+        "INSERT INTO sections (id, name, level, sort_order) VALUES "
+        "('anki-user-s1', 'User', 'Anki', 0)",
+      );
+      await reviewHistory.insertEvent(ReviewEventRecord(
+        cardId: 'anki-user-c5',
+        queue: 'new',
+        reviewedAt: DateTime(2026, 8, 1),
+        quality: 2,
+        prevIntervalDays: 0,
+        nextIntervalDays: 1,
+        prevEase: 2.5,
+        nextEase: 2.5,
+        reps: 1,
+        lapses: 1,
+      ));
+      await reviewHistory.insertEvent(ReviewEventRecord(
+        cardId: 'anki-user2-c5',
+        queue: 'new',
+        reviewedAt: DateTime(2026, 8, 1),
+        quality: 2,
+        prevIntervalDays: 0,
+        nextIntervalDays: 1,
+        prevEase: 2.5,
+        nextEase: 2.5,
+        reps: 1,
+        lapses: 1,
+      ));
+      await unification.upsertIntroduction(
+        courseId: 'anki-user',
+        key: const CanonicalCardKey(
+          backend: AnkiBackendKind.legacyTurna,
+          profileId: 'profile-default-01',
+          sourceId: 'user',
+          cardId: 5,
+        ),
+        status: CardIntroductionStatus.introduced,
+      );
+      await mistakes.record(mistake(
+        'm-course',
+        lessonId: 'anki-user-u1-l0-s0',
+      ));
+      await mistakes.record(mistake(
+        'm-review',
+        lessonId: 'srs-review',
+        wordId: 'anki-user-c5',
+      ));
+      await mistakes.record(mistake(
+        'm-sibling',
+        lessonId: 'anki-user2-u1-l0-s0',
+      ));
+
+      await manager.uninstallDeck('user');
+
+      expect(
+        await _count(
+            db, "SELECT COUNT(*) AS n FROM review_events WHERE card_id = 'anki-user-c5'"),
+        0,
+      );
+      expect(
+        await _count(
+            db, "SELECT COUNT(*) AS n FROM review_events WHERE card_id = 'anki-user2-c5'"),
+        1,
+        reason: 'prefix sibling history must survive',
+      );
+      expect(
+        await _count(db,
+            "SELECT COUNT(*) AS n FROM anki_card_introduction_states WHERE course_id = 'anki-user'"),
+        0,
+      );
+      expect(mistakes.entries.map((e) => e.id), {'m-sibling'});
+      expect(engine.deletedNoteIds, isEmpty,
+          reason: 'legacy uninstall never touches the official collection');
     });
   });
 }

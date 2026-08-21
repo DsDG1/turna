@@ -37,6 +37,7 @@ use crate::engine::OP_EXTRACT_CLOZE_FOR_TYPING;
 use crate::engine::OP_BURY_OR_SUSPEND_CARDS;
 use crate::engine::OP_CONGRATS_INFO;
 use crate::engine::OP_COUNTS_FOR_DECK_TODAY;
+use crate::engine::OP_DELETE_NOTES;
 use crate::engine::OP_GET_REVIEW_QUEUE;
 use crate::engine::OP_GET_UNDO_STATUS;
 use crate::engine::OP_IMPORT_PACKAGE;
@@ -178,8 +179,16 @@ struct BuryOrSuspendRequest {
     deck_id: Option<i64>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DeleteNotesRequest {
+    #[serde(default)]
+    note_ids: Vec<i64>,
+}
+
 const MAX_ELAPSED_MS: u32 = 24 * 60 * 60 * 1000;
 const MAX_BURY_IDS: usize = 100;
+const MAX_DELETE_NOTE_IDS: usize = 10_000;
 
 pub fn dispatch_op(handle: u64, operation: u32, request: &[u8]) -> Result<Value, i32> {
     match operation {
@@ -201,6 +210,7 @@ pub fn dispatch_op(handle: u64, operation: u32, request: &[u8]) -> Result<Value,
         OP_BURY_OR_SUSPEND_CARDS => bury_or_suspend(handle, request),
         OP_COUNTS_FOR_DECK_TODAY => counts_for_deck_today(handle, request),
         OP_CONGRATS_INFO => congrats_info(handle),
+        OP_DELETE_NOTES => delete_notes(handle, request),
         _ => {
             let slot = slot(handle)?;
             if slot.busy.load(std::sync::atomic::Ordering::Acquire) {
@@ -932,6 +942,35 @@ fn bury_or_suspend(handle: u64, request: &[u8]) -> Result<Value, i32> {
     }))
 }
 
+/// Hard-delete for one imported source: removes the given notes and every
+/// card that uses them. Note-scoped (not deck-scoped) so decks shared with
+/// other sources — the default deck, or same-named decks merged at import —
+/// never lose cards they do not own. Callers batch ids to stay under
+/// [MAX_DELETE_NOTE_IDS] and the envelope payload cap.
+fn delete_notes(handle: u64, request: &[u8]) -> Result<Value, i32> {
+    let parsed: DeleteNotesRequest =
+        serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?;
+    if parsed.note_ids.is_empty() || parsed.note_ids.len() > MAX_DELETE_NOTE_IDS {
+        return Err(STATUS_INVALID_ARGUMENT);
+    }
+    if parsed.note_ids.iter().any(|id| *id <= 0) {
+        return Err(STATUS_INVALID_ARGUMENT);
+    }
+    let slot = slot(handle)?;
+    let mut engine = require_open(&slot)?;
+    let nids: Vec<NoteId> = parsed.note_ids.iter().copied().map(NoteId).collect();
+    let removed_cards = {
+        let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+        col.remove_notes(&nids).map_err(map_anki_error)?.output
+    };
+    engine.invalidate_tokens();
+    Ok(json!({
+        "ok": true,
+        "removedCards": removed_cards,
+        "queueEpoch": engine.queue_epoch,
+    }))
+}
+
 fn counts_for_deck_today(handle: u64, request: &[u8]) -> Result<Value, i32> {
     let parsed: DeckRequest = if request.is_empty() {
         DeckRequest { deck_id: 1 }
@@ -1437,10 +1476,44 @@ mod tests {
     }
 
     #[test]
+    fn delete_notes_removes_source_notes_and_cards() {
+        let (root, handle, _) = temp_open();
+        let imported = import(handle, &package_path("08-scheduling.apkg"), true).unwrap();
+        let note_ids: Vec<i64> = imported["new_note_ids"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_i64().unwrap())
+            .collect();
+        assert!(!note_ids.is_empty());
+        let before = call(handle, OP_SEARCH_CARDS, json!({"search": ""})).unwrap();
+        let before_count = before["cards"].as_array().unwrap().len();
+        assert!(before_count > 0);
+
+        assert_eq!(
+            call(handle, OP_DELETE_NOTES, json!({"noteIds": []})).unwrap_err(),
+            STATUS_INVALID_ARGUMENT
+        );
+        assert_eq!(
+            call(handle, OP_DELETE_NOTES, json!({"noteIds": [0]})).unwrap_err(),
+            STATUS_INVALID_ARGUMENT
+        );
+
+        let deleted = call(handle, OP_DELETE_NOTES, json!({"noteIds": note_ids})).unwrap();
+        assert_eq!(
+            deleted["removedCards"].as_u64().unwrap(),
+            before_count as u64
+        );
+        let after = call(handle, OP_SEARCH_CARDS, json!({"search": ""})).unwrap();
+        assert!(after["cards"].as_array().unwrap().is_empty());
+        free_engine(handle).unwrap();
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
     fn redo_bury_counts_and_congrats_use_official_apis() {
         let (root, handle, _) = temp_open();
         import(handle, &package_path("08-scheduling.apkg"), true).unwrap();
-        call(handle, OP_SET_CURRENT_DECK, json!({"deckId": 1})).unwrap();
         let queue = call(handle, OP_GET_REVIEW_QUEUE, json!({"fetchLimit": 1})).unwrap();
         let card_id = queue["cards"][0]["cardId"].as_i64().unwrap();
         let token = queue["cards"][0]["answerToken"].as_str().unwrap();
@@ -2241,12 +2314,13 @@ mod tests {
             "BURY_OR_SUSPEND_CARDS",
             "COUNTS_FOR_DECK_TODAY",
             "CONGRATS_INFO",
+            "DELETE_NOTES",
         ] {
             assert!(
                 caps.iter().any(|c| c.as_str() == Some(name)),
                 "missing {name} in {caps:?}"
             );
         }
-        assert_eq!(info["contractMinor"], 3);
+        assert_eq!(info["contractMinor"], 4);
     }
 }

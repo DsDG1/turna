@@ -434,6 +434,15 @@ class FfiOfficialAnkiEngine implements OfficialAnkiEngine {
   }
 
   @override
+  Future<int> deleteNotes(List<int> noteIds) async {
+    _requireScheduler(OfficialAnkiOperation.deleteNotes);
+    final payload = _call(OfficialAnkiOperation.deleteNotes, {
+      'noteIds': noteIds,
+    }).requirePayload();
+    return (payload['removedCards'] as num?)?.toInt() ?? 0;
+  }
+
+  @override
   Future<void> dispose() async {
     if (_closed) return;
     _closed = true;

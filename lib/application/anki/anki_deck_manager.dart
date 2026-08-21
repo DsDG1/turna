@@ -3,19 +3,23 @@ import 'dart:async';
 import 'dart:math';
 
 // Package imports:
+import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/application/anki/anki_models.dart';
 import 'package:turna/application/anki/anki_review_assembler.dart';
 import 'package:turna/application/anki/card_introduction_eligibility.dart';
+import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/migration/official_anki_write_owner.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
+import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/data/anki_note_dao.dart';
 import 'package:turna/data/anki_unification_dao.dart';
+import 'package:turna/data/review_history_dao.dart';
 import 'package:turna/domain/audio/anki_audio_resolver.dart';
 import 'package:turna/domain/repositories/i_course_repository.dart';
 import 'package:turna/service/locator.dart';
@@ -37,6 +41,8 @@ class AnkiDeckManager {
   final AnkiAudioResolver _audioResolver;
   final AnkiUnificationDao? _unificationDao;
   final AppPrefs _appPrefs;
+  final MistakeProvider? _mistakeProvider;
+  final ReviewHistoryDao? _reviewHistoryDao;
 
   AnkiDeckManager({
     required ICourseRepository repo,
@@ -46,13 +52,17 @@ class AnkiDeckManager {
     required AppPrefs appPrefs,
     AnkiAudioResolver? audioResolver,
     AnkiUnificationDao? unificationDao,
+    MistakeProvider? mistakeProvider,
+    ReviewHistoryDao? reviewHistoryDao,
   })  : _repo = repo,
         _srsProvider = srsProvider,
         _importDao = importDao,
         _noteDao = noteDao,
         _appPrefs = appPrefs,
         _audioResolver = audioResolver ?? AnkiAudioResolver(),
-        _unificationDao = unificationDao;
+        _unificationDao = unificationDao,
+        _mistakeProvider = mistakeProvider,
+        _reviewHistoryDao = reviewHistoryDao;
 
   // ─── Review Limits ──────────────────────────────────────────────────
 
@@ -211,13 +221,21 @@ class AnkiDeckManager {
     String? importId,
   }) async {
     _resetCountersIfNewDay();
-    final useDeck = importId != null &&
-        (wasNewCard
-            ? await dailyNewLimitFor(importId) != null
-            : await dailyReviewLimitFor(importId) != null);
-    final key = useDeck
-        ? _deckDoneKey(importId!, isNew: wasNewCard)
-        : (wasNewCard ? _newDoneTodayKey : _reviewDoneTodayKey);
+    if (importId != null) {
+      final limit = wasNewCard
+          ? await dailyNewLimitFor(importId)
+          : await dailyReviewLimitFor(importId);
+      if (limit != null) {
+        await _decrementDone(_deckDoneKey(importId, isNew: wasNewCard));
+        return;
+      }
+    }
+    await _decrementDone(
+      wasNewCard ? _newDoneTodayKey : _reviewDoneTodayKey,
+    );
+  }
+
+  Future<void> _decrementDone(String key) async {
     final current =
         _appPrefs.preferences.getInt(key, defaultValue: 0).getValue();
     await _appPrefs.preferences.setInt(key, max(0, current - 1));
@@ -226,9 +244,9 @@ class AnkiDeckManager {
   // ─── Deck Uninstall ─────────────────────────────────────────────────
 
   /// Route an uninstall to the right owner (P5F-31): official-projected
-  /// sources go through [uninstallOfficialSource] (soft uninstall — the
-  /// official Anki collection keeps its data); everything else through the
-  /// legacy [uninstallDeck].
+  /// sources go through [uninstallOfficialSource]; everything else through
+  /// the legacy [uninstallDeck]. Both are hard deletes — every card, record,
+  /// and mistake-log entry owned by the deck goes away.
   Future<void> uninstall(String importId) async {
     if (await _isOfficialSource(importId)) {
       await uninstallOfficialSource(importId);
@@ -244,11 +262,17 @@ class AnkiDeckManager {
     return sections.any((section) => section.id.startsWith(prefix));
   }
 
-  /// Soft-uninstall an official source: drop the course projection, its
-  /// vocabulary rows (P5F-33 channel), unification bookkeeping, and catalog
-  /// rows. The official collection's cards stay — the course can be
-  /// regenerated from source management.
+  /// Hard-uninstall an official source. Unlike the historical soft uninstall,
+  /// the official Anki collection also loses the source's notes and cards —
+  /// deleting a deck deletes everything. The projection, vocabulary rows
+  /// (P5F-33 channel), unification bookkeeping, catalog rows, review history,
+  /// and mistake-log entries are dropped in the same pass. Best-effort on the
+  /// collection itself: when no engine is available (flags off, worker
+  /// unreachable) the app-side rows are still removed.
   Future<void> uninstallOfficialSource(String sourceId) async {
+    final contentIds = await _officialSourceContentIds(sourceId);
+    await _deleteOfficialSourceNotes(contentIds.noteIds);
+
     await _repo.deleteOfficialProjection(sourceId);
     await _repo.deleteByTag('official:$sourceId');
     final unification = _unificationDao;
@@ -264,6 +288,73 @@ class AnkiDeckManager {
         sourceId: sourceId,
       );
     }
+    await _reviewHistoryDao?.deleteByCardPrefix('official-anki-$sourceId-');
+    await _mistakeProvider?.removeForAnkiDeletion(
+      idPrefixes: ['official-anki-$sourceId-'],
+      cardIds: contentIds.cardIds,
+    );
+  }
+
+  /// The source's note ids (for collection deletion) and card ids (for
+  /// mistake-log matching — official card word ids do not carry the
+  /// sourceId). Read before the catalog rows are deleted.
+  Future<_OfficialSourceContentIds> _officialSourceContentIds(
+    String sourceId,
+  ) async {
+    try {
+      await OfficialAnkiCompositionRoot.initializeReadOnlyLocator();
+      final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+      if (catalog == null) {
+        return const _OfficialSourceContentIds(<int>[], <int>{});
+      }
+      final cards = OfficialAnkiSourceDao(catalog).listCards(sourceId);
+      final noteIds = cards.map((card) => card.noteId).toSet().toList()..sort();
+      return _OfficialSourceContentIds(
+        noteIds,
+        cards.map((card) => card.cardId).toSet(),
+      );
+    } catch (e) {
+      debugPrint(
+        '[AnkiDeckManager] read official source cards failed '
+        'for $sourceId: $e',
+      );
+      return const _OfficialSourceContentIds(<int>[], <int>{});
+    }
+  }
+
+  /// Remove the source's notes (and every card that uses them) from the
+  /// official collection. Batched to stay under the DELETE_NOTES id cap.
+  Future<void> _deleteOfficialSourceNotes(List<int> noteIds) async {
+    if (noteIds.isEmpty) return;
+    try {
+      final engine = await _resolveOfficialEngine();
+      if (engine == null) {
+        debugPrint(
+          '[AnkiDeckManager] official engine unavailable; '
+          '${noteIds.length} collection notes kept',
+        );
+        return;
+      }
+      const batchLimit = 5000;
+      for (var start = 0; start < noteIds.length; start += batchLimit) {
+        final end = min(start + batchLimit, noteIds.length);
+        await engine.deleteNotes(noteIds.sublist(start, end));
+      }
+    } catch (e) {
+      debugPrint(
+        '[AnkiDeckManager] official collection deleteNotes failed: $e',
+      );
+    }
+  }
+
+  /// Engine for collection writes: the live session's engine when one is
+  /// open, otherwise open (or fall back to) the shared importer session.
+  /// Null when official anki is unavailable (flags off / worker failed).
+  Future<OfficialAnkiEngine?> _resolveOfficialEngine() async {
+    final existing = OfficialAnkiCompositionRoot.engine;
+    if (existing != null) return existing;
+    await OfficialAnkiCompositionRoot.requireImporter();
+    return OfficialAnkiCompositionRoot.engine;
   }
 
   /// Completely uninstall an imported Anki deck:
@@ -273,6 +364,7 @@ class AnkiDeckManager {
   /// 4. Clean up media files
   /// 5. Delete NoteStore (notetypes/notes/cards_meta)
   /// 6. Delete import metadata
+  /// 7. Delete review history + unification bookkeeping + mistake log
   Future<void> uninstallDeck(String importId) async {
     // 1. Delete vocabulary by tag
     final tag = 'anki:$importId';
@@ -291,6 +383,10 @@ class AnkiDeckManager {
 
     // 3. Remove SRS entries for this import
     _removeSrsEntries(importId);
+    await _reviewHistoryDao?.deleteByCardPrefix(prefix);
+    await _unificationDao?.deleteByCourseId(
+      CardIntroductionEligibility.courseIdForLegacyImport(importId),
+    );
 
     // 4. Clean up media files
     await _audioResolver.deleteImportMedia(importId);
@@ -302,6 +398,10 @@ class AnkiDeckManager {
 
     // 6. Delete import metadata
     await _importDao.delete(importId);
+
+    // 7. Mistake log entries (wrong answers recorded from this deck's
+    // course lessons and review sessions).
+    await _mistakeProvider?.removeForAnkiDeletion(idPrefixes: [prefix]);
   }
 
   void _removeSrsEntries(String importId) {
@@ -352,4 +452,13 @@ class AnkiDeckManager {
   /// Whether the SRS queue has exceeded the recommended threshold
   /// for prefs-based storage (suggest SQLite migration above this).
   bool get shouldMigrateToSqlite => ankiSrsCount > 5000;
+}
+
+/// Note/card ids owned by one official source, read from the catalog right
+/// before the source rows are deleted.
+class _OfficialSourceContentIds {
+  const _OfficialSourceContentIds(this.noteIds, this.cardIds);
+
+  final List<int> noteIds;
+  final Set<int> cardIds;
 }

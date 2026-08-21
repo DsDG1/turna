@@ -299,6 +299,11 @@ class OfficialAnkiWorker implements OfficialAnkiEngine {
   }
 
   @override
+  Future<int> deleteNotes(List<int> noteIds) {
+    return _enqueue(() => _inner.deleteNotes(noteIds));
+  }
+
+  @override
   Future<void> dispose() {
     return _enqueue(() async {
       await _inner.dispose();

@@ -506,6 +506,15 @@ class OfficialAnkiSession implements OfficialAnkiImporter {
     });
   }
 
+  Future<int> deleteNotes(List<int> noteIds) async {
+    final raw = await _rpc('scheduler', {
+      'op': 'deleteNotes',
+      'noteIds': noteIds,
+    });
+    final payload = Map<String, Object?>.from(raw['payload'] as Map? ?? raw);
+    return (payload['removedCards'] as num?)?.toInt() ?? 0;
+  }
+
   Future<void> dispose() {
     return _disposeFuture ??= _disposeOnce();
   }
@@ -920,6 +929,7 @@ const _schedulerWriteOps = {
   'undo',
   'redo',
   'buryOrSuspendCards',
+  'deleteNotes',
 };
 
 Future<Map<String, Object?>> dispatchOfficialAnkiScheduler(
@@ -1081,6 +1091,23 @@ Future<Map<String, Object?>> dispatchOfficialAnkiScheduler(
         deckId: (message['deckId'] as num?)?.toInt(),
       );
       return const <String, Object?>{};
+    case 'deleteNotes':
+      final noteIds = ((message['noteIds'] as List?) ?? const [])
+          .map((item) {
+            if (item is! num) {
+              officialContractError('noteIds[]', item);
+            }
+            return item.toInt();
+          })
+          .toList();
+      if (noteIds.any((id) => id <= 0)) {
+        officialContractError('noteIds', noteIds);
+      }
+      if (noteIds.isEmpty) {
+        officialContractError('noteIds', noteIds);
+      }
+      final removedCards = await engine.deleteNotes(noteIds);
+      return <String, Object?>{'removedCards': removedCards};
     default:
       throw OfficialAnkiException(
         code: OfficialAnkiErrorCode.invalidArgument,

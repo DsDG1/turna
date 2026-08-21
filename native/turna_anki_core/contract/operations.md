@@ -1,4 +1,4 @@
-# Contract v1.3 operations
+# Contract v1.4 operations
 
 Wire format is versioned JSON. `turna_anki_spike.proto` is archived and is not
 the codec.
@@ -35,11 +35,18 @@ the codec.
 | 28 | BURY_OR_SUSPEND_CARDS | yes |
 | 29 | COUNTS_FOR_DECK_TODAY | yes |
 | 30 | CONGRATS_INFO | yes |
+| 31 | DELETE_NOTES | yes |
 
-Scheduler operations 11–16 and 27–30 are published. Request/response DTO are
+Scheduler operations 11–16 and 27–31 are published. Request/response DTO are
 camelCase. `answerToken` is opaque. `GET_REVIEW_QUEUE` creates a new
 session/queue epoch. Tokens are single-use. Numbers are append-only after this
 document ships.
+
+`DELETE_NOTES` accepts `{ noteIds: [nid, …] }` (1..10_000 per call, callers
+batch) and removes those notes and every card that uses them from the
+Collection. It exists for hard source uninstall: note-scoped so decks shared
+with other sources (default deck, same-named merged decks) keep the cards they
+own. The response is `{ ok, removedCards, queueEpoch }`.
 
 `RENDER_CARD` requests are camelCase `{ cardId, browser, includeAvTags }`.
 Production reviewer always sends `browser=false`. Rust forces

@@ -217,5 +217,10 @@ class OfficialAnkiSessionEngine implements OfficialAnkiEngine {
   }
 
   @override
+  Future<int> deleteNotes(List<int> noteIds) {
+    return session.deleteNotes(noteIds);
+  }
+
+  @override
   Future<void> dispose() => session.dispose();
 }

@@ -97,6 +97,47 @@ class MistakeProvider extends ChangeNotifier {
     await _persist(current);
   }
 
+  /// Hard-delete bookkeeping for an Anki uninstall: drop every mistake that
+  /// belongs to the removed deck/source.
+  ///
+  /// [idPrefixes] matches entries whose `wordId`, `lessonId`, or
+  /// `interactionId` starts with the prefix — legacy decks own
+  /// `anki-<importId>-…` ids and official sources own
+  /// `official-anki-<sourceId>-…` tree/lesson ids. Official card-scoped
+  /// word ids do not carry the sourceId (`official-anki-<profileHash>-c<id>`
+  /// from projections, `official-anki-review-c<id>` from practice review), so
+  /// [cardIds] matches those on the trailing `-c<cardId>` instead.
+  Future<void> removeForAnkiDeletion({
+    List<String> idPrefixes = const <String>[],
+    Set<int> cardIds = const <int>{},
+  }) async {
+    if (idPrefixes.isEmpty && cardIds.isEmpty) return;
+    final current = entries.toList();
+    final before = current.length;
+    current.removeWhere((entry) {
+      for (final prefix in idPrefixes) {
+        if (entry.lessonId.startsWith(prefix) ||
+            entry.interactionId.startsWith(prefix) ||
+            (entry.wordId != null && entry.wordId!.startsWith(prefix))) {
+          return true;
+        }
+      }
+      if (cardIds.isNotEmpty) {
+        final wordId = entry.wordId;
+        if (wordId != null) {
+          final match = _trailingAnkiCardId.firstMatch(wordId);
+          final cardId = match == null ? null : int.tryParse(match.group(1)!);
+          if (cardId != null && cardIds.contains(cardId)) return true;
+        }
+      }
+      return false;
+    });
+    if (current.length == before) return;
+    await _persist(current);
+  }
+
+  static final RegExp _trailingAnkiCardId = RegExp(r'-c(\d+)$');
+
   /// Clear all recorded mistakes.
   Future<void> clear() async {
     await _persist(<MistakeEntry>[]);
