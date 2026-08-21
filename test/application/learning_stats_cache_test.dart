@@ -77,7 +77,7 @@ void main() {
             child: ValueListenableBuilder<int>(
               valueListenable: rebuild,
               builder: (_, __, ___) => const SingleChildScrollView(
-                child: LearningStats(),
+                child: StudyStatsSection(),
               ),
             ),
           ),

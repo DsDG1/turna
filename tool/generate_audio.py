@@ -31,6 +31,7 @@ import json
 import os
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
@@ -42,6 +43,14 @@ COURSE_DIR = Path(__file__).resolve().parent.parent / "assets" / "courses" / "tu
 SOUNDS_DIR = Path(__file__).resolve().parent.parent / "assets" / "sounds" / "turkish"
 
 MINIMAX_API_URL = os.environ.get("MINIMAX_API_URL", "https://api.minimax.io/v1/t2a_v2")
+
+
+def _api_url() -> str:
+    """Return MINIMAX_API_URL, rejecting non-http(s) schemes (e.g. file://)."""
+    url = MINIMAX_API_URL.strip()
+    if urllib.parse.urlsplit(url).scheme.lower() not in ("http", "https"):
+        raise RuntimeError(f"MINIMAX_API_URL 仅支持 http/https URL: {url!r}")
+    return url
 DEFAULT_VOICE_ID = "female-tianmei"
 DEFAULT_MODEL = "speech-2.8-hd"
 DEFAULT_SPEED = 0.9
@@ -121,7 +130,7 @@ class MiniMaxBackend:
 
         data = json.dumps(payload).encode("utf-8")
         request = urllib.request.Request(
-            MINIMAX_API_URL,
+            _api_url(),
             data=data,
             headers=headers,
             method="POST",

@@ -13,8 +13,41 @@ import 'package:turna/domain/game/user_game_state.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/theme.dart';
 
+/// Raw progress value of [achievement] for the given game state.
+int achievementProgress(Achievement achievement, UserGameState data) {
+  switch (achievement.type) {
+    case AchievementType.scholar:
+      return data.wordsLearned;
+    case AchievementType.sage:
+      return data.score;
+    case AchievementType.wildfire:
+      return data.streak;
+    case AchievementType.champion:
+      return data.lessonsCompleted;
+    case AchievementType.sharpshooter:
+      return data.perfectLessons;
+    case AchievementType.xp:
+      return data.score;
+    default:
+      return 0;
+  }
+}
+
+/// Number of achievements that reached their maximum level.
+int unlockedAchievementCount(UserGameState data) {
+  return AchievementsProvider.allAchievements
+      .where((a) =>
+          a.getCurrentLevel(achievementProgress(a, data)) >= a.maxLevel)
+      .length;
+}
+
+/// Achievement list. Collapsed to the top 3 with an expand toggle on the
+/// profile page; [showAll] renders the full list (dedicated page mode, no
+/// expand toggle and no section title — the host page owns the title).
 class Achievements extends StatefulWidget {
-  const Achievements({Key? key}) : super(key: key);
+  final bool showAll;
+
+  const Achievements({Key? key, this.showAll = false}) : super(key: key);
 
   @override
   State<Achievements> createState() => _AchievementsState();
@@ -37,7 +70,7 @@ class _AchievementsState extends State<Achievements> {
         final userData = snapshot.data ?? UserGameState.empty;
 
         final displayedAchievements =
-            _expanded ? achievements : achievements.take(3).toList();
+            widget.showAll || _expanded ? achievements : achievements.take(3).toList();
         final remainingCount =
             achievements.length - displayedAchievements.length;
 
@@ -46,8 +79,9 @@ class _AchievementsState extends State<Achievements> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _sectionTitle(context, AppStrings.profileAchievementsTitle,
-                  Icons.military_tech_rounded),
+              if (!widget.showAll)
+                _sectionTitle(context, AppStrings.profileAchievementsTitle,
+                    Icons.military_tech_rounded),
               const SizedBox(height: 8),
               Container(
                 decoration: BoxDecoration(
@@ -60,7 +94,7 @@ class _AchievementsState extends State<Achievements> {
                     ...displayedAchievements.map((achievement) {
                       final progress = showAllUnlocked
                           ? achievement.targets.last
-                          : _getProgress(achievement, userData);
+                          : achievementProgress(achievement, userData);
                       final currentLevel =
                           achievement.getCurrentLevel(progress);
                       final nextTarget =
@@ -88,7 +122,7 @@ class _AchievementsState extends State<Achievements> {
                         ],
                       );
                     }),
-                    if (!_expanded && remainingCount > 0)
+                    if (!_expanded && !widget.showAll && remainingCount > 0)
                       Material(
                         color: Colors.transparent,
                         child: InkWell(
@@ -170,25 +204,6 @@ class _AchievementsState extends State<Achievements> {
         );
       },
     );
-  }
-
-  int _getProgress(Achievement achievement, UserGameState data) {
-    switch (achievement.type) {
-      case AchievementType.scholar:
-        return data.wordsLearned;
-      case AchievementType.sage:
-        return data.score;
-      case AchievementType.wildfire:
-        return data.streak;
-      case AchievementType.champion:
-        return data.lessonsCompleted;
-      case AchievementType.sharpshooter:
-        return data.perfectLessons;
-      case AchievementType.xp:
-        return data.score;
-      default:
-        return 0;
-    }
   }
 
   Widget _sectionTitle(BuildContext context, String text, IconData icon) {

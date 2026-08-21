@@ -50,6 +50,12 @@ class AiApiConfig:
     @property
     def chat_completions_url(self) -> str:
         b = self.base_url.strip().rstrip("/")
+        # http/https only: urllib would happily follow file:// and friends,
+        # and the endpoint must never read local files.
+        if urllib.parse.urlparse(b).scheme.lower() not in ("http", "https"):
+            raise RuntimeError(
+                f"AI 端点必须是 http/https URL，当前为: {self.base_url!r}"
+            )
         if b.endswith("/chat/completions"):
             return b
         return f"{b}/chat/completions"

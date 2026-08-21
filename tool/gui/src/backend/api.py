@@ -213,6 +213,8 @@ def validate_course_dir(course_dir: Path) -> ValidationResult:
     (skipping interpreter startup on every save); any failure falls back to
     the subprocess, preserving the old isolation behaviour.
     """
+    # Absolute path so the subprocess argv can never be misread as a CLI flag.
+    course_dir = Path(course_dir).resolve()
     try:
         return _validate_in_process(course_dir)
     except Exception:  # noqa: BLE001 — fall back to the subprocess path
@@ -257,6 +259,8 @@ def _lint_via_subprocess(course_dir: Path) -> list[Problem]:
 
 def lint_course_dir(course_dir: Path) -> list[Problem]:
     """Lint a course directory (in-process fast path, subprocess fallback)."""
+    # Absolute path so the subprocess argv can never be misread as a CLI flag.
+    course_dir = Path(course_dir).resolve()
     try:
         return _lint_in_process(course_dir)
     except Exception:  # noqa: BLE001 — fall back to the subprocess path

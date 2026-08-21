@@ -27,10 +27,15 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import threading
 from collections import OrderedDict
 from pathlib import Path
 from typing import Any
+
+# Disk files are named ``<key>.json``; keys must stay SHA-256 hex digests so a
+# future key-format change cannot escape ``disk_dir`` via path segments.
+_KEY_PATTERN = re.compile(r"[0-9a-f]{64}")
 
 
 def _stable_hash(model: str, messages: list[dict[str, Any]], response_format: dict | None) -> str:
@@ -250,6 +255,8 @@ class AiCache:
 
     def _save_to_disk(self, key: str, value: dict[str, Any]) -> None:
         assert self._disk_dir is not None
+        if not _KEY_PATTERN.fullmatch(key):
+            raise ValueError(f"invalid cache key: {key!r}")
         target = self._disk_dir / f"{key}.json"
         tmp = self._disk_dir / f"{key}.json.tmp"
         try:
@@ -273,6 +280,8 @@ class AiCache:
     def _load_from_disk(self, key: str) -> dict[str, Any] | None:
         if self._disk_dir is None:
             return None
+        if not _KEY_PATTERN.fullmatch(key):
+            raise ValueError(f"invalid cache key: {key!r}")
         path = self._disk_dir / f"{key}.json"
         try:
             with open(path, "r", encoding="utf-8") as f:

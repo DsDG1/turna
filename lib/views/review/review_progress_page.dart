@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:turna/application/review_progress_provider.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/profile/widgets/learning_stats.dart';
 import 'package:turna/views/review/components/retention_curve_chart.dart';
 import 'package:turna/views/theme.dart';
 import 'package:turna/views/widgets/turna_select.dart';
@@ -99,6 +100,31 @@ class _ReviewProgressPageState extends State<ReviewProgressPage> {
                       onRangeChanged: (r) =>
                           _setFilter(_filter.copyWith(eventRange: r)),
                     ),
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.insights_rounded,
+                            color: TurnaTheme.brandTeal, size: 22),
+                        const SizedBox(width: 8),
+                        Text(
+                          AppStrings.profileLearningStatsTitle,
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                    child: StudyStatsSection(),
                   ),
                 ),
                 SliverToBoxAdapter(

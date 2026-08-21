@@ -28,7 +28,7 @@ void main() {
           body: ChangeNotifierProvider<StudyStatsProvider>.value(
             value: fake,
             child: const SingleChildScrollView(
-              child: LearningStats(),
+              child: StudyStatsSection(),
             ),
           ),
         ),

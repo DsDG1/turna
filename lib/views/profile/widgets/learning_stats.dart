@@ -2,36 +2,24 @@
 import 'package:flutter/material.dart';
 
 // Package imports:
-import 'package:auto_route/auto_route.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:turna/application/memory_curve_provider.dart';
 import 'package:turna/application/study_stats_provider.dart';
 import 'package:turna/domain/study/daily_stats.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/theme.dart';
 
-/// Displays today's learning summary and recent activity trends.
+/// Data-loading contract shared by [TodaySummaryCard] and [StudyStatsSection].
 ///
-/// Futures are cached on the [State] so rebuilding this widget (e.g. tab
-/// switches) does not re-issue prefs/repository reads. When
-/// [StudyStatsProvider] notifies, futures are refreshed once.
-class LearningStats extends StatefulWidget {
-  const LearningStats({super.key});
-
-  @override
-  State<LearningStats> createState() => _LearningStatsState();
-}
-
-class _LearningStatsState extends State<LearningStats> {
+/// Futures are cached on the [State] so rebuilding (e.g. tab switches) does
+/// not re-issue prefs/repository reads. When [StudyStatsProvider] notifies,
+/// futures are refreshed once.
+abstract class _StudyFuturesState<T extends StatefulWidget> extends State<T> {
   StudyStatsProvider? _provider;
   Future<DailyStudyStats>? _todayFuture;
   Future<List<DailyStudyStats>>? _weekFuture;
   Future<Map<String, dynamic>>? _overallFuture;
-  Future<MemoryCurveSnapshot>? _curveFuture;
 
   @override
   void didChangeDependencies() {
@@ -63,13 +51,6 @@ class _LearningStatsState extends State<LearningStats> {
     _todayFuture = studyStats.getTodayStats();
     _weekFuture = studyStats.getLastNDays(7);
     _overallFuture = _loadOverallStats(studyStats);
-    // The memory-curve card is a non-critical enhancement; skip it silently
-    // when no MemoryCurveProvider is in scope (e.g. focused unit tests).
-    try {
-      _curveFuture = context.read<MemoryCurveProvider>().snapshot();
-    } catch (_) {
-      _curveFuture = null;
-    }
   }
 
   Future<Map<String, dynamic>> _loadOverallStats(
@@ -90,7 +71,17 @@ class _LearningStatsState extends State<LearningStats> {
       'ankiReviews': anki['ankiReviews'] ?? 0,
     };
   }
+}
 
+/// Today's one-glance summary (XP / minutes / accuracy) on the profile page.
+class TodaySummaryCard extends StatefulWidget {
+  const TodaySummaryCard({super.key});
+
+  @override
+  State<TodaySummaryCard> createState() => _TodaySummaryCardState();
+}
+
+class _TodaySummaryCardState extends _StudyFuturesState<TodaySummaryCard> {
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -98,80 +89,87 @@ class _LearningStatsState extends State<LearningStats> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionTitle(context, AppStrings.profileLearningStatsTitle,
-              Icons.bar_chart_rounded),
-          const SizedBox(height: 8),
+          _sectionTitle(context, AppStrings.profileTodayTitle,
+              Icons.insights_rounded),
+          const SizedBox(height: 10),
           FutureBuilder<DailyStudyStats>(
             future: _todayFuture,
             builder: (context, snapshot) {
               return _TodaySummary(stats: snapshot.data);
             },
           ),
-          const SizedBox(height: 16),
-          FutureBuilder<List<DailyStudyStats>>(
-            future: _weekFuture,
-            builder: (context, snapshot) {
-              final days = snapshot.data ?? [];
-              return _WeeklyXpBars(days: days);
-            },
-          ),
-          const SizedBox(height: 16),
-          FutureBuilder<MemoryCurveSnapshot>(
-            future: _curveFuture,
-            builder: (context, snapshot) {
-              final data = snapshot.data;
-              if (data == null) return const SizedBox.shrink();
-              return _MemoryCurveCard(snapshot: data);
-            },
-          ),
-          const SizedBox(height: 16),
-          FutureBuilder<Map<String, dynamic>>(
-            future: _overallFuture,
-            builder: (context, snapshot) {
-              final data = snapshot.data ?? {};
-              return _OverallStatsGrid(data: data);
-            },
-          ),
-          const SizedBox(height: 16),
-          FutureBuilder<Map<String, dynamic>>(
-            future: _overallFuture,
-            builder: (context, snapshot) {
-              final data = snapshot.data ?? {};
-              final ankiLessons = (data['ankiLessons'] as num?)?.toInt() ?? 0;
-              final ankiReviews = (data['ankiReviews'] as num?)?.toInt() ?? 0;
-              if (ankiLessons == 0 && ankiReviews == 0) {
-                return const SizedBox.shrink();
-              }
-              return _AnkiStatsCard(
-                ankiLessons: ankiLessons,
-                ankiReviews: ankiReviews,
-              );
-            },
-          ),
         ],
       ),
     );
   }
+}
 
-  Widget _sectionTitle(BuildContext context, String text, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 20, bottom: 8),
-      child: Row(
-        children: [
-          Icon(icon, color: TurnaTheme.brandTeal, size: 22),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-            ),
-          ),
-        ],
-      ),
+/// Detailed study stats (weekly XP, overall grid, Anki breakdown) hosted by
+/// the review-progress page; the profile page only links to it.
+class StudyStatsSection extends StatefulWidget {
+  const StudyStatsSection({super.key});
+
+  @override
+  State<StudyStatsSection> createState() => _StudyStatsSectionState();
+}
+
+class _StudyStatsSectionState extends _StudyFuturesState<StudyStatsSection> {
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        FutureBuilder<List<DailyStudyStats>>(
+          future: _weekFuture,
+          builder: (context, snapshot) {
+            final days = snapshot.data ?? [];
+            return _WeeklyXpBars(days: days);
+          },
+        ),
+        const SizedBox(height: 16),
+        FutureBuilder<Map<String, dynamic>>(
+          future: _overallFuture,
+          builder: (context, snapshot) {
+            final data = snapshot.data ?? {};
+            return _OverallStatsGrid(data: data);
+          },
+        ),
+        const SizedBox(height: 16),
+        FutureBuilder<Map<String, dynamic>>(
+          future: _overallFuture,
+          builder: (context, snapshot) {
+            final data = snapshot.data ?? {};
+            final ankiLessons = (data['ankiLessons'] as num?)?.toInt() ?? 0;
+            final ankiReviews = (data['ankiReviews'] as num?)?.toInt() ?? 0;
+            if (ankiLessons == 0 && ankiReviews == 0) {
+              return const SizedBox.shrink();
+            }
+            return _AnkiStatsCard(
+              ankiLessons: ankiLessons,
+              ankiReviews: ankiReviews,
+            );
+          },
+        ),
+      ],
     );
   }
+}
+
+Widget _sectionTitle(BuildContext context, String text, IconData icon) {
+  return Row(
+    children: [
+      Icon(icon, color: TurnaTheme.brandTeal, size: 20),
+      const SizedBox(width: 8),
+      Expanded(
+        child: Text(
+          text,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+        ),
+      ),
+    ],
+  );
 }
 
 class _TodaySummary extends StatelessWidget {
@@ -529,253 +527,6 @@ class _StatCard extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Memory-curve dashboard card: current retention %, an empirical
-/// retention-by-interval line chart (from review history), an upcoming-review
-/// forecast, and a card-maturity breakdown.
-class _MemoryCurveCard extends StatelessWidget {
-  final MemoryCurveSnapshot snapshot;
-
-  const _MemoryCurveCard({required this.snapshot});
-
-  @override
-  Widget build(BuildContext context) {
-    final retentionPct = (snapshot.currentRetention * 100).round();
-    final curve = snapshot.retentionByInterval;
-    final hasCurve = curve.isNotEmpty;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: TurnaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-        border: Border.all(color: TurnaTheme.statCardBorder(context)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.show_chart_rounded,
-                  color: TurnaTheme.brandTeal, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                AppStrings.profileMemoryCurveTitle,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const Spacer(),
-              TextButton(
-                onPressed: () =>
-                    context.router.push(const ReviewProgressRoute()),
-                child: Text(AppStrings.reviewProgressSeeDetail),
-              ),
-              Text(
-                AppStrings.profileRetentionValue(retentionPct),
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: TurnaTheme.brandTeal,
-                    ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 2),
-          Text(
-            '${AppStrings.profileRetention} · ${AppStrings.profileReviewsCount(snapshot.totalReviews)}',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: TurnaTheme.textHintColor(context),
-                ),
-          ),
-          const SizedBox(height: 12),
-          if (hasCurve)
-            SizedBox(height: 140, child: _curveChart(context, curve))
-          else
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 28),
-              child: Center(
-                child: Text(
-                  AppStrings.profileMemoryCurveEmpty,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: TurnaTheme.textHintColor(context),
-                      ),
-                ),
-              ),
-            ),
-          const SizedBox(height: 12),
-          Text(
-            AppStrings.profileForecastTitle,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              _miniStat(context, snapshot.forecast.dueToday,
-                  AppStrings.profileDueToday),
-              _miniStat(context, snapshot.forecast.due7Days,
-                  AppStrings.profileDue7Days),
-              _miniStat(context, snapshot.forecast.due30Days,
-                  AppStrings.profileDue30Days),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            AppStrings.profileMasteryTitle,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            AppStrings.profileMasteryValue(
-              (snapshot.meanMastery * 100).round().clamp(0, 100),
-            ),
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: TurnaTheme.primary,
-                ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _curveChart(BuildContext context, List<RetentionPoint> curve) {
-    final spots = [
-      for (var i = 0; i < curve.length; i++)
-        FlSpot(i.toDouble(), curve[i].retention),
-    ];
-    const lineColor = TurnaTheme.brandTeal;
-    return LineChart(
-      LineChartData(
-        minY: 0,
-        maxY: 1,
-        minX: 0,
-        maxX: (curve.length - 1).toDouble(),
-        gridData: FlGridData(
-          show: true,
-          drawVerticalLine: false,
-          horizontalInterval: 0.25,
-          getDrawingHorizontalLine: (v) => FlLine(
-            color: TurnaTheme.dividerBg(context),
-            strokeWidth: 1,
-          ),
-        ),
-        titlesData: FlTitlesData(
-          topTitles:
-              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles:
-              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          leftTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              interval: 0.25,
-              reservedSize: 30,
-              getTitlesWidget: (v, _) => Padding(
-                padding: const EdgeInsets.only(right: 4),
-                child: Text('${(v * 100).round()}%',
-                    style: TextStyle(
-                        fontSize: 10,
-                        color: TurnaTheme.textHintColor(context))),
-              ),
-            ),
-          ),
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 22,
-              interval: 1,
-              getTitlesWidget: (i, _) {
-                final idx = i.toInt();
-                if (idx < 0 || idx >= curve.length) {
-                  return const SizedBox.shrink();
-                }
-                return Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text('${curve[idx].intervalBucketDays}d',
-                      style: TextStyle(
-                          fontSize: 10,
-                          color: TurnaTheme.textHintColor(context))),
-                );
-              },
-            ),
-          ),
-        ),
-        borderData: FlBorderData(show: false),
-        lineBarsData: [
-          LineChartBarData(
-            spots: spots,
-            isCurved: true,
-            gradient: LinearGradient(
-              colors: [lineColor, lineColor],
-            ),
-            barWidth: 3,
-            dotData: FlDotData(show: curve.length <= 6),
-            belowBarData: BarAreaData(
-              show: true,
-              gradient: LinearGradient(
-                colors: [
-                  lineColor.withValues(alpha: 0.12),
-                  lineColor.withValues(alpha: 0.02),
-                ],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-            ),
-          ),
-        ],
-        lineTouchData: LineTouchData(
-          touchTooltipData: LineTouchTooltipData(
-            getTooltipItems: (touchedSpots) {
-              return [
-                for (final s in touchedSpots)
-                  if (s.spotIndex >= 0 && s.spotIndex < curve.length)
-                    LineTooltipItem(
-                      '${(curve[s.spotIndex].retention * 100).round()}%',
-                      TextStyle(color: lineColor, fontWeight: FontWeight.w700),
-                    ),
-              ];
-            },
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _miniStat(BuildContext context, int value, String label) {
-    return Expanded(
-      child: Container(
-        margin: const EdgeInsets.only(right: 8),
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
-        decoration: BoxDecoration(
-          color: TurnaTheme.inputFillColor(context),
-          borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-        ),
-        child: Column(
-          children: [
-            Text(
-              '$value',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: TurnaTheme.textHintColor(context),
-                  ),
-            ),
-          ],
-        ),
       ),
     );
   }

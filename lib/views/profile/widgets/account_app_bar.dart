@@ -7,9 +7,6 @@ import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 
 // Project imports:
 import 'package:turna/application/cosmetic_provider.dart';
-import 'package:turna/application/language_provider.dart';
-import 'package:turna/application/theme_provider.dart';
-import 'package:turna/core/extensions.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/auth/local_user.dart';
 import 'package:turna/domain/cosmetics/avatar.dart';
@@ -19,19 +16,10 @@ import 'package:turna/views/profile/widgets/avatar_picker_sheet.dart';
 import 'package:turna/views/theme.dart';
 import 'package:turna/views/widgets/avatar_with_ring.dart';
 
-class AccountAppBar extends StatelessWidget implements PreferredSizeWidget {
-  const AccountAppBar({Key? key}) : super(key: key);
-
-  @override
-  Size get preferredSize => const Size.fromHeight(0);
-
-  @override
-  Widget build(BuildContext context) {
-    return const SizedBox.shrink();
-  }
-}
-
-/// Hero-style profile header: avatar, name, language chip, theme + share actions.
+/// Hero-style profile header: avatar, name, one-line bio, edit + share.
+///
+/// Theme switching lives in Settings → Appearance and language entry on the
+/// Learn tab; the hero stays identity-only (profile-slimming refactor).
 class AccountWidget extends StatelessWidget {
   final VoidCallback? onShare;
 
@@ -40,10 +28,6 @@ class AccountWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final languageName = context
-        .select((LanguageProvider p) => p.selectedLanguage.displayName)
-        .toTitleCase;
-
     final equippedRing = context.watch<CosmeticProvider>().equippedRing;
 
     return PreferenceBuilder<LocalUser>(
@@ -51,7 +35,6 @@ class AccountWidget extends StatelessWidget {
       builder: (BuildContext context, LocalUser user) {
         final displayName =
             user.displayName ?? AppStrings.profileLearnerFallback;
-        final email = user.email ?? '';
         final bio = user.bio?.trim() ?? '';
         final avatar = AvatarCatalog.resolve(user.avatarId);
 
@@ -131,6 +114,8 @@ class AccountWidget extends StatelessWidget {
                         children: [
                           Text(
                             displayName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: Theme.of(context)
                                 .textTheme
                                 .titleLarge
@@ -138,23 +123,11 @@ class AccountWidget extends StatelessWidget {
                                   fontWeight: FontWeight.w800,
                                 ),
                           ),
-                          if (email.isNotEmpty) ...[
-                            const SizedBox(height: 2),
-                            Text(
-                              email,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                    color: TurnaTheme.textHintColor(context),
-                                  ),
-                            ),
-                          ],
                           if (bio.isNotEmpty) ...[
                             const SizedBox(height: 4),
                             Text(
                               bio,
-                              maxLines: 2,
+                              maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: Theme.of(context)
                                   .textTheme
@@ -165,43 +138,16 @@ class AccountWidget extends StatelessWidget {
                                   ),
                             ),
                           ],
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: TurnaTheme.cardBg(context).withValues(
-                                alpha: isDark ? 0.35 : 0.85,
-                              ),
-                              borderRadius: BorderRadius.circular(
-                                  TurnaTheme.radiusRound),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  Icons.language_rounded,
-                                  size: 14,
-                                  color: TurnaTheme.anatolianClay,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  languageName,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: TurnaTheme.anatolianClay,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
                         ],
                       ),
                     ),
                     Column(
                       children: [
-                        _ThemeToggle(),
+                        _HeroIconButton(
+                          icon: Icons.edit_rounded,
+                          tooltip: AppStrings.accountEditName,
+                          onTap: () => _showEditNameDialog(context, user),
+                        ),
                         if (onShare != null) ...[
                           const SizedBox(height: 8),
                           _HeroIconButton(
@@ -219,6 +165,36 @@ class AccountWidget extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  Future<void> _showEditNameDialog(BuildContext context, LocalUser user) async {
+    // Use a modal bottom sheet instead of AlertDialog. AlertDialog wraps its
+    // content in an AnimatedPadding driven by MediaQuery.viewInsets (keyboard
+    // height) with a 100ms duration, so dismissing it while the keyboard is
+    // open leaves that animation mid-flight during route teardown. On Flutter
+    // 3.35's rewritten Overlay that trips `_overlayChildRenderBox == null`
+    // ("already occupied") and `InheritedElement._dependents.isEmpty`. The
+    // bottom-sheet route has no viewInsets-driven animation (the keyboard is
+    // absorbed by a static Padding in _EditNameSheet), so it dismisses
+    // cleanly. The TextEditingController is owned
+    // by _EditNameSheet's State and disposed with the sheet (after the exit
+    // animation), not from a finally here, which would run while the sheet is
+    // still mounted and rebuild the TextField against a disposed controller.
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: TurnaTheme.cardBg(context),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _EditNameSheet(
+        initialName: user.displayName ?? '',
+        onSave: (name) {
+          if (name.isEmpty) return;
+          getIt<AppPrefs>().setLocalUser(user.copyWith(displayName: name));
+        },
+      ),
     );
   }
 }
@@ -254,97 +230,93 @@ class _HeroIconButton extends StatelessWidget {
   }
 }
 
-class _ThemeToggle extends StatelessWidget {
+/// Bottom-sheet editor for the profile display name. Owns its
+/// [TextEditingController] so the controller is disposed with the sheet (after
+/// the exit animation) rather than from the caller's `finally`, which would
+/// run while the sheet is still mounted and rebuild the field against a
+/// disposed controller. See [AccountWidget._showEditNameDialog].
+class _EditNameSheet extends StatefulWidget {
+  const _EditNameSheet({required this.initialName, required this.onSave});
+
+  final String initialName;
+
+  /// Called with the trimmed value when the user saves (empty values are
+  /// ignored by the caller). Invoked after the sheet is popped.
+  final ValueChanged<String> onSave;
+
+  @override
+  State<_EditNameSheet> createState() => _EditNameSheetState();
+}
+
+class _EditNameSheetState extends State<_EditNameSheet> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialName);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final value = _controller.text.trim();
+    Navigator.of(context).pop();
+    widget.onSave(value);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final themeProvider = context.watch<ThemeProvider>();
-    final current = themeProvider.themeMode;
-
-    return PopupMenuButton<ThemeMode>(
-      initialValue: current,
-      onSelected: (mode) => themeProvider.setThemeMode(mode),
-      itemBuilder: (context) => [
-        PopupMenuItem(
-          value: ThemeMode.light,
-          child: Row(
-            children: [
-              Icon(
-                Icons.light_mode_rounded,
-                size: 18,
-                color:
-                    current == ThemeMode.light ? TurnaTheme.brandTeal : null,
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 16,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              AppStrings.accountEditNameTitle,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _controller,
+              autofocus: true,
+              textInputAction: TextInputAction.done,
+              decoration: InputDecoration(
+                hintText: AppStrings.accountEditNameHint,
+                border: const OutlineInputBorder(),
+                isDense: true,
               ),
-              const SizedBox(width: 8),
-              Text(
-                AppStrings.settingsThemeLight,
-                style: TextStyle(
-                  fontWeight: current == ThemeMode.light
-                      ? FontWeight.w700
-                      : FontWeight.w400,
+              onSubmitted: (_) => _submit(),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(AppStrings.commonCancel),
                 ),
-              ),
-            ],
-          ),
-        ),
-        PopupMenuItem(
-          value: ThemeMode.dark,
-          child: Row(
-            children: [
-              Icon(
-                Icons.dark_mode_rounded,
-                size: 18,
-                color:
-                    current == ThemeMode.dark ? TurnaTheme.brandTeal : null,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                AppStrings.settingsThemeDark,
-                style: TextStyle(
-                  fontWeight: current == ThemeMode.dark
-                      ? FontWeight.w700
-                      : FontWeight.w400,
+                const SizedBox(width: 8),
+                FilledButton(
+                  onPressed: _submit,
+                  child: Text(AppStrings.accountEditNameSave),
                 ),
-              ),
-            ],
-          ),
-        ),
-        PopupMenuItem(
-          value: ThemeMode.system,
-          child: Row(
-            children: [
-              Icon(
-                Icons.settings_suggest_rounded,
-                size: 18,
-                color:
-                    current == ThemeMode.system ? TurnaTheme.brandTeal : null,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                AppStrings.settingsThemeSystem,
-                style: TextStyle(
-                  fontWeight: current == ThemeMode.system
-                      ? FontWeight.w700
-                      : FontWeight.w400,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-      child: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: TurnaTheme.cardBg(context).withValues(alpha: 0.7),
-          borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
-        ),
-        child: Icon(
-          current == ThemeMode.dark
-              ? Icons.dark_mode_rounded
-              : current == ThemeMode.light
-                  ? Icons.light_mode_rounded
-                  : Icons.settings_suggest_rounded,
-          size: 20,
-          color: TurnaTheme.brandTeal,
+              ],
+            ),
+          ],
         ),
       ),
     );

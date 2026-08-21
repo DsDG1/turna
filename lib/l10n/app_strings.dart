@@ -1248,6 +1248,10 @@ class AppStrings {
   static String profileAchievementProgress(int current, int displayTarget) =>
       '$current/$displayTarget';
   static String get profileLearningStatsTitle => '学习统计';
+  static String get profileTodayTitle => '今日概览';
+  static String get profileStatsEntrySubtitle => '近 7 天经验、总量与 Anki';
+  static String profileAchievementsUnlocked(int unlocked, int total) =>
+      '已解锁 $unlocked/$total';
   static String get profileXpToday => '今日经验';
   static String get profileStudyTime => '学习时长';
   static String get profileAccuracy => '正确率';
@@ -1260,7 +1264,7 @@ class AppStrings {
   static String get profileReviewsDone => '复习次数';
   // ── Review progress ──
   static String get reviewProgressTitle => '复习进度';
-  static String get reviewProgressSubtitle => '分源统计、筛选与记忆曲线';
+  static String get reviewProgressSubtitle => '学习与复习统计、筛选与记忆曲线';
   static String get reviewProgressSourceAll => '全部';
   static String get reviewProgressSourceCourse => '课程 · 土耳其语';
   static String get reviewProgressSourceGrammar => '语法';
