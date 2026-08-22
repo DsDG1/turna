@@ -18,6 +18,7 @@ import 'package:turna/domain/review/review_ledger_resolver.dart';
 import 'package:turna/domain/study/study_log.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/components/ai_card_explain_sheet.dart';
+import 'package:turna/views/anki/anki_webview_sizing.dart';
 import 'package:turna/views/review/components/binary_recall_bar.dart';
 import 'package:turna/domain/anki/objective_outcome.dart';
 import 'package:turna/views/review/components/study_card_surface.dart';
@@ -255,88 +256,108 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
         canUndo: _controller.lastReceipt != null && !_controller.isSubmitting,
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Column(
-            children: [
-              Expanded(
-                child: StudyCardSurface(
-                  content: content,
-                  isRevealed: _controller.isRevealed,
-                  onReveal: _controller.reveal,
-                  onSpeak: content is StandardCourseCardContent
-                      ? () => _speakText(content.frontText)
-                      : null,
-                  onObjectiveResult: structured
-                      ? (correct) {
-                          _controller.reveal();
-                          _controller.answer(
-                            objectiveRecallOutcome(correct: correct),
-                          );
-                        }
-                      : null,
-                  generation: _controller.currentIndex,
-                ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // Responsive page chrome: padding and the card/action gap shrink
+            // on short screens and center within 760dp on tablets
+            // (WEBVIEW-UX-2026-08 §6.2).
+            final mq = MediaQuery.of(context);
+            final sizing = resolveAnkiWebViewSizing(
+              AnkiWebViewSizingInput(
+                viewport: Size(constraints.maxWidth, constraints.maxHeight),
+                orientation: mq.orientation,
+                scene: AnkiWebViewScene.review,
               ),
-              const SizedBox(height: 24),
-              if (_controller.lastError != null) ...[
-                Text(
-                  '当前卡片无法安全写入，请重试或稍后返回。',
-                  key: const Key('unified-review-error'),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: TurnaTheme.error,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ] else if (_controller.sideEffectWarning != null) ...[
-                Text(
-                  '复习已保存，统计稍后同步。',
-                  key: const Key('unified-review-side-effect-warning'),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: TurnaTheme.textSecondaryColor(context),
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ],
-              if (structured)
-                const SizedBox.shrink()
-              else if (!_controller.isRevealed)
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed:
-                        _controller.isSubmitting ? null : _controller.reveal,
-                    // styleFrom treats elevation as a base level (pressed: +6); pin all states flat.
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: TurnaTheme.brandTeal,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ).copyWith(elevation: const WidgetStatePropertyAll<double>(0)),
-                    child: Text(
-                      AppStrings.lessonShowAnswer,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
-                      ),
+            );
+            return Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: sizing.horizontalPadding,
+                vertical: 16,
+              ),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: StudyCardSurface(
+                      content: content,
+                      isRevealed: _controller.isRevealed,
+                      onReveal: _controller.reveal,
+                      onSpeak: content is StandardCourseCardContent
+                          ? () => _speakText(content.frontText)
+                          : null,
+                      onObjectiveResult: structured
+                          ? (correct) {
+                              _controller.reveal();
+                              _controller.answer(
+                                objectiveRecallOutcome(correct: correct),
+                              );
+                            }
+                          : null,
+                      generation: _controller.currentIndex,
                     ),
                   ),
-                )
-              else
-                BinaryRecallBar(
-                  onOutcome: _controller.answer,
-                  forgottenPreview: _controller.forgottenPreview,
-                  rememberedPreview: _controller.rememberedPreview,
-                  enabled: !_controller.isSubmitting &&
-                      _controller.lastError == null,
-                ),
-            ],
-          ),
+                  SizedBox(height: sizing.bottomGap),
+                  if (_controller.lastError != null) ...[
+                    Text(
+                      '当前卡片无法安全写入，请重试或稍后返回。',
+                      key: const Key('unified-review-error'),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: TurnaTheme.error,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ] else if (_controller.sideEffectWarning != null) ...[
+                    Text(
+                      '复习已保存，统计稍后同步。',
+                      key: const Key('unified-review-side-effect-warning'),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: TurnaTheme.textSecondaryColor(context),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  if (structured)
+                    const SizedBox.shrink()
+                  else if (!_controller.isRevealed)
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: _controller.isSubmitting
+                            ? null
+                            : _controller.reveal,
+                        // styleFrom treats elevation as a base level (pressed: +6); pin all states flat.
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: TurnaTheme.brandTeal,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ).copyWith(
+                            elevation: const WidgetStatePropertyAll<double>(0)),
+                        child: Text(
+                          AppStrings.lessonShowAnswer,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    BinaryRecallBar(
+                      onOutcome: _controller.answer,
+                      forgottenPreview: _controller.forgottenPreview,
+                      rememberedPreview: _controller.rememberedPreview,
+                      enabled: !_controller.isSubmitting &&
+                          _controller.lastError == null,
+                    ),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );

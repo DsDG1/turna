@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 // Package imports:
 import 'package:drift/native.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
@@ -13,6 +14,7 @@ import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 // Project imports:
 import 'package:turna/application/ai/ai_explain_prefs.dart';
 import 'package:turna/application/ai/ai_saved_explanations.dart';
+import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_sqlite.dart';
 import 'package:turna/application/system_health_monitor.dart';
 import 'package:turna/core/logger.dart';
@@ -25,6 +27,12 @@ import 'package:turna/data/rdb_query_executor.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/auth/local_user.dart';
 import 'package:turna/service/export_service.dart';
+import 'package:turna/service/remote_backup/backup_snapshot_service.dart';
+import 'package:turna/service/remote_backup/remote_backup_config.dart';
+import 'package:turna/service/remote_backup/remote_backup_service.dart';
+import 'package:turna/service/remote_backup/restore_applier.dart';
+import 'package:turna/service/remote_backup/webdav_client.dart';
+import 'package:turna/service/remote_backup/webdav_remote_backup_store.dart';
 import 'package:turna/service/tab_router.dart';
 
 class AppPrefs {
@@ -255,6 +263,18 @@ class LocalStateKeys {
   static const String funAutoAnswer = 'fun.autoAnswer';
   static const String funAllAchievementsUnlocked =
       'fun.allAchievementsUnlocked';
+
+  // Remote backup (WebDAV) — config contains the password, so it is written
+  // through the raw StreamingSharedPreferences to bypass printBefore (same
+  // approach as [aiEngineConfig]). These keys are device-local and never
+  // included in backup payloads.
+  static const String remoteBackupConfig = 'remoteBackup.config';
+  static const String remoteBackupDeviceId = 'remoteBackup.deviceId';
+  static const String remoteBackupLastInfo = 'remoteBackup.lastBackupInfo';
+  static const String remoteBackupLastRestoredAt =
+      'remoteBackup.lastRestoredAt';
+  static const String remoteBackupRestoreBlockedReason =
+      'remoteBackup.restoreBlockedReason';
 }
 
 /// Making AppPrefs injectable
@@ -296,10 +316,67 @@ Future<void> setupLocator() async {
   //
   // OHos (HarmonyOS): uses native RDB via MethodChannel bridge
   // (HarmonyOsRdbExecutor). Android/iOS use sqlite3 FFI (NativeDatabase).
+  // Apply a staged remote restore (armed from the remote-backup settings
+  // page) before any database or the official Anki engine opens — this is
+  // the only point in the boot sequence where every data file is closed.
+  // OHos is excluded (course.db lives in the system RDB store, not a file)
+  // and so is web (no local databases).
+  if (defaultTargetPlatform.name != 'ohos' && !kIsWeb) {
+    final appSupport = await getApplicationSupportDirectory();
+    final outcome = await RestoreApplier(
+      prefs: getIt<AppPrefs>(),
+      appSupport: appSupport,
+      appDocuments: await getApplicationDocumentsDirectory(),
+      officialProfileRoot:
+          Directory(p.join(appSupport.path, 'official_anki', 'default')),
+      // keep in lockstep with CourseDatabase.schemaVersion
+      currentDriftSchema: 18,
+      currentCatalogSchema: kOfficialAnkiCatalogSchemaVersion,
+    ).applyIfPending();
+    if (outcome != RestoreApplyOutcome.noPending) {
+      logger.i('Remote restore boot outcome: $outcome');
+    }
+  }
+
   final db = await _openAndSeedCourseDatabase();
   getIt.registerSingleton<CourseDatabase>(db);
   getIt.registerSingleton(AnkiUnificationDao(db));
   getIt.registerSingleton(CardIntroductionStore(dao: getIt<AnkiUnificationDao>()));
+
+  // Remote backup (manual WebDAV backup / restore) — same platform window as
+  // the restore applier (needs file-backed databases).
+  if (defaultTargetPlatform.name != 'ohos' && !kIsWeb) {
+    final appSupport = await getApplicationSupportDirectory();
+    if (!getIt.isRegistered<PackageInfo>()) {
+      getIt.registerSingleton<PackageInfo>(await PackageInfo.fromPlatform());
+    }
+    if (!getIt.isRegistered<RemoteBackupConfigStore>()) {
+      getIt.registerLazySingleton<RemoteBackupConfigStore>(
+          () => RemoteBackupConfigStore(getIt<AppPrefs>()));
+    }
+    if (!getIt.isRegistered<BackupSnapshotService>()) {
+      getIt.registerLazySingleton<BackupSnapshotService>(
+          () => BackupSnapshotService(
+                db: getIt<CourseDatabase>(),
+                packageInfo: getIt<PackageInfo>(),
+              ));
+    }
+    if (!getIt.isRegistered<RemoteBackupService>()) {
+      getIt.registerLazySingleton<RemoteBackupService>(() {
+        final configStore = getIt<RemoteBackupConfigStore>();
+        return RemoteBackupService(
+          prefs: getIt<AppPrefs>(),
+          configStore: configStore,
+          snapshotService: getIt<BackupSnapshotService>(),
+          appSupport: appSupport,
+          storeFactory: (config) => WebDavRemoteBackupStore(
+            WebDavClient.fromConfig(config),
+            remoteRoot: config.normalized().remoteRoot,
+          ),
+        );
+      });
+    }
+  }
 
   // NOTE: the vocabulary / grammar / expression pre-loads
   // (loadVocabulary / loadGrammarPoints / loadExpressions)

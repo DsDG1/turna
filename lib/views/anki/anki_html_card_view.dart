@@ -51,6 +51,12 @@ class AnkiHtmlCardView extends StatefulWidget {
   /// JS (jQuery + MathJax + decrypt) is async; tune per deck if needed.
   final Duration captureDelay;
 
+  /// Reports the WebView's real content height in CSS pixels, then again
+  /// whenever images/fonts/MathJax resize the page. Only wired when the page
+  /// already allows JavaScript ([allowJs] or a typing card) - JS-disabled
+  /// cards keep their policy and never gain a bridge for measuring.
+  final ValueChanged<double>? onContentHeightChanged;
+
   const AnkiHtmlCardView({
     super.key,
     required this.html,
@@ -63,6 +69,7 @@ class AnkiHtmlCardView extends StatefulWidget {
     this.onTypeAnswerChanged,
     this.onCaptured,
     this.captureDelay = const Duration(seconds: 2),
+    this.onContentHeightChanged,
   });
 
   @override
@@ -73,7 +80,15 @@ class AnkiHtmlCardViewState extends State<AnkiHtmlCardView> {
   WebViewController? _controller;
   bool _loadedIsBack = false;
   bool _pageFinished = false;
+  bool _pageLoading = true;
+  bool _heightChannelInstalled = false;
+  double? _lastReportedContentHeight;
   Timer? _captureTimer;
+
+  /// Hard cap for heights accepted from the page: large enough for any real
+  /// card, small enough that a broken template cannot push nonsense into
+  /// layout math.
+  static const double _maxReportableContentHeight = 20000;
 
   /// WebView platform implementations exist only for Android/iOS. Use
   /// Flutter's target platform guard, together with [kIsWeb], so this file
@@ -101,14 +116,22 @@ class AnkiHtmlCardViewState extends State<AnkiHtmlCardView> {
     _controller = c;
     _loadedIsBack = widget.isBack;
     _pageFinished = false;
+    // Sync the native surface with the themed body background so face swaps
+    // and dark mode never flash white.
+    c.setBackgroundColor(
+        widget.dark ? const Color(0xFF1E1E1E) : const Color(0xFFFFFFFF));
     // Container isolation: allow only local/file/data/about navigations;
     // block everything else so template JS cannot phone home. The page-finish
     // callback is also the readiness boundary for the optional DOM capture.
     c.setNavigationDelegate(NavigationDelegate(
       onPageFinished: (_) {
         if (!mounted) return;
-        _pageFinished = true;
+        setState(() {
+          _pageFinished = true;
+          _pageLoading = false;
+        });
         _installTypeAnswerBridge();
+        _installHeightObserver();
         _scheduleCapture();
       },
       onNavigationRequest: (req) {
@@ -128,7 +151,84 @@ class AnkiHtmlCardViewState extends State<AnkiHtmlCardView> {
         },
       );
     }
+    _ensureHeightChannel();
     c.loadHtmlString(_themedHtml());
+  }
+
+  /// Register the height-reporting channel. Never called for JS-disabled
+  /// cards: the channel exists only when the page already runs JavaScript,
+  /// and measuring alone never flips [JavaScriptMode].
+  void _ensureHeightChannel() {
+    final c = _controller;
+    if (c == null || _heightChannelInstalled) return;
+    if (widget.onContentHeightChanged == null) return;
+    if (!(widget.allowJs || widget.typeAnswerEnabled)) return;
+    c.addJavaScriptChannel(
+      'ankiCardHeight',
+      onMessageReceived: (message) => _onHeightMessage(message.message),
+    );
+    _heightChannelInstalled = true;
+  }
+
+  /// Accept only finite, positive, bounded numbers from the page.
+  void _onHeightMessage(String raw) {
+    final callback = widget.onContentHeightChanged;
+    if (callback == null) return;
+    final value = double.tryParse(raw.trim());
+    if (value == null || !value.isFinite) return;
+    if (value <= 0 || value > _maxReportableContentHeight) return;
+    final last = _lastReportedContentHeight;
+    if (last != null && (value - last).abs() < 1) return;
+    _lastReportedContentHeight = value;
+    callback(value);
+  }
+
+  /// Inject a self-contained height observer: measures
+  /// `max(documentElement, body).scrollHeight`, then reports changes through
+  /// a ResizeObserver (images, fonts, MathJax) with a ~80ms debounce.
+  Future<void> _installHeightObserver() async {
+    final c = _controller;
+    if (c == null || widget.onContentHeightChanged == null) return;
+    if (!(widget.allowJs || widget.typeAnswerEnabled)) return;
+    try {
+      await c.runJavaScript('''
+        (function() {
+          if (window.__ankiHeightWatch) return;
+          window.__ankiHeightWatch = true;
+          function measure() {
+            var de = document.documentElement, b = document.body;
+            var h = Math.max(de ? de.scrollHeight : 0, b ? b.scrollHeight : 0);
+            return isFinite(h) ? h : 0;
+          }
+          var last = -1, timer = null;
+          function report() {
+            timer = null;
+            var h = measure();
+            if (h <= 0) return;
+            if (Math.abs(h - last) < 1) return;
+            last = h;
+            if (window.ankiCardHeight) {
+              window.ankiCardHeight.postMessage(String(Math.round(h)));
+            }
+          }
+          function schedule() {
+            if (timer == null) timer = setTimeout(report, 80);
+          }
+          if (typeof ResizeObserver !== 'undefined') {
+            try {
+              var ro = new ResizeObserver(schedule);
+              if (document.documentElement) ro.observe(document.documentElement);
+              if (document.body) ro.observe(document.body);
+            } catch (e) {}
+          }
+          window.addEventListener('load', schedule);
+          report();
+        })();
+      ''');
+    } on Exception {
+      // The page may have torn down its JS context; height tracking is
+      // best-effort and must never break rendering.
+    }
   }
 
   bool _isAllowedFileUrl(String rawUrl) {
@@ -167,11 +267,26 @@ class AnkiHtmlCardViewState extends State<AnkiHtmlCardView> {
     }
   }
 
-  /// The HTML with an extra dark-mode stylesheet appended when [widget.dark].
-  /// Notetype css targets light mode; this overrides background/text colors so
-  /// fidelity cards match the app theme (deep-adaptation plan §6).
+  /// Viewport-protection CSS appended after the notetype styles. It only
+  /// constrains overflow (media, tables, long words, form controls) and never
+  /// touches author-defined font, size, alignment or colors, so fidelity is
+  /// preserved (WEBVIEW-UX-2026-08 §5.3).
+  static const String _baseViewportCss =
+      '*,*::before,*::after{box-sizing:border-box;}'
+      'img,video,svg,canvas,audio{max-width:100%;}'
+      'video{height:auto;}'
+      'table{max-width:100%;display:block;overflow-x:auto;}'
+      'body{overflow-wrap:break-word;}'
+      'input,textarea,select,button{max-width:100%;}';
+
+  /// The HTML with the viewport base layer plus dark-mode/hidden-audio
+  /// overrides appended when needed. Notetype css targets light mode; the
+  /// dark layer overrides background/text colors so fidelity cards match the
+  /// app theme (deep-adaptation plan §6).
   String _themedHtml() {
-    final css = StringBuffer();
+    final css = StringBuffer(_baseViewportCss);
+    css.write(
+        widget.dark ? ':root{color-scheme:dark;}' : ':root{color-scheme:light;}');
     if (widget.dark) {
       css.write(
         'body{background:#1e1e1e !important;color:#e0e0e0 !important;}'
@@ -183,11 +298,16 @@ class AnkiHtmlCardViewState extends State<AnkiHtmlCardView> {
     if (widget.hideEmbeddedAudioControls) {
       css.write('audio{display:none!important;}');
     }
-    if (css.isEmpty) return widget.html;
     if (widget.html.contains('</style>')) {
       return widget.html.replaceFirst('</style>', '$css</style>');
     }
-    return widget.html.replaceFirst('</head>', '<style>$css</style></head>');
+    if (widget.html.contains('</head>')) {
+      return widget.html.replaceFirst('</head>', '<style>$css</style></head>');
+    }
+    // Fragment without a head: wrap so the protections still apply.
+    return '<!DOCTYPE html><html><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width, initial-scale=1.0">'
+        '<style>$css</style></head><body>${widget.html}</body></html>';
   }
 
   @override
@@ -207,6 +327,11 @@ class AnkiHtmlCardViewState extends State<AnkiHtmlCardView> {
                 ? JavaScriptMode.unrestricted
                 : JavaScriptMode.disabled);
         _pageFinished = false;
+        // Face swap: the new page reports its own height even when it equals
+        // the previous one, so clear the dedupe state before reloading.
+        _lastReportedContentHeight = null;
+        _ensureHeightChannel();
+        setState(() => _pageLoading = true);
         _controller!.loadHtmlString(_themedHtml());
         _loadedIsBack = widget.isBack;
       }
@@ -261,7 +386,25 @@ class AnkiHtmlCardViewState extends State<AnkiHtmlCardView> {
         onTypeAnswerChanged: widget.onTypeAnswerChanged,
       );
     }
-    return WebViewWidget(controller: _controller!);
+    // The controller instance never changes here, so height-driven rebuilds
+    // resize the surface without reloading the current card.
+    return Stack(
+      children: [
+        WebViewWidget(controller: _controller!),
+        // Lightweight top progress only; the previous face stays visible
+        // underneath instead of being covered by a blocking spinner.
+        if (_pageLoading)
+          const Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SizedBox(
+              height: 2,
+              child: LinearProgressIndicator(minHeight: 2),
+            ),
+          ),
+      ],
+    );
   }
 }
 

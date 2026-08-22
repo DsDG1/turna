@@ -976,7 +976,7 @@ packages:
     source: git
     version: "3.3.0"
   shared_preferences:
-    dependency: "direct dev"
+    dependency: "direct main"
     description:
       path: "packages/shared_preferences/shared_preferences"
       ref: "br_shared_preferences-v2.5.3_ohos"

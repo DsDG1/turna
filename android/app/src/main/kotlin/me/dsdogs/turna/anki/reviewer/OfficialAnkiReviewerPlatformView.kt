@@ -50,7 +50,11 @@ class OfficialAnkiReviewerPlatformView(
 
     init {
         channel.setMethodCallHandler(this)
-        webView.setBackgroundColor(Color.WHITE)
+        // Seed the native surface with the theme so a night-mode session
+        // never flashes white before the shell paints its own background.
+        webView.setBackgroundColor(
+            if (creationParams?.get("theme") == "night") NIGHT_BACKGROUND else Color.WHITE,
+        )
         webView.layoutParams = ViewGroup.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT,
@@ -452,5 +456,6 @@ class OfficialAnkiReviewerPlatformView(
         private const val POLL_LIMIT = 400
         private const val APPLY_DELAY_MS = 50L
         private const val PRESENT_DEADLINE_MS = 20_000L
+        private val NIGHT_BACKGROUND = Color.parseColor("#111111")
     }
 }

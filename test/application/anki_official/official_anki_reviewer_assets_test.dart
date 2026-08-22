@@ -59,6 +59,19 @@ void main() {
     expect(frameJs.contains('renderComplete'), isTrue);
     expect(frameJs.contains('scrollHeight'), isTrue);
     expect(frameJs.contains('applyBodyClass'), isTrue);
+    // Continuous height protocol (WEBVIEW-UX-2026-08 §7): the frame reports
+    // resizes and the shell sizes the iframe, never the other way round.
+    expect(frameJs.contains('contentHeightChanged'), isTrue);
+    expect(frameJs.contains('ResizeObserver'), isTrue);
+    expect(js.contains('contentHeightChanged'), isTrue);
+    expect(js.contains('applyFrameHeight'), isTrue);
+    expect(js.contains('allow-same-origin'), isFalse);
+    final css = File('${root.path}/reviewer.css').readAsStringSync();
+    expect(css.contains('body.reviewer-shell'), isTrue);
+    expect(css.contains('body.card-frame'), isTrue);
+    expect(css.contains('min-height: 100vh'), isTrue);
+    expect(html.contains('reviewer-shell'), isTrue);
+    expect(frameHtml.contains('card-frame'), isTrue);
     final instrumented = File(
       'android/app/src/androidTest/kotlin/me/dsdogs/turna/anki/reviewer/OfficialAnkiReviewerFlipPathTest.kt',
     ).readAsStringSync();

@@ -1,3 +1,6 @@
+// Dart imports:
+import 'dart:async';
+
 // Flutter imports:
 import 'package:flutter/cupertino.dart';
 
@@ -322,26 +325,38 @@ class CourseProvider extends ChangeNotifier {
   /// The load outcome is reflected in [sectionLoadState] and
   /// [sectionLoadError] so the UI can show loading / error / content states
   /// instead of falling back to a blank or gray empty state.
-  Future<void> ensureSectionLoaded(String id) async {
+  ///
+  /// The in-flight future is registered in [_sectionLoadFutures] BEFORE the
+  /// loading-state [notifyListeners]: listeners run synchronously, and a
+  /// listener that re-calls this method for the same id (e.g. the Playground
+  /// availability reload) must coalesce onto the in-flight future — notifying
+  /// first let the re-entrant call see an empty map and start a duplicate
+  /// fetch (the repeated "starting fetch" log lines / self-sustaining retry
+  /// storm). The future always completes normally; load failures are
+  /// surfaced via [sectionLoadState]/[sectionLoadError] because several
+  /// callers await it fire-and-forget without an error handler.
+  Future<void> ensureSectionLoaded(String id) {
     if (_loadedSectionIds.contains(id)) {
       _sectionLoadStates[id] = SectionLoadState.loaded;
-      return;
+      return Future<void>.value();
     }
     if (findSectionById(id) == null) {
       logger.w('CourseProvider.ensureSectionLoaded($id): section not in index');
       _sectionLoadStates[id] = SectionLoadState.error;
       _sectionLoadErrors[id] = StateError('Section $id not found in index');
       notifyListeners();
-      return;
+      return Future<void>.value();
     }
     final inFlight = _sectionLoadFutures[id];
     if (inFlight != null) return inFlight;
 
-    final future = () async {
-      logger.i('CourseProvider.ensureSectionLoaded($id): starting fetch');
-      _sectionLoadStates[id] = SectionLoadState.loading;
-      _sectionLoadErrors.remove(id);
-      notifyListeners();
+    final completer = Completer<void>();
+    _sectionLoadFutures[id] = completer.future;
+    _sectionLoadStates[id] = SectionLoadState.loading;
+    _sectionLoadErrors.remove(id);
+    notifyListeners();
+    logger.i('CourseProvider.ensureSectionLoaded($id): starting fetch');
+    () async {
       try {
         final full = await CourseLoader.loadSection(id);
         logger.i(
@@ -360,12 +375,16 @@ class CourseProvider extends ChangeNotifier {
         _sectionLoadStates[id] = SectionLoadState.error;
         _sectionLoadErrors[id] = e;
       } finally {
-        _sectionLoadFutures.remove(id);
+        // reloadSection may have reset the slot while this load was in
+        // flight — only clear our own registration.
+        if (identical(_sectionLoadFutures[id], completer.future)) {
+          _sectionLoadFutures.remove(id);
+        }
+        notifyListeners();
+        completer.complete();
       }
-      notifyListeners();
     }();
-    _sectionLoadFutures[id] = future;
-    return future;
+    return completer.future;
   }
 
   void _replaceSection(Section full) {

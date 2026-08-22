@@ -1,6 +1,7 @@
 // Flutter imports:
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 // Package imports:
@@ -476,6 +477,17 @@ class _SettingsPageState extends State<SettingsPage> {
                 title: AppStrings.settingsImportDataTitle,
                 subtitle: AppStrings.settingsImportDataSubtitle,
                 onTap: (context) => _importData(context),
+              ),
+              settingsTileDivider(context),
+              SettingsActionTile(
+                icon: Icons.cloud_upload_outlined,
+                title: AppStrings.settingsRemoteBackupTitle,
+                subtitle: defaultTargetPlatform.name == 'ohos'
+                    ? AppStrings.settingsRemoteBackupUnsupported
+                    : AppStrings.settingsRemoteBackupSubtitle,
+                enabled: defaultTargetPlatform.name != 'ohos',
+                onTap: (context) =>
+                    context.router.push(const RemoteBackupRoute()),
               ),
               settingsTileDivider(context),
               SettingsActionTile(

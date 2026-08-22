@@ -196,6 +196,7 @@ class OfficialAnkiReviewerViewState extends State<OfficialAnkiReviewerView> {
     }
     final params = <String, Object?>{
       'mediaRoot': widget.mediaRoot,
+      'theme': widget.dark ? 'night' : 'day',
       'diagnostics': kDebugMode &&
           OfficialAnkiFeatureFlags.current.reviewerDiagnostics,
     };

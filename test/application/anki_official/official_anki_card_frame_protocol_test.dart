@@ -16,6 +16,6 @@ void main() {
       0,
       reason: 'stdout:\n${result.stdout}\nstderr:\n${result.stderr}',
     );
-    expect(result.stdout.toString(), contains('all five protocol cases passed'));
+    expect(result.stdout.toString(), contains('all protocol cases passed'));
   });
 }

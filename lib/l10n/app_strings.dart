@@ -98,6 +98,62 @@ class AppStrings {
   static String get settingsResetProgressTitle => '重置课程进度';
   static String get settingsResetProgressSubtitle => '将所有课程标记为未完成';
 
+  // ── Remote backup (WebDAV) ──
+  static String get settingsRemoteBackupTitle => '远程备份';
+  static String get settingsRemoteBackupSubtitle => '通过 WebDAV 备份与恢复全部学习数据';
+  static String get settingsRemoteBackupUnsupported => '当前平台暂不支持远程备份';
+  static String get remoteBackupServerSection => '服务器';
+  static String get remoteBackupServerUrlLabel => '服务器地址';
+  static String get remoteBackupServerUrlHint => 'https://dav.example.com/dav';
+  static String get remoteBackupUsernameLabel => '用户名';
+  static String get remoteBackupUsernameHint => 'WebDAV 账号';
+  static String get remoteBackupPasswordLabel => '密码';
+  static String get remoteBackupPasswordHint => 'WebDAV 密码（坚果云请用应用密码）';
+  static String get remoteBackupTestConnection => '测试连接';
+  static String get remoteBackupTesting => '正在测试…';
+  static String get remoteBackupTestOk => '连接成功，目录已就绪';
+  static String remoteBackupTestFailed(Object error) => '连接失败：$error';
+  static String get remoteBackupHint =>
+      '备份会上传到你自己的 WebDAV 服务器（Nextcloud、Alist 等，后续支持坚果云）。包含进度、课程、Anki 牌组与媒体；不含服务器密码与 AI API key。';
+  static String get remoteBackupBackupSection => '备份';
+  static String get remoteBackupIncludeMediaTitle => '包含媒体文件';
+  static String get remoteBackupIncludeMediaSubtitle => 'Anki 卡组的图片/音频，按内容增量上传';
+  static String get remoteBackupBackupNow => '立即备份';
+  static String get remoteBackupNoBackupYet => '尚未备份过';
+  static String remoteBackupLastBackup(Object time, Object size) =>
+      '上次备份：$time（核心包 $size）';
+  static String get remoteBackupRemoteStatusLoading => '正在读取服务器状态…';
+  static String remoteBackupRemoteStatusError(Object error) =>
+      '读取服务器状态失败：$error';
+  static String remoteBackupRemoteStatus(Object time, Object device) =>
+      '服务器最新备份：$time（来自 $device）';
+  static String get remoteBackupPhaseCollectingPrefs => '正在收集进度数据…';
+  static String get remoteBackupPhaseSnapshottingCourseDb => '正在快照课程数据库…';
+  static String get remoteBackupPhaseSnapshottingOfficialDbs => '正在快照 Anki 数据…';
+  static String remoteBackupPhaseHashingMedia(Object done, Object total) =>
+      '正在扫描媒体（$done/$total）…';
+  static String get remoteBackupPhasePackingArchive => '正在打包备份…';
+  static String remoteBackupPhaseUploadingMedia(Object uploaded, Object skipped) =>
+      '正在上传媒体（新增 $uploaded，已跳过 $skipped）…';
+  static String get remoteBackupPhaseUploadingCore => '正在上传核心包…';
+  static String remoteBackupSuccess(Object size) => '备份完成（核心包 $size）';
+  static String remoteBackupFailed(Object error) => '备份失败：$error';
+  static String get remoteBackupRestoreSection => '恢复';
+  static String get remoteBackupRestoreFromRemote => '从远程恢复';
+  static String get remoteBackupRestoreSubtitle => '下载最近备份，重启应用后覆盖本机数据';
+  static String get remoteBackupRestoreDialogTitle => '从远程恢复？';
+  static String get remoteBackupRestoreDialogMessage =>
+      '将下载最近一次远程备份，并在重启应用后覆盖本机的进度、课程与 Anki 数据。此操作不可撤销。';
+  static String get remoteBackupRestoreConfirm => '下载并覆盖';
+  static String get remoteBackupRestoringCore => '正在下载核心包…';
+  static String remoteBackupRestoringMedia(Object done, Object total) =>
+      '正在下载媒体（$done/$total）…';
+  static String get remoteBackupRestoreStagedTitle => '恢复包已就绪';
+  static String get remoteBackupRestoreStagedMessage =>
+      '备份已下载并校验完成。重启应用后将自动完成恢复。';
+  static String remoteBackupRestoreFailed(Object error) => '恢复准备失败：$error';
+  static String remoteBackupBlockedNotice(Object reason) => '上次恢复未执行：$reason';
+
   // ── Beginner guide ──
   static String get beginnerGuideTitle => '新手指南';
   static String get beginnerGuideEntry => '新手指南';
@@ -405,7 +461,7 @@ class AppStrings {
   static String get privacyDetailsStorageTitle => '数据存储';
   static String get privacyDetailsStorageIntro => '你的学习数据存放在哪里';
   static String get privacyDetailsStorageBody =>
-      '课程进度、SRS 复习数据、错题本、收藏、成就、设置项、皮肤与主题等数据，全部保存在本机 SQLite 数据库与 SharedPreferences 中，受系统沙箱保护。卸载应用将一并删除这些数据——我们没有副本可恢复。建议定期使用「设置 → 数据 → 导出数据」进行本地备份。';
+      '课程进度、SRS 复习数据、错题本、收藏、成就、设置项、皮肤与主题等数据，全部保存在本机 SQLite 数据库与 SharedPreferences 中，受系统沙箱保护。卸载应用将一并删除这些数据——我们没有副本可恢复。建议定期使用「设置 → 数据 → 导出数据」进行本地备份，或配置「设置 → 数据 → 远程备份」将完整备份（含 Anki 牌组与媒体）上传到你自己的 WebDAV 服务器；远程备份的账号密码仅保存在本机，备份包不含该密码与 AI API key。';
   // 网络访问
   static String get privacyDetailsNetworkTitle => '网络访问';
   static String get privacyDetailsNetworkIntro =>

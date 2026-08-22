@@ -92,7 +92,10 @@ class _LanguagePlaygroundPageState extends State<LanguagePlaygroundPage> {
         setState(() => _blockedInline = false);
         _exitAttempted = false;
       }
-      if (initial || _availableModes.isEmpty) {
+      // 加载进行中不再重触发：ensureSectionLoaded 的 loading/完成通知会
+      // 回到这里，无守卫时每次通知都重跑 _loadAvailability，叠加失败态
+      // （失败不缓存）会形成自激的无限重试风暴，页面永远停在加载中。
+      if (initial || (!_availabilityLoading && _availableModes.isEmpty)) {
         unawaited(_loadAvailability());
       }
       return;

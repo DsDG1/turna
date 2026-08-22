@@ -24,6 +24,7 @@ import 'package:turna/domain/review/review_item.dart';
 import 'package:turna/domain/review/turna_review_ledger.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/anki/anki_official_review_gate.dart';
+import 'package:turna/views/anki/anki_webview_sizing.dart';
 import 'package:turna/views/review/components/binary_recall_bar.dart';
 import 'package:turna/views/review/components/review_progress_header.dart';
 import 'package:turna/views/review/components/study_card_surface.dart';
@@ -344,72 +345,90 @@ class _AnkiStudySessionView extends StatelessWidget {
         canUndo: controller.lastReceipt != null && !controller.isLocked,
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Column(
-            children: [
-              Expanded(
-                child: StudyCardSurface(
-                  presentation: item.presentation,
-                  content: _contentFor(item),
-                  isRevealed: revealed,
-                  generation: controller.generation,
-                  onReveal: () {
-                    unawaited(
-                      AnkiStudySessionHost.revealAndPresentAnswer(controller),
-                    );
-                  },
-                  onPresented: controller.acceptPresentation,
-                  onObjectiveResult: structured
-                      ? (correct) {
-                          unawaited(
-                            controller.submitObjectiveAnswer(correct: correct),
-                          );
-                        }
-                      : null,
-                ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // Same responsive chrome as the unified review page: the gap
+            // between card area and rating bar shrinks on short screens and
+            // tablets center within the max content width.
+            final mq = MediaQuery.of(context);
+            final sizing = resolveAnkiWebViewSizing(
+              AnkiWebViewSizingInput(
+                viewport: Size(constraints.maxWidth, constraints.maxHeight),
+                orientation: mq.orientation,
+                scene: AnkiWebViewScene.review,
               ),
-              const SizedBox(height: 24),
-              if (controller.phase == StudyCardPhase.recoverableError) ...[
-                const Text(
-                  '当前卡片无法安全写入，请重试或稍后返回。',
-                  key: Key('anki-study-session-error'),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 12),
-                FilledButton(
-                  onPressed: controller.retryCurrent,
-                  child: Text(AppStrings.ankiReviewRetry),
-                ),
-              ] else if (structured)
-                const SizedBox.shrink()
-              else if (!revealed)
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: controller.canReveal
-                        ? () => unawaited(
-                              AnkiStudySessionHost.revealAndPresentAnswer(
-                                controller,
-                              ),
-                            )
-                        : null,
-                    child: Text(AppStrings.lessonShowAnswer),
+            );
+            return Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: sizing.horizontalPadding,
+                vertical: 16,
+              ),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: StudyCardSurface(
+                      presentation: item.presentation,
+                      content: _contentFor(item),
+                      isRevealed: revealed,
+                      generation: controller.generation,
+                      onReveal: () {
+                        unawaited(
+                          AnkiStudySessionHost.revealAndPresentAnswer(controller),
+                        );
+                      },
+                      onPresented: controller.acceptPresentation,
+                      onObjectiveResult: structured
+                          ? (correct) {
+                              unawaited(
+                                controller.submitObjectiveAnswer(correct: correct),
+                              );
+                            }
+                          : null,
+                    ),
                   ),
-                )
-              else
-                BinaryRecallBar(
-                  onOutcome: (outcome) async {
-                    await controller.submitRecall(outcome);
-                    if (controller.phase == StudyCardPhase.readyForNext) {
-                      await controller.continueNext();
-                    }
-                  },
-                  enabled: controller.canSubmitRecall,
-                ),
-            ],
-          ),
+                  SizedBox(height: sizing.bottomGap),
+                  if (controller.phase == StudyCardPhase.recoverableError) ...[
+                    const Text(
+                      '当前卡片无法安全写入，请重试或稍后返回。',
+                      key: Key('anki-study-session-error'),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    FilledButton(
+                      onPressed: controller.retryCurrent,
+                      child: Text(AppStrings.ankiReviewRetry),
+                    ),
+                  ] else if (structured)
+                    const SizedBox.shrink()
+                  else if (!revealed)
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: controller.canReveal
+                            ? () => unawaited(
+                                  AnkiStudySessionHost.revealAndPresentAnswer(
+                                    controller,
+                                  ),
+                                )
+                            : null,
+                        child: Text(AppStrings.lessonShowAnswer),
+                      ),
+                    )
+                  else
+                    BinaryRecallBar(
+                      onOutcome: (outcome) async {
+                        await controller.submitRecall(outcome);
+                        if (controller.phase == StudyCardPhase.readyForNext) {
+                          await controller.continueNext();
+                        }
+                      },
+                      enabled: controller.canSubmitRecall,
+                    ),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );

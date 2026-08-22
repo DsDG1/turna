@@ -87,6 +87,12 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
     final flags = OfficialAnkiFeatureFlags.current;
     final controller = _controller;
     final card = controller.card;
+    // The replay button replays the card author's own AV tags; hide it on
+    // cards without media instead of offering a no-op "system read aloud".
+    final hasReplayableAv = card != null &&
+        (controller.showingAnswer
+            ? card.answerAvTags.isNotEmpty
+            : card.questionAvTags.isNotEmpty);
     return Column(
       key: const Key('official-review-stage'),
       children: [
@@ -149,15 +155,17 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
                     child: Text(controller.showingAnswer ? '正面' : '显示答案'),
                   ),
                 ),
-                const SizedBox(width: 8),
-                IconButton(
-                  onPressed: controller.replayBusy ? null : _replay,
-                  icon: const Icon(Icons.replay),
-                ),
+                if (hasReplayableAv) ...[
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: controller.replayBusy ? null : _replay,
+                    icon: const Icon(Icons.replay),
+                  ),
+                ],
               ],
             ),
           )
-        else
+        else if (hasReplayableAv)
           Align(
             alignment: Alignment.centerRight,
             child: IconButton(

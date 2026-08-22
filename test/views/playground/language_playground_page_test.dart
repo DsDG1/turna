@@ -146,7 +146,7 @@ Section _languageSection() => Section(
     );
 
 void main() {
-  TestWidgetsFlutterBinding.ensure_initialized();
+  TestWidgetsFlutterBinding.ensureInitialized();
 
   late AppPrefs prefs;
 

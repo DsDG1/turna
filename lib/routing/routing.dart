@@ -82,6 +82,7 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: ChangelogRoute.page),
         AutoRoute(page: TransparencyLogRoute.page),
         AutoRoute(page: AiApiConfigRoute.page),
+        AutoRoute(page: RemoteBackupRoute.page),
         AutoRoute(page: AvatarRingsRoute.page),
       ];
 }

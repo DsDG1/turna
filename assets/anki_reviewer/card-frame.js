@@ -126,6 +126,51 @@
     );
   }
 
+  // ── Continuous height reporting (WEBVIEW-UX-2026-08 §7.2) ──
+  // renderComplete carries the first height; anything that resizes the card
+  // afterwards (images, fonts, MathJax, template JS) is picked up by a
+  // ResizeObserver and posted as contentHeightChanged, throttled and
+  // deduped so media storms cannot flood the shell.
+  var lastPostedHeight = -1;
+  var heightTimer = null;
+
+  function postHeightChanged() {
+    heightTimer = null;
+    var h = frameHeight();
+    if (!isFinite(h) || h <= 0) return;
+    if (Math.abs(h - lastPostedHeight) < 1) return;
+    lastPostedHeight = h;
+    post({
+      v: 1,
+      type: "contentHeightChanged",
+      nonce: nonce,
+      generation: generation,
+      cardId: cardId,
+      side: lastSide,
+      height: h
+    });
+  }
+
+  function scheduleHeightReport() {
+    if (heightTimer != null) return;
+    heightTimer = setTimeout(postHeightChanged, 100);
+  }
+
+  if (typeof ResizeObserver !== "undefined") {
+    try {
+      var heightObserver = new ResizeObserver(scheduleHeightReport);
+      if (qa) heightObserver.observe(qa);
+      if (document.body) heightObserver.observe(document.body);
+    } catch (e) {
+      // Older engines fall back to the renderComplete height only.
+    }
+  }
+  if (document.fonts && document.fonts.ready && document.fonts.ready.then) {
+    document.fonts.ready.then(function () {
+      scheduleHeightReport();
+    });
+  }
+
   function djb2(text) {
     var hash = 5381;
     var value = String(text || "");
@@ -201,6 +246,7 @@
     }
     if (token !== generation || seq !== updateSeq) return;
     window.scrollTo(0, 0);
+    lastPostedHeight = frameHeight();
     post({
       v: 1,
       type: "renderComplete",

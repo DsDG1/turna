@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:turna/domain/review/review_item.dart';
+import 'package:turna/views/anki/anki_card_shell.dart';
 import 'package:turna/views/anki/anki_html_card_view.dart';
-import 'package:turna/views/theme.dart';
 
 /// WebView-based card body renderer for official Anki template cards.
 ///
 /// Invariant: WebView is only the card body within the unified review scaffold,
-/// not an entire duplicate review screen.
+/// not an entire duplicate review screen. The card fills the remaining review
+/// area (no content-height shrinking) and shares the app-wide card shell.
 class OfficialTemplateWebViewBody extends StatelessWidget {
   final OfficialTemplateContent content;
   final bool isRevealed;
@@ -26,24 +27,7 @@ class OfficialTemplateWebViewBody extends StatelessWidget {
 
     return GestureDetector(
       onTap: isRevealed ? null : onReveal,
-      child: Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: TurnaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-        border: Border.all(
-          color: TurnaTheme.statCardBorder(context),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: TurnaTheme.brandTeal.withValues(alpha: 0.06),
-            blurRadius: 20,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+      child: AnkiWebViewCardShell(
         child: AnkiHtmlCardView(
           html: html,
           allowJs: true,
@@ -52,7 +36,6 @@ class OfficialTemplateWebViewBody extends StatelessWidget {
           isBack: isRevealed,
         ),
       ),
-    ),
     );
   }
 }

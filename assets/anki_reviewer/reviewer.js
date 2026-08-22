@@ -37,6 +37,46 @@
     frame.contentWindow.postMessage(message, "*");
   }
 
+  // ── Continuous height protocol (WEBVIEW-UX-2026-08 §7.2) ──
+  // The frame reports contentHeightChanged after images/fonts/MathJax resize
+  // the card; the shell sizes the iframe to max(visible viewport, content)
+  // so long cards extend instead of clipping, while the outer WebView stays
+  // the single vertical scroller.
+  var lastContentHeight = 0;
+
+  function viewportHeight() {
+    var h = window.innerHeight ||
+      (document.documentElement && document.documentElement.clientHeight) ||
+      0;
+    return isFinite(h) && h > 0 ? h : 0;
+  }
+
+  function applyFrameHeight(contentHeight) {
+    if (!frame) return;
+    var next = Math.max(viewportHeight(), contentHeight || 0);
+    if (next > 0) frame.style.height = next + "px";
+  }
+
+  function refitFrame() {
+    applyFrameHeight(lastContentHeight);
+  }
+
+  window.addEventListener("resize", refitFrame);
+  window.addEventListener("orientationchange", refitFrame);
+
+  // Mirror the payload theme onto the shell body so day/night backgrounds
+  // stay continuous from shell to frame.
+  function applyShellTheme(theme) {
+    if (!document.body) return;
+    var parts = String(document.body.className || "").split(/\s+/).filter(
+      function (c) {
+        return c && c !== "nightMode" && c !== "night_mode";
+      }
+    );
+    if (theme === "night") parts.push("nightMode", "night_mode");
+    document.body.className = parts.join(" ");
+  }
+
   function waitForAck(kind, token, timeoutMs) {
     return new Promise(function (resolve) {
       var done = false;
@@ -90,6 +130,15 @@
       return;
     }
     if (msg.nonce && msg.nonce !== nonce) return;
+    if (msg.type === "contentHeightChanged") {
+      // Continuous updates never resolve a pending present ack and must not
+      // clobber __turnaLastRender, which the Android poll reads.
+      if (msg.generation === generation && msg.height > 0) {
+        lastContentHeight = msg.height;
+        applyFrameHeight(lastContentHeight);
+      }
+      return;
+    }
     lastAck = msg;
     publishDebug();
     if (pending) pending(msg);
@@ -118,8 +167,12 @@
     lastAck = null;
     window.__turnaLastRender = null;
     postedTypes = [];
+    applyShellTheme(payload.theme || "day");
     if (newCard) {
       lastFrameCardId = incomingCardId;
+      // Reset any height left over from the previous card; the fresh frame
+      // starts at the visible viewport and grows with the new content.
+      lastContentHeight = 0;
       replaceFrame();
       var ready = frameReady
         ? { type: "frameReady", generation: token }
@@ -230,6 +283,12 @@
     var complete = await waitForAck("renderComplete", token, ackTimeoutMs());
     lastAck = complete;
     publishDebug();
+    // Seed the iframe from the first completed render; later media/font
+    // resizes arrive as contentHeightChanged messages.
+    if (complete && complete.height > 0) {
+      lastContentHeight = complete.height;
+      applyFrameHeight(lastContentHeight);
+    }
     return complete;
   }
 
@@ -277,6 +336,7 @@
       generation += 1;
       payload = null;
       lastFrameCardId = null;
+      lastContentHeight = 0;
       window.__turnaCardId = null;
       if (frame && frame.parentNode) {
         frame.parentNode.removeChild(frame);
