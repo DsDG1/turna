@@ -2,7 +2,7 @@
 
 > 文档代号：P5E-WAVE1-REPORT  
 > 日期：2026-08-20  
-> 前置：[`14`](./14-phase-4-audit-remediation-and-phase-5-execution-plan.md) §8/§10.4、[`15`](./15-p5-legacy-inventory.md)、[`24`](./24-p5-remainder-and-p6-ankiweb-plan.md) §6、[`28`](./28-p5d-remainder-construction-plan.md)  
+> 前置：[`14`](./14-phase-4-audit-remediation-and-phase-5-execution-plan.md) §8/§10.4、[`15`](./15-p5-legacy-inventory.md)、[`24`](./24-p5-remainder-and-p6-ankiweb-plan.md) §6、[`28`](../28-p5d-remainder-construction-plan.md)  
 > 状态：**P5-E Wave 1 HOST CONDITIONAL GO**（断生产引用、隔离 Legacy、无数据删除）
 
 ---

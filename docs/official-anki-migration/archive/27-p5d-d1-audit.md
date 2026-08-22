@@ -89,4 +89,4 @@ P5-E: HOLD
 P6: 已取消（本验货当时写 HOLD）
 ```
 
-下一步：D1 已收口。后续大施工见 [`28`](./28-p5d-remainder-construction-plan.md)；先 D2，不要直接开灰度 / 用户源 / E。P6 已取消。
+下一步：D1 已收口。后续大施工见 [`28`](../28-p5d-remainder-construction-plan.md)；先 D2，不要直接开灰度 / 用户源 / E。P6 已取消。

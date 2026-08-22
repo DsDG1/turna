@@ -290,7 +290,7 @@ Explain → Practice → Rate 三段流（见 2.4 Skill Acquisition Theory）。
 
 > **官方 Core 现状**：Android 生产默认已翻转至官方 Anki Core（rslib FFI，`lib/application/anki_official/`）——渲染 / 调度 / 投影默认走官方（flag 见 `official_anki_feature_flags.dart`）；导入向导仍为 Dart 先行双写，官方先行导入为 opt-in（P5-F）。本节描述的自研管线保留为 Legacy / OHOS 路径。详见 [`docs/official-anki-migration/README.md`](./official-anki-migration/README.md) 与 [ADR 0036](./decisions/0036-official-anki-core-migration.md)、[ADR 0037](./decisions/0037-anki-course-review-unification.md)。
 
-本应用可直接导入 Anki `.apkg` 牌组，将其作为课程树的一个 Section，并与 SRS / 错题 / 统计流水线双向打通。设计见 [`docs/anki-integration-design.md`](./anki-integration-design.md)。
+本应用可直接导入 Anki `.apkg` 牌组，将其作为课程树的一个 Section，并与 SRS / 错题 / 统计流水线双向打通。产品合同与评分口径以 [ADR 0037](./decisions/0037-anki-course-review-unification.md) 为准；官方 Core 路径以 [ADR 0036](./decisions/0036-official-anki-core-migration.md) 与 [`docs/official-anki-migration/README.md`](./official-anki-migration/README.md) 为准。
 
 ### 6.1 导入流水线
 
@@ -701,7 +701,6 @@ python -m unittest discover -s tool/gui/tests -p "test_*.py"  # GUI 1276 项（�
 | [`README.md`](../README.md) | 项目概览与快速上手 |
 | [`CLAUDE.md`](../CLAUDE.md) | AI Agent 架构总览 |
 | [`docs/content_inventory_current.md`](./content_inventory_current.md) | Turkish 内容清单 |
-| [`docs/anki-integration-design.md`](./anki-integration-design.md) | Anki 集成设计（已交付）|
 | [`docs/ai_companion_implementation.md`](./ai_companion_implementation.md) | AI companion 实现边界 |
 | [`docs/advanced-settings-system-health.md`](./advanced-settings-system-health.md) | 高级设置与系统健康 |
 | [`docs/decisions/`](./decisions/) | 架构决策记录（ADR 0030–0037） |

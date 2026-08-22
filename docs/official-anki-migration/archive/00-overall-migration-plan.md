@@ -1,6 +1,6 @@
 # Turna 迁移到官方 Anki Core 的完整方案
 
-> 文档导航：[迁移文档索引](./README.md) · [第一阶段实施方案](./01-phase-0-implementation-plan.md)
+> 文档导航：[迁移文档索引](../README.md) · [第一阶段实施方案](./01-phase-0-implementation-plan.md)
 
 > 文档状态：提案 / 待阶段 0 验证  
 > 适用项目：Turna（原 VarnamalaPlus）  

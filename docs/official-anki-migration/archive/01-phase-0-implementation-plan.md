@@ -3,7 +3,7 @@
 > 阶段编号：Phase 0  
 > 文档状态：Phase 0 已收口（Conditional Go，见结果报告 §19）  
 > 前置文档：[总体迁移方案](./00-overall-migration-plan.md)  
-> 文档索引：[README](./README.md)  
+> 文档索引：[README](../README.md)  
 > 目标平台：Android arm64-v8a  
 > 目标工程：Turna  
 > 官方 Anki 本地参考：`/home/whwen/documents/reso/Varnamalaplus/anki`  
@@ -333,7 +333,7 @@ Spike 可以使用当前参考 commit，但正式迁移前仍需评估稳定 rel
 
 ### 8.4 上游元数据
 
-新增 `native/turna_anki_core/README.md`，至少记录：
+新增 `native/turna_anki_cor../README.md`，至少记录：
 
 ```text
 upstream repository
@@ -427,7 +427,7 @@ cargo test -p turna_anki_bridge
 cargo build -p turna_anki_bridge
 ```
 
-具体命令以最终 workspace 结构为准，并写入 `native/turna_anki_core/README.md`。
+具体命令以最终 workspace 结构为准，并写入 `native/turna_anki_cor../README.md`。
 
 ### 9.6 验收
 

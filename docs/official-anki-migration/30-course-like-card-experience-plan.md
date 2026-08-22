@@ -3,7 +3,7 @@
 > 文档代号：P-COURSE-LIKE-CARD  
 > 日期：2026-08-20  
 > 状态：**Host / Unit 已通过**；生产默认未翻（课化复习、课程入口、chrome）。产品收口见 [`31`](./31-anki-product-experience-plan.md)。  
-> 前置：ADR [`0036`](../decisions/0036-official-anki-core-migration.md)、[`09`](./09-p2-entry-remediation-and-phase-3-plan.md) P3-051、[`11`](./11-p3-remediation-and-phase-4-scheduler-plan.md)、[`29`](./29-p5e-wave1-production-decoupling-report.md)  
+> 前置：ADR [`0036`](../decisions/0036-official-anki-core-migration.md)、[`09`](./archive/09-p2-entry-remediation-and-phase-3-plan.md) P3-051、[`11`](./archive/11-p3-remediation-and-phase-4-scheduler-plan.md)、[`29`](./archive/29-p5e-wave1-production-decoupling-report.md)  
 > 目标：在**不撤回官方 Anki 核心**的前提下，把导入卡重新变成「像语言课一样」的 Flutter 练习：自动识别题型、生词卡/选择/听音/填空、翻面或展开动画，评分仍写官方 Scheduler。
 
 本文是逐步施工手册，不是愿景草稿。每一阶段都可以单独开 PR、单独测试、单独回滚。
@@ -37,7 +37,7 @@ Legacy 路径在导入时做三件事：
 | 字段角色只认英文名 `Front/Back/target/native` | `official_anki_projection_mapper.dart` | 中文「正面/反面」、Cloze、题干选项经常 `needsConfirm` |
 | 映射不完整 → 只出 `canonicalLink` | `official_anki_projection_payloads.dart` `kindsFor()` | 打开 WebView 预览 |
 | 正式复习是网页换面 | `official_anki_review_page.dart` | 「Show Answer」后直接换 HTML，无动画、无语言课卡片壳 |
-| 派生练习不写官方调度 | [`09`](./09-p2-entry-remediation-and-phase-3-plan.md) P3-051 | 课程里练了，主复习队列不知道 |
+| 派生练习不写官方调度 | [`09`](./archive/09-p2-entry-remediation-and-phase-3-plan.md) P3-051 | 课程里练了，主复习队列不知道 |
 
 `AnkiCardRenderer` 和语言课 renderer **都还在**，只是官方投影几乎喂不进去。
 

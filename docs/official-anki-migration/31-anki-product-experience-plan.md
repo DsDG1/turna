@@ -3,7 +3,7 @@
 > 文档代号：P-ANKI-UX  
 > 日期：2026-08-20  
 > 状态：**施工规格（未实施）**  
-> 前置：ADR [`0036`](../decisions/0036-official-anki-core-migration.md)、[`30`](./30-course-like-card-experience-plan.md)、[`29`](./29-p5e-wave1-production-decoupling-report.md)、[`anki-import-usability.md`](../anki-import-usability.md)  
+> 前置：ADR [`0036`](../decisions/0036-official-anki-core-migration.md)、[`30`](./30-course-like-card-experience-plan.md)、[`29`](./archive/29-p5e-wave1-production-decoupling-report.md)（已归档）  
 > 目标：先让 Android 生产导入稳定成功；再把路径收成「导入能看懂、复习像语言课、高级页不是实验室」。账本仍是官方 Collection / FSRS。
 
 课化判定、kindsFor、练习链、课程写回的细规格以 [`30`](./30-course-like-card-experience-plan.md) 为准（Host / Unit 已过，生产默认未翻）。本文件管：**导入硬阻断、默认打开什么、用户看见什么、实验室入口怎么收**。
@@ -147,7 +147,7 @@ Step 4  完成：张数 + 去复习 + 留在这里
 
 没有 cheap preview 时：允许打开包拿 counts、确认前不 commit。禁止为预览再写自研 unzip/sqlite。
 
-人话错误（官方/Legacy 共用，对齐 [`anki-import-usability.md`](../anki-import-usability.md) 改进 D）：
+人话错误（官方/Legacy 共用，改进 D 的"e.toString() 直接报错"已被本表覆盖；原文 `anki-import-usability.md` 已删除，git 历史可查）：
 
 | 内部 | 给用户 |
 |---|---|
