@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 // Package imports:
+import 'package:auto_route/auto_route.dart';
 import 'package:logger/logger.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -25,6 +26,7 @@ import 'package:turna/views/theme.dart';
 ///   - 3 段:`dart:io` Platform / MediaQuery / package_info_plus / DateTime
 ///
 /// 顶部 hero + 末尾说明 + 复制按钮 + 一键清空,跟隐私详情页风格一致。
+@RoutePage()
 class TransparencyLogPage extends StatelessWidget {
   const TransparencyLogPage({super.key});
 

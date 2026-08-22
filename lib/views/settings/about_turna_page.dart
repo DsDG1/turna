@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 // Package imports:
+import 'package:auto_route/auto_route.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -10,9 +11,9 @@ import 'package:url_launcher/url_launcher.dart';
 // Project imports:
 import 'package:turna/application/anki_official/official_anki_license_notices.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/settings/changelog_page.dart';
 import 'package:turna/views/settings/quick_start_from_asset.dart';
-import 'package:turna/views/settings/privacy_details_page.dart';
 import 'package:turna/views/theme.dart';
 
 /// Dedicated About page for Turna.
@@ -30,6 +31,7 @@ import 'package:turna/views/theme.dart';
 ///   - white/dark cards with soft shadow + 1px border
 ///   - Turna teal-tinted icon tiles and version pill
 ///   - section headers rendered as a short teal bar + title (UnitHeader rhythm)
+@RoutePage()
 class AboutTurnaPage extends StatelessWidget {
   const AboutTurnaPage({super.key});
 
@@ -193,11 +195,8 @@ class _AboutTab extends StatelessWidget {
               child: InkWell(
                 borderRadius:
                     BorderRadius.circular(TurnaTheme.radiusLarge),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const PrivacyDetailsPage(),
-                  ),
-                ),
+                onTap: () =>
+                    context.router.push(const PrivacyDetailsRoute()),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
@@ -849,11 +848,7 @@ class _VersionCard extends StatelessWidget {
                 icon: Icons.history_edu_rounded,
                 title: AppStrings.aboutOpenChangelog,
                 subtitle: AppStrings.aboutOpenChangelogSubtitle,
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const ChangelogPage(),
-                  ),
-                ),
+                onTap: () => context.router.push(const ChangelogRoute()),
               ),
             ],
           );

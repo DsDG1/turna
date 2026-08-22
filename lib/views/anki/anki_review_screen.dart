@@ -22,8 +22,6 @@ import 'package:turna/application/srs_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
-import 'package:turna/views/anki/anki_card_browser_page.dart';
-import 'package:turna/views/anki/anki_deck_stats_page.dart';
 import 'package:turna/views/theme.dart';
 
 /// Anki review hub — lists imported Anki sections with due counts,
@@ -263,25 +261,17 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
                 ),
                 onStats: isOfficial
                     ? null
-                    : () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => AnkiDeckStatsPage(
-                              importId: importId,
-                              title: section.name,
-                            ),
-                          ),
-                        ),
+                    : () => context.router.push(AnkiDeckStatsRoute(
+                          importId: importId,
+                          title: section.name,
+                        )),
                 onBrowse: isOfficial
                     ? null
-                    : () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => AnkiCardBrowserPage(
-                              importId: importId,
-                              title: section.name,
-                              sectionId: section.id,
-                            ),
-                          ),
-                        ),
+                    : () => context.router.push(AnkiCardBrowserRoute(
+                          importId: importId,
+                          title: section.name,
+                          sectionId: section.id,
+                        )),
                 onPin: () => _pinDeck(context, section.id),
                 onOptions: isOfficial
                     ? null

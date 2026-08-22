@@ -18,7 +18,7 @@ import 'package:turna/data/course_database.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/tts_availability_checker.dart';
-import 'package:turna/views/settings/transparency_log_page.dart';
+import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/views/theme.dart';
 
@@ -136,11 +136,8 @@ class SystemHealthPage extends StatelessWidget {
                   icon: Icons.article_outlined,
                   title: '查看原始日志',
                   subtitle: '打开透明度报告页',
-                  onTap: (context) => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const TransparencyLogPage(),
-                    ),
-                  ),
+                  onTap: (context) =>
+                      context.router.push(const TransparencyLogRoute()),
                 ),
                 settingsTileDivider(context),
                 SettingsActionTile(

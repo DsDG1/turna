@@ -113,7 +113,8 @@ void main() {
       context: 'official-canonical-link:src1:1',
     );
     await tester.pumpWidget(harness.build(renderer, interaction));
-    expect(find.byKey(const Key('official-canonical-fail-closed')), findsOneWidget);
+    expect(find.byKey(const Key('official-canonical-fail-closed')),
+        findsOneWidget);
     expect(find.byKey(const Key('official-canonical-open')), findsNothing);
     expect(find.text('Habari'), findsNothing);
     expect(find.byType(OfficialAnkiReviewerPage), findsNothing);
@@ -137,7 +138,9 @@ void main() {
       wordId: officialAnkiCanonicalWordId(sourceId: 'src1', cardId: 9),
       context: 'official-canonical-link:src1:9',
     );
-    await tester.pumpWidget(harness.build(renderer, interaction));
+    await tester.pumpWidget(harness.buildRouted(renderer, interaction));
+    // AutoRoute resolves the initial host page asynchronously.
+    await tester.pumpAndSettle();
     expect(find.byKey(const Key('official-canonical-open')), findsOneWidget);
     expect(find.byType(OfficialAnkiReviewerPage), findsNothing);
     await tester.tap(find.byKey(const Key('official-canonical-open')));

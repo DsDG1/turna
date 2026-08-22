@@ -1,9 +1,12 @@
 // Flutter imports:
 import 'package:flutter/material.dart';
 
+// Package imports:
+import 'package:auto_route/auto_route.dart';
+
 // Project imports:
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/ai/ai_api_config_page.dart';
+import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/theme.dart';
 
 /// Empty-state panel when AI API is not configured. Primary CTA opens config.
@@ -48,11 +51,7 @@ class AiNotConfiguredPanel extends StatelessWidget {
           const SizedBox(height: 16),
           FilledButton.icon(
             onPressed: () async {
-              await Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const AiApiConfigPage(),
-                ),
-              );
+              await context.router.push(const AiApiConfigRoute());
               onConfigured?.call();
             },
             icon: const Icon(Icons.settings_rounded),

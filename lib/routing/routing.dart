@@ -13,8 +13,15 @@ class AppRouter extends RootStackRouter {
 
   final CourseReadyGuard _courseReadyGuard;
 
+  // Platform-adaptive policy (docs/platform-adaptive-page-transition-
+  // unification-plan.md D1): Android/Fuchsia/desktop -> Material routes with
+  // predictive back, iOS/macOS -> Cupertino routes with edge-swipe pop, web ->
+  // no transition. Do not force a single platform style globally and do not
+  // add custom transitions/durations here.
   @override
-  RouteType get defaultRouteType => const RouteType.cupertino();
+  RouteType get defaultRouteType => const RouteType.adaptive(
+        enablePredictiveBackGesture: true,
+      );
 
   @override
   List<AutoRoute> get routes => [
@@ -46,12 +53,31 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: DictionaryRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(page: WeakWordsRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(page: AnkiImportRoute.page),
-        AutoRoute(page: AnkiReviewRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(
-            page: AnkiReviewSessionRoute.page, guards: [_courseReadyGuard]),
+            page: AnkiDeckStatsRoute.page, guards: [_courseReadyGuard]),
+        AutoRoute(
+            page: AnkiCardBrowserRoute.page, guards: [_courseReadyGuard]),
+        AutoRoute(page: AnkiReviewRoute.page, guards: [_courseReadyGuard]),
+        AutoRoute(page: AnkiReviewSessionRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(page: UnifiedReviewRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(
             page: CourseManagementRoute.page, guards: [_courseReadyGuard]),
+        // Official-Anki surfaces: flag-gated diagnostics, no course guard
+        // (mirrors AnkiImportRoute semantics).
+        AutoRoute(page: OfficialAnkiInternalRoute.page),
+        AutoRoute(page: OfficialAnkiMappingRoute.page),
+        AutoRoute(page: OfficialAnkiReviewerRoute.page),
+        AutoRoute(page: OfficialAnkiReviewRoute.page),
+        AutoRoute(page: OfficialAnkiMigrationPreviewRoute.page),
+        AutoRoute(page: OfficialAnkiSourceManagementRoute.page),
+        // Settings family: static content pages, no course guard
+        // (mirrors SystemHealthRoute).
         AutoRoute(page: SystemHealthRoute.page),
+        AutoRoute(page: AboutTurnaRoute.page),
+        AutoRoute(page: PrivacyDetailsRoute.page),
+        AutoRoute(page: ChangelogRoute.page),
+        AutoRoute(page: TransparencyLogRoute.page),
+        AutoRoute(page: AiApiConfigRoute.page),
+        AutoRoute(page: AvatarRingsRoute.page),
       ];
 }

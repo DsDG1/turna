@@ -1,3 +1,4 @@
+import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
@@ -6,6 +7,7 @@ import 'package:turna/application/anki_official/projection/official_anki_project
 import 'package:turna/views/anki_official/official_anki_reviewer_error_view.dart';
 
 /// Editable mapping wizard. Saving does not generate a course.
+@RoutePage()
 class OfficialAnkiMappingPage extends StatefulWidget {
   const OfficialAnkiMappingPage({
     super.key,

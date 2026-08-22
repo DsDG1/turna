@@ -1,9 +1,12 @@
 // Flutter imports:
 import 'package:flutter/material.dart';
 
+// Package imports:
+import 'package:auto_route/auto_route.dart';
+
 // Project imports:
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/settings/transparency_log_page.dart';
+import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/theme.dart';
 
 /// 隐私详情页 — Settings → 关于 → 隐私详情 入口。
@@ -28,6 +31,7 @@ import 'package:turna/views/theme.dart';
 /// 交互:
 ///   - 滚动超过 [kPillRevealOffset] 后,右下角的「透明度报告」药丸从底部滑上
 ///   - 点击药丸跳到 [TransparencyLogPage](Turna 自己的透明日志)
+@RoutePage()
 class PrivacyDetailsPage extends StatefulWidget {
   const PrivacyDetailsPage({super.key});
 
@@ -51,9 +55,7 @@ class _PrivacyDetailsPageState extends State<PrivacyDetailsPage> {
   }
 
   void _openTransparencyLog() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const TransparencyLogPage()),
-    );
+    context.router.push(const TransparencyLogRoute());
   }
 
   @override

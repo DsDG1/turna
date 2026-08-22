@@ -1,9 +1,11 @@
+import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
 import 'package:turna/application/anki_official/render/official_anki_reviewer_router.dart';
+import 'package:turna/routing/platform_page_route.dart';
+import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_error_view.dart';
-import 'package:turna/views/anki_official/official_anki_reviewer_page.dart';
 
 typedef OfficialAnkiCanonicalAck = Future<void> Function(
   OfficialAnkiCanonicalRef ref,
@@ -30,7 +32,8 @@ class OfficialAnkiCanonicalLinkView extends StatefulWidget {
   State<OfficialAnkiCanonicalLinkView> createState() =>
       OfficialAnkiCanonicalLinkViewState();
 
-  /// Shipped opener: resolve official paths and push [OfficialAnkiReviewerPage].
+  /// Shipped opener: resolve official paths and push the registered
+  /// `OfficialAnkiReviewerRoute`.
   static Future<void> openOfficialReviewer(
     BuildContext context, {
     required String sourceId,
@@ -42,8 +45,11 @@ class OfficialAnkiCanonicalLinkView extends StatefulWidget {
       resolved = paths ?? await OfficialAnkiCourseEntry.resolveDefaultPaths();
     } catch (_) {
       if (!context.mounted) return;
+      // Runtime-assembled inline error page: goes through the central
+      // platform route selector (plan D5), not a hand-written route.
       await Navigator.of(context).push(
-        MaterialPageRoute<void>(
+        platformPageRoute<void>(
+          context: context,
           builder: (_) => const Scaffold(
             body: OfficialAnkiReviewerErrorView(
               key: Key('official-canonical-path-failed'),
@@ -55,13 +61,11 @@ class OfficialAnkiCanonicalLinkView extends StatefulWidget {
       return;
     }
     if (!context.mounted) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => OfficialAnkiReviewerPage(
-          sourceId: sourceId,
-          cardId: cardId,
-          paths: resolved,
-        ),
+    await context.router.push(
+      OfficialAnkiReviewerRoute(
+        sourceId: sourceId,
+        cardId: cardId,
+        paths: resolved,
       ),
     );
   }

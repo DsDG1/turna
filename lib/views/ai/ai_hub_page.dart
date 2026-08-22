@@ -14,7 +14,6 @@ import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/lesson/components/ai_depth_tutor_sheet.dart';
 import 'package:turna/views/lesson/tutor_launch_sheet.dart';
 import 'package:turna/views/play/components/play_tiles.dart';
-import 'package:turna/views/ai/ai_api_config_page.dart';
 import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
 import 'package:turna/views/theme.dart';
 
@@ -608,9 +607,7 @@ void _openSheet(BuildContext context, Widget sheet, Object? focus) {
 
 /// Open the standalone AI API config page.
 void _openConfig(BuildContext context) {
-  Navigator.of(context).push(
-    MaterialPageRoute<void>(builder: (_) => const AiApiConfigPage()),
-  );
+  context.router.push(const AiApiConfigRoute());
 }
 
 /// Resolve a saved AI Hub task route by name. Unknown routes are silently

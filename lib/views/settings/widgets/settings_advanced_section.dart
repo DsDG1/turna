@@ -3,14 +3,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 // Package imports:
+import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
-import 'package:turna/application/anki_official/official_anki_internal_page.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/settings/system_health_page.dart';
+import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/views/settings/widgets/settings_sound_section.dart';
 import 'package:turna/views/theme.dart';
@@ -54,11 +54,7 @@ class SettingsAdvancedSection extends StatelessWidget {
               icon: Icons.monitor_heart_outlined,
               title: '系统健康',
               subtitle: '诊断、安全模式与脱敏报告',
-              onTap: (ctx) => Navigator.of(ctx).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const SystemHealthPage(),
-                ),
-              ),
+              onTap: (ctx) => ctx.router.push(const SystemHealthRoute()),
             ),
             if (kDebugMode ||
                 OfficialAnkiFeatureFlags.current.diagnostics) ...[
@@ -67,11 +63,8 @@ class SettingsAdvancedSection extends StatelessWidget {
                 icon: Icons.inventory_2_outlined,
                 title: 'Official Anki 内部导入',
                 subtitle: '内部构建：官方导入与正式复习（仅 debug / 诊断模式）',
-                onTap: (ctx) => Navigator.of(ctx).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const OfficialAnkiInternalPage(),
-                  ),
-                ),
+                onTap: (ctx) =>
+                    ctx.router.push(const OfficialAnkiInternalRoute()),
               ),
             ],
           ],

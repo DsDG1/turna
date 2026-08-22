@@ -2,17 +2,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+// Package imports:
+import 'package:auto_route/auto_route.dart';
+
 // Project imports:
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/theme.dart';
 
 /// Offline changelog of major milestones and feature batches.
 ///
-/// Navigated via [Navigator.push] from About / Settings — no auto_route needed.
-///
 /// Renders [ChangelogFromAsset] (read from `assets/changelog.md`) and
 /// falls back to a hard-coded list of milestones when the asset cannot be
 /// loaded (e.g. test environment without asset bundle).
+@RoutePage()
 class ChangelogPage extends StatelessWidget {
   const ChangelogPage({super.key});
 

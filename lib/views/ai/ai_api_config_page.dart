@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 
 // Package imports:
+import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
@@ -18,8 +19,9 @@ import 'package:turna/views/theme.dart';
 import 'package:turna/views/widgets/turna_select.dart';
 
 /// Standalone AI API configuration page (replaces the former
-/// [AiApiConfigSheet] modal). Reached from the AI Hub hero and from
-/// Settings -> AI 工具 -> AI API 配置 via a `MaterialPageRoute` push.
+/// [AiApiConfigSheet] modal). Reached from the AI Hub hero, from
+/// Settings -> AI 工具 -> AI API 配置, and from the not-configured empty
+/// state via the `AiApiConfigRoute` push.
 ///
 /// Sources/writes the engine config through [AiEngineConfigHolder] (the single
 /// source of truth). Edits persist live on every keystroke / toggle, so the
@@ -34,6 +36,7 @@ import 'package:turna/views/widgets/turna_select.dart';
 ///      quick-pick chips from the preset) + JSON model.
 ///   4. 高级 group - strict-schema segmented control + cache switch + stats.
 ///   5. Test-connection / clear-cache action row + inline probe result.
+@RoutePage()
 class AiApiConfigPage extends StatefulWidget {
   const AiApiConfigPage({super.key});
 

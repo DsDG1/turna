@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
@@ -20,6 +21,7 @@ import 'package:turna/views/review/components/review_progress_header.dart';
 import 'package:turna/views/review/components/unified_review_completion.dart';
 
 /// Formal Official Review. Separate from preview/`canonicalLink`.
+@RoutePage()
 class OfficialAnkiReviewPage extends StatefulWidget {
   const OfficialAnkiReviewPage({
     super.key,

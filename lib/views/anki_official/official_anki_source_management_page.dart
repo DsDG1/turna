@@ -1,3 +1,4 @@
+import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
@@ -12,10 +13,11 @@ import 'package:turna/application/anki_official/storage/official_anki_source_dao
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/data/course_database.dart';
-import 'package:turna/views/anki_official/official_anki_mapping_page.dart';
+import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_error_view.dart';
 
 /// Production source management: mapping save/skip and explicit Generate.
+@RoutePage()
 class OfficialAnkiSourceManagementPage extends StatefulWidget {
   const OfficialAnkiSourceManagementPage({
     super.key,
@@ -150,28 +152,38 @@ class OfficialAnkiSourceManagementPageState
     if (!mounted || schemas.isEmpty) return;
     final schema = schemas.first;
     final suggestion = service.suggestFor(schema);
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => OfficialAnkiMappingPage(
-          notetypeName: schema.name,
-          suggestion: suggestion,
+    await context.router.push(
+      OfficialAnkiMappingRoute(
+        notetypeName: schema.name,
+        suggestion: suggestion,
+        schema: schema,
+        onConfirm: (next) => saveMapping(
+          sourceId: sourceId,
           schema: schema,
-          onConfirm: (next) => saveMapping(
-            sourceId: sourceId,
-            schema: schema,
-            suggestion: next,
-          ),
-          onSkip: () => skipMapping(sourceId: sourceId, schema: schema),
-          onGenerateCourse: () => generate(sourceId),
+          suggestion: next,
         ),
+        onSkip: () => skipMapping(sourceId: sourceId, schema: schema),
+        onGenerateCourse: () => generate(sourceId),
       ),
     );
   }
 }
 
-/// Production factory used by OfficialAnkiInternalPage. Flag-off or missing
+/// Constructor arguments for [OfficialAnkiSourceManagementPage], resolved
+/// lazily because engine/catalog/course come from the composition root.
+typedef OfficialAnkiSourceManagementDeps = ({
+  OfficialAnkiEngine engine,
+  OfficialAnkiDatabase catalog,
+  CourseDatabase course,
+  String profileId,
+  OfficialAnkiFeatureFlags flags,
+  CourseProvider? courseProvider,
+});
+
+/// Production dependency resolver used by OfficialAnkiInternalPage before it
+/// pushes `OfficialAnkiSourceManagementRoute`. Flag-off or missing
 /// catalog/course/engine returns null (fail closed, no Legacy fallback).
-Future<OfficialAnkiSourceManagementPage?> officialAnkiBuildSourceManagementPage({
+Future<OfficialAnkiSourceManagementDeps?> officialAnkiResolveSourceManagementDeps({
   OfficialAnkiEngine? engine,
   OfficialAnkiDatabase? catalog,
   CourseDatabase? course,
@@ -195,7 +207,7 @@ Future<OfficialAnkiSourceManagementPage?> officialAnkiBuildSourceManagementPage(
       resolvedEngine == null) {
     return null;
   }
-  return OfficialAnkiSourceManagementPage(
+  return (
     engine: resolvedEngine,
     catalog: resolvedCatalog,
     course: resolvedCourse,

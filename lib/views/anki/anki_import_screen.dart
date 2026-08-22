@@ -39,7 +39,6 @@ import 'package:turna/application/anki_official/projection/official_anki_project
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
-import 'package:turna/views/anki_official/official_anki_mapping_page.dart';
 import 'package:turna/application/anki/anki_models.dart';
 import 'package:turna/application/anki/anki_organization_resolver.dart';
 import 'package:turna/application/anki/anki_sample_deck.dart';
@@ -59,6 +58,7 @@ import 'package:turna/data/review_history_dao.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/audio/anki_audio_resolver.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/utils/ohos_file_picker.dart';
 import 'package:turna/views/theme.dart';
 
@@ -2171,29 +2171,27 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
     if (service == null) return;
     final suggestion =
         _officialSuggestions[schema.notetypeId] ?? service.suggestFor(schema);
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => OfficialAnkiMappingPage(
-          notetypeName: schema.name,
-          suggestion: suggestion,
-          schema: schema,
-          onConfirm: (next) {
-            service.confirmMapping(schema: schema, suggestion: next);
-            setState(() {
-              _officialSuggestions[schema.notetypeId] = next;
-              _officialConfirmedNotetypes.add(schema.notetypeId);
-              _officialSkippedNotetypes.remove(schema.notetypeId);
-              _officialNeedsMapping = false;
-            });
-          },
-          onSkip: () {
-            service.skipNotetype(schema: schema);
-            setState(() {
-              _officialSkippedNotetypes.add(schema.notetypeId);
-              _officialConfirmedNotetypes.remove(schema.notetypeId);
-            });
-          },
-        ),
+    await context.router.push(
+      OfficialAnkiMappingRoute(
+        notetypeName: schema.name,
+        suggestion: suggestion,
+        schema: schema,
+        onConfirm: (next) {
+          service.confirmMapping(schema: schema, suggestion: next);
+          setState(() {
+            _officialSuggestions[schema.notetypeId] = next;
+            _officialConfirmedNotetypes.add(schema.notetypeId);
+            _officialSkippedNotetypes.remove(schema.notetypeId);
+            _officialNeedsMapping = false;
+          });
+        },
+        onSkip: () {
+          service.skipNotetype(schema: schema);
+          setState(() {
+            _officialSkippedNotetypes.add(schema.notetypeId);
+            _officialConfirmedNotetypes.remove(schema.notetypeId);
+          });
+        },
       ),
     );
   }

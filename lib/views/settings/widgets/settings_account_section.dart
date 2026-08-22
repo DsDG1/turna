@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 
 // Package imports:
+import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 
@@ -15,7 +16,7 @@ import 'package:turna/application/srs_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/auth/local_user.dart';
 import 'package:turna/service/locator.dart';
-import 'package:turna/views/settings/avatar_rings_page.dart';
+import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/theme.dart';
@@ -98,11 +99,7 @@ class _CosmeticsEntry extends StatelessWidget {
             ],
           ),
           onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const AvatarRingsPage(),
-              ),
-            );
+            context.router.push(const AvatarRingsRoute());
           },
         ),
       ],

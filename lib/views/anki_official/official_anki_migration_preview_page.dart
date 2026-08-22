@@ -1,3 +1,4 @@
+import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:turna/application/anki_official/engine/official_anki_operation_coordinator.dart';
 import 'package:turna/application/anki_official/migration/official_anki_census.dart';
@@ -7,6 +8,7 @@ import 'package:turna/application/anki_official/migration/official_anki_migratio
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 
 /// Preview-only migration UI. Cutover stays disabled.
+@RoutePage()
 class OfficialAnkiMigrationPreviewPage extends StatefulWidget {
   const OfficialAnkiMigrationPreviewPage({
     super.key,

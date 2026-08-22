@@ -1,3 +1,4 @@
+import 'package:auto_route/auto_route.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
@@ -31,6 +32,7 @@ Future<OfficialAnkiReviewerController> createOfficialAnkiReviewerController({
 }
 
 /// Internal official card preview. Does not write grades or schedules.
+@RoutePage()
 class OfficialAnkiReviewerPage extends StatefulWidget {
   const OfficialAnkiReviewerPage({
     super.key,

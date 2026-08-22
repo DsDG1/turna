@@ -160,7 +160,7 @@ lib/
 
 - **状态管理**：Provider + ChangeNotifier。Provider 既是 DI 容器也是状态广播。
 - **DI**：GetIt + Injectable，`@injectable` / `@lazySingleton` 注解，`build_runner` 生成 `injection.config.dart`。
-- **路由**：Auto Route + 代码生成（`.gr.dart`）+ `CourseReadyGuard`（DB seed 完成前重定向到 splash）。
+- **路由（导航合同，详见 `docs/platform-adaptive-page-transition-unification-plan.md`）**：Auto Route + 代码生成（`.gr.dart`）+ `CourseReadyGuard`（DB seed 完成前重定向到 splash）。全屏页面一律走 AutoRoute，全局 `AppRouter.defaultRouteType = RouteType.adaptive(enablePredictiveBackGesture: true)`——Android 用 Material 路由（含预测返回，manifest 已加 `enableOnBackInvokedCallback`），iOS/macOS 用真实 Cupertino 路由（边缘返回），Web 无转场。禁止：全局强制单一平台路由、`PageRouteBuilder`/`transitionsBuilder` 自定义转场、调用点直接构造 `MaterialPageRoute`/`CupertinoPageRoute`、覆盖 `ThemeData.pageTransitionsTheme`。唯一例外：`lib/routing/platform_page_route.dart` 的官方路由类选择器，仅供运行时组装、无稳定页面身份的内部页使用。底部主 Tab 是 `IndexedStack` 即时切换（非 push/pop）；Dialog/BottomSheet 保持弹层语义。以上契约由 `test/routing/routing_policy_contract_test.dart` 与 `test/routing/adaptive_route_semantics_test.dart` 在 CI 强制。
 - **模型**：Freezed 不可变 + `@JsonSerializable`；Interaction 变体由 `runtimeType` 区分。
 - **Repository**：接口（`domain/repositories/`）+ 实现（`data/`）；DB 作为派生缓存，JSON 为真理源。
 - **渲染器插件化**：13 种 Interaction 各为 `@injectable` 类，注册到 GetIt，按 `runtimeType` 查找——新增题型无需改动分发逻辑。

@@ -2,13 +2,12 @@
 import 'package:flutter/material.dart';
 
 // Package imports:
+import 'package:auto_route/auto_route.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 // Project imports:
 import 'package:turna/application/anki_official/official_anki_license_notices.dart';
-import 'package:turna/views/settings/about_turna_page.dart';
-import 'package:turna/views/settings/changelog_page.dart';
-import 'package:turna/views/settings/privacy_details_page.dart';
+import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/theme.dart';
@@ -29,32 +28,22 @@ class SettingsAboutSection extends StatelessWidget {
         SettingsNavigationTile(
           icon: Icons.school_rounded,
           title: AppStrings.settingsAboutTurna,
-          onTap: (context) => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const AboutTurnaPage(),
-            ),
-          ),
+          onTap: (context) =>
+              context.router.push(const AboutTurnaRoute()),
         ),
         settingsTileDivider(context),
         SettingsNavigationTile(
           icon: Icons.shield_outlined,
           title: AppStrings.privacyDetailsEntry,
           subtitle: AppStrings.privacyDetailsEntrySubtitle,
-          onTap: (context) => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const PrivacyDetailsPage(),
-            ),
-          ),
+          onTap: (context) =>
+              context.router.push(const PrivacyDetailsRoute()),
         ),
         settingsTileDivider(context),
         SettingsNavigationTile(
           icon: Icons.history_edu_rounded,
           title: AppStrings.changelogTitle,
-          onTap: (context) => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const ChangelogPage(),
-            ),
-          ),
+          onTap: (context) => context.router.push(const ChangelogRoute()),
         ),
         settingsTileDivider(context),
         SettingsNavigationTile(

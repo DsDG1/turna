@@ -18,7 +18,6 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/service/export_service.dart';
 import 'package:turna/service/local_reminder_service.dart';
-import 'package:turna/views/ai/ai_api_config_page.dart';
 import 'package:turna/views/settings/widgets/settings_about_section.dart';
 import 'package:turna/views/settings/widgets/settings_advanced_section.dart';
 import 'package:turna/views/settings/widgets/settings_accessibility_section.dart';
@@ -585,9 +584,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _openAiApiConfig(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const AiApiConfigPage()),
-    );
+    context.router.push(const AiApiConfigRoute());
   }
 
   Future<void> _openExportSheet(BuildContext context) async {

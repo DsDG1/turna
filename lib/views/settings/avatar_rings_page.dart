@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 
 // Package imports:
+import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
@@ -14,6 +15,7 @@ import 'package:turna/views/theme.dart';
 import 'package:turna/views/widgets/avatar_with_ring.dart';
 
 /// Minimal gem-spend list for avatar rings (settings sub-page).
+@RoutePage()
 class AvatarRingsPage extends StatelessWidget {
   const AvatarRingsPage({super.key});
 

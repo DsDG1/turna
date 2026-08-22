@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:auto_route/auto_route.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
@@ -29,10 +30,8 @@ import 'package:turna/application/anki_official/storage/official_anki_source_dao
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/di/injection.dart';
-import 'package:turna/views/anki_official/official_anki_review_page.dart';
-import 'package:turna/views/anki_official/official_anki_reviewer_page.dart';
+import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/anki_official/official_anki_source_management_page.dart';
-import 'package:turna/views/anki_official/official_anki_migration_preview_page.dart';
 import 'package:turna/application/anki_official/migration/official_anki_census.dart';
 import 'package:turna/application/anki_official/migration/official_anki_user_allowlist.dart';
 import 'package:turna/application/anki_official/migration/official_anki_preview_loader.dart';
@@ -40,6 +39,7 @@ import 'package:turna/data/course_database.dart';
 import 'package:turna/utils/ohos_file_picker.dart';
 
 /// Internal-only official import surface. Review is not opened here.
+@RoutePage()
 class OfficialAnkiInternalPage extends StatefulWidget {
   const OfficialAnkiInternalPage({super.key});
 
@@ -262,13 +262,11 @@ class _OfficialAnkiInternalPageState extends State<OfficialAnkiInternalPage> {
         profileId: 'profile-default-01',
         profileRoot: Directory('${support.path}/official_anki/default'),
       );
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => OfficialAnkiReviewerPage(
-            sourceId: sources.first.sourceId,
-            cardId: cards.first.cardId,
-            paths: paths,
-          ),
+      await context.router.push(
+        OfficialAnkiReviewerRoute(
+          sourceId: sources.first.sourceId,
+          cardId: cards.first.cardId,
+          paths: paths,
         ),
       );
       setState(() => _status = 'previewed');
@@ -310,11 +308,11 @@ class _OfficialAnkiInternalPageState extends State<OfficialAnkiInternalPage> {
       } catch (_) {
         courseProvider = null;
       }
-      final page = await officialAnkiBuildSourceManagementPage(
+      final deps = await officialAnkiResolveSourceManagementDeps(
         courseProvider: courseProvider,
         course: CourseLoader.databaseOrNull(),
       );
-      if (page == null) {
+      if (deps == null) {
         setState(() {
           _status = 'source_management_unavailable';
           _detail = 'catalog/course/engine 未就绪，无法打开课程映射';
@@ -322,8 +320,15 @@ class _OfficialAnkiInternalPageState extends State<OfficialAnkiInternalPage> {
         return;
       }
       if (!mounted) return;
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => page),
+      await context.router.push(
+        OfficialAnkiSourceManagementRoute(
+          engine: deps.engine,
+          catalog: deps.catalog,
+          course: deps.course,
+          profileId: deps.profileId,
+          flags: deps.flags,
+          courseProvider: deps.courseProvider,
+        ),
       );
       setState(() => _status = 'source_management');
     } catch (error, stack) {
@@ -498,14 +503,12 @@ class _OfficialAnkiInternalPageState extends State<OfficialAnkiInternalPage> {
           return;
         }
       }
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => OfficialAnkiReviewPage(
-            engine: OfficialAnkiSessionEngine(session),
-            paths: paths,
-            deckId: fixtureDeckId,
-            allowedCardIds: fixtureCardIds,
-          ),
+      await context.router.push(
+        OfficialAnkiReviewRoute(
+          engine: OfficialAnkiSessionEngine(session),
+          paths: paths,
+          deckId: fixtureDeckId,
+          allowedCardIds: fixtureCardIds,
         ),
       );
       setState(() => _status = 'formal_reviewed');
@@ -562,28 +565,26 @@ class _OfficialAnkiInternalPageState extends State<OfficialAnkiInternalPage> {
 
       if (!mounted) return;
       final selected = preview.selectedImport;
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => OfficialAnkiMigrationPreviewPage(
-            census: preview.census,
-            dryRun: preview.dryRun,
-            diskFreeBytes: preview.diskFreeBytes,
-            displayName: preview.displayName,
-            importId: selected?.importId,
-            sourceHash: selected?.sourceHash,
-            flags: OfficialAnkiFeatureFlags.current,
-            coordinator: _ops,
-            onFixturePilot: selected == null
-                ? null
-                : () {
-                    Navigator.of(context).pop();
-                    unawaited(_runFixturePilot(
-                      preview: preview,
-                      paths: paths,
-                      reader: reader,
-                    ));
-                  },
-          ),
+      await context.router.push(
+        OfficialAnkiMigrationPreviewRoute(
+          census: preview.census,
+          dryRun: preview.dryRun,
+          diskFreeBytes: preview.diskFreeBytes,
+          displayName: preview.displayName,
+          importId: selected?.importId,
+          sourceHash: selected?.sourceHash,
+          flags: OfficialAnkiFeatureFlags.current,
+          coordinator: _ops,
+          onFixturePilot: selected == null
+              ? null
+              : () {
+                  Navigator.of(context).pop();
+                  unawaited(_runFixturePilot(
+                    preview: preview,
+                    paths: paths,
+                    reader: reader,
+                  ));
+                },
         ),
       );
       setState(() => _status = 'previewed_migration');
