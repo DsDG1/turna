@@ -502,8 +502,37 @@ class AppStrings {
   static String get courseTtsNativeLangSubtitle => '纯拉丁字母文本的朗读语音（如英语译文）';
 
   // ── Play ──
-  static String get playQuickPlayTitle => '快速练习';
-  static String get playQuickPlaySubtitle => '尽快匹配单词';
+
+  // ── Playground（语言课程自由练习场）──
+  static String get playgroundTitle => 'Playground';
+  static String get playgroundChineseName => '自由练习场';
+  static String get playgroundHeroSubtitle => '自由组合题型，随时练几分钟';
+  static String get playgroundStartAction => '开始探索';
+  static String get playgroundSmartStartTitle => '智能开练';
+  static String get playgroundSmartStartCaption => '3 分钟 · 标准 · 智能混合';
+  static String get playgroundSmartStartAction => '立即开始';
+  static String get playgroundSmartStartSoon =>
+      '智能开练即将上线，敬请期待';
+  static String get playgroundBlockedToast => 'Playground 仅在语言课程中可用';
+  static String get playgroundBlockedTitle => '当前课程不支持 Playground';
+  static String get playgroundBlockedMessage => '切换回语言课程后即可自由练习';
+  static String get playgroundContentScopeTitle => '练什么';
+  static String get playgroundModeTitle => '练习模式';
+  static String get playgroundScopeRecent => '最近学习';
+  static String get playgroundScopeCurrentUnit => '当前单元';
+  static String get playgroundScopeWholeCourse => '整个课程';
+  static String get playgroundScopeWeak => '薄弱内容';
+  static String get playgroundModeSmartMix => '智能混合';
+  static String get playgroundModeWordMatch => '单词配对';
+  static String get playgroundModeQuickChoice => '极速选择';
+  static String get playgroundModeListenAndPick => '听音辨义';
+  static String get playgroundModeDictation => '听写挑战';
+  static String get playgroundModeSentenceOrder => '句子拼图';
+  static String get playgroundModeFillBlank => '填空冲刺';
+  static String get playgroundModeDailyMix => '每日混合';
+  static String get playgroundModeTranslation => '翻译挑战';
+  static String playgroundModeCount(int count) => '$count 题';
+  static String get playgroundUnavailableNoContent => '当前范围暂无可用题目';
   static String get playMistakeReviewTitle => '错题复习';
   static String playMistakeReviewSubtitleWithCount(int mistakesCount) =>
       '$mistakesCount 个错题——最多练习 10 个';

@@ -14,8 +14,10 @@ import 'package:turna/application/anki/formal_review_launcher.dart';
 import 'package:turna/application/anki_official/engine/official_anki_home_due.dart';
 import 'package:turna/application/anki_official/engine/official_anki_home_due_sync.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
+import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/mistake_provider.dart';
+import 'package:turna/application/playground/language_playground_eligibility.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/application/weak_word_quiz_assembler.dart';
 import 'package:turna/routing/routing.gr.dart';
@@ -63,6 +65,10 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
     final srsDue = context.select((SrsProvider p) => p.dueCount);
     final grammarDue = context.select((GrammarReviewProvider p) => p.dueCount);
     final ankiDueWords = context.select((SrsProvider p) => p.getDueAnkiWords());
+    // Playground 只属于语言课程：Anki/Official Anki scope 下 Hero 连同其
+    // 专属间距一起消失（三层隔离的第一层；页面与数据层仍各自防御）。
+    final playgroundEligible = context.select((CourseProvider p) =>
+        LanguagePlaygroundEligibility.isEligibleScope(p.courseScope));
     OfficialAnkiHomeDue.turnaDue = srsDue;
     final ankiDue = OfficialAnkiHomeDue.aggregatedAnkiDue(ankiDueWords);
 
@@ -72,18 +78,21 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
         slivers: [
           const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
-          // ── 顶部 Hero：快速练习 ────────────────────────────────
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: QuickPlayHero(
-                title: AppStrings.playQuickPlayTitle,
-                subtitle: AppStrings.playQuickPlaySubtitle,
-                onTap: () => context.router.push(const MatchWordsRoute()),
+          // ── 顶部 Hero：Playground（仅语言课程）────────────────
+          if (playgroundEligible)
+            SliverToBoxAdapter(
+              child: Padding(
+                // Hero 与下方分区之间的专属间距包进同一块，随 Hero 一起
+                // 消失，Anki 课程下不留下空白。
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                child: PlaygroundHero(
+                  title: AppStrings.playgroundTitle,
+                  subtitle: AppStrings.playgroundHeroSubtitle,
+                  onTap: () =>
+                      context.router.push(const LanguagePlaygroundRoute()),
+                ),
               ),
             ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
           // ── 今日重点（2 列等宽，不再用 PageView 横向滑动） ────
           SliverToBoxAdapter(

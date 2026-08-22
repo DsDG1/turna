@@ -1,6 +1,6 @@
 # Turna 语言课程 Playground 实施计划
 
-> 状态：待实施  
+> 状态：P0（资格策略与产品边界）+ P1（数据源与配置模型）已实施（2026-08-22，含 §15 首个施工切片全部内容）；P2–P4 待施工  
 > 日期：2026-08-22  
 > 范围：练习 Hub 顶部「快速练习」、语言课程 Playground 首页、自由练习题库组装、练习会话、结果页、统计与测试  
 > 硬约束：**Playground 只属于语言学习课程；当前课程为传统 Anki 或 Official Anki 时不得显示、不得通过路由进入、不得读取任何 Anki 题目。**
@@ -235,7 +235,7 @@ enum CourseKind { language, anki, officialAnki }
 `LanguagePlaygroundPage` 在进入与课程切换后检查资格：
 
 - 不合格时不启动任何题库加载。
-- 显示一次简短提示后 `maybePop()`；若没有可返回页面，则切回练习 Hub。
+- 显示一次简短提示后 `maybePop()`；若没有可返回页面（深链冷启动），则就地展示拦截态、不加载任何题目，课程切回语言 scope 后自动解除拦截。
 - route 保留 `CourseReadyGuard`，资格判断由页面或新增的小型 guard 负责。
 
 #### 第三层：数据过滤

@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
+import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/game_provider.dart';
 import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/lesson_link_store.dart';
@@ -37,6 +38,8 @@ void main() {
     await tester.pumpWidget(
       MultiProvider(
         providers: [
+          // Playground Hero 资格判断（默认 scope '' → 显示 Hero）。
+          ChangeNotifierProvider(create: (_) => CourseProvider()),
           ChangeNotifierProvider(create: (_) => MistakeProvider(prefs)),
           ChangeNotifierProvider(
             create: (_) => SrsProvider(prefs, LessonLinkStore(prefs), srsDao),

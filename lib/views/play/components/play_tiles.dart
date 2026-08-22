@@ -16,18 +16,19 @@ import 'package:turna/views/theme.dart';
 // 抽取自 `play_hub_screen.dart`，供练习 Hub 与 AI 页共用，保证两页风格
 // 完全一致。组件签名与原私有版本保持一致，仅去 `_` 改为 public。
 
-/// 顶部「快速练习」Hero：teal->cyan 渐变 + 白字 + 白色闪电 chip。
-class QuickPlayHero extends StatelessWidget {
+/// 顶部渐变 Hero 卡：teal->cyan 渐变 + 白字。原「快速练习」专用，现由
+/// Playground（语言课程入口）使用；保持通用签名（标题/副标题/图标）。
+class PlaygroundHero extends StatelessWidget {
   final String title;
   final String subtitle;
   final IconData icon;
   final VoidCallback onTap;
 
-  const QuickPlayHero({
+  const PlaygroundHero({
     required this.title,
     required this.subtitle,
     required this.onTap,
-    this.icon = Icons.bolt_rounded,
+    this.icon = Icons.sports_esports_rounded,
     super.key,
   });
 
