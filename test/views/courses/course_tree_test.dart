@@ -7,22 +7,34 @@ import 'package:flutter/material.dart';
 // Package imports:
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 
 // Project imports:
+import 'package:turna/application/accessibility_provider.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/game_provider.dart';
+import 'package:turna/application/lesson_link_store.dart';
+import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/progress_provider.dart';
+import 'package:turna/application/srs_provider.dart';
+import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/lesson.dart';
 import 'package:turna/domain/course/lesson_content.dart';
+import 'package:turna/domain/course/lesson_word_link.dart';
 import 'package:turna/domain/course/section.dart';
 import 'package:turna/domain/course/unit.dart';
+import 'package:turna/service/locator.dart';
+import 'package:turna/views/courses/components/section_switcher.dart';
 import 'package:turna/views/courses/course_tree.dart';
+
+import '../../helpers/in_memory_course_db.dart';
 
 /// Minimal fake [GameProvider] for widget tests that only need the
 /// completed-lessons stream.
 class _FakeGameProvider extends ChangeNotifier implements GameProvider {
-  final Set<String> _completed = const <String>{};
-  final Set<String> _perfect = const <String>{};
+  final Set<String> _completed = <String>{};
+  final Set<String> _perfect = <String>{};
   final StreamController<Set<String>> _controller =
       StreamController<Set<String>>.broadcast();
 
@@ -42,6 +54,12 @@ class _FakeGameProvider extends ChangeNotifier implements GameProvider {
   Stream<Set<String>> get completedLessonsStream async* {
     yield Set.unmodifiable(_completed);
     yield* _controller.stream;
+  }
+
+  void complete(String lessonId, {bool perfect = false}) {
+    _completed.add(lessonId);
+    if (perfect) _perfect.add(lessonId);
+    _controller.add(Set.unmodifiable(_completed));
   }
 
   // Stubs for the remaining GameProvider interface; not used by CourseTree.
@@ -83,7 +101,7 @@ class _FakeCourseProvider extends CourseProvider {
         _loadError = loadError,
         _isLoadedFlag = isLoaded;
 
-  final Section? _currentSection;
+  Section? _currentSection;
   final List<Section>? _sectionsOverride;
   final SectionLoadState _loadState;
   final Object? _loadError;
@@ -142,17 +160,58 @@ class _FakeCourseProvider extends CourseProvider {
     reloadCourseCalls++;
     notifyListeners();
   }
+
+  void showSection(Section section) {
+    _currentSection = section;
+    notifyListeners();
+  }
 }
 
 void main() {
-  Widget pumpTree(CourseProvider courseProvider) {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  late AccessibilityProvider accessibility;
+  late AppPrefs appPrefs;
+
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await StreamingSharedPreferences.instance;
+    appPrefs = AppPrefs(preferences);
+    accessibility = AccessibilityProvider(appPrefs);
+  });
+
+  Widget pumpTree(
+    CourseProvider courseProvider, {
+    _FakeGameProvider? gameProvider,
+    SrsProvider? srsProvider,
+    MistakeProvider? mistakeProvider,
+    bool disableAnimations = false,
+    TextScaler? textScaler,
+  }) {
+    final game = gameProvider ?? _FakeGameProvider();
     return MaterialApp(
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          disableAnimations: disableAnimations,
+          textScaler: textScaler,
+        ),
+        child: child!,
+      ),
       home: MultiProvider(
         providers: [
           ChangeNotifierProvider<CourseProvider>.value(value: courseProvider),
-          ChangeNotifierProvider<ProgressProvider>(
-            create: (_) => ProgressProvider(_FakeGameProvider()),
+          ChangeNotifierProvider<AccessibilityProvider>.value(
+            value: accessibility,
           ),
+          ChangeNotifierProvider<ProgressProvider>(
+            create: (_) => ProgressProvider(game),
+          ),
+          if (srsProvider != null)
+            ChangeNotifierProvider<SrsProvider>.value(value: srsProvider),
+          if (mistakeProvider != null)
+            ChangeNotifierProvider<MistakeProvider>.value(
+              value: mistakeProvider,
+            ),
         ],
         child: const Scaffold(body: CourseTree()),
       ),
@@ -343,6 +402,7 @@ void main() {
 
       // First lesson appears after expand.
       expect(find.text('Lesson 0'), findsOneWidget);
+      expect(find.text('Lesson 99'), findsNothing);
 
       // Scroll to the bottom of the list and verify the last lesson is
       // reachable. This exercises the lazy sliver builder with 100 items.
@@ -351,6 +411,297 @@ void main() {
         200,
       );
       expect(find.text('Lesson 99'), findsOneWidget);
+    });
+
+    testWidgets('unit progress refreshes from ProgressProvider only',
+        (tester) async {
+      final game = _FakeGameProvider();
+      final section = _testSection(
+        id: 's-progress',
+        unitName: 'Progress Unit',
+        lessons: [_testLesson('progress-lesson', 'Progress Lesson')],
+      );
+      final provider = _FakeCourseProvider(
+        currentSection: section,
+        loadState: SectionLoadState.loaded,
+      );
+
+      await tester.pumpWidget(pumpTree(provider, gameProvider: game));
+      await tester.pumpAndSettle();
+      expect(find.text('0/1'), findsOneWidget);
+
+      game.complete('progress-lesson', perfect: true);
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      expect(find.text('1/1'), findsOneWidget);
+      expect(find.text('0/1'), findsNothing);
+    });
+
+    testWidgets('due lessons use one primary attention state', (tester) async {
+      final linkStore = LessonLinkStore(appPrefs);
+      await linkStore.upsertFirstSeen(
+        ids: const ['due-word'],
+        lessonId: 'attention-lesson',
+        lessonName: 'Attention Lesson',
+        type: LinkType.word,
+      );
+      getIt.pushNewScope();
+      addTearDown(() => getIt.popScope());
+      getIt.registerSingleton<LessonLinkStore>(linkStore);
+
+      final srs = SrsProvider(appPrefs, linkStore, emptySrsStateDao())
+        ..registerWord('due-word');
+      final mistakes = MistakeProvider(appPrefs);
+      addTearDown(srs.dispose);
+      addTearDown(mistakes.dispose);
+
+      final section = _testSection(
+        id: 's-attention',
+        unitName: 'Attention Unit',
+        lessons: [_testLesson('attention-lesson', 'Attention Lesson')],
+      );
+      final provider = _FakeCourseProvider(
+        currentSection: section,
+        loadState: SectionLoadState.loaded,
+      );
+
+      await tester.pumpWidget(
+        pumpTree(
+          provider,
+          srsProvider: srs,
+          mistakeProvider: mistakes,
+          disableAnimations: true,
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('1 项待复习'), findsOneWidget);
+
+      await tester.tap(find.text('Attention Unit'));
+      await tester.pumpAndSettle();
+      expect(find.text('1 项待复习'), findsNWidgets(2));
+      expect(find.textContaining('需加强'), findsNothing);
+    });
+
+    testWidgets('uses a short shared reveal animation for visible lessons',
+        (tester) async {
+      final section = _testSection(
+        id: 's-motion',
+        unitName: 'Motion Unit',
+        lessons: [_testLesson('motion-lesson', 'Motion Lesson')],
+      );
+      final provider = _FakeCourseProvider(
+        currentSection: section,
+        loadState: SectionLoadState.loaded,
+      );
+
+      await tester.pumpWidget(pumpTree(provider));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Motion Unit'));
+      await tester.pump();
+
+      final reveal = find.byKey(
+        const ValueKey<String>('lesson-reveal-motion-lesson'),
+      );
+      expect(reveal, findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 100));
+      final transition = tester.widget<FadeTransition>(reveal);
+      expect(transition.opacity.value, inExclusiveRange(0, 1));
+
+      await tester.pumpAndSettle();
+      expect(find.text('Motion Lesson'), findsOneWidget);
+    });
+
+    testWidgets('reduced motion reveals lessons without transition widgets',
+        (tester) async {
+      final section = _testSection(
+        id: 's-reduced-motion',
+        unitName: 'Quiet Unit',
+        lessons: [_testLesson('quiet-lesson', 'Quiet Lesson')],
+      );
+      final provider = _FakeCourseProvider(
+        currentSection: section,
+        loadState: SectionLoadState.loaded,
+      );
+
+      await tester.pumpWidget(
+        pumpTree(provider, disableAnimations: true),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Quiet Unit'));
+      await tester.pump();
+
+      expect(find.text('Quiet Lesson'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('lesson-reveal-quiet-lesson')),
+        findsNothing,
+      );
+    });
+
+    testWidgets('section switcher collapses and remains pinned while scrolling',
+        (tester) async {
+      final lessons = List.generate(
+        30,
+        (i) => _testLesson('sticky-$i', 'Sticky Lesson $i'),
+      );
+      final section = _testSection(
+        id: 's-sticky',
+        sectionName: 'Sticky Section',
+        unitName: 'Sticky Unit',
+        lessons: lessons,
+      );
+      final provider = _FakeCourseProvider(
+        currentSection: section,
+        loadState: SectionLoadState.loaded,
+      );
+
+      await tester.pumpWidget(
+        pumpTree(provider, disableAnimations: true),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester.getSize(find.byType(SectionSwitcher)).height,
+        SectionSwitcherHeaderDelegate.expandedExtent,
+      );
+
+      await tester.tap(find.text('Sticky Unit'));
+      await tester.pumpAndSettle();
+      await tester.drag(
+        find.byType(CustomScrollView),
+        const Offset(0, -400),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Sticky Section'), findsOneWidget);
+      expect(
+        tester.getSize(find.byType(SectionSwitcher)).height,
+        SectionSwitcherHeaderDelegate.compactExtent,
+      );
+    });
+
+    testWidgets('preserves the expanded unit independently for each section',
+        (tester) async {
+      final first = _testSection(
+        id: 's-first',
+        sectionName: 'First Section',
+        unitName: 'First Unit',
+        lessons: [_testLesson('first-lesson', 'First Lesson')],
+      );
+      final second = _testSection(
+        id: 's-second',
+        sectionName: 'Second Section',
+        unitName: 'Second Unit',
+        lessons: [_testLesson('second-lesson', 'Second Lesson')],
+      );
+      final provider = _FakeCourseProvider(
+        currentSection: first,
+        sections: [first, second],
+        loadState: SectionLoadState.loaded,
+      );
+
+      await tester.pumpWidget(pumpTree(provider));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('First Unit'));
+      await tester.pumpAndSettle();
+      expect(find.text('First Lesson'), findsOneWidget);
+
+      provider.showSection(second);
+      await tester.pumpAndSettle();
+      expect(find.text('Second Unit'), findsOneWidget);
+      expect(find.text('Second Lesson'), findsNothing);
+
+      provider.showSection(first);
+      await tester.pumpAndSettle();
+      expect(find.text('First Lesson'), findsOneWidget);
+    });
+
+    testWidgets(
+        'narrow large-text layout does not overflow and hides lesson descriptions',
+        (tester) async {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final lessons = List.generate(
+        16,
+        (i) => _testLesson(
+          'large-$i',
+          'A long lesson title number $i',
+          description: 'Lesson descriptions should stay hidden',
+        ),
+      );
+      final section = _testSection(
+        id: 's-large-text',
+        sectionName: 'A long section name for a narrow screen',
+        unitName: 'A long unit name for a narrow screen',
+        unitDescription: 'Only this single-line unit description is retained',
+        lessons: lessons,
+      );
+      final provider = _FakeCourseProvider(
+        currentSection: section,
+        loadState: SectionLoadState.loaded,
+      );
+
+      await tester.pumpWidget(
+        pumpTree(
+          provider,
+          disableAnimations: true,
+          textScaler: const TextScaler.linear(2),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(find.text('A long unit name for a narrow screen'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Lesson descriptions should stay hidden'),
+        findsNothing,
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('unit semantics expose progress and expanded state',
+        (tester) async {
+      final section = _testSection(
+        id: 's-semantics',
+        unitName: 'Semantic Unit',
+        lessons: [_testLesson('semantic-lesson', 'Semantic Lesson')],
+      );
+      final provider = _FakeCourseProvider(
+        currentSection: section,
+        loadState: SectionLoadState.loaded,
+      );
+
+      await tester.pumpWidget(pumpTree(provider));
+      await tester.pumpAndSettle();
+      final collapsed = find.bySemanticsLabel('Semantic Unit，0/1');
+      expect(collapsed, findsOneWidget);
+      expect(
+        tester.getSemantics(collapsed),
+        isSemantics(
+          label: 'Semantic Unit，0/1',
+          isButton: true,
+          hasExpandedState: true,
+          isExpanded: false,
+          hasTapAction: true,
+        ),
+      );
+
+      await tester.tap(find.text('Semantic Unit'));
+      await tester.pumpAndSettle();
+      final expanded = find.bySemanticsLabel('Semantic Unit，0/1');
+      expect(
+        tester.getSemantics(expanded),
+        isSemantics(
+          label: 'Semantic Unit，0/1',
+          isButton: true,
+          hasExpandedState: true,
+          isExpanded: true,
+          hasTapAction: true,
+        ),
+      );
     });
   });
 }
@@ -361,4 +712,42 @@ Section _shellSection(String id) => Section(
       description: '',
       prerequisiteSectionIds: const [],
       units: const [],
+    );
+
+Section _testSection({
+  required String id,
+  String? sectionName,
+  required String unitName,
+  String unitDescription = '',
+  required List<Lesson> lessons,
+}) =>
+    Section(
+      id: id,
+      name: sectionName ?? id,
+      description: '',
+      prerequisiteSectionIds: const [],
+      units: [
+        Unit(
+          id: '$id-unit',
+          name: unitName,
+          description: unitDescription,
+          prerequisiteUnitIds: const [],
+          lessons: lessons,
+        ),
+      ],
+    );
+
+Lesson _testLesson(
+  String id,
+  String name, {
+  String description = '',
+}) =>
+    Lesson(
+      id: id,
+      name: name,
+      description: description,
+      type: LessonType.normal,
+      template: LessonTemplate.legacy,
+      prerequisiteLessonIds: const [],
+      content: const LessonContent(),
     );

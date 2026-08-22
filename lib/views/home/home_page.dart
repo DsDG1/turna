@@ -23,6 +23,8 @@ import 'package:turna/service/tab_router.dart';
 import 'package:turna/views/content_update/content_update_dialog.dart';
 import 'package:turna/views/courses/course_tree.dart';
 import 'package:turna/views/home/components/components.dart';
+import 'package:turna/views/home/components/scroll_hide_bar.dart';
+import 'package:turna/views/home/scroll_hide_policy.dart';
 import 'package:turna/views/home/streak_broken_dialog.dart';
 import 'package:turna/views/play/play_app_bar.dart';
 import 'package:turna/views/play/play_hub_screen.dart';
@@ -33,7 +35,7 @@ import 'package:turna/views/theme.dart';
 
 @RoutePage()
 class HomePage extends StatefulWidget {
-  const HomePage({Key? key}) : super(key: key);
+  const HomePage({super.key});
 
   @override
   State<StatefulWidget> createState() {
@@ -43,6 +45,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int currentIndex = 0;
+  bool _barHidden = false;
 
   final screens = [
     const CourseTree(),
@@ -69,10 +72,26 @@ class _HomePageState extends State<HomePage> {
   void _onTabRouteChanged() {
     final next = getIt<TabRouter>().index.value;
     if (next == currentIndex) return;
-    setState(() => currentIndex = next);
+    setState(() {
+      currentIndex = next;
+      _barHidden = false;
+    });
   }
 
-  initSession() async {
+  bool _onUserScroll(UserScrollNotification notification) {
+    final next = ScrollHidePolicy.nextHidden(
+      hidden: _barHidden,
+      axis: notification.metrics.axis,
+      direction: notification.direction,
+      pixels: notification.metrics.pixels,
+    );
+    if (next != _barHidden) {
+      setState(() => _barHidden = next);
+    }
+    return false;
+  }
+
+  Future<void> initSession() async {
     context.read<LanguageProvider>().initLanguage();
     final gameProvider = context.read<GameProvider>();
     final gemsProvider = context.read<GemsProvider>();
@@ -162,9 +181,12 @@ class _HomePageState extends State<HomePage> {
           : TurnaTheme.surfaceColor(context),
       appBar: appBars[currentIndex],
       extendBody: true,
-      bottomNavigationBar: BottomNavigator(
-        currentIndex: currentIndex,
-        onPress: onBottomNavigatorTapped,
+      bottomNavigationBar: ScrollHideBar(
+        hidden: _barHidden,
+        child: BottomNavigator(
+          currentIndex: currentIndex,
+          onPress: onBottomNavigatorTapped,
+        ),
       ),
       body: MediaQuery(
         data: mq.copyWith(
@@ -172,9 +194,12 @@ class _HomePageState extends State<HomePage> {
             bottom: mq.padding.bottom + BottomNavigator.overlayExtent,
           ),
         ),
-        child: IndexedStack(
-          index: currentIndex,
-          children: screens,
+        child: NotificationListener<UserScrollNotification>(
+          onNotification: _onUserScroll,
+          child: IndexedStack(
+            index: currentIndex,
+            children: screens,
+          ),
         ),
       ),
     );
@@ -184,6 +209,9 @@ class _HomePageState extends State<HomePage> {
     final a11y = context.read<AccessibilityProvider>();
     if (!a11y.quietFeedback) {
       context.read<SettingsProvider>().triggerHaptic(HapticFeedbackType.light);
+    }
+    if (_barHidden) {
+      setState(() => _barHidden = false);
     }
     // Route through TabRouter so external callers (e.g. the lesson "去设置"
     // dialog) and the nav bar share one write path. The listener applies it.

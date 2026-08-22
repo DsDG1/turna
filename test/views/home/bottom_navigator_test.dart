@@ -75,7 +75,7 @@ void main() {
     expect(find.byIcon(Icons.settings_outlined), findsOneWidget);
   });
 
-  testWidgets('uses a frosted BackdropFilter by default', (tester) async {
+  testWidgets('default path has no BackdropFilter', (tester) async {
     await tester.pumpWidget(
       wrap(
         BottomNavigator(
@@ -84,11 +84,11 @@ void main() {
         ),
       ),
     );
-    expect(find.byType(BackdropFilter), findsOneWidget);
+    expect(find.byType(BackdropFilter), findsNothing);
     expect(find.byType(ClipRRect), findsWidgets);
   });
 
-  testWidgets('high contrast skips blur', (tester) async {
+  testWidgets('high contrast stays solid without blur', (tester) async {
     await a11y.setHighContrast(true);
     await tester.pumpWidget(
       wrap(
@@ -99,6 +99,7 @@ void main() {
       ),
     );
     expect(find.byType(BackdropFilter), findsNothing);
+    expect(find.byType(ClipRRect), findsWidgets);
   });
 
   test('overlayExtent is capsule plus outer gaps, not the home indicator', () {

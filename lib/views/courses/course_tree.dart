@@ -1,5 +1,4 @@
 // Flutter imports:
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 // Package imports:
@@ -7,6 +6,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
+import 'package:turna/application/accessibility_provider.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/lesson_link_store.dart';
 import 'package:turna/application/mistake_provider.dart';
@@ -15,6 +15,7 @@ import 'package:turna/application/srs_provider.dart';
 import 'package:turna/application/weak_word_quiz_assembler.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/lesson.dart';
+import 'package:turna/domain/course/section.dart';
 import 'package:turna/domain/course/unit.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
@@ -22,86 +23,86 @@ import 'package:turna/views/theme.dart';
 import 'components/section_switcher.dart';
 
 class CourseTree extends StatefulWidget {
-  const CourseTree({Key? key}) : super(key: key);
+  const CourseTree({super.key});
 
   @override
   State<CourseTree> createState() => _CourseTreeState();
 }
 
-class _CourseTreeState extends State<CourseTree> {
-  // CourseProvider.load() is called once at app startup (see main.dart).
-  // This widget must NOT call load() from initState: a tab round-trip
-  // (AnimatedSwitcher swap) would rebuild, re-fire initState, and historically
-  // reset cached bodies back to shells — a blank Course Tree.
-  //
-  // Defensive body loads for SectionLoadState.initial are scheduled via
-  // [addPostFrameCallback] only (see [_scheduleEnsureSection]) so they stay
-  // idempotent and never re-enter [CourseProvider.load].
+class _CourseTreeState extends State<CourseTree>
+    with SingleTickerProviderStateMixin {
+  static const _motionDuration = Duration(milliseconds: 200);
 
-  /// Section ids already scheduled for a defensive [ensureSectionLoaded] call.
+  /// Defensive section loads already scheduled for the next frame.
   final Set<String> _scheduledEnsure = {};
 
-  /// Accordion: at most one unit expanded. The lesson list inside an expanded
-  /// unit is virtualized by the outer [SliverList], so even 100+ lessons only
-  /// build the tiles currently in the viewport.
-  String? _expandedUnitId;
+  /// Accordion state is kept per section, so changing sections does not make
+  /// the learner lose the place they were working from.
+  final Map<String, String?> _expandedUnitBySection = {};
+
+  late final AnimationController _lessonRevealController;
+
+  @override
+  void initState() {
+    super.initState();
+    _lessonRevealController = AnimationController(
+      vsync: this,
+      duration: _motionDuration,
+      value: 1,
+    );
+  }
+
+  @override
+  void dispose() {
+    _lessonRevealController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.disableAnimationsOf(context) ||
+        context.select<AccessibilityProvider, bool>((p) => p.reducedMotion);
+
     return Container(
       decoration: BoxDecoration(
         gradient: TurnaTheme.courseTreeGradientFor(context),
       ),
-      child: Consumer<CourseProvider>(
-        builder: (context, courseState, _) {
-          final sections = courseState.sections;
-
-          if (sections.isEmpty) {
-            // After load completes with zero shells, never spin forever —
-            // that looked like a gray hang with no recovery path.
-            if (courseState.isLoaded) {
+      child: Selector<CourseProvider, _CourseSnapshot>(
+        selector: (_, provider) => _CourseSnapshot.from(provider),
+        shouldRebuild: _CourseSnapshot.shouldRebuild,
+        builder: (context, snapshot, _) {
+          if (!snapshot.hasSections) {
+            if (snapshot.isLoaded) {
               return _buildErrorMessage(
                 context,
                 title: AppStrings.coursesCouldNotLoadCourse,
                 error: AppStrings.coursesNoSectionsFound,
-                onRetry: () => courseState.reloadCourse(),
+                onRetry: () => context.read<CourseProvider>().reloadCourse(),
               );
             }
             return const Center(child: _LoadingIndicator());
           }
 
-          // Defensive: if the current section is still initial (e.g. a non-main
-          // entry path forgot to call ensureSectionLoaded), kick off a body
-          // load. Coalesced + cached inside the provider; safe to re-enter.
-          final currentId = courseState.currentSectionId;
+          final currentId = snapshot.currentSectionId;
           if (currentId != null &&
-              courseState.sectionLoadState(currentId) ==
-                  SectionLoadState.initial) {
-            _scheduleEnsureSection(courseState, currentId);
+              snapshot.loadState == SectionLoadState.initial) {
+            _scheduleEnsureSection(context.read<CourseProvider>(), currentId);
           }
 
-          return Column(
-            children: [
-              // Section switcher — top-left aligned
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: SectionSwitcher(),
-              ),
+          final section = snapshot.section;
+          if (section == null) return _buildEmptyMessage(context);
 
-              // Section content — _UnitHeader and _LessonTile handle their own
-              // progress consumption inside the virtualized tree.
-              Expanded(
-                child: _buildUnitTree(courseState),
-              ),
-            ],
+          return _buildSectionScrollView(
+            context,
+            snapshot: snapshot,
+            section: section,
+            reduceMotion: reduceMotion,
           );
         },
       ),
     );
   }
 
-  /// Schedules a one-shot body load after this frame so we never call
-  /// provider methods synchronously during [build].
   void _scheduleEnsureSection(CourseProvider courseState, String id) {
     if (_scheduledEnsure.contains(id)) return;
     _scheduledEnsure.add(id);
@@ -113,206 +114,292 @@ class _CourseTreeState extends State<CourseTree> {
     });
   }
 
-  /// Renders the units and lessons for the currently selected section.
-  ///
-  /// The tree is flattened into a single [SliverList] so that expanding a unit
-  /// with many lessons still benefits from Flutter's lazy sliver building.
-  /// Previously each unit card held a [ListView.builder] with [shrinkWrap:true],
-  /// which forced every lesson tile to be built during layout.
-  Widget _buildUnitTree(CourseProvider courseState) {
-    final section = courseState.currentSection;
-    if (section == null) {
-      return _buildEmptyMessage(context);
-    }
+  Widget _buildSectionScrollView(
+    BuildContext context, {
+    required _CourseSnapshot snapshot,
+    required Section section,
+    required bool reduceMotion,
+  }) {
+    final bodySlivers = switch (snapshot.loadState) {
+      SectionLoadState.initial || SectionLoadState.loading => <Widget>[
+          const SliverFillRemaining(
+            hasScrollBody: false,
+            child: _LoadingIndicator(),
+          ),
+        ],
+      SectionLoadState.error => <Widget>[
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: _buildErrorMessage(
+              context,
+              title: AppStrings.coursesCouldNotLoadSection,
+              error: snapshot.error,
+              onRetry: () =>
+                  context.read<CourseProvider>().reloadSection(section.id),
+            ),
+          ),
+        ],
+      SectionLoadState.loaded when section.units.isEmpty => <Widget>[
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: _buildEmptyMessage(context),
+          ),
+        ],
+      SectionLoadState.loaded => _buildLoadedSlivers(
+          context,
+          section: section,
+          reduceMotion: reduceMotion,
+        ),
+    };
 
-    final loadState = courseState.sectionLoadState(section.id);
+    return CustomScrollView(
+      key: PageStorageKey<String>('course-tree-${section.id}'),
+      physics: const BouncingScrollPhysics(),
+      slivers: [
+        SliverPersistentHeader(
+          pinned: true,
+          delegate: SectionSwitcherHeaderDelegate(section: section),
+        ),
+        ...bodySlivers,
+      ],
+    );
+  }
 
-    if (loadState == SectionLoadState.loading ||
-        loadState == SectionLoadState.initial) {
-      return const Center(child: _LoadingIndicator());
-    }
+  List<Widget> _buildLoadedSlivers(
+    BuildContext context, {
+    required Section section,
+    required bool reduceMotion,
+  }) {
+    final status = _resolveStatusProjection(context, section);
+    final expandedUnitId = _expandedUnitBySection[section.id];
 
-    if (loadState == SectionLoadState.error) {
-      return _buildErrorMessage(
-        context,
-        title: AppStrings.coursesCouldNotLoadSection,
-        error: courseState.sectionLoadError(section.id),
-        onRetry: () => courseState.reloadSection(section.id),
-      );
-    }
-
-    if (section.units.isEmpty) {
-      return _buildEmptyMessage(context);
-    }
-
-    final progress = context.read<ProgressProvider>();
-    // Status badges: O(due+weak words) via linkFor, not O(all links).
-    Set<String> dueWordIds = const {};
-    Set<String> weakWordIds = const {};
-    final lessonIdsWithDue = <String>{};
-    final lessonIdsWithWeak = <String>{};
-    try {
-      dueWordIds = context.select((SrsProvider p) => p.dueWordIdSet);
-      weakWordIds = WeakWordQuizAssembler.aggregateWeakWords(
-        context.select((MistakeProvider p) => p.entries),
-      ).map((w) => w.wordId).toSet();
-      if (getIt.isRegistered<LessonLinkStore>()) {
-        final store = getIt<LessonLinkStore>();
-        for (final wordId in dueWordIds) {
-          final link = store.linkFor(wordId);
-          if (link != null) lessonIdsWithDue.add(link.lessonId);
-        }
-        for (final wordId in weakWordIds) {
-          final link = store.linkFor(wordId);
-          if (link != null) lessonIdsWithWeak.add(link.lessonId);
-        }
-      }
-    } catch (_) {
-      // ProviderNotFound / empty DI — tree still renders without status dots.
-    }
-
-    // Single pass over section: completedCount per unit + lessonId→unit index.
-    // Replaces the previous per-unit .where().length + 2×.any pattern whose
-    // total cost was O(3 × section lessons). due/weak unit flags are now
-    // resolved by reverse-looking up the due/weak lessonId sets through the
-    // index — O(section lessons + due + weak) instead of O(section lessons
-    // per badge).
-    final completedCountByUnit = <String, int>{};
-    final lessonToUnit = <String, String>{};
-    for (final unit in section.units) {
-      var count = 0;
-      for (final lesson in unit.lessons) {
-        lessonToUnit[lesson.id] = unit.id;
-        if (progress.isLessonCompleted(lesson.id)) count++;
-      }
-      completedCountByUnit[unit.id] = count;
-    }
-
-    final unitsWithDue = <String>{};
-    final unitsWithWeak = <String>{};
-    for (final lessonId in lessonIdsWithDue) {
-      final uid = lessonToUnit[lessonId];
-      if (uid != null) unitsWithDue.add(uid);
-    }
-    for (final lessonId in lessonIdsWithWeak) {
-      final uid = lessonToUnit[lessonId];
-      if (uid != null) unitsWithWeak.add(uid);
-    }
-
-    // Flatten section into a single virtualized list of headers and lessons.
     final items = <_TreeItem>[];
     for (final unit in section.units) {
-      final expanded = _expandedUnitId == unit.id;
-
+      final expanded = expandedUnitId == unit.id;
       items.add(
         _UnitHeaderItem(
+          sectionId: section.id,
           unit: unit,
-          completedCount: completedCountByUnit[unit.id] ?? 0,
-          hasDue: unitsWithDue.contains(unit.id),
-          hasWeak: unitsWithWeak.contains(unit.id),
+          dueLessonCount: status.dueCountByUnit[unit.id] ?? 0,
+          weakLessonCount: status.weakCountByUnit[unit.id] ?? 0,
           expanded: expanded,
         ),
       );
 
       if (expanded) {
         for (var i = 0; i < unit.lessons.length; i++) {
+          final lesson = unit.lessons[i];
           items.add(
             _LessonItem(
-              unit: unit,
-              lesson: unit.lessons[i],
-              isFirst: i == 0,
+              sectionId: section.id,
+              lesson: lesson,
+              attention: status.attentionForLesson(lesson.id),
               isLast: i == unit.lessons.length - 1,
-              lessonIdsWithDue: lessonIdsWithDue,
-              lessonIdsWithWeak: lessonIdsWithWeak,
             ),
           );
         }
       }
     }
 
-    return CustomScrollView(
-      physics: const BouncingScrollPhysics(),
-      slivers: [
-        SliverPadding(
-          padding: EdgeInsets.only(
-            top: 8,
-            bottom: 16 + MediaQuery.paddingOf(context).bottom,
-          ),
-          sliver: SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                final item = items[index];
-                final (top, bottom) = switch (item) {
-                  _UnitHeaderItem(expanded: final expanded) => (
-                      4.0,
-                      expanded ? 0.0 : 4.0
-                    ),
-                  _LessonItem(isLast: final isLast) => (
-                      0.0,
-                      isLast ? 4.0 : 0.0
-                    ),
-                };
+    final indexByKey = <Key, int>{
+      for (var i = 0; i < items.length; i++) items[i].key: i,
+    };
 
-                // RepaintBoundary isolates each item's painting so a progress
-                // or selection notification repaints only the changed tile,
-                // not the whole visible list.
-                return RepaintBoundary(
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(12, top, 12, bottom),
-                    child: switch (item) {
-                      _UnitHeaderItem(
-                        unit: final unit,
-                        completedCount: final completedCount,
-                        hasDue: final hasDue,
-                        hasWeak: final hasWeak,
-                        expanded: final expanded,
-                      ) =>
-                        _UnitHeader(
-                          unit: unit,
-                          completedCount: completedCount,
-                          hasDue: hasDue,
-                          hasWeak: hasWeak,
-                          expanded: expanded,
-                          onHeaderTap: () {
-                            setState(() {
-                              _expandedUnitId = expanded ? null : unit.id;
-                            });
-                          },
-                        ),
-                      _LessonItem(
-                        lesson: final lesson,
-                        isFirst: final isFirst,
-                        isLast: final isLast,
-                        lessonIdsWithDue: final dueSet,
-                        lessonIdsWithWeak: final weakSet,
-                      ) =>
-                        Selector<ProgressProvider,
-                            ({bool completed, bool perfect})>(
-                          selector: (_, progress) => (
-                            completed: progress.isLessonCompleted(lesson.id),
-                            perfect: progress.isLessonPerfect(lesson.id),
-                          ),
-                          builder: (context, value, _) => _LessonTile(
-                            lesson: lesson,
-                            isCompleted: value.completed,
-                            isPerfect: value.perfect,
-                            hasDue: dueSet.contains(lesson.id),
-                            hasWeak: weakSet.contains(lesson.id),
-                            isFirst: isFirst,
-                            isLast: isLast,
-                            onTap: () => _navigateToLesson(context, lesson),
-                          ),
-                        ),
-                    },
+    return [
+      SliverPadding(
+        padding: EdgeInsets.only(
+          top: 8,
+          bottom: 16 + MediaQuery.paddingOf(context).bottom,
+        ),
+        sliver: SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) {
+              final item = items[index];
+              final (top, bottom) = switch (item) {
+                _UnitHeaderItem(expanded: final expanded) => (
+                    4.0,
+                    expanded ? 0.0 : 4.0
                   ),
-                );
-              },
-              childCount: items.length,
-            ),
+                _LessonItem(isLast: final isLast) => (0.0, isLast ? 4.0 : 0.0),
+              };
+
+              final child = switch (item) {
+                _UnitHeaderItem(
+                  sectionId: final sectionId,
+                  unit: final unit,
+                  dueLessonCount: final dueCount,
+                  weakLessonCount: final weakCount,
+                  expanded: final expanded,
+                ) =>
+                  Selector<ProgressProvider, int>(
+                    selector: (_, progress) {
+                      var completed = 0;
+                      for (final lesson in unit.lessons) {
+                        if (progress.isLessonCompleted(lesson.id)) completed++;
+                      }
+                      return completed;
+                    },
+                    builder: (context, completedCount, _) => _UnitHeader(
+                      unit: unit,
+                      completedCount: completedCount,
+                      dueLessonCount: dueCount,
+                      weakLessonCount: weakCount,
+                      expanded: expanded,
+                      reduceMotion: reduceMotion,
+                      onHeaderTap: () => _toggleUnit(
+                        sectionId: sectionId,
+                        unitId: unit.id,
+                        expanded: expanded,
+                        reduceMotion: reduceMotion,
+                      ),
+                    ),
+                  ),
+                _LessonItem(
+                  lesson: final lesson,
+                  attention: final attention,
+                  isLast: final isLast,
+                ) =>
+                  _buildAnimatedLessonTile(
+                    lesson: lesson,
+                    attention: attention,
+                    isLast: isLast,
+                    reduceMotion: reduceMotion,
+                  ),
+              };
+
+              return Padding(
+                key: item.key,
+                padding: EdgeInsets.fromLTRB(12, top, 12, bottom),
+                child: child,
+              );
+            },
+            childCount: items.length,
+            findChildIndexCallback: (key) => indexByKey[key],
+            addAutomaticKeepAlives: false,
           ),
         ),
-      ],
+      ),
+    ];
+  }
+
+  Widget _buildAnimatedLessonTile({
+    required Lesson lesson,
+    required _Attention attention,
+    required bool isLast,
+    required bool reduceMotion,
+  }) {
+    Widget tile = Selector<ProgressProvider, ({bool completed, bool perfect})>(
+      selector: (_, progress) => (
+        completed: progress.isLessonCompleted(lesson.id),
+        perfect: progress.isLessonPerfect(lesson.id),
+      ),
+      builder: (context, value, _) => _LessonTile(
+        lesson: lesson,
+        isCompleted: value.completed,
+        isPerfect: value.perfect,
+        attention: attention,
+        isLast: isLast,
+        onTap: () => _navigateToLesson(context, lesson),
+      ),
     );
+
+    if (reduceMotion) return tile;
+
+    final reveal = _lessonRevealController.drive(
+      CurveTween(curve: Curves.easeOutCubic),
+    );
+    tile = FadeTransition(
+      key: ValueKey<String>('lesson-reveal-${lesson.id}'),
+      opacity: reveal,
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, 0.04),
+          end: Offset.zero,
+        ).animate(reveal),
+        child: tile,
+      ),
+    );
+    return tile;
+  }
+
+  _StatusProjection _resolveStatusProjection(
+    BuildContext context,
+    Section section,
+  ) {
+    Set<String> dueWordIds = const {};
+    Set<String> weakWordIds = const {};
+    final dueLessonIds = <String>{};
+    final weakLessonIds = <String>{};
+
+    try {
+      dueWordIds = context.select((SrsProvider p) => p.dueWordIdSet);
+      weakWordIds = WeakWordQuizAssembler.aggregateWeakWords(
+        context.select((MistakeProvider p) => p.entries),
+      ).map((word) => word.wordId).toSet();
+
+      if (getIt.isRegistered<LessonLinkStore>()) {
+        final store = getIt<LessonLinkStore>();
+        for (final wordId in dueWordIds) {
+          final link = store.linkFor(wordId);
+          if (link != null) dueLessonIds.add(link.lessonId);
+        }
+        for (final wordId in weakWordIds) {
+          final link = store.linkFor(wordId);
+          if (link != null) weakLessonIds.add(link.lessonId);
+        }
+      }
+    } catch (_) {
+      // Lightweight widget tests and recovery surfaces may intentionally omit
+      // review providers. The course remains usable without attention badges.
+    }
+
+    final lessonToUnit = <String, String>{};
+    for (final unit in section.units) {
+      for (final lesson in unit.lessons) {
+        lessonToUnit[lesson.id] = unit.id;
+      }
+    }
+
+    final dueCountByUnit = <String, int>{};
+    final weakCountByUnit = <String, int>{};
+    for (final lessonId in dueLessonIds) {
+      final unitId = lessonToUnit[lessonId];
+      if (unitId != null) {
+        dueCountByUnit.update(unitId, (count) => count + 1, ifAbsent: () => 1);
+      }
+    }
+    for (final lessonId in weakLessonIds) {
+      final unitId = lessonToUnit[lessonId];
+      if (unitId != null) {
+        weakCountByUnit.update(unitId, (count) => count + 1, ifAbsent: () => 1);
+      }
+    }
+
+    return _StatusProjection(
+      dueLessonIds: dueLessonIds,
+      weakLessonIds: weakLessonIds,
+      dueCountByUnit: dueCountByUnit,
+      weakCountByUnit: weakCountByUnit,
+    );
+  }
+
+  void _toggleUnit({
+    required String sectionId,
+    required String unitId,
+    required bool expanded,
+    required bool reduceMotion,
+  }) {
+    setState(() {
+      _expandedUnitBySection[sectionId] = expanded ? null : unitId;
+    });
+
+    if (!expanded) {
+      if (reduceMotion) {
+        _lessonRevealController.value = 1;
+      } else {
+        _lessonRevealController.forward(from: 0);
+      }
+    }
   }
 
   void _navigateToLesson(BuildContext context, Lesson lesson) {
@@ -327,7 +414,7 @@ class _CourseTreeState extends State<CourseTree> {
           Icon(
             Icons.menu_book_rounded,
             size: 64,
-            color: TurnaTheme.textHint.withValues(alpha: 0.3),
+            color: TurnaTheme.textHintColor(context).withValues(alpha: 0.3),
           ),
           const SizedBox(height: 16),
           Text(
@@ -394,9 +481,7 @@ class _CourseTreeState extends State<CourseTree> {
                   vertical: 12,
                 ),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(
-                    TurnaTheme.radiusMedium,
-                  ),
+                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
                 ),
               ),
             ),
@@ -407,202 +492,425 @@ class _CourseTreeState extends State<CourseTree> {
   }
 }
 
-/// Items in the flattened course tree. Using a sealed family keeps the
-/// [SliverChildBuilderDelegate] type-safe and makes it obvious which data each
-/// row needs.
+class _CourseSnapshot {
+  final bool hasSections;
+  final bool isLoaded;
+  final String? currentSectionId;
+  final Section? section;
+  final SectionLoadState loadState;
+  final Object? error;
+
+  const _CourseSnapshot({
+    required this.hasSections,
+    required this.isLoaded,
+    required this.currentSectionId,
+    required this.section,
+    required this.loadState,
+    required this.error,
+  });
+
+  factory _CourseSnapshot.from(CourseProvider provider) {
+    final currentSectionId = provider.currentSectionId;
+    final loadState = currentSectionId == null
+        ? SectionLoadState.initial
+        : provider.sectionLoadState(currentSectionId);
+    return _CourseSnapshot(
+      hasSections: provider.sections.isNotEmpty,
+      isLoaded: provider.isLoaded,
+      currentSectionId: currentSectionId,
+      section: provider.currentSection,
+      loadState: loadState,
+      error: currentSectionId == null
+          ? null
+          : provider.sectionLoadError(currentSectionId),
+    );
+  }
+
+  static bool shouldRebuild(
+    _CourseSnapshot previous,
+    _CourseSnapshot next,
+  ) =>
+      previous.hasSections != next.hasSections ||
+      previous.isLoaded != next.isLoaded ||
+      previous.currentSectionId != next.currentSectionId ||
+      !identical(previous.section, next.section) ||
+      previous.loadState != next.loadState ||
+      previous.error != next.error;
+}
+
 sealed class _TreeItem {
   const _TreeItem();
+
+  Key get key;
 }
 
 class _UnitHeaderItem extends _TreeItem {
+  final String sectionId;
+  final Unit unit;
+  final int dueLessonCount;
+  final int weakLessonCount;
+  final bool expanded;
+
   const _UnitHeaderItem({
+    required this.sectionId,
     required this.unit,
-    required this.completedCount,
-    required this.hasDue,
-    required this.hasWeak,
+    required this.dueLessonCount,
+    required this.weakLessonCount,
     required this.expanded,
   });
 
-  final Unit unit;
-  final int completedCount;
-  final bool hasDue;
-  final bool hasWeak;
-  final bool expanded;
+  @override
+  Key get key => ValueKey<String>('unit-$sectionId-${unit.id}');
 }
 
 class _LessonItem extends _TreeItem {
+  final String sectionId;
+  final Lesson lesson;
+  final _Attention attention;
+  final bool isLast;
+
   const _LessonItem({
-    required this.unit,
+    required this.sectionId,
     required this.lesson,
-    required this.isFirst,
+    required this.attention,
     required this.isLast,
-    required this.lessonIdsWithDue,
-    required this.lessonIdsWithWeak,
   });
 
-  final Unit unit;
-  final Lesson lesson;
-  final bool isFirst;
-  final bool isLast;
-  final Set<String> lessonIdsWithDue;
-  final Set<String> lessonIdsWithWeak;
+  @override
+  Key get key => ValueKey<String>('lesson-$sectionId-${lesson.id}');
 }
 
-/// A tappable unit header displayed inside the virtualized course tree.
-///
-/// When [expanded] is true the bottom corners are squared off so the header
-/// visually connects to the lesson tiles below it.
+enum _Attention { none, due, weak }
+
+class _StatusProjection {
+  final Set<String> dueLessonIds;
+  final Set<String> weakLessonIds;
+  final Map<String, int> dueCountByUnit;
+  final Map<String, int> weakCountByUnit;
+
+  const _StatusProjection({
+    required this.dueLessonIds,
+    required this.weakLessonIds,
+    required this.dueCountByUnit,
+    required this.weakCountByUnit,
+  });
+
+  _Attention attentionForLesson(String lessonId) {
+    if (dueLessonIds.contains(lessonId)) return _Attention.due;
+    if (weakLessonIds.contains(lessonId)) return _Attention.weak;
+    return _Attention.none;
+  }
+}
+
 class _UnitHeader extends StatelessWidget {
   final Unit unit;
   final int completedCount;
-  final bool hasDue;
-  final bool hasWeak;
+  final int dueLessonCount;
+  final int weakLessonCount;
   final bool expanded;
+  final bool reduceMotion;
   final VoidCallback onHeaderTap;
 
   const _UnitHeader({
     required this.unit,
     required this.completedCount,
-    required this.hasDue,
-    required this.hasWeak,
+    required this.dueLessonCount,
+    required this.weakLessonCount,
     required this.expanded,
+    required this.reduceMotion,
     required this.onHeaderTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final lessonCount = unit.lessons.length;
     final isFullyComplete =
-        completedCount == unit.lessons.length && unit.lessons.isNotEmpty;
-    final radiusMedium = const Radius.circular(TurnaTheme.radiusMedium);
-
+        completedCount == lessonCount && unit.lessons.isNotEmpty;
+    final attention = dueLessonCount > 0
+        ? _Attention.due
+        : weakLessonCount > 0
+            ? _Attention.weak
+            : _Attention.none;
+    final attentionCount = attention == _Attention.due
+        ? dueLessonCount
+        : attention == _Attention.weak
+            ? weakLessonCount
+            : 0;
+    final duration =
+        reduceMotion ? Duration.zero : _CourseTreeState._motionDuration;
+    final radius = Radius.circular(TurnaTheme.radiusMedium);
     final borderRadius = BorderRadius.vertical(
-      top: radiusMedium,
-      bottom: expanded ? Radius.zero : radiusMedium,
+      top: radius,
+      bottom: expanded ? Radius.zero : radius,
     );
+    final progressText = AppStrings.coursesUnitProgress(
+      completedCount,
+      lessonCount,
+    );
+    final attentionText = _attentionText(attention, attentionCount);
+    final semanticsParts = <String>[
+      unit.name,
+      progressText,
+      if (attentionText != null) attentionText,
+    ];
 
-    return Material(
-      color: TurnaTheme.cardBg(context),
-      borderRadius: borderRadius,
-      elevation: 0,
-      shadowColor: TurnaTheme.brandTeal.withValues(alpha: 0.08),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          InkWell(
+    return Semantics(
+      button: true,
+      expanded: expanded,
+      label: semanticsParts.join('，'),
+      onTap: onHeaderTap,
+      excludeSemantics: true,
+      child: AnimatedContainer(
+        duration: duration,
+        curve: Curves.easeOutCubic,
+        decoration: BoxDecoration(
+          color: TurnaTheme.cardBg(context),
+          borderRadius: borderRadius,
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
             borderRadius: borderRadius,
             onTap: onHeaderTap,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Row(
-                children: [
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: isFullyComplete
-                          ? TurnaTheme.anatolianClay.withValues(alpha: 0.16)
-                          : TurnaTheme.brandTeal.withValues(alpha: 0.1),
-                      borderRadius:
-                          BorderRadius.circular(TurnaTheme.radiusSmall),
-                    ),
-                    child: Icon(
-                      isFullyComplete
-                          ? Icons.check_circle_rounded
-                          : (expanded
-                              ? Icons.expand_less_rounded
-                              : Icons.expand_more_rounded),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final scale = MediaQuery.textScalerOf(context).scale(1);
+                  final stacked = constraints.maxWidth < 328 || scale >= 1.3;
+                  final title = _UnitTitle(unit: unit);
+                  final progress = Text(
+                    progressText,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
                       color: isFullyComplete
                           ? TurnaTheme.anatolianClay
-                          : TurnaTheme.brandTeal,
-                      size: 22,
+                          : TurnaTheme.textSecondaryColor(context),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
+                  );
+                  final attentionChip = attention == _Attention.none
+                      ? null
+                      : _AttentionChip(
+                          attention: attention,
+                          count: attentionCount,
+                        );
+                  final chevron = AnimatedRotation(
+                    turns: expanded ? 0.5 : 0,
+                    duration: duration,
+                    curve: Curves.easeOutCubic,
+                    child: Icon(
+                      Icons.expand_more_rounded,
+                      size: 22,
+                      color: TurnaTheme.textHintColor(context),
+                    ),
+                  );
+
+                  if (stacked) {
+                    return Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          unit.name,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: TurnaTheme.textPrimaryColor(context),
+                        _UnitProgressRing(
+                          completedCount: completedCount,
+                          lessonCount: lessonCount,
+                          reduceMotion: reduceMotion,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              title,
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 6,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  progress,
+                                  if (attentionChip != null) attentionChip,
+                                ],
+                              ),
+                            ],
                           ),
                         ),
-                        if (unit.description.isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            unit.description,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: TurnaTheme.textSecondaryColor(context),
-                            ),
-                          ),
-                        ],
+                        const SizedBox(width: 6),
+                        chevron,
                       ],
-                    ),
-                  ),
-                  // Progress chip: clay as soon as any lesson is done (not only
-                  // full unit complete) so secondary brand is visible earlier.
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: completedCount > 0
-                          ? TurnaTheme.anatolianClay.withValues(
-                              alpha: isFullyComplete ? 0.14 : 0.10,
-                            )
-                          : TurnaTheme.brandTeal.withValues(alpha: 0.08),
-                      borderRadius:
-                          BorderRadius.circular(TurnaTheme.radiusRound),
-                    ),
-                    child: Text(
-                      AppStrings.coursesUnitProgress(
-                        completedCount,
-                        unit.lessons.length,
+                    );
+                  }
+
+                  return Row(
+                    children: [
+                      _UnitProgressRing(
+                        completedCount: completedCount,
+                        lessonCount: lessonCount,
+                        reduceMotion: reduceMotion,
                       ),
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: completedCount > 0
-                            ? TurnaTheme.anatolianClay
-                            : TurnaTheme.textSecondaryColor(context),
-                      ),
-                    ),
-                  ),
-                  if (hasDue || hasWeak) ...[
-                    const SizedBox(width: 6),
-                    if (hasDue)
-                      const Icon(Icons.schedule_rounded,
-                          size: 16, color: TurnaTheme.warning),
-                    if (hasWeak)
-                      const Icon(Icons.fitness_center_rounded,
-                          size: 16, color: TurnaTheme.error),
-                  ],
-                ],
+                      const SizedBox(width: 12),
+                      Expanded(child: title),
+                      const SizedBox(width: 10),
+                      progress,
+                      if (attentionChip != null) ...[
+                        const SizedBox(width: 8),
+                        attentionChip,
+                      ],
+                      const SizedBox(width: 4),
+                      chevron,
+                    ],
+                  );
+                },
               ),
             ),
           ),
-          if (expanded) const Divider(height: 1),
+        ),
+      ),
+    );
+  }
+}
+
+class _UnitTitle extends StatelessWidget {
+  final Unit unit;
+
+  const _UnitTitle({required this.unit});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          unit.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: TurnaTheme.textPrimaryColor(context),
+          ),
+        ),
+        if (unit.description.isNotEmpty) ...[
+          const SizedBox(height: 2),
+          Text(
+            unit.description,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 13,
+              color: TurnaTheme.textSecondaryColor(context),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _UnitProgressRing extends StatelessWidget {
+  final int completedCount;
+  final int lessonCount;
+  final bool reduceMotion;
+
+  const _UnitProgressRing({
+    required this.completedCount,
+    required this.lessonCount,
+    required this.reduceMotion,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = lessonCount == 0 ? 0.0 : completedCount / lessonCount;
+    final complete = lessonCount > 0 && completedCount == lessonCount;
+    final color = complete ? TurnaTheme.anatolianClay : TurnaTheme.brandTeal;
+
+    return SizedBox.square(
+      dimension: 40,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0, end: progress),
+        duration:
+            reduceMotion ? Duration.zero : _CourseTreeState._motionDuration,
+        curve: Curves.easeOutCubic,
+        builder: (context, value, _) => Stack(
+          alignment: Alignment.center,
+          children: [
+            SizedBox.square(
+              dimension: 38,
+              child: CircularProgressIndicator(
+                value: value,
+                strokeWidth: 3,
+                backgroundColor: TurnaTheme.dividerBg(context),
+                valueColor: AlwaysStoppedAnimation<Color>(color),
+              ),
+            ),
+            Icon(
+              complete ? Icons.check_rounded : Icons.menu_book_rounded,
+              size: 18,
+              color: color,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AttentionChip extends StatelessWidget {
+  final _Attention attention;
+  final int count;
+
+  const _AttentionChip({required this.attention, required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    final (background, foreground, icon) = switch (attention) {
+      _Attention.due => (
+          TurnaTheme.warning.withValues(alpha: 0.14),
+          TurnaTheme.warning,
+          Icons.schedule_rounded,
+        ),
+      _Attention.weak => (
+          TurnaTheme.error.withValues(alpha: 0.10),
+          TurnaTheme.error,
+          Icons.fitness_center_rounded,
+        ),
+      _Attention.none => (
+          Colors.transparent,
+          TurnaTheme.textSecondaryColor(context),
+          Icons.circle_outlined,
+        ),
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: foreground),
+          const SizedBox(width: 4),
+          Text(
+            _attentionText(attention, count) ?? '',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: foreground,
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-/// A tappable tile for a single Lesson.
-///
-/// When rendered as part of an expanded unit, [isFirst] and [isLast] control
-/// the border radius so the tile visually connects to the unit header and to
-/// the other lesson tiles in the same unit.
 class _LessonTile extends StatelessWidget {
   final Lesson lesson;
   final bool isCompleted;
   final bool isPerfect;
-  final bool hasDue;
-  final bool hasWeak;
-  final bool isFirst;
+  final _Attention attention;
   final bool isLast;
   final VoidCallback onTap;
 
@@ -610,77 +918,60 @@ class _LessonTile extends StatelessWidget {
     required this.lesson,
     required this.isCompleted,
     required this.isPerfect,
-    required this.hasDue,
-    required this.hasWeak,
-    required this.isFirst,
+    required this.attention,
     required this.isLast,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final typeColor = _lessonTypeColor(lesson.type);
-    // Priority: completed > due > weak > default type color.
-    Color iconBg;
-    Color iconColor;
-    IconData icon;
-    if (isCompleted) {
-      // Warm clay complete accent (ADR 0033); in-progress stays teal.
-      iconBg = TurnaTheme.anatolianClay.withValues(alpha: 0.16);
-      iconColor = TurnaTheme.anatolianClay;
-      icon = Icons.check_circle_rounded;
-    } else if (hasDue) {
-      iconBg = TurnaTheme.warning.withValues(alpha: 0.18);
-      iconColor = TurnaTheme.warning;
-      icon = Icons.schedule_rounded;
-    } else if (hasWeak) {
-      iconBg = TurnaTheme.error.withValues(alpha: 0.12);
-      iconColor = TurnaTheme.error;
-      icon = Icons.fitness_center_rounded;
-    } else {
-      iconBg = typeColor.withValues(alpha: 0.1);
-      iconColor = typeColor;
-      icon = _lessonTypeIcon(lesson.type);
-    }
+    final bottomRadius =
+        isLast ? const Radius.circular(TurnaTheme.radiusMedium) : Radius.zero;
+    final borderRadius = BorderRadius.vertical(bottom: bottomRadius);
+    final attentionText = _attentionText(attention, 1);
+    final semanticsParts = <String>[
+      lesson.name,
+      _lessonTypeLabel(lesson.type),
+      if (isPerfect)
+        AppStrings.coursesPerfect
+      else if (isCompleted)
+        AppStrings.commonDone,
+      if (attentionText != null) attentionText,
+    ];
 
-    final radiusMedium = const Radius.circular(TurnaTheme.radiusMedium);
-    final borderRadius = BorderRadius.vertical(
-      top: Radius.zero,
-      bottom: isLast ? radiusMedium : Radius.zero,
-    );
-
-    return Material(
-      color: TurnaTheme.cardBg(context),
-      borderRadius: borderRadius,
-      child: InkWell(
-        borderRadius: borderRadius,
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            children: [
-              // Status-aware lesson icon
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: iconBg,
-                  borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
-                ),
-                child: Icon(
-                  icon,
-                  size: 16,
-                  color: iconColor,
-                ),
-              ),
-              const SizedBox(width: 12),
-              // Lesson name
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
+    return Semantics(
+      button: true,
+      label: semanticsParts.join('，'),
+      onTap: onTap,
+      excludeSemantics: true,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: TurnaTheme.cardBg(context),
+          borderRadius: borderRadius,
+          border: Border(
+            top: BorderSide(color: TurnaTheme.dividerBg(context)),
+          ),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: borderRadius,
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  _LessonTypeIcon(
+                    type: lesson.type,
+                    completed: isCompleted,
+                    perfect: isPerfect,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
                       lesson.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -689,92 +980,112 @@ class _LessonTile extends StatelessWidget {
                             : TurnaTheme.textPrimaryColor(context),
                       ),
                     ),
-                    if (lesson.description.isNotEmpty)
-                      Text(
-                        lesson.description,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: TurnaTheme.textSecondaryColor(context),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                  ],
-                ),
-              ),
-              // Type badge: completed soft clay; perfect = clay fill + 1px ring.
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: isPerfect
-                      ? TurnaTheme.anatolianClay.withValues(alpha: 0.18)
-                      : isCompleted
-                          ? TurnaTheme.anatolianClay.withValues(alpha: 0.10)
-                          : typeColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
-                  border: isPerfect
-                      ? Border.all(
-                          color: TurnaTheme.anatolianClay.withValues(alpha: 0.55),
-                          width: 1,
-                        )
-                      : null,
-                ),
-                child: Text(
-                  isPerfect
-                      ? AppStrings.coursesPerfect
-                      : _lessonTypeLabel(context, lesson.type),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: (isPerfect || isCompleted)
-                        ? TurnaTheme.anatolianClay
-                        : typeColor,
                   ),
-                ),
+                  if (attention != _Attention.none) ...[
+                    const SizedBox(width: 8),
+                    _AttentionChip(attention: attention, count: 1),
+                  ],
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 18,
+                    color: TurnaTheme.textHintColor(context),
+                  ),
+                ],
               ),
-              const SizedBox(width: 4),
-              Icon(
-                Icons.chevron_right_rounded,
-                size: 18,
-                color: TurnaTheme.textHint.withValues(alpha: 0.5),
-              ),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
+}
 
-  static IconData _lessonTypeIcon(LessonType type) {
-    return switch (type) {
+class _LessonTypeIcon extends StatelessWidget {
+  final LessonType type;
+  final bool completed;
+  final bool perfect;
+
+  const _LessonTypeIcon({
+    required this.type,
+    required this.completed,
+    required this.perfect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox.square(
+      dimension: 36,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                color: TurnaTheme.brandTeal.withValues(alpha: 0.09),
+                borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
+                border: perfect
+                    ? Border.all(
+                        color: TurnaTheme.anatolianClay.withValues(alpha: 0.65),
+                      )
+                    : null,
+              ),
+              child: Icon(
+                _lessonTypeIcon(type),
+                size: 18,
+                color: TurnaTheme.brandTeal,
+              ),
+            ),
+          ),
+          if (completed)
+            Positioned(
+              right: -3,
+              bottom: -3,
+              child: Container(
+                width: 15,
+                height: 15,
+                decoration: BoxDecoration(
+                  color: TurnaTheme.anatolianClay,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: TurnaTheme.cardBg(context),
+                    width: 1.5,
+                  ),
+                ),
+                child: const Icon(
+                  Icons.check_rounded,
+                  size: 9,
+                  color: TurnaTheme.textOnPrimary,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+String? _attentionText(_Attention attention, int count) => switch (attention) {
+      _Attention.due => AppStrings.coursesDueLessons(count),
+      _Attention.weak => AppStrings.coursesWeakLessons(count),
+      _Attention.none => null,
+    };
+
+IconData _lessonTypeIcon(LessonType type) => switch (type) {
       LessonType.normal => Icons.menu_book_rounded,
       LessonType.listening => Icons.headphones_rounded,
       LessonType.reading => Icons.chrome_reader_mode_rounded,
       LessonType.review => Icons.replay_rounded,
       LessonType.challenge => Icons.emoji_events_rounded,
     };
-  }
 
-  static Color _lessonTypeColor(LessonType type) {
-    return switch (type) {
-      LessonType.normal => TurnaTheme.brandTeal,
-      LessonType.listening => TurnaTheme.brandSky,
-      LessonType.reading => TurnaTheme.leagueAmethyst,
-      LessonType.review => TurnaTheme.warning,
-      LessonType.challenge => TurnaTheme.leagueRuby,
-    };
-  }
-
-  static String _lessonTypeLabel(BuildContext context, LessonType type) {
-    return switch (type) {
+String _lessonTypeLabel(LessonType type) => switch (type) {
       LessonType.normal => AppStrings.coursesLessonTypeNormal,
       LessonType.listening => AppStrings.coursesLessonTypeListening,
       LessonType.reading => AppStrings.coursesLessonTypeReading,
       LessonType.review => AppStrings.coursesLessonTypeReview,
       LessonType.challenge => AppStrings.coursesLessonTypeChallenge,
     };
-  }
-}
 
 class _LoadingIndicator extends StatelessWidget {
   const _LoadingIndicator();

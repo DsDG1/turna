@@ -516,11 +516,24 @@ class TurnaTheme {
   static Color bottomNavBg(BuildContext context) =>
       _isDark(context) ? const Color(0xFF182832) : Colors.white;
 
-  /// Frosted fill for the floating home tab bar. More opaque than
-  /// [glassSurface] so labels stay readable over scrolling content.
+  /// Fake-glass fill for the floating home tab bar. More opaque than
+  /// [glassSurface] so labels stay readable over scrolling content
+  /// (Tinted, not Clear — no backdrop sample).
   static Color floatingBarFill(BuildContext context) => _isDark(context)
-      ? const Color(0xFF182832).withValues(alpha: 0.78)
-      : Colors.white.withValues(alpha: 0.82);
+      ? const Color(0xFF182832).withValues(alpha: 0.88)
+      : Colors.white.withValues(alpha: 0.90);
+
+  /// Single-layer drop under the floating tab capsule. No accent glow —
+  /// cheaper than [glassShadow] and does not tint the home indicator.
+  static List<BoxShadow> floatingBarShadow(BuildContext context) => [
+        BoxShadow(
+          color: _isDark(context)
+              ? Colors.black.withValues(alpha: 0.35)
+              : brandNavy.withValues(alpha: 0.12),
+          blurRadius: 10,
+          offset: const Offset(0, 4),
+        ),
+      ];
 
   /// Stadium chips with a soft selected fill — a light M3 Expressive nudge
   /// without swapping in connected button-group widgets.

@@ -1223,6 +1223,8 @@ class AppStrings {
   static String get coursesPerfect => '完美';
   static String coursesUnitProgress(int completedCount, int lessonsCount) =>
       '$completedCount/$lessonsCount';
+  static String coursesDueLessons(int count) => '$count 项待复习';
+  static String coursesWeakLessons(int count) => '$count 项需加强';
   static String get coursesChooseSection => '选择章节';
 
   // ── Dictionary ──
