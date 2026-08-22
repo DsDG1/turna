@@ -5,7 +5,7 @@ import 'dart:async';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:turna/application/achievements_provider.dart';
+import 'package:turna/application/achievements/achievement_service.dart';
 import 'package:turna/application/accessibility_provider.dart';
 import 'package:turna/application/ai/ai_course_provider.dart';
 import 'package:turna/application/ai/ai_explain_prefs.dart';
@@ -135,8 +135,10 @@ final providers = [
   ChangeNotifierProvider<CosmeticProvider>(
     create: (_) => getIt<CosmeticProvider>(),
   ),
-  ChangeNotifierProvider<AchievementsProvider>(
-    create: (_) => getIt<AchievementsProvider>(),
+  // Unified achievement engine: single writer for unlocks / rewards and the
+  // only state source the achievement UI reads.
+  ChangeNotifierProvider<AchievementService>(
+    create: (_) => getIt<AchievementService>(),
   ),
   ChangeNotifierProvider<MatchProvider>(
     create: (_) => getIt<MatchProvider>(),

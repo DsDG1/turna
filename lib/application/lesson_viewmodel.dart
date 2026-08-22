@@ -1066,6 +1066,33 @@ class LessonViewModel extends ChangeNotifier {
     }
   }
 
+  /// Word / expression ids taught by the current lesson, for the study log
+  /// and the unique-words achievement projection. Applies the same filters
+  /// as [_registerSrsWords]: skip unknown-interaction sentinels and Anki-owned
+  /// ids.
+  List<String> lessonWordIds() {
+    if (_lesson == null) return const [];
+    final ids = <String>{};
+    for (final stage in _stages) {
+      for (final item in stage.items) {
+        if (item is ShowWord) {
+          if (item.wordId.isNotEmpty &&
+              !item.wordId.startsWith(unknownInteractionWordIdPrefix) &&
+              !_isAnkiOwnedId(item.wordId)) {
+            ids.add(item.wordId);
+          }
+          final expressionId = item.expressionId;
+          if (expressionId != null &&
+              expressionId.isNotEmpty &&
+              !_isAnkiOwnedId(expressionId)) {
+            ids.add(expressionId);
+          }
+        }
+      }
+    }
+    return ids.toList(growable: false);
+  }
+
   Future<void> _onLessonCompleted() async {
     if (_completionStarted) return;
     _completionStarted = true;
@@ -1078,6 +1105,7 @@ class LessonViewModel extends ChangeNotifier {
         correctAnswers: _correctAnswers,
         incorrectAnswers: _incorrectAnswers,
         lessonStartTime: _lessonStartTime,
+        wordIds: lessonWordIds(),
       );
     } catch (e, st) {
       // Fire-and-forget: an unhandled exception here would surface as a

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/profile/achievements/achievement_feedback_banner.dart';
 import 'package:turna/views/theme.dart';
 
 /// Unified review completion summary screen.
@@ -111,6 +112,9 @@ class UnifiedReviewCompletion extends StatelessWidget {
                 ),
               ],
             ),
+            // Achievement unlocks from this review session surface here,
+            // in the same completion surface as the XP / gem rewards.
+            const AchievementFeedbackBanner(),
             const SizedBox(height: 40),
             SizedBox(
               width: double.infinity,

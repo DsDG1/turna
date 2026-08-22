@@ -1,9 +1,8 @@
-// Consolidated tests for Gamification providers: GemsProvider, CosmeticProvider, and AchievementsProvider.
+// Consolidated tests for Gamification providers: GemsProvider and CosmeticProvider.
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
-import 'package:turna/application/achievements_provider.dart';
 import 'package:turna/application/cosmetic_provider.dart';
 import 'package:turna/application/gems_provider.dart';
 import 'package:turna/di/injection.dart';
@@ -141,31 +140,6 @@ void main() {
     test('unknown id returns unknownId', () async {
       final result = await cosmetics.unlockAndEquip('ring_nope');
       expect(result, CosmeticActionResult.unknownId);
-    });
-  });
-
-  group('AchievementsProvider unlock & gem bonuses', () {
-    test('routes gem bonus through GemsProvider when registered', () async {
-      final gems = GemsProvider(prefs);
-      final achievements = AchievementsProvider(prefs);
-      getIt.registerSingleton<GemsProvider>(gems);
-      await prefs.preferences.setInt(LocalStateKeys.gems, 100);
-
-      final unlocked = await achievements.checkAndUnlock('champion');
-      expect(unlocked, isTrue);
-
-      expect(balance(), 150);
-    });
-
-    test('falls back to direct write when no GemsProvider is registered',
-        () async {
-      final achievements = AchievementsProvider(prefs);
-      await prefs.preferences.setInt(LocalStateKeys.gems, 100);
-
-      final unlocked = await achievements.checkAndUnlock('champion');
-      expect(unlocked, isTrue);
-
-      expect(balance(), 150, reason: 'fallback path still awards the bonus');
     });
   });
 }

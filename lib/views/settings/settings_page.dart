@@ -1,4 +1,6 @@
 // Flutter imports:
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 // Package imports:
@@ -6,6 +8,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
+import 'package:turna/application/achievements/achievement_service.dart';
 import 'package:turna/application/anki/anki_deck_manager.dart';
 import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/game_provider.dart';
@@ -627,6 +630,15 @@ class _SettingsPageState extends State<SettingsPage> {
 
     try {
       final import = await getIt<ExportService>().importFromFile(pickedPath);
+      if (import.progressRestored) {
+        // Reload the in-memory achievement caches so the restored v2 state /
+        // projection are visible without waiting for a restart.
+        unawaited(
+          getIt<AchievementService>().reloadFromPrefs().catchError((Object e) {
+            debugPrint('Achievement reload after import failed: $e');
+          }),
+        );
+      }
       if (!context.mounted) return;
       if (import.hasCoursePayload && !import.progressRestored) {
         _showSnack(context, AppStrings.settingsCourseSavedRestart);

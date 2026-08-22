@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:turna/core/sm2.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/profile/achievements/achievement_feedback_banner.dart';
 import 'package:turna/views/theme.dart';
 
 /// Binary rating bar only: 不认识 / 认识.
@@ -236,6 +237,7 @@ class ReviewCompletionState extends StatelessWidget {
                     ),
               ),
             ],
+            const AchievementFeedbackBanner(),
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,

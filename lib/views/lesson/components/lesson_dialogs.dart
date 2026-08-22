@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:turna/application/lesson_viewmodel.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/home/components/stat_app_bar.dart';
+import 'package:turna/views/profile/achievements/achievement_feedback_banner.dart';
 import 'package:turna/views/theme.dart';
 
 enum MasteryDialogResult { retry, back }
@@ -144,6 +145,10 @@ class _LessonCompletionSummary extends StatelessWidget {
                       ),
                       const SizedBox(height: 16),
                       _buildStatsGrid(context),
+                      // New achievements unlocked by this completion surface
+                      // as part of the summary — no follow-up modal spam
+                      // after the dialog closes (plan §7.5).
+                      const AchievementFeedbackBanner(),
                       if (questionResults.isNotEmpty) ...[
                         const SizedBox(height: 16),
                         _buildResultsHeader(context),

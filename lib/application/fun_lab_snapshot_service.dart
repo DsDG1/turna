@@ -6,6 +6,7 @@ import 'package:crypto/crypto.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
+import 'package:turna/application/achievements/achievement_service.dart';
 import 'package:turna/application/game_provider.dart';
 import 'package:turna/application/gems_provider.dart';
 import 'package:turna/application/grammar_review_provider.dart';
@@ -61,6 +62,7 @@ class FunLabSnapshotService {
   final StudyStatsProvider _studyStatsProvider;
   final GemsProvider _gemsProvider;
   final GameProvider _gameProvider;
+  final AchievementService _achievementService;
 
   FunLabSnapshotService(
     this._prefs,
@@ -75,6 +77,7 @@ class FunLabSnapshotService {
     this._studyStatsProvider,
     this._gemsProvider,
     this._gameProvider,
+    this._achievementService,
   );
 
   static const _snapshotPrefs = <_SnapshotPref>[
@@ -95,7 +98,17 @@ class FunLabSnapshotService {
     _SnapshotPref(LocalStateKeys.streakWasBroken, _SnapshotPrefType.bool_),
     _SnapshotPref(LocalStateKeys.wordsLearned, _SnapshotPrefType.int_),
     _SnapshotPref(LocalStateKeys.gems, _SnapshotPrefType.int_),
+    // v1 achievement list (legacy) + achievements v2 state/projection/marker.
     _SnapshotPref(LocalStateKeys.achievements, _SnapshotPrefType.stringList),
+    _SnapshotPref(LocalStateKeys.achievementsStateV2, _SnapshotPrefType.string),
+    _SnapshotPref(
+      LocalStateKeys.achievementsProjectionV1,
+      _SnapshotPrefType.string,
+    ),
+    _SnapshotPref(
+      LocalStateKeys.achievementsMigrationVersion,
+      _SnapshotPrefType.int_,
+    ),
     _SnapshotPref(LocalStateKeys.lessonWordLinks, _SnapshotPrefType.string),
     _SnapshotPref(LocalStateKeys.mistakeLog, _SnapshotPrefType.string),
     _SnapshotPref('study.logs', _SnapshotPrefType.string),
@@ -345,6 +358,7 @@ class FunLabSnapshotService {
     _gemsProvider.refreshFromPrefs();
     _gameProvider.refreshFromPrefs();
     await _studyStatsProvider.refreshFromPrefs();
+    await _achievementService.reloadFromPrefs();
   }
 
   Future<String> _contentFingerprint() async {

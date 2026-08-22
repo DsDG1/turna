@@ -151,7 +151,18 @@ class LocalStateKeys {
   static const String cosmeticsEquippedRing = 'cosmetics.equippedRing';
 
   // Achievements
+  /// v1 unlocked-id list. Read-only migration input for the v2 achievement
+  /// system — no production code may write to it anymore.
   static const String achievements = 'achievements.unlocked';
+
+  // Achievements v2 (成就系统焕新) — single versioned state document,
+  // persistent metric projection, and one-shot migration marker. See
+  // docs/achievement-system-revamp-plan.md.
+  static const String achievementsStateV2 = 'achievements.state.v2';
+  static const String achievementsProjectionV1 =
+      'achievements.metric_projection.v1';
+  static const String achievementsMigrationVersion =
+      'achievements.migration.version';
 
   // SRS — JSON-serialized Map<String, SrsWord> keyed by wordId.
   static const String srsState = 'srs.state';

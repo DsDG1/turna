@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:turna/application/achievements/achievement_service.dart';
 import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/game_provider.dart';
 import 'package:turna/application/gems_provider.dart';
@@ -136,6 +137,7 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
       final study = context.read<StudyStatsProvider?>();
       final game = context.read<GameProvider?>();
       final gems = context.read<GemsProvider?>();
+      final achievements = getIt<AchievementService>();
 
       var xp = 15;
       if (game != null) {
@@ -156,6 +158,9 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
           incorrectCount: forgotten,
         );
       }
+      // Achievement evaluation after every authoritative write above; the
+      // per-card delta feeds the durable totalReviewedCards projection.
+      await achievements.recordReviewSession(cardsAnswered: total);
     } catch (_) {}
   }
 

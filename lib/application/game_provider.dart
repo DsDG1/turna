@@ -8,7 +8,6 @@ import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:turna/application/game_milestone_provider.dart';
 import 'package:turna/application/gems_provider.dart';
 import 'package:turna/application/lesson_progress_provider.dart';
 import 'package:turna/application/score_provider.dart';
@@ -33,17 +32,21 @@ enum XPEvent {
   const XPEvent({required this.base});
 }
 
-/// Facade over score / streak / lesson progress / milestone providers.
+/// Facade over score / streak / lesson progress providers.
 ///
 /// Public API is stable for UI and tests (ADR 0015). Prefer sub-providers for
 /// new code when a single concern is enough.
+///
+/// Achievement milestones are no longer handled here: the unified
+/// `AchievementService` evaluates XP / streak / lesson metrics at each
+/// completion flow's end (see LessonCompletionCoordinator / review pages)
+/// plus a startup reconcile.
 @lazySingleton
 class GameProvider extends ChangeNotifier {
   final AppPrefs appPrefs;
   final ScoreProvider scoreProvider;
   final StreakProvider streakProvider;
   final LessonProgressProvider lessonProgress;
-  final GameMilestoneProvider milestones;
 
   final StreamController<UserGameState> _stateController =
       StreamController<UserGameState>.broadcast();
@@ -57,7 +60,6 @@ class GameProvider extends ChangeNotifier {
     this.scoreProvider,
     this.streakProvider,
     this.lessonProgress,
-    this.milestones,
   );
 
   /// Test helper without Injectable graph.
@@ -66,7 +68,6 @@ class GameProvider extends ChangeNotifier {
         ScoreProvider(prefs),
         StreakProvider(prefs),
         LessonProgressProvider(prefs),
-        GameMilestoneProvider(prefs),
       );
 
   // ── Lesson progress (delegated) ───────────────────────────────────
@@ -165,24 +166,11 @@ class GameProvider extends ChangeNotifier {
     final newScore = score + xp;
     final deltaXp = newScore - score;
 
-    // Streak for this practice day (persists streak fields).
-    final streakResolution = await streakProvider.applyPracticeDay(today);
+    // Streak for this practice day (persists streak fields). Achievement
+    // evaluation happens at the completion-flow level, not per score tick.
+    await streakProvider.applyPracticeDay(today);
 
-    final achievements = milestones.readAchievements();
-    final gemBonus = milestones.collectUnlockGems(
-      achievements,
-      score: newScore,
-      streak: streakResolution.newStreak,
-    );
-
-    await Future.wait([
-      scoreProvider.setScore(newScore),
-      milestones.persistAchievements(achievements),
-    ]);
-
-    if (gemBonus != 0) {
-      await milestones.applyGemBonus(gemBonus);
-    }
+    await scoreProvider.setScore(newScore);
 
     if (notify) notifyListeners();
     _emitState();

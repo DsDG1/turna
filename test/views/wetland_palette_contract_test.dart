@@ -285,11 +285,16 @@ void main() {
       expect(src.contains('playWeakWordsTitle'), isTrue);
     });
 
-    test('achievements section title uses clay accent', () {
-      final src =
-          File('lib/views/profile/widgets/achievements.dart').readAsStringSync();
-      expect(src.contains('TurnaTheme.anatolianClay'), isTrue);
-      expect(src.contains('profileAchievementsTitle'), isTrue);
+    test('achievements surfaces use clay accent', () {
+      final overviewSrc = File(
+        'lib/views/profile/achievements/achievement_overview_header.dart',
+      ).readAsStringSync();
+      expect(overviewSrc.contains('TurnaTheme.anatolianClay'), isTrue);
+
+      final profileSrc =
+          File('lib/views/profile/profile_screen.dart').readAsStringSync();
+      expect(profileSrc.contains('TurnaTheme.anatolianClay'), isTrue);
+      expect(profileSrc.contains('profileAchievementsTitle'), isTrue);
     });
 
     test('key CTAs use primaryCtaDecoration (gradient teal)', () {

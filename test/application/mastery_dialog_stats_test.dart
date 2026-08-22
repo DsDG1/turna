@@ -7,7 +7,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
-import 'package:turna/application/achievements_provider.dart';
 import 'package:turna/application/accessibility_provider.dart';
 import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/course_provider.dart';
@@ -32,6 +31,7 @@ import 'package:turna/domain/course/stage.dart';
 import 'package:turna/domain/study/study_log.dart';
 import 'package:turna/service/locator.dart';
 
+import '../helpers/achievement_test_stack.dart';
 import '../helpers/in_memory_course_db.dart';
 
 class _PassthroughVocabResolver implements VocabAudioResolver {
@@ -86,15 +86,6 @@ class _FakeCourseProvider extends CourseProvider {
   Lesson? findLessonById(String id) => lesson;
 }
 
-class _FakeAchievementsProvider extends AchievementsProvider {
-  _FakeAchievementsProvider() : super(_FakeAppPrefs());
-  @override
-  Future<void> checkLessonMilestones({
-    required int lessonsCompleted,
-    required int perfectLessons,
-  }) async {}
-}
-
 class _FakeStudyStatsProvider extends StudyStatsProvider {
   _FakeStudyStatsProvider(AppPrefs appPrefs)
       : super(StudyLogRepository(appPrefs), MistakeProvider(appPrefs));
@@ -108,11 +99,6 @@ class _FakeStudyStatsProvider extends StudyStatsProvider {
     int incorrectCount = 0,
     List<String> wordIds = const [],
   }) async {}
-}
-
-class _FakeAppPrefs implements AppPrefs {
-  @override
-  dynamic noSuchMethod(Invocation i) => super.noSuchMethod(i);
 }
 
 Lesson _masteryLesson() {
@@ -144,7 +130,7 @@ LessonViewModel _harness(AppPrefs prefs, Lesson lesson) {
   final srsDao = emptySrsStateDao();
   final gameProvider = GameProvider.forTesting(prefs);
   final gemsProvider = GemsProvider(prefs);
-  final achievementsProvider = _FakeAchievementsProvider();
+  final achievements = AchievementTestStack.build(prefs);
   final studyStatsProvider = _FakeStudyStatsProvider(prefs);
   return LessonViewModel(
     _FakeCourseProvider(lesson),
@@ -155,7 +141,7 @@ LessonViewModel _harness(AppPrefs prefs, Lesson lesson) {
     LessonCompletionCoordinator(
       gameProvider,
       gemsProvider,
-      achievementsProvider,
+      achievements.service,
       studyStatsProvider,
     ),
   );

@@ -163,10 +163,14 @@ void main() {
     });
   });
 
-  group('streak & achievements', () {
-    test('crossing the first streak threshold unlocks a streak achievement',
-        () async {
-      // Seed a 1-day streak so a practice session resolves to streak >= 3.
+  group('achievements separation', () {
+    test('incrementScore never writes the v1 achievement list (single-writer '
+        'contract: unlocks belong to AchievementService)', () async {
+      await game.incrementScore(1000);
+      expect(unlocked(), isEmpty);
+    });
+
+    test('streak resolution still persists on score ticks', () async {
       await prefs.preferences.setInt(LocalStateKeys.streak, 2);
       final today = DateTime.now();
       final yesterday = today.subtract(const Duration(days: 1));
@@ -176,19 +180,12 @@ void main() {
             .toIso8601String(),
       );
       await game.incrementScore(10);
-      // Threshold ladder is [3, 7, 30, 100, 365]; reaching 3 unlocks it.
-      expect(unlocked(), isNotEmpty);
-    });
-
-    test('crossing an XP threshold unlocks an XP achievement', () async {
-      // XP thresholds are [1000, 10000, 50000]; jump straight to 1000+.
-      await game.incrementScore(1000);
-      expect(unlocked(), isNotEmpty);
-    });
-
-    test('below all thresholds unlocks nothing', () async {
-      await game.incrementScore(10);
-      expect(unlocked(), isEmpty);
+      expect(
+        prefs.preferences
+            .getInt(LocalStateKeys.streak, defaultValue: 0)
+            .getValue(),
+        3,
+      );
     });
   });
 }

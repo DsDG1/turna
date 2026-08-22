@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:turna/application/fun_lab_snapshot_service.dart';
 import 'package:turna/application/fun_provider.dart';
-import 'package:turna/application/game_milestone_provider.dart';
 import 'package:turna/application/game_provider.dart';
 import 'package:turna/application/gems_provider.dart';
 import 'package:turna/application/grammar_review_provider.dart';
@@ -22,9 +21,9 @@ import 'package:turna/data/study_log_repository.dart';
 import 'package:turna/domain/course/srs_word.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/locator.dart';
-import 'package:turna/views/profile/widgets/achievements.dart';
 import 'package:turna/views/settings/widgets/settings_fun_section.dart';
 
+import '../helpers/achievement_test_stack.dart';
 import '../helpers/in_memory_course_db.dart';
 
 void main() {
@@ -55,7 +54,10 @@ void main() {
     grammar = GrammarReviewProvider(prefs, links, srsDao);
     await Future.wait([srs.ensureLoaded(), grammar.ensureLoaded()]);
 
-    final lessonProgress = LessonProgressProvider(prefs);
+    final achievements = AchievementTestStack.build(prefs);
+    // Share the lesson-progress instance across the game facade, the
+    // snapshot service, and the achievement projector (mirrors DI wiring).
+    final lessonProgress = achievements.lessonProgress;
     final mistakes = MistakeProvider(prefs);
     final logs = StudyLogRepository(prefs);
     final stats = StudyStatsProvider(logs, mistakes);
@@ -65,7 +67,6 @@ void main() {
       ScoreProvider(prefs),
       StreakProvider(prefs),
       lessonProgress,
-      GameMilestoneProvider(prefs),
     );
     service = FunLabSnapshotService(
       prefs,
@@ -80,6 +81,7 @@ void main() {
       stats,
       gems,
       game,
+      achievements.service,
     );
   });
 
@@ -364,13 +366,18 @@ void main() {
     );
   });
 
-  testWidgets('achievement override renders all six achievements complete',
+  testWidgets('achievement override is display-only and keeps v2 state intact',
       (tester) async {
     await prefs.preferences.setInt(LocalStateKeys.score, 17);
     await prefs.preferences.setInt(LocalStateKeys.streak, 2);
     await prefs.preferences.setInt(LocalStateKeys.lessonsCompleted, 3);
     await prefs.preferences.setInt(LocalStateKeys.perfectLessons, 1);
     await prefs.preferences.setInt(LocalStateKeys.wordsLearned, 9);
+    await prefs.preferences.setString(
+      LocalStateKeys.achievementsStateV2,
+      '{"schemaVersion":2,"unlockedTiers":{},'
+      '"updatedAt":"2026-08-01T00:00:00","migrationDiagnostics":[]}',
+    );
     await service.createSnapshot();
     final fun = FunProvider(prefs, game, gems, service);
     await tester.runAsync(() async {
@@ -380,33 +387,16 @@ void main() {
       await fun.cheatUnlockAllAchievements();
     });
 
-    await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<GameProvider>.value(value: game),
-          ChangeNotifierProvider<FunProvider>.value(value: fun),
-        ],
-        child: const MaterialApp(
-          home: Scaffold(
-            body: SingleChildScrollView(child: Achievements()),
-          ),
-        ),
-      ),
+    // The Fun Lab preview never consumes real unlocks: the v2 state document
+    // is untouched by the cheat.
+    expect(
+      prefs.preferences
+          .getString(LocalStateKeys.achievementsStateV2, defaultValue: '')
+          .getValue(),
+      contains('"schemaVersion":2'),
+      reason: 'fun preview must not rewrite the real v2 achievement state',
     );
-    await tester.pump();
-    await tester.tap(find.text('查看另外 3 项'));
-    await tester.pump();
-
-    for (final progress in [
-      '1000/1000',
-      '2000/2000',
-      '365/365',
-      '500/500',
-      '100/100',
-      '25/25',
-    ]) {
-      expect(find.text(progress), findsOneWidget);
-    }
+    expect(fun.allAchievementsUnlocked, isTrue);
   });
 
   testWidgets('dangerous action without checkpoint prompts to create one',

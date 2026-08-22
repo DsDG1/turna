@@ -1,6 +1,6 @@
 # Anki 集成设计（已交付）
 
-> 状态：**部分 superseded**。Note/Card 保真与导入语义仍有效；“默认 Again/Hard/Good/Easy”和词汇自动升级正式 MCQ 已被 [ADR 0037](./decisions/0037-anki-course-review-unification.md) 取代。课程/复习大一统主计划见 [`# Anki 课程与复习大一统实施计划.md`](./# Anki 课程与复习大一统实施计划.md)。
+> 状态：**部分 superseded**。Note/Card 保真与导入语义仍有效；“默认 Again/Hard/Good/Easy”和词汇自动升级正式 MCQ 已被 [ADR 0037](./decisions/0037-anki-course-review-unification.md) 取代；官方 FFI 后端（原 §12 远期项）已由 [ADR 0036](./decisions/0036-official-anki-core-migration.md) 落地（Android 生产默认，`lib/application/anki_official/`）。课程/复习大一统主计划见 [`# Anki 课程与复习大一统实施计划.md`](./# Anki 课程与复习大一统实施计划.md)。
 > 当前实现概览见 [`project-guide.md`](../project-guide.md) §6；评审修复记录见 ADR [`0030-anki-deep-adaptation-review-fixes`](./decisions/0030-anki-deep-adaptation-review-fixes.md)。
 > 合并日期：2026-08-07（自 2026-07-31 两份计划）。
 
@@ -186,11 +186,11 @@ Anki Deck/Subdeck 对应学习范围，是导航主来源（tags/自定义字段
 
 ## 12. 已延期（二期/远期）
 
-- `{{type:}}` 输入桥（WebView 填空）。
-- rsdroid / Anki 官方 FFI 后端（仅当模板兼容仍不足）。
 - `collection.anki21b`（schema-v18，Zstandard + Protobuf 元数据）原生解析：不能仅加解压库后复用旧解析器，须独立兼容里程碑 + 真实 fixture + 各平台原生库 + 许可证审查。在此之前保持显式拒绝与重新导出指引。
 - OHOS import sqlite3 FFI（当前 OHOS import 抛错）。
 - 错题快照瘦身（存 noteId 引用而非全 HTML）、WebView 池化。
+
+> `{{type:}}` 输入桥与官方 FFI 后端已交付（`anki_type_answer.dart`；ADR 0036 官方 Core，Android 生产默认）。
 
 ---
 

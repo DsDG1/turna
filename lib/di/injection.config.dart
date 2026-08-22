@@ -15,7 +15,11 @@ import 'package:get_it/get_it.dart' as _i174;
 import 'package:injectable/injectable.dart' as _i526;
 
 import '../application/accessibility_provider.dart' as _i977;
-import '../application/achievements_provider.dart' as _i143;
+import '../application/achievements/achievement_metric_projector.dart' as _i278;
+import '../application/achievements/achievement_migration_service.dart'
+    as _i797;
+import '../application/achievements/achievement_service.dart' as _i80;
+import '../application/achievements/achievement_state_repository.dart' as _i927;
 import '../application/ai/ai_course_provider.dart' as _i859;
 import '../application/ai/ai_grounded_resource_provider.dart' as _i1068;
 import '../application/ai/ai_lesson_helper_provider.dart' as _i872;
@@ -32,7 +36,6 @@ import '../application/cosmetic_provider.dart' as _i42;
 import '../application/course_provider.dart' as _i1051;
 import '../application/fun_lab_snapshot_service.dart' as _i141;
 import '../application/fun_provider.dart' as _i648;
-import '../application/game_milestone_provider.dart' as _i788;
 import '../application/game_provider.dart' as _i565;
 import '../application/gems_provider.dart' as _i417;
 import '../application/grammar_review_provider.dart' as _i1008;
@@ -145,6 +148,8 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i180.AnkiAudioResolver>(() => _i180.AnkiAudioResolver());
     gh.lazySingleton<_i711.LocalReminderService>(
         () => _i711.LocalReminderService());
+    gh.lazySingleton<_i927.AchievementStateRepository>(
+        () => _i927.AchievementStateRepository(gh<_i523.AppPrefs>()));
     gh.lazySingleton<_i656.AudioPlayer>(
       () => audioModule.speechPlayer,
       instanceName: 'speechPlayer',
@@ -163,10 +168,6 @@ extension GetItInjectableX on _i174.GetIt {
         () => _i307.TtsAvailabilityChecker(gh<_i50.FlutterTts>()));
     gh.lazySingleton<_i188.VocabAudioResolver>(
         () => _i73.VocabAudioResolverImpl());
-    gh.lazySingleton<_i143.AchievementsProvider>(
-        () => _i143.AchievementsProvider(gh<_i523.AppPrefs>()));
-    gh.lazySingleton<_i788.GameMilestoneProvider>(
-        () => _i788.GameMilestoneProvider(gh<_i523.AppPrefs>()));
     gh.lazySingleton<_i417.GemsProvider>(
         () => _i417.GemsProvider(gh<_i523.AppPrefs>()));
     gh.lazySingleton<_i233.LanguageProvider>(
@@ -236,6 +237,12 @@ extension GetItInjectableX on _i174.GetIt {
           gh<_i854.LessonLinkStore>(),
           gh<_i336.SrsStateDao>(),
         ));
+    gh.lazySingleton<_i565.GameProvider>(() => _i565.GameProvider(
+          gh<_i523.AppPrefs>(),
+          gh<_i166.ScoreProvider>(),
+          gh<_i927.StreakProvider>(),
+          gh<_i409.LessonProgressProvider>(),
+        ));
     gh.lazySingleton<_i620.StudyStatsProvider>(() => _i620.StudyStatsProvider(
           gh<_i889.StudyLogRepository>(),
           gh<_i551.MistakeProvider>(),
@@ -247,13 +254,6 @@ extension GetItInjectableX on _i174.GetIt {
               gh<_i1008.GrammarReviewProvider>(),
               gh<_i151.AnkiImportDao>(),
             ));
-    gh.lazySingleton<_i565.GameProvider>(() => _i565.GameProvider(
-          gh<_i523.AppPrefs>(),
-          gh<_i166.ScoreProvider>(),
-          gh<_i927.StreakProvider>(),
-          gh<_i409.LessonProgressProvider>(),
-          gh<_i788.GameMilestoneProvider>(),
-        ));
     gh.lazySingleton<_i579.CourseReadyGuard>(
         () => _i579.CourseReadyGuard(gh<_i1051.CourseProvider>()));
     gh.lazySingleton<_i1045.AnkiDeckManager>(() => _i1045.AnkiDeckManager(
@@ -267,12 +267,13 @@ extension GetItInjectableX on _i174.GetIt {
           mistakeProvider: gh<_i551.MistakeProvider>(),
           reviewHistoryDao: gh<_i68.ReviewHistoryDao>(),
         ));
-    gh.lazySingleton<_i495.LessonCompletionCoordinator>(
-        () => _i495.LessonCompletionCoordinator(
-              gh<_i565.GameProvider>(),
-              gh<_i417.GemsProvider>(),
-              gh<_i143.AchievementsProvider>(),
-              gh<_i620.StudyStatsProvider>(),
+    gh.lazySingleton<_i278.AchievementMetricProjector>(
+        () => _i278.AchievementMetricProjector(
+              gh<_i523.AppPrefs>(),
+              gh<_i409.LessonProgressProvider>(),
+              gh<_i927.StreakProvider>(),
+              gh<_i166.ScoreProvider>(),
+              gh<_i889.StudyLogRepository>(),
             ));
     gh.lazySingleton<_i106.AudioController>(() => _i106.AudioController(
           gh<_i50.FlutterTts>(),
@@ -292,29 +293,12 @@ extension GetItInjectableX on _i174.GetIt {
           gh<_i361.SrsProvider>(),
           gh<_i1008.GrammarReviewProvider>(),
         ));
-    gh.lazySingleton<_i141.FunLabSnapshotService>(
-        () => _i141.FunLabSnapshotService(
+    gh.lazySingleton<_i797.AchievementMigrationService>(
+        () => _i797.AchievementMigrationService(
               gh<_i523.AppPrefs>(),
-              gh<_i604.CourseDatabase>(),
-              gh<_i336.SrsStateDao>(),
-              gh<_i361.SrsProvider>(),
-              gh<_i1008.GrammarReviewProvider>(),
-              gh<_i409.LessonProgressProvider>(),
-              gh<_i551.MistakeProvider>(),
-              gh<_i854.LessonLinkStore>(),
-              gh<_i889.StudyLogRepository>(),
-              gh<_i620.StudyStatsProvider>(),
-              gh<_i417.GemsProvider>(),
-              gh<_i565.GameProvider>(),
+              gh<_i927.AchievementStateRepository>(),
+              gh<_i278.AchievementMetricProjector>(),
             ));
-    gh.lazySingleton<_i274.LessonViewModel>(() => _i274.LessonViewModel(
-          gh<_i1051.CourseProvider>(),
-          gh<_i106.AudioController>(),
-          gh<_i361.SrsProvider>(),
-          gh<_i551.MistakeProvider>(),
-          gh<_i1008.GrammarReviewProvider>(),
-          gh<_i495.LessonCompletionCoordinator>(),
-        ));
     gh.lazySingleton<_i740.ProgressProvider>(
         () => _i740.ProgressProvider(gh<_i565.GameProvider>()));
     gh.lazySingleton<_i9.MatchProvider>(() => _i9.MatchProvider(
@@ -323,6 +307,12 @@ extension GetItInjectableX on _i174.GetIt {
         ));
     gh.lazySingleton<_i936.AppRouter>(
         () => _i936.AppRouter(gh<_i579.CourseReadyGuard>()));
+    gh.lazySingleton<_i80.AchievementService>(() => _i80.AchievementService(
+          gh<_i927.AchievementStateRepository>(),
+          gh<_i278.AchievementMetricProjector>(),
+          gh<_i797.AchievementMigrationService>(),
+          gh<_i417.GemsProvider>(),
+        ));
     gh.lazySingleton<Set<_i931.InteractionRenderer>>(
         () => rendererModule.renderers(
               gh<_i440.ShowWordRenderer>(),
@@ -340,6 +330,37 @@ extension GetItInjectableX on _i174.GetIt {
               gh<_i940.AnkiCardRenderer>(),
               gh<_i681.AnkiHtmlCardRenderer>(),
             ));
+    gh.lazySingleton<_i495.LessonCompletionCoordinator>(
+        () => _i495.LessonCompletionCoordinator(
+              gh<_i565.GameProvider>(),
+              gh<_i417.GemsProvider>(),
+              gh<_i80.AchievementService>(),
+              gh<_i620.StudyStatsProvider>(),
+            ));
+    gh.lazySingleton<_i141.FunLabSnapshotService>(
+        () => _i141.FunLabSnapshotService(
+              gh<_i523.AppPrefs>(),
+              gh<_i604.CourseDatabase>(),
+              gh<_i336.SrsStateDao>(),
+              gh<_i361.SrsProvider>(),
+              gh<_i1008.GrammarReviewProvider>(),
+              gh<_i409.LessonProgressProvider>(),
+              gh<_i551.MistakeProvider>(),
+              gh<_i854.LessonLinkStore>(),
+              gh<_i889.StudyLogRepository>(),
+              gh<_i620.StudyStatsProvider>(),
+              gh<_i417.GemsProvider>(),
+              gh<_i565.GameProvider>(),
+              gh<_i80.AchievementService>(),
+            ));
+    gh.lazySingleton<_i274.LessonViewModel>(() => _i274.LessonViewModel(
+          gh<_i1051.CourseProvider>(),
+          gh<_i106.AudioController>(),
+          gh<_i361.SrsProvider>(),
+          gh<_i551.MistakeProvider>(),
+          gh<_i1008.GrammarReviewProvider>(),
+          gh<_i495.LessonCompletionCoordinator>(),
+        ));
     gh.lazySingleton<_i648.FunProvider>(() => _i648.FunProvider(
           gh<_i523.AppPrefs>(),
           gh<_i565.GameProvider>(),

@@ -1,5 +1,8 @@
 // match_words_page.dart
 
+// Dart imports:
+import 'dart:async';
+
 // Flutter imports:
 import 'package:flutter/material.dart';
 
@@ -8,9 +11,11 @@ import 'package:auto_route/annotations.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
+import 'package:turna/application/achievements/achievement_service.dart';
 import 'package:turna/application/game_provider.dart';
 import 'package:turna/application/match_provider.dart';
 import 'package:turna/core/utils.dart';
+import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/theme.dart';
 
@@ -52,6 +57,13 @@ class _MatchWordsPageState extends State<MatchWordsPage> {
     if (_gameOverHandled) return;
     _gameOverHandled = true;
     await gameProvider.incrementScore(matchProvider.sessionScore);
+    // XP changed -> let the achievement engine see the new total (match
+    // games award XP outside the lesson/review completion flows).
+    unawaited(
+      getIt<AchievementService>().evaluateAndReward().catchError((Object e) {
+        debugPrint('Achievement evaluate after match failed: $e');
+      }),
+    );
 
     if (!mounted) return;
 

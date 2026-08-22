@@ -8,13 +8,13 @@
 
 ## 快速导航
 
-- **当前状态**：8 个 CEFR 分级 Section（A1->B2）全部填充真实内容（148 词 / 18 表达 / 8 语法 / 54 课时）。schemaVersion 16，课程内容版本 12。
+- **当前状态**：8 个 CEFR 分级 Section（A1->B2）全部填充真实内容（148 词 / 18 表达 / 8 语法 / 54 课时）。schemaVersion 18，课程内容版本 12。
 - **目标语**：Turkish，TTS 语言码 `tr`。
-- **复习引擎**：FSRS（`lib/core/fsrs_engine.dart`），SM-2 后备。
+- **复习引擎**：FSRS（`lib/core/fsrs_engine.dart`），SM-2 后备；Anki 卡排期走官方 Core scheduler（ADR 0036/0037，`lib/application/anki_official/`）。
 - **调色板**：Turna「湿地鹤」（ADR 0033/0035，主色 `#1F727E`，无 `peacock*` 别名）。真源 `lib/views/theme.dart` ↔ `tool/gui/src/theme_tokens.py`。
 - **构建**：OHOS Flutter fork（`3.35.8-ohos`），需 JDK 17 + `tool/apply_patches.sh`（见 [`docs/android-build-setup.md`](./docs/android-build-setup.md)）。
-- **AI 引擎层**：`lib/application/ai/engine/`（全应用唯一 LLM 出入口，API key 经 `flutter_secure_storage` 持久化）。
-- **决策记录**：`docs/decisions/`（ADR 0030–0035）。
+- **AI 引擎层**：`lib/application/ai/engine/`（全应用唯一 LLM 出入口，配置含 API key 经 `StreamingSharedPreferences` 持久化、写入绕过日志）。
+- **决策记录**：`docs/decisions/`（ADR 0030–0037）。
 
 功能实现状态见 project-guide §4；已明确不做的功能见 §15。
 
@@ -29,6 +29,7 @@ lib/
 ├── application/   # Providers + 应用服务
 │   ├── ai/         # AI 能力（engine/ 统一引擎层 + hint/wish/course/tutor）
 │   ├── anki/       # Anki 导入 / 装配 / 渲染 / 复习 / SRS 迁移
+│   ├── anki_official/ # 官方 Anki Core（rslib FFI）引擎 / 导入 / 渲染 / 投影 / 迁移（ADR 0036）
 │   ├── srs_provider.dart          # 单词 SRS 队列（FSRS，SrsQueueProvider 子类）
 │   ├── grammar_review_provider.dart  # 语法 SRS 队列
 │   ├── srs_queue_provider.dart    # SRS 队列共享基类
@@ -41,13 +42,13 @@ lib/
 │   └── game_provider.dart         # 薄 facade -> score/streak/progress/milestone
 ├── core/          # fsrs_engine / sm2 / language_detector / html_stripper / streak / logger
 ├── courses/       # 字母 + 语种 loader/validator（目标 Turkish）
-├── data/          # drift CourseDatabase（schemaVersion 16）+ Seeder + DAO + Repository
+├── data/          # drift CourseDatabase（schemaVersion 18）+ Seeder + DAO + Repository
 ├── di/            # GetIt + Injectable（renderer_module / audio_module）
 ├── domain/        # 领域模型 + Repository 接口（course / audio / repositories）
 ├── routing/       # Auto Route + CourseReadyGuard
 ├── service/       # AppPrefs / locator / TTS / 本地提醒
 └── views/         # courses / dictionary / home / lesson / play / profile / review /
-                   # ai / anki / settings / theme.dart
+                   # ai / anki / anki_official / settings / theme.dart
 ```
 
 完整分层、关键模式、领域模型、13 种 Interaction、6 种 Lesson Template 见 project-guide §3-§4。
@@ -80,7 +81,7 @@ lib/
 | `lib/data/course_repository.dart` | 课程仓库实现 |
 | `lib/views/theme.dart` | TurnaTheme（亮/暗/高对比 + 语义颜色 helper） |
 | `docs/project-guide.md` | 详尽设计与实现说明 |
-| `docs/decisions/` | ADR 0030–0035 |
+| `docs/decisions/` | ADR 0030–0037 |
 
 ---
 

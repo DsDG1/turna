@@ -42,7 +42,13 @@ const List<_PrefEntry> _progressManifest = [
   _PrefEntry(LocalStateKeys.perfectLessonIds, _PrefType.stringList),
   // Currency / achievements / cosmetics
   _PrefEntry(LocalStateKeys.gems, _PrefType.int_),
+  // v1 achievement list: read-only migration input, exported for downgrade
+  // compatibility.
   _PrefEntry(LocalStateKeys.achievements, _PrefType.stringList),
+  // Achievements v2: versioned state, metric projection, migration marker.
+  _PrefEntry(LocalStateKeys.achievementsStateV2, _PrefType.string),
+  _PrefEntry(LocalStateKeys.achievementsProjectionV1, _PrefType.string),
+  _PrefEntry(LocalStateKeys.achievementsMigrationVersion, _PrefType.int_),
   _PrefEntry(LocalStateKeys.cosmeticsUnlocked, _PrefType.stringList),
   _PrefEntry(LocalStateKeys.cosmeticsEquippedRing, _PrefType.string),
   // SRS / mistakes

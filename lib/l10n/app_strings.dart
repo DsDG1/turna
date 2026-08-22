@@ -1250,16 +1250,77 @@ class AppStrings {
   static String profileShareFailed(Object error) => '无法分享进度：$error';
   static String get profileLearnerFallback => '学习者';
   static String get profileAchievementsTitle => '成就';
-  static String profileViewMore(int remainingCount) => '查看另外 $remainingCount 项';
-  static String get profileShowLess => '收起';
-  static String profileAchievementLevel(int level) => 'Lv.$level';
-  static String profileAchievementProgress(int current, int displayTarget) =>
-      '$current/$displayTarget';
   static String get profileLearningStatsTitle => '学习统计';
   static String get profileTodayTitle => '今日概览';
   static String get profileStatsEntrySubtitle => '近 7 天经验、总量与 Anki';
-  static String profileAchievementsUnlocked(int unlocked, int total) =>
-      '已解锁 $unlocked/$total';
+  // ── Achievements v2 (成就系统焕新) ──
+  static String profileAchievementsBadgeCount(int unlocked, int total) =>
+      '已获得 $unlocked/$total 枚徽章';
+  static String profileAchievementsNearComplete(int count) => '$count 项接近完成';
+  static String get achievementsOverviewTitle => '徽章收藏';
+  static String achievementsOverviewCount(int unlocked, int total) =>
+      '已获得 $unlocked / $total 枚徽章';
+  static String achievementsCompletionRatio(int percent) => '完成度 $percent%';
+  static String get achievementsNearestSection => '距离最近';
+  static String get achievementsFilterAll => '全部';
+  static String get achievementsFilterInProgress => '进行中';
+  static String get achievementsFilterUnlocked => '已获得';
+  static String get achievementsRecentSection => '最近获得';
+  static String get achievementsRecentEmpty => '完成第一课或第一次复习，即可获得第一枚徽章';
+  static String get achievementsMigrationBackfillTag => '历史补记';
+  static String get achievementsNewBadgeTag => 'NEW';
+  static String achievementsTierProgress(int current, int target) =>
+      '$current / $target';
+  static String achievementsTierCompleted(int count, int total) =>
+      '$count/$total';
+  static String get achievementsStateLocked => '未解锁';
+  static String get achievementsStateInProgress => '进行中';
+  static String get achievementsStateUnlocked => '已获得';
+  static String get achievementsStateMaxed => '已满级';
+  static String achievementsRemainingCourses(int count) => '再完成 $count 课';
+  static String achievementsRemainingPerfects(int count) => '再完美完成 $count 课';
+  static String achievementsRemainingStreakDays(int count) => '再坚持 $count 天';
+  static String achievementsRemainingXp(int count) => '再获得 $count XP';
+  static String achievementsRemainingDailyXp(int count) => '单日再获得 $count XP';
+  static String achievementsRemainingReviews(int count) => '再复习 $count 张卡片';
+  static String achievementsRemainingWords(int count) => '再学习 $count 个词条';
+  static String get achievementsDetailTierLadder => '完整阶梯';
+  static String get achievementsDetailUnlockedOn => '解锁于';
+  static String get achievementsDetailNextStep => '下一步';
+  static String get achievementsDetailFinalReward => '终阶纪念';
+  static String get achievementsDetailStory => '系列故事';
+  static String get achievementsCosmeticTitleFarWalker => '称号「远行者」';
+  static String get achievementsCosmeticTitleHundredFlawless =>
+      '称号「百课无瑕」';
+  static String get achievementsCosmeticStreak365 => '365 天纪念头像环';
+  static String get achievementsCosmeticPreviewSuffix => ' + 专属纪念';
+  static String get achievementsUnlockBannerTitle => '新成就解锁';
+  static String achievementsUnlockBannerCount(int count) => '本次获得 $count 枚徽章';
+  static String get achievementsUnlockBannerViewAll => '查看成就';
+  static String get achievementsFunPreviewBanner => '预览全部（Fun Lab，非真实解锁）';
+  static String get achievementsGemRewardSuffix => '宝石';
+  // 系列名称与描述（key = seriesId）
+  static String get achievementsSeriesCourseJourney => '课程行者';
+  static String get achievementsSeriesCourseJourneyDesc => '累计完成不重复的课程';
+  static String get achievementsSeriesPerfectJourney => '完美主义者';
+  static String get achievementsSeriesPerfectJourneyDesc => '零失误完成课程，收集无瑕印记';
+  static String get achievementsSeriesStreakJourney => '烈焰不息';
+  static String get achievementsSeriesStreakJourneyDesc => '连续学习，让火焰持续燃烧';
+  static String get achievementsSeriesXpJourney => '经验积累';
+  static String get achievementsSeriesXpJourneyDesc => '累计获得的经验值';
+  static String get achievementsSeriesDailyFocus => '今日专注';
+  static String get achievementsSeriesDailyFocusDesc => '单日获得的最高经验值';
+  static String get achievementsSeriesReviewJourney => '复习达人';
+  static String get achievementsSeriesReviewJourneyDesc => '累计提交的复习卡片作答';
+  static String get achievementsSeriesVocabularyJourney => '词海拾贝';
+  static String get achievementsSeriesVocabularyJourneyDesc => '学习过的唯一词条';
+  // 进度单位
+  static String get achievementsUnitLessons => '课';
+  static String get achievementsUnitDays => '天';
+  static String get achievementsUnitXp => 'XP';
+  static String get achievementsUnitCards => '张';
+  static String get achievementsUnitWords => '词';
+  static String get achievementsPersonalBest => '个人最高纪录';
   static String get profileXpToday => '今日经验';
   static String get profileStudyTime => '学习时长';
   static String get profileAccuracy => '正确率';

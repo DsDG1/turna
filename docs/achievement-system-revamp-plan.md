@@ -1,9 +1,10 @@
 # Turna 成就系统整体焕新实施计划
 
-> 状态：规划中 / 待实施  
-> 日期：2026-08-22  
-> 范围：成就定义、学习指标、解锁与奖励、历史迁移、个人页入口、成就主页、达成反馈、测试与数据导入导出  
+> 状态：**已实施（2026-08-22，分支 spike/official-anki-core-android）**
+> 日期：2026-08-22
+> 范围：成就定义、学习指标、解锁与奖励、历史迁移、个人页入口、成就主页、达成反馈、测试与数据导入导出
 > 硬约束：**课程成就最终目标保持 500 课，完美课程最终目标保持 100 课，不得下调或删除。**
+> 实施记录见文末「§15 实施记录」；各阶段完成情况、偏差与遗留事项都在该节。
 
 ## 0. 结论先行
 
@@ -776,3 +777,75 @@ perfect journey completes exactly at 100
 5. 用临时 adapter 让旧成就页读取 v2 状态。
 
 该切片完成后，系统已经不再提前满级、不会重复发奖励、旧数据可迁移；随后再接单日 XP、复习卡数、词汇投影和全新 UI，风险最低。
+
+## 15. 实施记录（2026-08-22）
+
+本轮按 P0→P6 一次性完成施工。验证状态：`flutter analyze` 零 error（新代码零新增告警）；成就相关的领域/应用/集成/组件测试（70 项）全部通过；全量 `flutter test` 中仅存的失败为与本轮无关的存量问题——8 个 golden 像素差（基线 HEAD 上同样失败，环境字体渲染差异）与 2 个 Anki 导入界面测试（并行 anki 工作流的 GetIt 注册问题，对应文件在本轮开始前已处于修改状态）。以下记录落地情况、与计划的偏差和遗留事项。
+
+### 15.1 落地文件清单
+
+领域层（新增，无 Flutter 依赖）：
+
+- `lib/domain/achievements/achievement_definition.dart` — 指标枚举、稀有度材质（含默认宝石表）、层级/系列定义、`completedTierCount` / `nextTierAfter` 纯函数。
+- `lib/domain/achievements/achievement_state.dart` — `AchievementTierState`（两阶段奖励 + seen 标记 + origin）、版本化 `AchievementStateDocument`（schemaVersion=2，含迁移诊断）、`AchievementSeriesProgress` UI 只读视图。
+- `lib/domain/achievements/achievement_unlock_result.dart` — 评估器输出的解锁结果。
+- `lib/domain/achievements/achievement_catalog.dart` — 七个系列的唯一目录（含目标阶梯与终阶纪念奖励 ID）。
+
+应用层（新增）：
+
+- `lib/application/achievements/achievement_evaluator.dart` — 纯评估器 + `AchievementMetricSnapshot` + `AchievementCatalogContract` 契约校验。
+- `lib/application/achievements/achievement_metric_projector.dart` — 指标投影器 + 持久化投影（`achievements.metric_projection.v1`：复习卡数单调计数、历史单日最高 XP、已学词条集合）。
+- `lib/application/achievements/achievement_state_repository.dart` — v2 状态仓库，写链序列化。
+- `lib/application/achievements/achievement_migration_service.dart` — v1→v2 一次性迁移（精确 ID 映射 + 权威回填 + 未知 ID 诊断）。
+- `lib/application/achievements/achievement_service.dart` — 唯一写入者：评估→持久化→发奖→标记两阶段流、启动恢复、reconcile、反馈队列（由 `seen=false && origin=live` 派生）、账户重置。
+
+UI（新增 `lib/views/profile/achievements/`）：
+
+- `achievement_ui_catalog.dart` — 图标/颜色/文案/单位/纪念奖励解析（领域层零 Flutter 依赖）。
+- `achievement_badge_card.dart` — 徽章卡片（锁定=轮廓+锁、四态明确、NEW 标记、满级不伪造 current/current）。
+- `achievement_overview_header.dart` — 收藏概览 Hero + 距离最近卡片。
+- `achievement_filter_bar.dart` — 全部/进行中/已获得筛选。
+- `achievement_detail_sheet.dart` — 详情底部面板（完整阶梯、每档目标/奖励/状态、解锁日期、下一步、终阶纪念预览、历史补记标签）。
+- `achievement_unlock_banner.dart` + `achievement_feedback_banner.dart` — 完成页反馈横幅与队列消费者（监听式，页面销毁不丢 seen 状态）。
+
+修改：
+
+- `LessonCompletionCoordinator` — 顺序改为 XP/宝石 → 课时 ID → 学习日志（含 wordIds）→ 词条投影 → **唯一评估点**。
+- `LessonViewModel` — 提取 `lessonWordIds()`，完成时传递真实词条 ID。
+- `UnifiedReviewPage` / `GrammarReviewScreen` — 复习完成后按卡片数记录投影并评估。
+- `MatchWordsPage` — 匹配游戏得分后触发评估。
+- `GameProvider.incrementScore` — 移除里程碑双写；不再有任何生产代码写 v1 `achievements.unlocked`。
+- `main.dart` — 启动序列：迁移 → 恢复未发奖励 → reconcile（失败不阻塞主流程）。
+- `ExportService` / `FunLabSnapshotService` / 账户重置 — 纳入 v2 状态、投影、迁移标记；Fun Lab 恢复后 reload。
+- `profile_screen.dart` — 入口改为「已获得 X/Y 枚徽章 · N 项接近完成」+ 陶土色未读圆点。
+- `LocalStateKeys` — 新增 `achievementsStateV2` / `achievementsProjectionV1` / `achievementsMigrationVersion`；v1 键保留为只读迁移输入。
+
+删除（P6）：
+
+- `lib/application/achievements_provider.dart`、`lib/application/game_milestone_provider.dart`、`lib/core/achievement_config.dart`、`lib/domain/achievement.dart`、`lib/views/profile/widgets/achievements.dart`。
+- 仓库中只剩一套生产成就定义、一个解锁引擎、一个状态写入者。
+
+### 15.2 测试
+
+- `test/domain/achievement_domain_test.dart` — 重写为目录契约（ID 唯一、目标严格递增、宝石=稀有度默认且 ≤60、500/100 硬约束、词海拾贝未发布、契约拒绝重复/平坦/空目录）+ 纯评估器（0 进度、边界不解锁、恰好解锁、跨档、幂等、回退不回锁）。
+- `test/application/achievements/achievement_migration_service_test.dart` — 空账户、权威回填（63/499/500）、旧计数冲突以 ID 集为准、xp_*/streak_* 精确映射、streak_100 不误映射 125、旧系列名按指标重算、未知 ID 诊断、强制重跑幂等。
+- `test/application/achievements/achievement_service_test.dart` — 首课解锁+恰好一次发奖、重复评估幂等、跨档一次通过、streak 回退保留、重复课时去重、XP 里程碑、复习增量、两阶段崩溃恢复（补发一次且幂等）、并发不重复解锁/发奖、反馈队列一次性消费、resetAll、词条集合累积。
+- `test/helpers/achievement_test_stack.dart` — 真实 v2 组件栈测试辅助（共享 LessonProgressProvider 实例，镜像 DI 单例语义）。
+- 修复既有测试：`game_provider_test`（v1 不再写入）、`lesson_viewmodel_flow_test`（真实服务 + 13=5+8 宝石断言）、`mastery_dialog_stats_test`、`fun_lab_snapshot_service_test`（v2 键 + 预览不消费真实状态）、`wetland_palette_contract_test`。
+
+### 15.3 与计划的偏差
+
+1. **反馈队列无独立存储键**：队列由状态文档中 `seen=false && origin=live` 派生，导出/快照天然覆盖（比独立键少一份需要同步的状态）。
+2. **徽章视觉**：首版以「系列图标 + 稀有度材质色环」实现 §7.3/§8.2 的状态语义；统一徽章底座插画资产（§8.2）留待设计资源到位后替换，`iconKey`/`rarity` 抽象已就位。
+3. **词海拾贝（vocabulary_journey）按计划条件保持未发布**（`published: false`）：课程日志已开始携带 wordIds 并累积投影，但复习路径尚未携带词条 ID，覆盖率不满足发布条件；不读取旧 `wordsLearned`。
+4. **发布策略**：§12.1 的双版本灰度在本仓库直接一步到位（数据层与体验层同批落地）；v1 键保留只读，回滚旧版本仍可启动。
+5. **今日专注详情页**显示「个人最高纪录」数值；每日跨日切分沿用 `StudyLogRepository` 的本地日期键。
+
+### 15.4 遗留事项（后续迭代）
+
+- 复习日志携带词条 ID 后发布词海拾贝系列（投影数据已在累积）。
+- 徽章底座/系列中心图形插画资产与终阶光环动画（§8.2）。
+- Golden 基线与 light/dark、文字放大 200% 的截图回归（§11.4）。
+- 上线前的奖励经济模拟脚本与装饰目录扩充评估（§3.1、P6 任务 4）。
+- 称号/头像环的佩戴 UI（`cosmeticRewardId` 已持久化并在详情面板展示预览）。
+- 双读期诊断日志（§12.1）在确认迁移稳定后移除。

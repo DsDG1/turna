@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 // Project imports:
+import 'package:turna/application/achievements/achievement_service.dart';
 import 'package:turna/application/ai/ai_explain_prefs.dart';
 import 'package:turna/application/ai/engine/ai_engine.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
@@ -110,6 +111,17 @@ Future<void> main() async {
 
     await OfficialAnkiCompositionRoot.initializeReadOnlyLocator();
     await getIt<CourseProvider>().load();
+
+    // Achievement system v2 startup: one-shot v1 migration, pending-reward
+    // recovery, and a light reconcile against authoritative metrics. Failures
+    // defer to the next launch — never block the main flow (plan §12.2).
+    unawaited(() async {
+      try {
+        await getIt<AchievementService>().initialize();
+      } catch (e) {
+        debugPrint('[Achievements] startup initialize skipped: $e');
+      }
+    }());
 
     // P5F-41: one-shot re-anchor of official placements onto the projection
     // index. Best-effort; failures never block startup.

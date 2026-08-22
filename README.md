@@ -13,7 +13,7 @@
 
 基于上游 [Turna](https://github.com/rshrc/Varnamala) 的 Section/Unit/Lesson/SRS/错题本骨架，聚焦 **Turkish**，持续深化：FSRS 复习引擎、Anki 牌组导入与原卡复习（默认 Flutter HTML）、统一 AI 引擎层。
 
-- **纯本地**：SQLite（drift，schemaVersion 16），无云后端 / 推送 / 登录。
+- **纯本地**：SQLite（drift，schemaVersion 18），无云后端 / 推送 / 登录。
 - **单人离线**：无好友、排行榜、联赛、心数、宝石购买。
 - **主打 Android**：以 **Android** 为核心主力平台，兼顾 HarmonyOS（OHOS Flutter 分支）、iOS 与 Web（有限支持）。
 - **教学法驱动**：功能取舍以二语习得研究为依据（见 project-guide §2 / §15）。
@@ -86,7 +86,7 @@ python -m tool.gui.src.main
 | [`docs/android-build-setup.md`](./docs/android-build-setup.md) | OHOS 分支构建配置 |
 | [`docs/authoring/`](./docs/authoring/) | Authoring 契约与教师指南 |
 | [`docs/audio-recording-guidelines.md`](./docs/audio-recording-guidelines.md) | 人工录音提交规范 |
-| [`docs/decisions/`](./docs/decisions/) | 架构决策记录（ADR 0030–0035） |
+| [`docs/decisions/`](./docs/decisions/) | 架构决策记录（ADR 0030–0037） |
 | [`docs/turna-mascot-design-and-replacement-plan.md`](./docs/turna-mascot-design-and-replacement-plan.md) | 吉祥物设计规范与资产替代方案 |
 | [`test/BASELINE.md`](./test/BASELINE.md) | 测试基线 |
 

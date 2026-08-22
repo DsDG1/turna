@@ -2,7 +2,7 @@
 
 > 本文是 README 的深度补充。README 给出概览与快速上手，本文给出每个子系统的设计、实现要点与决策依据。阅读顺序建议：先读 README，再按需查阅本文相应章节。
 >
-> 所有信息以代码现状为准（schemaVersion 16、课程内容版本 12、`flutter test` ~937 passed / 3 预存在环境失败，截至 2026-08-06）。
+> 所有信息以代码现状为准（schemaVersion 18、课程内容版本 12、`flutter test --exclude-tags golden` 1299 passed / 0 failed，截至 2026-08-22）。
 
 ---
 
@@ -107,6 +107,7 @@ lib/
 │   ├── ai/             # AI 能力：engine/ + hint/wish/course/lesson-helper/tutor
 │   │   └── engine/     # 统一 AI 引擎层（单一 LLM 流量出入口）
 │   ├── anki/           # Anki 导入/装配/渲染/复习/SRS 迁移
+│   ├── anki_official/  # 官方 Anki Core（rslib FFI）引擎/导入/渲染/投影/迁移（ADR 0036）
 │   ├── srs_provider.dart          # 单词 SRS 队列（SrsQueueProvider 子类）
 │   ├── grammar_review_provider.dart  # 语法 SRS 队列
 │   ├── srs_queue_provider.dart    # SRS 队列共享基类（FSRS 调度）
@@ -137,7 +138,7 @@ lib/
 │   └── streak_resolver.dart       # 纯 streak 解析
 ├── courses/            # 字母 + 语种 loader/validator（目标 Turkish）
 ├── data/               # drift CourseDatabase + Seeder + Repository 实现
-│   ├── course_database.dart       # schemaVersion 16
+│   ├── course_database.dart       # schemaVersion 18
 │   ├── anki_note_dao.dart         # Anki NoteStore 数据访问
 │   ├── srs_state_dao.dart         # SRS 状态持久化
 │   ├── review_history_dao.dart    # 复习历史事件
@@ -152,7 +153,7 @@ lib/
 ├── routing/            # Auto Route + CourseReadyGuard
 ├── service/            # AppPrefs / locator / TTS / 本地提醒
 └── views/              # courses / dictionary / home / lesson / play / profile /
-                        # review / ai / anki / settings / theme.dart
+                        # review / ai / anki / anki_official / settings / theme.dart
 ```
 
 ### 关键模式
@@ -210,7 +211,7 @@ Section -> Unit -> Lesson -> SubLesson / ListeningPhase / ReadingPassage -> Stag
 
 ### 4.4 按需加载与缓存
 
-- `index.json` + per-section JSON + drift SQLite 缓存（**schemaVersion 16**）。
+- `index.json` + per-section JSON + drift SQLite 缓存（**schemaVersion 18**）。
 - 按内容版本号（`index.json` 的 `version`，当前 12）自动 reseed；bump version 或清空 app data 可强制 reseed。
 - `expressions` 表支持表达级 SRS。
 
@@ -257,7 +258,7 @@ Section -> Unit -> Lesson -> SubLesson / ListeningPhase / ReadingPassage -> Stag
 - **maturity**：new / young / mature / leech 分布。
 - **retention-by-interval**：按 prevIntervalDays 分桶（[1,4,7,14,21,30,60,90,180]）的经验回忆率曲线。
 
-`lib/views/profile/widgets/learning_stats.dart` 的 `_MemoryCurveCard` 用 `fl_chart` LineChart 可视化保持率曲线 + 预测 mini-stats + 成熟度 chips。`MemoryCurveProvider` 在 widget 树中可选（`context.read` 包 try/catch）。
+`lib/views/review/components/retention_curve_chart.dart` 的 `RetentionCurveChart` 用 `fl_chart` LineChart 可视化保持率曲线，复习进度页（`review_progress_page.dart` 的 `_CurveCard`，数据经 `ReviewProgressProvider` 聚合）与 Anki 牌组统计页（`MemoryCurveProvider.snapshotForImportId`）复用；预测 dueToday / due7Days 在复习进度页以 KPI 卡展示。
 
 ### 5.5 错题本
 
@@ -286,6 +287,8 @@ Explain → Practice → Rate 三段流（见 2.4 Skill Acquisition Theory）。
 ---
 
 ## 6. Anki 深度集成
+
+> **官方 Core 现状**：Android 生产默认已翻转至官方 Anki Core（rslib FFI，`lib/application/anki_official/`）——渲染 / 调度 / 投影默认走官方（flag 见 `official_anki_feature_flags.dart`）；导入向导仍为 Dart 先行双写，官方先行导入为 opt-in（P5-F）。本节描述的自研管线保留为 Legacy / OHOS 路径。详见 [`docs/official-anki-migration/README.md`](./official-anki-migration/README.md) 与 [ADR 0036](./decisions/0036-official-anki-core-migration.md)、[ADR 0037](./decisions/0037-anki-course-review-unification.md)。
 
 本应用可直接导入 Anki `.apkg` 牌组，将其作为课程树的一个 Section，并与 SRS / 错题 / 统计流水线双向打通。设计见 [`docs/anki-integration-design.md`](./anki-integration-design.md)。
 
@@ -341,7 +344,7 @@ Explain → Practice → Rate 三段流（见 2.4 Skill Acquisition Theory）。
 
 ### 6.8 已延期（二期/远期）
 
-`{{type:}}` 输入桥（WebView 填空）、OHOS WebView fidelity 评估、rsdroid/官方 FFI 后端、错题快照瘦身（存 noteId 引用而非全 HTML）、WebView 池化。
+OHOS WebView fidelity 评估、错题快照瘦身（存 noteId 引用而非全 HTML）、WebView 池化。（`{{type:}}` 输入桥已交付：`anki_type_answer.dart`；官方 FFI 后端已由 ADR 0036 落地，见第 6 节开头。）
 
 ---
 
@@ -355,7 +358,7 @@ Explain → Practice → Rate 三段流（见 2.4 Skill Acquisition Theory）。
 |---|---|
 | `ai_engine.dart` | `@lazySingleton` facade：`chat()` + `requestJson()` + 缓存接线 |
 | `ai_engine_config.dart` | `AiEngineConfig`：双模型（modelChat / modelJson）+ `StrictSchemaMode` + reasoning 支持 |
-| `ai_engine_config_holder.dart` | `@lazySingleton ChangeNotifier`，单一配置真理源，**持久化到本地**（API key 经 `flutter_secure_storage` 写入，非敏感元数据走 `StreamingSharedPreferences`，均绕过日志） |
+| `ai_engine_config_holder.dart` | `@lazySingleton ChangeNotifier`，单一配置真理源，**持久化到本地**（配置含 API key 序列化到 `StreamingSharedPreferences`，设备上为明文、用户显式选择；写入绕过日志） |
 | `ai_http_client.dart` | `postJson` / `postStream` / `probeConnection`；json_schema→json_object 自动回退；`AiCancelToken` 协作式取消 |
 | `ai_cache.dart` | SHA-256 LRU + 磁盘镜像（条件编译 web/io）；key 不含 API key |
 | `ai_provider_preset.dart` | 预设：deepseek（默认 `deepseek-v4-flash`）/ openai / moonshot / ollama / custom |
@@ -666,9 +669,9 @@ JSON 位于 `assets/courses/turkish/`，由 `CourseLoader` 加载、`DatabaseSee
 ## 14. 测试与质量基线
 
 ```bash
-flutter test                                  # ~937 passed / 3 预存在环境失败（最新数字见 test/BASELINE.md）
+flutter test --exclude-tags golden           # 1299 passed / 0 failed（最新数字见 test/BASELINE.md）
 python -m unittest discover -s test -p "*_test.py"            # Python 工具测试
-python -m unittest discover -s tool/gui/tests -p "test_*.py"  # GUI 804 项
+python -m unittest discover -s tool/gui/tests -p "test_*.py"  # GUI 1276 项（上次记录）
 ```
 
 - `flutter analyze`：改动文件 0 error / 0 warning（仅历史 info 级 lint）。
@@ -701,7 +704,8 @@ python -m unittest discover -s tool/gui/tests -p "test_*.py"  # GUI 804 项
 | [`docs/anki-integration-design.md`](./anki-integration-design.md) | Anki 集成设计（已交付）|
 | [`docs/ai_companion_implementation.md`](./ai_companion_implementation.md) | AI companion 实现边界 |
 | [`docs/advanced-settings-system-health.md`](./advanced-settings-system-health.md) | 高级设置与系统健康 |
-| [`docs/decisions/`](./decisions/) | 架构决策记录（ADR 0030–0035） |
+| [`docs/decisions/`](./decisions/) | 架构决策记录（ADR 0030–0037） |
+| [`docs/official-anki-migration/`](./official-anki-migration/README.md) | 官方 Anki Core 迁移文档索引（Phase 0–5） |
 | [`docs/android-build-setup.md`](./android-build-setup.md) | OHOS 分支 Android 构建配置 |
 | [`docs/analysis/project-framework-analysis.md`](./analysis/project-framework-analysis.md) | 项目框架分析 |
 | [`docs/authoring/`](./authoring/) | Authoring 契约与教师指南 |

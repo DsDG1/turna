@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 
 // Project imports:
+import 'package:turna/application/achievements/achievement_service.dart';
 import 'package:turna/application/cosmetic_provider.dart';
 import 'package:turna/application/game_provider.dart';
 import 'package:turna/application/grammar_review_provider.dart';
@@ -354,12 +355,18 @@ class _DataManagementSection extends StatelessWidget {
     final srsProvider = getIt<SrsProvider>();
     final grammarProvider = getIt<GrammarReviewProvider>();
     final cosmetics = context.read<CosmeticProvider>();
+    final achievements = getIt<AchievementService>();
     final appPrefs = getIt<AppPrefs>();
 
     await mistakeProvider.clear();
     await srsProvider.clear();
     await grammarProvider.clear();
     await gameProvider.resetAccountGameState();
+    // Achievements v2: state document, metric projection, and the migration
+    // marker all reset so a post-reset account starts from a clean slate.
+    await achievements.resetAll();
+    await appPrefs.preferences
+        .remove(LocalStateKeys.achievementsMigrationVersion);
     await cosmetics.resetCosmetics();
     await appPrefs.setLocalUser(LocalUser.local);
 

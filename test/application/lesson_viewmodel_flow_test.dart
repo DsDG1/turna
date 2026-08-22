@@ -13,7 +13,7 @@ import 'package:turna/application/anki/card_introduction_store.dart';
 import 'package:turna/domain/anki/canonical_card_key.dart';
 import 'package:turna/domain/anki/study_models.dart';
 import 'package:turna/domain/review/recall_outcome.dart';
-import 'package:turna/application/achievements_provider.dart';
+import 'package:turna/application/achievements/achievement_service.dart';
 import 'package:turna/application/accessibility_provider.dart';
 import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/course_provider.dart';
@@ -28,7 +28,9 @@ import 'package:turna/application/mistake_provider.dart'; // MistakeProvider for
 import 'package:turna/application/mistake_review_assembler.dart';
 import 'package:turna/domain/course/mistake_entry.dart';
 import 'package:turna/application/srs_provider.dart';
+import 'package:turna/application/score_provider.dart';
 import 'package:turna/application/settings_provider.dart';
+import 'package:turna/application/streak_provider.dart';
 import 'package:turna/application/study_stats_provider.dart';
 import 'package:turna/data/study_log_repository.dart';
 import 'package:turna/data/review_history_dao.dart';
@@ -41,6 +43,7 @@ import 'package:turna/domain/course/stage.dart';
 import 'package:turna/domain/study/study_log.dart';
 import 'package:turna/service/locator.dart';
 
+import '../helpers/achievement_test_stack.dart';
 import '../helpers/in_memory_course_db.dart';
 
 class _PassthroughVocabResolver implements VocabAudioResolver {
@@ -102,27 +105,6 @@ class _FakeCourseProvider extends CourseProvider {
   Lesson? findLessonById(String id) => _lesson;
 }
 
-class _RecordedMilestone {
-  final int lessonsCompleted;
-  final int perfectLessons;
-
-  _RecordedMilestone(this.lessonsCompleted, this.perfectLessons);
-}
-
-class _FakeAchievementsProvider extends AchievementsProvider {
-  final List<_RecordedMilestone> milestones = [];
-
-  _FakeAchievementsProvider() : super(_FakeAppPrefs());
-
-  @override
-  Future<void> checkLessonMilestones({
-    required int lessonsCompleted,
-    required int perfectLessons,
-  }) async {
-    milestones.add(_RecordedMilestone(lessonsCompleted, perfectLessons));
-  }
-}
-
 class _RecordedActivity {
   final StudyActivityType type;
   final String? lessonId;
@@ -160,7 +142,7 @@ class _ViewModelHarness {
   final LessonViewModel vm;
   final GameProvider gameProvider;
   final GemsProvider gemsProvider;
-  final _FakeAchievementsProvider achievementsProvider;
+  final AchievementService achievementsService;
   final _FakeStudyStatsProvider studyStatsProvider;
   final GrammarReviewProvider grammarProvider;
   final MistakeProvider mistakeProvider;
@@ -170,7 +152,7 @@ class _ViewModelHarness {
     required this.vm,
     required this.gameProvider,
     required this.gemsProvider,
-    required this.achievementsProvider,
+    required this.achievementsService,
     required this.studyStatsProvider,
     required this.grammarProvider,
     required this.mistakeProvider,
@@ -228,9 +210,16 @@ _ViewModelHarness _buildHarness({
   required AppPrefs appPrefs,
 }) {
   final courseProvider = _FakeCourseProvider(lesson);
-  final gameProvider = GameProvider.forTesting(appPrefs);
+  final achievements = AchievementTestStack.build(appPrefs);
+  // Share the lesson-progress instance between the game facade and the
+  // achievement projector (mirrors the DI singleton wiring in production).
+  final gameProvider = GameProvider(
+    appPrefs,
+    ScoreProvider(appPrefs),
+    StreakProvider(appPrefs),
+    achievements.lessonProgress,
+  );
   final gemsProvider = GemsProvider(appPrefs);
-  final achievementsProvider = _FakeAchievementsProvider();
   final audioController = _FakeAudioController();
   final linkStore = LessonLinkStore(appPrefs);
   final srsDao = emptySrsStateDao();
@@ -241,7 +230,7 @@ _ViewModelHarness _buildHarness({
   final completionCoordinator = LessonCompletionCoordinator(
     gameProvider,
     gemsProvider,
-    achievementsProvider,
+    achievements.service,
     studyStatsProvider,
   );
 
@@ -258,7 +247,7 @@ _ViewModelHarness _buildHarness({
     vm: vm,
     gameProvider: gameProvider,
     gemsProvider: gemsProvider,
-    achievementsProvider: achievementsProvider,
+    achievementsService: achievements.service,
     studyStatsProvider: studyStatsProvider,
     grammarProvider: grammarProvider,
     mistakeProvider: mistakeProvider,
@@ -389,6 +378,9 @@ void main() {
 
       // Completion is async.
       await pumpEventQueue();
+      // The unified achievement evaluation is fire-and-forget behind the
+      // completion flow; drain one more event-loop turn for the reward chain.
+      await pumpEventQueue();
 
       expect(vm.isComplete, isTrue);
       expect(vm.masteryPassed, isTrue); // non-mastery defaults to true
@@ -396,14 +388,18 @@ void main() {
       final score = harness.gameProvider.getUserScoreStream().first;
       expect(await score, 10); // lessonComplete XP only (one mistake)
 
+      // 5 lesson-complete gems + 8 gems from the first course-journey badge
+      // unlocked by the unified achievement evaluation.
       final gems = harness.gemsProvider.getGemsStream().first;
-      expect(await gems, 5); // lessonComplete gems only
+      expect(await gems, 5 + 8);
 
       expect(harness.mistakeProvider.count, 1);
       expect(harness.mistakeProvider.entries.first.lessonId, lesson.id);
 
-      expect(harness.achievementsProvider.milestones, isNotEmpty);
-      expect(harness.achievementsProvider.milestones.first.lessonsCompleted, 1);
+      // Unified evaluation ran after the authoritative writes: the first
+      // unique completed lesson unlocked course_journey tier 1.
+      expect(harness.achievementsService.state.isUnlocked('course_journey_001'),
+          isTrue);
 
       expect(harness.studyStatsProvider.activities, isNotEmpty);
       expect(harness.studyStatsProvider.activities.first.type,

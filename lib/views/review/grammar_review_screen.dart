@@ -6,6 +6,7 @@ import 'package:auto_route/annotations.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
+import 'package:turna/application/achievements/achievement_service.dart';
 import 'package:turna/application/game_provider.dart';
 import 'package:turna/application/gems_provider.dart';
 import 'package:turna/application/grammar_review_provider.dart';
@@ -159,6 +160,14 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
           );
     } catch (e) {
       debugPrint('Error recording grammar study stats: $e');
+    }
+
+    // Achievement evaluation after the authoritative writes above.
+    try {
+      await getIt<AchievementService>()
+          .recordReviewSession(cardsAnswered: reviewedCount);
+    } catch (e) {
+      debugPrint('Error evaluating achievements: $e');
     }
   }
 

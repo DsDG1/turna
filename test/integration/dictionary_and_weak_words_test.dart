@@ -5,7 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
-import 'package:turna/application/achievements_provider.dart';
 import 'package:turna/application/accessibility_provider.dart';
 import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/course_provider.dart';
@@ -15,6 +14,7 @@ import 'package:turna/application/gems_provider.dart';
 import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/language_provider.dart';
 import '../helpers/in_memory_course_db.dart';
+import '../helpers/achievement_test_stack.dart';
 import 'package:turna/application/lesson_completion_coordinator.dart';
 import 'package:turna/application/lesson_link_store.dart';
 import 'package:turna/application/lesson_viewmodel.dart';
@@ -185,7 +185,7 @@ void main() {
       LessonCompletionCoordinator(
         game,
         GemsProvider(prefs),
-        AchievementsProvider(prefs),
+        AchievementTestStack.build(prefs).service,
         _FakeStudyStats(prefs),
       ),
     );

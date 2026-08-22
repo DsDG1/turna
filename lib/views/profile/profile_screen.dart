@@ -6,10 +6,9 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:turna/application/achievements_provider.dart';
+import 'package:turna/application/achievements/achievement_service.dart';
 import 'package:turna/application/fun_provider.dart';
-import 'package:turna/application/game_provider.dart';
-import 'package:turna/domain/game/user_game_state.dart';
+import 'package:turna/domain/achievements/achievement_catalog.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/home/components/profile_app_bar.dart';
@@ -22,7 +21,7 @@ import 'package:turna/views/theme.dart';
 /// duplicated counters (streak/XP/gems live in the Learn app bar) and the
 /// detailed stats/achievement lists moved to their own pages.
 class ProfilePage extends StatelessWidget {
-  const ProfilePage({Key? key}) : super(key: key);
+  const ProfilePage({Key? key});
 
   @override
   Widget build(BuildContext context) {
@@ -62,56 +61,60 @@ class _DetailPageEntries extends StatelessWidget {
     final showAllUnlocked = context.select<FunProvider, bool>(
       (provider) => provider.allAchievementsUnlocked,
     );
+    final achievements = context.watch<AchievementService>();
+    final total = AchievementCatalog.totalBadgeCount;
+    final unlocked = showAllUnlocked ? total : achievements.unlockedBadgeCount;
+    final nearComplete = showAllUnlocked
+        ? 0
+        : achievements
+            .progressViews()
+            .where((v) =>
+                !v.isSeriesComplete &&
+                v.nextTier != null &&
+                v.currentProgress > 0)
+            .length;
+    final hasUnseen = !showAllUnlocked && achievements.hasUnseenUnlocks;
 
-    return StreamBuilder<UserGameState>(
-      stream: context.read<GameProvider>().getUserGameStateStream(),
-      builder: (context, snapshot) {
-        final total = AchievementsProvider.allAchievements.length;
-        final unlocked = showAllUnlocked
-            ? total
-            : unlockedAchievementCount(
-                snapshot.data ?? UserGameState.empty,
-              );
-
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Container(
-            decoration: BoxDecoration(
-              color: TurnaTheme.cardBg(context),
-              borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-              border: Border.all(color: TurnaTheme.statCardBorder(context)),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        decoration: BoxDecoration(
+          color: TurnaTheme.cardBg(context),
+          borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+          border: Border.all(color: TurnaTheme.statCardBorder(context)),
+        ),
+        child: Column(
+          children: [
+            _EntryTile(
+              icon: Icons.insights_rounded,
+              iconColor: TurnaTheme.brandTeal,
+              title: AppStrings.profileLearningStatsTitle,
+              subtitle: AppStrings.profileStatsEntrySubtitle,
+              onTap: () =>
+                  context.router.push(const ReviewProgressRoute()),
             ),
-            child: Column(
-              children: [
-                _EntryTile(
-                  icon: Icons.insights_rounded,
-                  iconColor: TurnaTheme.brandTeal,
-                  title: AppStrings.profileLearningStatsTitle,
-                  subtitle: AppStrings.profileStatsEntrySubtitle,
-                  onTap: () =>
-                      context.router.push(const ReviewProgressRoute()),
-                ),
-                Divider(
-                  height: 1,
-                  indent: 16,
-                  endIndent: 16,
-                  color: TurnaTheme.dividerBg(context),
-                ),
-                _EntryTile(
-                  icon: Icons.military_tech_rounded,
-                  // Achievement section uses secondary brand clay (ADR 0033).
-                  iconColor: TurnaTheme.anatolianClay,
-                  title: AppStrings.profileAchievementsTitle,
-                  subtitle:
-                      AppStrings.profileAchievementsUnlocked(unlocked, total),
-                  onTap: () =>
-                      context.router.push(const AchievementsRoute()),
-                ),
-              ],
+            Divider(
+              height: 1,
+              indent: 16,
+              endIndent: 16,
+              color: TurnaTheme.dividerBg(context),
             ),
-          ),
-        );
-      },
+            _EntryTile(
+              icon: Icons.military_tech_rounded,
+              // Achievement section uses secondary brand clay (ADR 0033).
+              iconColor: TurnaTheme.anatolianClay,
+              title: AppStrings.profileAchievementsTitle,
+              subtitle: nearComplete > 0
+                  ? '${AppStrings.profileAchievementsBadgeCount(unlocked, total)} · '
+                      '${AppStrings.profileAchievementsNearComplete(nearComplete)}'
+                  : AppStrings.profileAchievementsBadgeCount(unlocked, total),
+              showUnseenDot: hasUnseen,
+              onTap: () =>
+                  context.router.push(const AchievementsRoute()),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -123,12 +126,16 @@ class _EntryTile extends StatelessWidget {
   final String subtitle;
   final VoidCallback onTap;
 
+  /// Warm clay dot marking unseen achievement unlocks.
+  final bool showUnseenDot;
+
   const _EntryTile({
     required this.icon,
     required this.iconColor,
     required this.title,
     required this.subtitle,
     required this.onTap,
+    this.showUnseenDot = false,
   });
 
   @override
@@ -156,11 +163,29 @@ class _EntryTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            fontWeight: FontWeight.w600,
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            title,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyLarge
+                                ?.copyWith(fontWeight: FontWeight.w600),
                           ),
+                        ),
+                        if (showUnseenDot) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              color: TurnaTheme.anatolianClay,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -168,6 +193,8 @@ class _EntryTile extends StatelessWidget {
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: TurnaTheme.textHintColor(context),
                           ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
