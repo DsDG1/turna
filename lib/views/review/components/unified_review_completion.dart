@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/profile/achievements/achievement_feedback_banner.dart';
 import 'package:turna/views/theme.dart';
+import 'package:turna/views/widgets/cosmetic_completion_badge.dart';
 
 /// Unified review completion summary screen.
 class UnifiedReviewCompletion extends StatelessWidget {
@@ -36,18 +37,10 @@ class UnifiedReviewCompletion extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: TurnaTheme.brandTeal.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.check_circle_rounded,
-                size: 48,
-                color: TurnaTheme.brandTeal,
-              ),
+            const CosmeticCompletionBadge(
+              fallbackIcon: Icons.check_circle_rounded,
+              fallbackColor: TurnaTheme.brandTeal,
+              iconSize: 48,
             ),
             const SizedBox(height: 24),
             Text(

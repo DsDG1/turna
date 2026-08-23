@@ -11,6 +11,7 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/home/components/stat_app_bar.dart';
 import 'package:turna/views/profile/achievements/achievement_feedback_banner.dart';
 import 'package:turna/views/theme.dart';
+import 'package:turna/views/widgets/cosmetic_completion_badge.dart';
 
 enum MasteryDialogResult { retry, back }
 
@@ -193,13 +194,11 @@ class _LessonCompletionSummary extends StatelessWidget {
         Stack(
           alignment: Alignment.bottomRight,
           children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: style.accent.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(style.icon, color: style.accent, size: 40),
+            CosmeticCompletionBadge(
+              fallbackIcon: style.icon,
+              fallbackColor: style.accent,
+              size: 72,
+              iconSize: 40,
             ),
             if (perfect)
               Container(

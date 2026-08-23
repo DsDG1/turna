@@ -9,12 +9,15 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
+import 'package:turna/application/accessibility_capabilities.dart';
 import 'package:turna/application/course_provider.dart';
+import 'package:turna/application/diagnostics/performance_trace.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/ai/ai_tutor_chat_provider.dart';
 import 'package:turna/application/playground/language_playground_eligibility.dart';
 import 'package:turna/application/playground/playground_content_source.dart';
 import 'package:turna/application/playground/playground_index.dart';
+import 'package:turna/application/playground/playground_index_cache.dart';
 import 'package:turna/application/playground/playground_models.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
@@ -158,6 +161,24 @@ class _LanguagePlaygroundPageState extends State<LanguagePlaygroundPage> {
     if (revision == _indexRevision && _availableModes.isNotEmpty) {
       return; // data unchanged since the last analysis
     }
+    final cached = PlaygroundIndexCache.instance.get(revision);
+    if (cached != null) {
+      PerformanceTrace.instance.record(
+        feature: 'playground',
+        operation: 'index',
+        duration: Duration.zero,
+        resultSize: cached.candidateCount,
+        cacheStatus: TraceCacheStatus.hit,
+      );
+      if (!mounted) return;
+      setState(() {
+        _availabilityLoading = false;
+        _availableModes = cached.availableModes;
+        _modeCounts = cached.counts;
+        _indexRevision = revision;
+      });
+      return;
+    }
     final epoch = ++_availabilityEpoch;
     if (mounted) setState(() => _availabilityLoading = true);
     final bundle = await PlaygroundContentSource(
@@ -168,6 +189,7 @@ class _LanguagePlaygroundPageState extends State<LanguagePlaygroundPage> {
     // one traversal — counts and startable modes can no longer disagree.
     final index = PlaygroundIndex.build(bundle);
     if (!mounted || epoch != _availabilityEpoch) return;
+    PlaygroundIndexCache.instance.put(revision, index);
     setState(() {
       _availabilityLoading = false;
       _availableModes = index.availableModes;
@@ -219,16 +241,19 @@ class _LanguagePlaygroundPageState extends State<LanguagePlaygroundPage> {
   }
 
   Widget _buildBody(BuildContext context) {
+    final focusMode = accessibilityOf(context).focusMode;
     return SafeArea(
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
         children: [
-          PlaygroundHero(
-            title: AppStrings.playgroundSmartStartTitle,
-            subtitle: AppStrings.playgroundSmartStartCaption,
-            onTap: () => _onModeTap(PlaygroundMode.smartMix), // P2: 接会话执行
-          ),
-          const SizedBox(height: 24),
+          if (!focusMode) ...[
+            PlaygroundHero(
+              title: AppStrings.playgroundSmartStartTitle,
+              subtitle: AppStrings.playgroundSmartStartCaption,
+              onTap: () => _onModeTap(PlaygroundMode.smartMix),
+            ),
+            const SizedBox(height: 24),
+          ],
           SectionTitle(title: AppStrings.playgroundContentScopeTitle),
           Wrap(
             spacing: 8,
@@ -266,30 +291,32 @@ class _LanguagePlaygroundPageState extends State<LanguagePlaygroundPage> {
                 ),
             ],
           ),
-          const SizedBox(height: 24),
-          SectionTitle(title: AppStrings.playgroundAiToolsTitle),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              _AiToolChip(
-                icon: Icons.help_outline_rounded,
-                label: AppStrings.playgroundAiToolQa,
-                onTap: () => _openAiTool(AiTutorChatMode.qa),
-              ),
-              const SizedBox(width: 8),
-              _AiToolChip(
-                icon: Icons.spellcheck_rounded,
-                label: AppStrings.playgroundAiToolSentence,
-                onTap: () => _openAiTool(AiTutorChatMode.sentenceCheck),
-              ),
-              const SizedBox(width: 8),
-              _AiToolChip(
-                icon: Icons.theater_comedy_outlined,
-                label: AppStrings.playgroundAiToolRoleplay,
-                onTap: () => _openAiTool(AiTutorChatMode.roleplay),
-              ),
-            ],
-          ),
+          if (!focusMode) ...[
+            const SizedBox(height: 24),
+            SectionTitle(title: AppStrings.playgroundAiToolsTitle),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                _AiToolChip(
+                  icon: Icons.help_outline_rounded,
+                  label: AppStrings.playgroundAiToolQa,
+                  onTap: () => _openAiTool(AiTutorChatMode.qa),
+                ),
+                const SizedBox(width: 8),
+                _AiToolChip(
+                  icon: Icons.spellcheck_rounded,
+                  label: AppStrings.playgroundAiToolSentence,
+                  onTap: () => _openAiTool(AiTutorChatMode.sentenceCheck),
+                ),
+                const SizedBox(width: 8),
+                _AiToolChip(
+                  icon: Icons.theater_comedy_outlined,
+                  label: AppStrings.playgroundAiToolRoleplay,
+                  onTap: () => _openAiTool(AiTutorChatMode.roleplay),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -403,9 +430,7 @@ class _ModeTile extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  !available
-                      ? AppStrings.playgroundComingSoon
-                      : countText,
+                  !available ? AppStrings.playgroundComingSoon : countText,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(

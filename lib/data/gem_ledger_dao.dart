@@ -21,6 +21,12 @@ enum GemPurchaseResult {
   insufficientFunds,
 }
 
+enum GemConsumablePurchaseResult {
+  success,
+  insufficientFunds,
+  monthlyLimitReached,
+}
+
 /// Ledger row kinds (Plan 2 §8.4): append-only facts about the gem economy.
 enum GemLedgerKind { earn, spend, refund, migration, adjustment }
 
@@ -40,14 +46,18 @@ class GemLedgerDao {
 
   static const String openingBalanceTxId = 'migration_opening_balance_v1';
   static const String openingBalanceEventId = 'gem.migration.opening';
+  static const String streakVoucherItemId = 'voucher_streak';
 
   /// Committed ledger balance: opening + every committed event. This is the
   /// auditable projection; the UI wallet ([GemsProvider]) mirrors it.
   Future<int> projectedBalance() async {
-    final rows = await _db.customSelect(
+    final rows = await _db
+        .customSelect(
       'SELECT COALESCE(SUM(amount), 0) AS total FROM gem_ledger '
-      "WHERE status = 'committed'",
-    ).get();
+      "WHERE status = 'committed' AND NOT "
+      "(item_id = '$streakVoucherItemId' AND reason LIKE 'voucher:%')",
+        )
+        .get();
     return rows.first.read<int>('total');
   }
 
@@ -66,6 +76,116 @@ class GemLedgerDao {
     return rows.map((r) => r.read<String>('item_id')).toSet();
   }
 
+  /// Consumable inventory projection. Voucher facts are excluded from the gem
+  /// balance projection above, while their signed amount projects inventory.
+  Future<int> streakVoucherBalance() async {
+    final rows = await _db.customSelect(
+      'SELECT COALESCE(SUM(amount), 0) AS total FROM gem_ledger '
+      'WHERE status = \'committed\' AND item_id = ? '
+      "AND reason LIKE 'voucher:%'",
+      variables: [Variable.withString(streakVoucherItemId)],
+    ).get();
+    return rows.single.read<int>('total');
+  }
+
+  Future<int> streakVoucherPurchasesInMonth(DateTime month) async {
+    final local = month.toLocal();
+    final from = DateTime(local.year, local.month);
+    final to = DateTime(local.year, local.month + 1);
+    final rows = await _db.customSelect(
+      'SELECT COUNT(*) AS n FROM gem_ledger '
+      'WHERE status = \'committed\' AND item_id = ? '
+      "AND reason = 'voucher:purchase' AND created_at >= ? AND created_at < ?",
+      variables: [
+        Variable.withString(streakVoucherItemId),
+        Variable.withInt(from.millisecondsSinceEpoch),
+        Variable.withInt(to.millisecondsSinceEpoch),
+      ],
+    ).get();
+    return rows.single.read<int>('n');
+  }
+
+  /// Atomically charges gems and grants one streak voucher.
+  Future<GemConsumablePurchaseResult> purchaseStreakVoucher({
+    required int price,
+    required int currentBalance,
+    required int monthlyLimit,
+    String? idempotencyKey,
+    DateTime? purchasedAt,
+  }) async {
+    final now = purchasedAt ?? DateTime.now();
+    final txId = idempotencyKey ?? 'voucher-purchase-${_randomId()}';
+    if (await _transactionExists(txId)) {
+      return GemConsumablePurchaseResult.success;
+    }
+    if (currentBalance < price) {
+      return GemConsumablePurchaseResult.insufficientFunds;
+    }
+    late GemConsumablePurchaseResult outcome;
+    await _db.transaction(() async {
+      if (await streakVoucherPurchasesInMonth(now) >= monthlyLimit) {
+        outcome = GemConsumablePurchaseResult.monthlyLimitReached;
+        return;
+      }
+      final createdAt = now.millisecondsSinceEpoch;
+      await _db.customStatement(
+        'INSERT INTO gem_ledger '
+        '(transaction_id, event_id, kind, amount, reason, item_id, '
+        ' created_at, status) VALUES (?, NULL, ?, ?, ?, NULL, ?, '
+        " 'committed')",
+        [
+          txId,
+          GemLedgerKind.spend.name,
+          -price,
+          'purchase:$streakVoucherItemId',
+          createdAt,
+        ],
+      );
+      await _db.customStatement(
+        'INSERT INTO gem_ledger '
+        '(transaction_id, event_id, kind, amount, reason, item_id, '
+        ' created_at, status) VALUES (?, ?, ?, 1, ?, ?, ?, '
+        " 'committed')",
+        [
+          '$txId:grant',
+          '$txId:grant',
+          GemLedgerKind.earn.name,
+          'voucher:purchase',
+          streakVoucherItemId,
+          createdAt,
+        ],
+      );
+      outcome = GemConsumablePurchaseResult.success;
+    });
+    return outcome;
+  }
+
+  Future<bool> grantStreakVoucher({
+    required String eventId,
+    String reason = 'voucher:grant',
+  }) =>
+      record(
+        kind: GemLedgerKind.earn,
+        amount: 1,
+        reason: reason,
+        eventId: eventId,
+        itemId: streakVoucherItemId,
+      );
+
+  /// Consumes at most one voucher for a local day.
+  Future<bool> consumeStreakVoucher({required String localDay}) async {
+    final eventId = 'voucher:use:$localDay';
+    if (await _eventExists(eventId)) return false;
+    if (await streakVoucherBalance() <= 0) return false;
+    return record(
+      kind: GemLedgerKind.spend,
+      amount: -1,
+      reason: 'voucher:use',
+      eventId: eventId,
+      itemId: streakVoucherItemId,
+    );
+  }
+
   /// Append an earn/refund/adjustment event, idempotent per [eventId].
   /// Returns false when [eventId] already exists (double-credit guard).
   Future<bool> record({
@@ -76,8 +196,7 @@ class GemLedgerDao {
     String? itemId,
     String? transactionId,
   }) async {
-    final txId =
-        transactionId ?? eventId ?? 'tx-${_randomId()}';
+    final txId = transactionId ?? eventId ?? 'tx-${_randomId()}';
     try {
       await _db.customStatement(
         'INSERT INTO gem_ledger '
@@ -129,7 +248,14 @@ class GemLedgerDao {
           '(transaction_id, event_id, kind, amount, reason, item_id, '
           ' created_at, status) VALUES (?, NULL, ?, ?, ?, ?, ?, '
           " 'committed')",
-          [txId, GemLedgerKind.spend.name, -price, 'purchase:$itemId', itemId, now],
+          [
+            txId,
+            GemLedgerKind.spend.name,
+            -price,
+            'purchase:$itemId',
+            itemId,
+            now
+          ],
         );
         await _db.customStatement(
           'INSERT OR IGNORE INTO cosmetic_entitlements '
@@ -196,13 +322,10 @@ class GemLedgerDao {
       );
     }
 
-    final projected = await projectedBalance();
-    if (projected != prefsBalance) {
-      // Ledger projection diverged (e.g. partial earlier migration with a
-      // different opening). Report failure; caller keeps the shop read-only
-      // rather than double-crediting.
-      return false;
-    }
+    // The projection may legitimately differ after later earn/spend rows or
+    // after restoring a prefs snapshot over an existing database. The wallet
+    // owner performs reconciliation; migration only proves its fixed opening
+    // row and entitlement rows exist.
     return true;
   }
 
@@ -212,6 +335,14 @@ class GemLedgerDao {
       variables: [Variable.withString(txId)],
     ).get();
     return (rows.first.read<int>('n')) > 0;
+  }
+
+  Future<bool> _eventExists(String eventId) async {
+    final rows = await _db.customSelect(
+      'SELECT COUNT(*) AS n FROM gem_ledger WHERE event_id = ?',
+      variables: [Variable.withString(eventId)],
+    ).get();
+    return rows.single.read<int>('n') > 0;
   }
 
   static String _randomId() {

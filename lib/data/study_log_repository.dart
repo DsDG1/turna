@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
+import 'package:turna/application/diagnostics/storage_write_telemetry.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/domain/repositories/i_study_log_repository.dart';
 import 'package:turna/domain/study/daily_stats.dart';
@@ -173,9 +174,9 @@ class StudyLogRepository implements IStudyLogRepository {
   Future<void> clearAll() async {
     await _enqueueWrite(() async {
       _invalidateMergedLogs();
-      await appPrefs.preferences.setString(_logsKey, '[]');
-      await appPrefs.preferences.setString(_recentKey, '[]');
-      await appPrefs.preferences.setString(_dailyStatsKey, '{}');
+      await _writeString(_logsKey, '[]');
+      await _writeString(_recentKey, '[]');
+      await _writeString(_dailyStatsKey, '{}');
       _dailyStatsCache = <String, DailyStudyStats>{};
     });
   }
@@ -297,12 +298,12 @@ class StudyLogRepository implements IStudyLogRepository {
 
   Future<void> _writeMainLogs(List<StudyLog> logs) async {
     final encoded = jsonEncode(logs.map((l) => l.toJson()).toList());
-    await appPrefs.preferences.setString(_logsKey, encoded);
+    await _writeString(_logsKey, encoded);
   }
 
   Future<void> _writeRecentLogs(List<StudyLog> logs) async {
     final encoded = jsonEncode(logs.map((l) => l.toJson()).toList());
-    await appPrefs.preferences.setString(_recentKey, encoded);
+    await _writeString(_recentKey, encoded);
   }
 
   Future<void> _mergeRecentIntoMain(List<StudyLog> recent) async {
@@ -318,7 +319,7 @@ class StudyLogRepository implements IStudyLogRepository {
       ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
     _purgeOldLogs(merged);
     await _writeMainLogs(merged);
-    await appPrefs.preferences.setString(_recentKey, '[]');
+    await _writeString(_recentKey, '[]');
   }
 
   void _purgeOldLogs(List<StudyLog> logs) {
@@ -362,10 +363,21 @@ class StudyLogRepository implements IStudyLogRepository {
     final encoded = jsonEncode(
       all.map((k, v) => MapEntry(k, v.toJson())),
     );
-    await appPrefs.preferences.setString(_dailyStatsKey, encoded);
+    await _writeString(_dailyStatsKey, encoded);
     // `all` was the cached object; keep it as the fresh cache so back-to-back
     // reads after a write don't re-decode.
     _dailyStatsCache = all;
+  }
+
+  Future<void> _writeString(String key, String encoded) async {
+    final stopwatch = Stopwatch()..start();
+    await appPrefs.preferences.setString(key, encoded);
+    stopwatch.stop();
+    StorageWriteTelemetry.instance.record(
+      key: key,
+      estimatedBytes: utf8.encode(encoded).length,
+      elapsed: stopwatch.elapsed,
+    );
   }
 
   static String _dateKey(DateTime d) =>

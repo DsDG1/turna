@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 // Project imports:
 import 'package:turna/application/ai/ai_explain_prefs.dart';
+import 'package:turna/application/accessibility_capabilities.dart';
 import 'package:turna/views/theme.dart';
 
 /// Horizontal wrap of quick-follow-up chips. Tapping calls [onChip] with the
@@ -21,6 +22,9 @@ class AiQuickChipsBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (accessibilityOf(context).focusMode) {
+      return const SizedBox.shrink();
+    }
     final chips = AiQuickChips.forContext(hasUserAnswer: hasUserAnswer);
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,

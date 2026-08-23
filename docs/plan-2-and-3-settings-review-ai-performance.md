@@ -2643,6 +2643,12 @@ play_hub golden 因 AI 助手入口改版已按新 UI 重新生成。
 
 ### 35.4 下一轮优先级建议
 
+> 代码级遗留项已整理为独立施工计划：
+> [plan-2-and-3-round2-remaining-features.md](./plan-2-and-3-round2-remaining-features.md)
+> （R1–R11：宝石 earn 入账、装扮与保护券、洞察聚合、AI 流式收尾、
+> 磁盘缓存退场、写放大/缓存注册/内存口径、trace、无障碍审计、
+> 备份演练、source identity 替换）。
+
 1. 真机性能基线（P3-0/P3-9）：Android 中低端机型 + profile 构建，先采
    §24 预算的 before 数据；
 2. 洞察页聚合优化（P3-3 收尾）：固定桶查询 + 365 日热力图不加载全量事件；

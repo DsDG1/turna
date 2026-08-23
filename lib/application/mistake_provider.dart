@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
+import 'package:turna/application/diagnostics/storage_write_telemetry.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/domain/course/mistake_entry.dart';
 import 'package:turna/service/locator.dart';
@@ -156,7 +157,14 @@ class MistakeProvider extends ChangeNotifier {
 
   Future<void> _persist(List<MistakeEntry> list) async {
     final encoded = jsonEncode(list.map((e) => e.toJson()).toList());
+    final stopwatch = Stopwatch()..start();
     await appPrefs.preferences.setString(_prefsKey, encoded);
+    stopwatch.stop();
+    StorageWriteTelemetry.instance.record(
+      key: _prefsKey,
+      estimatedBytes: utf8.encode(encoded).length,
+      elapsed: stopwatch.elapsed,
+    );
     _cached = list;
     _cachedView = null; // invalidate; next entries call rebuilds the view
     notifyListeners();

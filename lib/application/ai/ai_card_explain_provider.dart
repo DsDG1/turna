@@ -1,9 +1,9 @@
 // Flutter imports:
-import 'package:flutter/foundation.dart';
-
 // Project imports:
+import 'package:turna/application/ai/ai_card_context_resolver.dart';
 import 'package:turna/application/ai/ai_error_mapper.dart';
 import 'package:turna/application/ai/ai_explain_prefs.dart';
+import 'package:turna/application/ai/ai_streaming_session_base.dart';
 import 'package:turna/application/ai/engine/ai_cancel_token.dart';
 import 'package:turna/application/ai/engine/ai_engine.dart';
 import 'package:turna/application/ai/engine/ai_engine_config.dart';
@@ -14,7 +14,7 @@ enum AiCardExplainState { idle, loading, ready, error }
 
 /// Secondary "explain this card" path for SRS / Anki review.
 /// Does not alter scoring, notes, or Anki mapping.
-class AiCardExplainProvider extends ChangeNotifier {
+class AiCardExplainProvider extends AiStreamingSessionBase {
   AiCardExplainProvider({
     AiEngine? engine,
     AiExplainPrefsStore? prefs,
@@ -36,50 +36,41 @@ class AiCardExplainProvider extends ChangeNotifier {
   String? _explanation;
   String? get explanation => _explanation;
 
-  AiCancelToken? _cancelToken;
-  int _generation = 0;
+  @override
+  void applyStreamingBatch(String batch) {
+    _explanation = (_explanation ?? '') + batch;
+  }
 
   void clear() {
-    _cancelToken?.cancel();
-    _cancelToken = null;
-    _generation++;
+    if (isSessionDisposed) return;
+    abandonStreamingSession();
     _explanation = null;
     _error = null;
     _state = AiCardExplainState.idle;
-    notifyListeners();
+    notifySessionListeners();
   }
 
   void cancel() {
-    if (_state != AiCardExplainState.loading) return;
-    _cancelToken?.cancel();
-    _cancelToken = null;
+    if (isSessionDisposed || _state != AiCardExplainState.loading) return;
+    cancelStreamingSession();
     _state = AiCardExplainState.idle;
-    notifyListeners();
+    notifySessionListeners();
   }
 
-  /// Explain a review card. [front] / [back] are already-mapped display fields.
+  /// Explain a review card using the sole sanitized/reveal-gated context
+  /// produced by [AiCardContextResolver].
   Future<String?> explain({
     required AiEngineConfig config,
-    required String language,
-    required String front,
-    String? back,
-    String source = 'review',
+    required AiCardContext context,
   }) async {
-    _cancelToken?.cancel();
-    _generation++;
-    final gen = _generation;
-    final token = AiCancelToken();
-    _cancelToken = token;
+    if (isSessionDisposed || !context.supported) return null;
+    final session = beginStreamingSession();
     _error = null;
     _explanation = null;
     _state = AiCardExplainState.loading;
-    notifyListeners();
+    notifySessionListeners();
 
-    final buf = StringBuffer()
-      ..writeln('Front: $front');
-    if (back != null && back.trim().isNotEmpty) {
-      buf.writeln('Back: $back');
-    }
+    final language = context.language ?? 'the target language';
 
     try {
       final result = await _engine.chat(
@@ -87,8 +78,7 @@ class AiCardExplainProvider extends ChangeNotifier {
         messages: <Map<String, dynamic>>[
           {
             'role': 'system',
-            'content':
-                'You are a language-learning companion for $language. '
+            'content': 'You are a language-learning companion for $language. '
                 '${_prefs.snapshot.toSystemPromptRules()}\n'
                 'Explain this flashcard briefly to help understanding. '
                 'Do not change or "correct" the card answer keys. '
@@ -97,39 +87,37 @@ class AiCardExplainProvider extends ChangeNotifier {
           },
           {
             'role': 'user',
-            'content': 'Please explain this review card:\n$buf',
+            'content': 'Please explain this review card:\n'
+                '${context.toPromptBlock()}',
           },
         ],
-        cancelToken: token,
-        onChunk: (delta) {
-          if (gen != _generation) return;
-          if (delta.isEmpty) return;
-          _explanation = (_explanation ?? '') + delta;
-          notifyListeners();
-        },
+        cancelToken: session.cancelToken,
+        onChunk: (delta) => addStreamingDelta(session, delta),
       );
-      if (gen != _generation) return null;
+      flushStreamingSession(session);
+      if (!isCurrentSession(session)) return null;
       if ((_explanation == null || _explanation!.isEmpty) &&
           result.content.isNotEmpty) {
         _explanation = result.content;
       }
       _state = AiCardExplainState.ready;
-      notifyListeners();
+      notifySessionListeners();
       return _explanation;
     } on AiCancelled {
-      if (gen != _generation) return null;
+      if (!isCurrentSession(session)) return null;
+      flushStreamingSession(session);
       _state = AiCardExplainState.idle;
-      notifyListeners();
+      notifySessionListeners();
       return _explanation;
     } catch (e) {
-      if (gen != _generation) return null;
+      if (!isCurrentSession(session)) return null;
       logger.w('AiCardExplainProvider.explain failed: $e');
       _error = AiErrorMapper.map(e).message;
       _state = AiCardExplainState.error;
-      notifyListeners();
+      notifySessionListeners();
       return null;
     } finally {
-      if (identical(_cancelToken, token)) _cancelToken = null;
+      finishStreamingSession(session);
     }
   }
 }

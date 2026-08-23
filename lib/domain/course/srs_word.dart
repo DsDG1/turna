@@ -7,6 +7,10 @@ part 'srs_word.g.dart';
 /// Type of item tracked in the SRS queue.
 enum SrsItemType { word, expression }
 
+/// Persisted source ownership for review statistics. Values are stable SQLite
+/// wire names; do not rename existing enum cases.
+enum SrsSourceKind { course, grammar, ankiLegacy, ankiOfficial }
+
 /// Spaced-repetition state for a [WordEntry] or [Expression]. Persisted per-id.
 ///
 /// Scheduling is FSRS by default (ADR 0028): [stability] / [difficulty] are
@@ -33,6 +37,12 @@ abstract class SrsWord with _$SrsWord {
     @Default(false) bool isSuspended,
     @Default(false) bool isBuried,
     @Default(SrsItemType.word) SrsItemType type,
+
+    /// Explicit identity used by dashboard/insights. Card ids remain opaque
+    /// scheduling keys and must never be parsed to recover these fields.
+    @Default(SrsSourceKind.course) SrsSourceKind sourceKind,
+    @Default('course') String sourceId,
+    String? ownerId,
 
     /// Wall-clock time of the most recent review (null for never-reviewed
     /// cards). Used with [stability] for \(R(t)\) without a DB join.

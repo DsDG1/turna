@@ -6,8 +6,14 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
+import 'package:turna/application/accessibility_capabilities.dart';
+import 'package:turna/application/review_dashboard/insights_repository.dart';
+import 'package:turna/application/review_dashboard/review_data_revision.dart';
 import 'package:turna/application/review_progress_provider.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/data/review_history_dao.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/profile/widgets/learning_stats.dart';
 import 'package:turna/views/review/components/retention_curve_chart.dart';
 import 'package:turna/views/theme.dart';
@@ -34,21 +40,33 @@ class _LearningInsightsPageState extends State<LearningInsightsPage> {
   ReviewProgressFilter _filter = const ReviewProgressFilter();
   Future<ReviewProgressSnapshot>? _future;
   ReviewProgressSnapshot? _lastData;
+  late final InsightsRepository _repository;
 
   @override
   void initState() {
     super.initState();
+    _repository = InsightsRepository(
+      context.read<ReviewProgressProvider>(),
+      getIt<ReviewDataRevision>(),
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _reload();
     });
   }
 
   void _reload() {
-    final provider = context.read<ReviewProgressProvider>();
     setState(() {
-      _future = provider.snapshot(_filter);
+      _future = _repository.load(_query);
     });
   }
+
+  InsightsQuery get _query => InsightsQuery(
+        range: _filter.eventRange,
+        source: _filter.source,
+        type: _filter.type,
+        maturity: _filter.maturity,
+        due: _filter.due,
+      );
 
   void _setFilter(ReviewProgressFilter next) {
     _filter = next;
@@ -73,13 +91,13 @@ class _LearningInsightsPageState extends State<LearningInsightsPage> {
           if (data == null) {
             return const Center(child: CircularProgressIndicator());
           }
-          final refreshing =
-              snap.connectionState == ConnectionState.waiting;
+          final refreshing = snap.connectionState == ConnectionState.waiting;
+          final focusMode = accessibilityOf(context).focusMode;
           return RefreshIndicator(
             color: TurnaTheme.brandTeal,
             onRefresh: () async {
-              final provider = context.read<ReviewProgressProvider>();
-              final next = await provider.snapshot(_filter);
+              _repository.invalidate();
+              final next = await _repository.load(_query);
               if (mounted) {
                 setState(() {
                   _lastData = next;
@@ -93,8 +111,7 @@ class _LearningInsightsPageState extends State<LearningInsightsPage> {
               ),
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
               children: [
-                if (refreshing)
-                  const LinearProgressIndicator(minHeight: 2),
+                if (refreshing) const LinearProgressIndicator(minHeight: 2),
                 _FilterPanel(
                   filter: _filter,
                   sources: data.availableSources,
@@ -109,15 +126,22 @@ class _LearningInsightsPageState extends State<LearningInsightsPage> {
                   onRangeChanged: (r) =>
                       _setFilter(_filter.copyWith(eventRange: r)),
                 ),
-                const SizedBox(height: 24),
-                StudyStatsSection(),
                 const SizedBox(height: 16),
-                _SourceList(
-                  rows: data.bySource,
-                  selected: _filter.source,
-                  onSelect: (src) =>
-                      _setFilter(_filter.copyWith(source: src)),
-                ),
+                ReviewActivityHeatmap(rows: data.activity),
+                if (!focusMode) ...[
+                  const SizedBox(height: 24),
+                  StudyStatsSection(),
+                  const SizedBox(height: 16),
+                  _SourceList(
+                    rows: data.bySource,
+                    selected: _filter.source,
+                    onSelect: (src) =>
+                        _setFilter(_filter.copyWith(source: src)),
+                    onOpen: (src) => context.router.push(
+                      ReviewSourceDetailRoute(source: src),
+                    ),
+                  ),
+                ],
               ],
             ),
           );
@@ -405,7 +429,87 @@ class _CurveCard extends StatelessWidget {
         return AppStrings.reviewProgressRange30;
       case EventRange.d90:
         return AppStrings.reviewProgressRange90;
+      case EventRange.d365:
+        return '365 天';
     }
+  }
+}
+
+class ReviewActivityHeatmap extends StatelessWidget {
+  const ReviewActivityHeatmap({super.key, required this.rows});
+
+  final List<ActivityBucketRow> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    final activeDays = rows.where((row) => row.reviewedCount > 0).length;
+    final reviews = rows.fold<int>(0, (sum, row) => sum + row.reviewedCount);
+    final maxCount = rows.fold<int>(
+      1,
+      (largest, row) =>
+          row.reviewedCount > largest ? row.reviewedCount : largest,
+    );
+    final summary = '过去 365 天有 $activeDays 个活跃日，共完成 $reviews 次复习';
+    return Semantics(
+      container: true,
+      explicitChildNodes: true,
+      label: summary,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: TurnaTheme.cardBg(context),
+          borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+          border: Border.all(color: TurnaTheme.statCardBorder(context)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '学习热力图',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 4),
+            Text(summary, style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 3,
+              runSpacing: 3,
+              children: [
+                for (final row in rows)
+                  Semantics(
+                    label: '${row.bucket}：${row.reviewedCount} 次复习',
+                    child: Tooltip(
+                      message: '${row.bucket} · ${row.reviewedCount}',
+                      child: Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: row.reviewedCount == 0
+                              ? TurnaTheme.dividerBg(context)
+                              : TurnaTheme.brandTeal.withValues(
+                                  alpha:
+                                      0.3 + 0.7 * row.reviewedCount / maxCount,
+                                ),
+                          border: Border.all(
+                            color: row.reviewedCount == 0
+                                ? TurnaTheme.textHintColor(context)
+                                : TurnaTheme.textPrimaryColor(context),
+                            width: row.reviewedCount == 0 ? 0.5 : 1,
+                          ),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -415,11 +519,13 @@ class _SourceList extends StatelessWidget {
   final List<SourceProgressRow> rows;
   final ReviewSource selected;
   final ValueChanged<ReviewSource> onSelect;
+  final ValueChanged<ReviewSource> onOpen;
 
   const _SourceList({
     required this.rows,
     required this.selected,
     required this.onSelect,
+    required this.onOpen,
   });
 
   @override
@@ -458,6 +564,7 @@ class _SourceList extends StatelessWidget {
                 row: rows[i],
                 selected: selected.id == rows[i].source.id,
                 onTap: () => onSelect(rows[i].source),
+                onOpen: () => onOpen(rows[i].source),
               ),
             ],
         ],
@@ -470,11 +577,13 @@ class _SourceTile extends StatelessWidget {
   final SourceProgressRow row;
   final bool selected;
   final VoidCallback onTap;
+  final VoidCallback onOpen;
 
   const _SourceTile({
     required this.row,
     required this.selected,
     required this.onTap,
+    required this.onOpen,
   });
 
   IconData get _icon {
@@ -485,6 +594,8 @@ class _SourceTile extends StatelessWidget {
         return Icons.menu_book_rounded;
       case ReviewSourceKind.ankiDeck:
         return Icons.style_rounded;
+      case ReviewSourceKind.ankiOfficial:
+        return Icons.collections_bookmark_rounded;
       case ReviewSourceKind.all:
         return Icons.layers_rounded;
     }
@@ -544,6 +655,11 @@ class _SourceTile extends StatelessWidget {
                         fontWeight: FontWeight.w800,
                         color: TurnaTheme.brandTeal,
                       ),
+                ),
+                IconButton(
+                  tooltip: '查看来源详情',
+                  onPressed: onOpen,
+                  icon: const Icon(Icons.chevron_right_rounded),
                 ),
               ],
             ),

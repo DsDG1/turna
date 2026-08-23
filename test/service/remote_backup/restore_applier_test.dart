@@ -105,10 +105,10 @@ void main() {
     }
     // core.zip rides along in staging; the applier ignores it.
     if (newerSchema) {
-      final metaFile = File(
-          p.join(RestoreStagingLayout.root(appSupport).path, 'meta.json'));
-      final meta = jsonDecode(metaFile.readAsStringSync())
-          as Map<String, dynamic>;
+      final metaFile =
+          File(p.join(RestoreStagingLayout.root(appSupport).path, 'meta.json'));
+      final meta =
+          jsonDecode(metaFile.readAsStringSync()) as Map<String, dynamic>;
       meta['driftSchema'] = 99;
       metaFile.writeAsStringSync(jsonEncode(meta));
       // meta.json is covered by SHA256SUMS — recompute the sums file.
@@ -120,8 +120,6 @@ void main() {
             createdAtUtc: snapshot.meta.createdAtUtc,
             sourceAppVersion: snapshot.meta.appVersion));
   }
-
-
 
   setUp(() async {
     tmp = await Directory.systemTemp.createTemp('turna_restore_applier');
@@ -152,7 +150,7 @@ void main() {
         appSupport: appSupport,
         appDocuments: appDocuments,
         officialProfileRoot: profileRoot,
-        currentDriftSchema: 18,
+        currentDriftSchema: 20,
         currentCatalogSchema: 8,
       );
 
@@ -162,13 +160,13 @@ void main() {
     expect(appDocuments.listSync(), isEmpty);
   });
 
-  test('applied: databases replaced, media placed, prefs written, staging '
+  test(
+      'applied: databases replaced, media placed, prefs written, staging '
       'cleaned', () async {
     await stageRestore();
     // Diverge the local state the restore must overwrite.
     await prefs.preferences.setInt('game.score', 1);
-    File(p.join(appDocuments.path, 'course.db'))
-        .writeAsBytesSync([9, 9, 9, 9]);
+    File(p.join(appDocuments.path, 'course.db')).writeAsBytesSync([9, 9, 9, 9]);
     File(p.join(appDocuments.path, 'course.db-wal')).writeAsBytesSync([1]);
 
     final outcome = await buildApplier().applyIfPending();
@@ -178,11 +176,11 @@ void main() {
         mode: sql.OpenMode.readOnly);
     expect(
       course.select('PRAGMA user_version').first['user_version'],
-      18,
+      20,
     );
     course.dispose();
-    expect(File(p.join(appDocuments.path, 'course.db-wal')).existsSync(),
-        isFalse,
+    expect(
+        File(p.join(appDocuments.path, 'course.db-wal')).existsSync(), isFalse,
         reason: 'stale WAL must not survive a restore');
 
     final collection = sql.sqlite3.open(
@@ -191,8 +189,10 @@ void main() {
     expect(collection.select('SELECT x FROM t').first['x'], 'collection.anki2');
     collection.dispose();
 
-    expect(File(p.join(appDocuments.path, 'anki_media', 'imp1', 'a.mp3'))
-        .readAsBytesSync(), [4, 5, 6]);
+    expect(
+        File(p.join(appDocuments.path, 'anki_media', 'imp1', 'a.mp3'))
+            .readAsBytesSync(),
+        [4, 5, 6]);
     expect(
         File(p.join(profileRoot.path, 'collection.media', 'a.png'))
             .readAsBytesSync(),
@@ -212,6 +212,14 @@ void main() {
               defaultValue: '')
           .getValue(),
       isNotEmpty,
+    );
+    expect(
+      prefs.preferences
+          .getBool(LocalStateKeys.remoteBackupNormalizationPending,
+              defaultValue: false)
+          .getValue(),
+      isTrue,
+      reason: 'normalization runs after the restored database is reopened',
     );
     expect(
       prefs.preferences

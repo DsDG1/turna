@@ -5,12 +5,12 @@ import 'package:flutter/foundation.dart';
 import 'package:turna/application/ai/ai_course_spec.dart';
 import 'package:turna/application/ai/ai_error_mapper.dart';
 import 'package:turna/application/ai/ai_explain_prefs.dart';
+import 'package:turna/application/ai/ai_streaming_session_base.dart';
 import 'package:turna/application/ai/engine/ai_cancel_token.dart';
 import 'package:turna/application/ai/engine/ai_engine.dart';
 import 'package:turna/application/ai/engine/ai_engine_config.dart';
 import 'package:turna/application/ai/engine/ai_recent_tasks_provider.dart';
 import 'package:turna/application/ai/learner_ai_context.dart';
-import 'package:turna/application/ai/stream_delta_coalescer.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/di/injection.dart';
 
@@ -21,7 +21,7 @@ enum AiTutorChatState { idle, loading, ready, error }
 
 /// Free companion chat: Q&A / sentence-check / role-play. Streams text only;
 /// never parses or saves course section JSON.
-class AiTutorChatProvider extends ChangeNotifier {
+class AiTutorChatProvider extends AiStreamingSessionBase {
   AiTutorChatProvider({
     AiEngine? engine,
     AiExplainPrefsStore? prefs,
@@ -50,50 +50,22 @@ class AiTutorChatProvider extends ChangeNotifier {
   String get language => _language;
 
   LearnerAiContext? _learnerContext;
-  int _generation = 0;
-  AiCancelToken? _cancelToken;
-
-  bool _disposed = false;
-
-  /// Increments once per coalesced UI batch while an answer streams. Pages
-  /// use it to rebuild ONLY the streaming bubble (Plan 3 §21.2), not the
-  /// whole shell.
-  int _streamingRevision = 0;
-  int get streamingRevision => _streamingRevision;
-
-  /// Batches network chunks to ≤1 notify per ~80 ms (Plan 3 §21.1). Created
-  /// per ask() call so a finished stream's buffer can never leak into the
-  /// next one.
-  StreamDeltaCoalescer? _coalescer;
-
-  StreamDeltaCoalescer _newCoalescer() => StreamDeltaCoalescer(
-        interval: const Duration(milliseconds: 80),
-        onBatch: (batch) {
-          if (_disposed) return;
-          final m = _messages;
-          if (m.isEmpty || m.last.role != 'assistant') return;
-          m[m.length - 1] = AiChatMessage(
-            role: 'assistant',
-            content: m.last.content + batch,
-          );
-          _streamingRevision++;
-          notifyListeners();
-        },
-      );
+  int _streamingAssistantIndex = -1;
 
   @override
-  void dispose() {
-    // Unified cancel contract (Plan 3 §18.7/§21.4): stop the in-flight
-    // request, drop pending batches, and make any late callback inert.
-    _disposed = true;
-    _cancelToken?.cancel();
-    _cancelToken = null;
-    _coalescer?.cancel();
-    super.dispose();
+  void applyStreamingBatch(String batch) {
+    final index = _streamingAssistantIndex;
+    if (index < 0 || index >= _messages.length) return;
+    final current = _messages[index];
+    if (current.role != 'assistant') return;
+    _messages[index] = AiChatMessage(
+      role: 'assistant',
+      content: current.content + batch,
+    );
   }
 
   void setMode(AiTutorChatMode mode) {
-    if (_mode == mode || _disposed) return;
+    if (_mode == mode || isSessionDisposed) return;
     _mode = mode;
     notifyListeners();
   }
@@ -107,23 +79,20 @@ class AiTutorChatProvider extends ChangeNotifier {
   }
 
   void reset() {
-    if (_disposed) return;
-    _cancelToken?.cancel();
-    _cancelToken = null;
-    _generation++;
+    if (isSessionDisposed) return;
+    abandonStreamingSession();
     _messages.clear();
     _state = AiTutorChatState.idle;
     _error = null;
-    notifyListeners();
+    notifySessionListeners();
   }
 
   /// Stop generation; keep any partial assistant text already streamed.
   void cancel() {
-    if (_disposed || _state != AiTutorChatState.loading) return;
-    _cancelToken?.cancel();
-    _cancelToken = null;
+    if (isSessionDisposed || _state != AiTutorChatState.loading) return;
+    cancelStreamingSession();
     _state = AiTutorChatState.idle;
-    notifyListeners();
+    notifySessionListeners();
   }
 
   Future<bool> startRoleplayScene({
@@ -142,39 +111,29 @@ class AiTutorChatProvider extends ChangeNotifier {
     required String text,
   }) async {
     if (text.trim().isEmpty) return false;
-    _cancelToken?.cancel();
-    _generation++;
-    final gen = _generation;
-    final token = AiCancelToken();
-    _cancelToken = token;
+    if (isSessionDisposed) return false;
+    final session = beginStreamingSession();
     _error = null;
     _state = AiTutorChatState.loading;
     _messages.add(AiChatMessage(role: 'user', content: text.trim()));
     _messages.add(const AiChatMessage(role: 'assistant', content: ''));
     final assistantIndex = _messages.length - 1;
-    final coalescer = _newCoalescer();
-    _coalescer?.cancel();
-    _coalescer = coalescer;
-    notifyListeners();
+    _streamingAssistantIndex = assistantIndex;
+    notifySessionListeners();
 
-    final apiMessages = <Map<String, dynamic>>[
-      {'role': 'system', 'content': _buildSystemPrompt()},
-      for (var i = 0; i < _messages.length; i++)
-        if (i != assistantIndex) _messages[i].toApiDict(),
-    ];
+    final apiMessages = _buildApiMessages(assistantIndex);
 
     try {
       final result = await _engine.chat(
         config: config,
         messages: apiMessages,
-        cancelToken: token,
+        cancelToken: session.cancelToken,
         onChunk: (delta) {
-          if (gen != _generation || _disposed) return;
-          coalescer.add(delta);
+          addStreamingDelta(session, delta);
         },
       );
-      coalescer.flush(); // stream finished: emit any pending tail batch
-      if (gen != _generation || _disposed) return true;
+      flushStreamingSession(session);
+      if (!isCurrentSession(session)) return true;
       if (_messages[assistantIndex].content.isEmpty &&
           result.content.isNotEmpty) {
         _messages[assistantIndex] =
@@ -183,11 +142,11 @@ class AiTutorChatProvider extends ChangeNotifier {
       _state = AiTutorChatState.ready;
       _recordRecent();
     } on AiCancelled {
-      if (gen != _generation || _disposed) return true;
-      coalescer.flush(); // keep partial text already streamed (§26.3)
+      if (!isCurrentSession(session)) return true;
+      flushStreamingSession(session);
       _state = AiTutorChatState.idle;
     } catch (e) {
-      if (gen != _generation || _disposed) return true;
+      if (!isCurrentSession(session)) return true;
       logger.w('AiTutorChatProvider.ask failed: $e');
       _error = AiErrorMapper.map(e).message;
       _state = AiTutorChatState.error;
@@ -196,17 +155,52 @@ class AiTutorChatProvider extends ChangeNotifier {
         _messages.removeAt(assistantIndex);
       }
     } finally {
-      if (identical(_cancelToken, token)) _cancelToken = null;
+      finishStreamingSession(session);
     }
-    if (gen == _generation && !_disposed) notifyListeners();
+    if (!isSessionDisposed) notifySessionListeners();
     return true;
+  }
+
+  static const int _recentMessageLimit = 16;
+
+  List<Map<String, dynamic>> _buildApiMessages(int assistantIndex) {
+    final history = <AiChatMessage>[
+      for (var i = 0; i < _messages.length; i++)
+        if (i != assistantIndex) _messages[i],
+    ];
+    final split = history.length > _recentMessageLimit
+        ? history.length - _recentMessageLimit
+        : 0;
+    final older = history.take(split).toList(growable: false);
+    final recent = history.skip(split);
+    return <Map<String, dynamic>>[
+      {'role': 'system', 'content': _buildSystemPrompt()},
+      if (older.isNotEmpty)
+        {
+          'role': 'system',
+          'content': _summarizeOlderTurns(older),
+        },
+      for (final message in recent) message.toApiDict(),
+    ];
+  }
+
+  String _summarizeOlderTurns(List<AiChatMessage> messages) {
+    final out = StringBuffer('Earlier conversation summary:\n');
+    for (final message in messages) {
+      final normalized = message.content.replaceAll(RegExp(r'\s+'), ' ').trim();
+      final clipped = normalized.length > 160
+          ? '${normalized.substring(0, 160)}…'
+          : normalized;
+      out.writeln('${message.role}: $clipped');
+      if (out.length > 1200) break;
+    }
+    return out.toString();
   }
 
   String _buildSystemPrompt() {
     final prefs = _prefs.snapshot;
     final buf = StringBuffer()
-      ..writeln(
-          'You are a language-learning companion for $_language. '
+      ..writeln('You are a language-learning companion for $_language. '
           'You help with questions, sentence correction, and role-play. '
           'Never output course section/unit/lesson JSON or any importable course schema.')
       ..writeln(prefs.toSystemPromptRules());

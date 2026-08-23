@@ -9,10 +9,6 @@ import 'package:injectable/injectable.dart';
 // Flutter imports:
 import 'package:flutter/foundation.dart' show visibleForTesting;
 
-// Project imports:
-import 'package:turna/application/ai/engine/ai_cache_disk_io.dart'
-    if (dart.library.html) 'package:turna/application/ai/engine/ai_cache_disk_web.dart';
-
 /// Snapshot of cache counters (immutable view for telemetry).
 ///
 /// Mirrors `ai_cache.py:AiCacheStats`.
@@ -21,24 +17,18 @@ class AiCacheStats {
     this.hits = 0,
     this.misses = 0,
     this.entries = 0,
-    this.diskWrites = 0,
-    this.diskErrors = 0,
   });
 
   final int hits;
   final int misses;
   final int entries;
-  final int diskWrites;
-  final int diskErrors;
 
   @override
   String toString() =>
-      'AiCacheStats(hits=$hits, misses=$misses, entries=$entries, '
-      'diskWrites=$diskWrites, diskErrors=$diskErrors)';
+      'AiCacheStats(hits=$hits, misses=$misses, entries=$entries)';
 }
 
-/// In-memory LRU cache of AI chat-completion response bodies, with an optional
-/// disk mirror.
+/// In-memory LRU cache of AI chat-completion response bodies.
 ///
 /// Ported from `tool/gui/src/backend/ai_cache.py:AiCache`.
 ///
@@ -47,10 +37,8 @@ class AiCacheStats {
 /// invalidate useful draft cache), and the cache never stores the API key or any
 /// header - only the model's response body.
 ///
-/// The disk mirror is opt-in via [enableDiskMirror] (called by the app shell on
-/// startup with the app documents dir). On web it is a no-op. The class is a
-/// `@lazySingleton`; tests construct `AiCache()` directly for a memory-only
-/// instance.
+/// This is intentionally the only cache layer: responses are process-local,
+/// bounded by [maxEntries], and disappear on restart.
 @lazySingleton
 class AiCache {
   /// Default capacity and on/off state for the production singleton. These
@@ -70,15 +58,13 @@ class AiCache {
   /// Test-only constructor that lets specs vary [maxEntries] / [enabled]
   /// without exposing those knobs on the DI-injected production constructor.
   @visibleForTesting
-  AiCache.forTest({int maxEntries = defaultMaxEntries, bool enabled = defaultEnabled})
+  AiCache.forTest(
+      {int maxEntries = defaultMaxEntries, bool enabled = defaultEnabled})
       : _maxEntries = maxEntries < 0 ? 0 : maxEntries,
         _enabled = enabled && maxEntries > 0;
 
   final int _maxEntries;
   bool _enabled;
-  DiskCacheStore? _disk;
-  int _diskErrors = 0;
-  int _diskWrites = 0;
 
   /// Insertion-ordered map; the head is the least-recently-used entry. Dart's
   /// `LinkedHashMap` preserves insertion order, so LRU touch = remove + re-add.
@@ -90,14 +76,6 @@ class AiCache {
   /// Toggle the cache at runtime. Disabling does NOT clear entries (mirrors
   /// `ai_cache.py:set_enabled`).
   void setEnabled(bool value) => _enabled = value && _maxEntries > 0;
-
-  /// Attach a disk mirror at the given directory and enable it. Safe to call
-  /// once on startup; subsequent calls reattach. On web this is a no-op (the
-  /// store reads return null). Existing disk entries are loaded lazily on
-  /// [get] (mirrors `ai_cache.py`), not pre-scanned.
-  void enableDiskMirror(String dir) {
-    _disk = DiskCacheStore(dir);
-  }
 
   /// Stable SHA-256 key for a `(model, messages, response_format)` triple.
   ///
@@ -120,9 +98,7 @@ class AiCache {
   int _hits = 0;
   int _misses = 0;
 
-  /// Return the cached body or `null` on miss / when disabled. On a memory
-  /// miss with a disk mirror attached, lazily promotes the disk entry into
-  /// memory (mirrors `ai_cache.py:get`).
+  /// Return the cached body or `null` on miss / when disabled.
   Map<String, dynamic>? get(String key) {
     if (!_enabled) {
       _misses++;
@@ -134,14 +110,6 @@ class AiCache {
       _hits++;
       return entry;
     }
-    if (_disk != null) {
-      final diskEntry = _disk!.read(key);
-      if (diskEntry != null) {
-        _putLocked(key, diskEntry);
-        _hits++;
-        return diskEntry;
-      }
-    }
     _misses++;
     return null;
   }
@@ -150,41 +118,17 @@ class AiCache {
   void put(String key, Map<String, dynamic>? value) {
     if (!_enabled || value == null) return;
     _putLocked(key, value);
-    if (_disk != null) {
-      final ok = _disk!.write(key, value);
-      if (ok) {
-        _diskWrites++;
-      } else {
-        _diskErrors++;
-      }
-    }
   }
 
-  /// Drop all in-memory entries. Disk files are left untouched (use
-  /// [clearDisk] for those).
+  /// Drop all process-local entries.
   void clear() {
     _mem.clear();
-  }
-
-  /// Remove every disk cache file. No-op when no disk mirror is configured.
-  void clearDisk() {
-    if (_disk == null) return;
-    final ok = _disk!.clear();
-    if (!ok) _diskErrors++;
-  }
-
-  /// Drop both memory and disk entries (the "clear cache" button calls this).
-  void clearAll() {
-    clear();
-    clearDisk();
   }
 
   AiCacheStats stats() => AiCacheStats(
         hits: _hits,
         misses: _misses,
         entries: _mem.length,
-        diskWrites: _diskWrites,
-        diskErrors: _diskErrors,
       );
 
   void _putLocked(String key, Map<String, dynamic> value) {

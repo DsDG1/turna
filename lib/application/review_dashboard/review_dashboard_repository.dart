@@ -5,17 +5,17 @@ import 'dart:async';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
+import 'package:turna/application/diagnostics/performance_trace.dart';
 import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/review_dashboard/review_dashboard_models.dart';
 import 'package:turna/application/review_dashboard/review_data_revision.dart';
-import 'package:turna/application/review_progress_provider.dart'
-    show ReviewProgressProvider;
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/application/streak_provider.dart';
 import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/data/review_history_dao.dart';
 import 'package:turna/data/study_log_repository.dart';
 import 'package:turna/domain/study/daily_stats.dart';
+import 'package:turna/domain/course/srs_word.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/locator.dart';
 
@@ -83,6 +83,7 @@ class ReviewDashboardRepository {
     DateTime? day,
     bool forceRefresh = false,
   }) async {
+    final trace = Stopwatch()..start();
     final now = day ?? DateTime.now();
     final startOfToday = DateTime(now.year, now.month, now.day);
     final revision = _revision.value;
@@ -91,6 +92,14 @@ class ReviewDashboardRepository {
         _cached != null &&
         _cachedDay == startOfToday &&
         _cachedRevision == revision) {
+      trace.stop();
+      PerformanceTrace.instance.record(
+        feature: 'dashboard',
+        operation: 'load',
+        duration: trace.elapsed,
+        resultSize: 1,
+        cacheStatus: TraceCacheStatus.hit,
+      );
       return _cached!;
     }
 
@@ -112,9 +121,12 @@ class ReviewDashboardRepository {
     }
 
     for (final w in _srs.state.values) {
-      final importId =
-          ReviewProgressProvider.importIdFromWordId(w.wordId);
-      final key = importId != null ? 'anki:$importId' : 'course';
+      final key = switch (w.sourceKind) {
+        SrsSourceKind.course => 'course',
+        SrsSourceKind.grammar => 'grammar',
+        SrsSourceKind.ankiLegacy => 'anki:${w.sourceId}',
+        SrsSourceKind.ankiOfficial => 'official:${w.sourceId}',
+      };
       final isNew = w.reps == 0;
       final isDue = !isNew && !w.dueAt.isAfter(now);
       final isOverdue = !isNew && w.dueAt.isBefore(startOfToday);
@@ -173,6 +185,8 @@ class ReviewDashboardRepository {
     final sources = <ReviewSourceSummary>[];
     final ankiKeys =
         totalBySource.keys.where((k) => k.startsWith('anki:')).toList();
+    final officialKeys =
+        totalBySource.keys.where((k) => k.startsWith('official:')).toList();
     final nameByImport = <String, String>{};
     if (ankiKeys.isNotEmpty) {
       final imports = await _ankiImportDao.getAll();
@@ -181,36 +195,54 @@ class ReviewDashboardRepository {
             .split(RegExp(r'[/\\]'))
             .last
             .replaceAll(RegExp(r'\.(apkg|colpkg)$', caseSensitive: false), '');
-        nameByImport[r.importId] =
-            name.isEmpty ? AppStrings.reviewProgressSourceAnki(r.importId) : name;
+        nameByImport[r.importId] = name.isEmpty
+            ? AppStrings.reviewProgressSourceAnki(r.importId)
+            : name;
       }
     }
 
-    void addSource(LearningSourceKind kind, String key, String name) {
+    void addSource(
+      LearningSourceKind kind,
+      String key,
+      String sourceId,
+      String name, {
+      bool active = true,
+    }) {
       final total = totalBySource[key] ?? 0;
       if (total == 0) return;
       sources.add(ReviewSourceSummary(
         source: LearningSourceRef(
           kind: kind,
-          sourceId: key,
+          sourceId: sourceId,
           displayName: name,
+          active: active,
         ),
         totalCards: total,
         dueToday: dueBySource[key] ?? 0,
       ));
     }
 
-    addSource(LearningSourceKind.course, 'course',
+    addSource(LearningSourceKind.course, 'course', 'course',
         AppStrings.reviewProgressSourceCourse);
-    addSource(LearningSourceKind.grammar, 'grammar',
+    addSource(LearningSourceKind.grammar, 'grammar', 'grammar',
         AppStrings.reviewProgressSourceGrammar);
     for (final key in ankiKeys) {
       final importId = key.substring(5);
       addSource(
         LearningSourceKind.ankiLegacy,
         key,
-        nameByImport[importId] ??
-            AppStrings.reviewProgressSourceAnki(importId),
+        importId,
+        nameByImport[importId] ?? AppStrings.reviewProgressSourceAnki(importId),
+        active: nameByImport.containsKey(importId),
+      );
+    }
+    for (final key in officialKeys) {
+      final sourceId = key.substring('official:'.length);
+      addSource(
+        LearningSourceKind.ankiOfficial,
+        key,
+        sourceId,
+        AppStrings.reviewProgressSourceAnki(sourceId),
       );
     }
     sources.sort((a, b) {
@@ -233,12 +265,14 @@ class ReviewDashboardRepository {
       streak: StreakSummary(
         currentStreakDays: _streak.streak,
         activeDaysThisWeek: activeDaysThisWeek,
+        protectedByVoucher: _streak.currentChainProtected,
       ),
       last7Days: [
         for (var i = 6; i >= 0; i--)
           DailyActivityPoint(
             localDay: startOfToday.subtract(Duration(days: i)),
-            reviewedCount: reviewedByDay[startOfToday.subtract(Duration(days: i))] ?? 0,
+            reviewedCount:
+                reviewedByDay[startOfToday.subtract(Duration(days: i))] ?? 0,
             activeMinutes:
                 minutesByDay[startOfToday.subtract(Duration(days: i))] ?? 0,
           ),
@@ -258,12 +292,19 @@ class ReviewDashboardRepository {
     _cached = snapshot;
     _cachedDay = startOfToday;
     _cachedRevision = revision;
+    trace.stop();
+    PerformanceTrace.instance.record(
+      feature: 'dashboard',
+      operation: 'load',
+      duration: trace.elapsed,
+      resultSize: snapshot.sources.length + snapshot.last7Days.length,
+      cacheStatus: TraceCacheStatus.miss,
+    );
     return snapshot;
   }
 
   /// Date key matching DailyStudyStats serialization (yyyy-MM-dd local).
-  static String _dayKey(DateTime d) =>
-      '${d.year.toString().padLeft(4, '0')}-'
+  static String _dayKey(DateTime d) => '${d.year.toString().padLeft(4, '0')}-'
       '${d.month.toString().padLeft(2, '0')}-'
       '${d.day.toString().padLeft(2, '0')}';
 }

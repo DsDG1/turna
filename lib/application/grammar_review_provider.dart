@@ -24,21 +24,32 @@ class GrammarReviewProvider extends SrsQueueProvider {
   @override
   String get logTag => 'GrammarReviewProvider';
 
-  void registerGrammarPoint(String id) => registerItem(id);
+  void registerGrammarPoint(String id) => registerItem(
+        id,
+        sourceKind: SrsSourceKind.grammar,
+        sourceId: 'grammar',
+      );
 
   /// Force [id] into the due queue immediately (mistake → grammar cross-route).
   Future<void> markDueNow(String id) async {
     final current = state;
     final existing = current[id];
     if (existing == null) {
-      current[id] = SrsWord.fresh(id);
+      current[id] = SrsWord.fresh(id).copyWith(
+        sourceKind: SrsSourceKind.grammar,
+        sourceId: 'grammar',
+      );
     } else {
       current[id] = existing.copyWith(dueAt: DateTime.now());
     }
     await persist(current);
   }
 
-  void registerAll(Iterable<String> ids) => registerAllItems(ids);
+  void registerAll(Iterable<String> ids) => registerAllItems(
+        ids,
+        sourceKind: SrsSourceKind.grammar,
+        sourceId: 'grammar',
+      );
 
   Future<void> recordLessonLinks({
     required Iterable<String> ids,

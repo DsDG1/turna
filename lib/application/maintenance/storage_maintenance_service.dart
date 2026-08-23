@@ -52,7 +52,6 @@ class StorageMaintenanceService {
 
   Future<void> clearRegenerableCaches() async {
     await getIt<AnkiNoteDao>().deletePrerenderedByPrefix('anki-');
-    if (getIt.isRegistered<AiEngine>()) getIt<AiEngine>().clearCache();
   }
 
   Future<String> checkDatabaseIntegrity() async {

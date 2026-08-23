@@ -2,7 +2,6 @@
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/memory_curve_provider.dart';
 import 'package:turna/application/srs_provider.dart';
@@ -14,19 +13,21 @@ import 'package:turna/domain/course/srs_word.dart';
 import 'package:turna/l10n/app_strings.dart';
 
 /// Where a card comes from for progress stats.
-enum ReviewSourceKind { all, course, grammar, ankiDeck }
+enum ReviewSourceKind { all, course, grammar, ankiDeck, ankiOfficial }
 
 class ReviewSource {
   final ReviewSourceKind kind;
   final String id;
   final String label;
   final String? importId;
+  final bool active;
 
   const ReviewSource({
     required this.kind,
     required this.id,
     required this.label,
     this.importId,
+    this.active = true,
   });
 
   static const all = ReviewSource(
@@ -62,7 +63,7 @@ enum MaturityBucket { newCards, young, mature, leech }
 
 enum DueFilter { any, overdue, due7, due30 }
 
-enum EventRange { all, d7, d30, d90 }
+enum EventRange { all, d7, d30, d90, d365 }
 
 /// Item-type filter. Grammar is separate from [SrsItemType].
 enum ProgressTypeFilter { all, word, expression, grammar }
@@ -126,25 +127,27 @@ class ReviewProgressSnapshot {
   final List<SourceProgressRow> bySource;
   final ReviewProgressFilter filter;
   final List<ReviewSource> availableSources;
+  final List<ActivityBucketRow> activity;
 
   const ReviewProgressSnapshot({
     required this.aggregate,
     required this.bySource,
     required this.filter,
     required this.availableSources,
+    this.activity = const [],
   });
 }
 
 /// Tagged card for filtering (queue origin).
 class _TaggedCard {
   final SrsWord word;
-  final ReviewSourceKind origin; // course | grammar | ankiDeck
-  final String? importId;
+  final ReviewSourceKind origin;
+  final String? sourceId;
 
   const _TaggedCard({
     required this.word,
     required this.origin,
-    this.importId,
+    this.sourceId,
   });
 }
 
@@ -164,31 +167,16 @@ class ReviewProgressProvider {
 
   final SrsScheduler _scheduler = FsrsEngine(enableFuzzing: false);
 
-  static const List<int> intervalBuckets = MemoryCurveProvider.intervalBuckets;
-
-  /// Extract Anki importId from `anki-<importId>-c…` (card-level wordId,
-  /// decision 2). The `<cardId>` segment is always last, so `lastIndexOf('-c')`
-  /// finds the importId / cardId separator.
-  static String? importIdFromWordId(String wordId) {
-    if (!wordId.startsWith(LegacyAnkiIdentifiers.ankiPrefix)) return null;
-    final cIdx = wordId.lastIndexOf('-c');
-    if (cIdx > 5) return wordId.substring(5, cIdx);
-    return null;
-  }
-
   List<_TaggedCard> _allTagged() {
     final out = <_TaggedCard>[];
     for (final w in _srs.state.values) {
-      final importId = importIdFromWordId(w.wordId);
-      if (importId != null) {
-        out.add(_TaggedCard(
-          word: w,
-          origin: ReviewSourceKind.ankiDeck,
-          importId: importId,
-        ));
-      } else {
-        out.add(_TaggedCard(word: w, origin: ReviewSourceKind.course));
-      }
+      final origin = switch (w.sourceKind) {
+        SrsSourceKind.course => ReviewSourceKind.course,
+        SrsSourceKind.grammar => ReviewSourceKind.grammar,
+        SrsSourceKind.ankiLegacy => ReviewSourceKind.ankiDeck,
+        SrsSourceKind.ankiOfficial => ReviewSourceKind.ankiOfficial,
+      };
+      out.add(_TaggedCard(word: w, origin: origin, sourceId: w.sourceId));
     }
     for (final w in _grammar.state.values) {
       out.add(_TaggedCard(word: w, origin: ReviewSourceKind.grammar));
@@ -197,21 +185,30 @@ class ReviewProgressProvider {
   }
 
   Future<List<ReviewSource>> listSources() async {
-    return _listSources(_allTagged());
+    final history = await _reviewDao.sourceReviewCounts(
+      DateTime.fromMillisecondsSinceEpoch(0),
+      DateTime.now(),
+    );
+    return _listSources(_allTagged(), historicalKeys: history.keys.toSet());
   }
 
   /// Source list from an already-computed tagged pass. [snapshot] must reuse
   /// its own pass instead of scanning the full states twice (Plan 3 §14.1).
-  Future<List<ReviewSource>> _listSources(List<_TaggedCard> tagged) async {
+  Future<List<ReviewSource>> _listSources(
+    List<_TaggedCard> tagged, {
+    Set<String> historicalKeys = const {},
+  }) async {
     final sources = <ReviewSource>[ReviewSource.all];
-    if (tagged.any((t) => t.origin == ReviewSourceKind.course)) {
+    if (tagged.any((t) => t.origin == ReviewSourceKind.course) ||
+        historicalKeys.contains('course')) {
       sources.add(ReviewSource(
         kind: ReviewSourceKind.course,
         id: 'course',
         label: AppStrings.reviewProgressSourceCourse,
       ));
     }
-    if (tagged.any((t) => t.origin == ReviewSourceKind.grammar)) {
+    if (tagged.any((t) => t.origin == ReviewSourceKind.grammar) ||
+        historicalKeys.contains('grammar')) {
       sources.add(ReviewSource(
         kind: ReviewSourceKind.grammar,
         id: 'grammar',
@@ -219,12 +216,14 @@ class ReviewProgressProvider {
       ));
     }
 
-    final importIds = tagged
+    final importIdSet = tagged
         .where((t) => t.origin == ReviewSourceKind.ankiDeck)
-        .map((t) => t.importId!)
+        .map((t) => t.sourceId!)
         .toSet()
-        .toList()
-      ..sort();
+      ..addAll(historicalKeys
+          .where((key) => key.startsWith('anki:'))
+          .map((key) => key.substring(5)));
+    final importIds = importIdSet.toList()..sort();
 
     final imports = await _ankiImportDao.getAll();
     final nameById = {
@@ -238,6 +237,26 @@ class ReviewProgressProvider {
         id: 'anki:$id',
         label: nameById[id] ?? AppStrings.reviewProgressSourceAnki(id),
         importId: id,
+        active: nameById.containsKey(id),
+      ));
+    }
+    final officialIdSet = tagged
+        .where((t) => t.origin == ReviewSourceKind.ankiOfficial)
+        .map((t) => t.sourceId!)
+        .toSet()
+      ..addAll(historicalKeys
+          .where((key) => key.startsWith('official:'))
+          .map((key) => key.substring('official:'.length)));
+    final officialIds = officialIdSet.toList()..sort();
+    for (final id in officialIds) {
+      sources.add(ReviewSource(
+        kind: ReviewSourceKind.ankiOfficial,
+        id: 'official:$id',
+        label: AppStrings.reviewProgressSourceAnki(id),
+        importId: id,
+        active: tagged.any((card) =>
+            card.origin == ReviewSourceKind.ankiOfficial &&
+            card.sourceId == id),
       ));
     }
     return sources;
@@ -246,31 +265,55 @@ class ReviewProgressProvider {
   String _labelFromPath(String path, String importId) {
     final name = path.split(RegExp(r'[/\\]')).last;
     if (name.isEmpty) return AppStrings.reviewProgressSourceAnki(importId);
-    final bare = name.replaceAll(RegExp(r'\.(apkg|colpkg)$', caseSensitive: false), '');
+    final bare =
+        name.replaceAll(RegExp(r'\.(apkg|colpkg)$', caseSensitive: false), '');
     return AppStrings.reviewProgressSourceAnkiNamed(bare);
   }
 
+  @Deprecated('Use InsightsRepository for the insights path')
   Future<ReviewProgressSnapshot> snapshot([
     ReviewProgressFilter filter = const ReviewProgressFilter(),
   ]) async {
     final tagged = _allTagged();
-    final available = await _listSources(tagged);
     final now = DateTime.now();
 
     final filtered = tagged.where((t) => _matchesCard(t, filter, now)).toList();
     final aggregate = _aggregate(filtered, now);
 
-    // Events for curve: only cards in filtered set + time range.
-    final cardIds = filtered.map((t) => t.word.wordId).toSet();
-    final events = await _reviewDao.allEvents();
     final rangeStart = _rangeStart(filter.eventRange, now);
-    final filteredEvents = events.where((e) {
-      if (!cardIds.contains(e.cardId)) return false;
-      if (rangeStart != null && e.reviewedAt.isBefore(rangeStart)) return false;
-      return true;
-    }).toList();
-
-    final curve = _curveFromEvents(filteredEvents);
+    final historyFilter = _historyFilter(filter);
+    final retentionRows = await _reviewDao.retentionByIntervalBucket(
+      rangeStart,
+      now,
+      filter: historyFilter,
+    );
+    final curve = [
+      for (final row in retentionRows)
+        RetentionPoint(
+          intervalBucketDays: row.intervalBucketDays,
+          retention: row.total == 0 ? 0 : row.recalled / row.total,
+          sampleSize: row.total,
+        ),
+    ];
+    final totalReviews = retentionRows.fold<int>(0, (n, row) => n + row.total);
+    final sourceCounts = await _reviewDao.sourceReviewCounts(
+      rangeStart,
+      now,
+      filter: _historyFilter(filter.copyWith(source: ReviewSource.all)),
+    );
+    final available = await _listSources(
+      tagged,
+      historicalKeys: sourceCounts.keys.toSet(),
+    );
+    final heatmapStart = DateTime(now.year, now.month, now.day)
+        .subtract(const Duration(days: 364));
+    final activeBuckets = await _reviewDao.activityBuckets(
+      heatmapStart,
+      now,
+      ActivityGranularity.day,
+      filter: historyFilter,
+    );
+    final activity = _fillDailyActivity(activeBuckets, heatmapStart, 365);
     final fullAggregate = MemoryCurveSnapshot(
       currentRetention: aggregate.currentRetention,
       meanMastery: aggregate.meanMastery,
@@ -279,26 +322,22 @@ class ReviewProgressProvider {
       forecast: aggregate.forecast,
       maturity: aggregate.maturity,
       retentionByInterval: curve,
-      totalReviews: filteredEvents.length,
+      totalReviews: totalReviews,
     );
 
     // Per-source rows: ignore source filter for breakdown, but apply other filters.
     final baseFilter = filter.copyWith(source: ReviewSource.all);
-    final forSources = tagged.where((t) => _matchesCard(t, baseFilter, now)).toList();
+    final forSources =
+        tagged.where((t) => _matchesCard(t, baseFilter, now)).toList();
     final bySource = <SourceProgressRow>[];
 
     void addSource(ReviewSource src, Iterable<_TaggedCard> cards) {
       final list = cards.toList();
-      if (list.isEmpty && src.kind != ReviewSourceKind.all) return;
+      final revCount = sourceCounts[src.id] ?? 0;
+      if (list.isEmpty && revCount == 0 && src.kind != ReviewSourceKind.all) {
+        return;
+      }
       final agg = _aggregate(list, now);
-      final ids = list.map((t) => t.word.wordId).toSet();
-      final revCount = events.where((e) {
-        if (!ids.contains(e.cardId)) return false;
-        if (rangeStart != null && e.reviewedAt.isBefore(rangeStart)) {
-          return false;
-        }
-        return true;
-      }).length;
       bySource.add(SourceProgressRow(
         source: src,
         totalCards: agg.totalCards,
@@ -320,7 +359,10 @@ class ReviewProgressProvider {
             return t.origin == ReviewSourceKind.grammar;
           case ReviewSourceKind.ankiDeck:
             return t.origin == ReviewSourceKind.ankiDeck &&
-                t.importId == src.importId;
+                t.sourceId == src.importId;
+          case ReviewSourceKind.ankiOfficial:
+            return t.origin == ReviewSourceKind.ankiOfficial &&
+                t.sourceId == src.importId;
           case ReviewSourceKind.all:
             return true;
         }
@@ -333,20 +375,91 @@ class ReviewProgressProvider {
       bySource: bySource,
       filter: filter,
       availableSources: available,
+      activity: activity,
     );
   }
 
-  DateTime? _rangeStart(EventRange range, DateTime now) {
+  List<ActivityBucketRow> _fillDailyActivity(
+    List<ActivityBucketRow> active,
+    DateTime start,
+    int days,
+  ) {
+    final byDay = {for (final row in active) row.bucket: row.reviewedCount};
+    return [
+      for (var offset = 0; offset < days; offset++)
+        ActivityBucketRow(
+          bucket: _localDayKey(start.add(Duration(days: offset))),
+          reviewedCount:
+              byDay[_localDayKey(start.add(Duration(days: offset)))] ?? 0,
+        ),
+    ];
+  }
+
+  String _localDayKey(DateTime day) => '${day.year.toString().padLeft(4, '0')}-'
+      '${day.month.toString().padLeft(2, '0')}-'
+      '${day.day.toString().padLeft(2, '0')}';
+
+  DateTime _rangeStart(EventRange range, DateTime now) {
     switch (range) {
       case EventRange.all:
-        return null;
+        return DateTime.fromMillisecondsSinceEpoch(0);
       case EventRange.d7:
         return now.subtract(const Duration(days: 7));
       case EventRange.d30:
         return now.subtract(const Duration(days: 30));
       case EventRange.d90:
         return now.subtract(const Duration(days: 90));
+      case EventRange.d365:
+        return now.subtract(const Duration(days: 365));
     }
+  }
+
+  ReviewHistoryFilter _historyFilter(ReviewProgressFilter filter) {
+    SrsSourceKind? sourceKind;
+    String? sourceId;
+    String? queue;
+    String? type;
+    switch (filter.source.kind) {
+      case ReviewSourceKind.all:
+        break;
+      case ReviewSourceKind.course:
+        sourceKind = SrsSourceKind.course;
+        queue = 'srs';
+        break;
+      case ReviewSourceKind.grammar:
+        sourceKind = SrsSourceKind.grammar;
+        queue = 'grammar';
+        break;
+      case ReviewSourceKind.ankiDeck:
+        sourceKind = SrsSourceKind.ankiLegacy;
+        sourceId = filter.source.importId;
+        queue = 'srs';
+        break;
+      case ReviewSourceKind.ankiOfficial:
+        sourceKind = SrsSourceKind.ankiOfficial;
+        sourceId = filter.source.importId;
+        queue = 'srs';
+        break;
+    }
+    switch (filter.type) {
+      case ProgressTypeFilter.all:
+        break;
+      case ProgressTypeFilter.word:
+        type = 'word';
+        break;
+      case ProgressTypeFilter.expression:
+        type = 'expression';
+        break;
+      case ProgressTypeFilter.grammar:
+        queue = 'grammar';
+        break;
+    }
+    return ReviewHistoryFilter(
+      sourceKind: sourceKind,
+      sourceId: sourceId,
+      queue: queue,
+      type: type,
+    );
   }
 
   bool _matchesCard(_TaggedCard t, ReviewProgressFilter f, DateTime now) {
@@ -362,7 +475,13 @@ class ReviewProgressProvider {
         break;
       case ReviewSourceKind.ankiDeck:
         if (t.origin != ReviewSourceKind.ankiDeck ||
-            t.importId != f.source.importId) {
+            t.sourceId != f.source.importId) {
+          return false;
+        }
+        break;
+      case ReviewSourceKind.ankiOfficial:
+        if (t.origin != ReviewSourceKind.ankiOfficial ||
+            t.sourceId != f.source.importId) {
           return false;
         }
         break;
@@ -471,33 +590,5 @@ class ReviewProgressProvider {
       retentionByInterval: const [],
       totalReviews: 0,
     );
-  }
-
-  List<RetentionPoint> _curveFromEvents(List<ReviewEventRecord> events) {
-    final bucketRecalled = <int, int>{};
-    final bucketTotal = <int, int>{};
-    for (final e in events) {
-      final b = _bucketFor(e.prevIntervalDays);
-      bucketTotal[b] = (bucketTotal[b] ?? 0) + 1;
-      if (e.recalled) bucketRecalled[b] = (bucketRecalled[b] ?? 0) + 1;
-    }
-    final curve = <RetentionPoint>[];
-    for (final b in intervalBuckets) {
-      final total = bucketTotal[b] ?? 0;
-      if (total == 0) continue;
-      curve.add(RetentionPoint(
-        intervalBucketDays: b,
-        retention: (bucketRecalled[b] ?? 0) / total,
-        sampleSize: total,
-      ));
-    }
-    return curve;
-  }
-
-  int _bucketFor(int intervalDays) {
-    for (final b in intervalBuckets) {
-      if (intervalDays <= b) return b;
-    }
-    return intervalBuckets.last;
   }
 }

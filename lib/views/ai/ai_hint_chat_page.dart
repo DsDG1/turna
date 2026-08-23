@@ -1,5 +1,6 @@
 // Flutter imports:
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollDirection;
 
 // Package imports:
 import 'package:auto_route/auto_route.dart';
@@ -9,6 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:turna/application/ai/ai_explain_prefs.dart';
 import 'package:turna/application/ai/ai_hint_provider.dart';
 import 'package:turna/application/ai/ai_saved_explanations.dart';
+import 'package:turna/application/ai/chat_auto_scroll_coordinator.dart';
 import 'package:turna/application/ai/engine/ai_engine_config.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/ai/learner_ai_context_assembler.dart';
@@ -32,18 +34,45 @@ class AiHintChatPage extends StatefulWidget {
 }
 
 class _AiHintChatPageState extends State<AiHintChatPage> {
+  late final AiHintProvider _provider;
   final TextEditingController _inputCtrl = TextEditingController();
   final ScrollController _scrollCtrl = ScrollController();
+  late final ChatAutoScrollCoordinator _autoScroll;
   bool _seeded = false;
+  int _lastMessageCount = 0;
+  int _lastRevision = 0;
+  AiHintState _lastState = AiHintState.idle;
 
   @override
   void initState() {
     super.initState();
+    _provider = context.read<AiHintProvider>();
+    _autoScroll = ChatAutoScrollCoordinator()..attach(_scrollCtrl);
+    _provider.addListener(_onProviderChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) => _maybeSeed());
+  }
+
+  void _onProviderChanged() {
+    final count = _provider.messages.length;
+    final revision = _provider.streamingRevision;
+    final state = _provider.state;
+    if (count != _lastMessageCount) {
+      _lastMessageCount = count;
+      _autoScroll.onMessagesAppended();
+    } else if (revision != _lastRevision) {
+      _autoScroll.onContentChanged();
+    }
+    if (_lastState == AiHintState.loading && state != AiHintState.loading) {
+      _autoScroll.onStreamFinished();
+    }
+    _lastRevision = revision;
+    _lastState = state;
   }
 
   @override
   void dispose() {
+    _provider.removeListener(_onProviderChanged);
+    _autoScroll.dispose();
     _inputCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
@@ -86,19 +115,6 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
     if (started && chipText == null) {
       _inputCtrl.clear();
     }
-    if (started) _scrollToBottom();
-  }
-
-  void _scrollToBottom() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollCtrl.hasClients) {
-        _scrollCtrl.animateTo(
-          _scrollCtrl.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOut,
-        );
-      }
-    });
   }
 
   Future<void> _saveLatest() async {
@@ -152,22 +168,19 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
             : Column(
                 children: [
                   Expanded(
-                    child: Selector<AiHintProvider,
+                    child: Selector<
+                        AiHintProvider,
                         ({
                           bool empty,
                           int count,
                           bool hasError,
                           AiHintState state,
-                          String? lastContent,
                         })>(
                       selector: (_, w) => (
                         empty: w.messages.isEmpty,
                         count: w.messages.length,
                         hasError: w.error != null,
                         state: w.state,
-                        lastContent: w.messages.isEmpty
-                            ? null
-                            : w.messages.last.content,
                       ),
                       builder: (context, v, _) {
                         if (v.empty && v.state != AiHintState.loading) {
@@ -180,37 +193,60 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
                             (showThinking && !_hasStreamingAssistant(v.count)
                                 ? 1
                                 : 0);
-                        // Auto-scroll while streaming.
-                        if (v.state == AiHintState.loading) {
-                          _scrollToBottom();
-                        }
-                        return ListView.builder(
-                          controller: _scrollCtrl,
-                          padding: const EdgeInsets.all(12),
-                          itemCount: itemCount,
-                          itemBuilder: (context, i) {
-                            final w = context.read<AiHintProvider>();
-                            if (i < w.messages.length) {
-                              final m = w.messages[i];
-                              if (m.role == 'assistant' &&
-                                  m.content.isEmpty &&
-                                  v.state == AiHintState.loading) {
-                                return _thinkingBubble();
-                              }
-                              return ChatBubble(
-                                  role: m.role, content: m.content);
+                        return NotificationListener<UserScrollNotification>(
+                          onNotification: (n) {
+                            if (n.direction == ScrollDirection.forward) {
+                              _autoScroll.lockFollow();
+                            } else if (n.metrics.pixels >=
+                                n.metrics.maxScrollExtent - 120) {
+                              _autoScroll.unlockFollow();
                             }
-                            if (v.hasError && i == v.count) {
-                              return _errorBubble(
-                                  w.error ?? AppStrings.aiErrorUnknown);
-                            }
-                            return _thinkingBubble();
+                            return false;
                           },
+                          child: ListView.builder(
+                            controller: _scrollCtrl,
+                            padding: const EdgeInsets.all(12),
+                            itemCount: itemCount,
+                            itemBuilder: (context, i) {
+                              final w = context.read<AiHintProvider>();
+                              if (i < w.messages.length) {
+                                final m = w.messages[i];
+                                final streamingTarget = i == v.count - 1 &&
+                                    m.role == 'assistant' &&
+                                    v.state == AiHintState.loading;
+                                if (streamingTarget && m.content.isEmpty) {
+                                  return _thinkingBubble();
+                                }
+                                if (streamingTarget) {
+                                  return Selector<AiHintProvider, int>(
+                                    selector: (_, p) => p.streamingRevision,
+                                    builder: (context, _, __) {
+                                      final latest = context
+                                          .read<AiHintProvider>()
+                                          .messages[i];
+                                      return ChatBubble(
+                                        role: latest.role,
+                                        content: latest.content,
+                                      );
+                                    },
+                                  );
+                                }
+                                return ChatBubble(
+                                    role: m.role, content: m.content);
+                              }
+                              if (v.hasError && i == v.count) {
+                                return _errorBubble(
+                                    w.error ?? AppStrings.aiErrorUnknown);
+                              }
+                              return _thinkingBubble();
+                            },
+                          ),
                         );
                       },
                     ),
                   ),
-                  Selector<AiHintProvider, ({AiHintState state, bool hasAnswer})>(
+                  Selector<AiHintProvider,
+                      ({AiHintState state, bool hasAnswer})>(
                     selector: (_, w) => (
                       state: w.state,
                       hasAnswer: w.context?.hasSubmittedAnswer ?? false,

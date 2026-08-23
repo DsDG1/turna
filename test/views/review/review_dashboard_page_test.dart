@@ -9,15 +9,14 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:turna/application/grammar_review_provider.dart';
+import 'package:turna/application/accessibility_provider.dart';
 import 'package:turna/application/lesson_link_store.dart';
-import 'package:turna/application/review_dashboard/review_dashboard_models.dart';
 import 'package:turna/application/review_dashboard/review_data_revision.dart';
 import 'package:turna/application/review_dashboard/review_dashboard_repository.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/application/streak_provider.dart';
 import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/data/course_database.dart';
-import 'package:turna/data/review_history_dao.dart';
 import 'package:turna/data/study_log_repository.dart';
 import 'package:turna/data/srs_state_dao.dart';
 import 'package:turna/l10n/app_strings.dart';
@@ -137,5 +136,72 @@ void main() {
     await tester.pump();
     await tester.pumpAndSettle();
     expect(find.text(AppStrings.reviewContinueCta), findsOneWidget);
+  });
+
+  testWidgets('dashboard has no overflow at 200% text scale', (tester) async {
+    await tester.pumpWidget(
+      Provider<ReviewDashboardRepository>.value(
+        value: repo,
+        child: MaterialApp(
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaler: const TextScaler.linear(2),
+            ),
+            child: child!,
+          ),
+          home: const ReviewProgressPage(),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.text(AppStrings.reviewTodayTitle), findsOneWidget);
+  });
+
+  testWidgets('focus mode keeps only actionable dashboard sections',
+      (tester) async {
+    final accessibility = AccessibilityProvider(appPrefs);
+    await accessibility.setFocusMode(true);
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          Provider<ReviewDashboardRepository>.value(value: repo),
+          ChangeNotifierProvider<AccessibilityProvider>.value(
+            value: accessibility,
+          ),
+        ],
+        child: const MaterialApp(home: ReviewProgressPage()),
+      ),
+    );
+    await tester.pump();
+    await tester.pumpAndSettle();
+    expect(find.text(AppStrings.reviewTodayTitle), findsOneWidget);
+    expect(find.text(AppStrings.reviewSourcesTitle), findsNothing);
+    expect(find.text(AppStrings.reviewOpenInsights), findsNothing);
+  });
+
+  testWidgets('protected streak shows the honest dashboard badge',
+      (tester) async {
+    final today = DateTime.now();
+    final day = DateTime(today.year, today.month, today.day);
+    await appPrefs.preferences.setInt(LocalStateKeys.streak, 3);
+    await appPrefs.preferences.setString(
+      LocalStateKeys.lastStreakDate,
+      day.toIso8601String(),
+    );
+    await appPrefs.preferences.setStringList(
+      LocalStateKeys.streakProtectedDays,
+      [day.subtract(const Duration(days: 1)).toIso8601String()],
+    );
+
+    await pumpPage(tester);
+    await tester.pumpAndSettle();
+
+    expect(find.text('已保护'), findsOneWidget);
+    expect(
+      find.byTooltip('本次连续记录由保护券保留；学习统计未修改'),
+      findsOneWidget,
+    );
   });
 }

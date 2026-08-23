@@ -4,6 +4,7 @@ import 'package:turna/domain/course/srs_word.dart';
 import 'package:turna/domain/review/recall_outcome.dart';
 import 'package:turna/domain/review/review_item.dart';
 import 'package:turna/domain/review/review_ledger.dart';
+import 'package:turna/domain/review/review_source.dart';
 
 /// Ledger implementation for Turna course cards and legacy Anki imports.
 ///
@@ -16,9 +17,24 @@ class TurnaReviewLedger implements ReviewLedger {
 
   /// Registers a Turna-owned Anki word the first time the study session
   /// commits it. Official-owned cards never reach this ledger.
-  void ensureWord(String rawId) {
+  void ensureWord(String rawId, ReviewSource source) {
     if (!_srsProvider.state.containsKey(rawId)) {
-      _srsProvider.registerWord(rawId);
+      switch (source) {
+        case LegacyAnkiSource(:final importId):
+          _srsProvider.registerWord(
+            rawId,
+            sourceKind: SrsSourceKind.ankiLegacy,
+            sourceId: importId,
+          );
+        case OfficialAnkiSource(:final sourceId):
+          _srsProvider.registerWord(
+            rawId,
+            sourceKind: SrsSourceKind.ankiOfficial,
+            sourceId: sourceId,
+          );
+        case TurnaCourseSource():
+          _srsProvider.registerWord(rawId);
+      }
     }
   }
 
@@ -27,8 +43,11 @@ class TurnaReviewLedger implements ReviewLedger {
     if (scope != null && scope.startsWith('anki:')) {
       final importId = scope.substring(5);
       final cards = _srsProvider.getDueAnkiWords();
-      final count =
-          cards.where((c) => c.wordId.startsWith('anki-$importId-')).length;
+      final count = cards
+          .where((c) =>
+              c.sourceKind == SrsSourceKind.ankiLegacy &&
+              c.sourceId == importId)
+          .length;
       return ReviewDueSummary(dueCount: count);
     }
     return ReviewDueSummary(

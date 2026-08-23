@@ -65,8 +65,7 @@ class FakeRemoteBackupStore extends RemoteBackupStore {
   }
 
   @override
-  Future<void> downloadCoreZip(
-      RemoteBackupManifest m, File dest) async {
+  Future<void> downloadCoreZip(RemoteBackupManifest m, File dest) async {
     await File(p.join(storage.path, m.coreZipObject)).copy(dest.path);
   }
 
@@ -105,8 +104,7 @@ void main() {
 
   setUp(() async {
     tmp = await Directory.systemTemp.createTemp('turna_rb_service');
-    appSupport = Directory(p.join(tmp.path, 'app_support'))
-      ..createSync();
+    appSupport = Directory(p.join(tmp.path, 'app_support'))..createSync();
     db = CourseDatabase(
         NativeDatabase(File(p.join(appSupport.path, 'live_course.db'))));
 
@@ -120,9 +118,9 @@ void main() {
       password: 'secret',
     ));
 
-    final profileRoot = Directory(p.join(appSupport.path, 'official_anki',
-        'default'))
-      ..createSync(recursive: true);
+    final profileRoot =
+        Directory(p.join(appSupport.path, 'official_anki', 'default'))
+          ..createSync(recursive: true);
     for (final name in [
       'collection.anki2',
       'official_catalog.sqlite',
@@ -149,8 +147,8 @@ void main() {
       legacyMediaRoot: legacyMedia,
     );
 
-    store = FakeRemoteBackupStore(Directory(p.join(tmp.path, 'server'))
-      ..createSync());
+    store = FakeRemoteBackupStore(
+        Directory(p.join(tmp.path, 'server'))..createSync());
     service = RemoteBackupService(
       prefs: prefs,
       configStore: configStore,
@@ -173,7 +171,7 @@ void main() {
     expect(manifest, isNotNull);
     expect(manifest!.backupId, result.backupId);
     expect(manifest.coreZipObject, 'backups/${result.backupId}/core.zip');
-    expect(manifest.driftSchema, 18);
+    expect(manifest.driftSchema, 20);
     expect(manifest.mediaCount, 2);
     expect(manifest.history, isEmpty);
 
@@ -196,8 +194,7 @@ void main() {
     );
   });
 
-  test('a second backup with unchanged media skips every object',
-      () async {
+  test('a second backup with unchanged media skips every object', () async {
     final first = await service.backupNow();
     final second = await service.backupNow();
 
@@ -212,12 +209,9 @@ void main() {
     for (var i = 0; i < kRemoteBackupRetention + 2; i++) {
       ids.add((await service.backupNow()).backupId);
     }
-    final deletes =
-        store.ops.where((op) => op.startsWith('delete:')).toList();
+    final deletes = store.ops.where((op) => op.startsWith('delete:')).toList();
     expect(deletes, isNotEmpty);
-    final keep = store.manifest!.history
-        .map((e) => e.backupId)
-        .toSet()
+    final keep = store.manifest!.history.map((e) => e.backupId).toSet()
       ..add(store.manifest!.backupId);
     for (final op in deletes) {
       final id = op.substring('delete:'.length);
@@ -241,8 +235,7 @@ void main() {
         guarded.backupNow(), throwsA(isA<RemoteBackupBusyException>()));
   });
 
-  test('restoreToStaging stages a verifiable, marker-armed restore',
-      () async {
+  test('restoreToStaging stages a verifiable, marker-armed restore', () async {
     await service.backupNow();
     final manifest = store.manifest!;
 
@@ -251,8 +244,7 @@ void main() {
     final staging = RestoreStagingLayout.root(appSupport);
     expect(File(p.join(staging.path, 'prefs.json')).existsSync(), isTrue);
     expect(File(p.join(staging.path, 'course.db')).existsSync(), isTrue);
-    expect(
-        File(p.join(staging.path, 'collection.anki2')).existsSync(), isTrue);
+    expect(File(p.join(staging.path, 'collection.anki2')).existsSync(), isTrue);
     expect(
         File(p.join(staging.path, RestoreStagingLayout.markerName))
             .existsSync(),

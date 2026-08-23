@@ -7,6 +7,8 @@
 // Package imports:
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:turna/application/diagnostics/cache_diagnostics_registry.dart';
+import 'package:turna/application/diagnostics/runtime_memory_snapshot.dart';
 import 'package:turna/application/maintenance/storage_inventory_service.dart';
 import 'package:turna/views/settings/storage_diagnostics_page.dart';
 
@@ -22,6 +24,20 @@ class _FakeScanner implements StorageInventoryService {
 class _ThrowingScanner implements StorageInventoryService {
   @override
   Future<StorageInventoryReport> scan() async => throw StateError('boom');
+}
+
+class _PageCache implements CacheDiagnosticsAdapter {
+  @override
+  String get owner => 'ai.responseCache';
+  @override
+  Future<CacheFootprint> inspect() async => const CacheFootprint(
+        owner: 'ai.responseCache',
+        entries: 7,
+        estimatedBytes: null,
+      );
+  @override
+  Future<CacheClearResult> clearRegenerable() async =>
+      const CacheClearResult(owner: 'ai.responseCache', clearedEntries: 7);
 }
 
 final _cannedReport = StorageInventoryReport(
@@ -112,5 +128,28 @@ void main() {
     await pumpPage(tester, _ThrowingScanner());
     expect(find.textContaining('扫描失败'), findsOneWidget);
     expect(find.text('重试'), findsOneWidget);
+  });
+
+  testWidgets('runtime memory, disk and cache use separate honest units',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: StorageDiagnosticsPage(
+        scanner: _FakeScanner(_cannedReport),
+        cacheRegistry: CacheDiagnosticsRegistry([_PageCache()]),
+        memorySampler: () async => RuntimeMemorySnapshot(
+          currentRssBytes: 8 * 1024 * 1024,
+          dartHeapBytes: null,
+          sampledAt: DateTime(2026, 8, 23, 12),
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('运行内存（瞬时）'), findsOneWidget);
+    expect(find.textContaining('进程 RSS 8.0 MB'), findsOneWidget);
+    expect(find.textContaining('Dart heap 当前平台不可用'), findsOneWidget);
+    expect(find.textContaining('运行内存与磁盘占用口径不同'), findsOneWidget);
+    expect(find.textContaining('ai.responseCache：7 条（未估算字节）'), findsOneWidget);
+    expect(find.textContaining('扫描总计 6.8 KB'), findsOneWidget);
   });
 }

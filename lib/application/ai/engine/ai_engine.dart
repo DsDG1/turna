@@ -10,6 +10,7 @@ import 'package:turna/application/ai/engine/ai_cancel_token.dart';
 import 'package:turna/application/ai/engine/ai_engine_config.dart';
 import 'package:turna/application/ai/engine/ai_engine_result.dart';
 import 'package:turna/application/ai/engine/ai_http_client.dart';
+import 'package:turna/application/diagnostics/performance_trace.dart';
 
 /// Single choke point for every LLM call in the app.
 ///
@@ -98,20 +99,17 @@ class AiEngine {
   }
 
   /// Minimal endpoint probe - delegates to [AiHttpClient.probeConnection].
-  Future<({bool ok, String error, String model, int latencyMs})> probeConnection(
+  Future<({bool ok, String error, String model, int latencyMs})>
+      probeConnection(
     AiEngineConfig config, {
     Duration timeout = const Duration(seconds: 10),
   }) =>
-      _http.probeConnection(config, timeout: timeout);
+          _http.probeConnection(config, timeout: timeout);
 
   AiCacheStats cacheStats() => _cache.stats();
 
-  /// Drop both memory and disk cache entries (the "clear cache" button).
-  void clearCache() => _cache.clearAll();
-
-  /// Attach the on-disk cache mirror. Called once on startup by the app shell
-  /// with the app documents directory; a no-op on web.
-  void attachDiskCache(String dir) => _cache.enableDiskMirror(dir);
+  /// Drop all process-local AI response cache entries.
+  void clearCache() => _cache.clear();
 
   /// The single low-level primitive. Checks the cache, otherwise dispatches to
   /// [AiHttpClient.postJson] (non-streaming) or [AiHttpClient.postStream]
@@ -127,13 +125,87 @@ class AiEngine {
     required AiCancelToken? cancelToken,
     required Duration timeout,
   }) async {
+    final trace = Stopwatch()..start();
+    var notificationCount = 0;
+    var firstChunkRecorded = false;
+    void Function(String)? tracedChunk;
+    if (onChunk != null) {
+      tracedChunk = (delta) {
+        notificationCount++;
+        if (!firstChunkRecorded && delta.isNotEmpty) {
+          firstChunkRecorded = true;
+          PerformanceTrace.instance.record(
+            feature: 'ai',
+            operation: 'firstChunk',
+            duration: trace.elapsed,
+            resultSize: 1,
+          );
+        }
+        onChunk(delta);
+      };
+    }
+    try {
+      final result = await _callOnceUntraced(
+        config: config,
+        model: model,
+        messages: messages,
+        temperature: temperature,
+        responseFormat: responseFormat,
+        strict: strict,
+        onChunk: tracedChunk,
+        cancelToken: cancelToken,
+        timeout: timeout,
+      );
+      trace.stop();
+      PerformanceTrace.instance.record(
+        feature: 'ai',
+        operation: 'ask',
+        duration: trace.elapsed,
+        resultSize: onChunk == null ? result.content.length : notificationCount,
+        cacheStatus:
+            result.cacheHit ? TraceCacheStatus.hit : TraceCacheStatus.miss,
+      );
+      return result;
+    } on AiCancelled {
+      trace.stop();
+      PerformanceTrace.instance.record(
+        feature: 'ai',
+        operation: 'ask',
+        duration: trace.elapsed,
+        resultSize: notificationCount,
+        outcome: TraceOutcome.cancelled,
+      );
+      rethrow;
+    } catch (_) {
+      trace.stop();
+      PerformanceTrace.instance.record(
+        feature: 'ai',
+        operation: 'ask',
+        duration: trace.elapsed,
+        resultSize: notificationCount,
+        outcome: TraceOutcome.error,
+      );
+      rethrow;
+    }
+  }
+
+  Future<AiEngineResult> _callOnceUntraced({
+    required AiEngineConfig config,
+    required String model,
+    required List<Map<String, dynamic>> messages,
+    required double temperature,
+    required Map<String, dynamic>? responseFormat,
+    required StrictSchemaMode strict,
+    required void Function(String delta)? onChunk,
+    required AiCancelToken? cancelToken,
+    required Duration timeout,
+  }) async {
     if (!config.isComplete) {
       throw Exception(
           'AI config incomplete: please fill in Base URL / API Key / Model.');
     }
 
-    final key =
-        AiCache.makeKey(model, messages, responseFormat);
+    final key = AiCache.makeKey(model, messages, responseFormat);
 
     // Cache lookup (only when caching is enabled at both the config and cache
     // level). A hit short-circuits the network entirely.

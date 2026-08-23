@@ -8,6 +8,7 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
+import 'package:sqlite3/sqlite3.dart' as sqlite;
 import 'package:turna/data/course_database.dart' as db;
 
 import '../helpers/in_memory_course_db.dart';
@@ -157,11 +158,11 @@ class _CourseDatabaseV6 extends db.CourseDatabase {
 /// A hypothetical newer schema used to verify downgrade behavior: opening
 /// a future DB with the current code must not crash - it wipes + recreates the
 /// schema (the course DB is a reseedable derived cache).
-class _CourseDatabaseV20 extends db.CourseDatabase {
-  _CourseDatabaseV20(super.e);
+class _CourseDatabaseV21 extends db.CourseDatabase {
+  _CourseDatabaseV21(super.e);
 
   @override
-  int get schemaVersion => 20;
+  int get schemaVersion => 21;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -554,16 +555,17 @@ void main() {
         'anki_notes',
         'anki_notetypes',
       ]);
-      expect(migrated.schemaVersion, db.CourseDatabase(NativeDatabase.memory()).schemaVersion);
+      expect(migrated.schemaVersion,
+          db.CourseDatabase(NativeDatabase.memory()).schemaVersion);
 
       await migrated.close();
       await File(path).parent.delete(recursive: true);
     });
 
-    test('v20 -> v19 downgrade wipes and recreates instead of crashing',
+    test('v21 -> v20 downgrade wipes and recreates instead of crashing',
         () async {
       final path = await _tempDbPath();
-      final newer = _CourseDatabaseV20(NativeDatabase(File(path)));
+      final newer = _CourseDatabaseV21(NativeDatabase(File(path)));
       await _forceOpen(newer);
       await newer.into(newer.sections).insert(
             const db.SectionsCompanion(
@@ -593,6 +595,77 @@ void main() {
       expect(after.map((r) => r.id), ['s-fresh']);
 
       await downgraded.close();
+      await File(path).parent.delete(recursive: true);
+    });
+
+    test('v19 -> v20 backfills explicit mixed source identity', () async {
+      final path = await _tempDbPath();
+      final raw = sqlite.sqlite3.open(path);
+      raw.execute('''
+        CREATE TABLE srs_states (
+          word_id TEXT PRIMARY KEY, queue TEXT NOT NULL, due_at INTEGER NOT NULL,
+          interval_days INTEGER NOT NULL, ease REAL NOT NULL, reps INTEGER NOT NULL,
+          lapses INTEGER NOT NULL, is_leech INTEGER NOT NULL,
+          is_suspended INTEGER NOT NULL, is_buried INTEGER NOT NULL,
+          type TEXT NOT NULL, last_reviewed_at INTEGER, stability REAL,
+          difficulty REAL, fsrs_state INTEGER NOT NULL, learning_step INTEGER
+        );
+        CREATE TABLE review_events (
+          id INTEGER PRIMARY KEY AUTOINCREMENT, card_id TEXT NOT NULL,
+          queue TEXT NOT NULL, reviewed_at INTEGER NOT NULL, quality INTEGER NOT NULL,
+          prev_interval_days INTEGER NOT NULL, next_interval_days INTEGER NOT NULL,
+          prev_ease REAL NOT NULL, next_ease REAL NOT NULL, reps INTEGER NOT NULL,
+          lapses INTEGER NOT NULL, type TEXT NOT NULL, source_key TEXT
+        );
+        CREATE TABLE fun_lab_snapshot_srs (
+          word_id TEXT PRIMARY KEY, queue TEXT NOT NULL
+        );
+        CREATE TABLE fun_lab_snapshot_review_events (
+          id INTEGER PRIMARY KEY, card_id TEXT NOT NULL, queue TEXT NOT NULL
+        );
+        INSERT INTO srs_states VALUES
+          ('opaque-course', 'srs', 0, 1, 2.5, 0, 0, 0, 0, 0, 'word', NULL, NULL, NULL, 1, NULL),
+          ('grammar-row', 'grammar', 0, 1, 2.5, 0, 0, 0, 0, 0, 'word', NULL, NULL, NULL, 1, NULL),
+          ('anki-legacy-a-c7', 'srs', 0, 1, 2.5, 0, 0, 0, 0, 0, 'word', NULL, NULL, NULL, 1, NULL),
+          ('official-anki-official-a-c8', 'srs', 0, 1, 2.5, 0, 0, 0, 0, 0, 'word', NULL, NULL, NULL, 1, NULL);
+        INSERT INTO review_events
+          (card_id, queue, reviewed_at, quality, prev_interval_days,
+           next_interval_days, prev_ease, next_ease, reps, lapses, type)
+        SELECT word_id, queue, 1, 4, 1, 2, 2.5, 2.5, 1, 0, type
+        FROM srs_states;
+        PRAGMA user_version = 19;
+      ''');
+      raw.dispose();
+
+      final migrated = db.CourseDatabase(NativeDatabase(File(path)));
+      await _forceOpen(migrated);
+      final states = await migrated
+          .customSelect(
+            'SELECT word_id, source_kind, source_id FROM srs_states '
+            'ORDER BY word_id',
+          )
+          .get();
+      final identity = {
+        for (final row in states)
+          row.read<String>('word_id'): (
+            row.read<String>('source_kind'),
+            row.read<String>('source_id'),
+          ),
+      };
+      expect(identity['opaque-course'], ('course', 'course'));
+      expect(identity['grammar-row'], ('grammar', 'grammar'));
+      expect(identity['anki-legacy-a-c7'], ('ankiLegacy', 'legacy-a'));
+      expect(identity['official-anki-official-a-c8'],
+          ('ankiOfficial', 'official-a'));
+      final events = await migrated
+          .customSelect(
+            'SELECT source_kind, source_id FROM review_events',
+          )
+          .get();
+      expect(events, hasLength(4));
+      expect(events.every((row) => row.data['source_kind'] != null), isTrue);
+
+      await migrated.close();
       await File(path).parent.delete(recursive: true);
     });
 

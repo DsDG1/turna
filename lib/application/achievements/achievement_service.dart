@@ -72,9 +72,8 @@ class AchievementService extends ChangeNotifier {
       .toList(growable: false);
 
   /// Unlocked badge count across published series.
-  int get unlockedBadgeCount => state.unlockedTiers.keys
-      .where(_isPublishedTier)
-      .length;
+  int get unlockedBadgeCount =>
+      state.unlockedTiers.keys.where(_isPublishedTier).length;
 
   /// Most recent unlock across published series (null for fresh accounts).
   AchievementTierState? get latestUnlock {
@@ -98,7 +97,8 @@ class AchievementService extends ChangeNotifier {
   }
 
   /// Progress views for every published series, in catalog order.
-  List<AchievementSeriesProgress> progressViews([AchievementMetricSnapshot? snapshot]) {
+  List<AchievementSeriesProgress> progressViews(
+      [AchievementMetricSnapshot? snapshot]) {
     final snap = snapshot ?? _lastSnapshot;
     final doc = state;
     return [
@@ -227,10 +227,14 @@ class AchievementService extends ChangeNotifier {
         ),
       );
 
-      // Phase 2: grant gems (single GemsProvider write), then mark granted.
-      final gemTotal = fresh.fold<int>(0, (sum, r) => sum + r.gemReward);
-      if (gemTotal > 0) {
-        await _gemsProvider.addGems(gemTotal);
+      // Phase 2: each tier has a natural idempotency key in the gem ledger.
+      for (final reward in fresh) {
+        if (reward.gemReward <= 0) continue;
+        await _gemsProvider.earnGems(
+          GemEvent.achievementUnlock,
+          eventId: GemRewardEventIds.achievement(reward.tierId),
+          amount: reward.gemReward,
+        );
       }
       await _stateRepository.mutate(
         (current) => current.copyWith(
@@ -282,12 +286,14 @@ class AchievementService extends ChangeNotifier {
           .toList(growable: false);
       if (pending.isEmpty) return;
 
-      var gemTotal = 0;
       for (final t in pending) {
-        gemTotal += AchievementCatalog.tierById(t.tierId)?.gemReward ?? 0;
-      }
-      if (gemTotal > 0) {
-        await _gemsProvider.addGems(gemTotal);
+        final amount = AchievementCatalog.tierById(t.tierId)?.gemReward ?? 0;
+        if (amount <= 0) continue;
+        await _gemsProvider.earnGems(
+          GemEvent.achievementUnlock,
+          eventId: GemRewardEventIds.achievement(t.tierId),
+          amount: amount,
+        );
       }
       final now = DateTime.now();
       await _stateRepository.mutate(
@@ -300,6 +306,11 @@ class AchievementService extends ChangeNotifier {
           },
           updatedAt: now,
         ),
+      );
+      final gemTotal = pending.fold<int>(
+        0,
+        (sum, t) =>
+            sum + (AchievementCatalog.tierById(t.tierId)?.gemReward ?? 0),
       );
       logger.i('Achievement reward recovery paid $gemTotal gems for '
           '${pending.length} tier(s)');

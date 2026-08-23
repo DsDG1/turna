@@ -7,17 +7,20 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/application/achievements/achievement_service.dart';
+import 'package:turna/application/cosmetic_provider.dart';
 import 'package:turna/application/game_provider.dart';
 import 'package:turna/application/gems_provider.dart';
 import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/lesson_link_store.dart';
 import 'package:turna/application/lesson_progress_provider.dart';
 import 'package:turna/application/mistake_provider.dart';
+import 'package:turna/application/restore_normalization_service.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/application/study_stats_provider.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/data/srs_state_dao.dart';
 import 'package:turna/data/study_log_repository.dart';
+import 'package:turna/di/injection.dart';
 import 'package:turna/service/locator.dart';
 
 class FunLabSnapshotMeta {
@@ -96,8 +99,36 @@ class FunLabSnapshotService {
       _SnapshotPrefType.stringList,
     ),
     _SnapshotPref(LocalStateKeys.streakWasBroken, _SnapshotPrefType.bool_),
+    _SnapshotPref(
+      LocalStateKeys.streakProtectedDays,
+      _SnapshotPrefType.stringList,
+    ),
+    _SnapshotPref(
+      LocalStateKeys.streakAutoUseVoucher,
+      _SnapshotPrefType.bool_,
+    ),
     _SnapshotPref(LocalStateKeys.wordsLearned, _SnapshotPrefType.int_),
     _SnapshotPref(LocalStateKeys.gems, _SnapshotPrefType.int_),
+    _SnapshotPref(
+      LocalStateKeys.cosmeticsUnlocked,
+      _SnapshotPrefType.stringList,
+    ),
+    _SnapshotPref(
+      LocalStateKeys.cosmeticsEquippedRing,
+      _SnapshotPrefType.string,
+    ),
+    _SnapshotPref(
+      LocalStateKeys.cosmeticsEquippedAvatarRing,
+      _SnapshotPrefType.string,
+    ),
+    _SnapshotPref(
+      LocalStateKeys.cosmeticsEquippedProfileTheme,
+      _SnapshotPrefType.string,
+    ),
+    _SnapshotPref(
+      LocalStateKeys.cosmeticsEquippedCompletionEffect,
+      _SnapshotPrefType.string,
+    ),
     // v1 achievement list (legacy) + achievements v2 state/projection/marker.
     _SnapshotPref(LocalStateKeys.achievements, _SnapshotPrefType.stringList),
     _SnapshotPref(LocalStateKeys.achievementsStateV2, _SnapshotPrefType.string),
@@ -126,12 +157,13 @@ class FunLabSnapshotService {
   static const _srsColumns =
       'word_id, queue, due_at, interval_days, ease, reps, lapses, '
       'is_leech, is_suspended, is_buried, type, last_reviewed_at, '
-      'stability, difficulty, fsrs_state, learning_step';
+      'stability, difficulty, fsrs_state, learning_step, source_kind, '
+      'source_id, owner_id';
 
   static const _reviewColumns =
       'id, card_id, queue, reviewed_at, quality, prev_interval_days, '
       'next_interval_days, prev_ease, next_ease, reps, lapses, type, '
-      'source_key';
+      'source_key, source_kind, source_id, owner_id';
 
   Future<FunLabSnapshotMeta?> loadMeta() async {
     final rows = await _db
@@ -355,7 +387,15 @@ class FunLabSnapshotService {
     _mistakeProvider.reloadFromPrefs();
     await _linkStore.reloadFromPrefs();
     await _studyLogRepository.reloadFromPrefs();
-    _gemsProvider.refreshFromPrefs();
+    if (getIt.isRegistered<RestoreNormalizationService>()) {
+      await getIt<RestoreNormalizationService>().normalize();
+    } else {
+      await _gemsProvider.reconcileAfterRestore();
+      if (getIt.isRegistered<CosmeticProvider>()) {
+        await getIt<CosmeticProvider>().ensureInitialized();
+      }
+      await _prefs.preferences.setBool(LocalStateKeys.funAutoAnswer, false);
+    }
     _gameProvider.refreshFromPrefs();
     await _studyStatsProvider.refreshFromPrefs();
     await _achievementService.reloadFromPrefs();

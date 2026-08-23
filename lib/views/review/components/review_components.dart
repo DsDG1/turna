@@ -4,6 +4,7 @@ import 'package:turna/core/sm2.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/profile/achievements/achievement_feedback_banner.dart';
 import 'package:turna/views/theme.dart';
+import 'package:turna/views/widgets/cosmetic_completion_badge.dart';
 
 /// Binary rating bar only: 不认识 / 认识.
 /// Optional [failPreview] / [passPreview] show FSRS interval chips (ADR 0028).
@@ -205,10 +206,11 @@ class ReviewCompletionState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.emoji_events_rounded,
-              size: 64,
-              color: TurnaTheme.success,
+            const CosmeticCompletionBadge(
+              fallbackIcon: Icons.emoji_events_rounded,
+              fallbackColor: TurnaTheme.success,
+              size: 76,
+              iconSize: 52,
             ),
             const SizedBox(height: 16),
             Text(

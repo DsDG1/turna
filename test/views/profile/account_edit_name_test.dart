@@ -20,6 +20,8 @@ import 'package:turna/application/cosmetic_provider.dart';
 import 'package:turna/application/gems_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/auth/local_user.dart';
+import 'package:turna/domain/cosmetics/avatar_ring.dart';
+import 'package:turna/domain/cosmetics/cosmetic_item.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/views/profile/widgets/account_app_bar.dart';
@@ -103,5 +105,27 @@ void main() {
     expect(find.text(AppStrings.accountEditNameTitle), findsNothing);
     expect(find.text('Learner'), findsOneWidget);
     expect(prefs.authUser.getValue().displayName, 'Learner');
+  });
+
+  testWidgets('equipped profile theme is visible on the profile hero',
+      (tester) async {
+    await prefs.preferences.setStringList(
+      LocalStateKeys.cosmeticsUnlocked,
+      [CosmeticItems.profileSunrise],
+    );
+    await prefs.preferences.setString(
+      LocalStateKeys.cosmeticsEquippedProfileTheme,
+      CosmeticItems.profileSunrise,
+    );
+
+    await pumpHero(tester);
+
+    final container = tester.widget<Container>(
+      find.byKey(const Key('profile-cosmetic-theme')),
+    );
+    final decoration = container.decoration! as BoxDecoration;
+    final gradient = decoration.gradient! as LinearGradient;
+    final theme = CosmeticCatalog.itemById(CosmeticItems.profileSunrise)!;
+    expect(gradient.colors.first, theme.accentColor!.withValues(alpha: 0.18));
   });
 }

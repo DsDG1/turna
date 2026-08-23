@@ -9,7 +9,6 @@ import 'package:turna/application/game_provider.dart';
 import 'package:turna/application/gems_provider.dart';
 import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/lesson_link_store.dart';
-import 'package:turna/application/lesson_progress_provider.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/score_provider.dart';
 import 'package:turna/application/srs_provider.dart';
@@ -226,6 +225,7 @@ void main() {
       LocalStateKeys.funAllAchievementsUnlocked,
       false,
     );
+    await prefs.preferences.setBool(LocalStateKeys.funAutoAnswer, true);
     await srsDao.upsert('srs', item('word', due.add(const Duration(days: 10))));
     await db.customStatement('DELETE FROM review_events');
     await db.customStatement('''
@@ -276,6 +276,13 @@ void main() {
               defaultValue: false)
           .getValue(),
       isTrue,
+    );
+    expect(
+      prefs.preferences
+          .getBool(LocalStateKeys.funAutoAnswer, defaultValue: true)
+          .getValue(),
+      isFalse,
+      reason: 'Fun Lab restore must never leave auto-answer enabled',
     );
     expect((await srsDao.loadQueue('srs'))['word']!.dueAt, due);
     final history = await db.customSelect('SELECT * FROM review_events').get();

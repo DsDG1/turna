@@ -18,6 +18,11 @@ _SrsWord _$SrsWordFromJson(Map<String, dynamic> json) => _SrsWord(
       isBuried: json['isBuried'] as bool? ?? false,
       type: $enumDecodeNullable(_$SrsItemTypeEnumMap, json['type']) ??
           SrsItemType.word,
+      sourceKind:
+          $enumDecodeNullable(_$SrsSourceKindEnumMap, json['sourceKind']) ??
+              SrsSourceKind.course,
+      sourceId: json['sourceId'] as String? ?? 'course',
+      ownerId: json['ownerId'] as String?,
       lastReviewedAt: json['lastReviewedAt'] == null
           ? null
           : DateTime.parse(json['lastReviewedAt'] as String),
@@ -38,6 +43,9 @@ Map<String, dynamic> _$SrsWordToJson(_SrsWord instance) => <String, dynamic>{
       'isSuspended': instance.isSuspended,
       'isBuried': instance.isBuried,
       'type': _$SrsItemTypeEnumMap[instance.type]!,
+      'sourceKind': _$SrsSourceKindEnumMap[instance.sourceKind]!,
+      'sourceId': instance.sourceId,
+      'ownerId': instance.ownerId,
       'lastReviewedAt': instance.lastReviewedAt?.toIso8601String(),
       'stability': instance.stability,
       'difficulty': instance.difficulty,
@@ -48,4 +56,11 @@ Map<String, dynamic> _$SrsWordToJson(_SrsWord instance) => <String, dynamic>{
 const _$SrsItemTypeEnumMap = {
   SrsItemType.word: 'word',
   SrsItemType.expression: 'expression',
+};
+
+const _$SrsSourceKindEnumMap = {
+  SrsSourceKind.course: 'course',
+  SrsSourceKind.grammar: 'grammar',
+  SrsSourceKind.ankiLegacy: 'ankiLegacy',
+  SrsSourceKind.ankiOfficial: 'ankiOfficial',
 };

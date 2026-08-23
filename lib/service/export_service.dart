@@ -10,6 +10,8 @@ import 'package:share_plus/share_plus.dart';
 // Project imports:
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:turna/courses/course_loader.dart';
+import 'package:turna/application/restore_normalization_service.dart';
+import 'package:turna/di/injection.dart';
 import 'package:turna/service/locator.dart';
 
 /// Encoded progress / settings keys carried in an export and written back on
@@ -36,6 +38,8 @@ const List<_PrefEntry> _progressManifest = [
   _PrefEntry(LocalStateKeys.lessonsCompleted, _PrefType.int_),
   _PrefEntry(LocalStateKeys.perfectLessons, _PrefType.int_),
   _PrefEntry(LocalStateKeys.streakWasBroken, _PrefType.bool_),
+  _PrefEntry(LocalStateKeys.streakProtectedDays, _PrefType.stringList),
+  _PrefEntry(LocalStateKeys.streakAutoUseVoucher, _PrefType.bool_),
   _PrefEntry(LocalStateKeys.wordsLearned, _PrefType.int_),
   // Per-lesson progress
   _PrefEntry(LocalStateKeys.completedLessonIds, _PrefType.stringList),
@@ -51,6 +55,13 @@ const List<_PrefEntry> _progressManifest = [
   _PrefEntry(LocalStateKeys.achievementsMigrationVersion, _PrefType.int_),
   _PrefEntry(LocalStateKeys.cosmeticsUnlocked, _PrefType.stringList),
   _PrefEntry(LocalStateKeys.cosmeticsEquippedRing, _PrefType.string),
+  _PrefEntry(LocalStateKeys.cosmeticsEquippedAvatarRing, _PrefType.string),
+  _PrefEntry(LocalStateKeys.cosmeticsEquippedProfileTheme, _PrefType.string),
+  _PrefEntry(LocalStateKeys.cosmeticsEquippedCardBack, _PrefType.string),
+  _PrefEntry(
+      LocalStateKeys.cosmeticsEquippedCompletionEffect, _PrefType.string),
+  _PrefEntry(LocalStateKeys.cosmeticsEquippedSoundPack, _PrefType.string),
+  _PrefEntry(LocalStateKeys.cosmeticsEquippedMascotAccessory, _PrefType.string),
   // SRS / mistakes
   _PrefEntry(LocalStateKeys.srsState, _PrefType.string),
   _PrefEntry(LocalStateKeys.lessonWordLinks, _PrefType.string),
@@ -71,6 +82,15 @@ const List<_PrefEntry> _progressManifest = [
   _PrefEntry(LocalStateKeys.dailyReminderHour, _PrefType.int_),
   _PrefEntry(LocalStateKeys.dailyReminderMinute, _PrefType.int_),
   _PrefEntry(LocalStateKeys.contentVersionAcknowledged, _PrefType.string),
+  _PrefEntry(LocalStateKeys.autoRotate, _PrefType.bool_),
+  _PrefEntry(LocalStateKeys.uiLocale, _PrefType.string),
+  _PrefEntry(LocalStateKeys.textScale, _PrefType.int_),
+  _PrefEntry(LocalStateKeys.reducedMotion, _PrefType.bool_),
+  _PrefEntry(LocalStateKeys.highContrast, _PrefType.bool_),
+  _PrefEntry(LocalStateKeys.dyslexiaFont, _PrefType.bool_),
+  _PrefEntry(LocalStateKeys.sensoryReduce, _PrefType.bool_),
+  _PrefEntry(LocalStateKeys.focusMode, _PrefType.bool_),
+  _PrefEntry(LocalStateKeys.aiEngineConfig, _PrefType.string),
   // Account + language
   _PrefEntry(PrefsConstants.currentLanguage, _PrefType.string),
   _PrefEntry(PrefsConstants.authUser, _PrefType.string), // JSON string
@@ -155,6 +175,9 @@ class ExportService {
     final progress = decoded['progress'];
     if (progress is Map<String, dynamic>) {
       await _writeProgress(progress);
+      if (getIt.isRegistered<RestoreNormalizationService>()) {
+        await getIt<RestoreNormalizationService>().normalize();
+      }
       progressRestored = true;
     }
 
@@ -184,14 +207,29 @@ class ExportService {
           out[entry.key] =
               prefs.getDouble(entry.key, defaultValue: 0.0).getValue();
         case _PrefType.string:
-          out[entry.key] =
-              prefs.getString(entry.key, defaultValue: '').getValue();
+          final value = prefs.getString(entry.key, defaultValue: '').getValue();
+          out[entry.key] = entry.key == LocalStateKeys.aiEngineConfig
+              ? _stripApiKey(value)
+              : value;
         case _PrefType.stringList:
           out[entry.key] =
               prefs.getStringList(entry.key, defaultValue: const []).getValue();
       }
     }
     return out;
+  }
+
+  static String _stripApiKey(String raw) {
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) {
+        decoded['apiKey'] = '';
+        return jsonEncode(decoded);
+      }
+    } catch (_) {}
+    // An invalid AI config has no restorable settings value. Dropping it is
+    // safer than copying an opaque blob that may contain a legacy secret.
+    return '';
   }
 
   Future<void> _writeProgress(Map<String, dynamic> data) async {

@@ -53,6 +53,8 @@ class UnifiedReviewPage extends StatefulWidget {
 
 class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
   final AudioController _audioController = getIt<AudioController>();
+  final String _gemSessionSequence =
+      DateTime.now().microsecondsSinceEpoch.toString();
   late final ReviewSessionController _controller;
   final Map<String, String> _mistakeIdsBySchedulingKey = {};
 
@@ -149,7 +151,14 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
         );
       }
       if (gems != null) {
-        await gems.earnGems(GemEvent.srsReviewSession);
+        await gems.earnGems(
+          GemEvent.srsReviewSession,
+          eventId: GemRewardEventIds.reviewSession(
+            kind: 'srs',
+            completedAt: DateTime.now(),
+            sessionSequence: _gemSessionSequence,
+          ),
+        );
       }
       if (study != null) {
         await study.recordActivity(
@@ -197,9 +206,7 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
     }
     showAiCardExplainSheet(
       context,
-      language: context_.language ?? 'tr',
-      front: context_.questionPlainText,
-      back: context_.answerPlainText,
+      cardContext: context_,
     );
   }
 

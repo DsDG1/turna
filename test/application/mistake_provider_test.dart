@@ -4,6 +4,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
+import 'package:turna/application/diagnostics/storage_write_telemetry.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/domain/course/mistake_entry.dart';
@@ -23,6 +24,7 @@ void main() {
     final sp = await StreamingSharedPreferences.instance;
     prefs = AppPrefs(sp);
     await prefs.preferences.setString(LocalStateKeys.mistakeLog, '[]');
+    StorageWriteTelemetry.instance.clear();
     mistakes = MistakeProvider(prefs);
   });
 
@@ -67,6 +69,21 @@ void main() {
       // m-0 was the first inserted → evicted.
       expect(mistakes.entries.first.id, 'm-1');
       expect(mistakes.entries.last.id, 'm-${MistakeProvider.maxEntries}');
+    });
+
+    test('bounded full-rewrite baseline stays below migration threshold',
+        () async {
+      for (var i = 0; i < MistakeProvider.maxEntries + 1; i++) {
+        await mistakes.record(entry(id: 'baseline-$i'));
+      }
+      final writes = StorageWriteTelemetry.instance.samples
+          .where((sample) => sample.key == LocalStateKeys.mistakeLog)
+          .toList();
+      final maximumBytes = writes
+          .map((sample) => sample.estimatedBytes)
+          .reduce((a, b) => a > b ? a : b);
+      expect(writes, hasLength(MistakeProvider.maxEntries + 1));
+      expect(maximumBytes, lessThan(64 * 1024));
     });
   });
 

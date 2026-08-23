@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
+import 'package:turna/application/diagnostics/storage_write_telemetry.dart';
 import 'package:turna/application/ai/engine/ai_engine_config.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/repositories/i_credential_store.dart';
@@ -133,8 +134,7 @@ class AiEngineConfigHolder extends ChangeNotifier {
         final decoded = jsonDecode(raw);
         if (decoded is Map<String, dynamic>) {
           stored = AiEngineConfig.fromJson(decoded);
-          legacyPlaintextKey =
-              (decoded['apiKey'] as String?)?.trim() ?? '';
+          legacyPlaintextKey = (decoded['apiKey'] as String?)?.trim() ?? '';
         }
       }
     } catch (_) {
@@ -223,8 +223,18 @@ class AiEngineConfigHolder extends ChangeNotifier {
     if (prefs == null) return;
     // Secrets never enter the prefs blob; writing on `prefs.preferences`
     // (not `AppPrefs.setString`) keeps the value out of debug logs too.
+    final encoded = jsonEncode(_config.toJson());
+    final stopwatch = Stopwatch()..start();
     prefs.preferences
-        .setString(LocalStateKeys.aiEngineConfig, jsonEncode(_config.toJson()));
+        .setString(LocalStateKeys.aiEngineConfig, encoded)
+        .then((_) {
+      stopwatch.stop();
+      StorageWriteTelemetry.instance.record(
+        key: LocalStateKeys.aiEngineConfig,
+        estimatedBytes: utf8.encode(encoded).length,
+        elapsed: stopwatch.elapsed,
+      );
+    });
   }
 
   Future<String?> _readStoredKey() {

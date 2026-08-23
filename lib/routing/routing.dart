@@ -51,6 +51,8 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: ReviewProgressRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(
             page: LearningInsightsRoute.page, guards: [_courseReadyGuard]),
+        AutoRoute(
+            page: ReviewSourceDetailRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(page: AchievementsRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(page: GrammarReviewRoute.page),
         AutoRoute(page: MistakeListRoute.page),

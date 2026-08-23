@@ -276,12 +276,21 @@ abstract class SrsQueueProvider extends ChangeNotifier {
 
   /// Register [id] as fresh if unseen.
   @protected
-  void registerItem(String id, {SrsItemType type = SrsItemType.word}) {
+  void registerItem(
+    String id, {
+    SrsItemType type = SrsItemType.word,
+    SrsSourceKind sourceKind = SrsSourceKind.course,
+    String sourceId = 'course',
+    String? ownerId,
+  }) {
     final current = state;
     if (current.containsKey(id)) return;
-    current[id] = type == SrsItemType.word
-        ? SrsWord.fresh(id)
-        : SrsWord.fresh(id).copyWith(type: type);
+    current[id] = SrsWord.fresh(id).copyWith(
+      type: type,
+      sourceKind: queueId == 'grammar' ? SrsSourceKind.grammar : sourceKind,
+      sourceId: queueId == 'grammar' ? 'grammar' : sourceId,
+      ownerId: ownerId,
+    );
     _commitAndPersist(current);
   }
 
@@ -290,14 +299,20 @@ abstract class SrsQueueProvider extends ChangeNotifier {
   void registerAllItems(
     Iterable<String> ids, {
     SrsItemType type = SrsItemType.word,
+    SrsSourceKind sourceKind = SrsSourceKind.course,
+    String sourceId = 'course',
+    String? ownerId,
   }) {
     final current = state;
     var changed = false;
     for (final id in ids) {
       if (!current.containsKey(id)) {
-        current[id] = type == SrsItemType.word
-            ? SrsWord.fresh(id)
-            : SrsWord.fresh(id).copyWith(type: type);
+        current[id] = SrsWord.fresh(id).copyWith(
+          type: type,
+          sourceKind: queueId == 'grammar' ? SrsSourceKind.grammar : sourceKind,
+          sourceId: queueId == 'grammar' ? 'grammar' : sourceId,
+          ownerId: ownerId,
+        );
         changed = true;
       }
     }
@@ -422,6 +437,10 @@ abstract class SrsQueueProvider extends ChangeNotifier {
           lapses: updated.lapses,
           type: updated.type,
           sourceKey: eventSourceKey,
+          sourceKind:
+              queueId == 'grammar' ? SrsSourceKind.grammar : updated.sourceKind,
+          sourceId: queueId == 'grammar' ? 'grammar' : updated.sourceId,
+          ownerId: updated.ownerId,
         ));
         // Review data actually changed: invalidate dashboard/insights caches
         // (Plan 3 §16.5). Guarded — tests construct this provider without DI.

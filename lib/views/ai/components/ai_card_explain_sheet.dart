@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
+import 'package:turna/application/ai/ai_card_context_resolver.dart';
 import 'package:turna/application/ai/ai_card_explain_provider.dart';
 import 'package:turna/application/ai/ai_explain_prefs.dart';
 import 'package:turna/application/ai/ai_saved_explanations.dart';
@@ -18,9 +19,7 @@ import 'package:turna/views/theme.dart';
 /// Lightweight sheet: explain an SRS/Anki card without mutating scores/notes.
 Future<void> showAiCardExplainSheet(
   BuildContext context, {
-  required String language,
-  required String front,
-  String? back,
+  required AiCardContext cardContext,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -39,9 +38,7 @@ Future<void> showAiCardExplainSheet(
       return ChangeNotifierProvider(
         create: (_) => AiCardExplainProvider(prefs: prefs),
         child: _AiCardExplainBody(
-          language: language,
-          front: front,
-          back: back,
+          cardContext: cardContext,
         ),
       );
     },
@@ -50,14 +47,10 @@ Future<void> showAiCardExplainSheet(
 
 class _AiCardExplainBody extends StatefulWidget {
   const _AiCardExplainBody({
-    required this.language,
-    required this.front,
-    this.back,
+    required this.cardContext,
   });
 
-  final String language;
-  final String front;
-  final String? back;
+  final AiCardContext cardContext;
 
   @override
   State<_AiCardExplainBody> createState() => _AiCardExplainBodyState();
@@ -79,9 +72,7 @@ class _AiCardExplainBodyState extends State<_AiCardExplainBody> {
     if (!config.isComplete) return;
     context.read<AiCardExplainProvider>().explain(
           config: config,
-          language: widget.language,
-          front: widget.front,
-          back: widget.back,
+          context: widget.cardContext,
         );
   }
 
@@ -129,10 +120,22 @@ class _AiCardExplainBodyState extends State<_AiCardExplainBody> {
                 fit: FlexFit.loose,
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxHeight: 360),
-                  child: Consumer<AiCardExplainProvider>(
-                    builder: (context, p, _) {
-                      if (p.state == AiCardExplainState.loading &&
-                          (p.explanation == null || p.explanation!.isEmpty)) {
+                  child: Selector<
+                      AiCardExplainProvider,
+                      ({
+                        AiCardExplainState state,
+                        String? error,
+                        bool hasText,
+                      })>(
+                    selector: (_, p) => (
+                      state: p.state,
+                      error: p.error,
+                      hasText: p.explanation?.isNotEmpty ?? false,
+                    ),
+                    builder: (context, snap, _) {
+                      final p = context.read<AiCardExplainProvider>();
+                      if (snap.state == AiCardExplainState.loading &&
+                          !snap.hasText) {
                         return const Center(
                           child: Padding(
                             padding: EdgeInsets.all(24),
@@ -142,10 +145,9 @@ class _AiCardExplainBodyState extends State<_AiCardExplainBody> {
                           ),
                         );
                       }
-                      if (p.error != null &&
-                          (p.explanation == null || p.explanation!.isEmpty)) {
+                      if (snap.error != null && !snap.hasText) {
                         return Text(
-                          p.error!,
+                          snap.error!,
                           style: const TextStyle(color: TurnaTheme.error),
                         );
                       }
@@ -156,10 +158,11 @@ class _AiCardExplainBodyState extends State<_AiCardExplainBody> {
                           children: [
                             Expanded(
                               child: SingleChildScrollView(
-                                child: Text(text),
+                                child: const _StreamingCardExplanation(),
                               ),
                             ),
-                            if (text.isNotEmpty) ...[
+                            if (snap.state == AiCardExplainState.ready &&
+                                text.isNotEmpty) ...[
                               const SizedBox(height: 8),
                               Row(
                                 children: [
@@ -170,8 +173,8 @@ class _AiCardExplainBodyState extends State<_AiCardExplainBody> {
                                       ScaffoldMessenger.maybeOf(context)
                                           ?.showSnackBar(
                                         SnackBar(
-                                            content: Text(
-                                                AppStrings.aiDepthCopied)),
+                                            content:
+                                                Text(AppStrings.aiDepthCopied)),
                                       );
                                     },
                                     icon: const Icon(Icons.copy_rounded,
@@ -184,12 +187,15 @@ class _AiCardExplainBodyState extends State<_AiCardExplainBody> {
                                           .read<AiSavedExplanationsStore>();
                                       await store.save(SavedExplanation(
                                         id: AiSavedExplanationsStore.newId(),
-                                        title: widget.front.length > 40
-                                            ? '${widget.front.substring(0, 40)}…'
-                                            : widget.front,
+                                        title: widget.cardContext
+                                                    .questionPlainText.length >
+                                                40
+                                            ? '${widget.cardContext.questionPlainText.substring(0, 40)}…'
+                                            : widget
+                                                .cardContext.questionPlainText,
                                         body: text,
                                         source: 'review',
-                                        language: widget.language,
+                                        language: widget.cardContext.language,
                                         createdAt: DateTime.now(),
                                       ));
                                       if (context.mounted) {
@@ -201,7 +207,8 @@ class _AiCardExplainBodyState extends State<_AiCardExplainBody> {
                                         );
                                       }
                                     },
-                                    icon: const Icon(Icons.bookmark_add_outlined,
+                                    icon: const Icon(
+                                        Icons.bookmark_add_outlined,
                                         size: 18),
                                     label: Text(AppStrings.aiSaveExplanation),
                                   ),
@@ -217,6 +224,21 @@ class _AiCardExplainBodyState extends State<_AiCardExplainBody> {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// The only sheet subtree rebuilt for each coalesced streaming batch.
+class _StreamingCardExplanation extends StatelessWidget {
+  const _StreamingCardExplanation();
+
+  @override
+  Widget build(BuildContext context) {
+    return Selector<AiCardExplainProvider, int>(
+      selector: (_, p) => p.streamingRevision,
+      builder: (context, _, __) => Text(
+        context.read<AiCardExplainProvider>().explanation ?? '',
       ),
     );
   }

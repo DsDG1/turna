@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:turna/application/review_dashboard/review_dashboard_models.dart';
 import 'package:turna/application/review_dashboard/review_dashboard_repository.dart';
+import 'package:turna/application/accessibility_capabilities.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/theme.dart';
@@ -73,23 +74,21 @@ class _ReviewProgressPageState extends State<ReviewProgressPage> {
   /// the spinner only dismisses when data has really arrived (Plan 3 §14.7).
   Future<void> _refresh() {
     final repo = context.read<ReviewDashboardRepository>();
-    return repo
-        .loadDashboard(forceRefresh: true)
-        .then((snap) {
-          if (!mounted) return;
-          setState(() {
-            _snapshot = snap;
-            _error = null;
-          });
-        })
-        .catchError((Object error) {
-          if (mounted) setState(() => _error = error);
-        });
+    return repo.loadDashboard(forceRefresh: true).then((snap) {
+      if (!mounted) return;
+      setState(() {
+        _snapshot = snap;
+        _error = null;
+      });
+    }).catchError((Object error) {
+      if (mounted) setState(() => _error = error);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final snap = _snapshot;
+    final focusMode = accessibilityOf(context).focusMode;
     return Scaffold(
       backgroundColor: TurnaTheme.scaffoldBg(context),
       appBar: AppBar(
@@ -99,13 +98,13 @@ class _ReviewProgressPageState extends State<ReviewProgressPage> {
           IconButton(
             tooltip: AppStrings.reviewInsightsTitle,
             icon: const Icon(Icons.insights_rounded),
-            onPressed: () =>
-                context.router.push(const LearningInsightsRoute()),
+            onPressed: () => context.router.push(const LearningInsightsRoute()),
           ),
         ],
       ),
       body: _error != null && snap == null
-          ? _ErrorState(message: '$_error', onRetry: () => _reload(forceRefresh: true))
+          ? _ErrorState(
+              message: '$_error', onRetry: () => _reload(forceRefresh: true))
           : snap == null
               ? const _DashboardSkeleton()
               : RefreshIndicator(
@@ -128,18 +127,20 @@ class _ReviewProgressPageState extends State<ReviewProgressPage> {
                       const SizedBox(height: 12),
                       _DueRow(snapshot: snap),
                       const SizedBox(height: 12),
-                      _StreakCard(snapshot: snap),
-                      const SizedBox(height: 12),
-                      _TodayQualityCard(snapshot: snap),
-                      const SizedBox(height: 12),
-                      _SourceList(snapshot: snap),
-                      const SizedBox(height: 16),
-                      OutlinedButton.icon(
-                        onPressed: () =>
-                            context.router.push(const LearningInsightsRoute()),
-                        icon: const Icon(Icons.insights_rounded, size: 18),
-                        label: Text(AppStrings.reviewOpenInsights),
-                      ),
+                      if (!focusMode) ...[
+                        _StreakCard(snapshot: snap),
+                        const SizedBox(height: 12),
+                        _TodayQualityCard(snapshot: snap),
+                        const SizedBox(height: 12),
+                        _SourceList(snapshot: snap),
+                        const SizedBox(height: 16),
+                        OutlinedButton.icon(
+                          onPressed: () => context.router
+                              .push(const LearningInsightsRoute()),
+                          icon: const Icon(Icons.insights_rounded, size: 18),
+                          label: Text(AppStrings.reviewOpenInsights),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -166,6 +167,43 @@ class _TodayHero extends StatelessWidget {
     final canReview = due.actionableTotal > 0;
     final dateLabel = _formatDate(snapshot.generatedAt);
 
+    final largeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
+    final progressBlock = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          hasGoal && today.todayXp != null
+              ? AppStrings.reviewTodayGoalProgress(
+                  today.todayXp!, today.xpGoal!)
+              : AppStrings.reviewTodayReviewed(today.reviewedToday),
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: TurnaTheme.brandTeal,
+              ),
+        ),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: progress,
+            minHeight: 8,
+            backgroundColor: TurnaTheme.dividerBg(context),
+            color: TurnaTheme.brandTeal,
+          ),
+        ),
+      ],
+    );
+    final cta = FilledButton.icon(
+      onPressed:
+          canReview ? () => context.router.push(const SrsReviewRoute()) : null,
+      icon: const Icon(Icons.play_arrow_rounded, size: 20),
+      label: Text(
+        canReview
+            ? AppStrings.reviewContinueCta
+            : AppStrings.reviewTodayDoneCta,
+        style: const TextStyle(fontWeight: FontWeight.w700),
+      ),
+    );
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -176,8 +214,10 @@ class _TodayHero extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            spacing: 12,
+            runSpacing: 4,
             children: [
               Text(
                 AppStrings.reviewTodayTitle,
@@ -194,53 +234,18 @@ class _TodayHero extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      hasGoal && today.todayXp != null
-                          ? AppStrings.reviewTodayGoalProgress(
-                              today.todayXp!, today.xpGoal!)
-                          : AppStrings.reviewTodayReviewed(
-                              today.reviewedToday),
-                      style:
-                          Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.w800,
-                                color: TurnaTheme.brandTeal,
-                              ),
-                    ),
-                    const SizedBox(height: 8),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: progress,
-                        minHeight: 8,
-                        backgroundColor: TurnaTheme.dividerBg(context),
-                        color: TurnaTheme.brandTeal,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 14),
-              FilledButton.icon(
-                onPressed: canReview
-                    ? () => context.router.push(const SrsReviewRoute())
-                    : null,
-                icon: const Icon(Icons.play_arrow_rounded, size: 20),
-                label: Text(
-                  canReview
-                      ? AppStrings.reviewContinueCta
-                      : AppStrings.reviewTodayDoneCta,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ),
-            ],
-          ),
+          if (largeText) ...[
+            progressBlock,
+            const SizedBox(height: 12),
+            SizedBox(width: double.infinity, child: cta),
+          ] else
+            Row(
+              children: [
+                Expanded(child: progressBlock),
+                const SizedBox(width: 14),
+                cta,
+              ],
+            ),
         ],
       ),
     );
@@ -260,36 +265,43 @@ class _DueRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final due = snapshot.due;
+    final largeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
+    final cards = <Widget>[
+      _DueCard(
+        icon: Icons.schedule_rounded,
+        value: due.due,
+        label: AppStrings.reviewDueCard,
+        accent: due.due > 0 ? TurnaTheme.warning : TurnaTheme.textHint,
+      ),
+      _DueCard(
+        icon: Icons.fiber_new_rounded,
+        value: due.newCards,
+        label: AppStrings.reviewNewCard,
+        accent: TurnaTheme.brandSky,
+      ),
+      _DueCard(
+        icon: Icons.warning_amber_rounded,
+        value: due.overdue,
+        label: AppStrings.reviewOverdueCard,
+        accent: due.overdue > 0 ? TurnaTheme.error : TurnaTheme.textHint,
+      ),
+    ];
+    if (largeText) {
+      return Column(
+        children: [
+          for (var i = 0; i < cards.length; i++) ...[
+            if (i > 0) const SizedBox(height: 8),
+            SizedBox(width: double.infinity, child: cards[i]),
+          ],
+        ],
+      );
+    }
     return Row(
       children: [
-        Expanded(
-          child: _DueCard(
-            icon: Icons.schedule_rounded,
-            value: due.due,
-            label: AppStrings.reviewDueCard,
-            accent: due.due > 0 ? TurnaTheme.warning : TurnaTheme.textHint,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _DueCard(
-            icon: Icons.fiber_new_rounded,
-            value: due.newCards,
-            label: AppStrings.reviewNewCard,
-            accent: TurnaTheme.brandSky,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _DueCard(
-            icon: Icons.warning_amber_rounded,
-            value: due.overdue,
-            label: AppStrings.reviewOverdueCard,
-            // 逾期为 0 时降低视觉权重，不用红色占据主屏（§15.1）。
-            accent:
-                due.overdue > 0 ? TurnaTheme.error : TurnaTheme.textHint,
-          ),
-        ),
+        for (var i = 0; i < cards.length; i++) ...[
+          if (i > 0) const SizedBox(width: 10),
+          Expanded(child: cards[i]),
+        ],
       ],
     );
   }
@@ -371,6 +383,17 @@ class _StreakCard extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                     ),
               ),
+              if (streak.protectedByVoucher) ...[
+                const SizedBox(width: 8),
+                const Tooltip(
+                  message: '本次连续记录由保护券保留；学习统计未修改',
+                  child: Chip(
+                    avatar: Icon(Icons.shield_rounded, size: 15),
+                    label: Text('已保护'),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+              ],
               const Spacer(),
               Text(
                 AppStrings.reviewThisWeek(streak.activeDaysThisWeek),
@@ -399,9 +422,9 @@ class _StreakCard extends StatelessWidget {
   }
 
   String _summaryText() {
-    final active =
-        snapshot.last7Days.where((d) => d.reviewedCount > 0).length;
-    final total = snapshot.last7Days.fold<int>(0, (a, b) => a + b.reviewedCount);
+    final active = snapshot.last7Days.where((d) => d.reviewedCount > 0).length;
+    final total =
+        snapshot.last7Days.fold<int>(0, (a, b) => a + b.reviewedCount);
     return AppStrings.reviewSevenDaySummary(active, total);
   }
 }
@@ -415,7 +438,8 @@ class _SevenDayChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final maxCount = points.fold<int>(0, (a, b) => a > b.reviewedCount ? a : b.reviewedCount);
+    final maxCount = points.fold<int>(
+        0, (a, b) => a > b.reviewedCount ? a : b.reviewedCount);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
@@ -435,7 +459,8 @@ class _SevenDayChart extends StatelessWidget {
                     color: points[i].reviewedCount == 0
                         ? TurnaTheme.dividerBg(context)
                         : TurnaTheme.brandTeal.withValues(
-                            alpha: 0.45 + 0.55 * points[i].reviewedCount / maxCount),
+                            alpha: 0.45 +
+                                0.55 * points[i].reviewedCount / maxCount),
                     borderRadius: BorderRadius.circular(3),
                   ),
                 ),
@@ -468,8 +493,7 @@ class _TodayQualityCard extends StatelessWidget {
     final q = snapshot.todayQuality;
     final accuracyLabel = q.firstAnswerAccuracy == null
         ? AppStrings.reviewNoDataYet
-        : AppStrings.reviewAccuracyPct(
-            (q.firstAnswerAccuracy! * 100).round());
+        : AppStrings.reviewAccuracyPct((q.firstAnswerAccuracy! * 100).round());
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
@@ -579,8 +603,7 @@ class _SourceTile extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
         children: [
-          Icon(_icon,
-              size: 20, color: TurnaTheme.textSecondaryColor(context)),
+          Icon(_icon, size: 20, color: TurnaTheme.textSecondaryColor(context)),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -687,7 +710,8 @@ class _ErrorState extends StatelessWidget {
           children: [
             Text(message, textAlign: TextAlign.center),
             const SizedBox(height: 12),
-            FilledButton(onPressed: onRetry, child: Text(AppStrings.commonRetry)),
+            FilledButton(
+                onPressed: onRetry, child: Text(AppStrings.commonRetry)),
           ],
         ),
       ),

@@ -2,6 +2,7 @@ import 'package:turna/application/anki/card_introduction_eligibility.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_store.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
+import 'package:turna/application/diagnostics/performance_trace.dart';
 import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/di/injection.dart';
@@ -123,7 +124,8 @@ class UnifiedAnkiImportOrchestrator {
         ? AnkiBackendKind.official
         : AnkiBackendKind.legacyTurna;
     final courseId = request.officialCapable
-        ? CardIntroductionEligibility.courseIdForOfficialSource(request.importId)
+        ? CardIntroductionEligibility.courseIdForOfficialSource(
+            request.importId)
         : CardIntroductionEligibility.courseIdForLegacyImport(request.importId);
     var order = 0;
     for (final cardId in request.canonicalCardIds) {
@@ -163,8 +165,10 @@ class UnifiedAnkiImportOrchestrator {
   /// [UnifiedAnkiImportResult.noOp] and must skip assemble/SRS/Official
   /// collection writes. A second concurrent begin for the same source throws
   /// instead of double-submitting.
-  Future<UnifiedAnkiImportResult> begin(UnifiedAnkiImportRequest request) async {
-    if (request.reuseExistingIdentity && await _hashExists(request.sourceHash)) {
+  Future<UnifiedAnkiImportResult> begin(
+      UnifiedAnkiImportRequest request) async {
+    if (request.reuseExistingIdentity &&
+        await _hashExists(request.sourceHash)) {
       final placements = _placementsByImport[request.importId] ??
           List<int>.from(request.canonicalCardIds);
       return UnifiedAnkiImportResult(
@@ -234,10 +238,31 @@ class UnifiedAnkiImportOrchestrator {
   Future<UnifiedAnkiImportResult> importPackage(
     UnifiedAnkiImportRequest request,
   ) async {
-    final started = await begin(request);
-    if (started.noOp) return started;
-    await finalize(request);
-    return started;
+    final trace = Stopwatch()..start();
+    try {
+      final started = await begin(request);
+      if (!started.noOp) await finalize(request);
+      trace.stop();
+      PerformanceTrace.instance.record(
+        feature: 'anki',
+        operation: 'import',
+        duration: trace.elapsed,
+        resultSize: started.canonicalCardCount,
+        cacheStatus:
+            started.noOp ? TraceCacheStatus.hit : TraceCacheStatus.miss,
+      );
+      return started;
+    } catch (_) {
+      trace.stop();
+      PerformanceTrace.instance.record(
+        feature: 'anki',
+        operation: 'import',
+        duration: trace.elapsed,
+        resultSize: 0,
+        outcome: TraceOutcome.error,
+      );
+      rethrow;
+    }
   }
 
   /// P5F-22: publish placements/presentations for an official source from
@@ -251,8 +276,8 @@ class UnifiedAnkiImportOrchestrator {
     _inFlightKeys.remove(sourceHash);
     _hashByImport[sourceId] = sourceHash;
     final course = getIt<CourseDatabase>();
-    final rows = await OfficialAnkiCourseProjectionStore(course)
-        .listIndexRows(sourceId);
+    final rows =
+        await OfficialAnkiCourseProjectionStore(course).listIndexRows(sourceId);
     if (!getIt.isRegistered<AnkiUnificationDao>()) {
       return UnifiedAnkiImportResult(
         canonicalCardCount: rows.length,

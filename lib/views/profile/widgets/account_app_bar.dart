@@ -10,6 +10,7 @@ import 'package:turna/application/cosmetic_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/auth/local_user.dart';
 import 'package:turna/domain/cosmetics/avatar.dart';
+import 'package:turna/domain/cosmetics/cosmetic_item.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/views/profile/widgets/avatar_picker_sheet.dart';
@@ -28,7 +29,9 @@ class AccountWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final equippedRing = context.watch<CosmeticProvider>().equippedRing;
+    final cosmetics = context.watch<CosmeticProvider>();
+    final equippedRing = cosmetics.equippedRing;
+    final profileTheme = cosmetics.equippedItem(CosmeticSlot.profileTheme);
 
     return PreferenceBuilder<LocalUser>(
       preference: getIt<AppPrefs>().authUser,
@@ -40,20 +43,29 @@ class AccountWidget extends StatelessWidget {
 
         // Clip + column so the clay→sand brand strip sits under rounded corners.
         return Container(
+          key: const Key('profile-cosmetic-theme'),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(TurnaTheme.radiusXLarge),
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: isDark
+              colors: profileTheme != null
                   ? [
-                      TurnaTheme.brandTeal.withValues(alpha: 0.35),
-                      TurnaTheme.brandNavy.withValues(alpha: 0.45),
+                      profileTheme.accentColor!.withValues(
+                        alpha: isDark ? 0.42 : 0.18,
+                      ),
+                      (profileTheme.secondaryColor ?? profileTheme.accentColor!)
+                          .withValues(alpha: isDark ? 0.3 : 0.22),
                     ]
-                  : [
-                      TurnaTheme.brandTeal.withValues(alpha: 0.12),
-                      TurnaTheme.brandSky.withValues(alpha: 0.18),
-                    ],
+                  : isDark
+                      ? [
+                          TurnaTheme.brandTeal.withValues(alpha: 0.35),
+                          TurnaTheme.brandNavy.withValues(alpha: 0.45),
+                        ]
+                      : [
+                          TurnaTheme.brandTeal.withValues(alpha: 0.12),
+                          TurnaTheme.brandSky.withValues(alpha: 0.18),
+                        ],
             ),
             border: Border.all(
               color: TurnaTheme.brandTeal.withValues(alpha: 0.18),
@@ -92,8 +104,7 @@ class AccountWidget extends StatelessWidget {
                       button: true,
                       label: AppStrings.accountAvatarChangeTooltip,
                       child: GestureDetector(
-                        onTap: () =>
-                            showAvatarPickerSheet(context, user: user),
+                        onTap: () => showAvatarPickerSheet(context, user: user),
                         child: AvatarWithRing(
                           radius: 32,
                           ring: equippedRing,

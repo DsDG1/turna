@@ -135,6 +135,11 @@ class SrsStateDao {
       difficulty: Value(w.difficulty),
       fsrsState: Value(w.fsrsState),
       learningStep: Value(w.learningStep),
+      sourceKind: Value(
+        queue == 'grammar' ? SrsSourceKind.grammar.name : w.sourceKind.name,
+      ),
+      sourceId: Value(queue == 'grammar' ? 'grammar' : w.sourceId),
+      ownerId: Value(w.ownerId),
     );
   }
 
@@ -157,6 +162,9 @@ class SrsStateDao {
       difficulty: row.difficulty,
       fsrsState: row.fsrsState,
       learningStep: row.learningStep,
+      sourceKind: _parseSourceKind(row.sourceKind, queue: row.queue),
+      sourceId: row.sourceId ?? (row.queue == 'grammar' ? 'grammar' : 'course'),
+      ownerId: row.ownerId,
     );
   }
 
@@ -168,5 +176,13 @@ class SrsStateDao {
       default:
         return SrsItemType.word;
     }
+  }
+
+  SrsSourceKind _parseSourceKind(String? name, {required String queue}) {
+    if (queue == 'grammar') return SrsSourceKind.grammar;
+    return SrsSourceKind.values.firstWhere(
+      (value) => value.name == name,
+      orElse: () => SrsSourceKind.course,
+    );
   }
 }

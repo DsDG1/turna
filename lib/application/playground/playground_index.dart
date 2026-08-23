@@ -1,5 +1,6 @@
 // Project imports:
 import 'package:turna/application/course_provider.dart';
+import 'package:turna/application/diagnostics/performance_trace.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/playground/playground_assembler.dart';
 import 'package:turna/application/playground/playground_content_source.dart';
@@ -61,6 +62,7 @@ class PlaygroundIndex {
   final int wordPairCount;
 
   static PlaygroundIndex build(PlaygroundContentBundle bundle) {
+    final trace = Stopwatch()..start();
     // Pass 1 — dedupe (lessonId + interaction id, identity for legacy items).
     final seen = <String>{};
     final deduped = <PlaygroundInteractionCandidate>[];
@@ -114,11 +116,20 @@ class PlaygroundIndex {
       counts[PlaygroundMode.wordMatch] = bundle.wordIds.length;
     }
 
-    return PlaygroundIndex(
+    final index = PlaygroundIndex(
       availableModes: available,
       counts: counts,
       candidateCount: deduped.length,
       wordPairCount: bundle.wordIds.length,
     );
+    trace.stop();
+    PerformanceTrace.instance.record(
+      feature: 'playground',
+      operation: 'index',
+      duration: trace.elapsed,
+      resultSize: index.candidateCount,
+      cacheStatus: TraceCacheStatus.miss,
+    );
+    return index;
   }
 }

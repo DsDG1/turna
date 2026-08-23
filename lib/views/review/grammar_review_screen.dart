@@ -35,6 +35,7 @@ class GrammarReviewPage extends StatefulWidget {
 
 class _GrammarReviewPageState extends State<GrammarReviewPage> {
   final Set<InteractionRenderer> _renderers = getIt<Set<InteractionRenderer>>();
+  String _gemSessionSequence = DateTime.now().microsecondsSinceEpoch.toString();
 
   bool _showExplanation = false;
   List<SrsWord> _queue = [];
@@ -57,6 +58,7 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
   void _loadQueue() {
     final grammar = context.read<GrammarReviewProvider>();
     setState(() {
+      _gemSessionSequence = DateTime.now().microsecondsSinceEpoch.toString();
       _queue = grammar.getDueGrammarPoints();
       _currentIndex = 0;
       _sessionCount = 0;
@@ -138,7 +140,14 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
 
     final gems = GemEvent.grammarReviewSession.amount;
     try {
-      await gemsProvider.earnGems(GemEvent.grammarReviewSession);
+      await gemsProvider.earnGems(
+        GemEvent.grammarReviewSession,
+        eventId: GemRewardEventIds.reviewSession(
+          kind: 'grammar',
+          completedAt: DateTime.now(),
+          sessionSequence: _gemSessionSequence,
+        ),
+      );
     } catch (e) {
       debugPrint('Error earning grammar review gems: $e');
     }

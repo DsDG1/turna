@@ -63,7 +63,7 @@ class AnkiSrsMigrator {
       // Skip if already registered (idempotent re-import)
       if (srsProvider.state.containsKey(wordId)) continue;
 
-      final srsWord = importScheduling
+      final scheduled = importScheduling
           ? _convertCard(
               card,
               wordId,
@@ -72,6 +72,10 @@ class AnkiSrsMigrator {
               collectionCreationTime,
             )
           : _freshCard(wordId, index, now, perDay);
+      final srsWord = scheduled.copyWith(
+        sourceKind: SrsSourceKind.ankiLegacy,
+        sourceId: importId,
+      );
       srsWords[wordId] = srsWord;
     }
 
@@ -132,6 +136,8 @@ class AnkiSrsMigrator {
         lapses: 0,
         sourceKey: 'anki-$importId-r${r.id}',
         type: SrsItemType.word,
+        sourceKind: SrsSourceKind.ankiLegacy,
+        sourceId: importId,
       ));
     }
 

@@ -3,8 +3,41 @@ import 'package:drift/drift.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
+import 'package:turna/application/diagnostics/performance_trace.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/domain/course/srs_word.dart';
+
+enum ActivityGranularity { day, week, month }
+
+class ActivityBucketRow {
+  const ActivityBucketRow({required this.bucket, required this.reviewedCount});
+  final String bucket;
+  final int reviewedCount;
+}
+
+class RetentionBucketRow {
+  const RetentionBucketRow({
+    required this.intervalBucketDays,
+    required this.recalled,
+    required this.total,
+  });
+  final int intervalBucketDays;
+  final int recalled;
+  final int total;
+}
+
+class ReviewHistoryFilter {
+  const ReviewHistoryFilter({
+    this.sourceKind,
+    this.sourceId,
+    this.queue,
+    this.type,
+  });
+  final SrsSourceKind? sourceKind;
+  final String? sourceId;
+  final String? queue;
+  final String? type;
+}
 
 /// Data access object for the `review_events` table - the per-card review
 /// history that powers the memory-curve / retention features.
@@ -116,6 +149,154 @@ class ReviewHistoryDao {
     ];
   }
 
+  /// Fixed-cardinality activity aggregation for insights and the 365-day
+  /// heatmap. Returned rows grow with buckets, never with review events.
+  Future<List<ActivityBucketRow>> activityBuckets(
+    DateTime from,
+    DateTime to,
+    ActivityGranularity granularity, {
+    ReviewHistoryFilter filter = const ReviewHistoryFilter(),
+  }) async {
+    final trace = Stopwatch()..start();
+    final format = switch (granularity) {
+      ActivityGranularity.day => '%Y-%m-%d',
+      ActivityGranularity.week => '%Y-W%W',
+      ActivityGranularity.month => '%Y-%m',
+    };
+    final predicates = <String>['reviewed_at >= ?', 'reviewed_at < ?'];
+    final variables = <Variable<Object>>[
+      Variable.withInt(from.millisecondsSinceEpoch),
+      Variable.withInt(to.millisecondsSinceEpoch),
+    ];
+    _appendFilterPredicates(predicates, variables, filter);
+    final rows = await _db.customSelect(
+      "SELECT strftime('$format', reviewed_at / 1000, 'unixepoch', "
+      "'localtime') AS bucket, COUNT(*) AS reviewed "
+      'FROM review_events WHERE ${predicates.join(' AND ')} '
+      'GROUP BY bucket ORDER BY bucket ASC',
+      variables: variables,
+      readsFrom: {_db.reviewEvents},
+    ).get();
+    final result = [
+      for (final row in rows)
+        ActivityBucketRow(
+          bucket: row.read<String>('bucket'),
+          reviewedCount: row.read<int>('reviewed'),
+        ),
+    ];
+    trace.stop();
+    PerformanceTrace.instance.record(
+      feature: 'dao',
+      operation: 'query.activityBuckets',
+      duration: trace.elapsed,
+      resultSize: result.length,
+    );
+    return result;
+  }
+
+  /// SQL-side interval bucketing. Nine rows maximum regardless of history
+  /// size; optional filters remain index-friendly prefix/column predicates.
+  Future<List<RetentionBucketRow>> retentionByIntervalBucket(
+    DateTime from,
+    DateTime to, {
+    ReviewHistoryFilter filter = const ReviewHistoryFilter(),
+  }) async {
+    final trace = Stopwatch()..start();
+    final predicates = <String>['reviewed_at >= ?', 'reviewed_at < ?'];
+    final variables = <Variable<Object>>[
+      Variable.withInt(from.millisecondsSinceEpoch),
+      Variable.withInt(to.millisecondsSinceEpoch),
+    ];
+    _appendFilterPredicates(predicates, variables, filter);
+    const bucket = 'CASE '
+        'WHEN prev_interval_days <= 1 THEN 1 '
+        'WHEN prev_interval_days <= 4 THEN 4 '
+        'WHEN prev_interval_days <= 7 THEN 7 '
+        'WHEN prev_interval_days <= 14 THEN 14 '
+        'WHEN prev_interval_days <= 21 THEN 21 '
+        'WHEN prev_interval_days <= 30 THEN 30 '
+        'WHEN prev_interval_days <= 60 THEN 60 '
+        'WHEN prev_interval_days <= 90 THEN 90 ELSE 180 END';
+    final rows = await _db.customSelect(
+      'SELECT $bucket AS interval_bucket, '
+      'SUM(CASE WHEN quality >= 3 THEN 1 ELSE 0 END) AS recalled, '
+      'COUNT(*) AS total FROM review_events '
+      'WHERE ${predicates.join(' AND ')} '
+      'GROUP BY interval_bucket ORDER BY interval_bucket ASC',
+      variables: variables,
+      readsFrom: {_db.reviewEvents},
+    ).get();
+    final result = [
+      for (final row in rows)
+        RetentionBucketRow(
+          intervalBucketDays: row.read<int>('interval_bucket'),
+          recalled: row.read<int>('recalled'),
+          total: row.read<int>('total'),
+        ),
+    ];
+    trace.stop();
+    PerformanceTrace.instance.record(
+      feature: 'dao',
+      operation: 'query.retentionBuckets',
+      duration: trace.elapsed,
+      resultSize: result.length,
+    );
+    return result;
+  }
+
+  static void _appendFilterPredicates(
+    List<String> predicates,
+    List<Variable<Object>> variables,
+    ReviewHistoryFilter filter,
+  ) {
+    if (filter.sourceKind != null) {
+      predicates.add('source_kind = ?');
+      variables.add(Variable.withString(filter.sourceKind!.name));
+    }
+    if (filter.sourceId != null) {
+      predicates.add('source_id = ?');
+      variables.add(Variable.withString(filter.sourceId!));
+    }
+    if (filter.queue != null) {
+      predicates.add('queue = ?');
+      variables.add(Variable.withString(filter.queue!));
+    }
+    if (filter.type != null) {
+      predicates.add('type = ?');
+      variables.add(Variable.withString(filter.type!));
+    }
+  }
+
+  /// Review totals per persisted logical source. Card ids are opaque here.
+  Future<Map<String, int>> sourceReviewCounts(
+    DateTime from,
+    DateTime to, {
+    ReviewHistoryFilter filter = const ReviewHistoryFilter(),
+  }) async {
+    const source = "CASE source_kind "
+        "WHEN 'grammar' THEN 'grammar' "
+        "WHEN 'ankiLegacy' THEN 'anki:' || source_id "
+        "WHEN 'ankiOfficial' THEN 'official:' || source_id "
+        "ELSE 'course' END";
+    final predicates = <String>['reviewed_at >= ?', 'reviewed_at < ?'];
+    final variables = <Variable<Object>>[
+      Variable.withInt(from.millisecondsSinceEpoch),
+      Variable.withInt(to.millisecondsSinceEpoch),
+    ];
+    _appendFilterPredicates(predicates, variables, filter);
+    final rows = await _db.customSelect(
+      'SELECT $source AS source_id, COUNT(*) AS total FROM review_events '
+      'WHERE ${predicates.join(' AND ')} '
+      'GROUP BY source_id',
+      variables: variables,
+      readsFrom: {_db.reviewEvents},
+    ).get();
+    return {
+      for (final row in rows)
+        row.read<String>('source_id'): row.read<int>('total'),
+    };
+  }
+
   static DateTime _parseLocalDay(String day) {
     final parts = day.split('-').map(int.parse).toList();
     return DateTime(parts[0], parts[1], parts[2]);
@@ -189,6 +370,9 @@ class ReviewHistoryDao {
       lapses: e.lapses,
       type: Value(e.type.name),
       sourceKey: Value(e.sourceKey),
+      sourceKind: Value(e.sourceKind.name),
+      sourceId: Value(e.sourceId),
+      ownerId: Value(e.ownerId),
     );
   }
 
@@ -208,8 +392,17 @@ class ReviewHistoryDao {
       type:
           row.type == 'expression' ? SrsItemType.expression : SrsItemType.word,
       sourceKey: row.sourceKey,
+      sourceKind: _sourceKind(row.sourceKind),
+      sourceId: row.sourceId ?? 'course',
+      ownerId: row.ownerId,
     );
   }
+
+  static SrsSourceKind _sourceKind(String? value) =>
+      SrsSourceKind.values.firstWhere(
+        (kind) => kind.name == value,
+        orElse: () => SrsSourceKind.course,
+      );
 }
 
 /// One aggregated day of review activity (dashboard 7-day chart).
@@ -235,6 +428,9 @@ class ReviewEventRecord {
   final int lapses;
   final SrsItemType type;
   final String? sourceKey;
+  final SrsSourceKind sourceKind;
+  final String sourceId;
+  final String? ownerId;
 
   const ReviewEventRecord({
     this.id,
@@ -250,6 +446,9 @@ class ReviewEventRecord {
     required this.lapses,
     this.type = SrsItemType.word,
     this.sourceKey,
+    this.sourceKind = SrsSourceKind.course,
+    this.sourceId = 'course',
+    this.ownerId,
   });
 
   /// A recall is successful at SM-2 quality >= 3.

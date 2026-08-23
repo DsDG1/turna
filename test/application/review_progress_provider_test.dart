@@ -35,18 +35,18 @@ void main() {
     progress = ReviewProgressProvider(reviewDao, srs, grammar, ankiDao);
   });
 
-  test('importIdFromWordId parses anki ids', () {
-    expect(
-      ReviewProgressProvider.importIdFromWordId('anki-abc123-c42'),
-      'abc123',
-    );
-    expect(ReviewProgressProvider.importIdFromWordId('merhaba'), isNull);
-  });
-
-  test('snapshot groups course vs anki vs grammar', () async {
+  test('snapshot groups explicit course vs anki vs grammar identity', () async {
     srs.registerWord('merhaba');
-    srs.registerWord('anki-deck1-c1');
-    srs.registerWord('anki-deck1-c2');
+    srs.registerWord(
+      'opaque-1',
+      sourceKind: SrsSourceKind.ankiLegacy,
+      sourceId: 'deck1',
+    );
+    srs.registerWord(
+      'opaque-2',
+      sourceKind: SrsSourceKind.ankiLegacy,
+      sourceId: 'deck1',
+    );
     grammar.registerGrammarPoint('gp-1');
 
     final snap = await progress.snapshot();
@@ -65,7 +65,11 @@ void main() {
 
   test('source filter limits cards', () async {
     srs.registerWord('merhaba');
-    srs.registerWord('anki-x-c1');
+    srs.registerWord(
+      'opaque-x',
+      sourceKind: SrsSourceKind.ankiLegacy,
+      sourceId: 'x',
+    );
     grammar.registerGrammarPoint('gp-1');
 
     final courseOnly = await progress.snapshot(const ReviewProgressFilter(
@@ -77,6 +81,33 @@ void main() {
       source: ReviewSource.grammar,
     ));
     expect(grammarOnly.aggregate.totalCards, 1);
+  });
+
+  test('deleted source keeps historical identity but is inactive', () async {
+    final now = DateTime.now();
+    await reviewDao.insertEvent(ReviewEventRecord(
+      cardId: 'opaque-deleted-card',
+      queue: 'srs',
+      reviewedAt: now,
+      quality: 4,
+      prevIntervalDays: 1,
+      nextIntervalDays: 2,
+      prevEase: 2.5,
+      nextEase: 2.5,
+      reps: 1,
+      lapses: 0,
+      sourceKind: SrsSourceKind.ankiLegacy,
+      sourceId: 'deleted-source',
+    ));
+
+    final sources = await progress.listSources();
+    final deleted = sources.singleWhere((s) => s.id == 'anki:deleted-source');
+    expect(deleted.active, isFalse);
+    final snapshot = await progress.snapshot();
+    final row = snapshot.bySource
+        .singleWhere((source) => source.source.id == 'anki:deleted-source');
+    expect(row.totalCards, 0);
+    expect(row.reviews, 1);
   });
 
   test('overdue filter excludes future due', () async {

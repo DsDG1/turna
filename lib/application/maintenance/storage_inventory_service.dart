@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'package:turna/application/ai/engine/ai_engine.dart';
+import 'package:turna/application/diagnostics/performance_trace.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/core/log_capture.dart';
@@ -116,6 +117,7 @@ class StorageInventoryService {
   const StorageInventoryService();
 
   Future<StorageInventoryReport> scan() async {
+    final trace = Stopwatch()..start();
     final artifacts = <StorageArtifactReport>[];
     final db = getIt<CourseDatabase>();
 
@@ -201,15 +203,24 @@ class StorageInventoryService {
       cleanupPolicy: StorageCleanupPolicy.safeClear,
     ));
 
-    return StorageInventoryReport(
+    final report = StorageInventoryReport(
       artifacts: artifacts,
       databaseWalBytes: walBytes,
       databaseShmBytes: shmBytes,
       freelistBytes: freelistBytes,
-      aiCacheEntries:
-          getIt.isRegistered<AiEngine>() ? getIt<AiEngine>().cacheStats().entries : 0,
+      aiCacheEntries: getIt.isRegistered<AiEngine>()
+          ? getIt<AiEngine>().cacheStats().entries
+          : 0,
       scannedAt: DateTime.now(),
     );
+    trace.stop();
+    PerformanceTrace.instance.record(
+      feature: 'storage',
+      operation: 'scan',
+      duration: trace.elapsed,
+      resultSize: report.artifacts.length,
+    );
+    return report;
   }
 
   /// File path of the database's main file, or null for in-memory
@@ -267,8 +278,8 @@ class StorageInventoryService {
         bytes += mediaSize;
         files += await _countFiles(p.join(profileDir.path, 'collection.media'));
       }
-      final backupsSize = await platform
-          .directorySizeBytes(p.join(profileDir.path, 'backups'));
+      final backupsSize =
+          await platform.directorySizeBytes(p.join(profileDir.path, 'backups'));
       if (backupsSize > 0) {
         bytes += backupsSize;
         files += await _countFiles(p.join(profileDir.path, 'backups'));
@@ -295,8 +306,8 @@ class StorageInventoryService {
     if (catalog == null) return null;
     try {
       return OfficialAnkiSourceDao(catalog)
-              .listSources('profile-default-01')
-              .length;
+          .listSources('profile-default-01')
+          .length;
     } catch (_) {
       return null;
     }

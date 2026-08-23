@@ -96,13 +96,16 @@ class AppStrings {
   static String get settingsAdvancedIntroBanner =>
       '高级设置可能影响兼容性与性能，但每一项都说明影响范围。日常使用无需进入此页。';
   static String get settingsAdvancedAiConnectionTitle => 'AI 连接';
-  static String get settingsAdvancedAiConnectionSubtitle => '服务商、凭据、模型与连接测试（涉及密钥和网络）';
+  static String get settingsAdvancedAiConnectionSubtitle =>
+      '服务商、凭据、模型与连接测试（涉及密钥和网络）';
   static String get settingsAdvancedStorageTitle => '存储与性能';
-  static String get settingsAdvancedStorageSubtitle => '空间分类、缓存、垃圾与运行诊断（包含清理操作）';
+  static String get settingsAdvancedStorageSubtitle =>
+      '空间分类、缓存、垃圾与运行诊断（包含清理操作）';
   static String get settingsAdvancedSystemHealthTitle => '系统健康与诊断';
   static String get settingsAdvancedSystemHealthSubtitle => '数据库状态、功能状态与脱敏诊断摘要';
   static String get settingsAdvancedLegacyTitle => '旧版与兼容性';
-  static String get settingsAdvancedLegacySubtitle => 'Anki 渲染、解密、JS 与 Lite 阈值（可能影响内容显示）';
+  static String get settingsAdvancedLegacySubtitle =>
+      'Anki 渲染、解密、JS 与 Lite 阈值（可能影响内容显示）';
   static String get settingsLegacySectionDisplayTitle => 'Anki 显示兼容';
   static String get settingsLegacySectionRecoveryTitle => '内容恢复';
   static String get settingsLegacyDecryptTitle => '智能去解密';
@@ -111,14 +114,16 @@ class AppStrings {
   static String get settingsLegacyCaptureDelayTitle => '抓取/渲染延时';
   static String get settingsLegacyCaptureDelaySubtitle =>
       '适用：解密结果不完整。副作用：首次解密变慢。默认：2 秒。修改后需重新打开卡片。';
-  static String get settingsLegacyForceDisableJsTitle => '强制禁用 WebView JavaScript';
+  static String get settingsLegacyForceDisableJsTitle =>
+      '强制禁用 WebView JavaScript';
   static String get settingsLegacyForceDisableJsSubtitle =>
       '适用：不信任任何卡片脚本。副作用：加密牌组显示密文。默认：关闭。修改后需重新打开卡片。';
   static String get settingsLegacyLiteThresholdTitle => 'Lite 渲染阈值';
   static String get settingsLegacyLiteThresholdSubtitle =>
       '适用：低端设备导入大牌组卡顿。副作用：超过阈值的牌组只建壳节点。默认：2000（0=始终完整课程树）。需重新进入课程树。';
   static String get settingsLegacyResetDefaultsTitle => '恢复兼容性默认值';
-  static String get settingsLegacyResetDefaultsSubtitle => '将以上开关恢复为默认值，不删除任何用户数据';
+  static String get settingsLegacyResetDefaultsSubtitle =>
+      '将以上开关恢复为默认值，不删除任何用户数据';
   static String get settingsLegacyResetDefaultsConfirm => '恢复默认';
   static String get settingsLegacyResetDefaultsDone => '已恢复兼容性默认值';
 
@@ -167,7 +172,8 @@ class AppStrings {
   static String remoteBackupPhaseHashingMedia(Object done, Object total) =>
       '正在扫描媒体（$done/$total）…';
   static String get remoteBackupPhasePackingArchive => '正在打包备份…';
-  static String remoteBackupPhaseUploadingMedia(Object uploaded, Object skipped) =>
+  static String remoteBackupPhaseUploadingMedia(
+          Object uploaded, Object skipped) =>
       '正在上传媒体（新增 $uploaded，已跳过 $skipped）…';
   static String get remoteBackupPhaseUploadingCore => '正在上传核心包…';
   static String remoteBackupSuccess(Object size) => '备份完成（核心包 $size）';
@@ -272,6 +278,7 @@ class AppStrings {
   static String get cosmeticsInsufficientGems => '宝石不足';
   static String get cosmeticsRedeemed => '已兑换并使用';
   static String get cosmeticsEquipped => '已使用';
+  static String get cosmeticsOwned => '已拥有';
   static String cosmeticsGemsBalance(int gems) => '宝石 $gems';
   static String cosmeticsRingPrice(int price) => '$price';
 
@@ -281,11 +288,32 @@ class AppStrings {
         return cosmeticsRingReed;
       case 'ring_lake':
         return cosmeticsRingLake;
+      case 'ring_sunset':
+        return '落日';
+      case 'ring_aurora':
+        return '极光';
+      case 'ring_obsidian':
+        return '曜石';
       case 'ring_mist':
       default:
         return cosmeticsRingMist;
     }
   }
+
+  static String cosmeticsSlotTitle(String slot) => switch (slot) {
+        'avatarRing' => '头像环',
+        'profileTheme' => '个人页主题',
+        'completionEffect' => '完成效果',
+        _ => '装扮',
+      };
+
+  static String cosmeticsItemTitle(String id) => switch (id) {
+        'theme_profile_mist' => '湿地晨雾',
+        'theme_profile_sunrise' => '安纳托利亚晨光',
+        'effect_reed_bloom' => '芦苇绽放',
+        'effect_lake_glow' => '湖光闪耀',
+        _ => cosmeticsRingTitle(id),
+      };
 
   static String get settingsThemeLight => '浅色';
   static String get settingsThemeDark => '深色';
@@ -601,7 +629,8 @@ class AppStrings {
   static String get playgroundAiToolSentence => '句子纠错';
   static String get playgroundAiToolRoleplay => '情景对话';
 
-  static String get playgroundComingSoon => '即将推出';  static String get playgroundChineseName => '自由练习场';
+  static String get playgroundComingSoon => '即将推出';
+  static String get playgroundChineseName => '自由练习场';
 
   // ── 内容创作退场 tombstone（Plan 3 §19.4）──
   static String get authoringMovedTitle => '内容创作已迁移';
@@ -611,14 +640,15 @@ class AppStrings {
   static String get authoringMovedOpenGui => '打开 GUI 平台';
   static String get authoringMovedGuiUnconfigured =>
       'GUI 平台地址尚未在此构建中配置，确认后将提供入口。不会打开未经确认的链接。';
-  static String get authoringMovedDraftsKept => '你已有的创作草稿不会因此被删除。';  static String get playgroundHeroSubtitle => '自由组合题型，随时练几分钟';
+  static String get authoringMovedDraftsKept => '你已有的创作草稿不会因此被删除。';
+  static String get playgroundHeroSubtitle => '自由组合题型，随时练几分钟';
 
-  static String get aiCardExplainUnsupported => '此卡片暂不支持 AI 解释';  static String get playgroundStartAction => '开始探索';
+  static String get aiCardExplainUnsupported => '此卡片暂不支持 AI 解释';
+  static String get playgroundStartAction => '开始探索';
   static String get playgroundSmartStartTitle => '智能开练';
   static String get playgroundSmartStartCaption => '3 分钟 · 标准 · 智能混合';
   static String get playgroundSmartStartAction => '立即开始';
-  static String get playgroundSmartStartSoon =>
-      '智能开练即将上线，敬请期待';
+  static String get playgroundSmartStartSoon => '智能开练即将上线，敬请期待';
   static String get playgroundBlockedToast => 'Playground 仅在语言课程中可用';
   static String get playgroundBlockedTitle => '当前课程不支持 Playground';
   static String get playgroundBlockedMessage => '切换回语言课程后即可自由练习';
@@ -1122,9 +1152,8 @@ class AppStrings {
   static String get aiHubFieldStrictSchema => '严格 JSON 模式';
   static String get aiHubFieldCacheEnabled => '启用缓存';
   static String get aiHubFieldCacheEnabledHint => '关闭后每次都会重新请求模型';
-  static String aiHubFieldCacheStats(
-          int entries, int hits, int misses, int diskWrites) =>
-      '缓存: $entries 条 / 命中 $hits / 未命中 $misses / 落盘 $diskWrites';
+  static String aiHubFieldCacheStats(int entries, int hits, int misses) =>
+      '内存缓存: $entries 条 / 命中 $hits / 未命中 $misses';
 
   // ── AI config sheet 分组标题 ──
   static String get aiConfigGroupConnection => '连接';
@@ -1144,7 +1173,8 @@ class AppStrings {
   static String get aiConfigSaved => 'AI 连接已保存';
   static String aiConfigKeyStoredHint(String masked) => '已配置（$masked），输入新值可替换';
   static String get aiConfigBaseUrlEmpty => '请填写服务器地址';
-  static String get aiConfigBaseUrlInvalid => '地址格式无法识别，应形如 https://api.example.com/v1';
+  static String get aiConfigBaseUrlInvalid =>
+      '地址格式无法识别，应形如 https://api.example.com/v1';
   static String get aiConfigBaseUrlInvalidScheme => '仅支持 http/https 地址';
   static String get aiConfigBaseUrlHttpsOnly => '正式版仅允许 https 地址（开发版可用本地 http）';
   static String get aiConfigProbeTimeout => '超时：服务器未在时限内响应';
@@ -1460,8 +1490,7 @@ class AppStrings {
   static String get achievementsDetailFinalReward => '终阶纪念';
   static String get achievementsDetailStory => '系列故事';
   static String get achievementsCosmeticTitleFarWalker => '称号「远行者」';
-  static String get achievementsCosmeticTitleHundredFlawless =>
-      '称号「百课无瑕」';
+  static String get achievementsCosmeticTitleHundredFlawless => '称号「百课无瑕」';
   static String get achievementsCosmeticStreak365 => '365 天纪念头像环';
   static String get achievementsCosmeticPreviewSuffix => ' + 专属纪念';
   static String get achievementsUnlockBannerTitle => '新成就解锁';

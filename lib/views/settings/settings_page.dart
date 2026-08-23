@@ -242,9 +242,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget build(BuildContext context) {
     final isList = _destination == null;
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    final titleIcon = isList
-        ? Icons.settings_rounded
-        : _iconFor(_destination!);
+    final titleIcon = isList ? Icons.settings_rounded : _iconFor(_destination!);
     final titleText =
         isList ? AppStrings.settingsTitle : _titleFor(_destination!);
 
@@ -428,6 +426,8 @@ class _SettingsPageState extends State<SettingsPage> {
               const SettingsSrsWeightsTile(),
               settingsTileDivider(context),
               const SettingsDailyReminderTile(),
+              settingsTileDivider(context),
+              const SettingsStreakVoucherAutoUseTile(),
             ],
           ),
           const SizedBox(height: 20),
@@ -591,7 +591,8 @@ class _SettingsPageState extends State<SettingsPage> {
             showLegacy:
                 _advancedAnchor == SettingsAdvancedAnchor.legacyCompatibility,
             onOpenLegacy: () => setState(
-              () => _advancedAnchor = SettingsAdvancedAnchor.legacyCompatibility,
+              () =>
+                  _advancedAnchor = SettingsAdvancedAnchor.legacyCompatibility,
             ),
           ),
           const SizedBox(height: 24),

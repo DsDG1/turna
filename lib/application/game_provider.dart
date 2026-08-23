@@ -133,6 +133,9 @@ class GameProvider extends ChangeNotifier {
         const <String>[],
       ),
       appPrefs.preferences.setBool(LocalStateKeys.streakWasBroken, false),
+      appPrefs.preferences
+          .setStringList(LocalStateKeys.streakProtectedDays, const []),
+      appPrefs.preferences.setBool(LocalStateKeys.streakAutoUseVoucher, false),
       appPrefs.preferences.setInt(LocalStateKeys.wordsLearned, 0),
       appPrefs.preferences.setStringList(LocalStateKeys.achievements, const []),
       appPrefs.preferences.setBool(LocalStateKeys.initialized, true),
@@ -201,6 +204,9 @@ class GameProvider extends ChangeNotifier {
         today.toIso8601String(),
       ),
       appPrefs.preferences.setBool(LocalStateKeys.streakWasBroken, false),
+      appPrefs.preferences
+          .setStringList(LocalStateKeys.streakProtectedDays, const []),
+      appPrefs.preferences.setBool(LocalStateKeys.streakAutoUseVoucher, false),
       appPrefs.preferences
           .setStringList(LocalStateKeys.achievements, const <String>[]),
     ]);

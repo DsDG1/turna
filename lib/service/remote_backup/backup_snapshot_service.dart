@@ -71,6 +71,8 @@ abstract final class PrefsBackupSpec {
     LocalStateKeys.lessonsCompleted,
     LocalStateKeys.perfectLessons,
     LocalStateKeys.streakWasBroken,
+    LocalStateKeys.streakProtectedDays,
+    LocalStateKeys.streakAutoUseVoucher,
     LocalStateKeys.wordsLearned,
     LocalStateKeys.completedLessonIds,
     LocalStateKeys.perfectLessonIds,
@@ -81,6 +83,12 @@ abstract final class PrefsBackupSpec {
     LocalStateKeys.achievementsMigrationVersion,
     LocalStateKeys.cosmeticsUnlocked,
     LocalStateKeys.cosmeticsEquippedRing,
+    LocalStateKeys.cosmeticsEquippedAvatarRing,
+    LocalStateKeys.cosmeticsEquippedProfileTheme,
+    LocalStateKeys.cosmeticsEquippedCardBack,
+    LocalStateKeys.cosmeticsEquippedCompletionEffect,
+    LocalStateKeys.cosmeticsEquippedSoundPack,
+    LocalStateKeys.cosmeticsEquippedMascotAccessory,
     LocalStateKeys.srsState,
     LocalStateKeys.lessonWordLinks,
     LocalStateKeys.grammarReviewState,
@@ -195,9 +203,10 @@ class BackupSnapshotService {
   Directory? _legacyMediaRoot;
 
   Future<Directory> _resolveProfileRoot() async =>
-      _officialProfileRoot ??=
-          Directory(p.join((await getApplicationSupportDirectory()).path,
-              'official_anki', 'default'));
+      _officialProfileRoot ??= Directory(p.join(
+          (await getApplicationSupportDirectory()).path,
+          'official_anki',
+          'default'));
 
   Future<Directory> _resolveLegacyMediaRoot() async =>
       _legacyMediaRoot ??= Directory(p.join(
@@ -255,8 +264,8 @@ class BackupSnapshotService {
         onMediaProgress,
       );
     }
-    await _writeJson(stagingDir, 'media_manifest.json',
-        _encodeMediaManifest(mediaManifest));
+    await _writeJson(
+        stagingDir, 'media_manifest.json', _encodeMediaManifest(mediaManifest));
 
     final meta = BackupArchiveMeta(
       appVersion: _packageInfo.version,
@@ -340,10 +349,10 @@ class BackupSnapshotService {
         return jsonEncode(decoded);
       }
     } catch (_) {
-      // Corrupt config - back it up as-is minus nothing; it is unreadable
-      // anyway and the restore side tolerates junk.
+      // Corrupt config has no usable non-secret settings. Never copy an
+      // opaque blob that might contain a legacy plaintext credential.
     }
-    return rawConfig;
+    return '';
   }
 
   /// Online-consistent copy of the live drift database.
@@ -390,8 +399,7 @@ class BackupSnapshotService {
   ) async {
     if (!await root.exists()) return;
     final files = <File>[];
-    await for (final entity
-        in root.list(recursive: true, followLinks: false)) {
+    await for (final entity in root.list(recursive: true, followLinks: false)) {
       if (entity is File) files.add(entity);
     }
     files.sort((a, b) => a.path.compareTo(b.path));
@@ -425,16 +433,14 @@ class BackupSnapshotService {
 
   /// Streams the staged files into a zip — no entry is fully buffered except
   /// the small JSON documents.
-  Future<void> _packZip(
-      Directory dir, List<String> names, File target) async {
+  Future<void> _packZip(Directory dir, List<String> names, File target) async {
     final output = OutputFileStream(target.path);
     final encoder = ZipEncoder()..startEncode(output);
     try {
       for (final name in names) {
         final path = p.join(dir.path, name);
         if (_smallTextEntries.contains(name)) {
-          encoder.add(ArchiveFile.bytes(
-              name, await File(path).readAsBytes()));
+          encoder.add(ArchiveFile.bytes(name, await File(path).readAsBytes()));
         } else {
           final stream = InputFileStream(path);
           try {
@@ -462,10 +468,9 @@ class BackupSnapshotService {
 
   String _sqlLiteral(String path) => path.replaceAll("'", "''");
 
-  Future<void> _writeJson(
-      Directory dir, String name, Object? payload) async {
-    await File(p.join(dir.path, name))
-        .writeAsString(const JsonEncoder.withIndent('  ').convert(payload),
-            flush: true);
+  Future<void> _writeJson(Directory dir, String name, Object? payload) async {
+    await File(p.join(dir.path, name)).writeAsString(
+        const JsonEncoder.withIndent('  ').convert(payload),
+        flush: true);
   }
 }

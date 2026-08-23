@@ -85,8 +85,13 @@ class RestoreApplier {
       await _applyPrefs();
       await _applyDatabases();
       await _applyMedia();
-      await _prefs.preferences.setString(LocalStateKeys.remoteBackupLastRestoredAt,
+      await _prefs.preferences.setString(
+          LocalStateKeys.remoteBackupLastRestoredAt,
           DateTime.now().toUtc().toIso8601String());
+      await _prefs.preferences.setBool(
+        LocalStateKeys.remoteBackupNormalizationPending,
+        true,
+      );
       await _prefs.preferences
           .remove(LocalStateKeys.remoteBackupRestoreBlockedReason);
       await _discardStaging();
@@ -109,8 +114,8 @@ class RestoreApplier {
     ensureOfficialAnkiSqlite();
     final db = sql.sqlite3.open(stagedCourse.path, mode: sql.OpenMode.readOnly);
     try {
-      final version = db.select('PRAGMA user_version').first['user_version']
-          as int?;
+      final version =
+          db.select('PRAGMA user_version').first['user_version'] as int?;
       if (version == null || version > _currentDriftSchema) {
         throw '备份内数据库 schema ($version) 高于当前应用支持版本';
       }
@@ -128,8 +133,7 @@ class RestoreApplier {
       if (line.trim().isEmpty) continue;
       final match = RegExp(r'^([0-9a-f]{64})  (.+)$').firstMatch(line.trim());
       if (match == null) throw 'SHA256SUMS 行格式错误';
-      final digest =
-          ankiHashFileSha256(_stagedFile(match.group(2)!).path);
+      final digest = ankiHashFileSha256(_stagedFile(match.group(2)!).path);
       if (digest != match.group(1)!) throw '文件校验失败: ${match.group(2)}';
     }
   }
@@ -244,8 +248,8 @@ class RestoreApplier {
       if (logical.startsWith('anki_media/')) {
         targetPath = p.join(_appDocuments.path, logical);
       } else if (logical.startsWith('official/collection.media/')) {
-        targetPath = p.join(_officialProfileRoot.path,
-            logical.substring('official/'.length));
+        targetPath = p.join(
+            _officialProfileRoot.path, logical.substring('official/'.length));
       } else {
         throw FormatException('未知媒体前缀: $logical');
       }
@@ -261,9 +265,8 @@ class RestoreApplier {
 
   File _stagedFile(String name) => File(p.join(_staging.path, name));
 
-  Future<void> _setBlockedReason(String reason) =>
-      _prefs.preferences.setString(
-          LocalStateKeys.remoteBackupRestoreBlockedReason, reason);
+  Future<void> _setBlockedReason(String reason) => _prefs.preferences
+      .setString(LocalStateKeys.remoteBackupRestoreBlockedReason, reason);
 
   Future<void> _discardStaging() async {
     if (await _staging.exists()) {

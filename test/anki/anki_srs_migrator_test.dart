@@ -330,6 +330,8 @@ void main() {
 
         final day1 = srs.state['anki-stag-c1020']!;
         final day2 = srs.state['anki-stag-c1040']!;
+        expect(day1.sourceKind, SrsSourceKind.ankiLegacy);
+        expect(day1.sourceId, 'stag');
         expect(
           DateTime(day1.dueAt.year, day1.dueAt.month, day1.dueAt.day),
           today.add(const Duration(days: 1)),

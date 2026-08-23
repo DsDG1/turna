@@ -4871,6 +4871,24 @@ class $SrsStatesTable extends SrsStates
   late final GeneratedColumn<int> learningStep = GeneratedColumn<int>(
       'learning_step', aliasedName, true,
       type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _sourceKindMeta =
+      const VerificationMeta('sourceKind');
+  @override
+  late final GeneratedColumn<String> sourceKind = GeneratedColumn<String>(
+      'source_kind', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _sourceIdMeta =
+      const VerificationMeta('sourceId');
+  @override
+  late final GeneratedColumn<String> sourceId = GeneratedColumn<String>(
+      'source_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _ownerIdMeta =
+      const VerificationMeta('ownerId');
+  @override
+  late final GeneratedColumn<String> ownerId = GeneratedColumn<String>(
+      'owner_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   @override
   List<GeneratedColumn> get $columns => [
         wordId,
@@ -4888,7 +4906,10 @@ class $SrsStatesTable extends SrsStates
         stability,
         difficulty,
         fsrsState,
-        learningStep
+        learningStep,
+        sourceKind,
+        sourceId,
+        ownerId
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -4980,6 +5001,20 @@ class $SrsStatesTable extends SrsStates
           learningStep.isAcceptableOrUnknown(
               data['learning_step']!, _learningStepMeta));
     }
+    if (data.containsKey('source_kind')) {
+      context.handle(
+          _sourceKindMeta,
+          sourceKind.isAcceptableOrUnknown(
+              data['source_kind']!, _sourceKindMeta));
+    }
+    if (data.containsKey('source_id')) {
+      context.handle(_sourceIdMeta,
+          sourceId.isAcceptableOrUnknown(data['source_id']!, _sourceIdMeta));
+    }
+    if (data.containsKey('owner_id')) {
+      context.handle(_ownerIdMeta,
+          ownerId.isAcceptableOrUnknown(data['owner_id']!, _ownerIdMeta));
+    }
     return context;
   }
 
@@ -5021,6 +5056,12 @@ class $SrsStatesTable extends SrsStates
           .read(DriftSqlType.int, data['${effectivePrefix}fsrs_state'])!,
       learningStep: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}learning_step']),
+      sourceKind: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source_kind']),
+      sourceId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source_id']),
+      ownerId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}owner_id']),
     );
   }
 
@@ -5047,6 +5088,9 @@ class SrsState extends DataClass implements Insertable<SrsState> {
   final double? difficulty;
   final int fsrsState;
   final int? learningStep;
+  final String? sourceKind;
+  final String? sourceId;
+  final String? ownerId;
   const SrsState(
       {required this.wordId,
       required this.queue,
@@ -5063,7 +5107,10 @@ class SrsState extends DataClass implements Insertable<SrsState> {
       this.stability,
       this.difficulty,
       required this.fsrsState,
-      this.learningStep});
+      this.learningStep,
+      this.sourceKind,
+      this.sourceId,
+      this.ownerId});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -5090,6 +5137,15 @@ class SrsState extends DataClass implements Insertable<SrsState> {
     map['fsrs_state'] = Variable<int>(fsrsState);
     if (!nullToAbsent || learningStep != null) {
       map['learning_step'] = Variable<int>(learningStep);
+    }
+    if (!nullToAbsent || sourceKind != null) {
+      map['source_kind'] = Variable<String>(sourceKind);
+    }
+    if (!nullToAbsent || sourceId != null) {
+      map['source_id'] = Variable<String>(sourceId);
+    }
+    if (!nullToAbsent || ownerId != null) {
+      map['owner_id'] = Variable<String>(ownerId);
     }
     return map;
   }
@@ -5120,6 +5176,15 @@ class SrsState extends DataClass implements Insertable<SrsState> {
       learningStep: learningStep == null && nullToAbsent
           ? const Value.absent()
           : Value(learningStep),
+      sourceKind: sourceKind == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceKind),
+      sourceId: sourceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceId),
+      ownerId: ownerId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(ownerId),
     );
   }
 
@@ -5143,6 +5208,9 @@ class SrsState extends DataClass implements Insertable<SrsState> {
       difficulty: serializer.fromJson<double?>(json['difficulty']),
       fsrsState: serializer.fromJson<int>(json['fsrsState']),
       learningStep: serializer.fromJson<int?>(json['learningStep']),
+      sourceKind: serializer.fromJson<String?>(json['sourceKind']),
+      sourceId: serializer.fromJson<String?>(json['sourceId']),
+      ownerId: serializer.fromJson<String?>(json['ownerId']),
     );
   }
   @override
@@ -5165,6 +5233,9 @@ class SrsState extends DataClass implements Insertable<SrsState> {
       'difficulty': serializer.toJson<double?>(difficulty),
       'fsrsState': serializer.toJson<int>(fsrsState),
       'learningStep': serializer.toJson<int?>(learningStep),
+      'sourceKind': serializer.toJson<String?>(sourceKind),
+      'sourceId': serializer.toJson<String?>(sourceId),
+      'ownerId': serializer.toJson<String?>(ownerId),
     };
   }
 
@@ -5184,7 +5255,10 @@ class SrsState extends DataClass implements Insertable<SrsState> {
           Value<double?> stability = const Value.absent(),
           Value<double?> difficulty = const Value.absent(),
           int? fsrsState,
-          Value<int?> learningStep = const Value.absent()}) =>
+          Value<int?> learningStep = const Value.absent(),
+          Value<String?> sourceKind = const Value.absent(),
+          Value<String?> sourceId = const Value.absent(),
+          Value<String?> ownerId = const Value.absent()}) =>
       SrsState(
         wordId: wordId ?? this.wordId,
         queue: queue ?? this.queue,
@@ -5204,6 +5278,9 @@ class SrsState extends DataClass implements Insertable<SrsState> {
         fsrsState: fsrsState ?? this.fsrsState,
         learningStep:
             learningStep.present ? learningStep.value : this.learningStep,
+        sourceKind: sourceKind.present ? sourceKind.value : this.sourceKind,
+        sourceId: sourceId.present ? sourceId.value : this.sourceId,
+        ownerId: ownerId.present ? ownerId.value : this.ownerId,
       );
   SrsState copyWithCompanion(SrsStatesCompanion data) {
     return SrsState(
@@ -5231,6 +5308,10 @@ class SrsState extends DataClass implements Insertable<SrsState> {
       learningStep: data.learningStep.present
           ? data.learningStep.value
           : this.learningStep,
+      sourceKind:
+          data.sourceKind.present ? data.sourceKind.value : this.sourceKind,
+      sourceId: data.sourceId.present ? data.sourceId.value : this.sourceId,
+      ownerId: data.ownerId.present ? data.ownerId.value : this.ownerId,
     );
   }
 
@@ -5252,7 +5333,10 @@ class SrsState extends DataClass implements Insertable<SrsState> {
           ..write('stability: $stability, ')
           ..write('difficulty: $difficulty, ')
           ..write('fsrsState: $fsrsState, ')
-          ..write('learningStep: $learningStep')
+          ..write('learningStep: $learningStep, ')
+          ..write('sourceKind: $sourceKind, ')
+          ..write('sourceId: $sourceId, ')
+          ..write('ownerId: $ownerId')
           ..write(')'))
         .toString();
   }
@@ -5274,7 +5358,10 @@ class SrsState extends DataClass implements Insertable<SrsState> {
       stability,
       difficulty,
       fsrsState,
-      learningStep);
+      learningStep,
+      sourceKind,
+      sourceId,
+      ownerId);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -5294,7 +5381,10 @@ class SrsState extends DataClass implements Insertable<SrsState> {
           other.stability == this.stability &&
           other.difficulty == this.difficulty &&
           other.fsrsState == this.fsrsState &&
-          other.learningStep == this.learningStep);
+          other.learningStep == this.learningStep &&
+          other.sourceKind == this.sourceKind &&
+          other.sourceId == this.sourceId &&
+          other.ownerId == this.ownerId);
 }
 
 class SrsStatesCompanion extends UpdateCompanion<SrsState> {
@@ -5314,6 +5404,9 @@ class SrsStatesCompanion extends UpdateCompanion<SrsState> {
   final Value<double?> difficulty;
   final Value<int> fsrsState;
   final Value<int?> learningStep;
+  final Value<String?> sourceKind;
+  final Value<String?> sourceId;
+  final Value<String?> ownerId;
   final Value<int> rowid;
   const SrsStatesCompanion({
     this.wordId = const Value.absent(),
@@ -5332,6 +5425,9 @@ class SrsStatesCompanion extends UpdateCompanion<SrsState> {
     this.difficulty = const Value.absent(),
     this.fsrsState = const Value.absent(),
     this.learningStep = const Value.absent(),
+    this.sourceKind = const Value.absent(),
+    this.sourceId = const Value.absent(),
+    this.ownerId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SrsStatesCompanion.insert({
@@ -5351,6 +5447,9 @@ class SrsStatesCompanion extends UpdateCompanion<SrsState> {
     this.difficulty = const Value.absent(),
     this.fsrsState = const Value.absent(),
     this.learningStep = const Value.absent(),
+    this.sourceKind = const Value.absent(),
+    this.sourceId = const Value.absent(),
+    this.ownerId = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : wordId = Value(wordId),
         queue = Value(queue),
@@ -5372,6 +5471,9 @@ class SrsStatesCompanion extends UpdateCompanion<SrsState> {
     Expression<double>? difficulty,
     Expression<int>? fsrsState,
     Expression<int>? learningStep,
+    Expression<String>? sourceKind,
+    Expression<String>? sourceId,
+    Expression<String>? ownerId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -5391,6 +5493,9 @@ class SrsStatesCompanion extends UpdateCompanion<SrsState> {
       if (difficulty != null) 'difficulty': difficulty,
       if (fsrsState != null) 'fsrs_state': fsrsState,
       if (learningStep != null) 'learning_step': learningStep,
+      if (sourceKind != null) 'source_kind': sourceKind,
+      if (sourceId != null) 'source_id': sourceId,
+      if (ownerId != null) 'owner_id': ownerId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -5412,6 +5517,9 @@ class SrsStatesCompanion extends UpdateCompanion<SrsState> {
       Value<double?>? difficulty,
       Value<int>? fsrsState,
       Value<int?>? learningStep,
+      Value<String?>? sourceKind,
+      Value<String?>? sourceId,
+      Value<String?>? ownerId,
       Value<int>? rowid}) {
     return SrsStatesCompanion(
       wordId: wordId ?? this.wordId,
@@ -5430,6 +5538,9 @@ class SrsStatesCompanion extends UpdateCompanion<SrsState> {
       difficulty: difficulty ?? this.difficulty,
       fsrsState: fsrsState ?? this.fsrsState,
       learningStep: learningStep ?? this.learningStep,
+      sourceKind: sourceKind ?? this.sourceKind,
+      sourceId: sourceId ?? this.sourceId,
+      ownerId: ownerId ?? this.ownerId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -5485,6 +5596,15 @@ class SrsStatesCompanion extends UpdateCompanion<SrsState> {
     if (learningStep.present) {
       map['learning_step'] = Variable<int>(learningStep.value);
     }
+    if (sourceKind.present) {
+      map['source_kind'] = Variable<String>(sourceKind.value);
+    }
+    if (sourceId.present) {
+      map['source_id'] = Variable<String>(sourceId.value);
+    }
+    if (ownerId.present) {
+      map['owner_id'] = Variable<String>(ownerId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -5510,6 +5630,9 @@ class SrsStatesCompanion extends UpdateCompanion<SrsState> {
           ..write('difficulty: $difficulty, ')
           ..write('fsrsState: $fsrsState, ')
           ..write('learningStep: $learningStep, ')
+          ..write('sourceKind: $sourceKind, ')
+          ..write('sourceId: $sourceId, ')
+          ..write('ownerId: $ownerId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -5600,6 +5723,24 @@ class $ReviewEventsTable extends ReviewEvents
   late final GeneratedColumn<String> sourceKey = GeneratedColumn<String>(
       'source_key', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _sourceKindMeta =
+      const VerificationMeta('sourceKind');
+  @override
+  late final GeneratedColumn<String> sourceKind = GeneratedColumn<String>(
+      'source_kind', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _sourceIdMeta =
+      const VerificationMeta('sourceId');
+  @override
+  late final GeneratedColumn<String> sourceId = GeneratedColumn<String>(
+      'source_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _ownerIdMeta =
+      const VerificationMeta('ownerId');
+  @override
+  late final GeneratedColumn<String> ownerId = GeneratedColumn<String>(
+      'owner_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -5614,7 +5755,10 @@ class $ReviewEventsTable extends ReviewEvents
         reps,
         lapses,
         type,
-        sourceKey
+        sourceKey,
+        sourceKind,
+        sourceId,
+        ownerId
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -5703,6 +5847,20 @@ class $ReviewEventsTable extends ReviewEvents
       context.handle(_sourceKeyMeta,
           sourceKey.isAcceptableOrUnknown(data['source_key']!, _sourceKeyMeta));
     }
+    if (data.containsKey('source_kind')) {
+      context.handle(
+          _sourceKindMeta,
+          sourceKind.isAcceptableOrUnknown(
+              data['source_kind']!, _sourceKindMeta));
+    }
+    if (data.containsKey('source_id')) {
+      context.handle(_sourceIdMeta,
+          sourceId.isAcceptableOrUnknown(data['source_id']!, _sourceIdMeta));
+    }
+    if (data.containsKey('owner_id')) {
+      context.handle(_ownerIdMeta,
+          ownerId.isAcceptableOrUnknown(data['owner_id']!, _ownerIdMeta));
+    }
     return context;
   }
 
@@ -5738,6 +5896,12 @@ class $ReviewEventsTable extends ReviewEvents
           .read(DriftSqlType.string, data['${effectivePrefix}type'])!,
       sourceKey: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}source_key']),
+      sourceKind: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source_kind']),
+      sourceId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source_id']),
+      ownerId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}owner_id']),
     );
   }
 
@@ -5761,6 +5925,9 @@ class ReviewEvent extends DataClass implements Insertable<ReviewEvent> {
   final int lapses;
   final String type;
   final String? sourceKey;
+  final String? sourceKind;
+  final String? sourceId;
+  final String? ownerId;
   const ReviewEvent(
       {required this.id,
       required this.cardId,
@@ -5774,7 +5941,10 @@ class ReviewEvent extends DataClass implements Insertable<ReviewEvent> {
       required this.reps,
       required this.lapses,
       required this.type,
-      this.sourceKey});
+      this.sourceKey,
+      this.sourceKind,
+      this.sourceId,
+      this.ownerId});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -5792,6 +5962,15 @@ class ReviewEvent extends DataClass implements Insertable<ReviewEvent> {
     map['type'] = Variable<String>(type);
     if (!nullToAbsent || sourceKey != null) {
       map['source_key'] = Variable<String>(sourceKey);
+    }
+    if (!nullToAbsent || sourceKind != null) {
+      map['source_kind'] = Variable<String>(sourceKind);
+    }
+    if (!nullToAbsent || sourceId != null) {
+      map['source_id'] = Variable<String>(sourceId);
+    }
+    if (!nullToAbsent || ownerId != null) {
+      map['owner_id'] = Variable<String>(ownerId);
     }
     return map;
   }
@@ -5813,6 +5992,15 @@ class ReviewEvent extends DataClass implements Insertable<ReviewEvent> {
       sourceKey: sourceKey == null && nullToAbsent
           ? const Value.absent()
           : Value(sourceKey),
+      sourceKind: sourceKind == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceKind),
+      sourceId: sourceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceId),
+      ownerId: ownerId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(ownerId),
     );
   }
 
@@ -5833,6 +6021,9 @@ class ReviewEvent extends DataClass implements Insertable<ReviewEvent> {
       lapses: serializer.fromJson<int>(json['lapses']),
       type: serializer.fromJson<String>(json['type']),
       sourceKey: serializer.fromJson<String?>(json['sourceKey']),
+      sourceKind: serializer.fromJson<String?>(json['sourceKind']),
+      sourceId: serializer.fromJson<String?>(json['sourceId']),
+      ownerId: serializer.fromJson<String?>(json['ownerId']),
     );
   }
   @override
@@ -5852,6 +6043,9 @@ class ReviewEvent extends DataClass implements Insertable<ReviewEvent> {
       'lapses': serializer.toJson<int>(lapses),
       'type': serializer.toJson<String>(type),
       'sourceKey': serializer.toJson<String?>(sourceKey),
+      'sourceKind': serializer.toJson<String?>(sourceKind),
+      'sourceId': serializer.toJson<String?>(sourceId),
+      'ownerId': serializer.toJson<String?>(ownerId),
     };
   }
 
@@ -5868,7 +6062,10 @@ class ReviewEvent extends DataClass implements Insertable<ReviewEvent> {
           int? reps,
           int? lapses,
           String? type,
-          Value<String?> sourceKey = const Value.absent()}) =>
+          Value<String?> sourceKey = const Value.absent(),
+          Value<String?> sourceKind = const Value.absent(),
+          Value<String?> sourceId = const Value.absent(),
+          Value<String?> ownerId = const Value.absent()}) =>
       ReviewEvent(
         id: id ?? this.id,
         cardId: cardId ?? this.cardId,
@@ -5883,6 +6080,9 @@ class ReviewEvent extends DataClass implements Insertable<ReviewEvent> {
         lapses: lapses ?? this.lapses,
         type: type ?? this.type,
         sourceKey: sourceKey.present ? sourceKey.value : this.sourceKey,
+        sourceKind: sourceKind.present ? sourceKind.value : this.sourceKind,
+        sourceId: sourceId.present ? sourceId.value : this.sourceId,
+        ownerId: ownerId.present ? ownerId.value : this.ownerId,
       );
   ReviewEvent copyWithCompanion(ReviewEventsCompanion data) {
     return ReviewEvent(
@@ -5904,6 +6104,10 @@ class ReviewEvent extends DataClass implements Insertable<ReviewEvent> {
       lapses: data.lapses.present ? data.lapses.value : this.lapses,
       type: data.type.present ? data.type.value : this.type,
       sourceKey: data.sourceKey.present ? data.sourceKey.value : this.sourceKey,
+      sourceKind:
+          data.sourceKind.present ? data.sourceKind.value : this.sourceKind,
+      sourceId: data.sourceId.present ? data.sourceId.value : this.sourceId,
+      ownerId: data.ownerId.present ? data.ownerId.value : this.ownerId,
     );
   }
 
@@ -5922,7 +6126,10 @@ class ReviewEvent extends DataClass implements Insertable<ReviewEvent> {
           ..write('reps: $reps, ')
           ..write('lapses: $lapses, ')
           ..write('type: $type, ')
-          ..write('sourceKey: $sourceKey')
+          ..write('sourceKey: $sourceKey, ')
+          ..write('sourceKind: $sourceKind, ')
+          ..write('sourceId: $sourceId, ')
+          ..write('ownerId: $ownerId')
           ..write(')'))
         .toString();
   }
@@ -5941,7 +6148,10 @@ class ReviewEvent extends DataClass implements Insertable<ReviewEvent> {
       reps,
       lapses,
       type,
-      sourceKey);
+      sourceKey,
+      sourceKind,
+      sourceId,
+      ownerId);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -5958,7 +6168,10 @@ class ReviewEvent extends DataClass implements Insertable<ReviewEvent> {
           other.reps == this.reps &&
           other.lapses == this.lapses &&
           other.type == this.type &&
-          other.sourceKey == this.sourceKey);
+          other.sourceKey == this.sourceKey &&
+          other.sourceKind == this.sourceKind &&
+          other.sourceId == this.sourceId &&
+          other.ownerId == this.ownerId);
 }
 
 class ReviewEventsCompanion extends UpdateCompanion<ReviewEvent> {
@@ -5975,6 +6188,9 @@ class ReviewEventsCompanion extends UpdateCompanion<ReviewEvent> {
   final Value<int> lapses;
   final Value<String> type;
   final Value<String?> sourceKey;
+  final Value<String?> sourceKind;
+  final Value<String?> sourceId;
+  final Value<String?> ownerId;
   const ReviewEventsCompanion({
     this.id = const Value.absent(),
     this.cardId = const Value.absent(),
@@ -5989,6 +6205,9 @@ class ReviewEventsCompanion extends UpdateCompanion<ReviewEvent> {
     this.lapses = const Value.absent(),
     this.type = const Value.absent(),
     this.sourceKey = const Value.absent(),
+    this.sourceKind = const Value.absent(),
+    this.sourceId = const Value.absent(),
+    this.ownerId = const Value.absent(),
   });
   ReviewEventsCompanion.insert({
     this.id = const Value.absent(),
@@ -6004,6 +6223,9 @@ class ReviewEventsCompanion extends UpdateCompanion<ReviewEvent> {
     required int lapses,
     this.type = const Value.absent(),
     this.sourceKey = const Value.absent(),
+    this.sourceKind = const Value.absent(),
+    this.sourceId = const Value.absent(),
+    this.ownerId = const Value.absent(),
   })  : cardId = Value(cardId),
         queue = Value(queue),
         reviewedAt = Value(reviewedAt),
@@ -6028,6 +6250,9 @@ class ReviewEventsCompanion extends UpdateCompanion<ReviewEvent> {
     Expression<int>? lapses,
     Expression<String>? type,
     Expression<String>? sourceKey,
+    Expression<String>? sourceKind,
+    Expression<String>? sourceId,
+    Expression<String>? ownerId,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -6043,6 +6268,9 @@ class ReviewEventsCompanion extends UpdateCompanion<ReviewEvent> {
       if (lapses != null) 'lapses': lapses,
       if (type != null) 'type': type,
       if (sourceKey != null) 'source_key': sourceKey,
+      if (sourceKind != null) 'source_kind': sourceKind,
+      if (sourceId != null) 'source_id': sourceId,
+      if (ownerId != null) 'owner_id': ownerId,
     });
   }
 
@@ -6059,7 +6287,10 @@ class ReviewEventsCompanion extends UpdateCompanion<ReviewEvent> {
       Value<int>? reps,
       Value<int>? lapses,
       Value<String>? type,
-      Value<String?>? sourceKey}) {
+      Value<String?>? sourceKey,
+      Value<String?>? sourceKind,
+      Value<String?>? sourceId,
+      Value<String?>? ownerId}) {
     return ReviewEventsCompanion(
       id: id ?? this.id,
       cardId: cardId ?? this.cardId,
@@ -6074,6 +6305,9 @@ class ReviewEventsCompanion extends UpdateCompanion<ReviewEvent> {
       lapses: lapses ?? this.lapses,
       type: type ?? this.type,
       sourceKey: sourceKey ?? this.sourceKey,
+      sourceKind: sourceKind ?? this.sourceKind,
+      sourceId: sourceId ?? this.sourceId,
+      ownerId: ownerId ?? this.ownerId,
     );
   }
 
@@ -6119,6 +6353,15 @@ class ReviewEventsCompanion extends UpdateCompanion<ReviewEvent> {
     if (sourceKey.present) {
       map['source_key'] = Variable<String>(sourceKey.value);
     }
+    if (sourceKind.present) {
+      map['source_kind'] = Variable<String>(sourceKind.value);
+    }
+    if (sourceId.present) {
+      map['source_id'] = Variable<String>(sourceId.value);
+    }
+    if (ownerId.present) {
+      map['owner_id'] = Variable<String>(ownerId.value);
+    }
     return map;
   }
 
@@ -6137,7 +6380,10 @@ class ReviewEventsCompanion extends UpdateCompanion<ReviewEvent> {
           ..write('reps: $reps, ')
           ..write('lapses: $lapses, ')
           ..write('type: $type, ')
-          ..write('sourceKey: $sourceKey')
+          ..write('sourceKey: $sourceKey, ')
+          ..write('sourceKind: $sourceKind, ')
+          ..write('sourceId: $sourceId, ')
+          ..write('ownerId: $ownerId')
           ..write(')'))
         .toString();
   }
@@ -9825,6 +10071,9 @@ typedef $$SrsStatesTableCreateCompanionBuilder = SrsStatesCompanion Function({
   Value<double?> difficulty,
   Value<int> fsrsState,
   Value<int?> learningStep,
+  Value<String?> sourceKind,
+  Value<String?> sourceId,
+  Value<String?> ownerId,
   Value<int> rowid,
 });
 typedef $$SrsStatesTableUpdateCompanionBuilder = SrsStatesCompanion Function({
@@ -9844,6 +10093,9 @@ typedef $$SrsStatesTableUpdateCompanionBuilder = SrsStatesCompanion Function({
   Value<double?> difficulty,
   Value<int> fsrsState,
   Value<int?> learningStep,
+  Value<String?> sourceKind,
+  Value<String?> sourceId,
+  Value<String?> ownerId,
   Value<int> rowid,
 });
 
@@ -9904,6 +10156,15 @@ class $$SrsStatesTableFilterComposer
 
   ColumnFilters<int> get learningStep => $composableBuilder(
       column: $table.learningStep, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sourceKind => $composableBuilder(
+      column: $table.sourceKind, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sourceId => $composableBuilder(
+      column: $table.sourceId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get ownerId => $composableBuilder(
+      column: $table.ownerId, builder: (column) => ColumnFilters(column));
 }
 
 class $$SrsStatesTableOrderingComposer
@@ -9965,6 +10226,15 @@ class $$SrsStatesTableOrderingComposer
   ColumnOrderings<int> get learningStep => $composableBuilder(
       column: $table.learningStep,
       builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sourceKind => $composableBuilder(
+      column: $table.sourceKind, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sourceId => $composableBuilder(
+      column: $table.sourceId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get ownerId => $composableBuilder(
+      column: $table.ownerId, builder: (column) => ColumnOrderings(column));
 }
 
 class $$SrsStatesTableAnnotationComposer
@@ -10023,6 +10293,15 @@ class $$SrsStatesTableAnnotationComposer
 
   GeneratedColumn<int> get learningStep => $composableBuilder(
       column: $table.learningStep, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceKind => $composableBuilder(
+      column: $table.sourceKind, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceId =>
+      $composableBuilder(column: $table.sourceId, builder: (column) => column);
+
+  GeneratedColumn<String> get ownerId =>
+      $composableBuilder(column: $table.ownerId, builder: (column) => column);
 }
 
 class $$SrsStatesTableTableManager extends RootTableManager<
@@ -10064,6 +10343,9 @@ class $$SrsStatesTableTableManager extends RootTableManager<
             Value<double?> difficulty = const Value.absent(),
             Value<int> fsrsState = const Value.absent(),
             Value<int?> learningStep = const Value.absent(),
+            Value<String?> sourceKind = const Value.absent(),
+            Value<String?> sourceId = const Value.absent(),
+            Value<String?> ownerId = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               SrsStatesCompanion(
@@ -10083,6 +10365,9 @@ class $$SrsStatesTableTableManager extends RootTableManager<
             difficulty: difficulty,
             fsrsState: fsrsState,
             learningStep: learningStep,
+            sourceKind: sourceKind,
+            sourceId: sourceId,
+            ownerId: ownerId,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -10102,6 +10387,9 @@ class $$SrsStatesTableTableManager extends RootTableManager<
             Value<double?> difficulty = const Value.absent(),
             Value<int> fsrsState = const Value.absent(),
             Value<int?> learningStep = const Value.absent(),
+            Value<String?> sourceKind = const Value.absent(),
+            Value<String?> sourceId = const Value.absent(),
+            Value<String?> ownerId = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               SrsStatesCompanion.insert(
@@ -10121,6 +10409,9 @@ class $$SrsStatesTableTableManager extends RootTableManager<
             difficulty: difficulty,
             fsrsState: fsrsState,
             learningStep: learningStep,
+            sourceKind: sourceKind,
+            sourceId: sourceId,
+            ownerId: ownerId,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
@@ -10157,6 +10448,9 @@ typedef $$ReviewEventsTableCreateCompanionBuilder = ReviewEventsCompanion
   required int lapses,
   Value<String> type,
   Value<String?> sourceKey,
+  Value<String?> sourceKind,
+  Value<String?> sourceId,
+  Value<String?> ownerId,
 });
 typedef $$ReviewEventsTableUpdateCompanionBuilder = ReviewEventsCompanion
     Function({
@@ -10173,6 +10467,9 @@ typedef $$ReviewEventsTableUpdateCompanionBuilder = ReviewEventsCompanion
   Value<int> lapses,
   Value<String> type,
   Value<String?> sourceKey,
+  Value<String?> sourceKind,
+  Value<String?> sourceId,
+  Value<String?> ownerId,
 });
 
 class $$ReviewEventsTableFilterComposer
@@ -10224,6 +10521,15 @@ class $$ReviewEventsTableFilterComposer
 
   ColumnFilters<String> get sourceKey => $composableBuilder(
       column: $table.sourceKey, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sourceKind => $composableBuilder(
+      column: $table.sourceKind, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sourceId => $composableBuilder(
+      column: $table.sourceId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get ownerId => $composableBuilder(
+      column: $table.ownerId, builder: (column) => ColumnFilters(column));
 }
 
 class $$ReviewEventsTableOrderingComposer
@@ -10275,6 +10581,15 @@ class $$ReviewEventsTableOrderingComposer
 
   ColumnOrderings<String> get sourceKey => $composableBuilder(
       column: $table.sourceKey, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sourceKind => $composableBuilder(
+      column: $table.sourceKind, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sourceId => $composableBuilder(
+      column: $table.sourceId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get ownerId => $composableBuilder(
+      column: $table.ownerId, builder: (column) => ColumnOrderings(column));
 }
 
 class $$ReviewEventsTableAnnotationComposer
@@ -10324,6 +10639,15 @@ class $$ReviewEventsTableAnnotationComposer
 
   GeneratedColumn<String> get sourceKey =>
       $composableBuilder(column: $table.sourceKey, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceKind => $composableBuilder(
+      column: $table.sourceKind, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceId =>
+      $composableBuilder(column: $table.sourceId, builder: (column) => column);
+
+  GeneratedColumn<String> get ownerId =>
+      $composableBuilder(column: $table.ownerId, builder: (column) => column);
 }
 
 class $$ReviewEventsTableTableManager extends RootTableManager<
@@ -10365,6 +10689,9 @@ class $$ReviewEventsTableTableManager extends RootTableManager<
             Value<int> lapses = const Value.absent(),
             Value<String> type = const Value.absent(),
             Value<String?> sourceKey = const Value.absent(),
+            Value<String?> sourceKind = const Value.absent(),
+            Value<String?> sourceId = const Value.absent(),
+            Value<String?> ownerId = const Value.absent(),
           }) =>
               ReviewEventsCompanion(
             id: id,
@@ -10380,6 +10707,9 @@ class $$ReviewEventsTableTableManager extends RootTableManager<
             lapses: lapses,
             type: type,
             sourceKey: sourceKey,
+            sourceKind: sourceKind,
+            sourceId: sourceId,
+            ownerId: ownerId,
           ),
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
@@ -10395,6 +10725,9 @@ class $$ReviewEventsTableTableManager extends RootTableManager<
             required int lapses,
             Value<String> type = const Value.absent(),
             Value<String?> sourceKey = const Value.absent(),
+            Value<String?> sourceKind = const Value.absent(),
+            Value<String?> sourceId = const Value.absent(),
+            Value<String?> ownerId = const Value.absent(),
           }) =>
               ReviewEventsCompanion.insert(
             id: id,
@@ -10410,6 +10743,9 @@ class $$ReviewEventsTableTableManager extends RootTableManager<
             lapses: lapses,
             type: type,
             sourceKey: sourceKey,
+            sourceKind: sourceKind,
+            sourceId: sourceId,
+            ownerId: ownerId,
           ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

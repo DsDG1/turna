@@ -29,6 +29,12 @@ mixin _$SrsWord {
   bool get isBuried;
   SrsItemType get type;
 
+  /// Explicit identity used by dashboard/insights. Card ids remain opaque
+  /// scheduling keys and must never be parsed to recover these fields.
+  SrsSourceKind get sourceKind;
+  String get sourceId;
+  String? get ownerId;
+
   /// Wall-clock time of the most recent review (null for never-reviewed
   /// cards). Used with [stability] for \(R(t)\) without a DB join.
   DateTime? get lastReviewedAt;
@@ -74,6 +80,11 @@ mixin _$SrsWord {
             (identical(other.isBuried, isBuried) ||
                 other.isBuried == isBuried) &&
             (identical(other.type, type) || other.type == type) &&
+            (identical(other.sourceKind, sourceKind) ||
+                other.sourceKind == sourceKind) &&
+            (identical(other.sourceId, sourceId) ||
+                other.sourceId == sourceId) &&
+            (identical(other.ownerId, ownerId) || other.ownerId == ownerId) &&
             (identical(other.lastReviewedAt, lastReviewedAt) ||
                 other.lastReviewedAt == lastReviewedAt) &&
             (identical(other.stability, stability) ||
@@ -100,6 +111,9 @@ mixin _$SrsWord {
       isSuspended,
       isBuried,
       type,
+      sourceKind,
+      sourceId,
+      ownerId,
       lastReviewedAt,
       stability,
       difficulty,
@@ -108,7 +122,7 @@ mixin _$SrsWord {
 
   @override
   String toString() {
-    return 'SrsWord(wordId: $wordId, dueAt: $dueAt, intervalDays: $intervalDays, ease: $ease, reps: $reps, lapses: $lapses, isLeech: $isLeech, isSuspended: $isSuspended, isBuried: $isBuried, type: $type, lastReviewedAt: $lastReviewedAt, stability: $stability, difficulty: $difficulty, fsrsState: $fsrsState, learningStep: $learningStep)';
+    return 'SrsWord(wordId: $wordId, dueAt: $dueAt, intervalDays: $intervalDays, ease: $ease, reps: $reps, lapses: $lapses, isLeech: $isLeech, isSuspended: $isSuspended, isBuried: $isBuried, type: $type, sourceKind: $sourceKind, sourceId: $sourceId, ownerId: $ownerId, lastReviewedAt: $lastReviewedAt, stability: $stability, difficulty: $difficulty, fsrsState: $fsrsState, learningStep: $learningStep)';
   }
 }
 
@@ -128,6 +142,9 @@ abstract mixin class $SrsWordCopyWith<$Res> {
       bool isSuspended,
       bool isBuried,
       SrsItemType type,
+      SrsSourceKind sourceKind,
+      String sourceId,
+      String? ownerId,
       DateTime? lastReviewedAt,
       double? stability,
       double? difficulty,
@@ -157,6 +174,9 @@ class _$SrsWordCopyWithImpl<$Res> implements $SrsWordCopyWith<$Res> {
     Object? isSuspended = null,
     Object? isBuried = null,
     Object? type = null,
+    Object? sourceKind = null,
+    Object? sourceId = null,
+    Object? ownerId = freezed,
     Object? lastReviewedAt = freezed,
     Object? stability = freezed,
     Object? difficulty = freezed,
@@ -204,6 +224,18 @@ class _$SrsWordCopyWithImpl<$Res> implements $SrsWordCopyWith<$Res> {
           ? _self.type
           : type // ignore: cast_nullable_to_non_nullable
               as SrsItemType,
+      sourceKind: null == sourceKind
+          ? _self.sourceKind
+          : sourceKind // ignore: cast_nullable_to_non_nullable
+              as SrsSourceKind,
+      sourceId: null == sourceId
+          ? _self.sourceId
+          : sourceId // ignore: cast_nullable_to_non_nullable
+              as String,
+      ownerId: freezed == ownerId
+          ? _self.ownerId
+          : ownerId // ignore: cast_nullable_to_non_nullable
+              as String?,
       lastReviewedAt: freezed == lastReviewedAt
           ? _self.lastReviewedAt
           : lastReviewedAt // ignore: cast_nullable_to_non_nullable
@@ -332,6 +364,9 @@ extension SrsWordPatterns on SrsWord {
             bool isSuspended,
             bool isBuried,
             SrsItemType type,
+            SrsSourceKind sourceKind,
+            String sourceId,
+            String? ownerId,
             DateTime? lastReviewedAt,
             double? stability,
             double? difficulty,
@@ -354,6 +389,9 @@ extension SrsWordPatterns on SrsWord {
             _that.isSuspended,
             _that.isBuried,
             _that.type,
+            _that.sourceKind,
+            _that.sourceId,
+            _that.ownerId,
             _that.lastReviewedAt,
             _that.stability,
             _that.difficulty,
@@ -390,6 +428,9 @@ extension SrsWordPatterns on SrsWord {
             bool isSuspended,
             bool isBuried,
             SrsItemType type,
+            SrsSourceKind sourceKind,
+            String sourceId,
+            String? ownerId,
             DateTime? lastReviewedAt,
             double? stability,
             double? difficulty,
@@ -411,6 +452,9 @@ extension SrsWordPatterns on SrsWord {
             _that.isSuspended,
             _that.isBuried,
             _that.type,
+            _that.sourceKind,
+            _that.sourceId,
+            _that.ownerId,
             _that.lastReviewedAt,
             _that.stability,
             _that.difficulty,
@@ -446,6 +490,9 @@ extension SrsWordPatterns on SrsWord {
             bool isSuspended,
             bool isBuried,
             SrsItemType type,
+            SrsSourceKind sourceKind,
+            String sourceId,
+            String? ownerId,
             DateTime? lastReviewedAt,
             double? stability,
             double? difficulty,
@@ -467,6 +514,9 @@ extension SrsWordPatterns on SrsWord {
             _that.isSuspended,
             _that.isBuried,
             _that.type,
+            _that.sourceKind,
+            _that.sourceId,
+            _that.ownerId,
             _that.lastReviewedAt,
             _that.stability,
             _that.difficulty,
@@ -492,6 +542,9 @@ class _SrsWord implements SrsWord {
       this.isSuspended = false,
       this.isBuried = false,
       this.type = SrsItemType.word,
+      this.sourceKind = SrsSourceKind.course,
+      this.sourceId = 'course',
+      this.ownerId,
       this.lastReviewedAt,
       this.stability,
       this.difficulty,
@@ -532,6 +585,17 @@ class _SrsWord implements SrsWord {
   @override
   @JsonKey()
   final SrsItemType type;
+
+  /// Explicit identity used by dashboard/insights. Card ids remain opaque
+  /// scheduling keys and must never be parsed to recover these fields.
+  @override
+  @JsonKey()
+  final SrsSourceKind sourceKind;
+  @override
+  @JsonKey()
+  final String sourceId;
+  @override
+  final String? ownerId;
 
   /// Wall-clock time of the most recent review (null for never-reviewed
   /// cards). Used with [stability] for \(R(t)\) without a DB join.
@@ -589,6 +653,11 @@ class _SrsWord implements SrsWord {
             (identical(other.isBuried, isBuried) ||
                 other.isBuried == isBuried) &&
             (identical(other.type, type) || other.type == type) &&
+            (identical(other.sourceKind, sourceKind) ||
+                other.sourceKind == sourceKind) &&
+            (identical(other.sourceId, sourceId) ||
+                other.sourceId == sourceId) &&
+            (identical(other.ownerId, ownerId) || other.ownerId == ownerId) &&
             (identical(other.lastReviewedAt, lastReviewedAt) ||
                 other.lastReviewedAt == lastReviewedAt) &&
             (identical(other.stability, stability) ||
@@ -615,6 +684,9 @@ class _SrsWord implements SrsWord {
       isSuspended,
       isBuried,
       type,
+      sourceKind,
+      sourceId,
+      ownerId,
       lastReviewedAt,
       stability,
       difficulty,
@@ -623,7 +695,7 @@ class _SrsWord implements SrsWord {
 
   @override
   String toString() {
-    return 'SrsWord(wordId: $wordId, dueAt: $dueAt, intervalDays: $intervalDays, ease: $ease, reps: $reps, lapses: $lapses, isLeech: $isLeech, isSuspended: $isSuspended, isBuried: $isBuried, type: $type, lastReviewedAt: $lastReviewedAt, stability: $stability, difficulty: $difficulty, fsrsState: $fsrsState, learningStep: $learningStep)';
+    return 'SrsWord(wordId: $wordId, dueAt: $dueAt, intervalDays: $intervalDays, ease: $ease, reps: $reps, lapses: $lapses, isLeech: $isLeech, isSuspended: $isSuspended, isBuried: $isBuried, type: $type, sourceKind: $sourceKind, sourceId: $sourceId, ownerId: $ownerId, lastReviewedAt: $lastReviewedAt, stability: $stability, difficulty: $difficulty, fsrsState: $fsrsState, learningStep: $learningStep)';
   }
 }
 
@@ -644,6 +716,9 @@ abstract mixin class _$SrsWordCopyWith<$Res> implements $SrsWordCopyWith<$Res> {
       bool isSuspended,
       bool isBuried,
       SrsItemType type,
+      SrsSourceKind sourceKind,
+      String sourceId,
+      String? ownerId,
       DateTime? lastReviewedAt,
       double? stability,
       double? difficulty,
@@ -673,6 +748,9 @@ class __$SrsWordCopyWithImpl<$Res> implements _$SrsWordCopyWith<$Res> {
     Object? isSuspended = null,
     Object? isBuried = null,
     Object? type = null,
+    Object? sourceKind = null,
+    Object? sourceId = null,
+    Object? ownerId = freezed,
     Object? lastReviewedAt = freezed,
     Object? stability = freezed,
     Object? difficulty = freezed,
@@ -720,6 +798,18 @@ class __$SrsWordCopyWithImpl<$Res> implements _$SrsWordCopyWith<$Res> {
           ? _self.type
           : type // ignore: cast_nullable_to_non_nullable
               as SrsItemType,
+      sourceKind: null == sourceKind
+          ? _self.sourceKind
+          : sourceKind // ignore: cast_nullable_to_non_nullable
+              as SrsSourceKind,
+      sourceId: null == sourceId
+          ? _self.sourceId
+          : sourceId // ignore: cast_nullable_to_non_nullable
+              as String,
+      ownerId: freezed == ownerId
+          ? _self.ownerId
+          : ownerId // ignore: cast_nullable_to_non_nullable
+              as String?,
       lastReviewedAt: freezed == lastReviewedAt
           ? _self.lastReviewedAt
           : lastReviewedAt // ignore: cast_nullable_to_non_nullable

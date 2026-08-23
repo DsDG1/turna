@@ -35,7 +35,6 @@ import 'package:turna/application/ai/learner_ai_context_assembler.dart';
 import 'package:turna/domain/ai_companion/diagnosis_snapshot.dart';
 import 'package:turna/domain/ai_companion/learning_evidence.dart';
 import 'package:turna/domain/ai_companion/study_plan.dart';
-import 'package:turna/service/locator.dart';
 
 http.Response _textResponse(String content) {
   final body = jsonEncode({
@@ -121,7 +120,8 @@ void main() {
 
   group('AiErrorMapper', () {
     test('maps cancelled / incomplete / auth / rate / parse', () {
-      expect(AiErrorMapper.map(const AiCancelled()).kind, AiErrorKind.cancelled);
+      expect(
+          AiErrorMapper.map(const AiCancelled()).kind, AiErrorKind.cancelled);
       expect(
         AiErrorMapper.map(Exception(
                 'AI config incomplete: please fill in Base URL / API Key / Model.'))
@@ -308,7 +308,8 @@ void main() {
       gate.complete();
       await Future.wait([a, b]);
       expect(provider.latestReply, 'B 的讲解。');
-      expect(provider.messages.any((m) => m.content.contains('A 的讲解')), isFalse);
+      expect(
+          provider.messages.any((m) => m.content.contains('A 的讲解')), isFalse);
     });
   });
 
@@ -560,14 +561,14 @@ void main() {
   });
 
   group('export does not include AI API key', () {
-    test('progress manifest excludes ai.engineConfig', () {
+    test('progress manifest sanitizes ai.engineConfig', () {
       final exportSrc =
           File('lib/service/export_service.dart').readAsStringSync();
-      expect(exportSrc.contains('ai.engineConfig'), isFalse);
-      expect(exportSrc.contains('LocalStateKeys.aiEngineConfig'), isFalse);
+      expect(exportSrc.contains('LocalStateKeys.aiEngineConfig'), isTrue);
+      expect(exportSrc.contains('_stripApiKey(value)'), isTrue);
       expect(
-        exportSrc.contains(LocalStateKeys.aiEngineConfig),
-        isFalse,
+        exportSrc.contains("decoded['apiKey'] = ''"),
+        isTrue,
       );
     });
   });

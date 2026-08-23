@@ -17,6 +17,7 @@ import 'package:turna/application/ai/ai_saved_explanations.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_sqlite.dart';
 import 'package:turna/application/settings/settings_destination.dart';
+import 'package:turna/application/restore_normalization_service.dart';
 import 'package:turna/application/system_health_monitor.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/core/verbose.dart';
@@ -149,6 +150,8 @@ class LocalStateKeys {
   static const String completedLessonIds = 'progress.completedLessonIds';
   static const String perfectLessonIds = 'progress.perfectLessonIds';
   static const String streakWasBroken = 'game.streakWasBroken';
+  static const String streakProtectedDays = 'streak.protectedDays';
+  static const String streakAutoUseVoucher = 'streak.autoUseVoucher';
   static const String wordsLearned = 'game.wordsLearned';
 
   // Currency
@@ -160,6 +163,20 @@ class LocalStateKeys {
 
   /// Currently equipped avatar ring id. Default: [ring_mist].
   static const String cosmeticsEquippedRing = 'cosmetics.equippedRing';
+
+  /// Slot-based equipment keys. The old ring key above remains migration
+  /// input only after [cosmetics.equipped.avatarRing] has been written.
+  static const String cosmeticsEquippedAvatarRing =
+      'cosmetics.equipped.avatarRing';
+  static const String cosmeticsEquippedProfileTheme =
+      'cosmetics.equipped.profileTheme';
+  static const String cosmeticsEquippedCardBack = 'cosmetics.equipped.cardBack';
+  static const String cosmeticsEquippedCompletionEffect =
+      'cosmetics.equipped.completionEffect';
+  static const String cosmeticsEquippedSoundPack =
+      'cosmetics.equipped.soundPack';
+  static const String cosmeticsEquippedMascotAccessory =
+      'cosmetics.equipped.mascotAccessory';
 
   // Achievements
   /// v1 unlocked-id list. Read-only migration input for the v2 achievement
@@ -282,6 +299,8 @@ class LocalStateKeys {
       'remoteBackup.lastRestoredAt';
   static const String remoteBackupRestoreBlockedReason =
       'remoteBackup.restoreBlockedReason';
+  static const String remoteBackupNormalizationPending =
+      'remoteBackup.normalizationPending';
 }
 
 /// Making AppPrefs injectable
@@ -322,7 +341,8 @@ Future<void> setupLocator() async {
   // Companion stores — single instances for all AI surfaces (hardens against
   // orphan prefs that ignore settings UI changes).
   if (!getIt.isRegistered<AiExplainPrefsStore>()) {
-    getIt.registerLazySingleton<AiExplainPrefsStore>(() => AiExplainPrefsStore());
+    getIt.registerLazySingleton<AiExplainPrefsStore>(
+        () => AiExplainPrefsStore());
   }
   if (!getIt.isRegistered<AiSavedExplanationsStore>()) {
     getIt.registerLazySingleton<AiSavedExplanationsStore>(
@@ -345,6 +365,7 @@ Future<void> setupLocator() async {
   // the only point in the boot sequence where every data file is closed.
   // OHos is excluded (course.db lives in the system RDB store, not a file)
   // and so is web (no local databases).
+  var remoteRestoreApplied = false;
   if (defaultTargetPlatform.name != 'ohos' && !kIsWeb) {
     final appSupport = await getApplicationSupportDirectory();
     final outcome = await RestoreApplier(
@@ -354,18 +375,45 @@ Future<void> setupLocator() async {
       officialProfileRoot:
           Directory(p.join(appSupport.path, 'official_anki', 'default')),
       // keep in lockstep with CourseDatabase.schemaVersion
-      currentDriftSchema: 18,
+      currentDriftSchema: 20,
       currentCatalogSchema: kOfficialAnkiCatalogSchemaVersion,
     ).applyIfPending();
     if (outcome != RestoreApplyOutcome.noPending) {
       logger.i('Remote restore boot outcome: $outcome');
     }
+    remoteRestoreApplied = outcome == RestoreApplyOutcome.applied;
   }
 
   final db = await _openAndSeedCourseDatabase();
   getIt.registerSingleton<CourseDatabase>(db);
   getIt.registerSingleton(AnkiUnificationDao(db));
-  getIt.registerSingleton(CardIntroductionStore(dao: getIt<AnkiUnificationDao>()));
+  getIt.registerSingleton(
+      CardIntroductionStore(dao: getIt<AnkiUnificationDao>()));
+
+  if (!getIt.isRegistered<RestoreNormalizationService>()) {
+    getIt.registerLazySingleton<RestoreNormalizationService>(
+      () => RestoreNormalizationService(
+        prefs: getIt<AppPrefs>(),
+        gems: getIt(),
+        cosmetics: getIt(),
+        aiConfig: getIt(),
+      ),
+    );
+  }
+  final normalizationPending = remoteRestoreApplied ||
+      getIt<AppPrefs>()
+          .preferences
+          .getBool(
+            LocalStateKeys.remoteBackupNormalizationPending,
+            defaultValue: false,
+          )
+          .getValue();
+  if (normalizationPending) {
+    await getIt<RestoreNormalizationService>().normalize();
+    await getIt<AppPrefs>()
+        .preferences
+        .remove(LocalStateKeys.remoteBackupNormalizationPending);
+  }
 
   // Remote backup (manual WebDAV backup / restore) — same platform window as
   // the restore applier (needs file-backed databases).

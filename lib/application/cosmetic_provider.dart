@@ -5,10 +5,12 @@ import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
+import 'package:turna/application/diagnostics/storage_write_telemetry.dart';
 import 'package:turna/application/gems_provider.dart';
 import 'package:turna/data/gem_ledger_dao.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/cosmetics/avatar_ring.dart';
+import 'package:turna/domain/cosmetics/cosmetic_item.dart';
 import 'package:turna/service/locator.dart';
 
 /// Result of [CosmeticProvider.unlockAndEquip].
@@ -19,7 +21,7 @@ enum CosmeticActionResult {
   unknownId,
 }
 
-/// Local-only cosmetic unlocks (avatar rings). Spends gems via [GemsProvider].
+/// Slot-based cosmetic entitlements and equipment state.
 @lazySingleton
 class CosmeticProvider extends ChangeNotifier {
   CosmeticProvider(this.appPrefs, this._gemsProvider);
@@ -30,21 +32,54 @@ class CosmeticProvider extends ChangeNotifier {
   /// Serializes unlock/equip writes (and pairs with gem spends) so two taps
   /// cannot double-charge for the same ring.
   Future<void> _opChain = Future.value();
+  Set<String> _ledgerEntitlements = const {};
+
+  Future<void> ensureInitialized() async {
+    await _enqueue(() async {
+      final keys = appPrefs.preferences.getKeys().getValue();
+      if (!keys.contains(LocalStateKeys.cosmeticsEquippedAvatarRing)) {
+        final legacy = appPrefs.preferences
+            .getString(
+              LocalStateKeys.cosmeticsEquippedRing,
+              defaultValue: kAvatarRingMist,
+            )
+            .getValue();
+        await _writeEquipment(
+          CosmeticSlot.avatarRing,
+          CosmeticCatalog.ringById(legacy) == null ? kAvatarRingMist : legacy,
+        );
+      }
+      final ledger = _resolveLedger();
+      if (ledger != null) {
+        _ledgerEntitlements = await ledger.entitledItemIds();
+        await _mirrorUnlocks();
+      }
+      notifyListeners();
+    });
+  }
 
   Set<String> get unlockedIds {
     final stored = appPrefs.preferences
         .getStringList(LocalStateKeys.cosmeticsUnlocked, defaultValue: const [])
         .getValue()
         .toSet();
-    stored.add(kAvatarRingMist);
+    stored.addAll(_ledgerEntitlements);
+    stored.addAll(
+      CosmeticCatalog.items.where((item) => item.isFree).map((item) => item.id),
+    );
     return stored;
   }
 
   String get equippedRingId {
     final id = appPrefs.preferences
         .getString(
-          LocalStateKeys.cosmeticsEquippedRing,
-          defaultValue: kAvatarRingMist,
+          LocalStateKeys.cosmeticsEquippedAvatarRing,
+          defaultValue: appPrefs.preferences
+              .getString(
+                LocalStateKeys.cosmeticsEquippedRing,
+                defaultValue: kAvatarRingMist,
+              )
+              .getValue(),
         )
         .getValue();
     if (id.isEmpty) return kAvatarRingMist;
@@ -54,6 +89,24 @@ class CosmeticProvider extends ChangeNotifier {
   AvatarRing get equippedRing =>
       CosmeticCatalog.ringById(equippedRingId) ?? CosmeticCatalog.defaultRing;
 
+  Map<CosmeticSlot, String> get equippedIds => {
+        for (final slot in CosmeticSlot.values)
+          if (equippedId(slot) case final String id) slot: id,
+      };
+
+  String? equippedId(CosmeticSlot slot) {
+    if (slot == CosmeticSlot.avatarRing) return equippedRingId;
+    final value = appPrefs.preferences
+        .getString(_equipmentKey(slot), defaultValue: '')
+        .getValue();
+    return value.isEmpty ? null : value;
+  }
+
+  CosmeticItem? equippedItem(CosmeticSlot slot) {
+    final id = equippedId(slot);
+    return id == null ? null : CosmeticCatalog.itemById(id);
+  }
+
   bool isUnlocked(String id) {
     if (id == kAvatarRingMist) return true;
     return unlockedIds.contains(id);
@@ -61,12 +114,20 @@ class CosmeticProvider extends ChangeNotifier {
 
   bool isEquipped(String id) => equippedRingId == id;
 
+  bool isItemEquipped(String id) {
+    final item = CosmeticCatalog.itemById(id);
+    return item != null && equippedId(item.slot) == id;
+  }
+
   Future<void> equip(String id) async {
+    await equipItem(id);
+  }
+
+  Future<void> equipItem(String id) async {
     await _enqueue(() async {
-      if (!isUnlocked(id)) return;
-      if (CosmeticCatalog.ringById(id) == null) return;
-      await appPrefs.preferences
-          .setString(LocalStateKeys.cosmeticsEquippedRing, id);
+      final item = CosmeticCatalog.itemById(id);
+      if (item == null || !isUnlocked(id)) return;
+      await _writeEquipment(item.slot, id);
       notifyListeners();
     });
   }
@@ -79,52 +140,48 @@ class CosmeticProvider extends ChangeNotifier {
   /// still mirrored for existing readers until the shop consumes the ledger
   /// directly.
   Future<CosmeticActionResult> unlockAndEquip(String id) async {
+    if (CosmeticCatalog.ringById(id) == null) {
+      return CosmeticActionResult.unknownId;
+    }
+    return unlockAndEquipItem(id);
+  }
+
+  Future<CosmeticActionResult> unlockAndEquipItem(String id) async {
     late CosmeticActionResult outcome;
     await _enqueue(() async {
-      final ring = CosmeticCatalog.ringById(id);
-      if (ring == null) {
+      final item = CosmeticCatalog.itemById(id);
+      if (item == null) {
         outcome = CosmeticActionResult.unknownId;
         return;
       }
 
       if (isUnlocked(id)) {
-        await appPrefs.preferences
-            .setString(LocalStateKeys.cosmeticsEquippedRing, id);
+        await _writeEquipment(item.slot, id);
         notifyListeners();
         outcome = CosmeticActionResult.equipped;
         return;
       }
 
-      if (ring.price > 0) {
+      if (item.price > 0) {
         final ledger = _resolveLedger();
         if (ledger != null) {
           final result = await ledger.purchase(
             itemId: id,
-            price: ring.price,
+            price: item.price,
             currentBalance: _gemsProvider.balance,
-            catalogVersion: ring.catalogVersion,
+            catalogVersion: item.catalogVersion,
           );
           if (result == GemPurchaseResult.insufficientFunds) {
             outcome = CosmeticActionResult.insufficientGems;
             return;
           }
-          // success / alreadyOwned both proceed: the entitlement exists.
-          final spent = await _gemsProvider.spendGems(ring.price);
-          if (!spent) {
-            // Wallet could not be charged (raced with a concurrent spend):
-            // refund the ledger spend so the projection stays honest.
-            await ledger.record(
-              kind: GemLedgerKind.refund,
-              amount: ring.price,
-              reason: 'refund:$id wallet spend failed',
-              itemId: id,
-            );
-            outcome = CosmeticActionResult.insufficientGems;
-            return;
-          }
+          // The purchase transaction already contains the spend fact. Mirror
+          // its projection into prefs; never append a second wallet spend.
+          await _gemsProvider.refreshFromLedger();
+          _ledgerEntitlements = await ledger.entitledItemIds();
         } else {
           // No ledger available (tests / DB not ready): legacy path only.
-          final spent = await _gemsProvider.spendGems(ring.price);
+          final spent = await _gemsProvider.spendGems(item.price);
           if (!spent) {
             outcome = CosmeticActionResult.insufficientGems;
             return;
@@ -132,13 +189,8 @@ class CosmeticProvider extends ChangeNotifier {
         }
       }
 
-      final next = unlockedIds..add(id);
-      await appPrefs.preferences.setStringList(
-        LocalStateKeys.cosmeticsUnlocked,
-        next.toList(growable: false),
-      );
-      await appPrefs.preferences
-          .setString(LocalStateKeys.cosmeticsEquippedRing, id);
+      await _mirrorUnlocks(extra: {id});
+      await _writeEquipment(item.slot, id);
       notifyListeners();
       outcome = CosmeticActionResult.unlockedAndEquipped;
     });
@@ -163,6 +215,11 @@ class CosmeticProvider extends ChangeNotifier {
         LocalStateKeys.cosmeticsEquippedRing,
         kAvatarRingMist,
       );
+      for (final slot in CosmeticSlot.values) {
+        await appPrefs.preferences.remove(_equipmentKey(slot));
+      }
+      await _writeEquipment(CosmeticSlot.avatarRing, kAvatarRingMist);
+      _ledgerEntitlements = const {};
       notifyListeners();
     });
   }
@@ -170,6 +227,43 @@ class CosmeticProvider extends ChangeNotifier {
   /// After external prefs restore (export import / Fun Lab).
   void refreshFromPrefs() {
     notifyListeners();
+  }
+
+  Future<void> _mirrorUnlocks({Set<String> extra = const {}}) async {
+    final next = appPrefs.preferences
+        .getStringList(LocalStateKeys.cosmeticsUnlocked, defaultValue: const [])
+        .getValue()
+        .toSet()
+      ..addAll(_ledgerEntitlements)
+      ..addAll(extra);
+    await appPrefs.preferences.setStringList(
+      LocalStateKeys.cosmeticsUnlocked,
+      next.toList(growable: false),
+    );
+  }
+
+  static String _equipmentKey(CosmeticSlot slot) => switch (slot) {
+        CosmeticSlot.avatarRing => LocalStateKeys.cosmeticsEquippedAvatarRing,
+        CosmeticSlot.profileTheme =>
+          LocalStateKeys.cosmeticsEquippedProfileTheme,
+        CosmeticSlot.cardBack => LocalStateKeys.cosmeticsEquippedCardBack,
+        CosmeticSlot.completionEffect =>
+          LocalStateKeys.cosmeticsEquippedCompletionEffect,
+        CosmeticSlot.soundPack => LocalStateKeys.cosmeticsEquippedSoundPack,
+        CosmeticSlot.mascotAccessory =>
+          LocalStateKeys.cosmeticsEquippedMascotAccessory,
+      };
+
+  Future<void> _writeEquipment(CosmeticSlot slot, String id) async {
+    final key = _equipmentKey(slot);
+    final stopwatch = Stopwatch()..start();
+    await appPrefs.preferences.setString(key, id);
+    stopwatch.stop();
+    StorageWriteTelemetry.instance.record(
+      key: key,
+      estimatedBytes: id.codeUnits.length,
+      elapsed: stopwatch.elapsed,
+    );
   }
 
   Future<void> _enqueue(Future<void> Function() op) {

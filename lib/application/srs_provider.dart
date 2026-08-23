@@ -29,8 +29,19 @@ class SrsProvider extends SrsQueueProvider {
   String get logTag => 'SrsProvider';
 
   /// Register a new word as fresh (due immediately) if not yet seen.
-  void registerWord(String wordId) =>
-      registerItem(wordId, type: SrsItemType.word);
+  void registerWord(
+    String wordId, {
+    SrsSourceKind sourceKind = SrsSourceKind.course,
+    String sourceId = 'course',
+    String? ownerId,
+  }) =>
+      registerItem(
+        wordId,
+        type: SrsItemType.word,
+        sourceKind: sourceKind,
+        sourceId: sourceId,
+        ownerId: ownerId,
+      );
 
   /// Register multiple new words.
   void registerAll(Iterable<String> wordIds) =>

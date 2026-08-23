@@ -46,7 +46,8 @@ void main() {
 
   setUp(() async {
     tmp = await Directory.systemTemp.createTemp('turna_snapshot');
-    db = CourseDatabase(NativeDatabase(File(p.join(tmp.path, 'live_course.db'))));
+    db = CourseDatabase(
+        NativeDatabase(File(p.join(tmp.path, 'live_course.db'))));
 
     SharedPreferences.setMockInitialValues(<String, Object>{
       'game.score': 120,
@@ -107,7 +108,7 @@ void main() {
     expect(snapshot.meta.hasCollection, isTrue);
     expect(snapshot.meta.hasCatalog, isTrue);
     expect(snapshot.meta.hasMediaDb, isTrue);
-    expect(snapshot.meta.driftSchema, 18);
+    expect(snapshot.meta.driftSchema, 20);
     expect(snapshot.meta.catalogSchema, 8);
     expect(snapshot.meta.appVersion, '0.4.0');
     expect(phases.first, BackupSnapshotPhase.collectingPrefs);
@@ -140,17 +141,17 @@ void main() {
     expect(prefsPayload.containsKey('system.healthEvent'), isFalse);
     expect(prefsPayload.containsKey('anki.deck.imp1.newDone.20260823'), isFalse,
         reason: 'per-day counters must not travel');
-    final aiConfig =
-        jsonDecode(prefsPayload['ai.engineConfig'] as String) as Map<String, dynamic>;
+    final aiConfig = jsonDecode(prefsPayload['ai.engineConfig'] as String)
+        as Map<String, dynamic>;
     expect(aiConfig['apiKey'], '', reason: 'API key must be stripped');
     expect(aiConfig['preset'], 'custom');
 
     // Staged course.db is a real migrated drift database.
-    final stagedCourse = sql.sqlite3.open(p.join(staging.path, 'course.db'),
-        mode: sql.OpenMode.readOnly);
+    final stagedCourse = sql.sqlite3
+        .open(p.join(staging.path, 'course.db'), mode: sql.OpenMode.readOnly);
     expect(
       stagedCourse.select('PRAGMA user_version').first['user_version'],
-      18,
+      20,
     );
     stagedCourse.dispose();
 
@@ -190,8 +191,8 @@ void main() {
       officialProfileRoot: emptyProfile,
       legacyMediaRoot: Directory(p.join(tmp.path, 'no_media')),
     );
-    final snapshot = await bareService
-        .build(stagingDir: Directory(p.join(tmp.path, 'staging2')));
+    final snapshot = await bareService.build(
+        stagingDir: Directory(p.join(tmp.path, 'staging2')));
 
     expect(snapshot.meta.hasCollection, isFalse);
     expect(snapshot.meta.hasCatalog, isFalse);

@@ -3,6 +3,9 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
 // Project imports:
+import 'package:turna/application/diagnostics/cache_diagnostics_registry.dart';
+import 'package:turna/application/diagnostics/runtime_memory_snapshot.dart';
+import 'package:turna/application/diagnostics/storage_write_telemetry.dart';
 import 'package:turna/application/maintenance/storage_inventory_service.dart';
 import 'package:turna/application/maintenance/storage_maintenance_service.dart';
 import 'package:turna/l10n/app_strings.dart';
@@ -17,12 +20,19 @@ import 'package:turna/views/theme.dart';
 /// layout is Plan 2's call; this page is the data contract behind it.
 @RoutePage()
 class StorageDiagnosticsPage extends StatefulWidget {
-  const StorageDiagnosticsPage({super.key, this.scanner});
+  const StorageDiagnosticsPage({
+    super.key,
+    this.scanner,
+    this.cacheRegistry,
+    this.memorySampler,
+  });
 
   /// Test seam: widget tests run under fake-async, where the service's real
   /// file I/O never completes; inject a synchronous scanner there. Production
   /// leaves this null and uses the real service.
   final StorageInventoryService? scanner;
+  final CacheDiagnosticsRegistry? cacheRegistry;
+  final Future<RuntimeMemorySnapshot> Function()? memorySampler;
 
   @override
   State<StorageDiagnosticsPage> createState() => _StorageDiagnosticsPageState();
@@ -30,15 +40,22 @@ class StorageDiagnosticsPage extends StatefulWidget {
 
 class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
   Future<StorageInventoryReport>? _scan;
+  Future<List<CacheFootprint>>? _cacheScan;
+  Future<RuntimeMemorySnapshot>? _memoryScan;
+  late final CacheDiagnosticsRegistry _cacheRegistry;
 
   @override
   void initState() {
     super.initState();
-    _scan = (widget.scanner ?? const StorageInventoryService()).scan();
+    _cacheRegistry =
+        widget.cacheRegistry ?? CacheDiagnosticsRegistry.production();
+    _rescan();
   }
 
   void _rescan() => setState(() {
         _scan = (widget.scanner ?? const StorageInventoryService()).scan();
+        _cacheScan = _cacheRegistry.inspectAll();
+        _memoryScan = (widget.memorySampler ?? RuntimeMemorySnapshot.sample)();
       });
 
   Future<void> _clearCaches() async {
@@ -47,7 +64,8 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
       builder: (ctx) => AlertDialog(
         title: const Text('清理可再生成缓存？'),
         content: const Text(
-          '仅清理 Anki 预渲染明文缓存与 AI 请求缓存，'
+          '仅清理已登记的可再生成缓存（Anki 预渲染、AI、图像、'
+          'Playground 与复习概览快照），'
           '课程、卡片和学习进度不受影响。',
         ),
         actions: [
@@ -64,6 +82,7 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
     );
     if (confirmed != true || !mounted) return;
     await StorageMaintenanceService().clearRegenerableCaches();
+    await _cacheRegistry.clearRegenerable();
     _rescan();
   }
 
@@ -94,6 +113,22 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _SummaryCard(report: report),
+                  const SizedBox(height: 16),
+                  FutureBuilder<RuntimeMemorySnapshot>(
+                    future: _memoryScan,
+                    builder: (context, memory) =>
+                        _RuntimeMemoryCard(snapshot: memory.data),
+                  ),
+                  const SizedBox(height: 12),
+                  FutureBuilder<List<CacheFootprint>>(
+                    future: _cacheScan,
+                    builder: (context, caches) =>
+                        _CacheRegistryCard(caches: caches.data ?? const []),
+                  ),
+                  const SizedBox(height: 12),
+                  _WriteTelemetryCard(
+                    rows: StorageWriteTelemetry.instance.top(),
+                  ),
                   const SizedBox(height: 16),
                   ..._categoryBlocks(context, report),
                   const SizedBox(height: 16),
@@ -156,9 +191,8 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
           title: entry.key == StorageArtifactCategory.legacyAnkiMedia
               ? '${entry.value}（${report.mediaDirsByOwner.length} 个导入目录）'
               : entry.value,
-          artifacts: report.artifacts
-              .where((a) => a.category == entry.key)
-              .toList(),
+          artifacts:
+              report.artifacts.where((a) => a.category == entry.key).toList(),
           extra: entry.key == StorageArtifactCategory.mainDatabase
               ? 'WAL ${_formatBytes(report.databaseWalBytes)} · '
                   'SHM ${_formatBytes(report.databaseShmBytes)} · '
@@ -168,6 +202,87 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
                   : null,
         ),
     ];
+  }
+}
+
+class _RuntimeMemoryCard extends StatelessWidget {
+  const _RuntimeMemoryCard({required this.snapshot});
+  final RuntimeMemorySnapshot? snapshot;
+
+  @override
+  Widget build(BuildContext context) {
+    final data = snapshot;
+    return _DiagnosticCard(
+      title: '运行内存（瞬时）',
+      lines: [
+        '进程 RSS ${data?.currentRssBytes == null ? '不可用' : _formatBytes(data!.currentRssBytes!)}',
+        'Dart heap ${data?.dartHeapBytes == null ? '当前平台不可用' : _formatBytes(data!.dartHeapBytes!)}',
+        if (data != null) '采样时间 ${_formatTime(data.sampledAt)}',
+        '运行内存与磁盘占用口径不同，不合并计算。',
+      ],
+    );
+  }
+}
+
+class _CacheRegistryCard extends StatelessWidget {
+  const _CacheRegistryCard({required this.caches});
+  final List<CacheFootprint> caches;
+
+  @override
+  Widget build(BuildContext context) {
+    return _DiagnosticCard(
+      title: '已登记缓存（数值随系统回收变化）',
+      lines: [
+        if (caches.isEmpty) '正在读取缓存…',
+        for (final cache in caches)
+          '${cache.owner}：${cache.entries} 条'
+              '${cache.estimatedBytes == null ? '（未估算字节）' : ' · ${_formatBytes(cache.estimatedBytes!)}'}',
+      ],
+    );
+  }
+}
+
+class _WriteTelemetryCard extends StatelessWidget {
+  const _WriteTelemetryCard({required this.rows});
+  final List<StorageWriteAggregate> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    return _DiagnosticCard(
+      title: '写放大 Top-N（仅键名与估算字节）',
+      lines: [
+        if (rows.isEmpty) '本次运行暂无写入样本',
+        for (final row in rows)
+          '${row.key}：${row.count} 次 · ${_formatBytes(row.estimatedBytes)}',
+      ],
+    );
+  }
+}
+
+class _DiagnosticCard extends StatelessWidget {
+  const _DiagnosticCard({required this.title, required this.lines});
+  final String title;
+  final List<String> lines;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 6),
+            for (final line in lines)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(line),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

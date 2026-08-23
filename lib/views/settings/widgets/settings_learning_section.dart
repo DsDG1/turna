@@ -12,6 +12,7 @@ import 'package:turna/application/anki/anki_deck_manager.dart';
 import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/settings_provider.dart';
+import 'package:turna/application/streak_provider.dart';
 import 'package:turna/core/enums.dart';
 import 'package:turna/core/extensions.dart';
 import 'package:turna/core/fsrs_optimizer.dart';
@@ -84,6 +85,35 @@ class SettingsLanguageSelectorTile extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class SettingsStreakVoucherAutoUseTile extends StatefulWidget {
+  const SettingsStreakVoucherAutoUseTile({super.key});
+
+  @override
+  State<SettingsStreakVoucherAutoUseTile> createState() =>
+      _SettingsStreakVoucherAutoUseTileState();
+}
+
+class _SettingsStreakVoucherAutoUseTileState
+    extends State<SettingsStreakVoucherAutoUseTile> {
+  late final StreakProvider _streak = getIt<StreakProvider>();
+
+  @override
+  Widget build(BuildContext context) {
+    return SettingsTile(
+      icon: Icons.shield_outlined,
+      title: '自动使用连续学习保护券',
+      subtitle: '默认关闭；只保护连续天数，不会生成学习记录',
+      trailing: settingsAdaptiveSwitch(
+        value: _streak.autoUseVoucher,
+        onChanged: (value) async {
+          await _streak.setAutoUseVoucher(value);
+          if (mounted) setState(() {});
+        },
       ),
     );
   }

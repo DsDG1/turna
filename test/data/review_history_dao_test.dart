@@ -2,6 +2,7 @@
 // prefix delete, and the `recalled` derivation.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:turna/data/course_database.dart';
 import 'package:turna/data/review_history_dao.dart';
 import 'package:turna/domain/course/srs_word.dart';
 
@@ -11,10 +12,14 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late ReviewHistoryDao dao;
+  late CourseDatabase db;
 
   setUp(() {
-    dao = emptyReviewHistoryDao();
+    db = emptyInMemoryCourseDatabase();
+    dao = ReviewHistoryDao(db);
   });
+
+  tearDown(() => db.close());
 
   ReviewEventRecord makeEvent({
     required String cardId,
@@ -23,6 +28,9 @@ void main() {
     int prevInterval = 1,
     int nextInterval = 4,
     String queue = 'srs',
+    SrsItemType type = SrsItemType.word,
+    SrsSourceKind sourceKind = SrsSourceKind.course,
+    String sourceId = 'course',
   }) {
     return ReviewEventRecord(
       cardId: cardId,
@@ -35,7 +43,9 @@ void main() {
       nextEase: 2.5,
       reps: 1,
       lapses: 0,
-      type: SrsItemType.word,
+      type: type,
+      sourceKind: sourceKind,
+      sourceId: sourceId,
     );
   }
 
@@ -129,6 +139,99 @@ void main() {
       expect(await dao.count(), 2);
       final all = await dao.allEvents();
       expect(all.map((e) => e.cardId).toSet(), {'anki-imp2-n1', 'w-builtin'});
+    });
+
+    test('100k events return only fixed activity and retention buckets',
+        () async {
+      final start = DateTime(2025, 8, 24).millisecondsSinceEpoch;
+      const dayMs = Duration.millisecondsPerDay;
+      await db.customStatement('''
+        WITH digits(v) AS (
+          VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9)
+        ), numbers(n) AS (
+          SELECT a.v + b.v*10 + c.v*100 + d.v*1000 + e.v*10000
+          FROM digits a CROSS JOIN digits b CROSS JOIN digits c
+          CROSS JOIN digits d CROSS JOIN digits e
+        )
+        INSERT INTO review_events
+          (card_id, queue, reviewed_at, quality, prev_interval_days,
+           next_interval_days, prev_ease, next_ease, reps, lapses, type)
+        SELECT 'anki-fixture-c' || (n % 10000), 'srs',
+               $start + (n % 365) * $dayMs,
+               n % 5, (n % 200) + 1, (n % 200) + 2,
+               2.5, 2.5, 1, 0, 'word'
+        FROM numbers
+      ''');
+      final from = DateTime(2025, 8, 24);
+      final to = from.add(const Duration(days: 366));
+
+      final days = await dao.activityBuckets(
+        from,
+        to,
+        ActivityGranularity.day,
+      );
+      final weeks = await dao.activityBuckets(
+        from,
+        to,
+        ActivityGranularity.week,
+      );
+      final retention = await dao.retentionByIntervalBucket(from, to);
+      final sources = await dao.sourceReviewCounts(from, to);
+
+      expect(await dao.count(), 100000);
+      expect(days.length, lessThanOrEqualTo(366));
+      expect(weeks.length, lessThanOrEqualTo(54));
+      expect(retention.length, lessThanOrEqualTo(9));
+      expect(retention.fold<int>(0, (sum, row) => sum + row.total), 100000);
+      expect(sources.values.fold<int>(0, (a, b) => a + b), 100000);
+    });
+
+    test('activity and source counts apply source/type filters in SQL',
+        () async {
+      final at = DateTime(2026, 7, 28, 12);
+      await dao.insertBatch([
+        makeEvent(cardId: 'course-word', quality: 4, reviewedAt: at),
+        makeEvent(
+          cardId: 'course-expression',
+          quality: 4,
+          reviewedAt: at,
+          type: SrsItemType.expression,
+        ),
+        makeEvent(
+          cardId: 'opaque-card-1',
+          quality: 4,
+          reviewedAt: at,
+          sourceKind: SrsSourceKind.ankiLegacy,
+          sourceId: 'import',
+        ),
+        makeEvent(
+          cardId: 'grammar-1',
+          quality: 4,
+          reviewedAt: at,
+          queue: 'grammar',
+        ),
+      ]);
+      final from = DateTime(2026, 7, 28);
+      final to = from.add(const Duration(days: 1));
+
+      final anki = await dao.activityBuckets(
+        from,
+        to,
+        ActivityGranularity.day,
+        filter: const ReviewHistoryFilter(
+          sourceKind: SrsSourceKind.ankiLegacy,
+          sourceId: 'import',
+          queue: 'srs',
+        ),
+      );
+      final expressions = await dao.sourceReviewCounts(
+        from,
+        to,
+        filter: const ReviewHistoryFilter(type: 'expression'),
+      );
+
+      expect(anki.single.reviewedCount, 1);
+      expect(expressions, {'course': 1});
     });
   });
 }

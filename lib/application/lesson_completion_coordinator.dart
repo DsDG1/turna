@@ -42,6 +42,7 @@ class LessonCompletionCoordinator {
     required DateTime? lessonStartTime,
     List<String> wordIds = const [],
   }) async {
+    final completedAt = DateTime.now();
     await Future.wait([
       _runSideEffect(
         'award lesson-complete XP',
@@ -49,7 +50,10 @@ class LessonCompletionCoordinator {
       ),
       _runSideEffect(
         'earn lesson-complete gems',
-        () => _gemsProvider.earnGems(GemEvent.lessonComplete),
+        () => _gemsProvider.earnGems(
+          GemEvent.lessonComplete,
+          eventId: GemRewardEventIds.lesson(lessonId, completedAt),
+        ),
       ),
     ]);
 
@@ -61,7 +65,10 @@ class LessonCompletionCoordinator {
         ),
         _runSideEffect(
           'earn perfect-lesson gems',
-          () => _gemsProvider.earnGems(GemEvent.perfectLesson),
+          () => _gemsProvider.earnGems(
+            GemEvent.perfectLesson,
+            eventId: GemRewardEventIds.perfectLesson(lessonId, completedAt),
+          ),
         ),
       ]);
     }

@@ -4,6 +4,7 @@ import 'dart:convert';
 // Flutter imports:
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 // Package imports:
 import 'package:auto_route/auto_route.dart';
@@ -12,6 +13,7 @@ import 'package:share_plus/share_plus.dart';
 
 // Project imports:
 import 'package:turna/application/settings_provider.dart';
+import 'package:turna/application/diagnostics/performance_trace.dart';
 import 'package:turna/application/system_health_monitor.dart';
 import 'package:turna/core/log_capture.dart';
 import 'package:turna/data/course_database.dart';
@@ -116,6 +118,13 @@ class SystemHealthPage extends StatelessWidget {
                   onTap: (context) => _previewReport(context, monitor),
                 ),
                 settingsTileDivider(context),
+                SettingsActionTile(
+                  icon: Icons.copy_all_rounded,
+                  title: '复制诊断摘要',
+                  subtitle: '包含脱敏的性能 P50/P95 与慢操作 Top-N',
+                  onTap: (context) => _copyReport(context, monitor),
+                ),
+                settingsTileDivider(context),
                 SettingsSwitchTile(
                   icon: Icons.shield_outlined,
                   title: '安全模式',
@@ -165,8 +174,7 @@ class SystemHealthPage extends StatelessWidget {
       context: context,
       builder: (context) => SettingsConfirmDialog(
         title: '确认处理异常并降低 40 分？',
-        message:
-            '当前异常评分：$current 分\n'
+        message: '当前异常评分：$current 分\n'
             '处理后评分：$target 分\n\n'
             '${willResolve ? '评分将降至 40 分以下，确定后即可恢复正常操作。' : '处理后仍有 $target 分（>= 40 分），需继续处理直至低于 40 分。'}',
         confirmText: '确定（-40分）',
@@ -178,12 +186,6 @@ class SystemHealthPage extends StatelessWidget {
       Navigator.of(context).maybePop();
     }
   }
-
-  Future<void> _markHandled(
-    BuildContext context,
-    SystemHealthMonitor monitor,
-  ) =>
-      _confirmAndDeduct(context, monitor);
 
   Future<void> _clearLogs(BuildContext context) async {
     final confirmed = await showDialog<bool>(
@@ -262,6 +264,19 @@ class SystemHealthPage extends StatelessWidget {
     );
   }
 
+  Future<void> _copyReport(
+    BuildContext context,
+    SystemHealthMonitor monitor,
+  ) async {
+    final report = await _buildReport(context, monitor);
+    await Clipboard.setData(ClipboardData(text: report));
+    if (context.mounted) {
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        const SnackBar(content: Text('已复制脱敏诊断摘要')),
+      );
+    }
+  }
+
   Future<String> _buildReport(
     BuildContext context,
     SystemHealthMonitor monitor,
@@ -293,13 +308,15 @@ class SystemHealthPage extends StatelessWidget {
       '异常评分：${event.score}',
       '安全模式：${event.safeMode}',
       '预渲染缓存：${settings.ankiPreRenderEnabled}',
-          '强制禁用 JS：${settings.ankiForceDisableJs}',
-          'Lite 阈值：${settings.ankiLiteThreshold}',
+      '强制禁用 JS：${settings.ankiForceDisableJs}',
+      'Lite 阈值：${settings.ankiLiteThreshold}',
       '',
       '错误摘要：',
       for (final indexed in event.groups.values.indexed)
         '- 问题组 ${indexed.$1 + 1} [${indexed.$2.level}] '
             '${indexed.$2.module} ×${indexed.$2.count}（原始正文已省略）',
+      '',
+      PerformanceTrace.instance.summary(),
       '',
       '已自动排除：API 密钥、认证信息、完整卡片正文、AI 对话正文和个人路径。',
     ];
@@ -321,8 +338,7 @@ class _ForcedStayBanner extends StatelessWidget {
     return SettingsInfoCard(
       icon: Icons.lock_outline,
       tone: SettingsInfoTone.danger,
-      text:
-          '系统健康异常评分达到 $score 分（已达到或超过 40 分阈值），已打断当前操作并强制停留在此页。'
+      text: '系统健康异常评分达到 $score 分（已达到或超过 40 分阈值），已打断当前操作并强制停留在此页。'
           '点击右上角「确定（-40分）」确认后将扣减 40 分（不低于 0 分），降至 40 分以下即可离开。',
     );
   }
@@ -335,7 +351,11 @@ class _HealthSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (color, icon, label) = switch (event.level) {
-      SystemHealthLevel.normal => (TurnaTheme.success, Icons.check_circle, '正常'),
+      SystemHealthLevel.normal => (
+          TurnaTheme.success,
+          Icons.check_circle,
+          '正常'
+        ),
       SystemHealthLevel.attention => (
           TurnaTheme.warning,
           Icons.warning_rounded,
@@ -384,7 +404,8 @@ class _HealthSummary extends StatelessWidget {
 class _HealthGroupTile extends StatelessWidget {
   const _HealthGroupTile({required this.group});
 
-  final dynamic group; // SystemHealthGroup — kept loose to avoid an import cycle.
+  final dynamic
+      group; // SystemHealthGroup — kept loose to avoid an import cycle.
 
   @override
   Widget build(BuildContext context) {

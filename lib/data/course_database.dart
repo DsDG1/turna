@@ -267,6 +267,9 @@ class SrsStates extends Table {
   RealColumn get difficulty => real().nullable()();
   IntColumn get fsrsState => integer().withDefault(const Constant(1))();
   IntColumn get learningStep => integer().nullable()();
+  TextColumn get sourceKind => text().nullable()();
+  TextColumn get sourceId => text().nullable()();
+  TextColumn get ownerId => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {wordId};
@@ -301,6 +304,9 @@ class ReviewEvents extends Table {
   IntColumn get lapses => integer()();
   TextColumn get type => text().withDefault(const Constant('word'))();
   TextColumn get sourceKey => text().nullable()();
+  TextColumn get sourceKind => text().nullable()();
+  TextColumn get sourceId => text().nullable()();
+  TextColumn get ownerId => text().nullable()();
 }
 
 @DriftDatabase(
@@ -326,7 +332,7 @@ class CourseDatabase extends _$CourseDatabase {
   CourseDatabase(QueryExecutor e) : super(e);
 
   @override
-  int get schemaVersion => 19;
+  int get schemaVersion => 20;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -340,6 +346,7 @@ class CourseDatabase extends _$CourseDatabase {
           await _ensureAnkiUnificationTables(m.database);
           await _ensureAiCompanionTables(m.database);
           await _ensureGemEconomyTables(m.database);
+          await _backfillReviewSourceIdentity(m.database);
         },
         onUpgrade: (m, from, to) async {
           if (from > to) {
@@ -530,8 +537,82 @@ class CourseDatabase extends _$CourseDatabase {
             // atomic-purchase tables for the cosmetics economy.
             await _ensureGemEconomyTables(m.database);
           }
+          if (from < 20) {
+            await _addReviewSourceIdentityColumns(m.database);
+            await _backfillReviewSourceIdentity(m.database);
+          }
         },
       );
+
+  static Future<void> _addReviewSourceIdentityColumns(
+    GeneratedDatabase database,
+  ) async {
+    Future<void> add(String table, String column) async {
+      final columns =
+          await database.customSelect('PRAGMA table_info($table)').get();
+      if (columns.isEmpty) return;
+      if (columns.any((row) => row.read<String>('name') == column)) return;
+      await database.customStatement(
+        'ALTER TABLE $table ADD COLUMN $column TEXT',
+      );
+    }
+
+    for (final table in const [
+      'srs_states',
+      'review_events',
+      'fun_lab_snapshot_srs',
+      'fun_lab_snapshot_review_events',
+    ]) {
+      for (final column in const ['source_kind', 'source_id', 'owner_id']) {
+        await add(table, column);
+      }
+    }
+  }
+
+  static Future<void> _backfillReviewSourceIdentity(
+    GeneratedDatabase database,
+  ) async {
+    // This is the only legacy prefix interpretation. It runs once while the
+    // v19 database is exclusively migrating; production readers use columns.
+    for (final tableAndId in const [
+      ('srs_states', 'word_id'),
+      ('review_events', 'card_id'),
+      ('fun_lab_snapshot_srs', 'word_id'),
+      ('fun_lab_snapshot_review_events', 'card_id'),
+    ]) {
+      final table = tableAndId.$1;
+      final id = tableAndId.$2;
+      final columns =
+          await database.customSelect('PRAGMA table_info($table)').get();
+      if (columns.isEmpty) continue;
+      await database.customStatement('''
+        UPDATE $table SET
+          source_kind = CASE
+            WHEN queue = 'grammar' THEN 'grammar'
+            WHEN $id LIKE 'official-anki-%-c%' THEN 'ankiOfficial'
+            WHEN $id LIKE 'anki-%-c%' THEN 'ankiLegacy'
+            ELSE 'course'
+          END,
+          source_id = CASE
+            WHEN queue = 'grammar' THEN 'grammar'
+            WHEN $id LIKE 'official-anki-%-c%' THEN
+              substr($id, 15, instr(substr($id, 15), '-c') - 1)
+            WHEN $id LIKE 'anki-%-c%' THEN
+              substr($id, 6, instr(substr($id, 6), '-c') - 1)
+            ELSE 'course'
+          END
+        WHERE source_kind IS NULL OR source_id IS NULL
+      ''');
+    }
+    await database.customStatement('''
+      CREATE INDEX IF NOT EXISTS srs_states_source_identity_idx
+      ON srs_states(source_kind, source_id)
+    ''');
+    await database.customStatement('''
+      CREATE INDEX IF NOT EXISTS review_events_source_identity_idx
+      ON review_events(source_kind, source_id, reviewed_at)
+    ''');
+  }
 
   /// Gem economy (Plan 2 §8.4): append-only ledger + entitlement rows.
   /// `gem_ledger.transaction_id` is the idempotency key; `event_id` guards
@@ -889,7 +970,10 @@ class CourseDatabase extends _$CourseDatabase {
         stability REAL,
         difficulty REAL,
         fsrs_state INTEGER NOT NULL,
-        learning_step INTEGER
+        learning_step INTEGER,
+        source_kind TEXT,
+        source_id TEXT,
+        owner_id TEXT
       )
     ''');
     await database.customStatement('''
@@ -906,7 +990,10 @@ class CourseDatabase extends _$CourseDatabase {
         reps INTEGER NOT NULL,
         lapses INTEGER NOT NULL,
         type TEXT NOT NULL,
-        source_key TEXT
+        source_key TEXT,
+        source_kind TEXT,
+        source_id TEXT,
+        owner_id TEXT
       )
     ''');
     await database.customStatement('''

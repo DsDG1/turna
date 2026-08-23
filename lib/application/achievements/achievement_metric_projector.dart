@@ -160,7 +160,9 @@ class AchievementMetricProjector {
     return AchievementMetricSnapshot(
       uniqueLessonsCompleted: _lessonProgress.completedLessonIds.length,
       uniquePerfectLessons: _lessonProgress.perfectLessonIds.length,
-      currentStreakDays: _streakProvider.streak,
+      // Voucher-protected days preserve the display streak but never satisfy
+      // a real-learning streak achievement threshold.
+      currentStreakDays: _streakProvider.realStreak,
       totalXp: _scoreProvider.score,
       maxDailyXp: bestDailyXp,
       totalReviewedCards:

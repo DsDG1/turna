@@ -146,65 +146,43 @@ void main() {
     });
   });
 
-  group('AiCache disk mirror', () {
-    late Directory tempDir;
-
-    setUp(() {
-      tempDir = Directory.systemTemp.createTempSync('ai_cache_test_');
-    });
-
-    tearDown(() {
-      if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
-    });
-
-    test('survives a cold restart via the disk mirror', () {
-      final key = AiCache.makeKey(
-        'm',
-        const [
-          {'role': 'user', 'content': 'hi'}
-        ],
-        {'type': 'json_object'},
-      );
-      final body = {
-        'choices': [
-          {
-            'message': {'content': 'cached!'}
-          }
-        ]
-      };
-
-      // First instance: write to memory + disk.
-      final warm = AiCache.forTest(maxEntries: 4);
-      warm.enableDiskMirror(tempDir.path);
-      warm.put(key, body);
-      expect(warm.stats().diskWrites, 1);
-
-      // Second instance: empty memory, same disk dir. A get should lazily
-      // promote the disk entry into memory and return it.
-      final cold = AiCache.forTest(maxEntries: 4);
-      cold.enableDiskMirror(tempDir.path);
-      final got = cold.get(key);
-      expect(got, isNotNull);
-      expect(got!['choices'], isA<List>());
-      expect(cold.stats().hits, 1);
-    });
-
-    test('clearAll removes both memory and disk entries', () {
-      final key = AiCache.makeKey(
-        'm',
-        const [
-          {'role': 'user', 'content': 'hi'}
-        ],
-        null,
-      );
-      final cache = AiCache.forTest(maxEntries: 4);
-      cache.enableDiskMirror(tempDir.path);
-      cache.put(key, {'i': 1});
-      cache.clearAll();
+  group('AiCache memory-only contract', () {
+    test('entries never survive a new cache instance', () {
+      final warm = AiCache.forTest(maxEntries: 4)..put('key', {'i': 1});
+      expect(warm.get('key'), {'i': 1});
 
       final cold = AiCache.forTest(maxEntries: 4);
-      cold.enableDiskMirror(tempDir.path);
-      expect(cold.get(key), isNull);
+      expect(cold.get('key'), isNull);
+      expect(cold.stats().entries, 0);
+    });
+
+    test('removed disk symbols and source files cannot return', () {
+      const forbidden = <String>[
+        'enableDiskMirror',
+        'attachDiskCache',
+        'diskWrites',
+        'diskErrors',
+        'DiskCacheStore',
+      ];
+      final sources = <File>[
+        File('lib/application/ai/engine/ai_cache.dart'),
+        File('lib/application/ai/engine/ai_engine.dart'),
+      ];
+      for (final source in sources) {
+        final text = source.readAsStringSync();
+        for (final symbol in forbidden) {
+          expect(text, isNot(contains(symbol)),
+              reason: '${source.path} reintroduced $symbol');
+        }
+      }
+      expect(
+        File('lib/application/ai/engine/ai_cache_disk_io.dart').existsSync(),
+        isFalse,
+      );
+      expect(
+        File('lib/application/ai/engine/ai_cache_disk_web.dart').existsSync(),
+        isFalse,
+      );
     });
   });
 }

@@ -16,6 +16,7 @@ import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/data/review_history_dao.dart';
 import 'package:turna/data/study_log_repository.dart';
 import 'package:turna/domain/study/study_log.dart';
+import 'package:turna/domain/course/srs_word.dart';
 import 'package:turna/service/locator.dart';
 
 import 'package:drift/native.dart';
@@ -74,8 +75,7 @@ void main() {
         lapses: 0,
       );
 
-  test('empty data shows no fake accuracy and an empty-source state',
-      () async {
+  test('empty data shows no fake accuracy and an empty-source state', () async {
     final snap = await repo.loadDashboard();
 
     expect(snap.todayQuality.firstAnswerAccuracy, isNull,
@@ -104,23 +104,58 @@ void main() {
     expect(snap.due.overdue, 0, reason: 'cards due today are not overdue');
   });
 
+  test('mixed sources are classified only from persisted identity', () async {
+    srs.registerWord('opaque-course');
+    srs.registerWord(
+      'not-a-prefixed-legacy-card',
+      sourceKind: SrsSourceKind.ankiLegacy,
+      sourceId: 'legacy-source',
+    );
+    srs.registerWord(
+      'not-a-prefixed-official-card',
+      sourceKind: SrsSourceKind.ankiOfficial,
+      sourceId: 'official-source',
+    );
+    grammar.registerGrammarPoint('opaque-grammar');
+
+    final snap = await repo.loadDashboard(forceRefresh: true);
+    final kinds = snap.sources.map((row) => row.source.kind).toSet();
+    expect(kinds, containsAll(LearningSourceKind.values));
+    expect(
+      snap.sources
+          .firstWhere((row) => row.source.kind == LearningSourceKind.ankiLegacy)
+          .source
+          .sourceId,
+      'legacy-source',
+    );
+    expect(
+      snap.sources
+          .firstWhere(
+              (row) => row.source.kind == LearningSourceKind.ankiOfficial)
+          .source
+          .sourceId,
+      'official-source',
+    );
+  });
+
   test('today events come from the bounded window query', () async {
     final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day).add(
-        const Duration(hours: 12));
+    final today =
+        DateTime(now.year, now.month, now.day).add(const Duration(hours: 12));
     if (today.isAfter(now)) {
       // Avoid flakiness right after midnight: treat as pass-through when the
       // fixture would land in the future.
       return;
     }
     await reviewDao.insertEvent(event('a', today, quality: 5));
-    await reviewDao.insertEvent(event('a', today.add(const Duration(minutes: 1)),
-        quality: 2));
-    // Yesterday's event must NOT be counted today.
     await reviewDao.insertEvent(
-        event('b', today.subtract(const Duration(days: 1))));
+        event('a', today.add(const Duration(minutes: 1)), quality: 2));
+    // Yesterday's event must NOT be counted today.
+    await reviewDao
+        .insertEvent(event('b', today.subtract(const Duration(days: 1))));
 
-    final snap = await repo.loadDashboard(day: today.add(const Duration(hours: 1)));
+    final snap =
+        await repo.loadDashboard(day: today.add(const Duration(hours: 1)));
     expect(snap.today.reviewedToday, 2);
     expect(snap.today.correctToday, 1);
     expect(snap.today.completedCards, 1, reason: 'distinct cards');
@@ -160,8 +195,7 @@ void main() {
     expect(identical(second, first), isFalse);
   });
 
-  test('study minutes and accuracy come from the study daily stats',
-      () async {
+  test('study minutes and accuracy come from the study daily stats', () async {
     final now = DateTime.now();
     final day = DateTime(now.year, now.month, now.day);
     await studyLog.appendLog(StudyLog(

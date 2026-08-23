@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:turna/application/ai/ai_course_spec.dart';
 import 'package:turna/application/ai/ai_error_mapper.dart';
 import 'package:turna/application/ai/ai_explain_prefs.dart';
+import 'package:turna/application/ai/ai_streaming_session_base.dart';
 import 'package:turna/application/ai/hint_genres.dart';
 import 'package:turna/application/ai/engine/ai_cancel_token.dart';
 import 'package:turna/application/ai/engine/ai_engine.dart';
@@ -61,7 +62,7 @@ class AiQuestionContext {
 /// Holds a single question's context plus the conversation history built on
 /// top of it. Streams via [AiEngine.chat] `onChunk`; cancel keeps partial
 /// text and generation tokens block superseded chunks.
-class AiHintProvider extends ChangeNotifier {
+class AiHintProvider extends AiStreamingSessionBase {
   AiHintProvider({
     AiEngine? engine,
     AiExplainPrefsStore? prefs,
@@ -82,10 +83,6 @@ class AiHintProvider extends ChangeNotifier {
   final AiEngine _engine;
   final AiExplainPrefsStore _prefs;
 
-  /// Active cancel token for the in-flight generation, if any. Cancelled on
-  /// [reset] / [cancel] / when a newer request supersedes it.
-  AiCancelToken? _cancelToken;
-
   final List<AiChatMessage> _messages = <AiChatMessage>[];
   List<AiChatMessage> get messages => List.unmodifiable(_messages);
 
@@ -104,12 +101,20 @@ class AiHintProvider extends ChangeNotifier {
   LearnerAiContext? _learnerContext;
   LearnerAiContext? get learnerContext => _learnerContext;
 
-  /// Monotonic token bumped on every [explainQuestion] / [reset]. Each
-  /// request captures the token at start and refuses to mutate state if the
-  /// token changed while it was awaiting the network - so a stale in-flight
-  /// reply from a previous question can't be appended into the current
-  /// conversation.
-  int _generation = 0;
+  int _streamingAssistantIndex = -1;
+  AiChatMessage? _activeFollowupUser;
+
+  @override
+  void applyStreamingBatch(String batch) {
+    final index = _streamingAssistantIndex;
+    if (index < 0 || index >= _messages.length) return;
+    final current = _messages[index];
+    if (current.role != 'assistant') return;
+    _messages[index] = AiChatMessage(
+      role: 'assistant',
+      content: current.content + batch,
+    );
+  }
 
   /// Latest assistant explanation/reply, for the sheet to render without
   /// scanning the message list.
@@ -128,24 +133,22 @@ class AiHintProvider extends ChangeNotifier {
   /// Cancel any in-flight generation, clear history/context/state, and return
   /// to idle.
   void reset() {
-    _cancelToken?.cancel();
-    _cancelToken = null;
-    _generation++;
+    if (isSessionDisposed) return;
+    abandonStreamingSession();
     _messages.clear();
     _state = AiHintState.idle;
     _error = null;
     _context = null;
-    notifyListeners();
+    notifySessionListeners();
   }
 
   /// Cancel the in-flight generation (if any) and return to idle, keeping the
   /// conversation history **including partial streamed assistant text**.
   void cancel() {
-    if (_state != AiHintState.loading) return;
-    _cancelToken?.cancel();
-    _cancelToken = null;
+    if (isSessionDisposed || _state != AiHintState.loading) return;
+    cancelStreamingSession();
     _state = AiHintState.idle;
-    notifyListeners();
+    notifySessionListeners();
   }
 
   /// Ask the AI to explain the current question. Streams assistant text via
@@ -156,11 +159,8 @@ class AiHintProvider extends ChangeNotifier {
   }) async {
     // No acquire-gate here: supersede / new-question must always start.
     // Debounce double-taps via cancel of the previous in-flight token.
-    _cancelToken?.cancel();
-    _generation++;
-    final gen = _generation;
-    final token = AiCancelToken();
-    _cancelToken = token;
+    if (isSessionDisposed) return;
+    final session = beginStreamingSession();
     _error = null;
     _context = ctx;
     _state = AiHintState.loading;
@@ -169,7 +169,8 @@ class AiHintProvider extends ChangeNotifier {
     _messages.add(AiChatMessage(role: 'user', content: userText));
     _messages.add(const AiChatMessage(role: 'assistant', content: ''));
     final assistantIndex = _messages.length - 1;
-    notifyListeners();
+    _streamingAssistantIndex = assistantIndex;
+    notifySessionListeners();
     try {
       final apiMessages = <Map<String, dynamic>>[
         {'role': 'system', 'content': buildSystemPrompt(ctx)},
@@ -178,17 +179,11 @@ class AiHintProvider extends ChangeNotifier {
       final result = await _engine.chat(
         config: config,
         messages: apiMessages,
-        cancelToken: token,
-        onChunk: (delta) {
-          if (gen != _generation) return;
-          if (delta.isEmpty) return;
-          final cur = _messages[assistantIndex].content;
-          _messages[assistantIndex] =
-              AiChatMessage(role: 'assistant', content: cur + delta);
-          notifyListeners();
-        },
+        cancelToken: session.cancelToken,
+        onChunk: (delta) => addStreamingDelta(session, delta),
       );
-      if (gen != _generation) return; // superseded by a newer request/reset
+      flushStreamingSession(session);
+      if (!isCurrentSession(session)) return;
       if (_messages[assistantIndex].content.isEmpty &&
           result.content.isNotEmpty) {
         _messages[assistantIndex] =
@@ -197,11 +192,12 @@ class AiHintProvider extends ChangeNotifier {
       _state = AiHintState.ready;
       _recordRecent(ctx.language);
     } on AiCancelled {
-      if (gen != _generation) return; // superseded - expected
+      if (!isCurrentSession(session)) return;
+      flushStreamingSession(session);
       // Keep partial assistant text.
       _state = AiHintState.idle;
     } catch (e) {
-      if (gen != _generation) return; // superseded - drop the stale error
+      if (!isCurrentSession(session)) return;
       logger.w('AiHintProvider.explainQuestion failed: $e');
       _error = AiErrorMapper.map(e).message;
       _state = AiHintState.error;
@@ -210,9 +206,9 @@ class AiHintProvider extends ChangeNotifier {
         _messages.removeAt(assistantIndex);
       }
     } finally {
-      if (identical(_cancelToken, token)) _cancelToken = null;
+      finishStreamingSession(session);
     }
-    if (gen == _generation) notifyListeners();
+    if (!isSessionDisposed) notifySessionListeners();
   }
 
   /// Append a follow-up question and stream the assistant's reply. Returns
@@ -222,19 +218,24 @@ class AiHintProvider extends ChangeNotifier {
     required String text,
   }) async {
     if (text.trim().isEmpty || _context == null) return false;
-    _cancelToken?.cancel();
-    _generation++;
-    final gen = _generation;
-    final token = AiCancelToken();
-    _cancelToken = token;
-    final userIndex = _messages.length;
+    if (isSessionDisposed) return false;
+    // Remove the prior in-flight follow-up before capturing indices for the
+    // replacement. Its cancelled Future may settle later, but can then no
+    // longer shift the new turn's slots.
+    final supersededUser = _activeFollowupUser;
+    if (supersededUser != null) {
+      _removeOrphanTurn(supersededUser);
+    }
+    final session = beginStreamingSession();
     _error = null;
     _state = AiHintState.loading;
-    _messages.add(AiChatMessage(role: 'user', content: text));
+    final userMessage = AiChatMessage(role: 'user', content: text);
+    _activeFollowupUser = userMessage;
+    _messages.add(userMessage);
     _messages.add(const AiChatMessage(role: 'assistant', content: ''));
     final assistantIndex = _messages.length - 1;
-    notifyListeners();
-    final userText = text;
+    _streamingAssistantIndex = assistantIndex;
+    notifySessionListeners();
     try {
       final apiMessages = <Map<String, dynamic>>[
         {'role': 'system', 'content': buildSystemPrompt(_context!)},
@@ -244,19 +245,12 @@ class AiHintProvider extends ChangeNotifier {
       final result = await _engine.chat(
         config: config,
         messages: apiMessages,
-        cancelToken: token,
-        onChunk: (delta) {
-          if (gen != _generation) return;
-          if (delta.isEmpty) return;
-          if (assistantIndex >= _messages.length) return;
-          final cur = _messages[assistantIndex].content;
-          _messages[assistantIndex] =
-              AiChatMessage(role: 'assistant', content: cur + delta);
-          notifyListeners();
-        },
+        cancelToken: session.cancelToken,
+        onChunk: (delta) => addStreamingDelta(session, delta),
       );
-      if (gen != _generation) {
-        _removeOrphanTurn(userIndex, assistantIndex, userText);
+      flushStreamingSession(session);
+      if (!isCurrentSession(session)) {
+        _removeOrphanTurn(userMessage);
         return true;
       }
       if (assistantIndex < _messages.length &&
@@ -268,15 +262,16 @@ class AiHintProvider extends ChangeNotifier {
       _state = AiHintState.ready;
       _recordRecent(_context!.language);
     } on AiCancelled {
-      if (gen != _generation) {
-        _removeOrphanTurn(userIndex, assistantIndex, userText);
+      if (!isCurrentSession(session)) {
+        _removeOrphanTurn(userMessage);
         return true;
       }
+      flushStreamingSession(session);
       // Keep partial text on user cancel.
       _state = AiHintState.idle;
     } catch (e) {
-      if (gen != _generation) {
-        _removeOrphanTurn(userIndex, assistantIndex, userText);
+      if (!isCurrentSession(session)) {
+        _removeOrphanTurn(userMessage);
         return true;
       }
       logger.w('AiHintProvider.ask failed: $e');
@@ -288,24 +283,32 @@ class AiHintProvider extends ChangeNotifier {
         _messages.removeAt(assistantIndex);
       }
     } finally {
-      if (identical(_cancelToken, token)) _cancelToken = null;
+      finishStreamingSession(session);
+      if (identical(_activeFollowupUser, userMessage)) {
+        _activeFollowupUser = null;
+      }
     }
-    if (gen == _generation) notifyListeners();
+    if (!isSessionDisposed) notifySessionListeners();
     return true;
   }
 
   /// Drop a superseded turn's user + assistant only when those slots still
   /// belong to that turn (avoids clobbering a newer ask's messages).
-  void _removeOrphanTurn(int userIndex, int assistantIndex, String userText) {
+  void _removeOrphanTurn(AiChatMessage userMessage) {
+    final userIndex = _messages.indexWhere((m) => identical(m, userMessage));
+    if (userIndex < 0) return;
+    final assistantIndex = userIndex + 1;
     if (assistantIndex < _messages.length &&
         _messages[assistantIndex].role == 'assistant') {
       // Drop empty or partial assistant from the superseded stream.
       _messages.removeAt(assistantIndex);
     }
     if (userIndex < _messages.length &&
-        _messages[userIndex].role == 'user' &&
-        _messages[userIndex].content == userText) {
+        identical(_messages[userIndex], userMessage)) {
       _messages.removeAt(userIndex);
+    }
+    if (identical(_activeFollowupUser, userMessage)) {
+      _activeFollowupUser = null;
     }
   }
 
@@ -317,16 +320,14 @@ class AiHintProvider extends ChangeNotifier {
     final reveal = prefs.allowRevealAnswer || hasAnswer;
 
     final buf = StringBuffer()
-      ..writeln(
-          'You are a language-learning tutor. The learner is practicing '
+      ..writeln('You are a language-learning tutor. The learner is practicing '
           '${ctx.language}.')
       ..writeln(prefs.toSystemPromptRules())
       ..writeln('Requirements:')
       ..writeln(
           '- First state what this question is testing (grammar point, word '
           'meaning, sentence pattern, etc.).')
-      ..writeln(
-          '- Then give the solving approach or related knowledge points, '
+      ..writeln('- Then give the solving approach or related knowledge points, '
           'concisely as bullet points.');
     if (reveal) {
       buf.writeln(
@@ -499,13 +500,13 @@ class AiHintProvider extends ChangeNotifier {
     if (context == null) return;
     try {
       getIt<AiRecentTasksProvider>().record(
-            AiRecentTask(
-              kind: AiTaskKind.hintChat,
-              summary: '${context.typeLabel} · $language',
-              timestamp: DateTime.now(),
-              route: 'AiHintChatRoute',
-            ),
-          );
+        AiRecentTask(
+          kind: AiTaskKind.hintChat,
+          summary: '${context.typeLabel} · $language',
+          timestamp: DateTime.now(),
+          route: 'AiHintChatRoute',
+        ),
+      );
     } catch (_) {
       // Recent tasks are advisory; never let a record failure break the flow.
     }

@@ -7,6 +7,7 @@ import 'package:turna/application/cosmetic_provider.dart';
 import 'package:turna/application/gems_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/cosmetics/avatar_ring.dart';
+import 'package:turna/domain/cosmetics/cosmetic_item.dart';
 import 'package:turna/service/locator.dart';
 
 void main() {
@@ -22,6 +23,9 @@ void main() {
     await sp.remove(LocalStateKeys.achievements);
     await sp.remove(LocalStateKeys.cosmeticsUnlocked);
     await sp.remove(LocalStateKeys.cosmeticsEquippedRing);
+    await sp.remove(LocalStateKeys.cosmeticsEquippedAvatarRing);
+    await sp.remove(LocalStateKeys.cosmeticsEquippedProfileTheme);
+    await sp.remove(LocalStateKeys.cosmeticsEquippedCompletionEffect);
     if (getIt.isRegistered<GemsProvider>()) {
       await getIt.unregister<GemsProvider>();
     }
@@ -141,5 +145,62 @@ void main() {
       final result = await cosmetics.unlockAndEquip('ring_nope');
       expect(result, CosmeticActionResult.unknownId);
     });
+
+    test('legacy equipped ring migrates idempotently to slot key', () async {
+      await prefs.preferences.setString(
+        LocalStateKeys.cosmeticsEquippedRing,
+        kAvatarRingReed,
+      );
+      await cosmetics.ensureInitialized();
+      await cosmetics.ensureInitialized();
+
+      expect(cosmetics.equippedRingId, kAvatarRingReed);
+      expect(
+        prefs.preferences
+            .getString(
+              LocalStateKeys.cosmeticsEquippedAvatarRing,
+              defaultValue: '',
+            )
+            .getValue(),
+        kAvatarRingReed,
+      );
+    });
+
+    test('profile theme and completion effect buy and equip by slot',
+        () async {
+      await gems.addGems(300);
+      expect(
+        await cosmetics.unlockAndEquipItem(CosmeticItems.profileSunrise),
+        CosmeticActionResult.unlockedAndEquipped,
+      );
+      expect(
+        await cosmetics
+            .unlockAndEquipItem(CosmeticItems.completionReedBloom),
+        CosmeticActionResult.unlockedAndEquipped,
+      );
+
+      expect(
+        cosmetics.equippedId(CosmeticSlot.profileTheme),
+        CosmeticItems.profileSunrise,
+      );
+      expect(
+        cosmetics.equippedId(CosmeticSlot.completionEffect),
+        CosmeticItems.completionReedBloom,
+      );
+      expect(balance(), 80);
+    });
+  });
+
+  test('every paid catalog item declares a primary-flow surface', () {
+    expect(CosmeticCatalog.rings, hasLength(greaterThanOrEqualTo(6)));
+    expect(
+      CosmeticCatalog.itemsForSlot(CosmeticSlot.profileTheme),
+      hasLength(greaterThanOrEqualTo(2)),
+    );
+    expect(
+      CosmeticCatalog.itemsForSlot(CosmeticSlot.completionEffect),
+      hasLength(greaterThanOrEqualTo(2)),
+    );
+    expect(CosmeticCatalog.hasValidSurfaceContracts, isTrue);
   });
 }

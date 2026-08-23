@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/application/accessibility_provider.dart';
+import 'package:turna/application/cosmetic_provider.dart';
 import 'package:turna/application/game_provider.dart';
 import 'package:turna/application/gems_provider.dart';
 import 'package:turna/application/grammar_review_provider.dart';
@@ -97,11 +98,14 @@ class _HomePageState extends State<HomePage> {
     context.read<LanguageProvider>().initLanguage();
     final gameProvider = context.read<GameProvider>();
     final gemsProvider = context.read<GemsProvider>();
+    final cosmeticProvider = context.read<CosmeticProvider>();
 
     await Future.wait([
       gameProvider.ensureUserGameFields(),
       gemsProvider.ensureGemsInitialized(),
     ]);
+    // Entitlements depend on the gem-ledger opening/reconciliation above.
+    await cosmeticProvider.ensureInitialized();
     final streakResult = await gameProvider.checkStreakOnAppOpen();
 
     if (!mounted) return;

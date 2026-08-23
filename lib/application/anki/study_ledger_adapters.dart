@@ -50,7 +50,7 @@ class TurnaStudyLedger implements StudyLedger {
   }) async {
     final existing = _byIdempotency[idempotencyKey];
     if (existing != null) return existing;
-    _inner.ensureWord(wordIdFor(key));
+    _inner.ensureWord(wordIdFor(key), LegacyAnkiSource(importId: key.sourceId));
     final inner = await _inner.answer(_key(key), outcome);
     final receipt = StudyEventReceipt(
       eventId: inner.eventId,
