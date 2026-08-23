@@ -47,18 +47,18 @@ class RemoteBackupResult {
         'mediaSkipped': mediaSkipped,
       };
 
-  static RemoteBackupResult? fromJson(Map<String, dynamic>? json) => json ==
-          null
-      ? null
-      : RemoteBackupResult(
-          backupId: (json['backupId'] as String?) ?? '',
-          createdAtUtc:
-              DateTime.tryParse((json['createdAtUtc'] as String?) ?? '') ??
-                  DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
-          coreZipBytes: (json['coreZipBytes'] as int?) ?? 0,
-          mediaUploaded: (json['mediaUploaded'] as int?) ?? 0,
-          mediaSkipped: (json['mediaSkipped'] as int?) ?? 0,
-        );
+  static RemoteBackupResult? fromJson(Map<String, dynamic>? json) =>
+      json == null
+          ? null
+          : RemoteBackupResult(
+              backupId: (json['backupId'] as String?) ?? '',
+              createdAtUtc:
+                  DateTime.tryParse((json['createdAtUtc'] as String?) ?? '') ??
+                      DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+              coreZipBytes: (json['coreZipBytes'] as int?) ?? 0,
+              mediaUploaded: (json['mediaUploaded'] as int?) ?? 0,
+              mediaSkipped: (json['mediaSkipped'] as int?) ?? 0,
+            );
 }
 
 /// Orchestrates manual remote backup / restore against a [RemoteBackupStore].
@@ -73,7 +73,7 @@ class RemoteBackupService {
     required RemoteBackupConfigStore configStore,
     required BackupSnapshotService snapshotService,
     required Directory appSupport,
-    required RemoteBackupStore Function(RemoteBackupConfig config)
+    required RemoteBackupStore Function(RemoteBackupResolvedConfig config)
         storeFactory,
     bool Function()? busyGuard,
   })  : _prefs = prefs,
@@ -87,24 +87,27 @@ class RemoteBackupService {
   final RemoteBackupConfigStore _configStore;
   final BackupSnapshotService _snapshotService;
   final Directory _appSupport;
-  final RemoteBackupStore Function(RemoteBackupConfig config) _storeFactory;
+  final RemoteBackupStore Function(RemoteBackupResolvedConfig config)
+      _storeFactory;
   final bool Function()? _busyGuard;
 
   Directory get _snapshotStaging =>
       Directory(p.join(_appSupport.path, 'backup_staging'));
 
-  RemoteBackupConfig _requireConfig() {
-    final config = _configStore.load().normalized();
-    if (!config.isConfigured) {
+  /// Endpoint + credential for one operation. The password comes from the
+  /// platform secure store (see [RemoteBackupConfigStore.loadResolved]).
+  Future<RemoteBackupResolvedConfig> _requireConfig() async {
+    final config = await _configStore.loadResolved();
+    if (config == null || !config.normalized().isConfigured) {
       throw const WebDavException('请先配置远程备份服务器');
     }
-    return config;
+    return config.normalized();
   }
 
   /// Connectivity + credentials + write access probe. Also creates the
   /// remote layout so the first backup does not race folder creation.
   Future<WebDavProbeResult> testConnection() async {
-    final config = _requireConfig();
+    final config = await _requireConfig();
     final client = WebDavClient.fromConfig(config);
     try {
       final probe = await client.probe();
@@ -117,10 +120,11 @@ class RemoteBackupService {
   }
 
   Future<RemoteBackupManifest?> fetchRemoteStatus() async {
-    final config = _requireConfig();
+    final config = await _requireConfig();
     final client = WebDavClient.fromConfig(config);
     try {
-      return await WebDavRemoteBackupStore(client, remoteRoot: config.remoteRoot)
+      return await WebDavRemoteBackupStore(client,
+              remoteRoot: config.remoteRoot)
           .fetchManifest();
     } finally {
       client.close();
@@ -153,7 +157,7 @@ class RemoteBackupService {
     if (_busyGuard?.call() ?? false) {
       throw RemoteBackupBusyException();
     }
-    final config = _requireConfig();
+    final config = await _requireConfig();
     final store = _storeFactory(config);
     final stopwatch = Stopwatch()..start();
 
@@ -183,12 +187,13 @@ class RemoteBackupService {
     final head = RemoteBackupManifestEntry(
       backupId: snapshot.backupId,
       createdAtUtc: snapshot.meta.createdAtUtc,
-      coreZipObject: WebDavRemoteBackupStore.coreZipObjectFor(snapshot.backupId),
+      coreZipObject:
+          WebDavRemoteBackupStore.coreZipObjectFor(snapshot.backupId),
       coreZipSha256: snapshot.coreZipSha256,
       coreZipBytes: snapshot.coreZipBytes,
       mediaCount: snapshot.mediaManifest.length,
-      mediaBytes: snapshot.mediaManifest.values
-          .fold<int>(0, (sum, e) => sum + e.bytes),
+      mediaBytes:
+          snapshot.mediaManifest.values.fold<int>(0, (sum, e) => sum + e.bytes),
     );
     final manifest = RemoteBackupManifest(
       backupId: snapshot.backupId,
@@ -246,7 +251,7 @@ class RemoteBackupService {
     RemoteBackupManifest manifest, {
     void Function(int done, int total)? onMediaProgress,
   }) async {
-    final config = _requireConfig();
+    final config = await _requireConfig();
     final store = _storeFactory(config);
 
     final staging = RestoreStagingLayout.root(_appSupport);
@@ -271,9 +276,9 @@ class RemoteBackupService {
     _verifySha256Sums(staging);
     final meta = _readMeta(staging);
 
-    final mediaManifest = parseMediaManifest(
-        await File(p.join(staging.path, RestoreStagingLayout.mediaManifestEntry))
-            .readAsString());
+    final mediaManifest = parseMediaManifest(await File(
+            p.join(staging.path, RestoreStagingLayout.mediaManifestEntry))
+        .readAsString());
     final objects = mediaManifest.values.map((e) => e.sha256).toSet().toList()
       ..sort();
     final mediaDir = RestoreStagingLayout.media(_appSupport);
@@ -323,13 +328,11 @@ class RemoteBackupService {
     }
     for (final line in sumsFile.readAsLinesSync()) {
       if (line.trim().isEmpty) continue;
-      final match =
-          RegExp(r'^([0-9a-f]{64})  (.+)$').firstMatch(line.trim());
+      final match = RegExp(r'^([0-9a-f]{64})  (.+)$').firstMatch(line.trim());
       if (match == null) {
         throw FormatException('SHA256SUMS 行格式错误: $line');
       }
-      final digest = ankiHashFileSha256(
-          p.join(staging.path, match.group(2)!));
+      final digest = ankiHashFileSha256(p.join(staging.path, match.group(2)!));
       if (digest != match.group(1)!) {
         throw FormatException('备份包文件校验失败: ${match.group(2)}');
       }

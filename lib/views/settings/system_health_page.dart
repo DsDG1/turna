@@ -24,11 +24,14 @@ import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/views/theme.dart';
 
-/// Registered with auto_route so the app shell can push it via
-/// `router.push(const SystemHealthRoute())` and detect the top of the
-/// stack by name. The page is also wrapped in a [PopScope] that blocks
-/// leaving until the active alert is marked handled — a critical-alert
-/// monitor state must not be silently dismissed.
+/// System health page — always freely dismissible (Plan §15).
+///
+/// Ordinary log-derived alerts never trap the user here: they surface as a
+/// non-blocking banner the user can acknowledge (acknowledging hides the
+/// banner; it does NOT change the underlying facts — only a passing
+/// self-check can mark the event resolved). The dedicated data-integrity
+/// hazard shows a strong warning and points at backup / export / safe mode,
+/// but still does not lock the page.
 @RoutePage()
 class SystemHealthPage extends StatelessWidget {
   const SystemHealthPage({super.key});
@@ -37,154 +40,134 @@ class SystemHealthPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final monitor = context.watch<SystemHealthMonitor>();
     final event = monitor.event;
-    final canLeave = !monitor.isScoreExceeded && !monitor.hasActiveAlert;
-    return PopScope(
-      // While a critical or attention alert is still unhandled, the user
-      // must stay on this page so they actually see and resolve the issue
-      // instead of bouncing back to whatever they were doing and ignoring
-      // it. The hard-stop is by design: an unresolved system-health alert
-      // can mask data corruption or render loop bugs.
-      canPop: canLeave,
-      child: SettingsScaffold(
-        title: '系统健康',
-        allowPop: canLeave,
-        actions: [
-          if (monitor.isScoreExceeded || monitor.hasActiveAlert)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: TextButton.icon(
-                onPressed: () => _confirmAndDeduct(context, monitor),
-                icon: const Icon(
-                  Icons.done_all_rounded,
-                  color: TurnaTheme.brandTeal,
-                ),
-                label: const Text(
-                  '确定（-40分）',
-                  style: TextStyle(
-                    color: TurnaTheme.brandTeal,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
+    return SettingsScaffold(
+      title: '系统健康',
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(0, 16, 0, 24),
+        children: [
+          if (monitor.hasDataIntegrityBlock) ...[
+            _DataIntegrityBanner(
+              reason: monitor.dataIntegrityReason,
             ),
-        ],
-        body: ListView(
-          padding: const EdgeInsets.fromLTRB(0, 16, 0, 24),
-          children: [
-            if (monitor.isScoreExceeded || monitor.hasActiveAlert) ...[
-              _ForcedStayBanner(score: event.score),
-              const SizedBox(height: 12),
-            ],
-            _HealthSummary(event: event),
-            const SizedBox(height: 20),
-            const SettingsSectionTitle(
-              icon: Icons.list_alt_rounded,
-              title: '主要问题',
+            const SizedBox(height: 12),
+          ] else if (monitor.hasUnacknowledgedAlert) ...[
+            _UnacknowledgedBanner(
+              monitor: monitor,
+              score: monitor.score,
             ),
-            const SizedBox(height: 8),
-            if (event.topGroups.isEmpty)
-              const SettingsEmptyCard(
-                icon: Icons.check_circle_outline,
-                message: '当前系统运行良好，没有需要处理的异常组',
-              )
-            else
-              SettingsCard(
-                children: [
-                  for (var i = 0; i < event.topGroups.length; i++) ...[
-                    if (i > 0) settingsTileDivider(context),
-                    _HealthGroupTile(group: event.topGroups[i]),
-                  ],
-                ],
-              ),
-            const SizedBox(height: 20),
-            const SettingsSectionTitle(
-              icon: Icons.handyman_outlined,
-              title: '处理操作',
-            ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
+          ],
+          _HealthSummary(monitor: monitor),
+          const SizedBox(height: 20),
+          const SettingsSectionTitle(
+            icon: Icons.list_alt_rounded,
+            title: '主要问题',
+          ),
+          const SizedBox(height: 8),
+          if (event.topGroups.isEmpty)
+            const SettingsEmptyCard(
+              icon: Icons.check_circle_outline,
+              message: '当前系统运行良好，没有需要处理的异常组',
+            )
+          else
             SettingsCard(
               children: [
-                SettingsActionTile(
-                  icon: Icons.health_and_safety_outlined,
-                  title: '查看诊断建议',
-                  subtitle: '按数据库、课程、Anki、WebView、TTS 和 AI 网络归类',
-                  onTap: (context) => _showAdvice(context, event),
-                ),
-                settingsTileDivider(context),
-                SettingsActionTile(
-                  icon: Icons.ios_share_rounded,
-                  title: '导出脱敏诊断报告',
-                  subtitle: '先预览；自动排除密钥、正文、对话和个人路径',
-                  onTap: (context) => _previewReport(context, monitor),
-                ),
-                settingsTileDivider(context),
-                SettingsActionTile(
-                  icon: Icons.copy_all_rounded,
-                  title: '复制诊断摘要',
-                  subtitle: '包含脱敏的性能 P50/P95 与慢操作 Top-N',
-                  onTap: (context) => _copyReport(context, monitor),
-                ),
-                settingsTileDivider(context),
-                SettingsSwitchTile(
-                  icon: Icons.shield_outlined,
-                  title: '安全模式',
-                  subtitle: '临时禁用模板 JS、外部网络和高风险后台能力；不改学习数据',
-                  value: monitor.safeMode,
-                  onChanged: monitor.setSafeMode,
-                ),
-                settingsTileDivider(context),
-                SettingsActionTile(
-                  icon: Icons.done_all_rounded,
-                  title: '确定处理（降低40分）',
-                  subtitle:
-                      '当前评分 ${monitor.score} 分；确定后降低 40 分（不低于 0 分），降至 40 分以下即可离开',
-                  onTap: (context) => _confirmAndDeduct(context, monitor),
-                ),
-                settingsTileDivider(context),
-                SettingsActionTile(
-                  icon: Icons.article_outlined,
-                  title: '查看原始日志',
-                  subtitle: '打开透明度报告页',
-                  onTap: (context) =>
-                      context.router.push(const TransparencyLogRoute()),
-                ),
-                settingsTileDivider(context),
-                SettingsActionTile(
-                  icon: Icons.delete_sweep_outlined,
-                  title: '清空日志',
-                  subtitle: '不会自动把健康状态改为正常，也不会删除学习数据',
-                  onTap: (context) => _clearLogs(context),
-                ),
+                for (var i = 0; i < event.topGroups.length; i++) ...[
+                  if (i > 0) settingsTileDivider(context),
+                  _HealthGroupTile(group: event.topGroups[i]),
+                ],
               ],
             ),
-          ],
-        ),
+          const SizedBox(height: 20),
+          const SettingsSectionTitle(
+            icon: Icons.handyman_outlined,
+            title: '处理操作',
+          ),
+          const SizedBox(height: 8),
+          SettingsCard(
+            children: [
+              SettingsActionTile(
+                icon: Icons.refresh_rounded,
+                title: '运行自检',
+                subtitle: monitor.resolved
+                    ? '上次自检已通过，当前无活跃告警'
+                    : '检查数据库完整性并重新计算健康状态；自检通过且无新异常才会标记为已解决',
+                onTap: (context) => _runSelfCheck(context, monitor),
+              ),
+              settingsTileDivider(context),
+              if (monitor.hasUnacknowledgedAlert) ...[
+                SettingsActionTile(
+                  icon: Icons.visibility_outlined,
+                  title: '我知道了',
+                  subtitle: '隐藏提示横幅；不影响故障事实，新异常会重新提示',
+                  onTap: (context) => monitor.acknowledge(),
+                ),
+                settingsTileDivider(context),
+              ],
+              SettingsActionTile(
+                icon: Icons.health_and_safety_outlined,
+                title: '查看诊断建议',
+                subtitle: '按数据库、课程、Anki、WebView、TTS 和 AI 网络归类',
+                onTap: (context) => _showAdvice(context, event),
+              ),
+              settingsTileDivider(context),
+              SettingsActionTile(
+                icon: Icons.ios_share_rounded,
+                title: '导出脱敏诊断报告',
+                subtitle: '先预览；自动排除密钥、正文、对话和个人路径',
+                onTap: (context) => _previewReport(context, monitor),
+              ),
+              settingsTileDivider(context),
+              SettingsActionTile(
+                icon: Icons.copy_all_rounded,
+                title: '复制诊断摘要',
+                subtitle: '包含脱敏的性能 P50/P95 与慢操作 Top-N',
+                onTap: (context) => _copyReport(context, monitor),
+              ),
+              settingsTileDivider(context),
+              SettingsSwitchTile(
+                icon: Icons.shield_outlined,
+                title: '安全模式',
+                subtitle: '临时禁用模板 JS、外部网络和高风险后台能力；不改学习数据',
+                value: monitor.safeMode,
+                onChanged: monitor.setSafeMode,
+              ),
+              settingsTileDivider(context),
+              SettingsActionTile(
+                icon: Icons.article_outlined,
+                title: '查看原始日志',
+                subtitle: '打开透明度报告页',
+                onTap: (context) =>
+                    context.router.push(const TransparencyLogRoute()),
+              ),
+              settingsTileDivider(context),
+              SettingsActionTile(
+                icon: Icons.delete_sweep_outlined,
+                title: '清空日志',
+                subtitle: '不会自动把健康状态改为正常，也不会删除学习数据',
+                onTap: (context) => _clearLogs(context),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 
-  Future<void> _confirmAndDeduct(
+  Future<void> _runSelfCheck(
     BuildContext context,
     SystemHealthMonitor monitor,
   ) async {
-    final current = monitor.score;
-    final target = (current - 40).clamp(0, 999999);
-    final willResolve = target < SystemHealthMonitor.alertThreshold;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => SettingsConfirmDialog(
-        title: '确认处理异常并降低 40 分？',
-        message: '当前异常评分：$current 分\n'
-            '处理后评分：$target 分\n\n'
-            '${willResolve ? '评分将降至 40 分以下，确定后即可恢复正常操作。' : '处理后仍有 $target 分（>= 40 分），需继续处理直至低于 40 分。'}',
-        confirmText: '确定（-40分）',
+    final messenger = ScaffoldMessenger.of(context);
+    final passed = await monitor.runSelfCheck();
+    if (!context.mounted) return;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(passed
+            ? '自检通过：数据库完整性正常，且活跃窗口内无未衰减的严重异常。'
+            : '自检未完全通过：请查看主要问题列表，或导出诊断报告反馈。'),
       ),
     );
-    if (confirmed != true) return;
-    await monitor.confirmAndDeductScore(40);
-    if (context.mounted && monitor.score < SystemHealthMonitor.alertThreshold) {
-      Navigator.of(context).maybePop();
-    }
   }
 
   Future<void> _clearLogs(BuildContext context) async {
@@ -202,7 +185,7 @@ class SystemHealthPage extends StatelessWidget {
   void _showAdvice(BuildContext context, SystemHealthEvent event) {
     final modules = event.groups.values.map((item) => item.module).toSet();
     final advice = <String>[
-      if (modules.contains('数据库')) '数据库：先检查数据库完整性；不要清除学习记录。',
+      if (modules.contains('数据库')) '数据库：先运行自检检查数据库完整性；不要清除学习记录。',
       if (modules.contains('Anki 渲染') || modules.contains('WebView'))
         'Anki / WebView：启用安全模式或将相关牌组改为纯文本兼容。',
       if (modules.contains('TTS / 音频')) 'TTS / 音频：检查系统语音引擎和媒体文件是否可用。',
@@ -304,9 +287,13 @@ class SystemHealthPage extends StatelessWidget {
       '平台：${kIsWeb ? 'web' : defaultTargetPlatform.name}',
       'WebView：${kIsWeb ? 'web' : defaultTargetPlatform.name}',
       'TTS：$ttsStatus',
-      '健康等级：${event.level.name}',
-      '异常评分：${event.score}',
+      '健康等级：${monitor.level.name}',
+      '活跃评分：${monitor.score}',
+      '已确认：${monitor.acknowledged}',
+      '自检通过：${event.checkPassed}',
+      '已解决：${monitor.resolved}',
       '安全模式：${event.safeMode}',
+      '数据完整性风险：${monitor.hasDataIntegrityBlock ? '是（${monitor.dataIntegrityReason}）' : '否'}',
       '预渲染缓存：${settings.ankiPreRenderEnabled}',
       '强制禁用 JS：${settings.ankiForceDisableJs}',
       'Lite 阈值：${settings.ankiLiteThreshold}',
@@ -324,48 +311,73 @@ class SystemHealthPage extends StatelessWidget {
   }
 }
 
-/// Top-of-body strip that explains why the user can't leave this page yet.
-/// Pure presentational; the actual blocking happens in [PopScope] above and
-/// in `_AppShellState._onHealthChanged` in app.dart, which both key off
-/// [SystemHealthMonitor.hasActiveAlert].
-class _ForcedStayBanner extends StatelessWidget {
-  const _ForcedStayBanner({required this.score});
+/// Non-blocking banner for an unacknowledged attention/critical alert. The
+/// user can leave this page at any time; acknowledging only hides the
+/// banner until the next detection.
+class _UnacknowledgedBanner extends StatelessWidget {
+  const _UnacknowledgedBanner({required this.monitor, required this.score});
 
+  final SystemHealthMonitor monitor;
   final int score;
 
   @override
   Widget build(BuildContext context) {
-    return SettingsInfoCard(
-      icon: Icons.lock_outline,
-      tone: SettingsInfoTone.danger,
-      text: '系统健康异常评分达到 $score 分（已达到或超过 40 分阈值），已打断当前操作并强制停留在此页。'
-          '点击右上角「确定（-40分）」确认后将扣减 40 分（不低于 0 分），降至 40 分以下即可离开。',
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: SettingsInfoCard(
+        icon: Icons.notification_important_rounded,
+        tone: score >= SystemHealthMonitor.alertThreshold
+            ? SettingsInfoTone.danger
+            : SettingsInfoTone.warning,
+        text: '检测到异常（活跃评分 $score）。本提示不会阻止你继续使用应用；'
+            '运行自检通过且异常停止复发后会自动标记为已解决。',
+      ),
+    );
+  }
+}
+
+/// Strong warning for the dedicated data-integrity hazard. Even here the
+/// page is not locked — the user is pointed at backup/export/safe-mode
+/// instead of being trapped (Plan §15.3 "data-integrity blocking").
+class _DataIntegrityBanner extends StatelessWidget {
+  const _DataIntegrityBanner({required this.reason});
+
+  final String reason;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: SettingsInfoCard(
+        icon: Icons.report_rounded,
+        tone: SettingsInfoTone.danger,
+        text: '检测到数据完整性风险：$reason\n'
+            '建议先导出备份与诊断报告，再运行自检。写入类操作请谨慎；'
+            '你可以随时离开本页。',
+      ),
     );
   }
 }
 
 class _HealthSummary extends StatelessWidget {
-  const _HealthSummary({required this.event});
-  final SystemHealthEvent event;
+  const _HealthSummary({required this.monitor});
+  final SystemHealthMonitor monitor;
 
   @override
   Widget build(BuildContext context) {
-    final (color, icon, label) = switch (event.level) {
+    final event = monitor.event;
+    final (color, icon, label) = switch (monitor.level) {
       SystemHealthLevel.normal => (
-          TurnaTheme.success,
+          monitor.resolved ? TurnaTheme.success : TurnaTheme.success,
           Icons.check_circle,
-          '正常'
+          monitor.resolved ? '正常（自检通过）' : '正常'
         ),
       SystemHealthLevel.attention => (
           TurnaTheme.warning,
           Icons.warning_rounded,
           '需要注意'
         ),
-      SystemHealthLevel.critical => (
-          TurnaTheme.error,
-          Icons.error_rounded,
-          '严重'
-        ),
+      SystemHealthLevel.critical => (TurnaTheme.error, Icons.error, '严重'),
     };
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -388,7 +400,7 @@ class _HealthSummary extends StatelessWidget {
                         .textTheme
                         .titleLarge
                         ?.copyWith(color: color)),
-                Text('异常评分 ${event.score} · ${event.groups.length} 个问题组'),
+                Text('活跃评分 ${monitor.score} · ${event.groups.length} 个问题组'),
               ],
             ),
           ),
@@ -404,8 +416,7 @@ class _HealthSummary extends StatelessWidget {
 class _HealthGroupTile extends StatelessWidget {
   const _HealthGroupTile({required this.group});
 
-  final dynamic
-      group; // SystemHealthGroup — kept loose to avoid an import cycle.
+  final SystemHealthErrorGroup group;
 
   @override
   Widget build(BuildContext context) {

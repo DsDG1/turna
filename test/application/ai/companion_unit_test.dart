@@ -561,14 +561,20 @@ void main() {
   });
 
   group('export does not include AI API key', () {
-    test('progress manifest sanitizes ai.engineConfig', () {
+    test('backup manifest policy sanitizes ai.engineConfig', () {
+      // The strip moved from ExportService into the shared
+      // BackupManifestPolicy (single source of truth for local + remote).
+      final policySrc = File(
+        'lib/application/backup/backup_manifest_policy.dart',
+      ).readAsStringSync();
+      expect(policySrc.contains('LocalStateKeys.aiEngineConfig'), isTrue);
+      expect(policySrc.contains("decoded['apiKey'] = ''"), isTrue);
       final exportSrc =
           File('lib/service/export_service.dart').readAsStringSync();
-      expect(exportSrc.contains('LocalStateKeys.aiEngineConfig'), isTrue);
-      expect(exportSrc.contains('_stripApiKey(value)'), isTrue);
       expect(
-        exportSrc.contains("decoded['apiKey'] = ''"),
+        exportSrc.contains('BackupManifestPolicy.sanitizeForSerialization'),
         isTrue,
+        reason: 'export must sanitize at the serialization boundary',
       );
     });
   });

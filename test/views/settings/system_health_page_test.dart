@@ -1,4 +1,4 @@
-// Widget tests for SystemHealthPage
+// Widget tests for SystemHealthPage (state-machine version, Plan §15).
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -6,6 +6,7 @@ import 'package:logger/logger.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
+import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/system_health_monitor.dart';
 import 'package:turna/core/log_capture.dart';
 import 'package:turna/di/injection.dart';
@@ -25,7 +26,7 @@ void main() {
     await sp.setString(LocalStateKeys.systemHealthEvent, '');
     prefs = AppPrefs(sp);
     logs = ValueNotifier<List<LogEntry>>([]);
-    monitor = SystemHealthMonitor(prefs);
+    monitor = SystemHealthMonitor(prefs, integrityProbe: () async => 'ok');
     await monitor.install(logs);
 
     if (getIt.isRegistered<AppPrefs>()) {
@@ -41,7 +42,10 @@ void main() {
   Widget wrap(Widget child) {
     return ChangeNotifierProvider<SystemHealthMonitor>.value(
       value: monitor,
-      child: MaterialApp(home: child),
+      child: ChangeNotifierProvider<SettingsProvider>.value(
+        value: SettingsProvider(prefs),
+        child: MaterialApp(home: child),
+      ),
     );
   }
 
@@ -54,6 +58,7 @@ void main() {
     expect(find.text('主要问题'), findsOneWidget);
     expect(find.text('处理操作'), findsOneWidget);
     expect(find.text('查看诊断建议'), findsOneWidget);
+    expect(find.text('运行自检'), findsOneWidget);
   });
 
   testWidgets('Safe mode toggle updates monitor', (tester) async {
@@ -78,9 +83,10 @@ void main() {
     expect(monitor.safeMode, isTrue);
   });
 
-  testWidgets('Score >= 40 shows banner and confirm deduction button',
+  testWidgets(
+      'critical alert shows a NON-blocking banner; no score-deduction UI exists',
       (tester) async {
-    // Generate enough errors to exceed 40 points
+    // 15 distinct error groups -> 45 points -> critical level.
     final now = DateTime.now();
     logs.value = [
       for (var i = 0; i < 15; i++)
@@ -92,30 +98,50 @@ void main() {
     ];
     await tester.pump(const Duration(milliseconds: 50));
     expect(monitor.score, 45);
-    expect(monitor.isScoreExceeded, isTrue);
+    expect(monitor.level, SystemHealthLevel.critical);
 
     await tester.pumpWidget(wrap(const SystemHealthPage()));
     await tester.pumpAndSettle();
 
-    // Banner and action button are shown
-    expect(find.textContaining('已达到或超过 40 分阈值'), findsOneWidget);
-    expect(find.text('确定（-40分）'), findsOneWidget);
+    // Non-blocking banner explains the state…
+    expect(find.textContaining('检测到异常'), findsOneWidget);
+    // …the manual score deduction is gone everywhere…
+    expect(find.textContaining('确定（-40分）'), findsNothing);
+    expect(find.textContaining('降低40分'), findsNothing);
+    // …and the page never blocks pop: there is no PopScope at all.
+    expect(find.byType(PopScope), findsNothing);
+  });
 
-    // Tap confirm button
-    await tester.tap(find.text('确定（-40分）'));
+  testWidgets('acknowledge hides the banner without touching the facts',
+      (tester) async {
+    final now = DateTime.now();
+    logs.value = [
+      for (var i = 0; i < 15; i++)
+        LogEntry(
+          timestamp: now.add(Duration(milliseconds: i)),
+          level: Level.error,
+          message: 'error-$i',
+        ),
+    ];
+    await tester.pump(const Duration(milliseconds: 50));
+
+    await tester.pumpWidget(wrap(const SystemHealthPage()));
     await tester.pumpAndSettle();
 
-    // Confirm dialog is presented
-    expect(find.text('确认处理异常并降低 40 分？'), findsOneWidget);
-    expect(find.textContaining('当前异常评分：45 分'), findsOneWidget);
-    expect(find.textContaining('处理后评分：5 分'), findsOneWidget);
-
-    // Tap confirm inside dialog
-    await tester.tap(find.widgetWithText(TextButton, '确定（-40分）').last);
+    final acknowledge = find.text('我知道了');
+    await tester.scrollUntilVisible(
+      acknowledge,
+      100,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(acknowledge);
     await tester.pumpAndSettle();
 
-    // Score is now 5 (< 40)
-    expect(monitor.score, 5);
-    expect(monitor.isScoreExceeded, isFalse);
+    expect(monitor.acknowledged, isTrue);
+    expect(find.textContaining('检测到异常'), findsNothing);
+    // Facts unchanged.
+    expect(monitor.score, 45);
+    expect(monitor.resolved, isFalse);
   });
 }

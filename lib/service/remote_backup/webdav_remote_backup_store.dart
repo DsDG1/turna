@@ -48,8 +48,7 @@ class WebDavRemoteBackupStore extends RemoteBackupStore {
   @override
   Future<void> publishManifest(RemoteBackupManifest manifest) async {
     final tmp = '$_manifestPath.tmp';
-    await _client.putBytes(
-        tmp, utf8.encode(jsonEncode(manifest.toJson())));
+    await _client.putBytes(tmp, utf8.encode(jsonEncode(manifest.toJson())));
     await _client.move(tmp, _manifestPath);
   }
 
@@ -68,12 +67,10 @@ class WebDavRemoteBackupStore extends RemoteBackupStore {
       _client.putFile('$_mediaDir/$sha256', source);
 
   @override
-  Future<void> downloadCoreZip(
-      RemoteBackupManifest manifest, File dest) async {
+  Future<void> downloadCoreZip(RemoteBackupManifest manifest, File dest) async {
     final object = manifest.coreZipObject;
-    final remote = object.startsWith('/')
-        ? object
-        : p.posix.join(_root, object);
+    final remote =
+        object.startsWith('/') ? object : p.posix.join(_root, object);
     await _client.getToFile(remote, dest);
   }
 

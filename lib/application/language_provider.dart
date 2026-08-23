@@ -34,6 +34,11 @@ class LanguageProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Re-reads the persisted language selection. Used after a backup restore
+  /// (PostRestoreReloadRegistry step); identical to [initLanguage] but named
+  /// for its restore role.
+  void reload() => initLanguage();
+
   void setLanguage(TargetLanguage language) {
     selectedLanguage = language;
 
@@ -44,7 +49,8 @@ class LanguageProvider extends ChangeNotifier {
   /// `unawaited(...)` — the selection is already in memory, this just durably
   /// writes it so a fast app-kill doesn't lose the choice.
   Future<void> cacheLanguage() async {
-    await appPrefs.setString(PrefsConstants.currentLanguage, selectedLanguage.name);
+    await appPrefs.setString(
+        PrefsConstants.currentLanguage, selectedLanguage.name);
 
     notifyListeners();
   }

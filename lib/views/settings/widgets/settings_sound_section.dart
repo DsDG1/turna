@@ -10,6 +10,7 @@ import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/service/tts_availability_checker.dart';
+import 'package:turna/views/settings/widgets/controls/settings_controls.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/theme.dart';
@@ -32,19 +33,12 @@ class SettingsToggleTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final value = context.select<SettingsProvider, bool>(
-      (settings) => valueSelector(settings),
-    );
-
-    return SettingsTile(
+    return ProviderBoundToggleTile<SettingsProvider>(
       icon: icon,
       title: title,
       subtitle: subtitle,
-      trailing: settingsAdaptiveSwitch(
-        value: value,
-        onChanged: (newValue) =>
-            onChanged(context.read<SettingsProvider>(), newValue),
-      ),
+      valueSelector: valueSelector,
+      onChanged: onChanged,
     );
   }
 }

@@ -1,3 +1,6 @@
+// Dart imports:
+import 'dart:async';
+
 // Flutter imports:
 import 'package:flutter/material.dart';
 
@@ -7,16 +10,13 @@ import 'package:provider/provider.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 
 // Project imports:
-import 'package:turna/application/achievements/achievement_service.dart';
 import 'package:turna/application/cosmetic_provider.dart';
-import 'package:turna/application/game_provider.dart';
-import 'package:turna/application/grammar_review_provider.dart';
-import 'package:turna/application/mistake_provider.dart';
-import 'package:turna/application/srs_provider.dart';
+import 'package:turna/application/settings/commands/reset_account_command.dart';
+import 'package:turna/application/settings/settings_operation_result.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/auth/local_user.dart';
-import 'package:turna/service/locator.dart';
 import 'package:turna/routing/routing.gr.dart';
+import 'package:turna/service/locator.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/theme.dart';
@@ -345,32 +345,34 @@ class _DataManagementSection extends StatelessWidget {
     );
     if (confirmed != true || !context.mounted) return;
 
-    // Ordered reset: clear secondary stores first, then one atomic game-state
-    // pass (avoids parallel prefs races with an intermediate notify).
-    final gameProvider = context.read<GameProvider>();
-    final mistakeProvider = context.read<MistakeProvider>();
-    final srsProvider = getIt<SrsProvider>();
-    final grammarProvider = getIt<GrammarReviewProvider>();
-    final cosmetics = context.read<CosmeticProvider>();
-    final achievements = getIt<AchievementService>();
-    final appPrefs = getIt<AppPrefs>();
+    // Modal, un-dismissable progress barrier: blocks back / repeated taps /
+    // conflicting operations while the destructive sweep runs.
+    unawaited(showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => PopScope(
+        canPop: false,
+        child: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      ),
+    ));
 
-    await mistakeProvider.clear();
-    await srsProvider.clear();
-    await grammarProvider.clear();
-    await gameProvider.resetAccountGameState();
-    // Achievements v2: state document, metric projection, and the migration
-    // marker all reset so a post-reset account starts from a clean slate.
-    await achievements.resetAll();
-    await appPrefs.preferences
-        .remove(LocalStateKeys.achievementsMigrationVersion);
-    await cosmetics.resetCosmetics();
-    await appPrefs.setLocalUser(LocalUser.local);
-
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppStrings.accountResetDone)),
-      );
+    final command = getIt<ResetAccountCommand>();
+    final result = await command.execute();
+    if (!context.mounted) {
+      return;
+    }
+    Navigator.of(context, rootNavigator: true).pop(); // progress barrier
+    switch (result) {
+      case SettingsOperationSuccess():
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppStrings.accountResetDone)),
+        );
+      case SettingsOperationFailure(:final userMessage):
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(userMessage)),
+        );
     }
   }
 }

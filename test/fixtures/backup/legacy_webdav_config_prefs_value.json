@@ -1,0 +1,7 @@
+{
+  "serverUrl": "https://dav.example.com/dav",
+  "username": "alice",
+  "password": "plain-secret-42",
+  "includeMedia": true,
+  "remoteRoot": "TurnaBackup"
+}

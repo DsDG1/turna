@@ -16,7 +16,11 @@ import 'package:turna/application/ai/ai_explain_prefs.dart';
 import 'package:turna/application/ai/ai_saved_explanations.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_sqlite.dart';
-import 'package:turna/application/settings/settings_destination.dart';
+import 'package:turna/application/settings/commands/apply_fsrs_parameters_command.dart';
+import 'package:turna/application/settings/commands/clear_regenerable_caches_command.dart';
+import 'package:turna/application/settings/commands/reset_account_command.dart';
+import 'package:turna/application/settings/commands/reset_learning_settings_command.dart';
+import 'package:turna/application/settings/commands/update_daily_reminder_command.dart';
 import 'package:turna/application/restore_normalization_service.dart';
 import 'package:turna/application/system_health_monitor.dart';
 import 'package:turna/core/logger.dart';
@@ -312,27 +316,54 @@ Future<void> setupLocator() async {
   // route (e.g. lesson dialog) can resolve it synchronously.
   getIt.registerLazySingleton<TabRouter>(() => TabRouter());
 
-  // Typed settings navigation — external callers (dialogs, banners, empty
-  // states) deliver SettingsNavRequests through it; SettingsPage listens.
-  if (!getIt.isRegistered<SettingsNavController>()) {
-    getIt.registerLazySingleton<SettingsNavController>(
-      () => SettingsNavController(),
-    );
-  }
-
-  // Platform secure credential storage (AI API key etc.). Falls back to a
-  // session-only in-memory store when the platform plugin is unavailable;
-  // isPersistent tells consumers which one they got.
+  // Platform secure credential storage (AI API key, WebDAV password). Falls
+  // back to a session-only in-memory store when the platform plugin is
+  // unavailable; isPersistent tells consumers which one they got.
   if (!getIt.isRegistered<ICredentialStore>()) {
     getIt.registerLazySingleton<ICredentialStore>(
       () => SecureCredentialStore(),
     );
   }
 
+  // Move a legacy plaintext WebDAV password (old releases stored it inside
+  // the prefs JSON) into the secure store. Idempotent; on any failure the
+  // plaintext is kept and the migration retries on the next boot.
+  if (!kIsWeb) {
+    final migrationStatus = await RemoteBackupConfigStore(getIt<AppPrefs>())
+        .migrateLegacyPlaintext();
+    if (migrationStatus != RemoteBackupCredentialMigrationStatus.notNeeded &&
+        migrationStatus != RemoteBackupCredentialMigrationStatus.migrated) {
+      logger.w('WebDAV credential migration deferred: $migrationStatus');
+    }
+  }
+
   if (!getIt.isRegistered<SystemHealthMonitor>()) {
     getIt.registerLazySingleton<SystemHealthMonitor>(
       () => SystemHealthMonitor(getIt<AppPrefs>()),
     );
+  }
+
+  // Cross-service settings operations run through command coordinators so
+  // widgets never orchestrate multi-service side effects themselves.
+  if (!getIt.isRegistered<UpdateDailyReminderCommand>()) {
+    getIt.registerLazySingleton<UpdateDailyReminderCommand>(
+        () => UpdateDailyReminderCommand());
+  }
+  if (!getIt.isRegistered<ResetLearningSettingsCommand>()) {
+    getIt.registerLazySingleton<ResetLearningSettingsCommand>(
+        () => ResetLearningSettingsCommand());
+  }
+  if (!getIt.isRegistered<ResetAccountCommand>()) {
+    getIt.registerLazySingleton<ResetAccountCommand>(
+        () => ResetAccountCommand());
+  }
+  if (!getIt.isRegistered<ApplyFsrsParametersCommand>()) {
+    getIt.registerLazySingleton<ApplyFsrsParametersCommand>(
+        () => ApplyFsrsParametersCommand());
+  }
+  if (!getIt.isRegistered<ClearRegenerableCachesCommand>()) {
+    getIt.registerLazySingleton<ClearRegenerableCachesCommand>(
+        () => ClearRegenerableCachesCommand());
   }
 
   getIt.registerLazySingleton<ExportService>(

@@ -2,147 +2,77 @@
 import 'dart:convert';
 import 'dart:io';
 
-// Flutter imports:
-import 'package:flutter/services.dart' show rootBundle;
+// Package imports:
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 // Project imports:
-import 'package:package_info_plus/package_info_plus.dart';
-import 'package:turna/courses/course_loader.dart';
+import 'package:turna/application/backup/backup_manifest_policy.dart';
+import 'package:turna/application/backup/backup_restore_journal.dart';
+import 'package:turna/application/backup/backup_schema.dart';
+import 'package:turna/application/backup/backup_validator.dart';
+import 'package:turna/application/restore/post_restore_reload_registry.dart';
 import 'package:turna/application/restore_normalization_service.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/service/locator.dart';
 
-/// Encoded progress / settings keys carried in an export and written back on
-/// import. Each entry pairs a prefs key with its scalar type so the export can
-/// read the raw value and the import can dispatch to the matching setter.
-enum _PrefType { bool_, int_, double_, string, stringList }
-
-class _PrefEntry {
-  final String key;
-  final _PrefType type;
-  const _PrefEntry(this.key, this.type);
-}
-
-/// All progress + settings keys bundled into a "progress" export. Kept as a
-/// single list so read and write stay in lockstep — add a key here and it
-/// round-trips automatically. Course-content keys are handled separately by
-/// [ExportService._readCourse].
-const List<_PrefEntry> _progressManifest = [
-  // Marker / game state
-  _PrefEntry(LocalStateKeys.initialized, _PrefType.bool_),
-  _PrefEntry(LocalStateKeys.score, _PrefType.int_),
-  _PrefEntry(LocalStateKeys.streak, _PrefType.int_),
-  _PrefEntry(LocalStateKeys.lastStreakDate, _PrefType.string),
-  _PrefEntry(LocalStateKeys.lessonsCompleted, _PrefType.int_),
-  _PrefEntry(LocalStateKeys.perfectLessons, _PrefType.int_),
-  _PrefEntry(LocalStateKeys.streakWasBroken, _PrefType.bool_),
-  _PrefEntry(LocalStateKeys.streakProtectedDays, _PrefType.stringList),
-  _PrefEntry(LocalStateKeys.streakAutoUseVoucher, _PrefType.bool_),
-  _PrefEntry(LocalStateKeys.wordsLearned, _PrefType.int_),
-  // Per-lesson progress
-  _PrefEntry(LocalStateKeys.completedLessonIds, _PrefType.stringList),
-  _PrefEntry(LocalStateKeys.perfectLessonIds, _PrefType.stringList),
-  // Currency / achievements / cosmetics
-  _PrefEntry(LocalStateKeys.gems, _PrefType.int_),
-  // v1 achievement list: read-only migration input, exported for downgrade
-  // compatibility.
-  _PrefEntry(LocalStateKeys.achievements, _PrefType.stringList),
-  // Achievements v2: versioned state, metric projection, migration marker.
-  _PrefEntry(LocalStateKeys.achievementsStateV2, _PrefType.string),
-  _PrefEntry(LocalStateKeys.achievementsProjectionV1, _PrefType.string),
-  _PrefEntry(LocalStateKeys.achievementsMigrationVersion, _PrefType.int_),
-  _PrefEntry(LocalStateKeys.cosmeticsUnlocked, _PrefType.stringList),
-  _PrefEntry(LocalStateKeys.cosmeticsEquippedRing, _PrefType.string),
-  _PrefEntry(LocalStateKeys.cosmeticsEquippedAvatarRing, _PrefType.string),
-  _PrefEntry(LocalStateKeys.cosmeticsEquippedProfileTheme, _PrefType.string),
-  _PrefEntry(LocalStateKeys.cosmeticsEquippedCardBack, _PrefType.string),
-  _PrefEntry(
-      LocalStateKeys.cosmeticsEquippedCompletionEffect, _PrefType.string),
-  _PrefEntry(LocalStateKeys.cosmeticsEquippedSoundPack, _PrefType.string),
-  _PrefEntry(LocalStateKeys.cosmeticsEquippedMascotAccessory, _PrefType.string),
-  // SRS / mistakes
-  _PrefEntry(LocalStateKeys.srsState, _PrefType.string),
-  _PrefEntry(LocalStateKeys.lessonWordLinks, _PrefType.string),
-  _PrefEntry(LocalStateKeys.grammarReviewState, _PrefType.string),
-  _PrefEntry(LocalStateKeys.mistakeLog, _PrefType.string),
-  // Study logs / daily stats (JSON-string keys — see study_log_repository.dart)
-  _PrefEntry('study.logs', _PrefType.string),
-  _PrefEntry('study.logs.recent', _PrefType.string),
-  _PrefEntry('study.dailyStats', _PrefType.string),
-  // Settings (so a restore also brings the learner's config)
-  _PrefEntry(LocalStateKeys.themeMode, _PrefType.string),
-  _PrefEntry(LocalStateKeys.soundEffects, _PrefType.bool_),
-  _PrefEntry(LocalStateKeys.haptic, _PrefType.bool_),
-  _PrefEntry(LocalStateKeys.ttsSpeed, _PrefType.double_),
-  _PrefEntry(LocalStateKeys.ttsEngine, _PrefType.string),
-  _PrefEntry(LocalStateKeys.ttsAvailabilityPromptShown, _PrefType.bool_),
-  _PrefEntry(LocalStateKeys.dailyReminderEnabled, _PrefType.bool_),
-  _PrefEntry(LocalStateKeys.dailyReminderHour, _PrefType.int_),
-  _PrefEntry(LocalStateKeys.dailyReminderMinute, _PrefType.int_),
-  _PrefEntry(LocalStateKeys.contentVersionAcknowledged, _PrefType.string),
-  _PrefEntry(LocalStateKeys.autoRotate, _PrefType.bool_),
-  _PrefEntry(LocalStateKeys.uiLocale, _PrefType.string),
-  _PrefEntry(LocalStateKeys.textScale, _PrefType.int_),
-  _PrefEntry(LocalStateKeys.reducedMotion, _PrefType.bool_),
-  _PrefEntry(LocalStateKeys.highContrast, _PrefType.bool_),
-  _PrefEntry(LocalStateKeys.dyslexiaFont, _PrefType.bool_),
-  _PrefEntry(LocalStateKeys.sensoryReduce, _PrefType.bool_),
-  _PrefEntry(LocalStateKeys.focusMode, _PrefType.bool_),
-  _PrefEntry(LocalStateKeys.aiEngineConfig, _PrefType.string),
-  // Account + language
-  _PrefEntry(PrefsConstants.currentLanguage, _PrefType.string),
-  _PrefEntry(PrefsConstants.authUser, _PrefType.string), // JSON string
-];
-
-class ImportResult {
-  final bool progressRestored;
-  final bool hasCoursePayload;
-
-  const ImportResult({
+/// Outcome of a validated, journaled import. Every field describes what
+/// actually happened — there is no "success" state that hides skipped work.
+class ImportOutcome {
+  const ImportOutcome({
     required this.progressRestored,
-    required this.hasCoursePayload,
+    required this.legacyCoursePayloadIgnored,
+    required this.reload,
   });
+
+  /// True when the progress/settings snapshot was validated, written and
+  /// committed.
+  final bool progressRestored;
+
+  /// v1 files may carry a `course` section with copies of the bundled course
+  /// assets. They contain no user data and are never applied; this flag lets
+  /// the UI say so instead of promising a restart that would do nothing.
+  final bool legacyCoursePayloadIgnored;
+
+  /// Per-step runtime reload report (providers, audio, reminders, …).
+  final PostRestoreReloadReport reload;
 }
 
-/// Builds / restores a single JSON export file containing optional `progress`
-/// (prefs snapshot) and `course` (bundled course assets) sections.
+/// Builds / restores the local JSON backup file.
 ///
-/// Exported file shape:
-/// ```
-/// { "meta": { app, version, buildNumber, language, exportedAt, schema, contents },
-///   "progress"?: { <prefsKey>: <value>, ... },   // scalar values only
-///   "course"?:    { "<assetPath>": "<file content>", ... } }
-/// ```
+/// Export writes the versioned v2 envelope (see [BackupEnvelopeWriter]) with
+/// a single prefs snapshot driven by [BackupManifestPolicy] — the same policy
+/// the remote WebDAV snapshot uses, so both paths carry an identical settings
+/// and progress set.
+///
+/// Import is a validate-then-commit pipeline: nothing is written before
+/// [BackupValidator] accepts the file (size / JSON shape / schema version /
+/// app id / per-key types), the write runs under [BackupRestoreJournal] with
+/// a before-image, and every runtime consumer is refreshed through
+/// [PostRestoreReloadRegistry] before the journal commits. A failure at any
+/// step rolls every touched key back to its pre-import value.
+///
+/// The legacy "include course content" export option is intentionally gone:
+/// the `course` section only ever contained copies of bundled course assets
+/// (no user data), so exporting it wasted space and importing it promised a
+/// restart that would do nothing. Old files with a course section import
+/// their progress and report the rest as ignored.
 class ExportService {
   ExportService(this._prefs);
 
   final AppPrefs _prefs;
 
-  Future<File> export({
-    required bool includeProgress,
-    required bool includeCourse,
-  }) async {
-    assert(includeProgress || includeCourse, 'Nothing selected to export');
-
+  /// Exports the unified progress + settings snapshot.
+  Future<File> export() async {
     final info = await PackageInfo.fromPlatform();
-    final meta = <String, dynamic>{
-      'app': info.packageName,
-      'version': info.version,
-      'buildNumber': info.buildNumber,
-      'language': _prefs.currentLanguage.getValue(),
-      'exportedAt': DateTime.now().toUtc().toIso8601String(),
-      'schema': 1,
-      'contents': {
-        'progress': includeProgress,
-        'course': includeCourse,
-      },
-    };
-
-    final payload = <String, dynamic>{'meta': meta};
-    if (includeProgress) payload['progress'] = _readProgress();
-    if (includeCourse) payload['course'] = await _readCourse();
+    final payload = BackupEnvelopeWriter.build(
+      appId: info.packageName,
+      appVersion: info.version,
+      buildNumber: info.buildNumber,
+      language: _prefs.currentLanguage.getValue(),
+      progress: _readProgress(),
+    );
 
     final dir = await getTemporaryDirectory();
     final ts = DateTime.now().millisecondsSinceEpoch;
@@ -158,136 +88,160 @@ class ExportService {
     );
   }
 
-  /// Parses an export file and writes its progress section back to prefs.
-  /// Course content is returned (not applied to the DB) — see [ImportResult].
-  Future<ImportResult> importFromFile(String path) async {
-    final raw = await File(path).readAsString();
-    final decoded = jsonDecode(raw);
-    if (decoded is! Map<String, dynamic>) {
-      throw const FormatException('Export file is not a JSON object');
-    }
-    final meta = decoded['meta'];
-    if (meta is! Map<String, dynamic> || meta['app'] == null) {
-      throw const FormatException('Missing or invalid export metadata');
+  /// Validates, applies and commits a backup file. Throws
+  /// [BackupSchemaException] with a stable code for every rejection; on any
+  /// failure after writing began, the before-image is restored first.
+  Future<ImportOutcome> importFromFile(String path) async {
+    String? expectedAppId;
+    try {
+      expectedAppId = (await PackageInfo.fromPlatform()).packageName;
+    } catch (_) {
+      // PackageInfo unavailable (tests): skip the app-id cross-check.
     }
 
-    bool progressRestored = false;
-    final progress = decoded['progress'];
-    if (progress is Map<String, dynamic>) {
+    final validation = await BackupValidator.validateLocalExportFile(
+      path,
+      expectedAppId: expectedAppId,
+    );
+    final fatalIssue =
+        validation.issues.where((issue) => issue.fatal).firstOrNull;
+    if (!validation.isValid || fatalIssue != null) {
+      final issue = fatalIssue ?? validation.issues.first;
+      throw BackupSchemaException(issue.code, issue.userMessage);
+    }
+    final document = validation.document!;
+    final progress = document.progress;
+    if (progress == null) {
+      // A v1 file with only a course payload: nothing user-owned to apply.
+      return ImportOutcome(
+        progressRestored: false,
+        legacyCoursePayloadIgnored: document.hasCoursePayload,
+        reload: PostRestoreReloadReport(reloaded: const [], failures: const {}),
+      );
+    }
+
+    final beforeImage = _captureBeforeImage(progress);
+    final restoreId = 'import-${DateTime.now().millisecondsSinceEpoch}';
+    await BackupRestoreJournal.begin(_prefs, restoreId, beforeImage);
+
+    PostRestoreReloadReport reloadReport;
+    try {
       await _writeProgress(progress);
       if (getIt.isRegistered<RestoreNormalizationService>()) {
         await getIt<RestoreNormalizationService>().normalize();
       }
-      progressRestored = true;
+      reloadReport =
+          await PostRestoreReloadRegistry.withDefaultSteps().reloadAll();
+    } catch (error) {
+      // Roll the touched keys back to the before-image, then resync whatever
+      // providers already picked up the half-applied values.
+      await BackupRestoreJournal.rollbackPending(_prefs);
+      try {
+        await PostRestoreReloadRegistry.withDefaultSteps().reloadAll();
+      } catch (_) {
+        // Best-effort resync — the prefs rollback itself already succeeded.
+      }
+      throw BackupSchemaException(
+        'backup.applyFailed',
+        '导入过程中出现错误，已恢复到导入前的状态。',
+      );
     }
+    await BackupRestoreJournal.commit(_prefs);
 
-    final hasCourse = decoded['course'] is Map<String, dynamic>;
-    return ImportResult(
-      progressRestored: progressRestored,
-      hasCoursePayload: hasCourse,
+    return ImportOutcome(
+      progressRestored: true,
+      legacyCoursePayloadIgnored: document.hasCoursePayload,
+      reload: reloadReport,
     );
   }
 
+  /// Reads every backup-eligible prefs key (exact + prefix) with its policy
+  /// type, sanitizing secrets at this boundary.
   Map<String, dynamic> _readProgress() {
     final out = <String, dynamic>{};
     final prefs = _prefs.preferences;
-    // Only export keys that actually exist in the store — the streaming_shared_
-    // preferences getters require a non-null default and cannot distinguish a
-    // missing key from a default value, so we filter by the live key set.
+    // Only export keys that actually exist in the store — the streaming
+    // getters require a non-null default and cannot distinguish a missing
+    // key from a default value, so we filter by the live key set.
     final keys = prefs.getKeys().getValue();
-    for (final entry in _progressManifest) {
-      if (!keys.contains(entry.key)) continue;
-      switch (entry.type) {
-        case _PrefType.bool_:
-          out[entry.key] =
-              prefs.getBool(entry.key, defaultValue: false).getValue();
-        case _PrefType.int_:
-          out[entry.key] = prefs.getInt(entry.key, defaultValue: 0).getValue();
-        case _PrefType.double_:
-          out[entry.key] =
-              prefs.getDouble(entry.key, defaultValue: 0.0).getValue();
-        case _PrefType.string:
-          final value = prefs.getString(entry.key, defaultValue: '').getValue();
-          out[entry.key] = entry.key == LocalStateKeys.aiEngineConfig
-              ? _stripApiKey(value)
-              : value;
-        case _PrefType.stringList:
-          out[entry.key] =
-              prefs.getStringList(entry.key, defaultValue: const []).getValue();
+    for (final key in keys) {
+      final entry = BackupManifestPolicy.entryFor(key);
+      if (entry == null) continue;
+      final Object? value;
+      switch (entry.primaryType) {
+        case BackupPrefType.bool_:
+          value = prefs.getBool(key, defaultValue: false).getValue();
+        case BackupPrefType.int_:
+          value = prefs.getInt(key, defaultValue: 0).getValue();
+        case BackupPrefType.double_:
+          value = prefs.getDouble(key, defaultValue: 0.0).getValue();
+        case BackupPrefType.string:
+          value = prefs.getString(key, defaultValue: '').getValue();
+        case BackupPrefType.stringList:
+          value = prefs.getStringList(key, defaultValue: const []).getValue();
       }
+      final sanitized =
+          BackupManifestPolicy.sanitizeForSerialization(key, value);
+      if (sanitized != null) out[key] = sanitized;
     }
     return out;
   }
 
-  static String _stripApiKey(String raw) {
-    try {
-      final decoded = jsonDecode(raw);
-      if (decoded is Map<String, dynamic>) {
-        decoded['apiKey'] = '';
-        return jsonEncode(decoded);
+  /// Snapshot of every key the import is about to touch, used by the restore
+  /// journal for rollback. Keys absent from the store map to null.
+  Map<String, Object?> _captureBeforeImage(Map<String, dynamic> progress) {
+    final before = <String, Object?>{};
+    final prefs = _prefs.preferences;
+    final liveKeys = prefs.getKeys().getValue();
+    for (final key in progress.keys) {
+      final entry = BackupManifestPolicy.entryFor(key);
+      if (entry == null) continue; // unknown keys are never written
+      if (!liveKeys.contains(key)) {
+        before[key] = null;
+        continue;
       }
-    } catch (_) {}
-    // An invalid AI config has no restorable settings value. Dropping it is
-    // safer than copying an opaque blob that may contain a legacy secret.
-    return '';
+      switch (entry.primaryType) {
+        case BackupPrefType.bool_:
+          before[key] = prefs.getBool(key, defaultValue: false).getValue();
+        case BackupPrefType.int_:
+          before[key] = prefs.getInt(key, defaultValue: 0).getValue();
+        case BackupPrefType.double_:
+          before[key] = prefs.getDouble(key, defaultValue: 0.0).getValue();
+        case BackupPrefType.string:
+          before[key] = prefs.getString(key, defaultValue: '').getValue();
+        case BackupPrefType.stringList:
+          before[key] =
+              prefs.getStringList(key, defaultValue: const []).getValue();
+      }
+    }
+    return before;
   }
 
+  /// Writes the validated progress snapshot with range clamping. Only keys
+  /// covered by the manifest policy are ever written — unknown keys in the
+  /// file are ignored (the validator already flagged them).
   Future<void> _writeProgress(Map<String, dynamic> data) async {
-    for (final entry in _progressManifest) {
-      if (!data.containsKey(entry.key)) continue;
-      final value = data[entry.key];
-      switch (entry.type) {
-        case _PrefType.bool_:
-          if (value is bool) await _prefs.setBool(entry.key, value: value);
-        case _PrefType.int_:
-          if (value is int) await _prefs.setInt(entry.key, value);
-        case _PrefType.double_:
-          if (value is num) await _prefs.setDouble(entry.key, value.toDouble());
-        case _PrefType.string:
-          if (value is String) await _prefs.setString(entry.key, value);
-        case _PrefType.stringList:
+    for (final key in data.keys) {
+      final entry = BackupManifestPolicy.entryFor(key);
+      if (entry == null) continue;
+      final value = BackupValidator.clampValue(key, data[key]);
+      switch (entry.primaryType) {
+        case BackupPrefType.bool_:
+          if (value is bool) await _prefs.setBool(key, value: value);
+        case BackupPrefType.int_:
+          if (value is int) await _prefs.setInt(key, value);
+        case BackupPrefType.double_:
+          if (value is num) await _prefs.setDouble(key, value.toDouble());
+        case BackupPrefType.string:
+          if (value is String) await _prefs.setString(key, value);
+        case BackupPrefType.stringList:
           if (value is List) {
             await _prefs.setStringList(
-              entry.key,
-              value.map((e) => e.toString()).toList(),
+              key,
+              value.whereType<String>().toList(),
             );
           }
       }
     }
-  }
-
-  /// Reads the bundled course JSON assets into a `Map<assetPath, fileContent>`.
-  /// The asset files are the source of truth (the Drift DB is a derived cache),
-  /// so re-reading them is simpler and lossless compared to dumping the DB.
-  Future<Map<String, String>> _readCourse() async {
-    // Must be a mutable map — `const {}` is unmodifiable and throws when
-    // assets are assigned (export with "course content" checked).
-    final out = <String, String>{};
-    const baseDir = CourseLoader.baseDir;
-
-    // Top-level files.
-    for (final asset in [
-      CourseLoader.indexAsset,
-      CourseLoader.vocabAsset,
-      CourseLoader.grammarPointsAsset,
-      CourseLoader.expressionsAsset,
-    ]) {
-      out[asset] = await rootBundle.loadString(asset);
-    }
-
-    // Per-section files listed in index.json (`file` is relative to baseDir).
-    final indexRaw = await rootBundle.loadString(CourseLoader.indexAsset);
-    final index = jsonDecode(indexRaw) as Map<String, dynamic>;
-    final sections = index['sections'];
-    if (sections is List) {
-      for (final section in sections) {
-        if (section is! Map) continue;
-        final file = section['file'];
-        if (file is! String || file.isEmpty) continue;
-        final assetPath = '$baseDir/$file';
-        out[assetPath] = await rootBundle.loadString(assetPath);
-      }
-    }
-    return out;
   }
 }

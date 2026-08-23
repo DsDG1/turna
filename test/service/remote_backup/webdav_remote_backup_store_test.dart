@@ -83,8 +83,7 @@ void main() {
     expect(await client.exists('/TurnaBackup/manifest.json.tmp'), isFalse);
   });
 
-  test('core zip upload / download roundtrip via the object path',
-      () async {
+  test('core zip upload / download roundtrip via the object path', () async {
     await store.ensureLayout();
     final manifest = buildManifest('bk-2');
     final payload = List<int>.generate(4096, (i) => i % 256);

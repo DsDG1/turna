@@ -44,7 +44,8 @@ void main() {
     );
   });
 
-  test('mergeHistory keeps previous generations, dedups and caps the '
+  test(
+      'mergeHistory keeps previous generations, dedups and caps the '
       'retention window', () {
     // Server state: head bk-9 with a full history tail.
     final previous = buildManifest(backupId: 'bk-9');
@@ -73,8 +74,7 @@ void main() {
     );
   });
 
-  test('mergeHistory handles a first-ever backup (no previous manifest)',
-      () {
+  test('mergeHistory handles a first-ever backup (no previous manifest)', () {
     expect(RemoteBackupManifest.mergeHistory(null), isEmpty);
   });
 

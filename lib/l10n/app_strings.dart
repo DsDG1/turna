@@ -150,6 +150,8 @@ class AppStrings {
   static String get remoteBackupPasswordHint => 'WebDAV 密码（坚果云请用应用密码）';
   static String get remoteBackupTestConnection => '测试连接';
   static String get remoteBackupTesting => '正在测试…';
+  static String get remoteBackupSaveAndTest => '保存并测试';
+  static String get remoteBackupSaving => '正在保存…';
   static String get remoteBackupTestOk => '连接成功，目录已就绪';
   static String remoteBackupTestFailed(Object error) => '连接失败：$error';
   static String get remoteBackupHint =>
@@ -238,6 +240,7 @@ class AppStrings {
   static String get settingsImportDataConfirm => '导入';
   static String get settingsCourseSavedRestart => '课程内容已保存；重启后生效';
   static String get settingsProgressRestoredRestart => '进度已恢复——重启应用以生效';
+  static String get settingsProgressRestored => '导入完成，学习进度与设置已恢复';
   static String get settingsNothingToImport => '无可导入内容';
   static String settingsImportFailed(Object error) => '导入失败：$error';
   static String settingsExportFailed(Object error) => '导出失败：$error';

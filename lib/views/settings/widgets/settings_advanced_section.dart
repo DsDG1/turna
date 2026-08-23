@@ -30,12 +30,11 @@ class SettingsAdvancedSection extends StatelessWidget {
   });
 
   /// When true the section renders the second-level 旧版与兼容性 page instead
-  /// of the hub list. The Settings page owns this flag so external
-  /// [SettingsNavRequest]s with the `legacyCompatibility` anchor land here.
+  /// of the hub list (used by the dedicated LegacyCompatibilityRoute).
   final bool showLegacy;
 
   /// Invoked when the hub's 旧版与兼容性 entry is tapped; the owning page
-  /// flips its anchor so the app-bar title follows the second-level page.
+  /// pushes the dedicated `/settings/advanced/legacy` route.
   final VoidCallback? onOpenLegacy;
 
   @override
@@ -80,8 +79,7 @@ class _AdvancedHubBody extends StatelessWidget {
               icon: Icons.sd_storage_outlined,
               title: AppStrings.settingsAdvancedStorageTitle,
               subtitle: AppStrings.settingsAdvancedStorageSubtitle,
-              onTap: (ctx) =>
-                  ctx.router.push(StorageDiagnosticsRoute()),
+              onTap: (ctx) => ctx.router.push(StorageDiagnosticsRoute()),
             ),
             settingsTileDivider(context),
             SettingsNavigationTile(

@@ -124,33 +124,48 @@ class _AboutTab extends StatelessWidget {
           const SizedBox(height: 20),
           _SectionHeader(text: AppStrings.aboutHighlightsTitle),
           const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: _HighlightCard(
-                  icon: Icons.cloud_off_rounded,
-                  title: AppStrings.aboutHighlightOfflineTitle,
-                  subtitle: AppStrings.aboutHighlightOfflineSubtitle,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _HighlightCard(
-                  icon: Icons.psychology_rounded,
-                  title: AppStrings.aboutHighlightSrsTitle,
-                  subtitle: AppStrings.aboutHighlightSrsSubtitle,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _HighlightCard(
-                  icon: Icons.quiz_rounded,
-                  title: AppStrings.aboutHighlightInteractionsTitle,
-                  subtitle: AppStrings.aboutHighlightInteractionsSubtitle,
-                ),
-              ),
-            ],
-          ),
+          Builder(builder: (context) {
+            // Wrap instead of a fixed 3-column Row: at 200% text scale or on
+            // narrow screens the cards flow onto extra lines instead of
+            // overflowing (Plan §14.4).
+            final screenWidth = MediaQuery.sizeOf(context).width;
+            final largeText =
+                MediaQuery.textScalerOf(context).textScaleFactor > 1.3;
+            final singleColumn = screenWidth < 560 || largeText;
+            final cardWidth =
+                singleColumn ? double.infinity : (screenWidth - 32 - 20) / 3;
+            return Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                for (final highlight in [
+                  (
+                    icon: Icons.cloud_off_rounded,
+                    title: AppStrings.aboutHighlightOfflineTitle,
+                    subtitle: AppStrings.aboutHighlightOfflineSubtitle,
+                  ),
+                  (
+                    icon: Icons.psychology_rounded,
+                    title: AppStrings.aboutHighlightSrsTitle,
+                    subtitle: AppStrings.aboutHighlightSrsSubtitle,
+                  ),
+                  (
+                    icon: Icons.quiz_rounded,
+                    title: AppStrings.aboutHighlightInteractionsTitle,
+                    subtitle: AppStrings.aboutHighlightInteractionsSubtitle,
+                  ),
+                ])
+                  SizedBox(
+                    width: cardWidth,
+                    child: _HighlightCard(
+                      icon: highlight.icon,
+                      title: highlight.title,
+                      subtitle: highlight.subtitle,
+                    ),
+                  ),
+              ],
+            );
+          }),
           const SizedBox(height: 20),
           _SectionHeader(text: AppStrings.aboutPrivacyTitle),
           const SizedBox(height: 10),
@@ -158,13 +173,10 @@ class _AboutTab extends StatelessWidget {
             padding: EdgeInsets.zero,
             child: Material(
               color: Colors.transparent,
-              borderRadius:
-                  BorderRadius.circular(TurnaTheme.radiusLarge),
+              borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
               child: InkWell(
-                borderRadius:
-                    BorderRadius.circular(TurnaTheme.radiusLarge),
-                onTap: () =>
-                    context.router.push(const PrivacyDetailsRoute()),
+                borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+                onTap: () => context.router.push(const PrivacyDetailsRoute()),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
@@ -172,13 +184,9 @@ class _AboutTab extends StatelessWidget {
                     children: [
                       Text(
                         AppStrings.aboutPrivacyBody,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.copyWith(
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               height: 1.5,
-                              color:
-                                  TurnaTheme.textSecondaryColor(context),
+                              color: TurnaTheme.textSecondaryColor(context),
                             ),
                       ),
                       const SizedBox(height: 12),
@@ -430,74 +438,73 @@ class _BrandHeader extends StatelessWidget {
                   ),
                 ),
               ),
-              SizedBox(
-                height: 81,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: TurnaTheme.clayOnSandFill(context),
-                          borderRadius:
-                              BorderRadius.circular(TurnaTheme.radiusMedium),
-                        ),
-                        child: const Icon(
-                          Icons.school_rounded,
-                          color: TurnaTheme.anatolianClay,
-                          size: 24,
-                        ),
+              // No fixed height: the brand block sizes itself so long
+              // taglines wrap instead of clipping at large text scales
+              // (Plan §14.4).
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: TurnaTheme.clayOnSandFill(context),
+                        borderRadius:
+                            BorderRadius.circular(TurnaTheme.radiusMedium),
                       ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              AppStrings.aboutBrandName,
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                color: TurnaTheme.textPrimaryColor(context),
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              AppStrings.aboutTagline,
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                color: TurnaTheme.textSecondaryColor(context),
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
+                      child: const Icon(
+                        Icons.school_rounded,
+                        color: TurnaTheme.anatolianClay,
+                        size: 24,
                       ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
-                          borderRadius:
-                              BorderRadius.circular(TurnaTheme.radiusRound),
-                        ),
-                        child: Text(
-                          displayVersion,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: TurnaTheme.brandTeal,
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            AppStrings.aboutBrandName,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: TurnaTheme.textPrimaryColor(context),
+                            ),
                           ),
+                          const SizedBox(height: 2),
+                          Text(
+                            AppStrings.aboutTagline,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: TurnaTheme.textSecondaryColor(context),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
+                        borderRadius:
+                            BorderRadius.circular(TurnaTheme.radiusRound),
+                      ),
+                      child: Text(
+                        displayVersion,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: TurnaTheme.brandTeal,
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -627,9 +634,8 @@ class _ExternalLinkTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final descriptor = registry.describe(id);
-    final subtitle = descriptor.enabled
-        ? configuredSubtitle
-        : descriptor.unavailableReason;
+    final subtitle =
+        descriptor.enabled ? configuredSubtitle : descriptor.unavailableReason;
     final body = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
@@ -701,11 +707,11 @@ class _ExternalLinkTile extends StatelessWidget {
             // Disabled links still explain themselves on tap instead of
             // silently doing nothing.
             : () => ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(descriptor.unavailableReason),
-                  behavior: SnackBarBehavior.floating,
+                  SnackBar(
+                    content: Text(descriptor.unavailableReason),
+                    behavior: SnackBarBehavior.floating,
+                  ),
                 ),
-              ),
         child: body,
       ),
     );
@@ -715,13 +721,11 @@ class _ExternalLinkTile extends StatelessWidget {
 class _LinkTile extends StatelessWidget {
   final IconData icon;
   final String title;
-  final String? subtitle;
   final VoidCallback? onTap;
 
   const _LinkTile({
     required this.icon,
     required this.title,
-    this.subtitle,
     this.onTap,
   });
 
@@ -761,13 +765,6 @@ class _LinkTile extends StatelessWidget {
                             fontWeight: FontWeight.w600,
                           ),
                     ),
-                    if (subtitle != null)
-                      Text(
-                        subtitle!,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: TurnaTheme.textHintColor(context),
-                            ),
-                      ),
                   ],
                 ),
               ),
@@ -844,12 +841,6 @@ class _VersionCard extends StatelessWidget {
                     ),
               ),
               const SizedBox(height: 8),
-              _LinkTile(
-                icon: Icons.history_edu_rounded,
-                title: AppStrings.aboutOpenChangelog,
-                subtitle: AppStrings.aboutOpenChangelogSubtitle,
-                onTap: () => context.router.push(const ChangelogRoute()),
-              ),
             ],
           );
         },

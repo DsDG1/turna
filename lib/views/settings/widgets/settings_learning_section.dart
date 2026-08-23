@@ -2,6 +2,7 @@
 import 'dart:async';
 
 // Flutter imports:
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 // Package imports:
@@ -11,12 +12,12 @@ import 'package:provider/provider.dart';
 import 'package:turna/application/anki/anki_deck_manager.dart';
 import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/language_provider.dart';
+import 'package:turna/application/settings/commands/apply_fsrs_parameters_command.dart';
+import 'package:turna/application/settings/settings_operation_result.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/streak_provider.dart';
 import 'package:turna/core/enums.dart';
 import 'package:turna/core/extensions.dart';
-import 'package:turna/core/fsrs_optimizer.dart';
-import 'package:turna/data/review_history_dao.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
@@ -36,7 +37,15 @@ class SettingsLanguageSelectorTile extends StatelessWidget {
       onSelected: (value) {
         final languageProvider = context.read<LanguageProvider>();
         languageProvider.setLanguage(value);
-        unawaited(languageProvider.cacheLanguage());
+        // Persistence failure must not become an unhandled async error —
+        // catch it and surface once instead.
+        unawaited(
+          languageProvider.cacheLanguage().catchError((Object error) {
+            if (kDebugMode) {
+              debugPrint('Language persist failed: $error');
+            }
+          }),
+        );
       },
       itemBuilder: (context) => TargetLanguage.values
           .map(
@@ -301,9 +310,17 @@ class _SettingsSrsWeightsTileState extends State<SettingsSrsWeightsTile> {
                 TextButton(
                   onPressed: _busy
                       ? null
-                      : () => context
-                          .read<SettingsProvider>()
-                          .clearFsrsParameters(),
+                      : () async {
+                          final result =
+                              await getIt<ApplyFsrsParametersCommand>()
+                                  .execute(null, reviewCount: 0);
+                          if (!context.mounted) return;
+                          if (result case SettingsOperationFailure failure) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(failure.userMessage)),
+                            );
+                          }
+                        },
                   child: Text(AppStrings.settingsSrsResetWeights),
                 ),
               ],
@@ -317,36 +334,28 @@ class _SettingsSrsWeightsTileState extends State<SettingsSrsWeightsTile> {
   Future<void> _optimize(BuildContext context) async {
     setState(() => _busy = true);
     final messenger = ScaffoldMessenger.of(context);
-    try {
-      final dao = getIt<ReviewHistoryDao>();
-      final events = await dao.allEvents();
-      final result = await Future<FsrsOptimizeResult>(() {
-        return FsrsLiteOptimizer().optimize(events);
-      });
-      if (!context.mounted) return;
-      if (result.message == 'need_more_reviews') {
+    // The CPU-heavy fit runs on a background isolate inside the command;
+    // this widget only reports the structured outcome.
+    final outcome =
+        await getIt<ApplyFsrsParametersCommand>().optimizeInBackground();
+    if (!mounted) return;
+    switch (outcome) {
+      case FsrsOptimizeNeedMoreReviews():
         messenger.showSnackBar(
           SnackBar(content: Text(AppStrings.settingsSrsOptimizeNeedMore)),
         );
-      } else if (result.accepted) {
-        await context.read<SettingsProvider>().applyFsrsParameters(
-              result.parameters,
-              reviewCount: result.reviewCount,
-            );
-        if (!context.mounted) return;
+      case FsrsOptimizeAccepted():
         messenger.showSnackBar(
           SnackBar(content: Text(AppStrings.settingsSrsOptimizeAccepted)),
         );
-      } else {
+      case FsrsOptimizeRejected():
         messenger.showSnackBar(
           SnackBar(content: Text(AppStrings.settingsSrsOptimizeRejected)),
         );
-      }
-    } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('$e')));
-    } finally {
-      if (mounted) setState(() => _busy = false);
+      case FsrsOptimizeFailed(:final userMessage):
+        messenger.showSnackBar(SnackBar(content: Text(userMessage)));
     }
+    setState(() => _busy = false);
   }
 }
 

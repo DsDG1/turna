@@ -16,6 +16,7 @@ import 'package:turna/data/course_database.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/service/remote_backup/backup_manifest.dart';
 import 'package:turna/service/remote_backup/backup_snapshot_service.dart';
+import 'package:turna/domain/repositories/i_credential_store.dart';
 import 'package:turna/service/remote_backup/remote_backup_config.dart';
 import 'package:turna/service/remote_backup/remote_backup_service.dart';
 import 'package:turna/service/remote_backup/remote_backup_store.dart';
@@ -82,6 +83,27 @@ class FakeRemoteBackupStore extends RemoteBackupStore {
   }
 }
 
+/// Minimal in-memory credential store: the service resolves the WebDAV
+/// password through it instead of SharedPreferences.
+class _FakeCredentialStore implements ICredentialStore {
+  final Map<String, String> storage = {};
+
+  @override
+  bool get isPersistent => true;
+
+  @override
+  Future<void> write(String id, String value) async => storage[id] = value;
+
+  @override
+  Future<String?> read(String id) async => storage[id];
+
+  @override
+  Future<void> delete(String id) async => storage.remove(id);
+
+  @override
+  Future<void> deleteAll() async => storage.clear();
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   ensureOfficialAnkiSqlite();
@@ -111,12 +133,13 @@ void main() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
     final sp = await StreamingSharedPreferences.instance;
     prefs = AppPrefs(sp);
-    configStore = RemoteBackupConfigStore(prefs);
-    await configStore.save(const RemoteBackupConfig(
+    configStore =
+        RemoteBackupConfigStore(prefs, credentialStore: _FakeCredentialStore());
+    await configStore.saveEndpoint(const RemoteBackupEndpointConfig(
       serverUrl: 'https://dav.example.com',
       username: 'alice',
-      password: 'secret',
     ));
+    await configStore.savePassword('secret');
 
     final profileRoot =
         Directory(p.join(appSupport.path, 'official_anki', 'default'))

@@ -1,23 +1,37 @@
-// Widget test: settings landing uses the typed 7-destination IA (Plan 2 §5)
-// with the new groups, hides the removed AI-tools category, splits
-// appearance/sound from accessibility, and supports deep navigation via
-// SettingsNavController.
+// Widget tests for the routed Settings landing (Plan §12): the landing page
+// is a pure category list, every category is a real route pushed through the
+// router, and external deep-links reach any category regardless of whether
+// the Settings tab was visited before.
 
+// Dart imports:
+import 'dart:async';
+
+// Flutter imports:
 import 'package:flutter/material.dart';
+
+// Package imports:
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
+import 'package:flutter_tts/flutter_tts.dart';
+
+// Project imports:
 import 'package:turna/application/accessibility_provider.dart';
+import 'package:turna/application/course_provider.dart';
+import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/settings/settings_destination.dart';
 import 'package:turna/application/settings_provider.dart';
+import 'package:turna/application/streak_provider.dart';
 import 'package:turna/application/theme_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/application/language_provider.dart';
+import 'package:turna/routing/course_ready_guard.dart';
+import 'package:turna/routing/routing.dart';
+import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/service/locator.dart';
+import 'package:turna/service/tab_router.dart';
 import 'package:turna/service/tts_availability_checker.dart';
-import 'package:flutter_tts/flutter_tts.dart';
 import 'package:turna/views/settings/settings_page.dart';
 
 void main() {
@@ -26,24 +40,40 @@ void main() {
   late SettingsProvider settings;
   late AccessibilityProvider accessibility;
   late ThemeProvider theme;
+  late LanguageProvider language;
+  late AppRouter router;
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     final sp = await StreamingSharedPreferences.instance;
     final prefs = AppPrefs(sp);
+    // Splash (initial router page) resolves these post-frame in tests.
+    getIt.registerSingleton<AppPrefs>(prefs);
+    await prefs.preferences
+        .setBool(LocalStateKeys.ttsAvailabilityPromptShown, true);
     settings = SettingsProvider(prefs);
     accessibility = AccessibilityProvider(prefs);
     theme = ThemeProvider(prefs);
-    // The appearance page's TTS engine tile resolves these from getIt.
+    language = LanguageProvider(prefs);
     getIt.registerLazySingleton<TtsAvailabilityChecker>(
       () => TtsAvailabilityChecker(FlutterTts()),
     );
     getIt.registerLazySingleton<LanguageProvider>(
       () => LanguageProvider(prefs),
     );
+    if (!getIt.isRegistered<TabRouter>()) {
+      getIt.registerLazySingleton<TabRouter>(() => TabRouter());
+    }
+    // The learning page's streak-voucher tile resolves StreakProvider
+    // through GetIt.
+    if (!getIt.isRegistered<StreakProvider>()) {
+      getIt.registerLazySingleton<StreakProvider>(() => StreakProvider(prefs));
+    }
+    router = AppRouter(CourseReadyGuard(CourseProvider()));
   });
 
   tearDown(() {
+    router.dispose();
     if (getIt.isRegistered<TtsAvailabilityChecker>()) {
       getIt.reset();
     }
@@ -57,12 +87,37 @@ void main() {
           value: accessibility,
         ),
         ChangeNotifierProvider<ThemeProvider>.value(value: theme),
+        ChangeNotifierProvider<LanguageProvider>.value(value: language),
       ],
       child: MaterialApp(home: child),
     );
   }
 
-  testWidgets('landing shows the 7 formal destinations in 4 groups',
+  Widget wrapRouter() {
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider<SettingsProvider>.value(value: settings),
+        ChangeNotifierProvider<AccessibilityProvider>.value(
+          value: accessibility,
+        ),
+        ChangeNotifierProvider<ThemeProvider>.value(value: theme),
+        ChangeNotifierProvider<LanguageProvider>.value(value: language),
+      ],
+      child: MaterialApp.router(routerConfig: router.config()),
+    );
+  }
+
+  /// Mounts the router WITHOUT the splash page (its animation cycle timer
+  /// would leave fake-async pending timers): pump once, then replace the
+  /// initial route with the About settings page.
+  Future<void> pumpOnAbout(WidgetTester tester) async {
+    await tester.pumpWidget(wrapRouter());
+    await tester.pump();
+    await router.replaceAll([const AboutSettingsRoute()]);
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('landing shows the formal destinations in 4 groups',
       (tester) async {
     await tester.pumpWidget(wrap(const SettingsPage()));
     await tester.pumpAndSettle();
@@ -72,8 +127,7 @@ void main() {
     expect(find.text(AppStrings.settingsGroupDataSystem), findsOneWidget);
     expect(find.text(AppStrings.settingsGroupProduct), findsOneWidget);
 
-    // The seven formal destinations (account, learning, appearance&sound,
-    // accessibility, data&backup, advanced, about).
+    // The seven formal destinations.
     expect(find.text(AppStrings.settingsCategoryAccount), findsOneWidget);
     expect(find.text(AppStrings.settingsCategoryLearning), findsOneWidget);
     expect(
@@ -87,52 +141,47 @@ void main() {
 
     // Removed categories must not exist anywhere on the landing page.
     expect(find.textContaining('AI 工具'), findsNothing);
-    expect(find.text('趣味实验室'), findsNothing);
   });
 
-  testWidgets('appearance&sound and accessibility are separate sub-pages',
+  testWidgets('landing list has a stable PageStorageKey for scroll restore',
       (tester) async {
     await tester.pumpWidget(wrap(const SettingsPage()));
     await tester.pumpAndSettle();
+    expect(
+      find.byKey(const PageStorageKey<String>('settings-landing-list')),
+      findsOneWidget,
+    );
+  });
 
-    // Appearance & sound holds theme + audio; not the a11y toggles.
-    final appearance = find.text(AppStrings.settingsCategoryAppearanceSound);
-    await tester.ensureVisible(appearance);
-    await tester.tap(appearance);
+  testWidgets('appearance page holds audio, not a11y toggles', (tester) async {
+    await pumpOnAbout(tester);
+    unawaited(router.push(SettingsDestination.appearanceAndSound.route));
     await tester.pumpAndSettle();
+
     expect(find.text(AppStrings.settingsAudioSectionTitle), findsOneWidget);
     expect(find.text(AppStrings.settingsA11ySectionTitle), findsNothing);
-
-    // Back to landing, then accessibility holds the reading/sensory toggles.
-    await tester.tap(find.byIcon(Icons.arrow_back_rounded));
-    await tester.pumpAndSettle();
-
-    final a11y = find.text(AppStrings.settingsCategoryAccessibility);
-    await tester.ensureVisible(a11y);
-    await tester.tap(a11y);
-    await tester.pumpAndSettle();
-    expect(find.text(AppStrings.settingsA11ySectionTitle), findsOneWidget);
-    expect(find.text(AppStrings.settingsAudioSectionTitle), findsNothing);
-
-    await tester.tap(find.byIcon(Icons.arrow_back_rounded));
-    await tester.pumpAndSettle();
-    expect(find.text(AppStrings.settingsTitle), findsOneWidget);
   });
 
-  testWidgets('advanced hub shows four entries and in-page legacy page',
+  testWidgets('accessibility page holds reading/sensory toggles',
       (tester) async {
-    await tester.pumpWidget(wrap(const SettingsPage()));
+    await pumpOnAbout(tester);
+    unawaited(router.push(SettingsDestination.accessibility.route));
     await tester.pumpAndSettle();
 
-    final advanced = find.text(AppStrings.settingsCategoryAdvanced);
-    await tester.ensureVisible(advanced);
-    await tester.tap(advanced);
+    expect(find.text(AppStrings.settingsA11ySectionTitle), findsOneWidget);
+    expect(find.text(AppStrings.settingsAudioSectionTitle), findsNothing);
+  });
+
+  testWidgets(
+      'advanced hub shows four entries; legacy tunables live on their own route',
+      (tester) async {
+    await pumpOnAbout(tester);
+    unawaited(router.push(SettingsDestination.advanced.route));
     await tester.pumpAndSettle();
 
     expect(find.text(AppStrings.settingsAdvancedAiConnectionTitle),
         findsOneWidget);
-    expect(
-        find.text(AppStrings.settingsAdvancedStorageTitle), findsOneWidget);
+    expect(find.text(AppStrings.settingsAdvancedStorageTitle), findsOneWidget);
     expect(find.text(AppStrings.settingsAdvancedSystemHealthTitle),
         findsOneWidget);
     expect(find.text(AppStrings.settingsAdvancedLegacyTitle), findsOneWidget);
@@ -151,32 +200,45 @@ void main() {
         findsOneWidget);
     expect(
         find.text(AppStrings.settingsLegacyLiteThresholdTitle), findsOneWidget);
-    expect(find.text(AppStrings.settingsLegacyResetDefaultsTitle),
-        findsWidgets);
+    expect(
+        find.text(AppStrings.settingsLegacyResetDefaultsTitle), findsWidgets);
 
     // Back returns to the advanced hub, not the landing list.
-    await tester.tap(find.byIcon(Icons.arrow_back_rounded));
+    await tester.pageBack();
     await tester.pumpAndSettle();
     expect(find.text(AppStrings.settingsAdvancedAiConnectionTitle),
         findsOneWidget);
   });
 
-  testWidgets('external SettingsNavRequest opens the destination directly',
+  testWidgets('system back from a category pops the routed page',
       (tester) async {
-    final controller = SettingsNavController();
-    getIt.registerSingleton<SettingsNavController>(controller);
-    addTearDown(() => getIt.reset());
+    // The learning page needs the full AnkiDeckManager graph from GetIt;
+    // navigation semantics are identical for every category, so the
+    // accessibility page (same scaffold, no extra DI) stands in here.
+    await pumpOnAbout(tester);
+    unawaited(router.push(SettingsDestination.accessibility.route));
+    await tester.pumpAndSettle();
+    expect(find.text(AppStrings.settingsA11ySectionTitle), findsOneWidget);
 
-    await tester.pumpWidget(wrap(const SettingsPage()));
+    await router.maybePop();
+    await tester.pumpAndSettle();
+    expect(find.text(AppStrings.settingsA11ySectionTitle), findsNothing);
+  });
+
+  testWidgets('openSettings switches tab and pushes the target route',
+      (tester) async {
+    await pumpOnAbout(tester);
+
+    final ctx = tester.element(find.byType(Navigator).first);
+    // openSettings awaits the pushed route's pop future by design; callers
+    // that only need the navigation started (like this test) fire-and-pump.
+    unawaited(openSettings(ctx, SettingsDestination.dataAndBackup));
     await tester.pumpAndSettle();
 
-    controller.open(const SettingsNavRequest(
-      destination: SettingsDestination.advanced,
-      anchor: SettingsAdvancedAnchor.legacyCompatibility,
-    ));
-    await tester.pumpAndSettle();
-
-    // Landed on Advanced -> 旧版与兼容性 without any manual taps.
-    expect(find.text(AppStrings.settingsLegacyDecryptTitle), findsOneWidget);
+    expect(
+      find.text(AppStrings.settingsExportDataTitle),
+      findsOneWidget,
+      reason: 'deep link should land directly on the data & backup page',
+    );
   });
 }

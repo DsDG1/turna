@@ -44,8 +44,7 @@ void main() {
     await expectLater(bad.probe(), throwsA(isA<WebDavAuthException>()));
   });
 
-  test('mkcolRecursive creates nested collections and is idempotent',
-      () async {
+  test('mkcolRecursive creates nested collections and is idempotent', () async {
     await client.mkcolRecursive('/TurnaBackup/backups/bk-1');
     await client.mkcolRecursive('/TurnaBackup/backups/bk-1');
     expect(await client.exists('/TurnaBackup'), isTrue);
@@ -114,8 +113,7 @@ void main() {
     await client.mkcolRecursive('/TurnaBackup');
     await client.putBytes('/TurnaBackup/manifest.json.tmp', utf8Json);
     // Pre-existing target proves the Overwrite: T header path.
-    await client.putBytes(
-        '/TurnaBackup/manifest.json', <int>[1, 2, 3]);
+    await client.putBytes('/TurnaBackup/manifest.json', <int>[1, 2, 3]);
     await client.move(
         '/TurnaBackup/manifest.json.tmp', '/TurnaBackup/manifest.json');
     expect(await client.exists('/TurnaBackup/manifest.json.tmp'), isFalse);
@@ -124,4 +122,16 @@ void main() {
   });
 }
 
-const utf8Json = [123, 34, 111, 107, 34, 58, 116, 114, 117, 101, 125]; // {"ok":true}
+const utf8Json = [
+  123,
+  34,
+  111,
+  107,
+  34,
+  58,
+  116,
+  114,
+  117,
+  101,
+  125
+]; // {"ok":true}

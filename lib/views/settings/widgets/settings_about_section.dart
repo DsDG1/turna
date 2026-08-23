@@ -7,6 +7,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 // Project imports:
 import 'package:turna/application/anki_official/official_anki_license_notices.dart';
+import 'package:turna/application/settings/app_build_info.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/l10n/app_strings.dart';
@@ -18,6 +19,13 @@ Future<PackageInfo>? _packageInfoFuture;
 Future<PackageInfo> _loadPackageInfo() =>
     _packageInfoFuture ??= PackageInfo.fromPlatform();
 
+/// Cached once per process — the single version source for every Settings
+/// surface (Plan §16.3): no hardcoded fallback, "未知版本" when unavailable.
+Future<AppBuildInfo>? _buildInfoFuture;
+
+Future<AppBuildInfo> _loadBuildInfo() =>
+    _buildInfoFuture ??= AppBuildInfo.load();
+
 class SettingsAboutSection extends StatelessWidget {
   const SettingsAboutSection({super.key});
 
@@ -28,22 +36,15 @@ class SettingsAboutSection extends StatelessWidget {
         SettingsNavigationTile(
           icon: Icons.school_rounded,
           title: AppStrings.settingsAboutTurna,
-          onTap: (context) =>
-              context.router.push(AboutTurnaRoute()),
+          subtitle: '关于 Turna、隐私与更新日志',
+          onTap: (context) => context.router.push(AboutTurnaRoute()),
         ),
         settingsTileDivider(context),
         SettingsNavigationTile(
           icon: Icons.shield_outlined,
           title: AppStrings.privacyDetailsEntry,
           subtitle: AppStrings.privacyDetailsEntrySubtitle,
-          onTap: (context) =>
-              context.router.push(const PrivacyDetailsRoute()),
-        ),
-        settingsTileDivider(context),
-        SettingsNavigationTile(
-          icon: Icons.history_edu_rounded,
-          title: AppStrings.changelogTitle,
-          onTap: (context) => context.router.push(const ChangelogRoute()),
+          onTap: (context) => context.router.push(const PrivacyDetailsRoute()),
         ),
         settingsTileDivider(context),
         SettingsNavigationTile(
@@ -70,14 +71,16 @@ class SettingsVersionFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<PackageInfo>(
-      future: _loadPackageInfo(),
+    return FutureBuilder<AppBuildInfo>(
+      future: _loadBuildInfo(),
       builder: (context, snapshot) {
-        final version = snapshot.data?.version ?? '0.7.0';
-        final build = snapshot.data?.buildNumber ?? '';
-        final label = build.isEmpty
-            ? AppStrings.settingsVersionFooter(version)
-            : AppStrings.settingsVersionFooterWithBuild(version, build);
+        final info = snapshot.data;
+        final label = info == null
+            ? AppStrings.settingsVersionFooter(AppBuildInfo.unknownVersion)
+            : (info.buildNumber.isEmpty
+                ? AppStrings.settingsVersionFooter(info.versionName)
+                : AppStrings.settingsVersionFooterWithBuild(
+                    info.versionName, info.buildNumber));
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Row(
@@ -90,7 +93,7 @@ class SettingsVersionFooter extends StatelessWidget {
                   borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
                 ),
                 child: const Icon(
-                  Icons.info_outline_rounded,
+                  Icons.info_outline,
                   color: TurnaTheme.brandTeal,
                   size: 20,
                 ),

@@ -25,17 +25,16 @@ class WebDavException implements Exception {
 
 /// Server rejected username / password (or the account has no DAV access).
 class WebDavAuthException extends WebDavException {
-  const WebDavAuthException()
-      : super('服务器拒绝了用户名或密码', statusCode: 401);
+  const WebDavAuthException() : super('服务器拒绝了用户名或密码', statusCode: 401);
 }
 
 class WebDavNotFoundException extends WebDavException {
-  WebDavNotFoundException(String path)
-      : super('远端不存在: $path', statusCode: 404);
+  WebDavNotFoundException(String path) : super('远端不存在: $path', statusCode: 404);
 }
 
 class WebDavProbeResult {
-  const WebDavProbeResult({required this.serverHeader, required this.davHeader});
+  const WebDavProbeResult(
+      {required this.serverHeader, required this.davHeader});
 
   final String? serverHeader;
   final String? davHeader;
@@ -57,7 +56,8 @@ class WebDavClient {
   })  : _client = client ?? http.Client(),
         _base = _normalizeBase(baseUrl);
 
-  WebDavClient.fromConfig(RemoteBackupConfig config, {http.Client? client})
+  WebDavClient.fromConfig(RemoteBackupResolvedConfig config,
+      {http.Client? client})
       : this(
           baseUrl: Uri.parse(config.normalized().serverUrl),
           username: config.username.trim(),
@@ -274,6 +274,5 @@ class WebDavClient {
 
 /// Joins remote layout segments into a POSIX-style remote path.
 String davPath(String a, [String? b, String? c]) =>
-    p.posix
-        .joinAll([a, if (b != null) b, if (c != null) c])
-        .replaceAll(RegExp(r'^/+'), '/');
+    p.posix.joinAll([a, if (b != null) b, if (c != null) c]).replaceAll(
+        RegExp(r'^/+'), '/');

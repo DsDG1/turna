@@ -1,0 +1,12 @@
+{
+  "meta": {
+    "schemaVersion": 3,
+    "appId": "me.dsdogs.turna",
+    "appVersion": "9.9.9",
+    "createdAtUtc": "2030-01-01T00:00:00Z",
+    "contents": [
+      "progress"
+    ]
+  },
+  "progress": {}
+}

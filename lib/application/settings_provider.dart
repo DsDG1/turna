@@ -119,6 +119,14 @@ class SettingsProvider extends ChangeNotifier {
         .getValue();
   }
 
+  /// Re-reads every persisted setting and notifies listeners. Used after a
+  /// backup restore so displayed values match the persisted snapshot without
+  /// an app restart (PostRestoreReloadRegistry step).
+  void reload() {
+    _load();
+    notifyListeners();
+  }
+
   Future<void> setSoundEffects(bool value) async {
     _soundEffectsEnabled = value;
     await _appPrefs.setBool(LocalStateKeys.soundEffects, value: value);
@@ -172,7 +180,8 @@ class SettingsProvider extends ChangeNotifier {
   }
 
   Future<void> setAutoReadOnTapFor(String scope, bool value) async {
-    await _appPrefs.setBool(LocalStateKeys.autoReadOnTapKey(scope), value: value);
+    await _appPrefs.setBool(LocalStateKeys.autoReadOnTapKey(scope),
+        value: value);
     notifyListeners();
   }
 
@@ -221,17 +230,25 @@ class SettingsProvider extends ChangeNotifier {
     final clamped = value.clamp(0.8, 0.95);
     _srsDesiredRetention = clamped;
     await _appPrefs.setDouble(LocalStateKeys.srsDesiredRetention, clamped);
-    // Hot-reload FSRS engines without restarting the app.
-    try {
+    // Hot-reload FSRS engines without restarting the app. Guarded by
+    // isRegistered instead of a swallow-all catch: a scheduling consumer
+    // that IS registered but fails must surface, not silently drift.
+    if (getIt.isRegistered<SrsProvider>()) {
       getIt<SrsProvider>().setDesiredRetention(clamped);
+    }
+    if (getIt.isRegistered<GrammarReviewProvider>()) {
       getIt<GrammarReviewProvider>().setDesiredRetention(clamped);
-    } catch (_) {
-      // DI not ready in some tests — prefs still updated.
     }
     notifyListeners();
   }
 
   /// Persist optimized FSRS weights and refresh schedulers.
+  ///
+  /// DEPRECATED orchestration shim: the transactional implementation lives
+  /// in [ApplyFsrsParametersCommand] (both consumers must succeed before
+  /// the optimized metadata is written). This shim remains for callers that
+  /// only need the display state refreshed and is scheduled for removal
+  /// once all call sites use the command.
   Future<void> applyFsrsParameters(
     List<double> parameters, {
     required int reviewCount,
@@ -239,7 +256,9 @@ class SettingsProvider extends ChangeNotifier {
     try {
       await getIt<SrsProvider>().setFsrsParameters(parameters);
       await getIt<GrammarReviewProvider>().setFsrsParameters(parameters);
-    } catch (_) {}
+    } on Object catch (error) {
+      throw StateError('FSRS consumers failed to apply parameters: $error');
+    }
     final now = DateTime.now().toIso8601String();
     await _appPrefs.setString(LocalStateKeys.srsFsrsOptimizedAt, now);
     await _appPrefs.setInt(LocalStateKeys.srsFsrsOptimizedReviews, reviewCount);
@@ -249,11 +268,15 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Clear custom FSRS weights. Same transactional note as
+  /// [applyFsrsParameters] — prefer [ApplyFsrsParametersCommand].
   Future<void> clearFsrsParameters() async {
     try {
       await getIt<SrsProvider>().setFsrsParameters(null);
       await getIt<GrammarReviewProvider>().setFsrsParameters(null);
-    } catch (_) {}
+    } on Object catch (error) {
+      throw StateError('FSRS consumers failed to clear parameters: $error');
+    }
     await _appPrefs.setString(LocalStateKeys.srsFsrsParameters, '');
     await _appPrefs.setString(LocalStateKeys.srsFsrsOptimizedAt, '');
     await _appPrefs.setInt(LocalStateKeys.srsFsrsOptimizedReviews, 0);
@@ -267,7 +290,8 @@ class SettingsProvider extends ChangeNotifier {
   ///
   /// Does **not** change target language, theme, accessibility, sound/haptics,
   /// or lesson progress — only TTS speed, daily reminder, and SRS desired
-  /// retention.
+  /// retention. Orchestration (audio, reminder schedule, Anki limits) lives
+  /// in [ResetLearningSettingsCommand] — the provider only owns the prefs.
   Future<void> resetLearningDefaults() async {
     _ttsSpeed = 1.0;
     _dailyReminderEnabled = false;
@@ -279,10 +303,12 @@ class SettingsProvider extends ChangeNotifier {
     await _appPrefs.setInt(LocalStateKeys.dailyReminderHour, 19);
     await _appPrefs.setInt(LocalStateKeys.dailyReminderMinute, 0);
     await _appPrefs.setDouble(LocalStateKeys.srsDesiredRetention, 0.9);
-    try {
+    if (getIt.isRegistered<SrsProvider>()) {
       getIt<SrsProvider>().setDesiredRetention(0.9);
+    }
+    if (getIt.isRegistered<GrammarReviewProvider>()) {
       getIt<GrammarReviewProvider>().setDesiredRetention(0.9);
-    } catch (_) {}
+    }
     notifyListeners();
   }
 

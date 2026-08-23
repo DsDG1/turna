@@ -104,26 +104,23 @@ class LocalReminderService {
     // Use periodicallyShow as a workaround since timezone package
     // is not compatible with Dart 3.6.2 (Flutter-OH).
     // This shows a daily notification at approximately 24-hour intervals.
-    try {
-      await _plugin.periodicallyShow(
-        notificationId,
-        'Turna',
-        reminderBody,
-        RepeatInterval.daily,
-        details,
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-      );
-    } catch (e) {
-      debugPrint('LocalReminderService schedule failed: $e');
-    }
+    //
+    // Scheduling failures PROPAGATE: UpdateDailyReminderCommand must know
+    // the OS refused the schedule so it never commits the preference (and
+    // the UI never shows "enabled" for a reminder that will not fire).
+    // Boot-time callers wrap this in a best-effort try/catch.
+    await _plugin.periodicallyShow(
+      notificationId,
+      'Turna',
+      reminderBody,
+      RepeatInterval.daily,
+      details,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+    );
   }
 
   Future<void> cancel() async {
     if (kIsWeb) return;
-    try {
-      await _plugin.cancel(notificationId);
-    } catch (e) {
-      debugPrint('LocalReminderService cancel failed: $e');
-    }
+    await _plugin.cancel(notificationId);
   }
 }

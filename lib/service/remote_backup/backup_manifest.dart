@@ -179,7 +179,8 @@ class RemoteBackupManifest {
       history: [
         if (historyRaw is List)
           for (final e in historyRaw)
-            if (e is Map<String, dynamic>) RemoteBackupManifestEntry.fromJson(e),
+            if (e is Map<String, dynamic>)
+              RemoteBackupManifestEntry.fromJson(e),
       ],
     );
   }

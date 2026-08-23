@@ -1,8 +1,16 @@
+// Unit tests for the system-health state machine (Plan §15):
+// detected / acknowledged / mitigation / checkPassed / resolved / expired
+// are separate concepts; no manual score deduction exists; resolution only
+// comes from system evidence.
+
+// Flutter imports:
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
+
+// Project imports:
 import 'package:turna/application/system_health_monitor.dart';
 import 'package:turna/core/log_capture.dart';
 import 'package:turna/service/locator.dart';
@@ -10,184 +18,209 @@ import 'package:turna/service/locator.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  late StreamingSharedPreferences sp;
+  late AppPrefs prefs;
   late ValueNotifier<List<LogEntry>> logs;
-  late SystemHealthMonitor monitor;
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
-    final streaming = await StreamingSharedPreferences.instance;
-    await streaming.setString(LocalStateKeys.systemHealthEvent, '');
+    sp = await StreamingSharedPreferences.instance;
+    await sp.setString(LocalStateKeys.systemHealthEvent, '');
+    prefs = AppPrefs(sp);
     logs = ValueNotifier<List<LogEntry>>([]);
-    monitor = SystemHealthMonitor(AppPrefs(streaming));
-    await monitor.install(logs);
   });
 
-  Future<void> settle() async {
-    await Future<void>.delayed(const Duration(milliseconds: 20));
+  SystemHealthMonitor installMonitor({
+    Future<String> Function()? integrityProbe,
+  }) {
+    return SystemHealthMonitor(prefs, integrityProbe: integrityProbe);
   }
 
-  test('fatal enters critical state immediately', () async {
+  LogEntry errorEntry(String message, {DateTime? at}) => LogEntry(
+        timestamp: at ?? DateTime.now(),
+        level: Level.error,
+        message: message,
+      );
+
+  test('starts normal with no logs', () async {
+    final monitor = installMonitor();
+    await monitor.install(logs);
+    expect(monitor.level, SystemHealthLevel.normal);
+    expect(monitor.score, 0);
+    expect(monitor.resolved, isFalse); // no self-check ran yet
+    expect(monitor.hasUnacknowledgedAlert, isFalse);
+    expect(monitor.hasDataIntegrityBlock, isFalse);
+  });
+
+  test('distinct error groups aggregate into attention', () async {
+    final monitor = installMonitor();
+    await monitor.install(logs);
+
+    final now = DateTime.now();
+    logs.value = [
+      for (var i = 0; i < 4; i++)
+        errorEntry('distinct-error-$i', at: now.add(Duration(seconds: i))),
+    ];
+    await Future<void>.delayed(Duration.zero);
+
+    // 4 distinct fingerprints x 3 points = 12 -> attention, unacknowledged.
+    expect(monitor.score, 12);
+    expect(monitor.level, SystemHealthLevel.attention);
+    expect(monitor.hasUnacknowledgedAlert, isTrue);
+  });
+
+  test('a fatal group pins the level at critical', () async {
+    final monitor = installMonitor();
+    await monitor.install(logs);
+
     logs.value = [
       LogEntry(
         timestamp: DateTime.now(),
         level: Level.fatal,
-        message: 'database unavailable',
+        message: 'fatal-boom',
       ),
     ];
-    await settle();
+    await Future<void>.delayed(Duration.zero);
+
+    expect(monitor.score, SystemHealthMonitor.alertThreshold);
     expect(monitor.level, SystemHealthLevel.critical);
-    expect(monitor.score, greaterThanOrEqualTo(30));
-    expect(monitor.shouldShowCriticalDialog, isTrue);
   });
 
-  test('30 identical loop errors form one group and one score bucket',
+  test('acknowledge hides the alert but never fakes resolution', () async {
+    final monitor = installMonitor();
+    await monitor.install(logs);
+
+    final now = DateTime.now();
+    logs.value = [
+      for (var i = 0; i < 15; i++)
+        errorEntry('ack-error-$i', at: now.add(Duration(seconds: i))),
+    ];
+    await Future<void>.delayed(Duration.zero);
+    expect(monitor.hasUnacknowledgedAlert, isTrue);
+
+    await monitor.acknowledge();
+    expect(monitor.hasUnacknowledgedAlert, isFalse);
+    expect(monitor.acknowledged, isTrue);
+    // Acknowledging changed NOTHING about the facts:
+    expect(monitor.score, 45);
+    expect(monitor.level, SystemHealthLevel.critical);
+    expect(monitor.resolved, isFalse);
+  });
+
+  test('self-check does not resolve while the score is still high', () async {
+    final monitor = installMonitor(integrityProbe: () async => 'ok');
+    await monitor.install(logs);
+
+    final now = DateTime.now();
+    logs.value = [
+      for (var i = 0; i < 15; i++)
+        errorEntry('resolve-error-$i', at: now.add(Duration(seconds: i))),
+    ];
+    await Future<void>.delayed(Duration.zero);
+
+    final passed = await monitor.runSelfCheck();
+    expect(passed, isFalse);
+    expect(monitor.resolved, isFalse);
+  });
+
+  test('self-check resolves a decayed event and clears the integrity flag',
       () async {
-    final start = DateTime.now();
-    logs.value = [
-      for (var i = 0; i < 30; i++)
-        LogEntry(
-          timestamp: start.add(Duration(milliseconds: i)),
-          level: Level.error,
-          message: 'WebView failed id=${10000 + i}',
-        ),
-    ];
-    await settle();
-    expect(monitor.event.groups, hasLength(1));
-    expect(monitor.event.groups.values.single.count, 30);
-    expect(monitor.score, 3);
+    final monitor = installMonitor(integrityProbe: () async => 'ok');
+    await monitor.install(logs);
+
+    // No active groups: an acknowledged old event with a passing probe.
+    await monitor.reportDataIntegrityRisk('probe says suspicious');
+    expect(monitor.hasDataIntegrityBlock, isTrue);
+
+    final passed = await monitor.runSelfCheck();
+    expect(passed, isTrue);
+    expect(monitor.resolved, isTrue);
+    expect(monitor.hasDataIntegrityBlock, isFalse,
+        reason: 'passing integrity clears the hazard flag');
   });
 
-  test('warning score reaches attention at ten distinct groups', () async {
-    final start = DateTime.now();
-    logs.value = [
-      for (var i = 0; i < 10; i++)
-        LogEntry(
-          timestamp: start.add(Duration(milliseconds: i)),
-          level: Level.warning,
-          message: 'module-${String.fromCharCode(65 + i)} failed',
-        ),
-    ];
-    await settle();
-    expect(monitor.score, 10);
-    expect(monitor.level, SystemHealthLevel.attention);
+  test('integrity failure keeps the event unresolved', () async {
+    final monitor = installMonitor(integrityProbe: () async => 'corrupt page');
+    await monitor.install(logs);
+    final passed = await monitor.runSelfCheck();
+    expect(passed, isFalse);
+    expect(monitor.resolved, isFalse);
   });
 
-  test('mark handled keeps history but new error creates new event', () async {
-    final first = DateTime.now();
-    logs.value = [
-      LogEntry(timestamp: first, level: Level.fatal, message: 'fatal one'),
-    ];
-    await settle();
-    final oldId = monitor.event.id;
-    await monitor.markHandled();
+  test('a new detection invalidates prior check evidence and reopens the alert',
+      () async {
+    final monitor = installMonitor(integrityProbe: () async => 'ok');
+    await monitor.install(logs);
+
+    await monitor.acknowledge();
+    await monitor.runSelfCheck();
+    expect(monitor.resolved, isTrue);
 
     logs.value = [
       LogEntry(
-        timestamp: first.add(const Duration(seconds: 1)),
-        level: Level.warning,
-        message: 'new warning',
+        timestamp: DateTime.now().add(const Duration(minutes: 1)),
+        level: Level.error,
+        message: 'fresh-error',
       ),
-      ...logs.value,
     ];
-    await settle();
-    expect(monitor.event.id, isNot(oldId));
-    expect(monitor.event.handled, isFalse);
-    expect(monitor.score, 1);
+    await Future<void>.delayed(Duration.zero);
+    expect(monitor.acknowledged, isFalse,
+        reason: 'new detection reopens the alert');
   });
 
-  test('safe mode exits without mutating event history', () async {
+  test('score decays as groups age out of the active window', () async {
+    final old = DateTime.now()
+        .subtract(const Duration(hours: 25))
+        .millisecondsSinceEpoch;
+    await prefs.preferences.setString(
+      LocalStateKeys.systemHealthEvent,
+      '{"id":"health-old","firstAt":$old,"lastAt":$old,'
+      '"lastProcessedAt":$old,"groups":{'
+      '"f1":{"fingerprint":"f1","level":"error","message":"old",'
+      '"module":"x","count":9,"firstAt":$old,"lastAt":$old,'
+      '"lastScoredAt":$old}},'
+      '"dialogShown":true,"acknowledged":true,"safeMode":false,'
+      '"checkPassed":false,"dataIntegrityBlock":false,'
+      '"dataIntegrityReason":"","appVersion":"unknown"}',
+    );
+    final reloaded = SystemHealthMonitor(prefs);
+    await reloaded.install(logs);
+    expect(reloaded.score, 0);
+    expect(reloaded.level, SystemHealthLevel.normal);
+  });
+
+  test('data-integrity hazard is a dedicated flag, independent of scores',
+      () async {
+    final monitor = installMonitor();
+    await monitor.install(logs);
+
+    expect(monitor.hasDataIntegrityBlock, isFalse);
+    await monitor.reportDataIntegrityRisk('deck media mismatch /db/x');
+    expect(monitor.hasDataIntegrityBlock, isTrue);
+    expect(monitor.dataIntegrityReason, contains('deck media mismatch'));
+    // No log entries were needed and the log score is untouched.
+    expect(monitor.score, 0);
+  });
+
+  test('legacy `handled` events load as acknowledged', () async {
+    await prefs.preferences.setString(
+      LocalStateKeys.systemHealthEvent,
+      '{"id":"health-legacy","firstAt":1,"lastAt":1,"lastProcessedAt":1,'
+      '"groups":{},"dialogShown":true,"acknowledged":false,'
+      '"handled":true,"safeMode":false,"appVersion":"unknown"}',
+    );
+    final monitor = SystemHealthMonitor(prefs);
+    await monitor.install(logs);
+    expect(monitor.acknowledged, isTrue);
+  });
+
+  test('safe mode is a runtime overlay flag', () async {
+    final monitor = installMonitor();
+    await monitor.install(logs);
+    expect(monitor.safeMode, isFalse);
     await monitor.setSafeMode(true);
     expect(monitor.safeMode, isTrue);
     await monitor.setSafeMode(false);
     expect(monitor.safeMode, isFalse);
-    expect(monitor.event.groups, isEmpty);
-  });
-
-  test('critical event persists across restart without repeating dialog',
-      () async {
-    final fatal = LogEntry(
-      timestamp: DateTime.now(),
-      level: Level.fatal,
-      message: 'persistent fatal',
-    );
-    logs.value = [fatal];
-    await settle();
-    await monitor.markDialogShown();
-
-    final streaming = await StreamingSharedPreferences.instance;
-    final restarted = SystemHealthMonitor(AppPrefs(streaming));
-    final restoredLogs = ValueNotifier<List<LogEntry>>([fatal]);
-    await restarted.install(restoredLogs);
-
-    expect(restarted.level, SystemHealthLevel.critical);
-    expect(restarted.score, monitor.score);
-    expect(restarted.shouldShowCriticalDialog, isFalse);
-  });
-
-  test('clearing the log source does not claim the incident is resolved',
-      () async {
-    logs.value = [
-      LogEntry(
-        timestamp: DateTime.now(),
-        level: Level.fatal,
-        message: 'fatal before clear',
-      ),
-    ];
-    await settle();
-    logs.value = const [];
-    await settle();
-    expect(monitor.level, SystemHealthLevel.critical);
-    expect(monitor.event.handled, isFalse);
-  });
-
-  test('score reaches 40 triggers shouldForceRedirect and reduces 40 on confirm',
-      () async {
-    final start = DateTime.now();
-    // 14 distinct errors = 14 * 3 = 42 points (> 40)
-    logs.value = [
-      for (var i = 0; i < 14; i++)
-        LogEntry(
-          timestamp: start.add(Duration(milliseconds: i)),
-          level: Level.error,
-          message: 'error-$i occurred',
-        ),
-    ];
-    await settle();
-    expect(monitor.score, 42);
-    expect(monitor.isScoreExceeded, isTrue);
-    expect(monitor.shouldForceRedirect, isTrue);
-
-    // Confirm and deduct 40
-    await monitor.confirmAndDeductScore(40);
-    expect(monitor.score, 2); // 42 - 40 = 2 (not below 0)
-    expect(monitor.isScoreExceeded, isFalse);
-    expect(monitor.shouldForceRedirect, isFalse);
-    expect(monitor.event.handled, isTrue);
-
-    // New errors accumulate from 2 points
-    // 13 more errors = 13 * 3 = 39 points; 2 + 39 = 41 (> 40)
-    logs.value = [
-      ...logs.value,
-      for (var i = 14; i < 27; i++)
-        LogEntry(
-          timestamp: start.add(Duration(seconds: 10 + i)),
-          level: Level.error,
-          message: 'error-$i occurred',
-        ),
-    ];
-    await settle();
-    expect(monitor.score, 41);
-    expect(monitor.isScoreExceeded, isTrue);
-    expect(monitor.shouldForceRedirect, isTrue);
-
-    // Confirm again to deduct 40: 41 - 40 = 1
-    await monitor.confirmAndDeductScore(40);
-    expect(monitor.score, 1);
-    expect(monitor.isScoreExceeded, isFalse);
-    expect(monitor.shouldForceRedirect, isFalse);
-
-    // If score is 1 and deduct 40 -> drops to 0, not below 0
-    await monitor.confirmAndDeductScore(40);
-    expect(monitor.score, 0);
   });
 }

@@ -46,11 +46,14 @@ class ExternalLinkDescriptor {
 /// show an explicit "未配置" state instead of opening a guessed legacy
 /// GitHub path. Fill in one place; about page, GUI-migration tombstone and
 /// diagnostics all read from here.
-const Map<ExternalLinkId, String?> kExternalLinkUrls = <ExternalLinkId, String?>{
+const Map<ExternalLinkId, String?> kExternalLinkUrls =
+    <ExternalLinkId, String?>{
   ExternalLinkId.projectHome: null, // e.g. 'https://example.org/turna'
   ExternalLinkId.issueTracker: null, // e.g. 'https://example.org/turna/issues'
-  ExternalLinkId.releaseNotes: null, // e.g. 'https://example.org/turna/releases'
-  ExternalLinkId.privacyPolicy: null, // e.g. 'https://example.org/turna/privacy'
+  ExternalLinkId.releaseNotes:
+      null, // e.g. 'https://example.org/turna/releases'
+  ExternalLinkId.privacyPolicy:
+      null, // e.g. 'https://example.org/turna/privacy'
   ExternalLinkId.guiPlatform: null, // e.g. 'https://gui.example.org'
   ExternalLinkId.cliDocs: null, // e.g. 'https://example.org/turna/docs/cli'
 };
@@ -113,7 +116,12 @@ class ExternalLinkRegistry {
   }
 }
 
-enum ExternalLinkLaunchOutcome { launched, notConfigured, invalidScheme, failed }
+enum ExternalLinkLaunchOutcome {
+  launched,
+  notConfigured,
+  invalidScheme,
+  failed
+}
 
 /// Open a link and surface the outcome to the user: success is silent, every
 /// failure shows a reason plus a "copy address" action so the user can retry

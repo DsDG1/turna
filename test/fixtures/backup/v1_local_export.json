@@ -1,0 +1,27 @@
+{
+  "meta": {
+    "app": "me.dsdogs.turna",
+    "version": "0.7.0",
+    "buildNumber": "1",
+    "language": "turkish",
+    "exportedAt": "2026-08-01T00:00:00Z",
+    "schema": 1,
+    "contents": {
+      "progress": true,
+      "course": true
+    }
+  },
+  "progress": {
+    "game.score": 120,
+    "game.streak": 7,
+    "settings.ttsSpeed": 1.25,
+    "settings.dailyReminderEnabled": true,
+    "settings.dailyReminderHour": 19,
+    "settings.dailyReminderMinute": 30,
+    "settings.textScale": 130
+  },
+  "course": {
+    "courses/index.json": "{}",
+    "courses/vocabulary.json": "[]"
+  }
+}

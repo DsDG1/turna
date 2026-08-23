@@ -303,9 +303,7 @@ class _DeviceInfoCardState extends State<_DeviceInfoCard> {
     final tzLabel = DateTime.now().timeZoneName;
     final versionLabel = _loading
         ? '…'
-        : (_info == null
-            ? '—'
-            : '${_info!.version} (${_info!.buildNumber})');
+        : (_info == null ? '—' : '${_info!.version} (${_info!.buildNumber})');
 
     final rows = <_DeviceRow>[
       _DeviceRow(
@@ -451,10 +449,7 @@ class _FooterNote extends StatelessWidget {
                   Expanded(
                     child: Text(
                       '${AppStrings.transparencyLogFileLabel}: ${file.path}',
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: TurnaTheme.textHintColor(context),
                           ),
                       maxLines: 3,
@@ -493,9 +488,8 @@ class _CardMetaRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = kind == _LogKind.error
-        ? const Color(0xFFC62828)
-        : TurnaTheme.brandTeal;
+    final color =
+        kind == _LogKind.error ? const Color(0xFFC62828) : TurnaTheme.brandTeal;
     final label = kind == _LogKind.error
         ? AppStrings.transparencyErrorTitle
         : AppStrings.transparencyOpsTitle;
@@ -581,13 +575,12 @@ class _LogLineState extends State<_LogLine> {
                       width: 64,
                       child: Text(
                         time,
-                        style:
-                            Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: TurnaTheme.textHintColor(context),
-                                  fontFeatures: const [
-                                    FontFeature.tabularFigures(),
-                                  ],
-                                ),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: TurnaTheme.textHintColor(context),
+                          fontFeatures: const [
+                            FontFeature.tabularFigures(),
+                          ],
+                        ),
                       ),
                     ),
                     Container(
@@ -611,10 +604,7 @@ class _LogLineState extends State<_LogLine> {
                     Expanded(
                       child: Text(
                         entry.displayMessage,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: TurnaTheme.textSecondaryColor(context),
                               height: 1.4,
                             ),
@@ -726,10 +716,10 @@ class _DeviceRow extends StatelessWidget {
             value,
             textAlign: TextAlign.right,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: TurnaTheme.textPrimaryColor(context),
-                  fontWeight: FontWeight.w600,
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
+              color: TurnaTheme.textPrimaryColor(context),
+              fontWeight: FontWeight.w600,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),

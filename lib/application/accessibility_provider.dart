@@ -72,6 +72,14 @@ class AccessibilityProvider extends ChangeNotifier {
         .getValue();
   }
 
+  /// Re-reads every accessibility pref and notifies listeners. Used after a
+  /// backup restore so the running theme matches the restored snapshot
+  /// without an app restart (PostRestoreReloadRegistry step).
+  void reload() {
+    _load();
+    notifyListeners();
+  }
+
   Future<void> setTextScale(int value) async {
     final clamped = value.clamp(100, 200);
     _textScale = clamped;

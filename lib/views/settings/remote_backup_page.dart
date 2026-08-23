@@ -20,6 +20,12 @@ import 'package:turna/views/theme.dart';
 /// Manual WebDAV remote backup / restore. Everything is user-triggered:
 /// "立即备份" snapshots + uploads, "从远程恢复" downloads + stages the
 /// restore for the next boot (see RestoreApplier).
+///
+/// Credentials: the password lives only in the platform secure store. The
+/// form shows a "已保存凭据" placeholder instead of echoing it back, and the
+/// password field only replaces the stored credential when the user types
+/// something. Edits are persisted via the explicit "保存并测试" action —
+/// never per keystroke.
 @RoutePage()
 class RemoteBackupPage extends StatefulWidget {
   const RemoteBackupPage({super.key});
@@ -34,7 +40,15 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
   late final TextEditingController _passwordCtrl;
   bool _obscurePassword = true;
 
-  RemoteBackupConfig _config = const RemoteBackupConfig();
+  RemoteBackupEndpointConfig _endpoint = const RemoteBackupEndpointConfig();
+  bool _credentialStored = false;
+
+  /// True when URL / username / password fields diverge from the persisted
+  /// state. Editing anything also invalidates a previous connection-test
+  /// result — a green checkmark must never survive an edit.
+  bool _dirty = false;
+
+  bool _saving = false;
   bool _testing = false;
   String? _testResult; // null = no result yet
   bool _testOk = false;
@@ -47,31 +61,53 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
   String? _remoteStatusText;
   String? _blockedNotice;
 
-  RemoteBackupService? get _service =>
-      getIt.isRegistered<RemoteBackupService>() ? getIt<RemoteBackupService>()
+  RemoteBackupService? get _service => getIt.isRegistered<RemoteBackupService>()
+      ? getIt<RemoteBackupService>()
       : null;
+
+  RemoteBackupConfigStore? get _configStore =>
+      getIt.isRegistered<RemoteBackupConfigStore>()
+          ? getIt<RemoteBackupConfigStore>()
+          : null;
 
   bool get _supported =>
       defaultTargetPlatform.name != 'ohos' && _service != null;
 
+  bool get _busy => _saving || _testing || _backingUp || _restoring;
+
+  bool get _canSave =>
+      _dirty &&
+      !_busy &&
+      _urlCtrl.text.trim().isNotEmpty &&
+      _userCtrl.text.trim().isNotEmpty;
+
+  /// Actions require a saved, fully configured endpoint + credential.
+  Future<bool> get _isConfigured async {
+    if (_dirty) return false;
+    final resolved = await _configStore?.loadResolved();
+    return resolved?.isConfigured ?? false;
+  }
+
   @override
   void initState() {
     super.initState();
-    final service = _service;
-    RemoteBackupConfig? stored;
-    if (getIt.isRegistered<RemoteBackupConfigStore>()) {
-      stored = getIt<RemoteBackupConfigStore>().load();
-    } else if (service != null) {
-      stored = null;
+    final store = _configStore;
+    if (store != null) {
+      _endpoint = store.loadEndpoint();
+      _credentialStored = false;
+      store.hasStoredPassword().then((stored) {
+        if (mounted) setState(() => _credentialStored = stored);
+      });
     }
-    final config = stored ?? const RemoteBackupConfig();
-    _config = config;
-    _urlCtrl = TextEditingController(text: config.serverUrl)
-      ..addListener(_commit);
-    _userCtrl = TextEditingController(text: config.username)
-      ..addListener(_commit);
-    _passwordCtrl = TextEditingController(text: config.password)
-      ..addListener(_commit);
+    _urlCtrl = TextEditingController(text: _endpoint.serverUrl);
+    _userCtrl = TextEditingController(text: _endpoint.username);
+    // Never echo the stored password back into an editable field — the hint
+    // communicates presence, a new entry replaces it.
+    _passwordCtrl = TextEditingController();
+    for (final controller in [_urlCtrl, _userCtrl, _passwordCtrl]) {
+      controller.addListener(_onFieldEdited);
+    }
+    final service = _service;
     if (service != null) {
       _lastLocal = service.lastLocalBackup();
       _blockedNotice = _readBlockedNotice();
@@ -81,10 +117,29 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
 
   @override
   void dispose() {
+    // Detach listeners first so the scrub below cannot notify a defunct
+    // element, then scrub the password draft so it does not outlive the
+    // page.
+    for (final controller in [_urlCtrl, _userCtrl, _passwordCtrl]) {
+      controller.removeListener(_onFieldEdited);
+    }
+    _passwordCtrl.clear();
     _urlCtrl.dispose();
     _userCtrl.dispose();
     _passwordCtrl.dispose();
     super.dispose();
+  }
+
+  void _onFieldEdited() {
+    // Always rebuild: the save button's enabled state is derived from the
+    // controller texts at BUILD time, so skipping setState once _dirty is
+    // already true would leave the button disabled after the second field
+    // edit.
+    setState(() {
+      _dirty = true;
+      _testResult = null;
+      _testOk = false;
+    });
   }
 
   String? _readBlockedNotice() {
@@ -99,15 +154,16 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
 
   Future<void> _refreshRemoteStatus() async {
     final service = _service;
-    if (service == null || !_config.isConfigured) return;
-    setState(() =>
-        _remoteStatusText = AppStrings.remoteBackupRemoteStatusLoading);
+    if (service == null) return;
+    final resolved = await _configStore?.loadResolved();
+    if (resolved == null || !resolved.isConfigured) return;
+    setState(
+        () => _remoteStatusText = AppStrings.remoteBackupRemoteStatusLoading);
     try {
       final manifest = await service.fetchRemoteStatus();
       if (!mounted) return;
       if (manifest == null) {
-        setState(() =>
-            _remoteStatusText = AppStrings.remoteBackupNoBackupYet);
+        setState(() => _remoteStatusText = AppStrings.remoteBackupNoBackupYet);
       } else {
         final time =
             DateFormat('yyyy-MM-dd HH:mm').format(manifest.createdAtUtc);
@@ -116,33 +172,57 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
       }
     } on Object catch (e) {
       if (!mounted) return;
-      setState(() =>
-          _remoteStatusText = AppStrings.remoteBackupRemoteStatusError(_errText(e)));
+      setState(() => _remoteStatusText =
+          AppStrings.remoteBackupRemoteStatusError(_errText(e)));
     }
   }
 
-  void _commit() {
-    final next = _config.copyWith(
-      serverUrl: _urlCtrl.text,
-      username: _userCtrl.text,
-      password: _passwordCtrl.text,
-    );
-    if (next.serverUrl == _config.serverUrl &&
-        next.username == _config.username &&
-        next.password == _config.password) {
+  /// Explicit save of endpoint + credential. The stored password is only
+  /// replaced when the (masked) password field contains a new entry; an
+  /// empty field plus the "已保存凭据" placeholder keeps the existing one.
+  Future<void> _saveAndTest() async {
+    debugPrint('SAVEANDTEST: store=${_configStore != null} busy=$_busy '
+        'canSave=$_canSave');
+    final store = _configStore;
+    if (store == null || _busy) return;
+    setState(() {
+      _saving = true;
+      _testResult = null;
+    });
+    try {
+      final endpoint = _endpoint
+          .copyWith(
+            serverUrl: _urlCtrl.text,
+            username: _userCtrl.text,
+          )
+          .normalized();
+      final newPassword = _passwordCtrl.text;
+      if (newPassword.isNotEmpty) {
+        await store.savePassword(newPassword);
+        _credentialStored = true;
+        _passwordCtrl.clear();
+      }
+      await store.saveEndpoint(endpoint);
+      _endpoint = endpoint;
+      if (mounted) setState(() => _dirty = false);
+    } on Object catch (e) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      _showSnack(_errText(e));
       return;
     }
-    setState(() => _config = next);
-    if (getIt.isRegistered<RemoteBackupConfigStore>()) {
-      getIt<RemoteBackupConfigStore>().save(_config);
-    }
+
+    // Saved — immediately verify the connection so "保存" never reports
+    // success for a configuration that cannot reach the server.
+    setState(() => _saving = false);
+    await _testConnection();
   }
 
   Future<void> _setIncludeMedia(bool value) async {
-    setState(() => _config = _config.copyWith(includeMedia: value));
-    if (getIt.isRegistered<RemoteBackupConfigStore>()) {
-      await getIt<RemoteBackupConfigStore>().save(_config);
-    }
+    final store = _configStore;
+    if (store == null) return;
+    setState(() => _endpoint = _endpoint.copyWith(includeMedia: value));
+    await store.saveEndpoint(_endpoint);
   }
 
   Future<void> _testConnection() async {
@@ -160,6 +240,7 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
         _testOk = true;
         _testResult = AppStrings.remoteBackupTestOk;
       });
+      _refreshRemoteStatus();
     } on Object catch (e) {
       if (!mounted) return;
       setState(() {
@@ -172,7 +253,11 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
 
   Future<void> _backupNow() async {
     final service = _service;
-    if (service == null || _backingUp || !_config.isConfigured) return;
+    if (service == null || _backingUp) return;
+    if (!await _isConfigured) {
+      _showSnack('请先保存服务器配置与凭据');
+      return;
+    }
     setState(() {
       _backingUp = true;
       _stage = null;
@@ -185,13 +270,13 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
         },
         onMediaProgress: (done, total) {
           if (!mounted) return;
-          setState(() => _stage =
-              AppStrings.remoteBackupPhaseHashingMedia(done, total));
+          setState(() =>
+              _stage = AppStrings.remoteBackupPhaseHashingMedia(done, total));
         },
         onMediaUploadProgress: (uploaded, skipped) {
           if (!mounted) return;
-          setState(() => _stage = AppStrings
-              .remoteBackupPhaseUploadingMedia(uploaded, skipped));
+          setState(() => _stage =
+              AppStrings.remoteBackupPhaseUploadingMedia(uploaded, skipped));
         },
       );
       _lastLocal = service.lastLocalBackup();
@@ -200,7 +285,8 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
         _backingUp = false;
         _stage = null;
       });
-      _showSnack(AppStrings.remoteBackupSuccess(_formatBytes(result.coreZipBytes)));
+      _showSnack(
+          AppStrings.remoteBackupSuccess(_formatBytes(result.coreZipBytes)));
       _refreshRemoteStatus();
     } on Object catch (e) {
       if (!mounted) return;
@@ -230,6 +316,10 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
   Future<void> _restoreFromRemote() async {
     final service = _service;
     if (service == null || _restoring) return;
+    if (!await _isConfigured) {
+      _showSnack('请先保存服务器配置与凭据');
+      return;
+    }
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => SettingsConfirmDialog(
@@ -253,8 +343,8 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
         manifest,
         onMediaProgress: (done, total) {
           if (!mounted) return;
-          setState(() => _stage =
-              AppStrings.remoteBackupRestoringMedia(done, total));
+          setState(() =>
+              _stage = AppStrings.remoteBackupRestoringMedia(done, total));
         },
       );
       if (!mounted) return;
@@ -283,6 +373,8 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
     switch (error) {
       case WebDavAuthException _:
         return '用户名或密码被服务器拒绝';
+      case RemoteBackupSecureStoreException _:
+        return error.message.isEmpty ? error.toString() : error.message;
       case RemoteBackupBusyException _:
         return error.toString();
       case WebDavException _:
@@ -293,7 +385,8 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
   }
 
   void _showSnack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -352,61 +445,65 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _labeledField(
-              context,
-              label: AppStrings.remoteBackupServerUrlLabel,
-              child: TextField(
-                controller: _urlCtrl,
-                keyboardType: TextInputType.url,
-                autocorrect: false,
-                decoration: _inputDecoration(
-                    context, AppStrings.remoteBackupServerUrlHint),
-              ),
-            ),
-            const SizedBox(height: 12),
-            _labeledField(
-              context,
-              label: AppStrings.remoteBackupUsernameLabel,
-              child: TextField(
-                controller: _userCtrl,
-                autocorrect: false,
-                decoration: _inputDecoration(
-                    context, AppStrings.remoteBackupUsernameHint),
-              ),
-            ),
-            const SizedBox(height: 12),
-            _labeledField(
-              context,
-              label: AppStrings.remoteBackupPasswordLabel,
-              child: TextField(
-                controller: _passwordCtrl,
-                obscureText: _obscurePassword,
-                autocorrect: false,
-                decoration: _inputDecoration(
-                  context,
-                  AppStrings.remoteBackupPasswordHint,
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscurePassword
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
-                      size: 20,
-                      color: TurnaTheme.textHintColor(context),
+                    context,
+                    label: AppStrings.remoteBackupServerUrlLabel,
+                    child: TextField(
+                      controller: _urlCtrl,
+                      enabled: !_busy,
+                      keyboardType: TextInputType.url,
+                      autocorrect: false,
+                      decoration: _inputDecoration(
+                          context, AppStrings.remoteBackupServerUrlHint),
                     ),
-                    onPressed: () =>
-                        setState(() => _obscurePassword = !_obscurePassword),
                   ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            SettingsPrimaryButton(
-              label: _testing
-                  ? AppStrings.remoteBackupTesting
-                  : AppStrings.remoteBackupTestConnection,
-              icon: Icons.wifi_find_rounded,
-              onPressed:
-                  _testing || !_config.isConfigured ? null : _testConnection,
-            ),
+                  const SizedBox(height: 12),
+                  _labeledField(
+                    context,
+                    label: AppStrings.remoteBackupUsernameLabel,
+                    child: TextField(
+                      controller: _userCtrl,
+                      enabled: !_busy,
+                      autocorrect: false,
+                      decoration: _inputDecoration(
+                          context, AppStrings.remoteBackupUsernameHint),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _labeledField(
+                    context,
+                    label: AppStrings.remoteBackupPasswordLabel,
+                    child: TextField(
+                      controller: _passwordCtrl,
+                      enabled: !_busy,
+                      obscureText: _obscurePassword,
+                      autocorrect: false,
+                      decoration: _inputDecoration(
+                        context,
+                        _credentialStored && _passwordCtrl.text.isEmpty
+                            ? '已保存凭据（输入新密码可替换）'
+                            : AppStrings.remoteBackupPasswordHint,
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                            size: 20,
+                            color: TurnaTheme.textHintColor(context),
+                          ),
+                          onPressed: () => setState(
+                              () => _obscurePassword = !_obscurePassword),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SettingsPrimaryButton(
+                    label: _saving
+                        ? AppStrings.remoteBackupSaving
+                        : AppStrings.remoteBackupSaveAndTest,
+                    icon: Icons.save_rounded,
+                    onPressed: _canSave ? _saveAndTest : null,
+                  ),
                   if (_testResult != null) ...[
                     const SizedBox(height: 10),
                     _resultRow(context),
@@ -470,13 +567,12 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
               icon: Icons.image_outlined,
               title: AppStrings.remoteBackupIncludeMediaTitle,
               subtitle: AppStrings.remoteBackupIncludeMediaSubtitle,
-              value: _config.includeMedia,
+              value: _endpoint.includeMedia,
               onChanged: busy ? null : _setIncludeMedia,
             ),
             settingsTileDivider(context),
             Padding(
-              padding:
-                  const EdgeInsets.fromLTRB(16, 10, 16, 0),
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
               child: Text(
                 lastText,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -492,8 +588,7 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
                   SettingsPrimaryButton(
                     label: AppStrings.remoteBackupBackupNow,
                     icon: Icons.backup_outlined,
-                    onPressed:
-                        busy || !_config.isConfigured ? null : _backupNow,
+                    onPressed: busy ? null : _backupNow,
                   ),
                   if (_stage != null) ...[
                     const SizedBox(height: 10),
@@ -538,9 +633,9 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
             SettingsActionTile(
               icon: Icons.settings_backup_restore_rounded,
               title: AppStrings.remoteBackupRestoreFromRemote,
-              subtitle: _remoteStatusText ??
-                  AppStrings.remoteBackupRestoreSubtitle,
-              enabled: !busy && _config.isConfigured,
+              subtitle:
+                  _remoteStatusText ?? AppStrings.remoteBackupRestoreSubtitle,
+              enabled: !busy,
               onTap: (_) => _restoreFromRemote(),
             ),
           ],

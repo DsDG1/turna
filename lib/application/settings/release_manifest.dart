@@ -162,8 +162,7 @@ class ReleaseManifest {
 
   /// First release id in the fallback list — the "latest" the fallback can
   /// speak about. 发布检查用它与 changelog.md 首项对齐。
-  static String get latestFallbackReleaseId =>
-      fallbackReleases.first.version;
+  static String get latestFallbackReleaseId => fallbackReleases.first.version;
 
   /// Whether a changelog release id matches the installed version's major
   /// minor prefix (e.g. installed 0.7.0+1 ↔ release id '0.7').
@@ -173,8 +172,7 @@ class ReleaseManifest {
   }) {
     if (releaseId.isEmpty || installedVersion.isEmpty) return false;
     final normalized = installedVersion.split('+').first.trim();
-    if (normalized.startsWith('$releaseId.') ||
-        normalized == releaseId) {
+    if (normalized.startsWith('$releaseId.') || normalized == releaseId) {
       return true;
     }
     return false;

@@ -93,8 +93,7 @@ void main() {
     // assert the descriptor-level contract instead (the page wires the same
     // registry through).
     const registry = ExternalLinkRegistry();
-    final descriptor =
-        registry.describe(ExternalLinkId.projectHome);
+    final descriptor = registry.describe(ExternalLinkId.projectHome);
     expect(descriptor.enabled, isFalse);
     expect(descriptor.uri, isNull);
 

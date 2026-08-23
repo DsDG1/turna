@@ -16,8 +16,8 @@ import 'package:sqlite3/sqlite3.dart' as sql;
 import 'package:turna/application/anki/anki_import_platform_io.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_sqlite.dart';
+import 'package:turna/application/backup/backup_manifest_policy.dart';
 import 'package:turna/data/course_database.dart';
-import 'package:turna/service/locator.dart';
 import 'package:turna/service/remote_backup/backup_manifest.dart';
 
 /// Coarse snapshot stages surfaced to the backup UI.
@@ -55,120 +55,12 @@ class BackupSnapshot {
   int get coreZipBytes => coreZip.lengthSync();
 }
 
-/// Which prefs keys travel inside a backup archive.
-///
-/// Allowlist = exact keys + include prefixes, intersected with the live key
-/// set. Device-local keys (remote backup config / device id, system health
-/// events, per-day Anki counters) are structurally excluded because they are
-/// not listed.
-abstract final class PrefsBackupSpec {
-  static const Set<String> exactKeys = <String>{
-    // --- progress / game (mirrors ExportService._progressManifest) ---
-    LocalStateKeys.initialized,
-    LocalStateKeys.score,
-    LocalStateKeys.streak,
-    LocalStateKeys.lastStreakDate,
-    LocalStateKeys.lessonsCompleted,
-    LocalStateKeys.perfectLessons,
-    LocalStateKeys.streakWasBroken,
-    LocalStateKeys.streakProtectedDays,
-    LocalStateKeys.streakAutoUseVoucher,
-    LocalStateKeys.wordsLearned,
-    LocalStateKeys.completedLessonIds,
-    LocalStateKeys.perfectLessonIds,
-    LocalStateKeys.gems,
-    LocalStateKeys.achievements,
-    LocalStateKeys.achievementsStateV2,
-    LocalStateKeys.achievementsProjectionV1,
-    LocalStateKeys.achievementsMigrationVersion,
-    LocalStateKeys.cosmeticsUnlocked,
-    LocalStateKeys.cosmeticsEquippedRing,
-    LocalStateKeys.cosmeticsEquippedAvatarRing,
-    LocalStateKeys.cosmeticsEquippedProfileTheme,
-    LocalStateKeys.cosmeticsEquippedCardBack,
-    LocalStateKeys.cosmeticsEquippedCompletionEffect,
-    LocalStateKeys.cosmeticsEquippedSoundPack,
-    LocalStateKeys.cosmeticsEquippedMascotAccessory,
-    LocalStateKeys.srsState,
-    LocalStateKeys.lessonWordLinks,
-    LocalStateKeys.grammarReviewState,
-    LocalStateKeys.mistakeLog,
-    'study.logs',
-    'study.logs.recent',
-    'study.dailyStats',
-    LocalStateKeys.themeMode,
-    LocalStateKeys.soundEffects,
-    LocalStateKeys.haptic,
-    LocalStateKeys.ttsSpeed,
-    LocalStateKeys.ttsEngine,
-    LocalStateKeys.ttsAvailabilityPromptShown,
-    LocalStateKeys.dailyReminderEnabled,
-    LocalStateKeys.dailyReminderHour,
-    LocalStateKeys.dailyReminderMinute,
-    LocalStateKeys.contentVersionAcknowledged,
-    PrefsConstants.currentLanguage,
-    PrefsConstants.authUser,
-    // --- FSRS tuning results (loss of these is unrecoverable) ---
-    LocalStateKeys.srsDesiredRetention,
-    LocalStateKeys.srsFsrsParameters,
-    LocalStateKeys.srsFsrsOptimizedAt,
-    LocalStateKeys.srsFsrsOptimizedReviews,
-    // --- accessibility / ui ---
-    LocalStateKeys.autoRotate,
-    LocalStateKeys.uiLocale,
-    LocalStateKeys.textScale,
-    LocalStateKeys.reducedMotion,
-    LocalStateKeys.highContrast,
-    LocalStateKeys.dyslexiaFont,
-    LocalStateKeys.sensoryReduce,
-    LocalStateKeys.focusMode,
-    // --- anki settings ---
-    LocalStateKeys.ankiPreRenderEnabled,
-    LocalStateKeys.ankiCaptureDelaySec,
-    LocalStateKeys.ankiLiteThreshold,
-    LocalStateKeys.ankiForceDisableJs,
-    'anki.dailyNewLimit',
-    'anki.dailyReviewLimit',
-    'anki.dailyChallengeIncludesAnki',
-    // --- course state ---
-    PrefsConstants.courseScope,
-    PrefsConstants.courseOrder,
-    // --- ai (engineConfig has the apiKey stripped before writing) ---
-    LocalStateKeys.aiEngineConfig,
-    'ai.savedExplanations',
-    'ai.replyLanguage',
-    'ai.depth',
-    'ai.allowRevealAnswer',
-    'ai.injectLearnerContext',
-    'ai.recentCompanionTasks',
-    // --- fun lab ---
-    LocalStateKeys.funAutoAnswer,
-    LocalStateKeys.funAllAchievementsUnlocked,
-  };
-
-  static const List<String> includePrefixes = <String>[
-    'settings.autoReadOnTap.',
-    'settings.nativeLang.',
-  ];
-
-  static bool shouldInclude(String key) {
-    if (key.startsWith('remoteBackup.')) return false;
-    if (key == LocalStateKeys.systemHealthEvent) return false;
-    // Per-day counters reset themselves; carrying them across devices would
-    // corrupt today's limits.
-    if (key.startsWith('anki.deck.')) return false;
-    if (key == 'anki.newDoneToday' ||
-        key == 'anki.reviewDoneToday' ||
-        key == 'anki.limitsDate') {
-      return false;
-    }
-    if (exactKeys.contains(key)) return true;
-    for (final prefix in includePrefixes) {
-      if (key.startsWith(prefix)) return true;
-    }
-    return false;
-  }
-}
+/// Which prefs keys travel inside a backup archive is decided solely by
+/// [BackupManifestPolicy] — the same single source of truth the local JSON
+/// export uses, so both paths carry an identical settings/progress set and
+/// can never drift apart again. Device-local keys (remote backup config /
+/// device id, system health events, per-day Anki counters) and credentials
+/// are structurally excluded by the policy.
 
 /// Builds a consistent local snapshot of all user data into a staging
 /// directory:
@@ -326,33 +218,15 @@ class BackupSnapshotService {
     final sp = await SharedPreferences.getInstance();
     final out = <String, Object?>{};
     for (final key in sp.getKeys()) {
-      if (!PrefsBackupSpec.shouldInclude(key)) continue;
-      final value = sp.get(key);
-      if (value == null) continue;
-      if (key == LocalStateKeys.aiEngineConfig && value is String) {
-        out[key] = _stripApiKey(value);
-      } else {
-        out[key] = value;
-      }
+      // Single policy object shared with the local export path — secrets are
+      // stripped at this serialization boundary.
+      final sanitized = BackupManifestPolicy.sanitizeForSerialization(
+        key,
+        sp.get(key),
+      );
+      if (sanitized != null) out[key] = sanitized;
     }
     return out;
-  }
-
-  /// Removes the API key from the persisted AI engine config JSON. The rest
-  /// of the config (preset, models, base url) still round-trips so a restore
-  /// only asks for the secret again.
-  String _stripApiKey(String rawConfig) {
-    try {
-      final decoded = jsonDecode(rawConfig);
-      if (decoded is Map<String, dynamic>) {
-        decoded['apiKey'] = '';
-        return jsonEncode(decoded);
-      }
-    } catch (_) {
-      // Corrupt config has no usable non-secret settings. Never copy an
-      // opaque blob that might contain a legacy plaintext credential.
-    }
-    return '';
   }
 
   /// Online-consistent copy of the live drift database.

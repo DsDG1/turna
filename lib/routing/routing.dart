@@ -1,3 +1,6 @@
+// Flutter imports:
+import 'package:flutter/foundation.dart';
+
 // Package imports:
 import 'package:auto_route/auto_route.dart';
 import 'package:injectable/injectable.dart';
@@ -61,12 +64,11 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: DictionaryRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(page: WeakWordsRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(page: AnkiImportRoute.page),
-        AutoRoute(
-            page: AnkiDeckStatsRoute.page, guards: [_courseReadyGuard]),
-        AutoRoute(
-            page: AnkiCardBrowserRoute.page, guards: [_courseReadyGuard]),
+        AutoRoute(page: AnkiDeckStatsRoute.page, guards: [_courseReadyGuard]),
+        AutoRoute(page: AnkiCardBrowserRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(page: AnkiReviewRoute.page, guards: [_courseReadyGuard]),
-        AutoRoute(page: AnkiReviewSessionRoute.page, guards: [_courseReadyGuard]),
+        AutoRoute(
+            page: AnkiReviewSessionRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(page: UnifiedReviewRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(
             page: CourseManagementRoute.page, guards: [_courseReadyGuard]),
@@ -89,5 +91,18 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: AiApiConfigRoute.page),
         AutoRoute(page: RemoteBackupRoute.page),
         AutoRoute(page: AvatarRingsRoute.page),
+        // Formal Settings category routes (Plan §12.2): every category is a
+        // real, routable page — no in-page pseudo navigation. The developer
+        // lab route exists only in debug builds; release/profile have no
+        // reachable entry (neither tile nor deep link).
+        AutoRoute(page: AccountSettingsRoute.page),
+        AutoRoute(page: LearningSettingsRoute.page),
+        AutoRoute(page: AppearanceSoundSettingsRoute.page),
+        AutoRoute(page: AccessibilitySettingsRoute.page),
+        AutoRoute(page: DataBackupSettingsRoute.page),
+        AutoRoute(page: AdvancedSettingsRoute.page),
+        AutoRoute(page: LegacyCompatibilityRoute.page),
+        AutoRoute(page: AboutSettingsRoute.page),
+        if (kDebugMode) AutoRoute(page: DeveloperSettingsRoute.page),
       ];
 }

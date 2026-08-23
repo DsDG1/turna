@@ -45,6 +45,11 @@ class CacheDiagnosticsRegistry {
 
   final List<CacheDiagnosticsAdapter> _adapters;
 
+  /// Registered adapters in construction order. Exposed so a coordinator
+  /// (ClearRegenerableCachesCommand) can run each owner isolated and keep
+  /// per-owner results instead of an all-or-nothing Future.wait.
+  List<CacheDiagnosticsAdapter> get adapters => List.unmodifiable(_adapters);
+
   Future<List<CacheFootprint>> inspectAll() =>
       Future.wait(_adapters.map((adapter) => adapter.inspect()));
 

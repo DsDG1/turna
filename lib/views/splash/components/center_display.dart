@@ -1,3 +1,6 @@
+// Dart imports:
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 // Project imports:
@@ -59,10 +62,21 @@ class _CenterDisplayState extends State<CenterDisplay>
     _startCycle();
   }
 
+  Timer? _cycleTimer;
+
+  /// One wait step of the text cycle. The timer handle is kept so dispose
+  /// can cancel an in-flight wait (widget tests otherwise end with a
+  /// pending fake-async timer).
+  Future<void> _wait(Duration duration) {
+    final completer = Completer<void>();
+    _cycleTimer = Timer(duration, completer.complete);
+    return completer.future;
+  }
+
   void _startCycle() async {
     while (mounted) {
       await _controller.forward();
-      await Future.delayed(_texts[_currentIndex].duration);
+      await _wait(_texts[_currentIndex].duration);
       if (!mounted) return;
       await _controller.reverse();
       if (!mounted) return;
@@ -74,6 +88,7 @@ class _CenterDisplayState extends State<CenterDisplay>
 
   @override
   void dispose() {
+    _cycleTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }

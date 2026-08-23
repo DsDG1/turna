@@ -126,8 +126,7 @@ class _PrivacyDetailsPageState extends State<PrivacyDetailsPage> {
                       const _NetworkCalloutRow(),
                       const SizedBox(height: 20),
                       _SectionHeader(
-                          text: AppStrings
-                              .privacyDetailsExternalLinksTitle),
+                          text: AppStrings.privacyDetailsExternalLinksTitle),
                       const SizedBox(height: 10),
                       _AboutCard(
                         child: _SectionBody(
@@ -179,8 +178,7 @@ class _PrivacyDetailsPageState extends State<PrivacyDetailsPage> {
               child: IgnorePointer(
                 ignoring: !_pillVisible,
                 child: AnimatedSlide(
-                  offset:
-                      _pillVisible ? Offset.zero : const Offset(0, 1.6),
+                  offset: _pillVisible ? Offset.zero : const Offset(0, 1.6),
                   duration: const Duration(milliseconds: 360),
                   curve: Curves.easeOutCubic,
                   child: AnimatedOpacity(
@@ -278,12 +276,11 @@ class _PrivacyHero extends StatelessWidget {
                 const SizedBox(width: 8),
                 // 最后更新角标
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
-                    borderRadius:
-                        BorderRadius.circular(TurnaTheme.radiusRound),
+                    borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
                   ),
                   child: Text(
                     AppStrings.privacyDetailsLastUpdated,
@@ -596,8 +593,7 @@ class _TransparencyHintPill extends StatelessWidget {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.18),
-                  borderRadius:
-                      BorderRadius.circular(TurnaTheme.radiusMedium),
+                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
                 ),
                 child: const Icon(
                   Icons.visibility_outlined,

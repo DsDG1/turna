@@ -66,8 +66,8 @@ class MiniDavServer {
         case 'OPTIONS':
           response.statusCode = HttpStatus.ok;
           response.headers.set('DAV', '1, 2');
-          response.headers.set('Allow',
-              'OPTIONS, GET, HEAD, PUT, DELETE, MKCOL, MOVE');
+          response.headers
+              .set('Allow', 'OPTIONS, GET, HEAD, PUT, DELETE, MKCOL, MOVE');
           await response.close();
         case 'PUT':
           final fsPath = _fsPathFor(request.uri.path);

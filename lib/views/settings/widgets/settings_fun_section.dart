@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:turna/application/fun_lab_snapshot_service.dart';
 import 'package:turna/application/fun_provider.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/settings/widgets/controls/settings_controls.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/views/theme.dart';
 
@@ -31,19 +32,12 @@ class FunToggleTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final value = context.select<FunProvider, bool>(
-      (fun) => valueSelector(fun),
-    );
-
-    return SettingsTile(
+    return ProviderBoundToggleTile<FunProvider>(
       icon: icon,
       title: title,
       subtitle: subtitle,
-      trailing: settingsAdaptiveSwitch(
-        value: value,
-        onChanged: (newValue) =>
-            onChanged(context.read<FunProvider>(), newValue),
-      ),
+      valueSelector: valueSelector,
+      onChanged: onChanged,
     );
   }
 }

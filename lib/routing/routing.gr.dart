@@ -9,117 +9,149 @@
 // coverage:ignore-file
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'dart:async' as _i79;
+import 'dart:async' as _i86;
 
-import 'package:auto_route/auto_route.dart' as _i51;
-import 'package:collection/collection.dart' as _i68;
-import 'package:flutter/foundation.dart' as _i56;
-import 'package:flutter/material.dart' as _i52;
-import 'package:turna/application/ai/ai_hint_provider.dart' as _i54;
-import 'package:turna/application/ai/ai_tutor_chat_provider.dart' as _i55;
-import 'package:turna/application/anki/anki_importer.dart' as _i57;
+import 'package:auto_route/auto_route.dart' as _i59;
+import 'package:collection/collection.dart' as _i76;
+import 'package:flutter/foundation.dart' as _i64;
+import 'package:flutter/material.dart' as _i60;
+import 'package:turna/application/ai/ai_hint_provider.dart' as _i62;
+import 'package:turna/application/ai/ai_tutor_chat_provider.dart' as _i63;
+import 'package:turna/application/anki/anki_importer.dart' as _i65;
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart'
-    as _i60;
+    as _i68;
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart'
-    as _i64;
+    as _i72;
 import 'package:turna/application/anki_official/engine/official_anki_operation_coordinator.dart'
-    as _i63;
-import 'package:turna/application/anki_official/engine/official_anki_review_session.dart'
-    as _i66;
-import 'package:turna/application/anki_official/migration/official_anki_census.dart'
-    as _i61;
-import 'package:turna/application/anki_official/migration/official_anki_dry_run_matcher.dart'
-    as _i62;
-import 'package:turna/application/anki_official/official_anki_feature_flags.dart'
-    as _i33;
-import 'package:turna/application/anki_official/official_anki_internal_page.dart'
-    as _i30;
-import 'package:turna/application/anki_official/official_anki_paths.dart'
-    as _i65;
-import 'package:turna/application/anki_official/projection/official_anki_projection_mapper.dart'
-    as _i59;
-import 'package:turna/application/anki_official/projection/official_anki_projection_service.dart'
-    as _i74;
-import 'package:turna/application/anki_official/render/official_anki_answer_presenter.dart'
-    as _i67;
-import 'package:turna/application/anki_official/render/official_anki_render_facade.dart'
-    as _i69;
-import 'package:turna/application/anki_official/render/official_anki_render_state.dart'
-    as _i70;
-import 'package:turna/application/anki_official/storage/official_anki_database.dart'
     as _i71;
-import 'package:turna/application/course_provider.dart' as _i73;
+import 'package:turna/application/anki_official/engine/official_anki_review_session.dart'
+    as _i74;
+import 'package:turna/application/anki_official/migration/official_anki_census.dart'
+    as _i69;
+import 'package:turna/application/anki_official/migration/official_anki_dry_run_matcher.dart'
+    as _i70;
+import 'package:turna/application/anki_official/official_anki_feature_flags.dart'
+    as _i41;
+import 'package:turna/application/anki_official/official_anki_internal_page.dart'
+    as _i38;
+import 'package:turna/application/anki_official/official_anki_paths.dart'
+    as _i73;
+import 'package:turna/application/anki_official/projection/official_anki_projection_mapper.dart'
+    as _i67;
+import 'package:turna/application/anki_official/projection/official_anki_projection_service.dart'
+    as _i82;
+import 'package:turna/application/anki_official/render/official_anki_answer_presenter.dart'
+    as _i75;
+import 'package:turna/application/anki_official/render/official_anki_render_facade.dart'
+    as _i77;
+import 'package:turna/application/anki_official/render/official_anki_render_state.dart'
+    as _i78;
+import 'package:turna/application/anki_official/storage/official_anki_database.dart'
+    as _i79;
+import 'package:turna/application/course_provider.dart' as _i81;
+import 'package:turna/application/diagnostics/cache_diagnostics_registry.dart'
+    as _i85;
+import 'package:turna/application/diagnostics/runtime_memory_snapshot.dart'
+    as _i87;
 import 'package:turna/application/maintenance/storage_inventory_service.dart'
-    as _i76;
-import 'package:turna/application/review_progress_provider.dart' as _i75;
-import 'package:turna/application/settings/app_build_info.dart' as _i53;
-import 'package:turna/data/course_database.dart' as _i72;
-import 'package:turna/domain/course/mistake_entry.dart' as _i58;
-import 'package:turna/domain/review/recall_outcome.dart' as _i80;
-import 'package:turna/domain/review/review_item.dart' as _i77;
-import 'package:turna/domain/review/review_ledger.dart' as _i81;
-import 'package:turna/domain/review/review_ledger_resolver.dart' as _i78;
-import 'package:turna/views/ai/ai_api_config_page.dart' as _i3;
-import 'package:turna/views/ai/ai_diagnosis_page.dart' as _i4;
-import 'package:turna/views/ai/ai_feature_guide_page.dart' as _i5;
-import 'package:turna/views/ai/ai_hint_chat_page.dart' as _i6;
-import 'package:turna/views/ai/ai_hub_page.dart' as _i7;
-import 'package:turna/views/ai/ai_saved_list_page.dart' as _i8;
-import 'package:turna/views/ai/ai_tutor_chat_page.dart' as _i9;
-import 'package:turna/views/ai/ai_wish_chat_page.dart' as _i10;
-import 'package:turna/views/ai/textbook/textbook_import_page.dart' as _i46;
-import 'package:turna/views/anki/anki_card_browser_page.dart' as _i11;
-import 'package:turna/views/anki/anki_deck_stats_page.dart' as _i12;
-import 'package:turna/views/anki/anki_import_screen.dart' as _i13;
-import 'package:turna/views/anki/anki_review_screen.dart' as _i14;
-import 'package:turna/views/anki/anki_review_session_page.dart' as _i15;
+    as _i84;
+import 'package:turna/application/review_progress_provider.dart' as _i83;
+import 'package:turna/application/settings/app_build_info.dart' as _i61;
+import 'package:turna/data/course_database.dart' as _i80;
+import 'package:turna/domain/course/mistake_entry.dart' as _i66;
+import 'package:turna/domain/review/recall_outcome.dart' as _i90;
+import 'package:turna/domain/review/review_item.dart' as _i88;
+import 'package:turna/domain/review/review_ledger.dart' as _i91;
+import 'package:turna/domain/review/review_ledger_resolver.dart' as _i89;
+import 'package:turna/views/ai/ai_api_config_page.dart' as _i7;
+import 'package:turna/views/ai/ai_diagnosis_page.dart' as _i8;
+import 'package:turna/views/ai/ai_feature_guide_page.dart' as _i9;
+import 'package:turna/views/ai/ai_hint_chat_page.dart' as _i10;
+import 'package:turna/views/ai/ai_hub_page.dart' as _i11;
+import 'package:turna/views/ai/ai_saved_list_page.dart' as _i12;
+import 'package:turna/views/ai/ai_tutor_chat_page.dart' as _i13;
+import 'package:turna/views/ai/ai_wish_chat_page.dart' as _i14;
+import 'package:turna/views/ai/textbook/textbook_import_page.dart' as _i54;
+import 'package:turna/views/anki/anki_card_browser_page.dart' as _i15;
+import 'package:turna/views/anki/anki_deck_stats_page.dart' as _i16;
+import 'package:turna/views/anki/anki_import_screen.dart' as _i17;
+import 'package:turna/views/anki/anki_review_screen.dart' as _i18;
+import 'package:turna/views/anki/anki_review_session_page.dart' as _i19;
 import 'package:turna/views/anki_official/official_anki_mapping_page.dart'
-    as _i31;
+    as _i39;
 import 'package:turna/views/anki_official/official_anki_migration_preview_page.dart'
-    as _i32;
+    as _i40;
 import 'package:turna/views/anki_official/official_anki_review_page.dart'
-    as _i34;
+    as _i42;
 import 'package:turna/views/anki_official/official_anki_reviewer_page.dart'
-    as _i35;
+    as _i43;
 import 'package:turna/views/anki_official/official_anki_source_management_page.dart'
-    as _i36;
-import 'package:turna/views/characters/character_drawing.dart' as _i49;
-import 'package:turna/views/courses/course_management_page.dart' as _i18;
-import 'package:turna/views/courses/section_picker_page.dart' as _i41;
-import 'package:turna/views/dictionary/dictionary_page.dart' as _i20;
-import 'package:turna/views/home/home_page.dart' as _i22;
-import 'package:turna/views/lesson/new_lesson_screen.dart' as _i29;
-import 'package:turna/views/play/daily_challenge_screen.dart' as _i19;
-import 'package:turna/views/play/match_words.dart' as _i25;
-import 'package:turna/views/play/weak_words_page.dart' as _i50;
-import 'package:turna/views/playground/language_playground_page.dart' as _i23;
-import 'package:turna/views/profile/achievements_page.dart' as _i2;
-import 'package:turna/views/review/grammar_review_screen.dart' as _i21;
-import 'package:turna/views/review/learning_insights_page.dart' as _i24;
-import 'package:turna/views/review/mistake_list_page.dart' as _i26;
-import 'package:turna/views/review/mistake_practice_screen.dart' as _i27;
-import 'package:turna/views/review/mistake_review_page.dart' as _i28;
-import 'package:turna/views/review/review_progress_page.dart' as _i39;
-import 'package:turna/views/review/review_source_detail_page.dart' as _i40;
-import 'package:turna/views/review/srs_review_screen.dart' as _i43;
-import 'package:turna/views/review/unified_review_page.dart' as _i48;
-import 'package:turna/views/settings/about_turna_page.dart' as _i1;
-import 'package:turna/views/settings/avatar_rings_page.dart' as _i16;
-import 'package:turna/views/settings/changelog_page.dart' as _i17;
-import 'package:turna/views/settings/privacy_details_page.dart' as _i37;
-import 'package:turna/views/settings/remote_backup_page.dart' as _i38;
-import 'package:turna/views/settings/storage_diagnostics_page.dart' as _i44;
-import 'package:turna/views/settings/system_health_page.dart' as _i45;
-import 'package:turna/views/settings/transparency_log_page.dart' as _i47;
-import 'package:turna/views/splash/splash_page.dart' as _i42;
+    as _i44;
+import 'package:turna/views/characters/character_drawing.dart' as _i57;
+import 'package:turna/views/courses/course_management_page.dart' as _i23;
+import 'package:turna/views/courses/section_picker_page.dart' as _i49;
+import 'package:turna/views/dictionary/dictionary_page.dart' as _i27;
+import 'package:turna/views/home/home_page.dart' as _i29;
+import 'package:turna/views/lesson/new_lesson_screen.dart' as _i37;
+import 'package:turna/views/play/daily_challenge_screen.dart' as _i24;
+import 'package:turna/views/play/match_words.dart' as _i33;
+import 'package:turna/views/play/weak_words_page.dart' as _i58;
+import 'package:turna/views/playground/language_playground_page.dart' as _i30;
+import 'package:turna/views/profile/achievements_page.dart' as _i5;
+import 'package:turna/views/review/grammar_review_screen.dart' as _i28;
+import 'package:turna/views/review/learning_insights_page.dart' as _i31;
+import 'package:turna/views/review/mistake_list_page.dart' as _i34;
+import 'package:turna/views/review/mistake_practice_screen.dart' as _i35;
+import 'package:turna/views/review/mistake_review_page.dart' as _i36;
+import 'package:turna/views/review/review_progress_page.dart' as _i47;
+import 'package:turna/views/review/review_source_detail_page.dart' as _i48;
+import 'package:turna/views/review/srs_review_screen.dart' as _i51;
+import 'package:turna/views/review/unified_review_page.dart' as _i56;
+import 'package:turna/views/settings/about_turna_page.dart' as _i2;
+import 'package:turna/views/settings/avatar_rings_page.dart' as _i21;
+import 'package:turna/views/settings/changelog_page.dart' as _i22;
+import 'package:turna/views/settings/pages/about_settings_page.dart' as _i1;
+import 'package:turna/views/settings/pages/accessibility_settings_page.dart'
+    as _i3;
+import 'package:turna/views/settings/pages/account_settings_page.dart' as _i4;
+import 'package:turna/views/settings/pages/advanced_settings_page.dart' as _i6;
+import 'package:turna/views/settings/pages/appearance_sound_settings_page.dart'
+    as _i20;
+import 'package:turna/views/settings/pages/data_backup_settings_page.dart'
+    as _i25;
+import 'package:turna/views/settings/pages/developer_settings_page.dart'
+    as _i26;
+import 'package:turna/views/settings/pages/learning_settings_page.dart' as _i32;
+import 'package:turna/views/settings/privacy_details_page.dart' as _i45;
+import 'package:turna/views/settings/remote_backup_page.dart' as _i46;
+import 'package:turna/views/settings/storage_diagnostics_page.dart' as _i52;
+import 'package:turna/views/settings/system_health_page.dart' as _i53;
+import 'package:turna/views/settings/transparency_log_page.dart' as _i55;
+import 'package:turna/views/splash/splash_page.dart' as _i50;
 
 /// generated route for
-/// [_i1.AboutTurnaPage]
-class AboutTurnaRoute extends _i51.PageRouteInfo<AboutTurnaRouteArgs> {
+/// [_i1.AboutSettingsPage]
+class AboutSettingsRoute extends _i59.PageRouteInfo<void> {
+  const AboutSettingsRoute({List<_i59.PageRouteInfo>? children})
+      : super(AboutSettingsRoute.name, initialChildren: children);
+
+  static const String name = 'AboutSettingsRoute';
+
+  static _i59.PageInfo page = _i59.PageInfo(
+    name,
+    builder: (data) {
+      return const _i1.AboutSettingsPage();
+    },
+  );
+}
+
+/// generated route for
+/// [_i2.AboutTurnaPage]
+class AboutTurnaRoute extends _i59.PageRouteInfo<AboutTurnaRouteArgs> {
   AboutTurnaRoute({
-    _i52.Key? key,
-    _i53.AppBuildInfo? buildInfo,
-    List<_i51.PageRouteInfo>? children,
+    _i60.Key? key,
+    _i61.AppBuildInfo? buildInfo,
+    List<_i59.PageRouteInfo>? children,
   }) : super(
           AboutTurnaRoute.name,
           args: AboutTurnaRouteArgs(key: key, buildInfo: buildInfo),
@@ -128,13 +160,13 @@ class AboutTurnaRoute extends _i51.PageRouteInfo<AboutTurnaRouteArgs> {
 
   static const String name = 'AboutTurnaRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<AboutTurnaRouteArgs>(
         orElse: () => const AboutTurnaRouteArgs(),
       );
-      return _i1.AboutTurnaPage(key: args.key, buildInfo: args.buildInfo);
+      return _i2.AboutTurnaPage(key: args.key, buildInfo: args.buildInfo);
     },
   );
 }
@@ -142,9 +174,9 @@ class AboutTurnaRoute extends _i51.PageRouteInfo<AboutTurnaRouteArgs> {
 class AboutTurnaRouteArgs {
   const AboutTurnaRouteArgs({this.key, this.buildInfo});
 
-  final _i52.Key? key;
+  final _i60.Key? key;
 
-  final _i53.AppBuildInfo? buildInfo;
+  final _i61.AppBuildInfo? buildInfo;
 
   @override
   String toString() {
@@ -163,76 +195,124 @@ class AboutTurnaRouteArgs {
 }
 
 /// generated route for
-/// [_i2.AchievementsPage]
-class AchievementsRoute extends _i51.PageRouteInfo<void> {
-  const AchievementsRoute({List<_i51.PageRouteInfo>? children})
+/// [_i3.AccessibilitySettingsPage]
+class AccessibilitySettingsRoute extends _i59.PageRouteInfo<void> {
+  const AccessibilitySettingsRoute({List<_i59.PageRouteInfo>? children})
+      : super(AccessibilitySettingsRoute.name, initialChildren: children);
+
+  static const String name = 'AccessibilitySettingsRoute';
+
+  static _i59.PageInfo page = _i59.PageInfo(
+    name,
+    builder: (data) {
+      return const _i3.AccessibilitySettingsPage();
+    },
+  );
+}
+
+/// generated route for
+/// [_i4.AccountSettingsPage]
+class AccountSettingsRoute extends _i59.PageRouteInfo<void> {
+  const AccountSettingsRoute({List<_i59.PageRouteInfo>? children})
+      : super(AccountSettingsRoute.name, initialChildren: children);
+
+  static const String name = 'AccountSettingsRoute';
+
+  static _i59.PageInfo page = _i59.PageInfo(
+    name,
+    builder: (data) {
+      return const _i4.AccountSettingsPage();
+    },
+  );
+}
+
+/// generated route for
+/// [_i5.AchievementsPage]
+class AchievementsRoute extends _i59.PageRouteInfo<void> {
+  const AchievementsRoute({List<_i59.PageRouteInfo>? children})
       : super(AchievementsRoute.name, initialChildren: children);
 
   static const String name = 'AchievementsRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
-      return const _i2.AchievementsPage();
+      return const _i5.AchievementsPage();
     },
   );
 }
 
 /// generated route for
-/// [_i3.AiApiConfigPage]
-class AiApiConfigRoute extends _i51.PageRouteInfo<void> {
-  const AiApiConfigRoute({List<_i51.PageRouteInfo>? children})
+/// [_i6.AdvancedSettingsPage]
+class AdvancedSettingsRoute extends _i59.PageRouteInfo<void> {
+  const AdvancedSettingsRoute({List<_i59.PageRouteInfo>? children})
+      : super(AdvancedSettingsRoute.name, initialChildren: children);
+
+  static const String name = 'AdvancedSettingsRoute';
+
+  static _i59.PageInfo page = _i59.PageInfo(
+    name,
+    builder: (data) {
+      return const _i6.AdvancedSettingsPage();
+    },
+  );
+}
+
+/// generated route for
+/// [_i7.AiApiConfigPage]
+class AiApiConfigRoute extends _i59.PageRouteInfo<void> {
+  const AiApiConfigRoute({List<_i59.PageRouteInfo>? children})
       : super(AiApiConfigRoute.name, initialChildren: children);
 
   static const String name = 'AiApiConfigRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
-      return const _i3.AiApiConfigPage();
+      return const _i7.AiApiConfigPage();
     },
   );
 }
 
 /// generated route for
-/// [_i4.AiDiagnosisPage]
-class AiDiagnosisRoute extends _i51.PageRouteInfo<void> {
-  const AiDiagnosisRoute({List<_i51.PageRouteInfo>? children})
+/// [_i8.AiDiagnosisPage]
+class AiDiagnosisRoute extends _i59.PageRouteInfo<void> {
+  const AiDiagnosisRoute({List<_i59.PageRouteInfo>? children})
       : super(AiDiagnosisRoute.name, initialChildren: children);
 
   static const String name = 'AiDiagnosisRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
-      return const _i4.AiDiagnosisPage();
+      return const _i8.AiDiagnosisPage();
     },
   );
 }
 
 /// generated route for
-/// [_i5.AiFeatureGuidePage]
-class AiFeatureGuideRoute extends _i51.PageRouteInfo<void> {
-  const AiFeatureGuideRoute({List<_i51.PageRouteInfo>? children})
+/// [_i9.AiFeatureGuidePage]
+class AiFeatureGuideRoute extends _i59.PageRouteInfo<void> {
+  const AiFeatureGuideRoute({List<_i59.PageRouteInfo>? children})
       : super(AiFeatureGuideRoute.name, initialChildren: children);
 
   static const String name = 'AiFeatureGuideRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
-      return const _i5.AiFeatureGuidePage();
+      return const _i9.AiFeatureGuidePage();
     },
   );
 }
 
 /// generated route for
-/// [_i6.AiHintChatPage]
-class AiHintChatRoute extends _i51.PageRouteInfo<AiHintChatRouteArgs> {
+/// [_i10.AiHintChatPage]
+class AiHintChatRoute extends _i59.PageRouteInfo<AiHintChatRouteArgs> {
   AiHintChatRoute({
-    _i52.Key? key,
-    _i54.AiQuestionContext? context,
-    List<_i51.PageRouteInfo>? children,
+    _i60.Key? key,
+    _i62.AiQuestionContext? context,
+    List<_i59.PageRouteInfo>? children,
   }) : super(
           AiHintChatRoute.name,
           args: AiHintChatRouteArgs(key: key, context: context),
@@ -241,13 +321,13 @@ class AiHintChatRoute extends _i51.PageRouteInfo<AiHintChatRouteArgs> {
 
   static const String name = 'AiHintChatRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<AiHintChatRouteArgs>(
         orElse: () => const AiHintChatRouteArgs(),
       );
-      return _i6.AiHintChatPage(key: args.key, context: args.context);
+      return _i10.AiHintChatPage(key: args.key, context: args.context);
     },
   );
 }
@@ -255,9 +335,9 @@ class AiHintChatRoute extends _i51.PageRouteInfo<AiHintChatRouteArgs> {
 class AiHintChatRouteArgs {
   const AiHintChatRouteArgs({this.key, this.context});
 
-  final _i52.Key? key;
+  final _i60.Key? key;
 
-  final _i54.AiQuestionContext? context;
+  final _i62.AiQuestionContext? context;
 
   @override
   String toString() {
@@ -276,44 +356,44 @@ class AiHintChatRouteArgs {
 }
 
 /// generated route for
-/// [_i7.AiHubPage]
-class AiHubRoute extends _i51.PageRouteInfo<void> {
-  const AiHubRoute({List<_i51.PageRouteInfo>? children})
+/// [_i11.AiHubPage]
+class AiHubRoute extends _i59.PageRouteInfo<void> {
+  const AiHubRoute({List<_i59.PageRouteInfo>? children})
       : super(AiHubRoute.name, initialChildren: children);
 
   static const String name = 'AiHubRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
-      return const _i7.AiHubPage();
+      return const _i11.AiHubPage();
     },
   );
 }
 
 /// generated route for
-/// [_i8.AiSavedListPage]
-class AiSavedListRoute extends _i51.PageRouteInfo<void> {
-  const AiSavedListRoute({List<_i51.PageRouteInfo>? children})
+/// [_i12.AiSavedListPage]
+class AiSavedListRoute extends _i59.PageRouteInfo<void> {
+  const AiSavedListRoute({List<_i59.PageRouteInfo>? children})
       : super(AiSavedListRoute.name, initialChildren: children);
 
   static const String name = 'AiSavedListRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
-      return const _i8.AiSavedListPage();
+      return const _i12.AiSavedListPage();
     },
   );
 }
 
 /// generated route for
-/// [_i9.AiTutorChatPage]
-class AiTutorChatRoute extends _i51.PageRouteInfo<AiTutorChatRouteArgs> {
+/// [_i13.AiTutorChatPage]
+class AiTutorChatRoute extends _i59.PageRouteInfo<AiTutorChatRouteArgs> {
   AiTutorChatRoute({
-    _i52.Key? key,
-    _i55.AiTutorChatMode? initialMode,
-    List<_i51.PageRouteInfo>? children,
+    _i60.Key? key,
+    _i63.AiTutorChatMode? initialMode,
+    List<_i59.PageRouteInfo>? children,
   }) : super(
           AiTutorChatRoute.name,
           args: AiTutorChatRouteArgs(key: key, initialMode: initialMode),
@@ -322,13 +402,13 @@ class AiTutorChatRoute extends _i51.PageRouteInfo<AiTutorChatRouteArgs> {
 
   static const String name = 'AiTutorChatRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<AiTutorChatRouteArgs>(
         orElse: () => const AiTutorChatRouteArgs(),
       );
-      return _i9.AiTutorChatPage(key: args.key, initialMode: args.initialMode);
+      return _i13.AiTutorChatPage(key: args.key, initialMode: args.initialMode);
     },
   );
 }
@@ -336,9 +416,9 @@ class AiTutorChatRoute extends _i51.PageRouteInfo<AiTutorChatRouteArgs> {
 class AiTutorChatRouteArgs {
   const AiTutorChatRouteArgs({this.key, this.initialMode});
 
-  final _i52.Key? key;
+  final _i60.Key? key;
 
-  final _i55.AiTutorChatMode? initialMode;
+  final _i63.AiTutorChatMode? initialMode;
 
   @override
   String toString() {
@@ -357,31 +437,31 @@ class AiTutorChatRouteArgs {
 }
 
 /// generated route for
-/// [_i10.AiWishChatPage]
-class AiWishChatRoute extends _i51.PageRouteInfo<void> {
-  const AiWishChatRoute({List<_i51.PageRouteInfo>? children})
+/// [_i14.AiWishChatPage]
+class AiWishChatRoute extends _i59.PageRouteInfo<void> {
+  const AiWishChatRoute({List<_i59.PageRouteInfo>? children})
       : super(AiWishChatRoute.name, initialChildren: children);
 
   static const String name = 'AiWishChatRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
-      return const _i10.AiWishChatPage();
+      return const _i14.AiWishChatPage();
     },
   );
 }
 
 /// generated route for
-/// [_i11.AnkiCardBrowserPage]
+/// [_i15.AnkiCardBrowserPage]
 class AnkiCardBrowserRoute
-    extends _i51.PageRouteInfo<AnkiCardBrowserRouteArgs> {
+    extends _i59.PageRouteInfo<AnkiCardBrowserRouteArgs> {
   AnkiCardBrowserRoute({
-    _i52.Key? key,
+    _i60.Key? key,
     required String importId,
     required String title,
     String? sectionId,
-    List<_i51.PageRouteInfo>? children,
+    List<_i59.PageRouteInfo>? children,
   }) : super(
           AnkiCardBrowserRoute.name,
           args: AnkiCardBrowserRouteArgs(
@@ -395,11 +475,11 @@ class AnkiCardBrowserRoute
 
   static const String name = 'AnkiCardBrowserRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<AnkiCardBrowserRouteArgs>();
-      return _i11.AnkiCardBrowserPage(
+      return _i15.AnkiCardBrowserPage(
         key: args.key,
         importId: args.importId,
         title: args.title,
@@ -417,7 +497,7 @@ class AnkiCardBrowserRouteArgs {
     this.sectionId,
   });
 
-  final _i52.Key? key;
+  final _i60.Key? key;
 
   final String importId;
 
@@ -446,13 +526,13 @@ class AnkiCardBrowserRouteArgs {
 }
 
 /// generated route for
-/// [_i12.AnkiDeckStatsPage]
-class AnkiDeckStatsRoute extends _i51.PageRouteInfo<AnkiDeckStatsRouteArgs> {
+/// [_i16.AnkiDeckStatsPage]
+class AnkiDeckStatsRoute extends _i59.PageRouteInfo<AnkiDeckStatsRouteArgs> {
   AnkiDeckStatsRoute({
-    _i52.Key? key,
+    _i60.Key? key,
     required String importId,
     required String title,
-    List<_i51.PageRouteInfo>? children,
+    List<_i59.PageRouteInfo>? children,
   }) : super(
           AnkiDeckStatsRoute.name,
           args: AnkiDeckStatsRouteArgs(
@@ -465,11 +545,11 @@ class AnkiDeckStatsRoute extends _i51.PageRouteInfo<AnkiDeckStatsRouteArgs> {
 
   static const String name = 'AnkiDeckStatsRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<AnkiDeckStatsRouteArgs>();
-      return _i12.AnkiDeckStatsPage(
+      return _i16.AnkiDeckStatsPage(
         key: args.key,
         importId: args.importId,
         title: args.title,
@@ -485,7 +565,7 @@ class AnkiDeckStatsRouteArgs {
     required this.title,
   });
 
-  final _i52.Key? key;
+  final _i60.Key? key;
 
   final String importId;
 
@@ -510,13 +590,13 @@ class AnkiDeckStatsRouteArgs {
 }
 
 /// generated route for
-/// [_i13.AnkiImportPage]
-class AnkiImportRoute extends _i51.PageRouteInfo<AnkiImportRouteArgs> {
+/// [_i17.AnkiImportPage]
+class AnkiImportRoute extends _i59.PageRouteInfo<AnkiImportRouteArgs> {
   AnkiImportRoute({
-    _i56.Key? key,
+    _i64.Key? key,
     bool startWithSample = false,
-    _i57.AnkiImporter? importerForTest,
-    List<_i51.PageRouteInfo>? children,
+    _i65.AnkiImporter? importerForTest,
+    List<_i59.PageRouteInfo>? children,
   }) : super(
           AnkiImportRoute.name,
           args: AnkiImportRouteArgs(
@@ -529,13 +609,13 @@ class AnkiImportRoute extends _i51.PageRouteInfo<AnkiImportRouteArgs> {
 
   static const String name = 'AnkiImportRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<AnkiImportRouteArgs>(
         orElse: () => const AnkiImportRouteArgs(),
       );
-      return _i13.AnkiImportPage(
+      return _i17.AnkiImportPage(
         key: args.key,
         startWithSample: args.startWithSample,
         importerForTest: args.importerForTest,
@@ -551,11 +631,11 @@ class AnkiImportRouteArgs {
     this.importerForTest,
   });
 
-  final _i56.Key? key;
+  final _i64.Key? key;
 
   final bool startWithSample;
 
-  final _i57.AnkiImporter? importerForTest;
+  final _i65.AnkiImporter? importerForTest;
 
   @override
   String toString() {
@@ -577,29 +657,29 @@ class AnkiImportRouteArgs {
 }
 
 /// generated route for
-/// [_i14.AnkiReviewPage]
-class AnkiReviewRoute extends _i51.PageRouteInfo<void> {
-  const AnkiReviewRoute({List<_i51.PageRouteInfo>? children})
+/// [_i18.AnkiReviewPage]
+class AnkiReviewRoute extends _i59.PageRouteInfo<void> {
+  const AnkiReviewRoute({List<_i59.PageRouteInfo>? children})
       : super(AnkiReviewRoute.name, initialChildren: children);
 
   static const String name = 'AnkiReviewRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
-      return const _i14.AnkiReviewPage();
+      return const _i18.AnkiReviewPage();
     },
   );
 }
 
 /// generated route for
-/// [_i15.AnkiReviewSessionPage]
+/// [_i19.AnkiReviewSessionPage]
 class AnkiReviewSessionRoute
-    extends _i51.PageRouteInfo<AnkiReviewSessionRouteArgs> {
+    extends _i59.PageRouteInfo<AnkiReviewSessionRouteArgs> {
   AnkiReviewSessionRoute({
-    _i52.Key? key,
+    _i60.Key? key,
     String? sectionId,
-    List<_i51.PageRouteInfo>? children,
+    List<_i59.PageRouteInfo>? children,
   }) : super(
           AnkiReviewSessionRoute.name,
           args: AnkiReviewSessionRouteArgs(key: key, sectionId: sectionId),
@@ -608,13 +688,13 @@ class AnkiReviewSessionRoute
 
   static const String name = 'AnkiReviewSessionRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<AnkiReviewSessionRouteArgs>(
         orElse: () => const AnkiReviewSessionRouteArgs(),
       );
-      return _i15.AnkiReviewSessionPage(
+      return _i19.AnkiReviewSessionPage(
         key: args.key,
         sectionId: args.sectionId,
       );
@@ -625,7 +705,7 @@ class AnkiReviewSessionRoute
 class AnkiReviewSessionRouteArgs {
   const AnkiReviewSessionRouteArgs({this.key, this.sectionId});
 
-  final _i52.Key? key;
+  final _i60.Key? key;
 
   final String? sectionId;
 
@@ -646,189 +726,269 @@ class AnkiReviewSessionRouteArgs {
 }
 
 /// generated route for
-/// [_i16.AvatarRingsPage]
-class AvatarRingsRoute extends _i51.PageRouteInfo<void> {
-  const AvatarRingsRoute({List<_i51.PageRouteInfo>? children})
+/// [_i20.AppearanceSoundSettingsPage]
+class AppearanceSoundSettingsRoute extends _i59.PageRouteInfo<void> {
+  const AppearanceSoundSettingsRoute({List<_i59.PageRouteInfo>? children})
+      : super(AppearanceSoundSettingsRoute.name, initialChildren: children);
+
+  static const String name = 'AppearanceSoundSettingsRoute';
+
+  static _i59.PageInfo page = _i59.PageInfo(
+    name,
+    builder: (data) {
+      return const _i20.AppearanceSoundSettingsPage();
+    },
+  );
+}
+
+/// generated route for
+/// [_i21.AvatarRingsPage]
+class AvatarRingsRoute extends _i59.PageRouteInfo<void> {
+  const AvatarRingsRoute({List<_i59.PageRouteInfo>? children})
       : super(AvatarRingsRoute.name, initialChildren: children);
 
   static const String name = 'AvatarRingsRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
-      return const _i16.AvatarRingsPage();
+      return const _i21.AvatarRingsPage();
     },
   );
 }
 
 /// generated route for
-/// [_i17.ChangelogPage]
-class ChangelogRoute extends _i51.PageRouteInfo<void> {
-  const ChangelogRoute({List<_i51.PageRouteInfo>? children})
+/// [_i22.ChangelogPage]
+class ChangelogRoute extends _i59.PageRouteInfo<void> {
+  const ChangelogRoute({List<_i59.PageRouteInfo>? children})
       : super(ChangelogRoute.name, initialChildren: children);
 
   static const String name = 'ChangelogRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
-      return const _i17.ChangelogPage();
+      return const _i22.ChangelogPage();
     },
   );
 }
 
 /// generated route for
-/// [_i18.CourseManagementPage]
-class CourseManagementRoute extends _i51.PageRouteInfo<void> {
-  const CourseManagementRoute({List<_i51.PageRouteInfo>? children})
+/// [_i23.CourseManagementPage]
+class CourseManagementRoute extends _i59.PageRouteInfo<void> {
+  const CourseManagementRoute({List<_i59.PageRouteInfo>? children})
       : super(CourseManagementRoute.name, initialChildren: children);
 
   static const String name = 'CourseManagementRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
-      return const _i18.CourseManagementPage();
+      return const _i23.CourseManagementPage();
     },
   );
 }
 
 /// generated route for
-/// [_i19.DailyChallengePage]
-class DailyChallengeRoute extends _i51.PageRouteInfo<void> {
-  const DailyChallengeRoute({List<_i51.PageRouteInfo>? children})
+/// [_i24.DailyChallengePage]
+class DailyChallengeRoute extends _i59.PageRouteInfo<void> {
+  const DailyChallengeRoute({List<_i59.PageRouteInfo>? children})
       : super(DailyChallengeRoute.name, initialChildren: children);
 
   static const String name = 'DailyChallengeRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
-      return const _i19.DailyChallengePage();
+      return const _i24.DailyChallengePage();
     },
   );
 }
 
 /// generated route for
-/// [_i20.DictionaryPage]
-class DictionaryRoute extends _i51.PageRouteInfo<void> {
-  const DictionaryRoute({List<_i51.PageRouteInfo>? children})
+/// [_i25.DataBackupSettingsPage]
+class DataBackupSettingsRoute extends _i59.PageRouteInfo<void> {
+  const DataBackupSettingsRoute({List<_i59.PageRouteInfo>? children})
+      : super(DataBackupSettingsRoute.name, initialChildren: children);
+
+  static const String name = 'DataBackupSettingsRoute';
+
+  static _i59.PageInfo page = _i59.PageInfo(
+    name,
+    builder: (data) {
+      return const _i25.DataBackupSettingsPage();
+    },
+  );
+}
+
+/// generated route for
+/// [_i26.DeveloperSettingsPage]
+class DeveloperSettingsRoute extends _i59.PageRouteInfo<void> {
+  const DeveloperSettingsRoute({List<_i59.PageRouteInfo>? children})
+      : super(DeveloperSettingsRoute.name, initialChildren: children);
+
+  static const String name = 'DeveloperSettingsRoute';
+
+  static _i59.PageInfo page = _i59.PageInfo(
+    name,
+    builder: (data) {
+      return const _i26.DeveloperSettingsPage();
+    },
+  );
+}
+
+/// generated route for
+/// [_i27.DictionaryPage]
+class DictionaryRoute extends _i59.PageRouteInfo<void> {
+  const DictionaryRoute({List<_i59.PageRouteInfo>? children})
       : super(DictionaryRoute.name, initialChildren: children);
 
   static const String name = 'DictionaryRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
-      return const _i20.DictionaryPage();
+      return const _i27.DictionaryPage();
     },
   );
 }
 
 /// generated route for
-/// [_i21.GrammarReviewPage]
-class GrammarReviewRoute extends _i51.PageRouteInfo<void> {
-  const GrammarReviewRoute({List<_i51.PageRouteInfo>? children})
+/// [_i28.GrammarReviewPage]
+class GrammarReviewRoute extends _i59.PageRouteInfo<void> {
+  const GrammarReviewRoute({List<_i59.PageRouteInfo>? children})
       : super(GrammarReviewRoute.name, initialChildren: children);
 
   static const String name = 'GrammarReviewRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
-      return const _i21.GrammarReviewPage();
+      return const _i28.GrammarReviewPage();
     },
   );
 }
 
 /// generated route for
-/// [_i22.HomePage]
-class HomeRoute extends _i51.PageRouteInfo<void> {
-  const HomeRoute({List<_i51.PageRouteInfo>? children})
+/// [_i29.HomePage]
+class HomeRoute extends _i59.PageRouteInfo<void> {
+  const HomeRoute({List<_i59.PageRouteInfo>? children})
       : super(HomeRoute.name, initialChildren: children);
 
   static const String name = 'HomeRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
-      return const _i22.HomePage();
+      return const _i29.HomePage();
     },
   );
 }
 
 /// generated route for
-/// [_i23.LanguagePlaygroundPage]
-class LanguagePlaygroundRoute extends _i51.PageRouteInfo<void> {
-  const LanguagePlaygroundRoute({List<_i51.PageRouteInfo>? children})
+/// [_i30.LanguagePlaygroundPage]
+class LanguagePlaygroundRoute extends _i59.PageRouteInfo<void> {
+  const LanguagePlaygroundRoute({List<_i59.PageRouteInfo>? children})
       : super(LanguagePlaygroundRoute.name, initialChildren: children);
 
   static const String name = 'LanguagePlaygroundRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
-      return const _i23.LanguagePlaygroundPage();
+      return const _i30.LanguagePlaygroundPage();
     },
   );
 }
 
 /// generated route for
-/// [_i24.LearningInsightsPage]
-class LearningInsightsRoute extends _i51.PageRouteInfo<void> {
-  const LearningInsightsRoute({List<_i51.PageRouteInfo>? children})
+/// [_i31.LearningInsightsPage]
+class LearningInsightsRoute extends _i59.PageRouteInfo<void> {
+  const LearningInsightsRoute({List<_i59.PageRouteInfo>? children})
       : super(LearningInsightsRoute.name, initialChildren: children);
 
   static const String name = 'LearningInsightsRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
-      return const _i24.LearningInsightsPage();
+      return const _i31.LearningInsightsPage();
     },
   );
 }
 
 /// generated route for
-/// [_i25.MatchWordsPage]
-class MatchWordsRoute extends _i51.PageRouteInfo<void> {
-  const MatchWordsRoute({List<_i51.PageRouteInfo>? children})
+/// [_i32.LearningSettingsPage]
+class LearningSettingsRoute extends _i59.PageRouteInfo<void> {
+  const LearningSettingsRoute({List<_i59.PageRouteInfo>? children})
+      : super(LearningSettingsRoute.name, initialChildren: children);
+
+  static const String name = 'LearningSettingsRoute';
+
+  static _i59.PageInfo page = _i59.PageInfo(
+    name,
+    builder: (data) {
+      return const _i32.LearningSettingsPage();
+    },
+  );
+}
+
+/// generated route for
+/// [_i6.LegacyCompatibilityPage]
+class LegacyCompatibilityRoute extends _i59.PageRouteInfo<void> {
+  const LegacyCompatibilityRoute({List<_i59.PageRouteInfo>? children})
+      : super(LegacyCompatibilityRoute.name, initialChildren: children);
+
+  static const String name = 'LegacyCompatibilityRoute';
+
+  static _i59.PageInfo page = _i59.PageInfo(
+    name,
+    builder: (data) {
+      return const _i6.LegacyCompatibilityPage();
+    },
+  );
+}
+
+/// generated route for
+/// [_i33.MatchWordsPage]
+class MatchWordsRoute extends _i59.PageRouteInfo<void> {
+  const MatchWordsRoute({List<_i59.PageRouteInfo>? children})
       : super(MatchWordsRoute.name, initialChildren: children);
 
   static const String name = 'MatchWordsRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
-      return const _i25.MatchWordsPage();
+      return const _i33.MatchWordsPage();
     },
   );
 }
 
 /// generated route for
-/// [_i26.MistakeListPage]
-class MistakeListRoute extends _i51.PageRouteInfo<void> {
-  const MistakeListRoute({List<_i51.PageRouteInfo>? children})
+/// [_i34.MistakeListPage]
+class MistakeListRoute extends _i59.PageRouteInfo<void> {
+  const MistakeListRoute({List<_i59.PageRouteInfo>? children})
       : super(MistakeListRoute.name, initialChildren: children);
 
   static const String name = 'MistakeListRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
-      return const _i26.MistakeListPage();
+      return const _i34.MistakeListPage();
     },
   );
 }
 
 /// generated route for
-/// [_i27.MistakePracticePage]
+/// [_i35.MistakePracticePage]
 class MistakePracticeRoute
-    extends _i51.PageRouteInfo<MistakePracticeRouteArgs> {
+    extends _i59.PageRouteInfo<MistakePracticeRouteArgs> {
   MistakePracticeRoute({
-    _i52.Key? key,
-    required _i58.MistakeEntry entry,
-    List<_i51.PageRouteInfo>? children,
+    _i60.Key? key,
+    required _i66.MistakeEntry entry,
+    List<_i59.PageRouteInfo>? children,
   }) : super(
           MistakePracticeRoute.name,
           args: MistakePracticeRouteArgs(key: key, entry: entry),
@@ -837,11 +997,11 @@ class MistakePracticeRoute
 
   static const String name = 'MistakePracticeRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<MistakePracticeRouteArgs>();
-      return _i27.MistakePracticePage(key: args.key, entry: args.entry);
+      return _i35.MistakePracticePage(key: args.key, entry: args.entry);
     },
   );
 }
@@ -849,9 +1009,9 @@ class MistakePracticeRoute
 class MistakePracticeRouteArgs {
   const MistakePracticeRouteArgs({this.key, required this.entry});
 
-  final _i52.Key? key;
+  final _i60.Key? key;
 
-  final _i58.MistakeEntry entry;
+  final _i66.MistakeEntry entry;
 
   @override
   String toString() {
@@ -870,28 +1030,28 @@ class MistakePracticeRouteArgs {
 }
 
 /// generated route for
-/// [_i28.MistakeReviewPage]
-class MistakeReviewRoute extends _i51.PageRouteInfo<void> {
-  const MistakeReviewRoute({List<_i51.PageRouteInfo>? children})
+/// [_i36.MistakeReviewPage]
+class MistakeReviewRoute extends _i59.PageRouteInfo<void> {
+  const MistakeReviewRoute({List<_i59.PageRouteInfo>? children})
       : super(MistakeReviewRoute.name, initialChildren: children);
 
   static const String name = 'MistakeReviewRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
-      return const _i28.MistakeReviewPage();
+      return const _i36.MistakeReviewPage();
     },
   );
 }
 
 /// generated route for
-/// [_i29.NewLessonPage]
-class NewLessonRoute extends _i51.PageRouteInfo<NewLessonRouteArgs> {
+/// [_i37.NewLessonPage]
+class NewLessonRoute extends _i59.PageRouteInfo<NewLessonRouteArgs> {
   NewLessonRoute({
-    _i52.Key? key,
+    _i60.Key? key,
     required String lessonId,
-    List<_i51.PageRouteInfo>? children,
+    List<_i59.PageRouteInfo>? children,
   }) : super(
           NewLessonRoute.name,
           args: NewLessonRouteArgs(key: key, lessonId: lessonId),
@@ -900,11 +1060,11 @@ class NewLessonRoute extends _i51.PageRouteInfo<NewLessonRouteArgs> {
 
   static const String name = 'NewLessonRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<NewLessonRouteArgs>();
-      return _i29.NewLessonPage(key: args.key, lessonId: args.lessonId);
+      return _i37.NewLessonPage(key: args.key, lessonId: args.lessonId);
     },
   );
 }
@@ -912,7 +1072,7 @@ class NewLessonRoute extends _i51.PageRouteInfo<NewLessonRouteArgs> {
 class NewLessonRouteArgs {
   const NewLessonRouteArgs({this.key, required this.lessonId});
 
-  final _i52.Key? key;
+  final _i60.Key? key;
 
   final String lessonId;
 
@@ -933,37 +1093,37 @@ class NewLessonRouteArgs {
 }
 
 /// generated route for
-/// [_i30.OfficialAnkiInternalPage]
-class OfficialAnkiInternalRoute extends _i51.PageRouteInfo<void> {
-  const OfficialAnkiInternalRoute({List<_i51.PageRouteInfo>? children})
+/// [_i38.OfficialAnkiInternalPage]
+class OfficialAnkiInternalRoute extends _i59.PageRouteInfo<void> {
+  const OfficialAnkiInternalRoute({List<_i59.PageRouteInfo>? children})
       : super(OfficialAnkiInternalRoute.name, initialChildren: children);
 
   static const String name = 'OfficialAnkiInternalRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
-      return const _i30.OfficialAnkiInternalPage();
+      return const _i38.OfficialAnkiInternalPage();
     },
   );
 }
 
 /// generated route for
-/// [_i31.OfficialAnkiMappingPage]
+/// [_i39.OfficialAnkiMappingPage]
 class OfficialAnkiMappingRoute
-    extends _i51.PageRouteInfo<OfficialAnkiMappingRouteArgs> {
+    extends _i59.PageRouteInfo<OfficialAnkiMappingRouteArgs> {
   OfficialAnkiMappingRoute({
-    _i52.Key? key,
+    _i60.Key? key,
     required String notetypeName,
-    required _i59.OfficialAnkiMappingSuggestion suggestion,
-    _i60.OfficialAnkiProjectionSchema? schema,
+    required _i67.OfficialAnkiMappingSuggestion suggestion,
+    _i68.OfficialAnkiProjectionSchema? schema,
     int affectedCardCount = 0,
-    _i52.ValueChanged<_i59.OfficialAnkiMappingSuggestion>? onConfirm,
-    _i52.VoidCallback? onSkip,
-    _i52.VoidCallback? onRestore,
-    _i52.VoidCallback? onGenerateCourse,
-    _i52.ValueChanged<_i59.OfficialAnkiMappingSuggestion>? onChanged,
-    List<_i51.PageRouteInfo>? children,
+    _i60.ValueChanged<_i67.OfficialAnkiMappingSuggestion>? onConfirm,
+    _i60.VoidCallback? onSkip,
+    _i60.VoidCallback? onRestore,
+    _i60.VoidCallback? onGenerateCourse,
+    _i60.ValueChanged<_i67.OfficialAnkiMappingSuggestion>? onChanged,
+    List<_i59.PageRouteInfo>? children,
   }) : super(
           OfficialAnkiMappingRoute.name,
           args: OfficialAnkiMappingRouteArgs(
@@ -983,11 +1143,11 @@ class OfficialAnkiMappingRoute
 
   static const String name = 'OfficialAnkiMappingRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<OfficialAnkiMappingRouteArgs>();
-      return _i31.OfficialAnkiMappingPage(
+      return _i39.OfficialAnkiMappingPage(
         key: args.key,
         notetypeName: args.notetypeName,
         suggestion: args.suggestion,
@@ -1017,25 +1177,25 @@ class OfficialAnkiMappingRouteArgs {
     this.onChanged,
   });
 
-  final _i52.Key? key;
+  final _i60.Key? key;
 
   final String notetypeName;
 
-  final _i59.OfficialAnkiMappingSuggestion suggestion;
+  final _i67.OfficialAnkiMappingSuggestion suggestion;
 
-  final _i60.OfficialAnkiProjectionSchema? schema;
+  final _i68.OfficialAnkiProjectionSchema? schema;
 
   final int affectedCardCount;
 
-  final _i52.ValueChanged<_i59.OfficialAnkiMappingSuggestion>? onConfirm;
+  final _i60.ValueChanged<_i67.OfficialAnkiMappingSuggestion>? onConfirm;
 
-  final _i52.VoidCallback? onSkip;
+  final _i60.VoidCallback? onSkip;
 
-  final _i52.VoidCallback? onRestore;
+  final _i60.VoidCallback? onRestore;
 
-  final _i52.VoidCallback? onGenerateCourse;
+  final _i60.VoidCallback? onGenerateCourse;
 
-  final _i52.ValueChanged<_i59.OfficialAnkiMappingSuggestion>? onChanged;
+  final _i60.ValueChanged<_i67.OfficialAnkiMappingSuggestion>? onChanged;
 
   @override
   String toString() {
@@ -1073,21 +1233,21 @@ class OfficialAnkiMappingRouteArgs {
 }
 
 /// generated route for
-/// [_i32.OfficialAnkiMigrationPreviewPage]
+/// [_i40.OfficialAnkiMigrationPreviewPage]
 class OfficialAnkiMigrationPreviewRoute
-    extends _i51.PageRouteInfo<OfficialAnkiMigrationPreviewRouteArgs> {
+    extends _i59.PageRouteInfo<OfficialAnkiMigrationPreviewRouteArgs> {
   OfficialAnkiMigrationPreviewRoute({
-    _i52.Key? key,
-    required _i61.LegacyAnkiCensusReport census,
-    required _i62.LegacyAnkiDryRunResult dryRun,
+    _i60.Key? key,
+    required _i69.LegacyAnkiCensusReport census,
+    required _i70.LegacyAnkiDryRunResult dryRun,
     int diskFreeBytes = 0,
     String displayName = 'Legacy source',
     String? importId,
     String? sourceHash,
-    _i33.OfficialAnkiFeatureFlags flags = const _i33.OfficialAnkiFeatureFlags(),
-    _i63.OfficialAnkiOperationCoordinator? coordinator,
-    _i52.VoidCallback? onFixturePilot,
-    List<_i51.PageRouteInfo>? children,
+    _i41.OfficialAnkiFeatureFlags flags = const _i41.OfficialAnkiFeatureFlags(),
+    _i71.OfficialAnkiOperationCoordinator? coordinator,
+    _i60.VoidCallback? onFixturePilot,
+    List<_i59.PageRouteInfo>? children,
   }) : super(
           OfficialAnkiMigrationPreviewRoute.name,
           args: OfficialAnkiMigrationPreviewRouteArgs(
@@ -1107,11 +1267,11 @@ class OfficialAnkiMigrationPreviewRoute
 
   static const String name = 'OfficialAnkiMigrationPreviewRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<OfficialAnkiMigrationPreviewRouteArgs>();
-      return _i32.OfficialAnkiMigrationPreviewPage(
+      return _i40.OfficialAnkiMigrationPreviewPage(
         key: args.key,
         census: args.census,
         dryRun: args.dryRun,
@@ -1136,16 +1296,16 @@ class OfficialAnkiMigrationPreviewRouteArgs {
     this.displayName = 'Legacy source',
     this.importId,
     this.sourceHash,
-    this.flags = const _i33.OfficialAnkiFeatureFlags(),
+    this.flags = const _i41.OfficialAnkiFeatureFlags(),
     this.coordinator,
     this.onFixturePilot,
   });
 
-  final _i52.Key? key;
+  final _i60.Key? key;
 
-  final _i61.LegacyAnkiCensusReport census;
+  final _i69.LegacyAnkiCensusReport census;
 
-  final _i62.LegacyAnkiDryRunResult dryRun;
+  final _i70.LegacyAnkiDryRunResult dryRun;
 
   final int diskFreeBytes;
 
@@ -1155,11 +1315,11 @@ class OfficialAnkiMigrationPreviewRouteArgs {
 
   final String? sourceHash;
 
-  final _i33.OfficialAnkiFeatureFlags flags;
+  final _i41.OfficialAnkiFeatureFlags flags;
 
-  final _i63.OfficialAnkiOperationCoordinator? coordinator;
+  final _i71.OfficialAnkiOperationCoordinator? coordinator;
 
-  final _i52.VoidCallback? onFixturePilot;
+  final _i60.VoidCallback? onFixturePilot;
 
   @override
   String toString() {
@@ -1197,19 +1357,19 @@ class OfficialAnkiMigrationPreviewRouteArgs {
 }
 
 /// generated route for
-/// [_i34.OfficialAnkiReviewPage]
+/// [_i42.OfficialAnkiReviewPage]
 class OfficialAnkiReviewRoute
-    extends _i51.PageRouteInfo<OfficialAnkiReviewRouteArgs> {
+    extends _i59.PageRouteInfo<OfficialAnkiReviewRouteArgs> {
   OfficialAnkiReviewRoute({
-    _i52.Key? key,
-    required _i64.OfficialAnkiEngine engine,
-    required _i65.OfficialAnkiPaths paths,
+    _i60.Key? key,
+    required _i72.OfficialAnkiEngine engine,
+    required _i73.OfficialAnkiPaths paths,
     int? deckId,
     Set<int>? allowedCardIds,
-    _i33.OfficialAnkiFeatureFlags? flags,
-    _i66.OfficialReviewSession? session,
-    _i67.OfficialAnswerPresenter? presenter,
-    List<_i51.PageRouteInfo>? children,
+    _i41.OfficialAnkiFeatureFlags? flags,
+    _i74.OfficialReviewSession? session,
+    _i75.OfficialAnswerPresenter? presenter,
+    List<_i59.PageRouteInfo>? children,
   }) : super(
           OfficialAnkiReviewRoute.name,
           args: OfficialAnkiReviewRouteArgs(
@@ -1227,11 +1387,11 @@ class OfficialAnkiReviewRoute
 
   static const String name = 'OfficialAnkiReviewRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<OfficialAnkiReviewRouteArgs>();
-      return _i34.OfficialAnkiReviewPage(
+      return _i42.OfficialAnkiReviewPage(
         key: args.key,
         engine: args.engine,
         paths: args.paths,
@@ -1257,21 +1417,21 @@ class OfficialAnkiReviewRouteArgs {
     this.presenter,
   });
 
-  final _i52.Key? key;
+  final _i60.Key? key;
 
-  final _i64.OfficialAnkiEngine engine;
+  final _i72.OfficialAnkiEngine engine;
 
-  final _i65.OfficialAnkiPaths paths;
+  final _i73.OfficialAnkiPaths paths;
 
   final int? deckId;
 
   final Set<int>? allowedCardIds;
 
-  final _i33.OfficialAnkiFeatureFlags? flags;
+  final _i41.OfficialAnkiFeatureFlags? flags;
 
-  final _i66.OfficialReviewSession? session;
+  final _i74.OfficialReviewSession? session;
 
-  final _i67.OfficialAnswerPresenter? presenter;
+  final _i75.OfficialAnswerPresenter? presenter;
 
   @override
   String toString() {
@@ -1286,7 +1446,7 @@ class OfficialAnkiReviewRouteArgs {
         engine == other.engine &&
         paths == other.paths &&
         deckId == other.deckId &&
-        const _i68.SetEquality<int>().equals(
+        const _i76.SetEquality<int>().equals(
           allowedCardIds,
           other.allowedCardIds,
         ) &&
@@ -1301,24 +1461,24 @@ class OfficialAnkiReviewRouteArgs {
       engine.hashCode ^
       paths.hashCode ^
       deckId.hashCode ^
-      const _i68.SetEquality<int>().hash(allowedCardIds) ^
+      const _i76.SetEquality<int>().hash(allowedCardIds) ^
       flags.hashCode ^
       session.hashCode ^
       presenter.hashCode;
 }
 
 /// generated route for
-/// [_i35.OfficialAnkiReviewerPage]
+/// [_i43.OfficialAnkiReviewerPage]
 class OfficialAnkiReviewerRoute
-    extends _i51.PageRouteInfo<OfficialAnkiReviewerRouteArgs> {
+    extends _i59.PageRouteInfo<OfficialAnkiReviewerRouteArgs> {
   OfficialAnkiReviewerRoute({
-    _i56.Key? key,
+    _i64.Key? key,
     required String sourceId,
     required int cardId,
-    required _i65.OfficialAnkiPaths paths,
-    _i69.OfficialAnkiRenderFacade? facade,
-    _i70.OfficialAnkiReviewerController? controller,
-    List<_i51.PageRouteInfo>? children,
+    required _i73.OfficialAnkiPaths paths,
+    _i77.OfficialAnkiRenderFacade? facade,
+    _i78.OfficialAnkiReviewerController? controller,
+    List<_i59.PageRouteInfo>? children,
   }) : super(
           OfficialAnkiReviewerRoute.name,
           args: OfficialAnkiReviewerRouteArgs(
@@ -1334,11 +1494,11 @@ class OfficialAnkiReviewerRoute
 
   static const String name = 'OfficialAnkiReviewerRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<OfficialAnkiReviewerRouteArgs>();
-      return _i35.OfficialAnkiReviewerPage(
+      return _i43.OfficialAnkiReviewerPage(
         key: args.key,
         sourceId: args.sourceId,
         cardId: args.cardId,
@@ -1360,17 +1520,17 @@ class OfficialAnkiReviewerRouteArgs {
     this.controller,
   });
 
-  final _i56.Key? key;
+  final _i64.Key? key;
 
   final String sourceId;
 
   final int cardId;
 
-  final _i65.OfficialAnkiPaths paths;
+  final _i73.OfficialAnkiPaths paths;
 
-  final _i69.OfficialAnkiRenderFacade? facade;
+  final _i77.OfficialAnkiRenderFacade? facade;
 
-  final _i70.OfficialAnkiReviewerController? controller;
+  final _i78.OfficialAnkiReviewerController? controller;
 
   @override
   String toString() {
@@ -1400,19 +1560,19 @@ class OfficialAnkiReviewerRouteArgs {
 }
 
 /// generated route for
-/// [_i36.OfficialAnkiSourceManagementPage]
+/// [_i44.OfficialAnkiSourceManagementPage]
 class OfficialAnkiSourceManagementRoute
-    extends _i51.PageRouteInfo<OfficialAnkiSourceManagementRouteArgs> {
+    extends _i59.PageRouteInfo<OfficialAnkiSourceManagementRouteArgs> {
   OfficialAnkiSourceManagementRoute({
-    _i52.Key? key,
-    required _i64.OfficialAnkiEngine engine,
-    required _i71.OfficialAnkiDatabase catalog,
-    required _i72.CourseDatabase course,
+    _i60.Key? key,
+    required _i72.OfficialAnkiEngine engine,
+    required _i79.OfficialAnkiDatabase catalog,
+    required _i80.CourseDatabase course,
     required String profileId,
-    _i33.OfficialAnkiFeatureFlags? flags,
-    _i73.CourseProvider? courseProvider,
-    _i74.OfficialAnkiCourseProjectionService Function(String)? serviceOf,
-    List<_i51.PageRouteInfo>? children,
+    _i41.OfficialAnkiFeatureFlags? flags,
+    _i81.CourseProvider? courseProvider,
+    _i82.OfficialAnkiCourseProjectionService Function(String)? serviceOf,
+    List<_i59.PageRouteInfo>? children,
   }) : super(
           OfficialAnkiSourceManagementRoute.name,
           args: OfficialAnkiSourceManagementRouteArgs(
@@ -1430,11 +1590,11 @@ class OfficialAnkiSourceManagementRoute
 
   static const String name = 'OfficialAnkiSourceManagementRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<OfficialAnkiSourceManagementRouteArgs>();
-      return _i36.OfficialAnkiSourceManagementPage(
+      return _i44.OfficialAnkiSourceManagementPage(
         key: args.key,
         engine: args.engine,
         catalog: args.catalog,
@@ -1460,21 +1620,21 @@ class OfficialAnkiSourceManagementRouteArgs {
     this.serviceOf,
   });
 
-  final _i52.Key? key;
+  final _i60.Key? key;
 
-  final _i64.OfficialAnkiEngine engine;
+  final _i72.OfficialAnkiEngine engine;
 
-  final _i71.OfficialAnkiDatabase catalog;
+  final _i79.OfficialAnkiDatabase catalog;
 
-  final _i72.CourseDatabase course;
+  final _i80.CourseDatabase course;
 
   final String profileId;
 
-  final _i33.OfficialAnkiFeatureFlags? flags;
+  final _i41.OfficialAnkiFeatureFlags? flags;
 
-  final _i73.CourseProvider? courseProvider;
+  final _i81.CourseProvider? courseProvider;
 
-  final _i74.OfficialAnkiCourseProjectionService Function(String)? serviceOf;
+  final _i82.OfficialAnkiCourseProjectionService Function(String)? serviceOf;
 
   @override
   String toString() {
@@ -1506,61 +1666,61 @@ class OfficialAnkiSourceManagementRouteArgs {
 }
 
 /// generated route for
-/// [_i37.PrivacyDetailsPage]
-class PrivacyDetailsRoute extends _i51.PageRouteInfo<void> {
-  const PrivacyDetailsRoute({List<_i51.PageRouteInfo>? children})
+/// [_i45.PrivacyDetailsPage]
+class PrivacyDetailsRoute extends _i59.PageRouteInfo<void> {
+  const PrivacyDetailsRoute({List<_i59.PageRouteInfo>? children})
       : super(PrivacyDetailsRoute.name, initialChildren: children);
 
   static const String name = 'PrivacyDetailsRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
-      return const _i37.PrivacyDetailsPage();
+      return const _i45.PrivacyDetailsPage();
     },
   );
 }
 
 /// generated route for
-/// [_i38.RemoteBackupPage]
-class RemoteBackupRoute extends _i51.PageRouteInfo<void> {
-  const RemoteBackupRoute({List<_i51.PageRouteInfo>? children})
+/// [_i46.RemoteBackupPage]
+class RemoteBackupRoute extends _i59.PageRouteInfo<void> {
+  const RemoteBackupRoute({List<_i59.PageRouteInfo>? children})
       : super(RemoteBackupRoute.name, initialChildren: children);
 
   static const String name = 'RemoteBackupRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
-      return const _i38.RemoteBackupPage();
+      return const _i46.RemoteBackupPage();
     },
   );
 }
 
 /// generated route for
-/// [_i39.ReviewProgressPage]
-class ReviewProgressRoute extends _i51.PageRouteInfo<void> {
-  const ReviewProgressRoute({List<_i51.PageRouteInfo>? children})
+/// [_i47.ReviewProgressPage]
+class ReviewProgressRoute extends _i59.PageRouteInfo<void> {
+  const ReviewProgressRoute({List<_i59.PageRouteInfo>? children})
       : super(ReviewProgressRoute.name, initialChildren: children);
 
   static const String name = 'ReviewProgressRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
-      return const _i39.ReviewProgressPage();
+      return const _i47.ReviewProgressPage();
     },
   );
 }
 
 /// generated route for
-/// [_i40.ReviewSourceDetailPage]
+/// [_i48.ReviewSourceDetailPage]
 class ReviewSourceDetailRoute
-    extends _i51.PageRouteInfo<ReviewSourceDetailRouteArgs> {
+    extends _i59.PageRouteInfo<ReviewSourceDetailRouteArgs> {
   ReviewSourceDetailRoute({
-    _i52.Key? key,
-    required _i75.ReviewSource source,
-    List<_i51.PageRouteInfo>? children,
+    _i60.Key? key,
+    required _i83.ReviewSource source,
+    List<_i59.PageRouteInfo>? children,
   }) : super(
           ReviewSourceDetailRoute.name,
           args: ReviewSourceDetailRouteArgs(key: key, source: source),
@@ -1569,11 +1729,11 @@ class ReviewSourceDetailRoute
 
   static const String name = 'ReviewSourceDetailRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<ReviewSourceDetailRouteArgs>();
-      return _i40.ReviewSourceDetailPage(key: args.key, source: args.source);
+      return _i48.ReviewSourceDetailPage(key: args.key, source: args.source);
     },
   );
 }
@@ -1581,9 +1741,9 @@ class ReviewSourceDetailRoute
 class ReviewSourceDetailRouteArgs {
   const ReviewSourceDetailRouteArgs({this.key, required this.source});
 
-  final _i52.Key? key;
+  final _i60.Key? key;
 
-  final _i75.ReviewSource source;
+  final _i83.ReviewSource source;
 
   @override
   String toString() {
@@ -1602,163 +1762,186 @@ class ReviewSourceDetailRouteArgs {
 }
 
 /// generated route for
-/// [_i41.SectionPickerPage]
-class SectionPickerRoute extends _i51.PageRouteInfo<void> {
-  const SectionPickerRoute({List<_i51.PageRouteInfo>? children})
+/// [_i49.SectionPickerPage]
+class SectionPickerRoute extends _i59.PageRouteInfo<void> {
+  const SectionPickerRoute({List<_i59.PageRouteInfo>? children})
       : super(SectionPickerRoute.name, initialChildren: children);
 
   static const String name = 'SectionPickerRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
-      return const _i41.SectionPickerPage();
+      return const _i49.SectionPickerPage();
     },
   );
 }
 
 /// generated route for
-/// [_i42.SplashPage]
-class SplashRoute extends _i51.PageRouteInfo<void> {
-  const SplashRoute({List<_i51.PageRouteInfo>? children})
+/// [_i50.SplashPage]
+class SplashRoute extends _i59.PageRouteInfo<void> {
+  const SplashRoute({List<_i59.PageRouteInfo>? children})
       : super(SplashRoute.name, initialChildren: children);
 
   static const String name = 'SplashRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
-      return const _i42.SplashPage();
+      return const _i50.SplashPage();
     },
   );
 }
 
 /// generated route for
-/// [_i43.SrsReviewPage]
-class SrsReviewRoute extends _i51.PageRouteInfo<void> {
-  const SrsReviewRoute({List<_i51.PageRouteInfo>? children})
+/// [_i51.SrsReviewPage]
+class SrsReviewRoute extends _i59.PageRouteInfo<void> {
+  const SrsReviewRoute({List<_i59.PageRouteInfo>? children})
       : super(SrsReviewRoute.name, initialChildren: children);
 
   static const String name = 'SrsReviewRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
-      return const _i43.SrsReviewPage();
+      return const _i51.SrsReviewPage();
     },
   );
 }
 
 /// generated route for
-/// [_i44.StorageDiagnosticsPage]
+/// [_i52.StorageDiagnosticsPage]
 class StorageDiagnosticsRoute
-    extends _i51.PageRouteInfo<StorageDiagnosticsRouteArgs> {
+    extends _i59.PageRouteInfo<StorageDiagnosticsRouteArgs> {
   StorageDiagnosticsRoute({
-    _i52.Key? key,
-    _i76.StorageInventoryService? scanner,
-    List<_i51.PageRouteInfo>? children,
+    _i60.Key? key,
+    _i84.StorageInventoryService? scanner,
+    _i85.CacheDiagnosticsRegistry? cacheRegistry,
+    _i86.Future<_i87.RuntimeMemorySnapshot> Function()? memorySampler,
+    List<_i59.PageRouteInfo>? children,
   }) : super(
           StorageDiagnosticsRoute.name,
-          args: StorageDiagnosticsRouteArgs(key: key, scanner: scanner),
+          args: StorageDiagnosticsRouteArgs(
+            key: key,
+            scanner: scanner,
+            cacheRegistry: cacheRegistry,
+            memorySampler: memorySampler,
+          ),
           initialChildren: children,
         );
 
   static const String name = 'StorageDiagnosticsRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<StorageDiagnosticsRouteArgs>(
         orElse: () => const StorageDiagnosticsRouteArgs(),
       );
-      return _i44.StorageDiagnosticsPage(key: args.key, scanner: args.scanner);
+      return _i52.StorageDiagnosticsPage(
+        key: args.key,
+        scanner: args.scanner,
+        cacheRegistry: args.cacheRegistry,
+        memorySampler: args.memorySampler,
+      );
     },
   );
 }
 
 class StorageDiagnosticsRouteArgs {
-  const StorageDiagnosticsRouteArgs({this.key, this.scanner});
+  const StorageDiagnosticsRouteArgs({
+    this.key,
+    this.scanner,
+    this.cacheRegistry,
+    this.memorySampler,
+  });
 
-  final _i52.Key? key;
+  final _i60.Key? key;
 
-  final _i76.StorageInventoryService? scanner;
+  final _i84.StorageInventoryService? scanner;
+
+  final _i85.CacheDiagnosticsRegistry? cacheRegistry;
+
+  final _i86.Future<_i87.RuntimeMemorySnapshot> Function()? memorySampler;
 
   @override
   String toString() {
-    return 'StorageDiagnosticsRouteArgs{key: $key, scanner: $scanner}';
+    return 'StorageDiagnosticsRouteArgs{key: $key, scanner: $scanner, cacheRegistry: $cacheRegistry, memorySampler: $memorySampler}';
   }
 
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
     if (other is! StorageDiagnosticsRouteArgs) return false;
-    return key == other.key && scanner == other.scanner;
+    return key == other.key &&
+        scanner == other.scanner &&
+        cacheRegistry == other.cacheRegistry;
   }
 
   @override
-  int get hashCode => key.hashCode ^ scanner.hashCode;
+  int get hashCode => key.hashCode ^ scanner.hashCode ^ cacheRegistry.hashCode;
 }
 
 /// generated route for
-/// [_i45.SystemHealthPage]
-class SystemHealthRoute extends _i51.PageRouteInfo<void> {
-  const SystemHealthRoute({List<_i51.PageRouteInfo>? children})
+/// [_i53.SystemHealthPage]
+class SystemHealthRoute extends _i59.PageRouteInfo<void> {
+  const SystemHealthRoute({List<_i59.PageRouteInfo>? children})
       : super(SystemHealthRoute.name, initialChildren: children);
 
   static const String name = 'SystemHealthRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
-      return const _i45.SystemHealthPage();
+      return const _i53.SystemHealthPage();
     },
   );
 }
 
 /// generated route for
-/// [_i46.TextbookImportPage]
-class TextbookImportRoute extends _i51.PageRouteInfo<void> {
-  const TextbookImportRoute({List<_i51.PageRouteInfo>? children})
+/// [_i54.TextbookImportPage]
+class TextbookImportRoute extends _i59.PageRouteInfo<void> {
+  const TextbookImportRoute({List<_i59.PageRouteInfo>? children})
       : super(TextbookImportRoute.name, initialChildren: children);
 
   static const String name = 'TextbookImportRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
-      return const _i46.TextbookImportPage();
+      return const _i54.TextbookImportPage();
     },
   );
 }
 
 /// generated route for
-/// [_i47.TransparencyLogPage]
-class TransparencyLogRoute extends _i51.PageRouteInfo<void> {
-  const TransparencyLogRoute({List<_i51.PageRouteInfo>? children})
+/// [_i55.TransparencyLogPage]
+class TransparencyLogRoute extends _i59.PageRouteInfo<void> {
+  const TransparencyLogRoute({List<_i59.PageRouteInfo>? children})
       : super(TransparencyLogRoute.name, initialChildren: children);
 
   static const String name = 'TransparencyLogRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
-      return const _i47.TransparencyLogPage();
+      return const _i55.TransparencyLogPage();
     },
   );
 }
 
 /// generated route for
-/// [_i48.UnifiedReviewPage]
-class UnifiedReviewRoute extends _i51.PageRouteInfo<UnifiedReviewRouteArgs> {
+/// [_i56.UnifiedReviewPage]
+class UnifiedReviewRoute extends _i59.PageRouteInfo<UnifiedReviewRouteArgs> {
   UnifiedReviewRoute({
-    _i52.Key? key,
-    required List<_i77.ReviewItem> items,
-    required _i78.ReviewLedgerResolver ledgerResolver,
+    _i60.Key? key,
+    required List<_i88.ReviewItem> items,
+    required _i89.ReviewLedgerResolver ledgerResolver,
     String? title,
-    _i79.Future<void> Function(_i77.ReviewItem, _i80.RecallOutcome)?
+    _i86.Future<void> Function(_i88.ReviewItem, _i90.RecallOutcome)?
         onOutcomeRecorded,
-    _i79.Future<void> Function(_i81.ReviewEventReceipt)? onOutcomeUndone,
-    List<_i51.PageRouteInfo>? children,
+    _i86.Future<void> Function(_i91.ReviewEventReceipt)? onOutcomeUndone,
+    List<_i59.PageRouteInfo>? children,
   }) : super(
           UnifiedReviewRoute.name,
           args: UnifiedReviewRouteArgs(
@@ -1774,11 +1957,11 @@ class UnifiedReviewRoute extends _i51.PageRouteInfo<UnifiedReviewRouteArgs> {
 
   static const String name = 'UnifiedReviewRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<UnifiedReviewRouteArgs>();
-      return _i48.UnifiedReviewPage(
+      return _i56.UnifiedReviewPage(
         key: args.key,
         items: args.items,
         ledgerResolver: args.ledgerResolver,
@@ -1800,18 +1983,18 @@ class UnifiedReviewRouteArgs {
     this.onOutcomeUndone,
   });
 
-  final _i52.Key? key;
+  final _i60.Key? key;
 
-  final List<_i77.ReviewItem> items;
+  final List<_i88.ReviewItem> items;
 
-  final _i78.ReviewLedgerResolver ledgerResolver;
+  final _i89.ReviewLedgerResolver ledgerResolver;
 
   final String? title;
 
-  final _i79.Future<void> Function(_i77.ReviewItem, _i80.RecallOutcome)?
+  final _i86.Future<void> Function(_i88.ReviewItem, _i90.RecallOutcome)?
       onOutcomeRecorded;
 
-  final _i79.Future<void> Function(_i81.ReviewEventReceipt)? onOutcomeUndone;
+  final _i86.Future<void> Function(_i91.ReviewEventReceipt)? onOutcomeUndone;
 
   @override
   String toString() {
@@ -1823,7 +2006,7 @@ class UnifiedReviewRouteArgs {
     if (identical(this, other)) return true;
     if (other is! UnifiedReviewRouteArgs) return false;
     return key == other.key &&
-        const _i68.ListEquality<_i77.ReviewItem>().equals(items, other.items) &&
+        const _i76.ListEquality<_i88.ReviewItem>().equals(items, other.items) &&
         ledgerResolver == other.ledgerResolver &&
         title == other.title;
   }
@@ -1831,19 +2014,19 @@ class UnifiedReviewRouteArgs {
   @override
   int get hashCode =>
       key.hashCode ^
-      const _i68.ListEquality<_i77.ReviewItem>().hash(items) ^
+      const _i76.ListEquality<_i88.ReviewItem>().hash(items) ^
       ledgerResolver.hashCode ^
       title.hashCode;
 }
 
 /// generated route for
-/// [_i49.VowelAndConsonantLearningPage]
+/// [_i57.VowelAndConsonantLearningPage]
 class VowelAndConsonantLearningRoute
-    extends _i51.PageRouteInfo<VowelAndConsonantLearningRouteArgs> {
+    extends _i59.PageRouteInfo<VowelAndConsonantLearningRouteArgs> {
   VowelAndConsonantLearningRoute({
-    _i52.Key? key,
-    required _i49.CharacterLearningMode mode,
-    List<_i51.PageRouteInfo>? children,
+    _i60.Key? key,
+    required _i57.CharacterLearningMode mode,
+    List<_i59.PageRouteInfo>? children,
   }) : super(
           VowelAndConsonantLearningRoute.name,
           args: VowelAndConsonantLearningRouteArgs(key: key, mode: mode),
@@ -1852,11 +2035,11 @@ class VowelAndConsonantLearningRoute
 
   static const String name = 'VowelAndConsonantLearningRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<VowelAndConsonantLearningRouteArgs>();
-      return _i49.VowelAndConsonantLearningPage(key: args.key, mode: args.mode);
+      return _i57.VowelAndConsonantLearningPage(key: args.key, mode: args.mode);
     },
   );
 }
@@ -1864,9 +2047,9 @@ class VowelAndConsonantLearningRoute
 class VowelAndConsonantLearningRouteArgs {
   const VowelAndConsonantLearningRouteArgs({this.key, required this.mode});
 
-  final _i52.Key? key;
+  final _i60.Key? key;
 
-  final _i49.CharacterLearningMode mode;
+  final _i57.CharacterLearningMode mode;
 
   @override
   String toString() {
@@ -1885,17 +2068,17 @@ class VowelAndConsonantLearningRouteArgs {
 }
 
 /// generated route for
-/// [_i50.WeakWordsPage]
-class WeakWordsRoute extends _i51.PageRouteInfo<void> {
-  const WeakWordsRoute({List<_i51.PageRouteInfo>? children})
+/// [_i58.WeakWordsPage]
+class WeakWordsRoute extends _i59.PageRouteInfo<void> {
+  const WeakWordsRoute({List<_i59.PageRouteInfo>? children})
       : super(WeakWordsRoute.name, initialChildren: children);
 
   static const String name = 'WeakWordsRoute';
 
-  static _i51.PageInfo page = _i51.PageInfo(
+  static _i59.PageInfo page = _i59.PageInfo(
     name,
     builder: (data) {
-      return const _i50.WeakWordsPage();
+      return const _i58.WeakWordsPage();
     },
   );
 }

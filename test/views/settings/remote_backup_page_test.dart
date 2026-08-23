@@ -1,3 +1,7 @@
+// Widget tests for the redesigned RemoteBackupPage (Plan §9.3): explicit
+// save-and-test, credential placeholder instead of echo-back, backup/restore
+// gated on a SAVED configuration.
+
 // Package imports:
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -6,6 +10,7 @@ import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 
 // Project imports:
 import 'package:turna/di/injection.dart';
+import 'package:turna/domain/repositories/i_credential_store.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/service/remote_backup/backup_manifest.dart';
@@ -14,6 +19,25 @@ import 'package:turna/service/remote_backup/remote_backup_config.dart';
 import 'package:turna/service/remote_backup/remote_backup_service.dart';
 import 'package:turna/service/remote_backup/webdav_client.dart';
 import 'package:turna/views/settings/remote_backup_page.dart';
+
+class _FakeCredentialStore implements ICredentialStore {
+  final Map<String, String> storage = {};
+
+  @override
+  bool get isPersistent => true;
+
+  @override
+  Future<void> write(String id, String value) async => storage[id] = value;
+
+  @override
+  Future<String?> read(String id) async => storage[id];
+
+  @override
+  Future<void> delete(String id) async => storage.remove(id);
+
+  @override
+  Future<void> deleteAll() async => storage.clear();
+}
 
 class _FakeRemoteBackupService implements RemoteBackupService {
   _FakeRemoteBackupService({this.manifest});
@@ -80,6 +104,7 @@ void main() {
 
   late StreamingSharedPreferences sp;
   late AppPrefs prefs;
+  late _FakeCredentialStore credentials;
   late RemoteBackupConfigStore configStore;
   late _FakeRemoteBackupService service;
 
@@ -87,9 +112,12 @@ void main() {
     await getIt.reset();
     SharedPreferences.setMockInitialValues({});
     sp = await StreamingSharedPreferences.instance;
+    await sp.remove(LocalStateKeys.remoteBackupConfig);
+    await sp.remove(RemoteBackupConfigStore.migrationMarkerKey);
     prefs = AppPrefs(sp);
+    credentials = _FakeCredentialStore();
     getIt.registerLazySingleton<AppPrefs>(() => prefs);
-    configStore = RemoteBackupConfigStore(prefs);
+    configStore = RemoteBackupConfigStore(prefs, credentialStore: credentials);
     getIt.registerLazySingleton<RemoteBackupConfigStore>(() => configStore);
     service = _FakeRemoteBackupService(manifest: _manifest());
     getIt.registerLazySingleton<RemoteBackupService>(() => service);
@@ -125,20 +153,39 @@ void main() {
     fail('never became visible: $finder');
   }
 
-  Future<void> fillConfig(WidgetTester tester) async {
-    await tester.enterText(
-        find.widgetWithText(TextField, AppStrings.remoteBackupServerUrlHint)
-            .first,
-        'https://dav.example.com');
-    await tester.enterText(
-        find.widgetWithText(TextField, AppStrings.remoteBackupUsernameHint)
-            .first,
-        'alice');
-    await tester.enterText(
-        find.widgetWithText(TextField, AppStrings.remoteBackupPasswordHint)
-            .first,
-        'secret');
+  /// Types the endpoint + password and taps the explicit save-and-test
+  /// button. After this the endpoint + credential are PERSISTED.
+  Future<void> typeInto(WidgetTester tester, Finder field, String text) async {
+    // Tap-to-focus first, then enterText: fields inside a scroll view need
+    // the focus hop for the test input connection to attach reliably.
+    await tester.tap(field, warnIfMissed: false);
     await tester.pump();
+    await tester.enterText(field, text);
+    await tester.pumpAndSettle();
+  }
+
+  /// Types the endpoint + password and taps the explicit save-and-test
+  /// button. After this the endpoint + credential are PERSISTED.
+  Future<void> saveConfig(WidgetTester tester) async {
+    // Drive the controllers through the widget configs (same instances the
+    // page owns): consecutive tester.enterText calls on different fields
+    // inside this scroll view delivered only the first value (input client
+    // switch lag), while the controller-level set exercises the identical
+    // listener/save path deterministically.
+    final fields = find.byType(TextField);
+    tester.widget<TextField>(fields.at(0)).controller!.text =
+        'https://dav.example.com';
+    await tester.pump();
+    tester.widget<TextField>(fields.at(1)).controller!.text = 'alice';
+    await tester.pump();
+    tester.widget<TextField>(fields.at(2)).controller!.text = 'secret';
+    await tester.pumpAndSettle();
+    await scrollTo(tester, find.text(AppStrings.remoteBackupSaveAndTest));
+    await tester.tap(find.text(AppStrings.remoteBackupSaveAndTest));
+    await tester.pumpAndSettle();
+    // The result row renders right below the button; bring it into the
+    // build window of the lazy ListView before asserting on it.
+    await scrollTo(tester, find.text(AppStrings.remoteBackupTestOk));
   }
 
   testWidgets('renders all three sections and the no-backup state',
@@ -147,69 +194,104 @@ void main() {
 
     expect(find.text(AppStrings.remoteBackupServerSection), findsOneWidget);
     expect(find.text(AppStrings.remoteBackupBackupSection), findsOneWidget);
-    await scrollTo(tester,
-        find.text(AppStrings.remoteBackupRestoreSection));
+    await scrollTo(tester, find.text(AppStrings.remoteBackupRestoreSection));
     expect(find.text(AppStrings.remoteBackupRestoreSection), findsOneWidget);
     expect(find.text(AppStrings.remoteBackupNoBackupYet), findsOneWidget);
     expect(find.text(AppStrings.remoteBackupBackupNow), findsOneWidget);
     expect(find.text(AppStrings.remoteBackupRestoreFromRemote), findsOneWidget);
-    await scrollTo(tester,
-        find.text(AppStrings.remoteBackupRestoreFromRemote));
+    await scrollTo(tester, find.text(AppStrings.remoteBackupRestoreFromRemote));
     expect(
       find.text(AppStrings.remoteBackupRestoreSubtitle),
       findsOneWidget,
-      reason:
-          'before configuring, the restore tile falls back to its static '
+      reason: 'before configuring, the restore tile falls back to its static '
           'subtitle (no remote fetch happens unconfigured)',
     );
   });
 
-  testWidgets('test connection reports success through the result row',
+  testWidgets('save-and-test persists endpoint + credential and reports ok',
       (tester) async {
     await pumpPage(tester);
-    await fillConfig(tester);
+    await saveConfig(tester);
 
-    await tester.tap(find.text(AppStrings.remoteBackupTestConnection));
-    await tester.pumpAndSettle();
-
+    // Connection test succeeded through the result row…
     expect(find.text(AppStrings.remoteBackupTestOk), findsOneWidget);
+    // …and nothing was ever persisted per keystroke: the endpoint JSON has
+    // no password and the credential lives in the secure store only.
+    expect(configStore.loadEndpoint().serverUrl, 'https://dav.example.com');
+    final raw = prefs.preferences
+        .getString(LocalStateKeys.remoteBackupConfig, defaultValue: '')
+        .getValue();
+    expect(raw.contains('secret'), isFalse);
+    expect(
+      credentials.storage[RemoteBackupConfigStore.securePasswordId],
+      'secret',
+    );
   });
 
-  testWidgets('backup now shows a completion snackbar', (tester) async {
+  testWidgets('stored credential shows a placeholder, never the password',
+      (tester) async {
+    await configStore.saveEndpoint(const RemoteBackupEndpointConfig(
+      serverUrl: 'https://dav.example.com',
+      username: 'alice',
+    ));
+    await configStore.savePassword('super-secret');
+
     await pumpPage(tester);
-    await fillConfig(tester);
+    await tester.enterText(
+      find
+          .widgetWithText(TextField, AppStrings.remoteBackupServerUrlHint)
+          .first,
+      'https://dav.example.com',
+    );
+    await tester.pump();
+
+    // The URL / username fields are prefilled; the password field shows the
+    // "already saved" hint and the real password never appears as text.
+    expect(find.text('super-secret'), findsNothing);
+    expect(find.textContaining('已保存凭据'), findsWidgets);
+  });
+
+  testWidgets('backup now runs after a saved configuration', (tester) async {
+    await pumpPage(tester);
+    await saveConfig(tester);
     await scrollTo(tester, find.text(AppStrings.remoteBackupBackupNow));
 
     await tester.tap(find.text(AppStrings.remoteBackupBackupNow));
     await tester.pumpAndSettle();
 
     expect(service.backupCalls, 1);
-    expect(find.text(AppStrings.remoteBackupSuccess('2.0 KB')),
-        findsOneWidget);
+    expect(find.text(AppStrings.remoteBackupSuccess('2.0 KB')), findsOneWidget);
   });
 
-  testWidgets('restore requires an explicit destructive confirmation',
+  testWidgets('restore requires a saved configuration AND an explicit confirm',
       (tester) async {
     await pumpPage(tester);
-    await fillConfig(tester);
-    await scrollTo(tester,
-        find.text(AppStrings.remoteBackupRestoreFromRemote));
+    // Before saving: the restore action explains instead of doing anything.
+    await scrollTo(tester, find.text(AppStrings.remoteBackupRestoreFromRemote));
+    await tester.tap(find.text(AppStrings.remoteBackupRestoreFromRemote));
+    await tester.pumpAndSettle();
+    expect(service.restoreCalls, 0);
+    expect(find.text('请先保存服务器配置与凭据'), findsOneWidget);
 
+    // Save, then restore asks for the destructive confirmation.
+    await scrollTo(tester, find.text(AppStrings.remoteBackupSaveAndTest));
+    await saveConfig(tester);
+    await scrollTo(tester, find.text(AppStrings.remoteBackupRestoreFromRemote));
     await tester.tap(find.text(AppStrings.remoteBackupRestoreFromRemote));
     await tester.pumpAndSettle();
 
-    expect(find.text(AppStrings.remoteBackupRestoreDialogTitle),
-        findsOneWidget);
+    expect(
+        find.text(AppStrings.remoteBackupRestoreDialogTitle), findsOneWidget);
     expect(service.restoreCalls, 0,
         reason: 'nothing downloads before the user confirms');
 
-    await tester
-        .tap(find.widgetWithText(TextButton, AppStrings.remoteBackupRestoreConfirm));
+    await tester.tap(
+        find.widgetWithText(TextButton, AppStrings.remoteBackupRestoreConfirm));
     await tester.pumpAndSettle();
 
     expect(service.restoreCalls, 1);
-    expect(find.text(AppStrings.remoteBackupRestoreStagedTitle),
-        findsOneWidget);
+    expect(
+        find.text(AppStrings.remoteBackupRestoreStagedTitle), findsOneWidget);
 
     await tester.tap(find.byType(TextButton).last);
     await tester.pumpAndSettle();
