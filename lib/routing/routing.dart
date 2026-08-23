@@ -77,6 +77,7 @@ class AppRouter extends RootStackRouter {
         // Settings family: static content pages, no course guard
         // (mirrors SystemHealthRoute).
         AutoRoute(page: SystemHealthRoute.page),
+        AutoRoute(page: StorageDiagnosticsRoute.page),
         AutoRoute(page: AboutTurnaRoute.page),
         AutoRoute(page: PrivacyDetailsRoute.page),
         AutoRoute(page: ChangelogRoute.page),

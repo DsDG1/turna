@@ -4,8 +4,13 @@ import 'package:turna/application/anki_official/official_anki_feature_flags.dart
 
 enum AnkiEngineKind { legacy, official }
 
-/// Production cutover gate. Default false; internal APKs may pass
-/// `--dart-define=TURNA_OFFICIAL_ANKI_CUTOVER=true`.
+/// Production cutover gate. Default **true**: together with the
+/// `OfficialAnkiFeatureFlags` production defaults (engine/import/catalog/
+/// runtime/platform on) this forms the single owner policy — official-capable
+/// platforms route new imports and reviews through the official engine, with
+/// the legacy→official background mirror off by default. Builds that need the
+/// pre-cutover behavior may pass `--dart-define=TURNA_OFFICIAL_ANKI_CUTOVER=false`
+/// (locked by `official_anki_p5d_routing_test.dart`).
 class LegacyAnkiMigrationFlags {
   const LegacyAnkiMigrationFlags._();
 

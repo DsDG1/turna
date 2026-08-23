@@ -251,7 +251,7 @@ class CourseAdapter:
                             "type": "normal",
                             "template": "intro",
                             "prerequisiteLessonIds": [],
-                            "content": {"subLessons": []},
+                            "content": {"subLessons": [], "linkedGrammarPointIds": []},
                         }
                     )
             sections.append(section)
@@ -809,6 +809,22 @@ class CourseAdapter:
         _section, _unit, lesson = self.find_lesson(lesson_id)
         lesson["prerequisiteLessonIds"] = [p for p in prereq_ids if p != lesson_id]
 
+    def set_linked_grammar_points(self, lesson_id: str, ids: list[str]) -> None:
+        """Write ``content.linkedGrammarPointIds`` (app SRS registration reads it).
+
+        Mirrors update_lesson_prereqs; lives under content, not the lesson
+        top level. Existing lessons without the key get it created on first
+        edit — new lessons (init_new / new_lesson_from_template) start with [].
+        """
+        _section, _unit, lesson = self.find_lesson(lesson_id)
+        content = lesson.setdefault("content", {})
+        content["linkedGrammarPointIds"] = list(ids)
+
+    def linked_grammar_options(self) -> list[tuple[str, str]]:
+        """(id, label) options for the linked-grammar multi-select editor."""
+        return [(g.get("id", ""), f"{g.get('title', g.get('id', ''))} ({g.get('id', '')})")
+                for g in self.grammar_points if g.get("id")]
+
     def section_prereq_options(self, exclude_id: str) -> list[tuple[str, str]]:
         return [(s["id"], f"{s.get('name', s['id'])} ({s['id']})")
                 for s in self.sections if s.get("id") != exclude_id]
@@ -1295,6 +1311,12 @@ class CourseAdapter:
 
         ``changes`` may be passed to reuse an already-computed
         ``detect_changes()`` result (avoids re-hashing the whole course).
+
+        vocab.json carries no version of its own; the app re-seeds trigger is
+        the composite ``indexVersion + expressionsVersion``
+        (course_database_seeder.dart). Vocab is resource-layer kin to
+        expressions, so a vocab-only change rides the expressions bump to
+        reach installed clients (G9) — both changed together bump once.
         """
         if changes is None:
             changes = self.detect_changes()
@@ -1302,7 +1324,7 @@ class CourseAdapter:
         if changes["index"] or changes["sections"]:
             cur = int(self.index.get("version", 1))
             plan["index"] = (cur, cur + 1)
-        if changes["expressions"]:
+        if changes["expressions"] or changes["vocab"]:
             plan["expressions"] = (self.expressions_version, self.expressions_version + 1)
         return plan
 

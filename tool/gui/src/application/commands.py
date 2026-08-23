@@ -1497,3 +1497,29 @@ class UpdateLessonPrereqsCommand(_UpdatePrereqsBase):
     def _find(self, adapter, node_id):
         _s, _u, lesson = adapter.find_lesson(node_id)
         return lesson
+
+
+class UpdateLessonLinkedGrammarCommand(QUndoCommand):
+    """Set ``content.linkedGrammarPointIds`` (app SRS registration reads it)."""
+
+    def __init__(self, adapter, lesson_id: str, new_ids: list[str]) -> None:
+        super().__init__("修改课时关联语法点")
+        self.adapter = adapter
+        self.lesson_id = lesson_id
+        self.new_ids = list(new_ids)
+        self.old_ids: list[str] = []
+        self.signals = _make_changed()
+
+    def redo(self) -> None:
+        _s, _u, lesson = self.adapter.find_lesson(self.lesson_id)
+        if not self.old_ids and not getattr(self, "_captured", False):
+            self.old_ids = list(
+                (lesson.get("content") or {}).get("linkedGrammarPointIds", [])
+            )
+            self._captured = True  # type: ignore[attr-defined]
+        self.adapter.set_linked_grammar_points(self.lesson_id, self.new_ids)
+        self.signals.changed.emit()
+
+    def undo(self) -> None:
+        self.adapter.set_linked_grammar_points(self.lesson_id, self.old_ids)
+        self.signals.changed.emit()

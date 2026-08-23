@@ -10,6 +10,7 @@ import 'package:turna/application/achievements/achievement_service.dart';
 import 'package:turna/application/ai/ai_explain_prefs.dart';
 import 'package:turna/application/ai/engine/ai_engine.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
+import 'package:turna/application/anki/anki_deck_manager.dart';
 import 'package:turna/application/anki_official/migration/official_first_reanchor.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/course_provider.dart';
@@ -130,6 +131,21 @@ Future<void> main() async {
         await OfficialFirstReanchor().runIfNeeded(getIt<AppPrefs>());
       } catch (e) {
         debugPrint('[OfficialAnki] P5F re-anchor skipped: $e');
+      }
+    }());
+
+    // Resume official-source deletions whose collection cleanup failed on an
+    // earlier run (state `pending_cleanup`). Best-effort; sources stay
+    // pending until the engine is available.
+    unawaited(() async {
+      try {
+        final resumed = await getIt<AnkiDeckManager>()
+            .retryPendingOfficialCleanups();
+        if (resumed > 0) {
+          debugPrint('[OfficialAnki] resumed $resumed pending cleanups');
+        }
+      } catch (e) {
+        debugPrint('[OfficialAnki] pending cleanup retry skipped: $e');
       }
     }());
 

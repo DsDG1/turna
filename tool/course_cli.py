@@ -54,6 +54,24 @@ ALLOWED_TAGS = {
     "adverb",
 }
 
+# Closed POS tag set for vocab words. Mirror of the GUI-side single source of
+# truth ``tool/gui/src/backend/experience/pos_constants.py`` (POS_TAGS), which
+# itself mirrors ``lib/domain/course/pos_tag.dart`` — course_cli must stay
+# importable without the GUI package, so the set is duplicated here and kept
+# in sync by test_resource_pos.py.
+POS_TAGS = frozenset({
+    "noun",
+    "verb",
+    "adjective",
+    "adverb",
+    "pronoun",
+    "preposition",
+    "conjunction",
+    "interjection",
+    "numeral",
+    "determiner",
+})
+
 
 # --------------------------------------------------------------------------- #
 # Loading and normalisation helpers
@@ -222,11 +240,22 @@ def collect_grammar_point_ids(obj: Any) -> set[str]:
     return ids
 
 
+#: Media refs with this prefix resolve inside the app's Anki import dir
+#: (``anki://<importId>/<file>``), not the desktop repo — audio rules skip
+#: them (no bundled file to check, and anki cards legitimately appear outside
+#: listening lessons).
+ANKI_MEDIA_PREFIX = "anki://"
+
+
 def collect_audio_assets(obj: Any) -> set[str]:
     assets: set[str] = set()
     if isinstance(obj, dict):
         if "audioAsset" in obj and isinstance(obj["audioAsset"], str):
             assets.add(obj["audioAsset"])
+        # ankiCard / ankiHtmlCard / multipleChoice / fillBlank carry lists of
+        # prompt-side media refs (possibly anki:// protocol refs).
+        if "audioAssets" in obj and isinstance(obj["audioAssets"], list):
+            assets.update(a for a in obj["audioAssets"] if isinstance(a, str))
         for value in obj.values():
             assets.update(collect_audio_assets(value))
     elif isinstance(obj, list):
@@ -794,15 +823,30 @@ def build_csv_rows(
     entries: list[dict[str, Any]],
 ) -> tuple[list[str], list[dict[str, str]]]:
     """Return (headers, rows) for the given resource type. Pure: no I/O."""
-    if row_type in ("vocab", "expressions"):
+    if row_type == "vocab":
+        # pos belongs to vocabulary only — expressions carry no part of speech.
+        headers = ["id", "term", "translation", "pronunciation", "audioAsset", "tags", "pos"]
+        rows = [
+            {
+                "id": e.get("id", ""),
+                "term": e.get("term", ""),
+                "translation": e.get("translation", ""),
+                "pronunciation": e.get("pronunciation") or "",
+                "audioAsset": e.get("audioAsset") or "",
+                "tags": _join_list(e.get("tags", [])),
+                "pos": e.get("pos") or "",
+            }
+            for e in sorted(entries, key=lambda x: x.get("id", ""))
+        ]
+    elif row_type == "expressions":
         headers = ["id", "term", "translation", "pronunciation", "audioAsset", "tags"]
         rows = [
             {
                 "id": e.get("id", ""),
                 "term": e.get("term", ""),
                 "translation": e.get("translation", ""),
-                "pronunciation": e.get("pronunciation", ""),
-                "audioAsset": e.get("audioAsset", ""),
+                "pronunciation": e.get("pronunciation") or "",
+                "audioAsset": e.get("audioAsset") or "",
                 "tags": _join_list(e.get("tags", [])),
             }
             for e in sorted(entries, key=lambda x: x.get("id", ""))
@@ -835,13 +879,23 @@ def _build_entry(
     row_type: str,
     existing_by_id: dict[str, dict[str, Any]],
 ) -> dict[str, Any]:
-    if row_type in ("vocab", "expressions"):
+    if row_type == "vocab":
         return {
             "id": row["id"].strip(),
             "term": row["term"].strip(),
             "translation": row["translation"].strip(),
-            "pronunciation": row.get("pronunciation", "").strip() or None,
-            "audioAsset": row.get("audioAsset", "").strip() or None,
+            "pronunciation": (row.get("pronunciation") or "").strip() or None,
+            "audioAsset": (row.get("audioAsset") or "").strip() or None,
+            "tags": _split_list(row.get("tags", "")),
+            "pos": (row.get("pos") or "").strip().lower() or None,
+        }
+    if row_type == "expressions":
+        return {
+            "id": row["id"].strip(),
+            "term": row["term"].strip(),
+            "translation": row["translation"].strip(),
+            "pronunciation": (row.get("pronunciation") or "").strip() or None,
+            "audioAsset": (row.get("audioAsset") or "").strip() or None,
             "tags": _split_list(row.get("tags", "")),
         }
     # grammar_points: preserve practiceItems from existing (CSV omits it)
@@ -1043,6 +1097,17 @@ def _lint_entries(
                 Problem("error", f"{kind} {eid} has empty translation")
             )
 
+        if kind == "word":
+            pos = entry.get("pos")
+            if pos and pos not in POS_TAGS:
+                problems.append(
+                    Problem(
+                        "warning",
+                        f"word {eid} has unknown pos '{pos}' "
+                        f"(expected one of: {', '.join(sorted(POS_TAGS))})",
+                    )
+                )
+
         if term:
             terms[term].append(eid)
         if translation:
@@ -1177,6 +1242,10 @@ def cmd_lint(args: argparse.Namespace) -> int:
     # Missing audio files (only required for listening-lesson assets that
     # are not word/expression ids; word/expression audio is TTS at runtime).
     for asset, locations in sorted(referenced_audio.items()):
+        if asset.startswith(ANKI_MEDIA_PREFIX):
+            # Anki import media resolves inside the app's import dir; there is
+            # no bundled file to check and no listening-lesson constraint.
+            continue
         if asset in vocab_ids or asset in expression_ids:
             continue
 
@@ -1257,6 +1326,8 @@ def build_audio_manifest(course_dir: Path) -> list[dict[str, str]]:
                 if not is_listening_lesson(lesson, content):
                     continue
                 for asset in collect_audio_assets(content):
+                    if asset.startswith(ANKI_MEDIA_PREFIX):
+                        continue
                     if asset in word_and_expr_ids:
                         continue
                     referenced.setdefault(asset, set()).add(loc)

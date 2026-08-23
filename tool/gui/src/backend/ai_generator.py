@@ -237,10 +237,10 @@ def _template_schema_block() -> str:
 - mixed: 混合。可在不同单元/课时中使用不同模板。
 
 常用题型（runtimeType）说明：
-- showWord: { wordId, context? } — 展示生词。wordId 必须在顶层 words 数组中定义。
-- multipleChoice: { prompt, options(4), correctIndex } — 单选题。
+- showWord: { wordId, context?, term?, translation?, pronunciation?, audioAsset?, imageAsset?, example? } — 展示生词。wordId 必须在顶层 words 数组中定义。内联字段（term/translation 等）仅在该卡需要覆盖词表默认显示时填写，通常留空。
+- multipleChoice: { prompt, options(4), correctIndex, audioAssets? } — 单选题。
 - multiSelect: { prompt, options, correctIndices, minSelections?, maxSelections? } — 多选题。
-- fillBlank: { sentence（含 ____ 空白）, answer, hint? } — 填空。
+- fillBlank: { sentence（含 ____ 空白）, answer, hint?, audioAssets?, imageAssets? } — 填空。
 - translateSentence: { source（源语言句子）, expected（目标语言翻译）, hints? } — 翻译。
 - listenAndPick: { audioAsset, prompt, options(4), correctIndex } — 听音选择。
 - typeTheWord: { audioAsset, prompt, expected } — 听写。
@@ -249,6 +249,10 @@ def _template_schema_block() -> str:
 - readingMcq: { prompt, options(4), correctIndex } — 阅读选择。
 - readingTrueFalse: { statement, answer(true/false) } — 阅读判断。
 - readingShortAnswer: { prompt, expectedAnswer } — 阅读简答。
+- ankiCard: { front, back, audioAssets?, imageAssets?, hint?, sourceNoteId? } — Anki 翻卡（仅限导入内容再编排，AI 不主动生成）。
+- ankiHtmlCard: { frontHtml, backHtml, css?, mediaBasePath?, allowJs?, audioAssets? } — Anki HTML 卡（同上，AI 不主动生成）。
+
+注意：ankiCard / ankiHtmlCard 来自设备端 Anki 导入，AI 生成课程时不要产出这两种题型（不要凭空编造 sourceNoteId 等来源字段）。
 
 模板与题型对应建议：
 - intro: showWord + translateSentence + fillBlank

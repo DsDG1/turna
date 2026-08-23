@@ -22,9 +22,11 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QTextEdit,
     QVBoxLayout,
+    QWidget,
 )
 
 from src.application.commands import (
+    UpdateLessonLinkedGrammarCommand,
     UpdateLessonMetaCommand,
     UpdateLessonPrereqsCommand,
     UpdateSectionMetaCommand,
@@ -103,6 +105,20 @@ class MetadataForm(QGroupBox):
         form.addRow("描述", self.desc_edit)
         form.addRow("先修", self.prereq_list)
 
+        # Lesson-only: content.linkedGrammarPointIds multi-select (G5). The
+        # app registers these grammar points into SRS when the course opens.
+        self.grammar_link_list = _FocusListWidget()
+        self.grammar_link_list.setEnabled(False)
+        self.grammar_link_list.setSelectionMode(QListWidget.SelectionMode.NoSelection)
+        self.grammar_link_row = QWidget()
+        gl_layout = QVBoxLayout(self.grammar_link_row)
+        gl_layout.setContentsMargins(0, 0, 0, 0)
+        gl_layout.setSpacing(2)
+        gl_layout.addWidget(QLabel("关联语法点（开课时注册语法 SRS）"))
+        gl_layout.addWidget(self.grammar_link_list)
+        form.addRow(self.grammar_link_row)
+        self.grammar_link_row.setVisible(False)
+
         wrap = QVBoxLayout()
         wrap.setSpacing(16)
         wrap.addLayout(form)
@@ -115,6 +131,7 @@ class MetadataForm(QGroupBox):
         self.name_edit.editingFinished.connect(self._commit_name_desc)
         self.desc_edit.focusLost.connect(self._commit_name_desc)
         self.prereq_list.focusLost.connect(self._commit_prereqs)
+        self.grammar_link_list.focusLost.connect(self._commit_linked_grammar)
 
     def _fill_prereq(
         self,
@@ -172,6 +189,34 @@ class MetadataForm(QGroupBox):
             adapter.lesson_prereq_options(_unit.get("id", ""), lesson.get("id", "")),
             prereqs,
         )
+        linked = (lesson.get("content") or {}).get("linkedGrammarPointIds", []) or []
+        self._fill_grammar_links(adapter.linked_grammar_options(), linked)
+        self._loading = False
+
+    def _fill_grammar_links(
+        self,
+        options: list[tuple[str, str]],
+        current: list[str],
+    ) -> None:
+        """Populate the linked-grammar multi-select; hide it when the course
+        has no grammar points to offer and none are linked."""
+        if not options and not current:
+            self.grammar_link_row.setVisible(False)
+            return
+        self.grammar_link_row.setVisible(True)
+        self._loading = True
+        self.grammar_link_list.blockSignals(True)
+        self.grammar_link_list.clear()
+        current_set = set(current)
+        for rid, label in options:
+            item = QListWidgetItem(label)
+            item.setData(Qt.ItemDataRole.UserRole, rid)
+            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+            item.setCheckState(
+                Qt.CheckState.Checked if rid in current_set else Qt.CheckState.Unchecked
+            )
+            self.grammar_link_list.addItem(item)
+        self.grammar_link_list.blockSignals(False)
         self._loading = False
 
     def _bind(self, adapter: CourseAdapter | None, kind: str, node_id: str) -> None:
@@ -182,6 +227,10 @@ class MetadataForm(QGroupBox):
         self.name_edit.setEnabled(editable)
         self.desc_edit.setEnabled(editable)
         self.prereq_list.setEnabled(editable)
+        # Linked grammar points are a lesson-content concept only.
+        if kind != "lesson":
+            self.grammar_link_row.setVisible(False)
+            self.grammar_link_list.setEnabled(False)
 
     def focus_name(self) -> None:
         """Focus and select the name field (F2 rename hook)."""
@@ -222,3 +271,17 @@ class MetadataForm(QGroupBox):
             self._push(UpdateUnitPrereqsCommand(self._adapter, self._node_id, checked))
         elif self._kind == "lesson":
             self._push(UpdateLessonPrereqsCommand(self._adapter, self._node_id, checked))
+
+    def _commit_linked_grammar(self) -> None:
+        if self._loading or self._adapter is None or not self._node_id:
+            return
+        if self._kind != "lesson" or not self.grammar_link_row.isVisible():
+            return
+        checked = [
+            self.grammar_link_list.item(i).data(Qt.ItemDataRole.UserRole)
+            for i in range(self.grammar_link_list.count())
+            if self.grammar_link_list.item(i).checkState() == Qt.CheckState.Checked
+        ]
+        self._push(
+            UpdateLessonLinkedGrammarCommand(self._adapter, self._node_id, checked)
+        )

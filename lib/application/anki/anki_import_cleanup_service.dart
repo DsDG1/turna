@@ -1,5 +1,6 @@
 // Project imports:
 import 'package:turna/application/anki/card_introduction_eligibility.dart';
+import 'package:turna/application/anki/unified_anki_import_orchestrator.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/data/anki_import_dao.dart';
@@ -54,5 +55,10 @@ class AnkiImportCleanupService {
     await audioResolver.deleteImportMedia(importId);
     await importDao.delete(importId);
     await mistakeProvider?.removeForAnkiDeletion(idPrefixes: [prefix]);
+    // Defense in depth: the dedup authority is the persisted inventory, but
+    // the orchestrator's in-process caches (placements, presentations, SRS
+    // ids, in-flight keys) must also be retired so a same-process re-import
+    // of this package is never mistaken for "already imported".
+    UnifiedAnkiImportOrchestrator.instance.invalidate(importId: importId);
   }
 }

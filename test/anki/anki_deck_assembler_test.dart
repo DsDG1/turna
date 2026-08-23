@@ -140,6 +140,78 @@ void main() {
       expect(summary.cardCount, 3);
     });
 
+    test('section beta lifts chapter fields into semantic sections; off '
+        'keeps the legacy layout', () async {
+      AnkiCollection build() {
+        final notes = <AnkiNote>[];
+        final cards = <AnkiCardData>[];
+        const chapters = ['Animals', 'Animals', 'Food'];
+        const units = ['1', '1', '2'];
+        for (var i = 0; i < 3; i++) {
+          notes.add(AnkiNote(
+            id: 3000 + i,
+            mid: 1,
+            fields: [chapters[i], units[i], 'Q$i', 'A$i'],
+          ));
+          cards.add(AnkiCardData(
+            id: 4000 + i,
+            nid: 3000 + i,
+            did: 10,
+            queue: 0,
+            factor: 2500,
+          ));
+        }
+        return AnkiCollection(
+          notetypes: {
+            1: const AnkiNotetype(
+              id: 1,
+              name: 'Structured',
+              fieldNames: ['Chapter', 'Unit', 'Front', 'Back'],
+            ),
+          },
+          decks: {
+            10: const AnkiDeckInfo(id: 10, name: 'Test Deck', cardCount: 3),
+          },
+          notes: notes,
+          cards: cards,
+        );
+      }
+
+      // Legacy path (beta off): chapter values fold into unit keys, one
+      // mechanical section.
+      await assembler.assemble(
+        collection: build(),
+        importId: 'betabeta-off',
+        repo: repo,
+      );
+      expect(repo.writtenSections, hasLength(1));
+      expect(repo.writtenSections.first.units.map((u) => u.name),
+          containsAll(['Animals', 'Food']));
+
+      repo.writtenSections.clear();
+
+      // Beta path: one semantic section per chapter value, version marker
+      // recorded, ids stay under the import prefix.
+      await assembler.assemble(
+        collection: build(),
+        importId: 'betabeta-on',
+        repo: repo,
+        sectionBetaGrouping: true,
+      );
+      expect(repo.writtenSections, hasLength(2));
+      final names = repo.writtenSections.map((s) => s.name).toSet();
+      expect(names, {'Animals', 'Food'});
+      for (final section in repo.writtenSections) {
+        expect(section.id, startsWith('anki-betabeta-on-'));
+        expect(section.description, contains('grouping=section-beta-v1'));
+      }
+      // Units inside a semantic section carry the unit field values.
+      final animals = repo.writtenSections
+          .firstWhere((s) => s.name == 'Animals');
+      expect(animals.units, hasLength(1));
+      expect(animals.units.first.name, '1');
+    });
+
     test('splits cards into lessons of 20', () async {
       final collection = _buildTestCollection(cardCount: 45);
 
@@ -661,6 +733,99 @@ void main() {
         expect(sections[1].id, 'anki-imp-s10-p1');
         expect(sections[1].name, 'Huge Deck (2)');
         expect(sections[1].units, hasLength(5));
+      });
+
+      test('buildSemanticSections groups card-level sections and prefixes',
+          () {
+        Unit unit(String id, String name) => Unit(
+              id: id,
+              name: name,
+              lessons: [
+                Lesson(
+                  id: '$id-l0',
+                  name: 'L',
+                  type: LessonType.normal,
+                  template: LessonTemplate.legacy,
+                  content: const LessonContent(),
+                ),
+              ],
+            );
+        final units = [
+          unit('u1', 'Chapter 1: Basics'),
+          unit('u2', 'Chapter 1: More'),
+          unit('u3', 'Chapter 2: Verbs'),
+          unit('u4', 'Standalone Unit'),
+          unit('u5', 'Animals Field Unit'),
+        ];
+        final sections = AnkiDeckAssembler.buildSemanticSections(
+          baseSectionId: 'anki-imp-s10',
+          baseName: 'Huge Deck',
+          description: 'Imported from Anki',
+          units: units,
+          cardSectionByUnit: {'Animals Field Unit': 'Animals'},
+        );
+
+        // Base bucket (Standalone Unit) keeps the historical id/name.
+        final base =
+            sections.singleWhere((s) => s.id == 'anki-imp-s10');
+        expect(base.name, 'Huge Deck');
+        expect(base.units.map((u) => u.name), ['Standalone Unit']);
+        // Semantic buckets carry -secN ids, the display name, and the
+        // grouping algorithm version marker.
+        final semantic = sections
+            .where((s) => s.id.startsWith('anki-imp-s10-sec'))
+            .toList();
+        expect(semantic, hasLength(3));
+        expect(semantic[0].name, 'Chapter 1');
+        expect(semantic[0].units, hasLength(2));
+        expect(semantic[1].name, 'Chapter 2');
+        expect(semantic[2].name, 'Animals',
+            reason: 'explicit card-level section beats the prefix heuristic');
+        for (final s in semantic) {
+          expect(s.description, contains('grouping=section-beta-v1'));
+        }
+        expect(
+          semantic.every((s) => s.id.startsWith('anki-imp-')),
+          isTrue,
+          reason: 'semantic section ids stay under the import prefix so the '
+              'delete saga still finds them',
+        );
+      });
+
+      test('buildSemanticSections without evidence equals legacy packing',
+          () {
+        final units = [
+          for (var i = 0; i < 3; i++)
+            Unit(
+              id: 'u$i',
+              name: 'Plain $i',
+              lessons: [
+                Lesson(
+                  id: 'u$i-l0',
+                  name: 'L',
+                  type: LessonType.normal,
+                  template: LessonTemplate.legacy,
+                  content: const LessonContent(),
+                ),
+              ],
+            ),
+        ];
+        final semantic = AnkiDeckAssembler.buildSemanticSections(
+          baseSectionId: 'anki-imp-s10',
+          baseName: 'Deck',
+          description: 'd',
+          units: units,
+        );
+        final legacy = AnkiDeckAssembler.packUnitsIntoSections(
+          baseSectionId: 'anki-imp-s10',
+          baseName: 'Deck',
+          description: 'd',
+          units: units,
+        );
+        expect(semantic.map((s) => s.id), legacy.map((s) => s.id));
+        expect(semantic.map((s) => s.name), legacy.map((s) => s.name));
+        expect(semantic.first.description, isNot(contains('section-beta')),
+            reason: 'no evidence -> no "smart grouping" claim');
       });
 
       test('assemble splits a flat deck that would exceed 40 lessons/unit',

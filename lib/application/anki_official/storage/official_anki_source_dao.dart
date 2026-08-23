@@ -244,6 +244,27 @@ WHERE source_id = ? AND state = ?
     return row['n'] as int;
   }
 
+  /// Deletion-saga state: the official collection could not be cleaned
+  /// (engine unavailable or deleteNotes failed). Every catalog row —
+  /// including the migration link that maps legacy ids to this source —
+  /// must stay so the cleanup can resume once the engine recovers;
+  /// deleting them first would orphan the collection notes.
+  void markPendingCleanup({
+    required String sourceId,
+    required int nowMillis,
+    String state = 'pending_cleanup',
+    String errorCode = 'pending_cleanup',
+    String errorMessage =
+        'collection delete deferred; owner rows kept for retry',
+  }) {
+    _db.execute(
+      'UPDATE anki_sources SET state = ?, updated_at_millis = ?, '
+      'last_error_code = ?, last_error_safe_message = ? '
+      'WHERE source_id = ?',
+      [state, nowMillis, errorCode, errorMessage, sourceId],
+    );
+  }
+
   /// Cards for [sourceId], or the source with [sourceHash] if the id is empty
   /// or not yet visible on this connection after a worker import.
   List<OfficialAnkiCardDescriptor> listCardsForImport({

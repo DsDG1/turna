@@ -1,4 +1,4 @@
-"""Dynamic forms for the 12 Interaction runtimeTypes.
+"""Dynamic forms for the 14 Interaction runtimeTypes.
 
 Each form binds to an item dict (in the adapter's in-memory lesson tree) and
 writes edits back in place. Reference fields (wordId / expressionId /
@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
     QListWidget,
     QPushButton,
     QSpinBox,
+    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -27,6 +28,21 @@ from PySide6.QtWidgets import (
 from src.backend.course_adapter import CourseAdapter
 from src.backend.lesson_content import INTERACTION_SCHEMA, INTERACTION_LABELS
 from src.widgets.option_models import build_options_model, select_by_id
+
+#: String fields rendered as multi-line editors (Anki HTML card faces and the
+#: notetype stylesheet are multi-line by nature).
+_MULTILINE_FIELDS: frozenset[str] = frozenset({"frontHtml", "backHtml", "css"})
+
+#: Inline hints shown next to fields whose semantics are not obvious from the
+#: label alone (showWord inline overrides replace the vocab entry's display).
+_FIELD_HINTS: dict[str, str] = {
+    "term": "非空时覆盖词表默认显示",
+    "translation": "非空时覆盖词表默认显示",
+    "pronunciation": "非空时覆盖词表默认显示",
+    "audioAsset": "非空时覆盖词表默认音频",
+    "imageAsset": "非空时覆盖词表默认图片",
+    "example": "非空时覆盖词表默认例句",
+}
 
 
 class StringListEditor(QWidget):
@@ -155,13 +171,25 @@ class InteractionForm(QWidget):
             if spec.name == "runtimeType":
                 continue
             widget = self._build_field(spec, item.get(spec.name, spec.default))
-            form.addRow(spec.name + (" *" if spec.required else ""), widget)
+            label = spec.name + (" *" if spec.required else "")
+            hint = _FIELD_HINTS.get(spec.name)
+            if hint:
+                label += f"（{hint}）"
+            form.addRow(label, widget)
             self._widgets[spec.name] = widget
         layout.addLayout(form)
         layout.addStretch()
 
     def _build_field(self, spec: Any, value: Any) -> QWidget:
         if spec.kind == "string":
+            if spec.name in _MULTILINE_FIELDS:
+                edit = QTextEdit()
+                edit.setAcceptRichText(False)
+                edit.setPlainText(str(value or ""))
+                edit.textChanged.connect(
+                    lambda e=edit, n=spec.name: self._set(n, e.toPlainText())
+                )
+                return edit
             edit = QLineEdit(str(value or ""))
             edit.textChanged.connect(lambda v, n=spec.name: self._set(n, v))
             return edit

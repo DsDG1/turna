@@ -19,6 +19,10 @@ class ChangelogPage extends StatelessWidget {
   const ChangelogPage({super.key});
 
   /// 顶部"更新历程"卡的内容,放到顶层便于复制按钮复用。
+  ///
+  /// 自 0.7 起统一降级到 0.x 编号：原 1.3.0→0.7、1.2.0→0.6、1.1.0→0.5、
+  /// 1.0.0→0.4、0.4.x→0.3.x、0.4.0→0.3.0。
+  /// 原 future4 框架与 0.3.x 体验/可访问性合并为单一步骤。
   static const List<JourneyStep> journeySteps = [
     JourneyStep(
       label: '0.x',
@@ -31,48 +35,59 @@ class ChangelogPage extends StatelessWidget {
       subtitle: 'Firebase 下线,SQLite + SRS + 13 种交互题型',
     ),
     JourneyStep(
-      label: '0.4.0',
-      title: 'future4 框架',
-      subtitle: 'DI 整合、音频解耦、复习 / 字典 / 弱词合入',
+      label: '0.3.x',
+      title: 'future4 收尾',
+      subtitle: '整洁架构 + 体验 / 可访问性',
     ),
     JourneyStep(
-      label: '1.0.0',
+      label: '0.4',
       title: '土耳其语转向',
       subtitle: '语言由斯瓦希里语改为土耳其语,AI 助手上线',
     ),
     JourneyStep(
-      label: '1.1.0',
+      label: '0.5',
       title: 'FSRS / AI / Anki',
       subtitle: '连续记忆模型、AI 引擎重构、Anki 智能化',
     ),
     JourneyStep(
-      label: '1.2.0',
+      label: '0.6',
       title: 'AI 伴学与内容扩充',
       subtitle: '自由问答 / 诊断 / 收藏；土耳其语八章真实内容',
     ),
     JourneyStep(
-      label: '1.3.0',
-      title: 'Anki 原生渲染与吉祥物',
-      subtitle: '原生展开卡面、练习解耦、全新湿地鹤视觉系统',
+      label: '0.7',
+      title: 'Anki 官方 Core 整合',
+      subtitle: '官方 rslib 整合、课程复习大一统、远程备份',
     ),
   ];
 
   /// 硬编码后援:asset 加载失败时使用。
+  ///
+  /// 自 0.7 起统一降级到 0.x 编号：原 1.3.0→0.7、1.2.0→0.6、1.1.0→0.5、
+  /// 1.0.0→0.4、0.4.x→0.3.x、0.4.0→0.3.0。
   static const List<ChangelogRelease> fallbackReleases = [
     ChangelogRelease(
-      version: '1.3.0',
-      title: 'Anki 原生渲染与吉祥物升级',
+      version: '0.7',
+      title: 'Anki 官方 Core 整合与课程/复习大一统',
       items: [
-        'Anki 渲染重构：原生 HTML 展开式问答卡面，告别卡顿与 300px 翻转',
-        '复习与练习双轨解耦：复习专注原卡四档评分，练习独立支持多题型交互',
-        'Anki 导入体系优化：差异对比与映射编辑器，导入操作事务日志与恢复',
-        '全新 Turna 湿地鹤吉祥物形象系统与全套学习场景插画',
-        '系统健康诊断中心与全链路兼容性检测',
-        'AI 伴学证据链沉淀、知识检索与上下文预算控制',
+        '官方 Anki rslib 通过 Dart FFI 整合并默认切到官方 Core（ADR 0036/0037 落地）',
+        '课程与复习大一统：统一复习 ledger、卡片引入资格（CardIntroductionStore）与二元 recall flow',
+        '大型牌组导入走 worker isolate + 流式解压 + 500 条批次写入，内存占用不随牌组大小增长',
+        '官方导入事务恢复：dry-run 演练、物理备份、逐源 allowlist 与独立 commit 边界（CI 拦截 BACKEND_COMMIT 漂移）',
+        '新增 deleteNotes 操作硬删除笔记与关联数据',
+        '课程页大改版：课程树扁平化、滚动隐藏栏、状态角标与 section switcher 翻新',
+        '数据导入导出 + WebDAV 远程备份同步（manifest / snapshot / restore / 演练）',
+        '个人页精简：今日概览卡 + 成就 showAll 独立路由 + 学习统计瘦身',
+        '成就系统重构：evaluator / state repository / migration service / 详情 sheet / 徽章卡',
+        '路由统一：RouteType.adaptive + Android 预测性返回 + 全 AutoRoute 推送（移除手写 MaterialPageRoute）',
+        'AI 伴学打磨：移除成熟度象限、interaction renderer 调整、AI 深度导师 / ShowWord 翻面',
+        '系统健康监控中心（SystemHealthMonitor）+ AI 伴侣 stack（profile / retriever / 预算 / 凭据）',
+        '教学 Playground 新增：language_playground_eligibility / 装配器 / 内容源 / 入口页',
+        '少量 bug 修复与 play_hub 黄金图更新',
       ],
     ),
     ChangelogRelease(
-      version: '1.2.0',
+      version: '0.6',
       title: 'AI 伴学与土耳其语内容扩充',
       items: [
         'AI 伴学全面升级：自由问答、学习诊断、讲解收藏、词典 AI 扩展、Anki 卡片讲解',
@@ -84,7 +99,7 @@ class ChangelogPage extends StatelessWidget {
       ],
     ),
     ChangelogRelease(
-      version: '1.1.0',
+      version: '0.5',
       title: '间隔重复与 AI 引擎升级',
       items: [
         'FSRS 连续记忆模型与本地参数优化，复习曲线更贴合个人记忆',
@@ -95,7 +110,7 @@ class ChangelogPage extends StatelessWidget {
       ],
     ),
     ChangelogRelease(
-      version: '1.0.0',
+      version: '0.4',
       title: '土耳其语转向',
       items: [
         '界面文案全面中文化，设置与关于页统一体验',
@@ -108,7 +123,7 @@ class ChangelogPage extends StatelessWidget {
       ],
     ),
     ChangelogRelease(
-      version: '0.4.x',
+      version: '0.3.x',
       title: '体验与可访问性',
       items: [
         '无障碍：字号、减弱动效、高对比度、阅读障碍友好字体',
@@ -119,7 +134,7 @@ class ChangelogPage extends StatelessWidget {
       ],
     ),
     ChangelogRelease(
-      version: '0.4.0',
+      version: '0.3.0',
       title: 'future4 框架',
       items: [
         '整洁架构收尾：DI 整合、音频与内容解耦、路由守卫',
@@ -225,7 +240,7 @@ class ChangelogPage extends StatelessWidget {
   }
 }
 
-/// 顶部"更新历程"概览卡:把 0.x → 1.1.0 的关键阶段压缩成 6 步,
+/// 顶部"更新历程"概览卡:把 0.x → 0.7 的关键阶段压缩成 7 步,
 /// 引导用户顺读后续的版本卡片。完整工程说明见 `CHANGELOG.md`。
 class JourneyOverviewCard extends StatelessWidget {
   const JourneyOverviewCard({super.key});
@@ -272,7 +287,7 @@ class JourneyOverviewCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Varnamala Plus 从原型到 1.1.0 的 6 个阶段',
+            'Varnamala Plus 从原型到 0.7 的 7 个阶段',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: TurnaTheme.textHintColor(context),
                 ),

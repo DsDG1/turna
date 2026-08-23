@@ -112,6 +112,10 @@ class AnkiDeckAssembler {
   /// [smartGrouping] (default true) organizes cards into named Units/Lessons
   /// from their tags/notetype fields instead of flat 20-card chunks. Disable
   /// to force the flat chunking regardless of metadata.
+  ///
+  /// [sectionBetaGrouping] (default false, Plan 1 Phase 5) lifts explicit
+  /// section/chapter metadata into semantic Sections. Off by default and only
+  /// affects new imports; existing course trees are never rewritten.
   Future<AnkiImportSummary> assemble({
     required AnkiCollection collection,
     required String importId,
@@ -119,6 +123,7 @@ class AnkiDeckAssembler {
     AnkiNoteDao? noteDao,
     Map<int, NotetypeMapping>? mappingOverrides,
     bool smartGrouping = true,
+    bool sectionBetaGrouping = false,
     int liteThreshold = 2000,
     void Function(double progress, String message)? onProgress,
     bool Function()? isCancelled,
@@ -291,9 +296,14 @@ class AnkiDeckAssembler {
       final useLazyCardRefs =
           liteThreshold > 0 && deckCardTotal >= liteThreshold;
 
-      // Group cards by unit key (smart) or by deck fallback name.
+      // Group cards by unit key (smart) or by deck fallback name. On the
+      // Section-Beta path each unit group also tallies its cards' explicit
+      // section keys so semantic sections can be built later (majority wins;
+      // units without card-level sections fall back to the unit-name prefix).
       final unitGroups = <String, List<AnkiCardData>>{};
       final unitOrder = <String>[];
+      final sectionTallyByUnit = <String, Map<String, int>>{};
+      final effectiveSectionBeta = sectionBetaGrouping && smartGrouping;
       for (final d in sources) {
         final deckCards = cardsByDeck[d.id] ?? [];
         if (deckCards.isEmpty) continue;
@@ -303,9 +313,19 @@ class AnkiDeckAssembler {
           String unitKey;
           if (smartGrouping && note != null) {
             final nt = collection.notetypes[note.mid];
-            unitKey =
-                (nt != null ? resolver.resolve(note, nt).unitKey : null) ??
-                    fallbackName;
+            final org = nt != null
+                ? resolver.resolve(note, nt,
+                    sectionBeta: effectiveSectionBeta)
+                : null;
+            unitKey = org?.unitKey ?? fallbackName;
+            if (effectiveSectionBeta) {
+              final section = org?.sectionKey;
+              if (section != null) {
+                final tally =
+                    sectionTallyByUnit.putIfAbsent(unitKey, () => {});
+                tally[section] = (tally[section] ?? 0) + 1;
+              }
+            }
           } else {
             unitKey = fallbackName;
           }
@@ -395,18 +415,33 @@ class AnkiDeckAssembler {
       }
 
       // Pack units into one or more sections under the same import (extra
-      // parts get id/name suffix `-pN` / ` (N+1)`).
+      // parts get id/name suffix `-pN` / ` (N+1)`). On the Section-Beta path
+      // units with explicit or prefix-derived sections become semantic
+      // sections instead of mechanical parts.
       final cardTotal = units.fold<int>(
           0,
           (s, u) =>
               s + u.lessons.fold(0, (a, l) => a + l.flattenedStages.length));
       final description = 'Imported from Anki ($cardTotal cards)';
-      final sections = packUnitsIntoSections(
-        baseSectionId: baseSectionId,
-        baseName: baseSectionName,
-        description: description,
-        units: units,
-      );
+      final cardSectionByUnit = <String, String>{
+        for (final e in sectionTallyByUnit.entries)
+          if (_majoritySection(e.value) != null)
+            e.key: _majoritySection(e.value)!,
+      };
+      final sections = effectiveSectionBeta
+          ? buildSemanticSections(
+              baseSectionId: baseSectionId,
+              baseName: baseSectionName,
+              description: description,
+              units: units,
+              cardSectionByUnit: cardSectionByUnit,
+            )
+          : packUnitsIntoSections(
+              baseSectionId: baseSectionId,
+              baseName: baseSectionName,
+              description: description,
+              units: units,
+            );
 
       for (var sIdx = 0; sIdx < sections.length; sIdx++) {
         if (isCancelled != null && isCancelled()) {
@@ -724,6 +759,97 @@ class AnkiDeckAssembler {
       part++;
     }
     return sections;
+  }
+
+  /// Section-Beta grouping algorithm, version 1. Evidence priority:
+  ///   1. explicit section/chapter/章 field or tag (card-level, tallied per
+  ///      unit in [cardSectionByUnit] — majority wins);
+  ///   2. unit-name prefix such as "Chapter 1", "Ch.2", "第 3 章";
+  ///   3. no evidence -> the historical [packUnitsIntoSections] safety
+  ///      chunk, which is NOT semantic grouping.
+  /// Units with the same section key share one Section (id suffix `-secN`,
+  /// capped at [maxUnitsPerSection] per section with `-pN` overflow parts).
+  @visibleForTesting
+  static List<Section> buildSemanticSections({
+    required String baseSectionId,
+    required String baseName,
+    required String description,
+    required List<Unit> units,
+    Map<String, String> cardSectionByUnit = const {},
+    int maxUnitsPerSection = kMaxUnitsPerSection,
+  }) {
+    if (units.isEmpty) return const [];
+
+    // Bucket units by section key in first-seen order; null keeps the base
+    // bucket that preserves the historical section id/name.
+    final bucketOrder = <String?>[];
+    final buckets = <String?, List<Unit>>{};
+    final displayNames = <String, String>{};
+    for (final unit in units) {
+      final derived = AnkiOrganizationResolver.sectionKeyFromUnitName(
+        unit.name,
+      );
+      final key = cardSectionByUnit[unit.name] ?? derived?.$1;
+      if (!buckets.containsKey(key)) {
+        buckets[key] = [];
+        bucketOrder.add(key);
+        if (key != null && derived != null && derived.$1 == key) {
+          displayNames[key] = derived.$2;
+        }
+      }
+      buckets[key]!.add(unit);
+    }
+
+    final semanticCount =
+        bucketOrder.whereType<String>().toList().length;
+    if (semanticCount == 0) {
+      return packUnitsIntoSections(
+        baseSectionId: baseSectionId,
+        baseName: baseName,
+        description: description,
+        units: units,
+        maxUnitsPerSection: maxUnitsPerSection,
+      );
+    }
+
+    final sections = <Section>[];
+    var secIdx = 0;
+    for (final key in bucketOrder) {
+      final bucketUnits = buckets[key]!;
+      if (key == null) {
+        sections.addAll(packUnitsIntoSections(
+          baseSectionId: baseSectionId,
+          baseName: baseName,
+          description: description,
+          units: bucketUnits,
+          maxUnitsPerSection: maxUnitsPerSection,
+        ));
+        continue;
+      }
+      final id = '$baseSectionId-sec$secIdx';
+      final name = displayNames[key] ?? key;
+      sections.addAll(packUnitsIntoSections(
+        baseSectionId: id,
+        baseName: name,
+        description: '$description;grouping=section-beta-v1',
+        units: bucketUnits,
+        maxUnitsPerSection: maxUnitsPerSection,
+      ));
+      secIdx++;
+    }
+    return sections;
+  }
+
+  static String? _majoritySection(Map<String, int> tally) {
+    String? best;
+    var bestCount = 0;
+    for (final e in tally.entries) {
+      if (e.value > bestCount) {
+        best = e.key;
+        bestCount = e.value;
+      }
+    }
+    return best;
   }
 
   /// Fallback unit name when a card carries no unit metadata.

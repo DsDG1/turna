@@ -177,9 +177,15 @@ def convert_to_section_json(
 ) -> list[dict[str, Any]]:
     """Convert a parsed AnkiCollection to Turna Section JSON dicts.
 
-    Returns a list of section dicts ready for SectionImportService.
+    Returns a list of section dicts ready for SectionImportService. Every
+    produced item is run through ``lesson_content.normalize_item`` as a
+    self-check: the interaction schema is a whitelist (unknown fields are
+    dropped on save), so an import product that normalize cannot round-trip
+    would be silently lossy in the editor — raise here instead, at the source.
     """
     import re
+
+    from src.backend.lesson_content import normalize_item
 
     notes_by_id = {n.id: n for n in collection.notes}
 
@@ -231,6 +237,15 @@ def convert_to_section_json(
 
         if not units:
             continue
+
+        for unit in units:
+            for lesson in unit.get("lessons", []):
+                content = lesson.get("content", {})
+                for stage in content.get("stages", []):
+                    for item in stage.get("items", []):
+                        # Self-check: normalize must accept every produced
+                        # item losslessly (schema whitelist round-trip).
+                        normalize_item(item)
 
         sections.append({
             "id": section_id,

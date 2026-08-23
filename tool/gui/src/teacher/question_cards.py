@@ -4,6 +4,11 @@ Each runtimeType renders as a self-contained card. The `correctIndex` /
 `correctIndices` concept is hidden behind radio buttons / checkboxes the
 teacher clicks directly. Edits write back to the in-memory item dict so save()
 persists them.
+
+Anki cards (ankiCard / ankiHtmlCard) get degraded desktop previews: a plain
+flip interaction for ankiCard and tag-stripped text plus an "App 渲染为准"
+badge for ankiHtmlCard — the full HTML/CSS/JS WebView rendering lives in the
+app, not the editor (non-goal of the schema-sync plan).
 """
 from __future__ import annotations
 
@@ -31,6 +36,10 @@ from src.backend.course_adapter import CourseAdapter
 from src.backend.lesson_content import ALLOWED_RUNTIME_TYPES
 from src.i18n.labels import field_label, interaction_label
 from src.widgets.option_models import build_options_model, select_by_id
+
+#: Media refs under this protocol resolve inside the app's Anki import dir,
+#: not the desktop repo — teacher cards show them as path placeholders only.
+ANKI_MEDIA_PREFIX = "anki://"
 
 
 class _OptionRow(QWidget):
@@ -189,11 +198,17 @@ class QuestionCard(QFrame):
             self._build_listen_only(layout)
         elif rt == "reorderSentence":
             self._build_reorder_sentence(layout)
+        elif rt == "ankiCard":
+            self._build_anki_card(layout)
+        elif rt == "ankiHtmlCard":
+            self._build_anki_html_card(layout)
         else:
             self._build_fallback(layout)
 
-        # Grammar point reference is common to all runtime types.
-        self._build_grammar_combo(layout)
+        # Grammar point reference is common to the regular runtime types.
+        # Anki types carry no grammarPointId (app returns null there).
+        if rt not in ("ankiCard", "ankiHtmlCard"):
+            self._build_grammar_combo(layout)
 
         self.layout().addWidget(self._content_widget)
 
@@ -247,6 +262,14 @@ class QuestionCard(QFrame):
         )
         layout.addWidget(combo)
         self._add_labeled_edit(layout, "context")
+        # Inline overrides: when non-empty the app prefers them over the vocab
+        # entry (interaction.dart ShowWord). Show the effective value in the
+        # editors so what the teacher sees matches what the learner gets.
+        hint = QLabel("以下内联字段非空时覆盖词表默认显示（通常留空）")
+        hint.setStyleSheet("color: gray;")
+        layout.addWidget(hint)
+        for field in ("term", "translation", "pronunciation", "audioAsset", "imageAsset", "example"):
+            self._add_labeled_edit(layout, field)
 
     def _build_type_the_word(self, layout: QVBoxLayout) -> None:
         self._add_labeled_edit(layout, "prompt")
@@ -278,6 +301,8 @@ class QuestionCard(QFrame):
 
     def _build_single_choice(self, layout: QVBoxLayout) -> None:
         self._add_labeled_edit(layout, "prompt")
+        if self.item.get("runtimeType") == "multipleChoice":
+            self._add_media_list(layout, "audioAssets")
         options = list(self.item.get("options", []) or [])
         correct = int(self.item.get("correctIndex", 0) or 0)
 
@@ -378,6 +403,8 @@ class QuestionCard(QFrame):
         self._add_labeled_edit(layout, "sentence")
         self._add_labeled_edit(layout, "answer")
         self._add_labeled_edit(layout, "hint")
+        self._add_media_list(layout, "audioAssets")
+        self._add_media_list(layout, "imageAssets")
 
     def _build_translate(self, layout: QVBoxLayout) -> None:
         self._add_labeled_edit(layout, "source")
@@ -419,6 +446,97 @@ class QuestionCard(QFrame):
     def _build_short_answer(self, layout: QVBoxLayout) -> None:
         self._add_labeled_edit(layout, "prompt")
         self._add_labeled_edit(layout, "expectedAnswer")
+
+    def _add_media_list(self, layout: QVBoxLayout, field: str) -> None:
+        """Editable placeholder list for media refs (audioAssets / imageAssets).
+
+        Refs may use the ``anki://<importId>/<file>`` protocol whose files live
+        in the app's Anki import dir — the desktop only shows/edits the paths,
+        it does not play them.
+        """
+        from src.widgets.interaction_forms import StringListEditor
+
+        layout.addWidget(QLabel(field_label(field)))
+        layout.addWidget(
+            StringListEditor(
+                list(self.item.get(field) or []),
+                lambda v, n=field: self._set_field(n, v),
+            )
+        )
+
+    def _build_anki_card(self, layout: QVBoxLayout) -> None:
+        """Plain flip card: click the face to reveal the other side."""
+        layout.addWidget(QLabel(field_label("front")))
+        front_edit = QLineEdit(str(self.item.get("front", "") or ""))
+        front_edit.textChanged.connect(lambda t: self._set_field("front", t))
+        layout.addWidget(front_edit)
+
+        self._flip_label = QLabel("(点击下方按钮翻面)")
+        self._flip_label.setWordWrap(True)
+        self._flip_label.setStyleSheet("padding: 6px; color: #9aa4b6;")
+        layout.addWidget(self._flip_label)
+
+        flip_btn = QPushButton("翻面（显示背面）")
+        self._revealed = False
+
+        def _toggle() -> None:
+            self._revealed = not self._revealed
+            text = (self.item.get("back", "") or "(空)") if self._revealed \
+                else (self.item.get("front", "") or "(空)")
+            self._flip_label.setText(text)
+            flip_btn.setText("翻面（显示背面）" if self._revealed else "翻面（显示正面）")
+
+        flip_btn.clicked.connect(_toggle)
+        layout.addWidget(flip_btn)
+
+        layout.addWidget(QLabel(field_label("back")))
+        back_edit = QLineEdit(str(self.item.get("back", "") or ""))
+
+        def _on_back_changed(text: str) -> None:
+            self._set_field("back", text)
+            if self._revealed:
+                self._flip_label.setText(text or "(空)")
+
+        back_edit.textChanged.connect(_on_back_changed)
+        layout.addWidget(back_edit)
+
+        hint = str(self.item.get("hint", "") or "")
+        if hint:
+            hint_btn = QPushButton("提示")
+            hint_btn.setToolTip(hint)
+            hint_btn.clicked.connect(
+                lambda: QMessageBox.information(self, "提示", hint or "(空)")
+            )
+            layout.addWidget(hint_btn)
+
+        self._add_media_list(layout, "audioAssets")
+        self._add_media_list(layout, "imageAssets")
+
+    def _build_anki_html_card(self, layout: QVBoxLayout) -> None:
+        """Degraded preview: tag-stripped text; full rendering is app-side."""
+        from src.backend.anki_import import _strip_html
+
+        badge = QLabel("HTML 卡片，完整渲染请以 App 为准（此处为剥除标签的纯文本预览）")
+        badge.setStyleSheet(
+            "background-color: #4a3f2a; color: #e8c46a; border-radius: 4px;"
+            "padding: 4px 8px;"
+        )
+        badge.setWordWrap(True)
+        layout.addWidget(badge)
+
+        front_text = _strip_html(str(self.item.get("frontHtml", "") or ""))
+        layout.addWidget(QLabel(f"{field_label('frontHtml')}（纯文本）"))
+        front_preview = QLabel(front_text or "(空)")
+        front_preview.setWordWrap(True)
+        layout.addWidget(front_preview)
+
+        back_text = _strip_html(str(self.item.get("backHtml", "") or ""))
+        layout.addWidget(QLabel(f"{field_label('backHtml')}（纯文本）"))
+        back_preview = QLabel(back_text or "(空)")
+        back_preview.setWordWrap(True)
+        layout.addWidget(back_preview)
+
+        self._add_media_list(layout, "audioAssets")
 
     def _build_fallback(self, layout: QVBoxLayout) -> None:
         from src.widgets.interaction_forms import InteractionForm

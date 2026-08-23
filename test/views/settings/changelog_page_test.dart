@@ -91,8 +91,8 @@ void main() {
       await tester.runAsync(() => Future<void>.delayed(Duration.zero));
       await tester.pump();
     }
-    expect(find.text('1.1.0'), findsWidgets);
-    expect(find.text('1.0.0'), findsWidgets);
+    expect(find.text('0.5'), findsWidgets);
+    expect(find.text('0.4'), findsWidgets);
   });
 
   testWidgets('ChangelogFromAsset renders parsed releases from asset',
@@ -114,6 +114,14 @@ void main() {
     final releases = parseChangelogMarkdown(fakeChangelog);
     expect(releases.length, 3);
     expect(find.text('1.1.0'), findsWidgets);
+    // Scroll until 1.0.0 card becomes part of the rendered widget tree
+    // (default test viewport is 800x600; production journey + first release
+    // card may push later cards beyond the ListView cacheExtent).
+    await tester.scrollUntilVisible(
+      find.text('1.0.0'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('1.0.0'), findsWidgets);
   });
 

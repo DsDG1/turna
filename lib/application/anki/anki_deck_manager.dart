@@ -10,7 +10,9 @@ import 'package:injectable/injectable.dart';
 import 'package:turna/application/anki/anki_models.dart';
 import 'package:turna/application/anki/anki_review_assembler.dart';
 import 'package:turna/application/anki/card_introduction_eligibility.dart';
+import 'package:turna/application/anki/unified_anki_import_orchestrator.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
+import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
 import 'package:turna/application/anki_official/migration/official_anki_write_owner.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
@@ -243,16 +245,61 @@ class AnkiDeckManager {
 
   // ─── Deck Uninstall ─────────────────────────────────────────────────
 
-  /// Route an uninstall to the right owner (P5F-31): official-projected
-  /// sources go through [uninstallOfficialSource]; everything else through
-  /// the legacy [uninstallDeck]. Both are hard deletes — every card, record,
-  /// and mistake-log entry owned by the deck goes away.
+  /// Route an uninstall through the resolved owner. The
+  /// `legacy_anki_migrations` link table decides whether the id maps to an
+  /// official source (mirrored and official-first imports); the course-tree
+  /// prefix is only a recovery hint. A mirrored import is cleaned on both
+  /// sides — official collection/catalog first, then the legacy rows.
   Future<void> uninstall(String importId) async {
-    if (await _isOfficialSource(importId)) {
-      await uninstallOfficialSource(importId);
-      return;
+    final owner = await _resolveDeletionOwner(importId);
+    final officialSourceId = owner.officialSourceId;
+    if (officialSourceId != null) {
+      await uninstallOfficialSource(officialSourceId);
     }
-    await uninstallDeck(importId);
+    if (officialSourceId == null || await _hasLegacyArtifacts(importId)) {
+      await uninstallDeck(importId);
+    }
+  }
+
+  /// Resolve which persisted owner an uninstall id belongs to. The migration
+  /// link is authoritative; the `official-anki-<id>-…` tree prefix only
+  /// recovers official-first sources whose catalog rows are missing.
+  Future<AnkiDeletionOwner> _resolveDeletionOwner(String importId) async {
+    try {
+      await OfficialAnkiCompositionRoot.initializeReadOnlyLocator();
+      final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+      if (catalog != null) {
+        final migration = OfficialAnkiMigrationDao(catalog).findByLegacyImport(
+          profileId: CardIntroductionEligibility.defaultProfileId,
+          legacyImportId: importId,
+        );
+        final sourceId = migration?.officialSourceId;
+        if (sourceId != null && sourceId.isNotEmpty) {
+          return AnkiDeletionOwner(
+            importId: importId,
+            officialSourceId: sourceId,
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint(
+        '[AnkiDeckManager] migration link lookup failed for $importId: $e',
+      );
+    }
+    if (await _isOfficialSource(importId)) {
+      return AnkiDeletionOwner(importId: importId, officialSourceId: importId);
+    }
+    return AnkiDeletionOwner(importId: importId);
+  }
+
+  /// Whether legacy rows (import record or `anki-<importId>-…` sections)
+  /// still exist for this id. Mirrored imports own both sides; pure
+  /// official-first sources own none.
+  Future<bool> _hasLegacyArtifacts(String importId) async {
+    if (await _importDao.getById(importId) != null) return true;
+    final prefix = 'anki-$importId-';
+    final sections = await _repo.sectionShells();
+    return sections.any((section) => section.id.startsWith(prefix));
   }
 
   /// Official sources own `official-anki-<sourceId>-…` tree ids.
@@ -266,12 +313,30 @@ class AnkiDeckManager {
   /// the official Anki collection also loses the source's notes and cards —
   /// deleting a deck deletes everything. The projection, vocabulary rows
   /// (P5F-33 channel), unification bookkeeping, catalog rows, review history,
-  /// and mistake-log entries are dropped in the same pass. Best-effort on the
-  /// collection itself: when no engine is available (flags off, worker
-  /// unreachable) the app-side rows are still removed.
-  Future<void> uninstallOfficialSource(String sourceId) async {
-    final contentIds = await _officialSourceContentIds(sourceId);
-    await _deleteOfficialSourceNotes(contentIds.noteIds);
+  /// and mistake-log entries are dropped in the same pass.
+  ///
+  /// The collection delete is a structured step, not best-effort: when the
+  /// engine is unavailable or `deleteNotes` fails, the source is marked
+  /// `pending_cleanup`, its catalog/migration rows are kept (they are the
+  /// only way to find those notes again), and `false` is returned so the
+  /// caller knows the removal is deferred. Retrying [uninstall] — or
+  /// [retryPendingOfficialCleanups] on the next start — resumes the saga.
+  Future<bool> uninstallOfficialSource(String sourceId) async {
+    final _OfficialSourceContentIds contentIds;
+    try {
+      contentIds = await _officialSourceContentIds(sourceId);
+    } catch (_) {
+      // Without the ownership metadata the saga must stop: deleting the
+      // projection/catalog first would orphan the collection notes.
+      await _markOfficialSourcePendingCleanup(sourceId);
+      return false;
+    }
+    final collectionDeleted =
+        await _deleteOfficialSourceNotes(contentIds.noteIds);
+    if (!collectionDeleted) {
+      await _markOfficialSourcePendingCleanup(sourceId);
+      return false;
+    }
 
     await _repo.deleteOfficialProjection(sourceId);
     await _repo.deleteByTag('official:$sourceId');
@@ -293,11 +358,40 @@ class AnkiDeckManager {
       idPrefixes: ['official-anki-$sourceId-'],
       cardIds: contentIds.cardIds,
     );
+    UnifiedAnkiImportOrchestrator.instance.invalidate(importId: sourceId);
+    return true;
+  }
+
+  /// Retry every `pending_cleanup` source whose collection delete failed
+  /// earlier. Intended to run on app start so users do not have to keep
+  /// pressing delete after a transient engine failure.
+  Future<int> retryPendingOfficialCleanups() async {
+    try {
+      await OfficialAnkiCompositionRoot.initializeReadOnlyLocator();
+      final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+      if (catalog == null) return 0;
+      final pending = OfficialAnkiSourceDao(catalog)
+          .listSources(CardIntroductionEligibility.defaultProfileId)
+          .where((source) => source.state == 'pending_cleanup')
+          .toList();
+      var resumed = 0;
+      for (final source in pending) {
+        if (await uninstallOfficialSource(source.sourceId)) {
+          resumed++;
+        }
+      }
+      return resumed;
+    } catch (e) {
+      debugPrint('[AnkiDeckManager] pending cleanup retry failed: $e');
+      return 0;
+    }
   }
 
   /// The source's note ids (for collection deletion) and card ids (for
   /// mistake-log matching — official card word ids do not carry the
-  /// sourceId). Read before the catalog rows are deleted.
+  /// sourceId). Read before the catalog rows are deleted. A read failure
+  /// yields an empty id set and blocks the saga: proceeding would drop the
+  /// ownership metadata while leaving the collection notes behind.
   Future<_OfficialSourceContentIds> _officialSourceContentIds(
     String sourceId,
   ) async {
@@ -305,7 +399,7 @@ class AnkiDeckManager {
       await OfficialAnkiCompositionRoot.initializeReadOnlyLocator();
       final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
       if (catalog == null) {
-        return const _OfficialSourceContentIds(<int>[], <int>{});
+        throw StateError('official catalog unavailable');
       }
       final cards = OfficialAnkiSourceDao(catalog).listCards(sourceId);
       final noteIds = cards.map((card) => card.noteId).toSet().toList()..sort();
@@ -318,14 +412,16 @@ class AnkiDeckManager {
         '[AnkiDeckManager] read official source cards failed '
         'for $sourceId: $e',
       );
-      return const _OfficialSourceContentIds(<int>[], <int>{});
+      rethrow;
     }
   }
 
   /// Remove the source's notes (and every card that uses them) from the
   /// official collection. Batched to stay under the DELETE_NOTES id cap.
-  Future<void> _deleteOfficialSourceNotes(List<int> noteIds) async {
-    if (noteIds.isEmpty) return;
+  /// Returns false when the collection could not be cleaned — the caller
+  /// must then keep the catalog rows and mark the source pending cleanup.
+  Future<bool> _deleteOfficialSourceNotes(List<int> noteIds) async {
+    if (noteIds.isEmpty) return true;
     try {
       final engine = await _resolveOfficialEngine();
       if (engine == null) {
@@ -333,16 +429,33 @@ class AnkiDeckManager {
           '[AnkiDeckManager] official engine unavailable; '
           '${noteIds.length} collection notes kept',
         );
-        return;
+        return false;
       }
       const batchLimit = 5000;
       for (var start = 0; start < noteIds.length; start += batchLimit) {
         final end = min(start + batchLimit, noteIds.length);
         await engine.deleteNotes(noteIds.sublist(start, end));
       }
+      return true;
     } catch (e) {
       debugPrint(
         '[AnkiDeckManager] official collection deleteNotes failed: $e',
+      );
+      return false;
+    }
+  }
+
+  Future<void> _markOfficialSourcePendingCleanup(String sourceId) async {
+    try {
+      final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+      if (catalog == null) return;
+      OfficialAnkiSourceDao(catalog).markPendingCleanup(
+        sourceId: sourceId,
+        nowMillis: DateTime.now().millisecondsSinceEpoch,
+      );
+    } catch (e) {
+      debugPrint(
+        '[AnkiDeckManager] mark pending_cleanup failed for $sourceId: $e',
       );
     }
   }
@@ -402,6 +515,9 @@ class AnkiDeckManager {
     // 7. Mistake log entries (wrong answers recorded from this deck's
     // course lessons and review sessions).
     await _mistakeProvider?.removeForAnkiDeletion(idPrefixes: [prefix]);
+    // Retire the orchestrator's in-process caches for this import so a
+    // same-process re-import is never mistaken for "already imported".
+    UnifiedAnkiImportOrchestrator.instance.invalidate(importId: importId);
   }
 
   void _removeSrsEntries(String importId) {
@@ -461,4 +577,14 @@ class _OfficialSourceContentIds {
 
   final List<int> noteIds;
   final Set<int> cardIds;
+}
+
+/// The persisted owner(s) an uninstall id resolves to. Mirrored imports
+/// (legacy main write + official mirror) carry both sides; [officialSourceId]
+/// is null for pure legacy decks.
+class AnkiDeletionOwner {
+  const AnkiDeletionOwner({required this.importId, this.officialSourceId});
+
+  final String importId;
+  final String? officialSourceId;
 }

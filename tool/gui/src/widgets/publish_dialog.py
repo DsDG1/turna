@@ -184,8 +184,16 @@ class PublishDialog(QDialog):
             hint.setStyleSheet(f"color: {current_palette()['text_secondary']};")
             self.bump_layout.addWidget(hint)
             return
+        changes = self._report["changes"]
         for file_key, (cur, nxt) in plan.items():
-            cb = QCheckBox(f"{file_key}.json: {cur} -> {nxt}")
+            text = f"{file_key}.json: {cur} -> {nxt}"
+            if (
+                file_key == "expressions"
+                and changes.get("vocab")
+                and not changes.get("expressions")
+            ):
+                text += "（vocab 有变更，联动 bump 触发客户端内容重建）"
+            cb = QCheckBox(text)
             cb.setChecked(True)
             self._bump_checks[file_key] = cb
             self.bump_layout.addWidget(cb)
@@ -195,7 +203,17 @@ class PublishDialog(QDialog):
         if not plan:
             self.version_label.setText("版本号：无需更新")
             return
-        parts = [f"{cur} -> {nxt}" for cur, nxt in plan.values()]
+        changes = self._report["changes"]
+        parts = []
+        for file_key, (cur, nxt) in plan.items():
+            part = f"{cur} -> {nxt}"
+            if (
+                file_key == "expressions"
+                and changes.get("vocab")
+                and not changes.get("expressions")
+            ):
+                part += "（词库有改动，自动更新以推送到已安装设备）"
+            parts.append(part)
         self.version_label.setText(f"版本号将自动更新：{', '.join(parts)}")
 
     def _render_audio(self) -> None:

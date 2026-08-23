@@ -89,7 +89,15 @@ class ItemListPanel(QWidget):
         for item in self.stage.get("items", []):
             rt = item.get("runtimeType", "?")
             label = INTERACTION_LABELS.get(rt, rt)
-            prompt = item.get("prompt") or item.get("sentence") or item.get("source") or item.get("statement") or ""
+            prompt = (
+                item.get("prompt")
+                or item.get("sentence")
+                or item.get("source")
+                or item.get("statement")
+                or item.get("front")
+                or item.get("frontHtml")
+                or ""
+            )
             self.list_widget.addItem(f"[{label}] {prompt}")
 
     def _on_select(self, row: int) -> None:

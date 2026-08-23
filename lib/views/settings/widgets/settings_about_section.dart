@@ -73,7 +73,7 @@ class SettingsVersionFooter extends StatelessWidget {
     return FutureBuilder<PackageInfo>(
       future: _loadPackageInfo(),
       builder: (context, snapshot) {
-        final version = snapshot.data?.version ?? '1.3.0';
+        final version = snapshot.data?.version ?? '0.7.0';
         final build = snapshot.data?.buildNumber ?? '';
         final label = build.isEmpty
             ? AppStrings.settingsVersionFooter(version)

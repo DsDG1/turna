@@ -37,6 +37,7 @@ import 'package:turna/application/anki_official/storage/official_anki_database.d
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/lesson_link_store.dart';
+import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/courses/course_loader.dart';
@@ -204,6 +205,7 @@ void main() {
     srsProvider = SrsProvider(appPrefs, linkStore, SrsStateDao(db));
     getIt.registerSingleton<CourseProvider>(courseProvider);
     getIt.registerSingleton<SrsProvider>(srsProvider);
+    getIt.registerSingleton<MistakeProvider>(MistakeProvider(appPrefs));
     getIt.registerSingleton<AnkiDeckManager>(
       AnkiDeckManager(
         repo: getIt<ICourseRepository>(),
@@ -386,7 +388,7 @@ void main() {
     );
   });
 
-  testWidgets('p5f_flag_off_keeps_legacy_order_and_swallows_official_failure',
+  testWidgets('p5f_flag_off_keeps_legacy_order_without_background_mirror',
       (tester) async {
     tester.view.physicalSize = const Size(1080, 1920);
     tester.view.devicePixelRatio = 1.0;
@@ -400,10 +402,36 @@ void main() {
     await pickAndWaitForPreview(tester);
     await startImport(tester);
 
-    expect(failing.calls, 1,
-        reason: 'legacy order still mirrors into the official collection');
+    expect(failing.calls, 0,
+        reason: 'production default keeps exactly one owner per import: a '
+            'legacy commit is not re-mirrored into the official collection');
     expect(find.text(AppStrings.ankiImportComplete), findsOneWidget,
-        reason: 'flag off: official mirror failure must stay non-fatal');
+        reason: 'legacy import succeeds on its own');
+    final records = await getIt<AnkiImportDao>().getAll();
+    expect(records, isNotEmpty);
+  });
+
+  testWidgets('legacyMirror_flag_reenables_the_deferred_official_mirror',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 1920);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    OfficialAnkiFeatureFlags.current = _capableFlags.copyWith(
+      officialFirstImport: false,
+      legacyMirror: true,
+    );
+    final failing = _FailingOfficialImporter();
+    OfficialAnkiCompositionRoot.session = failing;
+    await pumpWizard(tester);
+    await pickAndWaitForPreview(tester);
+    await startImport(tester);
+
+    expect(failing.calls, 1,
+        reason: 'the development-only mirror flag re-enables the post-commit '
+            'official import');
+    expect(find.text(AppStrings.ankiImportComplete), findsOneWidget,
+        reason: 'mirror failure must stay non-fatal (deferred)');
     final records = await getIt<AnkiImportDao>().getAll();
     expect(records, isNotEmpty);
   });

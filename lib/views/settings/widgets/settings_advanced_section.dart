@@ -56,6 +56,14 @@ class SettingsAdvancedSection extends StatelessWidget {
               subtitle: '诊断、安全模式与脱敏报告',
               onTap: (ctx) => ctx.router.push(const SystemHealthRoute()),
             ),
+            settingsTileDivider(context),
+            SettingsNavigationTile(
+              icon: Icons.sd_storage_outlined,
+              title: '存储与性能',
+              subtitle: '扫描 Anki、缓存、孤儿数据与可回收空间',
+              onTap: (ctx) =>
+                  ctx.router.push(const StorageDiagnosticsRoute()),
+            ),
             if (kDebugMode ||
                 OfficialAnkiFeatureFlags.current.diagnostics) ...[
               settingsTileDivider(context),

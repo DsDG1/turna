@@ -4,11 +4,19 @@ Each tab is a QTableWidget bound directly to the adapter's in-memory resource
 list. CSV import/export are transport tools; edits land in memory and persist
 via CourseAdapter.save() (guiplan §7.2). Reference dropdowns in lesson forms
 refresh when this dialog closes (see MainWindow._on_resources).
+
+Vocab rows carry a ``pos`` combo column (closed POS set, Chinese labels,
+English enum values). Grammar rows carry a ``practiceItems`` button column
+opening an ItemListPanel dialog bound to the entry's practice list — the list
+is editor-only (CSV stays column-free; interactions do not fit table cells).
 """
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
     QFileDialog,
     QHBoxLayout,
     QHeaderView,
@@ -16,6 +24,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPushButton,
+    QStyledItemDelegate,
     QTableWidget,
     QTableWidgetItem,
     QTabWidget,
@@ -23,9 +32,13 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-import course_cli
+# api.py is the single gateway to course_cli (it puts tool/ on sys.path);
+# importing the module through it keeps this file importable standalone.
+from src.backend.api import course_cli
 
 from src.backend.course_adapter import CourseAdapter
+from src.backend.experience.pos_constants import POS_LABELS, POS_TAGS
+from src.widgets.lesson_editor import ItemListPanel
 
 RESOURCE_TYPES = ("vocab", "expressions", "grammar_points")
 TYPE_LABELS = {
@@ -45,10 +58,44 @@ _LIST_FIELDS = {
     "grammar_points": {"exampleExpressionIds", "exampleSentenceIds"},
 }
 
+#: Editor-only columns appended past the CSV headers.
+_EXTRA_COLUMNS = {
+    "grammar_points": ["practiceItems"],
+}
+
+
+class _PosDelegate(QStyledItemDelegate):
+    """Combo editor for the vocab ``pos`` column.
+
+    The table shows Chinese labels but stores English enum values in the
+    item's UserRole; commit writes the enum back via setData so
+    ``_on_cell_changed`` persists ``entry['pos']``.
+    """
+
+    def createEditor(self, parent, option, index):  # noqa: N802
+        combo = QComboBox(parent)
+        combo.addItem("（未设置）", "")
+        for value in POS_TAGS:
+            combo.addItem(POS_LABELS[value], value)
+        return combo
+
+    def setEditorData(self, editor, index):  # noqa: N802
+        value = index.data(Qt.ItemDataRole.UserRole) or ""
+        pos = editor.findData(value)
+        editor.setCurrentIndex(max(0, pos))
+
+    def setModelData(self, editor, model, index):  # noqa: N802
+        value = editor.currentData() or ""
+        label = POS_LABELS.get(value, "")
+        # UserRole first: _on_cell_changed (fired by the DisplayRole setData
+        # below) reads the enum from UserRole.
+        model.setData(index, value, Qt.ItemDataRole.UserRole)
+        model.setData(index, label, Qt.ItemDataRole.DisplayRole)
+
 
 def _columns(row_type: str) -> list[str]:
     headers, _rows = course_cli.build_csv_rows(row_type, [])
-    return headers
+    return headers + _EXTRA_COLUMNS.get(row_type, [])
 
 
 class ResourceTableWidget(QWidget):
@@ -77,6 +124,10 @@ class ResourceTableWidget(QWidget):
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QTableWidget.SelectionMode.ExtendedSelection)
         self.table.itemChanged.connect(self._on_cell_changed)
+        if self.row_type == "vocab" and "pos" in self.columns:
+            self.table.setItemDelegateForColumn(
+                self.columns.index("pos"), _PosDelegate(self.table)
+            )
         layout.addWidget(self.table)
 
         row = QHBoxLayout()
@@ -121,16 +172,49 @@ class ResourceTableWidget(QWidget):
         self.table.setRowCount(len(entries))
         for r, entry in enumerate(entries):
             for c, col in enumerate(self.columns):
+                if col == "practiceItems":
+                    self._set_practice_button(r, c, entry)
+                    continue
                 value = entry.get(col, "")
                 if col in _LIST_FIELDS.get(self.row_type, set()):
                     text = ", ".join(str(v) for v in (value or []))
+                elif col == "pos":
+                    text = POS_LABELS.get(value, "") if value else ""
                 else:
                     text = "" if value is None else str(value)
                 item = QTableWidgetItem(text)
                 if col == "id":
                     item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                if col == "pos":
+                    item.setData(Qt.ItemDataRole.UserRole, value or "")
                 self.table.setItem(r, c, item)
         self.table.blockSignals(False)
+
+    def _set_practice_button(
+        self, row: int, col: int, entry: dict
+    ) -> None:
+        items = entry.get("practiceItems") or []
+        btn = QPushButton(f"编辑练习（{len(items)} 题）")
+        btn.clicked.connect(
+            lambda _c, e=entry: self._open_practice_dialog(e)
+        )
+        self.table.setCellWidget(row, col, btn)
+
+    def _open_practice_dialog(self, entry: dict) -> None:
+        items = entry.setdefault("practiceItems", [])
+        dialog = PracticeItemsDialog(
+            self.adapter, entry, parent=self,
+        )
+        dialog.panel.show_stage({"items": items})
+        dialog.exec()
+        self._dirty = True
+        self.adapter.notify_resources_changed()
+        # Refresh the button label with the new count.
+        for r in range(self.table.rowCount()):
+            id_item = self.table.item(r, 0)
+            if id_item is not None and id_item.text() == entry.get("id", ""):
+                self._set_practice_button(r, self.columns.index("practiceItems"), entry)
+                break
 
     def _current_entry_id(self) -> str | None:
         row = self.table.currentRow()
@@ -146,11 +230,14 @@ class ResourceTableWidget(QWidget):
         if not (0 <= row < len(entries)):
             return
         entry = entries[row]
-        text = item.text()
-        if col in _LIST_FIELDS.get(self.row_type, set()):
-            entry[col] = [p.strip() for p in text.split(",") if p.strip()]
+        if col == "pos":
+            # Delegate stored the English enum in UserRole; empty means unset.
+            value = item.data(Qt.ItemDataRole.UserRole) or ""
+            entry["pos"] = value or None
+        elif col in _LIST_FIELDS.get(self.row_type, set()):
+            entry[col] = [p.strip() for p in item.text().split(",") if p.strip()]
         else:
-            entry[col] = text
+            entry[col] = item.text()
         self._dirty = True
         self.adapter.notify_resources_changed()
 
@@ -248,6 +335,37 @@ class ResourceTableWidget(QWidget):
             QMessageBox.warning(self, "导出失败", str(exc))
             return
         QMessageBox.information(self, "导出完成", f"已写入 {path}")
+
+
+class PracticeItemsDialog(QDialog):
+    """Grammar-point practice editor: reuses ItemListPanel on practiceItems.
+
+    The panel binds to ``{"items": entry["practiceItems"]}`` so add/delete/edit
+    mutate the entry's actual list in place (same reference, no copy-back
+    needed). Supports all 14 interaction runtimeTypes incl. anki cards.
+    """
+
+    def __init__(
+        self,
+        adapter: CourseAdapter,
+        entry: dict,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self.setWindowTitle(
+            f"练习题目 — {entry.get('title') or entry.get('id', '')}"
+        )
+        self.resize(780, 540)
+        layout = QVBoxLayout(self)
+        hint = QLabel("该语法点的配套练习题（开课时随语法点注册 SRS）。")
+        hint.setStyleSheet("color: gray;")
+        layout.addWidget(hint)
+        self.panel = ItemListPanel(adapter)
+        layout.addWidget(self.panel, 1)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        buttons.rejected.connect(self.reject)
+        buttons.clicked.connect(lambda _b: self.reject())
+        layout.addWidget(buttons)
 
 
 class ResourceEditorDialog(QWidget):

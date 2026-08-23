@@ -28,6 +28,7 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
   var compareCount = 0;
   bool failImport = false;
   bool failRender = false;
+  bool failDeleteNotes = false;
   var collectionGeneration = 1;
   String? projectionToken;
   String? projectionFingerprint;
@@ -686,6 +687,9 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
 
   @override
   Future<int> deleteNotes(List<int> noteIds) async {
+    if (failDeleteNotes) {
+      throw StateError('simulated collection deleteNotes failure');
+    }
     final noteIdSet = noteIds.toSet();
     final removedCards = <int>[];
     cards.removeWhere((cardId, card) {

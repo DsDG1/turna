@@ -303,6 +303,7 @@ void main() {
     late CourseDatabase db;
     late AnkiDeckManager manager;
     late AnkiUnificationDao unification;
+    late OfficialAnkiDatabase catalog;
 
     setUp(() async {
       ensurePathProviderMockForTest();
@@ -330,9 +331,19 @@ void main() {
         appPrefs: appPrefs,
         unificationDao: unification,
       );
+      // The uninstall saga now consults the migration link table before
+      // touching anything; give it an isolated in-memory catalog so the
+      // lookup never falls through to a locator on the host filesystem.
+      catalog = OfficialAnkiDatabase.memory();
+      OfficialAnkiCompositionRoot.readOnlyCatalog = catalog;
     });
 
-    tearDown(() => GetIt.instance.reset());
+    tearDown(() async {
+      OfficialAnkiCompositionRoot.readOnlyCatalog = null;
+      OfficialAnkiCompositionRoot.locatorPaths = null;
+      catalog.close();
+      await GetIt.instance.reset();
+    });
 
     test('legacy uninstall no longer matches prefix-sibling sections',
         () async {
@@ -624,6 +635,165 @@ void main() {
       expect(mistakes.entries.map((e) => e.id), {'m-sibling'});
       expect(engine.deletedNoteIds, isEmpty,
           reason: 'legacy uninstall never touches the official collection');
+    });
+
+    test('mirrored import uninstall resolves via migration link and clears '
+        'both owners', () async {
+      final sources = OfficialAnkiSourceDao(catalog);
+      sources.upsertSource(
+        sourceId: 'src-m',
+        profileId: 'profile-default-01',
+        sourceHash: 'hash-m',
+        sourceSize: 10,
+        displayName: 'mirrored deck',
+        state: 'active',
+        backendCommit: 'test',
+        nowMillis: 1,
+      );
+      sources.replaceCards(
+        sourceId: 'src-m',
+        cards: const [
+          OfficialAnkiCardDescriptor(
+            cardId: 61,
+            noteId: 600,
+            deckId: 1,
+            templateOrd: 0,
+          ),
+        ],
+      );
+      // The legacy↔official link is the authoritative ownership record.
+      catalog.handle.execute(
+        "INSERT INTO legacy_anki_migrations (migration_id, profile_id, "
+        "legacy_import_id, official_source_id, state, scheduling_policy, "
+        "source_hash, legacy_card_count, matched_card_count, recorded_kind, "
+        "started_at_millis, updated_at_millis) VALUES ('mig-m', "
+        "'profile-default-01', 'imp-m', 'src-m', 'observing', "
+        "'preservePackageScheduling', 'hash-m', 1, 1, 'official', 1, 1)",
+      );
+      // Legacy side: import row and course tree. The official-side tree is
+      // created by the projection write below.
+      await db.customStatement(
+        "INSERT INTO anki_imports (import_id, source_path, source_hash, "
+        "imported_at) VALUES ('imp-m', '/tmp/m.apkg', 'hash-m', 1)",
+      );
+      await db.customStatement(
+        "INSERT INTO sections (id, name, level, sort_order) VALUES "
+        "('anki-imp-m-s1', 'Mirrored', 'Anki', 0)",
+      );
+      await OfficialAnkiCourseProjectionStore(db).replaceOfficialProjection(
+        sourceId: 'src-m',
+        plan: OfficialAnkiProjectionPlan(
+          items: [_item('src-m', 61)],
+          issues: const [],
+        ),
+        sourceFingerprint: 'fp-m',
+      );
+
+      await manager.uninstall('imp-m');
+
+      expect(engine.deletedNoteIds, const {600},
+          reason: 'the official mirror loses its collection notes');
+      expect(
+        catalog.handle
+            .select('SELECT COUNT(*) AS n FROM anki_sources')
+            .first['n'],
+        0,
+        reason: 'catalog source row is gone',
+      );
+      expect(
+        catalog.handle
+            .select('SELECT COUNT(*) AS n FROM legacy_anki_migrations')
+            .first['n'],
+        0,
+        reason: 'the migration link is retired with the source',
+      );
+      final sections = await db.customSelect('SELECT id FROM sections').get();
+      expect(sections, isEmpty,
+          reason: 'both legacy and official tree sections are removed');
+      expect(
+        await _count(
+            db, "SELECT COUNT(*) AS n FROM anki_imports WHERE import_id = 'imp-m'"),
+        0,
+        reason: 'the legacy import record is removed',
+      );
+      expect(
+        await _count(
+            db, 'SELECT COUNT(*) AS n FROM official_anki_projection_index'),
+        0,
+      );
+    });
+
+    test('collection delete failure marks pending_cleanup and keeps owner '
+        'rows; retry completes', () async {
+      final sources = OfficialAnkiSourceDao(catalog);
+      sources.upsertSource(
+        sourceId: 'src-p',
+        profileId: 'profile-default-01',
+        sourceHash: 'hash-p',
+        sourceSize: 10,
+        displayName: 'deck',
+        state: 'active',
+        backendCommit: 'test',
+        nowMillis: 1,
+      );
+      sources.replaceCards(
+        sourceId: 'src-p',
+        cards: const [
+          OfficialAnkiCardDescriptor(
+            cardId: 71,
+            noteId: 700,
+            deckId: 1,
+            templateOrd: 0,
+          ),
+        ],
+      );
+      await OfficialAnkiCourseProjectionStore(db).replaceOfficialProjection(
+        sourceId: 'src-p',
+        plan: OfficialAnkiProjectionPlan(
+          items: [_item('src-p', 71)],
+          issues: const [],
+        ),
+        sourceFingerprint: 'fp-p',
+      );
+
+      engine.failDeleteNotes = true;
+      await manager.uninstall('src-p');
+
+      final row = catalog.handle
+          .select("SELECT state FROM anki_sources WHERE source_id = 'src-p'")
+          .first;
+      expect(row['state'], 'pending_cleanup',
+          reason: 'failed collection delete defers the saga');
+      expect(
+        catalog.handle
+            .select('SELECT COUNT(*) AS n FROM anki_source_cards')
+            .first['n'],
+        1,
+        reason: 'ownership rows stay so the notes can still be found',
+      );
+      expect(
+        await _count(
+            db, 'SELECT COUNT(*) AS n FROM official_anki_projection_index'),
+        1,
+        reason: 'the projection is not dropped before the collection',
+      );
+
+      // The engine recovers; the startup retry finishes the saga.
+      engine.failDeleteNotes = false;
+      final resumed = await manager.retryPendingOfficialCleanups();
+      expect(resumed, 1);
+      expect(engine.deletedNoteIds, const {700});
+      expect(
+        catalog.handle
+            .select('SELECT COUNT(*) AS n FROM anki_sources')
+            .first['n'],
+        0,
+      );
+      expect(
+        await _count(
+            db, 'SELECT COUNT(*) AS n FROM official_anki_projection_index'),
+        0,
+      );
     });
   });
 }

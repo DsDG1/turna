@@ -356,6 +356,71 @@ class PublishFlowTest(unittest.TestCase):
         self.assertIn("expressions", plan)
         self.assertEqual(plan["expressions"], (cur_version, cur_version + 1))
 
+    def test_version_bump_plan_vocab_edit_rides_expressions_bump(self) -> None:
+        # G9: vocab-only change must still bump expressions so installed
+        # clients re-seed (composite index+expressions trigger).
+        adapter = CourseAdapter()
+        adapter.load(self.course_dir)
+        cur_version = adapter.expressions_version
+        adapter.vocab[0]["term"] = "edited vocab"
+        changes = adapter.detect_changes()
+        self.assertTrue(changes["vocab"])
+        self.assertFalse(changes["expressions"])
+        plan = adapter.version_bump_plan(changes)
+        self.assertIn("expressions", plan)
+        self.assertEqual(plan["expressions"], (cur_version, cur_version + 1))
+        self.assertNotIn("index", plan)
+
+    def test_version_bump_plan_vocab_and_expressions_bump_once(self) -> None:
+        adapter = CourseAdapter()
+        adapter.load(self.course_dir)
+        cur_version = adapter.expressions_version
+        adapter.vocab[0]["term"] = "edited vocab"
+        adapter.expressions[0]["term"] = "edited expr"
+        plan = adapter.version_bump_plan(adapter.detect_changes())
+        self.assertEqual(
+            plan["expressions"], (cur_version, cur_version + 1),
+            "simultaneous vocab+expressions changes must not double-bump",
+        )
+
+    def test_set_linked_grammar_points_round_trip(self) -> None:
+        adapter = CourseAdapter()
+        adapter.load(self.course_dir)
+        lesson = adapter.sections[0]["units"][0]["lessons"][0]
+        lid = lesson["id"]
+        self.assertTrue(adapter.grammar_points, "fixture must have grammar points")
+        adapter.set_linked_grammar_points(lid, ["g-bogus"])
+        self.assertEqual(lesson["content"]["linkedGrammarPointIds"], ["g-bogus"])
+        # Dangling linked grammar id fails validate -> save rolls back the
+        # in-memory state (constraint #4).
+        result = adapter.save()
+        self.assertFalse(result.ok, "dangling linkedGrammarPointIds must fail validate")
+        restored = adapter.find_lesson(lid)[2]
+        self.assertNotIn(
+            "linkedGrammarPointIds",
+            restored.get("content", {}),
+            "failed save must roll back the in-memory edit",
+        )
+
+    def test_set_linked_grammar_points_persists_when_valid(self) -> None:
+        adapter = CourseAdapter()
+        adapter.load(self.course_dir)
+        lesson = adapter.sections[0]["units"][0]["lessons"][0]
+        lid = lesson["id"]
+        valid_ids = [g["id"] for g in adapter.grammar_points[:2]]
+        adapter.set_linked_grammar_points(lid, valid_ids)
+        result = adapter.save()
+        self.assertTrue(result.ok, f"save failed: {result.message}")
+        reloaded = CourseAdapter()
+        reloaded.load(self.course_dir)
+        reloaded_lesson = next(
+            l for u in reloaded.sections[0]["units"]
+            for l in u["lessons"] if l["id"] == lid
+        )
+        self.assertEqual(
+            reloaded_lesson["content"].get("linkedGrammarPointIds"), valid_ids
+        )
+
     def test_apply_version_bump_persists(self) -> None:
         adapter = CourseAdapter()
         adapter.load(self.course_dir)

@@ -848,10 +848,8 @@ def switch_runtime_type(item: dict[str, Any], new_runtime_type: str) -> dict[str
         group = _field_to_group(old_field)
         if group is None:
             continue
-        # Capture under the group's canonical name (first field in the group
-        # wins); the apply phase resolves it onto whichever group member the
-        # new schema actually has.
-        if group not in semantic_values:
+        # Prefer same-named field, otherwise take the first field in the group.
+        if group in new_field_names and group not in semantic_values:
             semantic_values[group] = old_value
 
     # Apply preserved values, but only if the type is compatible.
@@ -862,16 +860,9 @@ def switch_runtime_type(item: dict[str, Any], new_runtime_type: str) -> dict[str
         if name == "id":
             new_item[name] = item.get("id") or new_item[name]
             continue
-        # Resolve the value: same-named field first, otherwise the semantic
-        # group's captured value (so front -> sentence lands even though the
-        # group's canonical name is "prompt" and fillBlank has no such field).
-        value: Any = None
-        if name in semantic_values:
-            value = semantic_values[name]
-        else:
-            group = _field_to_group(name)
-            if group is not None:
-                value = semantic_values.get(group)
+        if name not in semantic_values:
+            continue
+        value = semantic_values[name]
         if value is None:
             continue
         if spec.kind == "string_list" and not isinstance(value, list):

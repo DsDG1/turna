@@ -1,5 +1,7 @@
 import 'package:turna/application/anki/card_introduction_eligibility.dart';
+import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_store.dart';
+import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/di/injection.dart';
@@ -46,6 +48,12 @@ class UnifiedAnkiImportResult {
 
 /// Single import entry used by the import UI. Official-capable imports
 /// publish placement/presentation only and never register Turna Anki SRS.
+///
+/// Dedup authority is the persisted inventory (`anki_imports` rows plus the
+/// official catalog), never in-process memory: a deck that was deleted in
+/// this same process must be re-importable. In-process state only guards
+/// against two concurrent submissions of the same source and is released as
+/// soon as the import task ends ([finalize]/[invalidate]).
 class UnifiedAnkiImportOrchestrator {
   UnifiedAnkiImportOrchestrator({
     this.lookupByHash,
@@ -61,19 +69,44 @@ class UnifiedAnkiImportOrchestrator {
   /// Test/production seam: persist canonical/placement/presentation rows.
   Future<void> Function(UnifiedAnkiImportRequest request)? persistIdentity;
 
-  final Set<String> _seenHashes = {};
+  /// Source hashes with an import currently between [begin] and
+  /// [finalize]/[invalidate]. Prevents double submission only; a completed
+  /// or failed import must release its key.
+  final Set<String> _inFlightKeys = {};
+
+  /// Source hash of the most recent begin per import id, so [invalidate] can
+  /// release the in-flight key without knowing the hash.
+  final Map<String, String> _hashByImport = {};
+
   final Map<String, List<int>> _placementsByImport = {};
   final Map<String, List<int>> _presentationsByImport = {};
   final Set<String> turnaSrsWordIds = {};
 
+  /// Whether the persisted inventory already holds a *complete* import for
+  /// [sourceHash]. A `failed`/`pending` legacy row or a non-active official
+  /// source is not a usable import and must not produce a no-op.
   Future<bool> _hashExists(String sourceHash) async {
-    if (_seenHashes.contains(sourceHash)) return true;
     final lookup = lookupByHash;
     if (lookup != null) return lookup(sourceHash);
     if (getIt.isRegistered<CourseDatabase>()) {
       final existing =
           await AnkiImportDao(getIt<CourseDatabase>()).findByHash(sourceHash);
-      return existing != null;
+      if (existing != null) {
+        return existing.status == 'complete';
+      }
+    }
+    try {
+      final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+      if (catalog != null) {
+        final source = OfficialAnkiSourceDao(catalog).findByHash(
+          CardIntroductionEligibility.defaultProfileId,
+          sourceHash,
+        );
+        return source != null && source.state == 'active';
+      }
+    } catch (_) {
+      // The catalog is an additional dedup source, not a hard dependency;
+      // when it cannot be read the legacy inventory answer stands.
     }
     return false;
   }
@@ -126,8 +159,10 @@ class UnifiedAnkiImportOrchestrator {
     }
   }
 
-  /// Probe identity. Same-hash hits return [noOp] and must skip assemble/SRS
-  /// /Official collection writes.
+  /// Probe identity. A same-hash hit in the persisted inventory returns
+  /// [UnifiedAnkiImportResult.noOp] and must skip assemble/SRS/Official
+  /// collection writes. A second concurrent begin for the same source throws
+  /// instead of double-submitting.
   Future<UnifiedAnkiImportResult> begin(UnifiedAnkiImportRequest request) async {
     if (request.reuseExistingIdentity && await _hashExists(request.sourceHash)) {
       final placements = _placementsByImport[request.importId] ??
@@ -141,8 +176,15 @@ class UnifiedAnkiImportOrchestrator {
         turnaSrsWordIds: const {},
       );
     }
+    if (!_inFlightKeys.add(request.sourceHash)) {
+      throw StateError(
+        'an import for source hash ${request.sourceHash} is already running',
+      );
+    }
+    _hashByImport[request.importId] = request.sourceHash;
     if (request.canonicalCardIds.toSet().length !=
         request.canonicalCardIds.length) {
+      _inFlightKeys.remove(request.sourceHash);
       throw StateError('canonical card ids must be unique');
     }
     final srsIds = <String>{};
@@ -162,8 +204,8 @@ class UnifiedAnkiImportOrchestrator {
   }
 
   Future<void> finalize(UnifiedAnkiImportRequest request) async {
-    if (_seenHashes.contains(request.sourceHash)) return;
-    _seenHashes.add(request.sourceHash);
+    _inFlightKeys.remove(request.sourceHash);
+    _hashByImport[request.importId] = request.sourceHash;
     final placements = List<int>.from(request.canonicalCardIds);
     _placementsByImport[request.importId] = placements;
     _presentationsByImport[request.importId] = placements;
@@ -175,7 +217,20 @@ class UnifiedAnkiImportOrchestrator {
     await _persist(request);
   }
 
-  /// Shipped entry: skip if same hash, otherwise persist identity 1:1.
+  /// Drop every in-process record of one import after its persisted data was
+  /// deleted (uninstall, force-replace, rollback). Every delete path must
+  /// call this so stale memory cannot veto a same-process re-import.
+  void invalidate({required String importId, String? sourceHash}) {
+    _placementsByImport.remove(importId);
+    _presentationsByImport.remove(importId);
+    turnaSrsWordIds.removeWhere((id) => id.startsWith('anki-$importId-c'));
+    final hash = sourceHash ?? _hashByImport.remove(importId);
+    if (sourceHash != null) _hashByImport.remove(importId);
+    if (hash != null) _inFlightKeys.remove(hash);
+  }
+
+  /// Shipped entry: skip if the inventory already holds this hash, otherwise
+  /// persist identity 1:1.
   Future<UnifiedAnkiImportResult> importPackage(
     UnifiedAnkiImportRequest request,
   ) async {
@@ -193,7 +248,8 @@ class UnifiedAnkiImportOrchestrator {
     required String sourceId,
     required String sourceHash,
   }) async {
-    _seenHashes.add(sourceHash);
+    _inFlightKeys.remove(sourceHash);
+    _hashByImport[sourceId] = sourceHash;
     final course = getIt<CourseDatabase>();
     final rows = await OfficialAnkiCourseProjectionStore(course)
         .listIndexRows(sourceId);
@@ -258,7 +314,8 @@ class UnifiedAnkiImportOrchestrator {
       _placementsByImport[importId]?.length ?? 0;
 
   void reset() {
-    _seenHashes.clear();
+    _inFlightKeys.clear();
+    _hashByImport.clear();
     _placementsByImport.clear();
     _presentationsByImport.clear();
     turnaSrsWordIds.clear();

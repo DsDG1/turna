@@ -9,6 +9,7 @@ import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/anki/anki_deck_manager.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/lesson_link_store.dart';
+import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/courses/course_loader.dart';
@@ -61,6 +62,7 @@ void main() {
 
     getIt.registerSingleton<CourseProvider>(courseProvider);
     getIt.registerSingleton<SrsProvider>(srsProvider);
+    getIt.registerSingleton<MistakeProvider>(MistakeProvider(appPrefs));
     getIt.registerSingleton<AnkiDeckManager>(
       AnkiDeckManager(
         repo: getIt<ICourseRepository>(),

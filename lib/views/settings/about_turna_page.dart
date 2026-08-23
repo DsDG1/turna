@@ -387,7 +387,7 @@ class _AboutTab extends StatelessWidget {
   }
 }
 
-const String _fallbackVersion = '1.3.0';
+const String _fallbackVersion = '0.7.0';
 
 /// Short bar + title, matching the learning page's `UnitHeader` rhythm.
 class _SectionHeader extends StatelessWidget {

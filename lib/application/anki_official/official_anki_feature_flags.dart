@@ -2,6 +2,12 @@
 /// Constructor stays all-false for tests. Disable with `--dart-define=…=false`.
 /// Diagnostics, migration pilot, course-grades scheduler, and the P5F
 /// official-first import path stay opt-in.
+///
+/// Production default policy (single source of truth): exactly one owner per
+/// import — official-capable builds import through the official saga and
+/// never re-mirror the same package into the legacy store afterwards. The
+/// legacy→official background mirror is a development-only escape hatch via
+/// `TURNA_OFFICIAL_ANKI_LEGACY_MIRROR`.
 class OfficialAnkiFeatureFlags {
   const OfficialAnkiFeatureFlags({
     this.engine = false,
@@ -18,6 +24,7 @@ class OfficialAnkiFeatureFlags {
     this.migrationPilot = false,
     this.courseGradesScheduler = false,
     this.officialFirstImport = false,
+    this.legacyMirror = false,
   });
 
   factory OfficialAnkiFeatureFlags.fromEnvironment() {
@@ -66,6 +73,8 @@ class OfficialAnkiFeatureFlags {
         bool.fromEnvironment('TURNA_OFFICIAL_ANKI_COURSE_GRADES_SCHEDULER');
     const officialFirstImport =
         bool.fromEnvironment('TURNA_OFFICIAL_ANKI_OFFICIAL_FIRST_IMPORT');
+    const legacyMirror =
+        bool.fromEnvironment('TURNA_OFFICIAL_ANKI_LEGACY_MIRROR');
     return const OfficialAnkiFeatureFlags(
       engine: engine,
       import: import,
@@ -81,6 +90,7 @@ class OfficialAnkiFeatureFlags {
       migrationPilot: migrationPilot,
       courseGradesScheduler: courseGradesScheduler,
       officialFirstImport: officialFirstImport,
+      legacyMirror: legacyMirror,
     );
   }
 
@@ -98,6 +108,13 @@ class OfficialAnkiFeatureFlags {
   final bool migrationPilot;
   final bool courseGradesScheduler;
   final bool officialFirstImport;
+
+  /// Development-only: after a successful legacy commit, mirror the same
+  /// package into the official collection in the background. Production
+  /// keeps exactly one owner per import, so this stays opt-in
+  /// (`TURNA_OFFICIAL_ANKI_LEGACY_MIRROR`); mirrored imports are still
+  /// deletable through the unified uninstall saga.
+  final bool legacyMirror;
 
   static OfficialAnkiFeatureFlags current =
       OfficialAnkiFeatureFlags.fromEnvironment();
@@ -147,6 +164,7 @@ class OfficialAnkiFeatureFlags {
     bool? migrationPilot,
     bool? courseGradesScheduler,
     bool? officialFirstImport,
+    bool? legacyMirror,
   }) {
     return OfficialAnkiFeatureFlags(
       engine: engine ?? this.engine,
@@ -164,6 +182,7 @@ class OfficialAnkiFeatureFlags {
       courseGradesScheduler:
           courseGradesScheduler ?? this.courseGradesScheduler,
       officialFirstImport: officialFirstImport ?? this.officialFirstImport,
+      legacyMirror: legacyMirror ?? this.legacyMirror,
     );
   }
 }

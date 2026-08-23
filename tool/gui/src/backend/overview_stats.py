@@ -49,6 +49,7 @@ def iter_lesson_refs(lesson: dict[str, Any]) -> Iterator[tuple[str, str]]:
     ``kind`` is one of ``word`` / ``expression`` / ``grammar``. Sources:
     - interaction ``wordId`` / ``expressionId`` / ``grammarPointId``
     - reading passage ``linkedWordIds`` / ``linkedExpressionIds``
+    - lesson content ``linkedGrammarPointIds`` (app SRS registration list)
     """
     for item in iter_lesson_interactions(lesson):
         for key, kind in (
@@ -59,7 +60,11 @@ def iter_lesson_refs(lesson: dict[str, Any]) -> Iterator[tuple[str, str]]:
             ref = item.get(key)
             if ref:
                 yield kind, str(ref)
-    passage = (lesson.get("content") or {}).get("readingPassage") or {}
+    content = lesson.get("content") or {}
+    for gid in content.get("linkedGrammarPointIds", []) or []:
+        if gid:
+            yield "grammar", str(gid)
+    passage = content.get("readingPassage") or {}
     for wid in passage.get("linkedWordIds", []) or []:
         if wid:
             yield "word", str(wid)

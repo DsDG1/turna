@@ -41,8 +41,8 @@ import 'package:turna/application/anki_official/storage/official_anki_source_dao
 import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
 import 'package:turna/application/anki/anki_models.dart';
 import 'package:turna/application/anki/anki_organization_resolver.dart';
+import 'package:turna/application/anki/card_recognition_pipeline.dart';
 import 'package:turna/application/anki/anki_sample_deck.dart';
-import 'package:turna/application/anki/anki_notetype_ai.dart';
 import 'package:turna/application/anki/anki_srs_migrator.dart';
 import 'package:turna/application/anki/unified_anki_import_orchestrator.dart';
 import 'package:turna/application/course_provider.dart';
@@ -118,6 +118,10 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
   int _existingCount = 0;
   ImportStrategy _strategy = ImportStrategy.merge;
   bool _smartGrouping = true;
+
+  // Plan 1 Phase 5: Section-Beta toggle. Default off; only affects this new
+  // import's tree layout — existing courses are never rewritten.
+  bool _sectionBeta = false;
   bool _importLearningProgress = false;
   // Cached unit/lesson organization summary for the content section. Computed
   // once in [_preparePreview] and read on every preview rebuild so the user
@@ -126,6 +130,11 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
 
   // AI notetype identification (optional; runs LLM over all notetypes).
   bool _isAiIdentifying = false;
+
+  // Plan 1 Phase 4: explainable recognition metadata per notetype (source,
+  // confidence, warnings) so the preview can show where each mapping came
+  // from and flag low-confidence rows.
+  Map<int, CardRecognitionResult> _recognitionResults = {};
 
   // Incremental-update detection (computed at parse time)
   String? _sourceHash;
@@ -479,6 +488,20 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         const _Subheader(text: '组织结构'),
         const SizedBox(height: 4),
         if (preview != null && preview.hasAny) ...[
+          if (_sectionBeta && preview.sectionNames.isNotEmpty) ...[
+            _InfoRow('检测到 Section', '${preview.sectionCountLabel}'),
+            if (preview.lowConfidenceSectionHint != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  preview.lowConfidenceSectionHint!,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: TurnaTheme.textHintColor(context),
+                  ),
+                ),
+              ),
+          ],
           _InfoRow(AppStrings.ankiDetectedUnits, '${preview.unitCount}'),
           _InfoRow(AppStrings.ankiDetectedLessons, '${preview.lessonCount}'),
           _InfoRow(
@@ -504,7 +527,44 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
             contentPadding: EdgeInsets.zero,
           ),
         ),
+        // Plan 1 Phase 5 Beta: semantic Section grouping. Only affects this
+        // new import; off by default.
+        Material(
+          type: MaterialType.transparency,
+          child: SwitchListTile(
+            value: _sectionBeta,
+            onChanged: _smartGrouping
+                ? (v) {
+                    setState(() => _sectionBeta = v);
+                    _recomputeOrganizationPreview();
+                  }
+                : null,
+            title: const Text(
+              '自动分 Section（Beta）',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+            subtitle: const Text(
+              '按 Chapter/章 字段或 Unit 前缀把多个 Unit 归入 Section',
+              style: TextStyle(fontSize: 12),
+            ),
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+          ),
+        ),
       ],
+    );
+  }
+
+  /// Re-run the O(notes) organization scan when the Section-Beta toggle
+  /// changes so the preview reflects the section detections it enables.
+  void _recomputeOrganizationPreview() {
+    final collection = _collection;
+    if (collection == null) return;
+    const resolver = AnkiOrganizationResolver();
+    _organizationPreview = resolver.preview(
+      notes: collection.notes,
+      notetypes: collection.notetypes,
+      sectionBeta: _sectionBeta,
     );
   }
 
@@ -530,6 +590,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
           _NotetypeMappingRow(
             notetype: entry.value,
             mapping: _mappings[entry.key],
+            recognition: _recognitionResults[entry.key],
             onEdit: () => _editNotetypeMapping(entry.key, entry.value),
           ),
         if (collection.notetypes.isNotEmpty) ...[
@@ -1319,6 +1380,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       _filePath = sourcePath;
       _collection = collection;
       _mappings = mappings;
+      _recognitionResults = {};
       _sourceHash = hash;
       _existingImport = existingImport;
       _newCount = collection.notes.length - existingCount;
@@ -1335,7 +1397,9 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
   /// Open the mapping editor for one notetype (using the first note of that
   /// mid as a live sample). When the user saves an override, it is written
   /// back into [_mappings] so the change flows into the import assemblers
-  /// via `mappingOverrides` - no downstream change needed.
+  /// via `mappingOverrides` - no downstream change needed. An explicit edit
+  /// is a user confirmation: the mapping is persisted as a rule keyed by the
+  /// notetype signature so future imports of the same kind reuse it.
   Future<void> _editNotetypeMapping(int mid, AnkiNotetype notetype) async {
     final notes = _collection?.notes ?? const <AnkiNote>[];
     AnkiNote? note;
@@ -1355,14 +1419,29 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       ),
     );
     if (result == null) return;
-    setState(() => _mappings[mid] = result);
+    setState(() {
+      _mappings[mid] = result;
+      _recognitionResults[mid] = CardRecognitionResult(
+        mapping: result,
+        confidence: 1.0,
+        source: CardRecognitionSource.persisted,
+        evidence: '用户手动确认的映射（已保存为规则）',
+      );
+    });
+    unawaited(AnkiNotetypeRuleStore().save(
+      NotetypeSignature.of(
+        notetype,
+        version: CardRecognitionPipeline.recognizerVersion,
+      ).value,
+      result,
+    ));
   }
 
-  /// Run AI notetype identification over all notetypes and replace the
-  /// inferred mappings with the LLM result. Requires a configured AI API;
-  /// otherwise prompts the user to configure one. [AnkiNotetypeAI.identifyAll]
-  /// falls back to heuristics per-notetype on LLM/parse failure, so it never
-  /// throws for content reasons.
+  /// Run the versioned recognition pipeline over all notetypes: persisted
+  /// rules first, then deterministic rules, then one batched AI request
+  /// (privacy-safe sample features only), then heuristic fallback. Every
+  /// result carries source/confidence/evidence so the preview can explain
+  /// itself (Plan 1 Phase 4).
   Future<void> _onAiIdentify() async {
     final collection = _collection;
     if (collection == null || collection.notetypes.isEmpty) return;
@@ -1386,13 +1465,26 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
     }
     setState(() => _isAiIdentifying = true);
     try {
-      final result = await AnkiNotetypeAI()
-          .identifyAll(config: config, notetypes: collection.notetypes);
+      final pipelineSw = Stopwatch()..start();
+      final results = await CardRecognitionPipeline().recognizeAll(
+        config: config,
+        notetypes: collection.notetypes,
+        notes: collection.notes,
+      );
+      pipelineSw.stop();
+      _logTiming('preview: recognition pipeline', pipelineSw, {
+        'notetypes': collection.notetypes.length,
+        'ai': results.values
+            .where((r) => r.source == CardRecognitionSource.ai)
+            .length,
+      });
       if (!mounted) return;
       setState(() {
         _mappings = {
-          for (final e in result.entries) e.key: _canonicalizeMapping(e.value),
+          for (final e in results.entries)
+            e.key: _canonicalizeMapping(e.value.mapping),
         };
+        _recognitionResults = results;
         _isAiIdentifying = false;
       });
     } catch (_) {
@@ -1598,6 +1690,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
           noteDao: noteDao,
           mappingOverrides: _mappings,
           smartGrouping: _smartGrouping,
+          sectionBetaGrouping: _sectionBeta,
           liteThreshold: liteThreshold,
           onProgress: (p, msg) {
             if (mounted)
@@ -1692,10 +1785,15 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         _logTiming('import: forceReplace cleanup', cleanupSw);
       }
 
-      // If official engine is enabled and we are importing a real file, sync
-      // to official Anki collection & migration record. Skipped when the
-      // official saga already ran first (P5F-1).
-      if (!_isSample && !unifiedBegin.noOp && !officialFirst) {
+      // Development-only legacy→official background mirror
+      // (`TURNA_OFFICIAL_ANKI_LEGACY_MIRROR`). Production keeps exactly one
+      // owner per import: official-capable builds already ran the official
+      // saga (P5F-1 first or none), and best-effort mirroring after a legacy
+      // commit produced half-states that the delete saga could not resolve.
+      if (OfficialAnkiFeatureFlags.current.legacyMirror &&
+          !_isSample &&
+          !unifiedBegin.noOp &&
+          !officialFirst) {
         try {
           await _runOfficialImport(
             filePath: filePath,
@@ -1743,6 +1841,10 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         );
         _step = 4;
       });
+      // Proceeding with AI-recognized mappings is an implicit confirmation:
+      // persist them as signature rules so the same kind of notetype is
+      // recognized offline on the next import (Plan 1 Phase 4 step 7).
+      unawaited(_persistRecognizedRules());
     } on AnkiImportCancelled {
       if (officialFirstResult != null) {
         // P5F-1 reverse half-state (cancelled variant): official cards are
@@ -1751,6 +1853,14 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
           '[AnkiImport] official import committed '
           '(source ${officialFirstResult.sourceId}) but Turna writes were '
           'cancelled; official source stays active for retry',
+        );
+      }
+      if (activeImportId != null) {
+        // Release the orchestrator's in-flight key so a retry of the same
+        // package is accepted (no persisted row was finalized).
+        UnifiedAnkiImportOrchestrator.instance.invalidate(
+          importId: activeImportId,
+          sourceHash: hash,
         );
       }
       if (activeSrsProvider != null && activeImportId != null) {
@@ -1796,6 +1906,14 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       debugPrint(
         '[AnkiImport] official-first import failed before Turna writes: $e',
       );
+      if (activeImportId != null) {
+        // The begin() probe already claimed the in-flight key; release it so
+        // the same package can be retried immediately.
+        UnifiedAnkiImportOrchestrator.instance.invalidate(
+          importId: activeImportId,
+          sourceHash: hash,
+        );
+      }
       setState(() {
         _error = _mapOfficialErrorToHuman(e);
         _step = 2;
@@ -1813,6 +1931,12 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
           '[AnkiImport] official import committed '
           '(source ${officialFirstResult.sourceId}) but Turna writes failed; '
           'official source stays active and a retry resumes from it',
+        );
+      }
+      if (activeImportId != null) {
+        UnifiedAnkiImportOrchestrator.instance.invalidate(
+          importId: activeImportId,
+          sourceHash: hash,
         );
       }
       if (activeSrsProvider != null && activeImportId != null) {
@@ -1858,13 +1982,38 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
     }
   }
 
+  /// Persist the notetype rules for mappings the user accepted on import:
+  /// AI verdicts and already-persisted rules (explicit edits are saved in
+  /// [_editNotetypeMapping]). Fallback results are never persisted — they
+  /// carry no confirmed signal.
+  Future<void> _persistRecognizedRules() async {
+    final collection = _collection;
+    if (collection == null || _recognitionResults.isEmpty) return;
+    final store = AnkiNotetypeRuleStore();
+    for (final entry in _recognitionResults.entries) {
+      final notetype = collection.notetypes[entry.key];
+      if (notetype == null) continue;
+      final source = entry.value.source;
+      if (source != CardRecognitionSource.ai &&
+          source != CardRecognitionSource.persisted) {
+        continue;
+      }
+      await store.save(
+        NotetypeSignature.of(
+          notetype,
+          version: CardRecognitionPipeline.recognizerVersion,
+        ).value,
+        _mappings[entry.key] ?? entry.value.mapping,
+      );
+    }
+  }
+
   /// Run the official Anki import saga for [filePath] (no bookkeeping).
   /// Returns null when the facade resolves to the legacy engine; otherwise
   /// the saga result whose state may be non-active (failed/cancelled).
   Future<OfficialAnkiImportResult?> _importOfficialPackage(
     String filePath,
-  ) async {
-    final flags = OfficialAnkiFeatureFlags.current;
+  ) async {    final flags = OfficialAnkiFeatureFlags.current;
     final decision = AnkiImportFacade.decisionFor(flags);
     OfficialAnkiImporter? officialImporter =
         OfficialAnkiCompositionRoot.session;
@@ -3275,12 +3424,14 @@ String _mappingTypeLabel(NotetypeMappingType type) {
 class _NotetypeMappingRow extends StatelessWidget {
   final AnkiNotetype notetype;
   final NotetypeMapping? mapping;
+  final CardRecognitionResult? recognition;
   final VoidCallback onEdit;
 
   const _NotetypeMappingRow({
     required this.notetype,
     required this.mapping,
     required this.onEdit,
+    this.recognition,
   });
 
   @override
@@ -3347,6 +3498,10 @@ class _NotetypeMappingRow extends StatelessWidget {
                             ],
                           ),
                         ),
+                        if (recognition != null) ...[
+                          const SizedBox(height: 4),
+                          _RecognitionBadge(recognition: recognition!),
+                        ],
                       ],
                     ),
                   ),
@@ -3361,6 +3516,85 @@ class _NotetypeMappingRow extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Explainability strip for one recognized mapping (Plan 1 Phase 4 step 8):
+/// where the verdict came from, its confidence, and any warnings. Rows the
+/// pipeline flags as needing confirmation render expanded with the reason.
+class _RecognitionBadge extends StatelessWidget {
+  const _RecognitionBadge({required this.recognition});
+
+  final CardRecognitionResult recognition;
+
+  static const _sourceLabels = {
+    CardRecognitionSource.rule: '规则',
+    CardRecognitionSource.persisted: '已保存规则',
+    CardRecognitionSource.ai: 'AI',
+    CardRecognitionSource.fallback: '回退',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final lowConfidence = recognition.needsConfirmation;
+    final color = lowConfidence ? TurnaTheme.warning : TurnaTheme.brandTeal;
+    final confidencePct = (recognition.confidence * 100).round();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                lowConfidence
+                    ? Icons.help_outline_rounded
+                    : Icons.verified_outlined,
+                size: 14,
+                color: color,
+              ),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  '${_sourceLabels[recognition.source]} · 置信度 $confidencePct%',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: color,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (lowConfidence) ...[
+            if (recognition.evidence.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  recognition.evidence,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: TurnaTheme.textSecondaryColor(context),
+                  ),
+                ),
+              ),
+            for (final warning in recognition.warnings)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  '⚠ $warning',
+                  style: TextStyle(fontSize: 11, color: color),
+                ),
+              ),
+          ],
+        ],
       ),
     );
   }
