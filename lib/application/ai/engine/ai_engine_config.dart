@@ -1,5 +1,4 @@
 // Project imports:
-import 'package:turna/application/ai/ai_api_config.dart';
 import 'package:turna/application/ai/engine/ai_provider_preset.dart';
 
 /// Strict-JSON response-format policy. Mirrors `ai/config.py:AiApiConfig.strict_schema`.
@@ -14,7 +13,7 @@ enum StrictSchemaMode { auto, on, off }
 ///
 /// Supersedes the legacy [AiApiConfig] (kept for back-compat during migration).
 /// Adds the three capabilities the legacy config lacked:
-///   * a [preset] (DeepSeek / OpenAI / Moonshot / Ollama / custom) so the
+///   * a [preset] (DeepSeek / Kimi / Qwen / MiMo / custom) so the
 ///     Settings UI can switch vendors;
 ///   * dual-model routing ([modelChat] / [modelJson]) so cheap conversational
 ///     calls can go to a smaller model;
@@ -45,10 +44,11 @@ class AiEngineConfig {
   /// [AiEngineConfigHolder] so it survives an app restart.
   final String apiKey;
 
-  /// Explicit override for whether the endpoint accepts reasoning payload
-  /// fields. When `null` (default), [reasoningEnabled] falls back to the
-  /// preset + host check. Mirrors the legacy `AiApiConfig.supportsReasoning`
-  /// nullable flag so the migration bridge can preserve its exact semantics.
+  /// Explicit user choice for whether to send reasoning payload fields. When
+  /// `null` (default), [reasoningEnabled] resolves to `false` — reasoning is
+  /// opt-in via the settings toggle, never silently on. The preset's
+  /// [AiProviderPreset.supportsReasoning] is only a capability hint shown in
+  /// the UI, not the effective state.
   final bool? supportsReasoningOverride;
 
   /// Raw chat-side model id, or `null` to fall back to [preset.defaultModel].
@@ -94,13 +94,11 @@ class AiEngineConfig {
     return '$b/chat/completions';
   }
 
-  /// Whether the endpoint accepts the `reasoning_effort` / `thinking` payload
-  /// fields. An explicit [supportsReasoningOverride] wins; otherwise falls back
-  /// to the preset's declared capability or the DeepSeek host check (mirrors
-  /// `AiApiConfig.reasoningEnabled`).
-  bool get reasoningEnabled =>
-      supportsReasoningOverride ??
-      (preset.supportsReasoning || isDeepSeekHost(baseUrl));
+  /// Whether the engine sends `reasoning_effort` / `thinking` payload fields.
+  /// Opt-in: an explicit [supportsReasoningOverride] wins; otherwise reasoning
+  /// is off. The preset's `supportsReasoning` flag is only a UI capability hint
+  /// and does not enable reasoning on its own.
+  bool get reasoningEnabled => supportsReasoningOverride ?? false;
 
   /// Pick the model for a given call kind. Empty `modelChat` / `modelJson`
   /// (impossible here since the constructor defaults them, but defensive) falls

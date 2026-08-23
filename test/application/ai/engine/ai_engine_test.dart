@@ -14,7 +14,7 @@ import 'package:turna/application/ai/engine/ai_http_client.dart';
 import 'package:turna/application/ai/engine/ai_provider_preset.dart';
 
 const AiEngineConfig _config = AiEngineConfig(
-  preset: kOpenaiPreset,
+  preset: kMimoPreset,
   apiKey: 'key',
 );
 
@@ -116,7 +116,7 @@ void main() {
         AiCache.forTest(maxEntries: 4),
       );
       const noCacheConfig = AiEngineConfig(
-        preset: kOpenaiPreset,
+        preset: kMimoPreset,
         apiKey: 'key',
         cacheEnabled: false,
       );

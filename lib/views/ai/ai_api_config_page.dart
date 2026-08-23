@@ -55,12 +55,6 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
   Timer? _commitDebounce;
   static const _commitDebounceMs = 500;
 
-  /// True once dispose started: `mounted` is still true *during* dispose, so
-  /// the flush path needs an explicit guard against setState-after-dispose.
-  bool _disposed = false;
-
-  bool get _canSetState => mounted && !_disposed;
-
   bool _probing = false;
   bool _obscureKey = true;
   ({bool ok, int latencyMs, String errorCategory})? _probeResult;
@@ -79,11 +73,11 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
 
   @override
   void dispose() {
-    // Never silently drop a pending draft: flush the debounce before the
-    // controllers go away (Plan 2 §5.4).
-    _disposed = true;
+    // The debounce timer is cancelled here so it can never fire after the
+    // controllers go away. Pending edits are flushed *before* the pop by the
+    // PopScope callback, not here: triggering `notifyListeners` during unmount
+    // would hit the framework lock (setState/markNeedsBuild while locked).
     _commitDebounce?.cancel();
-    unawaited(_commitDraft());
     _apiKeyCtrl.dispose();
     _baseUrlCtrl.dispose();
     _modelChatCtrl.dispose();
@@ -144,7 +138,7 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
       normalizedBaseUrl = value;
       baseUrlError = error;
     }
-    if (_canSetState) setState(() => _baseUrlError = baseUrlError);
+    if (mounted) setState(() => _baseUrlError = baseUrlError);
     if (baseUrlError != null) return;
 
     final next = _draft.copyWith(
@@ -156,10 +150,10 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
     );
     if (next == _draft) return;
     _draft = next;
-    if (_canSetState) setState(() {});
+    if (mounted) setState(() {});
     await holder.updateConfig(next);
     // The key field only ever holds freshly typed input; it's consumed now.
-    if (!_disposed && _apiKeyCtrl.text.isNotEmpty) {
+    if (mounted && _apiKeyCtrl.text.isNotEmpty) {
       _apiKeyCtrl.clear();
     }
   }
@@ -184,10 +178,11 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
             ? _draft.customBaseUrl
             : null,
         // copyWith drops models on a preset change so the new vendor's
-        // default model wins; mirror that in the text fields.
+        // default model wins; mirror that in the text fields. Reasoning is
+        // opt-in and defaults off, so reset the toggle on every switch.
         modelChat: null,
         modelJson: null,
-        supportsReasoningOverride: preset.supportsReasoning,
+        supportsReasoningOverride: false,
       );
       _baseUrlCtrl.text = preset.baseUrl;
       _modelChatCtrl.text = preset.defaultModel;
@@ -344,18 +339,15 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
     switch (p) {
       case AiProvider.deepseek:
         return (icon: Icons.bolt_rounded, color: TurnaTheme.brandSky);
-      case AiProvider.openai:
-        return (
-          icon: Icons.auto_awesome_rounded,
-          color: TurnaTheme.brandTeal
-        );
-      case AiProvider.moonshot:
+      case AiProvider.kimi:
         return (
           icon: Icons.nights_stay_rounded,
           color: TurnaTheme.amethystLeague
         );
-      case AiProvider.ollama:
-        return (icon: Icons.memory_rounded, color: TurnaTheme.warning);
+      case AiProvider.qwen:
+        return (icon: Icons.auto_awesome_rounded, color: TurnaTheme.brandTeal);
+      case AiProvider.mimo:
+        return (icon: Icons.memory_rounded, color: TurnaTheme.anatolianClay);
       case AiProvider.custom:
         return (icon: Icons.tune_rounded, color: TurnaTheme.brandReed);
     }
@@ -366,7 +358,20 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    return Scaffold(
+    // Intercept back so any pending debounced edit is flushed *before* the
+    // route pops — while the widget is still mounted and the framework is not
+    // locked. Flushing in dispose() would call notifyListeners during unmount
+    // and trip "markNeedsBuild called when widget tree was locked".
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        _commitDebounce?.cancel();
+        await _commitDraft();
+        // Unconditional pop bypasses canPop so this callback doesn't re-enter.
+        if (context.mounted) Navigator.of(context).pop();
+      },
+      child: Scaffold(
       backgroundColor: TurnaTheme.surfaceColor(context),
       appBar: AppBar(
         centerTitle: true,
@@ -472,6 +477,8 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
                     ),
                     onChanged: (_) => _scheduleCommit(),
                   ),
+                  const SizedBox(height: 12),
+                  _reasoningToggle(context),
                 ],
               ),
               const SizedBox(height: 16),
@@ -554,6 +561,7 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
             ],
           ),
         ),
+      ),
       ),
     );
   }
@@ -786,6 +794,67 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
             },
           ),
       ],
+    );
+  }
+
+  /// Always-visible reasoning toggle. Defaults to off; the user opts in per
+  /// provider. The preset's `supportsReasoning` only shapes the hint text.
+  Widget _reasoningToggle(BuildContext context) {
+    final enabled = _draft.reasoningEnabled;
+    final supported = _draft.preset.supportsReasoning;
+    final hint = supported
+        ? AppStrings.aiConfigReasoningSupportedHint
+        : AppStrings.aiConfigReasoningUnsupportedHint;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: TurnaTheme.tintLight,
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.psychology_rounded,
+            size: 18,
+            color: enabled
+                ? TurnaTheme.brandTeal
+                : TurnaTheme.textHintColor(context),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  AppStrings.aiConfigReasoningToggle,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: TurnaTheme.textPrimaryColor(context),
+                      ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  hint,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: TurnaTheme.textSecondaryColor(context),
+                      ),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: enabled,
+            onChanged: (value) {
+              setState(() {
+                _draft =
+                    _draft.copyWith(supportsReasoningOverride: value);
+              });
+              _scheduleCommit();
+            },
+          ),
+        ],
+      ),
     );
   }
 

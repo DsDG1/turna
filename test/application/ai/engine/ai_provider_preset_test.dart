@@ -16,39 +16,39 @@ void main() {
       }
       expect(kBuiltinPresets[AiProvider.deepseek]!.baseUrl,
           'https://api.deepseek.com');
-      expect(kBuiltinPresets[AiProvider.openai]!.baseUrl,
-          'https://api.openai.com/v1');
-      expect(kBuiltinPresets[AiProvider.moonshot]!.baseUrl,
+      expect(kBuiltinPresets[AiProvider.kimi]!.baseUrl,
           'https://api.moonshot.cn/v1');
-      expect(kBuiltinPresets[AiProvider.ollama]!.baseUrl,
-          'http://localhost:11434/v1');
+      expect(kBuiltinPresets[AiProvider.qwen]!.baseUrl,
+          'https://dashscope.aliyuncs.com/compatible-mode/v1');
+      expect(kBuiltinPresets[AiProvider.mimo]!.baseUrl,
+          'https://api.xiaomimimo.com/v1');
       expect(kBuiltinPresets[AiProvider.custom]!.baseUrl, '');
     });
 
-    test('only DeepSeek advertises reasoning support', () {
-      expect(kBuiltinPresets[AiProvider.deepseek]!.supportsReasoning, isTrue);
+    test('all named presets except custom advertise reasoning support', () {
       for (final p in const [
-        AiProvider.openai,
-        AiProvider.moonshot,
-        AiProvider.ollama,
-        AiProvider.custom,
+        AiProvider.deepseek,
+        AiProvider.kimi,
+        AiProvider.qwen,
+        AiProvider.mimo,
       ]) {
-        expect(kBuiltinPresets[p]!.supportsReasoning, isFalse);
+        expect(kBuiltinPresets[p]!.supportsReasoning, isTrue);
       }
+      expect(kBuiltinPresets[AiProvider.custom]!.supportsReasoning, isFalse);
     });
   });
 
   group('applyPreset', () {
     test('a named preset fills baseUrl / model / reasoning', () {
       final r = applyPreset(
-        provider: AiProvider.openai,
+        provider: AiProvider.kimi,
         baseUrl: 'https://old.example.com',
         model: 'old-model',
-        supportsReasoning: true,
+        supportsReasoning: false,
       );
-      expect(r.baseUrl, 'https://api.openai.com/v1');
-      expect(r.model, 'gpt-4o');
-      expect(r.supportsReasoning, isFalse);
+      expect(r.baseUrl, 'https://api.moonshot.cn/v1');
+      expect(r.model, 'kimi-k3');
+      expect(r.supportsReasoning, isTrue);
     });
 
     test('the custom preset preserves the existing values', () {
@@ -66,9 +66,9 @@ void main() {
     test('every named preset round-trips through applyPreset', () {
       for (final p in const [
         AiProvider.deepseek,
-        AiProvider.openai,
-        AiProvider.moonshot,
-        AiProvider.ollama,
+        AiProvider.kimi,
+        AiProvider.qwen,
+        AiProvider.mimo,
       ]) {
         final preset = presetFor(p);
         final r = applyPreset(
@@ -88,9 +88,9 @@ void main() {
     test('returns the canonical dropdown order', () {
       expect(providerOrder(), const [
         AiProvider.deepseek,
-        AiProvider.openai,
-        AiProvider.moonshot,
-        AiProvider.ollama,
+        AiProvider.kimi,
+        AiProvider.qwen,
+        AiProvider.mimo,
         AiProvider.custom,
       ]);
     });

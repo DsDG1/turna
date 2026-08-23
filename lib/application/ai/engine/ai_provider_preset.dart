@@ -14,7 +14,7 @@
 
 /// Machine name of a supported provider. `custom` preserves whatever the user
 /// typed (empty Base URL / model) instead of overwriting it.
-enum AiProvider { deepseek, openai, moonshot, ollama, custom }
+enum AiProvider { deepseek, kimi, qwen, mimo, custom }
 
 /// A provider preset carrying enough information to fill the Settings UI.
 class AiProviderPreset {
@@ -42,8 +42,10 @@ class AiProviderPreset {
   /// Models known to work with this provider, offered as quick-pick options.
   final List<String> supportedModels;
 
-  /// Whether the endpoint accepts `reasoning_effort` / `thinking` payload
-  /// fields (DeepSeek's documented behavior).
+  /// Whether the provider's models accept `reasoning_effort` / `thinking`
+  /// payload fields (DeepSeek / Kimi / Qwen / MiMo all do). This is a
+  /// *capability* hint, not the effective toggle: the user-facing reasoning
+  /// switch lives on [AiEngineConfig] and defaults to off.
   final bool supportsReasoning;
 
   /// Documentation link shown next to the preset for convenience.
@@ -69,50 +71,51 @@ const AiProviderPreset kDeepseekPreset = AiProviderPreset(
   supportedModels: [
     'deepseek-v4-flash',
     'deepseek-v4-pro',
-    'deepseek-chat',
-    'deepseek-reasoner',
+    'deepseek-v4-flash-vision-exp',
   ],
   supportsReasoning: true,
   docsUrl: 'https://platform.deepseek.com/',
 );
 
-const AiProviderPreset kOpenaiPreset = AiProviderPreset(
-  id: AiProvider.openai,
-  label: 'OpenAI',
-  baseUrl: 'https://api.openai.com/v1',
-  defaultModel: 'gpt-4o',
-  supportedModels: [
-    'gpt-4o',
-    'gpt-4o-mini',
-    'gpt-4-turbo',
-    'gpt-3.5-turbo',
-  ],
-  supportsReasoning: false,
-  docsUrl: 'https://platform.openai.com/',
-);
-
-const AiProviderPreset kMoonshotPreset = AiProviderPreset(
-  id: AiProvider.moonshot,
-  label: 'Moonshot AI',
+const AiProviderPreset kKimiPreset = AiProviderPreset(
+  id: AiProvider.kimi,
+  label: 'Kimi',
   baseUrl: 'https://api.moonshot.cn/v1',
-  defaultModel: 'moonshot-v1-8k',
+  defaultModel: 'kimi-k3',
   supportedModels: [
-    'moonshot-v1-8k',
-    'moonshot-v1-32k',
-    'moonshot-v1-128k',
+    'kimi-k3',
+    'kimi-k2.7-code',
   ],
-  supportsReasoning: false,
-  docsUrl: 'https://platform.moonshot.cn/',
+  supportsReasoning: true,
+  docsUrl: 'https://platform.kimi.com/',
 );
 
-const AiProviderPreset kOllamaPreset = AiProviderPreset(
-  id: AiProvider.ollama,
-  label: 'Ollama (本地)',
-  baseUrl: 'http://localhost:11434/v1',
-  defaultModel: 'qwen2.5',
-  supportedModels: ['qwen2.5', 'llama3', 'deepseek-coder-v2'],
-  supportsReasoning: false,
-  docsUrl: 'https://ollama.com/',
+const AiProviderPreset kQwenPreset = AiProviderPreset(
+  id: AiProvider.qwen,
+  label: 'Qwen',
+  baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+  defaultModel: 'qwen3.8-max',
+  supportedModels: [
+    'qwen3.8-max',
+    'qwen3.7-plus',
+    'qwen3.7-flash',
+    'qwen3.5-omni-plus',
+  ],
+  supportsReasoning: true,
+  docsUrl: 'https://help.aliyun.com/zh/model-studio/',
+);
+
+const AiProviderPreset kMimoPreset = AiProviderPreset(
+  id: AiProvider.mimo,
+  label: 'MiMo',
+  baseUrl: 'https://api.xiaomimimo.com/v1',
+  defaultModel: 'mimo-v2.5-pro',
+  supportedModels: [
+    'mimo-v2.5-pro',
+    'mimo-v2.5',
+  ],
+  supportsReasoning: true,
+  docsUrl: 'https://mimo.mi.com/docs/zh-CN/quick-start/summary/model',
 );
 
 const AiProviderPreset kCustomPreset = AiProviderPreset(
@@ -124,24 +127,22 @@ const AiProviderPreset kCustomPreset = AiProviderPreset(
   supportsReasoning: false,
 );
 
-/// Built-in presets keyed by [AiProvider]. Order matches
-/// `ai_presets.py:provider_names()` (`deepseek, openai, moonshot, ollama,
-/// custom`). Each value is a named const so the same instance can be referenced
-/// in const contexts (e.g. config defaults).
+/// Built-in presets keyed by [AiProvider]. Each value is a named const so the
+/// same instance can be referenced in const contexts (e.g. config defaults).
 const Map<AiProvider, AiProviderPreset> kBuiltinPresets = {
   AiProvider.deepseek: kDeepseekPreset,
-  AiProvider.openai: kOpenaiPreset,
-  AiProvider.moonshot: kMoonshotPreset,
-  AiProvider.ollama: kOllamaPreset,
+  AiProvider.kimi: kKimiPreset,
+  AiProvider.qwen: kQwenPreset,
+  AiProvider.mimo: kMimoPreset,
   AiProvider.custom: kCustomPreset,
 };
 
 /// All built-in providers in the canonical dropdown order.
 List<AiProvider> providerOrder() => const [
       AiProvider.deepseek,
-      AiProvider.openai,
-      AiProvider.moonshot,
-      AiProvider.ollama,
+      AiProvider.kimi,
+      AiProvider.qwen,
+      AiProvider.mimo,
       AiProvider.custom,
     ];
 

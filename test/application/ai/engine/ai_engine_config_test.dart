@@ -17,16 +17,32 @@ void main() {
       expect(c.isComplete, isFalse); // empty key
     });
 
+    test('reasoning is opt-in: off by default, on only via override', () {
+      // No override → off, even though DeepSeek's preset advertises support.
+      const implicit = AiEngineConfig(apiKey: 'k');
+      expect(implicit.reasoningEnabled, isFalse);
+      const on = AiEngineConfig(
+        apiKey: 'k',
+        supportsReasoningOverride: true,
+      );
+      expect(on.reasoningEnabled, isTrue);
+      const off = AiEngineConfig(
+        apiKey: 'k',
+        supportsReasoningOverride: false,
+      );
+      expect(off.reasoningEnabled, isFalse);
+    });
+
     test('selectModel routes chat vs json', () {
       const c = AiEngineConfig(
-        preset: kOpenaiPreset,
+        preset: kKimiPreset,
         apiKey: 'k',
-        modelChat: 'gpt-4o-mini',
-        modelJson: 'gpt-4o',
+        modelChat: 'kimi-k2.7-code',
+        modelJson: 'kimi-k3',
       );
-      expect(c.selectModel('chat'), 'gpt-4o-mini');
-      expect(c.selectModel('json'), 'gpt-4o');
-      expect(c.selectModel('other'), 'gpt-4o'); // falls back to preset default
+      expect(c.selectModel('chat'), 'kimi-k2.7-code');
+      expect(c.selectModel('json'), 'kimi-k3');
+      expect(c.selectModel('other'), 'kimi-k3'); // falls back to preset default
     });
 
     test('custom preset uses customBaseUrl', () {
@@ -46,12 +62,12 @@ void main() {
     test('copyWith preserves raw model fields so a preset switch resets them',
         () {
       const c = AiEngineConfig(
-        preset: kOpenaiPreset,
+        preset: kKimiPreset,
         apiKey: 'k',
-        modelChat: 'gpt-4o-mini',
+        modelChat: 'kimi-k2.7-code',
       );
       // Switch preset without specifying models: should fall back to the new
-      // preset's default (deepseek-v4-flash), not freeze 'gpt-4o-mini'.
+      // preset's default (deepseek-v4-flash), not freeze 'kimi-k2.7-code'.
       final switched = c.copyWith(preset: kDeepseekPreset);
       expect(switched.preset.id, AiProvider.deepseek);
       expect(switched.modelChat, 'deepseek-v4-flash');
@@ -61,10 +77,10 @@ void main() {
   group('serialization', () {
     test('toJson/fromJson round-trips a complete named-preset config', () {
       const c = AiEngineConfig(
-        preset: kOpenaiPreset,
+        preset: kKimiPreset,
         apiKey: 'sk-secret',
-        modelChat: 'gpt-4o-mini',
-        modelJson: 'gpt-4o',
+        modelChat: 'kimi-k2.7-code',
+        modelJson: 'kimi-k3',
         strictSchema: StrictSchemaMode.on,
         cacheEnabled: false,
         supportsReasoningOverride: true,
@@ -73,14 +89,14 @@ void main() {
       // pre-migration blobs (the key now lives in the secure store).
       final restored =
           AiEngineConfig.fromJson(c.toJson(includeApiKey: true));
-      expect(restored.preset.id, AiProvider.openai);
+      expect(restored.preset.id, AiProvider.kimi);
       expect(restored.apiKey, 'sk-secret');
-      expect(restored.modelChat, 'gpt-4o-mini');
-      expect(restored.modelJson, 'gpt-4o');
+      expect(restored.modelChat, 'kimi-k2.7-code');
+      expect(restored.modelJson, 'kimi-k3');
       expect(restored.strictSchema, StrictSchemaMode.on);
       expect(restored.cacheEnabled, isFalse);
       expect(restored.supportsReasoningOverride, isTrue);
-      expect(restored.baseUrl, 'https://api.openai.com/v1');
+      expect(restored.baseUrl, 'https://api.moonshot.cn/v1');
     });
 
     test('toJson/fromJson round-trips a custom preset with customBaseUrl', () {

@@ -1,3 +1,6 @@
+// Dart imports:
+import 'dart:math' as math;
+
 // Flutter imports:
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
@@ -5,19 +8,20 @@ import 'package:flutter/material.dart';
 // Project imports:
 import 'package:turna/application/diagnostics/cache_diagnostics_registry.dart';
 import 'package:turna/application/diagnostics/runtime_memory_snapshot.dart';
-import 'package:turna/application/diagnostics/storage_write_telemetry.dart';
 import 'package:turna/application/maintenance/storage_inventory_service.dart';
 import 'package:turna/application/maintenance/storage_maintenance_service.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/views/theme.dart';
 
-/// Plan 1 Phase 3 minimal diagnostics page: a read-only view over
-/// [StorageInventoryService] that explains where the Anki-related bytes live
-/// (main database, legacy imports/media, official collection, caches, logs),
-/// flags orphan media directories, and offers the one destructive action
-/// that is always safe — clearing regenerable caches. The final "存储与性能"
-/// layout is Plan 2's call; this page is the data contract behind it.
+/// User-facing storage overview ("存储与性能"): a dashboard over
+/// [StorageInventoryService] that shows total usage with a share ring, four
+/// plain-language category cards, leftover-file warnings, and the one safe
+/// action — clearing regenerable caches.
+///
+/// Low-level diagnostics (write telemetry, cache entry counts, WAL/SHM/free
+/// pages) are intentionally NOT shown here; the underlying services still
+/// exist for the developer-facing diagnostics surfaces.
 @RoutePage()
 class StorageDiagnosticsPage extends StatefulWidget {
   const StorageDiagnosticsPage({
@@ -38,11 +42,22 @@ class StorageDiagnosticsPage extends StatefulWidget {
   State<StorageDiagnosticsPage> createState() => _StorageDiagnosticsPageState();
 }
 
+/// One loaded page state: the disk inventory plus a runtime memory sample.
+class _PageData {
+  const _PageData({required this.report, this.memory});
+
+  final StorageInventoryReport report;
+  final RuntimeMemorySnapshot? memory;
+}
+
 class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
-  Future<StorageInventoryReport>? _scan;
-  Future<List<CacheFootprint>>? _cacheScan;
-  Future<RuntimeMemorySnapshot>? _memoryScan;
   late final CacheDiagnosticsRegistry _cacheRegistry;
+
+  /// The last successfully loaded data, kept on screen while a rescan runs
+  /// so the page never flashes back to a full-screen spinner.
+  _PageData? _data;
+  Object? _error;
+  bool _loading = false;
 
   @override
   void initState() {
@@ -52,20 +67,40 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
     _rescan();
   }
 
-  void _rescan() => setState(() {
-        _scan = (widget.scanner ?? const StorageInventoryService()).scan();
-        _cacheScan = _cacheRegistry.inspectAll();
-        _memoryScan = (widget.memorySampler ?? RuntimeMemorySnapshot.sample)();
+  Future<void> _rescan() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final results = await Future.wait([
+        (widget.scanner ?? const StorageInventoryService()).scan(),
+        (widget.memorySampler ?? RuntimeMemorySnapshot.sample)(),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _data = _PageData(
+          report: results[0] as StorageInventoryReport,
+          memory: results[1] as RuntimeMemorySnapshot,
+        );
+        _loading = false;
       });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e;
+        _loading = false;
+      });
+    }
+  }
 
-  Future<void> _clearCaches() async {
+  Future<void> _clearCaches(int reclaimableBytes) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('清理可再生成缓存？'),
-        content: const Text(
-          '仅清理已登记的可再生成缓存（Anki 预渲染、AI、图像、'
-          'Playground 与复习概览快照），'
+        title: const Text('清理缓存？'),
+        content: Text(
+          '将清理临时缓存（约 ${_formatBytes(reclaimableBytes)}）。'
           '课程、卡片和学习进度不受影响。',
         ),
         actions: [
@@ -83,246 +118,326 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
     if (confirmed != true || !mounted) return;
     await StorageMaintenanceService().clearRegenerableCaches();
     await _cacheRegistry.clearRegenerable();
-    _rescan();
+    await _rescan();
   }
 
   @override
   Widget build(BuildContext context) {
     return SettingsScaffold(
       title: '存储与性能',
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-        children: [
-          FutureBuilder<StorageInventoryReport>(
-            future: _scan,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState != ConnectionState.done) {
-                return const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 32),
-                  child: Center(child: CircularProgressIndicator()),
-                );
-              }
-              if (snapshot.hasError) {
-                return _ErrorCard(
-                  message: '扫描失败：${snapshot.error}',
-                  onRetry: _rescan,
-                );
-              }
-              final report = snapshot.data!;
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _SummaryCard(report: report),
-                  const SizedBox(height: 16),
-                  FutureBuilder<RuntimeMemorySnapshot>(
-                    future: _memoryScan,
-                    builder: (context, memory) =>
-                        _RuntimeMemoryCard(snapshot: memory.data),
-                  ),
-                  const SizedBox(height: 12),
-                  FutureBuilder<List<CacheFootprint>>(
-                    future: _cacheScan,
-                    builder: (context, caches) =>
-                        _CacheRegistryCard(caches: caches.data ?? const []),
-                  ),
-                  const SizedBox(height: 12),
-                  _WriteTelemetryCard(
-                    rows: StorageWriteTelemetry.instance.top(),
-                  ),
-                  const SizedBox(height: 16),
-                  ..._categoryBlocks(context, report),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _rescan,
-                          icon: const Icon(Icons.refresh_rounded, size: 18),
-                          label: const Text('重新扫描'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: FilledButton.icon(
-                          onPressed: _clearCaches,
-                          icon: const Icon(
-                            Icons.cleaning_services_outlined,
-                            size: 18,
-                          ),
-                          label: Text(
-                              '清理缓存（${_formatBytes(report.safelyReclaimableBytes)}）'),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '扫描时间 ${_formatTime(report.scannedAt)}；'
-                    '孤儿数据仅报告，需逐项确认后才会清理。',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: TurnaTheme.textHintColor(context),
-                    ),
-                  ),
-                ],
-              );
-            },
+      actions: [
+        IconButton(
+          onPressed: _loading ? null : _rescan,
+          icon: const Icon(Icons.refresh_rounded),
+          tooltip: '重新扫描',
+        ),
+      ],
+      body: _buildBody(context),
+    );
+  }
+
+  Widget _buildBody(BuildContext context) {
+    final data = _data;
+    if (data == null) {
+      if (_error != null) {
+        return _ErrorCard(
+          message: '扫描失败：$_error',
+          onRetry: _rescan,
+        );
+      }
+      return const Center(child: CircularProgressIndicator());
+    }
+    final report = data.report;
+    final reclaimable = report.safelyReclaimableBytes;
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+      children: [
+        SizedBox(
+          height: 3,
+          child: _loading ? const LinearProgressIndicator() : null,
+        ),
+        const SizedBox(height: 8),
+        _TotalCard(report: report),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            onPressed:
+                reclaimable > 0 ? () => _clearCaches(reclaimable) : null,
+            icon: Icon(
+              reclaimable > 0
+                  ? Icons.cleaning_services_outlined
+                  : Icons.check_circle_outline,
+              size: 18,
+            ),
+            label: Text(
+              reclaimable > 0
+                  ? '清理缓存，可释放 ${_formatBytes(reclaimable)}'
+                  : '缓存很干净，无需清理',
+            ),
           ),
+        ),
+        const SizedBox(height: 16),
+        _CategoryGrid(report: report),
+        if (report.orphans.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          _OrphanWarningCard(orphans: report.orphans),
         ],
-      ),
-    );
-  }
-
-  List<Widget> _categoryBlocks(
-    BuildContext context,
-    StorageInventoryReport report,
-  ) {
-    const categoryTitles = {
-      StorageArtifactCategory.mainDatabase: '主数据库',
-      StorageArtifactCategory.legacyAnki: 'Anki Legacy',
-      StorageArtifactCategory.legacyAnkiMedia: 'Anki Legacy 媒体',
-      StorageArtifactCategory.officialAnki: 'Anki Official',
-      StorageArtifactCategory.regenerableCache: '可再生成缓存',
-      StorageArtifactCategory.logs: '日志',
-    };
-    return [
-      for (final entry in categoryTitles.entries)
-        _CategoryCard(
-          title: entry.key == StorageArtifactCategory.legacyAnkiMedia
-              ? '${entry.value}（${report.mediaDirsByOwner.length} 个导入目录）'
-              : entry.value,
-          artifacts:
-              report.artifacts.where((a) => a.category == entry.key).toList(),
-          extra: entry.key == StorageArtifactCategory.mainDatabase
-              ? 'WAL ${_formatBytes(report.databaseWalBytes)} · '
-                  'SHM ${_formatBytes(report.databaseShmBytes)} · '
-                  '可回收空闲页 ${_formatBytes(report.freelistBytes)}'
-              : entry.key == StorageArtifactCategory.regenerableCache
-                  ? 'AI 缓存条目 ${report.aiCacheEntries}（内存键，不计入字节）'
-                  : null,
+        const SizedBox(height: 16),
+        _MemoryCard(snapshot: data.memory),
+        const SizedBox(height: 12),
+        Text(
+          '扫描于 ${_formatTime(report.scannedAt)}',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 11,
+            color: TurnaTheme.textHintColor(context),
+          ),
         ),
-    ];
-  }
-}
-
-class _RuntimeMemoryCard extends StatelessWidget {
-  const _RuntimeMemoryCard({required this.snapshot});
-  final RuntimeMemorySnapshot? snapshot;
-
-  @override
-  Widget build(BuildContext context) {
-    final data = snapshot;
-    return _DiagnosticCard(
-      title: '运行内存（瞬时）',
-      lines: [
-        '进程 RSS ${data?.currentRssBytes == null ? '不可用' : _formatBytes(data!.currentRssBytes!)}',
-        'Dart heap ${data?.dartHeapBytes == null ? '当前平台不可用' : _formatBytes(data!.dartHeapBytes!)}',
-        if (data != null) '采样时间 ${_formatTime(data.sampledAt)}',
-        '运行内存与磁盘占用口径不同，不合并计算。',
       ],
     );
   }
 }
 
-class _CacheRegistryCard extends StatelessWidget {
-  const _CacheRegistryCard({required this.caches});
-  final List<CacheFootprint> caches;
-
-  @override
-  Widget build(BuildContext context) {
-    return _DiagnosticCard(
-      title: '已登记缓存（数值随系统回收变化）',
-      lines: [
-        if (caches.isEmpty) '正在读取缓存…',
-        for (final cache in caches)
-          '${cache.owner}：${cache.entries} 条'
-              '${cache.estimatedBytes == null ? '（未估算字节）' : ' · ${_formatBytes(cache.estimatedBytes!)}'}',
-      ],
-    );
-  }
-}
-
-class _WriteTelemetryCard extends StatelessWidget {
-  const _WriteTelemetryCard({required this.rows});
-  final List<StorageWriteAggregate> rows;
-
-  @override
-  Widget build(BuildContext context) {
-    return _DiagnosticCard(
-      title: '写放大 Top-N（仅键名与估算字节）',
-      lines: [
-        if (rows.isEmpty) '本次运行暂无写入样本',
-        for (final row in rows)
-          '${row.key}：${row.count} 次 · ${_formatBytes(row.estimatedBytes)}',
-      ],
-    );
-  }
-}
-
-class _DiagnosticCard extends StatelessWidget {
-  const _DiagnosticCard({required this.title, required this.lines});
-  final String title;
-  final List<String> lines;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-            const SizedBox(height: 6),
-            for (final line in lines)
-              Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Text(line),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SummaryCard extends StatelessWidget {
-  const _SummaryCard({required this.report});
+/// Dashboard hero: large total-usage figure plus a static share ring broken
+/// down by the four user-facing categories.
+class _TotalCard extends StatelessWidget {
+  const _TotalCard({required this.report});
 
   final StorageInventoryReport report;
 
   @override
   Widget build(BuildContext context) {
+    final segments = _categorySegments(context, report);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: TurnaTheme.brandTeal.withValues(alpha: 0.06),
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-        border: Border.all(color: TurnaTheme.brandTeal.withValues(alpha: 0.2)),
+        border: Border.all(
+          color: TurnaTheme.textHintColor(context).withValues(alpha: 0.2),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '总占用',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: TurnaTheme.textSecondaryColor(context),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _formatBytes(report.totalPhysicalBytes),
+                  style: const TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '其中 ${_formatBytes(report.safelyReclaimableBytes)} 可安全释放',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: TurnaTheme.textSecondaryColor(context),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          SizedBox(
+            width: 104,
+            height: 104,
+            child: CustomPaint(
+              painter: _ShareRingPainter(
+                segments: segments,
+                trackColor: TurnaTheme.dividerBg(context),
+              ),
+              child: Center(
+                child: Icon(
+                  Icons.sd_storage_outlined,
+                  color: TurnaTheme.brandTeal.withValues(alpha: 0.7),
+                  size: 26,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CategorySpec {
+  const _CategorySpec({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+    required this.bytes,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+  final int bytes;
+}
+
+int _bytesOf(StorageInventoryReport report, Set<StorageArtifactCategory> cats) {
+  var sum = 0;
+  for (final a in report.artifacts) {
+    if (cats.contains(a.category)) sum += a.physicalBytes;
+  }
+  return sum;
+}
+
+/// The four plain-language buckets every disk byte is folded into. Colors are
+/// shared by the category cards and the share ring so they read as one map.
+List<_CategorySpec> _categorySpecs(
+  BuildContext context,
+  StorageInventoryReport report,
+) {
+  return [
+    _CategorySpec(
+      title: '学习数据',
+      subtitle: '课程与复习进度',
+      icon: Icons.school_outlined,
+      color: TurnaTheme.brandTeal,
+      bytes: _bytesOf(report, const {
+        StorageArtifactCategory.mainDatabase,
+        StorageArtifactCategory.legacyAnki,
+      }),
+    ),
+    _CategorySpec(
+      title: '媒体文件',
+      subtitle: '导入的图片与音频',
+      icon: Icons.perm_media_outlined,
+      color: TurnaTheme.brandSky,
+      bytes: _bytesOf(report, const {
+        StorageArtifactCategory.legacyAnkiMedia,
+      }),
+    ),
+    _CategorySpec(
+      title: 'Anki 收藏',
+      subtitle: '官方牌组内容',
+      icon: Icons.style_outlined,
+      color: TurnaTheme.anatolianClay,
+      bytes: _bytesOf(report, const {
+        StorageArtifactCategory.officialAnki,
+      }),
+    ),
+    _CategorySpec(
+      title: '缓存与日志',
+      subtitle: '可随时清理，不影响学习数据',
+      icon: Icons.cleaning_services_outlined,
+      color: TurnaTheme.textHintColor(context),
+      bytes: _bytesOf(report, const {
+        StorageArtifactCategory.regenerableCache,
+        StorageArtifactCategory.logs,
+      }),
+    ),
+  ];
+}
+
+List<({double value, Color color})> _categorySegments(
+  BuildContext context,
+  StorageInventoryReport report,
+) {
+  return [
+    for (final spec in _categorySpecs(context, report))
+      (value: spec.bytes.toDouble(), color: spec.color),
+  ];
+}
+
+/// 2×2 grid on phones that widens to four columns on wide windows. Built
+/// with Wrap instead of a nested GridView so 200% text scale can grow the
+/// cards vertically instead of overflowing a fixed aspect ratio.
+class _CategoryGrid extends StatelessWidget {
+  const _CategoryGrid({required this.report});
+
+  final StorageInventoryReport report;
+
+  static const double _spacing = 12;
+
+  @override
+  Widget build(BuildContext context) {
+    final specs = _categorySpecs(context, report);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 720 ? 4 : 2;
+        final width =
+            (constraints.maxWidth - _spacing * (columns - 1)) / columns;
+        return Wrap(
+          spacing: _spacing,
+          runSpacing: _spacing,
+          children: [
+            for (final spec in specs)
+              SizedBox(width: width, child: _CategoryCard(spec: spec)),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _CategoryCard extends StatelessWidget {
+  const _CategoryCard({required this.spec});
+
+  final _CategorySpec spec;
+
+  @override
+  Widget build(BuildContext context) {
+    final empty = spec.bytes <= 0;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+        border: Border.all(
+          color: TurnaTheme.textHintColor(context).withValues(alpha: 0.2),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.sd_storage_outlined,
-                  color: TurnaTheme.brandTeal, size: 22),
-              const SizedBox(width: 10),
-              Text(
-                '扫描总计 ${_formatBytes(report.totalPhysicalBytes)}',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
+              Icon(spec.icon, size: 18, color: spec.color),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  spec.title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 8),
           Text(
-            '一键可安全释放 ${_formatBytes(report.safelyReclaimableBytes)}'
-            '${report.orphans.isEmpty ? '' : ' · 疑似孤儿 ${report.orphans.length} 项'}',
+            _formatBytes(spec.bytes),
             style: TextStyle(
-              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+              color: empty
+                  ? TurnaTheme.textHintColor(context)
+                  : TurnaTheme.brandTeal,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            spec.subtitle,
+            style: TextStyle(
+              fontSize: 12,
               color: TurnaTheme.textSecondaryColor(context),
             ),
           ),
@@ -332,119 +447,172 @@ class _SummaryCard extends StatelessWidget {
   }
 }
 
-class _CategoryCard extends StatelessWidget {
-  const _CategoryCard({
-    required this.title,
-    required this.artifacts,
-    this.extra,
-  });
+/// Leftover ("orphan") media directories, reported in plain language without
+/// file-system paths. Never auto-cleaned; the user is only informed.
+class _OrphanWarningCard extends StatelessWidget {
+  const _OrphanWarningCard({required this.orphans});
 
-  final String title;
-  final List<StorageArtifactReport> artifacts;
-  final String? extra;
-
-  static const _policyLabels = {
-    StorageCleanupPolicy.deleteSaga: '随删除流程清理',
-    StorageCleanupPolicy.optimize: '可优化',
-    StorageCleanupPolicy.safeClear: '可安全清理',
-    StorageCleanupPolicy.confirmOnly: '需确认',
-  };
+  final List<StorageArtifactReport> orphans;
 
   @override
   Widget build(BuildContext context) {
-    if (artifacts.isEmpty) {
-      return const SizedBox.shrink();
-    }
-    var bytes = 0;
-    for (final a in artifacts) {
-      bytes += a.physicalBytes;
-    }
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-          border: Border.all(
-            color: TurnaTheme.textHintColor(context).withValues(alpha: 0.2),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    final bytes = orphans.fold<int>(0, (sum, a) => sum + a.physicalBytes);
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: TurnaTheme.warningSurface(context),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+        border: Border.all(color: TurnaTheme.warning.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.warning_amber_rounded,
+              size: 20, color: TurnaTheme.warning),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text(
-                    title,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w600, fontSize: 14),
+                Text(
+                  '发现 ${orphans.length} 个残留文件夹（共 ${_formatBytes(bytes)}）',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
                   ),
                 ),
+                const SizedBox(height: 4),
                 Text(
-                  _formatBytes(bytes),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: TurnaTheme.brandTeal,
+                  '这些文件找不到归属，不会被一键清理。如确认不再需要，可联系支持协助处理。',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: TurnaTheme.textSecondaryColor(context),
                   ),
                 ),
               ],
             ),
-            if (extra != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                extra!,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: TurnaTheme.textSecondaryColor(context),
-                ),
-              ),
-            ],
-            const SizedBox(height: 6),
-            for (final artifact in artifacts.take(12))
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 3),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (artifact.orphaned)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: Icon(
-                          Icons.warning_amber_rounded,
-                          size: 16,
-                          color: TurnaTheme.warning,
-                        ),
-                      ),
-                    Expanded(
-                      child: Text(
-                        '${artifact.label} · ${_formatBytes(artifact.physicalBytes)}'
-                        '${artifact.fileCount > 0 ? ' · ${artifact.fileCount} 个文件' : ''}'
-                        ' · ${_policyLabels[artifact.cleanupPolicy]}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: artifact.orphaned
-                              ? TurnaTheme.warning
-                              : TurnaTheme.textSecondaryColor(context),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            if (artifacts.length > 12)
-              Text(
-                '… 以及另外 ${artifacts.length - 12} 项',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: TurnaTheme.textHintColor(context),
-                ),
-              ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
+  }
+}
+
+class _MemoryCard extends StatelessWidget {
+  const _MemoryCard({required this.snapshot});
+
+  final RuntimeMemorySnapshot? snapshot;
+
+  @override
+  Widget build(BuildContext context) {
+    final rss = snapshot?.currentRssBytes;
+    final sampledAt = snapshot?.sampledAt;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+        border: Border.all(
+          color: TurnaTheme.textHintColor(context).withValues(alpha: 0.2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '当前运行内存',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: TurnaTheme.textSecondaryColor(context),
+                  ),
+                ),
+              ),
+              Text(
+                rss == null ? '当前平台不可用' : _formatBytes(rss),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: TurnaTheme.brandTeal,
+                ),
+              ),
+              if (rss != null && sampledAt != null)
+                Text(
+                  ' · 采样于 ${_formatShortTime(sampledAt)}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: TurnaTheme.textHintColor(context),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '这是 App 运行时占用的内存，和磁盘上的文件大小是两回事。',
+            style: TextStyle(
+              fontSize: 12,
+              color: TurnaTheme.textHintColor(context),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Static donut showing each category's share of total disk usage. No
+/// animation — repaints only when the segment values change.
+class _ShareRingPainter extends CustomPainter {
+  const _ShareRingPainter({
+    required this.segments,
+    required this.trackColor,
+  });
+
+  final List<({double value, Color color})> segments;
+  final Color trackColor;
+
+  static const double _strokeWidth = 12;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    final radius = (math.min(size.width, size.height) - _strokeWidth) / 2;
+    final rect = Rect.fromCircle(center: center, radius: radius);
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = _strokeWidth
+      ..strokeCap = StrokeCap.butt;
+
+    final total = segments.fold<double>(0, (sum, s) => sum + s.value);
+    if (total <= 0) {
+      paint.color = trackColor;
+      canvas.drawArc(rect, 0, math.pi * 2, false, paint);
+      return;
+    }
+    var start = -math.pi / 2;
+    for (final segment in segments) {
+      if (segment.value <= 0) continue;
+      final sweep = segment.value / total * math.pi * 2;
+      paint.color = segment.color;
+      canvas.drawArc(rect, start, sweep, false, paint);
+      start += sweep;
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ShareRingPainter oldDelegate) {
+    if (oldDelegate.trackColor != trackColor ||
+        oldDelegate.segments.length != segments.length) {
+      return true;
+    }
+    for (var i = 0; i < segments.length; i++) {
+      if (oldDelegate.segments[i].value != segments[i].value ||
+          oldDelegate.segments[i].color != segments[i].color) {
+        return true;
+      }
+    }
+    return false;
   }
 }
 
@@ -456,20 +624,29 @@ class _ErrorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: TurnaTheme.error.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-        border: Border.all(color: TurnaTheme.error.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        children: [
-          Text(message,
-              style: const TextStyle(color: TurnaTheme.error, fontSize: 13)),
-          const SizedBox(height: 10),
-          OutlinedButton(onPressed: onRetry, child: const Text('重试')),
-        ],
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: TurnaTheme.error.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+            border:
+                Border.all(color: TurnaTheme.error.withValues(alpha: 0.3)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                message,
+                style: const TextStyle(color: TurnaTheme.error, fontSize: 13),
+              ),
+              const SizedBox(height: 10),
+              OutlinedButton(onPressed: onRetry, child: const Text('重试')),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -485,8 +662,12 @@ String _formatBytes(int bytes) {
 }
 
 String _formatTime(DateTime time) {
+  return '${time.year}-${time.month.toString().padLeft(2, '0')}-'
+      '${time.day.toString().padLeft(2, '0')} ${_formatShortTime(time)}';
+}
+
+String _formatShortTime(DateTime time) {
   final h = time.hour.toString().padLeft(2, '0');
   final m = time.minute.toString().padLeft(2, '0');
-  return '${time.year}-${time.month.toString().padLeft(2, '0')}-'
-      '${time.day.toString().padLeft(2, '0')} $h:$m';
+  return '$h:$m';
 }

@@ -13,10 +13,11 @@ import 'package:turna/application/ai/engine/ai_engine_config.dart';
 import 'package:turna/application/ai/engine/ai_http_client.dart';
 import 'package:turna/application/ai/engine/ai_provider_preset.dart';
 
-/// A config with a non-DeepSeek preset so the reasoning payload fields are not
-/// injected (keeps payload assertions simple).
+/// A config whose reasoning is off (no explicit override → defaults to false)
+/// so the reasoning payload fields are not injected and payload assertions
+/// stay simple.
 const AiEngineConfig _config = AiEngineConfig(
-  preset: kOpenaiPreset,
+  preset: kMimoPreset,
   apiKey: 'key',
 );
 
@@ -27,7 +28,7 @@ http.Response _chatResponse(String content, {int status = 200}) {
         'message': {'role': 'assistant', 'content': content},
       },
     ],
-    'model': 'gpt-4o',
+    'model': 'mimo-v2.5-pro',
   });
   return http.Response.bytes(
     utf8.encode(body),
@@ -57,7 +58,7 @@ void main() {
       );
       final body = await client.postJson(
         config: _config,
-        model: 'gpt-4o',
+        model: 'mimo-v2.5-pro',
         messages: const [
           {'role': 'user', 'content': 'hi'},
         ],
@@ -72,7 +73,7 @@ void main() {
       expect(
         () => client.postJson(
           config: _config,
-          model: 'gpt-4o',
+          model: 'mimo-v2.5-pro',
           messages: const [
             {'role': 'user', 'content': 'hi'},
           ],
@@ -95,7 +96,7 @@ void main() {
       // Subscribe first (realistic server-streaming order), then feed bytes.
       final fut = client.postStream(
         config: _config,
-        model: 'gpt-4o',
+        model: 'mimo-v2.5-pro',
         messages: const [
           {'role': 'user', 'content': 'hi'},
         ],
@@ -116,7 +117,7 @@ void main() {
           AiHttpClient.withClient(_ControllableClient(controller, 200));
       final fut = client.postStream(
         config: _config,
-        model: 'gpt-4o',
+        model: 'mimo-v2.5-pro',
         messages: const [
           {'role': 'user', 'content': 'hi'},
         ],
@@ -141,7 +142,7 @@ void main() {
       final fut = client
           .postStream(
             config: _config,
-            model: 'gpt-4o',
+            model: 'mimo-v2.5-pro',
             messages: const [
               {'role': 'user', 'content': 'hi'},
             ],
@@ -186,7 +187,7 @@ void main() {
 
       final body = await client.postJson(
         config: _config,
-        model: 'gpt-4o',
+        model: 'mimo-v2.5-pro',
         messages: const [
           {'role': 'user', 'content': 'hi'},
         ],
@@ -211,7 +212,7 @@ void main() {
       );
       final result = await client.probeConnection(_config);
       expect(result.ok, isTrue);
-      expect(result.model, 'gpt-4o');
+      expect(result.model, 'mimo-v2.5-pro');
       expect(result.error, isEmpty);
     });
 
@@ -228,14 +229,14 @@ void main() {
   group('AiHttpClient.postJson reasoning payload', () {
     // The reasoning payload fields (`reasoning_effort` / `thinking`) are only
     // injected when the engine config's `reasoningEnabled` flag is on. That
-    // flag combines the preset's `supportsReasoning` with the legacy
-    // `isDeepSeekHost(host)` check. These four tests migrated from
-    // `ai_course_service_test.dart`'s reasoning group (Phase 2.4 cleanup)
-    // pin every branch against the AiHttpClient directly.
+    // flag is opt-in: it is `false` unless `supportsReasoningOverride` is set
+    // to `true`. The preset's `supportsReasoning` is only a UI capability hint.
+    // These four tests migrated from `ai_course_service_test.dart`'s reasoning
+    // group (Phase 2.4 cleanup) and pin every branch against the AiHttpClient
+    // directly.
 
-    test('omits reasoning fields on a non-DeepSeek host (preset default)',
-        () async {
-      // kOpenaiPreset has supportsReasoning=false.
+    test('omits reasoning fields when reasoning is off (default)', () async {
+      // _config has no override → reasoningEnabled defaults to false.
       late Map<String, dynamic> sentBody;
       final client = AiHttpClient.withClient(
         MockClient((req) async {
@@ -245,7 +246,7 @@ void main() {
       );
       await client.postJson(
         config: _config,
-        model: 'gpt-4o',
+        model: 'mimo-v2.5-pro',
         messages: const [
           {'role': 'user', 'content': 'hi'}
         ],
@@ -256,8 +257,7 @@ void main() {
       expect(sentBody.containsKey('thinking'), isFalse);
     });
 
-    test('includes reasoning fields on a DeepSeek host (preset default)',
-        () async {
+    test('includes reasoning fields when the override is on', () async {
       late Map<String, dynamic> sentBody;
       final client = AiHttpClient.withClient(
         MockClient((req) async {
@@ -265,8 +265,7 @@ void main() {
           return _chatResponse('ok');
         }),
       );
-      // Custom preset + DeepSeek-like baseUrl + supportsReasoningOverride true
-      // (mirrors what kDeepseekPreset would yield).
+      // Custom preset + DeepSeek-like baseUrl + supportsReasoningOverride true.
       final config = const AiEngineConfig(
         preset: kCustomPreset,
         apiKey: 'key',
@@ -288,8 +287,7 @@ void main() {
       expect(sentBody['thinking'], {'type': 'enabled'});
     });
 
-    test('supportsReasoningOverride=true wins over a non-DeepSeek host',
-        () async {
+    test('supportsReasoningOverride=true wins regardless of host', () async {
       late Map<String, dynamic> sentBody;
       final client = AiHttpClient.withClient(
         MockClient((req) async {
@@ -297,11 +295,13 @@ void main() {
           return _chatResponse('ok');
         }),
       );
-      // OpenAI-like preset with explicit reasoning override on a proxy host.
+      // Custom preset with an explicit reasoning override on a proxy host.
       final config = const AiEngineConfig(
-        preset: kOpenaiPreset,
+        preset: kCustomPreset,
         apiKey: 'key',
         customBaseUrl: 'https://my-proxy.example.com/v1',
+        modelChat: 'some-reasoning-model',
+        modelJson: 'some-reasoning-model',
         supportsReasoningOverride: true,
       );
       await client.postJson(

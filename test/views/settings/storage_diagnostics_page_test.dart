@@ -1,8 +1,9 @@
-// Plan 1 Phase 3 minimal diagnostics page test: the page renders the storage
-// inventory's categories, bytes, cleanup policies, and orphan warnings from
-// an injected synchronous scanner (widget tests run under fake-async, where
-// the service's real file I/O cannot complete — the IO path itself is
-// covered by storage_inventory_service_test).
+// User-facing storage overview page test: the page renders the storage
+// inventory as a dashboard (total + share ring, four plain-language category
+// cards, leftover-file warning) from an injected synchronous scanner (widget
+// tests run under fake-async, where the service's real file I/O cannot
+// complete — the IO path itself is covered by storage_inventory_service_test).
+// Low-level diagnostics (WAL/RSS/write telemetry) must NOT appear here.
 
 // Package imports:
 import 'package:flutter/material.dart';
@@ -104,24 +105,39 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('renders categories, orphans, and the safe-clear action',
+  testWidgets('renders the dashboard, plain categories and the clear action',
       (tester) async {
     await pumpPage(tester, _FakeScanner(_cannedReport));
 
     expect(find.text('存储与性能'), findsOneWidget);
-    expect(find.text('主数据库'), findsOneWidget);
-    expect(find.text('Anki Legacy'), findsOneWidget);
-    expect(find.text('Anki Legacy 媒体（1 个导入目录）'), findsOneWidget);
-    expect(find.text('可再生成缓存'), findsOneWidget);
-    expect(find.text('日志'), findsOneWidget);
-    // The orphan media directory is visible with the confirm-only policy.
-    expect(find.textContaining('media/ghost-1'), findsOneWidget);
-    expect(find.textContaining('需确认'), findsWidgets);
-    expect(find.textContaining('疑似孤儿 1 项'), findsOneWidget);
-    expect(find.textContaining('清理缓存'), findsOneWidget);
-    expect(find.textContaining('重新扫描'), findsOneWidget);
-    expect(find.textContaining('WAL 1.0 KB'), findsOneWidget);
-    expect(find.textContaining('AI 缓存条目 7'), findsOneWidget);
+    expect(find.text('总占用'), findsOneWidget);
+    // 4096 + 2048 + 512 + 256 = 6912 bytes ≈ 6.8 KB.
+    expect(find.text('6.8 KB'), findsOneWidget);
+    expect(find.text('学习数据'), findsOneWidget);
+    expect(find.text('媒体文件'), findsOneWidget);
+    expect(find.text('Anki 收藏'), findsOneWidget);
+    expect(find.text('缓存与日志'), findsOneWidget);
+    // The orphan media directory surfaces as a plain leftover-file warning.
+    expect(find.textContaining('发现 1 个残留文件夹'), findsOneWidget);
+    // 512 + 256 = 768 bytes safely reclaimable.
+    expect(find.textContaining('清理缓存，可释放 768 B'), findsOneWidget);
+    // Rescan moved to the app bar.
+    expect(find.byIcon(Icons.refresh_rounded), findsOneWidget);
+  });
+
+  testWidgets('low-level jargon never appears on the page', (tester) async {
+    await pumpPage(tester, _FakeScanner(_cannedReport));
+
+    expect(find.textContaining('WAL'), findsNothing);
+    expect(find.textContaining('SHM'), findsNothing);
+    expect(find.textContaining('RSS'), findsNothing);
+    expect(find.textContaining('Dart heap'), findsNothing);
+    expect(find.textContaining('写放大'), findsNothing);
+    expect(find.textContaining('已登记缓存'), findsNothing);
+    expect(find.textContaining('AI 缓存条目'), findsNothing);
+    expect(find.textContaining('孤儿'), findsNothing);
+    // Raw file-system paths are not shown to users.
+    expect(find.textContaining('media/ghost-1'), findsNothing);
   });
 
   testWidgets('scan errors surface with a retry button', (tester) async {
@@ -130,7 +146,7 @@ void main() {
     expect(find.text('重试'), findsOneWidget);
   });
 
-  testWidgets('runtime memory, disk and cache use separate honest units',
+  testWidgets('runtime memory uses plain wording, separate from disk usage',
       (tester) async {
     await tester.pumpWidget(MaterialApp(
       home: StorageDiagnosticsPage(
@@ -145,11 +161,9 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    expect(find.text('运行内存（瞬时）'), findsOneWidget);
-    expect(find.textContaining('进程 RSS 8.0 MB'), findsOneWidget);
-    expect(find.textContaining('Dart heap 当前平台不可用'), findsOneWidget);
-    expect(find.textContaining('运行内存与磁盘占用口径不同'), findsOneWidget);
-    expect(find.textContaining('ai.responseCache：7 条（未估算字节）'), findsOneWidget);
-    expect(find.textContaining('扫描总计 6.8 KB'), findsOneWidget);
+    expect(find.text('当前运行内存'), findsOneWidget);
+    expect(find.textContaining('8.0 MB'), findsOneWidget);
+    expect(find.textContaining('采样于 12:00'), findsOneWidget);
+    expect(find.textContaining('和磁盘上的文件大小是两回事'), findsOneWidget);
   });
 }

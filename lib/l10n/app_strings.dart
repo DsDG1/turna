@@ -1200,6 +1200,11 @@ class AppStrings {
   static String get aiConfigRestoreDefaultsMessage =>
       '将服务商、模型、地址与密钥全部恢复为默认值。此操作不可撤销。';
   static String get aiConfigRestoreDefaultsConfirm => '恢复默认';
+  static String get aiConfigReasoningToggle => '深度思考';
+  static String get aiConfigReasoningSupportedHint =>
+      '该服务商支持推理字段，开启后发送 reasoning_effort / thinking（更慢但更深思）';
+  static String get aiConfigReasoningUnsupportedHint =>
+      '该服务商未声明推理支持，开启会向端点发送推理字段，可能被拒绝';
   static String get aiConfigSessionKeyNotice =>
       '此平台没有持久安全存储，密钥仅本次会话有效：关闭应用后需要重新输入。密钥不会写入普通偏好。';
   static String get aiConfigMigrationPendingNotice =>
