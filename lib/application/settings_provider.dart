@@ -286,6 +286,21 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Restore legacy-compatibility (旧版与兼容性) prefs to their factory
+  /// defaults. Never deletes user data — only the four display/rendering
+  /// tunables owned by the compatibility page.
+  Future<void> resetLegacyCompatibilityDefaults() async {
+    _ankiPreRenderEnabled = true;
+    _ankiCaptureDelaySec = 2;
+    _ankiLiteThreshold = 2000;
+    _ankiForceDisableJs = false;
+    await _appPrefs.setBool(LocalStateKeys.ankiPreRenderEnabled, value: true);
+    await _appPrefs.setInt(LocalStateKeys.ankiCaptureDelaySec, 2);
+    await _appPrefs.setInt(LocalStateKeys.ankiLiteThreshold, 2000);
+    await _appPrefs.setBool(LocalStateKeys.ankiForceDisableJs, value: false);
+    notifyListeners();
+  }
+
   /// Lightweight helper so other controllers don't have to import
   /// [HapticFeedback] directly or repeat the enabled-check.
   void triggerHaptic(HapticFeedbackType type) {

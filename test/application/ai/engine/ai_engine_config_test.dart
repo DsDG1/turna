@@ -69,7 +69,10 @@ void main() {
         cacheEnabled: false,
         supportsReasoningOverride: true,
       );
-      final restored = AiEngineConfig.fromJson(c.toJson());
+      // includeApiKey: the legacy-inclusive form is only for reading back
+      // pre-migration blobs (the key now lives in the secure store).
+      final restored =
+          AiEngineConfig.fromJson(c.toJson(includeApiKey: true));
       expect(restored.preset.id, AiProvider.openai);
       expect(restored.apiKey, 'sk-secret');
       expect(restored.modelChat, 'gpt-4o-mini');
@@ -87,7 +90,8 @@ void main() {
         customBaseUrl: 'https://my-proxy.example.com/v1',
         modelChat: 'my-model',
       );
-      final restored = AiEngineConfig.fromJson(c.toJson());
+      final restored =
+          AiEngineConfig.fromJson(c.toJson(includeApiKey: true));
       expect(restored.preset.id, AiProvider.custom);
       expect(restored.baseUrl, 'https://my-proxy.example.com/v1');
       expect(restored.modelChat, 'my-model');

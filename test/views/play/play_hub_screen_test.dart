@@ -137,10 +137,10 @@ void main() {
     expect(find.text('Anki 复习'), findsOneWidget);
     expect(find.text('词典'), findsOneWidget);
 
-    // AI 助手 分区（快捷入口 + 引擎状态行）。
-    expect(find.text('AI 助手'), findsOneWidget);
-    expect(find.text('设计课程（AI）'), findsOneWidget);
-    expect(find.text('导入教材'), findsOneWidget);
+    // AI 助手 分区：单一助手入口（创作入口已退场，Plan 3 §19.3）。
+    expect(find.text('AI 助手'), findsWidgets);
+    expect(find.text('设计课程（AI）'), findsNothing);
+    expect(find.text('导入教材'), findsNothing);
     expect(find.text('全部 AI 功能'), findsOneWidget);
     // 默认空配置 -> 引擎未就绪。
     expect(find.text('未配置'), findsOneWidget);

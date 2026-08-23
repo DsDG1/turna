@@ -157,11 +157,11 @@ class _CourseDatabaseV6 extends db.CourseDatabase {
 /// A hypothetical newer schema used to verify downgrade behavior: opening
 /// a future DB with the current code must not crash - it wipes + recreates the
 /// schema (the course DB is a reseedable derived cache).
-class _CourseDatabaseV19 extends db.CourseDatabase {
-  _CourseDatabaseV19(super.e);
+class _CourseDatabaseV20 extends db.CourseDatabase {
+  _CourseDatabaseV20(super.e);
 
   @override
-  int get schemaVersion => 19;
+  int get schemaVersion => 20;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -554,16 +554,16 @@ void main() {
         'anki_notes',
         'anki_notetypes',
       ]);
-      expect(migrated.schemaVersion, 18);
+      expect(migrated.schemaVersion, db.CourseDatabase(NativeDatabase.memory()).schemaVersion);
 
       await migrated.close();
       await File(path).parent.delete(recursive: true);
     });
 
-    test('v19 -> v18 downgrade wipes and recreates instead of crashing',
+    test('v20 -> v19 downgrade wipes and recreates instead of crashing',
         () async {
       final path = await _tempDbPath();
-      final newer = _CourseDatabaseV19(NativeDatabase(File(path)));
+      final newer = _CourseDatabaseV20(NativeDatabase(File(path)));
       await _forceOpen(newer);
       await newer.into(newer.sections).insert(
             const db.SectionsCompanion(

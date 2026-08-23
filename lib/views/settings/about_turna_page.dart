@@ -1,46 +1,37 @@
 // Flutter imports:
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 // Package imports:
 import 'package:auto_route/auto_route.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 // Project imports:
 import 'package:turna/application/anki_official/official_anki_license_notices.dart';
+import 'package:turna/application/settings/app_build_info.dart';
+import 'package:turna/application/settings/external_link_registry.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/settings/changelog_page.dart';
-import 'package:turna/views/settings/quick_start_from_asset.dart';
 import 'package:turna/views/theme.dart';
 
-/// Dedicated About page for Turna.
+/// Dedicated About page for Turna (Plan 2 §7.1).
 ///
-/// Three tabs in a single Scaffold:
+/// Two tabs only:
 ///   - **关于** (`_AboutTab`): brand header, highlights, privacy, version,
-///     links, credits. Same content as the legacy single-page About.
-///   - **更新日志** (`ChangelogFromAsset`): reads `assets/changelog.md`
-///     and renders release cards. One-tap copy from the AppBar action.
-///   - **使用指南** (`QuickStartFromAsset`): reads `assets/quick_start.md`
-///     and renders section cards.
+///     registry-driven links, credits.
+///   - **更新日志** (`ChangelogFromAsset`): offline changelog.
 ///
-/// Visual style mirrors the learning (course tree) page:
-///   - mint gradient background (`courseTreeGradientFor`)
-///   - white/dark cards with soft shadow + 1px border
-///   - Turna teal-tinted icon tiles and version pill
-///   - section headers rendered as a short teal bar + title (UnitHeader rhythm)
+/// The former 使用指南 tab was removed with its asset/parser (dead resource
+/// per Plan 2 §4.8). All external links resolve through
+/// [ExternalLinkRegistry]: unconfigured links render disabled with a reason
+/// instead of dead-tapping a guessed legacy URL, and launch failures offer a
+/// copy-address fallback.
 @RoutePage()
 class AboutTurnaPage extends StatelessWidget {
-  const AboutTurnaPage({super.key});
+  const AboutTurnaPage({super.key, this.buildInfo});
 
-  Future<void> _launchUrl(String url) async {
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
-  }
+  /// Test seam; production resolves from PackageInfo.
+  final AppBuildInfo? buildInfo;
 
   Future<void> _shareApp(BuildContext context) async {
     await Share.share(AppStrings.aboutShareText);
@@ -49,7 +40,7 @@ class AboutTurnaPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: 2,
       child: Scaffold(
         backgroundColor: TurnaTheme.scaffoldBg(context),
         appBar: AppBar(
@@ -74,7 +65,6 @@ class AboutTurnaPage extends StatelessWidget {
                 tabs: const [
                   Tab(text: '关于'),
                   Tab(text: '更新日志'),
-                  Tab(text: '使用指南'),
                 ],
               ),
             ),
@@ -87,32 +77,10 @@ class AboutTurnaPage extends StatelessWidget {
           child: TabBarView(
             children: [
               _AboutTab(
-                onLaunchUrl: _launchUrl,
+                buildInfo: buildInfo,
                 onShare: _shareApp,
               ),
-              Builder(
-                builder: (innerContext) {
-                  final controller = DefaultTabController.of(innerContext);
-                  return ChangelogFromAsset(
-                    onCopyText: (text) async {
-                      await Clipboard.setData(ClipboardData(text: text));
-                      if (!innerContext.mounted) return;
-                      ScaffoldMessenger.of(innerContext).showSnackBar(
-                        SnackBar(
-                          content: Text(AppStrings.changelogCopied),
-                          behavior: SnackBarBehavior.floating,
-                          duration: const Duration(seconds: 2),
-                        ),
-                      );
-                      controller.index = 0;
-                    },
-                  );
-                },
-              ),
-              const SingleChildScrollView(
-                padding: EdgeInsets.fromLTRB(16, 8, 16, 24),
-                child: QuickStartFromAsset(),
-              ),
+              const ChangelogFromAsset(),
             ],
           ),
         ),
@@ -121,16 +89,16 @@ class AboutTurnaPage extends StatelessWidget {
   }
 }
 
-/// "关于"Tab 内容。原 AboutTurnaPage 主体内容抽到此处,
-/// 顺序与样式不变,仅外层换为 Column(由 TabBarView 嵌入)。
+/// "关于"Tab 内容：品牌头、亮点、隐私、版本、外链（注册表驱动）、致谢。
 class _AboutTab extends StatelessWidget {
-  final Future<void> Function(String url) onLaunchUrl;
-  final Future<void> Function(BuildContext) onShare;
+  const _AboutTab({this.buildInfo, required this.onShare});
 
-  const _AboutTab({
-    required this.onLaunchUrl,
-    required this.onShare,
-  });
+  final AppBuildInfo? buildInfo;
+
+  /// Registry injection seam for widget tests (five launch states).
+  final ExternalLinkRegistry linkRegistry = const ExternalLinkRegistry();
+
+  final Future<void> Function(BuildContext) onShare;
 
   @override
   Widget build(BuildContext context) {
@@ -140,7 +108,7 @@ class _AboutTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _BrandHeader(),
+          _BrandHeader(buildInfo: buildInfo),
           const SizedBox(height: 20),
           _SectionHeader(text: AppStrings.aboutWhatIsTitle),
           const SizedBox(height: 10),
@@ -243,7 +211,7 @@ class _AboutTab extends StatelessWidget {
           const SizedBox(height: 20),
           _SectionHeader(text: AppStrings.aboutVersionTitle),
           const SizedBox(height: 10),
-          const _VersionCard(),
+          _VersionCard(buildInfo: buildInfo),
           const SizedBox(height: 20),
           _SectionHeader(text: AppStrings.aboutLinksTitle),
           const SizedBox(height: 10),
@@ -256,44 +224,32 @@ class _AboutTab extends StatelessWidget {
                   title: AppStrings.settingsOpenSourceLicenses,
                   onTap: () => showTurnaLicensePage(
                     context: context,
-                    applicationVersion: _fallbackVersion,
+                    applicationVersion: AppBuildInfo.unknownVersion,
                   ),
                 ),
                 _LinkDivider(),
-                _LinkTile(
+                _ExternalLinkTile(
+                  registry: linkRegistry,
+                  id: ExternalLinkId.projectHome,
                   icon: Icons.open_in_new_rounded,
                   title: AppStrings.aboutUpstreamTitle,
-                  subtitle: AppStrings.aboutUpstreamSubtitle,
-                  onTap: () => onLaunchUrl(
-                    'https://github.com/rshrc/Varnamala',
-                  ),
+                  configuredSubtitle: AppStrings.aboutUpstreamSubtitle,
                 ),
                 _LinkDivider(),
-                _LinkTile(
+                _ExternalLinkTile(
+                  registry: linkRegistry,
+                  id: ExternalLinkId.issueTracker,
                   icon: Icons.bug_report_rounded,
                   title: AppStrings.aboutReportIssueTitle,
-                  subtitle: AppStrings.aboutReportIssueSubtitle,
-                  onTap: () => onLaunchUrl(
-                    'https://github.com/rshrc/Varnamala/issues',
-                  ),
+                  configuredSubtitle: AppStrings.aboutReportIssueSubtitle,
                 ),
                 _LinkDivider(),
-                _LinkTile(
+                _ExternalLinkTile(
+                  registry: linkRegistry,
+                  id: ExternalLinkId.releaseNotes,
                   icon: Icons.new_releases_rounded,
                   title: AppStrings.aboutViewReleasesTitle,
-                  subtitle: AppStrings.aboutViewReleasesSubtitle,
-                  onTap: () => onLaunchUrl(
-                    'https://github.com/rshrc/Varnamala/releases',
-                  ),
-                ),
-                _LinkDivider(),
-                _LinkTile(
-                  icon: Icons.desktop_mac_rounded,
-                  title: AppStrings.aboutToolGuiLinkTitle,
-                  subtitle: AppStrings.aboutToolGuiLinkSubtitle,
-                  onTap: () => onLaunchUrl(
-                    'https://github.com/rshrc/Varnamala#课程编辑器-toolgui',
-                  ),
+                  configuredSubtitle: AppStrings.aboutViewReleasesSubtitle,
                 ),
                 _LinkDivider(),
                 _LinkTile(
@@ -304,6 +260,17 @@ class _AboutTab extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Text(
+              AppStrings.aboutLinksNotConfiguredNote,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: TurnaTheme.textHintColor(context),
+                    height: 1.4,
+                  ),
+            ),
+          ),
           const SizedBox(height: 20),
           _SectionHeader(text: AppStrings.aboutToolsTitle),
           const SizedBox(height: 10),
@@ -311,31 +278,22 @@ class _AboutTab extends StatelessWidget {
             padding: EdgeInsets.zero,
             child: Column(
               children: [
-                _ToolTile(
+                _ExternalLinkTile(
+                  registry: linkRegistry,
+                  id: ExternalLinkId.guiPlatform,
                   icon: Icons.desktop_mac_rounded,
                   title: AppStrings.aboutToolGuiName,
-                  description: AppStrings.aboutToolGuiDesc,
-                  onTap: () => onLaunchUrl(
-                    'https://github.com/rshrc/Varnamala/tree/main/tool/gui',
-                  ),
+                  configuredSubtitle: AppStrings.aboutToolGuiDesc,
+                  isTool: true,
                 ),
                 _LinkDivider(),
-                _ToolTile(
+                _ExternalLinkTile(
+                  registry: linkRegistry,
+                  id: ExternalLinkId.cliDocs,
                   icon: Icons.terminal_rounded,
                   title: AppStrings.aboutToolCliName,
-                  description: AppStrings.aboutToolCliDesc,
-                  onTap: () => onLaunchUrl(
-                    'https://github.com/rshrc/Varnamala/blob/main/tool/course_cli.py',
-                  ),
-                ),
-                _LinkDivider(),
-                _ToolTile(
-                  icon: Icons.menu_book_rounded,
-                  title: AppStrings.aboutToolDocsName,
-                  description: AppStrings.aboutToolDocsDesc,
-                  onTap: () => onLaunchUrl(
-                    'https://github.com/rshrc/Varnamala/blob/main/docs/project-guide.md',
-                  ),
+                  configuredSubtitle: AppStrings.aboutToolCliDesc,
+                  isTool: true,
                 ),
               ],
             ),
@@ -387,8 +345,6 @@ class _AboutTab extends StatelessWidget {
   }
 }
 
-const String _fallbackVersion = '0.7.0';
-
 /// Short bar + title, matching the learning page's `UnitHeader` rhythm.
 class _SectionHeader extends StatelessWidget {
   final String text;
@@ -430,18 +386,25 @@ class _SectionHeader extends StatelessWidget {
 /// tile on the left, brand + tagline in the middle, version pill on the
 /// right. Adaptive to dark mode via `cardBg` / `softShadow`.
 class _BrandHeader extends StatelessWidget {
-  const _BrandHeader();
+  const _BrandHeader({this.buildInfo});
+
+  final AppBuildInfo? buildInfo;
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<PackageInfo>(
-      future: PackageInfo.fromPlatform(),
+    return FutureBuilder<AppBuildInfo>(
+      future: buildInfo != null ? Future.value(buildInfo) : AppBuildInfo.load(),
       builder: (context, snapshot) {
-        final version = snapshot.data?.version ?? _fallbackVersion;
-        final buildNumber = snapshot.data?.buildNumber ?? '';
-        final displayVersion = buildNumber.isEmpty
-            ? AppStrings.aboutVersionLabel(version)
-            : AppStrings.aboutVersionWithBuild(version, buildNumber);
+        // No hardcoded fallback number: unknown stays "未知版本".
+        final info = snapshot.data ??
+            const AppBuildInfo(
+              versionName: AppBuildInfo.unknownVersion,
+              buildNumber: '',
+            );
+        final displayVersion = info.buildNumber.isEmpty
+            ? AppStrings.aboutVersionLabel(info.versionName)
+            : AppStrings.aboutVersionWithBuild(
+                info.versionName, info.buildNumber);
 
         return Container(
           width: double.infinity,
@@ -637,6 +600,118 @@ class _HighlightCard extends StatelessWidget {
   }
 }
 
+/// Registry-driven external link row: disabled with a visible reason when the
+/// URL is unconfigured (never a fake clickable link), otherwise launches via
+/// [openExternalLink] which surfaces failures with a copy-address fallback.
+class _ExternalLinkTile extends StatelessWidget {
+  const _ExternalLinkTile({
+    required this.registry,
+    required this.id,
+    required this.icon,
+    required this.title,
+    required this.configuredSubtitle,
+    this.isTool = false,
+  });
+
+  final ExternalLinkRegistry registry;
+  final ExternalLinkId id;
+  final IconData icon;
+  final String title;
+
+  /// Subtitle shown when the link is configured.
+  final String configuredSubtitle;
+
+  /// Tool rows use the richer 40px-tile layout.
+  final bool isTool;
+
+  @override
+  Widget build(BuildContext context) {
+    final descriptor = registry.describe(id);
+    final subtitle = descriptor.enabled
+        ? configuredSubtitle
+        : descriptor.unavailableReason;
+    final body = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        children: [
+          Container(
+            width: isTool ? 40 : 36,
+            height: isTool ? 40 : 36,
+            decoration: BoxDecoration(
+              color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+            ),
+            child: Icon(
+              icon,
+              color: descriptor.enabled
+                  ? TurnaTheme.brandTeal
+                  : TurnaTheme.textHintColor(context),
+              size: isTool ? 22 : 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: descriptor.enabled
+                            ? TurnaTheme.textPrimaryColor(context)
+                            : TurnaTheme.textHintColor(context),
+                      ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: TurnaTheme.textHintColor(context),
+                      ),
+                ),
+              ],
+            ),
+          ),
+          Icon(
+            descriptor.enabled
+                ? (isTool
+                    ? Icons.arrow_forward_ios_rounded
+                    : Icons.chevron_right_rounded)
+                : Icons.lock_outline_rounded,
+            size: isTool ? 14 : 20,
+            color: TurnaTheme.textHint.withValues(alpha: 0.6),
+          ),
+        ],
+      ),
+    );
+
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+        onTap: descriptor.enabled
+            ? () => openExternalLink(context, id, registry: registry)
+            // Disabled links still explain themselves on tap instead of
+            // silently doing nothing.
+            : () => ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(descriptor.unavailableReason),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              ),
+        child: body,
+      ),
+    );
+  }
+}
+
 class _LinkTile extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -720,115 +795,40 @@ class _LinkDivider extends StatelessWidget {
   }
 }
 
-/// Richer row used in the "配套工具" section: 40px icon tile + bold title +
-/// 1-line secondary description + trailing arrow. Tap opens the URL.
-class _ToolTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String description;
-  final VoidCallback? onTap;
-
-  const _ToolTile({
-    required this.icon,
-    required this.title,
-    required this.description,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-                ),
-                child: Icon(
-                  icon,
-                  color: TurnaTheme.brandTeal,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: TurnaTheme.textPrimaryColor(context),
-                          ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      description,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: TurnaTheme.textSecondaryColor(context),
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Icon(
-                Icons.arrow_forward_ios_rounded,
-                size: 14,
-                color: TurnaTheme.textHintColor(context),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// Shows the installed version + build and a link to the full offline changelog.
 class _VersionCard extends StatelessWidget {
-  const _VersionCard();
+  const _VersionCard({this.buildInfo});
+
+  final AppBuildInfo? buildInfo;
 
   @override
   Widget build(BuildContext context) {
     return _AboutCard(
-      child: FutureBuilder<PackageInfo>(
-        future: PackageInfo.fromPlatform(),
+      child: FutureBuilder<AppBuildInfo>(
+        future:
+            buildInfo != null ? Future.value(buildInfo) : AppBuildInfo.load(),
         builder: (context, snapshot) {
-          final version = snapshot.data?.version ?? _fallbackVersion;
-          final buildNumber = snapshot.data?.buildNumber ?? '';
+          final info = snapshot.data ??
+              const AppBuildInfo(
+                versionName: AppBuildInfo.unknownVersion,
+                buildNumber: '',
+              );
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
                   Text(
-                    AppStrings.aboutVersionShort(version),
+                    AppStrings.aboutVersionShort(info.versionName),
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           fontWeight: FontWeight.w700,
                         ),
                   ),
-                  if (buildNumber.isNotEmpty)
+                  if (info.buildNumber.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(left: 8),
                       child: Text(
-                        AppStrings.aboutVersionBuild(buildNumber),
+                        AppStrings.aboutVersionBuild(info.buildNumber),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: TurnaTheme.textHintColor(context),
                             ),

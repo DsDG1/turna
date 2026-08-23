@@ -58,6 +58,10 @@ class ReviewHistoryDao {
 
   /// Every event, oldest first. Used by [MemoryCurveProvider] to compute the
   /// retention curve (recall rate bucketed by time since previous review).
+  ///
+  /// **Never call this from the dashboard home** (Plan 3 §14.2): it loads and
+  /// sorts the complete history. Use [eventsBetween] /
+  /// [dailyActivityBetween] for bounded, aggregation-friendly reads.
   Future<List<ReviewEventRecord>> allEvents() async {
     final rows = await (_db.select(_db.reviewEvents)
           ..orderBy([
@@ -66,6 +70,55 @@ class ReviewHistoryDao {
           ]))
         .get();
     return rows.map(_toRecord).toList();
+  }
+
+  /// Events with `from <= reviewedAt < to` — a bounded window (e.g. today)
+  /// instead of the full history. Ordered chronologically.
+  Future<List<ReviewEventRecord>> eventsBetween(
+    DateTime from,
+    DateTime to,
+  ) async {
+    final rows = await (_db.select(_db.reviewEvents)
+          ..where((t) =>
+              t.reviewedAt.isBiggerOrEqualValue(from.millisecondsSinceEpoch) &
+              t.reviewedAt.isSmallerThanValue(to.millisecondsSinceEpoch))
+          ..orderBy([(t) => OrderingTerm.asc(t.reviewedAt)]))
+        .get();
+    return rows.map(_toRecord).toList();
+  }
+
+  /// Review counts grouped by **local calendar day** for `from <= day < to`
+  /// — the dashboard's 7-day chart query. Returns one row per active day
+  /// (days with no reviews are absent; callers fill the gaps), so the result
+  /// is bounded by the number of days, not the number of events.
+  Future<List<DailyActivityRow>> dailyActivityBetween(
+    DateTime from,
+    DateTime to,
+  ) async {
+    final rows = await _db.customSelect(
+      'SELECT date(reviewed_at / 1000, \'unixepoch\', \'localtime\') AS day,'
+      ' COUNT(*) AS reviewed '
+      'FROM review_events '
+      'WHERE reviewed_at >= ? AND reviewed_at < ? '
+      'GROUP BY day ORDER BY day ASC',
+      variables: [
+        Variable<int>(from.millisecondsSinceEpoch),
+        Variable<int>(to.millisecondsSinceEpoch),
+      ],
+      readsFrom: {_db.reviewEvents},
+    ).get();
+    return [
+      for (final row in rows)
+        DailyActivityRow(
+          localDay: _parseLocalDay(row.read<String>('day')),
+          reviewedCount: row.read<int>('reviewed'),
+        ),
+    ];
+  }
+
+  static DateTime _parseLocalDay(String day) {
+    final parts = day.split('-').map(int.parse).toList();
+    return DateTime(parts[0], parts[1], parts[2]);
   }
 
   /// Total event count (dashboard / diagnostics).
@@ -157,6 +210,14 @@ class ReviewHistoryDao {
       sourceKey: row.sourceKey,
     );
   }
+}
+
+/// One aggregated day of review activity (dashboard 7-day chart).
+class DailyActivityRow {
+  final DateTime localDay;
+  final int reviewedCount;
+
+  const DailyActivityRow({required this.localDay, required this.reviewedCount});
 }
 
 /// Plain data class for one review event (decoupled from the Drift row).

@@ -15,7 +15,6 @@ import 'package:turna/application/ai/ai_hint_provider.dart';
 import 'package:turna/application/ai/ai_lesson_helper_provider.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/ai/learner_ai_context_assembler.dart';
-import 'package:turna/application/fun_provider.dart';
 import 'package:turna/application/game_provider.dart';
 import 'package:turna/application/gems_provider.dart';
 import 'package:turna/application/lesson_viewmodel.dart';
@@ -48,7 +47,6 @@ class _NewLessonPageState extends State<NewLessonPage> {
   final Set<InteractionRenderer> _renderers = getIt<Set<InteractionRenderer>>();
   final Random _random = Random();
   bool _autoAdvanceScheduled = false;
-  bool _autoSubmitScheduled = false;
   bool _dialogShown = false;
 
   /// Once the completion dialog has been shown for this lesson pass, never
@@ -93,16 +91,6 @@ class _NewLessonPageState extends State<NewLessonPage> {
     }
     if (vm.masteryFailed) {
       _showMasteryRetryDialog();
-      return;
-    }
-
-    // —— 破解模式：自动提交正确答案 + 强制自动推进 ——
-    if (context.read<FunProvider>().autoAnswer) {
-      if (!vm.hasSubmitted) {
-        _scheduleAutoSubmit(vm);
-      } else {
-        _handleAutoAdvance(vm, force: true);
-      }
       return;
     }
 
@@ -256,28 +244,13 @@ class _NewLessonPageState extends State<NewLessonPage> {
     );
   }
 
-  /// Auto-submit the correct answer after a short delay so the user sees
-  /// the question flash by. Only runs in cheat mode (FunProvider.autoAnswer).
-  void _scheduleAutoSubmit(LessonViewModel vm) {
-    if (_autoSubmitScheduled) return;
-    _autoSubmitScheduled = true;
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (!mounted) return;
-      _autoSubmitScheduled = false;
-      final interaction = vm.currentInteraction;
-      if (interaction == null || vm.hasSubmitted) return;
-      final correctAnswer = interactionCorrectAnswerLabel(interaction) ?? '';
-      vm.submitInteraction(true, userAnswerText: correctAnswer);
-    });
-  }
-
-  void _handleAutoAdvance(LessonViewModel vm, {bool force = false}) {
+  void _handleAutoAdvance(LessonViewModel vm) {
     if (_autoAdvanceScheduled) return;
     if (!vm.hasSubmitted) return;
     final interaction = vm.currentInteraction;
     if (interaction == null) return;
     final renderer = lookupRenderer(_renderers, interaction);
-    if (!force && !renderer.autoAdvance) return;
+    if (!renderer.autoAdvance) return;
 
     _autoAdvanceScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -425,24 +398,7 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
                 ),
               ),
             ],
-            if (context.select<FunProvider, bool>((p) => p.autoAnswer)) ...[
-              const SizedBox(height: 2),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: TurnaTheme.error.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '破解模式',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: TurnaTheme.error,
-                  ),
-                ),
-              ),
-            ],
+
           ],
         ),
         centerTitle: true,

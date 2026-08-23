@@ -21,10 +21,9 @@ enum StrictSchemaMode { auto, on, off }
 ///   * a [strictSchema] policy with auto-fallback.
 ///
 /// This class is a plain immutable value; persistence is the responsibility of
-/// [AiEngineConfigHolder], which serializes the config (including [apiKey]) to
-/// SharedPreferences so it survives an app restart. The API key is therefore
-/// stored in plain text on the device - never logged (the holder writes via the
-/// raw `StreamingSharedPreferences` to bypass `AppPrefs.printBefore`).
+/// [AiEngineConfigHolder]. Non-secret fields are serialized to Shared-
+/// Preferences while the API key lives in the platform secure store
+/// ([SecureCredentialStore]); the prefs blob therefore never contains the key.
 class AiEngineConfig {
   const AiEngineConfig({
     this.preset = kDeepseekPreset,
@@ -163,9 +162,13 @@ class AiEngineConfig {
   // [AiProvider.name] and rebuilt via [presetFor]; for the `custom` preset the
   // Base URL lives in [customBaseUrl], so no extra URL field is needed.
 
-  Map<String, dynamic> toJson() => <String, dynamic>{
+  Map<String, dynamic> toJson({bool includeApiKey = false}) =>
+      <String, dynamic>{
         'presetId': preset.id.name,
-        'apiKey': apiKey,
+        // Secrets are excluded by default: the plaintext prefs blob must
+        // never carry the API key (Plan 2 §6.3). The legacy inclusive form is
+        // used only when *reading back* the pre-migration blob.
+        if (includeApiKey) 'apiKey': apiKey,
         'modelChat': _modelChat,
         'modelJson': _modelJson,
         'strictSchema': strictSchema.name,

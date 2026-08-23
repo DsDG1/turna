@@ -29,7 +29,7 @@ class SettingsAboutSection extends StatelessWidget {
           icon: Icons.school_rounded,
           title: AppStrings.settingsAboutTurna,
           onTap: (context) =>
-              context.router.push(const AboutTurnaRoute()),
+              context.router.push(AboutTurnaRoute()),
         ),
         settingsTileDivider(context),
         SettingsNavigationTile(

@@ -12,6 +12,10 @@ class AvatarRing {
   final String id;
   final int price;
 
+  /// Catalog revision the item definition belongs to (entitlement rows
+  /// persist it so future catalog reshuffles can be reasoned about).
+  final int catalogVersion;
+
   /// Border color; `null` means no accent ring (default mist).
   /// Hex values match Turna wetland tokens (reed / teal) without importing UI.
   final Color? borderColor;
@@ -22,6 +26,7 @@ class AvatarRing {
   const AvatarRing({
     required this.id,
     required this.price,
+    this.catalogVersion = 1,
     this.borderColor,
     this.borderWidth = 2,
   });

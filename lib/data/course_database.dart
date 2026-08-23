@@ -326,7 +326,7 @@ class CourseDatabase extends _$CourseDatabase {
   CourseDatabase(QueryExecutor e) : super(e);
 
   @override
-  int get schemaVersion => 18;
+  int get schemaVersion => 19;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -339,6 +339,7 @@ class CourseDatabase extends _$CourseDatabase {
           await _ensureOfficialProjectionManifest(m.database);
           await _ensureAnkiUnificationTables(m.database);
           await _ensureAiCompanionTables(m.database);
+          await _ensureGemEconomyTables(m.database);
         },
         onUpgrade: (m, from, to) async {
           if (from > to) {
@@ -524,8 +525,43 @@ class CourseDatabase extends _$CourseDatabase {
           if (from < 18) {
             await _ensureAnkiUnificationTables(m.database);
           }
+          if (from < 19) {
+            // v19: gem ledger + cosmetic entitlements (Plan 2 §8.4) — the
+            // atomic-purchase tables for the cosmetics economy.
+            await _ensureGemEconomyTables(m.database);
+          }
         },
       );
+
+  /// Gem economy (Plan 2 §8.4): append-only ledger + entitlement rows.
+  /// `gem_ledger.transaction_id` is the idempotency key; `event_id` guards
+  /// against double-crediting the same game event. Purchases write the spend
+  /// row and the entitlement in ONE transaction, so a crash can never leave
+  /// "gems deducted but item not unlocked".
+  static Future<void> _ensureGemEconomyTables(
+    GeneratedDatabase database,
+  ) async {
+    await database.customStatement('''
+      CREATE TABLE IF NOT EXISTS gem_ledger (
+        transaction_id TEXT PRIMARY KEY NOT NULL,
+        event_id TEXT UNIQUE,
+        kind TEXT NOT NULL,
+        amount INTEGER NOT NULL,
+        reason TEXT NOT NULL DEFAULT '',
+        item_id TEXT,
+        created_at INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'committed'
+      )
+    ''');
+    await database.customStatement('''
+      CREATE TABLE IF NOT EXISTS cosmetic_entitlements (
+        item_id TEXT PRIMARY KEY NOT NULL,
+        acquired_by_transaction TEXT NOT NULL,
+        acquired_at INTEGER NOT NULL,
+        catalog_version INTEGER NOT NULL DEFAULT 1
+      )
+    ''');
+  }
 
   static Future<void> _ensureAiCompanionTables(
     GeneratedDatabase database,

@@ -197,7 +197,12 @@ class ReviewProgressProvider {
   }
 
   Future<List<ReviewSource>> listSources() async {
-    final tagged = _allTagged();
+    return _listSources(_allTagged());
+  }
+
+  /// Source list from an already-computed tagged pass. [snapshot] must reuse
+  /// its own pass instead of scanning the full states twice (Plan 3 §14.1).
+  Future<List<ReviewSource>> _listSources(List<_TaggedCard> tagged) async {
     final sources = <ReviewSource>[ReviewSource.all];
     if (tagged.any((t) => t.origin == ReviewSourceKind.course)) {
       sources.add(ReviewSource(
@@ -249,7 +254,7 @@ class ReviewProgressProvider {
     ReviewProgressFilter filter = const ReviewProgressFilter(),
   ]) async {
     final tagged = _allTagged();
-    final available = await listSources();
+    final available = await _listSources(tagged);
     final now = DateTime.now();
 
     final filtered = tagged.where((t) => _matchesCard(t, filter, now)).toList();

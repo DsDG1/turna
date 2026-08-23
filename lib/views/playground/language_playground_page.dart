@@ -11,11 +11,13 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/mistake_provider.dart';
+import 'package:turna/application/ai/ai_tutor_chat_provider.dart';
 import 'package:turna/application/playground/language_playground_eligibility.dart';
-import 'package:turna/application/playground/playground_assembler.dart';
 import 'package:turna/application/playground/playground_content_source.dart';
+import 'package:turna/application/playground/playground_index.dart';
 import 'package:turna/application/playground/playground_models.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/play/components/play_tiles.dart';
 import 'package:turna/views/theme.dart';
 
@@ -47,12 +49,20 @@ class _LanguagePlaygroundPageState extends State<LanguagePlaygroundPage> {
     PlaygroundMode.dailyMix,
   ];
 
+  /// 模式会话执行尚未接入（P2）。在此之前模式格必须以「即将推出」的
+  /// 禁用态呈现，不能显示成可用后点击只弹 toast（Plan 3 §22.4）。
+  static const bool _sessionExecutionEnabled = false;
+
   bool _availabilityLoading = false;
   Set<PlaygroundMode> _availableModes = const {};
   Map<PlaygroundMode, int> _modeCounts = const {};
   bool _blockedInline = false;
   bool _exitAttempted = false;
   int _availabilityEpoch = 0;
+
+  /// Revision cache (Plan 3 §22.2): identical data reuses the cached index,
+  /// so unrelated CourseProvider notifications never re-scan the candidates.
+  PlaygroundSourceRevision? _indexRevision;
 
   /// Cached in initState — dispose must not look up ancestors of a
   /// deactivated widget via context.read.
@@ -140,33 +150,37 @@ class _LanguagePlaygroundPageState extends State<LanguagePlaygroundPage> {
   }
 
   Future<void> _loadAvailability() async {
+    final revision = PlaygroundSourceRevision.of(
+      course: _courseProvider,
+      mistakes: _mistakeProvider,
+      scope: _selectedScope,
+    );
+    if (revision == _indexRevision && _availableModes.isNotEmpty) {
+      return; // data unchanged since the last analysis
+    }
     final epoch = ++_availabilityEpoch;
     if (mounted) setState(() => _availabilityLoading = true);
     final bundle = await PlaygroundContentSource(
       _courseProvider,
     ).load(_selectedScope, weakEntries: _mistakeProvider.entries);
     if (!mounted || epoch != _availabilityEpoch) return;
+    // Single-pass classification (Plan 3 §22.1): availability AND counts in
+    // one traversal — counts and startable modes can no longer disagree.
+    final index = PlaygroundIndex.build(bundle);
+    if (!mounted || epoch != _availabilityEpoch) return;
     setState(() {
       _availabilityLoading = false;
-      _availableModes = PlaygroundAssembler.availableModes(bundle);
-      _modeCounts = _computeModeCounts(bundle);
+      _availableModes = index.availableModes;
+      _modeCounts = index.counts;
+      _indexRevision = revision;
     });
   }
 
-  Map<PlaygroundMode, int> _computeModeCounts(PlaygroundContentBundle bundle) {
-    final counts = <PlaygroundMode, int>{};
-    for (final mode in _gridModes) {
-      if (mode == PlaygroundMode.wordMatch) {
-        counts[mode] = bundle.wordIds.length;
-      } else {
-        counts[mode] = PlaygroundAssembler.dedupeCandidates(
-          bundle.candidates
-              .where((c) => PlaygroundAssembler.matchesMode(mode, c.interaction))
-              .toList(growable: false),
-        ).length;
-      }
-    }
-    return counts;
+  /// 三个轻量 AI 语言工具（Plan 3 §19.2）：全部进入同一个 AiTutorChat
+  /// 页面，靠 typed [AiTutorChatMode] 参数直达对应模式；普通练习模式不
+  /// 依赖 AI 配置，打开本页也不发起任何 AI 请求。
+  void _openAiTool(AiTutorChatMode mode) {
+    context.router.push(AiTutorChatRoute(initialMode: mode));
   }
 
   void _selectScope(PlaygroundContentScope scope) {
@@ -175,13 +189,13 @@ class _LanguagePlaygroundPageState extends State<LanguagePlaygroundPage> {
     unawaited(_loadAvailability());
   }
 
-  void _showComingSoon() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(AppStrings.playgroundSmartStartSoon)),
-    );
-  }
-
   void _onModeTap(PlaygroundMode mode) {
+    if (!_sessionExecutionEnabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppStrings.playgroundComingSoon)),
+      );
+      return;
+    }
     if (!_availableModes.contains(mode)) {
       // 不可用模式解释原因，而不是进入空页面（计划 §4.2）。
       ScaffoldMessenger.of(context).showSnackBar(
@@ -189,7 +203,6 @@ class _LanguagePlaygroundPageState extends State<LanguagePlaygroundPage> {
       );
       return;
     }
-    _showComingSoon(); // P2 接入会话执行。
   }
 
   @override
@@ -213,7 +226,7 @@ class _LanguagePlaygroundPageState extends State<LanguagePlaygroundPage> {
           PlaygroundHero(
             title: AppStrings.playgroundSmartStartTitle,
             subtitle: AppStrings.playgroundSmartStartCaption,
-            onTap: _showComingSoon, // P2: 一键智能开练
+            onTap: () => _onModeTap(PlaygroundMode.smartMix), // P2: 接会话执行
           ),
           const SizedBox(height: 24),
           SectionTitle(title: AppStrings.playgroundContentScopeTitle),
@@ -246,10 +259,35 @@ class _LanguagePlaygroundPageState extends State<LanguagePlaygroundPage> {
               for (final mode in _gridModes)
                 _ModeTile(
                   mode: mode,
-                  available: _availableModes.contains(mode),
+                  available: _sessionExecutionEnabled &&
+                      _availableModes.contains(mode),
                   count: _modeCounts[mode] ?? 0,
                   onTap: () => _onModeTap(mode),
                 ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          SectionTitle(title: AppStrings.playgroundAiToolsTitle),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              _AiToolChip(
+                icon: Icons.help_outline_rounded,
+                label: AppStrings.playgroundAiToolQa,
+                onTap: () => _openAiTool(AiTutorChatMode.qa),
+              ),
+              const SizedBox(width: 8),
+              _AiToolChip(
+                icon: Icons.spellcheck_rounded,
+                label: AppStrings.playgroundAiToolSentence,
+                onTap: () => _openAiTool(AiTutorChatMode.sentenceCheck),
+              ),
+              const SizedBox(width: 8),
+              _AiToolChip(
+                icon: Icons.theater_comedy_outlined,
+                label: AppStrings.playgroundAiToolRoleplay,
+                onTap: () => _openAiTool(AiTutorChatMode.roleplay),
+              ),
             ],
           ),
         ],
@@ -365,9 +403,9 @@ class _ModeTile extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  available
-                      ? countText
-                      : AppStrings.playgroundUnavailableNoContent,
+                  !available
+                      ? AppStrings.playgroundComingSoon
+                      : countText,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -376,6 +414,47 @@ class _ModeTile extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 紧凑的 AI 小工具入口：不抢占 Playground Hero，也不复制完整聊天页。
+class _AiToolChip extends StatelessWidget {
+  const _AiToolChip({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: SoftCard(
+        accentColor: TurnaTheme.brandTeal,
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+          child: Column(
+            children: [
+              Icon(icon, size: 20, color: TurnaTheme.brandTeal),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+            ],
           ),
         ),
       ),

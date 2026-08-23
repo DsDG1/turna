@@ -6,13 +6,23 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:turna/application/review_progress_provider.dart';
+import 'package:turna/application/review_dashboard/review_dashboard_models.dart';
+import 'package:turna/application/review_dashboard/review_dashboard_repository.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/profile/widgets/learning_stats.dart';
-import 'package:turna/views/review/components/retention_curve_chart.dart';
+import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/theme.dart';
-import 'package:turna/views/widgets/turna_select.dart';
 
+/// Review-overview home (Plan 3 §15.1): a fast, actionable "today" dashboard.
+///
+/// Information order: today hero (progress + CTA) → due/new/overdue →
+/// streak + light 7-day chart → today quality → course/deck sources →
+/// link to the full 学习洞察 page. Heavy analytics (heatmap, memory curve,
+/// maturity) live on [LearningInsightsPage].
+///
+/// Loading semantics (§17.3): first open without cache shows a matching
+/// skeleton; refreshes keep the old content visible with a thin progress
+/// indicator. Pull-to-refresh awaits the *actual* repository future (§14.7)
+/// and filter-free reloads never flash a full-page spinner.
 @RoutePage()
 class ReviewProgressPage extends StatefulWidget {
   const ReviewProgressPage({super.key});
@@ -22,8 +32,9 @@ class ReviewProgressPage extends StatefulWidget {
 }
 
 class _ReviewProgressPageState extends State<ReviewProgressPage> {
-  ReviewProgressFilter _filter = const ReviewProgressFilter();
-  Future<ReviewProgressSnapshot>? _future;
+  ReviewDashboardSnapshot? _snapshot;
+  Future<ReviewDashboardSnapshot>? _load;
+  Object? _error;
 
   @override
   void initState() {
@@ -33,315 +44,130 @@ class _ReviewProgressPageState extends State<ReviewProgressPage> {
     });
   }
 
-  void _reload() {
-    final provider = context.read<ReviewProgressProvider>();
+  void _reload({bool forceRefresh = false}) {
+    final repo = context.read<ReviewDashboardRepository>();
+    // Show cached snapshot instantly (stale-while-revalidate).
+    final cached = repo.cachedSnapshot;
+    if (cached != null) {
+      setState(() {
+        _snapshot = cached;
+        _error = null;
+      });
+    }
     setState(() {
-      _future = provider.snapshot(_filter);
+      _load = repo.loadDashboard(forceRefresh: forceRefresh);
+    });
+    _load!.then((snap) {
+      if (!mounted) return;
+      setState(() {
+        _snapshot = snap;
+        _error = null;
+      });
+    }).catchError((Object error) {
+      if (!mounted) return;
+      setState(() => _error = error);
     });
   }
 
-  void _setFilter(ReviewProgressFilter next) {
-    _filter = next;
-    _reload();
+  /// The Future the RefreshIndicator awaits: the actual repository load, so
+  /// the spinner only dismisses when data has really arrived (Plan 3 §14.7).
+  Future<void> _refresh() {
+    final repo = context.read<ReviewDashboardRepository>();
+    return repo
+        .loadDashboard(forceRefresh: true)
+        .then((snap) {
+          if (!mounted) return;
+          setState(() {
+            _snapshot = snap;
+            _error = null;
+          });
+        })
+        .catchError((Object error) {
+          if (mounted) setState(() => _error = error);
+        });
   }
 
   @override
   Widget build(BuildContext context) {
+    final snap = _snapshot;
     return Scaffold(
       backgroundColor: TurnaTheme.scaffoldBg(context),
       appBar: AppBar(
-        title: Text(AppStrings.reviewProgressTitle),
+        title: Text(AppStrings.reviewDashboardTitle),
         backgroundColor: TurnaTheme.scaffoldBg(context),
+        actions: [
+          IconButton(
+            tooltip: AppStrings.reviewInsightsTitle,
+            icon: const Icon(Icons.insights_rounded),
+            onPressed: () =>
+                context.router.push(const LearningInsightsRoute()),
+          ),
+        ],
       ),
-      body: FutureBuilder<ReviewProgressSnapshot>(
-        future: _future,
-        builder: (context, snap) {
-          if (snap.connectionState == ConnectionState.waiting &&
-              !snap.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snap.hasError) {
-            return Center(child: Text('${snap.error}'));
-          }
-          final data = snap.data;
-          if (data == null) {
-            return Center(child: Text(AppStrings.reviewProgressEmpty));
-          }
-          return RefreshIndicator(
-            color: TurnaTheme.brandTeal,
-            onRefresh: () async => _reload(),
-            child: CustomScrollView(
-              physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
-              ),
-              slivers: [
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                    child: _FilterPanel(
-                      filter: _filter,
-                      sources: data.availableSources,
-                      onChanged: _setFilter,
+      body: _error != null && snap == null
+          ? _ErrorState(message: '$_error', onRetry: () => _reload(forceRefresh: true))
+          : snap == null
+              ? const _DashboardSkeleton()
+              : RefreshIndicator(
+                  color: TurnaTheme.brandTeal,
+                  onRefresh: _refresh,
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics(),
                     ),
-                  ),
-                ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                    child: _KpiCard(snapshot: data),
-                  ),
-                ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                    child: _CurveCard(
-                      snapshot: data,
-                      eventRange: _filter.eventRange,
-                      onRangeChanged: (r) =>
-                          _setFilter(_filter.copyWith(eventRange: r)),
-                    ),
-                  ),
-                ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.insights_rounded,
-                            color: TurnaTheme.brandTeal, size: 22),
-                        const SizedBox(width: 8),
-                        Text(
-                          AppStrings.profileLearningStatsTitle,
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleLarge
-                              ?.copyWith(fontWeight: FontWeight.w700),
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+                    children: [
+                      if (_error != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: _InlineErrorBanner(
+                            onRetry: () => _reload(forceRefresh: true),
+                          ),
                         ),
-                      ],
-                    ),
+                      _TodayHero(snapshot: snap),
+                      const SizedBox(height: 12),
+                      _DueRow(snapshot: snap),
+                      const SizedBox(height: 12),
+                      _StreakCard(snapshot: snap),
+                      const SizedBox(height: 12),
+                      _TodayQualityCard(snapshot: snap),
+                      const SizedBox(height: 12),
+                      _SourceList(snapshot: snap),
+                      const SizedBox(height: 16),
+                      OutlinedButton.icon(
+                        onPressed: () =>
+                            context.router.push(const LearningInsightsRoute()),
+                        icon: const Icon(Icons.insights_rounded, size: 18),
+                        label: Text(AppStrings.reviewOpenInsights),
+                      ),
+                    ],
                   ),
                 ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                    child: StudyStatsSection(),
-                  ),
-                ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-                    child: _SourceList(
-                      rows: data.bySource,
-                      selected: _filter.source,
-                      onSelect: (src) =>
-                          _setFilter(_filter.copyWith(source: src)),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
     );
   }
 }
 
-// ── Filters ──────────────────────────────────────────────────────────────
+// ── Today hero ─────────────────────────────────────────────────────────────
 
-class _FilterPanel extends StatelessWidget {
-  final ReviewProgressFilter filter;
-  final List<ReviewSource> sources;
-  final ValueChanged<ReviewProgressFilter> onChanged;
+class _TodayHero extends StatelessWidget {
+  const _TodayHero({required this.snapshot});
 
-  const _FilterPanel({
-    required this.filter,
-    required this.sources,
-    required this.onChanged,
-  });
+  final ReviewDashboardSnapshot snapshot;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: TurnaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-        border: Border.all(color: TurnaTheme.statCardBorder(context)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _chipRow(
-            children: [
-              for (final s in sources)
-                TurnaFilterChip(
-                  label: s.kind == ReviewSourceKind.all
-                      ? AppStrings.reviewProgressSourceAll
-                      : s.label,
-                  selected: filter.source.id == s.id,
-                  onSelected: (_) => onChanged(filter.copyWith(source: s)),
-                ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          TurnaSegmented<ProgressTypeFilter>(
-            selected: filter.type,
-            onChanged: (t) => onChanged(filter.copyWith(type: t)),
-            segments: [
-              for (final t in ProgressTypeFilter.values)
-                ButtonSegment(value: t, label: Text(_typeLabel(t))),
-            ],
-          ),
-          const SizedBox(height: 10),
-          TurnaSegmented<DueFilter>(
-            selected: filter.due,
-            onChanged: (d) => onChanged(filter.copyWith(due: d)),
-            segments: [
-              ButtonSegment(
-                value: DueFilter.any,
-                label: Text(AppStrings.reviewProgressDueAny),
-              ),
-              ButtonSegment(
-                value: DueFilter.overdue,
-                label: Text(AppStrings.reviewProgressDueOverdue),
-              ),
-              ButtonSegment(
-                value: DueFilter.due7,
-                label: Text(AppStrings.reviewProgressDue7),
-              ),
-              ButtonSegment(
-                value: DueFilter.due30,
-                label: Text(AppStrings.reviewProgressDue30),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+    final today = snapshot.today;
+    final due = snapshot.due;
+    final hasGoal = today.hasGoal;
+    final progress = hasGoal && today.todayXp != null
+        ? (today.todayXp! / today.xpGoal!).clamp(0.0, 1.0)
+        : 0.0;
 
-  String _typeLabel(ProgressTypeFilter t) {
-    switch (t) {
-      case ProgressTypeFilter.all:
-        return AppStrings.reviewProgressTypeAll;
-      case ProgressTypeFilter.word:
-        return AppStrings.reviewProgressTypeWord;
-      case ProgressTypeFilter.expression:
-        return AppStrings.reviewProgressTypeExpression;
-      case ProgressTypeFilter.grammar:
-        return AppStrings.reviewProgressTypeGrammar;
-    }
-  }
-
-  Widget _chipRow({required List<Widget> children}) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(children: [
-        for (var i = 0; i < children.length; i++) ...[
-          if (i > 0) const SizedBox(width: 8),
-          children[i],
-        ],
-      ]),
-    );
-  }
-}
-
-// ── KPI ──────────────────────────────────────────────────────────────────
-
-class _KpiCard extends StatelessWidget {
-  final ReviewProgressSnapshot snapshot;
-
-  const _KpiCard({required this.snapshot});
-
-  @override
-  Widget build(BuildContext context) {
-    final a = snapshot.aggregate;
-    final ret = (a.currentRetention * 100).round();
-    final mas = (a.meanMastery * 100).round();
+    final canReview = due.actionableTotal > 0;
+    final dateLabel = _formatDate(snapshot.generatedAt);
 
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: TurnaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-        border: Border.all(color: TurnaTheme.statCardBorder(context)),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              _kpi(context, '$ret%', AppStrings.reviewProgressKpiRetention,
-                  TurnaTheme.brandTeal),
-              _kpi(context, '$mas%', AppStrings.reviewProgressKpiMastery,
-                  TurnaTheme.primaryLight),
-              _kpi(
-                  context,
-                  '${a.totalCards}',
-                  AppStrings.reviewProgressKpiCards,
-                  TurnaTheme.textSecondaryColor(context)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              _kpi(context, '${a.forecast.dueToday}',
-                  AppStrings.profileDueToday, TurnaTheme.error),
-              _kpi(context, '${a.forecast.due7Days}',
-                  AppStrings.profileDue7Days, TurnaTheme.warning),
-              _kpi(context, '${a.totalReviews}',
-                  AppStrings.reviewProgressKpiReviews, TurnaTheme.brandSky),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _kpi(BuildContext context, String value, String label, Color accent) {
-    return Expanded(
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: accent,
-                ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: TurnaTheme.textHintColor(context),
-                ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Curve ────────────────────────────────────────────────────────────────
-
-class _CurveCard extends StatelessWidget {
-  final ReviewProgressSnapshot snapshot;
-
-  final EventRange eventRange;
-  final ValueChanged<EventRange> onRangeChanged;
-
-  const _CurveCard({
-    required this.snapshot,
-    required this.eventRange,
-    required this.onRangeChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final curve = snapshot.aggregate.retentionByInterval;
-    return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: TurnaTheme.cardBg(context),
         borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
@@ -353,21 +179,14 @@ class _CurveCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Icon(Icons.show_chart_rounded,
-                      color: TurnaTheme.brandTeal, size: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    AppStrings.profileMemoryCurveTitle,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                  ),
-                ],
+              Text(
+                AppStrings.reviewTodayTitle,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
               ),
               Text(
-                AppStrings.profileReviewsCount(snapshot.aggregate.totalReviews),
+                dateLabel,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: TurnaTheme.textHintColor(context),
                     ),
@@ -375,73 +194,330 @@ class _CurveCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          TurnaSegmented<EventRange>(
-            selected: eventRange,
-            onChanged: onRangeChanged,
-            segments: [
-              for (final r in EventRange.values)
-                ButtonSegment(
-                  value: r,
-                  label: Text(
-                    _rangeLabel(r),
-                    maxLines: 1,
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (curve.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 28),
-              child: Center(
-                child: Text(
-                  snapshot.aggregate.totalCards == 0
-                      ? AppStrings.reviewProgressEmpty
-                      : AppStrings.profileMemoryCurveEmpty,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: TurnaTheme.textHintColor(context),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      hasGoal && today.todayXp != null
+                          ? AppStrings.reviewTodayGoalProgress(
+                              today.todayXp!, today.xpGoal!)
+                          : AppStrings.reviewTodayReviewed(
+                              today.reviewedToday),
+                      style:
+                          Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                color: TurnaTheme.brandTeal,
+                              ),
+                    ),
+                    const SizedBox(height: 8),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: progress,
+                        minHeight: 8,
+                        backgroundColor: TurnaTheme.dividerBg(context),
+                        color: TurnaTheme.brandTeal,
                       ),
+                    ),
+                  ],
                 ),
               ),
-            )
-          else
-            RetentionCurveChart(curve: curve, height: 160),
+              const SizedBox(width: 14),
+              FilledButton.icon(
+                onPressed: canReview
+                    ? () => context.router.push(const SrsReviewRoute())
+                    : null,
+                icon: const Icon(Icons.play_arrow_rounded, size: 20),
+                label: Text(
+                  canReview
+                      ? AppStrings.reviewContinueCta
+                      : AppStrings.reviewTodayDoneCta,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  String _rangeLabel(EventRange r) {
-    switch (r) {
-      case EventRange.all:
-        return AppStrings.reviewProgressRangeAll;
-      case EventRange.d7:
-        return AppStrings.reviewProgressRange7;
-      case EventRange.d30:
-        return AppStrings.reviewProgressRange30;
-      case EventRange.d90:
-        return AppStrings.reviewProgressRange90;
-    }
-  }
+  String _formatDate(DateTime d) =>
+      '${d.month} ${AppStrings.reviewMonthDay(d.day)}';
 }
 
-// ── Sources ──────────────────────────────────────────────────────────────
+// ── Due / new / overdue ────────────────────────────────────────────────────
 
-class _SourceList extends StatelessWidget {
-  final List<SourceProgressRow> rows;
-  final ReviewSource selected;
-  final ValueChanged<ReviewSource> onSelect;
+class _DueRow extends StatelessWidget {
+  const _DueRow({required this.snapshot});
 
-  const _SourceList({
-    required this.rows,
-    required this.selected,
-    required this.onSelect,
-  });
+  final ReviewDashboardSnapshot snapshot;
 
   @override
   Widget build(BuildContext context) {
+    final due = snapshot.due;
+    return Row(
+      children: [
+        Expanded(
+          child: _DueCard(
+            icon: Icons.schedule_rounded,
+            value: due.due,
+            label: AppStrings.reviewDueCard,
+            accent: due.due > 0 ? TurnaTheme.warning : TurnaTheme.textHint,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _DueCard(
+            icon: Icons.fiber_new_rounded,
+            value: due.newCards,
+            label: AppStrings.reviewNewCard,
+            accent: TurnaTheme.brandSky,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _DueCard(
+            icon: Icons.warning_amber_rounded,
+            value: due.overdue,
+            label: AppStrings.reviewOverdueCard,
+            // 逾期为 0 时降低视觉权重，不用红色占据主屏（§15.1）。
+            accent:
+                due.overdue > 0 ? TurnaTheme.error : TurnaTheme.textHint,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DueCard extends StatelessWidget {
+  const _DueCard({
+    required this.icon,
+    required this.value,
+    required this.label,
+    required this.accent,
+  });
+
+  final IconData icon;
+  final int value;
+  final String label;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      decoration: BoxDecoration(
+        color: TurnaTheme.cardBg(context),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        border: Border.all(color: TurnaTheme.statCardBorder(context)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, size: 18, color: accent),
+          const SizedBox(height: 4),
+          Text(
+            '$value',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: accent,
+                ),
+          ),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: TurnaTheme.textHintColor(context),
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Streak + 7-day ────────────────────────────────────────────────────────
+
+class _StreakCard extends StatelessWidget {
+  const _StreakCard({required this.snapshot});
+
+  final ReviewDashboardSnapshot snapshot;
+
+  @override
+  Widget build(BuildContext context) {
+    final streak = snapshot.streak;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: TurnaTheme.cardBg(context),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        border: Border.all(color: TurnaTheme.statCardBorder(context)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.local_fire_department_rounded,
+                  color: TurnaTheme.anatolianClay, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                AppStrings.reviewStreakDays(streak.currentStreakDays),
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+              const Spacer(),
+              Text(
+                AppStrings.reviewThisWeek(streak.activeDaysThisWeek),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: TurnaTheme.textSecondaryColor(context),
+                    ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 56,
+            child: _SevenDayChart(points: snapshot.last7Days),
+          ),
+          const SizedBox(height: 6),
+          // 文本语义摘要（无障碍：图表不只用颜色表达，§17.2）。
+          Text(
+            _summaryText(),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: TurnaTheme.textHintColor(context),
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _summaryText() {
+    final active =
+        snapshot.last7Days.where((d) => d.reviewedCount > 0).length;
+    final total = snapshot.last7Days.fold<int>(0, (a, b) => a + b.reviewedCount);
+    return AppStrings.reviewSevenDaySummary(active, total);
+  }
+}
+
+/// Light 7-point bar chart painted once (no per-frame animation, wrapped in
+/// the parent card; respects reduce-motion by never tweening).
+class _SevenDayChart extends StatelessWidget {
+  const _SevenDayChart({required this.points});
+
+  final List<DailyActivityPoint> points;
+
+  @override
+  Widget build(BuildContext context) {
+    final maxCount = points.fold<int>(0, (a, b) => a > b.reviewedCount ? a : b.reviewedCount);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        for (var i = 0; i < points.length; i++) ...[
+          if (i > 0) const SizedBox(width: 6),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Container(
+                  height: maxCount == 0
+                      ? 4.0
+                      : (points[i].reviewedCount == 0
+                          ? 4.0
+                          : 12.0 + 40.0 * points[i].reviewedCount / maxCount),
+                  decoration: BoxDecoration(
+                    color: points[i].reviewedCount == 0
+                        ? TurnaTheme.dividerBg(context)
+                        : TurnaTheme.brandTeal.withValues(
+                            alpha: 0.45 + 0.55 * points[i].reviewedCount / maxCount),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${points[i].localDay.day}',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        fontSize: 9,
+                        color: TurnaTheme.textHintColor(context),
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+// ── Today quality ─────────────────────────────────────────────────────────
+
+class _TodayQualityCard extends StatelessWidget {
+  const _TodayQualityCard({required this.snapshot});
+
+  final ReviewDashboardSnapshot snapshot;
+
+  @override
+  Widget build(BuildContext context) {
+    final q = snapshot.todayQuality;
+    final accuracyLabel = q.firstAnswerAccuracy == null
+        ? AppStrings.reviewNoDataYet
+        : AppStrings.reviewAccuracyPct(
+            (q.firstAnswerAccuracy! * 100).round());
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: TurnaTheme.cardBg(context),
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        border: Border.all(color: TurnaTheme.statCardBorder(context)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.timer_outlined,
+              size: 18, color: TurnaTheme.brandTeal),
+          const SizedBox(width: 8),
+          Text(
+            AppStrings.reviewTodayMinutes(q.studyMinutes),
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(width: 16),
+          const Icon(Icons.check_circle_outline_rounded,
+              size: 18, color: TurnaTheme.brandTeal),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              accuracyLabel,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: q.firstAnswerAccuracy == null
+                        ? TurnaTheme.textHintColor(context)
+                        : null,
+                  ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Sources ────────────────────────────────────────────────────────────────
+
+class _SourceList extends StatelessWidget {
+  const _SourceList({required this.snapshot});
+
+  final ReviewDashboardSnapshot snapshot;
+
+  static const _maxShown = 5;
+
+  @override
+  Widget build(BuildContext context) {
+    final sources = snapshot.sources;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -453,30 +529,26 @@ class _SourceList extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            AppStrings.reviewProgressSourcesTitle,
+            AppStrings.reviewSourcesTitle,
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
           ),
-          const SizedBox(height: 8),
-          if (rows.isEmpty)
+          const SizedBox(height: 4),
+          if (sources.isEmpty)
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16),
+              padding: const EdgeInsets.symmetric(vertical: 12),
               child: Text(
-                AppStrings.reviewProgressEmptyFiltered,
+                AppStrings.reviewEmptyHint,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: TurnaTheme.textHintColor(context),
                     ),
               ),
             )
           else
-            for (var i = 0; i < rows.length; i++) ...[
+            for (var i = 0; i < sources.length && i < _maxShown; i++) ...[
               if (i > 0) Divider(color: TurnaTheme.dividerBg(context)),
-              _SourceTile(
-                row: rows[i],
-                selected: selected.id == rows[i].source.id,
-                onTap: () => onSelect(rows[i].source),
-              ),
+              _SourceTile(row: sources[i]),
             ],
         ],
       ),
@@ -485,92 +557,137 @@ class _SourceList extends StatelessWidget {
 }
 
 class _SourceTile extends StatelessWidget {
-  final SourceProgressRow row;
-  final bool selected;
-  final VoidCallback onTap;
+  const _SourceTile({required this.row});
 
-  const _SourceTile({
-    required this.row,
-    required this.selected,
-    required this.onTap,
-  });
+  final ReviewSourceSummary row;
 
   IconData get _icon {
     switch (row.source.kind) {
-      case ReviewSourceKind.course:
+      case LearningSourceKind.course:
         return Icons.school_rounded;
-      case ReviewSourceKind.grammar:
+      case LearningSourceKind.grammar:
         return Icons.menu_book_rounded;
-      case ReviewSourceKind.ankiDeck:
+      case LearningSourceKind.ankiLegacy:
+      case LearningSourceKind.ankiOfficial:
         return Icons.style_rounded;
-      case ReviewSourceKind.all:
-        return Icons.layers_rounded;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final ret = (row.meanRetention * 100).round();
-    final progress = row.totalCards == 0
-        ? 0.0
-        : (1.0 - row.dueToday / row.totalCards).clamp(0.0, 1.0);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        children: [
+          Icon(_icon,
+              size: 20, color: TurnaTheme.textSecondaryColor(context)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              row.source.displayName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+          ),
+          Text(
+            AppStrings.reviewSourceDue(row.dueToday),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: row.dueToday > 0
+                      ? TurnaTheme.warning
+                      : TurnaTheme.textHintColor(context),
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+          const SizedBox(width: 4),
+          Icon(Icons.chevron_right_rounded,
+              size: 16, color: TurnaTheme.textHintColor(context)),
+        ],
+      ),
+    );
+  }
+}
 
-    return InkWell(
-      onTap: onTap,
+// ── States ────────────────────────────────────────────────────────────────
+
+class _DashboardSkeleton extends StatelessWidget {
+  const _DashboardSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    Widget block({double height = 80}) => Container(
+          height: height,
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: TurnaTheme.cardBg(context),
+            borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+            border: Border.all(color: TurnaTheme.statCardBorder(context)),
+          ),
+        );
+    return ListView(
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+      children: [
+        block(height: 120),
+        block(height: 84),
+        block(height: 110),
+        block(height: 52),
+        block(height: 160),
+      ],
+    );
+  }
+}
+
+class _InlineErrorBanner extends StatelessWidget {
+  const _InlineErrorBanner({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: TurnaTheme.error.withValues(alpha: 0.08),
       borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
           children: [
-            Row(
-              children: [
-                Icon(_icon,
-                    size: 22,
-                    color: selected
-                        ? TurnaTheme.brandTeal
-                        : TurnaTheme.textSecondaryColor(context)),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        row.source.label,
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: selected ? TurnaTheme.brandTeal : null,
-                            ),
-                      ),
-                      Text(
-                        AppStrings.reviewProgressCardsDue(
-                            row.totalCards, row.dueToday),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: TurnaTheme.textHintColor(context),
-                            ),
-                      ),
-                    ],
-                  ),
-                ),
-                Text(
-                  AppStrings.reviewProgressRetentionPct(ret),
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: TurnaTheme.brandTeal,
-                      ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: progress,
-                minHeight: 6,
-                backgroundColor: TurnaTheme.dividerBg(context),
-                color: TurnaTheme.brandTeal,
+            const Icon(Icons.cloud_off_rounded,
+                size: 16, color: TurnaTheme.error),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                AppStrings.reviewRefreshFailedKeptOld,
+                style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
+            TextButton(onPressed: onRetry, child: Text(AppStrings.commonRetry)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ErrorState extends StatelessWidget {
+  const _ErrorState({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(message, textAlign: TextAlign.center),
+            const SizedBox(height: 12),
+            FilledButton(onPressed: onRetry, child: Text(AppStrings.commonRetry)),
           ],
         ),
       ),

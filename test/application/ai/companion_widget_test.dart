@@ -53,7 +53,7 @@ void main() {
     expect(find.text(AppStrings.aiNotConfiguredCta), findsOneWidget);
   });
 
-  testWidgets('real AiHubPage is companion-first with authoring demoted',
+  testWidgets('real AiHubPage is companion-first with authoring retired',
       (tester) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -62,6 +62,7 @@ void main() {
           providers: [
             ChangeNotifierProvider(create: (_) => AiEngineConfigHolder()),
             ChangeNotifierProvider(create: (_) => AiRecentTasksProvider()),
+            ChangeNotifierProvider(create: (_) => AiExplainPrefsStore()),
           ],
           child: const AiHubPage(),
         ),
@@ -76,13 +77,11 @@ void main() {
     expect(find.text(AppStrings.aiHubStartSaved), findsOneWidget);
     expect(find.text(AppStrings.aiHubNew), findsOneWidget);
 
-    // Authoring is collapsible (ExpansionTile title), not a primary grid tile.
-    expect(find.text(AppStrings.aiHubAuthoringSection), findsOneWidget);
-    // Wish/textbook titles live under the collapsed ExpansionTile children;
-    // ExpansionTile still builds children in many Flutter versions — either
-    // offstage or not. Primary grid must not use them as top-level ReviewTiles
-    // without the companion section. Assert companion labels outnumber authoring
-    // primary visibility by requiring companion section + 3 companion CTAs.
+    // Authoring retired from mobile (Plan 3 §19.1): no 创作课程/教材导入
+    // entries anywhere on the AI home, not even collapsed.
+    expect(find.text(AppStrings.aiHubAuthoringSection), findsNothing);
+    expect(find.text(AppStrings.aiHubStartWish), findsNothing);
+    expect(find.text(AppStrings.aiHubStartTextbook), findsNothing);
     expect(find.text(AppStrings.aiHubStartTutorChat), findsOneWidget);
     expect(find.text(AppStrings.aiNotConfiguredTitle), findsWidgets);
   });

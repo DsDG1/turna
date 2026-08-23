@@ -677,11 +677,10 @@ abstract final class Assets {
   static const String changelog = 'assets/changelog.md';
   static const $AssetsCoursesGen courses = $AssetsCoursesGen();
   static const $AssetsImagesGen images = $AssetsImagesGen();
-  static const String quickStart = 'assets/quick_start.md';
   static const $AssetsSoundsGen sounds = $AssetsSoundsGen();
 
   /// List of all assets
-  static List<String> get values => [changelog, quickStart];
+  static List<String> get values => [changelog];
 }
 
 class AssetGenImage {

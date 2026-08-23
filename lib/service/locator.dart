@@ -16,6 +16,7 @@ import 'package:turna/application/ai/ai_explain_prefs.dart';
 import 'package:turna/application/ai/ai_saved_explanations.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_sqlite.dart';
+import 'package:turna/application/settings/settings_destination.dart';
 import 'package:turna/application/system_health_monitor.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/core/verbose.dart';
@@ -24,6 +25,8 @@ import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/data/course_database_seeder.dart';
 import 'package:turna/data/rdb_query_executor.dart';
+import 'package:turna/domain/repositories/i_credential_store.dart';
+import 'package:turna/service/secure_credential_store.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/auth/local_user.dart';
 import 'package:turna/service/export_service.dart';
@@ -222,6 +225,10 @@ class LocalStateKeys {
   // logging the secret (see AiEngineConfigHolder._persist).
   static const String aiEngineConfig = 'ai.engineConfig';
 
+  /// Completion marker for the AI key plaintext->secure-store migration
+  /// (Plan 2 S2-M03/M04). Written only after the secure copy is verified.
+  static const String aiCredentialMigrated = 'ai.credentialMigrated';
+
   // Screen auto-rotation: false (default) = lock portrait, true = follow device.
   static const String autoRotate = 'settings.autoRotate';
 
@@ -285,6 +292,23 @@ Future<void> setupLocator() async {
   // Bottom-nav tab switcher — registered early so HomePage and any pushed
   // route (e.g. lesson dialog) can resolve it synchronously.
   getIt.registerLazySingleton<TabRouter>(() => TabRouter());
+
+  // Typed settings navigation — external callers (dialogs, banners, empty
+  // states) deliver SettingsNavRequests through it; SettingsPage listens.
+  if (!getIt.isRegistered<SettingsNavController>()) {
+    getIt.registerLazySingleton<SettingsNavController>(
+      () => SettingsNavController(),
+    );
+  }
+
+  // Platform secure credential storage (AI API key etc.). Falls back to a
+  // session-only in-memory store when the platform plugin is unavailable;
+  // isPersistent tells consumers which one they got.
+  if (!getIt.isRegistered<ICredentialStore>()) {
+    getIt.registerLazySingleton<ICredentialStore>(
+      () => SecureCredentialStore(),
+    );
+  }
 
   if (!getIt.isRegistered<SystemHealthMonitor>()) {
     getIt.registerLazySingleton<SystemHealthMonitor>(

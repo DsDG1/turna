@@ -31,6 +31,7 @@ import 'package:turna/application/match_provider.dart';
 import 'package:turna/application/memory_curve_provider.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/progress_provider.dart';
+import 'package:turna/application/review_dashboard/review_dashboard_repository.dart';
 import 'package:turna/application/review_progress_provider.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/srs_provider.dart';
@@ -172,5 +173,8 @@ final providers = [
   ),
   Provider<ReviewProgressProvider>(
     create: (_) => getIt<ReviewProgressProvider>(),
+  ),
+  Provider<ReviewDashboardRepository>(
+    create: (_) => getIt<ReviewDashboardRepository>(),
   ),
 ];

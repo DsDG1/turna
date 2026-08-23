@@ -10,6 +10,7 @@ import 'package:turna/application/ai/engine/ai_engine.dart';
 import 'package:turna/application/ai/engine/ai_engine_config.dart';
 import 'package:turna/application/ai/engine/ai_recent_tasks_provider.dart';
 import 'package:turna/application/ai/learner_ai_context.dart';
+import 'package:turna/application/ai/stream_delta_coalescer.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/di/injection.dart';
 
@@ -52,8 +53,47 @@ class AiTutorChatProvider extends ChangeNotifier {
   int _generation = 0;
   AiCancelToken? _cancelToken;
 
+  bool _disposed = false;
+
+  /// Increments once per coalesced UI batch while an answer streams. Pages
+  /// use it to rebuild ONLY the streaming bubble (Plan 3 §21.2), not the
+  /// whole shell.
+  int _streamingRevision = 0;
+  int get streamingRevision => _streamingRevision;
+
+  /// Batches network chunks to ≤1 notify per ~80 ms (Plan 3 §21.1). Created
+  /// per ask() call so a finished stream's buffer can never leak into the
+  /// next one.
+  StreamDeltaCoalescer? _coalescer;
+
+  StreamDeltaCoalescer _newCoalescer() => StreamDeltaCoalescer(
+        interval: const Duration(milliseconds: 80),
+        onBatch: (batch) {
+          if (_disposed) return;
+          final m = _messages;
+          if (m.isEmpty || m.last.role != 'assistant') return;
+          m[m.length - 1] = AiChatMessage(
+            role: 'assistant',
+            content: m.last.content + batch,
+          );
+          _streamingRevision++;
+          notifyListeners();
+        },
+      );
+
+  @override
+  void dispose() {
+    // Unified cancel contract (Plan 3 §18.7/§21.4): stop the in-flight
+    // request, drop pending batches, and make any late callback inert.
+    _disposed = true;
+    _cancelToken?.cancel();
+    _cancelToken = null;
+    _coalescer?.cancel();
+    super.dispose();
+  }
+
   void setMode(AiTutorChatMode mode) {
-    if (_mode == mode) return;
+    if (_mode == mode || _disposed) return;
     _mode = mode;
     notifyListeners();
   }
@@ -67,6 +107,7 @@ class AiTutorChatProvider extends ChangeNotifier {
   }
 
   void reset() {
+    if (_disposed) return;
     _cancelToken?.cancel();
     _cancelToken = null;
     _generation++;
@@ -78,7 +119,7 @@ class AiTutorChatProvider extends ChangeNotifier {
 
   /// Stop generation; keep any partial assistant text already streamed.
   void cancel() {
-    if (_state != AiTutorChatState.loading) return;
+    if (_disposed || _state != AiTutorChatState.loading) return;
     _cancelToken?.cancel();
     _cancelToken = null;
     _state = AiTutorChatState.idle;
@@ -111,6 +152,9 @@ class AiTutorChatProvider extends ChangeNotifier {
     _messages.add(AiChatMessage(role: 'user', content: text.trim()));
     _messages.add(const AiChatMessage(role: 'assistant', content: ''));
     final assistantIndex = _messages.length - 1;
+    final coalescer = _newCoalescer();
+    _coalescer?.cancel();
+    _coalescer = coalescer;
     notifyListeners();
 
     final apiMessages = <Map<String, dynamic>>[
@@ -125,15 +169,12 @@ class AiTutorChatProvider extends ChangeNotifier {
         messages: apiMessages,
         cancelToken: token,
         onChunk: (delta) {
-          if (gen != _generation) return;
-          if (delta.isEmpty) return;
-          final cur = _messages[assistantIndex].content;
-          _messages[assistantIndex] =
-              AiChatMessage(role: 'assistant', content: cur + delta);
-          notifyListeners();
+          if (gen != _generation || _disposed) return;
+          coalescer.add(delta);
         },
       );
-      if (gen != _generation) return true;
+      coalescer.flush(); // stream finished: emit any pending tail batch
+      if (gen != _generation || _disposed) return true;
       if (_messages[assistantIndex].content.isEmpty &&
           result.content.isNotEmpty) {
         _messages[assistantIndex] =
@@ -142,10 +183,11 @@ class AiTutorChatProvider extends ChangeNotifier {
       _state = AiTutorChatState.ready;
       _recordRecent();
     } on AiCancelled {
-      if (gen != _generation) return true;
+      if (gen != _generation || _disposed) return true;
+      coalescer.flush(); // keep partial text already streamed (§26.3)
       _state = AiTutorChatState.idle;
     } catch (e) {
-      if (gen != _generation) return true;
+      if (gen != _generation || _disposed) return true;
       logger.w('AiTutorChatProvider.ask failed: $e');
       _error = AiErrorMapper.map(e).message;
       _state = AiTutorChatState.error;
@@ -156,7 +198,7 @@ class AiTutorChatProvider extends ChangeNotifier {
     } finally {
       if (identical(_cancelToken, token)) _cancelToken = null;
     }
-    if (gen == _generation) notifyListeners();
+    if (gen == _generation && !_disposed) notifyListeners();
     return true;
   }
 

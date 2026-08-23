@@ -1,5 +1,4 @@
 // Flutter imports:
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 // Package imports:
@@ -7,18 +6,110 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
+import 'package:turna/application/ai/engine/ai_engine_config.dart';
+import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/settings_provider.dart';
+import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
-import 'package:turna/views/settings/widgets/settings_sound_section.dart';
+import 'package:turna/views/settings/widgets/settings_sound_section.dart'
+    show SettingsToggleTile;
 import 'package:turna/views/theme.dart';
 
-/// "高级"设置分类:Anki 深度适配的可调项(deep-adaptation plan)。
-/// 影响 WebView 保真轨的 JS/解密行为 + Lite 导入阈值。改前请看底部说明。
+/// "高级" category (Plan 2 §6): a stable cross-feature hub with four
+/// first-level entries — AI 连接 / 存储与性能 / 系统健康与诊断 / 旧版与兼容性.
+/// The former Anki deep-adaptation tunables moved into the second-level
+/// [SettingsLegacyCompatibilityPage]. No internal engine/implementation
+/// jargon on the hub itself.
 class SettingsAdvancedSection extends StatelessWidget {
-  const SettingsAdvancedSection({super.key});
+  const SettingsAdvancedSection({
+    super.key,
+    this.showLegacy = false,
+    this.onOpenLegacy,
+  });
+
+  /// When true the section renders the second-level 旧版与兼容性 page instead
+  /// of the hub list. The Settings page owns this flag so external
+  /// [SettingsNavRequest]s with the `legacyCompatibility` anchor land here.
+  final bool showLegacy;
+
+  /// Invoked when the hub's 旧版与兼容性 entry is tapped; the owning page
+  /// flips its anchor so the app-bar title follows the second-level page.
+  final VoidCallback? onOpenLegacy;
+
+  @override
+  Widget build(BuildContext context) {
+    if (showLegacy) {
+      return const _LegacyCompatibilityBody();
+    }
+    return _AdvancedHubBody(onOpenLegacy: onOpenLegacy);
+  }
+}
+
+class _AdvancedHubBody extends StatelessWidget {
+  const _AdvancedHubBody({this.onOpenLegacy});
+
+  final VoidCallback? onOpenLegacy;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+          child: Text(
+            AppStrings.settingsAdvancedIntroBanner,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: TurnaTheme.textHintColor(context),
+                  height: 1.4,
+                ),
+          ),
+        ),
+        SettingsCard(
+          children: [
+            SettingsNavigationTile(
+              icon: Icons.hub_rounded,
+              title: AppStrings.settingsAdvancedAiConnectionTitle,
+              subtitle: AppStrings.settingsAdvancedAiConnectionSubtitle,
+              onTap: (ctx) => ctx.router.push(const AiApiConfigRoute()),
+            ),
+            settingsTileDivider(context),
+            SettingsNavigationTile(
+              icon: Icons.sd_storage_outlined,
+              title: AppStrings.settingsAdvancedStorageTitle,
+              subtitle: AppStrings.settingsAdvancedStorageSubtitle,
+              onTap: (ctx) =>
+                  ctx.router.push(StorageDiagnosticsRoute()),
+            ),
+            settingsTileDivider(context),
+            SettingsNavigationTile(
+              icon: Icons.monitor_heart_outlined,
+              title: AppStrings.settingsAdvancedSystemHealthTitle,
+              subtitle: AppStrings.settingsAdvancedSystemHealthSubtitle,
+              onTap: (ctx) => ctx.router.push(const SystemHealthRoute()),
+            ),
+            settingsTileDivider(context),
+            SettingsNavigationTile(
+              icon: Icons.history_rounded,
+              title: AppStrings.settingsAdvancedLegacyTitle,
+              subtitle: AppStrings.settingsAdvancedLegacySubtitle,
+              onTap: (_) => onOpenLegacy?.call(),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+}
+
+/// Second-level 旧版与兼容性 page (Plan 2 §6.6): former advanced-section
+/// Anki tunables, each annotated with 适用症状 / 副作用 / 默认值 / 重启需求,
+/// plus a one-tap restore-defaults action that never deletes user data.
+class _LegacyCompatibilityBody extends StatelessWidget {
+  const _LegacyCompatibilityBody();
 
   @override
   Widget build(BuildContext context) {
@@ -26,16 +117,16 @@ class SettingsAdvancedSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SettingsSectionTitle(
-          icon: Icons.enhanced_encryption_rounded,
-          title: AppStrings.ankiAdvancedFidelityTitle,
+          icon: Icons.smart_display_rounded,
+          title: AppStrings.settingsLegacySectionDisplayTitle,
         ),
         const SizedBox(height: 8),
         SettingsCard(
           children: [
             SettingsToggleTile(
               icon: Icons.flash_on_rounded,
-              title: '智能去解密',
-              subtitle: '首次复习跑模板 JS 解密并缓存明文,之后免 JS/联网',
+              title: AppStrings.settingsLegacyDecryptTitle,
+              subtitle: AppStrings.settingsLegacyDecryptSubtitle,
               valueSelector: (p) => p.ankiPreRenderEnabled,
               onChanged: (p, v) => p.setAnkiPreRenderEnabled(v),
             ),
@@ -44,61 +135,116 @@ class SettingsAdvancedSection extends StatelessWidget {
             settingsTileDivider(context),
             SettingsToggleTile(
               icon: Icons.lock_rounded,
-              title: '强制禁用 WebView JS',
-              subtitle: '永不执行模板 JS(加密牌组会显示密文)',
+              title: AppStrings.settingsLegacyForceDisableJsTitle,
+              subtitle: AppStrings.settingsLegacyForceDisableJsSubtitle,
               valueSelector: (p) => p.ankiForceDisableJs,
               onChanged: (p, v) => p.setAnkiForceDisableJs(v),
             ),
             settingsTileDivider(context),
-            SettingsNavigationTile(
-              icon: Icons.monitor_heart_outlined,
-              title: '系统健康',
-              subtitle: '诊断、安全模式与脱敏报告',
-              onTap: (ctx) => ctx.router.push(const SystemHealthRoute()),
-            ),
-            settingsTileDivider(context),
-            SettingsNavigationTile(
-              icon: Icons.sd_storage_outlined,
-              title: '存储与性能',
-              subtitle: '扫描 Anki、缓存、孤儿数据与可回收空间',
-              onTap: (ctx) =>
-                  ctx.router.push(const StorageDiagnosticsRoute()),
-            ),
-            if (kDebugMode ||
-                OfficialAnkiFeatureFlags.current.diagnostics) ...[
-              settingsTileDivider(context),
-              SettingsNavigationTile(
-                icon: Icons.inventory_2_outlined,
-                title: 'Official Anki 内部导入',
-                subtitle: '内部构建：官方导入与正式复习（仅 debug / 诊断模式）',
-                onTap: (ctx) =>
-                    ctx.router.push(const OfficialAnkiInternalRoute()),
-              ),
-            ],
+            const _LiteThresholdTile(),
           ],
         ),
         const SizedBox(height: 20),
         SettingsSectionTitle(
-          icon: Icons.layers_rounded,
-          title: '导入与课程树',
+          icon: Icons.science_rounded,
+          title: '实验性兼容开关',
         ),
         const SizedBox(height: 8),
-        const SettingsCard(
+        const _AiEngineTunablesCard(),
+        const SizedBox(height: 20),
+        SettingsSectionTitle(
+          icon: Icons.restart_alt_rounded,
+          title: AppStrings.settingsLegacyResetDefaultsTitle,
+        ),
+        const SizedBox(height: 8),
+        SettingsCard(
           children: [
-            _LiteThresholdTile(),
+            SettingsActionTile(
+              icon: Icons.restore_rounded,
+              title: AppStrings.settingsLegacyResetDefaultsTitle,
+              subtitle: AppStrings.settingsLegacyResetDefaultsSubtitle,
+              onTap: (context) => _confirmResetDefaults(context),
+            ),
           ],
         ),
-        const SizedBox(height: 12),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Text(
-            '智能去解密:首次复习用 WebView 跑模板 JS 解密 + 缓存明文,之后无 JS/联网。'
-            '强制禁用 JS 会让加密牌组显示密文。'
-            'Lite 阈值=0 表示始终建完整课程树(不切壳模式)。',
-            style: TextStyle(fontSize: 12, color: TurnaTheme.textHint),
-          ),
-        ),
+        const SizedBox(height: 24),
       ],
+    );
+  }
+
+  Future<void> _confirmResetDefaults(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => SettingsConfirmDialog(
+        title: AppStrings.settingsLegacyResetDefaultsTitle,
+        message: AppStrings.settingsLegacyResetDefaultsSubtitle,
+        confirmText: AppStrings.settingsLegacyResetDefaultsConfirm,
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    await context.read<SettingsProvider>().resetLegacyCompatibilityDefaults();
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppStrings.settingsLegacyResetDefaultsDone)),
+      );
+    }
+  }
+}
+
+/// Strict-schema policy and the AI response-cache master toggle — engine-level
+/// switches that used to clutter the AI connection page (Plan 2 §6.2: "strict
+/// schema、缓存调试和统计不在普通 AI 连接页，放诊断或旧版页").
+class _AiEngineTunablesCard extends StatefulWidget {
+  const _AiEngineTunablesCard();
+
+  @override
+  State<_AiEngineTunablesCard> createState() => _AiEngineTunablesCardState();
+}
+
+class _AiEngineTunablesCardState extends State<_AiEngineTunablesCard> {
+  @override
+  Widget build(BuildContext context) {
+    // The holder is app-scoped (injectable); tests that never set up DI skip
+    // this card rather than crash the whole settings tree.
+    if (!getIt.isRegistered<AiEngineConfigHolder>()) {
+      return const SizedBox.shrink();
+    }
+    final holder = getIt<AiEngineConfigHolder>();
+    return ListenableBuilder(
+      listenable: holder,
+      builder: (context, _) {
+        final config = holder.config;
+        return SettingsCard(
+          children: [
+            SettingsTile(
+              icon: Icons.cached_rounded,
+              title: 'AI 响应缓存',
+              subtitle: '命中相同请求时直接复用结果；关闭后每次都重新请求',
+              trailing: settingsAdaptiveSwitch(
+                value: config.cacheEnabled,
+                onChanged: (v) => holder.updateConfig(
+                  config.copyWith(cacheEnabled: v),
+                ),
+              ),
+            ),
+            settingsTileDivider(context),
+            SettingsActionTile(
+              icon: Icons.verified_outlined,
+              title: 'Strict JSON 模式',
+              subtitle: '当前：${config.strictSchema.name}'
+                  '（auto=自动回退，on=强制，off=宽松）',
+              onTap: (context) {
+                final next = switch (config.strictSchema) {
+                  StrictSchemaMode.auto => StrictSchemaMode.on,
+                  StrictSchemaMode.on => StrictSchemaMode.off,
+                  StrictSchemaMode.off => StrictSchemaMode.auto,
+                };
+                holder.updateConfig(config.copyWith(strictSchema: next));
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -106,6 +252,7 @@ class SettingsAdvancedSection extends StatelessWidget {
 /// 抓取延时滑块(1-10 秒)。拖动时用本地状态,松手才写 prefs。
 class _CaptureDelayTile extends StatefulWidget {
   const _CaptureDelayTile();
+
   @override
   State<_CaptureDelayTile> createState() => _CaptureDelayTileState();
 }
@@ -140,13 +287,15 @@ class _CaptureDelayTileState extends State<_CaptureDelayTile> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('抓取延时',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 15)),
                     Text(
-                      'JS 跑完后等几秒抓明文(当前 ${value.round()} 秒)',
-                      style:
-                          TextStyle(fontSize: 12, color: TurnaTheme.textHint),
+                      AppStrings.settingsLegacyCaptureDelayTitle,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600, fontSize: 15),
+                    ),
+                    Text(
+                      '${value.round()} 秒',
+                      style: const TextStyle(
+                          fontSize: 12, color: TurnaTheme.textHint),
                     ),
                   ],
                 ),
@@ -172,6 +321,10 @@ class _CaptureDelayTileState extends State<_CaptureDelayTile> {
                   .setAnkiCaptureDelaySec(v.round());
             },
           ),
+          Text(
+            AppStrings.settingsLegacyCaptureDelaySubtitle,
+            style: const TextStyle(fontSize: 11, color: TurnaTheme.textHint),
+          ),
         ],
       ),
     );
@@ -181,6 +334,7 @@ class _CaptureDelayTileState extends State<_CaptureDelayTile> {
 /// Lite 阈值滑块(0-10000 张)。0 = 始终完整课程树。
 class _LiteThresholdTile extends StatefulWidget {
   const _LiteThresholdTile();
+
   @override
   State<_LiteThresholdTile> createState() => _LiteThresholdTileState();
 }
@@ -215,13 +369,17 @@ class _LiteThresholdTileState extends State<_LiteThresholdTile> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Lite 阈值',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 15)),
                     Text(
-                      '超过此卡数的牌组只建壳(当前 ${value.round()} 张,0=始终完整)',
-                      style:
-                          TextStyle(fontSize: 12, color: TurnaTheme.textHint),
+                      AppStrings.settingsLegacyLiteThresholdTitle,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600, fontSize: 15),
+                    ),
+                    Text(
+                      value.round() == 0
+                          ? '始终完整课程树'
+                          : '超过 ${value.round()} 张只建壳',
+                      style: const TextStyle(
+                          fontSize: 12, color: TurnaTheme.textHint),
                     ),
                   ],
                 ),
@@ -245,8 +403,17 @@ class _LiteThresholdTileState extends State<_LiteThresholdTile> {
               context.read<SettingsProvider>().setAnkiLiteThreshold(v.round());
             },
           ),
+          Text(
+            AppStrings.settingsLegacyLiteThresholdSubtitle,
+            style: const TextStyle(fontSize: 11, color: TurnaTheme.textHint),
+          ),
         ],
       ),
     );
   }
 }
+
+// Official-Anki internal import diagnostics moved out of the formal Advanced
+// hub (Plan 2 §4.6): it is a duplicate/dangerous import path that conflicts
+// with the unified import flow. Debug-only access now lives in the developer
+// lab category (settings_page.dart), gated by kDebugMode.

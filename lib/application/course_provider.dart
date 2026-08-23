@@ -90,6 +90,11 @@ class CourseProvider extends ChangeNotifier {
   /// unfiltered list.
   List<Section> get sections => List.unmodifiable(_sections);
 
+  /// How many sections have their full body loaded. Cheap fingerprint input
+  /// for content-revision cache keys (Playground, AI context): changes only
+  /// when section bodies actually load or reset.
+  int get loadedSectionCount => _loadedSectionIds.length;
+
   /// Unfiltered view of every section (built-in course + all imported Anki
   /// decks), regardless of [courseScope].
   List<Section> get allSections => List.unmodifiable(_allSections);

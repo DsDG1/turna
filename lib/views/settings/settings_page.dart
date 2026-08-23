@@ -14,15 +14,16 @@ import 'package:turna/application/anki/anki_deck_manager.dart';
 import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/game_provider.dart';
 import 'package:turna/application/mistake_provider.dart';
+import 'package:turna/application/settings/settings_destination.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/service/export_service.dart';
 import 'package:turna/service/local_reminder_service.dart';
 import 'package:turna/views/settings/widgets/settings_about_section.dart';
-import 'package:turna/views/settings/widgets/settings_advanced_section.dart';
 import 'package:turna/views/settings/widgets/settings_accessibility_section.dart';
 import 'package:turna/views/settings/widgets/settings_account_section.dart';
+import 'package:turna/views/settings/widgets/settings_advanced_section.dart';
 import 'package:turna/views/settings/widgets/settings_appearance_section.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/views/settings/widgets/settings_fun_section.dart';
@@ -33,11 +34,18 @@ import 'package:turna/utils/ohos_file_picker.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/theme.dart';
 
-/// Settings is organized as a category list that pushes a sub-page per
-/// category (iOS Settings style). Because [SettingsPage] lives inside the
-/// Home `IndexedStack` (not a routed page) and is switched to via `TabRouter`,
-/// navigation is kept in-page with [_category] state rather than AutoRoute —
-/// this preserves the "Go to settings" tab-switch and avoids touching routing.
+/// Settings landing page + typed in-page sub-page navigator (Plan 2 §5).
+///
+/// Because [SettingsPage] lives inside the Home `IndexedStack` (not a routed
+/// page) and is switched to via `TabRouter`, sub-page navigation stays
+/// in-page. Category identity is the strongly-typed [SettingsDestination] —
+/// never an integer index — so inserting/removing tiles cannot shift another
+/// category's identity. External callers (AI not-configured banners, storage
+/// warnings) deep-link via [openSettings], which switches the Home tab and
+/// delivers a [SettingsNavRequest] through [SettingsNavController].
+///
+/// Visited sub-pages stay mounted in an [IndexedStack] so scroll positions and
+/// local state (e.g. slider drags) survive navigating back and forth.
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
 
@@ -46,91 +54,207 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  /// null = landing category list; 0..7 = the selected category sub-page.
-  int? _category;
+  /// null = landing category list; otherwise the open sub-page.
+  SettingsDestination? _destination;
+
+  /// Second-level anchor inside the Advanced destination.
+  SettingsAdvancedAnchor? _advancedAnchor;
 
   /// Bumped when learning defaults are reset so Anki slider local state rebuilds.
   int _learningSectionEpoch = 0;
 
-  static final _categories = <_SettingsCategory>[
-    _SettingsCategory(
-      index: 0,
-      title: AppStrings.settingsCategoryAccount,
-      subtitle: AppStrings.settingsCategoryAccountSubtitle,
-      icon: Icons.person_rounded,
-    ),
-    _SettingsCategory(
-      index: 1,
-      title: AppStrings.settingsCategoryLearning,
-      subtitle: AppStrings.settingsCategoryLearningSubtitle,
-      icon: Icons.menu_book_rounded,
-    ),
-    _SettingsCategory(
-      index: 2,
-      title: AppStrings.settingsCategorySensoryA11y,
-      subtitle: AppStrings.settingsCategorySensoryA11ySubtitle,
-      icon: Icons.tune_rounded,
-    ),
-    _SettingsCategory(
-      index: 3,
-      title: AppStrings.settingsCategoryAiTools,
-      subtitle: AppStrings.settingsCategoryAiToolsSubtitle,
-      icon: Icons.auto_awesome_rounded,
-    ),
-    _SettingsCategory(
-      index: 4,
-      title: AppStrings.settingsCategoryData,
-      subtitle: AppStrings.settingsCategoryDataSubtitle,
-      icon: Icons.storage_rounded,
-    ),
-    _SettingsCategory(
-      index: 5,
-      title: AppStrings.settingsCategoryAbout,
-      subtitle: AppStrings.settingsCategoryAboutSubtitle,
-      icon: Icons.info_rounded,
-    ),
-    _SettingsCategory(
-      index: 6,
-      title: AppStrings.settingsCategoryFunLab,
-      subtitle: AppStrings.settingsCategoryFunLabSubtitle,
-      icon: Icons.science_rounded,
-    ),
-    _SettingsCategory(
-      index: 7,
-      title: '高级',
-      subtitle: 'Anki 保真 / 解密 / 导入',
-      icon: Icons.build_rounded,
-    ),
-  ];
+  /// Destinations the user has opened at least once. Kept mounted in the
+  /// IndexedStack (slot 0 = landing) to preserve scroll/state per page.
+  final Set<SettingsDestination> _visited = <SettingsDestination>{};
 
-  /// Main prefs (account → AI).
-  static const _mainIndexes = [0, 1, 2, 3];
+  SettingsNavController? _navController;
 
-  /// Data + About.
-  static const _dataAboutIndexes = [4, 5];
+  @override
+  void initState() {
+    super.initState();
+    if (getIt.isRegistered<SettingsNavController>()) {
+      _navController = getIt<SettingsNavController>();
+      _navController!.addListener(_onExternalNavRequest);
+    }
+  }
 
-  /// Fun lab (isolated group).
-  static const _labIndexes = [6];
+  @override
+  void dispose() {
+    _navController?.removeListener(_onExternalNavRequest);
+    super.dispose();
+  }
 
-  /// Advanced (Anki deep-adaptation tunables).
-  static const _advancedIndexes = [7];
+  void _onExternalNavRequest() {
+    final controller = _navController;
+    if (controller == null) return;
+    final request = controller.consumePending();
+    if (request == null) return;
+    if (!mounted) return;
+    _openDestination(request.destination, anchor: request.anchor);
+  }
+
+  void _openDestination(
+    SettingsDestination destination, {
+    SettingsAdvancedAnchor? anchor,
+  }) {
+    setState(() {
+      _destination = destination;
+      _visited.add(destination);
+      // Anchors that map to routed pages push immediately; the compatibility
+      // anchor is an in-page sub-page of Advanced.
+      _advancedAnchor =
+          destination == SettingsDestination.advanced ? anchor : null;
+    });
+    _maybePushAnchorRoute(anchor);
+  }
+
+  void _maybePushAnchorRoute(SettingsAdvancedAnchor? anchor) {
+    switch (anchor) {
+      case SettingsAdvancedAnchor.aiConnection:
+        context.router.push(const AiApiConfigRoute());
+      case SettingsAdvancedAnchor.storagePerformance:
+        context.router.push(StorageDiagnosticsRoute());
+      case SettingsAdvancedAnchor.systemHealth:
+        context.router.push(const SystemHealthRoute());
+      case SettingsAdvancedAnchor.legacyCompatibility:
+      case null:
+        break;
+    }
+  }
+
+  void _backToLanding() {
+    // Two-level back inside Advanced: the legacy-compatibility page returns
+    // to the advanced hub first; the hub then returns to the landing list.
+    if (_destination == SettingsDestination.advanced &&
+        _advancedAnchor == SettingsAdvancedAnchor.legacyCompatibility) {
+      setState(() => _advancedAnchor = null);
+      return;
+    }
+    setState(() {
+      _destination = null;
+      _advancedAnchor = null;
+    });
+  }
+
+  // ─── Category metadata ──────────────────────────────────────────────────
+
+  String _titleFor(SettingsDestination destination) {
+    switch (destination) {
+      case SettingsDestination.account:
+        return AppStrings.settingsCategoryAccount;
+      case SettingsDestination.learning:
+        return AppStrings.settingsCategoryLearning;
+      case SettingsDestination.appearanceAndSound:
+        return AppStrings.settingsCategoryAppearanceSound;
+      case SettingsDestination.accessibility:
+        return AppStrings.settingsCategoryAccessibility;
+      case SettingsDestination.dataAndBackup:
+        return AppStrings.settingsCategoryDataBackup;
+      case SettingsDestination.advanced:
+        return _advancedAnchor == SettingsAdvancedAnchor.legacyCompatibility
+            ? AppStrings.settingsAdvancedLegacyTitle
+            : AppStrings.settingsCategoryAdvanced;
+      case SettingsDestination.about:
+        return AppStrings.settingsCategoryAbout;
+      case SettingsDestination.developer:
+        return AppStrings.settingsCategoryFunLab;
+    }
+  }
+
+  IconData _iconFor(SettingsDestination destination) {
+    switch (destination) {
+      case SettingsDestination.account:
+        return Icons.person_rounded;
+      case SettingsDestination.learning:
+        return Icons.menu_book_rounded;
+      case SettingsDestination.appearanceAndSound:
+        return Icons.palette_rounded;
+      case SettingsDestination.accessibility:
+        return Icons.accessibility_new_rounded;
+      case SettingsDestination.dataAndBackup:
+        return Icons.storage_rounded;
+      case SettingsDestination.advanced:
+        return Icons.build_rounded;
+      case SettingsDestination.about:
+        return Icons.info_rounded;
+      case SettingsDestination.developer:
+        return Icons.science_rounded;
+    }
+  }
+
+  String _subtitleFor(SettingsDestination destination) {
+    switch (destination) {
+      case SettingsDestination.account:
+        return AppStrings.settingsCategoryAccountSubtitle;
+      case SettingsDestination.learning:
+        return AppStrings.settingsCategoryLearningSubtitle;
+      case SettingsDestination.appearanceAndSound:
+        return AppStrings.settingsCategoryAppearanceSoundSubtitle;
+      case SettingsDestination.accessibility:
+        return AppStrings.settingsCategoryAccessibilitySubtitle;
+      case SettingsDestination.dataAndBackup:
+        return AppStrings.settingsCategoryDataBackupSubtitle;
+      case SettingsDestination.advanced:
+        return AppStrings.settingsCategoryAdvancedSubtitle;
+      case SettingsDestination.about:
+        return AppStrings.settingsCategoryAboutSubtitle;
+      case SettingsDestination.developer:
+        return AppStrings.settingsCategoryFunLabSubtitle;
+    }
+  }
+
+  /// Landing groups (Plan 2 §5.2): person / learning experience / data &
+  /// system / product. The developer lab is debug-only and never present in
+  /// release/profile builds (Plan 2 §4.4).
+  List<(String, List<SettingsDestination>)> get _groups {
+    return [
+      (
+        AppStrings.settingsGroupPersonal,
+        [SettingsDestination.account],
+      ),
+      (
+        AppStrings.settingsGroupLearning,
+        [
+          SettingsDestination.learning,
+          SettingsDestination.appearanceAndSound,
+          SettingsDestination.accessibility,
+        ],
+      ),
+      (
+        AppStrings.settingsGroupDataSystem,
+        [SettingsDestination.dataAndBackup, SettingsDestination.advanced],
+      ),
+      (
+        AppStrings.settingsGroupProduct,
+        [SettingsDestination.about],
+      ),
+      if (kDebugMode)
+        (
+          AppStrings.settingsCategoryFunLab,
+          [SettingsDestination.developer],
+        ),
+    ];
+  }
+
+  // ─── Build ───────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    final isList = _category == null;
+    final isList = _destination == null;
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    final titleIcon =
-        isList ? Icons.settings_rounded : _categoryByIndex(_category!).icon;
+    final titleIcon = isList
+        ? Icons.settings_rounded
+        : _iconFor(_destination!);
     final titleText =
-        isList ? AppStrings.settingsTitle : _categoryByIndex(_category!).title;
+        isList ? AppStrings.settingsTitle : _titleFor(_destination!);
 
     return PopScope(
       // When a sub-page is open, the system back button returns to the
       // category list instead of leaving the Settings tab.
       canPop: isList,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && _category != null) {
-          setState(() => _category = null);
+        if (!didPop && _destination != null) {
+          _backToLanding();
         }
       },
       child: Scaffold(
@@ -144,7 +268,7 @@ class _SettingsPageState extends State<SettingsPage> {
               : IconButton(
                   icon: const Icon(Icons.arrow_back_rounded),
                   tooltip: AppStrings.settingsBack,
-                  onPressed: () => setState(() => _category = null),
+                  onPressed: _backToLanding,
                 ),
           title: Row(
             mainAxisSize: MainAxisSize.min,
@@ -183,7 +307,7 @@ class _SettingsPageState extends State<SettingsPage> {
               ],
             );
           },
-          child: isList ? _buildCategoryList() : _buildSubPage(_category!),
+          child: isList ? _buildCategoryList() : _buildSubPage(_destination!),
         ),
       ),
     );
@@ -202,53 +326,35 @@ class _SettingsPageState extends State<SettingsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SettingsSectionTitle(
-            icon: Icons.apps_rounded,
-            title: AppStrings.settingsGroupMain,
-          ),
-          const SizedBox(height: 8),
-          _categoryCard(_mainIndexes),
-          const SizedBox(height: 20),
-          SettingsSectionTitle(
-            icon: Icons.folder_rounded,
-            title: AppStrings.settingsGroupDataAbout,
-          ),
-          const SizedBox(height: 8),
-          _categoryCard(_dataAboutIndexes),
-          const SizedBox(height: 20),
-          SettingsSectionTitle(
-            icon: Icons.science_rounded,
-            title: AppStrings.settingsGroupLab,
-          ),
-          const SizedBox(height: 8),
-          _categoryCard(_labIndexes),
-          const SizedBox(height: 20),
-          SettingsSectionTitle(
-            icon: Icons.tune_rounded,
-            title: '高级',
-          ),
-          const SizedBox(height: 8),
-          _categoryCard(_advancedIndexes),
-          const SizedBox(height: 24),
+          for (final (groupTitle, destinations) in _groups) ...[
+            SettingsSectionTitle(
+              icon: _iconFor(destinations.first),
+              title: groupTitle,
+            ),
+            const SizedBox(height: 8),
+            _categoryCard(destinations),
+            const SizedBox(height: 20),
+          ],
+          const SizedBox(height: 4),
         ],
       ),
     );
   }
 
-  Widget _categoryCard(List<int> indexes) {
+  Widget _categoryCard(List<SettingsDestination> destinations) {
     return SettingsCard(
       children: [
-        for (int i = 0; i < indexes.length; i++) ...[
+        for (int i = 0; i < destinations.length; i++) ...[
           if (i > 0) settingsTileDivider(context),
           Builder(
             builder: (context) {
-              final cat = _categoryByIndex(indexes[i]);
+              final destination = destinations[i];
               return SettingsNavigationTile(
-                key: ValueKey(cat.title),
-                icon: cat.icon,
-                title: cat.title,
-                subtitle: cat.subtitle,
-                onTap: (_) => setState(() => _category = cat.index),
+                key: ValueKey(destination.name),
+                icon: _iconFor(destination),
+                title: _titleFor(destination),
+                subtitle: _subtitleFor(destination),
+                onTap: (_) => _openDestination(destination),
               );
             },
           ),
@@ -257,9 +363,25 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buildSubPage(int category) {
+  Widget _buildSubPage(SettingsDestination destination) {
+    // Keep every visited sub-page mounted (hidden ones are offstage by the
+    // AnimatedSwitcher's Stack) so their scroll positions and local state
+    // survive navigating between them and the landing list.
+    return Stack(
+      children: [
+        for (final visited in SettingsDestination.values)
+          if (_visited.contains(visited))
+            Offstage(
+              offstage: visited != destination,
+              child: _subPageContent(visited),
+            ),
+      ],
+    );
+  }
+
+  Widget _subPageContent(SettingsDestination destination) {
     return SingleChildScrollView(
-      key: ValueKey('settings-$category'),
+      key: ValueKey('settings-${destination.name}'),
       physics: const BouncingScrollPhysics(),
       padding: EdgeInsets.fromLTRB(
         0,
@@ -269,21 +391,24 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: _sectionChildren(category),
+        children: _sectionChildren(destination),
       ),
     );
   }
 
-  List<Widget> _sectionChildren(int category) {
-    switch (category) {
-      case 0:
+  List<Widget> _sectionChildren(SettingsDestination destination) {
+    switch (destination) {
+      case SettingsDestination.account:
         return [
           SettingsAccountSection(
             key: const ValueKey('account-section'),
-            onNavigateToData: () => setState(() => _category = 4),
+            onNavigateToData: () => _openDestination(
+              SettingsDestination.dataAndBackup,
+            ),
           ),
+          const SizedBox(height: 24),
         ];
-      case 1:
+      case SettingsDestination.learning:
         // Match Account page rhythm: SectionTitle + SettingsCard groups.
         return [
           SettingsSectionTitle(
@@ -334,9 +459,28 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const SizedBox(height: 24),
         ];
-      case 2:
-        // Merged 声音与触感 + 无障碍 / 外观 into one sub-page.
+      case SettingsDestination.appearanceAndSound:
+        // "我喜欢怎样显示/播放" — themes and feedback channels (Plan 2 §4.2).
         return [
+          SettingsSectionTitle(
+            icon: Icons.palette_rounded,
+            title: AppStrings.settingsAppearanceSectionTitle,
+          ),
+          const SizedBox(height: 8),
+          const SettingsThemeSelector(),
+          const SizedBox(height: 8),
+          SettingsCard(
+            children: [
+              SettingsToggleTile(
+                icon: Icons.screen_rotation_rounded,
+                title: AppStrings.settingsAutoRotateTitle,
+                subtitle: AppStrings.settingsAutoRotateSubtitle,
+                valueSelector: (p) => p.autoRotateEnabled,
+                onChanged: (p, value) => p.setAutoRotateEnabled(value),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
           SettingsSectionTitle(
             icon: Icons.volume_up_rounded,
             title: AppStrings.settingsAudioSectionTitle,
@@ -363,7 +507,11 @@ class _SettingsPageState extends State<SettingsPage> {
               const SettingsTtsEngineTile(),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
+        ];
+      case SettingsDestination.accessibility:
+        // "我需要怎样访问内容" — reading, motion, contrast, focus (Plan 2 §4.2).
+        return [
           SettingsSectionTitle(
             icon: Icons.accessibility_new_rounded,
             title: AppStrings.settingsA11ySectionTitle,
@@ -384,79 +532,9 @@ class _SettingsPageState extends State<SettingsPage> {
               const SettingsFocusModeTile(),
             ],
           ),
-          const SizedBox(height: 20),
-          SettingsSectionTitle(
-            icon: Icons.palette_rounded,
-            title: AppStrings.settingsAppearanceSectionTitle,
-          ),
-          const SizedBox(height: 8),
-          const SettingsThemeSelector(),
-          const SizedBox(height: 8),
-          SettingsCard(
-            children: [
-              SettingsToggleTile(
-                icon: Icons.screen_rotation_rounded,
-                title: AppStrings.settingsAutoRotateTitle,
-                subtitle: AppStrings.settingsAutoRotateSubtitle,
-                valueSelector: (p) => p.autoRotateEnabled,
-                onChanged: (p, value) => p.setAutoRotateEnabled(value),
-              ),
-            ],
-          ),
           const SizedBox(height: 24),
         ];
-      case 3:
-        return [
-          SettingsSectionTitle(
-            icon: Icons.auto_awesome_rounded,
-            title: AppStrings.settingsAiSectionTitle,
-          ),
-          const SizedBox(height: 8),
-          SettingsCard(
-            children: [
-              SettingsActionTile(
-                icon: Icons.vpn_key_rounded,
-                title: AppStrings.settingsAiApiConfigTitle,
-                subtitle: AppStrings.settingsAiApiConfigSubtitle,
-                onTap: (context) => _openAiApiConfig(context),
-              ),
-              settingsTileDivider(context),
-              SettingsActionTile(
-                icon: Icons.forum_outlined,
-                title: AppStrings.aiHubStartTutorChat,
-                subtitle: AppStrings.aiTutorChatEmpty,
-                onTap: (context) =>
-                    context.router.push(const AiTutorChatRoute()),
-              ),
-              settingsTileDivider(context),
-              SettingsActionTile(
-                icon: Icons.analytics_outlined,
-                title: AppStrings.aiHubStartDiagnosis,
-                subtitle: AppStrings.aiDiagnosisEmpty,
-                onTap: (context) =>
-                    context.router.push(const AiDiagnosisRoute()),
-              ),
-              settingsTileDivider(context),
-              SettingsActionTile(
-                icon: Icons.auto_awesome_rounded,
-                title: AppStrings.settingsDesignCourseAiTitle,
-                subtitle: AppStrings.settingsDesignCourseAiSubtitle,
-                onTap: (context) =>
-                    context.router.push(const AiWishChatRoute()),
-              ),
-              settingsTileDivider(context),
-              SettingsActionTile(
-                icon: Icons.menu_book_rounded,
-                title: AppStrings.settingsImportTextbookTitle,
-                subtitle: AppStrings.settingsImportTextbookSubtitle,
-                onTap: (context) =>
-                    context.router.push(const TextbookImportRoute()),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-        ];
-      case 4:
+      case SettingsDestination.dataAndBackup:
         return [
           SettingsSectionTitle(
             icon: Icons.storage_rounded,
@@ -507,22 +585,27 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const SizedBox(height: 24),
         ];
-      case 5:
-        return const [SettingsAboutSection(), SizedBox(height: 24)];
-      case 6:
-        return const [SettingsFunSection(), SizedBox(height: 24)];
-      case 7:
+      case SettingsDestination.advanced:
         return [
-          const SettingsAdvancedSection(),
+          SettingsAdvancedSection(
+            showLegacy:
+                _advancedAnchor == SettingsAdvancedAnchor.legacyCompatibility,
+            onOpenLegacy: () => setState(
+              () => _advancedAnchor = SettingsAdvancedAnchor.legacyCompatibility,
+            ),
+          ),
           const SizedBox(height: 24),
         ];
-      default:
-        return const [];
+      case SettingsDestination.about:
+        return const [SettingsAboutSection(), SizedBox(height: 24)];
+      case SettingsDestination.developer:
+        return const [
+          SettingsFunSection(),
+          _DeveloperLabSection(),
+          SizedBox(height: 24),
+        ];
     }
   }
-
-  _SettingsCategory _categoryByIndex(int category) =>
-      _categories.firstWhere((c) => c.index == category);
 
   Future<void> _confirmClearMistakes(BuildContext context) async {
     final mistakeProvider = context.read<MistakeProvider>();
@@ -595,10 +678,6 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  void _openAiApiConfig(BuildContext context) {
-    context.router.push(const AiApiConfigRoute());
-  }
-
   Future<void> _openExportSheet(BuildContext context) async {
     await showModalBottomSheet<void>(
       context: context,
@@ -664,18 +743,38 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 }
 
-class _SettingsCategory {
-  const _SettingsCategory({
-    required this.index,
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-  });
+/// Debug-only engine diagnostics that used to live on the formal Advanced
+/// page (Plan 2 §4.6): the Official-Anki internal import. Kept reachable only
+/// through the developer lab so release builds never expose a second import
+/// path that competes with the unified import flow.
+class _DeveloperLabSection extends StatelessWidget {
+  const _DeveloperLabSection();
 
-  final int index;
-  final String title;
-  final String subtitle;
-  final IconData icon;
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 20),
+        SettingsSectionTitle(
+          icon: Icons.bug_report_rounded,
+          title: 'Engine 诊断',
+        ),
+        const SizedBox(height: 8),
+        SettingsCard(
+          children: [
+            SettingsNavigationTile(
+              icon: Icons.inventory_2_outlined,
+              title: 'Official Anki 内部导入',
+              subtitle: '内部构建：官方导入与正式复习（仅开发环境）',
+              onTap: (ctx) =>
+                  ctx.router.push(const OfficialAnkiInternalRoute()),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
 }
 
 class _ExportSheet extends StatefulWidget {

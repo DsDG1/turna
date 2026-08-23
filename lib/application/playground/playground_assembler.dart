@@ -118,7 +118,7 @@ class PlaygroundAssembler {
     return switch (mode) {
       PlaygroundMode.smartMix ||
       PlaygroundMode.dailyMix =>
-        _isSmartMixGradable(interaction),
+        isSmartMixGradable(interaction),
       PlaygroundMode.wordMatch => false, // word-pair driven, not pooled
       PlaygroundMode.quickChoice =>
         interaction is MultipleChoice || interaction is ReadingMcq,
@@ -134,7 +134,8 @@ class PlaygroundAssembler {
 
   /// Smart mix pools every gradable language interaction — display cards and
   /// listen-only items have no answer and would stall the graded flow.
-  static bool _isSmartMixGradable(Interaction interaction) =>
+  /// Public for [PlaygroundIndex]'s single-pass classification.
+  static bool isSmartMixGradable(Interaction interaction) =>
       interaction is! ShowWord && interaction is! ListenOnly;
 
   /// Deterministic dedup: the same authored question (lesson + interaction

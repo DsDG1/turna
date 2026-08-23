@@ -6,6 +6,8 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/application/gems_provider.dart';
+import 'package:turna/data/gem_ledger_dao.dart';
+import 'package:turna/di/injection.dart';
 import 'package:turna/domain/cosmetics/avatar_ring.dart';
 import 'package:turna/service/locator.dart';
 
@@ -70,6 +72,12 @@ class CosmeticProvider extends ChangeNotifier {
   }
 
   /// Unlock (if needed) then equip. Free rings skip the gem spend.
+  ///
+  /// Paid rings go through the transactional ledger (Plan 2 §8.4): the spend
+  /// row and the entitlement commit atomically, so a crash can no longer
+  /// produce "gems deducted but item locked". The legacy prefs unlock list is
+  /// still mirrored for existing readers until the shop consumes the ledger
+  /// directly.
   Future<CosmeticActionResult> unlockAndEquip(String id) async {
     late CosmeticActionResult outcome;
     await _enqueue(() async {
@@ -88,10 +96,39 @@ class CosmeticProvider extends ChangeNotifier {
       }
 
       if (ring.price > 0) {
-        final spent = await _gemsProvider.spendGems(ring.price);
-        if (!spent) {
-          outcome = CosmeticActionResult.insufficientGems;
-          return;
+        final ledger = _resolveLedger();
+        if (ledger != null) {
+          final result = await ledger.purchase(
+            itemId: id,
+            price: ring.price,
+            currentBalance: _gemsProvider.balance,
+            catalogVersion: ring.catalogVersion,
+          );
+          if (result == GemPurchaseResult.insufficientFunds) {
+            outcome = CosmeticActionResult.insufficientGems;
+            return;
+          }
+          // success / alreadyOwned both proceed: the entitlement exists.
+          final spent = await _gemsProvider.spendGems(ring.price);
+          if (!spent) {
+            // Wallet could not be charged (raced with a concurrent spend):
+            // refund the ledger spend so the projection stays honest.
+            await ledger.record(
+              kind: GemLedgerKind.refund,
+              amount: ring.price,
+              reason: 'refund:$id wallet spend failed',
+              itemId: id,
+            );
+            outcome = CosmeticActionResult.insufficientGems;
+            return;
+          }
+        } else {
+          // No ledger available (tests / DB not ready): legacy path only.
+          final spent = await _gemsProvider.spendGems(ring.price);
+          if (!spent) {
+            outcome = CosmeticActionResult.insufficientGems;
+            return;
+          }
         }
       }
 
@@ -106,6 +143,15 @@ class CosmeticProvider extends ChangeNotifier {
       outcome = CosmeticActionResult.unlockedAndEquipped;
     });
     return outcome;
+  }
+
+  GemLedgerDao? _resolveLedger() {
+    if (!getIt.isRegistered<GemLedgerDao>()) return null;
+    try {
+      return getIt<GemLedgerDao>();
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Account reset: clear unlocks and equip default mist ring.

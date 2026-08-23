@@ -2,6 +2,7 @@
 import 'dart:async';
 
 // Flutter imports:
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 // Package imports:
@@ -57,6 +58,13 @@ class FunProvider extends ChangeNotifier {
     _autoAnswer = _appPrefs.preferences
         .getBool(LocalStateKeys.funAutoAnswer, defaultValue: false)
         .getValue();
+    if (!kDebugMode && _autoAnswer) {
+      // Migration S2-M01 (Plan 2 §4.4): the cheat toggle must never survive
+      // into a release/profile build. Force it off and persist so the stored
+      // preference matches reality for a later debug run.
+      _autoAnswer = false;
+      _appPrefs.setBool(LocalStateKeys.funAutoAnswer, value: false);
+    }
     _allAchievementsUnlocked = _appPrefs.preferences
         .getBool(
           LocalStateKeys.funAllAchievementsUnlocked,
@@ -77,6 +85,7 @@ class FunProvider extends ChangeNotifier {
   }
 
   Future<void> setAutoAnswer(bool value) async {
+    if (value && !kDebugMode) return; // release builds can never re-enable it
     _autoAnswer = value;
     await _appPrefs.setBool(LocalStateKeys.funAutoAnswer, value: value);
     notifyListeners();

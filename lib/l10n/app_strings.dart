@@ -41,33 +41,27 @@ class AppStrings {
   static String get lessonGotItUpper => '知道了';
 
   // ── Settings ──
-  static String get settingsCategoryAccount => '账户';
-  static String get settingsCategoryAccountSubtitle => '资料、目标与统计';
+  static String get settingsCategoryAccount => '账户与个性化';
+  static String get settingsCategoryAccountSubtitle => '资料、头像装扮与宝石';
   static String get settingsCategoryLearning => '学习';
   static String get settingsCategoryLearningSubtitle => '语言、语速、提醒与 Anki';
 
-  /// Merged audio + accessibility category (was two separate entries).
-  static String get settingsCategorySensoryA11y => '声音与无障碍';
-  static String get settingsCategorySensoryA11ySubtitle => '音效、触感、字号与主题';
-  // Kept as aliases so older call sites / docs still resolve if any remain.
-  static String get settingsCategoryAudioHaptics => settingsCategorySensoryA11y;
-  static String get settingsCategoryAudioHapticsSubtitle =>
-      settingsCategorySensoryA11ySubtitle;
-  static String get settingsCategoryAccessibility =>
-      settingsCategorySensoryA11y;
-  static String get settingsCategoryAccessibilitySubtitle =>
-      settingsCategorySensoryA11ySubtitle;
-  static String get settingsCategoryAiTools => 'AI 工具';
-  static String get settingsCategoryAiToolsSubtitle => 'API、设计课程与教材导入';
-  static String get settingsCategoryData => '数据';
-  static String get settingsCategoryDataSubtitle => '导入、导出与重置';
-  static String get settingsCategoryAbout => '关于';
-  static String get settingsCategoryAboutSubtitle => '版本与开源许可';
-  static String get settingsCategoryFunLab => '趣味实验室';
-  static String get settingsCategoryFunLabSubtitle => '仅供娱乐的调试项';
-  static String get settingsGroupMain => '常用';
-  static String get settingsGroupDataAbout => '数据与关于';
-  static String get settingsGroupLab => '实验室';
+  static String get settingsCategoryAppearanceSound => '外观与声音';
+  static String get settingsCategoryAppearanceSoundSubtitle => '主题、音效与触感反馈';
+  static String get settingsCategoryAccessibility => '无障碍';
+  static String get settingsCategoryAccessibilitySubtitle => '字号、对比度、动态与专注';
+  static String get settingsCategoryDataBackup => '数据与备份';
+  static String get settingsCategoryDataBackupSubtitle => '导入、导出、远程备份与重置';
+  static String get settingsCategoryAdvanced => '高级';
+  static String get settingsCategoryAdvancedSubtitle => 'AI 连接、存储、诊断与兼容性';
+  static String get settingsCategoryAbout => '关于 Turna';
+  static String get settingsCategoryAboutSubtitle => '版本、更新日志与链接';
+  static String get settingsCategoryFunLab => '开发者实验室';
+  static String get settingsCategoryFunLabSubtitle => '仅开发环境可用，正式版不展示';
+  static String get settingsGroupPersonal => '个人';
+  static String get settingsGroupLearning => '学习体验';
+  static String get settingsGroupDataSystem => '数据与系统';
+  static String get settingsGroupProduct => '产品';
   static String get settingsTitle => '设置';
   static String get settingsLearningPrefsTitle => '学习偏好';
   static String get settingsAnkiSectionTitle => 'Anki 复习';
@@ -97,6 +91,46 @@ class AppStrings {
   static String get settingsClearMistakeLogSubtitle => '删除所有已保存的错题';
   static String get settingsResetProgressTitle => '重置课程进度';
   static String get settingsResetProgressSubtitle => '将所有课程标记为未完成';
+
+  // ── Advanced settings (高级首页四入口 + 旧版与兼容性) ──
+  static String get settingsAdvancedIntroBanner =>
+      '高级设置可能影响兼容性与性能，但每一项都说明影响范围。日常使用无需进入此页。';
+  static String get settingsAdvancedAiConnectionTitle => 'AI 连接';
+  static String get settingsAdvancedAiConnectionSubtitle => '服务商、凭据、模型与连接测试（涉及密钥和网络）';
+  static String get settingsAdvancedStorageTitle => '存储与性能';
+  static String get settingsAdvancedStorageSubtitle => '空间分类、缓存、垃圾与运行诊断（包含清理操作）';
+  static String get settingsAdvancedSystemHealthTitle => '系统健康与诊断';
+  static String get settingsAdvancedSystemHealthSubtitle => '数据库状态、功能状态与脱敏诊断摘要';
+  static String get settingsAdvancedLegacyTitle => '旧版与兼容性';
+  static String get settingsAdvancedLegacySubtitle => 'Anki 渲染、解密、JS 与 Lite 阈值（可能影响内容显示）';
+  static String get settingsLegacySectionDisplayTitle => 'Anki 显示兼容';
+  static String get settingsLegacySectionRecoveryTitle => '内容恢复';
+  static String get settingsLegacyDecryptTitle => '智能去解密';
+  static String get settingsLegacyDecryptSubtitle =>
+      '适用：加密牌组显示密文。副作用：首次复习用 WebView 跑模板 JS 解密并缓存明文。默认：开启。修改后需重新打开卡片。';
+  static String get settingsLegacyCaptureDelayTitle => '抓取/渲染延时';
+  static String get settingsLegacyCaptureDelaySubtitle =>
+      '适用：解密结果不完整。副作用：首次解密变慢。默认：2 秒。修改后需重新打开卡片。';
+  static String get settingsLegacyForceDisableJsTitle => '强制禁用 WebView JavaScript';
+  static String get settingsLegacyForceDisableJsSubtitle =>
+      '适用：不信任任何卡片脚本。副作用：加密牌组显示密文。默认：关闭。修改后需重新打开卡片。';
+  static String get settingsLegacyLiteThresholdTitle => 'Lite 渲染阈值';
+  static String get settingsLegacyLiteThresholdSubtitle =>
+      '适用：低端设备导入大牌组卡顿。副作用：超过阈值的牌组只建壳节点。默认：2000（0=始终完整课程树）。需重新进入课程树。';
+  static String get settingsLegacyResetDefaultsTitle => '恢复兼容性默认值';
+  static String get settingsLegacyResetDefaultsSubtitle => '将以上开关恢复为默认值，不删除任何用户数据';
+  static String get settingsLegacyResetDefaultsConfirm => '恢复默认';
+  static String get settingsLegacyResetDefaultsDone => '已恢复兼容性默认值';
+
+  // ── External links (Plan 2 §4.7/§7.3) ──
+  static String get externalLinkNotConfigured => '此链接尚未在此构建中配置，暂不可用';
+  static String get externalLinkInvalidScheme => '链接地址不合法（仅允许 https），已禁用';
+  static String get externalLinkOpenFailed => '打开链接失败';
+  static String get externalLinkCopyAddress => '复制地址';
+  static String get externalLinkDisabledSuffix => '（未配置）';
+  static String get aboutLinksNotConfiguredNote =>
+      '项目主页、问题反馈、发布页与 GUI 平台的正式地址尚未确认；'
+      '确认后会在此提供。当前不会打开任何未经验证的链接。';
 
   // ── Remote backup (WebDAV) ──
   static String get settingsRemoteBackupTitle => '远程备份';
@@ -435,7 +469,6 @@ class AppStrings {
   // ── About tabs ──
   static String get aboutTabAbout => '关于';
   static String get aboutTabChangelog => '更新日志';
-  static String get aboutTabQuickStart => '使用指南';
 
   // ── Quick Start ──
   static String get quickStartLoadFallback => '无法读取 assets/quick_start.md';
@@ -561,9 +594,26 @@ class AppStrings {
 
   // ── Playground（语言课程自由练习场）──
   static String get playgroundTitle => 'Playground';
-  static String get playgroundChineseName => '自由练习场';
-  static String get playgroundHeroSubtitle => '自由组合题型，随时练几分钟';
-  static String get playgroundStartAction => '开始探索';
+
+  // ── Playground AI 工具入口（Plan 3 §19.2）──
+  static String get playgroundAiToolsTitle => 'AI 语言工具';
+  static String get playgroundAiToolQa => '问一问';
+  static String get playgroundAiToolSentence => '句子纠错';
+  static String get playgroundAiToolRoleplay => '情景对话';
+
+  static String get playgroundComingSoon => '即将推出';  static String get playgroundChineseName => '自由练习场';
+
+  // ── 内容创作退场 tombstone（Plan 3 §19.4）──
+  static String get authoringMovedTitle => '内容创作已迁移';
+  static String get authoringMovedBody =>
+      '移动端不再提供课程生成、教材导入和结构编辑。请前往 GUI 平台完成内容创作，'
+      '移动端继续负责学习与复习。';
+  static String get authoringMovedOpenGui => '打开 GUI 平台';
+  static String get authoringMovedGuiUnconfigured =>
+      'GUI 平台地址尚未在此构建中配置，确认后将提供入口。不会打开未经确认的链接。';
+  static String get authoringMovedDraftsKept => '你已有的创作草稿不会因此被删除。';  static String get playgroundHeroSubtitle => '自由组合题型，随时练几分钟';
+
+  static String get aiCardExplainUnsupported => '此卡片暂不支持 AI 解释';  static String get playgroundStartAction => '开始探索';
   static String get playgroundSmartStartTitle => '智能开练';
   static String get playgroundSmartStartCaption => '3 分钟 · 标准 · 智能混合';
   static String get playgroundSmartStartAction => '立即开始';
@@ -1089,6 +1139,39 @@ class AppStrings {
   static String get aiConfigTestDisabledHint => '请先完成配置';
   static String get aiConfigCustomProviderLabel => '自定义';
 
+  // ── AI connection page: draft save / key safety / probe classification ──
+  static String get aiConfigSave => '保存';
+  static String get aiConfigSaved => 'AI 连接已保存';
+  static String aiConfigKeyStoredHint(String masked) => '已配置（$masked），输入新值可替换';
+  static String get aiConfigBaseUrlEmpty => '请填写服务器地址';
+  static String get aiConfigBaseUrlInvalid => '地址格式无法识别，应形如 https://api.example.com/v1';
+  static String get aiConfigBaseUrlInvalidScheme => '仅支持 http/https 地址';
+  static String get aiConfigBaseUrlHttpsOnly => '正式版仅允许 https 地址（开发版可用本地 http）';
+  static String get aiConfigProbeTimeout => '超时：服务器未在时限内响应';
+  static String get aiConfigProbeNetwork => '网络/DNS：无法连接到服务器';
+  static String get aiConfigProbeTls => 'TLS/证书：安全连接失败';
+  static String get aiConfigProbeAuth => '鉴权失败：密钥无效或无权限';
+  static String get aiConfigProbeRateLimit => '限流：请求过于频繁或配额不足';
+  static String get aiConfigProbeModel => '模型不存在或无权访问';
+  static String get aiConfigProbeFormat => '响应格式错误';
+  static String get aiConfigProbeUnknown => '未知错误';
+  static String get aiConfigCopyEndpoint => '复制地址';
+  static String get aiConfigClearKeyButton => '清除凭据';
+  static String get aiConfigClearKeyTitle => '清除 API 密钥？';
+  static String get aiConfigClearKeyMessage =>
+      '只删除密钥，保留服务商、模型与地址设置。清除后 AI 功能在重新配置前不可用。';
+  static String get aiConfigClearKeyConfirm => '清除';
+  static String get aiConfigClearKeyDone => '已清除 API 密钥';
+  static String get aiConfigRestoreDefaultsButton => '恢复默认';
+  static String get aiConfigRestoreDefaultsTitle => '恢复连接默认值？';
+  static String get aiConfigRestoreDefaultsMessage =>
+      '将服务商、模型、地址与密钥全部恢复为默认值。此操作不可撤销。';
+  static String get aiConfigRestoreDefaultsConfirm => '恢复默认';
+  static String get aiConfigSessionKeyNotice =>
+      '此平台没有持久安全存储，密钥仅本次会话有效：关闭应用后需要重新输入。密钥不会写入普通偏好。';
+  static String get aiConfigMigrationPendingNotice =>
+      '凭据安全迁移尚未完成，当前仍使用旧存储。重启应用会自动重试；如持续出现请在重新输入密钥前备份它。';
+
   // ── Anki ──
   static String get ankiImportTitle => '导入 Anki 牌组';
   static String get ankiImportDialogTitle => '导入 Anki 牌组';
@@ -1421,6 +1504,31 @@ class AppStrings {
   // ── Review progress ──
   static String get reviewProgressTitle => '复习进度';
   static String get reviewProgressSubtitle => '学习与复习统计、筛选与记忆曲线';
+
+  // ── Review dashboard home (Plan 3 §15.1) ──
+  static String get reviewDashboardTitle => '复习概览';
+  static String get reviewInsightsTitle => '学习洞察';
+  static String get reviewOpenInsights => '查看学习洞察';
+  static String get reviewTodayTitle => '今日复习';
+  static String get reviewContinueCta => '继续复习';
+  static String get reviewTodayDoneCta => '今日已完成';
+  static String reviewTodayGoalProgress(int xp, int goal) => '$xp / $goal XP';
+  static String reviewTodayReviewed(int count) => '已复习 $count 张';
+  static String reviewMonthDay(int day) => '$day 日';
+  static String get reviewDueCard => '待复习';
+  static String get reviewNewCard => '新卡';
+  static String get reviewOverdueCard => '逾期';
+  static String reviewStreakDays(int days) => '连续学习 $days 天';
+  static String reviewThisWeek(int days) => '本周 $days / 7 天';
+  static String reviewSevenDaySummary(int activeDays, int total) =>
+      '最近 7 天学习 $activeDays 天，共复习 $total 张';
+  static String reviewTodayMinutes(int minutes) => '学习 $minutes 分钟';
+  static String reviewAccuracyPct(int pct) => '准确率 $pct%';
+  static String get reviewNoDataYet => '暂无数据';
+  static String get reviewSourcesTitle => '课程与牌组';
+  static String reviewSourceDue(int count) => '$count 待复习';
+  static String get reviewEmptyHint => '还没有卡片。导入课程或 Anki 牌组后开始学习。';
+  static String get reviewRefreshFailedKeptOld => '刷新失败，正在显示上一次的数据。';
   static String get reviewProgressSourceAll => '全部';
   static String get reviewProgressSourceCourse => '课程 · 土耳其语';
   static String get reviewProgressSourceGrammar => '语法';

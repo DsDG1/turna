@@ -173,8 +173,8 @@ void main() {
         ),
       );
 
-  testWidgets('playground page loads availability and shows mode counts',
-      (tester) async {
+  testWidgets('playground page loads availability; modes show coming-soon '
+      'while session execution is off (Plan 3 §22.4)', (tester) async {
     final courseProvider = _StubCourseProvider(scope: '')
       ..sectionList = [_languageSection()];
     final router = _HostedPlaygroundRouter();
@@ -186,17 +186,13 @@ void main() {
 
     expect(find.byType(LanguagePlaygroundPage), findsOneWidget);
     expect(find.text(AppStrings.playgroundSmartStartTitle), findsOneWidget);
-    // 智能混合与极速选择各有 2 道 MCQ 候选，题量徽标显示实际候选数。
+    // 会话执行未接入前，所有模式格以「即将推出」禁用态呈现，不显示成
+    // 可用后点击只弹 toast（Plan 3 §22.4）。
     expect(find.text(AppStrings.playgroundModeSmartMix), findsOneWidget);
-    expect(find.text(AppStrings.playgroundModeCount(2)), findsNWidgets(2));
-    // 单词配对有 4 个词条 → 可用。
     expect(find.text(AppStrings.playgroundModeWordMatch), findsOneWidget);
-    // 听写挑战没有 TypeTheWord 候选 → 显示不可用原因。
     expect(find.text(AppStrings.playgroundModeDictation), findsOneWidget);
-    expect(
-      find.text(AppStrings.playgroundUnavailableNoContent),
-      findsWidgets,
-    );
+    expect(find.text(AppStrings.playgroundComingSoon), findsNWidgets(8));
+    expect(find.text(AppStrings.playgroundModeCount(2)), findsNothing);
   });
 
   testWidgets('smart start taps show the coming-soon placeholder',
@@ -213,7 +209,7 @@ void main() {
     await tester.tap(find.text(AppStrings.playgroundSmartStartTitle));
     await tester.pump();
 
-    expect(find.text(AppStrings.playgroundSmartStartSoon), findsOneWidget);
+    expect(find.text(AppStrings.playgroundComingSoon), findsNWidgets(8 + 1));
   });
 
   testWidgets('entering with an Anki scope pops back with a toast',
@@ -299,12 +295,10 @@ void main() {
     await tester.tap(find.text(AppStrings.playgroundScopeWeak));
     await tester.pumpAndSettle();
 
-    // 薄弱内容没有错题记录 → 全部模式不可用。
+    // 薄弱内容没有错题记录：模式仍在（会话执行未接入，统一禁用态），
+    // 计数徽标不显示。
     expect(find.text(AppStrings.playgroundModeSmartMix), findsOneWidget);
-    expect(
-      find.text(AppStrings.playgroundUnavailableNoContent),
-      findsWidgets,
-    );
+    expect(find.text(AppStrings.playgroundComingSoon), findsNWidgets(8));
     expect(find.text(AppStrings.playgroundModeCount(2)), findsNothing);
   });
 
@@ -342,13 +336,9 @@ void main() {
     await tester.tap(find.text(AppStrings.playgroundScopeWeak));
     await tester.pumpAndSettle();
 
-    // 4 条 MCQ 错题快照 → 智能混合/极速选择题量 4；4 个词条 → 单词配对可用
-    // （dailyMix 徽标固定显示 15，不参与计数）。
-    expect(find.text(AppStrings.playgroundModeCount(4)), findsNWidgets(3));
-    // 听力/听写/拼句/填空没有匹配快照 → 4 个模式显示不可用原因。
-    expect(
-      find.text(AppStrings.playgroundUnavailableNoContent),
-      findsNWidgets(4),
-    );
+    // 会话执行未接入：计数徽标统一由「即将推出」取代；题量数据的正确性
+    // 由 playground_index_test 与内容源测试守护。
+    expect(find.text(AppStrings.playgroundComingSoon), findsNWidgets(8));
+    expect(find.text(AppStrings.playgroundModeCount(4)), findsNothing);
   });
 }

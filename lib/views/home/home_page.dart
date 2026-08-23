@@ -47,11 +47,18 @@ class _HomePageState extends State<HomePage> {
   int currentIndex = 0;
   bool _barHidden = false;
 
-  final screens = [
-    const CourseTree(),
-    const PlayHubScreen(),
-    const ProfilePage(),
-    const SettingsPage(),
+  /// Lazy visited tabs (Plan 3 §23.2): a tab subtree is built on first
+  /// visit and kept mounted afterwards (state/scroll survive), but hidden
+  /// tabs are [Offstage] + [TickerMode]-disabled so they cost no frames.
+  /// This is what stops Play Hub's Official-due refresh from firing at app
+  /// start when the user has never opened the Play tab.
+  final List<bool> _visited = [true, false, false, false];
+
+  static const _screens = [
+    CourseTree(),
+    PlayHubScreen(),
+    ProfilePage(),
+    SettingsPage(),
   ];
 
   @override
@@ -70,12 +77,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _onTabRouteChanged() {
-    final next = getIt<TabRouter>().index.value;
-    if (next == currentIndex) return;
-    setState(() {
-      currentIndex = next;
-      _barHidden = false;
-    });
+    _onTabIndexChanged(getIt<TabRouter>().index.value);
   }
 
   bool _onUserScroll(UserScrollNotification notification) {
@@ -198,7 +200,18 @@ class _HomePageState extends State<HomePage> {
           onNotification: _onUserScroll,
           child: IndexedStack(
             index: currentIndex,
-            children: screens,
+            children: [
+              for (var i = 0; i < _screens.length; i++)
+                Offstage(
+                  offstage: currentIndex != i,
+                  child: TickerMode(
+                    enabled: currentIndex == i,
+                    child: _visited[i]
+                        ? _screens[i]
+                        : const SizedBox.shrink(),
+                  ),
+                ),
+            ],
           ),
         ),
       ),
@@ -216,5 +229,14 @@ class _HomePageState extends State<HomePage> {
     // Route through TabRouter so external callers (e.g. the lesson "去设置"
     // dialog) and the nav bar share one write path. The listener applies it.
     getIt<TabRouter>().switchTo(index);
+  }
+
+  void _onTabIndexChanged(int index) {
+    if (index == currentIndex) return;
+    setState(() {
+      currentIndex = index;
+      _barHidden = false;
+      _visited[index] = true;
+    });
   }
 }

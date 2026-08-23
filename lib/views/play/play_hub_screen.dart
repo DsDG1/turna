@@ -33,10 +33,21 @@ class PlayHubScreen extends StatefulWidget {
 }
 
 class _PlayHubScreenState extends State<PlayHubScreen> {
+  /// Official due refresh TTL (Plan 3 §23.2): the Play tab now mounts lazily
+  /// (first visit), and a re-mount within this window does not re-refresh.
+  static const _dueRefreshTtl = Duration(minutes: 5);
+  static DateTime? _lastDueRefreshAt;
+
   @override
   void initState() {
     super.initState();
-    unawaited(_refreshOfficialDue());
+    final last = _lastDueRefreshAt;
+    final fresh = last != null &&
+        DateTime.now().difference(last) < _dueRefreshTtl;
+    if (!fresh) {
+      _lastDueRefreshAt = DateTime.now();
+      unawaited(_refreshOfficialDue());
+    }
   }
 
   Future<void> _refreshOfficialDue() async {
@@ -213,29 +224,11 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: SizedBox(
                 height: 100,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: ReviewTile(
-                        title: AppStrings.aiHubStartWish,
-                        icon: Icons.auto_awesome_rounded,
-                        accentColor: TurnaTheme.amethystLeague,
-                        onTap: () =>
-                            context.router.push(const AiWishChatRoute()),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ReviewTile(
-                        title: AppStrings.aiHubStartTextbook,
-                        icon: Icons.menu_book_rounded,
-                        accentColor: TurnaTheme.brandSky,
-                        onTap: () => context.router.push(
-                          const TextbookImportRoute(),
-                        ),
-                      ),
-                    ),
-                  ],
+                child: ReviewTile(
+                  title: AppStrings.playAiAssistantTitle,
+                  icon: Icons.auto_awesome_rounded,
+                  accentColor: TurnaTheme.amethystLeague,
+                  onTap: () => context.router.push(const AiHubRoute()),
                 ),
               ),
             ),

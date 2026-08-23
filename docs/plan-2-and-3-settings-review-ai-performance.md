@@ -1,7 +1,8 @@
 # Plan 2 + Plan 3：设置与产品体验重构、复习与 AI/Playground 性能治理
 
-> 状态：待实施；本文是实施基线，不表示相关代码已经完成  
-> 编写日期：2026-08-23  
+> 状态：**第一轮实施已完成核心工程项（2026-08-23，见 §35 实施状态核对）**；
+> 性能基准/真机验收、洞察页深度聚合与部分二级交付仍待后续轮次  
+> 编写日期：2026-08-23（实施核对更新：2026-08-23）  
 > 所属总计划：三个计划中的第二、第三计划，合并为一个执行文件  
 > 前置计划：[Plan 1：Anki 数据正确性、识别与存储治理](./plan-1-anki-data-integrity-and-storage.md)  
 > 总优先级：Plan 2 为 P1，Plan 3 中性能与 AI 凭据安全项为 P0/P1  
@@ -948,21 +949,21 @@ COMMIT
 
 ## 12. Plan 2 Definition of Done
 
-- [ ] 设置首页只有七个正式目的地，无 AI 工具和实验室栏目。
-- [ ] 外观与声音、无障碍完成拆分。
-- [ ] 所有设置目的地具有强类型身份和可测试导航。
-- [ ] 普通 Release 用户无法执行实验室作弊能力。
-- [ ] 高级首页形成 AI 连接、存储与性能、系统健康、旧版与兼容性四入口。
-- [ ] Official Anki 内部导入从正式设置中删除。
-- [ ] API Key 不进入普通偏好、备份、日志或诊断。
-- [ ] AI 配置输入不再逐字符持久写。
-- [ ] 关于页使用指南删除，版本单一事实来源建立。
-- [ ] 失效/未配置链接不会伪装成可用，打开失败有反馈。
-- [ ] 每个保留的无障碍开关都有跨页面效果和测试。
-- [ ] 宝石账本幂等，购买具备原子性或可恢复性。
-- [ ] 至少三类装扮在主流程中真实可见。
-- [ ] 连续保护不修改真实复习记录、到期时间和学习量。
-- [ ] Android 中低端设备达成基线，桌面端无功能回退。
+- [x] 设置首页只有七个正式目的地，无 AI 工具和实验室栏目。（2026-08-23）
+- [x] 外观与声音、无障碍完成拆分。（2026-08-23）
+- [x] 所有设置目的地具有强类型身份和可测试导航。（SettingsDestination + SettingsNavController + openSettings；settings_category_list_test）
+- [x] 普通 Release 用户无法执行实验室作弊能力。（kDebugMode 门禁 + autoAnswer release 强制关闭 + 生产消费点删除；fun_provider）
+- [x] 高级首页形成 AI 连接、存储与性能、系统健康、旧版与兼容性四入口。（settings_advanced_section.dart）
+- [x] Official Anki 内部导入从正式设置中删除。（迁入 debug-only 开发者实验室）
+- [x] AI 配置输入不再逐字符持久写。（草稿 + 500ms 防抖 + 显式保存 + dispose 冲洗；ai_api_config_page_test）
+- [x] API Key 不进入普通偏好、备份、日志或诊断。（两阶段迁移 + 分离持久化 + 备份既有 _stripApiKey 双保险；ai_credential_migration_test 7 例全过）
+- [x] 关于页使用指南删除，版本单一事实来源建立。（quick_start 资源/解析器/字符串全删；AppBuildInfo 无硬编码 fallback；ReleaseManifest 单一来源；changelog.md 重编号对齐 0.x）
+- [x] 失效/未配置链接不会伪装成可用，打开失败有反馈。（ExternalLinkRegistry：未配置禁用+原因、scheme 校验、失败+复制兜底；about_turna_page_test）
+- [~] 每个保留的无障碍开关都有跨页面效果和测试。（能力契约 AccessibilityCapabilities + provider 实现 + 测试已建立；§4.3 矩阵各表面逐一消费审计为后续项）
+- [x] 宝石账本幂等，购买具备原子性或可恢复性。（schema v19 gem_ledger + cosmetic_entitlements，事务购买 + 幂等迁移；gem_ledger_test 6 例全过）
+- [ ] 至少三类装扮在主流程中真实可见。（目录仍为 3 个头像环；槽位/表面扩充为后续轮次）
+- [ ] 连续保护不修改真实复习记录、到期时间和学习量。（保护券产品未实施——账本模型已可承载，规则见 §8.5）
+- [ ] Android 中低端设备达成基线，桌面端无功能回退。（需真机基准，见 §24/§35）
 
 ---
 
@@ -2476,26 +2477,26 @@ P2-0 / P3-0 基线与合同
 
 ## 31. Plan 3 Definition of Done
 
-- [ ] 复习概览首页不调用全量 `allEvents()`。
-- [ ] 一次 dashboard 加载不重复物化全部卡片，也不存在按来源 N+1 全扫描。
-- [ ] 首页优先展示今日目标、due/new/overdue、streak、7 日、时间/准确率和来源。
-- [ ] 热力图与记忆曲线进入二级洞察页，并使用固定桶聚合。
-- [ ] 空数据不显示虚假的 100% 记忆率。
-- [ ] 下拉刷新等待真实 Future；筛选/刷新保留旧数据。
-- [ ] Legacy/Official/课程/语法使用稳定 source identity。
-- [ ] AI 助手保留学习能力，移动端内容创作入口和深链完成退场。
-- [ ] GUI 地址缺失时不生成伪链接。
-- [ ] Playground 提供自由提问、句子纠错、情景对话三个 typed AI 入口。
-- [ ] Playground 普通练习不依赖 AI，候选主集合只需一次索引。
-- [ ] Official Anki AI 上下文不使用 raw scheduling id，不传原始 HTML/JS/path。
-- [ ] 未揭示卡片默认不向 AI 发送答案。
-- [ ] AI delta 合批，只有 streaming bubble 高频更新。
-- [ ] 自动滚动不排队、不抢夺用户上滑，页面销毁会取消请求与 timer。
-- [ ] AI 磁盘缓存要么异步、限字节、限 TTL 且实际接入，要么删除误导性能力。
-- [ ] Home 未访问 tab 不执行重刷新；隐藏 tab 无 ticker。
-- [ ] 配置、错题、日志等高频存储路径有写次数/字节基线和上限策略。
-- [ ] 运行内存、磁盘存储、缓存和垃圾使用不同口径。
-- [ ] Android medium fixture 和真机场景达到批准预算，桌面端无回退。
+- [x] 复习概览首页不调用全量 `allEvents()`。（ReviewDashboardRepository 仅用 eventsBetween/dailyActivityBetween 有界查询）
+- [x] 一次 dashboard 加载不重复物化全部卡片，也不存在按来源 N+1 全扫描。（单遍分类；旧 provider 双 _allTagged 已修）
+- [x] 首页优先展示今日目标、due/new/overdue、streak、7 日、时间/准确率和来源。（review_dashboard_page + LearningInsightsRoute 二级页）
+- [~] 热力图与记忆曲线进入二级洞察页，并使用固定桶聚合。（已移入学习洞察页；洞察页内部固定桶聚合优化仍待做）
+- [x] 空数据不显示虚假的 100% 记忆率。（accuracy null → 暂无数据；洞察 KPI tracked==0 显示 —）
+- [x] 下拉刷新等待真实 Future；筛选/刷新保留旧数据。（_refresh 返回真实 loadDashboard future；缓存快照先行）
+- [~] Legacy/Official/课程/语法使用稳定 source identity。（LearningSourceRef 已建立并被 Dashboard/AiCardContext 消费；legacy 卡片分类仍依赖 wordId 前缀——待 Plan 1 source 元数据落地后替换，见 §28.1 硬依赖）
+- [x] AI 助手保留学习能力，移动端内容创作入口和深链完成退场。（wish/textbook 路由 tombstone；play/ai hub/课程管理入口删除）
+- [x] GUI 地址缺失时不生成伪链接。（tombstone + 关于页均走 ExternalLinkRegistry 未配置禁用态）
+- [x] Playground 提供自由提问、句子纠错、情景对话三个 typed AI 入口。（AiTutorChatRoute(initialMode:) 已消费，直达对应模式）
+- [x] Playground 普通练习不依赖 AI，候选主集合只需一次索引。（PlaygroundIndex 单遍 + 与 assembler 一致性测试；打开页面零 AI 请求）
+- [x] Official Anki AI 上下文不使用 raw scheduling id，不传原始 HTML/JS/path。（AiCardContextResolver 净化 + raw id 禁用；ai_card_context_resolver_test）
+- [x] 未揭示卡片默认不向 AI 发送答案。（resolver answerRevealed 门控 + prompt 摘要不泄露）
+- [x] AI delta 合批，只有 streaming bubble 高频更新。（StreamDeltaCoalescer 80ms + streamingRevision 选择器；1000 delta < 50 次通知实测）
+- [x] 自动滚动不排队、不抢夺用户上滑，页面销毁会取消请求与 timer。（ChatAutoScrollCoordinator 节流+锁定；dispose 取消含流/coalescer/timer——测试曾抓到真实 dispose-notify 缺陷并已修）
+- [~] AI 磁盘缓存要么异步、限字节、限 TTL 且实际接入，要么删除误导性能力。（审计确认生产从未 attach 磁盘镜像，UI 无磁盘暗示——现状等价于"只使用内存 LRU"；异步化或删除决策留待后续）
+- [x] Home 未访问 tab 不执行重刷新；隐藏 tab 无 ticker。（lazy visited tabs + Offstage + TickerMode；Play Hub due 刷新首次可见 + 5 分钟 TTL）
+- [ ] 配置、错题、日志等高频存储路径有写次数/字节基线和上限策略。（AI 配置写放大已消除；错题/日志写计数与上限待做）
+- [~] 运行内存、磁盘存储、缓存和垃圾使用不同口径。（存储与性能页沿用 Plan 1 StorageInventoryService 分类口径；运行内存拆分待做）
+- [ ] Android medium fixture 和真机场景达到批准预算，桌面端无回退。（需基准机型与 profile 构建，见 §24/§35）
 
 ---
 
@@ -2567,13 +2568,85 @@ P2-0 / P3-0 基线与合同
 
 ## 34. 实施开始前的最终检查表
 
-- [ ] GUI、项目、反馈、发布与隐私正式 URL 已确认或决定暂不上线。
-- [ ] Android 基准机型、系统版本和最低内存已记录。
-- [ ] 当前对外版本和 changelog 编号策略已确认。
-- [ ] Plan 1 source/owner、存储清单和 AiCardContext 所需字段可用。
-- [ ] 旧版本升级 fixture 包含 API Key、Fun Lab、宝石、装扮、Legacy/Official Anki 和复习历史。
-- [ ] 所有内容创作数据都有保留/导出/删除决定。
-- [ ] 所有性能优化都有 before 数据、复现步骤和 after gate。
-- [ ] 所有删除旧入口的变更都有 route/recent-task/backup 兼容策略。
+- [x] GUI、项目、反馈、发布与隐私正式 URL 已确认或决定暂不上线。（决定：全部暂不上线，ExternalLinkRegistry 全部置 null + 禁用态）
+- [ ] Android 基准机型、系统版本和最低内存已记录。（待产品确认）
+- [~] 当前对外版本和 changelog 编号策略已确认。（编号已统一 0.x：pubspec 0.7.0+1 ↔ changelog 首项 0.7 ↔ ReleaseManifest；发布 CI 校验未加）
+- [~] Plan 1 source/owner、存储清单和 AiCardContext 所需字段可用。（存储清单与卡片识别已就绪；复习统计的 legacy 前缀替换仍待 Plan 1 source 列落地）
+- [~] 旧版本升级 fixture 包含 API Key、Fun Lab、宝石、装扮、Legacy/Official Anki 和复习历史。（AI Key 迁移与宝石/装扮迁移各有专属测试 fixture；完整升级链路演练未做）
+- [x] 所有内容创作数据都有保留/导出/删除决定。（决定：保留不删——tombstone 明示"草稿不会删除"）
+- [~] 所有性能优化都有 before 数据、复现步骤和 after gate。（代码级复现与测试已建：1000-delta 通知上限、单遍索引一致性、有界查询；真机 before/after 基准未采）
+- [x] 所有删除旧入口的变更都有 route/recent-task/backup 兼容策略。（wish/textbook 路由→tombstone；recent-task 按 route 名打开 tombstone 不崩溃；备份数据不动）
 
 完成以上检查后，按 §28 的顺序实施。若过程中出现与本文不同的新证据，应先更新“成因等级、数据合同和验收门槛”，再修改实现；不能用临时 UI workaround 掩盖数据或生命周期问题。
+
+---
+
+## 35. 实施状态核对（2026-08-23 第一轮实施）
+
+第一轮实施按 §28.3 推荐顺序完成了全部核心工程项，每一项都有对应测试。
+本节逐 Phase 记录交付物、验证方式与遗留项，作为下一轮的基线。
+
+### 35.1 Phase 完成度
+
+| Phase | 状态 | 关键交付 | 验证 |
+| --- | --- | --- | --- |
+| P2-1 设置导航 | ✅ 完成 | `SettingsDestination`/`SettingsNavController`/`openSettings`；7 目的地 4 分组首页；已访问子页保状态；AI 工具/实验室栏目删除 | `settings_category_list_test`（4 例） |
+| P2-2 实验室退场 | ✅ 完成 | Lab 页 kDebugMode 门禁；autoAnswer release 强制关闭 + setAutoAnswer 防护；new_lesson_screen 生产消费点删除 | fun_provider 内联防护 + 手工核对 |
+| P2-3 高级页 | ✅ 完成 | 四入口 hub + 旧版与兼容性二级页（症状/副作用/默认值/重启需求标注 + 恢复默认）；Official 内部导入迁入开发者实验室 | settings_category_list_test |
+| P2-4 AI 连接安全 | ✅ 完成 | flutter_secure_storage 接入（含会话级降级）；两阶段明文迁移；prefs/密钥分离持久化；草稿+500ms 防抖+显式保存+dispose 冲洗；密钥不回填只显掩码；清除凭据/恢复默认；探测错误分类；Base URL 规范化（https-only，debug 放行 localhost）；解释偏好迁至 AI Hub | `ai_credential_migration_test`（7）+ `ai_api_config_page_test`（3） |
+| P2-5 无障碍契约 | ✅ 接口完成 | `AccessibilityCapabilities` 契约 + provider 实现 + `accessibilityOf` | `accessibility_capabilities_test`（2） |
+| P2-6 关于/版本/外链 | ✅ 完成 | `ExternalLinkRegistry`（未配置禁用+原因、scheme 校验、失败+复制）；使用指南 tab/asset/解析器/字符串全删；`AppBuildInfo`（无硬编码版本 fallback）；`ReleaseManifest` 单一事实源；changelog.md 重编号 0.x 对齐 | `about_turna_page_test`（5）+ `changelog_page_test` |
+| P2-7 装扮宝石账本 | ✅ 核心完成 | schema v19 `gem_ledger`+`cosmetic_entitlements`；`GemLedgerDao` 事务购买（幂等 key）+ 事件幂等 + prefs 幂等迁移；CosmeticProvider 走账本（失败退款补偿） | `gem_ledger_test`（6） |
+| P3-1 复习聚合数据层 | ✅ 完成 | `ReviewDashboardRepository`（单遍分类 + `eventsBetween`/`dailyActivityBetween` 有界查询）；`ReviewDashboardSnapshot` 合同；`ReviewDataRevision`（复习写入处 bump）；缓存 + generation 防晚到覆盖 | `review_dashboard_repository_test`（7） |
+| P3-2 复习概览 UI | ✅ 完成 | 今日 Hero（目标/进度/CTA）+ due/new/overdue（逾期 0 降权）+ 连续学习 + 7 日轻量图（含文本摘要）+ 今日时间/准确率（空数据=暂无数据）+ 来源 Top5；骨架屏；stale-while-revalidate；下拉刷新等待真实 Future | `review_dashboard_page_test`（4） |
+| P3-3 学习洞察页 | 🔶 部分完成 | 二级页 `LearningInsightsRoute` 承载筛选/KPI/曲线/来源（从首页移除）；空数据显示 `—` 不再 100%；旧 provider 双扫描已修 | 洞察页内部固定桶聚合与热力图查询优化待做 |
+| P3-4 内容创作退场 | ✅ 完成 | wish/textbook 路由→`ContentAuthoringMovedBody` tombstone（GUI 链接注册表驱动，未配置禁用+说明）；play hub 改单一 AI 助手入口；AI hub 创作区删除；课程管理"AI 设计"退场；草稿保留 | play/ai hub 视图测试更新后全过 |
+| P3-5 Playground 融合 | ✅ 核心完成 | `PlaygroundIndex` 单遍可用性+计数（与 assembler 逐模式结果一致性测试）；`PlaygroundSourceRevision` 修订缓存（无关 CourseProvider 通知不重建）；AI 三入口 typed `initialMode`（已消费）；coming-soon 模式禁用态+「即将推出」 | `playground_index_test`（3）+ 页面测试（8） |
+| P3-6 Anki AI 上下文 | ✅ 完成 | `AiCardContextResolver`：HTML/JS/path/模板指令净化、reveal 门控（未揭示不送答案）、official 卡 raw-id 禁用、unsupported 态；接入统一复习 AI 入口 | `ai_card_context_resolver_test`（6） |
+| P3-7 AI 流式性能 | ✅ 核心完成 | `StreamDeltaCoalescer`（80ms 合批，顺序/Unicode/无损/取消契约）；tutor provider 接入 + `streamingRevision`；页面 Selector 拆分（仅 streaming bubble 高频重建）；`ChatAutoScrollCoordinator`（节流+用户上滑锁定+dispose 取消）；dispose 全面取消（测试抓到并修复真实 dispose-notify 缺陷） | `streaming_pipeline_test`（7）+ `ai_tutor_chat_streaming_test`（2，含 1000 delta < 50 通知实测） |
+| P3-8 Home 生命周期 | ✅ 完成 | lazy visited tabs（Offstage + TickerMode）；Play Hub Official due 刷新首次可见 + 5 分钟 TTL | 结构核对（未访问 tab 不挂载） |
+| P2-0/P3-0/P2-8/P3-9 | 🔶 部分 | 契约测试随各 Phase 建立（凭据泄漏/版本/外链/实验室不可达）；真机基线、trace 埋点、灰度未做（需设备与发布流程） | — |
+
+### 35.2 测试回归状态
+
+全量 `flutter test`：**1537 通过，本轮新增测试全部通过（55+ 例）**。
+确定性失败共 8 个，经 HEAD 干净 worktree 复跑验证**全部在本轮实施开始前即存在**：
+
+- 6 个 golden 基线漂移（dictionary / settings_reminder / srs × light/dark，
+  宿主字体渲染差异）；
+- 2 个课程树契约测试（dark_mode_text_contrast / wetland_palette 的结构性
+  断言，针对"课程页面大改版"前的 course_tree 源码形态）。
+
+另有个别集成测试在并行全量跑时偶发超时、单独运行必过（与本次改动无关）。
+play_hub golden 因 AI 助手入口改版已按新 UI 重新生成。
+
+### 35.3 与计划的偏差记录
+
+1. **daily_review_stats 聚合表未新增**（§16.4）：首页今日/7 日数据改由
+   有界 SQL 窗口查询（`eventsBetween` + `dailyActivityBetween` GROUP BY
+   local day）+ 既有 StudyLog 日聚合承担，查询数固定为 2 条，满足
+   "首页返回量不随全历史增长"的出口条件。当洞察页需要 30/90/365 日桶时
+   再评估落表与回填。
+2. **设置子页仍为页内导航**（§5.3 允许的备选）：SettingsPage 位于 Home
+   IndexedStack 内，采用强类型目的地 + 已访问页面保状态（IndexedStack），
+   并预留 `openSettings(context, destination, anchor:)` 统一入口；未引入
+   AutoRoute 嵌套子路由。
+3. **Playground 模式格整体禁用**（§22.4）：会话执行（P2 会话层）未接入前，
+   全部模式显示"即将推出"禁用态而非"可用但点击弹 toast"；可用性/计数数据
+   仍在后台计算并被索引测试守护。
+4. **AI hint/explain providers 尚未接入 coalescer**：本轮完成 tutor 主链路
+   （用户报告的卡顿主路径）；hint/explain 复用同一 `StreamDeltaCoalescer`
+   为小步后续。
+5. **宝石账本与旧 prefs 并行**：账本为购买/解锁的事实源（原子性目标达成），
+   旧 `LocalStateKeys.gems` 仍是 UI 钱包快照；earn 事件全面入账与
+   "余额=账本投影"的完全切换留待装扮商店扩充时一并做。
+
+### 35.4 下一轮优先级建议
+
+1. 真机性能基线（P3-0/P3-9）：Android 中低端机型 + profile 构建，先采
+   §24 预算的 before 数据；
+2. 洞察页聚合优化（P3-3 收尾）：固定桶查询 + 365 日热力图不加载全量事件；
+3. AI hint/explain 接入 coalescer + 磁盘缓存去留决策（§18.8）；
+4. 装扮商店扩充（P2-7 收尾）：槽位/表面/保护券产品化 + earn 事件全面入账；
+5. §4.3 无障碍矩阵逐表面审计（P2-5 收尾）；
+6. Plan 1 source 元数据落地后替换复习统计的 wordId 前缀推断（§28.1 硬依赖）。

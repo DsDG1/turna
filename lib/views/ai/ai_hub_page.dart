@@ -14,6 +14,7 @@ import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/lesson/components/ai_depth_tutor_sheet.dart';
 import 'package:turna/views/lesson/tutor_launch_sheet.dart';
 import 'package:turna/views/play/components/play_tiles.dart';
+import 'package:turna/views/ai/components/ai_explain_prefs_card.dart';
 import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
 import 'package:turna/views/theme.dart';
 
@@ -77,6 +78,13 @@ class AiHubPage extends StatelessWidget {
             const SliverToBoxAdapter(child: _ContinueSection()),
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
             const SliverToBoxAdapter(child: _StartSection()),
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            // AI 助手偏好（回复语言/解释深度/揭示与上下文注入）——偏好属于
+            // 助手而不是连接配置，从 AI 连接页迁移至此（Plan 2 §6.2）。
+            const SliverPadding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              sliver: SliverToBoxAdapter(child: AiExplainPrefsCard()),
+            ),
             const SliverToBoxAdapter(child: SizedBox(height: 32)),
           ],
         ),
@@ -489,7 +497,7 @@ class _StartSection extends StatelessWidget {
                 title: AppStrings.aiHubStartTutorChat,
                 icon: Icons.chat_bubble_outline_rounded,
                 accentColor: TurnaTheme.brandTeal,
-                onTap: () => context.router.push(const AiTutorChatRoute()),
+                onTap: () => context.router.push(AiTutorChatRoute()),
               ),
               ReviewTile(
                 title: AppStrings.aiHubStartDiagnosis,
@@ -530,50 +538,6 @@ class _StartSection extends StatelessWidget {
             accentColor: TurnaTheme.brandReed.withValues(alpha: 0.85),
             onTap: () => _openSheet(
                 context, const TutorLaunchSheet(), SrsTutorFocus.weakWords),
-          ),
-          const SizedBox(height: 16),
-          // Authoring demoted / collapsed.
-          Theme(
-            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-            child: ExpansionTile(
-              initiallyExpanded: false,
-              tilePadding: EdgeInsets.zero,
-              childrenPadding: const EdgeInsets.only(top: 8),
-              title: Text(
-                AppStrings.aiHubAuthoringSection,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: TurnaTheme.textSecondaryColor(context),
-                    ),
-              ),
-              children: [
-                GridView.count(
-                  padding: EdgeInsets.zero,
-                  crossAxisCount: 2,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                  childAspectRatio: 1.6,
-                  children: [
-                    ReviewTile(
-                      title: AppStrings.aiHubStartWish,
-                      icon: Icons.auto_awesome_rounded,
-                      accentColor: TurnaTheme.textHintColor(context),
-                      onTap: () =>
-                          context.router.push(const AiWishChatRoute()),
-                    ),
-                    ReviewTile(
-                      title: AppStrings.aiHubStartTextbook,
-                      icon: Icons.menu_book_rounded,
-                      accentColor: TurnaTheme.textHintColor(context),
-                      onTap: () =>
-                          context.router.push(const TextbookImportRoute()),
-                    ),
-                  ],
-                ),
-              ],
-            ),
           ),
         ],
       ),
@@ -622,7 +586,7 @@ void _navigateByRoute(BuildContext context, String name) {
       context.router.push(const TextbookImportRoute());
       break;
     case 'AiTutorChatRoute':
-      context.router.push(const AiTutorChatRoute());
+      context.router.push(AiTutorChatRoute());
       break;
     case 'AiDiagnosisRoute':
       context.router.push(const AiDiagnosisRoute());

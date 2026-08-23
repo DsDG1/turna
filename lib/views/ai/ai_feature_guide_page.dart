@@ -389,7 +389,7 @@ const List<_FeatureSpec> _kFeatures = [
 // ─── Open helpers ─────────────────────────────────────────────────────────
 
 void _openTutorChat(BuildContext context) =>
-    context.router.push(const AiTutorChatRoute());
+    context.router.push(AiTutorChatRoute());
 
 void _openDiagnosis(BuildContext context) =>
     context.router.push(const AiDiagnosisRoute());

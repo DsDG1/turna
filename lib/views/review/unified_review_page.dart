@@ -6,6 +6,7 @@ import 'package:turna/application/game_provider.dart';
 import 'package:turna/application/gems_provider.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/review/review_session_controller.dart';
+import 'package:turna/application/ai/ai_card_context_resolver.dart';
 import 'package:turna/application/anki/study_product_analytics.dart';
 import 'package:turna/application/study_stats_provider.dart';
 import 'package:turna/di/injection.dart';
@@ -180,18 +181,25 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
   void _openAiTutor() {
     final item = _controller.currentItem;
     if (item == null) return;
-    final content = item.content;
-    final term = content is StandardCourseCardContent
-        ? content.frontText
-        : item.schedulingKey.rawId;
-    final meaning =
-        content is StandardCourseCardContent ? content.backText : '';
-
+    // Unified AI card context (Plan 3 §20): sanitized plaintext only, and
+    // the answer enters the prompt only after the learner revealed it —
+    // never a raw scheduling id for Official template cards.
+    final context_ = const AiCardContextResolver().resolve(
+      item,
+      answerRevealed: _controller.isRevealed,
+      language: 'tr',
+    );
+    if (!context_.supported) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppStrings.aiCardExplainUnsupported)),
+      );
+      return;
+    }
     showAiCardExplainSheet(
       context,
-      language: 'tr',
-      front: term,
-      back: meaning.isNotEmpty ? meaning : null,
+      language: context_.language ?? 'tr',
+      front: context_.questionPlainText,
+      back: context_.answerPlainText,
     );
   }
 

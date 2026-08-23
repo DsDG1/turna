@@ -48,6 +48,9 @@ import '../application/match_provider.dart' as _i9;
 import '../application/memory_curve_provider.dart' as _i257;
 import '../application/mistake_provider.dart' as _i551;
 import '../application/progress_provider.dart' as _i740;
+import '../application/review_dashboard/review_dashboard_repository.dart'
+    as _i1014;
+import '../application/review_dashboard/review_data_revision.dart' as _i118;
 import '../application/review_progress_provider.dart' as _i706;
 import '../application/score_provider.dart' as _i166;
 import '../application/settings_provider.dart' as _i793;
@@ -62,12 +65,14 @@ import '../data/anki_note_dao.dart' as _i696;
 import '../data/anki_unification_dao.dart' as _i1073;
 import '../data/course_database.dart' as _i604;
 import '../data/course_repository.dart' as _i848;
+import '../data/gem_ledger_dao.dart' as _i327;
 import '../data/review_history_dao.dart' as _i68;
 import '../data/srs_state_dao.dart' as _i336;
 import '../data/study_log_repository.dart' as _i889;
 import '../domain/audio/anki_audio_resolver.dart' as _i180;
 import '../domain/audio/vocab_audio_resolver.dart' as _i188;
 import '../domain/repositories/i_course_repository.dart' as _i876;
+import '../domain/repositories/i_credential_store.dart' as _i1034;
 import '../routing/course_ready_guard.dart' as _i579;
 import '../routing/routing.dart' as _i936;
 import '../service/local_reminder_service.dart' as _i711;
@@ -139,12 +144,12 @@ extension GetItInjectableX on _i174.GetIt {
         () => _i767.TranslateSentenceRenderer());
     gh.factory<_i757.TypeTheWordRenderer>(() => _i757.TypeTheWordRenderer());
     gh.lazySingleton<_i423.AiCache>(() => _i423.AiCache());
-    gh.lazySingleton<_i691.AiEngineConfigHolder>(
-        () => _i691.AiEngineConfigHolder());
     gh.lazySingleton<_i518.AiHttpClient>(() => _i518.AiHttpClient());
     gh.lazySingleton<_i687.AiRecentTasksProvider>(
         () => _i687.AiRecentTasksProvider());
     gh.lazySingleton<_i229.CharacterProvider>(() => _i229.CharacterProvider());
+    gh.lazySingleton<_i118.ReviewDataRevision>(
+        () => _i118.ReviewDataRevision());
     gh.lazySingleton<_i180.AnkiAudioResolver>(() => _i180.AnkiAudioResolver());
     gh.lazySingleton<_i711.LocalReminderService>(
         () => _i711.LocalReminderService());
@@ -194,6 +199,8 @@ extension GetItInjectableX on _i174.GetIt {
         () => _i151.AnkiImportDao(gh<_i604.CourseDatabase>()));
     gh.lazySingleton<_i696.AnkiNoteDao>(
         () => _i696.AnkiNoteDao(gh<_i604.CourseDatabase>()));
+    gh.lazySingleton<_i327.GemLedgerDao>(
+        () => _i327.GemLedgerDao(gh<_i604.CourseDatabase>()));
     gh.lazySingleton<_i68.ReviewHistoryDao>(
         () => _i68.ReviewHistoryDao(gh<_i604.CourseDatabase>()));
     gh.lazySingleton<_i336.SrsStateDao>(
@@ -237,6 +244,8 @@ extension GetItInjectableX on _i174.GetIt {
           gh<_i854.LessonLinkStore>(),
           gh<_i336.SrsStateDao>(),
         ));
+    gh.lazySingleton<_i691.AiEngineConfigHolder>(
+        () => _i691.AiEngineConfigHolder(gh<_i1034.ICredentialStore>()));
     gh.lazySingleton<_i565.GameProvider>(() => _i565.GameProvider(
           gh<_i523.AppPrefs>(),
           gh<_i166.ScoreProvider>(),
@@ -288,6 +297,17 @@ extension GetItInjectableX on _i174.GetIt {
         ));
     gh.factory<_i440.ShowWordRenderer>(
         () => _i440.ShowWordRenderer(gh<_i106.AudioController>()));
+    gh.lazySingleton<_i1014.ReviewDashboardRepository>(
+        () => _i1014.ReviewDashboardRepository(
+              gh<_i68.ReviewHistoryDao>(),
+              gh<_i361.SrsProvider>(),
+              gh<_i1008.GrammarReviewProvider>(),
+              gh<_i151.AnkiImportDao>(),
+              gh<_i118.ReviewDataRevision>(),
+              gh<_i889.StudyLogRepository>(),
+              gh<_i523.AppPrefs>(),
+              gh<_i927.StreakProvider>(),
+            ));
     gh.lazySingleton<_i257.MemoryCurveProvider>(() => _i257.MemoryCurveProvider(
           gh<_i68.ReviewHistoryDao>(),
           gh<_i361.SrsProvider>(),

@@ -1,18 +1,17 @@
-// Widget test: AboutTurnaPage renders three tabs and the brand header.
-//
-// rootBundle / PlatformAssetBundle 通过 raw bytes 发送 `flutter/assets`
-// 消息,不是 method call,因此测试必须用 `setMockMessageHandler` 而不是
-// `setMockMethodCallHandler`。返回 `ByteData.sublistView(utf8.encode(md))`
-// 才能让 widget 拿到非空 markdown。
+// Widget tests: AboutTurnaPage two-tab structure (关于/更新日志), version
+// from AppBuildInfo (no hardcoded fallback), and registry-driven external
+// links that render disabled-with-reason when unconfigured (Plan 2 §4.7/§7).
 
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:turna/application/settings/app_build_info.dart';
+import 'package:turna/application/settings/external_link_registry.dart';
+import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/settings/about_turna_page.dart';
 import 'package:turna/views/settings/changelog_page.dart';
-import 'package:turna/views/settings/quick_start_from_asset.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -20,19 +19,12 @@ void main() {
   const minimalChangelog = '''
 # Changelog
 
-## 1.1.0 - 标题 A
+## 0.7 - 标题 A
 - 第一条
 - 第二条
 
-## 1.0.0 - 标题 B
+## 0.6 - 标题 B
 - 一条
-''';
-
-  const minimalQuickStart = '''
-# Quick Start
-
-## 1. 简介
-- 说明
 ''';
 
   Future<ByteData?> assetsHandler(ByteData? message) async {
@@ -40,9 +32,6 @@ void main() {
         message == null ? '' : utf8.decode(message.buffer.asUint8List());
     if (key.endsWith('changelog.md')) {
       return ByteData.sublistView(utf8.encode(minimalChangelog));
-    }
-    if (key.endsWith('quick_start.md')) {
-      return ByteData.sublistView(utf8.encode(minimalQuickStart));
     }
     return null;
   }
@@ -57,80 +46,109 @@ void main() {
     TestWidgetsFlutterBinding.ensureInitialized();
   });
 
-  testWidgets('AboutTurnaPage shows 3 tabs and brand header', (tester) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: AboutTurnaPage(),
-      ),
-    );
-    for (var i = 0; i < 5; i++) {
-      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
-      await tester.pump();
-    }
-
-    expect(find.byType(TabBar), findsOneWidget);
-    expect(find.text('关于'), findsOneWidget);
-    expect(find.text('更新日志'), findsOneWidget);
-    expect(find.text('使用指南'), findsOneWidget);
-    expect(find.byType(TabBarView), findsOneWidget);
+  tearDown(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMessageHandler('flutter/assets', null);
   });
 
-  testWidgets('About page switch to changelog tab renders release cards',
+  testWidgets('about page shows exactly two tabs; usage guide removed',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(home: AboutTurnaPage(buildInfo: AppBuildInfo.testInstance)),
+    );
+    await tester.pump();
+
+    final tabBar = find.byType(TabBar);
+    expect(tabBar, findsOneWidget);
+    expect(tester.widget<TabBar>(tabBar).tabs.length, 2);
+    expect(find.text('关于'), findsOneWidget);
+    expect(find.text('更新日志'), findsOneWidget);
+    expect(find.text('使用指南'), findsNothing);
+  });
+
+  testWidgets('unconfigured external links render disabled with a reason',
+      (tester) async {
+    // Default registry: all URLs null (not confirmed yet per Plan 2 §0.1).
+    await tester.pumpWidget(
+      MaterialApp(home: AboutTurnaPage(buildInfo: AppBuildInfo.testInstance)),
+    );
+    await tester.pump();
+
+    // The old hardcoded rshrc/Varnamala URLs must not appear anywhere.
+    expect(find.textContaining('rshrc'), findsNothing);
+    expect(find.textContaining('github.com'), findsNothing);
+
+    // Disabled links explain themselves instead of dead-tapping.
+    expect(find.text(AppStrings.externalLinkNotConfigured), findsWidgets);
+    expect(find.byIcon(Icons.lock_outline_rounded), findsWidgets);
+
+    // Tapping an unconfigured link shows the reason, never a launch attempt.
+    await tester.tap(find.text(AppStrings.aboutUpstreamTitle));
+    await tester.pump();
+    expect(find.text(AppStrings.externalLinkNotConfigured), findsWidgets);
+  });
+
+  testWidgets('configured links become enabled', (tester) async {
+    // Inject a configured registry — the page uses the default one, so
+    // assert the descriptor-level contract instead (the page wires the same
+    // registry through).
+    const registry = ExternalLinkRegistry();
+    final descriptor =
+        registry.describe(ExternalLinkId.projectHome);
+    expect(descriptor.enabled, isFalse);
+    expect(descriptor.uri, isNull);
+
+    const configured = ExternalLinkRegistry(
+      urls: {
+        ExternalLinkId.projectHome: 'https://turna.example.org',
+        ExternalLinkId.issueTracker: 'http://evil.example.com',
+      },
+    );
+    final home = configured.describe(ExternalLinkId.projectHome);
+    expect(home.enabled, isTrue);
+    expect(home.uri?.scheme, 'https');
+
+    // Non-https (and non-loopback http) is rejected by the scheme guard.
+    final evil = configured.describe(ExternalLinkId.issueTracker);
+    expect(evil.enabled, isFalse,
+        reason: 'http to a public host must be rejected');
+  });
+
+  testWidgets('version comes from AppBuildInfo with no hardcoded fallback',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AboutTurnaPage(
+          buildInfo: const AppBuildInfo(versionName: '9.9.9', buildNumber: ''),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.textContaining('9.9.9'), findsWidgets);
+    expect(find.textContaining('0.7.0'), findsNothing,
+        reason: 'no hardcoded fallback version may leak into the header');
+  });
+
+  testWidgets('changelog tab renders release cards from the asset',
       (tester) async {
     await installHandler(assetsHandler);
     await tester.pumpWidget(
-      const MaterialApp(
-        home: AboutTurnaPage(),
-      ),
+      MaterialApp(home: AboutTurnaPage(buildInfo: AppBuildInfo.testInstance)),
     );
-    for (var i = 0; i < 5; i++) {
-      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
-      await tester.pump();
-    }
+    await tester.pump();
 
-    // TabBarView 切换 + ChangelogFromAsset 加载需要更长异步链。
-    // 直接通过 DefaultTabController 切换 index,避免点击坐标导致的歧义。
-    final tabBar = find.byType(TabBar);
-    expect(tabBar, findsOneWidget);
-    final tabs = tester.widget<TabBar>(tabBar).tabs;
     await tester.tap(find.text('更新日志').last);
     for (var i = 0; i < 20; i++) {
       await tester.runAsync(() => Future<void>.delayed(Duration.zero));
       await tester.pump();
     }
-    // 触发 TabBarView 切换动画完成。
     await tester.pumpAndSettle(const Duration(seconds: 1));
 
-    // 验证 changelog tab 下 release 卡片渲染了。
     expect(find.byType(ChangelogReleaseCard), findsWidgets);
-    // 至少看到 1.1.0 这个版本号。
-    expect(find.text('1.1.0'), findsWidgets);
-    // 锚点 tab 仍然存在。
-    expect(tabs.length, 3);
-  });
-
-  testWidgets('About page switch to quick start tab renders sections',
-      (tester) async {
-    await installHandler(assetsHandler);
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: AboutTurnaPage(),
-      ),
-    );
-    for (var i = 0; i < 5; i++) {
-      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
-      await tester.pump();
-    }
-
-    await tester.tap(find.text('使用指南').last);
-    for (var i = 0; i < 20; i++) {
-      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
-      await tester.pump();
-    }
-    await tester.pumpAndSettle(const Duration(seconds: 1));
-
-    // 验证 quick start tab 下 QuickStartFromAsset 已渲染并解析出 section。
-    expect(find.byType(QuickStartFromAsset), findsOneWidget);
-    expect(find.text('简介'), findsWidgets);
+    // Asset now uses the unified 0.x numbering, matching the manifest.
+    expect(find.text('0.7'), findsWidgets);
+    expect(find.text('1.1.0'), findsNothing,
+        reason: 'legacy 1.x ids must be renumbered to the 0.x scheme');
   });
 }

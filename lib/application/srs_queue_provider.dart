@@ -9,6 +9,7 @@ import 'package:get_it/get_it.dart';
 
 // Project imports:
 import 'package:turna/application/lesson_link_store.dart';
+import 'package:turna/application/review_dashboard/review_data_revision.dart';
 import 'package:turna/core/fsrs_engine.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/core/sm2.dart';
@@ -422,6 +423,13 @@ abstract class SrsQueueProvider extends ChangeNotifier {
           type: updated.type,
           sourceKey: eventSourceKey,
         ));
+        // Review data actually changed: invalidate dashboard/insights caches
+        // (Plan 3 §16.5). Guarded — tests construct this provider without DI.
+        try {
+          if (GetIt.I.isRegistered<ReviewDataRevision>()) {
+            GetIt.I<ReviewDataRevision>().bump();
+          }
+        } catch (_) {}
       } catch (e, st) {
         logger.w('$logTag reviewEvent record failed: $e', stackTrace: st);
       }
