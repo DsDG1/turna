@@ -75,8 +75,9 @@ class LegacyAnkiDryRunResult {
 
   final List<LegacyAnkiCardMapDraft> rows;
 
-  int get matchedCount =>
-      rows.where((row) => row.matchState == LegacyAnkiMatchState.matched).length;
+  int get matchedCount => rows
+      .where((row) => row.matchState == LegacyAnkiMatchState.matched)
+      .length;
   int get unresolvedCount => rows
       .where(
         (row) =>
@@ -115,18 +116,25 @@ class LegacyAnkiDryRunMatcher {
     for (final card in official) {
       final guid = card.noteGuid;
       if (guid != null && guid.isNotEmpty) {
-        byGuidOrd.putIfAbsent('$guid#${card.templateOrd}', () => <OfficialAnkiCardIdentity>[]).add(card);
+        byGuidOrd
+            .putIfAbsent(
+                '$guid#${card.templateOrd}', () => <OfficialAnkiCardIdentity>[])
+            .add(card);
       }
-      byCardId.putIfAbsent(card.officialCardId, () => <OfficialAnkiCardIdentity>[]).add(card);
+      byCardId
+          .putIfAbsent(card.officialCardId, () => <OfficialAnkiCardIdentity>[])
+          .add(card);
       final fingerprint = card.contentFingerprint;
       if (fingerprint != null && fingerprint.isNotEmpty) {
         byFingerprint
-            .putIfAbsent('$fingerprint#${card.templateOrd}', () => <OfficialAnkiCardIdentity>[])
+            .putIfAbsent('$fingerprint#${card.templateOrd}',
+                () => <OfficialAnkiCardIdentity>[])
             .add(card);
       }
     }
 
-    final sorted = [...legacy]..sort((a, b) => a.legacyCardId.compareTo(b.legacyCardId));
+    final sorted = [...legacy]
+      ..sort((a, b) => a.legacyCardId.compareTo(b.legacyCardId));
     final after = afterLegacyCardId ?? 0;
     var slice = sorted.where((card) => card.legacyCardId > after).toList();
     if (limit != null && limit >= 0 && slice.length > limit) {
@@ -156,9 +164,11 @@ class LegacyAnkiDryRunMatcher {
   }) {
     final guid = card.noteGuid;
     if (guid != null && guid.isNotEmpty) {
-      final hits = byGuidOrd['$guid#${card.templateOrd}'] ?? const <OfficialAnkiCardIdentity>[];
+      final hits = byGuidOrd['$guid#${card.templateOrd}'] ??
+          const <OfficialAnkiCardIdentity>[];
       if (hits.length > 1) {
-        return _draft(card, LegacyAnkiMatchMethod.noteGuidAndOrdinal, LegacyAnkiMatchState.collision);
+        return _draft(card, LegacyAnkiMatchMethod.noteGuidAndOrdinal,
+            LegacyAnkiMatchState.collision);
       }
       if (hits.length == 1) {
         return _draft(
@@ -170,7 +180,8 @@ class LegacyAnkiDryRunMatcher {
       }
     }
     if (sameTrustedPackage) {
-      final hits = byCardId[card.legacyCardId] ?? const <OfficialAnkiCardIdentity>[];
+      final hits =
+          byCardId[card.legacyCardId] ?? const <OfficialAnkiCardIdentity>[];
       if (hits.length == 1 && hits.single.templateOrd == card.templateOrd) {
         return _draft(
           card,
@@ -182,8 +193,8 @@ class LegacyAnkiDryRunMatcher {
     }
     final fingerprint = card.contentFingerprint;
     if (fingerprint != null && fingerprint.isNotEmpty) {
-      final hits =
-          byFingerprint['$fingerprint#${card.templateOrd}'] ?? const <OfficialAnkiCardIdentity>[];
+      final hits = byFingerprint['$fingerprint#${card.templateOrd}'] ??
+          const <OfficialAnkiCardIdentity>[];
       if (hits.length > 1) {
         return _draft(
           card,
@@ -217,7 +228,8 @@ class LegacyAnkiDryRunMatcher {
     final claimed = <int, int>{};
     for (final row in rows) {
       final officialId = row.officialCardId;
-      if (officialId == null || row.matchState != LegacyAnkiMatchState.matched) {
+      if (officialId == null ||
+          row.matchState != LegacyAnkiMatchState.matched) {
         continue;
       }
       claimed[officialId] = (claimed[officialId] ?? 0) + 1;

@@ -1,0 +1,6 @@
+date: 2026-08-24T19:52:34Z
+command: git diff --check
+exit: 0 (clean)
+command: bash native/turna_anki_core/build-android/verify_pin.sh
+pin: ok 967aa0d578fc75181e292e95326f9b58698da25c + 0001/0002/0003 patches
+native build: build-android/build.sh exit 0, verify_symbols pass (rebuilt from pinned commit 2026-08-24)

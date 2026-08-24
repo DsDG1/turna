@@ -1,7 +1,7 @@
 import 'package:path_provider/path_provider.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
-import 'package:turna/application/anki_official/engine/official_anki_home_due.dart';
 import 'package:turna/application/anki_official/engine/official_anki_session.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
 import 'package:turna/application/anki_official/migration/official_anki_production_router.dart';
@@ -12,8 +12,13 @@ import 'package:turna/application/anki_official/storage/official_anki_source_dao
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/data/anki_import_dao.dart';
 
-/// Refreshes official-routed import ids (exclusion) and optional deck counts.
-/// Safe to call from Play Hub, Profile, and Anki review hub.
+/// Refreshes official-routed import ids (exclusion) and the six formal-due
+/// sets per source. Safe to call from Play Hub, Profile, and the Anki
+/// review hub.
+///
+/// All state lands in [OfficialFormalDueRepository] (plan 34 D6): a failed
+/// refresh marks the snapshot unavailable while the last good six sets
+/// stay visible; a late result can detect staleness by generation.
 class OfficialAnkiHomeDueSync {
   const OfficialAnkiHomeDueSync();
 
@@ -35,39 +40,20 @@ class OfficialAnkiHomeDueSync {
   }
 
   Future<void> _refreshOnce() async {
+    final repo = OfficialFormalDueRepository.instance;
+    repo.saveForRollback();
     if (!LegacyAnkiMigrationFlags.cutoverEnabled) {
       // Owner routing still needs recorded Official ids (doc 34 W0-06).
       // Due numbers stay unavailable while cutover is paused.
-      OfficialAnkiHomeDue.officialDue = 0;
-      OfficialAnkiHomeDue.officialDueByImport = {};
-      OfficialAnkiHomeDue.officialSchedulerDueCardIdsByImport = {};
-      OfficialAnkiHomeDue.activePlacementCardIdsByImport = {};
-      OfficialAnkiHomeDue.officialDueUnavailable = true;
+      repo.apply(byImport: {}, unavailable: true);
       return;
     }
-    final savedDue = OfficialAnkiHomeDue.officialDue;
-    final savedByImport = Map<String, int>.from(
-      OfficialAnkiHomeDue.officialDueByImport,
-    );
-    final savedDueIds = Map<String, Set<int>>.from(
-      OfficialAnkiHomeDue.officialSchedulerDueCardIdsByImport,
-    );
-    final savedPlacements = Map<String, Set<int>>.from(
-      OfficialAnkiHomeDue.activePlacementCardIdsByImport,
-    );
-    final savedIds = Set<String>.from(OfficialAnkiHomeDue.officialImportIds);
-    final savedUnavailable = OfficialAnkiHomeDue.officialDueUnavailable;
     try {
       final support = await getApplicationSupportDirectory();
       const router = OfficialAnkiProductionRouter();
       final paths = router.pathsForDefaultProfile(support);
       if (!paths.catalogFile.existsSync()) {
-        OfficialAnkiHomeDue.officialImportIds = {};
-        OfficialAnkiHomeDue.officialDue = 0;
-        OfficialAnkiHomeDue.officialDueByImport = {};
-        OfficialAnkiHomeDue.officialSchedulerDueCardIdsByImport = {};
-        OfficialAnkiHomeDue.activePlacementCardIdsByImport = {};
-        OfficialAnkiHomeDue.officialDueUnavailable = false;
+        repo.apply(byImport: {});
         return;
       }
       final catalog = OfficialAnkiDatabase.file(paths.catalogFile.path);
@@ -75,21 +61,27 @@ class OfficialAnkiHomeDueSync {
         final dao = OfficialAnkiMigrationDao(catalog);
         final sources = OfficialAnkiSourceDao(catalog);
         await _adoptCourseImports(router, dao, sources);
-        OfficialAnkiHomeDue.officialImportIds = router.officialImportIds(
-          dao: dao,
-        );
         if (!OfficialAnkiFeatureFlags.current.allowsOfficialScheduler) {
-          OfficialAnkiHomeDue.officialDue = 0;
-          OfficialAnkiHomeDue.officialDueByImport = {};
-          OfficialAnkiHomeDue.officialSchedulerDueCardIdsByImport = {};
-          OfficialAnkiHomeDue.activePlacementCardIdsByImport = {};
-          OfficialAnkiHomeDue.officialDueUnavailable = false;
+          repo.apply(
+            byImport: {
+              for (final importId in router.officialImportIds(dao: dao))
+                importId: buildFormalDuePerSource(
+                  importId: importId,
+                  schedulerDueCardIds: const {},
+                  schedulerDueSynced: false,
+                  activePlacementCardIds: const {},
+                  suspendedCardIds: const {},
+                  buriedCardIds: const {},
+                  retiredCardIds: const {},
+                ),
+            },
+          );
           return;
         }
         await OfficialAnkiCompositionRoot.requireImporter(supportDir: support);
         final session = OfficialAnkiCompositionRoot.session;
         if (session is! OfficialAnkiSession) {
-          OfficialAnkiHomeDue.officialDueUnavailable = true;
+          repo.markUnavailable(StateError('official session unavailable'));
           return;
         }
         var opened = false;
@@ -115,12 +107,7 @@ class OfficialAnkiHomeDueSync {
         }
         if (!opened) {
           if (lastOpenError != null) throw lastOpenError;
-          OfficialAnkiHomeDue.officialImportIds = savedIds;
-          OfficialAnkiHomeDue.officialDue = savedDue;
-          OfficialAnkiHomeDue.officialDueByImport = savedByImport;
-          OfficialAnkiHomeDue.officialSchedulerDueCardIdsByImport = savedDueIds;
-          OfficialAnkiHomeDue.activePlacementCardIdsByImport = savedPlacements;
-          OfficialAnkiHomeDue.officialDueUnavailable = true;
+          repo.markUnavailable(StateError('collection open retry exhausted'));
           return;
         }
         await router.refreshHomeDueFromDeckTree(
@@ -128,9 +115,8 @@ class OfficialAnkiHomeDueSync {
           sources: sources,
           getDeckTree: session.listDeckTree,
         );
-        Future<Set<int>> fetchSuspendedCardIds({int? deckId}) async {
-          final query =
-              deckId == null ? 'is:suspended' : 'deck:$deckId is:suspended';
+
+        Future<Set<int>> fetchByQuery(String query) async {
           final ids = <int>{};
           String? pageToken;
           while (true) {
@@ -150,30 +136,35 @@ class OfficialAnkiHomeDueSync {
           return ids;
         }
 
-        Future<Set<int>> fetchBuriedCardIds({int? deckId}) async {
-          final query =
-              deckId == null ? 'is:buried' : 'deck:$deckId is:buried';
-          final ids = <int>{};
-          String? pageToken;
-          while (true) {
-            final page = await session.searchCardsPage(
-              search: query,
-              pageSize: 500,
-              pageToken: pageToken,
-            );
-            ids.addAll(page.cardIds);
-            if (page.nextPageToken == null ||
-                page.nextPageToken!.isEmpty ||
-                page.cardIds.isEmpty) {
-              break;
-            }
-            pageToken = page.nextPageToken;
+        Future<Set<int>> fetchSuspendedCardIds({int? deckId}) => fetchByQuery(
+            deckId == null ? 'is:suspended' : 'deck:$deckId is:suspended');
+
+        Future<Set<int>> fetchBuriedCardIds({int? deckId}) => fetchByQuery(
+            deckId == null ? 'is:buried' : 'deck:$deckId is:buried');
+
+        // R3-2: retired evidence must stay consistent with the projection
+        // state. A retired (uninstalled/tombstoned) card is one whose
+        // course placement row was deactivated — hard deletes simply leave
+        // the set empty, and the router intersects whatever we return with
+        // the source's placements.
+        Future<Set<int>> fetchRetiredCardIds({int? deckId}) async {
+          try {
+            final course = CourseLoader.databaseOrNull();
+            if (course == null) return const <int>{};
+            final rows = await course
+                .customSelect(
+                  'SELECT card_id FROM anki_course_card_placements '
+                  'WHERE active = 0',
+                )
+                .get();
+            return {for (final row in rows) row.read<int>('card_id')};
+          } catch (_) {
+            return const <int>{};
           }
-          return ids;
         }
 
-        // Exact card-id formal due (doc 34 W5): populate scheduler due ids so
-        // home/deck never falls back to count approximation.
+        // Exact card-id formal due (doc 34 W5 / plan 34 R3): all six sets
+        // per source, never count approximation.
         await router.refreshFormalDueCardIds(
           dao: dao,
           sources: sources,
@@ -182,33 +173,16 @@ class OfficialAnkiHomeDueSync {
               session.getReviewQueue(fetchLimit: fetchLimit),
           getSuspendedCardIds: fetchSuspendedCardIds,
           getBuriedCardIds: fetchBuriedCardIds,
+          getRetiredCardIds: fetchRetiredCardIds,
         );
       } finally {
         catalog.close();
       }
     } catch (error) {
-      final isLock = error is OfficialAnkiException &&
-          error.code == OfficialAnkiErrorCode.collectionLocked;
-      if (isLock) {
-        OfficialAnkiHomeDue.officialImportIds = savedIds;
-        OfficialAnkiHomeDue.officialDue = savedDue;
-        OfficialAnkiHomeDue.officialDueByImport = savedByImport;
-        OfficialAnkiHomeDue.officialSchedulerDueCardIdsByImport = savedDueIds;
-        OfficialAnkiHomeDue.activePlacementCardIdsByImport = savedPlacements;
-        OfficialAnkiHomeDue.officialDueUnavailable = true;
-        return;
-      }
-      final hasPriorSuccess = savedIds.isNotEmpty || savedDue != 0 || savedUnavailable;
-      if (hasPriorSuccess) {
-        OfficialAnkiHomeDue.officialImportIds = savedIds;
-        OfficialAnkiHomeDue.officialDue = savedDue;
-        OfficialAnkiHomeDue.officialDueByImport = savedByImport;
-        OfficialAnkiHomeDue.officialSchedulerDueCardIdsByImport = savedDueIds;
-        OfficialAnkiHomeDue.activePlacementCardIdsByImport = savedPlacements;
-        OfficialAnkiHomeDue.officialDueUnavailable = true;
-        return;
-      }
-      OfficialAnkiHomeDue.officialDueUnavailable = true;
+      // Failed refresh: restore the last good six sets and mark
+      // unavailable — never zero, never a partial guess (plan 34 R3-3).
+      repo.rollback();
+      repo.markUnavailable(error);
     }
   }
 

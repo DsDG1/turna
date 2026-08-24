@@ -28,9 +28,8 @@ class OfficialFirstReanchor {
     if (catalog == null) return 0;
     if (!getIt.isRegistered<CourseDatabase>()) return 0;
     final course = getIt<CourseDatabase>();
-    final profileId =
-        OfficialAnkiCompositionRoot.locatorPaths?.profileId ??
-            'profile-default-01';
+    final profileId = OfficialAnkiCompositionRoot.locatorPaths?.profileId ??
+        'profile-default-01';
     var published = 0;
     for (final source
         in OfficialAnkiSourceDao(catalog).listSources(profileId)) {

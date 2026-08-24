@@ -13,6 +13,7 @@ import 'package:sqlite3/sqlite3.dart' as sql;
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 
 // Project imports:
+import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_sqlite.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/service/remote_backup/backup_manifest.dart';
@@ -108,8 +109,8 @@ void main() {
     expect(snapshot.meta.hasCollection, isTrue);
     expect(snapshot.meta.hasCatalog, isTrue);
     expect(snapshot.meta.hasMediaDb, isTrue);
-    expect(snapshot.meta.driftSchema, 20);
-    expect(snapshot.meta.catalogSchema, 8);
+    expect(snapshot.meta.driftSchema, CourseDatabase.kSchemaVersion);
+    expect(snapshot.meta.catalogSchema, kOfficialAnkiCatalogSchemaVersion);
     expect(snapshot.meta.appVersion, '0.4.0');
     expect(phases.first, BackupSnapshotPhase.collectingPrefs);
     expect(phases.last, BackupSnapshotPhase.packingArchive);
@@ -151,7 +152,7 @@ void main() {
         .open(p.join(staging.path, 'course.db'), mode: sql.OpenMode.readOnly);
     expect(
       stagedCourse.select('PRAGMA user_version').first['user_version'],
-      20,
+      CourseDatabase.kSchemaVersion,
     );
     stagedCourse.dispose();
 

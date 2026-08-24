@@ -156,7 +156,8 @@ class OfficialAnkiFixturePilotSaga {
           )
         : backupService.generate(
             importCount: 1,
-            noteCount: legacyCards?.map((c) => c.legacyNoteId).toSet().length ?? 0,
+            noteCount:
+                legacyCards?.map((c) => c.legacyNoteId).toSet().length ?? 0,
             cardCount: legacyCards?.length ?? 0,
             srsCount: legacyCards?.length ?? 0,
             officialBackupId: 'bak-$migrationId',
@@ -323,7 +324,8 @@ class OfficialAnkiFixturePilotSaga {
     final now = nowMillis ?? DateTime.now().millisecondsSinceEpoch;
     final mismatches = <String>[];
     if (officialCardCount < legacyCardCount) {
-      mismatches.add('cards official=$officialCardCount < legacy=$legacyCardCount');
+      mismatches
+          .add('cards official=$officialCardCount < legacy=$legacyCardCount');
     }
     if (matchedCount != legacyCardCount) {
       mismatches.add('matched $matchedCount!=$legacyCardCount');

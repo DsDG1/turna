@@ -9,9 +9,11 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
+import 'package:turna/application/course_catalog.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/courses/languages/course_lookup.dart';
+import 'package:turna/domain/course/course_scope.dart';
 import 'package:turna/domain/course/section.dart';
 import 'package:turna/domain/course/unit.dart';
 import 'package:turna/domain/course/lesson.dart';
@@ -29,26 +31,29 @@ enum SectionLoadState { initial, loading, loaded, error }
 /// that inserting a new section/unit/lesson in the middle of the tree
 /// cannot shift the user's view onto a different node.
 ///
+/// The active course is identified by a typed [CourseScope] (plan 34 D1):
+/// the built-in language course, one Legacy Anki import, or one Official
+/// Anki source. String scope matching lives only in [CourseScopeCodec] and
+/// the one-time preference migrator — business code compares typed scopes.
+///
 /// Sections are loaded lazily: [load] populates [_sections] with lightweight
 /// shells (units empty) from the course index and pre-loads the first
 /// section's body. Switching to a section triggers [ensureSectionLoaded] to
-/// fetch that section's full body on demand (cached per id). [findUnitById]
-/// and [findLessonById] therefore only search sections whose bodies have been
-/// loaded — in practice the user only navigates within the current section,
-/// so this is behavior-preserving.
+/// fetch that section's full body on demand (cached per id).
 @lazySingleton
 class CourseProvider extends ChangeNotifier {
   CourseProvider([this._appPrefs]);
 
-  /// Prefs backing for [courseScope] persistence. Optional so tests can
-  /// construct the provider without a prefs store (scope then stays '').
+  /// Prefs backing for [scope] persistence. Optional so tests can
+  /// construct the provider without a prefs store (scope then stays
+  /// builtin).
   final AppPrefs? _appPrefs;
 
   // --- Section hierarchy ---
   List<Section> _sections = const [];
 
   /// Unfiltered section shells/bodies (built-in course + imported Anki
-  /// decks). [_sections] is the [courseScope]-filtered view of this list;
+  /// decks). [_sections] is the [scope]-filtered view of this list;
   /// consumers that must stay scope-independent (Anki review hub, daily
   /// challenge) read [allSections] instead.
   List<Section> _allSections = const [];
@@ -57,9 +62,11 @@ class CourseProvider extends ChangeNotifier {
   String? _selectedLessonId;
   bool _isLoaded = false;
 
-  /// Active course scope: '' = built-in course (Anki decks hidden),
-  /// 'anki:<importId>' = only that imported deck's sections.
-  String _courseScope = '';
+  /// Active course scope (typed). Built-in language course by default.
+  CourseScope _scope = const BuiltinCourseScope('turkish');
+
+  /// Catalog of selectable courses, loaded with the shells.
+  List<CourseCatalogEntry> _catalogEntries = const [];
 
   /// Ids of sections whose full body (units/lessons) has been loaded.
   final Set<String> _loadedSectionIds = {};
@@ -78,7 +85,6 @@ class CourseProvider extends ChangeNotifier {
   /// Last error for each section body load, keyed by section id.
   final Map<String, Object> _sectionLoadErrors = {};
 
-  /// True while the current section's body is being fetched on demand.
   bool get _currentSectionLoading =>
       _currentSectionId != null &&
       _sectionLoadStates[_currentSectionId] == SectionLoadState.loading;
@@ -86,7 +92,7 @@ class CourseProvider extends ChangeNotifier {
   /// Immutable view of the section shells (and any loaded bodies). Order is
   /// the on-disk order. Shells have empty `units` until loaded.
   ///
-  /// This is the [courseScope]-filtered view — see [allSections] for the
+  /// This is the [scope]-filtered view — see [allSections] for the
   /// unfiltered list.
   List<Section> get sections => List.unmodifiable(_sections);
 
@@ -96,94 +102,44 @@ class CourseProvider extends ChangeNotifier {
   int get loadedSectionCount => _loadedSectionIds.length;
 
   /// Unfiltered view of every section (built-in course + all imported Anki
-  /// decks), regardless of [courseScope].
+  /// decks), regardless of [scope].
   List<Section> get allSections => List.unmodifiable(_allSections);
 
-  /// The active course scope: '' = built-in course, 'anki:<importId>' = a
-  /// single imported Anki deck.
-  String get courseScope => _courseScope;
+  /// The active typed course scope.
+  CourseScope get scope => _scope;
 
-  /// One entry per imported Anki deck (importId + display name), computed
-  /// from the unfiltered section list so the language menu can list all
-  /// decks regardless of the current [courseScope].
-  List<({String importId, String name})> get ankiDeckEntries {
-    final seen = <String>{};
-    final entries = <({String importId, String name})>[];
-    for (final s in _allSections) {
-      if (s.level != 'Anki' && s.level != 'OfficialAnki') continue;
-      final importId = _importIdFromSectionId(s.id);
-      if (importId.isEmpty || !seen.add(importId)) continue;
-      entries.add((importId: importId, name: s.name));
-    }
-    return List.unmodifiable(entries);
-  }
+  /// Wire key of the active scope (versioned codec). Persistence-facing
+  /// consumers read this; comparisons should use [scope] instead.
+  String get courseScope => _scope.wireKey;
 
-  /// Extract the import id from an Anki section id
-  /// ('anki-<importId>-s<deckId>' or 'official-anki-<sourceId>-s<deckId>' → importId).
-  static String _importIdFromSectionId(String sectionId) {
-    if (sectionId.startsWith('anki-')) {
-      return sectionId.substring(5).split('-').first;
-    }
-    if (sectionId.startsWith('official-anki-')) {
-      return sectionId.substring('official-anki-'.length).split('-').first;
-    }
-    return '';
-  }
+  /// The course catalog: one entry per selectable course (builtin + one
+  /// entry per Anki source), ordered by the persisted course order.
+  List<CourseCatalogEntry> get catalogEntries =>
+      List.unmodifiable(_catalogEntries);
 
-  /// One entry per manageable course: the built-in course (scope `''`, marked
-  /// `isBuiltin`, never deletable) plus one per imported Anki deck. Ordered
-  /// by the persisted course order ([PrefsConstants.courseOrder]); decks
-  /// missing from the stored order are appended at the end, and stored ids
-  /// without a matching deck are dropped.
-  ///
-  /// The built-in entry's `name` is empty — its display name belongs to the
-  /// language layer (`TargetLanguage`), so UI resolves it.
+  /// Whether [sectionId] belongs to the active scope. Exact ownership only.
+  bool sectionInActiveScope(String sectionId) =>
+      CourseCatalog.sectionBelongsToScope(_scope, sectionId);
+
+  /// Legacy view over [catalogEntries]. Prefer [catalogEntries].
   List<({String scope, String name, bool isBuiltin})> get courseEntries {
-    final decks = ankiDeckEntries;
-    final nameByScope = <String, String>{
-      for (final d in decks) 'anki:${d.importId}': d.name,
-    };
-    final stored = _appPrefs?.preferences
-            .getStringList(PrefsConstants.courseOrder,
-                defaultValue: const [''])
-            .getValue() ??
-        const [''];
-
-    final ordered = <({String scope, String name, bool isBuiltin})>[];
-    final seen = <String>{};
-    for (final scope in stored) {
-      if (!seen.add(scope)) continue;
-      if (scope.isEmpty) {
-        ordered.add((scope: '', name: '', isBuiltin: true));
-      } else {
-        final name = nameByScope[scope];
-        if (name != null) {
-          ordered.add((scope: scope, name: name, isBuiltin: false));
-        }
-      }
-    }
-    // The built-in course always exists, even if absent from the stored list.
-    if (seen.add('')) {
-      ordered.insert(0, (scope: '', name: '', isBuiltin: true));
-    }
-    // New decks not yet in the stored order go last.
-    for (final d in decks) {
-      final scope = 'anki:${d.importId}';
-      if (seen.add(scope)) {
-        ordered.add((scope: scope, name: d.name, isBuiltin: false));
-      }
-    }
-    return List.unmodifiable(ordered);
+    return List.unmodifiable([
+      for (final entry in _catalogEntries)
+        (
+          scope: entry.wireKey,
+          name: entry.displayName,
+          isBuiltin: entry.isBuiltin
+        ),
+    ]);
   }
 
-  /// Persist the course order shown in the course-management page and
-  /// notify listeners so [courseEntries] re-resolves. [scopes] uses the same
-  /// encoding as [courseScope]: `''` for the built-in course,
-  /// `anki:<importId>` for a deck.
-  Future<void> persistCourseOrder(List<String> scopes) async {
+  /// Persist the course order shown in the course-management page. [wires]
+  /// uses the v1 codec wire keys (see [CourseScopeCodec]).
+  Future<void> persistCourseOrder(List<String> wires) async {
     final prefs = _appPrefs;
     if (prefs == null) return;
-    await prefs.setStringList(PrefsConstants.courseOrder, scopes);
+    await prefs.setStringList(PrefsConstants.courseOrder, wires);
+    await _reloadCatalog();
     notifyListeners();
   }
 
@@ -287,7 +243,7 @@ class CourseProvider extends ChangeNotifier {
       return;
     }
     logger.w('CourseProvider.load: first load, fetching from DB');
-    _restoreScopeFromPrefs();
+    await _restoreScopeFromPrefs();
     Set<String>? officialActive;
     if (OfficialAnkiCourseEntry.flagsOf().allowsCourseEntry) {
       officialActive = await OfficialAnkiCourseEntry.resolveActiveSectionIds();
@@ -296,14 +252,19 @@ class CourseProvider extends ChangeNotifier {
       await loadSectionShells(),
       activeIds: officialActive,
     );
+    await _reloadCatalog(shells: _allSections);
     _sections = _applyScopeFilter(_allSections);
-    if (_courseScope.isNotEmpty && _sections.isEmpty) {
-      // The scoped deck was uninstalled — fall back to the built-in course.
+    if (_scope case BuiltinCourseScope() when _sections.isEmpty) {
+      // No builtin content (data wipe): keep the builtin scope with an
+      // empty tree rather than thrashing the preference.
+    } else if (_sections.isEmpty) {
+      // The scoped source was uninstalled — fall back to the built-in
+      // course rather than showing an empty tree.
       logger.w(
-        'CourseProvider.load: scope "$_courseScope" matches no sections, '
+        'CourseProvider.load: scope "$_scope" matches no sections, '
         'falling back to built-in course',
       );
-      _courseScope = '';
+      _scope = const BuiltinCourseScope('turkish');
       await _persistScope();
       _sections = _applyScopeFilter(_allSections);
     }
@@ -438,7 +399,7 @@ class CourseProvider extends ChangeNotifier {
     logger.w('CourseProvider.reloadCourse: resetting and reloading shells');
     // Must drop CourseLoader's memoized shells/vocab — otherwise reload reads
     // the pre-mutation snapshot and newly imported Anki decks never appear
-    // in [allSections] / [courseEntries].
+    // in [allSections] / [catalogEntries].
     CourseLoader.invalidateCaches();
     _isLoaded = false;
     _sections = const [];
@@ -455,55 +416,194 @@ class CourseProvider extends ChangeNotifier {
     await load();
   }
 
-  // --- Course scope ('' = built-in course, 'anki:<importId>' = one deck) ---
+  // --- Course scope switching ---
 
-  /// Switch the course scope and reload the tree. Persists the choice so it
-  /// survives restarts; [load] falls back to '' when the scoped deck no
-  /// longer exists (e.g. after an uninstall that didn't go through here).
-  Future<void> setCourseScope(String scope) async {
-    if (scope == _courseScope && _isLoaded) return;
-    _courseScope = scope;
+  /// Switch the course scope (typed) and reload the tree. Persists the
+  /// choice so it survives restarts; [load] falls back to the builtin
+  /// course when the scoped source no longer exists.
+  Future<void> setScope(CourseScope next) async {
+    if (next == _scope && _isLoaded) return;
+    _scope = next;
     await _persistScope();
     CourseLoader.invalidateCaches();
     await reloadCourse();
   }
 
-  /// Keep only the sections belonging to the active scope: built-in course
-  /// (everything except Anki decks) or a single deck's `anki-<importId>-`
-  /// id prefix.
-  List<Section> _applyScopeFilter(List<Section> shells) {
-    if (_courseScope.isEmpty) {
-      return shells
-          .where(
-            (s) =>
-                s.level != 'Anki' ||
-                OfficialAnkiCourseEntry.isOfficialSectionId(s.id),
-          )
-          .toList(growable: false);
+  /// Compatibility entry point: accepts a v1 codec wire key or a legacy
+  /// `'anki:<id>'` / `''` string. Legacy values resolve against the live
+  /// catalog (one source → that source; ambiguous → builtin, never a
+  /// guess). Prefer [setScope].
+  Future<void> setCourseScope(String raw) async {
+    final decoded = CourseScopeCodec.decode(raw.trim());
+    if (decoded != null) {
+      await setScope(decoded);
+      return;
     }
-    if (_courseScope.startsWith('anki:')) {
-      final key = _courseScope.substring(5);
-      final legacyPrefix = 'anki-$key-';
-      final officialPrefix = 'official-anki-$key-';
-      return shells
-          .where((s) =>
-              s.id.startsWith(legacyPrefix) ||
-              s.id.startsWith(officialPrefix))
-          .toList(growable: false);
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) {
+      await setScope(const BuiltinCourseScope('turkish'));
+      return;
     }
-    return shells;
+    if (trimmed.startsWith('anki:')) {
+      final id = trimmed.substring(5);
+      // Resolve against the catalog: legacy import first, then official
+      // source; an id matching both is treated as ambiguous → builtin.
+      final legacyHit = _catalogEntries.any(
+        (e) => e.legacyImportId == id,
+      );
+      final officialHit = _catalogEntries.any(
+        (e) => e.officialSourceId == id,
+      );
+      if (legacyHit && !officialHit) {
+        await setScope(LegacyAnkiCourseScope(id));
+        return;
+      }
+      if (officialHit && !legacyHit) {
+        await setScope(OfficialAnkiCourseScope(
+          profileId: CourseCatalog.officialProfileId,
+          sourceId: id,
+        ));
+        return;
+      }
+    }
+    logger.w('CourseProvider.setCourseScope: unresolvable scope "$raw", '
+        'falling back to builtin');
+    await setScope(const BuiltinCourseScope('turkish'));
   }
 
-  void _restoreScopeFromPrefs() {
+  /// Keep only the sections belonging to the active scope: built-in course
+  /// (everything except ALL Anki sections — legacy and official alike,
+  /// plan 34 R1-2) or exactly one source's sections.
+  List<Section> _applyScopeFilter(List<Section> shells) {
+    return [
+      for (final s in shells)
+        if (_sectionInScope(s)) s
+    ];
+  }
+
+  bool _sectionInScope(Section s) {
+    return switch (_scope) {
+      BuiltinCourseScope() => _isAnyAnkiSection(s) == false,
+      LegacyAnkiCourseScope(importId: final id) =>
+        CourseCatalog.legacyImportIdFromSectionId(s.id) == id,
+      OfficialAnkiCourseScope(sourceId: final id) =>
+        CourseCatalog.officialSourceIdFromSectionId(s.id) == id,
+    };
+  }
+
+  /// True for every Legacy or Official Anki section regardless of level
+  /// tagging — the builtin language course must never show either
+  /// (plan 34 R1-2).
+  static bool _isAnyAnkiSection(Section s) {
+    return s.level == 'Anki' ||
+        s.level == 'OfficialAnki' ||
+        OfficialAnkiCourseEntry.isOfficialSectionId(s.id);
+  }
+
+  Future<void> _reloadCatalog({List<Section>? shells}) async {
+    final entries = await CourseCatalog.load(shells: shells ?? _allSections);
+    final stored = _appPrefs?.preferences.getStringList(
+            PrefsConstants.courseOrder,
+            defaultValue: const []).getValue() ??
+        const <String>[];
+
+    final byWire = {for (final e in entries) e.wireKey: e};
+    // Map legacy stored keys onto wires for orders written by older builds.
+    final wireForStored = <String, String>{};
+    byWire.forEach((wire, entry) {
+      switch (entry.scope) {
+        case BuiltinCourseScope():
+          wireForStored[''] = wire;
+        case LegacyAnkiCourseScope(importId: final id):
+          wireForStored['anki:$id'] = wire;
+        case OfficialAnkiCourseScope(sourceId: final id):
+          wireForStored['anki:$id'] = wire;
+      }
+    });
+
+    final ordered = <CourseCatalogEntry>[];
+    final seen = <String>{};
+    for (final storedKey in stored) {
+      final wire = CourseScopeCodec.isEncodedKey(storedKey)
+          ? storedKey
+          : wireForStored[storedKey];
+      if (wire == null) continue;
+      final entry = byWire[wire];
+      if (entry == null || !seen.add(wire)) continue;
+      ordered.add(entry);
+    }
+    // The built-in course always exists, even if absent from stored order.
+    final builtinWire = const BuiltinCourseScope('turkish').wireKey;
+    if (byWire.containsKey(builtinWire) && seen.add(builtinWire)) {
+      ordered.insert(0, byWire[builtinWire]!);
+    }
+    // Sources not yet in the stored order go last.
+    for (final entry in entries) {
+      if (seen.add(entry.wireKey)) ordered.add(entry);
+    }
+    _catalogEntries = List.unmodifiable(ordered);
+  }
+
+  Future<void> _restoreScopeFromPrefs() async {
     final prefs = _appPrefs;
     if (prefs == null) return;
-    _courseScope = prefs.courseScope.getValue();
+    final raw = prefs.courseScope.getValue();
+    final decoded = CourseScopeCodec.decode(raw);
+    if (decoded != null) {
+      _scope = decoded;
+      return;
+    }
+    // Legacy value: resolve against the catalog (single source wins;
+    // ambiguity falls back to builtin — never a guess).
+    final entries = await CourseCatalog.load();
+    if (raw.startsWith('anki:')) {
+      final id = raw.substring(5);
+      final legacyHit = <String>[
+        for (final entry in entries)
+          if (entry.legacyImportId == id) id,
+      ];
+      final officialHit = <String>[
+        for (final entry in entries)
+          if (entry.officialSourceId == id) id,
+      ];
+      if (legacyHit.length == 1 && officialHit.isEmpty) {
+        _scope = LegacyAnkiCourseScope(id);
+        return;
+      }
+      if (officialHit.length == 1 && legacyHit.isEmpty) {
+        _scope = OfficialAnkiCourseScope(
+          profileId: CourseCatalog.officialProfileId,
+          sourceId: id,
+        );
+        return;
+      }
+      // `anki:src` truncation with exactly one official source re-binds to
+      // it (the preference migrator also repairs this; keep behavior
+      // aligned when it has not run yet).
+      if (id == 'src' || id.isEmpty) {
+        final officialSources = [
+          for (final entry in entries)
+            if (entry.officialSourceId != null) entry.officialSourceId!,
+        ];
+        if (officialSources.length == 1) {
+          _scope = OfficialAnkiCourseScope(
+            profileId: CourseCatalog.officialProfileId,
+            sourceId: officialSources.single,
+          );
+          return;
+        }
+      }
+    } else if (raw.isEmpty) {
+      _scope = const BuiltinCourseScope('turkish');
+      return;
+    }
+    _scope = const BuiltinCourseScope('turkish');
   }
 
   Future<void> _persistScope() async {
     final prefs = _appPrefs;
     if (prefs == null) return;
-    await prefs.setString(PrefsConstants.courseScope, _courseScope);
+    await prefs.setString(PrefsConstants.courseScope, _scope.wireKey);
   }
 
   // --- Selection (all id-based, so middle-of-tree inserts are safe) ---

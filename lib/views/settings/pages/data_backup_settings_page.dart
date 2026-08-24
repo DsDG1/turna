@@ -1,5 +1,6 @@
 // Dart imports:
 import 'dart:async';
+import 'dart:io';
 
 // Flutter imports:
 import 'package:flutter/material.dart';
@@ -14,7 +15,9 @@ import 'package:turna/application/game_provider.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/settings/commands/reset_account_command.dart';
 import 'package:turna/application/settings/settings_destination.dart';
+import 'package:turna/application/migration/turna_migration_import.dart';
 import 'package:turna/application/settings/settings_operation_result.dart';
+import 'package:turna/data/course_database.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
@@ -70,6 +73,18 @@ class DataBackupSettingsPage extends StatelessWidget {
                   subtitle: AppStrings.settingsRemoteBackupSubtitle,
                   onTap: (context) =>
                       context.router.push(const RemoteBackupRoute()),
+                ),
+                settingsTileDivider(context),
+                // Independent migration-package entry (plan 34 §R7-3): a
+                // turna-migration-v1 zip from another platform (OHOS EOL
+                // export) — deliberately separate from the JSON backup
+                // import above. Legacy Anki rows land as pending
+                // migration and never activate the old scheduler.
+                SettingsActionTile(
+                  icon: Icons.move_down_rounded,
+                  title: '导入 Turna 迁移包',
+                  subtitle: 'turna-migration-v1.zip（跨设备迁移）',
+                  onTap: (context) => _importMigrationPackage(context),
                 ),
               ],
             ),
@@ -211,8 +226,76 @@ class DataBackupSettingsPage extends StatelessWidget {
     );
   }
 
-  Future<void> _importData(BuildContext context) async {
+  /// turna-migration-v1 import (plan 34 §R7-3). Validation is fail-closed;
+  /// the dialog reports exact outcomes, including pending legacy imports.
+  Future<void> _importMigrationPackage(BuildContext context) async {
     String? pickedPath;
+    try {
+      pickedPath = (await ValidatedFilePicker.pickFiles(
+        allowedExtensions: const ['zip'],
+      ))
+          ?.files
+          .single
+          .path;
+    } on ValidatedFilePickerInvalidExtension {
+      if (context.mounted) {
+        _showSnack(context, '仅支持导入 .zip 格式的迁移包。');
+      }
+      return;
+    }
+    if (pickedPath == null || !context.mounted) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => SettingsConfirmDialog(
+        title: '导入 Turna 迁移包',
+        message: '将迁移包中的学习进度恢复到本机。Anki 牌组数据会进入'
+            '「待迁移」状态，需要你确认后才会迁移，不会直接启用旧调度器。',
+        confirmText: '开始导入',
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    try {
+      final importer = TurnaMigrationImporter(db: getIt<CourseDatabase>());
+      final result = await importer.importFrom(File(pickedPath));
+      if (!context.mounted) return;
+      if (result.applied) {
+        final pending = result.legacyPendingImports.isEmpty
+            ? ''
+            : '\n待迁移 Anki 牌组：${result.legacyPendingImports.length} 个';
+        _showSnack(
+          context,
+          '迁移完成：学习记录 ${result.restoredSrsStates} 条、复习历史 '
+          '${result.restoredReviewEvents} 条$pending',
+        );
+      } else {
+        _showSnack(context, '迁移包被拒绝：${_rejectionText(result.rejection)}');
+      }
+    } catch (e) {
+      if (context.mounted) {
+        _showSnack(context, '迁移导入失败：$e');
+      }
+    }
+  }
+
+  String _rejectionText(TurnaMigrationImportRejection? rejection) {
+    return switch (rejection) {
+      TurnaMigrationImportRejection.notAZip => '文件不是有效的 zip 包',
+      TurnaMigrationImportRejection.zipSlipEntry => '包内包含非法路径',
+      TurnaMigrationImportRejection.missingManifest => '缺少清单文件',
+      TurnaMigrationImportRejection.unknownFormat => '不是 Turna 迁移包',
+      TurnaMigrationImportRejection.schemaTooNew => '迁移包来自更新的应用版本',
+      TurnaMigrationImportRejection.missingSha256Sums => '缺少校验清单',
+      TurnaMigrationImportRejection.checksumMismatch => '校验失败，文件可能损坏',
+      TurnaMigrationImportRejection.missingRequiredEntry => '迁移包缺少必要文件',
+      TurnaMigrationImportRejection.insufficientSpace => '存储空间不足',
+      TurnaMigrationImportRejection.applyFailed => '数据应用失败，已回滚',
+      null => '未知原因',
+    };
+  }
+
+  Future<void> _importData(BuildContext context) async {    String? pickedPath;
     try {
       pickedPath = (await ValidatedFilePicker.pickFiles(
         allowedExtensions: const ['json'],

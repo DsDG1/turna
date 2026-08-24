@@ -10,11 +10,13 @@ import 'dart:io';
 
 import 'package:turna/application/anki/anki_models.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
+import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_state.dart';
 import 'package:turna/application/anki_official/migration/official_anki_write_owner.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
+import 'package:turna/data/anki_legacy_write_fence.dart';
 import 'package:turna/data/course_database.dart';
 
 /// Data access object for the Anki NoteStore tables (`anki_notetypes`,
@@ -41,6 +43,8 @@ class AnkiNoteDao {
     String importId,
     Iterable<AnkiDeckIndexRecord> records,
   ) async {
+    LegacyWriteFence.instance
+        .assertAllowed(importId: importId, operation: 'replaceDeckIndex');
     await _db.customStatement(
       'DELETE FROM anki_decks WHERE import_id = ?',
       [importId],
@@ -65,6 +69,8 @@ class AnkiNoteDao {
     String importId,
     Iterable<AnkiImportIssueRecord> issues,
   ) async {
+    LegacyWriteFence.instance
+        .assertAllowed(importId: importId, operation: 'replaceImportIssues');
     await _db.customStatement(
       'DELETE FROM anki_import_issues WHERE import_id = ?',
       [importId],
@@ -92,6 +98,8 @@ class AnkiNoteDao {
     String importId,
     Iterable<AnkiPracticeProjectionRecord> projections,
   ) async {
+    LegacyWriteFence.instance.assertAllowed(
+        importId: importId, operation: 'replacePracticeProjections');
     await _db.customStatement(
       'DELETE FROM anki_practice_projections WHERE import_id = ?',
       [importId],
@@ -145,6 +153,8 @@ class AnkiNoteDao {
 
   /// Insert or update a notetype snapshot.
   Future<void> upsertNotetype(AnkiNotetypeRecord r) async {
+    LegacyWriteFence.instance
+        .assertAllowed(importId: r.importId, operation: 'upsertNotetype');
     await _db.into(_db.ankiNotetypes).insertOnConflictUpdate(
           AnkiNotetypesCompanion.insert(
             importId: r.importId,
@@ -180,6 +190,8 @@ class AnkiNoteDao {
 
   /// Insert or update a raw note (fields kept as HTML).
   Future<void> upsertNote(AnkiNoteRecord r) async {
+    LegacyWriteFence.instance
+        .assertAllowed(importId: r.importId, operation: 'upsertNote');
     await _db.into(_db.ankiNotes).insertOnConflictUpdate(
           AnkiNotesCompanion.insert(
             importId: r.importId,
@@ -207,6 +219,8 @@ class AnkiNoteDao {
   /// Insert or update a card-meta row.
   /// Insert or update a card-meta row.
   Future<void> upsertCardMeta(AnkiCardMetaRecord r) async {
+    LegacyWriteFence.instance
+        .assertAllowed(importId: r.importId, operation: 'upsertCardMeta');
     final existed = await _db.customSelect(
       'SELECT 1 FROM anki_cards_meta '
       'WHERE import_id = ? AND card_id = ? LIMIT 1',
@@ -238,6 +252,7 @@ class AnkiNoteDao {
       );
     }
   }
+
   /// Get card meta by (importId, cardId).
   Future<AnkiCardMetaRecord?> cardMeta(String importId, int cardId) async {
     final row = await (_db.select(_db.ankiCardsMeta)
@@ -367,9 +382,14 @@ class AnkiNoteDao {
       return null;
     }
   }
+
   /// Clear expired buried cards and leave future buries untouched.
   /// Clear expired buried cards and leave future buries untouched.
   Future<List<AnkiCardMetaRecord>> clearBuriedBefore(int timestamp) async {
+    LegacyWriteFence.instance.assertAllowed(
+      importId: null,
+      operation: 'clearBuriedBefore',
+    );
     final expired = await _db.customSelect(
       'SELECT import_id, card_id, note_id, ord, did, word_id, render_mode, '
       'scheduling_json, suspended, buried_until, marked, flag '
@@ -384,21 +404,28 @@ class AnkiNoteDao {
     );
     return expired.map(_recordFromRaw).toList();
   }
+
   Future<List<AnkiCardMetaRecord>> flaggedCards(String importId,
       {int? flag}) async {
-    final rows = await _db.customSelect(
-      'SELECT import_id, card_id, note_id, ord, did, word_id, render_mode, '
-      'scheduling_json, suspended, buried_until, marked, flag '
-      'FROM anki_cards_meta '
-      'WHERE import_id = ? '
-      '${flag == null ? '' : 'AND flag = ?'} '
-      'ORDER BY card_id',
-      variables: flag == null
-          ? [Variable.withString(importId)]
-          : [Variable.withString(importId), Variable.withInt(flag.clamp(0, 4))],
-    ).get();
+    final rows = await _db
+        .customSelect(
+          'SELECT import_id, card_id, note_id, ord, did, word_id, render_mode, '
+          'scheduling_json, suspended, buried_until, marked, flag '
+          'FROM anki_cards_meta '
+          'WHERE import_id = ? '
+          '${flag == null ? '' : 'AND flag = ?'} '
+          'ORDER BY card_id',
+          variables: flag == null
+              ? [Variable.withString(importId)]
+              : [
+                  Variable.withString(importId),
+                  Variable.withInt(flag.clamp(0, 4))
+                ],
+        )
+        .get();
     return rows.map(_recordFromRaw).toList();
   }
+
   /// Search raw note fields within one imported deck. The JSON column is
   /// intentionally searched as text; the browser strips HTML only for display.
   Future<List<AnkiCardBrowserRecord>> searchNotes(
@@ -469,7 +496,8 @@ class AnkiNoteDao {
     // Fetch user-facing state for every candidate card in one chunked query
     // instead of one _withState SELECT per row (N+1 -> 2 queries).
     final baseCards = [
-      for (final row in rows) _toCardMetaRecord(row.readTable(_db.ankiCardsMeta)),
+      for (final row in rows)
+        _toCardMetaRecord(row.readTable(_db.ankiCardsMeta)),
     ];
     final cards = await _applyStateBatch(importId, baseCards);
     return [
@@ -573,6 +601,10 @@ class AnkiNoteDao {
 
   Future<void> upsertNotetypeBatch(List<AnkiNotetypeRecord> rows) async {
     if (rows.isEmpty) return;
+    for (final r in rows) {
+      LegacyWriteFence.instance.assertAllowed(
+          importId: r.importId, operation: 'upsertNotetypeBatch');
+    }
     await _db.batch((b) {
       for (final r in rows) {
         b.insert(
@@ -596,6 +628,10 @@ class AnkiNoteDao {
 
   Future<void> upsertNoteBatch(List<AnkiNoteRecord> rows) async {
     if (rows.isEmpty) return;
+    for (final r in rows) {
+      LegacyWriteFence.instance
+          .assertAllowed(importId: r.importId, operation: 'upsertNoteBatch');
+    }
     await _db.batch((b) {
       for (final r in rows) {
         b.insert(
@@ -618,6 +654,12 @@ class AnkiNoteDao {
 
   Future<void> upsertCardMetaBatch(List<AnkiCardMetaRecord> rows) async {
     if (rows.isEmpty) return;
+    for (final r in rows) {
+      LegacyWriteFence.instance.assertAllowed(
+        importId: r.importId,
+        operation: 'upsertCardMetaBatch',
+      );
+    }
     final existing = <String>{};
     final idsByImport = <String, Set<int>>{};
     for (final row in rows) {
@@ -690,11 +732,14 @@ class AnkiNoteDao {
   /// three leaked a full row set on every uninstall. srs_states are cleaned
   /// separately by the `anki-<importId>-` prefix.
   Future<void> deleteByImport(String importId) async {
+    LegacyWriteFence.instance
+        .assertAllowed(importId: importId, operation: 'deleteByImport');
     await _db.transaction(() async {
       await (_db.delete(_db.ankiNotetypes)
             ..where((t) => t.importId.equals(importId)))
           .go();
-      await (_db.delete(_db.ankiNotes)..where((t) => t.importId.equals(importId)))
+      await (_db.delete(_db.ankiNotes)
+            ..where((t) => t.importId.equals(importId)))
           .go();
       await (_db.delete(_db.ankiCardsMeta)
             ..where((t) => t.importId.equals(importId)))
@@ -727,6 +772,11 @@ class AnkiNoteDao {
     String? front,
     String? back,
   }) async {
+    final fenceImportId = LegacyAnkiIdentifiers.importIdFromWordId(wordId);
+    if (fenceImportId.isNotEmpty) {
+      LegacyWriteFence.instance.assertAllowed(
+          importId: fenceImportId, operation: 'upsertPrerenderedFace');
+    }
     // Atomic upsert: only the captured face is written (Value.absent for the
     // other), so concurrent front/back captures can't clobber each other via a
     // stale read-then-write. On conflict the uncaptured column is left as-is.
@@ -761,6 +811,11 @@ class AnkiNoteDao {
   /// Delete cached pre-rendered HTML for an import (deck unload). [prefix] is
   /// the `anki-<importId>-` wordId prefix.
   Future<void> deletePrerenderedByPrefix(String prefix) async {
+    final fenceImportId = LegacyAnkiIdentifiers.importIdFromWordId(prefix);
+    if (fenceImportId.isNotEmpty) {
+      LegacyWriteFence.instance.assertAllowed(
+          importId: fenceImportId, operation: 'deletePrerenderedByPrefix');
+    }
     await (_db.delete(_db.ankiPrerenderedHtml)
           ..where((t) => t.wordId.like('$prefix%')))
         .go();
@@ -842,6 +897,7 @@ class AnkiNoteDao {
       flag: row.read<int>('flag'),
     );
   }
+
   AnkiCardMetaRecord _recordFromRaw(dynamic row) {
     return AnkiCardMetaRecord(
       importId: row.read<String>('import_id'),
@@ -858,7 +914,6 @@ class AnkiNoteDao {
       flag: row.read<int>('flag'),
     );
   }
-
 }
 
 /// `col LIKE ? ESCAPE '\'` - drift's [Expression.like] has no escape support,

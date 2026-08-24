@@ -149,8 +149,9 @@ class LegacyAnkiCensusService {
       }
       seen[guid] = (seen[guid] ?? 0) + 1;
     }
-    final duplicateGuidCount =
-        seen.values.where((count) => count > 1).fold<int>(0, (sum, n) => sum + (n - 1));
+    final duplicateGuidCount = seen.values
+        .where((count) => count > 1)
+        .fold<int>(0, (sum, n) => sum + (n - 1));
     return LegacyAnkiImportCensus(
       importId: seed.importId,
       sourceHash: seed.sourceHash,
@@ -190,14 +191,14 @@ class DatabaseLegacyAnkiCensusReader implements LegacyAnkiCensusReader {
       final srsCount = wordIds.isEmpty
           ? 0
           : (await (_db.select(_db.srsStates)
-                ..where((t) => t.wordId.isIn(wordIds)))
-              .get())
+                    ..where((t) => t.wordId.isIn(wordIds)))
+                  .get())
               .length;
       final reviewCount = wordIds.isEmpty
           ? 0
           : (await (_db.select(_db.reviewEvents)
-                ..where((t) => t.cardId.isIn(wordIds)))
-              .get())
+                    ..where((t) => t.cardId.isIn(wordIds)))
+                  .get())
               .length;
 
       final sourceFilePresent = File(imp.sourcePath).existsSync();
@@ -222,7 +223,8 @@ class DatabaseLegacyAnkiCensusReader implements LegacyAnkiCensusReader {
     return seeds;
   }
 
-  Future<List<LegacyAnkiCardIdentity>> loadCardIdentities(String importId) async {
+  Future<List<LegacyAnkiCardIdentity>> loadCardIdentities(
+      String importId) async {
     final notes = await (_db.select(_db.ankiNotes)
           ..where((t) => t.importId.equals(importId)))
         .get();

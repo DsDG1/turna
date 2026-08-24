@@ -74,15 +74,40 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
   @override
   void dispose() {
     // The debounce timer is cancelled here so it can never fire after the
-    // controllers go away. Pending edits are flushed *before* the pop by the
-    // PopScope callback, not here: triggering `notifyListeners` during unmount
-    // would hit the framework lock (setState/markNeedsBuild while locked).
+    // controllers go away. A pending draft is flushed synchronously first
+    // — leaving the page (route pop, widget-tree replacement or teardown)
+    // must never silently lose the user's last edit.
     _commitDebounce?.cancel();
+    _flushDraftForDispose();
     _apiKeyCtrl.dispose();
     _baseUrlCtrl.dispose();
     _modelChatCtrl.dispose();
     _modelJsonCtrl.dispose();
     super.dispose();
+  }
+
+  /// Dispose-safe variant of [_commitDraft]: no setState, no controller
+  /// mutation — just persist the pending text before the controllers die.
+  void _flushDraftForDispose() {
+    final holder = getIt<AiEngineConfigHolder>();
+    final storedKey = holder.config.apiKey;
+    final typedKey = _apiKeyCtrl.text.trim();
+    var normalizedBaseUrl = _draft.customBaseUrl;
+    if (_draft.preset.id == AiProvider.custom) {
+      final (value, error) = _normalizeBaseUrl(_baseUrlCtrl.text);
+      if (error != null) return; // invalid URL: keep the last good draft
+      normalizedBaseUrl = value;
+    }
+    final next = _draft.copyWith(
+      apiKey: typedKey.isEmpty ? storedKey : typedKey,
+      customBaseUrl: normalizedBaseUrl,
+      modelChat: _modelChatCtrl.text.trim(),
+      modelJson: _modelJsonCtrl.text.trim(),
+    );
+    if (next == _draft) return;
+    // Fire-and-forget: the holder persists through its credential store;
+    // nothing here may touch this State again.
+    unawaited(holder.updateConfig(next));
   }
 
   // ─── Draft commit (debounced + explicit) ─────────────────────────────

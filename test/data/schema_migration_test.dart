@@ -158,11 +158,11 @@ class _CourseDatabaseV6 extends db.CourseDatabase {
 /// A hypothetical newer schema used to verify downgrade behavior: opening
 /// a future DB with the current code must not crash - it wipes + recreates the
 /// schema (the course DB is a reseedable derived cache).
-class _CourseDatabaseV21 extends db.CourseDatabase {
-  _CourseDatabaseV21(super.e);
+class _CourseDatabaseV22 extends db.CourseDatabase {
+  _CourseDatabaseV22(super.e);
 
   @override
-  int get schemaVersion => 21;
+  int get schemaVersion => 22;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -562,10 +562,10 @@ void main() {
       await File(path).parent.delete(recursive: true);
     });
 
-    test('v21 -> v20 downgrade wipes and recreates instead of crashing',
+    test('v22 -> v21 downgrade wipes and recreates instead of crashing',
         () async {
       final path = await _tempDbPath();
-      final newer = _CourseDatabaseV21(NativeDatabase(File(path)));
+      final newer = _CourseDatabaseV22(NativeDatabase(File(path)));
       await _forceOpen(newer);
       await newer.into(newer.sections).insert(
             const db.SectionsCompanion(
@@ -596,6 +596,93 @@ void main() {
 
       await downgraded.close();
       await File(path).parent.delete(recursive: true);
+    });
+
+    test('v20 -> v21 adds owner authority columns, tables and defaults',
+        () async {
+      final path = await _tempDbPath();
+      final raw = sqlite.sqlite3.open(path);
+      raw.execute('''
+        CREATE TABLE anki_course_sources (
+          course_id TEXT PRIMARY KEY NOT NULL,
+          profile_id TEXT NOT NULL,
+          source_id TEXT NOT NULL,
+          backend_kind TEXT NOT NULL,
+          display_name TEXT NOT NULL DEFAULT '',
+          source_hash TEXT NOT NULL,
+          source_fingerprint TEXT NOT NULL,
+          state TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+        INSERT INTO anki_course_sources VALUES (
+          'course-a', 'default', 'src-abc123', 'legacyTurna', 'Deck A',
+          'hash-a', 'fp-a', 'active', 111, 112
+        );
+        PRAGMA user_version = 20;
+      ''');
+      raw.dispose();
+
+      final migrated = db.CourseDatabase(NativeDatabase(File(path)));
+      await _forceOpen(migrated);
+      expect(migrated.schemaVersion, 21);
+
+      final rows = await migrated
+          .customSelect(
+            'SELECT owner_generation, write_fence, active_projection_generation, '
+            'last_transition_id, backend_kind, state FROM anki_course_sources '
+            "WHERE course_id = 'course-a'",
+          )
+          .get();
+      final row = rows.single;
+      // v21 defaults applied to pre-existing rows without data loss.
+      expect(row.read<int>('owner_generation'), 0);
+      expect(row.read<String>('write_fence'), 'open');
+      expect(row.data['active_projection_generation'], equals(null));
+      expect(row.data['last_transition_id'], equals(null));
+      expect(row.read<String>('backend_kind'), 'legacyTurna');
+      expect(row.read<String>('state'), 'active');
+
+      final tables = await migrated
+          .customSelect(
+            "SELECT name FROM sqlite_master WHERE type = 'table' "
+            "AND name IN ('anki_owner_transitions','course_scope_repair_journal',"
+            "'course_meta_v21_codec') ORDER BY name",
+          )
+          .get();
+      expect(tables.map((r) => r.read<String>('name')), [
+        'anki_owner_transitions',
+        'course_meta_v21_codec',
+        'course_scope_repair_journal',
+      ]);
+
+      final indexes = await migrated
+          .customSelect(
+            "SELECT name FROM sqlite_master WHERE type = 'index' "
+            "AND name = 'anki_owner_transitions_inflight_idx'",
+          )
+          .get();
+      expect(indexes, hasLength(1));
+
+      await migrated.close();
+      await File(path).parent.delete(recursive: true);
+    });
+
+    test('fresh create at v21 contains owner authority schema', () async {
+      final database = db.CourseDatabase(NativeDatabase.memory());
+      await _forceOpen(database);
+      expect(database.schemaVersion, 21);
+      final columns = await database
+          .customSelect('PRAGMA table_info(anki_course_sources)')
+          .get();
+      final names = columns.map((r) => r.read<String>('name')).toSet();
+      expect(names, containsAll([
+        'owner_generation',
+        'write_fence',
+        'active_projection_generation',
+        'last_transition_id',
+      ]));
+      await database.close();
     });
 
     test('v19 -> v20 backfills explicit mixed source identity', () async {

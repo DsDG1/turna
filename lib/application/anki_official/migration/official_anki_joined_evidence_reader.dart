@@ -32,9 +32,11 @@ class JoinedOfficialAnkiSourceEvidenceReader
   }
 
   Future<List<_DriftSeed>> _loadDriftSeeds(String profileId) async {
-    final imports = await _course.customSelect(
-      'SELECT import_id, source_hash FROM anki_imports',
-    ).get();
+    final imports = await _course
+        .customSelect(
+          'SELECT import_id, source_hash FROM anki_imports',
+        )
+        .get();
     final unification = await _course.customSelect(
       'SELECT source_id, source_hash, backend_kind, state '
       'FROM anki_course_sources WHERE profile_id = ?',
@@ -65,8 +67,8 @@ class JoinedOfficialAnkiSourceEvidenceReader
         "SELECT COUNT(*) AS n FROM srs_states WHERE word_id LIKE ?",
         variables: [Variable('anki-$importId-%')],
       ).getSingle();
-      final uni = unificationByHash[sourceHash] ??
-          unificationBySource[importId];
+      final uni =
+          unificationByHash[sourceHash] ?? unificationBySource[importId];
       out.add(
         _DriftSeed(
           importId: importId,
@@ -129,7 +131,8 @@ class JoinedOfficialAnkiSourceEvidenceReader
           importId: match.importId ?? seed.importId,
           sourceHash: match.sourceHash ?? seed.sourceHash,
           recordedOwner: match.recordedOwner,
-          unificationBackend: seed.unificationBackend ?? match.unificationBackend,
+          unificationBackend:
+              seed.unificationBackend ?? match.unificationBackend,
           migrationRecordedKind: match.migrationRecordedKind,
           migrationOfficialSourceId: match.migrationOfficialSourceId,
           migrationState: match.migrationState,

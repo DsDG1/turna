@@ -87,11 +87,9 @@ class AnkiSourceRouteResolver {
     if (officialCatalogHasSource) {
       return AnkiEngineKind.official;
     }
-    final cutover =
-        cutoverEnabled ?? LegacyAnkiMigrationFlags.cutoverEnabled;
+    final cutover = cutoverEnabled ?? LegacyAnkiMigrationFlags.cutoverEnabled;
     if (!cutover) return AnkiEngineKind.legacy;
-    final plat =
-        platform ?? OfficialAnkiCapabilityMatrix.current().platform;
+    final plat = platform ?? OfficialAnkiCapabilityMatrix.current().platform;
     if (plat == 'android') {
       final libraryOk =
           libraryAvailable ?? OfficialAnkiNativeAvailability.current;

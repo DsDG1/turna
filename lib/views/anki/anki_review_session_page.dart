@@ -15,6 +15,7 @@ import 'package:turna/application/anki/study_session_controller.dart';
 import 'package:turna/application/anki_official/engine/official_anki_home_due.dart';
 import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
+import 'package:turna/application/anki_official/review/official_formal_review_coordinator.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/data/anki_note_dao.dart';
@@ -83,6 +84,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
   Object? _error;
   StudySessionController? _controller;
   OfficialReviewSession? _officialSession;
+  OfficialFormalReviewLiveQueue? _officialSessionLiveQueue;
   Map<String, AnkiHtmlCard> _fidelityInteractions = const {};
 
   @override
@@ -96,6 +98,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
   void dispose() {
     _controller?.removeListener(_onController);
     _controller?.dispose();
+    _officialSessionLiveQueue?.removeListener(_onLiveQueueRebuilt);
     _officialSession?.dispose();
     super.dispose();
   }
@@ -111,6 +114,8 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
       _controller?.removeListener(_onController);
       _controller?.dispose();
       _controller = null;
+      _officialSessionLiveQueue?.removeListener(_onLiveQueueRebuilt);
+      _officialSessionLiveQueue = null;
       _officialSession?.dispose();
       _officialSession = null;
       _fidelityInteractions = const {};
@@ -288,6 +293,11 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
     }
 
     _officialSession = batch.session;
+    final liveQueue = batch.liveQueue;
+    _officialSessionLiveQueue = liveQueue;
+    if (liveQueue != null) {
+      liveQueue.addListener(_onLiveQueueRebuilt);
+    }
 
     final host = AnkiStudySessionHost.debugOverride ??
         AnkiStudySessionHost.resolveOrNull() ??
@@ -295,9 +305,14 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
           resolver: StudyLedgerResolver(official: batch.ledger),
           onEffects: (item, receipt) async {
             StudyProductAnalytics.instance.record(receipt);
+            // Live scheduler contract (plan 34 D4): every committed answer
+            // rebuilds the batch from the refreshed queue, so learning
+            // reinsertion and cross-day reordering reach the page.
+            await liveQueue?.rebuildFromLiveQueue();
           },
           onEffectsUndone: (receipt) async {
             StudyProductAnalytics.instance.forget(receipt.eventId);
+            await liveQueue?.rebuildFromLiveQueue();
           },
         );
     final controller = host.openOfficialReview(
@@ -309,10 +324,20 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
     if (!mounted) return;
     setState(() {
       _controller = controller;
-      // Fidelity HTML faces from production renderCard (Flip faces already
-      // carry text; this keeps WebView content available when needed).
+      // Fidelity HTML faces from production renderCard (fidelity-first
+      // policy; flip faces carry plain text only when the card has none).
       _fidelityInteractions = batch.fidelityInteractions;
       _loading = false;
+    });
+  }
+
+  /// The live queue mutated the shared items list — refresh the page's
+  /// fidelity faces so rebuilt items keep their WebView content.
+  void _onLiveQueueRebuilt() {
+    final liveQueue = _officialSessionLiveQueue;
+    if (liveQueue == null || !mounted) return;
+    setState(() {
+      _fidelityInteractions = Map.of(liveQueue.fidelityInteractions);
     });
   }
 
@@ -350,6 +375,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
         controller: controller,
         fidelityInteractions: _fidelityInteractions,
         officialSession: _officialSession,
+        liveQueue: _officialSessionLiveQueue,
       );
     }
 
@@ -395,11 +421,16 @@ class _AnkiStudySessionView extends StatelessWidget {
     required this.controller,
     this.fidelityInteractions = const {},
     this.officialSession,
+    this.liveQueue,
   });
 
   final StudySessionController controller;
   final Map<String, AnkiHtmlCard> fidelityInteractions;
   final OfficialReviewSession? officialSession;
+
+  /// Live queue driver for official owners; mutations (bury/suspend) refresh
+  /// the batch through it (plan 34 D4).
+  final OfficialFormalReviewLiveQueue? liveQueue;
 
   @override
   Widget build(BuildContext context) {
@@ -447,6 +478,40 @@ class _AnkiStudySessionView extends StatelessWidget {
           );
         },
         canUndo: controller.lastReceipt != null && !controller.isLocked,
+        // Review actions (plan 34 R2-4): redo / bury / suspend reach the
+        // real ledger (Official engine for official owners) and refresh the
+        // live queue afterwards.
+        actions: [
+          IconButton(
+            tooltip: '重做',
+            icon: const Icon(Icons.redo_rounded, size: 20),
+            onPressed: controller.canRedo ? () => controller.redoLast() : null,
+          ),
+          IconButton(
+            tooltip: '搁置',
+            icon: const Icon(Icons.bedtime_outlined, size: 20),
+            onPressed: controller.isLocked || controller.isComplete
+                ? null
+                : () async {
+                    final ok = await controller.buryCurrent();
+                    if (ok) {
+                      await liveQueue?.rebuildFromLiveQueue();
+                    }
+                  },
+          ),
+          IconButton(
+            tooltip: '暂停',
+            icon: const Icon(Icons.pause_circle_outline_rounded, size: 20),
+            onPressed: controller.isLocked || controller.isComplete
+                ? null
+                : () async {
+                    final ok = await controller.suspendCurrent();
+                    if (ok) {
+                      await liveQueue?.rebuildFromLiveQueue();
+                    }
+                  },
+          ),
+        ],
       ),
       body: SafeArea(
         child: LayoutBuilder(

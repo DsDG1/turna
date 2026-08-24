@@ -156,9 +156,11 @@ void main() {
   test('home due stores stay dual-source and scheduler route exists', () {
     OfficialAnkiHomeDue.reset();
     OfficialAnkiHomeDue.turnaDue = 4;
-    OfficialAnkiHomeDue.officialDue = 7;
+    OfficialAnkiHomeDue.officialDueByImport = {'src-x': 7};
     expect(OfficialAnkiHomeDue.turnaDue, 4);
-    expect(OfficialAnkiHomeDue.officialDue, 7);
+    // Dual-source stores: raw official totals live per-import;
+    // officialDue itself is derived (introduced-only).
+    expect(OfficialAnkiHomeDue.officialDueByImport['src-x'], 7);
     expect(OfficialAnkiReviewPage.routeName, '/official-anki/review');
     expect(
       OfficialAnkiFeatureFlags.fromEnvironment().scheduler,

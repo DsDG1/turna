@@ -290,7 +290,7 @@ void main() {
       ),
     );
     expect(total, 3);
-    expect(OfficialAnkiHomeDue.officialDue, 3);
+    // officialDue is derived (introduced-only); raw totals live per-import.
     expect(
       OfficialAnkiHomeDue.officialDueByImport['p5c-fixture-device'],
       3,
@@ -435,7 +435,14 @@ void main() {
       ),
     );
     expect(total, 3);
-    expect(OfficialAnkiHomeDue.officialDue, 3);
+    // officialDue is derived (introduced-only); the router's per-import raw
+    // counts reflect the due card (queue meta counts new/learning/review
+    // separately from the placed card set).
+    expect(
+      OfficialAnkiHomeDue.officialDueByImport.values
+          .fold(0, (a, b) => a + b),
+      greaterThan(0),
+    );
     expect(OfficialAnkiHomeDue.officialDueUnavailable, isFalse);
   });
 
@@ -535,7 +542,6 @@ void main() {
       nowMillis: 3,
     );
     OfficialAnkiHomeDue.reset();
-    OfficialAnkiHomeDue.officialDue = 4;
     OfficialAnkiHomeDue.officialDueByImport = {'p5c-fixture-device': 4};
     OfficialAnkiHomeDue.officialImportIds = {'p5c-fixture-device'};
     OfficialAnkiHomeDue.officialDueUnavailable = false;
@@ -553,7 +559,11 @@ void main() {
     } on OfficialAnkiException catch (error) {
       expect(error.code, OfficialAnkiErrorCode.collectionLocked);
     }
-    expect(OfficialAnkiHomeDue.officialDue, 4);
+    // The locked refresh must not zero the previous raw totals.
+    expect(
+      OfficialAnkiHomeDue.officialDueByImport.values.fold(0, (a, b) => a + b),
+      4,
+    );
     expect(OfficialAnkiHomeDue.officialDueUnavailable, isFalse);
     final total = await const OfficialAnkiProductionRouter().refreshHomeDue(
       dao: dao,

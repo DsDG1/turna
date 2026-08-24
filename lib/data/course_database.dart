@@ -331,8 +331,12 @@ class ReviewEvents extends Table {
 class CourseDatabase extends _$CourseDatabase {
   CourseDatabase(QueryExecutor e) : super(e);
 
+  /// Single source of truth for the drift schema version, so tests and
+  /// backup code never hard-code a stale literal.
+  static const int kSchemaVersion = 21;
+
   @override
-  int get schemaVersion => 20;
+  int get schemaVersion => kSchemaVersion;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -346,6 +350,7 @@ class CourseDatabase extends _$CourseDatabase {
           await _ensureAnkiUnificationTables(m.database);
           await _ensureAiCompanionTables(m.database);
           await _ensureGemEconomyTables(m.database);
+          await _ensureOwnerAuthorityTables(m.database);
           await _backfillReviewSourceIdentity(m.database);
         },
         onUpgrade: (m, from, to) async {
@@ -387,6 +392,9 @@ class CourseDatabase extends _$CourseDatabase {
               'official_anki_projection_manifest',
               'anki_course_sources',
               'anki_course_card_placements',
+              'anki_owner_transitions',
+              'course_scope_repair_journal',
+              'legacy_pending_migrations',
               'anki_card_presentations',
               'anki_card_introduction_states',
               'study_product_events',
@@ -402,6 +410,7 @@ class CourseDatabase extends _$CourseDatabase {
             await _ensureOfficialProjectionManifest(m.database);
             await _ensureAnkiUnificationTables(m.database);
             await _ensureAiCompanionTables(m.database);
+            await _ensureOwnerAuthorityTables(m.database);
             return;
           }
           if (from < 2) {
@@ -540,6 +549,14 @@ class CourseDatabase extends _$CourseDatabase {
           if (from < 20) {
             await _addReviewSourceIdentityColumns(m.database);
             await _backfillReviewSourceIdentity(m.database);
+          }
+          if (from < 21) {
+            // v21: anki_course_sources becomes the production owner authority
+            // (plan 34 §6.1): write fence, owner generation, transition
+            // journal, and the course-scope repair journal. The table existed
+            // since v18 but had no writers, so the new columns start at their
+            // safe defaults without any backfill.
+            await _ensureOwnerAuthorityTables(m.database);
           }
         },
       );
@@ -816,6 +833,116 @@ class CourseDatabase extends _$CourseDatabase {
         lesson_count INTEGER NOT NULL,
         item_count INTEGER NOT NULL,
         published_at_millis INTEGER NOT NULL
+      )
+    ''');
+  }
+
+  /// Schema v21 owner-authority structures (plan 34 §6.1–§6.2):
+  /// - `anki_course_sources` gains the write fence, owner generation and
+  ///   last-transition columns. `state` stays the single visibility column.
+  /// - `anki_owner_transitions` journals every Legacy→Official cutover; a
+  ///   partial unique index allows at most one in-flight transition per
+  ///   course_id.
+  /// - `course_scope_repair_journal` records the idempotent courseScope /
+  ///   courseOrder preference repairs so codec migrations are auditable.
+  static Future<void> _ensureOwnerAuthorityTables(
+    GeneratedDatabase database,
+  ) async {
+    // Idempotent column adds (fresh creates already include them below).
+    Future<void> addColumn(String table, String column, String ddl) async {
+      final columns =
+          await database.customSelect('PRAGMA table_info($table)').get();
+      if (columns.isEmpty) return;
+      if (columns.any((row) => row.read<String>('name') == column)) return;
+      await database.customStatement(
+        'ALTER TABLE $table ADD COLUMN $column $ddl',
+      );
+    }
+
+    await database.customStatement('''
+      CREATE TABLE IF NOT EXISTS anki_course_sources (
+        course_id TEXT PRIMARY KEY NOT NULL,
+        profile_id TEXT NOT NULL,
+        source_id TEXT NOT NULL,
+        backend_kind TEXT NOT NULL,
+        display_name TEXT NOT NULL DEFAULT '',
+        source_hash TEXT NOT NULL,
+        source_fingerprint TEXT NOT NULL,
+        state TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        owner_generation INTEGER NOT NULL DEFAULT 0,
+        write_fence TEXT NOT NULL DEFAULT 'open',
+        active_projection_generation TEXT,
+        last_transition_id TEXT
+      )
+    ''');
+    await addColumn('anki_course_sources', 'owner_generation',
+        'INTEGER NOT NULL DEFAULT 0');
+    await addColumn(
+        'anki_course_sources', 'write_fence', "TEXT NOT NULL DEFAULT 'open'");
+    await addColumn(
+        'anki_course_sources', 'active_projection_generation', 'TEXT');
+    await addColumn('anki_course_sources', 'last_transition_id', 'TEXT');
+    await database.customStatement('''
+      CREATE UNIQUE INDEX IF NOT EXISTS anki_course_sources_profile_source_idx
+      ON anki_course_sources(profile_id, source_id)
+    ''');
+    await database.customStatement('''
+      CREATE TABLE IF NOT EXISTS anki_owner_transitions (
+        transition_id TEXT PRIMARY KEY NOT NULL,
+        profile_id TEXT NOT NULL,
+        legacy_import_id TEXT,
+        official_source_id TEXT NOT NULL,
+        course_id TEXT NOT NULL,
+        from_backend TEXT NOT NULL,
+        to_backend TEXT NOT NULL,
+        phase TEXT NOT NULL,
+        generation INTEGER NOT NULL,
+        policy TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        last_error_code TEXT
+      )
+    ''');
+    // At most one in-flight transition per course. Terminal phases
+    // (complete/rolledBackLegacy/rollbackEligible/noLegacyScheduleRollback)
+    // are excluded so history stays append-only.
+    await database.customStatement('''
+      CREATE UNIQUE INDEX IF NOT EXISTS anki_owner_transitions_inflight_idx
+      ON anki_owner_transitions(course_id)
+      WHERE phase IN (
+        'discovered', 'awaitingUserPolicy', 'backingUp', 'importingOfficial',
+        'verifyingIdentity', 'projectionStaging', 'cutoverReady', 'frozen',
+        'committing', 'rollbackPending', 'recoveringForward'
+      )
+    ''');
+    await database.customStatement('''
+      CREATE TABLE IF NOT EXISTS course_scope_repair_journal (
+        journal_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        repaired_at INTEGER NOT NULL,
+        old_course_scope TEXT,
+        new_course_scope TEXT NOT NULL,
+        old_course_order TEXT,
+        new_course_order TEXT NOT NULL,
+        reason TEXT NOT NULL
+      )
+    ''');
+    await database.customStatement('''
+      CREATE TABLE IF NOT EXISTS course_meta_v21_codec (
+        key TEXT PRIMARY KEY NOT NULL,
+        value TEXT NOT NULL
+      )
+    ''');
+    // turna-migration-v1 imports (plan 34 §R7-3): legacy Anki rows land
+    // here as pending — they never enter the live anki_* tables or
+    // activate the Legacy scheduler until the user confirms an R4 cutover.
+    await database.customStatement('''
+      CREATE TABLE IF NOT EXISTS legacy_pending_migrations (
+        import_id TEXT PRIMARY KEY NOT NULL,
+        source_hash TEXT NOT NULL DEFAULT '',
+        payload_json TEXT NOT NULL,
+        received_at INTEGER NOT NULL
       )
     ''');
   }

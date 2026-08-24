@@ -43,8 +43,7 @@ class OfficialAnkiFixtureRollbackDrillReport {
   final String detail;
 
   bool get bothPassed =>
-      mutationGt0?.state ==
-          LegacyAnkiMigrationState.noLegacyScheduleRollback &&
+      mutationGt0?.state == LegacyAnkiMigrationState.noLegacyScheduleRollback &&
       mutationGt0?.recordedKind == 'official' &&
       mutationEq0?.state == LegacyAnkiMigrationState.rollbackEligible &&
       mutationEq0?.recordedKind == 'legacy';
@@ -218,9 +217,7 @@ class OfficialAnkiFixtureRollbackDrill {
       mutationEq0: eq0,
       userCardCount: userCardCount,
       collectionPresent: paths.collectionFile.existsSync(),
-      detail: gt0 == null
-          ? 'mutation_gt0_needs_post_cutover_rating'
-          : 'ok',
+      detail: gt0 == null ? 'mutation_gt0_needs_post_cutover_rating' : 'ok',
     );
   }
 
@@ -233,9 +230,8 @@ class OfficialAnkiFixtureRollbackDrill {
       return OfficialAnkiFixtureRollbackPathResult(
         migrationId: row.migrationId,
         legacyImportId: row.legacyImportId,
-        delta: state == LegacyAnkiMigrationState.noLegacyScheduleRollback
-            ? 1
-            : 0,
+        delta:
+            state == LegacyAnkiMigrationState.noLegacyScheduleRollback ? 1 : 0,
         state: row.state,
         recordedKind: row.recordedKind,
       );
@@ -284,8 +280,7 @@ class OfficialAnkiFixtureRollbackDrill {
       final matched = map
           .where((item) => item.matchState == LegacyAnkiMatchState.matched)
           .length;
-      final official =
-          map.where((item) => item.officialCardId != null).length;
+      final official = map.where((item) => item.officialCardId != null).length;
       final count = map.isEmpty ? 1 : map.length;
       final ok = await saga.verifyAndCutover(
         migrationId: migrationId,

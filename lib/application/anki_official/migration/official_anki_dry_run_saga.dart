@@ -28,12 +28,12 @@ class LegacyAnkiDryRunSaga {
 
     final sortedLegacy = [...legacyCards]
       ..sort((a, b) => a.legacyCardId.compareTo(b.legacyCardId));
-    final remaining = sortedLegacy
-        .where((card) => card.legacyCardId > cursor)
-        .toList();
+    final remaining =
+        sortedLegacy.where((card) => card.legacyCardId > cursor).toList();
 
     for (var i = 0; i < remaining.length; i += pageSize) {
-      final end = (i + pageSize < remaining.length) ? i + pageSize : remaining.length;
+      final end =
+          (i + pageSize < remaining.length) ? i + pageSize : remaining.length;
       final chunk = remaining.sublist(i, end);
       if (chunk.isEmpty) continue;
 

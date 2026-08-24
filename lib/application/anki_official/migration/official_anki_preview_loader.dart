@@ -58,8 +58,8 @@ class OfficialAnkiMigrationPreviewLoader {
                 noteGuid: card.noteGuid,
               ),
         ];
-        final target = selectLegacyAnkiPilotImport(census.imports) ??
-            census.imports.first;
+        final target =
+            selectLegacyAnkiPilotImport(census.imports) ?? census.imports.first;
         final existing = dao.findByLegacyImport(
           profileId: paths.profileId,
           legacyImportId: target.importId,

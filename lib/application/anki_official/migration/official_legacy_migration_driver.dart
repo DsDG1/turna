@@ -57,4 +57,38 @@ class OfficialLegacyMigrationDriver {
       nowMillis: nowMillis,
     );
   }
+
+  /// Resume a crashed / interrupted saga from its journal state. The saga
+  /// derives the next action itself (plan 34 §R4-3: every step
+  /// crash/resumable).
+  OfficialLegacyMigrationResumeAction resumeOne({
+    required OfficialLegacySourceMigrationSaga saga,
+    required String migrationId,
+  }) {
+    return saga.resume(migrationId: migrationId);
+  }
+
+  /// Roll back BEFORE the owner commit: restores the Legacy writer through
+  /// the journal (post-commit attempts are refused by the saga; they take
+  /// the forward-recovery path instead — plan 34 §R4-3).
+  void rollbackOne({
+    required OfficialLegacySourceMigrationSaga saga,
+    required String migrationId,
+    int? officialMutationDelta,
+    int? nowMillis,
+  }) {
+    final row = saga.dao.findById(migrationId);
+    if (row == null) {
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.invalidState,
+        messageKey: 'official_anki.migration_missing',
+      );
+    }
+    saga.rollback(
+      migrationId: migrationId,
+      currentState: row.state,
+      officialMutationDelta: officialMutationDelta,
+      nowMillis: nowMillis,
+    );
+  }
 }

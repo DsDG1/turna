@@ -106,6 +106,6 @@ void main() {
 
     expect(find.textContaining('当前无法导入 Anki 牌组'), findsOneWidget);
     expect(find.text(AppStrings.ankiPreviewStartImport), findsNothing);
-    expect(courseProvider.ankiDeckEntries, isEmpty);
+    expect(courseProvider.catalogEntries.where((e) => !e.isBuiltin), isEmpty);
   });
 }

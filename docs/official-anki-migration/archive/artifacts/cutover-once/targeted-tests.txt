@@ -1,0 +1,20 @@
+date: 2026-08-25 (one-shot construction, targeted gates)
+command pattern: flutter test <file> --reporter compact
+
+test/data/schema_migration_test.dart (v20->v21 + fresh v21 + downgrade)   PASS 15
+test/application/anki_official/official_owner_transition_test.dart        PASS 18
+test/application/course_scope_codec_migration_test.dart                   PASS 12
+test/application/course_provider_scope_test.dart                          PASS 10
+test/application/course_provider_official_scope_test.dart                 PASS 8
+test/application/anki/anki_exact_source_uninstall_test.dart               PASS 5
+test/application/anki_official/official_formal_review_fidelity_test.dart  PASS 4
+test/application/anki_official/official_live_formal_review_test.dart      PASS 5
+test/application/anki_official/official_review_all_coordinator_test.dart  PASS 5
+test/application/anki_official/official_formal_due_repository_test.dart   PASS 7
+test/application/anki_official/official_formal_due_eligibility_test.dart  PASS 5
+test/application/anki_official/official_formal_due_card_ids_sync_test.dart PASS 3
+test/application/anki_official/official_legacy_write_fence_matrix_test.dart PASS 7
+test/application/anki_official/official_legacy_source_migration_saga_test.dart PASS 11
+test/application/migration/turna_migration_import_test.dart               PASS 6
+test/routing/official_diagnostics_release_guard_test.dart                 PASS 4
+test/golden/course_tree_golden_test.dart + play_hub_golden_test.dart      PASS 4

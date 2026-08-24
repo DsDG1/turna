@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
+import 'package:turna/application/accessibility_provider.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/game_provider.dart';
 import 'package:turna/application/progress_provider.dart';
@@ -11,8 +12,11 @@ import 'package:turna/domain/course/lesson.dart';
 import 'package:turna/domain/course/lesson_content.dart';
 import 'package:turna/domain/course/section.dart';
 import 'package:turna/domain/course/unit.dart';
+import 'package:turna/service/locator.dart';
 import 'package:turna/views/courses/course_tree.dart';
 import 'package:turna/views/theme.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 
 /// Reuses the fake-provider shape from course_tree_test.dart, trimmed to what
 /// the dark-mode contrast smoke test needs.
@@ -121,6 +125,10 @@ void main() {
   group('dark-mode text contrast', () {
     testWidgets('no visible Text uses the near-black textPrimary token',
         (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final preferences = await StreamingSharedPreferences.instance;
+      final accessibility =
+          AccessibilityProvider(AppPrefs(preferences));
       final courseProvider = _FakeCourseProvider(_loadedSection());
 
       await tester.pumpWidget(
@@ -132,6 +140,9 @@ void main() {
             providers: [
               ChangeNotifierProvider<CourseProvider>.value(
                   value: courseProvider),
+              ChangeNotifierProvider<AccessibilityProvider>.value(
+                value: accessibility,
+              ),
               ChangeNotifierProvider<ProgressProvider>(
                 create: (_) => ProgressProvider(_FakeGameProvider()),
               ),

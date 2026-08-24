@@ -335,8 +335,10 @@ INSERT INTO legacy_anki_card_map (
             noteGuid: row['note_guid'] as String?,
             templateOrd: (row['template_ord'] as num).toInt(),
             officialCardId: (row['official_card_id'] as num?)?.toInt(),
-            matchMethod: parseLegacyAnkiMatchMethod(row['match_method'] as String?),
-            matchState: parseLegacyAnkiMatchState(row['match_state'] as String?),
+            matchMethod:
+                parseLegacyAnkiMatchMethod(row['match_method'] as String?),
+            matchState:
+                parseLegacyAnkiMatchState(row['match_state'] as String?),
             contentFingerprint: row['content_fingerprint'] as String?,
           ),
         )

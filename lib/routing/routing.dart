@@ -7,6 +7,7 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/routing/course_ready_guard.dart';
+import 'package:turna/routing/diagnostics_release_guard.dart';
 import 'package:turna/routing/routing.gr.dart';
 
 @lazySingleton
@@ -15,6 +16,8 @@ class AppRouter extends RootStackRouter {
   AppRouter(this._courseReadyGuard);
 
   final CourseReadyGuard _courseReadyGuard;
+  static const DiagnosticsReleaseGuard _diagnosticsGuard =
+      DiagnosticsReleaseGuard();
 
   // Platform-adaptive policy (docs/platform-adaptive-page-transition-
   // unification-plan.md D1): Android/Fuchsia/desktop -> Material routes with
@@ -70,14 +73,23 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: UnifiedReviewRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(
             page: CourseManagementRoute.page, guards: [_courseReadyGuard]),
-        // Official-Anki surfaces: flag-gated diagnostics, no course guard
-        // (mirrors AnkiImportRoute semantics).
-        AutoRoute(page: OfficialAnkiInternalRoute.page),
-        AutoRoute(page: OfficialAnkiMappingRoute.page),
-        AutoRoute(page: OfficialAnkiReviewerRoute.page),
-        AutoRoute(page: OfficialAnkiReviewRoute.page),
-        AutoRoute(page: OfficialAnkiMigrationPreviewRoute.page),
-        AutoRoute(page: OfficialAnkiSourceManagementRoute.page),
+        // Official-Anki surfaces: flag-gated diagnostics. In release
+        // builds the DiagnosticsReleaseGuard blocks them — including deep
+        // links — unless the build opted into diagnostics explicitly.
+        AutoRoute(
+            page: OfficialAnkiInternalRoute.page, guards: [_diagnosticsGuard]),
+        AutoRoute(
+            page: OfficialAnkiMappingRoute.page, guards: [_diagnosticsGuard]),
+        AutoRoute(
+            page: OfficialAnkiReviewerRoute.page, guards: [_diagnosticsGuard]),
+        AutoRoute(
+            page: OfficialAnkiReviewRoute.page, guards: [_diagnosticsGuard]),
+        AutoRoute(
+            page: OfficialAnkiMigrationPreviewRoute.page,
+            guards: [_diagnosticsGuard]),
+        AutoRoute(
+            page: OfficialAnkiSourceManagementRoute.page,
+            guards: [_diagnosticsGuard]),
         // Settings family: static content pages, no course guard
         // (mirrors SystemHealthRoute).
         AutoRoute(page: SystemHealthRoute.page),

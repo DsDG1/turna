@@ -4,6 +4,7 @@ import 'package:turna/application/anki/official_study_batch_assembler.dart';
 import 'package:turna/application/anki/study_ledger_adapters.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';
+import 'package:turna/application/anki_official/review/official_formal_review_coordinator.dart';
 import 'package:turna/domain/anki/canonical_card_key.dart';
 import 'package:turna/domain/anki/card_presentation.dart';
 import 'package:turna/domain/anki/study_models.dart';
@@ -51,6 +52,8 @@ class OfficialFormalReviewBatch {
     required this.ledger,
     required this.session,
     this.fidelityInteractions = const {},
+    this.liveQueue,
+    this.reviewAllPlan,
   });
 
   final List<StudyItem> items;
@@ -60,6 +63,15 @@ class OfficialFormalReviewBatch {
   /// HTML faces for [FidelityCardPresentation] items, keyed by
   /// [StudyItem.sessionItemId]. Required when any item uses fidelity.
   final Map<String, AnkiHtmlCard> fidelityInteractions;
+
+  /// Live queue driver (plan 34 D4): when present, the shared host MUST
+  /// rebuild the batch from the scheduler's refreshed queue after every
+  /// mutation instead of advancing a fixed item array.
+  final OfficialFormalReviewLiveQueue? liveQueue;
+
+  /// Frozen Review All plan (plan 34 D5): participating sources, their
+  /// unioned card set, and sources that failed to resolve.
+  final OfficialReviewAllPlan? reviewAllPlan;
 }
 
 /// Resolves every formal Anki review entry onto one session host.

@@ -10,23 +10,31 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/application/anki/anki_deck_manager.dart';
+import 'package:turna/application/course_catalog.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/core/enums.dart';
 import 'package:turna/di/injection.dart';
+import 'package:turna/domain/course/course_scope.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/theme.dart';
 
-/// Course management page — opened from the globe icon in the Learn tab.
-/// Lists the built-in course plus every imported Anki deck, lets the user
-/// switch the active course (tap), reorder courses (drag), delete imported
-/// decks (the built-in course can never be deleted), and reach the
-/// add-course entry points (Anki import / sample deck / new course).
+/// Course management page — opened from the course switcher in the Learn
+/// tab. Lists the built-in course plus every Anki course (one entry per
+/// source), lets the user switch the active course (tap), reorder courses
+/// (drag), delete imported courses with an exact-source confirmation (the
+/// built-in course can never be deleted), and reach the add-course entry
+/// points.
+///
+/// [highlightWire] briefly highlights one catalog entry (v1 scope wire key)
+/// — used by the import wizard's "view decks" action (plan 34 R1-4).
 @RoutePage()
 class CourseManagementPage extends StatelessWidget {
-  const CourseManagementPage({super.key});
+  const CourseManagementPage({super.key, this.highlightWire});
+
+  final String? highlightWire;
 
   @override
   Widget build(BuildContext context) {
@@ -49,18 +57,39 @@ class CourseManagementPage extends StatelessWidget {
         ),
         centerTitle: true,
       ),
-      body: const _CourseManagementBody(),
+      body: _CourseManagementBody(highlightWire: highlightWire),
     );
   }
 }
 
-class _CourseManagementBody extends StatelessWidget {
-  const _CourseManagementBody();
+class _CourseManagementBody extends StatefulWidget {
+  const _CourseManagementBody({this.highlightWire});
+
+  final String? highlightWire;
+
+  @override
+  State<_CourseManagementBody> createState() => _CourseManagementBodyState();
+}
+
+class _CourseManagementBodyState extends State<_CourseManagementBody> {
+  String? _highlightWire;
+
+  @override
+  void initState() {
+    super.initState();
+    _highlightWire = widget.highlightWire;
+    if (_highlightWire != null) {
+      // The highlight is a brief affordance, not a permanent state.
+      Future.delayed(const Duration(seconds: 4), () {
+        if (mounted) setState(() => _highlightWire = null);
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final courseProvider = context.watch<CourseProvider>();
-    final entries = courseProvider.courseEntries;
+    final entries = courseProvider.catalogEntries;
     final activeScope = courseProvider.courseScope;
 
     return Column(
@@ -74,17 +103,18 @@ class _CourseManagementBody extends StatelessWidget {
             children: [
               for (var i = 0; i < entries.length; i++)
                 _CourseCard(
-                  key: ValueKey(entries[i].scope),
+                  key: ValueKey(entries[i].wireKey),
                   entry: entries[i],
                   index: i,
-                  isActive: entries[i].scope == activeScope,
+                  isActive: entries[i].wireKey == activeScope,
+                  isHighlighted: entries[i].wireKey == _highlightWire,
                   onTap: () => _selectCourse(context, entries[i]),
                   onSettings: () => _showTtsSettings(
                     context,
-                    entries[i].scope,
+                    entries[i].wireKey,
                     entries[i].isBuiltin
                         ? TargetLanguage.turkish.displayName
-                        : entries[i].name,
+                        : entries[i].displayName,
                   ),
                   onDelete: entries[i].isBuiltin
                       ? null
@@ -139,22 +169,22 @@ class _CourseManagementBody extends StatelessWidget {
 
   Future<void> _onReorder(
     BuildContext context,
-    List<({String scope, String name, bool isBuiltin})> entries,
+    List<CourseCatalogEntry> entries,
     int oldIndex,
     int newIndex,
   ) async {
-    final scopes = [for (final e in entries) e.scope];
+    final wires = [for (final e in entries) e.wireKey];
     var target = newIndex;
     if (target > oldIndex) target -= 1;
-    final scope = scopes.removeAt(oldIndex);
-    scopes.insert(target, scope);
-    await context.read<CourseProvider>().persistCourseOrder(scopes);
+    final wire = wires.removeAt(oldIndex);
+    wires.insert(target, wire);
+    await context.read<CourseProvider>().persistCourseOrder(wires);
   }
 
   /// Tap a course = make it the active course, then return to the Learn tab.
   Future<void> _selectCourse(
     BuildContext context,
-    ({String scope, String name, bool isBuiltin}) entry,
+    CourseCatalogEntry entry,
   ) async {
     final courseProvider = context.read<CourseProvider>();
     if (entry.isBuiltin) {
@@ -162,7 +192,7 @@ class _CourseManagementBody extends StatelessWidget {
       languageProvider.setLanguage(TargetLanguage.turkish);
       unawaited(languageProvider.cacheLanguage());
     }
-    await courseProvider.setCourseScope(entry.scope);
+    await courseProvider.setScope(entry.scope);
     if (context.mounted) {
       await context.router.maybePop();
     }
@@ -170,14 +200,21 @@ class _CourseManagementBody extends StatelessWidget {
 
   Future<void> _confirmDelete(
     BuildContext context,
-    ({String scope, String name, bool isBuiltin}) entry,
+    CourseCatalogEntry entry,
   ) async {
+    // Exact-source confirmation (plan 34 R1-7): display name, short source
+    // id and card count, so deleting one source can never be confused with
+    // a sibling sharing the `src-` prefix.
+    final idDetail = entry.shortId.isEmpty
+        ? ''
+        : '\n${entry.shortId} · ${entry.cardCount} cards';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(AppStrings.ankiUninstallConfirmTitle),
-        content:
-            Text('${entry.name}\n\n${AppStrings.ankiUninstallConfirmBody}'),
+        content: Text(
+          '${entry.displayName}$idDetail\n\n${AppStrings.ankiUninstallConfirmBody}',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -195,20 +232,22 @@ class _CourseManagementBody extends StatelessWidget {
     );
     if (confirmed != true || !context.mounted) return;
 
-    final importId = entry.scope.substring('anki:'.length);
-    await getIt<AnkiDeckManager>().uninstall(importId);
+    // Uninstall with the COMPLETE source identity — never a truncated id.
+    final deletionId = entry.officialSourceId ?? entry.legacyImportId!;
+    await getIt<AnkiDeckManager>().uninstall(deletionId);
     if (!context.mounted) return;
     final courseProvider = context.read<CourseProvider>();
-    if (courseProvider.courseScope == entry.scope) {
-      // The active scope pointed at the removed deck — fall back to the
-      // built-in course (setCourseScope reloads the tree itself).
-      await courseProvider.setCourseScope('');
+    if (courseProvider.scope == entry.scope) {
+      // The active scope pointed at the removed course — fall back to the
+      // built-in course (setScope reloads the tree itself).
+      await courseProvider
+          .setScope(const BuiltinCourseScope('turkish'));
     } else {
       await courseProvider.reloadCourse();
     }
-    // Drop the removed deck from the persisted course order.
+    // Drop the removed course from the persisted order.
     await courseProvider.persistCourseOrder(
-      [for (final e in courseProvider.courseEntries) e.scope],
+      [for (final e in courseProvider.catalogEntries) e.wireKey],
     );
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -266,9 +305,10 @@ class _CourseManagementBody extends StatelessWidget {
 }
 
 class _CourseCard extends StatelessWidget {
-  final ({String scope, String name, bool isBuiltin}) entry;
+  final CourseCatalogEntry entry;
   final int index;
   final bool isActive;
+  final bool isHighlighted;
   final VoidCallback onTap;
   final VoidCallback onSettings;
   final VoidCallback? onDelete;
@@ -278,6 +318,7 @@ class _CourseCard extends StatelessWidget {
     required this.entry,
     required this.index,
     required this.isActive,
+    this.isHighlighted = false,
     required this.onTap,
     required this.onSettings,
     required this.onDelete,
@@ -301,9 +342,10 @@ class _CourseCard extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
               border: Border.all(
-                color: isActive
+                color: isActive || isHighlighted
                     ? TurnaTheme.brandTeal
                     : TurnaTheme.brandTeal.withValues(alpha: 0.12),
+                width: isActive || isHighlighted ? 2 : 1,
               ),
             ),
             child: Row(
@@ -341,7 +383,7 @@ class _CourseCard extends StatelessWidget {
                             child: Text(
                               entry.isBuiltin
                                   ? TargetLanguage.turkish.displayName
-                                  : entry.name,
+                                  : entry.displayName,
                               overflow: TextOverflow.ellipsis,
                               style: Theme.of(context)
                                   .textTheme

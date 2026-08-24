@@ -1,0 +1,5 @@
+date: 2026-08-24T19:53:34Z
+command: flutter test --exclude-tags golden --reporter compact
+result: All tests passed! 1825 passed / 0 failed
+duration: ~01:08
+note: includes fixes for the 3 pre-existing baseline failures (wetland palette structural regex, ai config dispose draft flush, dark-mode course-tree provider wiring) plus 2 schema-literal regressions (remote backup tests)

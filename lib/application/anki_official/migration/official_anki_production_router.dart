@@ -200,8 +200,7 @@ class OfficialAnkiProductionRouter {
       profileId: profileId,
       cutoverEnabled: cutoverEnabled,
     );
-    OfficialAnkiHomeDue.officialImportIds = ids;
-    OfficialAnkiHomeDue.officialDueByImport = {};
+    final dueByImport = <String, int>{};
     var total = 0;
     final seenDecks = <int>{};
     for (final importId in ids) {
@@ -214,15 +213,16 @@ class OfficialAnkiProductionRouter {
       );
       if (target == null) continue;
       if (!seenDecks.add(target.deckId)) {
-        OfficialAnkiHomeDue.officialDueByImport[importId] = 0;
+        dueByImport[importId] = 0;
         continue;
       }
       final counts = await countsForDeck(target.deckId);
       final n = counts.newCount + counts.reviewCount;
-      OfficialAnkiHomeDue.officialDueByImport[importId] = n;
+      dueByImport[importId] = n;
       total += n;
     }
-    OfficialAnkiHomeDue.officialDue = total;
+    OfficialAnkiHomeDue.officialImportIds = ids;
+    OfficialAnkiHomeDue.officialDueByImport = dueByImport;
     OfficialAnkiHomeDue.officialDueUnavailable = false;
     return total;
   }
@@ -239,12 +239,15 @@ class OfficialAnkiProductionRouter {
       profileId: profileId,
       cutoverEnabled: cutoverEnabled,
     );
+    final dueByImport = <String, int>{};
+    final schedulerDueByImport = <String, Set<int>>{};
+    final placementsByImport = <String, Set<int>>{};
     OfficialAnkiHomeDue.officialImportIds = ids;
-    OfficialAnkiHomeDue.officialDueByImport = {};
-    OfficialAnkiHomeDue.officialSchedulerDueCardIdsByImport = {};
-    OfficialAnkiHomeDue.activePlacementCardIdsByImport = {};
     if (ids.isEmpty) {
-      OfficialAnkiHomeDue.officialDue = 0;
+      OfficialAnkiHomeDue.officialDueByImport = dueByImport;
+      OfficialAnkiHomeDue.officialSchedulerDueCardIdsByImport =
+          schedulerDueByImport;
+      OfficialAnkiHomeDue.activePlacementCardIdsByImport = placementsByImport;
       OfficialAnkiHomeDue.officialDueUnavailable = false;
       return 0;
     }
@@ -259,44 +262,38 @@ class OfficialAnkiProductionRouter {
         cutoverEnabled: cutoverEnabled,
       );
       if (target == null) continue;
-      OfficialAnkiHomeDue.activePlacementCardIdsByImport[importId] =
-          Set<int>.from(target.cardIds);
+      placementsByImport[importId] = Set<int>.from(target.cardIds);
       if (!seenDecks.add(target.deckId)) {
-        OfficialAnkiHomeDue.officialDueByImport[importId] = 0;
-        OfficialAnkiHomeDue.officialSchedulerDueCardIdsByImport[importId] =
-            const {};
+        dueByImport[importId] = 0;
+        schedulerDueByImport[importId] = const {};
         continue;
       }
       targets[importId] = target;
     }
     if (targets.isEmpty) {
-      OfficialAnkiHomeDue.officialDue = 0;
+      OfficialAnkiHomeDue.officialDueByImport = dueByImport;
+      OfficialAnkiHomeDue.officialSchedulerDueCardIdsByImport =
+          schedulerDueByImport;
+      OfficialAnkiHomeDue.activePlacementCardIdsByImport = placementsByImport;
       OfficialAnkiHomeDue.officialDueUnavailable = false;
       return 0;
     }
     final queue = await getReviewQueue();
     final queueCardIds = {for (final card in queue.cards) card.cardId};
     final total = queue.newCount + queue.learningCount + queue.reviewCount;
-    if (targets.length == 1) {
-      final importId = targets.keys.first;
-      final allowed = targets[importId]!.cardIds;
-      final dueIds = queueCardIds.intersection(allowed);
-      OfficialAnkiHomeDue.officialDueByImport[importId] = dueIds.length;
-      OfficialAnkiHomeDue.officialSchedulerDueCardIdsByImport[importId] = dueIds;
-    } else {
-      for (final entry in targets.entries) {
-        final dueIds = queueCardIds.intersection(entry.value.cardIds);
-        OfficialAnkiHomeDue.officialDueByImport[entry.key] = dueIds.length;
-        OfficialAnkiHomeDue.officialSchedulerDueCardIdsByImport[entry.key] =
-            dueIds;
-      }
+    for (final entry in targets.entries) {
+      final dueIds = queueCardIds.intersection(entry.value.cardIds);
+      dueByImport[entry.key] = dueIds.length;
+      schedulerDueByImport[entry.key] = dueIds;
     }
     for (final importId in ids) {
-      OfficialAnkiHomeDue.officialDueByImport.putIfAbsent(importId, () => 0);
-      OfficialAnkiHomeDue.officialSchedulerDueCardIdsByImport
-          .putIfAbsent(importId, () => const {});
+      dueByImport.putIfAbsent(importId, () => 0);
+      schedulerDueByImport.putIfAbsent(importId, () => const {});
     }
-    OfficialAnkiHomeDue.officialDue = total;
+    OfficialAnkiHomeDue.officialDueByImport = dueByImport;
+    OfficialAnkiHomeDue.officialSchedulerDueCardIdsByImport =
+        schedulerDueByImport;
+    OfficialAnkiHomeDue.activePlacementCardIdsByImport = placementsByImport;
     OfficialAnkiHomeDue.officialDueUnavailable = false;
     return total;
   }
@@ -316,10 +313,10 @@ class OfficialAnkiProductionRouter {
       profileId: profileId,
       cutoverEnabled: cutoverEnabled,
     );
+    final dueByImport = <String, int>{};
     OfficialAnkiHomeDue.officialImportIds = ids;
-    OfficialAnkiHomeDue.officialDueByImport = {};
     if (ids.isEmpty) {
-      OfficialAnkiHomeDue.officialDue = 0;
+      OfficialAnkiHomeDue.officialDueByImport = dueByImport;
       OfficialAnkiHomeDue.officialDueUnavailable = false;
       return 0;
     }
@@ -363,15 +360,13 @@ class OfficialAnkiProductionRouter {
     final importsByRepresentative = <int, List<String>>{};
     for (final importId in ids) {
       final target = targets[importId];
-      if (target == null) {
-        OfficialAnkiHomeDue.officialDueByImport[importId] = 0;
-        continue;
+      if (target != null) {
+        final representative = representativeFor(target.deckId);
+        importsByRepresentative
+            .putIfAbsent(representative, () => <String>[])
+            .add(importId);
       }
-      final representative = representativeFor(target.deckId);
-      importsByRepresentative
-          .putIfAbsent(representative, () => <String>[])
-          .add(importId);
-      OfficialAnkiHomeDue.officialDueByImport[importId] = 0;
+      dueByImport[importId] = 0;
     }
 
     var total = 0;
@@ -384,11 +379,11 @@ class OfficialAnkiProductionRouter {
         (importId) => targets[importId]?.deckId == representative,
         orElse: () => importIds.first,
       );
-      OfficialAnkiHomeDue.officialDueByImport[owner] = node.dueCount;
+      dueByImport[owner] = node.dueCount;
       total += node.dueCount;
     }
 
-    OfficialAnkiHomeDue.officialDue = total;
+    OfficialAnkiHomeDue.officialDueByImport = dueByImport;
     OfficialAnkiHomeDue.officialDueUnavailable = false;
     return total;
   }
@@ -503,10 +498,8 @@ class OfficialAnkiProductionRouter {
       };
     }
     OfficialAnkiHomeDue.officialDueByImport = countsByImport;
-    OfficialAnkiHomeDue.officialDue = countsByImport.values.fold<int>(
-      0,
-      (sum, n) => sum + n,
-    );
+    // officialDue is DERIVED (introduced ∩ placement ∩ …); it must never be
+    // set from raw counts (plan 34 D6).
     OfficialAnkiHomeDue.officialDueUnavailable = false;
   }
 

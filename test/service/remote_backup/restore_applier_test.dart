@@ -13,6 +13,7 @@ import 'package:sqlite3/sqlite3.dart' as sql;
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 
 // Project imports:
+import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_sqlite.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/service/locator.dart';
@@ -150,8 +151,8 @@ void main() {
         appSupport: appSupport,
         appDocuments: appDocuments,
         officialProfileRoot: profileRoot,
-        currentDriftSchema: 20,
-        currentCatalogSchema: 8,
+        currentDriftSchema: CourseDatabase.kSchemaVersion,
+        currentCatalogSchema: kOfficialAnkiCatalogSchemaVersion,
       );
 
   test('no marker → noPending, no side effects', () async {
@@ -176,7 +177,7 @@ void main() {
         mode: sql.OpenMode.readOnly);
     expect(
       course.select('PRAGMA user_version').first['user_version'],
-      20,
+      CourseDatabase.kSchemaVersion,
     );
     course.dispose();
     expect(

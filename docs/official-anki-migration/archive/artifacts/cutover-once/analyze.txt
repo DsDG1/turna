@@ -1,0 +1,3 @@
+date: 2026-08-24T19:53:34Z
+command: flutter analyze lib/
+result: 0 errors; 88 warnings/infos (baseline was 133)

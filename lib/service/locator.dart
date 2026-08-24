@@ -26,6 +26,9 @@ import 'package:turna/application/system_health_monitor.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/core/verbose.dart';
 import 'package:turna/application/anki/card_introduction_store.dart';
+import 'package:turna/application/course_scope_migration.dart';
+import 'package:turna/data/anki_legacy_write_fence.dart';
+import 'package:turna/data/anki_owner_authority_dao.dart';
 import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/data/course_database_seeder.dart';
@@ -401,8 +404,7 @@ Future<void> setupLocator() async {
       appDocuments: await getApplicationDocumentsDirectory(),
       officialProfileRoot:
           Directory(p.join(appSupport.path, 'official_anki', 'default')),
-      // keep in lockstep with CourseDatabase.schemaVersion
-      currentDriftSchema: 20,
+      currentDriftSchema: CourseDatabase.kSchemaVersion,
       currentCatalogSchema: kOfficialAnkiCatalogSchemaVersion,
     ).applyIfPending();
     if (outcome != RestoreApplyOutcome.noPending) {
@@ -414,8 +416,26 @@ Future<void> setupLocator() async {
   final db = await _openAndSeedCourseDatabase();
   getIt.registerSingleton<CourseDatabase>(db);
   getIt.registerSingleton(AnkiUnificationDao(db));
+  getIt.registerSingleton(AnkiOwnerAuthorityDao(db));
   getIt.registerSingleton(
       CardIntroductionStore(dao: getIt<AnkiUnificationDao>()));
+
+  // Course-scope preference repair (plan 34 §6.4): must run after the DB and
+  // source catalog are open and BEFORE CourseProvider reads the preference.
+  // Idempotent; journals one row per actual change.
+  try {
+    await CourseScopePreferenceMigrator.repair(courseDb: db);
+  } catch (e) {
+    logger.w('course scope preference repair skipped: $e');
+  }
+
+  // Load the Legacy write fences (plan 34 §R4-1) before any Legacy writer
+  // can run.
+  try {
+    await LegacyWriteFence.instance.loadFrom(db);
+  } catch (e) {
+    logger.w('legacy write fence load skipped: $e');
+  }
 
   if (!getIt.isRegistered<RestoreNormalizationService>()) {
     getIt.registerLazySingleton<RestoreNormalizationService>(

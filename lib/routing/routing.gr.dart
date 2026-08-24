@@ -12,36 +12,36 @@
 import 'dart:async' as _i84;
 
 import 'package:auto_route/auto_route.dart' as _i57;
-import 'package:collection/collection.dart' as _i74;
-import 'package:flutter/foundation.dart' as _i62;
+import 'package:collection/collection.dart' as _i73;
+import 'package:flutter/foundation.dart' as _i74;
 import 'package:flutter/material.dart' as _i58;
 import 'package:turna/application/ai/ai_hint_provider.dart' as _i60;
 import 'package:turna/application/ai/ai_tutor_chat_provider.dart' as _i61;
-import 'package:turna/application/anki/anki_importer.dart' as _i63;
+import 'package:turna/application/anki/anki_importer.dart' as _i62;
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart'
-    as _i66;
+    as _i65;
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart'
-    as _i70;
-import 'package:turna/application/anki_official/engine/official_anki_operation_coordinator.dart'
     as _i69;
-import 'package:turna/application/anki_official/engine/official_anki_review_session.dart'
-    as _i72;
-import 'package:turna/application/anki_official/migration/official_anki_census.dart'
-    as _i67;
-import 'package:turna/application/anki_official/migration/official_anki_dry_run_matcher.dart'
+import 'package:turna/application/anki_official/engine/official_anki_operation_coordinator.dart'
     as _i68;
+import 'package:turna/application/anki_official/engine/official_anki_review_session.dart'
+    as _i71;
+import 'package:turna/application/anki_official/migration/official_anki_census.dart'
+    as _i66;
+import 'package:turna/application/anki_official/migration/official_anki_dry_run_matcher.dart'
+    as _i67;
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart'
     as _i40;
 import 'package:turna/application/anki_official/official_anki_internal_page.dart'
     as _i37;
 import 'package:turna/application/anki_official/official_anki_paths.dart'
-    as _i71;
+    as _i70;
 import 'package:turna/application/anki_official/projection/official_anki_projection_mapper.dart'
-    as _i65;
+    as _i64;
 import 'package:turna/application/anki_official/projection/official_anki_projection_service.dart'
     as _i80;
 import 'package:turna/application/anki_official/render/official_anki_answer_presenter.dart'
-    as _i73;
+    as _i72;
 import 'package:turna/application/anki_official/render/official_anki_render_facade.dart'
     as _i75;
 import 'package:turna/application/anki_official/render/official_anki_render_state.dart'
@@ -58,7 +58,7 @@ import 'package:turna/application/maintenance/storage_inventory_service.dart'
 import 'package:turna/application/review_progress_provider.dart' as _i81;
 import 'package:turna/application/settings/app_build_info.dart' as _i59;
 import 'package:turna/data/course_database.dart' as _i78;
-import 'package:turna/domain/course/mistake_entry.dart' as _i64;
+import 'package:turna/domain/course/mistake_entry.dart' as _i63;
 import 'package:turna/domain/review/recall_outcome.dart' as _i88;
 import 'package:turna/domain/review/review_item.dart' as _i86;
 import 'package:turna/domain/review/review_ledger.dart' as _i89;
@@ -591,9 +591,9 @@ class AnkiDeckStatsRouteArgs {
 /// [_i17.AnkiImportPage]
 class AnkiImportRoute extends _i57.PageRouteInfo<AnkiImportRouteArgs> {
   AnkiImportRoute({
-    _i62.Key? key,
+    _i58.Key? key,
     bool startWithSample = false,
-    _i63.AnkiImporter? importerForTest,
+    _i62.AnkiImporter? importerForTest,
     List<_i57.PageRouteInfo>? children,
   }) : super(
           AnkiImportRoute.name,
@@ -629,11 +629,11 @@ class AnkiImportRouteArgs {
     this.importerForTest,
   });
 
-  final _i62.Key? key;
+  final _i58.Key? key;
 
   final bool startWithSample;
 
-  final _i63.AnkiImporter? importerForTest;
+  final _i62.AnkiImporter? importerForTest;
 
   @override
   String toString() {
@@ -788,18 +788,58 @@ class ChangelogRoute extends _i57.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i23.CourseManagementPage]
-class CourseManagementRoute extends _i57.PageRouteInfo<void> {
-  const CourseManagementRoute({List<_i57.PageRouteInfo>? children})
-      : super(CourseManagementRoute.name, initialChildren: children);
+class CourseManagementRoute
+    extends _i57.PageRouteInfo<CourseManagementRouteArgs> {
+  CourseManagementRoute({
+    _i58.Key? key,
+    String? highlightWire,
+    List<_i57.PageRouteInfo>? children,
+  }) : super(
+          CourseManagementRoute.name,
+          args: CourseManagementRouteArgs(
+            key: key,
+            highlightWire: highlightWire,
+          ),
+          initialChildren: children,
+        );
 
   static const String name = 'CourseManagementRoute';
 
   static _i57.PageInfo page = _i57.PageInfo(
     name,
     builder: (data) {
-      return const _i23.CourseManagementPage();
+      final args = data.argsAs<CourseManagementRouteArgs>(
+        orElse: () => const CourseManagementRouteArgs(),
+      );
+      return _i23.CourseManagementPage(
+        key: args.key,
+        highlightWire: args.highlightWire,
+      );
     },
   );
+}
+
+class CourseManagementRouteArgs {
+  const CourseManagementRouteArgs({this.key, this.highlightWire});
+
+  final _i58.Key? key;
+
+  final String? highlightWire;
+
+  @override
+  String toString() {
+    return 'CourseManagementRouteArgs{key: $key, highlightWire: $highlightWire}';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! CourseManagementRouteArgs) return false;
+    return key == other.key && highlightWire == other.highlightWire;
+  }
+
+  @override
+  int get hashCode => key.hashCode ^ highlightWire.hashCode;
 }
 
 /// generated route for
@@ -984,7 +1024,7 @@ class MistakePracticeRoute
     extends _i57.PageRouteInfo<MistakePracticeRouteArgs> {
   MistakePracticeRoute({
     _i58.Key? key,
-    required _i64.MistakeEntry entry,
+    required _i63.MistakeEntry entry,
     List<_i57.PageRouteInfo>? children,
   }) : super(
           MistakePracticeRoute.name,
@@ -1008,7 +1048,7 @@ class MistakePracticeRouteArgs {
 
   final _i58.Key? key;
 
-  final _i64.MistakeEntry entry;
+  final _i63.MistakeEntry entry;
 
   @override
   String toString() {
@@ -1112,14 +1152,14 @@ class OfficialAnkiMappingRoute
   OfficialAnkiMappingRoute({
     _i58.Key? key,
     required String notetypeName,
-    required _i65.OfficialAnkiMappingSuggestion suggestion,
-    _i66.OfficialAnkiProjectionSchema? schema,
+    required _i64.OfficialAnkiMappingSuggestion suggestion,
+    _i65.OfficialAnkiProjectionSchema? schema,
     int affectedCardCount = 0,
-    _i58.ValueChanged<_i65.OfficialAnkiMappingSuggestion>? onConfirm,
+    _i58.ValueChanged<_i64.OfficialAnkiMappingSuggestion>? onConfirm,
     _i58.VoidCallback? onSkip,
     _i58.VoidCallback? onRestore,
     _i58.VoidCallback? onGenerateCourse,
-    _i58.ValueChanged<_i65.OfficialAnkiMappingSuggestion>? onChanged,
+    _i58.ValueChanged<_i64.OfficialAnkiMappingSuggestion>? onChanged,
     List<_i57.PageRouteInfo>? children,
   }) : super(
           OfficialAnkiMappingRoute.name,
@@ -1178,13 +1218,13 @@ class OfficialAnkiMappingRouteArgs {
 
   final String notetypeName;
 
-  final _i65.OfficialAnkiMappingSuggestion suggestion;
+  final _i64.OfficialAnkiMappingSuggestion suggestion;
 
-  final _i66.OfficialAnkiProjectionSchema? schema;
+  final _i65.OfficialAnkiProjectionSchema? schema;
 
   final int affectedCardCount;
 
-  final _i58.ValueChanged<_i65.OfficialAnkiMappingSuggestion>? onConfirm;
+  final _i58.ValueChanged<_i64.OfficialAnkiMappingSuggestion>? onConfirm;
 
   final _i58.VoidCallback? onSkip;
 
@@ -1192,7 +1232,7 @@ class OfficialAnkiMappingRouteArgs {
 
   final _i58.VoidCallback? onGenerateCourse;
 
-  final _i58.ValueChanged<_i65.OfficialAnkiMappingSuggestion>? onChanged;
+  final _i58.ValueChanged<_i64.OfficialAnkiMappingSuggestion>? onChanged;
 
   @override
   String toString() {
@@ -1235,14 +1275,14 @@ class OfficialAnkiMigrationPreviewRoute
     extends _i57.PageRouteInfo<OfficialAnkiMigrationPreviewRouteArgs> {
   OfficialAnkiMigrationPreviewRoute({
     _i58.Key? key,
-    required _i67.LegacyAnkiCensusReport census,
-    required _i68.LegacyAnkiDryRunResult dryRun,
+    required _i66.LegacyAnkiCensusReport census,
+    required _i67.LegacyAnkiDryRunResult dryRun,
     int diskFreeBytes = 0,
     String displayName = 'Legacy source',
     String? importId,
     String? sourceHash,
     _i40.OfficialAnkiFeatureFlags flags = const _i40.OfficialAnkiFeatureFlags(),
-    _i69.OfficialAnkiOperationCoordinator? coordinator,
+    _i68.OfficialAnkiOperationCoordinator? coordinator,
     _i58.VoidCallback? onFixturePilot,
     List<_i57.PageRouteInfo>? children,
   }) : super(
@@ -1300,9 +1340,9 @@ class OfficialAnkiMigrationPreviewRouteArgs {
 
   final _i58.Key? key;
 
-  final _i67.LegacyAnkiCensusReport census;
+  final _i66.LegacyAnkiCensusReport census;
 
-  final _i68.LegacyAnkiDryRunResult dryRun;
+  final _i67.LegacyAnkiDryRunResult dryRun;
 
   final int diskFreeBytes;
 
@@ -1314,7 +1354,7 @@ class OfficialAnkiMigrationPreviewRouteArgs {
 
   final _i40.OfficialAnkiFeatureFlags flags;
 
-  final _i69.OfficialAnkiOperationCoordinator? coordinator;
+  final _i68.OfficialAnkiOperationCoordinator? coordinator;
 
   final _i58.VoidCallback? onFixturePilot;
 
@@ -1359,13 +1399,13 @@ class OfficialAnkiReviewRoute
     extends _i57.PageRouteInfo<OfficialAnkiReviewRouteArgs> {
   OfficialAnkiReviewRoute({
     _i58.Key? key,
-    required _i70.OfficialAnkiEngine engine,
-    required _i71.OfficialAnkiPaths paths,
+    required _i69.OfficialAnkiEngine engine,
+    required _i70.OfficialAnkiPaths paths,
     int? deckId,
     Set<int>? allowedCardIds,
     _i40.OfficialAnkiFeatureFlags? flags,
-    _i72.OfficialReviewSession? session,
-    _i73.OfficialAnswerPresenter? presenter,
+    _i71.OfficialReviewSession? session,
+    _i72.OfficialAnswerPresenter? presenter,
     List<_i57.PageRouteInfo>? children,
   }) : super(
           OfficialAnkiReviewRoute.name,
@@ -1416,9 +1456,9 @@ class OfficialAnkiReviewRouteArgs {
 
   final _i58.Key? key;
 
-  final _i70.OfficialAnkiEngine engine;
+  final _i69.OfficialAnkiEngine engine;
 
-  final _i71.OfficialAnkiPaths paths;
+  final _i70.OfficialAnkiPaths paths;
 
   final int? deckId;
 
@@ -1426,9 +1466,9 @@ class OfficialAnkiReviewRouteArgs {
 
   final _i40.OfficialAnkiFeatureFlags? flags;
 
-  final _i72.OfficialReviewSession? session;
+  final _i71.OfficialReviewSession? session;
 
-  final _i73.OfficialAnswerPresenter? presenter;
+  final _i72.OfficialAnswerPresenter? presenter;
 
   @override
   String toString() {
@@ -1443,7 +1483,7 @@ class OfficialAnkiReviewRouteArgs {
         engine == other.engine &&
         paths == other.paths &&
         deckId == other.deckId &&
-        const _i74.SetEquality<int>().equals(
+        const _i73.SetEquality<int>().equals(
           allowedCardIds,
           other.allowedCardIds,
         ) &&
@@ -1458,7 +1498,7 @@ class OfficialAnkiReviewRouteArgs {
       engine.hashCode ^
       paths.hashCode ^
       deckId.hashCode ^
-      const _i74.SetEquality<int>().hash(allowedCardIds) ^
+      const _i73.SetEquality<int>().hash(allowedCardIds) ^
       flags.hashCode ^
       session.hashCode ^
       presenter.hashCode;
@@ -1469,10 +1509,10 @@ class OfficialAnkiReviewRouteArgs {
 class OfficialAnkiReviewerRoute
     extends _i57.PageRouteInfo<OfficialAnkiReviewerRouteArgs> {
   OfficialAnkiReviewerRoute({
-    _i62.Key? key,
+    _i74.Key? key,
     required String sourceId,
     required int cardId,
-    required _i71.OfficialAnkiPaths paths,
+    required _i70.OfficialAnkiPaths paths,
     _i75.OfficialAnkiRenderFacade? facade,
     _i76.OfficialAnkiReviewerController? controller,
     List<_i57.PageRouteInfo>? children,
@@ -1517,13 +1557,13 @@ class OfficialAnkiReviewerRouteArgs {
     this.controller,
   });
 
-  final _i62.Key? key;
+  final _i74.Key? key;
 
   final String sourceId;
 
   final int cardId;
 
-  final _i71.OfficialAnkiPaths paths;
+  final _i70.OfficialAnkiPaths paths;
 
   final _i75.OfficialAnkiRenderFacade? facade;
 
@@ -1562,7 +1602,7 @@ class OfficialAnkiSourceManagementRoute
     extends _i57.PageRouteInfo<OfficialAnkiSourceManagementRouteArgs> {
   OfficialAnkiSourceManagementRoute({
     _i58.Key? key,
-    required _i70.OfficialAnkiEngine engine,
+    required _i69.OfficialAnkiEngine engine,
     required _i77.OfficialAnkiDatabase catalog,
     required _i78.CourseDatabase course,
     required String profileId,
@@ -1619,7 +1659,7 @@ class OfficialAnkiSourceManagementRouteArgs {
 
   final _i58.Key? key;
 
-  final _i70.OfficialAnkiEngine engine;
+  final _i69.OfficialAnkiEngine engine;
 
   final _i77.OfficialAnkiDatabase catalog;
 
@@ -2003,7 +2043,7 @@ class UnifiedReviewRouteArgs {
     if (identical(this, other)) return true;
     if (other is! UnifiedReviewRouteArgs) return false;
     return key == other.key &&
-        const _i74.ListEquality<_i86.ReviewItem>().equals(items, other.items) &&
+        const _i73.ListEquality<_i86.ReviewItem>().equals(items, other.items) &&
         ledgerResolver == other.ledgerResolver &&
         title == other.title;
   }
@@ -2011,7 +2051,7 @@ class UnifiedReviewRouteArgs {
   @override
   int get hashCode =>
       key.hashCode ^
-      const _i74.ListEquality<_i86.ReviewItem>().hash(items) ^
+      const _i73.ListEquality<_i86.ReviewItem>().hash(items) ^
       ledgerResolver.hashCode ^
       title.hashCode;
 }

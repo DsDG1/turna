@@ -4,6 +4,7 @@ import 'package:turna/application/anki_official/projection/official_anki_project
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/diagnostics/performance_trace.dart';
 import 'package:turna/data/anki_import_dao.dart';
+import 'package:turna/data/anki_owner_authority_dao.dart';
 import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/anki/canonical_card_key.dart';
@@ -191,7 +192,8 @@ class UnifiedAnkiImportOrchestrator {
   /// already exists (dedup miss / re-import) and is skipped, while any other
   /// failure (disk full, locked db, schema drift) propagates and aborts the
   /// surrounding transaction instead of being silently swallowed.
-  static Future<bool> _insertConflictSafe(Future<void> Function() insert) async {
+  static Future<bool> _insertConflictSafe(
+      Future<void> Function() insert) async {
     try {
       await insert();
       return true;
@@ -209,8 +211,8 @@ class UnifiedAnkiImportOrchestrator {
       UnifiedAnkiImportRequest request) async {
     if (request.reuseExistingIdentity &&
         await _hashExists(request.sourceHash)) {
-      final placements =
-          _placementsByImport[request.importId] ?? request.canonicalCardIds.length;
+      final placements = _placementsByImport[request.importId] ??
+          request.canonicalCardIds.length;
       return UnifiedAnkiImportResult(
         canonicalCardCount: placements,
         placementCount: placements,
@@ -304,8 +306,7 @@ class UnifiedAnkiImportOrchestrator {
         operation: 'import',
         duration: trace.elapsed,
         resultSize: result.canonicalCardCount,
-        cacheStatus:
-            result.noOp ? TraceCacheStatus.hit : TraceCacheStatus.miss,
+        cacheStatus: result.noOp ? TraceCacheStatus.hit : TraceCacheStatus.miss,
       );
       return result;
     } catch (_) {
@@ -389,6 +390,34 @@ class UnifiedAnkiImportOrchestrator {
     });
     _placementsByImport[sourceId] = placements;
     _presentationsByImport[sourceId] = presentations;
+    // Authority commit-last (plan 34 D7 / §6.3): the projection manifest is
+    // verified and placements exist — only now does the source become an
+    // active, selectable course in the CourseDatabase authority.
+    try {
+      if (getIt.isRegistered<AnkiOwnerAuthorityDao>()) {
+        final authority = getIt<AnkiOwnerAuthorityDao>();
+        final courseId =
+            CardIntroductionEligibility.courseIdForOfficialSource(sourceId);
+        await authority.upsertSource(
+          courseId: courseId,
+          profileId: 'profile-default-01',
+          sourceId: sourceId,
+          backendKind: 'official',
+          displayName: sourceId,
+          sourceHash: sourceHash,
+          sourceFingerprint: sourceHash,
+          state: AnkiSourceVisibility.staging,
+        );
+        await authority.commitVisibility(
+          courseId: courseId,
+          state: AnkiSourceVisibility.active,
+          activeProjectionGeneration: sourceHash,
+        );
+      }
+    } catch (_) {
+      // Import stays complete (catalog + projection are the source of
+      // truth for the data); the reconciler repairs the authority row.
+    }
     return UnifiedAnkiImportResult(
       canonicalCardCount: ids.length,
       placementCount: placements,

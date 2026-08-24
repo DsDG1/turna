@@ -157,6 +157,13 @@ class TurnaReviewLedger implements ReviewLedger {
 
   @override
   Future<bool> undo(ReviewEventReceipt receipt) async {
+    if (receipt.source is LegacyAnkiSource) {
+      // The undo of an answer is itself a Legacy SRS write and must obey
+      // the same fence as the answer (plan 34 §R4-1 writer matrix).
+      assertLegacySrsAnswerAllowed(
+        importId: (receipt.source as LegacyAnkiSource).importId,
+      );
+    }
     final prev = receipt.opaqueUndoState;
     if (prev is SrsWord) {
       return prev.type == SrsItemType.expression

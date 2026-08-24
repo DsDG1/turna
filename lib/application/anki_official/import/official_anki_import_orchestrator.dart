@@ -1,5 +1,10 @@
 import 'dart:io';
 
+import 'package:turna/application/anki/card_introduction_eligibility.dart';
+import 'package:turna/data/anki_owner_authority_dao.dart';
+import 'package:turna/data/course_database.dart';
+import 'package:turna/di/injection.dart';
+
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
@@ -100,7 +105,8 @@ class OfficialAnkiImportOrchestrator implements OfficialAnkiImporter {
     _trip(OfficialAnkiFaultPoint.beforeHash);
     final digest = await hasher.hashFile(packagePath);
     final existing = sources.findByHash(paths.profileId, digest.sha256);
-    if (existing != null && existing.state == OfficialAnkiSourceState.active.wire) {
+    if (existing != null &&
+        existing.state == OfficialAnkiSourceState.active.wire) {
       return OfficialAnkiImportResult(
         sourceId: existing.sourceId,
         attemptId: existing.sourceId,
@@ -147,6 +153,26 @@ class OfficialAnkiImportOrchestrator implements OfficialAnkiImporter {
       nowMillis: _now,
       activeAttemptId: attemptId,
     );
+    // CourseDatabase authority (plan 34 D7): the source enters as staging —
+    // it only becomes active after a verified projection publishes.
+    try {
+      if (getIt.isRegistered<CourseDatabase>()) {
+        await AnkiOwnerAuthorityDao(getIt<CourseDatabase>()).upsertSource(
+          courseId:
+              CardIntroductionEligibility.courseIdForOfficialSource(sourceId),
+          profileId: 'profile-default-01',
+          sourceId: sourceId,
+          backendKind: 'official',
+          displayName: displayName,
+          sourceHash: digest.sha256,
+          sourceFingerprint: digest.sha256,
+          state: AnkiSourceVisibility.staging,
+        );
+      }
+    } catch (_) {
+      // The catalog remains the import journal; authority staging is
+      // re-written at publish time.
+    }
     attempts.insert(
       attemptId: attemptId,
       sourceId: sourceId,
@@ -248,7 +274,8 @@ class OfficialAnkiImportOrchestrator implements OfficialAnkiImporter {
     }
   }
 
-  Future<OfficialAnkiImportResult> resumeIndexing(OfficialAnkiAttemptRow attempt) {
+  Future<OfficialAnkiImportResult> resumeIndexing(
+      OfficialAnkiAttemptRow attempt) {
     if (!attempt.hasImportedNotes) {
       return markNeedsReconciliation(attempt);
     }

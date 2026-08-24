@@ -194,7 +194,7 @@ void main() {
     expect(manifest, isNotNull);
     expect(manifest!.backupId, result.backupId);
     expect(manifest.coreZipObject, 'backups/${result.backupId}/core.zip');
-    expect(manifest.driftSchema, 20);
+    expect(manifest.driftSchema, CourseDatabase.kSchemaVersion);
     expect(manifest.mediaCount, 2);
     expect(manifest.history, isEmpty);
 

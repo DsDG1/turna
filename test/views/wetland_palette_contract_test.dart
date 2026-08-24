@@ -254,14 +254,16 @@ void main() {
     test('course tree complete/perfect uses anatolianClay', () {
       final src = File('lib/views/courses/course_tree.dart').readAsStringSync();
       expect(src.contains('TurnaTheme.anatolianClay'), isTrue);
-      // Fully-complete unit and perfect pill path both reference clay.
+      // Fully-complete unit progress and the perfect-pill border both
+      // reference clay (the perfect pill lives in _LessonTypeIcon).
       expect(
         RegExp(r'isFullyComplete[\s\S]{0,200}anatolianClay').hasMatch(src),
         isTrue,
       );
       expect(
-        RegExp(r'isPerfect[\s\S]{0,200}anatolianClay').hasMatch(src),
+        RegExp(r'perfect[\s\S]{0,300}anatolianClay').hasMatch(src),
         isTrue,
+        reason: 'the perfect-pill border must stay clay',
       );
     });
 

@@ -18,6 +18,7 @@ import 'package:turna/application/anki_official/engine/official_anki_home_due_sy
 import 'package:turna/data/anki_note_dao.dart';
 import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/application/course_provider.dart';
+import 'package:turna/domain/course/course_scope.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
@@ -82,12 +83,26 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
         .where((s) => s.level == 'Anki' || s.level == 'OfficialAnki')
         .toList();
 
+    // Deck tiles sort by the persisted course order (wire keys); the
+    // per-section wire resolves through the catalog import ids.
+    final wireForImportId = <String, String>{};
+    for (final entry in courseProvider.catalogEntries) {
+      final id = entry.legacyImportId ?? entry.officialSourceId;
+      if (id != null) wireForImportId[id] = entry.wireKey;
+    }
     final deckOrder = {
-      for (var i = 0; i < courseProvider.courseEntries.length; i++)
-        courseProvider.courseEntries[i].scope: i,
+      for (var i = 0; i < courseProvider.catalogEntries.length; i++)
+        courseProvider.catalogEntries[i].wireKey: i,
     };
-    ankiSections.sort((a, b) => (deckOrder[_scopeForSection(a.id)] ?? 9999)
-        .compareTo(deckOrder[_scopeForSection(b.id)] ?? 9999));
+    ankiSections.sort(
+      (a, b) => (deckOrder[wireForImportId[AnkiReviewAssembler
+              .importIdFromSectionId(a.id)]] ??
+              9999)
+          .compareTo(
+              deckOrder[wireForImportId[AnkiReviewAssembler
+                      .importIdFromSectionId(b.id)]] ??
+                  9999),
+    );
 
     if (ankiSections.isEmpty) {
       return _buildEmptyState(context);
@@ -105,15 +120,6 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
       final importId = AnkiReviewAssembler.importIdFromSectionId(section.id);
       return !OfficialAnkiHomeDue.officialImportIds.contains(importId);
     });
-    String? firstDueOfficialSectionId;
-    for (final section in ankiSections) {
-      final importId = AnkiReviewAssembler.importIdFromSectionId(section.id);
-      if (OfficialAnkiHomeDue.officialImportIds.contains(importId) &&
-          OfficialAnkiHomeDue.formalOfficialDueForImport(importId) > 0) {
-        firstDueOfficialSectionId = section.id;
-        break;
-      }
-    }
     final deckManager = getIt<AnkiDeckManager>();
     final newLeft = deckManager.newRemainingToday;
     final reviewLeft = deckManager.reviewRemainingToday;
@@ -213,9 +219,12 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
                 ),
                 if (totalDue > 0)
                   ElevatedButton(
+                    // Review All (plan 34 R2-3): a null section id plans a
+                    // session across EVERY official source's formal due
+                    // set — never just the first source with due cards.
                     onPressed: () => _startReview(
                       context,
-                      firstDueOfficialSectionId,
+                      null,
                       entry: FormalReviewEntryKind.courseReview,
                     ),
                     style: ElevatedButton.styleFrom(
@@ -259,19 +268,15 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
                   section.id,
                   entry: FormalReviewEntryKind.deckSection,
                 ),
-                onStats: isOfficial
-                    ? null
-                    : () => context.router.push(AnkiDeckStatsRoute(
-                          importId: importId,
-                          title: section.name,
-                        )),
-                onBrowse: isOfficial
-                    ? null
-                    : () => context.router.push(AnkiCardBrowserRoute(
-                          importId: importId,
-                          title: section.name,
-                          sectionId: section.id,
-                        )),
+                onStats: () => context.router.push(AnkiDeckStatsRoute(
+                      importId: importId,
+                      title: section.name,
+                    )),
+                onBrowse: () => context.router.push(AnkiCardBrowserRoute(
+                      importId: importId,
+                      title: section.name,
+                      sectionId: section.id,
+                    )),
                 onPin: () => _pinDeck(context, section.id),
                 onOptions: isOfficial
                     ? null
@@ -295,47 +300,67 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
     );
   }
 
-  static String _scopeForSection(String sectionId) =>
-      'anki:${AnkiReviewAssembler.importIdFromSectionId(sectionId)}';
-
   Future<void> _reorderDecks(
       BuildContext context, List sections, int oldIndex, int newIndex) async {
+    final provider = context.read<CourseProvider>();
     final reordered = List.of(sections);
     final item = reordered.removeAt(oldIndex);
     reordered.insert(newIndex, item);
     final deckIds = <String>{
       for (final section in reordered)
-        AnkiReviewAssembler.importIdFromSectionId(section.id),
+        AnkiReviewAssembler.importIdFromSectionId((section as dynamic).id
+            as String),
     };
-    final allScopes = context
-        .read<CourseProvider>()
-        .courseEntries
-        .map((entry) => entry.scope)
-        .where((scope) =>
-            !scope.startsWith('anki:') || deckIds.contains(scope.substring(5)))
-        .toList();
-    final builtIn = allScopes.where((scope) => scope.isEmpty);
-    final others = allScopes.where((scope) => scope.isNotEmpty).toSet();
-    await context.read<CourseProvider>().persistCourseOrder([
-      ...builtIn,
-      for (final section in reordered)
-        'anki:${AnkiReviewAssembler.importIdFromSectionId(section.id)}',
-      ...others.where((scope) =>
-          !reordered.any((section) => scope == _scopeForSection(section.id))),
-    ]);
+    // Wire-key based reorder: keep builtin first, then the decks in the
+    // user's drag order, then any non-deck courses untouched.
+    final wireForId = <String, String>{};
+    for (final entry in provider.catalogEntries) {
+      final id = entry.legacyImportId ?? entry.officialSourceId;
+      if (id != null) wireForId[id] = entry.wireKey;
+    }
+    final reorderedWires = <String>{
+      for (final id in deckIds)
+        if (wireForId[id] != null) wireForId[id]!,
+    };
+    final order = <String>[];
+    for (final entry in provider.catalogEntries) {
+      if (entry.isBuiltin) {
+        order.add(entry.wireKey);
+      } else if (reorderedWires.contains(entry.wireKey)) {
+        // Deck section order handled below.
+        continue;
+      } else {
+        order.add(entry.wireKey);
+      }
+    }
+    // Splice the dragged deck order right after the builtin course.
+    final builtinWire = const BuiltinCourseScope('turkish').wireKey;
+    final builtinIndex = order.indexOf(builtinWire);
+    order.insertAll(
+      builtinIndex < 0 ? order.length : builtinIndex + 1,
+      reorderedWires.toList(),
+    );
+    await provider.persistCourseOrder(order);
   }
 
   Future<void> _pinDeck(BuildContext context, String sectionId) async {
-    final pinned = _scopeForSection(sectionId);
-    final scopes = context
-        .read<CourseProvider>()
-        .courseEntries
-        .map((entry) => entry.scope)
-        .where((scope) => scope != pinned)
+    final provider = context.read<CourseProvider>();
+    final importId = AnkiReviewAssembler.importIdFromSectionId(sectionId);
+    final pinnedWire = provider.catalogEntries
+        .where((entry) =>
+            entry.legacyImportId == importId ||
+            entry.officialSourceId == importId)
+        .map((entry) => entry.wireKey)
+        .firstOrNull;
+    if (pinnedWire == null) return;
+    final wires = provider.catalogEntries
+        .map((entry) => entry.wireKey)
+        .where((wire) => wire != pinnedWire)
         .toList();
-    final at = scopes.indexOf('');
-    scopes.insert(at < 0 ? 0 : at + 1, pinned);
-    await context.read<CourseProvider>().persistCourseOrder(scopes);
+    final builtinWire = const BuiltinCourseScope('turkish').wireKey;
+    final at = wires.indexOf(builtinWire);
+    wires.insert(at < 0 ? 0 : at + 1, pinnedWire);
+    await provider.persistCourseOrder(wires);
   }
 
   Future<void> _editDeckOptions(
@@ -439,10 +464,14 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
     await getIt<AnkiDeckManager>().uninstall(importId);
     if (!context.mounted) return;
     final courseProvider = context.read<CourseProvider>();
-    if (courseProvider.courseScope == 'anki:$importId') {
-      // The active scope pointed at the removed deck — fall back to the
-      // built-in course (setCourseScope reloads the tree itself).
-      await courseProvider.setCourseScope('');
+    final removedWasActive = courseProvider.catalogEntries.any((entry) =>
+        (entry.legacyImportId == importId ||
+            entry.officialSourceId == importId) &&
+        entry.wireKey == courseProvider.courseScope);
+    if (removedWasActive) {
+      // The active scope pointed at the removed course — fall back to the
+      // built-in course (setScope reloads the tree itself).
+      await courseProvider.setScope(const BuiltinCourseScope('turkish'));
     } else {
       await courseProvider.reloadCourse();
     }

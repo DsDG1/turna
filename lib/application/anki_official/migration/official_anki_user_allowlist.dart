@@ -12,7 +12,8 @@ bool isUserAllowlistedSource({
   if (isFixturePilotSource(importId: importId, sourceHash: sourceHash)) {
     return true;
   }
-  if (sourceHash != null && _userAllowlistedHashes.contains(sourceHash.toLowerCase())) {
+  if (sourceHash != null &&
+      _userAllowlistedHashes.contains(sourceHash.toLowerCase())) {
     return true;
   }
   return false;

@@ -11,6 +11,7 @@ import 'package:turna/application/anki_official/migration/official_anki_dry_run_
 import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_state.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
+import 'package:turna/data/anki_owner_authority_dao.dart';
 
 /// Census / reconciler status that may enter the W8 single-source saga.
 const kCleanLegacyCensusStatus = 'cleanLegacy';
@@ -61,12 +62,19 @@ class OfficialLegacySourceMigrationSaga {
     required this.coordinator,
     this.backupService = const LegacyAnkiBackupService(),
     this.dryRunSaga = const LegacyAnkiDryRunSaga(),
+    this.authorityDao,
   });
 
   final OfficialAnkiMigrationDao dao;
   final OfficialAnkiOperationCoordinator coordinator;
   final LegacyAnkiBackupService backupService;
   final LegacyAnkiDryRunSaga dryRunSaga;
+
+  /// CourseDatabase owner authority (plan 34 D3). When present, freeze is
+  /// a REAL fence CAS and the owner switch commits here first — the
+  /// catalog's `legacy_anki_migrations` becomes a replayable journal
+  /// mirror and never the production routing fact.
+  final AnkiOwnerAuthorityDao? authorityDao;
 
   /// Step 1 — accept a census-classified `cleanLegacy` source into the journal.
   void beginFromCleanLegacyCensus({
@@ -178,7 +186,8 @@ class OfficialLegacySourceMigrationSaga {
         );
         return false;
       }
-      final computed = sha256.convert(await pickedFile.readAsBytes()).toString();
+      final computed =
+          sha256.convert(await pickedFile.readAsBytes()).toString();
       if (computed != expectedSourceHash) {
         dao.transition(
           migrationId: migrationId,
@@ -186,7 +195,8 @@ class OfficialLegacySourceMigrationSaga {
           next: LegacyAnkiMigrationState.needsUserAction,
           nowMillis: now,
           errorCode: 'official_anki.migration_package_mismatch',
-          errorMessage: 'Picked package sha256 does not match census sourceHash',
+          errorMessage:
+              'Picked package sha256 does not match census sourceHash',
         );
         return false;
       }
@@ -508,18 +518,108 @@ class OfficialLegacySourceMigrationSaga {
   }
 
   /// Step 8 — freeze Legacy writer (still Official-not-owner until switch).
-  void freezeLegacyWriter({
+  ///
+  /// With an [authorityDao] this performs the REAL freeze: the source's
+  /// write fence CAS open→frozen in the CourseDatabase authority. From
+  /// this point the Legacy write fence rejects ordinary mutators (plan 34
+  /// §R4-1) — the freeze is a behavior, not a comment.
+  Future<void> freezeLegacyWriter({
     required String migrationId,
     int? nowMillis,
-  }) {
+  }) async {
     final row = _requireRow(migrationId);
     // cutoverReady is the freeze gate; already there after compare.
     _requireState(row, {LegacyAnkiMigrationState.cutoverReady});
-    // No further Legacy SRS / NoteStore writes allowed once frozen.
-    // Enforcement is via AnkiWriteGuard + assertLegacySrsAnswerAllowed.
+    final authority = authorityDao;
+    if (authority == null) return;
+    final officialSourceId = row.officialSourceId;
+    if (officialSourceId == null || officialSourceId.isEmpty) {
+      throw StateError(
+        'freeze requires an official source id (migration $migrationId)',
+      );
+    }
+    final courseId = _courseIdFor(officialSourceId);
+    // Ensure the authority row exists (legacy backend, still open).
+    if (await authority.findByCourseId(courseId) == null) {
+      await authority.upsertSource(
+        courseId: courseId,
+        profileId: row.profileId,
+        sourceId: officialSourceId,
+        backendKind: 'legacyTurna',
+        displayName: row.legacyImportId,
+        sourceHash: '',
+        sourceFingerprint: '',
+        state: AnkiSourceVisibility.active,
+      );
+    }
+    final transitionId = 'tr-$migrationId';
+    if (await authority.transitionById(transitionId) == null &&
+        await authority.inFlightTransition(courseId) == null) {
+      await authority.beginTransition(
+        transitionId: transitionId,
+        profileId: row.profileId,
+        legacyImportId: row.legacyImportId,
+        officialSourceId: officialSourceId,
+        courseId: courseId,
+        fromBackend: 'legacyTurna',
+        toBackend: 'official',
+        policy: row.schedulingPolicy.name,
+      );
+    }
+    // Fast-forward the authority phase machine to frozen (idempotent:
+    // CAS conflicts mean an earlier resume already advanced past a step).
+    const path = [
+      (
+        OwnerTransitionPhase.discovered,
+        OwnerTransitionPhase.awaitingUserPolicy
+      ),
+      (OwnerTransitionPhase.awaitingUserPolicy, OwnerTransitionPhase.backingUp),
+      (OwnerTransitionPhase.backingUp, OwnerTransitionPhase.importingOfficial),
+      (
+        OwnerTransitionPhase.importingOfficial,
+        OwnerTransitionPhase.verifyingIdentity
+      ),
+      (
+        OwnerTransitionPhase.verifyingIdentity,
+        OwnerTransitionPhase.projectionStaging
+      ),
+      (
+        OwnerTransitionPhase.projectionStaging,
+        OwnerTransitionPhase.cutoverReady
+      ),
+      (OwnerTransitionPhase.cutoverReady, OwnerTransitionPhase.frozen),
+    ];
+    for (final (from, to) in path) {
+      try {
+        await authority.advancePhase(
+          transitionId: transitionId,
+          from: from,
+          to: to,
+        );
+      } on OwnerAuthorityConflict {
+        // Already advanced by a previous resume.
+      }
+    }
+    try {
+      await authority.compareAndSetWriteFence(
+        courseId: courseId,
+        expected: AnkiWriteFence.open,
+        next: AnkiWriteFence.frozen,
+      );
+    } on OwnerAuthorityConflict {
+      // Already frozen (resume after crash between phase and fence).
+    }
   }
 
+  String _courseIdFor(String officialSourceId) => 'course-$officialSourceId';
+
   /// Step 9 — single commit point: persist Official owner.
+  ///
+  /// With an [authorityDao], the AUTHORITATIVE commit happens in the
+  /// CourseDatabase first (`commitOwnership`: backend_kind, generation,
+  /// officialOnly fence and the transition's observing phase in one
+  /// transaction). The catalog transition below is the journal mirror —
+  /// a mirror failure never regresses the owner (plan 34 D3 / §R4-2).
   Future<void> atomicOwnerSwitch({
     required String migrationId,
     int officialMutationCountAtCutover = 0,
@@ -529,6 +629,32 @@ class OfficialLegacySourceMigrationSaga {
     final now = nowMillis ?? DateTime.now().millisecondsSinceEpoch;
     final row = _requireRow(migrationId);
     _requireState(row, {LegacyAnkiMigrationState.cutoverReady});
+
+    final authority = authorityDao;
+    final officialSourceId = row.officialSourceId;
+    if (authority != null) {
+      if (officialSourceId == null || officialSourceId.isEmpty) {
+        throw StateError(
+          'owner switch requires an official source id '
+          '(migration $migrationId)',
+        );
+      }
+      final courseId = _courseIdFor(officialSourceId);
+      final transitionId = 'tr-$migrationId';
+      try {
+        await authority.advancePhase(
+          transitionId: transitionId,
+          from: OwnerTransitionPhase.frozen,
+          to: OwnerTransitionPhase.committing,
+        );
+      } on OwnerAuthorityConflict {
+        // Resumed mid-commit: the CAS in commitOwnership re-verifies.
+      }
+      await authority.commitOwnership(
+        transitionId: transitionId,
+        courseId: courseId,
+      );
+    }
 
     dao.atomicCutoverTransition(
       migrationId: migrationId,
@@ -752,8 +878,7 @@ class OfficialLegacySourceMigrationSaga {
     throw OfficialAnkiException(
       code: OfficialAnkiErrorCode.invalidState,
       messageKey: 'official_anki.illegal_migration_transition',
-      debugDetails:
-          '${row.migrationId} at ${row.state.name}; expected one of '
+      debugDetails: '${row.migrationId} at ${row.state.name}; expected one of '
           '${allowed.map((s) => s.name).join(",")}',
     );
   }

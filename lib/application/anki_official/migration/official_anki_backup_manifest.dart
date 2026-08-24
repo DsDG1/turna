@@ -109,7 +109,8 @@ class LegacyAnkiBackupService {
     if (!targetFile.parent.existsSync()) {
       targetFile.parent.createSync(recursive: true);
     }
-    final content = const JsonEncoder.withIndent('  ').convert(manifest.toJson());
+    final content =
+        const JsonEncoder.withIndent('  ').convert(manifest.toJson());
     await targetFile.writeAsString(content, flush: true);
     return targetFile;
   }

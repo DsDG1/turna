@@ -38,8 +38,8 @@ class AnkiWriteGuard {
     required String operation,
   }) {
     final forbidden = switch (sourceEngine) {
-      AnkiEngineKind.official =>
-        owner == AnkiWriteOwner.turnaSrs || owner == AnkiWriteOwner.legacyAnkiDao,
+      AnkiEngineKind.official => owner == AnkiWriteOwner.turnaSrs ||
+          owner == AnkiWriteOwner.legacyAnkiDao,
       AnkiEngineKind.legacy => owner == AnkiWriteOwner.officialScheduler,
     };
     final projectionScoring = owner == AnkiWriteOwner.projection &&

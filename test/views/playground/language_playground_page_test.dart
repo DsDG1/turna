@@ -29,14 +29,14 @@ import 'package:turna/views/playground/language_playground_page.dart';
 /// notifies like a real course switch without any DB.
 class _StubCourseProvider extends CourseProvider {
   _StubCourseProvider({required String scope})
-      : _scope = scope,
+      : _scopeWire = scope,
         super();
 
-  String _scope;
+  String _scopeWire;
   List<Section> _sectionList = [];
 
-  set scope(String value) {
-    _scope = value;
+  set scopeWire(String value) {
+    _scopeWire = value;
     notifyListeners();
   }
 
@@ -46,7 +46,7 @@ class _StubCourseProvider extends CourseProvider {
   }
 
   @override
-  String get courseScope => _scope;
+  String get courseScope => _scopeWire;
 
   @override
   List<Section> get sections => _sectionList;
@@ -252,7 +252,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text(AppStrings.playgroundBlockedTitle), findsOneWidget);
 
-    courseProvider.scope = '';
+    courseProvider.scopeWire = '';
     await tester.pumpAndSettle();
 
     // 课程切回语言 scope：解除就地拦截并恢复 availability 加载，而不是
@@ -274,7 +274,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(LanguagePlaygroundPage), findsOneWidget);
 
-    courseProvider.scope = 'anki:deck1';
+    courseProvider.scopeWire = 'anki:deck1';
     await tester.pumpAndSettle();
 
     expect(find.byType(LanguagePlaygroundPage), findsNothing);

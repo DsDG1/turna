@@ -163,8 +163,9 @@ void main() {
       );
 
       expect(total, 10);
-      expect(OfficialAnkiHomeDue.officialDue, 10);
-      // With multiple targets, neither import gets a fake 5
+      // officialDue is derived (introduced-only, plan 34 D6); the queue
+      // meta total stays undivided — with multiple targets, neither import
+      // gets a fake 5.
       expect(OfficialAnkiHomeDue.officialDueByImport['import-1'], 0);
       expect(OfficialAnkiHomeDue.officialDueByImport['import-2'], 0);
     });

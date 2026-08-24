@@ -323,8 +323,7 @@ class OfficialAnkiSourceReconciler {
       if (evidence.hasLegacyNotes && evidence.legacySrsCount == 0) {
         return OfficialAnkiSourceReconcileDecision(
           state: OfficialAnkiSourceReconcileState.ownerLegacySrsMissing,
-          autoAction:
-              OfficialAnkiReconcileAutoAction.quarantineNoFakeMigration,
+          autoAction: OfficialAnkiReconcileAutoAction.quarantineNoFakeMigration,
           evidenceHash: hash,
           intendedOwner: OfficialAnkiPersistedOwner.legacy,
           reasons: const ['legacy_notes_without_srs'],

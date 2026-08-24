@@ -886,12 +886,11 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
               ),
             ),
             const SizedBox(height: 8),
-            // Secondary action: return to the deck list (the page that
-            // pushed this wizard onto the stack). Same destination as the
-            // "Done" text button, but more discoverable for users who
-            // explicitly want to review what was imported.
+            // Secondary action: open course management with the new course
+            // highlighted (switch / reorder / inspect) — a distinct
+            // destination from "Done", which simply returns (plan 34 R1-4).
             OutlinedButton.icon(
-              onPressed: () => context.router.maybePop(),
+              onPressed: _viewDecks,
               icon: const Icon(Icons.list_alt_rounded, size: 18),
               label: Text(AppStrings.ankiDoneViewDecks),
               style: OutlinedButton.styleFrom(
@@ -916,15 +915,43 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
 
   // ─── Actions ────────────────────────────────────────────────────────
 
-  /// "Start learning now" on the done step: scope the course tree to the
-  /// freshly-imported deck and pop back to the Learn tab, so the deck is
-  /// immediately usable like a real course.
+  /// Wire key of the catalog entry for a freshly imported id (legacy
+  /// importId or official sourceId), or null when the entry is not (yet)
+  /// in the catalog.
+  String? _wireForImportId(String id, CourseProvider courseProvider) {
+    for (final entry in courseProvider.catalogEntries) {
+      if (entry.legacyImportId == id || entry.officialSourceId == id) {
+        return entry.wireKey;
+      }
+    }
+    return null;
+  }
+
+  /// "Start learning now" on the done step: switch to the freshly-imported
+  /// course and pop back to the Learn tab, so the deck is immediately
+  /// usable like a real course. This is the ONLY done action that switches
+  /// the active course (plan 34 R1-4).
   Future<void> _startLearningNow() async {
     final importId = _summary?.importId;
     if (importId != null) {
-      await context.read<CourseProvider>().setCourseScope('anki:$importId');
+      final courseProvider = context.read<CourseProvider>();
+      final wire = _wireForImportId(importId, courseProvider);
+      if (wire != null) {
+        await courseProvider.setCourseScope(wire);
+      }
     }
     if (mounted) context.router.maybePop();
+  }
+
+  /// "View decks" on the done step: open course management with the new
+  /// course highlighted. The current course stays active.
+  Future<void> _viewDecks() async {
+    final importId = _summary?.importId;
+    String? highlight;
+    if (importId != null) {
+      highlight = _wireForImportId(importId, context.read<CourseProvider>());
+    }
+    await context.router.push(CourseManagementRoute(highlightWire: highlight));
   }
 
   Future<void> _pickFile() async {
@@ -1641,29 +1668,25 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         }
       }
 
-      // Promote the import to a first-class course entry:
-      // 1) Drop CourseLoader shells/vocab memo so the new Anki section(s)
-      //    appear in [CourseProvider.courseEntries] without an app restart.
-      // 2) Scope Learn to this deck so it is not "merged into" the built-in
-      //    Turkish tree (built-in scope hides level=='Anki').
-      // setCourseScope early-returns when already on the same scope (re-import),
-      // so force a reload in that case.
+      // Promote the import to a first-class course entry WITHOUT stealing
+      // the active course (plan 34 R1-4): drop CourseLoader memo so the new
+      // Anki section(s) appear in [CourseProvider.catalogEntries], refresh
+      // the tree, and keep the user on whatever course they were studying.
+      // Switching happens only via the done-page "start learning" action.
       final scopeSw = Stopwatch()..start();
       CourseLoader.invalidateCaches();
-      final scope = 'anki:$importId';
-      if (courseProvider.courseScope == scope) {
-        await courseProvider.reloadCourse();
-      } else {
-        await courseProvider.setCourseScope(scope);
+      await courseProvider.reloadCourse();
+      // Ensure the new deck is ordered in the course-management list.
+      final newWire = _wireForImportId(importId, courseProvider);
+      if (newWire != null) {
+        final wires = [
+          for (final e in courseProvider.catalogEntries) e.wireKey,
+        ];
+        if (!wires.contains(newWire)) {
+          wires.add(newWire);
+          await courseProvider.persistCourseOrder(wires);
+        }
       }
-      // Persist order so the new deck is stable in the course-management list.
-      final scopes = [
-        for (final e in courseProvider.courseEntries) e.scope,
-      ];
-      if (!scopes.contains(scope)) {
-        scopes.add(scope);
-      }
-      await courseProvider.persistCourseOrder(scopes);
       scopeSw.stop();
       _logTiming('import: scope setup', scopeSw);
 
@@ -2054,21 +2077,22 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         );
       }
 
+      if (!mounted) return;
       final courseProvider = context.read<CourseProvider>();
       CourseLoader.invalidateCaches();
-      final scope = 'anki:$sourceId';
-      if (courseProvider.courseScope == scope) {
-        await courseProvider.reloadCourse();
-      } else {
-        await courseProvider.setCourseScope(scope);
+      // Refresh the catalog and stay on the user's current course — the
+      // import must never steal the active scope (plan 34 R1-4).
+      await courseProvider.reloadCourse();
+      final newWire = _wireForImportId(sourceId, courseProvider);
+      if (newWire != null) {
+        final wires = [
+          for (final e in courseProvider.catalogEntries) e.wireKey,
+        ];
+        if (!wires.contains(newWire)) {
+          wires.add(newWire);
+          await courseProvider.persistCourseOrder(wires);
+        }
       }
-      final scopes = [
-        for (final e in courseProvider.courseEntries) e.scope,
-      ];
-      if (!scopes.contains(scope)) {
-        scopes.add(scope);
-      }
-      await courseProvider.persistCourseOrder(scopes);
 
       final summary = await OfficialAnkiCourseProjectionStore(
         getIt<CourseDatabase>(),

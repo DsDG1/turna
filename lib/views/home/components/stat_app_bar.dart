@@ -6,6 +6,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
+import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/game_provider.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/theme.dart';
@@ -25,9 +26,9 @@ class StatAppBar extends StatelessWidget implements PreferredSizeWidget {
       toolbarHeight: 60,
       leading: const Padding(
         padding: EdgeInsets.only(left: 8),
-        child: LanguageSwitch(),
+        child: CourseSwitchButton(),
       ),
-      leadingWidth: 64,
+      leadingWidth: 150,
       title: const SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
@@ -46,22 +47,43 @@ class StatAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 }
 
-/// Globe button in the Learn-tab app bar. Opens the course-management page
-/// (switch / reorder / add / delete courses) — it used to be an inline
-/// popup menu, now all of that lives in [CourseManagementPage].
-class LanguageSwitch extends StatelessWidget {
-  const LanguageSwitch({super.key});
+/// Course switcher in the Learn-tab app bar: shows the ACTIVE COURSE NAME
+/// (plan 34 R1-5 — a labelless globe icon is not a discoverable switcher)
+/// and opens the course-management page, where switch / reorder / add /
+/// delete live.
+class CourseSwitchButton extends StatelessWidget {
+  const CourseSwitchButton({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return IconButton(
-      tooltip: AppStrings.courseManagementTitle,
+    final provider = context.watch<CourseProvider>();
+    final activeEntry = provider.catalogEntries
+        .where((entry) => entry.wireKey == provider.courseScope)
+        .firstOrNull;
+    final activeName = activeEntry?.displayName ?? AppStrings.courseManagementTitle;
+    return TextButton.icon(
+      onPressed: () => context.router.push(CourseManagementRoute()),
       icon: const Icon(
         Icons.language_rounded,
-        size: 22,
+        size: 20,
         color: TurnaTheme.brandTeal,
       ),
-      onPressed: () => context.router.push(const CourseManagementRoute()),
+      label: Text(
+        activeName,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: TurnaTheme.brandTeal,
+        ),
+      ),
+      style: TextButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
+        ),
+      ),
     );
   }
 }

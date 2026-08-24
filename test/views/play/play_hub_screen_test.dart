@@ -23,17 +23,17 @@ import '../../helpers/in_memory_course_db.dart';
 
 /// Scope-mutable stand-in so tests can flip the active course without a DB.
 class _ScopeStubCourseProvider extends CourseProvider {
-  _ScopeStubCourseProvider(String scope) : _scope = scope;
+  _ScopeStubCourseProvider(String scopeWire) : _scopeWire = scopeWire;
 
-  String _scope;
+  String _scopeWire;
 
-  set scope(String value) {
-    _scope = value;
+  set scopeWire(String value) {
+    _scopeWire = value;
     notifyListeners();
   }
 
   @override
-  String get courseScope => _scope;
+  String get courseScope => _scopeWire;
 }
 
 /// Hand-written host route (no codegen) so router-level tests can push real
@@ -178,12 +178,12 @@ void main() {
     expect(find.text('Playground'), findsOneWidget);
 
     // 语言 → Anki：IndexedStack 保留的 Play Hub 必须随 scope 通知重建。
-    courseProvider.scope = 'anki:deck1';
+    courseProvider.scopeWire = 'anki:deck1';
     await tester.pumpAndSettle();
     expect(find.text('Playground'), findsNothing);
 
     // Anki → 语言：入口恢复。
-    courseProvider.scope = '';
+    courseProvider.scopeWire = '';
     await tester.pumpAndSettle();
     expect(find.text('Playground'), findsOneWidget);
   });

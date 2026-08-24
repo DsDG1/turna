@@ -10,6 +10,7 @@ import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/playground/playground_assembler.dart';
 import 'package:turna/application/playground/playground_content_source.dart';
 import 'package:turna/application/playground/playground_models.dart';
+import 'package:turna/domain/course/course_scope.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/domain/course/lesson.dart';
 import 'package:turna/domain/course/lesson_content.dart';
@@ -22,14 +23,17 @@ import 'package:turna/domain/course/unit.dart';
 /// touches so no DB path runs.
 class _StubCourseProvider extends CourseProvider {
   _StubCourseProvider({
-    this.scope = '',
+    String scopeWire = '',
+    CourseScope? typedScope,
     this.sectionList = const [],
     this.allList,
     this.unit,
     this.failingSectionIds = const {},
-  });
+  })  : _scopeWire = scopeWire,
+        _typedScope = typedScope;
 
-  final String scope;
+  final String _scopeWire;
+  final CourseScope? _typedScope;
 
   /// The courseScope-filtered view — what Playground must read.
   final List<Section> sectionList;
@@ -41,7 +45,12 @@ class _StubCourseProvider extends CourseProvider {
   final Set<String> failingSectionIds;
 
   @override
-  String get courseScope => scope;
+  String get courseScope => _scopeWire;
+
+  @override
+  CourseScope get scope =>
+      _typedScope ??
+      const BuiltinCourseScope('turkish');
 
   /// Scope view with failed sections shown as shells (empty units), the way
   /// an unloaded/erroring section really looks until its body loads.
@@ -183,7 +192,7 @@ void main() {
     test('rejects an Anki course scope with ineligibleCourse', () async {
       final assembler = PlaygroundAssembler.forCourseProvider(
         _StubCourseProvider(
-          scope: 'anki:deck1',
+          scopeWire: 'anki:deck1',
           sectionList: [
             _section('anki-deck1-s1',
                 level: 'Anki',
