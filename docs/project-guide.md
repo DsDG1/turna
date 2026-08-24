@@ -288,17 +288,21 @@ Explain → Practice → Rate 三段流（见 2.4 Skill Acquisition Theory）。
 
 ## 6. Anki 深度集成
 
-> **官方 Core 现状**：Android 生产默认已翻转至官方 Anki Core（rslib FFI，`lib/application/anki_official/`）——渲染 / 调度 / 投影默认走官方（flag 见 `official_anki_feature_flags.dart`）；导入向导仍为 Dart 先行双写，官方先行导入为 opt-in（P5-F）。本节描述的自研管线保留为 Legacy / OHOS 路径。详见 [`docs/official-anki-migration/README.md`](./official-anki-migration/README.md) 与 [ADR 0036](./decisions/0036-official-anki-core-migration.md)、[ADR 0037](./decisions/0037-anki-course-review-unification.md)。
+> **官方 Core 现状（Official Anki 迁移中）**：Android 生产新导入 / 正式复习 / 课程投影走官方 Anki Core（rslib FFI，`lib/application/anki_official/`）。生产 bundle 为 `OfficialAnkiFeatureFlags.productionAndroid`（不再用 10 个能力 dart-define 自由组合）。收口与 Legacy 退役以 [`docs/official-anki-migration/34-official-anki-production-cutover-and-ohos-retirement-plan.md`](./official-anki-migration/34-official-anki-production-cutover-and-ohos-retirement-plan.md) 为准；OHOS 产品支持已 EOL（[ADR 0041](./decisions/0041-ohos-product-eol.md)）。详见 [`docs/official-anki-migration/README.md`](./official-anki-migration/README.md) 与 [ADR 0036](./decisions/0036-official-anki-core-migration.md)、[ADR 0037](./decisions/0037-anki-course-review-unification.md)。
 
-本应用可直接导入 Anki `.apkg` 牌组，将其作为课程树的一个 Section，并与 SRS / 错题 / 统计流水线双向打通。产品合同与评分口径以 [ADR 0037](./decisions/0037-anki-course-review-unification.md) 为准；官方 Core 路径以 [ADR 0036](./decisions/0036-official-anki-core-migration.md) 与 [`docs/official-anki-migration/README.md`](./official-anki-migration/README.md) 为准。
+本应用可导入 Anki `.apkg` 牌组作为课程树的一个 Section。产品合同与评分口径以 [ADR 0037](./decisions/0037-anki-course-review-unification.md) 为准。
 
 ### 6.1 导入流水线
 
-1. **解析**（`anki_importer.dart`）：从 `.apkg`（zip + SQLite collection）提取 notetypes、notes、cards、revlog（复习日志），分页、表缺失安全、best-effort。
-2. **NoteStore 持久化**（schema v9 起，三表）：`anki_notetypes`（templates + css + `allowJs`）、`anki_notes`（原始 HTML）、`anki_cards_meta`（card 级 wordId + render_mode）。
-3. **装配**（`anki_deck_assembler.dart`）：按 deck 树构建 Section→Unit→Lesson，card 级 wordId 形如 `anki-<importId>-c<cardId>`（clean break，无 migration）。
-4. **媒体拷贝**（`AnkiAudioResolver.copyMedia`）：音频/图片拷出，在导入事务**之外**执行（best-effort，不阻塞 SQLite 写锁）。
-5. **SRS 迁移**（`anki_srs_migrator.dart`）：将 Anki revlog 迁移为 `ReviewEventRecord`（ease 1→1 / 2→3 / 3→4 / 4→5），导入卡走 FSRS 调度。
+**生产（Android Official-first）**：选 `.apkg` → 一次计算 `AnkiImportExecutionPlan` → `OfficialAnkiOfficialFirstService` 写入 Official Collection → 投影课程树 → 以 `sourceId` 进入课程 scope。不写 Legacy NoteStore / Turna Anki SRS。`.colpkg` 与内存 sample 生产 fail-closed。
+
+**Legacy 解析/装配**（下列条目）仅保留给 W9 HOLD 的存量迁移与测试 haemostasis（`allowLegacyOnly`）。生产 `planFor` 在 `officialAndroid` 下不会选择该 writer：
+
+1. **解析**（`anki_importer.dart`）：从 `.apkg`（zip + SQLite collection）提取 notetypes、notes、cards、revlog，分页、表缺失安全、best-effort。
+2. **NoteStore 持久化**（schema v9 起，三表）：`anki_notetypes`、`anki_notes`、`anki_cards_meta`。
+3. **装配**（`anki_deck_assembler.dart`）：按 deck 树构建 Section→Unit→Lesson，card 级 wordId 形如 `anki-<importId>-c<cardId>`。
+4. **媒体拷贝**（`AnkiAudioResolver.copyMedia`）：在导入事务之外执行（best-effort）。
+5. **SRS 迁移**（`anki_srs_migrator.dart`）：将 Anki revlog 迁为 `ReviewEventRecord`，导入卡走 Turna FSRS。Official 卡不走这条。
 
 ### 6.2 智能组织（Smart Organization）
 
@@ -325,7 +329,7 @@ Explain → Practice → Rate 三段流（见 2.4 Skill Acquisition Theory）。
 复杂 notetype（含自定义 HTML/CSS/JS）无法干净映射为结构化题型时，由 `AnkiRenderPolicy` 逐卡判定 fidelity vs structured，结果持久化到 `anki_cards_meta.render_mode`。fidelity 卡以 `ankiHtmlCard` Interaction 渲染：
 
 - `AnkiHtmlCardView`（`webview_flutter`）渲染原 notetype HTML + CSS，模板 `{{field}}` 替换、cloze 挖空。
-- **平台门控**：仅 Android/iOS 有 WebView 实现；HarmonyOS/桌面/Web 降级为文本兜底（决策 4），不实例化 `WebViewController`。
+- **平台门控**：仅 Android/iOS 有 WebView 实现；桌面/Web 降级为文本兜底（决策 4），不实例化 `WebViewController`。
 - **暗色 CSS**：app 暗色主题时注入暗色 CSS（阶段 6）。
 - **JS 与网络隔离**：notetype `allowJs` 默认关；联网默认完全离线。离线/询问策略通过 CSP 实际阻断 `fetch`、XHR、WebSocket 和外部资源，不只拦页面跳转。
 
@@ -337,14 +341,13 @@ Explain → Practice → Rate 三段流（见 2.4 Skill Acquisition Theory）。
 
 ### 6.7 复习入口与浏览
 
-- **复习**：`AnkiReviewRoute`（Play Hub / Profile 快捷入口）+ `AnkiReviewSessionRoute`。`AnkiReviewAssembler` 把 NoteStore 中到期且不在 lesson 的卡渲染为 `ankiHtmlCard`（Lite 的 fidelity 兜底）。`assembleBatchAsync` 用 `wordIdsForDecks` 单次批量查询替代 N+1。
-- **卡片浏览器**：`anki_card_browser_page.dart`。
-- **牌组统计**：`anki_deck_stats_page.dart`。
-- **示例牌组**：导入页支持 `startWithSample: true` 加载内置示例。
+- **复习**：`FormalReviewLauncher` → 共享 `AnkiReviewSessionRoute`。Official owner 走 `OfficialFormalReviewProductionLoader` + live `OfficialReviewSession`；无 Official 源才走 Legacy assembler。`schedulerRuntimeAvailable` 为假且 owner 为 Official 时 fail-closed，不降级 Turna SRS。
+- **卡片浏览器 / 牌组统计**：Official 源有 engine 时读 Collection / scheduler；无 engine 时 catalog 回退，stats 不得把 catalog 总数标成已证明。
+- **示例牌组**：内存 sample 生产 fail-closed；入口已从导入页与课程管理隐藏。`startWithSample` 仅测试 haemostasis。
 
 ### 6.8 已延期（二期/远期）
 
-OHOS WebView fidelity 评估、错题快照瘦身（存 noteId 引用而非全 HTML）、WebView 池化。（`{{type:}}` 输入桥已交付：`anki_type_answer.dart`；官方 FFI 后端已由 ADR 0036 落地，见第 6 节开头。）
+错题快照瘦身（存 noteId 引用而非全 HTML）、WebView 池化。（`{{type:}}` 输入桥已交付：`anki_type_answer.dart`；官方 FFI 后端已由 ADR 0036 落地，见第 6 节开头。OHOS 产品支持已退役，不再评估 OHOS WebView。）
 
 ---
 
@@ -489,18 +492,14 @@ const warning = Color(0xFFFF9F43);
 
 | 平台 | 状态 | 备注 |
 |---|---|---|
-| **Android** | ✅ 主力 | 发布产物 APK/AAB。 |
-| **HarmonyOS (OHOS)** | ✅ 主力 | 基于 OpenHarmony Flutter 分支；Anki 保真卡文本兜底（无 WebView）。 |
-| **iOS** | ✅ | WebView 保真可用。 |
+| **Android** | ✅ 主力 | 发布产物 APK/AAB；Anki Official Core 首发平台。 |
+| **iOS** | ✅ 应用保留 | WebView 保真可用；Anki Official Core 暂不承诺。 |
 | **Web** | ⚠️ 有限 | 无 WebView 保真（文本兜底）；`build_release.py --skip-web` 可跳过。 |
+| **HarmonyOS (OHOS)** | ❌ EOL | 产品支持已退役（[ADR 0041](./decisions/0041-ohos-product-eol.md)）；数据出口见 `turna-migration-v1`。 |
 
-### 10.2 OpenHarmony Flutter 分支
+### 10.2 官方 Flutter / Android
 
-本项目使用 **OpenHarmony Flutter fork**（`3.35.8-ohos-1.0.4-beta`），SDK 在 `C:\Users\DsDogs\Desktop\developper\flutter_flutter`，**非官方 Flutter**。详见 [`docs/android-build-setup.md`](./android-build-setup.md)。
-
-- **JDK 17** 为 `JAVA_HOME`（AGP 8.11.1 拒绝 Java 8/26）。
-- **源码补丁**（`tool/apply_patches.sh`，幂等，`patch -p1`）：flutter_tools KGP 1.8.0→2.0.21、`jni` compilerOptions 任务级化、`flutter_local_notifications` `bigLargeIcon(null)` 重载歧义、`package_info_plus` Kotlin 2.0 严格空安全。pub get / cache clean / 重新克隆后需重跑。
-- `pubspec.yaml` 的 `dependency_overrides` 指向 openharmony-tpc 社区 OHOS 实现。
+本项目使用**官方 Flutter SDK**（非 OpenHarmony fork）。Android 构建需 **JDK 17**。详见 [`docs/android-build-setup.md`](./android-build-setup.md)。
 
 ### 10.3 构建命令
 
@@ -527,7 +526,7 @@ make analyze            # 静态分析
 make ci                 # analyze + test + test-python + build-release-smoke
 ```
 
-环境要求：Flutter SDK `>=3.2.3 <4.0.0`（OHOS 分支 3.35.8）。
+环境要求：官方 Flutter SDK `>=3.2.3 <4.0.0` + JDK 17（Android）。
 
 ---
 
@@ -703,9 +702,9 @@ python -m unittest discover -s tool/gui/tests -p "test_*.py"  # GUI 1276 项（�
 | [`docs/content_inventory_current.md`](./content_inventory_current.md) | Turkish 内容清单 |
 | [`docs/ai_companion_implementation.md`](./ai_companion_implementation.md) | AI companion 实现边界 |
 | [`docs/advanced-settings-system-health.md`](./advanced-settings-system-health.md) | 高级设置与系统健康 |
-| [`docs/decisions/`](./decisions/) | 架构决策记录（ADR 0030–0037） |
-| [`docs/official-anki-migration/`](./official-anki-migration/README.md) | 官方 Anki Core 迁移文档索引（Phase 0–5） |
-| [`docs/android-build-setup.md`](./android-build-setup.md) | OHOS 分支 Android 构建配置 |
+| [`docs/decisions/`](./decisions/) | 架构决策记录（ADR 0030–0041） |
+| [`docs/official-anki-migration/`](./official-anki-migration/README.md) | 官方 Anki Core 迁移文档索引；活跃收口入口为 doc 34 |
+| [`docs/android-build-setup.md`](./android-build-setup.md) | Android / 官方 Flutter 构建配置 |
 | [`docs/analysis/project-framework-analysis.md`](./analysis/project-framework-analysis.md) | 项目框架分析 |
 | [`docs/authoring/`](./authoring/) | Authoring 契约与教师指南 |
 | [`docs/audio-recording-guidelines.md`](./audio-recording-guidelines.md) | 人工录音提交规范 |
@@ -721,7 +720,7 @@ python -m unittest discover -s tool/gui/tests -p "test_*.py"  # GUI 1276 项（�
   1. **高频词汇优先**：以 Turkish National Corpus 词频数据为指导，优先覆盖前 2000 词族（覆盖日常文本约 85%）。
   2. **语法渐进**：A1 集中于现在时、格标记（主/宾/与/属/方位/离格）、简单句；A2 引入过去时与将来时；B1 引入关系从句与名物化；B2 涉及语篇衔接与语体变化。
   3. **语用真实性**：表达与对话应反映目标语真实使用场景（如 `Buyurun` 的多重语用功能），避免翻译腔。
-- **Anki 二期**：review-ops（undo/suspend/bury/flag）、广度（per-deck stats/browser/export/`{{type:}}`）、OHOS import sqlite3 FFI。
+- **Anki 生产收口**：按 [doc 34](./official-anki-migration/34-official-anki-production-cutover-and-ohos-retirement-plan.md) §1.1a。W0–W7 路径已接线；下一刀是向导再瘦、W8 真实用户库 owner 切换、真机观察与 W9 HOLD 物理删除。不得写「迁移完成」。
 - 持续完善可访问性与统计指标。
 
 ### 致谢

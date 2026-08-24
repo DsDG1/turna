@@ -12,7 +12,7 @@ void main() {
     test('every production entry maps to the same session host', () {
       final snapshot = launcher.productionHostSnapshot(
         officialOwner: false,
-        officialCapable: true,
+        schedulerRuntimeAvailable: true,
       );
       expect(snapshot.length, FormalReviewEntryKind.values.length);
       for (final entry in FormalReviewEntryKind.values) {
@@ -31,14 +31,14 @@ void main() {
     test('Official-unavailable is fail-closed for every entry', () {
       final snapshot = launcher.productionHostSnapshot(
         officialOwner: true,
-        officialCapable: false,
+        schedulerRuntimeAvailable: false,
       );
       expect(snapshot.values.toSet(), {'failClosed'});
       final decision = launcher.resolve(
         entry: FormalReviewEntryKind.playHub,
         courseId: 'anki',
         officialOwner: true,
-        officialCapable: false,
+        schedulerRuntimeAvailable: false,
       );
       expect(decision.host, FormalReviewHostKind.failClosed);
       expect(decision.isFailClosed, isTrue);
@@ -50,7 +50,7 @@ void main() {
         courseId: 'anki-src',
         sectionId: 'sec',
         officialOwner: true,
-        officialCapable: true,
+        schedulerRuntimeAvailable: true,
       );
       expect(decision.host, FormalReviewHostKind.sharedSession);
       expect(decision.scope.courseId, 'anki-src');
@@ -62,14 +62,14 @@ void main() {
         entry: FormalReviewEntryKind.playHub,
         courseId: 'anki',
         officialOwner: false,
-        officialCapable: true,
+        schedulerRuntimeAvailable: true,
       );
       final stats = launcher.resolve(
         entry: FormalReviewEntryKind.statsContinue,
         courseId: 'anki',
         sectionId: 'anki-import-1',
         officialOwner: false,
-        officialCapable: true,
+        schedulerRuntimeAvailable: true,
       );
       expect(play.host, stats.host);
       expect(play.scope.sectionId, isNull);
@@ -98,7 +98,7 @@ void main() {
                     courseId: 'anki',
                     sectionId: 'anki-sec-1',
                     officialOwner: false,
-                    officialCapable: true,
+                    schedulerRuntimeAvailable: true,
                   );
                 },
                 child: const Text('go'),
@@ -132,7 +132,7 @@ void main() {
                     entry: FormalReviewEntryKind.statsContinue,
                     courseId: 'anki',
                     officialOwner: true,
-                    officialCapable: false,
+                    schedulerRuntimeAvailable: false,
                   );
                 },
                 child: const Text('go'),

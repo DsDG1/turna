@@ -5,6 +5,8 @@
 > 前置：[`24`](./archive/24-p5-remainder-and-p6-ankiweb-plan.md)、[`26`](./archive/26-p5d-production-routing-playbook.md)、[`27`](./archive/27-p5d-d1-audit.md)  
 > 产品：「适合 go 的全部 go」，再把本文改成可大施工的规格。  
 > 本文是 **D2 施工手册 + 后续波次锁**。D2 已 CONSTRUCTION GO。后面每一波仍要单独书面 go。
+>
+> **历史规格；勿按本文开施工波次。** 灰度 `TURNA_OFFICIAL_ANKI_GRAY_COHORT` / D5「OHOS 继续 Legacy」已作废。现行入口：[34](./34-official-anki-production-cutover-and-ohos-retirement-plan.md)；OHOS EOL：[ADR 0041](../decisions/0041-ohos-product-eol.md)。
 
 ## 1. GO 板（当场有效）
 

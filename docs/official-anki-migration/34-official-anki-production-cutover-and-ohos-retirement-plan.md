@@ -4,9 +4,9 @@
 >
 > 日期：2026-08-24
 >
-> 状态：**施工计划；OHOS 退役决策已定，代码施工尚未开始**
+> 状态：**验收 NO-GO；Official Anki 迁移中**；OHOS EOL = [ADR 0041](../decisions/0041-ohos-product-eol.md)。Official-first、OHOS 主工程删除和 arm64 构建骨架可保留；course scope、实时保真复习、六集合 due、W8、parity、数据出口与发布证据按 [`34-remaining-construction-plan.md`](./34-remaining-construction-plan.md) R0–R8 返工；W9 物理删除继续 [HOLD](./34-w9-legacy-deletion-hold.md)。**不得写「迁移完成」。**
 >
-> 前置：[`31`](./31-anki-product-experience-plan.md)、[`32`](./32-official-anki-experience-parity-plan.md)、[`33`](./33-official-first-import-construction-plan.md)、[ADR 0037](../decisions/0037-anki-course-review-unification.md)
+> 前置：[`31`](./31-anki-product-experience-plan.md)、[`32`](./32-official-anki-experience-parity-plan.md)、[`33`](./33-official-first-import-construction-plan.md)（均已由本文件接管）、[ADR 0037](../decisions/0037-anki-course-review-unification.md)
 >
 > 目标：停止产品级 OHOS 支持；Android Anki 全量切换到 Official Collection / Scheduler；清除 Legacy 与 Official 混合 owner；在完成用户数据迁移和一个正式版本观察后退役自研 Anki importer / scheduler。
 
@@ -61,9 +61,34 @@
 
 这些能力不应重写。剩余工作的核心是把它们接到同一条生产路径，并删除互相矛盾的 Legacy fallback。
 
-### 1.2 当前最高风险：默认导入会形成混合半状态
+### 1.1a 施工快照（2026-08-24）
 
-当前配置组合是：
+准确口径仍是 **Official Anki 迁移中**。仓库证据见 [`34-cutover-receipt.md`](./34-cutover-receipt.md)。
+
+**可保留骨架（host 局部可证，不代表产品验收通过；非真机 §15.3）：**
+
+| 面 | 现状 |
+|---|---|
+| W0 导入计划 | `AnkiImportExecutionPlan` 贯穿 pick/commit；Android 新 `.apkg` 只写 Official Collection；flag-off / 非 Android / `.colpkg` / 内存 sample fail-closed |
+| W2 / ADR 0041 | `ohos/`、fork 补丁已删；能力矩阵未知平台 = `ankiUnavailable` |
+| W3 census | `JoinedOfficialAnkiSourceEvidenceReader` + 启动只读 `scanned`；**不**自动改 owner |
+| W4 Official-first | `OfficialAnkiOfficialFirstService` 承载 saga / migration / preview / publish；向导仍约 3400 行（Legacy 预览未拆） |
+| W5 复习 / due | 共享 host 能提交 Official scheduler；但 loader 会 strip HTML、页面使用固定队列、Review All 只取首个 Official 来源；due 六集合与 fail-closed 未完成 |
+| W6 课程 | Official 课卡 = `practice` + exactly-once introduction，默认不写 scheduler |
+| W7 browser/stats | 服务骨架存在；产品入口、migrated sourceId 路由、全部筛选和 forecast/retention 尚未验收 |
+| C4 配置 | 生产 bundle = `OfficialAnkiFeatureFlags.productionAndroid`；不再读 10 个能力 dart-define；gray cohort 已退出 planner；`officialCapable` → `schedulerRuntimeAvailable` |
+| W8 | saga + census driver 可入队 `cleanLegacy`；启动不自动切 owner |
+| W9-A | 生产不再选择 Legacy writer；物理删除 HOLD |
+
+**生产仍可读的 dart-define（opt-in / 暂停闸）：** `TURNA_OFFICIAL_ANKI_CUTOVER`（默认 true）、`DIAGNOSTICS`、`REVIEWER_DIAGNOSTICS`、`MIGRATION_PILOT`、`COURSE_GRADES_SCHEDULER`、`LEGACY_MIRROR`。
+
+**下一刀：** 按 [`34-remaining-construction-plan.md`](./34-remaining-construction-plan.md) R0→R8 返工；优先关闭 course scope、实时复习、六集合 due 和 W8 owner 阻断。真机 §15.3、正式版观察、W9-B..E 仍 HOLD。
+
+### 1.2 开工病理：默认导入会形成混合半状态（已修复，保留作回归说明）
+
+> **开工审计（已过时，勿按此施工）。** 下列组合是 34 开工时的半状态。现生产 Android 新导入是 Official-first；`officialFirstImportEligible` 已删除；`UnifiedAnkiImportRequest` 只记 `persistedOwnerIsOfficial`（不再用能力冒充 owner）。
+
+当时的配置组合是：
 
 - Android cutover 和 Official import/scheduler 默认开启；
 - `officialFirstImport` 默认关闭；
@@ -82,38 +107,25 @@ Canonical owner                                official
 正式复习                                       空、失败或错误路由
 ```
 
-这是本计划的第一阻断，优先级高于 UI parity 和 Legacy 删除。
+回归测试必须仍能复现该半状态并断言现在不可达（见 `anki_import_execution_plan_test`）。
 
-### 1.3 当前正式复习没有真正接入 Official queue
+### 1.3 开工病理：正式复习没有真正接入 Official queue（共享 host 已接线）
 
-生产入口已统一进入 `AnkiReviewSessionRoute`，但共享页面仍使用：
+开工时生产入口已统一进入 `AnkiReviewSessionRoute`，但共享页面仍使用 `AnkiReviewAssembler` / `SrsProvider` / `AnkiNoteDao` / 仅 `TurnaStudyLedger`。现 Official owner 已能经 `OfficialFormalReviewProductionLoader` 调用 `OfficialReviewSession.showAnswer` / `answerAndConfirm`，但 presentation 仍降级且页面仍消费固定 StudyItem 队列；不能称为 live queue。旧 `OfficialAnkiReviewPage` 仅保留为 diagnostics / ACK 测试夹具。
 
-- `AnkiReviewAssembler`；
-- `SrsProvider`；
-- `AnkiNoteDao`；
-- 仅包含 `TurnaStudyLedger` 的 `StudyLedgerResolver`。
+### 1.4 开工病理：课程学习语义是隐式失败回退（已改为 practice + introduction）
 
-`AnkiOfficialReviewGate` 虽会打开 Official Collection，却在生产环境继续停留在上述 Legacy batch 页面。项目已有 `OfficialReviewSession`、`OfficialAnkiReviewLedger` 和 `OfficialStudyLedger`，但没有生产组装器把 Official queue 转成 `StudyItem`。
+开工时课程内 Anki 卡以 `StudyMode.learn` 尝试写 ledger，Official 卡失败后回退普通课程提交。现 Official 课卡显式 `practice`，成功提交后 exactly-once introduction，默认不写 scheduler。
 
-### 1.4 课程学习语义仍是隐式失败回退
+### 1.5 开工病理：首页 due、浏览器和统计双事实源（部分接线）
 
-课程内 Anki 卡当前以 `StudyMode.learn` 尝试写 ledger。Official 卡没有注入 Official ledger 时进入 `recoverableError`，随后回退普通课程提交；课程进度会继续，但 Official scheduler 不变。
+开工时 due 用 count 近似，browser/stats 只读 Legacy。现 due 为 card-id 交集（3 集合 host 已证；suspend/bury/retired 生产未灌满）；browser/stats 在有 engine 时读 Collection / scheduler。无 engine 时 catalog 回退，stats 不得把 catalog 总数标成 `metricsProven`。
 
-第一阶段应明确把课程学习定义为 `practice + introduction`，而不是用一次可预期的错误来表达“不写 scheduler”。
+### 1.6 OHOS 对仓库的实际耦合（开工审计；target 已删）
 
-### 1.5 首页 due、浏览器和统计仍有双事实源问题
+开工时不是只有一个 `ohos/` 目录（W2 / ADR 0041 之后 Git 跟踪的 `ohos/` 已不存在；下表保留退役动作对照）：
 
-- Official formal due 当前用 `min(schedulerDueCount, introducedCount)` 近似，不是 card-id 级集合交集；
-- 首页 due 使用静态全局状态，无法可靠表达 loading/unavailable/stale；
-- 卡片浏览器只读 Legacy `AnkiNoteDao`；
-- 牌组统计只读 Turna `SrsProvider + ReviewHistoryDao`；
-- 纯 Official-first 来源因此可能在浏览器和统计页显示为空。
-
-### 1.6 OHOS 对仓库的实际耦合
-
-当前不是只有一个 `ohos/` 目录：
-
-| 耦合面 | 当前事实 | 退役动作 |
+| 耦合面 | 开工时事实 | 退役动作 |
 |---|---|---|
 | 平台工程 | Git 跟踪 44 个 `ohos/` 文件，包含 AppScope、Ability、RDB/FilePicker 插件和测试 | 删除整个平台 target |
 | Flutter SDK | 文档要求 OpenHarmony Flutter fork 3.35.8 | 改回官方 stable Flutter |
@@ -124,9 +136,9 @@ Canonical owner                                official
 | 构建 | `tool/apply_patches.sh` + 4 个 fork 补丁 | 删除补丁链和相关说明 |
 | 文档/测试 | 多处仍以“OHOS 继续 Legacy”为约束 | 活跃文档改为 EOL；归档保留历史 |
 
-### 1.7 文档状态已经与代码错位
+### 1.7 文档入口
 
-迁移 README 声称 D5 已默认翻转，但 `31/32` 仍标记“未实施”，`33` 又记录部分 official-first 已完成。后续不得继续以 Phase 名称判断是否可发布，统一改用本计划的可执行门禁和验收项。
+活跃施工只认本文件 + [`34-remaining-construction-plan.md`](./34-remaining-construction-plan.md) + [`34-cutover-receipt.md`](./34-cutover-receipt.md) + [`34-w9-legacy-deletion-hold.md`](./34-w9-legacy-deletion-hold.md)。`28/31/32/33` 已标历史规格，勿按它们开波次。不得以 Phase / P5F / 灰度 G4 名称判断是否可发布。
 
 ---
 
@@ -230,7 +242,7 @@ W2 + W3 + W4 + W5 + W6 + W7
 | W0-01 | 新增 `AnkiProductMode`：`officialAndroid`、`ankiUnavailable`；Legacy 只保留迁移读取模式，不作为新导入产品模式 | capability matrix / production router |
 | W0-02 | 新增一次计算的 `AnkiImportExecutionPlan`：`officialFirst`、`unsupported`、`failClosed`；过渡测试可保留显式 `legacyOnly`，生产不可选 | import facade / import screen |
 | W0-03 | file pick、parse、preview、saga、projection、SRS、identity、summary 全部接收同一个 plan，不得各自读取 flags | `anki_import_screen.dart` 及 orchestrator |
-| W0-04 | `UnifiedAnkiImportRequest.officialCapable` 改为实际 `owner/backend`，禁止用“能力”冒充“执行结果” | unified orchestrator |
+| W0-04 | `UnifiedAnkiImportRequest.officialCapable` 改为实际 `owner/backend`，禁止用“能力”冒充“执行结果” | **已落地**：字段为 `persistedOwnerIsOfficial`；复习入口参数改名为 `schedulerRuntimeAvailable` |
 | W0-05 | native `.so` 缺失、ABI 错误或 ABI contract 不匹配时 fail closed；删除“新来源降级 Legacy” | native availability / import facade |
 | W0-06 | 现有 Official owner 即使 build flag 关闭也保持 Official；能力缺失只显示修复错误，不改 owner | source router |
 | W0-07 | 增加组合矩阵测试，覆盖所有 flag/platform/native/extension 组合 | targeted tests |
@@ -461,17 +473,17 @@ flutter build apk --release
 
 ### 8.2 任务
 
-| ID | 任务 |
-|---|---|
-| W4-01 | Android Official-first 改为唯一生产导入 plan，去掉 opt-in 与独立 mirror 语义 |
-| W4-02 | 把 saga/orchestration 从 3900+ 行 import screen 移到 application service；UI 只消费状态和命令 |
-| W4-03 | Official plan 禁止调用 Dart `AnkiImporter.parse`、Legacy assembler、Legacy NoteStore 和 SRS migrator |
-| W4-04 | summary、course scope、source management 使用 official `sourceId`，不伪造 Legacy `importId` |
-| W4-05 | reimport/update 明确 `replace`、`append as new`、`no-op`；同 hash 不重复导入 |
-| W4-06 | 取消/强杀/磁盘满/Collection locked 时保留可恢复 saga，不留下 active 半源 |
-| W4-07 | mapping 未确认、notetype 不支持、projection 低置信时允许延后投影，但不能把 Collection 导入判成失败 |
-| W4-08 | `.colpkg` 给出明确产品策略：在 Official backend 支持前显示“不支持”，不得静默走 Legacy |
-| W4-09 | sample 使用真实小型 `.apkg` fixture；内存 sample 不能作为发布证据 |
+| ID | 任务 | 现状 |
+|---|---|---|
+| W4-01 | Android Official-first 改为唯一生产导入 plan，去掉 opt-in 与独立 mirror 语义 | 已落地（C4 后无独立 official-first dart-define） |
+| W4-02 | 把 saga/orchestration 从 import screen 移到 application service；UI 只消费状态和命令 | **部分**：`OfficialAnkiOfficialFirstService` 已抽出；向导仍约 3400 行 |
+| W4-03 | Official plan 禁止调用 Dart `AnkiImporter.parse`、Legacy assembler、Legacy NoteStore 和 SRS migrator | 已落地 |
+| W4-04 | summary、course scope、source management 使用 official `sourceId`，不伪造 Legacy `importId` | **验收失败**：CourseProvider 把 `src-...` 截成 `src`；见 remaining R1 |
+| W4-05 | reimport/update 明确 `replace`、`append as new`、`no-op`；同 hash 不重复导入 | remainder |
+| W4-06 | 取消/强杀/磁盘满/Collection locked 时保留可恢复 saga，不留下 active 半源 | 已有 saga；未做真机强杀验收 |
+| W4-07 | mapping 未确认、notetype 不支持、projection 低置信时允许延后投影，但不能把 Collection 导入判成失败 | 已落地 needsMapping 回预览 |
+| W4-08 | `.colpkg` 给出明确产品策略：在 Official backend 支持前显示“不支持”，不得静默走 Legacy | 已落地：picker 只收 `.apkg` |
+| W4-09 | sample 使用真实小型 `.apkg` fixture；内存 sample 不能作为发布证据 | **部分**：内存 sample 生产 fail-closed 且入口已藏 |
 
 ### 8.3 Import 完成态不变量
 
@@ -929,23 +941,25 @@ W1/W2 可与 W3–W5 并行，但 W9 必须同时等 W2 和 W8 完成。
 
 ## 19. 最终 Definition of Done
 
-只有以下全部成立，才能宣称“自研 Anki 已切到 Official，OHOS 已退役”：
+只有以下全部成立，才能宣称“自研 Anki 已切到 Official，OHOS 已退役”。
+勾选必须以仓库/发布证据为准；本会话未伪造设备证明。未满足项保持未勾选。
+W9 物理删除与「一个正式版本观察」见 [`34-w9-legacy-deletion-hold.md`](./34-w9-legacy-deletion-hold.md)；摘要见 [`34-cutover-receipt.md`](./34-cutover-receipt.md)。
 
-- [ ] 仓库不再包含 OHOS product target、fork 依赖或构建补丁；
-- [ ] 活跃文档不再宣称支持 OHOS；
-- [ ] 现有 OHOS 用户完成数据出口，或有无外部用户的书面豁免；
-- [ ] Android 新 `.apkg` 导入只写 Official Collection；
-- [ ] 成功导入同时产生可用 projection、course entry 和持久化 Official owner；
-- [ ] Official 导入失败不会写 Legacy 数据，也不会静默 fallback；
-- [ ] 正式复习从 Official queue 组装，并由 OfficialStudyLedger 唯一提交；
-- [ ] 首页 due 是 card-id 精确集合，数字与实际 queue 一致；
-- [ ] 课程学习显式为 practice/introduction，默认不写 scheduler；
-- [ ] browser、stats、media、product effects 对纯 Official 来源可用；
-- [ ] backup/restore/reimport/uninstall/强杀恢复通过 release 真机验收；
-- [ ] 所有历史来源已进入 cleanOfficial、已导出/只读隔离或有明确用户处理状态；
-- [ ] Legacy 新写入连续一个正式版本为 0；
-- [ ] Legacy importer/scheduler/schema 按 W9 分波删除；
-- [ ] CI 有 owner、forbidden write、unsupported platform 和 native ABI 门禁；
-- [ ] 迁移 README、ADR、构建说明和 release artifact 全部更新。
+- [x] 仓库不再包含 OHOS product target、fork 依赖或构建补丁；（证据：`ohos/`、`tool/apply_patches.sh`、`tool/patches/` 已不存在；活跃构建说明改官方 Flutter）
+- [x] 活跃文档不再宣称支持 OHOS；（证据：本 README、`docs/android-build-setup.md`、`docs/project-guide.md`、`CLAUDE.md` → ADR 0041 / EOL）
+- [ ] 现有 OHOS 用户完成数据出口，或有无外部用户的书面豁免；（**验收撤销**：只有 `TurnaMigrationExporter` 类；无可到达的 OHOS sunset UI、无 Android zip 导入、无书面豁免）
+- [x] Android 新 `.apkg` 导入只写 Official Collection；（证据：`AnkiImportExecutionPlanner` official-first / fail-closed；`OfficialAnkiFeatureFlags.productionAndroid` / `fromEnvironment` 不再读 per-capability dart-define；生产 screen 无 `allowLegacyOnly: true`）
+- [ ] 成功导入同时产生可用 projection、独立且可选择的 course entry 和持久化 Official owner；（**验收撤销**：Official sourceId 被 course entry 解析截成 `src`，builtin scope 泄漏 Official Section，且 projection/visibility/owner 仍可能半完成）
+- [x] Official 导入失败不会写 Legacy 数据，也不会静默 fallback；（证据：W0 planner + `anki_import_execution_plan_test`）
+- [ ] 正式复习从 Official queue 实时组装，并由 OfficialStudyLedger 唯一提交；（**验收撤销**：当前 loader strip HTML 后构造 Flip，页面消费固定 StudyItem 数组，Scheduler answer 后重排会 stale；Review All 只取第一个 Official 来源）
+- [ ] 首页 due 是六集合 card-id 精确集合，数字与实际 queue 一致；（**验收撤销**：retired 未接生产 reader；placement 缺失会回退 scheduler due；六集合与回滚未统一到一个 repository）
+- [x] 课程学习显式为 practice/introduction，默认不写 scheduler；（证据：`AnkiStudySessionHost.itemForCourse` + `official_course_practice_introduction_test.dart`）
+- [ ] browser、stats、media、product effects 对纯 Official 来源可用；（**验收撤销**：Official section 产品按钮仍为 null；migrated importId/sourceId 映射错误；Stats 可能回退 Legacy provider，部分 filter/forecast 未完成）
+- [ ] backup/restore/reimport/uninstall/强杀恢复通过 release 真机验收；(**HOLD** — 本环境无设备，未伪造 §15.3 真机闭环)
+- [ ] 所有历史来源已进入 cleanOfficial、已导出/只读隔离或有明确用户处理状态；（W8 saga + reconciler 已提供路径；**存量用户跑批/确认未在本会话完成** — HOLD）
+- [ ] Legacy 新写入连续一个正式版本为 0；(**HOLD** — 日历观察，见 [`34-w9-legacy-deletion-hold.md`](./34-w9-legacy-deletion-hold.md))
+- [ ] Legacy importer/scheduler/schema 按 W9 分波删除；(**HOLD** — 同上；W9-A 仅停住新写产品选择，未物理删除)
+- [x] CI 有 owner、forbidden write、unsupported platform 和 native ABI 门禁；（证据：`anki_unification_architecture_guard_test` + `ohos_eol_architecture_guard_test` 含 arm64 `libturna_anki.so` / release 命令门禁；planner 组合矩阵）
+- [ ] 迁移 README、ADR、构建说明和 release artifact 全部更新；（**验收撤销**：当前工作树/native 子模块不干净，收据与源码曾矛盾；需按 `34-remaining-construction-plan.md` R8 从锁定 commit 重建）
 
 在上述条件未全部满足前，准确状态应写为“Official Anki 迁移中”，不能写“迁移完成”。

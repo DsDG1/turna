@@ -98,6 +98,191 @@ void main() {
         expect(text.contains('int quality'), isFalse, reason: path);
       }
     });
+
+    // Doc 34 W9 §13.3 — forbidden-write / unsupported-platform guards.
+    test('AnkiImportExecutionPlanner never returns legacyOnly without allowLegacyOnly',
+        () {
+      // Structural: production resolve() body only reaches _legacyOnly when
+      // allowLegacyOnly is true. Behavioral matrix lives in
+      // test/application/anki_official/anki_import_execution_plan_test.dart
+      // (unsupported platform + officialFirst-off fail-closed).
+      final text = File(
+        'lib/application/anki_official/import/anki_import_execution_plan.dart',
+      ).readAsStringSync();
+      expect(text.contains('allowLegacyOnly'), isTrue);
+      expect(text.contains('AnkiImportExecutionKind.legacyOnly'), isTrue);
+      // Every return _legacyOnly(...) call site is gated on allowLegacyOnly
+      // (skip the static method definition itself).
+      final legacyOnlyCalls =
+          RegExp(r'return\s+_legacyOnly\s*\(').allMatches(text);
+      expect(legacyOnlyCalls.length, greaterThanOrEqualTo(1));
+      for (final match in legacyOnlyCalls) {
+        final windowStart = match.start - 160 < 0 ? 0 : match.start - 160;
+        final window = text.substring(windowStart, match.start);
+        expect(
+          window.contains('allowLegacyOnly'),
+          isTrue,
+          reason: 'return _legacyOnly must sit inside an allowLegacyOnly branch',
+        );
+      }
+
+      // Production import screen must not pass allowLegacyOnly: true.
+      final importScreen =
+          File('lib/views/anki/anki_import_screen.dart').readAsStringSync();
+      expect(
+        importScreen.contains('allowLegacyOnly: true'),
+        isFalse,
+        reason: 'production import screen must not opt into legacyOnly',
+      );
+      expect(
+        importScreen.contains('officialFirstImportEligible'),
+        isFalse,
+        reason: 'production uses AnkiImportExecutionPlan, not the dual policy',
+      );
+
+      final executeStart = importScreen.indexOf('Future<void> _executeImport');
+      final officialFlowStart =
+          importScreen.indexOf('Future<void> _runOfficialFirstFlow');
+      expect(executeStart, greaterThanOrEqualTo(0));
+      expect(officialFlowStart, greaterThan(executeStart));
+      final executeBody =
+          importScreen.substring(executeStart, officialFlowStart);
+      expect(
+        executeBody.contains('AnkiImportFacade.planFor'),
+        isFalse,
+        reason: 'W0-03: commit must reuse the pick-time plan, not re-read flags',
+      );
+      expect(
+        executeBody.contains('official_first_must_not_write_legacy_notestore'),
+        isTrue,
+        reason: 'Official-first must not fall through to Legacy NoteStore',
+      );
+    });
+
+    test('C4 collapsed per-capability dart-defines and gray cohort', () {
+      final flags = File(
+        'lib/application/anki_official/official_anki_feature_flags.dart',
+      ).readAsStringSync();
+      expect(RegExp(r'bool\.fromEnvironment\(').allMatches(flags).length, 5);
+      for (final dead in const [
+        'TURNA_OFFICIAL_ANKI_ENGINE',
+        'TURNA_OFFICIAL_ANKI_IMPORT',
+        'TURNA_OFFICIAL_ANKI_CATALOG',
+        'TURNA_OFFICIAL_ANKI_RUNTIME',
+        'TURNA_OFFICIAL_ANKI_PLATFORM',
+        'TURNA_OFFICIAL_ANKI_RENDERER',
+        'TURNA_OFFICIAL_ANKI_PROJECTION',
+        'TURNA_OFFICIAL_ANKI_COURSE_ENTRY',
+        'TURNA_OFFICIAL_ANKI_SCHEDULER',
+        'TURNA_OFFICIAL_ANKI_OFFICIAL_FIRST_IMPORT',
+        'TURNA_OFFICIAL_ANKI_GRAY_COHORT',
+      ]) {
+        expect(
+          flags.contains("'$dead'"),
+          isFalse,
+          reason: 'production no longer reads $dead',
+        );
+      }
+      expect(
+        File(
+          'lib/application/anki_official/migration/official_anki_gray_config.dart',
+        ).existsSync(),
+        isFalse,
+      );
+      final launcher = File(
+        'lib/application/anki/formal_review_launcher.dart',
+      ).readAsStringSync();
+      expect(launcher.contains('officialCapable'), isFalse);
+      expect(launcher.contains('schedulerRuntimeAvailable'), isTrue);
+      final orch = File(
+        'lib/application/anki/unified_anki_import_orchestrator.dart',
+      ).readAsStringSync();
+      expect(orch.contains('officialCapable'), isFalse);
+      expect(orch.contains('persistedOwnerIsOfficial'), isTrue);
+    });
+
+    test('dead dual-policy and unused user migration saga are gone', () {
+      expect(
+        File(
+          'lib/application/anki_official/import/official_first_import_policy.dart',
+        ).existsSync(),
+        isFalse,
+      );
+      expect(
+        File(
+          'lib/application/anki_official/migration/official_anki_user_migration_saga.dart',
+        ).existsSync(),
+        isFalse,
+      );
+    });
+
+    test('anki_official application layer does not import Legacy writers or views',
+        () {
+      const forbidden = [
+        "package:turna/application/anki/anki_importer.dart",
+        "package:turna/application/anki/anki_deck_assembler.dart",
+        "package:turna/views/anki/",
+      ];
+      const allow = {
+        // Diagnostics / ACK fixture lab until that page is gated.
+        'lib/application/anki_official/official_anki_internal_page.dart',
+      };
+      final violations = <String>[];
+      final dir = Directory('lib/application/anki_official');
+      expect(dir.existsSync(), isTrue);
+      for (final entity in dir.listSync(recursive: true)) {
+        if (entity is! File || !entity.path.endsWith('.dart')) continue;
+        final path = entity.path.replaceAll('\\', '/');
+        if (allow.contains(path)) continue;
+        final text = entity.readAsStringSync();
+        for (final needle in forbidden) {
+          if (text.contains(needle)) {
+            violations.add('$path imports $needle');
+          }
+        }
+      }
+      expect(violations, isEmpty, reason: violations.join('\n'));
+    });
+
+    test('official owners do not call SrsProvider.ensureWord/updateReview', () {
+      final violations = <String>[];
+      final dir = Directory('lib/application/anki_official');
+      expect(dir.existsSync(), isTrue);
+      for (final entity in dir.listSync(recursive: true)) {
+        if (entity is! File || !entity.path.endsWith('.dart')) continue;
+        final text = entity.readAsStringSync();
+        if (text.contains('SrsProvider') &&
+            (text.contains('.ensureWord') || text.contains('.updateReview'))) {
+          violations.add(entity.path);
+        }
+        if (RegExp(r'\bensureWord\s*\(').hasMatch(text) ||
+            RegExp(r'\bupdateReview\s*\(').hasMatch(text)) {
+          // Allow comments / docs mentioning the forbidden API.
+          final withoutComments = text
+              .replaceAll(RegExp(r'//.*'), '')
+              .replaceAll(RegExp(r'/\*.*?\*/', dotAll: true), '');
+          if (RegExp(r'\bensureWord\s*\(').hasMatch(withoutComments) ||
+              RegExp(r'\bupdateReview\s*\(').hasMatch(withoutComments)) {
+            violations.add('${entity.path} calls ensureWord/updateReview');
+          }
+        }
+      }
+      expect(violations, isEmpty, reason: violations.join('\n'));
+    });
+
+    test('unsupported platform never selects Legacy writer (execution plan)', () {
+      // Behavior is asserted in anki_import_execution_plan_test.dart
+      // ("non-android is unsupported" / platform matrix). Keep a pointer so
+      // W9 §13.3 CI inventory does not forget that surface.
+      final planTest = File(
+        'test/application/anki_official/anki_import_execution_plan_test.dart',
+      );
+      expect(planTest.existsSync(), isTrue);
+      final text = planTest.readAsStringSync();
+      expect(text.contains('unsupported'), isTrue);
+      expect(text.contains('writesLegacyNoteStore'), isTrue);
+      expect(text.contains("platform: 'ohos'") || text.contains('ohos'), isTrue);
+    });
   });
 }
 

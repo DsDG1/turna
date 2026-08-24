@@ -185,6 +185,44 @@ WHERE migration_id = ? AND state = ?
     }
   }
 
+  void atomicCutoverTransition({
+    required String migrationId,
+    required int officialMutationCountAtCutover,
+    required int nowMillis,
+    void Function()? onTransaction,
+  }) {
+    _db.execute('BEGIN TRANSACTION');
+    try {
+      _db.execute(
+        '''
+UPDATE legacy_anki_migrations
+SET state = 'cutover',
+    recorded_kind = 'official',
+    official_mutation_count_at_cutover = ?,
+    updated_at_millis = ?
+WHERE migration_id = ? AND state = 'cutoverReady'
+''',
+        [officialMutationCountAtCutover, nowMillis, migrationId],
+      );
+      if (_db.updatedRows != 1) {
+        throw OfficialAnkiException(
+          code: OfficialAnkiErrorCode.invalidState,
+          messageKey: 'official_anki.migration_cas_failed',
+          debugDetails: '$migrationId expected cutoverReady',
+        );
+      }
+      if (onTransaction != null) {
+        onTransaction();
+      }
+      _db.execute('COMMIT');
+    } catch (_) {
+      try {
+        _db.execute('ROLLBACK');
+      } catch (_) {}
+      rethrow;
+    }
+  }
+
   void setCursor({
     required String migrationId,
     required int? cursorLegacyCardId,

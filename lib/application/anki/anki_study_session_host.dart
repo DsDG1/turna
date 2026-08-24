@@ -99,6 +99,7 @@ class AnkiStudySessionHost {
     required StudyMode mode,
     required String courseId,
     String placementId = '',
+    StudyCapabilities? capabilities,
   }) {
     final owner = mode == StudyMode.practice || mode == StudyMode.preview
         ? StudyLedgerOwner.none
@@ -115,7 +116,50 @@ class AnkiStudySessionHost {
       presentation: presentation,
       mode: mode,
       ledgerOwner: owner,
-      capabilities: StudyCapabilities.forMode(mode),
+      capabilities: capabilities ?? StudyCapabilities.forMode(mode),
+    );
+  }
+
+  /// Course-lesson item: Official → practice (no ledger); Legacy → learn.
+  static StudyItem itemForCourse({
+    required CanonicalCardKey key,
+    required CardPresentation presentation,
+    required String courseId,
+    String placementId = '',
+  }) {
+    if (key.backend == AnkiBackendKind.official) {
+      return itemFor(
+        key: key,
+        presentation: presentation,
+        mode: StudyMode.practice,
+        courseId: courseId,
+        placementId: placementId,
+        capabilities: StudyCapabilities.coursePractice(),
+      );
+    }
+    return itemFor(
+      key: key,
+      presentation: presentation,
+      mode: StudyMode.learn,
+      courseId: courseId,
+      placementId: placementId,
+    );
+  }
+
+  /// Open a shared session whose Official answers write [OfficialStudyLedger].
+  StudySessionController openOfficialReview(
+    List<StudyItem> items, {
+    required StudyLedger officialLedger,
+  }) {
+    return StudySessionController(
+      items: items,
+      ledgerResolver: StudyLedgerResolver(
+        official: officialLedger,
+        turna: resolver.turna,
+      ),
+      introductionRepository: introductionRepository,
+      onEffects: onEffects,
+      onEffectsUndone: onEffectsUndone,
     );
   }
 
@@ -153,9 +197,11 @@ class AnkiStudySessionHost {
   }
 
   static Future<void> revealAndPresentAnswer(
-    StudySessionController controller,
-  ) async {
+    StudySessionController controller, {
+    void Function()? onOfficialShowAnswer,
+  }) async {
     await controller.revealAnswer();
+    onOfficialShowAnswer?.call();
     final item = controller.currentItem;
     if (item == null) return;
     controller.acceptPresentation(

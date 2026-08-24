@@ -11,8 +11,12 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:turna/application/anki/anki_review_assembler.dart';
 import 'package:turna/application/anki/formal_review_launcher.dart';
+import 'package:turna/application/anki_official/browser/official_anki_source_aware_browser.dart';
 import 'package:turna/application/anki_official/engine/official_anki_home_due.dart';
+import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
+import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
+import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/data/anki_note_dao.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/di/injection.dart';
@@ -41,7 +45,9 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
   final _dao = getIt<AnkiNoteDao>();
   Timer? _debounce;
   List<AnkiCardBrowserRecord> _rows = const [];
+  List<SourceAwareBrowserCard> _officialRows = const [];
   bool _loading = true;
+  bool _officialSource = false;
   int? _flag;
   bool? _marked;
   bool? _suspended;
@@ -61,6 +67,35 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
+    // Doc 34 W7: Official-first sources are browsed from the Official catalog
+    // and must not depend on Legacy NoteStore rows.
+    final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+    if (catalog != null) {
+      final sources = OfficialAnkiSourceDao(catalog);
+      final browser = OfficialAnkiSourceAwareBrowser(
+        sources: sources,
+        legacyNotes: _dao,
+        engine: OfficialAnkiCompositionRoot.engine,
+      );
+      final official = await browser.search(
+        importOrSourceId: widget.importId,
+        query: _searchController.text,
+        suspended: _suspended,
+        ownerHint: sources.findById(widget.importId) != null
+            ? AnkiEngineKind.official
+            : null,
+      );
+      if (official.isNotEmpty || sources.findById(widget.importId) != null) {
+        if (!mounted) return;
+        setState(() {
+          _officialSource = true;
+          _officialRows = official;
+          _rows = const [];
+          _loading = false;
+        });
+        return;
+      }
+    }
     final rows = await _dao.searchNotes(
       widget.importId,
       _searchController.text,
@@ -70,6 +105,8 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
     );
     if (!mounted) return;
     setState(() {
+      _officialSource = false;
+      _officialRows = const [];
       _rows = rows;
       _loading = false;
     });
@@ -78,6 +115,23 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
   void _onSearchChanged(String _) {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 250), _load);
+  }
+
+  Future<void> _toggleOfficial(SourceAwareBrowserCard row) async {
+    final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+    final engine = OfficialAnkiCompositionRoot.engine;
+    if (catalog == null || engine == null) return;
+    final browser = OfficialAnkiSourceAwareBrowser(
+      sources: OfficialAnkiSourceDao(catalog),
+      legacyNotes: _dao,
+      engine: engine,
+    );
+    await browser.setOfficialSuspended(
+      sourceId: row.sourceId,
+      cardId: row.cardId,
+      suspended: !row.suspended,
+    );
+    await _load();
   }
 
   Future<void> _toggle(AnkiCardBrowserRecord row,
@@ -175,7 +229,7 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
         courseId: importId.isEmpty ? 'anki' : 'anki-$importId',
         sectionId: widget.sectionId,
         officialOwner: OfficialAnkiHomeDue.officialImportIds.contains(importId),
-        officialCapable:
+        schedulerRuntimeAvailable:
             OfficialAnkiFeatureFlags.current.allowsOfficialScheduler,
       ),
     );
@@ -277,6 +331,53 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
+                : _officialSource
+                    ? (_officialRows.isEmpty
+                        ? const Center(child: Text('没有匹配的卡片'))
+                        : ListView.builder(
+                            padding: const EdgeInsets.fromLTRB(12, 0, 12, 20),
+                            itemCount: _officialRows.length,
+                            itemBuilder: (context, index) {
+                              final row = _officialRows[index];
+                              return Card(
+                                child: ListTile(
+                                  leading: const Icon(Icons.style_outlined),
+                                  title: Text(
+                                    row.frontPreview,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  subtitle: Text(
+                                    'Official #${row.cardId} · note #${row.noteId}',
+                                    style: TextStyle(
+                                      color: TurnaTheme.textHintColor(context),
+                                    ),
+                                  ),
+                                  trailing: PopupMenuButton<String>(
+                                    onSelected: (value) {
+                                      if (value == 'review') {
+                                        _openFormalReview(context);
+                                      } else if (value == 'suspend') {
+                                        unawaited(_toggleOfficial(row));
+                                      }
+                                    },
+                                    itemBuilder: (context) => [
+                                      const PopupMenuItem(
+                                        value: 'review',
+                                        child: Text('去复习'),
+                                      ),
+                                      PopupMenuItem(
+                                        value: 'suspend',
+                                        child: Text(
+                                          row.suspended ? '取消暂停' : '暂停',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ))
                 : _rows.isEmpty
                     ? const Center(child: Text('没有匹配的卡片'))
                     : ListView.builder(

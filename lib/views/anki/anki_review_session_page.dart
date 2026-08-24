@@ -8,10 +8,12 @@ import 'package:turna/application/anki/anki_review_assembler.dart';
 import 'package:turna/application/anki/anki_review_content.dart';
 import 'package:turna/application/anki/anki_study_session_host.dart';
 import 'package:turna/application/anki/formal_review_launcher.dart';
+import 'package:turna/application/anki/official_formal_review_production_loader.dart';
 import 'package:turna/application/anki/study_ledger_adapters.dart';
 import 'package:turna/application/anki/study_product_analytics.dart';
 import 'package:turna/application/anki/study_session_controller.dart';
 import 'package:turna/application/anki_official/engine/official_anki_home_due.dart';
+import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/srs_provider.dart';
@@ -35,12 +37,34 @@ import 'package:turna/views/theme.dart';
 /// Shared formal-review session for Turna-owned and Official-owned Anki cards.
 ///
 /// Every production entry lands here. Official capability failures fail closed
-/// and never open a different-semantics page.
+/// and never open a different-semantics page. Official owners use
+/// [FormalReviewLauncher.assembleOfficialBatch] + [OfficialStudyLedger], not
+/// Legacy [AnkiReviewAssembler] / Turna SRS.
 @RoutePage()
 class AnkiReviewSessionPage extends StatefulWidget {
-  const AnkiReviewSessionPage({super.key, this.sectionId});
+  const AnkiReviewSessionPage({
+    super.key,
+    this.sectionId,
+    this.officialOwner,
+  });
 
   final String? sectionId;
+
+  /// When set by [FormalReviewLauncher], used instead of inferring owner
+  /// from [OfficialAnkiHomeDue.officialImportIds]. `null` falls back to
+  /// the due snapshot: empty section = any Official source, else contains.
+  final bool? officialOwner;
+
+  /// Test seam that replaces the production Official batch loader.
+  /// Production always uses [OfficialFormalReviewProductionLoader] when null.
+  static Future<OfficialFormalReviewBatch?> Function({
+    required String importId,
+    required String courseId,
+  })? debugOfficialBatchBuilder;
+
+  /// Production loader (overridable in tests that drive the page widget).
+  static OfficialFormalReviewProductionLoader productionLoader =
+      const OfficialFormalReviewProductionLoader();
 
   @override
   State<AnkiReviewSessionPage> createState() => _AnkiReviewSessionPageState();
@@ -56,9 +80,9 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
   final Set<String> _newCardKeys = {};
 
   bool _loading = true;
-  bool _empty = false;
   Object? _error;
   StudySessionController? _controller;
+  OfficialReviewSession? _officialSession;
   Map<String, AnkiHtmlCard> _fidelityInteractions = const {};
 
   @override
@@ -72,6 +96,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
   void dispose() {
     _controller?.removeListener(_onController);
     _controller?.dispose();
+    _officialSession?.dispose();
     super.dispose();
   }
 
@@ -82,11 +107,12 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
   Future<void> _start() async {
     setState(() {
       _loading = true;
-      _empty = false;
       _error = null;
       _controller?.removeListener(_onController);
       _controller?.dispose();
       _controller = null;
+      _officialSession?.dispose();
+      _officialSession = null;
       _fidelityInteractions = const {};
       _newCardKeys.clear();
     });
@@ -95,15 +121,16 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
       final importId = widget.sectionId == null
           ? ''
           : AnkiReviewAssembler.importIdFromSectionId(widget.sectionId!);
-      final officialOwner = OfficialAnkiHomeDue.officialImportIds.contains(
-        importId,
-      );
+      final officialOwner = widget.officialOwner ??
+          (importId.isEmpty
+              ? OfficialAnkiHomeDue.officialImportIds.isNotEmpty
+              : OfficialAnkiHomeDue.officialImportIds.contains(importId));
       final launch = const FormalReviewLauncher().resolve(
         entry: FormalReviewEntryKind.ankiHub,
         courseId: importId.isEmpty ? 'anki' : 'anki-$importId',
         sectionId: widget.sectionId,
         officialOwner: officialOwner,
-        officialCapable:
+        schedulerRuntimeAvailable:
             OfficialAnkiFeatureFlags.current.allowsOfficialScheduler,
       );
       if (launch.isFailClosed) {
@@ -128,6 +155,20 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
         return;
       }
 
+      final selectedImportId = widget.sectionId == null
+          ? ''
+          : AnkiReviewAssembler.importIdFromSectionId(widget.sectionId!);
+      final courseId =
+          selectedImportId.isEmpty ? 'anki' : 'anki-$selectedImportId';
+
+      if (officialOwner) {
+        await _startOfficialOwned(
+          importId: selectedImportId,
+          courseId: courseId,
+        );
+        return;
+      }
+
       final course = context.read<CourseProvider>();
       final srs = context.read<SrsProvider>();
       final noteDao = getIt<AnkiNoteDao>();
@@ -138,9 +179,6 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
         await srs.setWordFlags(card.wordId, buried: false);
       }
 
-      final selectedImportId = widget.sectionId == null
-          ? ''
-          : AnkiReviewAssembler.importIdFromSectionId(widget.sectionId!);
       final maxNew = selectedImportId.isEmpty
           ? _deckManager.newRemainingToday
           : await _deckManager.remainingForImport(
@@ -165,8 +203,6 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
       );
       if (!mounted) return;
 
-      final courseId =
-          selectedImportId.isEmpty ? 'anki' : 'anki-$selectedImportId';
       final items = <StudyItem>[];
       final fidelityInteractions = <String, AnkiHtmlCard>{};
       for (final card in batch) {
@@ -189,7 +225,6 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
 
       if (items.isEmpty) {
         setState(() {
-          _empty = true;
           _loading = false;
         });
         return;
@@ -228,6 +263,59 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
     }
   }
 
+  /// Official owners: FormalReviewLauncher + OfficialStudyLedger only.
+  Future<void> _startOfficialOwned({
+    required String importId,
+    required String courseId,
+  }) async {
+    final builder = AnkiReviewSessionPage.debugOfficialBatchBuilder;
+    final OfficialFormalReviewBatch? officialBatch;
+    if (builder != null) {
+      officialBatch = await builder(importId: importId, courseId: courseId);
+    } else {
+      officialBatch = await AnkiReviewSessionPage.productionLoader.load(
+        importId: importId,
+        courseId: courseId,
+      );
+    }
+    if (!mounted) return;
+    final batch = officialBatch;
+    if (batch == null || batch.items.isEmpty) {
+      setState(() {
+        _loading = false;
+      });
+      return;
+    }
+
+    _officialSession = batch.session;
+
+    final host = AnkiStudySessionHost.debugOverride ??
+        AnkiStudySessionHost.resolveOrNull() ??
+        AnkiStudySessionHost(
+          resolver: StudyLedgerResolver(official: batch.ledger),
+          onEffects: (item, receipt) async {
+            StudyProductAnalytics.instance.record(receipt);
+          },
+          onEffectsUndone: (receipt) async {
+            StudyProductAnalytics.instance.forget(receipt.eventId);
+          },
+        );
+    final controller = host.openOfficialReview(
+      batch.items,
+      officialLedger: batch.ledger,
+    );
+    controller.addListener(_onController);
+    await controller.start();
+    if (!mounted) return;
+    setState(() {
+      _controller = controller;
+      // Fidelity HTML faces from production renderCard (Flip faces already
+      // carry text; this keeps WebView content available when needed).
+      _fidelityInteractions = batch.fidelityInteractions;
+      _loading = false;
+    });
+  }
+
   String _cardKeyId(CanonicalCardKey key) => '${key.sourceId}:${key.cardId}';
 
   Future<void> _recordQuota(StudyItem item) {
@@ -261,6 +349,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
       return _AnkiStudySessionView(
         controller: controller,
         fidelityInteractions: _fidelityInteractions,
+        officialSession: _officialSession,
       );
     }
 
@@ -305,10 +394,12 @@ class _AnkiStudySessionView extends StatelessWidget {
   const _AnkiStudySessionView({
     required this.controller,
     this.fidelityInteractions = const {},
+    this.officialSession,
   });
 
   final StudySessionController controller;
   final Map<String, AnkiHtmlCard> fidelityInteractions;
+  final OfficialReviewSession? officialSession;
 
   @override
   Widget build(BuildContext context) {
@@ -386,7 +477,10 @@ class _AnkiStudySessionView extends StatelessWidget {
                       generation: controller.generation,
                       onReveal: () {
                         unawaited(
-                          AnkiStudySessionHost.revealAndPresentAnswer(controller),
+                          AnkiStudySessionHost.revealAndPresentAnswer(
+                            controller,
+                            onOfficialShowAnswer: officialSession?.showAnswer,
+                          ),
                         );
                       },
                       onPresented: controller.acceptPresentation,
@@ -422,6 +516,8 @@ class _AnkiStudySessionView extends StatelessWidget {
                             ? () => unawaited(
                                   AnkiStudySessionHost.revealAndPresentAnswer(
                                     controller,
+                                    onOfficialShowAnswer:
+                                        officialSession?.showAnswer,
                                   ),
                                 )
                             : null,

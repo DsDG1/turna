@@ -1,10 +1,6 @@
-import 'package:turna/application/anki/anki_importer.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
-import 'package:turna/application/anki_official/engine/official_anki_native_availability.dart';
-import 'package:turna/application/anki_official/import/official_anki_import_orchestrator.dart';
+import 'package:turna/application/anki_official/import/anki_import_execution_plan.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
-import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
-import 'package:turna/application/anki_official/migration/official_anki_gray_config.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 
 enum AnkiImportDecision { official, legacy, failClosed }
@@ -17,54 +13,76 @@ abstract class AnkiImportFacade {
     required String displayName,
   });
 
+  /// Compatibility wrapper over [AnkiImportExecutionPlanner]. Prefer
+  /// [planFor] for new call sites so writer/owner stay atomic.
   static AnkiImportDecision decisionFor(
     OfficialAnkiFeatureFlags flags, {
     bool? cutoverEnabled,
     String? platform,
-    OfficialAnkiGrayConfig? gray,
     bool? libraryAvailable,
+    bool allowLegacyOnly = false,
+    bool isSample = false,
+    String filePath = '',
   }) {
-    final cutover =
-        cutoverEnabled ?? LegacyAnkiMigrationFlags.cutoverEnabled;
-    final plat = platform ?? OfficialAnkiCapabilityMatrix.current().platform;
-    if (!cutover) return AnkiImportDecision.legacy;
-    if (plat != 'android') return AnkiImportDecision.legacy;
-    if (!flags.allowsOfficialImport) return AnkiImportDecision.failClosed;
-    final g = gray ?? OfficialAnkiGrayConfig.fromEnvironment();
-    if (!g.allowsNewOfficialImport(
-      platform: plat,
-      cutoverEnabled: cutover,
-    )) {
-      return AnkiImportDecision.legacy;
-    }
-    // Flags say official but the native library is physically absent
-    // (unpackaged .so / wrong ABI): degrade to the legacy importer instead
-    // of fail-closing — this mirrors what non-Android platforms do, and the
-    // availability probe reports the defect loudly.
-    final libraryOk =
-        libraryAvailable ?? OfficialAnkiNativeAvailability.current;
-    if (!libraryOk) return AnkiImportDecision.legacy;
-    return AnkiImportDecision.official;
+    return planFor(
+      flags,
+      cutoverEnabled: cutoverEnabled,
+      platform: platform,
+      libraryAvailable: libraryAvailable,
+      allowLegacyOnly: allowLegacyOnly,
+      isSample: isSample,
+      filePath: filePath,
+    ).facadeDecision;
+  }
+
+  /// Atomic import plan (doc 34 W0). Call once per pick/commit.
+  static AnkiImportExecutionPlan planFor(
+    OfficialAnkiFeatureFlags flags, {
+    bool? cutoverEnabled,
+    String? platform,
+    bool? libraryAvailable,
+    bool allowLegacyOnly = false,
+    bool isSample = false,
+    String filePath = '',
+    String? extensionOverride,
+  }) {
+    return const AnkiImportExecutionPlanner().resolve(
+      flags: flags,
+      cutoverEnabled: cutoverEnabled,
+      platform: platform,
+      libraryAvailable: libraryAvailable,
+      allowLegacyOnly: allowLegacyOnly,
+      isSample: isSample,
+      filePath: filePath,
+      extensionOverride: extensionOverride,
+    );
   }
 
   static AnkiImportFacade resolve({
     OfficialAnkiFeatureFlags? flags,
-    OfficialAnkiImportOrchestrator? official,
+    OfficialAnkiImporter? official,
     OfficialAnkiImporter? officialImporter,
-    AnkiImporter? legacyImporter,
     bool? cutoverEnabled,
     String? platform,
+    bool? libraryAvailable,
+    bool allowLegacyOnly = false,
+    AnkiImportExecutionPlan? plan,
   }) {
     final resolved = flags ?? OfficialAnkiFeatureFlags.current;
-    final decision = decisionFor(
-      resolved,
-      cutoverEnabled: cutoverEnabled,
-      platform: platform,
-    );
+    final resolvedPlan = plan ??
+        planFor(
+          resolved,
+          cutoverEnabled: cutoverEnabled,
+          platform: platform,
+          libraryAvailable: libraryAvailable,
+          allowLegacyOnly: allowLegacyOnly,
+        );
+    final decision = resolvedPlan.facadeDecision;
     if (decision == AnkiImportDecision.failClosed) {
-      throw const OfficialAnkiException(
+      throw OfficialAnkiException(
         code: OfficialAnkiErrorCode.capabilityMissing,
         messageKey: 'official_anki.flag_fail_closed',
+        debugDetails: resolvedPlan.reason,
       );
     }
     if (decision == AnkiImportDecision.official) {
@@ -79,7 +97,7 @@ abstract class AnkiImportFacade {
       }
       return OfficialAnkiImportFacade(importer);
     }
-    return LegacyAnkiImportFacade(legacyImporter ?? AnkiImporter());
+    return const LegacyAnkiImportFacade();
   }
 }
 
@@ -104,9 +122,7 @@ class OfficialAnkiImportFacade implements AnkiImportFacade {
 }
 
 class LegacyAnkiImportFacade implements AnkiImportFacade {
-  LegacyAnkiImportFacade(this.importer);
-
-  final AnkiImporter importer;
+  const LegacyAnkiImportFacade();
 
   @override
   bool get isOfficial => false;

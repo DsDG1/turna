@@ -4,14 +4,10 @@ import 'dart:convert';
 import 'dart:io';
 
 // Flutter imports:
-import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 // Package imports:
 import 'package:auto_route/auto_route.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:turna/application/settings_provider.dart';
 
@@ -23,22 +19,14 @@ import 'package:turna/application/anki/anki_deck_manager.dart';
 import 'package:turna/application/anki/anki_importer.dart';
 import 'package:turna/application/anki/anki_import_cleanup_service.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
-import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
+import 'package:turna/application/anki_official/import/anki_import_execution_plan.dart';
 import 'package:turna/application/anki_official/import/anki_import_facade.dart';
-import 'package:turna/application/anki_official/import/official_first_import_policy.dart';
-import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
-import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
-import 'package:turna/application/anki_official/official_anki_composition.dart';
+import 'package:turna/application/anki_official/import/official_anki_official_first_service.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
-import 'package:turna/application/anki_official/official_anki_ids.dart';
-import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_mapper.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_service.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_store.dart';
-import 'package:turna/application/anki_official/storage/official_anki_database.dart';
-import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
-import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
 import 'package:turna/application/anki/anki_models.dart';
 import 'package:turna/application/anki/anki_organization_resolver.dart';
 import 'package:turna/application/anki/card_recognition_pipeline.dart';
@@ -59,18 +47,15 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/domain/audio/anki_audio_resolver.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
-import 'package:turna/utils/ohos_file_picker.dart';
+import 'package:turna/utils/validated_file_picker.dart';
 import 'package:turna/views/theme.dart';
 
 /// Import strategy when collisions are detected.
 enum ImportStrategy { merge, skipExisting, forceReplace, appendAsNew }
 
-/// File extensions accepted by the Anki import wizard. Single source of truth
-/// shared with [OhosFilePicker.pickFiles] for its suffix filter.
-const _ankiExtensions = ['apkg', 'colpkg'];
-
-/// User choice in the fallback bottom sheet.
-enum _AnkiFallbackChoice { scan, path }
+/// File extensions accepted by the Anki import wizard.
+/// `.colpkg` is unsupported until an Official backend exists (doc 34 W4-08).
+const _ankiExtensions = ['apkg'];
 
 /// Anki import wizard screen. Guides the user through:
 /// 1. File selection
@@ -103,6 +88,8 @@ class AnkiImportPage extends StatefulWidget {
 class _AnkiImportPageState extends State<AnkiImportPage> {
   AnkiImporter get _importer => widget.importerForTest ?? _productionImporter;
 
+  // W9-A: production AnkiImportExecutionPlanner fail-closes Legacy new-writes
+  // (no allowLegacyOnly). Physical removal of this field is W9-C (HOLD).
   final _productionImporter = AnkiImporter();
 
   // Wizard state
@@ -111,6 +98,10 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
   AnkiCollection? _collection;
   String? _error;
   bool _isSample = false;
+
+  /// Computed once per pick/sample (doc 34 W0-03). Later stages must not
+  /// re-read flags and disagree on writer/owner.
+  AnkiImportExecutionPlan? _plan;
 
   // Preview data
   Map<int, NotetypeMapping> _mappings = {};
@@ -265,10 +256,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
   Widget _buildSelectStep() {
     // Wrap in SafeArea + a constrained scroll view so the column stays
     // vertically centered when there is enough room, and becomes scrollable
-    // (instead of overflowing with a yellow "BOTTOM OVERFLOWED" stripe) when
-    // the IME or a small viewport reduces the available height. Without this,
-    // opening "输入文件路径" on HarmonyOS pushed the bottom buttons off-screen
-    // by ~158 px on the narrow phones we target.
+    // when a small viewport reduces the available height.
     //
     // We use Center (not stretch) around the Column so that children stay
     // horizontally centered by content width (matching the pre-fix look),
@@ -331,21 +319,6 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
                         ),
                       ),
                     ),
-                    // Always-available fallback so users on platforms with a
-                    // broken system picker (e.g. some OHOS ROMs) have a way in
-                    // before they hit an error. Cheap, low visual weight.
-                    TextButton.icon(
-                      onPressed: _showScanResults,
-                      icon: const Icon(Icons.search, size: 18),
-                      label: Text(AppStrings.ankiImportFallbackScanHint),
-                      style: TextButton.styleFrom(
-                        foregroundColor: TurnaTheme.brandTeal,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    // Sample-deck entry: a visually distinct card so it does
-                    // not compete with the primary CTA but is still obvious.
-                    _SampleDeckCard(onTap: _loadSampleDeck),
                   ],
                 ),
               ),
@@ -956,10 +929,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
 
   Future<void> _pickFile() async {
     try {
-      // OhosFilePicker honors allowedExtensions as a suffix filter on every
-      // platform and throws OhosFilePickerInvalidExtension when the user picks
-      // a non-matching file, so the extension set lives in one place.
-      final result = await OhosFilePicker.pickFiles(
+      final result = await ValidatedFilePicker.pickFiles(
         allowedExtensions: _ankiExtensions,
         dialogTitle: AppStrings.ankiImportDialogTitle,
       );
@@ -969,205 +939,69 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       if (path == null) return;
 
       await _proceedWithPath(path);
-    } on OhosFilePickerInvalidExtension {
+    } on ValidatedFilePickerInvalidExtension {
       setState(() => _error = AppStrings.ankiPickFileError);
     } catch (e) {
       setState(() {
         _error = AppStrings.ankiPickFileFailed(e);
         _step = 0;
       });
-      // On OHos, picker failures are usually device-level (missing
-      // pickersheet). Offer the manual fallbacks so the user isn't stuck.
-      if (defaultTargetPlatform.name == 'ohos') {
-        await _showFallbackSheet();
-      }
     }
   }
 
-  /// Show a bottom sheet with two fallback flows: scan well-known
-  /// directories, or accept a manually-pasted path. Used when the system
-  /// file picker failed (e.g. trimmed emulator ROMs).
-  Future<void> _showFallbackSheet() async {
-    if (!mounted) return;
-    final choice = await showModalBottomSheet<_AnkiFallbackChoice>(
-      context: context,
-      showDragHandle: true,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
-              child: Text(
-                AppStrings.ankiFallbackPickFileFirst,
-                style: Theme.of(ctx).textTheme.titleMedium,
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.search),
-              title: Text(AppStrings.ankiFallbackScanTitle),
-              subtitle: Text(AppStrings.ankiFallbackScanSubtitle),
-              onTap: () => Navigator.of(ctx).pop(_AnkiFallbackChoice.scan),
-            ),
-            ListTile(
-              leading: const Icon(Icons.edit_note),
-              title: Text(AppStrings.ankiFallbackPathTitle),
-              subtitle: Text(AppStrings.ankiFallbackPathSubtitle),
-              onTap: () => Navigator.of(ctx).pop(_AnkiFallbackChoice.path),
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
-    if (!mounted || choice == null) return;
-    if (choice == _AnkiFallbackChoice.scan) {
-      await _showScanResults();
-    } else {
-      await _showPathInputDialog();
-    }
-  }
-
-  /// Scan the app sandbox + cached/known directories for .apkg/.colpkg and
-  /// show them in a simple chooser dialog.
-  Future<List<PlatformFile>> _scanLocalApkgFiles() async {
-    final dirs = <Directory>[];
-    try {
-      dirs.add(await getApplicationSupportDirectory());
-    } catch (_) {}
-    try {
-      dirs.add(await getApplicationDocumentsDirectory());
-    } catch (_) {}
-    // Device A G1: do not scan shared Download. User apkgs live there.
-    final seen = <String>{};
-    final hits = <PlatformFile>[];
-    for (final dir in dirs) {
-      if (!dir.existsSync()) continue;
-      try {
-        for (final entity in dir.listSync()) {
-          if (entity is! File) continue;
-          final path = entity.path;
-          final lower = path.toLowerCase();
-          if (!lower.endsWith('.apkg') && !lower.endsWith('.colpkg')) {
-            continue;
-          }
-          if (!seen.add(path)) continue;
-          hits.add(
-            PlatformFile(
-              path: path,
-              name: path.split(RegExp(r'[/\\]')).last,
-              size: entity.lengthSync(),
-            ),
-          );
-        }
-      } catch (_) {}
-    }
-    return hits;
-  }
-
-  Future<void> _showScanResults() async {
-    if (!mounted) return;
-    setState(() => _error = null);
-    List<PlatformFile> hits;
-    try {
-      hits = defaultTargetPlatform.name == 'ohos'
-          ? await OhosFilePicker.scanForFiles(
-              allowedExtensions: _ankiExtensions,
-            )
-          : await _scanLocalApkgFiles();
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _error = '${AppStrings.ankiFallbackScanFailed}$e');
-      return;
-    }
-    if (!mounted) return;
-    if (hits.isEmpty) {
-      setState(() => _error = AppStrings.ankiFallbackScanEmpty);
-      return;
-    }
-    final picked = await showDialog<PlatformFile>(
-      context: context,
-      builder: (ctx) => SimpleDialog(
-        title: Text(AppStrings.ankiFallbackScanTitle),
-        children: [
-          for (final f in hits)
-            SimpleDialogOption(
-              onPressed: () => Navigator.of(ctx).pop(f),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(f.name,
-                      style: const TextStyle(fontWeight: FontWeight.w600)),
-                  Text(
-                    f.path ?? '',
-                    style: Theme.of(ctx).textTheme.bodySmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-    if (picked?.path == null) return;
-    await _proceedWithPath(picked!.path!);
-  }
-
-  /// Open a dialog with a text field where the user pastes a full path.
-  ///
-  /// The dialog body is its own [StatefulWidget] ([_AnkiPathInputDialog]) so
-  /// the [TextEditingController] is owned and disposed by the dialog's
-  /// [State], not by this method's outer scope. Disposing the controller
-  /// manually *after* `showDialog` returned (the previous implementation)
-  /// raced with `TextField`/`EditableText` unmount and tripped the Flutter
-  /// framework assertion `_dependents.isEmpty` at `widgets/framework.dart`
-  /// ~line 6171, crashing the app on any Cancel/Confirm tap.
-  Future<void> _showPathInputDialog() async {
-    if (!mounted) return;
-    final path = await showDialog<String>(
-      context: context,
-      builder: (ctx) => const _AnkiPathInputDialog(),
-    );
-    final trimmed = path?.trim();
-    if (trimmed == null || trimmed.isEmpty) return;
-    try {
-      await OhosFilePicker.importFromPath(
-        path: trimmed,
-        allowedExtensions: _ankiExtensions,
-      );
-      await _proceedWithPath(trimmed);
-    } on PlatformException catch (e) {
-      if (!mounted) return;
-      setState(() =>
-          _error = '${AppStrings.ankiPickFileFailed(e.message ?? e.code)}');
-    }
-  }
-
-  /// Common post-pick path: same as [OhosFilePicker.pickFiles] success path.
   Future<void> _proceedWithPath(String path) async {
     setState(() {
       _filePath = path;
       _error = null;
       _step = 1;
     });
-    // P5F-2: eligible files go straight into the official saga — no Dart
-    // apkg parse. Everything else keeps the legacy parse → preview flow.
-    final flags = OfficialAnkiFeatureFlags.current;
-    if (officialFirstImportEligible(
+    // Doc 34 W0: one atomic plan for the whole import. Official-first skips
+    // the Dart apkg parse; unsupported / fail-closed create zero sources;
+    // legacyOnly (explicit haemostasis only) keeps the parse → preview flow.
+    final plan = AnkiImportFacade.planFor(
+      OfficialAnkiFeatureFlags.current,
       isSample: false,
-      officialCapable:
-          AnkiImportFacade.decisionFor(flags) == AnkiImportDecision.official,
-      flags: flags,
       filePath: path,
-    )) {
+    );
+    _plan = plan;
+    if (plan.kind == AnkiImportExecutionKind.officialFirst) {
       await _runOfficialFirstFlow(path);
       return;
     }
+    if (plan.kind == AnkiImportExecutionKind.failClosed ||
+        plan.kind == AnkiImportExecutionKind.unsupported) {
+      if (!mounted) return;
+      setState(() {
+        _error = _humanizePlanFailure(plan);
+        _step = 0;
+        _plan = null;
+      });
+      return;
+    }
+    // legacyOnly haemostasis only — production planFor never selects this.
     await _parseFile(path);
   }
 
   Future<void> _loadSampleDeck() async {
+    // Doc 34: in-memory sample is not an Official package and must not create
+    // a mixed Official-owner / Legacy-writer half-state on Android production.
+    final samplePlan = AnkiImportFacade.planFor(
+      OfficialAnkiFeatureFlags.current,
+      isSample: true,
+      filePath: AnkiSampleDeck.sourcePath,
+    );
+    _plan = samplePlan;
+    if (samplePlan.kind != AnkiImportExecutionKind.legacyOnly) {
+      if (!mounted) return;
+      setState(() {
+        _error = _humanizePlanFailure(samplePlan);
+        _isSample = false;
+        _step = 0;
+        _plan = null;
+      });
+      return;
+    }
+
     setState(() {
       _error = null;
       _isSample = true;
@@ -1300,10 +1134,20 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       return error.message;
     }
     final msg = error.toString();
-    if (msg.contains('.apkg') || msg.contains('.colpkg')) {
+    if (msg.contains('.colpkg')) {
+      return AppStrings.ankiColpkgUnsupported;
+    }
+    if (msg.contains('.apkg')) {
       return AppStrings.ankiPickFileError;
     }
     return AppStrings.ankiParseFailed(error);
+  }
+
+  String _humanizePlanFailure(AnkiImportExecutionPlan plan) {
+    if (plan.reason == 'colpkg_not_supported_until_official_backend') {
+      return AppStrings.ankiColpkgUnsupported;
+    }
+    return AppStrings.ankiImportUnavailable(plan.reason);
   }
 
   /// Shared path after a collection is available (parsed file or sample).
@@ -1518,9 +1362,6 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
     var shouldRollbackOnFailure = false;
     var srsIdsBefore = <String>{};
     SrsProvider? activeSrsProvider;
-    // P5F-1: non-null once the official saga has committed (official-first
-    // order). Later failure handlers use it to log the reverse half-state.
-    OfficialAnkiImportResult? officialFirstResult;
     final dao = AnkiImportDao(getIt<CourseDatabase>());
     try {
       final courseProvider = context.read<CourseProvider>();
@@ -1557,17 +1398,41 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
           _strategy == ImportStrategy.appendAsNew ||
           _strategy == ImportStrategy.forceReplace;
 
-      final officialCapable = AnkiImportFacade.decisionFor(
-            OfficialAnkiFeatureFlags.current,
-          ) ==
-          AnkiImportDecision.official;
+      // Doc 34 W0: reuse the pick-time plan. Never re-read flags here.
+      final plan = _plan;
+      if (plan == null ||
+          plan.kind == AnkiImportExecutionKind.failClosed ||
+          plan.kind == AnkiImportExecutionKind.unsupported) {
+        throw OfficialAnkiException(
+          code: OfficialAnkiErrorCode.capabilityMissing,
+          messageKey: 'official_anki.flag_fail_closed',
+          debugDetails: plan?.reason ?? 'import_plan_missing',
+        );
+      }
+      if (plan.isOfficialFirst) {
+        // Collection parse + Legacy NoteStore is forbidden on Official-first.
+        // The pick path should have used _executeOfficialProjectionImport.
+        throw const OfficialAnkiException(
+          code: OfficialAnkiErrorCode.invalidState,
+          messageKey: 'official_anki.flag_fail_closed',
+          debugDetails: 'official_first_must_not_write_legacy_notestore',
+        );
+      }
+      if (!plan.isLegacyOnly) {
+        throw OfficialAnkiException(
+          code: OfficialAnkiErrorCode.invalidState,
+          messageKey: 'official_anki.flag_fail_closed',
+          debugDetails: plan.reason,
+        );
+      }
+      final persistedOwnerIsOfficial = plan.persistedOwnerIsOfficial;
       final unifiedRequest = UnifiedAnkiImportRequest(
         importId: importId,
         sourceHash: hash,
         canonicalCardIds: [
           for (final card in collection.cards) card.id,
         ],
-        officialCapable: officialCapable,
+        persistedOwnerIsOfficial: persistedOwnerIsOfficial,
         reuseExistingIdentity: _strategy != ImportStrategy.appendAsNew &&
             _strategy != ImportStrategy.forceReplace,
       );
@@ -1595,39 +1460,6 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       // migrator. Rebuild navigation and canonical source from the complete
       // package even for Skip Existing; filtering the collection here used to
       // create an empty successful import when every card already existed.
-
-      // P5F-1: official-first sequencing. Run the official saga BEFORE any
-      // Turna-side write so a failed official import leaves zero Turna rows
-      // (the old order wrote the course tree first and only mirrored into the
-      // official collection afterwards, swallowing failures). Opt-in flag +
-      // real .apkg only; everything else keeps the legacy order.
-      final officialFirst = officialFirstImportEligible(
-        isSample: _isSample,
-        officialCapable: officialCapable,
-        flags: OfficialAnkiFeatureFlags.current,
-        filePath: filePath,
-      );
-      if (officialFirst) {
-        setState(
-          () => _progressMessage = AppStrings.ankiImportingOfficialFirst,
-        );
-        officialFirstResult = await _runOfficialImport(
-          filePath: filePath,
-          importId: importId,
-          hash: hash,
-          cardCount: collection.cards.length,
-        );
-        final state = officialFirstResult?.state;
-        if (officialFirstResult == null ||
-            state != OfficialAnkiSourceState.active) {
-          throw OfficialAnkiException(
-            code: OfficialAnkiErrorCode.invalidState,
-            messageKey: 'official_anki.import_not_active',
-            debugDetails:
-                'official-first import ended in state ${state?.name ?? 'none'}',
-          );
-        }
-      }
 
       late AnkiImportSummary summary;
       var mediaReport = const AnkiMediaCopyReport();
@@ -1790,13 +1622,14 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       // owner per import: official-capable builds already ran the official
       // saga (P5F-1 first or none), and best-effort mirroring after a legacy
       // commit produced half-states that the delete saga could not resolve.
-      if (OfficialAnkiFeatureFlags.current.legacyMirror &&
+      if (plan.isLegacyOnly &&
+          OfficialAnkiFeatureFlags.current.legacyMirror &&
           !_isSample &&
-          !unifiedBegin.noOp &&
-          !officialFirst) {
+          !unifiedBegin.noOp) {
         try {
-          await _runOfficialImport(
+          await _officialFirst.importAndRecord(
             filePath: filePath,
+            plan: plan,
             importId: importId,
             hash: hash,
             cardCount: summary.cardCount,
@@ -1846,15 +1679,6 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       // recognized offline on the next import (Plan 1 Phase 4 step 7).
       unawaited(_persistRecognizedRules());
     } on AnkiImportCancelled {
-      if (officialFirstResult != null) {
-        // P5F-1 reverse half-state (cancelled variant): official cards are
-        // committed; a retry resumes from the active official source.
-        debugPrint(
-          '[AnkiImport] official import committed '
-          '(source ${officialFirstResult.sourceId}) but Turna writes were '
-          'cancelled; official source stays active for retry',
-        );
-      }
       if (activeImportId != null) {
         // Release the orchestrator's in-flight key so a retry of the same
         // package is accepted (no persisted row was finalized).
@@ -1922,17 +1746,6 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       });
     } catch (e) {
       debugPrint('[AnkiImport] import failed: $e');
-      if (officialFirstResult != null) {
-        // P5F-1 reverse half-state: the official collection holds the cards
-        // but the Turna tree/ledger writes failed. The official source stays
-        // active and the saga dedupes by hash, so retrying the import reuses
-        // it instead of duplicating.
-        debugPrint(
-          '[AnkiImport] official import committed '
-          '(source ${officialFirstResult.sourceId}) but Turna writes failed; '
-          'official source stays active and a retry resumes from it',
-        );
-      }
       if (activeImportId != null) {
         UnifiedAnkiImportOrchestrator.instance.invalidate(
           importId: activeImportId,
@@ -2008,133 +1821,45 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
     }
   }
 
-  /// Run the official Anki import saga for [filePath] (no bookkeeping).
-  /// Returns null when the facade resolves to the legacy engine; otherwise
-  /// the saga result whose state may be non-active (failed/cancelled).
-  Future<OfficialAnkiImportResult?> _importOfficialPackage(
-    String filePath,
-  ) async {    final flags = OfficialAnkiFeatureFlags.current;
-    final decision = AnkiImportFacade.decisionFor(flags);
-    OfficialAnkiImporter? officialImporter =
-        OfficialAnkiCompositionRoot.session;
-    if (decision == AnkiImportDecision.official && officialImporter == null) {
-      final support = await getApplicationSupportDirectory();
-      officialImporter = await OfficialAnkiCompositionRoot.requireImporter(
-        supportDir: support,
-      );
-    }
-    final facade = AnkiImportFacade.resolve(
-      flags: flags,
-      officialImporter: officialImporter,
-      legacyImporter: _importer,
-    );
-    if (!facade.isOfficial) return null;
-    return facade.importOfficialOrNull(
-      packagePath: filePath,
-      displayName: filePath.split(RegExp(r'[/\\]')).last,
-    );
-  }
-
-  /// Write/refresh the legacy↔official migration link for an official source.
-  Future<void> _recordOfficialMigration({
-    required String importId,
-    required OfficialAnkiImportResult official,
-    required String hash,
-    required int cardCount,
-  }) async {
-    final support = await getApplicationSupportDirectory();
-    final paths = OfficialAnkiPaths(
-      profileId: 'profile-default-01',
-      profileRoot: Directory('${support.path}/official_anki/default'),
-    );
-    final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog ??
-        OfficialAnkiDatabase.file(paths.catalogFile.path);
-    try {
-      final migrationDao = OfficialAnkiMigrationDao(catalog);
-      final now = DateTime.now().millisecondsSinceEpoch;
-      final existing = migrationDao.findByLegacyImport(
-        profileId: paths.profileId,
-        legacyImportId: importId,
-      );
-      if (existing == null) {
-        migrationDao.insertObservingOfficial(
-          migrationId: newOfficialAnkiId('mig'),
-          profileId: paths.profileId,
-          legacyImportId: importId,
-          officialSourceId: official.sourceId,
-          sourceHash: hash,
-          nowMillis: now,
-          cardCount: cardCount,
-        );
-      } else if (existing.recordedKind != 'official' ||
-          existing.officialSourceId != official.sourceId) {
-        migrationDao.setOfficialSourceAndRecordedKind(
-          migrationId: existing.migrationId,
-          officialSourceId: official.sourceId,
-          recordedKind: 'official',
-          nowMillis: now,
-        );
-      }
-    } finally {
-      if (OfficialAnkiCompositionRoot.readOnlyCatalog == null) {
-        catalog.close();
-      }
-    }
-  }
-
-  /// Run the official Anki import saga for [filePath] and record the
-  /// legacy↔official migration link. Returns null when the facade resolves
-  /// to the legacy engine; otherwise returns the saga result whose [state]
-  /// may be non-active (failed/cancelled) — callers decide whether that is
-  /// fatal (P5F-1 official-first) or deferrable (legacy mirror order).
-  Future<OfficialAnkiImportResult?> _runOfficialImport({
-    required String filePath,
-    required String importId,
-    required String hash,
-    required int cardCount,
-  }) async {
-    final official = await _importOfficialPackage(filePath);
-    if (official == null) return null;
-    if (official.state != OfficialAnkiSourceState.active) return official;
-    await _recordOfficialMigration(
-      importId: importId,
-      official: official,
-      hash: hash,
-      cardCount: cardCount,
-    );
-    return official;
-  }
+  static const _officialFirst = OfficialAnkiOfficialFirstService();
 
   // ─── P5F-2: official-first flow (saga → schema preview → projection) ──
 
-  /// Official-first entry: run the official saga, record the migration link
-  /// (the official tree ids use the sourceId, so it doubles as importId),
-  /// then load the projection-based preview. No Dart apkg parse happens.
+  /// Official-first entry: saga + migration link + projection preview.
+  /// No Dart apkg parse happens on this path.
   Future<void> _runOfficialFirstFlow(String path) async {
     setState(() => _progressMessage = AppStrings.ankiImportingOfficialFirst);
     try {
-      final official = await _importOfficialPackage(path);
-      final state = official?.state;
-      if (official == null || state != OfficialAnkiSourceState.active) {
+      final plan = _plan;
+      if (plan == null || !plan.isOfficialFirst) {
         throw OfficialAnkiException(
           code: OfficialAnkiErrorCode.invalidState,
-          messageKey: 'official_anki.import_not_active',
-          debugDetails:
-              'official-first import ended in state ${state?.name ?? 'none'}',
+          messageKey: 'official_anki.flag_fail_closed',
+          debugDetails: plan?.reason ?? 'import_plan_missing',
         );
       }
-      // alreadyImported is also `active`: the dedupe short-circuits here and
-      // the wizard continues to the projection preview (publish is a
-      // fingerprint no-op when nothing changed).
-      final sourceHash =
-          _readOfficialSourceHash(official.sourceId) ?? 'official-unknown';
-      await _recordOfficialMigration(
-        importId: official.sourceId,
-        official: official,
-        hash: sourceHash,
-        cardCount: official.cardCount,
+      final preview = await _officialFirst.importThenPreview(
+        filePath: path,
+        plan: plan,
+        course: getIt<CourseDatabase>(),
       );
-      await _loadOfficialPreview(official, sourceHash);
+      if (!mounted) return;
+      setState(() {
+        _officialSourceId = preview.sourceId;
+        _officialSourceHash = preview.sourceHash;
+        _officialCardCount = preview.cardCount;
+        _officialNoteCount = preview.noteCount;
+        _officialDecks = preview.decks;
+        _officialSchemas = preview.schemas;
+        _officialSuggestions = preview.suggestions;
+        _officialConfirmedNotetypes = {};
+        _officialSkippedNotetypes = {};
+        _officialService = preview.service;
+        _officialNeedsMapping = false;
+        _step = 2;
+        _progress = 0;
+        _progressMessage = '';
+      });
     } on OfficialAnkiException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -2150,73 +1875,6 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         _progressMessage = '';
       });
     }
-  }
-
-  String? _readOfficialSourceHash(String sourceId) {
-    final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
-    if (catalog != null) {
-      return OfficialAnkiSourceDao(catalog).findById(sourceId)?.sourceHash;
-    }
-    final fallback = OfficialAnkiCourseEntry.catalogOf?.call();
-    if (fallback == null) return null;
-    try {
-      return OfficialAnkiSourceDao(fallback).findById(sourceId)?.sourceHash;
-    } finally {
-      fallback.close();
-    }
-  }
-
-  Future<void> _loadOfficialPreview(
-    OfficialAnkiImportResult official,
-    String sourceHash,
-  ) async {
-    final engine = OfficialAnkiCompositionRoot.projectionEngineFromSession();
-    if (engine == null) {
-      throw const OfficialAnkiException(
-        code: OfficialAnkiErrorCode.capabilityMissing,
-        messageKey: 'official_anki.importer_not_ready',
-      );
-    }
-    final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog ??
-        OfficialAnkiCourseEntry.catalogOf?.call();
-    if (catalog == null) {
-      throw const OfficialAnkiException(
-        code: OfficialAnkiErrorCode.capabilityMissing,
-        messageKey: 'official_anki.catalog_missing',
-      );
-    }
-    final service = OfficialAnkiCompositionRoot.createProjectionService(
-      engine: engine,
-      catalog: catalog,
-      course: getIt<CourseDatabase>(),
-      sourceId: official.sourceId,
-      profileId:
-          OfficialAnkiCompositionRoot.locatorPaths?.profileId ??
-              'profile-default-01',
-      flags: OfficialAnkiFeatureFlags.current,
-    );
-    final schemas = await engine.getProjectionSchemas(includeSamples: true);
-    final decks = await engine.listDeckTree();
-    if (!mounted) return;
-    setState(() {
-      _officialSourceId = official.sourceId;
-      _officialSourceHash = sourceHash;
-      _officialCardCount = official.cardCount;
-      _officialNoteCount = official.noteCount;
-      _officialDecks = decks;
-      _officialSchemas = schemas;
-      _officialSuggestions = {
-        for (final schema in schemas)
-          schema.notetypeId: service.suggestFor(schema),
-      };
-      _officialConfirmedNotetypes = {};
-      _officialSkippedNotetypes = {};
-      _officialService = service;
-      _officialNeedsMapping = false;
-      _step = 2;
-      _progress = 0;
-      _progressMessage = '';
-    });
   }
 
   /// Projection-based preview: deck list from the official collection,
@@ -2373,7 +2031,11 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         _officialConfirmedNotetypes.add(schema.notetypeId);
       }
 
-      final result = await service.projectSource();
+      final result = await _officialFirst.projectAndPublish(
+        service: service,
+        sourceId: sourceId,
+        sourceHash: sourceHash,
+      );
       if (result.needsMapping) {
         if (!mounted) return;
         setState(() {
@@ -2391,11 +2053,6 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
           debugDetails: result.errorCode ?? 'unknown',
         );
       }
-
-      await UnifiedAnkiImportOrchestrator.instance.publishFromProjection(
-        sourceId: sourceId,
-        sourceHash: sourceHash,
-      );
 
       final courseProvider = context.read<CourseProvider>();
       CourseLoader.invalidateCaches();
@@ -3180,138 +2837,6 @@ class _Badge extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-/// Tappable "try a sample deck" card used on the file-selection step. Sits
-/// below the primary CTA as a low-pressure alternative entry point so users
-/// can preview the import flow without picking a real file.
-class _SampleDeckCard extends StatelessWidget {
-  final VoidCallback onTap;
-  const _SampleDeckCard({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: TurnaTheme.brandTeal.withValues(alpha: 0.06),
-            borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-            border: Border.all(
-              color: TurnaTheme.brandTeal.withValues(alpha: 0.2),
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: TurnaTheme.brandTeal.withValues(alpha: 0.12),
-                  borderRadius:
-                      BorderRadius.circular(TurnaTheme.radiusMedium),
-                ),
-                child: const Icon(
-                  Icons.auto_awesome_rounded,
-                  color: TurnaTheme.brandTeal,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      AppStrings.ankiTrySample,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      AppStrings.ankiSampleHint,
-                      style: TextStyle(
-                        color: TurnaTheme.textSecondaryColor(context),
-                        fontSize: 12,
-                        height: 1.3,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(
-                Icons.chevron_right,
-                color: TurnaTheme.brandTeal,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Body of the manual-path input dialog used by [_showPathInputDialog].
-///
-/// Extracted into its own [StatefulWidget] so the [TextEditingController] is
-/// created in [State.initState] and disposed in [State.dispose]. This keeps
-/// the controller lifetime aligned with the [TextField]'s `EditableText`
-/// element, which is what the Flutter framework requires for its
-/// `_dependents.isEmpty` invariant during `Element.unmount`.
-class _AnkiPathInputDialog extends StatefulWidget {
-  const _AnkiPathInputDialog();
-
-  @override
-  State<_AnkiPathInputDialog> createState() => _AnkiPathInputDialogState();
-}
-
-class _AnkiPathInputDialogState extends State<_AnkiPathInputDialog> {
-  late final TextEditingController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(AppStrings.ankiFallbackPathTitle),
-      content: TextField(
-        controller: _controller,
-        autofocus: true,
-        decoration: InputDecoration(
-          labelText: AppStrings.ankiFallbackPathHint,
-          hintText: AppStrings.ankiFallbackPathHint,
-        ),
-        maxLines: 3,
-        minLines: 1,
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('取消'),
-        ),
-        ElevatedButton(
-          onPressed: () => Navigator.of(context).pop(_controller.text),
-          child: Text(AppStrings.ankiFallbackPathAction),
-        ),
-      ],
     );
   }
 }

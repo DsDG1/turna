@@ -36,15 +36,24 @@ class OfficialAnkiHomeDueSync {
 
   Future<void> _refreshOnce() async {
     if (!LegacyAnkiMigrationFlags.cutoverEnabled) {
-      OfficialAnkiHomeDue.officialImportIds = {};
+      // Owner routing still needs recorded Official ids (doc 34 W0-06).
+      // Due numbers stay unavailable while cutover is paused.
       OfficialAnkiHomeDue.officialDue = 0;
       OfficialAnkiHomeDue.officialDueByImport = {};
-      OfficialAnkiHomeDue.officialDueUnavailable = false;
+      OfficialAnkiHomeDue.officialSchedulerDueCardIdsByImport = {};
+      OfficialAnkiHomeDue.activePlacementCardIdsByImport = {};
+      OfficialAnkiHomeDue.officialDueUnavailable = true;
       return;
     }
     final savedDue = OfficialAnkiHomeDue.officialDue;
     final savedByImport = Map<String, int>.from(
       OfficialAnkiHomeDue.officialDueByImport,
+    );
+    final savedDueIds = Map<String, Set<int>>.from(
+      OfficialAnkiHomeDue.officialSchedulerDueCardIdsByImport,
+    );
+    final savedPlacements = Map<String, Set<int>>.from(
+      OfficialAnkiHomeDue.activePlacementCardIdsByImport,
     );
     final savedIds = Set<String>.from(OfficialAnkiHomeDue.officialImportIds);
     final savedUnavailable = OfficialAnkiHomeDue.officialDueUnavailable;
@@ -56,6 +65,8 @@ class OfficialAnkiHomeDueSync {
         OfficialAnkiHomeDue.officialImportIds = {};
         OfficialAnkiHomeDue.officialDue = 0;
         OfficialAnkiHomeDue.officialDueByImport = {};
+        OfficialAnkiHomeDue.officialSchedulerDueCardIdsByImport = {};
+        OfficialAnkiHomeDue.activePlacementCardIdsByImport = {};
         OfficialAnkiHomeDue.officialDueUnavailable = false;
         return;
       }
@@ -70,6 +81,8 @@ class OfficialAnkiHomeDueSync {
         if (!OfficialAnkiFeatureFlags.current.allowsOfficialScheduler) {
           OfficialAnkiHomeDue.officialDue = 0;
           OfficialAnkiHomeDue.officialDueByImport = {};
+          OfficialAnkiHomeDue.officialSchedulerDueCardIdsByImport = {};
+          OfficialAnkiHomeDue.activePlacementCardIdsByImport = {};
           OfficialAnkiHomeDue.officialDueUnavailable = false;
           return;
         }
@@ -105,6 +118,8 @@ class OfficialAnkiHomeDueSync {
           OfficialAnkiHomeDue.officialImportIds = savedIds;
           OfficialAnkiHomeDue.officialDue = savedDue;
           OfficialAnkiHomeDue.officialDueByImport = savedByImport;
+          OfficialAnkiHomeDue.officialSchedulerDueCardIdsByImport = savedDueIds;
+          OfficialAnkiHomeDue.activePlacementCardIdsByImport = savedPlacements;
           OfficialAnkiHomeDue.officialDueUnavailable = true;
           return;
         }
@@ -112,6 +127,61 @@ class OfficialAnkiHomeDueSync {
           dao: dao,
           sources: sources,
           getDeckTree: session.listDeckTree,
+        );
+        Future<Set<int>> fetchSuspendedCardIds({int? deckId}) async {
+          final query =
+              deckId == null ? 'is:suspended' : 'deck:$deckId is:suspended';
+          final ids = <int>{};
+          String? pageToken;
+          while (true) {
+            final page = await session.searchCardsPage(
+              search: query,
+              pageSize: 500,
+              pageToken: pageToken,
+            );
+            ids.addAll(page.cardIds);
+            if (page.nextPageToken == null ||
+                page.nextPageToken!.isEmpty ||
+                page.cardIds.isEmpty) {
+              break;
+            }
+            pageToken = page.nextPageToken;
+          }
+          return ids;
+        }
+
+        Future<Set<int>> fetchBuriedCardIds({int? deckId}) async {
+          final query =
+              deckId == null ? 'is:buried' : 'deck:$deckId is:buried';
+          final ids = <int>{};
+          String? pageToken;
+          while (true) {
+            final page = await session.searchCardsPage(
+              search: query,
+              pageSize: 500,
+              pageToken: pageToken,
+            );
+            ids.addAll(page.cardIds);
+            if (page.nextPageToken == null ||
+                page.nextPageToken!.isEmpty ||
+                page.cardIds.isEmpty) {
+              break;
+            }
+            pageToken = page.nextPageToken;
+          }
+          return ids;
+        }
+
+        // Exact card-id formal due (doc 34 W5): populate scheduler due ids so
+        // home/deck never falls back to count approximation.
+        await router.refreshFormalDueCardIds(
+          dao: dao,
+          sources: sources,
+          setCurrentDeck: session.setCurrentDeck,
+          getReviewQueue: ({int fetchLimit = 500}) =>
+              session.getReviewQueue(fetchLimit: fetchLimit),
+          getSuspendedCardIds: fetchSuspendedCardIds,
+          getBuriedCardIds: fetchBuriedCardIds,
         );
       } finally {
         catalog.close();
@@ -123,6 +193,8 @@ class OfficialAnkiHomeDueSync {
         OfficialAnkiHomeDue.officialImportIds = savedIds;
         OfficialAnkiHomeDue.officialDue = savedDue;
         OfficialAnkiHomeDue.officialDueByImport = savedByImport;
+        OfficialAnkiHomeDue.officialSchedulerDueCardIdsByImport = savedDueIds;
+        OfficialAnkiHomeDue.activePlacementCardIdsByImport = savedPlacements;
         OfficialAnkiHomeDue.officialDueUnavailable = true;
         return;
       }
@@ -131,6 +203,8 @@ class OfficialAnkiHomeDueSync {
         OfficialAnkiHomeDue.officialImportIds = savedIds;
         OfficialAnkiHomeDue.officialDue = savedDue;
         OfficialAnkiHomeDue.officialDueByImport = savedByImport;
+        OfficialAnkiHomeDue.officialSchedulerDueCardIdsByImport = savedDueIds;
+        OfficialAnkiHomeDue.activePlacementCardIdsByImport = savedPlacements;
         OfficialAnkiHomeDue.officialDueUnavailable = true;
         return;
       }

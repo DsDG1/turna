@@ -2,20 +2,17 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// GoogleFonts wrapper that is HarmonyOS-safe.
+/// GoogleFonts wrapper that is web-safe.
 ///
 /// `google_fonts` fetches font files via HTTP at runtime and, when
 /// `allowRuntimeFetching` is disabled, throws an uncaught platform error if
-/// the font is not bundled as an asset. HarmonyOS has no GMS / may be offline,
-/// so we bypass GoogleFonts entirely on OHos and return a plain [TextStyle]
-/// using the system default font family. On every other platform the real
-/// GoogleFonts implementation is used.
+/// the font is not bundled as an asset. Web builds bypass GoogleFonts and
+/// return a plain [TextStyle] using the system default font family.
 class AppFonts {
   AppFonts._();
 
   /// Whether to bypass [GoogleFonts] on this platform.
-  static bool get _bypass =>
-      kIsWeb || defaultTargetPlatform.name == 'ohos';
+  static bool get _bypass => kIsWeb;
 
   /// Nunito (used by splash + onboarding).
   static TextStyle nunito({

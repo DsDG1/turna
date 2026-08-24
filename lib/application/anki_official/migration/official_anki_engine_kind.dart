@@ -5,12 +5,10 @@ import 'package:turna/application/anki_official/official_anki_feature_flags.dart
 
 enum AnkiEngineKind { legacy, official }
 
-/// Production cutover gate. Default **true**: together with the
-/// `OfficialAnkiFeatureFlags` production defaults (engine/import/catalog/
-/// runtime/platform on) this forms the single owner policy — official-capable
-/// platforms route new imports and reviews through the official engine, with
-/// the legacy→official background mirror off by default. Builds that need the
-/// pre-cutover behavior may pass `--dart-define=TURNA_OFFICIAL_ANKI_CUTOVER=false`
+/// Production cutover gate. Default **true**: together with
+/// [OfficialAnkiFeatureFlags.productionAndroid] this is the single product
+/// mode — Android Official vs Anki unavailable. Builds that need to pause
+/// new Official traffic may pass `--dart-define=TURNA_OFFICIAL_ANKI_CUTOVER=false`
 /// (locked by `official_anki_p5d_routing_test.dart`).
 class LegacyAnkiMigrationFlags {
   const LegacyAnkiMigrationFlags._();
@@ -61,6 +59,11 @@ class AnkiSourceRoute {
 
 /// Resolves review/import ownership. Does not write.
 /// Official only when cutover is on and the source is official-owned.
+///
+/// Doc 34: recorded Official owner never degrades to Legacy when the native
+/// library is missing (fail-closed at the review gate instead). Unrecorded
+/// Android sources assume Official only when the library is present; missing
+/// library does not invent a Legacy owner for new traffic.
 class AnkiSourceRouteResolver {
   const AnkiSourceRouteResolver();
 
@@ -73,26 +76,34 @@ class AnkiSourceRouteResolver {
     bool? libraryAvailable,
   }) {
     if (sourceKey.isEmpty) return AnkiEngineKind.legacy;
-    final cutover =
-        cutoverEnabled ?? LegacyAnkiMigrationFlags.cutoverEnabled;
-    if (!cutover) return AnkiEngineKind.legacy;
+    // Doc 34 W0-06: a persisted Official owner never degrades to Legacy when
+    // cutover / capability flags are off. Review fails closed instead.
     if (recordedKind == AnkiEngineKind.official) {
       return AnkiEngineKind.official;
     }
     if (recordedKind == AnkiEngineKind.legacy) {
       return AnkiEngineKind.legacy;
     }
+    if (officialCatalogHasSource) {
+      return AnkiEngineKind.official;
+    }
+    final cutover =
+        cutoverEnabled ?? LegacyAnkiMigrationFlags.cutoverEnabled;
+    if (!cutover) return AnkiEngineKind.legacy;
     final plat =
         platform ?? OfficialAnkiCapabilityMatrix.current().platform;
     if (plat == 'android') {
-      // Unrecorded source: the android default assumes the official core is
-      // packaged. When the library is physically absent (packaging defect,
-      // wrong ABI) degrade to legacy — recorded sources never degrade, their
-      // data lives only in the official collection.
       final libraryOk =
           libraryAvailable ?? OfficialAnkiNativeAvailability.current;
+      // Missing native runtime: do not invent a Legacy owner for unrecorded
+      // sources. Callers that need a binary kind for "no official route"
+      // still see legacy here only as "not official"; new-import planners
+      // fail-closed separately and never write Legacy.
       return libraryOk ? AnkiEngineKind.official : AnkiEngineKind.legacy;
     }
+    // Non-Android: never invent a new Legacy writer. Only an already-known
+    // Official catalog source stays Official (read/repair); everything else
+    // is treated as non-official so product mode can mark Anki unavailable.
     return officialCatalogHasSource
         ? AnkiEngineKind.official
         : AnkiEngineKind.legacy;
@@ -157,27 +168,31 @@ class OfficialAnkiCapabilityMatrix {
           officialCore: true,
           officialReviewer: resolved.allowsOfficialRenderer,
           officialScheduler: resolved.allowsOfficialScheduler,
-          legacyFallbackRequired: !resolved.allowsOfficialScheduler,
+          // Doc 34: never fall back to Legacy writers for new imports.
+          legacyFallbackRequired: false,
         );
       case 'linux':
       case 'macos':
+        // Host FFI may exist for tests; product Anki remains unavailable and
+        // must not open a Legacy writer (doc 34 platform matrix).
         return OfficialAnkiPlatformCapability(
           platform: platform,
           officialCore: true,
           officialReviewer: false,
-          officialScheduler: resolved.allowsOfficialScheduler,
-          legacyFallbackRequired: true,
+          officialScheduler: false,
+          legacyFallbackRequired: false,
         );
       case 'ios':
-      case 'ohos':
       case 'windows':
       default:
+        // Unknown / unsupported platforms (including retired OHOS) never open
+        // a Legacy writer. Product mode maps these to ankiUnavailable.
         return OfficialAnkiPlatformCapability(
           platform: platform,
           officialCore: false,
           officialReviewer: false,
           officialScheduler: false,
-          legacyFallbackRequired: true,
+          legacyFallbackRequired: false,
         );
     }
   }

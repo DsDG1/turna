@@ -14,14 +14,17 @@ class UnifiedAnkiImportRequest {
     required this.importId,
     required this.sourceHash,
     required this.canonicalCardIds,
-    required this.officialCapable,
+    required this.persistedOwnerIsOfficial,
     this.reuseExistingIdentity = true,
   });
 
   final String importId;
   final String sourceHash;
   final List<int> canonicalCardIds;
-  final bool officialCapable;
+
+  /// Actual persisted identity backend for this import (doc 34 W0).
+  /// Must match the execution-plan owner — never "capability available".
+  final bool persistedOwnerIsOfficial;
   final bool reuseExistingIdentity;
 }
 
@@ -47,7 +50,7 @@ class UnifiedAnkiImportResult {
       placementCount == presentationCount;
 }
 
-/// Single import entry used by the import UI. Official-capable imports
+/// Single import entry used by the import UI. Official-owned imports
 /// publish placement/presentation only and never register Turna Anki SRS.
 ///
 /// Dedup authority is the persisted inventory (`anki_imports` rows plus the
@@ -131,10 +134,10 @@ class UnifiedAnkiImportOrchestrator {
       return (placements: 0, presentations: 0);
     }
     final dao = getIt<AnkiUnificationDao>();
-    final backend = request.officialCapable
+    final backend = request.persistedOwnerIsOfficial
         ? AnkiBackendKind.official
         : AnkiBackendKind.legacyTurna;
-    final courseId = request.officialCapable
+    final courseId = request.persistedOwnerIsOfficial
         ? CardIntroductionEligibility.courseIdForOfficialSource(
             request.importId)
         : CardIntroductionEligibility.courseIdForLegacyImport(request.importId);
@@ -229,7 +232,7 @@ class UnifiedAnkiImportOrchestrator {
       throw StateError('canonical card ids must be unique');
     }
     final srsIds = <String>{};
-    if (!request.officialCapable) {
+    if (!request.persistedOwnerIsOfficial) {
       for (final cardId in request.canonicalCardIds) {
         srsIds.add('anki-${request.importId}-c$cardId');
       }
@@ -253,7 +256,7 @@ class UnifiedAnkiImportOrchestrator {
     final written = await _persist(request);
     _placementsByImport[request.importId] = written.placements;
     _presentationsByImport[request.importId] = written.presentations;
-    if (!request.officialCapable) {
+    if (!request.persistedOwnerIsOfficial) {
       for (final cardId in request.canonicalCardIds) {
         turnaSrsWordIds.add('anki-${request.importId}-c$cardId');
       }

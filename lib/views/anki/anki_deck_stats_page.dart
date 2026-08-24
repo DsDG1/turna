@@ -6,6 +6,9 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
+import 'package:turna/application/anki_official/official_anki_composition.dart';
+import 'package:turna/application/anki_official/stats/official_anki_source_aware_stats.dart';
+import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/memory_curve_provider.dart';
 import 'package:turna/views/review/components/retention_curve_chart.dart';
 import 'package:turna/views/theme.dart';
@@ -23,9 +26,63 @@ class AnkiDeckStatsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+    final officialCatalog = catalog != null &&
+            OfficialAnkiSourceDao(catalog).findById(importId) != null
+        ? catalog
+        : null;
+
     return Scaffold(
       appBar: AppBar(title: Text('$title · 统计')),
-      body: FutureBuilder<MemoryCurveSnapshot>(
+      body: officialCatalog != null
+          ? FutureBuilder(
+              future: OfficialAnkiSourceAwareStats(
+                sources: OfficialAnkiSourceDao(officialCatalog),
+                engine: OfficialAnkiCompositionRoot.engine,
+              ).forOfficialSource(importId),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final officialSnap = snapshot.data!;
+                return ListView(
+                  padding: const EdgeInsets.all(20),
+                  children: [
+                    _MetricCard(
+                      title: '卡片总数（Official catalog）',
+                      value: '${officialSnap.totalCards}',
+                      icon: Icons.style_outlined,
+                    ),
+                    if (officialSnap.metricsProven) ...[
+                      const SizedBox(height: 12),
+                      _MetricCard(
+                        title: '今日新卡 / 复习（Official scheduler）',
+                        value:
+                            '${officialSnap.newCount ?? 0} / ${officialSnap.reviewCount ?? 0}',
+                        icon: Icons.today_outlined,
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    Card(
+                      child: ListTile(
+                        leading: Icon(Icons.info_outline,
+                            color: TurnaTheme.brandTeal),
+                        title: const Text('Official 统计语义'),
+                        subtitle: Text(
+                          officialSnap.metricsProven
+                              ? '牌组计数来自 Official scheduler；不使用 Turna FSRS 伪装保持率。'
+                              : '本页只展示 catalog 卡片总数。没有 scheduler 计数时不宣称保持率或预报。',
+                          style: TextStyle(
+                            color: TurnaTheme.textHintColor(context),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            )
+          : FutureBuilder<MemoryCurveSnapshot>(
         future:
             context.read<MemoryCurveProvider>().snapshotForImportId(importId),
         builder: (context, snapshot) {

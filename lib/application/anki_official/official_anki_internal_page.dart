@@ -36,7 +36,7 @@ import 'package:turna/application/anki_official/migration/official_anki_census.d
 import 'package:turna/application/anki_official/migration/official_anki_user_allowlist.dart';
 import 'package:turna/application/anki_official/migration/official_anki_preview_loader.dart';
 import 'package:turna/data/course_database.dart';
-import 'package:turna/utils/ohos_file_picker.dart';
+import 'package:turna/utils/validated_file_picker.dart';
 
 /// Internal-only official import surface. Review is not opened here.
 @RoutePage()
@@ -148,12 +148,12 @@ class _OfficialAnkiInternalPageState extends State<OfficialAnkiInternalPage> {
         setState(() {
           _status = 'flags_off';
           _detail =
-              '需要 5 个 TURNA_OFFICIAL_ANKI_* dart-define=true 后重新 flutter run';
+              'Official 产品能力未打开（生产 Android 默认已开；测试请 copyWith）';
         });
         debugPrint('[OfficialAnkiImport] flags_off');
         return;
       }
-      final picked = await OhosFilePicker.pickFiles(
+      final picked = await ValidatedFilePicker.pickFiles(
         allowedExtensions: const ['apkg'],
         dialogTitle: '选择官方导入用 .apkg',
       );
@@ -206,7 +206,7 @@ class _OfficialAnkiInternalPageState extends State<OfficialAnkiInternalPage> {
         setState(() {
           _status = 'renderer_off';
           _detail =
-              '需要 TURNA_OFFICIAL_ANKI_RENDERER=true，并保留 ENGINE/CATALOG/RUNTIME/PLATFORM';
+              'Official renderer 未打开（生产 Android 默认已开）';
         });
         debugPrint('[OfficialAnkiPreview] renderer_off');
         return;
@@ -291,7 +291,7 @@ class _OfficialAnkiInternalPageState extends State<OfficialAnkiInternalPage> {
         setState(() {
           _status = 'projection_off';
           _detail =
-              '需要 TURNA_OFFICIAL_ANKI_PROJECTION=true，并保留 ENGINE/IMPORT/CATALOG/RUNTIME';
+              'Official projection 未打开（生产 Android 默认已开）';
         });
         return;
       }
@@ -458,7 +458,7 @@ class _OfficialAnkiInternalPageState extends State<OfficialAnkiInternalPage> {
         setState(() {
           _status = 'scheduler_off';
           _detail =
-              '需要 TURNA_OFFICIAL_ANKI_SCHEDULER=true，并保留 ENGINE/IMPORT/CATALOG/RUNTIME/PLATFORM/RENDERER';
+              'Official scheduler 未打开（生产 Android 默认已开）';
         });
         return;
       }
@@ -756,7 +756,7 @@ class _OfficialAnkiInternalPageState extends State<OfficialAnkiInternalPage> {
       final known = await _locateP5cFixture();
       var packagePath = known?.path;
       if (packagePath == null) {
-        final picked = await OhosFilePicker.pickFiles(
+        final picked = await ValidatedFilePicker.pickFiles(
           allowedExtensions: const ['apkg'],
           dialogTitle: '重选原 fixture .apkg',
         );

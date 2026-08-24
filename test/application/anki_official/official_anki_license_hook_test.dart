@@ -34,7 +34,11 @@ void main() {
     expect(OfficialAnkiFeatureFlags.current.allowsOfficialImport, isTrue);
     expect(OfficialAnkiFeatureFlags.current.allowsOfficialRenderer, isTrue);
     final screen = File('lib/views/anki/anki_import_screen.dart').readAsStringSync();
+    final service = File(
+      'lib/application/anki_official/import/official_anki_official_first_service.dart',
+    ).readAsStringSync();
     expect(screen.contains('AnkiImporter'), isTrue);
-    expect(screen.contains('AnkiImportFacade.resolve'), isTrue);
+    expect(screen.contains('OfficialAnkiOfficialFirstService'), isTrue);
+    expect(service.contains('AnkiImportFacade.resolve'), isTrue);
   });
 }

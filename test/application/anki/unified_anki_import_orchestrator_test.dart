@@ -29,7 +29,7 @@ void main() {
           importId: 'imp-official',
           sourceHash: 'hash-a',
           canonicalCardIds: [10, 11, 12],
-          officialCapable: true,
+          persistedOwnerIsOfficial: true,
         ),
       );
       expect(result.wroteTurnaSrs, isFalse);
@@ -60,7 +60,7 @@ void main() {
           importId: 'imp-legacy',
           sourceHash: 'hash-legacy',
           canonicalCardIds: [1, 2],
-          officialCapable: false,
+          persistedOwnerIsOfficial: false,
         ),
       );
       expect(result.wroteTurnaSrs, isTrue);
@@ -85,7 +85,7 @@ void main() {
         importId: 'imp-same',
         sourceHash: 'hash-same',
         canonicalCardIds: [21, 22, 23, 24],
-        officialCapable: true,
+        persistedOwnerIsOfficial: true,
       );
       final first = await orchestrator.importPackage(request);
       expect(first.noOp, isFalse);
@@ -96,7 +96,7 @@ void main() {
           importId: 'imp-same',
           sourceHash: 'hash-same',
           canonicalCardIds: [21, 22, 23, 24, 99],
-          officialCapable: true,
+          persistedOwnerIsOfficial: true,
         ),
       );
       expect(second.noOp, isTrue);
@@ -126,7 +126,7 @@ void main() {
         importId: 'imp-re',
         sourceHash: 'hash-re',
         canonicalCardIds: [7, 8, 9],
-        officialCapable: false,
+        persistedOwnerIsOfficial: false,
       );
       final first = await orchestrator.importPackage(request);
       expect(first.noOp, isFalse);
@@ -159,7 +159,7 @@ void main() {
         importId: 'imp-fail',
         sourceHash: 'hash-fail',
         canonicalCardIds: [1],
-        officialCapable: true,
+        persistedOwnerIsOfficial: true,
       );
       orchestrator.persistIdentity = (_) async {};
       final started = await orchestrator.begin(request);
@@ -176,7 +176,7 @@ void main() {
         importId: 'imp-conc',
         sourceHash: 'hash-conc',
         canonicalCardIds: [1, 2],
-        officialCapable: true,
+        persistedOwnerIsOfficial: true,
       );
       final started = await orchestrator.begin(request);
       expect(started.noOp, isFalse);
@@ -203,7 +203,7 @@ void main() {
           importId: 'imp-disk',
           sourceHash: 'disk-hash',
           canonicalCardIds: [1, 2, 3],
-          officialCapable: true,
+          persistedOwnerIsOfficial: true,
         ),
       );
       expect(result.noOp, isTrue);
@@ -219,7 +219,12 @@ void main() {
       expect(beginAt, greaterThan(0));
       expect(assembleAt, greaterThan(beginAt));
       expect(screen.contains('if (unifiedBegin.noOp)'), isTrue);
-      expect(screen.contains('facade.importOfficialOrNull'), isTrue);
+      expect(
+        screen.contains('_officialFirst') ||
+            screen.contains('OfficialAnkiOfficialFirstService') ||
+            screen.contains('facade.importOfficialOrNull'),
+        isTrue,
+      );
       expect(
         screen.contains('!unifiedBegin.noOp') ||
             screen.contains('&& !unifiedBegin.noOp'),

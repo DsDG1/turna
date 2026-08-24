@@ -3,7 +3,7 @@
 > 文档代号：P5F
 > 日期：2026-08-22
 > 前置：[`28`](./28-p5d-remainder-construction-plan.md)（D5 已翻转）、[`29`](./archive/29-p5e-wave1-production-decoupling-report.md)（Wave 1 已收口）、[`32`](./32-official-anki-experience-parity-plan.md)
-> 状态：CONSTRUCTION GO（四片全量；顺序 ①→③→②→④）
+> 状态：**历史规格；勿按本文开施工波次。** OHOS Legacy 作废（[ADR 0041](../decisions/0041-ohos-product-eol.md)）；Official-first 是生产 bundle（无 `TURNA_OFFICIAL_ANKI_OFFICIAL_FIRST_IMPORT` dart-define）。默认策略与 fail-closed 以 [34](./34-official-anki-production-cutover-and-ohos-retirement-plan.md) W0/W4 为准；本文仅作 P5-F 历史施工记录。
 > 目标：导入以官方 Collection 为先（官方 saga 先行、失败不吞）；official 路径课程树由官方投影生成（Dart apkg 解析退出 official 路径）；内置主课程零影响；其他功能经 parity 白名单证明一致。
 
 ## 0. 已定决策（2026-08-22 书面）

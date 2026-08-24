@@ -75,7 +75,7 @@ void main() {
         importId: 'imp-inv2',
         sourceHash: 'hash-inv',
         canonicalCardIds: [1],
-        officialCapable: false,
+        persistedOwnerIsOfficial: false,
       ),
     );
     expect(dup.noOp, isTrue,
@@ -90,7 +90,7 @@ void main() {
       importId: 'imp-inv2',
       sourceHash: 'hash-inv',
       canonicalCardIds: [1],
-      officialCapable: false,
+      persistedOwnerIsOfficial: false,
     ));
     expect(reimport.noOp, isFalse,
         reason: 'same-process re-import after delete must run for real');
@@ -105,7 +105,7 @@ void main() {
         importId: 'imp-f',
         sourceHash: 'hash-f',
         canonicalCardIds: [5],
-        officialCapable: false,
+        persistedOwnerIsOfficial: false,
       ),
     );
     expect(result.noOp, isFalse,
@@ -133,7 +133,7 @@ void main() {
         importId: 'whatever',
         sourceHash: 'hash-official',
         canonicalCardIds: [1],
-        officialCapable: true,
+        persistedOwnerIsOfficial: true,
       ),
     );
     expect(active.noOp, isTrue,
@@ -152,7 +152,7 @@ void main() {
         importId: 'whatever',
         sourceHash: 'hash-official',
         canonicalCardIds: [1],
-        officialCapable: true,
+        persistedOwnerIsOfficial: true,
       ),
     );
     expect(broken.noOp, isFalse,

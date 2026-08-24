@@ -274,10 +274,6 @@ class TtsAvailabilityChecker {
   Future<bool> isPreferredSystemTtsAvailable(String languageCode) async {
     if (kIsWeb) return false;
 
-    if (defaultTargetPlatform.name == 'ohos') {
-      return false;
-    }
-
     if (defaultTargetPlatform == TargetPlatform.android) {
       final hasGoogle = await hasGoogleTtsEngine();
       if (!hasGoogle) {

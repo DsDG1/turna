@@ -2,12 +2,23 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 
 void main() {
-  test('p5f_official_first_import_defaults_off', () {
+  test('p5f_official_first_import_defaults_on_for_production', () {
     final env = OfficialAnkiFeatureFlags.fromEnvironment();
-    expect(env.officialFirstImport, isFalse,
-        reason: 'P5F is opt-in: no defaultValue on the dart-define');
-    expect(env.allowsOfficialFirstImport, isFalse);
+    expect(env.officialFirstImport, isTrue,
+        reason: 'doc 34: Official-first is the Android production default');
+    expect(env.allowsOfficialFirstImport, isTrue);
+    expect(env.allowsOfficialScheduler, isTrue);
+    expect(env.diagnostics, isFalse);
+    expect(env.legacyMirror, isFalse);
+    expect(env.courseGradesScheduler, isFalse);
+    expect(env.migrationPilot, isFalse);
+    // Zero-arg constructor stays all-false for focused unit tests.
     expect(const OfficialAnkiFeatureFlags().officialFirstImport, isFalse);
+    expect(const OfficialAnkiFeatureFlags().allowsOfficialImport, isFalse);
+    expect(
+      OfficialAnkiFeatureFlags.productionAndroid.allowsOfficialFirstImport,
+      isTrue,
+    );
   });
 
   test('p5f_official_first_requires_full_projection_capability', () {

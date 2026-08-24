@@ -19,7 +19,7 @@ import 'package:path/path.dart' as p;
 ///   templates contain `<script>` the policy enables JS with a
 ///   `NavigationDelegate` that blocks external URLs - container isolation,
 ///   no phoning home).
-/// - Other platforms (HarmonyOS / desktop / web): degrades to a stripped-text
+/// - Other platforms (desktop / web): degrades to a stripped-text
 ///   view (decision 4). A `WebViewController` is never constructed there, so
 ///   the missing platform implementation never throws.
 ///
@@ -515,7 +515,7 @@ class AnkiHtmlCardViewState extends State<AnkiHtmlCardView> {
 }
 
 /// Stripped-text fallback used on platforms without a WebView implementation
-/// (HarmonyOS / desktop / web). Shows the card's visible text without HTML.
+/// (desktop / web). Shows the card's visible text without HTML.
 class _HtmlTextFallback extends StatelessWidget {
   final String html;
   final bool typeAnswerEnabled;

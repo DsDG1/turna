@@ -1,13 +1,21 @@
-/// Production Android replica defaults: import/render/scheduler on.
-/// Constructor stays all-false for tests. Disable with `--dart-define=…=false`.
-/// Diagnostics, migration pilot, course-grades scheduler, and the P5F
-/// official-first import path stay opt-in.
+/// Production Android replica: one product bundle (Official import / render /
+/// scheduler / official-first). Constructor stays all-false for tests; use
+/// [copyWith] to opt capabilities on. Per-capability dart-defines were
+/// collapsed (doc 34 C4).
 ///
-/// Production default policy (single source of truth): exactly one owner per
-/// import — official-capable builds import through the official saga and
-/// never re-mirror the same package into the legacy store afterwards. The
-/// legacy→official background mirror is a development-only escape hatch via
-/// `TURNA_OFFICIAL_ANKI_LEGACY_MIRROR`.
+/// Remaining dart-defines are **opt-in only**:
+/// - `TURNA_OFFICIAL_ANKI_DIAGNOSTICS`
+/// - `TURNA_OFFICIAL_ANKI_REVIEWER_DIAGNOSTICS`
+/// - `TURNA_OFFICIAL_ANKI_MIGRATION_PILOT`
+/// - `TURNA_OFFICIAL_ANKI_COURSE_GRADES_SCHEDULER`
+/// - `TURNA_OFFICIAL_ANKI_LEGACY_MIRROR`
+///
+/// Product pause is [LegacyAnkiMigrationFlags.cutoverEnabled]
+/// (`TURNA_OFFICIAL_ANKI_CUTOVER`, default true) — not a second flag matrix.
+///
+/// The legacy→official background mirror remains a development-only escape
+/// hatch via `TURNA_OFFICIAL_ANKI_LEGACY_MIRROR` and must not be combined
+/// with Official-first production traffic.
 class OfficialAnkiFeatureFlags {
   const OfficialAnkiFeatureFlags({
     this.engine = false,
@@ -27,69 +35,36 @@ class OfficialAnkiFeatureFlags {
     this.legacyMirror = false,
   });
 
+  /// Android production product flags. Opt-in diagnostics / pilot / grades /
+  /// mirror stay off.
+  static const productionAndroid = OfficialAnkiFeatureFlags(
+    engine: true,
+    import: true,
+    catalogReady: true,
+    runtimeCapable: true,
+    platformReady: true,
+    renderer: true,
+    projection: true,
+    courseEntry: true,
+    scheduler: true,
+    officialFirstImport: true,
+  );
+
   factory OfficialAnkiFeatureFlags.fromEnvironment() {
-    const engine = bool.fromEnvironment(
-      'TURNA_OFFICIAL_ANKI_ENGINE',
-      defaultValue: true,
-    );
-    const import = bool.fromEnvironment(
-      'TURNA_OFFICIAL_ANKI_IMPORT',
-      defaultValue: true,
-    );
     const diagnostics = bool.fromEnvironment('TURNA_OFFICIAL_ANKI_DIAGNOSTICS');
-    const catalogReady = bool.fromEnvironment(
-      'TURNA_OFFICIAL_ANKI_CATALOG',
-      defaultValue: true,
-    );
-    const runtimeCapable = bool.fromEnvironment(
-      'TURNA_OFFICIAL_ANKI_RUNTIME',
-      defaultValue: true,
-    );
-    const platformReady = bool.fromEnvironment(
-      'TURNA_OFFICIAL_ANKI_PLATFORM',
-      defaultValue: true,
-    );
-    const renderer = bool.fromEnvironment(
-      'TURNA_OFFICIAL_ANKI_RENDERER',
-      defaultValue: true,
-    );
     const reviewerDiagnostics =
         bool.fromEnvironment('TURNA_OFFICIAL_ANKI_REVIEWER_DIAGNOSTICS');
-    const projection = bool.fromEnvironment(
-      'TURNA_OFFICIAL_ANKI_PROJECTION',
-      defaultValue: true,
-    );
-    const courseEntry = bool.fromEnvironment(
-      'TURNA_OFFICIAL_ANKI_COURSE_ENTRY',
-      defaultValue: true,
-    );
-    const scheduler = bool.fromEnvironment(
-      'TURNA_OFFICIAL_ANKI_SCHEDULER',
-      defaultValue: true,
-    );
     const migrationPilot =
         bool.fromEnvironment('TURNA_OFFICIAL_ANKI_MIGRATION_PILOT');
     const courseGradesScheduler =
         bool.fromEnvironment('TURNA_OFFICIAL_ANKI_COURSE_GRADES_SCHEDULER');
-    const officialFirstImport =
-        bool.fromEnvironment('TURNA_OFFICIAL_ANKI_OFFICIAL_FIRST_IMPORT');
     const legacyMirror =
         bool.fromEnvironment('TURNA_OFFICIAL_ANKI_LEGACY_MIRROR');
-    return const OfficialAnkiFeatureFlags(
-      engine: engine,
-      import: import,
+    return productionAndroid.copyWith(
       diagnostics: diagnostics,
-      catalogReady: catalogReady,
-      runtimeCapable: runtimeCapable,
-      platformReady: platformReady,
-      renderer: renderer,
       reviewerDiagnostics: reviewerDiagnostics,
-      projection: projection,
-      courseEntry: courseEntry,
-      scheduler: scheduler,
       migrationPilot: migrationPilot,
       courseGradesScheduler: courseGradesScheduler,
-      officialFirstImport: officialFirstImport,
       legacyMirror: legacyMirror,
     );
   }
@@ -143,9 +118,9 @@ class OfficialAnkiFeatureFlags {
   bool get allowsCourseGradesScheduler =>
       allowsOfficialScheduler && courseGradesScheduler;
 
-  /// P5F: official saga runs before Turna-side writes and the course tree is
+  /// Official saga runs before any Turna-side write and the course tree is
   /// projected from the official collection (no Dart apkg parse on this path).
-  /// Opt-in only; requires the full projection/course-entry capability set.
+  /// Production default is on (doc 34); requires projection/course-entry.
   bool get allowsOfficialFirstImport =>
       officialFirstImport && allowsOfficialImport && allowsCourseEntry;
 

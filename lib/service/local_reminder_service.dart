@@ -31,29 +31,16 @@ class LocalReminderService {
 
     const android = AndroidInitializationSettings('@mipmap/launcher_icon');
     const ios = DarwinInitializationSettings();
-    // HarmonyOS: the OHos plugin branch (defaultTargetPlatform == ohos)
-    // requires an OhosInitializationSettings; without it `initialize` throws
-    // "Ohos settings must be set". The defaultIcon name resolves against the
-    // OHos resources media/ folder (we ship launcher_icon.png there).
-    const ohos = OhosInitializationSettings('@mipmap/launcher_icon');
     await _plugin.initialize(
       const InitializationSettings(
         android: android,
         iOS: ios,
-        ohos: ohos,
       ),
     );
 
     final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
     await androidPlugin?.requestNotificationsPermission();
-
-    // HarmonyOS: enable notifications via notificationManager — a prerequisite
-    // for periodicallyShow (which maps to reminderAgentManager) to actually
-    // fire. No-op on Android/iOS (the resolved plugin is null there).
-    final ohosPlugin = _plugin.resolvePlatformSpecificImplementation<
-        OhosFlutterLocalNotificationsPlugin>();
-    await ohosPlugin?.requestNotificationsPermission();
 
     _initialized = true;
   }
@@ -87,28 +74,14 @@ class LocalReminderService {
       importance: Importance.defaultImportance,
       priority: Priority.defaultPriority,
     );
-    // HarmonyOS: a SERVICE_INFORMATION slot is the appropriate type for a
-    // daily review reminder. The base periodicallyShow routes by platform;
-    // on Android/iOS the `ohos:` field is ignored.
-    const ohosDetails = OhosNotificationDetails(
-      OhosNotificationSlotType.SERVICE_INFORMATION,
-      slotDesc: 'Gentle daily reminder to review Turkish',
-      importance: OhosImportance.defaultImportance,
-    );
     const details = NotificationDetails(
       android: androidDetails,
       iOS: DarwinNotificationDetails(),
-      ohos: ohosDetails,
     );
 
-    // Use periodicallyShow as a workaround since timezone package
-    // is not compatible with Dart 3.6.2 (Flutter-OH).
-    // This shows a daily notification at approximately 24-hour intervals.
-    //
-    // Scheduling failures PROPAGATE: UpdateDailyReminderCommand must know
-    // the OS refused the schedule so it never commits the preference (and
-    // the UI never shows "enabled" for a reminder that will not fire).
-    // Boot-time callers wrap this in a best-effort try/catch.
+    // periodicallyShow approximates a daily cadence without the timezone
+    // package. Scheduling failures PROPAGATE: UpdateDailyReminderCommand must
+    // know the OS refused the schedule so it never commits the preference.
     await _plugin.periodicallyShow(
       notificationId,
       'Turna',

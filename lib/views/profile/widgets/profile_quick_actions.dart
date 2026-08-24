@@ -103,7 +103,7 @@ class _ProfileQuickActionsState extends State<ProfileQuickActions> {
                         courseId: 'anki',
                         officialOwner:
                             OfficialAnkiHomeDue.officialImportIds.isNotEmpty,
-                        officialCapable: OfficialAnkiFeatureFlags
+                        schedulerRuntimeAvailable: OfficialAnkiFeatureFlags
                             .current.allowsOfficialScheduler,
                       ),
                     );

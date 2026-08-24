@@ -61,6 +61,29 @@ class StudyCapabilities {
         ),
     };
   }
+
+  /// Course practice for Official cards: no scheduler write, mark introduced.
+  factory StudyCapabilities.coursePractice() {
+    return const StudyCapabilities(
+      writesLedger: false,
+      canUndo: false,
+      marksIntroduced: true,
+    );
+  }
+
+  StudyCapabilities copyWith({
+    bool? canUndo,
+    bool? canSpeak,
+    bool? writesLedger,
+    bool? marksIntroduced,
+  }) {
+    return StudyCapabilities(
+      canUndo: canUndo ?? this.canUndo,
+      canSpeak: canSpeak ?? this.canSpeak,
+      writesLedger: writesLedger ?? this.writesLedger,
+      marksIntroduced: marksIntroduced ?? this.marksIntroduced,
+    );
+  }
 }
 
 class StudyItem {
@@ -158,6 +181,12 @@ abstract interface class StudyLedger {
   });
 
   Future<bool> undo(StudyEventReceipt receipt);
+
+  Future<bool> redo(StudyEventReceipt receipt);
+
+  Future<bool> bury(CanonicalCardKey key);
+
+  Future<bool> suspend(CanonicalCardKey key);
 }
 
 class StudyLedgerResolver {

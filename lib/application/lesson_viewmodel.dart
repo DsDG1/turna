@@ -686,7 +686,23 @@ class LessonViewModel extends ChangeNotifier {
   }) async {
     final interaction = currentInteraction;
     if (interaction == null) return;
-    final controller = await _commitAnkiLearn(interaction, correct);
+    final key = _canonicalKeyForAnkiInteraction(interaction);
+    // Official course cards are practice + explicit introduction — never
+    // attempt Official ledger learn then fall back on recoverableError.
+    if (key?.backend == AnkiBackendKind.official) {
+      final controller = await _commitAnkiCourse(interaction, correct, key!);
+      _applyAnkiCourseSubmit(
+        interaction: interaction,
+        correct: correct,
+        userAnswerText: userAnswerText,
+        recordMistake: recordMistake,
+        mistakeWordId: mistakeWordId,
+        receipt: controller?.lastReceipt,
+      );
+      return;
+    }
+
+    final controller = await _commitAnkiCourse(interaction, correct, key);
     if (controller == null ||
         controller.phase == StudyCardPhase.recoverableError ||
         controller.lastReceipt == null) {
@@ -698,7 +714,27 @@ class LessonViewModel extends ChangeNotifier {
       );
       return;
     }
-    StudyProductAnalytics.instance.record(controller.lastReceipt!);
+    _applyAnkiCourseSubmit(
+      interaction: interaction,
+      correct: correct,
+      userAnswerText: userAnswerText,
+      recordMistake: recordMistake,
+      mistakeWordId: mistakeWordId,
+      receipt: controller.lastReceipt,
+    );
+  }
+
+  void _applyAnkiCourseSubmit({
+    required Interaction interaction,
+    required bool correct,
+    String? userAnswerText,
+    bool? recordMistake,
+    String? mistakeWordId,
+    StudyEventReceipt? receipt,
+  }) {
+    if (receipt != null) {
+      StudyProductAnalytics.instance.record(receipt);
+    }
 
     if (!correct) {
       _totalMistakes++;
@@ -738,23 +774,23 @@ class LessonViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<StudySessionController?> _commitAnkiLearn(
+  Future<StudySessionController?> _commitAnkiCourse(
     Interaction interaction,
     bool correct,
+    CanonicalCardKey? key,
   ) async {
-    final key = _canonicalKeyForAnkiInteraction(interaction);
-    if (key == null) return null;
+    final resolved = key ?? _canonicalKeyForAnkiInteraction(interaction);
+    if (resolved == null) return null;
     final front = interaction is AnkiCard ? interaction.front : '';
     final back = interaction is AnkiCard ? interaction.back : '';
-    final item = AnkiStudySessionHost.itemFor(
-      key: key,
+    final item = AnkiStudySessionHost.itemForCourse(
+      key: resolved,
       presentation: FlipCardPresentation(
-        cardKey: key,
+        cardKey: resolved,
         frontText: front,
         backText: back,
         sourceFingerprint: 'lesson',
       ),
-      mode: StudyMode.learn,
       courseId: _lesson?.id ?? '',
       placementId: _lesson?.id ?? '',
     );

@@ -62,22 +62,12 @@ class AnkiImporter {
   /// The heavy work runs on a background isolate; [onProgress] and
   /// [isCancelled] execute on the calling isolate.
   ///
-  /// **Not available on HarmonyOS** — Anki `.apkg` files are SQLite databases
-  /// read via `sqlite3` FFI, which has no HarmonyOS build. Callers on OHos
-  /// should check [defaultTargetPlatform] before invoking.
   Future<AnkiCollection> parse(
     String apkgPath, {
     String? tempDir,
     void Function(double progress, String message)? onProgress,
     bool Function()? isCancelled,
   }) async {
-    if (defaultTargetPlatform.name == 'ohos') {
-      throw UnsupportedError(
-        'Anki import is not available on HarmonyOS yet. '
-        'Anki `.apkg` files are SQLite databases read via sqlite3 FFI, '
-        'which has no HarmonyOS build.',
-      );
-    }
     if (!platform.ankiFileExists(apkgPath)) {
       throw AnkiImportException('File not found: $apkgPath');
     }

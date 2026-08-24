@@ -23,7 +23,7 @@ import 'package:turna/core/logger.dart';
 import 'package:turna/data/course_database.dart' as db;
 import 'package:turna/data/course_repository.dart';
 import 'package:turna/di/injection.dart';
-import 'package:turna/utils/ohos_file_picker.dart';
+import 'package:turna/utils/validated_file_picker.dart';
 
 /// Kind of a flattened knowledge row in the review table.
 enum ResourceKind { word, expression, grammar }
@@ -167,13 +167,13 @@ class TextbookImportProvider extends ChangeNotifier {
     String? path;
     String name = '';
     try {
-      final result = await OhosFilePicker.pickFiles(
+      final result = await ValidatedFilePicker.pickFiles(
         allowedExtensions: const ['md', 'txt'],
       );
       if (result == null || result.files.isEmpty) return;
       path = result.files.single.path;
       name = result.files.single.name;
-    } on OhosFilePickerInvalidExtension {
+    } on ValidatedFilePickerInvalidExtension {
       return;
     }
 

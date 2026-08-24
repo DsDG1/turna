@@ -30,10 +30,6 @@ lib/configs/build_config.dart
 *.apk
 .fvm
 
-# DevEco Studio (OpenHarmony IDE) tool state directories — not source.
-**/.codegenie/
-**/.hvigor/
-
 # AutoRoute / Freezed / json_serializable / injectable generated files.
 # These are committed so a fresh clone can build without build_runner.
 # Re-run `flutter pub run build_runner build` after changing annotations.

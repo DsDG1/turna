@@ -545,7 +545,7 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
       sectionId: sectionId,
       officialOwner:
           OfficialAnkiHomeDue.officialImportIds.contains(importId),
-      officialCapable:
+      schedulerRuntimeAvailable:
           OfficialAnkiFeatureFlags.current.allowsOfficialScheduler,
     );
   }

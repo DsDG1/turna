@@ -608,9 +608,7 @@ class AppStrings {
   static String get homeImportFromTextbook => '从教材导入';
   static String get homeImportFromTextbookSubtitle => '将 Markdown/文本文件转换为章节';
   static String get homeFromAnki => '从 Anki';
-  static String get homeFromAnkiSubtitle => '导入 .apkg/.colpkg 牌组作为课程';
-  static String get homeSampleAnki => '试用示例 Anki';
-  static String get homeSampleAnkiSubtitle => '导入内置土耳其语问候示例牌组';
+  static String get homeFromAnkiSubtitle => '导入 .apkg 牌组作为课程';
   static String get homeStreakBrokenTitle => '连续学习中断了';
   static String get homeStreakBroken => '你的连续天数已归零。今天学一点，重新开始吧。';
 
@@ -1213,9 +1211,7 @@ class AppStrings {
   static String get ankiImportDialogTitle => '导入 Anki 牌组';
   static String get ankiImportSelectTitle => '导入 Anki 牌组';
   static String get ankiImportSelectSubtitle =>
-      '从 Anki 桌面端导出牌组文件 (.apkg / .colpkg)，然后从这里导入。';
-  static String get ankiImportSelectBodyHint => '想先看看效果？试用一个内置示例牌组';
-  static String get ankiImportFallbackScanHint => '系统选择器打不开？试试从已下载文件选择';
+      '从 Anki 桌面端导出牌组文件（.apkg），然后从这里导入。';
   static String get ankiChooseFile => '选择文件';
   // Wizard step labels for the new step indicator at the top of the page.
   static String get ankiStepSelect => '选择文件';
@@ -1224,6 +1220,11 @@ class AppStrings {
   static String get ankiStepImport => '导入中';
   static String get ankiStepDone => '完成';
   static String get ankiParsing => '正在解析 Anki 集合…';
+  static String ankiImportUnavailable([String? reason]) => reason == null ||
+          reason.isEmpty
+      ? '当前平台或构建无法导入 Anki 牌组'
+      : '当前无法导入 Anki 牌组（$reason）';
+
   static String get ankiCollectionSummary => '集合概要';
   static String get ankiDecksLabel => '牌组';
   static String get ankiNotesLabel => '笔记';
@@ -1320,7 +1321,9 @@ class AppStrings {
   static String ankiLessonsCreated(int lessonCount) => '已创建 $lessonCount 节课';
   static String ankiVocabAdded(int wordEntryCount) =>
       '已添加 $wordEntryCount 个词汇条目';
-  static String get ankiPickFileError => '请选择 .apkg 或 .colpkg 文件。';
+  static String get ankiPickFileError => '请选择 Anki 牌组文件（.apkg）。';
+  static String get ankiColpkgUnsupported =>
+      '暂不支持 .colpkg 集合备份。请从 Anki 桌面端导出牌组（.apkg）后再导入。';
   static String ankiPickFileFailed(Object error) => '选择文件失败：$error';
   static String ankiParseFailed(Object error) => '解析失败：$error';
   static String get ankiPreparingImport => '正在准备导入…';
@@ -1337,18 +1340,6 @@ class AppStrings {
   static String get ankiCopyingMedia => '正在复制媒体文件…';
   static String get ankiSavingMetadata => '正在保存导入元数据…';
   static String ankiImportFailed(Object error) => '导入失败：$error';
-  // Fallback file-import flows used when the system FilePicker is unavailable
-  // (e.g. trimmed emulator ROMs without the pickersheet bundle).
-  static String get ankiFallbackScanTitle => '从已下载文件中选择';
-  static String get ankiFallbackScanSubtitle => '扫描应用可见的目录（例如下载目录、缓存目录）';
-  static String get ankiFallbackScanEmpty => '未在已知目录找到 .apkg / .colpkg 文件。';
-  static String get ankiFallbackScanFailed => '扫描失败：';
-  static String get ankiFallbackPathTitle => '输入文件路径';
-  static String get ankiFallbackPathSubtitle => '从文件管理器复制完整路径后粘贴进来';
-  static String get ankiFallbackPathHint => '例如：/storage/.../deck.apkg';
-  static String get ankiFallbackPathAction => '导入此文件';
-  static String get ankiFallbackNoResult => '未找到匹配的文件';
-  static String get ankiFallbackPickFileFirst => '系统文件选择器不可用，请尝试其他方式：';
   static String get ankiStrategyMerge => '合并';
   static String get ankiStrategySkipExisting => '跳过已存在';
   static String get ankiStrategyForceReplace => '强制替换';
@@ -1410,8 +1401,8 @@ class AppStrings {
   static String get anki21bTreeDeferred => '已导入官方牌组；练习课稍后再生成';
   static String get ankiImportFailedHuman => '导入失败，请重试';
   static String get ankiAdvancedFidelityTitle =>
-      'Anki 保真 / 解密（仅旧版 / HarmonyOS）';
-  static String get ankiAdvancedFidelitySubtitle => '仅旧版 / HarmonyOS 导入源生效';
+      'Anki 保真 / 解密（仅旧版导入源）';
+  static String get ankiAdvancedFidelitySubtitle => '仅旧版导入源生效';
 
   // ── Courses ──
   static String get coursesCouldNotLoadCourse => '无法加载课程';
@@ -1780,9 +1771,7 @@ class AppStrings {
   static String get settingsFunAllAchievementsDone => '🏆 所有成就已解锁';
 
   // ── Anki sample ──
-  static String get ankiTrySample => '试用示例牌组';
   static String get ankiSampleDeckName => '示例 · 土耳其语问候';
-  static String get ankiSampleHint => '想先看看效果？试用一个内置示例牌组';
   static String get ankiSampleBadge => '示例';
 
   // ── Profile Anki ──

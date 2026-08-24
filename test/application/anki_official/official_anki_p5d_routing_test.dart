@@ -8,7 +8,6 @@ import 'package:turna/application/anki_official/engine/official_anki_home_due.da
 import 'package:turna/application/anki_official/engine/official_anki_native_availability.dart';
 import 'package:turna/application/anki_official/import/anki_import_facade.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
-import 'package:turna/application/anki_official/migration/official_anki_gray_config.dart';
 import 'package:turna/application/anki_official/migration/official_anki_user_allowlist.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_state.dart';
@@ -22,8 +21,8 @@ import 'package:turna/domain/course/srs_word.dart';
 void main() {
   test('p5d_default_build_routes_official_on_android', () {
     expect(LegacyAnkiMigrationFlags.cutoverEnabled, isTrue);
-    expect(OfficialAnkiGrayConfig.fromEnvironment().cohort, OfficialAnkiGrayCohort.g4);
     expect(OfficialAnkiFeatureFlags.fromEnvironment().allowsOfficialScheduler, isTrue);
+    expect(OfficialAnkiFeatureFlags.fromEnvironment().allowsOfficialFirstImport, isTrue);
     const resolver = AnkiSourceRouteResolver();
     expect(
       resolver.resolve(
@@ -60,12 +59,13 @@ void main() {
       ),
       AnkiImportDecision.official,
     );
+    // Doc 34: unsupported platforms fail closed — never open a Legacy writer.
     expect(
       AnkiImportFacade.decisionFor(
         OfficialAnkiFeatureFlags.fromEnvironment(),
         platform: 'ohos',
       ),
-      AnkiImportDecision.legacy,
+      AnkiImportDecision.failClosed,
     );
   });
 
@@ -81,16 +81,9 @@ void main() {
     );
     expect(
       AnkiImportFacade.decisionFor(
-        const OfficialAnkiFeatureFlags(
-          engine: true,
-          import: true,
-          catalogReady: true,
-          runtimeCapable: true,
-          platformReady: true,
-        ),
+        OfficialAnkiFeatureFlags.productionAndroid,
         cutoverEnabled: true,
         platform: 'android',
-        gray: const OfficialAnkiGrayConfig(cohort: OfficialAnkiGrayCohort.g1),
         libraryAvailable: true,
       ),
       AnkiImportDecision.official,
@@ -122,7 +115,7 @@ void main() {
     );
   });
 
-  test('p5d_library_missing_degrades_unrecorded_routing_to_legacy', () {
+  test('p5d_library_missing_fails_closed_for_new_imports', () {
     const resolver = AnkiSourceRouteResolver();
     expect(
       resolver.resolve(
@@ -148,12 +141,23 @@ void main() {
       AnkiEngineKind.official,
     );
     expect(
+      resolver.resolve(
+        sourceKey: 'p5c-fixture-device',
+        recordedKind: AnkiEngineKind.official,
+        cutoverEnabled: false,
+        platform: 'android',
+        libraryAvailable: true,
+      ),
+      AnkiEngineKind.official,
+    );
+    // Doc 34 W0: missing native runtime must not open a Legacy new-import.
+    expect(
       AnkiImportFacade.decisionFor(
         OfficialAnkiFeatureFlags.fromEnvironment(),
         platform: 'android',
         libraryAvailable: false,
       ),
-      AnkiImportDecision.legacy,
+      AnkiImportDecision.failClosed,
     );
   });
 
@@ -165,7 +169,7 @@ void main() {
     expect(OfficialAnkiNativeAvailability.current, isTrue);
   });
 
-  test('p5d_ohos_import_stays_legacy', () {
+  test('p5d_unsupported_platform_never_chooses_legacy_writer', () {
     expect(
       AnkiImportFacade.decisionFor(
         const OfficialAnkiFeatureFlags(
@@ -174,11 +178,14 @@ void main() {
           catalogReady: true,
           runtimeCapable: true,
           platformReady: true,
+          projection: true,
+          courseEntry: true,
+          officialFirstImport: true,
         ),
         cutoverEnabled: true,
         platform: 'ohos',
       ),
-      AnkiImportDecision.legacy,
+      AnkiImportDecision.failClosed,
     );
   });
 
@@ -225,7 +232,7 @@ void main() {
     const router = OfficialAnkiProductionRouter();
     expect(
       router.officialImportIds(dao: dao, cutoverEnabled: false),
-      isEmpty,
+      {'p5c-fixture-device'},
     );
     expect(
       router.officialImportIds(dao: dao, cutoverEnabled: true),
@@ -299,7 +306,7 @@ void main() {
         hasReviewTarget: true,
         canOpenOfficialReview: true,
       ),
-      OfficialAnkiReviewGateDecision.useLegacy,
+      OfficialAnkiReviewGateDecision.failClosed,
     );
     expect(
       decideOfficialReviewGate(
@@ -654,177 +661,65 @@ void main() {
     );
   });
 
-  test('p5d_gray_default_cohort_is_g4', () {
-    expect(OfficialAnkiGrayConfig.fromEnvironment().cohort, OfficialAnkiGrayCohort.g4);
-    expect(OfficialAnkiGrayConfig.fromEnvironment().isOn, isTrue);
+  test('p5d_production_import_does_not_consult_a_gray_cohort', () {
     expect(
-      const OfficialAnkiGrayConfig(cohort: OfficialAnkiGrayCohort.off).isOn,
+      File(
+        'lib/application/anki_official/migration/official_anki_gray_config.dart',
+      ).existsSync(),
       isFalse,
     );
     expect(
-      const OfficialAnkiGrayConfig(cohort: OfficialAnkiGrayCohort.off).thresholdPercent,
-      0,
-    );
-    expect(
-      const OfficialAnkiGrayConfig(cohort: OfficialAnkiGrayCohort.g1).thresholdPercent,
-      1,
-    );
-    expect(
-      const OfficialAnkiGrayConfig(cohort: OfficialAnkiGrayCohort.off)
-          .allowsNewOfficialImport(platform: 'android', cutoverEnabled: true),
+      File('lib/application/anki_official/import/anki_import_execution_plan.dart')
+          .readAsStringSync()
+          .contains('OfficialAnkiGrayConfig'),
       isFalse,
-    );
-    expect(
-      const OfficialAnkiGrayConfig(cohort: OfficialAnkiGrayCohort.g1)
-          .allowsNewOfficialImport(platform: 'android', cutoverEnabled: true),
-      isTrue,
     );
     expect(
       AnkiImportFacade.decisionFor(
-        const OfficialAnkiFeatureFlags(
-          engine: true,
-          import: true,
-          catalogReady: true,
-          runtimeCapable: true,
-          platformReady: true,
-        ),
+        OfficialAnkiFeatureFlags.productionAndroid,
         cutoverEnabled: true,
         platform: 'android',
-        gray: const OfficialAnkiGrayConfig(cohort: OfficialAnkiGrayCohort.off),
+        libraryAvailable: true,
       ),
-      AnkiImportDecision.legacy,
+      AnkiImportDecision.official,
     );
   });
 
-  test('preview_cutover_button_stays_disabled', () {
+  test('preview_does_not_offer_a_stub_cutover_button', () {
     final source = File(
       'lib/views/anki_official/official_anki_migration_preview_page.dart',
     ).readAsStringSync();
-    expect(source.contains('Cutover (disabled)'), isTrue);
     expect(source.contains('official-migration-cutover-disabled'), isTrue);
-    expect(source.contains('onPressed: null'), isTrue);
+    expect(source.contains('Cutover (disabled)'), isFalse);
+    expect(source.contains('onPressed: null'), isFalse);
+    expect(source.contains('this preview cannot switch owner'), isTrue);
   });
 
-  test('p5d_gray_g_cohort_thresholds_are_sequential', () {
-    expect(const OfficialAnkiGrayConfig(cohort: OfficialAnkiGrayCohort.g2).thresholdPercent, 10);
-    expect(const OfficialAnkiGrayConfig(cohort: OfficialAnkiGrayCohort.g3).thresholdPercent, 50);
-    expect(const OfficialAnkiGrayConfig(cohort: OfficialAnkiGrayCohort.g4).thresholdPercent, 100);
-    expect(OfficialAnkiGrayConfig.parseGrayCohort('g2'), OfficialAnkiGrayCohort.g2);
-    expect(OfficialAnkiGrayConfig.parseGrayCohort('10%'), OfficialAnkiGrayCohort.g2);
-    expect(OfficialAnkiGrayConfig.parseGrayCohort('g3'), OfficialAnkiGrayCohort.g3);
-    expect(OfficialAnkiGrayConfig.parseGrayCohort('50%'), OfficialAnkiGrayCohort.g3);
-    expect(OfficialAnkiGrayConfig.parseGrayCohort('g4'), OfficialAnkiGrayCohort.g4);
-    expect(OfficialAnkiGrayConfig.parseGrayCohort('100%'), OfficialAnkiGrayCohort.g4);
-    expect(
-      const OfficialAnkiGrayConfig(cohort: OfficialAnkiGrayCohort.g4)
-          .allowsNewOfficialImport(platform: 'android', cutoverEnabled: true),
-      isTrue,
-    );
+  test('p5d_production_import_requires_cutover_and_android', () {
     expect(
       AnkiImportFacade.decisionFor(
-        const OfficialAnkiFeatureFlags(
-          engine: true,
-          import: true,
-          catalogReady: true,
-          runtimeCapable: true,
-          platformReady: true,
-        ),
-        cutoverEnabled: true,
-        platform: 'android',
-        gray: const OfficialAnkiGrayConfig(cohort: OfficialAnkiGrayCohort.g4),
-        libraryAvailable: true,
-      ),
-      AnkiImportDecision.official,
-    );
-    expect(
-      const OfficialAnkiGrayConfig(cohort: OfficialAnkiGrayCohort.g3)
-          .allowsNewOfficialImport(platform: 'android', cutoverEnabled: true),
-      isTrue,
-    );
-    expect(
-      AnkiImportFacade.decisionFor(
-        const OfficialAnkiFeatureFlags(
-          engine: true,
-          import: true,
-          catalogReady: true,
-          runtimeCapable: true,
-          platformReady: true,
-        ),
-        cutoverEnabled: true,
-        platform: 'android',
-        gray: const OfficialAnkiGrayConfig(cohort: OfficialAnkiGrayCohort.g3),
-        libraryAvailable: true,
-      ),
-      AnkiImportDecision.official,
-    );
-    expect(
-      const OfficialAnkiGrayConfig(cohort: OfficialAnkiGrayCohort.g2)
-          .allowsNewOfficialImport(platform: 'android', cutoverEnabled: true),
-      isTrue,
-    );
-    expect(
-      AnkiImportFacade.decisionFor(
-        const OfficialAnkiFeatureFlags(
-          engine: true,
-          import: true,
-          catalogReady: true,
-          runtimeCapable: true,
-          platformReady: true,
-        ),
-        cutoverEnabled: true,
-        platform: 'android',
-        gray: const OfficialAnkiGrayConfig(cohort: OfficialAnkiGrayCohort.g2),
-        libraryAvailable: true,
-      ),
-      AnkiImportDecision.official,
-    );
-    expect(
-      AnkiImportFacade.decisionFor(
-        const OfficialAnkiFeatureFlags(
-          engine: true,
-          import: true,
-          catalogReady: true,
-          runtimeCapable: true,
-          platformReady: true,
-        ),
-        cutoverEnabled: true,
-        platform: 'android',
-        gray: const OfficialAnkiGrayConfig(cohort: OfficialAnkiGrayCohort.off),
-      ),
-      AnkiImportDecision.legacy,
-    );
-  });
-
-  test('p5d_gray_import_requires_cutover_and_android', () {
-    expect(
-      AnkiImportFacade.decisionFor(
-        const OfficialAnkiFeatureFlags(
-          engine: true,
-          import: true,
-          catalogReady: true,
-          runtimeCapable: true,
-          platformReady: true,
-        ),
+        OfficialAnkiFeatureFlags.productionAndroid,
         cutoverEnabled: false,
         platform: 'android',
-        gray: const OfficialAnkiGrayConfig(cohort: OfficialAnkiGrayCohort.g4),
       ),
-      AnkiImportDecision.legacy,
+      AnkiImportDecision.failClosed,
     );
     expect(
       AnkiImportFacade.decisionFor(
-        const OfficialAnkiFeatureFlags(
-          engine: true,
-          import: true,
-          catalogReady: true,
-          runtimeCapable: true,
-          platformReady: true,
-        ),
+        OfficialAnkiFeatureFlags.productionAndroid,
         cutoverEnabled: true,
         platform: 'ohos',
-        gray: const OfficialAnkiGrayConfig(cohort: OfficialAnkiGrayCohort.g4),
       ),
-      AnkiImportDecision.legacy,
+      AnkiImportDecision.failClosed,
+    );
+    expect(
+      AnkiImportFacade.decisionFor(
+        OfficialAnkiFeatureFlags.productionAndroid,
+        cutoverEnabled: true,
+        platform: 'android',
+        libraryAvailable: true,
+      ),
+      AnkiImportDecision.official,
     );
   });
 
@@ -837,12 +732,6 @@ void main() {
       'lib/views/anki_official/official_anki_migration_preview_page.dart',
     ).readAsStringSync();
     expect(preview.toLowerCase().contains('ankiweb'), isFalse);
-    expect(
-      File(
-        'lib/application/anki_official/migration/official_anki_gray_config.dart',
-      ).readAsStringSync().toLowerCase().contains('ankiweb'),
-      isFalse,
-    );
     expect(
       File(
         'lib/application/anki_official/migration/official_anki_user_allowlist.dart',
@@ -867,12 +756,7 @@ void main() {
     expect(isUserAllowlistedSource(importId: 'mszs6hml'), isFalse);
   });
 
-  test('p5d_gray_config_does_not_import_coursedatabase_or_census', () {
-    final src = File(
-      'lib/application/anki_official/migration/official_anki_gray_config.dart',
-    ).readAsStringSync();
-    expect(src.toLowerCase().contains('coursedatabase'), isFalse);
-    expect(src.toLowerCase().contains('census'), isFalse);
+  test('p5d_user_allowlist_does_not_import_coursedatabase', () {
     final allowSrc = File(
       'lib/application/anki_official/migration/official_anki_user_allowlist.dart',
     ).readAsStringSync();

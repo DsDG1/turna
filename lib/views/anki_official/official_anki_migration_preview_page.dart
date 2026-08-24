@@ -78,7 +78,10 @@ class _OfficialAnkiMigrationPreviewPageState
             },
             items: [
               for (final policy in LegacyAnkiSchedulingPolicy.values)
-                DropdownMenuItem(value: policy, child: Text(policy.name)),
+                DropdownMenuItem(
+                  value: policy,
+                  child: Text(policy.userVisibleLabel),
+                ),
             ],
           ),
           Text(
@@ -96,10 +99,10 @@ class _OfficialAnkiMigrationPreviewPageState
             ),
           ],
           const SizedBox(height: 8),
-          FilledButton(
-            key: const Key('official-migration-cutover-disabled'),
-            onPressed: null,
-            child: const Text('Cutover (disabled)'),
+          const Text(
+            'Cutover runs through the W8 census driver after a scheduling '
+            'policy is confirmed — this preview cannot switch owner.',
+            key: Key('official-migration-cutover-disabled'),
           ),
         ],
       ),

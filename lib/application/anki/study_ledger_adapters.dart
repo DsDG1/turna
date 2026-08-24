@@ -1,3 +1,4 @@
+import 'package:turna/application/anki_official/engine/official_anki_home_due.dart';
 import 'package:turna/domain/anki/canonical_card_key.dart';
 import 'package:turna/domain/anki/study_models.dart';
 import 'package:turna/domain/review/official_anki_review_ledger.dart';
@@ -75,6 +76,15 @@ class TurnaStudyLedger implements StudyLedger {
     if (ok) _byIdempotency.remove(receipt.idempotencyKey);
     return ok;
   }
+
+  @override
+  Future<bool> redo(StudyEventReceipt receipt) async => false;
+
+  @override
+  Future<bool> bury(CanonicalCardKey key) async => false;
+
+  @override
+  Future<bool> suspend(CanonicalCardKey key) async => false;
 }
 
 /// Maps a canonical Official card onto the Official scheduler ledger.
@@ -141,6 +151,45 @@ class OfficialStudyLedger implements StudyLedger {
     if (token is! ReviewEventReceipt) return false;
     final ok = await _inner.undo(token);
     if (ok) _byIdempotency.remove(receipt.idempotencyKey);
+    return ok;
+  }
+
+  @override
+  Future<bool> redo(StudyEventReceipt receipt) async {
+    final ok = await _inner.redo();
+    if (ok) _byIdempotency[receipt.idempotencyKey] = receipt;
+    return ok;
+  }
+
+  @override
+  Future<bool> bury(CanonicalCardKey key) async {
+    final ok = await _inner.bury(key);
+    if (ok) {
+      final current = Set<int>.from(
+        OfficialAnkiHomeDue.buriedCardIdsByImport[key.sourceId] ?? const {},
+      );
+      current.add(key.cardId);
+      OfficialAnkiHomeDue.buriedCardIdsByImport = {
+        ...OfficialAnkiHomeDue.buriedCardIdsByImport,
+        key.sourceId: current,
+      };
+    }
+    return ok;
+  }
+
+  @override
+  Future<bool> suspend(CanonicalCardKey key) async {
+    final ok = await _inner.suspend(key);
+    if (ok) {
+      final current = Set<int>.from(
+        OfficialAnkiHomeDue.suspendedCardIdsByImport[key.sourceId] ?? const {},
+      );
+      current.add(key.cardId);
+      OfficialAnkiHomeDue.suspendedCardIdsByImport = {
+        ...OfficialAnkiHomeDue.suspendedCardIdsByImport,
+        key.sourceId: current,
+      };
+    }
     return ok;
   }
 }

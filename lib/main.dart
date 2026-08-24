@@ -11,8 +11,10 @@ import 'package:turna/application/ai/ai_explain_prefs.dart';
 import 'package:turna/application/ai/engine/ai_engine.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/anki/anki_deck_manager.dart';
+import 'package:turna/application/anki_official/migration/official_anki_startup_census.dart';
 import 'package:turna/application/anki_official/migration/official_first_reanchor.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
+import 'package:turna/data/course_database.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/srs_provider.dart';
@@ -146,6 +148,19 @@ Future<void> main() async {
         }
       } catch (e) {
         debugPrint('[OfficialAnki] pending cleanup retry skipped: $e');
+      }
+    }());
+
+    // Doc 34 W3: read-only joined census + scanned journal. Never switches
+    // owner and never opens the Collection for mutation.
+    unawaited(() async {
+      try {
+        await const OfficialAnkiStartupCensus().run(
+          course: getIt<CourseDatabase>(),
+          catalog: OfficialAnkiCompositionRoot.readOnlyCatalog,
+        );
+      } catch (e) {
+        debugPrint('[OfficialAnki] startup census skipped: $e');
       }
     }());
 

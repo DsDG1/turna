@@ -210,7 +210,29 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
     int pageSize = 200,
     String? pageToken,
   }) async {
-    final ids = cards.keys.toList()..sort();
+    final raw = search.trim().toLowerCase();
+    final wantSuspended = raw.contains('is:suspended');
+    final excludeSuspended = raw.contains('-is:suspended');
+    final needle = raw
+        .replaceAll('-is:suspended', '')
+        .replaceAll('is:suspended', '')
+        .trim();
+    var ids = cards.keys.toList()..sort();
+    if (wantSuspended) {
+      ids = ids.where(suspended.contains).toList();
+    } else if (excludeSuspended) {
+      ids = ids.where((id) => !suspended.contains(id)).toList();
+    }
+    if (needle.isNotEmpty) {
+      ids = [
+        for (final id in ids)
+          if (id.toString().contains(needle) ||
+              'q$id'.contains(needle) ||
+              'a$id'.contains(needle) ||
+              (cards[id]?.noteGuid ?? '').toLowerCase().contains(needle))
+            id,
+      ];
+    }
     final start = int.tryParse(pageToken ?? '0') ?? 0;
     final end = (start + pageSize).clamp(0, ids.length);
     return OfficialAnkiCardPage(

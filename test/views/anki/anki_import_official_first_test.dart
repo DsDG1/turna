@@ -1,7 +1,6 @@
-// P5F-1 sequencing tests: with the opt-in official-first flag, the official
-// Anki saga must run BEFORE any Turna-side write (failure → zero Turna rows);
-// with the flag off the legacy order (Turna first, official mirror failures
-// swallowed) must be preserved.
+// Official-first production import: saga before any Turna-side write
+// (failure → zero Turna rows). Flag-off / legacyMirror must fail-closed
+// rather than reopen a Legacy writer (doc 34 W0).
 //
 // The wizard is driven through the real file-pick flow with an injected
 // parser ([AnkiImportPage.importerForTest]) so everything stays synchronous —
@@ -29,7 +28,6 @@ import 'package:turna/application/anki_official/contract/official_anki_errors.da
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
-import 'package:turna/application/anki_official/import/anki_import_facade.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine_fake.dart';
 import 'package:turna/application/anki_official/engine/official_anki_native_availability.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
@@ -172,7 +170,6 @@ void main() {
   late SrsProvider srsProvider;
   late OfficialAnkiFeatureFlags savedFlags;
   late OfficialAnkiImporter? savedSession;
-  late FilePicker savedPicker;
   late OfficialAnkiDatabase? savedCatalog;
   late Directory tmpDir;
 
@@ -220,7 +217,6 @@ void main() {
 
     savedFlags = OfficialAnkiFeatureFlags.current;
     savedSession = OfficialAnkiCompositionRoot.session;
-    savedPicker = FilePicker.platform;
     savedCatalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
     FilePicker.platform = _FakePicker(p.join(tmpDir.path, 'p5f.apkg'));
     // The unified orchestrator is a process singleton; without this its
@@ -247,7 +243,6 @@ void main() {
       openedCatalog.close();
     }
     OfficialAnkiCompositionRoot.readOnlyCatalog = savedCatalog;
-    FilePicker.platform = savedPicker;
     CourseLoader.clearDatabaseOverride();
     await db.close();
     await GetIt.instance.reset();
@@ -393,7 +388,7 @@ void main() {
     );
   });
 
-  testWidgets('p5f_flag_off_keeps_legacy_order_without_background_mirror',
+  testWidgets('official_first_flag_off_fail_closes_with_zero_writes',
       (tester) async {
     tester.view.physicalSize = const Size(1080, 1920);
     tester.view.devicePixelRatio = 1.0;
@@ -404,19 +399,27 @@ void main() {
     final failing = _FailingOfficialImporter();
     OfficialAnkiCompositionRoot.session = failing;
     await pumpWizard(tester);
-    await pickAndWaitForPreview(tester);
-    await startImport(tester);
+    await tester.tap(
+      find.widgetWithText(ElevatedButton, AppStrings.ankiChooseFile),
+    );
+    await tester.pumpAndSettle();
 
-    expect(failing.calls, 0,
-        reason: 'production default keeps exactly one owner per import: a '
-            'legacy commit is not re-mirrored into the official collection');
-    expect(find.text(AppStrings.ankiImportComplete), findsOneWidget,
-        reason: 'legacy import succeeds on its own');
+    expect(failing.calls, 0, reason: 'fail-closed never starts the saga');
+    expect(
+      find.text(
+        AppStrings.ankiImportUnavailable('official_first_required_but_flag_off'),
+      ),
+      findsOneWidget,
+    );
     final records = await getIt<AnkiImportDao>().getAll();
-    expect(records, isNotEmpty);
+    expect(records, isEmpty, reason: 'flag-off must not write Legacy rows');
+    expect(
+      srsProvider.state.keys.where((id) => id.startsWith('anki-')),
+      isEmpty,
+    );
   });
 
-  testWidgets('legacyMirror_flag_reenables_the_deferred_official_mirror',
+  testWidgets('legacyMirror_cannot_reopen_legacy_writer_when_official_first_off',
       (tester) async {
     tester.view.physicalSize = const Size(1080, 1920);
     tester.view.devicePixelRatio = 1.0;
@@ -429,15 +432,14 @@ void main() {
     final failing = _FailingOfficialImporter();
     OfficialAnkiCompositionRoot.session = failing;
     await pumpWizard(tester);
-    await pickAndWaitForPreview(tester);
-    await startImport(tester);
+    await tester.tap(
+      find.widgetWithText(ElevatedButton, AppStrings.ankiChooseFile),
+    );
+    await tester.pumpAndSettle();
 
-    expect(failing.calls, 1,
-        reason: 'the development-only mirror flag re-enables the post-commit '
-            'official import');
-    expect(find.text(AppStrings.ankiImportComplete), findsOneWidget,
-        reason: 'mirror failure must stay non-fatal (deferred)');
+    expect(failing.calls, 0);
     final records = await getIt<AnkiImportDao>().getAll();
-    expect(records, isNotEmpty);
+    expect(records, isEmpty,
+        reason: 'legacyMirror must not resurrect mixed-owner writes');
   });
 }

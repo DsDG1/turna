@@ -62,7 +62,7 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
         entry: FormalReviewEntryKind.playHub,
         courseId: 'anki',
         officialOwner: OfficialAnkiHomeDue.officialImportIds.isNotEmpty,
-        officialCapable:
+        schedulerRuntimeAvailable:
             OfficialAnkiFeatureFlags.current.allowsOfficialScheduler,
       ),
     );

@@ -29,7 +29,6 @@ import 'package:turna/application/anki/card_introduction_store.dart';
 import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/data/course_database_seeder.dart';
-import 'package:turna/data/rdb_query_executor.dart';
 import 'package:turna/domain/repositories/i_credential_store.dart';
 import 'package:turna/service/secure_credential_store.dart';
 import 'package:turna/di/injection.dart';
@@ -389,15 +388,12 @@ Future<void> setupLocator() async {
   // matches and sections exist. Registered as a singleton so [CourseLoader]
   // can resolve it synchronously.
   //
-  // OHos (HarmonyOS): uses native RDB via MethodChannel bridge
-  // (HarmonyOsRdbExecutor). Android/iOS use sqlite3 FFI (NativeDatabase).
-  // Apply a staged remote restore (armed from the remote-backup settings
-  // page) before any database or the official Anki engine opens — this is
-  // the only point in the boot sequence where every data file is closed.
-  // OHos is excluded (course.db lives in the system RDB store, not a file)
-  // and so is web (no local databases).
+  // Non-web platforms use sqlite3 FFI (NativeDatabase). Apply a staged
+  // remote restore (armed from the remote-backup settings page) before any
+  // database or the official Anki engine opens — this is the only point in
+  // the boot sequence where every data file is closed. Web has no local DBs.
   var remoteRestoreApplied = false;
-  if (defaultTargetPlatform.name != 'ohos' && !kIsWeb) {
+  if (!kIsWeb) {
     final appSupport = await getApplicationSupportDirectory();
     final outcome = await RestoreApplier(
       prefs: getIt<AppPrefs>(),
@@ -446,9 +442,8 @@ Future<void> setupLocator() async {
         .remove(LocalStateKeys.remoteBackupNormalizationPending);
   }
 
-  // Remote backup (manual WebDAV backup / restore) — same platform window as
-  // the restore applier (needs file-backed databases).
-  if (defaultTargetPlatform.name != 'ohos' && !kIsWeb) {
+  // Remote backup (manual WebDAV backup / restore) — needs file-backed DBs.
+  if (!kIsWeb) {
     final appSupport = await getApplicationSupportDirectory();
     if (!getIt.isRegistered<PackageInfo>()) {
       getIt.registerSingleton<PackageInfo>(await PackageInfo.fromPlatform());
@@ -491,36 +486,30 @@ Future<void> setupLocator() async {
 /// Opens the on-device course database and seeds it from the bundled JSON
 /// assets when needed (version / empty-tree gate).
 ///
-/// - OHos: uses [HarmonyOsRdbExecutor] backed by native RDB.
-/// - Android/iOS: uses [NativeDatabase] backed by sqlite3 FFI.
-/// - Web: not supported (`NativeDatabase` requires native sqlite3).
+/// Non-web platforms use [NativeDatabase] (sqlite3 FFI). Web is unsupported.
 Future<CourseDatabase> _openAndSeedCourseDatabase() async {
   final CourseDatabase db;
 
-  if (defaultTargetPlatform.name == 'ohos') {
-    final executor = HarmonyOsRdbExecutor('course.db');
-    db = CourseDatabase(executor);
-    await executor.ensureOpen(db);
-  } else if (kIsWeb) {
+  if (kIsWeb) {
     throw UnsupportedError(
       'CourseDatabase is not supported on web yet (NativeDatabase requires '
       'native sqlite3).',
     );
-  } else {
-    final dir = await getApplicationDocumentsDirectory();
-    final file = File(p.join(dir.path, 'course.db'));
-    // SQL runs on a dedicated background isolate so large imports (Anki deck
-    // assembly, SRS migration) never occupy the UI thread — every awaited
-    // statement becomes a real suspension point and progress UI keeps
-    // rendering. [ensureOfficialAnkiSqlite] resolves the native sqlite3
-    // library inside that isolate (open.overrideFor is per-isolate state).
-    db = CourseDatabase(
-      NativeDatabase.createInBackground(
-        file,
-        isolateSetup: ensureOfficialAnkiSqlite,
-      ),
-    );
   }
+
+  final dir = await getApplicationDocumentsDirectory();
+  final file = File(p.join(dir.path, 'course.db'));
+  // SQL runs on a dedicated background isolate so large imports (Anki deck
+  // assembly, SRS migration) never occupy the UI thread — every awaited
+  // statement becomes a real suspension point and progress UI keeps
+  // rendering. [ensureOfficialAnkiSqlite] resolves the native sqlite3
+  // library inside that isolate (open.overrideFor is per-isolate state).
+  db = CourseDatabase(
+    NativeDatabase.createInBackground(
+      file,
+      isolateSetup: ensureOfficialAnkiSqlite,
+    ),
+  );
 
   try {
     await DatabaseSeeder(db).seedIfNeeded();

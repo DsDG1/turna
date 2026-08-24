@@ -123,13 +123,6 @@ class _CourseManagementBody extends StatelessWidget {
                         .push(AnkiImportRoute(startWithSample: false)),
                   ),
                   _AddCourseTile(
-                    icon: Icons.auto_awesome_rounded,
-                    title: AppStrings.homeSampleAnki,
-                    subtitle: AppStrings.homeSampleAnkiSubtitle,
-                    onTap: () => context.router
-                        .push(AnkiImportRoute(startWithSample: true)),
-                  ),
-                  _AddCourseTile(
                     icon: Icons.add_circle_outline_rounded,
                     title: AppStrings.homeNewCourse,
                     subtitle: AppStrings.homeNewCourseComingSoon,

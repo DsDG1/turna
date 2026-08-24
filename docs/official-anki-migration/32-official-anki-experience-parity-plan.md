@@ -2,7 +2,7 @@
 
 > 文档代号：P-EXPERIENCE-PARITY  
 > 日期：2026-08-20  
-> 状态：**施工规格（未实施）**  
+> 状态：**历史规格；勿按本文开施工波次。** OHOS Legacy 作废（[ADR 0041](../decisions/0041-ohos-product-eol.md)）；Official-first 是生产 bundle，不是独立 dart-define。残留 parity 面并入 [34](./34-official-anki-production-cutover-and-ohos-retirement-plan.md) W7（2026-08-24 接管）。  
 > 文件：本目录 `32-official-anki-experience-parity-plan.md`  
 > 前置：ADR `0036`、分类器与投影（`30` Host/Unit 已过）、产品入口（`31`）  
 > 目标：官方 Collection 继续当唯一 Anki 事实源；Turna 课壳、练习形态、复习入口和产品反馈做到接近自研导入路径。

@@ -41,7 +41,7 @@ dependencies:
   streaming_shared_preferences: ^2.0.0
   url_launcher: ^6.3.2
   # Fidelity WebView for the Anki deep-adaptation track (阶段 2). Federated -
-  # only Android/iOS have a platform implementation; on HarmonyOS/desktop/web
+  # only Android/iOS have a platform implementation; on desktop/web
   # AnkiHtmlCardView degrades to a text fallback (decision 4) and never
   # instantiates a WebViewController.
   webview_flutter: ^4.10.0
@@ -61,50 +61,6 @@ dev_dependencies:
   injectable_generator: ^3.0.2
   json_serializable: ^6.8.0
   pubspec_dependency_sorter: ^1.0.5
-dependency_overrides:
-  # OHos (HarmonyOS) platform implementations from openharmony-tpc community.
-  # See https://juejin.cn/post/7651831144142897178 for the adaptation catalog.
-  shared_preferences:
-    git:
-      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
-      path: packages/shared_preferences/shared_preferences
-      ref: br_shared_preferences-v2.5.3_ohos
-  path_provider:
-    git:
-      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
-      path: packages/path_provider/path_provider
-      ref: br_path_provider-v2.1.5_ohos
-  url_launcher:
-    git:
-      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
-      path: packages/url_launcher/url_launcher
-      ref: br_url_launcher-v6.3.2_ohos
-  package_info_plus:
-    git:
-      url: https://gitcode.com/openharmony-sig/flutter_plus_plugins.git
-      path: packages/package_info_plus/package_info_plus
-  share_plus:
-    git:
-      url: https://gitcode.com/openharmony-sig/flutter_plus_plugins.git
-      path: packages/share_plus/share_plus
-  file_picker:
-    git:
-      url: https://gitcode.com/openharmony-sig/fluttertpc_file_picker.git
-  flutter_local_notifications:
-    git:
-      url: https://gitcode.com/openharmony-sig/fluttertpc_flutter_local_notifications.git
-      path: flutter_local_notifications
-  # win32 3.x+ uses UnmodifiableUint8ListView, which the OHos Flutter SDK's
-  # Dart 3.6.2 runtime is missing from dart:typed_data. Pin to 2.7.0 which
-  # predates that API. Only needed on Windows host for native build helpers.
-  win32: 2.7.0
-  # flutter_secure_storage 9.x pulls flutter_secure_storage_windows ^3.1.2,
-  # which declares win32 ^5.0.0 and won't compile against the pinned 2.7.0.
-  # The OHos kernel snapshot compiles every platform implementation, so the
-  # Windows package must build. 2.1.1 drops the win32 dep (raw FFI) and still
-  # implements flutter_secure_storage_platform_interface ^1.0.1; on Android/
-  # OHos it is resolved but never instantiated at runtime.
-  flutter_secure_storage_windows: 2.1.1
 flutter:
   uses-material-design: true
   assets:

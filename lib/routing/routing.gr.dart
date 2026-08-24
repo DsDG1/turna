@@ -677,10 +677,15 @@ class AnkiReviewSessionRoute
   AnkiReviewSessionRoute({
     _i58.Key? key,
     String? sectionId,
+    bool? officialOwner,
     List<_i57.PageRouteInfo>? children,
   }) : super(
           AnkiReviewSessionRoute.name,
-          args: AnkiReviewSessionRouteArgs(key: key, sectionId: sectionId),
+          args: AnkiReviewSessionRouteArgs(
+            key: key,
+            sectionId: sectionId,
+            officialOwner: officialOwner,
+          ),
           initialChildren: children,
         );
 
@@ -695,32 +700,42 @@ class AnkiReviewSessionRoute
       return _i19.AnkiReviewSessionPage(
         key: args.key,
         sectionId: args.sectionId,
+        officialOwner: args.officialOwner,
       );
     },
   );
 }
 
 class AnkiReviewSessionRouteArgs {
-  const AnkiReviewSessionRouteArgs({this.key, this.sectionId});
+  const AnkiReviewSessionRouteArgs({
+    this.key,
+    this.sectionId,
+    this.officialOwner,
+  });
 
   final _i58.Key? key;
 
   final String? sectionId;
 
+  final bool? officialOwner;
+
   @override
   String toString() {
-    return 'AnkiReviewSessionRouteArgs{key: $key, sectionId: $sectionId}';
+    return 'AnkiReviewSessionRouteArgs{key: $key, sectionId: $sectionId, officialOwner: $officialOwner}';
   }
 
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
     if (other is! AnkiReviewSessionRouteArgs) return false;
-    return key == other.key && sectionId == other.sectionId;
+    return key == other.key &&
+        sectionId == other.sectionId &&
+        officialOwner == other.officialOwner;
   }
 
   @override
-  int get hashCode => key.hashCode ^ sectionId.hashCode;
+  int get hashCode =>
+      key.hashCode ^ sectionId.hashCode ^ officialOwner.hashCode;
 }
 
 /// generated route for

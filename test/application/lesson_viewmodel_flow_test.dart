@@ -303,6 +303,15 @@ class _RecordingStudyLedger implements StudyLedger {
 
   @override
   Future<bool> undo(StudyEventReceipt receipt) async => true;
+
+  @override
+  Future<bool> redo(StudyEventReceipt receipt) async => true;
+
+  @override
+  Future<bool> bury(CanonicalCardKey key) async => true;
+
+  @override
+  Future<bool> suspend(CanonicalCardKey key) async => true;
 }
 
 void _answerMultipleChoice(

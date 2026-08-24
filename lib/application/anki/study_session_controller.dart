@@ -31,6 +31,7 @@ class StudySessionController extends ChangeNotifier {
   PresentationReceipt? questionReceipt;
   PresentationReceipt? answerReceipt;
   StudyEventReceipt? lastReceipt;
+  StudyEventReceipt? _undoneReceipt;
   Object? lastError;
   Object? pendingEffectError;
   bool _locked = false;
@@ -48,6 +49,7 @@ class StudySessionController extends ChangeNotifier {
   int get generation => _generation;
   bool get isComplete => phase == StudyCardPhase.completed;
   bool get isLocked => _locked;
+  bool get canRedo => _undoneReceipt != null && !_locked;
 
   bool get canReveal {
     final item = currentItem;
@@ -194,6 +196,26 @@ class StudySessionController extends ChangeNotifier {
           reviewedAt: DateTime.now(),
         );
         _recordCounts(outcome);
+        if (item.capabilities.marksIntroduced &&
+            introductionRepository != null) {
+          try {
+            await introductionRepository!.markIntroduced(
+              item.courseId,
+              item.cardKey,
+              by: CardIntroducedBy.course,
+              lessonId: item.placementId,
+            );
+          } catch (error) {
+            pendingEffectError = error;
+          }
+        }
+        if (onEffects != null) {
+          try {
+            await onEffects!(item, lastReceipt!);
+          } catch (error) {
+            pendingEffectError = error;
+          }
+        }
         phase = StudyCardPhase.readyForNext;
         return;
       }
@@ -214,6 +236,7 @@ class StudySessionController extends ChangeNotifier {
         _commitsByIdempotency[key] = receipt;
       }
       lastReceipt = receipt;
+      _undoneReceipt = null;
       _recordCounts(outcome);
 
       if (item.capabilities.marksIntroduced &&
@@ -284,13 +307,9 @@ class StudySessionController extends ChangeNotifier {
       } else if (forgottenCount > 0) {
         forgottenCount--;
       }
+      _undoneReceipt = receipt;
       lastReceipt = null;
-      // Re-show the card whose answer was rolled back. The old index math
-      // only handled the `completed` phase; after the production auto-
-      // `continueNext` (phase showingQuestion of the NEXT card) the undone
-      // card was silently skipped, and in `readyForNext` the decrement
-      // landed on the card BEFORE the undone one. Locate the item by the
-      // receipt's idempotency-key prefix (its sessionItemId) instead.
+      // Re-show the card whose answer was rolled back.
       final itemId = _sessionItemIdOf(receipt);
       final target = itemId == null
           ? -1
@@ -301,6 +320,92 @@ class StudySessionController extends ChangeNotifier {
         _index -= 1;
       }
       _beginCurrent();
+      return true;
+    } catch (error) {
+      lastError = error;
+      phase = StudyCardPhase.recoverableError;
+      return false;
+    } finally {
+      _locked = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> redoLast() async {
+    final receipt = _undoneReceipt;
+    if (receipt == null || _locked) return false;
+    if (receipt.ledgerOwner == StudyLedgerOwner.none) return false;
+    _locked = true;
+    notifyListeners();
+    try {
+      final ledger = ledgerResolver.resolve(receipt.ledgerOwner);
+      final ok = await ledger.redo(receipt);
+      if (!ok) return false;
+      _commitsByIdempotency[receipt.idempotencyKey] = receipt;
+      _recordCounts(receipt.outcome);
+      lastReceipt = receipt;
+      _undoneReceipt = null;
+      phase = StudyCardPhase.readyForNext;
+      return true;
+    } catch (error) {
+      lastError = error;
+      phase = StudyCardPhase.recoverableError;
+      return false;
+    } finally {
+      _locked = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> buryCurrent() async {
+    final item = currentItem;
+    if (item == null || _locked) return false;
+    _locked = true;
+    notifyListeners();
+    try {
+      if (item.ledgerOwner != StudyLedgerOwner.none) {
+        final ledger = ledgerResolver.resolve(item.ledgerOwner);
+        final ok = await ledger.bury(item.cardKey);
+        if (!ok) return false;
+      }
+      _index += 1;
+      if (_index >= items.length) {
+        phase = StudyCardPhase.completed;
+        questionReceipt = null;
+        answerReceipt = null;
+      } else {
+        _beginCurrent();
+      }
+      return true;
+    } catch (error) {
+      lastError = error;
+      phase = StudyCardPhase.recoverableError;
+      return false;
+    } finally {
+      _locked = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> suspendCurrent() async {
+    final item = currentItem;
+    if (item == null || _locked) return false;
+    _locked = true;
+    notifyListeners();
+    try {
+      if (item.ledgerOwner != StudyLedgerOwner.none) {
+        final ledger = ledgerResolver.resolve(item.ledgerOwner);
+        final ok = await ledger.suspend(item.cardKey);
+        if (!ok) return false;
+      }
+      _index += 1;
+      if (_index >= items.length) {
+        phase = StudyCardPhase.completed;
+        questionReceipt = null;
+        answerReceipt = null;
+      } else {
+        _beginCurrent();
+      }
       return true;
     } catch (error) {
       lastError = error;

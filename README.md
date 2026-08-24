@@ -15,7 +15,7 @@
 
 - **纯本地**：SQLite（drift，schemaVersion 18），无云后端 / 推送 / 登录。
 - **单人离线**：无好友、排行榜、联赛、心数、宝石购买。
-- **主打 Android**：以 **Android** 为核心主力平台，兼顾 HarmonyOS（OHOS Flutter 分支）、iOS 与 Web（有限支持）。
+- **主打 Android**：以 **Android** 为核心主力平台，兼顾 iOS 与 Web（有限支持）。OHOS 产品支持已退役（ADR 0041）。
 - **教学法驱动**：功能取舍以二语习得研究为依据（见 project-guide §2 / §15）。
 
 > 本仓库非上游官方版本；纯原版功能请访问 [rshrc/Turna](https://github.com/rshrc/Varnamala)。
@@ -53,8 +53,8 @@ python tool/build_release.py --version 0.4.0-future4
 ```
 
 - **核心平台**：**Android**（主战场；Anki 默认 Flutter HTML，WebView 仅 JS；Google/系统离线 TTS 与 FSRS SQLite）。
-- **多端兼顾**：iOS、HarmonyOS（基于 OpenHarmony Flutter fork，需 JDK 17 + 源码补丁，配置见 [`docs/android-build-setup.md`](./docs/android-build-setup.md)）及有限 Web 支持。
-- **环境**：Flutter SDK `>=3.2.3 <4.0.0`（OHOS 分支 3.35.8）。Windows 上用 `python` 而非 `python3`。
+- **多端兼顾**：iOS 及有限 Web 支持；构建说明见 [`docs/android-build-setup.md`](./docs/android-build-setup.md)。
+- **环境**：官方 Flutter SDK `>=3.2.3 <4.0.0` + JDK 17（Android）。Windows 上用 `python` 而非 `python3`。
 
 构建、Makefile、发布流水线、平台门控详见 project-guide §10；课程数据格式见 §13；主题与调色板见 §9。
 
@@ -81,7 +81,7 @@ python -m tool.gui.src.main
 | [`docs/official-anki-migration/31-anki-product-experience-plan.md`](./docs/official-anki-migration/31-anki-product-experience-plan.md) | Anki 产品体验收口：先打通导入，再课化/向导 |
 | [`docs/ai_companion_implementation.md`](./docs/ai_companion_implementation.md) | AI companion 实现边界 |
 | [`docs/advanced-settings-system-health.md`](./docs/advanced-settings-system-health.md) | 高级设置与系统健康 |
-| [`docs/android-build-setup.md`](./docs/android-build-setup.md) | OHOS 分支构建配置 |
+| [`docs/android-build-setup.md`](./docs/android-build-setup.md) | Android / 官方 Flutter 构建配置 |
 | [`docs/authoring/`](./docs/authoring/) | Authoring 契约与教师指南 |
 | [`docs/audio-recording-guidelines.md`](./docs/audio-recording-guidelines.md) | 人工录音提交规范 |
 | [`docs/decisions/`](./docs/decisions/) | 架构决策记录（ADR 0030–0037） |

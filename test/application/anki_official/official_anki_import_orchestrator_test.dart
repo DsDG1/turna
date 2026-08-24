@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
-import 'package:turna/application/anki/anki_importer.dart';
+import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine_fake.dart';
 import 'package:turna/application/anki_official/engine/official_anki_worker.dart';
 import 'package:turna/application/anki_official/import/anki_import_facade.dart';
@@ -211,16 +211,11 @@ void main() {
     expect(const OfficialAnkiFeatureFlags().allowsOfficialImport, isFalse);
     expect(OfficialAnkiFeatureFlags.current.import, isTrue);
     expect(OfficialAnkiFeatureFlags.current.allowsOfficialImport, isTrue);
-    var constructed = 0;
-    AnkiImportFacade.resolve(
-      flags: const OfficialAnkiFeatureFlags(),
-      legacyImporter: AnkiImporter(),
-    );
     expect(
-      AnkiImportFacade.resolve(
-        flags: const OfficialAnkiFeatureFlags(import: true, engine: false),
+      () => AnkiImportFacade.resolve(
+        flags: const OfficialAnkiFeatureFlags(),
       ),
-      isA<LegacyAnkiImportFacade>(),
+      throwsA(isA<OfficialAnkiException>()),
     );
     expect(
       () => AnkiImportFacade.resolve(
@@ -228,9 +223,8 @@ void main() {
         cutoverEnabled: true,
         platform: 'android',
       ),
-      throwsA(isA<Object>()),
+      throwsA(isA<OfficialAnkiException>()),
     );
-    expect(constructed, 0);
   });
 
   test('recovery cursor resumes from nextOffset not zero', () async {

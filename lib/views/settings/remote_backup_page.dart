@@ -70,8 +70,7 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
           ? getIt<RemoteBackupConfigStore>()
           : null;
 
-  bool get _supported =>
-      defaultTargetPlatform.name != 'ohos' && _service != null;
+  bool get _supported => _service != null;
 
   bool get _busy => _saving || _testing || _backingUp || _restoring;
 

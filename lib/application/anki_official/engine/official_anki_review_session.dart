@@ -41,7 +41,7 @@ class OfficialReviewSession {
   final OfficialAnkiAuditLog? audit;
   final String profileId;
   /// When set, only these card IDs may be shown or answered.
-  final Set<int>? allowedCardIds;
+  Set<int>? allowedCardIds;
 
   OfficialReviewPhase phase = OfficialReviewPhase.idle;
   OfficialReviewQueue? queue;
@@ -197,6 +197,27 @@ class OfficialReviewSession {
       phase = error.code == OfficialAnkiErrorCode.schedulingContextStale
           ? OfficialReviewPhase.staleContext
           : OfficialReviewPhase.recoverableError;
+    }
+  }
+
+  /// Narrow the live queue to the StudyItems the shared host actually shows.
+  ///
+  /// Call after assembling formal-due items so [current] cannot sit on a
+  /// card the page skipped (no presentation / not introduced).
+  void restrictAllowedCards(Set<int> ids) {
+    if (disposed) return;
+    allowedCardIds = ids;
+    if (queue == null) return;
+    current = _selectCurrent(queue!);
+    if (current == null) {
+      phase = OfficialReviewPhase.completed;
+      return;
+    }
+    if (phase == OfficialReviewPhase.showingAnswer ||
+        phase == OfficialReviewPhase.showingQuestion ||
+        phase == OfficialReviewPhase.loadingQueue) {
+      phase = OfficialReviewPhase.showingQuestion;
+      questionShownAt = DateTime.now().millisecondsSinceEpoch;
     }
   }
 

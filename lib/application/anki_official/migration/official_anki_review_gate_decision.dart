@@ -15,11 +15,15 @@ OfficialAnkiReviewGateDecision decideOfficialReviewGate({
   required bool hasReviewTarget,
   required bool canOpenOfficialReview,
 }) {
-  if (!cutoverEnabled) return OfficialAnkiReviewGateDecision.useLegacy;
   if (routedEngine != AnkiEngineKind.official) {
     return OfficialAnkiReviewGateDecision.useLegacy;
   }
-  if (!catalogPresent || !hasReviewTarget || !canOpenOfficialReview) {
+  // Recorded Official owner stays Official (doc 34 W0-06). Cutover pause or
+  // missing capability is fail-closed, never a Legacy assembler.
+  if (!cutoverEnabled ||
+      !catalogPresent ||
+      !hasReviewTarget ||
+      !canOpenOfficialReview) {
     return OfficialAnkiReviewGateDecision.failClosed;
   }
   return OfficialAnkiReviewGateDecision.openOfficial;

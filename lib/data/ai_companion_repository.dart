@@ -20,7 +20,7 @@ import 'package:turna/domain/repositories/i_study_plan_repository.dart';
 ///
 /// The tables are additive raw-SQL tables created by CourseDatabase schema
 /// v16. Keeping the repository behind domain interfaces makes the same feature
-/// usable through HarmonyOS RDB and easy to replace with a web implementation.
+/// easy to replace with a web implementation.
 class AiCompanionRepository
     implements
         IAiSessionRepository,

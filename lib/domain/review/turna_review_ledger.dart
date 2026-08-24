@@ -1,3 +1,4 @@
+import 'package:turna/application/anki_official/migration/official_anki_write_owner.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/core/sm2.dart';
 import 'package:turna/domain/course/srs_word.dart';
@@ -18,6 +19,9 @@ class TurnaReviewLedger implements ReviewLedger {
   /// Registers a Turna-owned Anki word the first time the study session
   /// commits it. Official-owned cards never reach this ledger.
   void ensureWord(String rawId, ReviewSource source) {
+    if (source is LegacyAnkiSource) {
+      assertLegacySrsAnswerAllowed(importId: source.importId);
+    }
     if (!_srsProvider.state.containsKey(rawId)) {
       switch (source) {
         case LegacyAnkiSource(:final importId):
@@ -103,6 +107,11 @@ class TurnaReviewLedger implements ReviewLedger {
     RecallOutcome outcome, {
     int durationMs = 0,
   }) async {
+    if (key.source is LegacyAnkiSource) {
+      assertLegacySrsAnswerAllowed(
+        importId: (key.source as LegacyAnkiSource).importId,
+      );
+    }
     final now = DateTime.now();
     final word = _srsProvider.state[key.rawId];
     if (word == null) {

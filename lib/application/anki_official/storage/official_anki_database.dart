@@ -4,7 +4,7 @@ import 'package:sqlite3/sqlite3.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/storage/official_anki_sqlite.dart';
 
-const int kOfficialAnkiCatalogSchemaVersion = 8;
+const int kOfficialAnkiCatalogSchemaVersion = 9;
 
 /// Independent catalog. Must not live in CourseDatabase (downgrade wipes it).
 class OfficialAnkiDatabase {
@@ -68,6 +68,9 @@ class OfficialAnkiDatabase {
       }
       if (version <= 7) {
         _upgradeToV8();
+      }
+      if (version <= 8) {
+        _upgradeToV9();
       }
       _db.execute('PRAGMA user_version = $kOfficialAnkiCatalogSchemaVersion');
       _db.execute('COMMIT');
@@ -357,6 +360,35 @@ CREATE TABLE IF NOT EXISTS anki_scheduler_mutations (
         "ALTER TABLE legacy_anki_migrations ADD COLUMN recorded_kind TEXT",
       );
     }
+  }
+
+  /// Doc 34 W3: reconciliation journal for owner/census repairs.
+  void _upgradeToV9() {
+    _db.execute('''
+CREATE TABLE IF NOT EXISTS anki_source_reconciliation_journal (
+  operation_id TEXT PRIMARY KEY,
+  profile_id TEXT NOT NULL,
+  source_id TEXT,
+  import_id TEXT,
+  before_state TEXT NOT NULL,
+  evidence_hash TEXT NOT NULL,
+  intended_owner TEXT,
+  backup_id TEXT,
+  current_step TEXT NOT NULL,
+  completed_mutations_json TEXT NOT NULL DEFAULT '[]',
+  last_error TEXT,
+  retry_policy TEXT NOT NULL,
+  rollback_policy TEXT NOT NULL,
+  after_cardinality INTEGER,
+  after_fingerprint TEXT,
+  created_at_millis INTEGER NOT NULL,
+  updated_at_millis INTEGER NOT NULL
+);
+''');
+    _db.execute(
+      'CREATE INDEX IF NOT EXISTS anki_source_reconciliation_journal_profile_idx '
+      'ON anki_source_reconciliation_journal(profile_id, updated_at_millis)',
+    );
   }
 
   void close() => _db.dispose();

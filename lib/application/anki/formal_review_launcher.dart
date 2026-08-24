@@ -1,6 +1,14 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:turna/application/anki/official_study_batch_assembler.dart';
+import 'package:turna/application/anki/study_ledger_adapters.dart';
+import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
+import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';
+import 'package:turna/domain/anki/canonical_card_key.dart';
+import 'package:turna/domain/anki/card_presentation.dart';
 import 'package:turna/domain/anki/study_models.dart';
+import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/domain/review/official_anki_review_ledger.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 
@@ -36,6 +44,24 @@ class FormalReviewLaunchDecision {
   bool get isFailClosed => host == FormalReviewHostKind.failClosed;
 }
 
+/// Result of assembling an Official formal-review batch for the shared host.
+class OfficialFormalReviewBatch {
+  const OfficialFormalReviewBatch({
+    required this.items,
+    required this.ledger,
+    required this.session,
+    this.fidelityInteractions = const {},
+  });
+
+  final List<StudyItem> items;
+  final OfficialStudyLedger ledger;
+  final OfficialReviewSession session;
+
+  /// HTML faces for [FidelityCardPresentation] items, keyed by
+  /// [StudyItem.sessionItemId]. Required when any item uses fidelity.
+  final Map<String, AnkiHtmlCard> fidelityInteractions;
+}
+
 /// Resolves every formal Anki review entry onto one session host.
 class FormalReviewLauncher {
   const FormalReviewLauncher();
@@ -52,14 +78,14 @@ class FormalReviewLauncher {
     String? sectionId,
     String? lessonId,
     required bool officialOwner,
-    required bool officialCapable,
+    required bool schedulerRuntimeAvailable,
   }) {
     final scope = StudyScope(
       courseId: courseId,
       sectionId: sectionId,
       lessonId: lessonId,
     );
-    if (officialOwner && !officialCapable) {
+    if (officialOwner && !schedulerRuntimeAvailable) {
       return FormalReviewLaunchDecision(
         host: FormalReviewHostKind.failClosed,
         scope: scope,
@@ -73,10 +99,49 @@ class FormalReviewLauncher {
     );
   }
 
+  /// Assemble Official queue ∩ formal-due into StudyItems + OfficialStudyLedger.
+  ///
+  /// Shared session hosts must use this path for Official owners instead of
+  /// Legacy [AnkiReviewAssembler] + Turna SRS.
+  OfficialFormalReviewBatch assembleOfficialBatch({
+    required OfficialReviewSession session,
+    required String sourceId,
+    required String courseId,
+    required Iterable<OfficialReviewQueueCard> queueCards,
+    required Map<CanonicalCardKey, CardPresentation> presentations,
+    required Set<CanonicalCardKey> activePlacementCardKeys,
+    required Set<CanonicalCardKey> introducedCardKeys,
+    Set<CanonicalCardKey> suspendedCardKeys = const {},
+    Set<CanonicalCardKey> buriedCardKeys = const {},
+    Set<CanonicalCardKey> retiredCardKeys = const {},
+    Map<String, AnkiHtmlCard> fidelityInteractions = const {},
+    int? limit,
+    OfficialStudyBatchAssembler assembler = const OfficialStudyBatchAssembler(),
+  }) {
+    final items = assembler.assembleFromEligibility(
+      sourceId: sourceId,
+      courseId: courseId,
+      queueCards: queueCards,
+      presentations: presentations,
+      activePlacementCardKeys: activePlacementCardKeys,
+      introducedCardKeys: introducedCardKeys,
+      suspendedCardKeys: suspendedCardKeys,
+      buriedCardKeys: buriedCardKeys,
+      retiredCardKeys: retiredCardKeys,
+      limit: limit,
+    );
+    return OfficialFormalReviewBatch(
+      items: items,
+      ledger: OfficialStudyLedger(OfficialAnkiReviewLedger(session)),
+      session: session,
+      fidelityInteractions: fidelityInteractions,
+    );
+  }
+
   /// Snapshot used by routing tests: every entry maps to the same host name.
   Map<FormalReviewEntryKind, String> productionHostSnapshot({
     required bool officialOwner,
-    required bool officialCapable,
+    required bool schedulerRuntimeAvailable,
   }) {
     return {
       for (final entry in productionEntries)
@@ -84,7 +149,7 @@ class FormalReviewLauncher {
           entry: entry,
           courseId: 'course',
           officialOwner: officialOwner,
-          officialCapable: officialCapable,
+          schedulerRuntimeAvailable: schedulerRuntimeAvailable,
         ).isFailClosed
             ? 'failClosed'
             : sessionRouteName,
@@ -103,7 +168,7 @@ class FormalReviewLauncher {
     String? sectionId,
     String? lessonId,
     required bool officialOwner,
-    required bool officialCapable,
+    required bool schedulerRuntimeAvailable,
   }) {
     final decision = resolve(
       entry: entry,
@@ -111,12 +176,13 @@ class FormalReviewLauncher {
       sectionId: sectionId,
       lessonId: lessonId,
       officialOwner: officialOwner,
-      officialCapable: officialCapable,
+      schedulerRuntimeAvailable: schedulerRuntimeAvailable,
     );
     return FormalReviewNavigator.openSession(
       context,
       decision: decision,
       sectionId: sectionId,
+      officialOwner: officialOwner,
     );
   }
 }
@@ -133,6 +199,7 @@ class FormalReviewNavigator {
     BuildContext context, {
     required FormalReviewLaunchDecision decision,
     String? sectionId,
+    bool officialOwner = false,
   }) async {
     if (decision.isFailClosed) {
       if (!context.mounted) return;
@@ -153,6 +220,11 @@ class FormalReviewNavigator {
       return;
     }
     if (!context.mounted) return;
-    await context.router.push(AnkiReviewSessionRoute(sectionId: sectionId));
+    await context.router.push(
+      AnkiReviewSessionRoute(
+        sectionId: sectionId,
+        officialOwner: officialOwner,
+      ),
+    );
   }
 }

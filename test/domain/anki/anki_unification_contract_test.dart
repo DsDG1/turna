@@ -650,4 +650,16 @@ class _FakeStudyLedger implements StudyLedger {
     _byKey.remove(receipt.idempotencyKey);
     return true;
   }
+
+  @override
+  Future<bool> redo(StudyEventReceipt receipt) async {
+    _byKey[receipt.idempotencyKey] = receipt;
+    return true;
+  }
+
+  @override
+  Future<bool> bury(CanonicalCardKey key) async => true;
+
+  @override
+  Future<bool> suspend(CanonicalCardKey key) async => true;
 }

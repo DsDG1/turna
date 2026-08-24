@@ -55,7 +55,6 @@ class AnkiOfficialReviewGate {
     if (importId.isEmpty) return false;
     final cutoverEnabled =
         cutoverEnabledOverride ?? LegacyAnkiMigrationFlags.cutoverEnabled;
-    if (!cutoverEnabled) return false;
 
     final support = await getApplicationSupportDirectory();
     if (!context.mounted) return false;

@@ -2,7 +2,7 @@
 
 > 文档代号：P-ANKI-UX  
 > 日期：2026-08-20  
-> 状态：**施工规格（未实施）**  
+> 状态：**历史规格；勿按本文开施工波次。** OHOS Legacy 作废（[ADR 0041](../decisions/0041-ohos-product-eol.md)）；Official-first 是生产 bundle（`OfficialAnkiFeatureFlags.productionAndroid`），不是独立 dart-define。现行入口：[34](./34-official-anki-production-cutover-and-ohos-retirement-plan.md)（2026-08-24 接管）。  
 > 前置：ADR [`0036`](../decisions/0036-official-anki-core-migration.md)、[`30`](./30-course-like-card-experience-plan.md)、[`29`](./archive/29-p5e-wave1-production-decoupling-report.md)（已归档）  
 > 目标：先让 Android 生产导入稳定成功；再把路径收成「导入能看懂、复习像语言课、高级页不是实验室」。账本仍是官方 Collection / FSRS。
 

@@ -82,7 +82,7 @@ void main() {
     GetIt.instance.reset();
   });
 
-  testWidgets('AnkiImportPage: sample deck loads preview, user can inspect settings, then imports successfully', (tester) async {
+  testWidgets('AnkiImportPage: in-memory sample is fail-closed, not a Legacy writer', (tester) async {
     tester.view.physicalSize = const Size(1080, 1920);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -101,24 +101,11 @@ void main() {
       ),
     );
 
-    // Initial frame + post-frame callback loading sample deck
     await tester.pump();
     await tester.pumpAndSettle();
 
-    // 1. Verify we are in Step 2: Preview (NOT skipped to done!)
-    expect(find.text(AppStrings.ankiPreviewSectionContent), findsOneWidget);
-    expect(find.text(AppStrings.ankiPreviewStartImport), findsOneWidget);
-
-    // 2. User taps "开始导入"
-    await tester.tap(find.text(AppStrings.ankiPreviewStartImport));
-    await tester.pumpAndSettle();
-
-    // 3. Verify we are in Step 4: Done
-    expect(find.text(AppStrings.ankiImportComplete), findsOneWidget);
-    expect(find.text(AppStrings.ankiStartLearning), findsOneWidget);
-
-    // 4. Verify the deck is created in CourseProvider
-    expect(courseProvider.ankiDeckEntries.isNotEmpty, isTrue);
-    expect(courseProvider.courseEntries.any((e) => !e.isBuiltin), isTrue);
+    expect(find.textContaining('当前无法导入 Anki 牌组'), findsOneWidget);
+    expect(find.text(AppStrings.ankiPreviewStartImport), findsNothing);
+    expect(courseProvider.ankiDeckEntries, isEmpty);
   });
 }

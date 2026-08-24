@@ -1,5 +1,7 @@
+import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';
+import 'package:turna/domain/anki/canonical_card_key.dart';
 import 'package:turna/domain/review/recall_outcome.dart';
 import 'package:turna/domain/review/review_item.dart';
 import 'package:turna/domain/review/review_ledger.dart';
@@ -10,6 +12,9 @@ class OfficialAnkiReviewLedger implements ReviewLedger {
   final OfficialReviewSession _session;
 
   OfficialAnkiReviewLedger(this._session);
+
+  bool get canUndo => _session.canUndo;
+  bool get canRedo => _session.canRedo;
 
   @override
   Future<ReviewDueSummary> dueSummary({String? scope}) async {
@@ -108,6 +113,28 @@ class OfficialAnkiReviewLedger implements ReviewLedger {
       return false;
     }
     await _session.undo();
+    return _session.lastError == null;
+  }
+
+  Future<bool> redo() async {
+    if (!_session.canRedo) return false;
+    await _session.redo();
+    return _session.lastError == null;
+  }
+
+  Future<bool> bury(CanonicalCardKey key) async {
+    if (_session.current == null || _session.current!.cardId != key.cardId) {
+      return false;
+    }
+    await _session.buryOrSuspend(OfficialBuryOrSuspendAction.buryUser);
+    return _session.lastError == null;
+  }
+
+  Future<bool> suspend(CanonicalCardKey key) async {
+    if (_session.current == null || _session.current!.cardId != key.cardId) {
+      return false;
+    }
+    await _session.buryOrSuspend(OfficialBuryOrSuspendAction.suspend);
     return _session.lastError == null;
   }
 }

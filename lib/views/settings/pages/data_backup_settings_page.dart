@@ -2,7 +2,6 @@
 import 'dart:async';
 
 // Flutter imports:
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 // Package imports:
@@ -20,7 +19,7 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/service/export_service.dart';
-import 'package:turna/utils/ohos_file_picker.dart';
+import 'package:turna/utils/validated_file_picker.dart';
 import 'package:turna/views/settings/pages/settings_category_body.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/views/theme.dart';
@@ -68,10 +67,7 @@ class DataBackupSettingsPage extends StatelessWidget {
                 SettingsActionTile(
                   icon: Icons.cloud_upload_outlined,
                   title: AppStrings.settingsRemoteBackupTitle,
-                  subtitle: defaultTargetPlatform.name == 'ohos'
-                      ? AppStrings.settingsRemoteBackupUnsupported
-                      : AppStrings.settingsRemoteBackupSubtitle,
-                  enabled: defaultTargetPlatform.name != 'ohos',
+                  subtitle: AppStrings.settingsRemoteBackupSubtitle,
                   onTap: (context) =>
                       context.router.push(const RemoteBackupRoute()),
                 ),
@@ -218,13 +214,13 @@ class DataBackupSettingsPage extends StatelessWidget {
   Future<void> _importData(BuildContext context) async {
     String? pickedPath;
     try {
-      pickedPath = (await OhosFilePicker.pickFiles(
+      pickedPath = (await ValidatedFilePicker.pickFiles(
         allowedExtensions: const ['json'],
       ))
           ?.files
           .single
           .path;
-    } on OhosFilePickerInvalidExtension {
+    } on ValidatedFilePickerInvalidExtension {
       // Non-JSON selection is a user error worth explaining, not a silent
       // return that looks like the import did nothing.
       if (context.mounted) {

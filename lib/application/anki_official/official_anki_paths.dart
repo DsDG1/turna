@@ -27,6 +27,7 @@ class OfficialAnkiPaths {
   Directory get backups => Directory('${profileRoot.path}/backups');
   File get engineJson => File('${profileRoot.path}/engine.json');
   File get catalogFile => File('${profileRoot.path}/official_catalog.sqlite');
+  Directory get tempFolder => Directory('${profileRoot.path}/tmp');
 
   int diskFreeBytes() {
     try {
@@ -42,6 +43,26 @@ class OfficialAnkiPaths {
     }
   }
 
+  /// Cleans up any stale temporary files (*.tmp) or stale tempFolder entries.
+  Future<void> cleanStaleTempFiles() async {
+    try {
+      if (tempFolder.existsSync()) {
+        await tempFolder.delete(recursive: true);
+      }
+    } catch (_) {}
+    try {
+      if (profileRoot.existsSync()) {
+        for (final entity in profileRoot.listSync(followLinks: false)) {
+          if (entity is File && entity.path.endsWith('.tmp')) {
+            try {
+              entity.deleteSync();
+            } catch (_) {}
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
   Map<String, String> openPayload({required String backendCommit}) {
     return <String, String>{
       'collection_path': collectionFile.path,
@@ -55,6 +76,7 @@ class OfficialAnkiPaths {
     await profileRoot.create(recursive: true);
     await mediaFolder.create(recursive: true);
     await backups.create(recursive: true);
+    await cleanStaleTempFiles();
   }
 
   Future<void> writeEngineJson(Map<String, Object?> body) async {

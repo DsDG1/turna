@@ -156,6 +156,48 @@ void main() {
       expect(turna.undos, 1);
       expect(controller.rememberedCount, 0);
       expect(turna.commits, 1);
+      expect(controller.canRedo, isTrue);
+
+      expect(await controller.redoLast(), isTrue);
+      expect(controller.rememberedCount, 1);
+      expect(controller.canRedo, isFalse);
+    });
+
+    test('buryCurrent and suspendCurrent delegate to ledger and advance card', () async {
+      final official = _FakeStudyLedger(owner: StudyLedgerOwner.officialAnki);
+      final host = AnkiStudySessionHost(
+        resolver: StudyLedgerResolver(official: official),
+      );
+      final key1 = officialKey(10);
+      final key2 = officialKey(20);
+      final items = [
+        AnkiStudySessionHost.itemFor(
+          key: key1,
+          presentation: flipFor(key1),
+          mode: StudyMode.review,
+          courseId: courseId,
+        ),
+        AnkiStudySessionHost.itemFor(
+          key: key2,
+          presentation: flipFor(key2),
+          mode: StudyMode.review,
+          courseId: courseId,
+        ),
+      ];
+
+      final controller = host.open(items);
+      await controller.start();
+      expect(controller.currentIndex, 0);
+      expect(controller.currentItem?.cardKey, key1);
+
+      // Bury current card 10 -> advances to card 20
+      expect(await controller.buryCurrent(), isTrue);
+      expect(controller.currentIndex, 1);
+      expect(controller.currentItem?.cardKey, key2);
+
+      // Suspend current card 20 -> completes session
+      expect(await controller.suspendCurrent(), isTrue);
+      expect(controller.isComplete, isTrue);
     });
   });
 }
@@ -215,4 +257,16 @@ class _FakeStudyLedger implements StudyLedger {
     _byKey.remove(receipt.idempotencyKey);
     return true;
   }
+
+  @override
+  Future<bool> redo(StudyEventReceipt receipt) async {
+    _byKey[receipt.idempotencyKey] = receipt;
+    return true;
+  }
+
+  @override
+  Future<bool> bury(CanonicalCardKey key) async => true;
+
+  @override
+  Future<bool> suspend(CanonicalCardKey key) async => true;
 }

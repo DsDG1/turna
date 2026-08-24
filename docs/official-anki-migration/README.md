@@ -1,20 +1,23 @@
 # 官方 Anki Core 迁移文档索引
 
-> 状态：Phase 0 + Phase 1 **TECHNICAL CONDITIONAL GO**；Phase 2 + Phase 3 **TECHNICAL NO-GO**；Phase 4 **HOST CONDITIONAL GO / FORMAL REVIEW (Device A) CONDITIONAL GO**；Phase 5 **P5-C已收口（25） / D1–D4 已收口 / D5 生产默认已翻转（Android 新导入+可对上 catalog 的旧源走官方复刻；OHOS 仍 Legacy；host-d5） / P5-E Wave 1 已收口（29，生产解耦+禁导架构约束）；Wave 2–4 HOLD**；Phase 6 **已取消（2026-08-20 书面：不考虑与 AnkiWeb / 官方 Anki 同步）**
-> 首发目标：Android arm64  
-> 总原则：官方 Anki Collection 是唯一 Anki 事实源，Turna 只维护课程投影  
-> 目录布局：仅 active 文档（28/30/31/32/33）放在根目录，Phase 0–4 收口与 P5A/B/C/D1/E 的计划/报告归档到 [`archive/`](./archive/)，artifacts 一并归档。  
+> 状态：**唯一活跃施工入口 = [34](./34-official-anki-production-cutover-and-ohos-retirement-plan.md)**（Official 生产收口 + OHOS 产品 EOL）。
+> 收口收据：[`34-cutover-receipt.md`](./34-cutover-receipt.md) · **验收返工计划**：[`34-remaining-construction-plan.md`](./34-remaining-construction-plan.md) · W9 HOLD：[`34-w9-legacy-deletion-hold.md`](./34-w9-legacy-deletion-hold.md) · OHOS ADR：[0041](../decisions/0041-ohos-product-eol.md)
+> 准确口径：**Official Anki 迁移中**（不得写「迁移完成」——正式 release 观察与 Legacy 物理删除仍 HOLD）。
+> 首发目标：Android arm64
+> 总原则：官方 Anki Collection 是唯一 Anki 事实源，Turna 只维护课程投影；非 Android 不得以缺 Official Core 为由打开 Legacy 新写入
+> 目录布局：active 施工文档在根目录，Phase 0–4 收口与 P5A/B/C/D1/E 的计划/报告归档到 [`archive/`](./archive/)，artifacts 一并归档。
 > 历史执行记录：[`archive/02-phase-0-result-report.md`](./archive/02-phase-0-result-report.md)
 
 ## Active 文档（当前在跑）
 
 | 顺序 | 文档 | 用途 | 当前状态 |
 |---|---|---|---|
-| 28 | [P5-D 后续大施工计划](./28-p5d-remainder-construction-plan.md) | GO 板 + D2 施工手册 + D3–D5 | **D1–D4 已收口**；**D5 生产默认已翻转**（Android official；OHOS Legacy）；P5-E HOLD |
-| 30 | [官方 Anki 卡按语言课体验投影与渲染](./30-course-like-card-experience-plan.md) | 在官方核心之上恢复自动题型识别、语言课渲染、翻面/展开动画；评分仍写官方 Scheduler | **已实施（Host / Unit 验证通过）**；生产默认与 chrome 见 31 |
-| 31 | [Anki 产品体验收口](./31-anki-product-experience-plan.md) | 先打通 Android 生产导入（session/summary/cutover），再课化复习、向导、实验室入口、课程投影、首页 due | **施工规格（未实施）**；第一刀 W2 硬阻断 |
-| 32 | [官方 Anki 与自研体验对齐](./32-official-anki-experience-parity-plan.md) | 官方核心之上对齐自研课壳：题型、课树、复习 renderer、SRS 隔离、产品层、浏览器换源 | **施工规格（未实施）**；第一刀 P0 官方卡不进 Turna SRS |
-| 33 | [P5-F 官方先行导入施工计划](./33-official-first-import-construction-plan.md) | 官方 saga 先行消半态、投影替换 Dart 解析、清理面修复、parity 白名单门禁；opt-in flag 双分支 | **CONSTRUCTION GO（2026-08-22）**；四片 ①③②④ |
+| **34** | [Official 生产收口与 OHOS 退役](./34-official-anki-production-cutover-and-ohos-retirement-plan.md) | **唯一活跃施工入口**：W0–W10 止血、OHOS EOL、owner census、Official import/review、Legacy 迁移与分波删除 | **验收 NO-GO / 返工中**；Official-first、OHOS 主工程删除、arm64 构建骨架可保留；course scope、实时复习、due、W8、parity、数据出口与发布门禁见 [34-remaining](./34-remaining-construction-plan.md)；W9 HOLD |
+| 28 | [P5-D 后续大施工计划](./28-p5d-remainder-construction-plan.md) | 历史 D2 手册 + 灰度锁 | **由 34 接管**；灰度 cohort /「OHOS 继续 Legacy」作废（ADR 0041） |
+| 30 | [官方 Anki 卡按语言课体验投影与渲染](./30-course-like-card-experience-plan.md) | 在官方核心之上恢复自动题型识别、语言课渲染、翻面/展开动画；评分仍写官方 Scheduler | **已实施（Host / Unit 验证通过）**；生产默认与 chrome 见 **34** |
+| 31 | [Anki 产品体验收口](./31-anki-product-experience-plan.md) | 历史产品体验规格 | **由 34 接管 / superseded**；勿再按本文件单独开施工波次 |
+| 32 | [官方 Anki 与自研体验对齐](./32-official-anki-experience-parity-plan.md) | 历史 parity 规格 | **由 34 接管 / superseded**；残留 parity 面并入 34 W7 |
+| 33 | [P5-F 官方先行导入施工计划](./33-official-first-import-construction-plan.md) | 历史 official-first 施工 | **由 34 接管 / superseded**；默认策略与 fail-closed 以 34 W0/W4 为准 |
 
 ## Archived 文档（Phase 0–4 + P5A/B/C/D1/E 收口记录，归档保留备查）
 
@@ -71,7 +74,7 @@ Phase 0–4 与 P5 收口的构建/真机证据（截图、日志、APK 采样�
 
 第一阶段不修改生产导入默认行为，也不删除 Legacy 代码。它只回答以下问题：
 
-1. 官方 `rslib` 能否在当前 Android/OHOS Flutter 分支的构建环境下编译为 arm64 `.so`？
+1. 官方 `rslib` 能否在当前官方 Flutter / Android 构建环境下编译为 arm64 `.so`？
 2. Flutter release APK 能否稳定加载它？
 3. 能否完成 open、import、render、queue、answer、undo 的最小闭环？
 4. Unicode、Reverse、Cloze 和媒体是否能按官方语义工作？
@@ -82,8 +85,8 @@ Phase 0–4 与 P5 收口的构建/真机证据（截图、日志、APK 采样�
 
 ## 文档维护规则
 
-- 总体架构变化先修改 `00-overall-migration-plan.md`。
-- 当前阶段的施工变化修改对应阶段文档。
+- 总体架构变化先修改 `00-overall-migration-plan.md`（已归档；现行架构以 34 与 ADR 0036/0037/0041 为准）。
+- 当前施工变化修改 [34](./34-official-anki-production-cutover-and-ohos-retirement-plan.md) 与 [`34-cutover-receipt.md`](./34-cutover-receipt.md)，不要改 archive 里的历史报告。
 - 已执行任务必须填写实际 commit、命令、指标和证据，不能只勾选复选框。
 - 未验证的构建命令必须标注“候选”或“待验证”。
 - 任何上游 Anki commit 变化都要重新运行 contract、fixture 和性能门禁。

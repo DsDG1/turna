@@ -92,16 +92,34 @@ def ensure_native_library(root: Path) -> None:
 
 def assert_native_in_artifact(artifact: Path) -> None:
     with zipfile.ZipFile(artifact) as zf:
+        names = zf.namelist()
         embedded = [
             name
-            for name in zf.namelist()
+            for name in names
             if name.endswith("lib/arm64-v8a/libturna_anki.so")
         ]
+        other_abis = sorted(
+            {
+                part
+                for name in names
+                for part in ("armeabi-v7a", "x86_64", "x86")
+                if f"lib/{part}/" in name.replace("\\", "/")
+            }
+        )
     if not embedded:
         print(
             f"error: {artifact.name} does not embed lib/arm64-v8a/libturna_anki.so. "
             "The official-Anki cutover flags default on, so this artifact would "
             "break official import/review at runtime.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    if other_abis:
+        print(
+            f"error: {artifact.name} contains extra JNI ABI dirs {other_abis} "
+            "without a matching Official Anki .so policy (doc 34 §14.2: "
+            "arm64-v8a only). Do not ship a fat APK that installs on ABIs "
+            "where libturna_anki.so is missing.",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -138,15 +156,43 @@ def build_release(
     else:
         ensure_native_library(root)
 
-    run([flutter, "build", "apk", "--release"], cwd=root)
-    apk_src = root / "build" / "app" / "outputs" / "flutter-apk" / "app-release.apk"
+    run(
+        [
+            flutter,
+            "build",
+            "apk",
+            "--release",
+            "--split-per-abi",
+            "--target-platform",
+            "android-arm64",
+        ],
+        cwd=root,
+    )
+    apk_src = (
+        root
+        / "build"
+        / "app"
+        / "outputs"
+        / "flutter-apk"
+        / "app-arm64-v8a-release.apk"
+    )
     apk_dst = output_dir / f"turna-v{version}-release.apk"
     copy_artifact(apk_src, apk_dst)
     if not skip_native:
         assert_native_in_artifact(apk_dst)
     artifacts.append(apk_dst)
 
-    run([flutter, "build", "appbundle", "--release"], cwd=root)
+    run(
+        [
+            flutter,
+            "build",
+            "appbundle",
+            "--release",
+            "--target-platform",
+            "android-arm64",
+        ],
+        cwd=root,
+    )
     aab_src = root / "build" / "app" / "outputs" / "bundle" / "release" / "app-release.aab"
     aab_dst = output_dir / f"turna-v{version}-release.aab"
     copy_artifact(aab_src, aab_dst)
