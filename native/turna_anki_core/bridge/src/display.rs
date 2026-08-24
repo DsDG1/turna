@@ -3,7 +3,6 @@
 use anki::text::encode_iri_paths;
 use regex::Regex;
 
-
 static CSS_URL: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"(?xi)url\(\s*(?:'([^']*)'|"([^"]*)"|([^)]+?))\s*\)"#).unwrap()
 });
@@ -58,7 +57,9 @@ static HTML_LOCAL_REF: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| 
 
 fn is_remote(name: &str) -> bool {
     let trimmed = name.trim();
-    trimmed.get(..7).is_some_and(|s| s.eq_ignore_ascii_case("http://"))
+    trimmed
+        .get(..7)
+        .is_some_and(|s| s.eq_ignore_ascii_case("http://"))
         || trimmed
             .get(..8)
             .is_some_and(|s| s.eq_ignore_ascii_case("https://"))
@@ -143,8 +144,6 @@ pub fn body_class_for_ordinal(template_ordinal: u16) -> String {
     format!("card card{}", template_ordinal + 1)
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -198,13 +197,15 @@ mod tests {
 
     #[test]
     fn css_url_encoder_does_not_regex_the_whole_sheet_as_html() {
-        let css = ".card { background: url(hello world.png); } .x { content: '<img src=\"keep\">'; }";
+        let css =
+            ".card { background: url(hello world.png); } .x { content: '<img src=\"keep\">'; }";
         let encoded = encode_display_css(css);
         assert!(encoded.contains("hello%20world.png"), "{encoded}");
         assert!(encoded.contains("<img src=\"keep\">"), "{encoded}");
         assert!(encode_display_css("url('hash#tag.woff2')").contains("hash%23tag.woff2"));
         assert!(encode_display_css("url(\"question?.png\")").contains("question%3F.png"));
-        assert!(encode_display_css("url(https://evil.example/x.png)").contains("https://evil.example/x.png"));
+        assert!(encode_display_css("url(https://evil.example/x.png)")
+            .contains("https://evil.example/x.png"));
     }
 
     #[test]

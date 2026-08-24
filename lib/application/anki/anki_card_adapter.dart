@@ -199,6 +199,7 @@ class AnkiCardAdapter {
           wordId: wordId,
           interactionId: interactionId,
           text: front,
+          ordinal: card.ord,
         );
 
       case NotetypeMappingType.multipleChoice:
@@ -268,6 +269,7 @@ class AnkiCardAdapter {
           backMedia: backMedia,
           distractors: answerPool,
           notetype: notetype,
+          ordinal: card.ord,
         );
     }
   }
@@ -285,6 +287,7 @@ class AnkiCardAdapter {
     required ({List<String> images, List<String> audios}) backMedia,
     required List<String> distractors,
     AnkiNotetype? notetype,
+    required int ordinal,
   }) {
     AnkiAdaptResult flip() => _adaptAnkiCard(
           note: note,
@@ -304,6 +307,7 @@ class AnkiCardAdapter {
         wordId: wordId,
         interactionId: interactionId,
         text: front,
+        ordinal: ordinal,
       );
     }
 
@@ -772,13 +776,23 @@ class AnkiCardAdapter {
     required String wordId,
     required String interactionId,
     required String text,
+    required int ordinal,
   }) {
-    // Extract cloze deletion: {{c1::answer}} → blank + answer
-    final match = _clozeRegex.firstMatch(text);
+    // Anki card ordinals are 0-based: ord 0 tests deletion c1. Blank only
+    // the card's own deletion and reveal the others, matching the fidelity
+    // renderer (`clozeOrd: card.ord + 1`) — the old firstMatch/replaceAll
+    // version always quizzed c1's answer on every card of the note.
+    final own = RegExp(
+      '\\{\\{c${ordinal + 1}::(.*?)(?:::([^}]*))?\\}\\}',
+      dotAll: true,
+    );
+    final match = own.firstMatch(text);
     if (match != null) {
       final answer = match.group(1) ?? '';
       final hint = match.group(2);
-      final sentence = text.replaceAll(_clozeRegex, '_____');
+      final sentence = text
+          .replaceAllMapped(own, (_) => '_____')
+          .replaceAllMapped(_clozeRegex, (m) => m.group(1) ?? '');
 
       final interaction = Interaction.fillBlank(
         id: interactionId,

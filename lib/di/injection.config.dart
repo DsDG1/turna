@@ -31,7 +31,6 @@ import '../application/ai/engine/ai_http_client.dart' as _i518;
 import '../application/ai/engine/ai_recent_tasks_provider.dart' as _i687;
 import '../application/anki/anki_deck_manager.dart' as _i1045;
 import '../application/audio_controller.dart' as _i106;
-import '../application/character_provider.dart' as _i229;
 import '../application/cosmetic_provider.dart' as _i42;
 import '../application/course_provider.dart' as _i1051;
 import '../application/fun_lab_snapshot_service.dart' as _i141;
@@ -44,7 +43,6 @@ import '../application/lesson_completion_coordinator.dart' as _i495;
 import '../application/lesson_link_store.dart' as _i854;
 import '../application/lesson_progress_provider.dart' as _i409;
 import '../application/lesson_viewmodel.dart' as _i274;
-import '../application/match_provider.dart' as _i9;
 import '../application/memory_curve_provider.dart' as _i257;
 import '../application/mistake_provider.dart' as _i551;
 import '../application/progress_provider.dart' as _i740;
@@ -147,7 +145,6 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i518.AiHttpClient>(() => _i518.AiHttpClient());
     gh.lazySingleton<_i687.AiRecentTasksProvider>(
         () => _i687.AiRecentTasksProvider());
-    gh.lazySingleton<_i229.CharacterProvider>(() => _i229.CharacterProvider());
     gh.lazySingleton<_i118.ReviewDataRevision>(
         () => _i118.ReviewDataRevision());
     gh.lazySingleton<_i180.AnkiAudioResolver>(() => _i180.AnkiAudioResolver());
@@ -321,10 +318,6 @@ extension GetItInjectableX on _i174.GetIt {
             ));
     gh.lazySingleton<_i740.ProgressProvider>(
         () => _i740.ProgressProvider(gh<_i565.GameProvider>()));
-    gh.lazySingleton<_i9.MatchProvider>(() => _i9.MatchProvider(
-          gh<_i106.AudioController>(),
-          gh<_i523.AppPrefs>(),
-        ));
     gh.lazySingleton<_i936.AppRouter>(
         () => _i936.AppRouter(gh<_i579.CourseReadyGuard>()));
     gh.lazySingleton<_i80.AchievementService>(() => _i80.AchievementService(

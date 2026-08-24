@@ -8,6 +8,7 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/application/anki/anki_models.dart';
+import 'package:turna/application/anki/anki_import_cleanup_service.dart';
 import 'package:turna/application/anki/anki_review_assembler.dart';
 import 'package:turna/application/anki/card_introduction_eligibility.dart';
 import 'package:turna/application/anki/unified_anki_import_orchestrator.dart';
@@ -470,59 +471,25 @@ class AnkiDeckManager {
     return OfficialAnkiCompositionRoot.engine;
   }
 
-  /// Completely uninstall an imported Anki deck:
-  /// 1. Delete vocabulary entries by tag
-  /// 2. Delete section tree
-  /// 3. Remove SRS entries
-  /// 4. Clean up media files
-  /// 5. Delete NoteStore (notetypes/notes/cards_meta)
-  /// 6. Delete import metadata
-  /// 7. Delete review history + unification bookkeeping + mistake log
+  /// Completely uninstall an imported Anki deck.
+  ///
+  /// Delegates to [AnkiImportCleanupService.deleteAll] — the single uninstall
+  /// saga (also used by the import wizard's rollback) — so the two paths can
+  /// never drift apart again. Steps: vocabulary by tag, section tree by exact
+  /// prefix, SRS entries (awaited), review history, unification bookkeeping,
+  /// media files, NoteStore + derived tables, import metadata, mistake log,
+  /// orchestrator caches.
   Future<void> uninstallDeck(String importId) async {
-    // 1. Delete vocabulary by tag
-    final tag = 'anki:$importId';
-    await _repo.deleteByTag(tag);
-
-    // 2. Delete sections with this import id prefix. Exact prefix match:
-    // `contains` used to delete `anki-user-…` sections while uninstalling a
-    // deck whose id is a prefix of another (`user` vs `user2`).
-    final prefix = 'anki-$importId-';
-    final sections = await _repo.sectionShells();
-    for (final section in sections) {
-      if (section.id.startsWith(prefix)) {
-        await _repo.deleteSection(section.id);
-      }
-    }
-
-    // 3. Remove SRS entries for this import
-    _removeSrsEntries(importId);
-    await _reviewHistoryDao?.deleteByCardPrefix(prefix);
-    await _unificationDao?.deleteByCourseId(
-      CardIntroductionEligibility.courseIdForLegacyImport(importId),
-    );
-
-    // 4. Clean up media files
-    await _audioResolver.deleteImportMedia(importId);
-
-    // 5. Delete NoteStore (notetypes/notes/cards_meta for this import).
-    await _noteDao.deleteByImport(importId);
-    // Also drop the "智能去解密" pre-rendered HTML cache for this import.
-    await _noteDao.deletePrerenderedByPrefix('anki-$importId-');
-
-    // 6. Delete import metadata
-    await _importDao.delete(importId);
-
-    // 7. Mistake log entries (wrong answers recorded from this deck's
-    // course lessons and review sessions).
-    await _mistakeProvider?.removeForAnkiDeletion(idPrefixes: [prefix]);
-    // Retire the orchestrator's in-process caches for this import so a
-    // same-process re-import is never mistaken for "already imported".
-    UnifiedAnkiImportOrchestrator.instance.invalidate(importId: importId);
-  }
-
-  void _removeSrsEntries(String importId) {
-    final prefix = 'anki-$importId-';
-    _srsProvider.removeByPrefix(prefix);
+    await AnkiImportCleanupService(
+      repository: _repo,
+      srsProvider: _srsProvider,
+      importDao: _importDao,
+      noteDao: _noteDao,
+      reviewHistoryDao: _reviewHistoryDao,
+      audioResolver: _audioResolver,
+      unificationDao: _unificationDao,
+      mistakeProvider: _mistakeProvider,
+    ).deleteAll(importId);
   }
 
   // ─── Incremental Update Detection ──────────────────────────────────

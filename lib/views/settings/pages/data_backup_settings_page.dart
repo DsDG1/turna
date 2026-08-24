@@ -1,3 +1,6 @@
+// Dart imports:
+import 'dart:async';
+
 // Flutter imports:
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -10,7 +13,9 @@ import 'package:provider/provider.dart';
 import 'package:turna/application/backup/backup_schema.dart';
 import 'package:turna/application/game_provider.dart';
 import 'package:turna/application/mistake_provider.dart';
+import 'package:turna/application/settings/commands/reset_account_command.dart';
 import 'package:turna/application/settings/settings_destination.dart';
+import 'package:turna/application/settings/settings_operation_result.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
@@ -70,19 +75,51 @@ class DataBackupSettingsPage extends StatelessWidget {
                   onTap: (context) =>
                       context.router.push(const RemoteBackupRoute()),
                 ),
-                settingsTileDivider(context),
+              ],
+            ),
+            const SizedBox(height: 20),
+            SettingsSectionTitle(
+              icon: Icons.history_rounded,
+              title: AppStrings.settingsLearningRecordsTitle,
+            ),
+            const SizedBox(height: 8),
+            SettingsCard(
+              children: [
                 SettingsActionTile(
                   icon: Icons.delete_sweep_rounded,
                   title: AppStrings.settingsClearMistakeLogTitle,
                   subtitle: AppStrings.settingsClearMistakeLogSubtitle,
+                  iconColor: TurnaTheme.anatolianClay,
+                  iconBackground:
+                      TurnaTheme.anatolianClay.withValues(alpha: 0.10),
                   onTap: (context) => _confirmClearMistakes(context),
                 ),
-                settingsTileDivider(context),
+              ],
+            ),
+            const SizedBox(height: 20),
+            SettingsSectionTitle(
+              icon: Icons.warning_amber_rounded,
+              title: AppStrings.settingsDangerZoneTitle,
+            ),
+            const SizedBox(height: 8),
+            SettingsCard(
+              children: [
                 SettingsActionTile(
                   icon: Icons.restart_alt_rounded,
                   title: AppStrings.settingsResetProgressTitle,
                   subtitle: AppStrings.settingsResetProgressSubtitle,
+                  iconColor: TurnaTheme.error,
+                  iconBackground: TurnaTheme.error.withValues(alpha: 0.09),
                   onTap: (context) => _confirmResetProgress(context),
+                ),
+                settingsTileDivider(context),
+                SettingsActionTile(
+                  icon: Icons.delete_forever_rounded,
+                  title: AppStrings.accountResetTitle,
+                  subtitle: AppStrings.accountResetSubtitle,
+                  iconColor: TurnaTheme.error,
+                  iconBackground: TurnaTheme.error.withValues(alpha: 0.09),
+                  onTap: (context) => _confirmResetAccount(context),
                 ),
               ],
             ),
@@ -126,6 +163,37 @@ class DataBackupSettingsPage extends StatelessWidget {
       if (context.mounted) {
         _showSnack(context, AppStrings.settingsProgressReset);
       }
+    }
+  }
+
+  Future<void> _confirmResetAccount(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => SettingsConfirmDialog(
+        title: AppStrings.accountResetDialogTitle,
+        message: AppStrings.accountResetDialogMessage,
+        confirmText: AppStrings.accountResetConfirm,
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    unawaited(showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => PopScope(
+        canPop: false,
+        child: const Center(child: CircularProgressIndicator()),
+      ),
+    ));
+
+    final result = await getIt<ResetAccountCommand>().execute();
+    if (!context.mounted) return;
+    Navigator.of(context, rootNavigator: true).pop();
+    switch (result) {
+      case SettingsOperationSuccess():
+        _showSnack(context, AppStrings.accountResetDone);
+      case SettingsOperationFailure(:final userMessage):
+        _showSnack(context, userMessage);
     }
   }
 

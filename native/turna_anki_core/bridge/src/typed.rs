@@ -10,13 +10,13 @@ use serde::Deserialize;
 use serde_json::json;
 use serde_json::Value;
 
+use crate::engine::MAX_REQUEST_BYTES;
 use crate::engine::STATUS_CARD_NOT_FOUND;
 use crate::engine::STATUS_INVALID_ARGUMENT;
 use crate::engine::STATUS_INVALID_STATE;
 use crate::engine::STATUS_RENDER_FAILED;
 use crate::engine::STATUS_TYPED_CLOZE_EMPTY;
 use crate::engine::STATUS_TYPED_FIELD_NOT_FOUND;
-use crate::engine::MAX_REQUEST_BYTES;
 use crate::ops::map_anki_error;
 use crate::ops::require_open;
 
@@ -54,9 +54,13 @@ struct ExtractRequest {
 }
 
 pub fn parse_type_marker(raw: &str) -> Result<TypedSpec, i32> {
-    let start = raw.find(TYPE_MARKER_PREFIX).ok_or(STATUS_INVALID_ARGUMENT)?;
+    let start = raw
+        .find(TYPE_MARKER_PREFIX)
+        .ok_or(STATUS_INVALID_ARGUMENT)?;
     let after = &raw[start + TYPE_MARKER_PREFIX.len()..];
-    let end = after.find(TYPE_MARKER_SUFFIX).ok_or(STATUS_INVALID_ARGUMENT)?;
+    let end = after
+        .find(TYPE_MARKER_SUFFIX)
+        .ok_or(STATUS_INVALID_ARGUMENT)?;
     let inner = &after[..end];
     if inner.is_empty() || inner.len() > 128 {
         return Err(STATUS_INVALID_ARGUMENT);

@@ -37,10 +37,7 @@ if [[ ! -x "${PROTOC}" ]]; then
   exit 2
 fi
 
-patch="$root/patches/0001-export-progress-state.patch"
-if [[ -f "$patch" ]] && ! grep -q 'pub use progress::ProgressState' "$root/anki/rslib/src/lib.rs"; then
-  git -C "$root/anki" apply "$patch"
-fi
+bash "$root/build-android/apply_patches.sh"
 if [[ ! -d "$root/anki/ftl/core-repo/core" ]]; then
   echo "Anki FTL submodules are missing. Run:" >&2
   echo "  git -C anki submodule update --init --depth 1 ftl/core-repo ftl/qt-repo" >&2

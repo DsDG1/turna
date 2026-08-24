@@ -16,7 +16,14 @@ import argparse
 import shutil
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
+
+# The official-Anki cutover flags default ON, so every Android release
+# artifact must embed the native core; an APK without it installs fine and
+# then breaks official import/review at runtime (silent, CI-invisible).
+NATIVE_SO_RELATIVE = "android/app/src/main/jniLibs/arm64-v8a/libturna_anki.so"
+NATIVE_BUILD_SCRIPT = "native/turna_anki_core/build-android/build.sh"
 
 
 def project_root() -> Path:
@@ -68,11 +75,45 @@ def copy_tree(src: Path, dst: Path) -> None:
     print(f"-> {dst}")
 
 
+def ensure_native_library(root: Path) -> None:
+    so = root / NATIVE_SO_RELATIVE
+    if so.exists():
+        print(f"-> native core already present: {NATIVE_SO_RELATIVE}")
+        return
+    print(f"native core missing; building via {NATIVE_BUILD_SCRIPT}")
+    run(["bash", NATIVE_BUILD_SCRIPT], cwd=root)
+    if not so.exists():
+        print(
+            f"error: build script finished but {NATIVE_SO_RELATIVE} is missing",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+
+def assert_native_in_artifact(artifact: Path) -> None:
+    with zipfile.ZipFile(artifact) as zf:
+        embedded = [
+            name
+            for name in zf.namelist()
+            if name.endswith("lib/arm64-v8a/libturna_anki.so")
+        ]
+    if not embedded:
+        print(
+            f"error: {artifact.name} does not embed lib/arm64-v8a/libturna_anki.so. "
+            "The official-Anki cutover flags default on, so this artifact would "
+            "break official import/review at runtime.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    print(f"-> {artifact.name} embeds {embedded[0]}")
+
+
 def build_release(
     version: str,
     output_dir: Path,
     skip_web: bool,
     skip_content_validation: bool,
+    skip_native: bool,
 ) -> list[Path]:
     root = project_root()
     flutter = require_flutter()
@@ -88,16 +129,29 @@ def build_release(
         run([sys.executable, "tool/course_cli.py", "validate"], cwd=root)
         run([sys.executable, "tool/course_cli.py", "lint"], cwd=root)
 
+    if skip_native:
+        print(
+            "warning: --skip-native: libturna_anki.so will NOT be built or "
+            "verified inside the artifacts (never use for a real release)",
+            file=sys.stderr,
+        )
+    else:
+        ensure_native_library(root)
+
     run([flutter, "build", "apk", "--release"], cwd=root)
     apk_src = root / "build" / "app" / "outputs" / "flutter-apk" / "app-release.apk"
     apk_dst = output_dir / f"turna-v{version}-release.apk"
     copy_artifact(apk_src, apk_dst)
+    if not skip_native:
+        assert_native_in_artifact(apk_dst)
     artifacts.append(apk_dst)
 
     run([flutter, "build", "appbundle", "--release"], cwd=root)
     aab_src = root / "build" / "app" / "outputs" / "bundle" / "release" / "app-release.aab"
     aab_dst = output_dir / f"turna-v{version}-release.aab"
     copy_artifact(aab_src, aab_dst)
+    if not skip_native:
+        assert_native_in_artifact(aab_dst)
     artifacts.append(aab_dst)
 
     if not skip_web:
@@ -138,6 +192,14 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Skip course content validate/lint (useful for CI smoke).",
     )
+    parser.add_argument(
+        "--skip-native",
+        action="store_true",
+        help=(
+            "Skip building/verifying libturna_anki.so in the artifacts "
+            "(CI smoke only; never use for a real release)."
+        ),
+    )
     args = parser.parse_args(argv)
 
     version = validate_version(args.version)
@@ -150,6 +212,7 @@ def main(argv: list[str] | None = None) -> int:
         output_dir=output_dir,
         skip_web=args.skip_web,
         skip_content_validation=args.skip_content_validation,
+        skip_native=args.skip_native,
     )
 
     print("\nRelease build complete:")

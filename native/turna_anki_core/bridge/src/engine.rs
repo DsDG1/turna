@@ -539,14 +539,22 @@ fn path_open_elsewhere(self_handle: u64, collection: &Path) -> Result<bool, i32>
 fn reclaim_other_open_holders(self_handle: u64, collection: &Path) -> Result<(), i32> {
     for slot in other_slots(self_handle)? {
         let mut engine = slot.engine.lock().map_err(|_| STATUS_BACKEND_PANIC)?;
-        if engine.state == EngineState::Open
-            && engine
+        if engine.state != EngineState::Open
+            || !engine
                 .collection_path
                 .as_deref()
                 .is_some_and(|open| open == collection)
         {
-            close_collection_inner(&mut engine)?;
+            continue;
         }
+        // Same collection. An idle holder is a dead-session leftover and may
+        // be reclaimed; a busy one is mid-operation (import / answer / render)
+        // and closing its Collection under it would surface INVALID_STATE
+        // inside that op — report locked and let the caller retry.
+        if slot.busy.load(Ordering::Acquire) {
+            return Err(STATUS_COLLECTION_LOCKED);
+        }
+        close_collection_inner(&mut engine)?;
     }
     Ok(())
 }

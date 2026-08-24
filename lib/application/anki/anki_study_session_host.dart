@@ -104,7 +104,11 @@ class AnkiStudySessionHost {
         ? StudyLedgerOwner.none
         : ownerFor(key);
     return StudyItem(
-      sessionItemId: '${mode.name}-${key.cardId}',
+      // Anki card ids are millisecond timestamps, so two imports routinely
+      // carry the same cardId. Include sourceId or the review-all-decks flow
+      // keys WebView interactions by an id that collides across imports and
+      // shows the wrong card face.
+      sessionItemId: '${mode.name}-${key.sourceId}-${key.cardId}',
       courseId: courseId,
       placementId: placementId.isEmpty ? '${key.sourceId}-${key.cardId}' : placementId,
       cardKey: key,

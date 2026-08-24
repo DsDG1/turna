@@ -9,10 +9,13 @@ import 'package:turna/application/accessibility_provider.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/theme.dart';
 
-/// Floating rounded-glass tab bar (fake glass, no backdrop sample).
+/// Floating rounded frosted-glass tab bar.
 ///
 /// Sits above the home indicator with side insets so page content can peek
-/// through. High-contrast / focus-mode use a solid fill and skip the sheen.
+/// through. The normal path uses a translucent fake-glass surface and places
+/// a single animated lens behind the selected destination. Avoiding backdrop
+/// sampling keeps scrolling cheap. High-contrast / focus-mode use a solid fill
+/// and skip the sheen.
 class BottomNavigator extends StatelessWidget {
   static const double capsuleHeight = 64;
   static const double sideInset = 16;
@@ -23,8 +26,7 @@ class BottomNavigator extends StatelessWidget {
   /// Extra body padding so scrollables clear the floating capsule
   /// (excludes the system home-indicator inset, which [MediaQuery.padding]
   /// already carries).
-  static const double overlayExtent =
-      capsuleHeight + bottomGap + topShadowPad;
+  static const double overlayExtent = capsuleHeight + bottomGap + topShadowPad;
 
   final Function(int) onPress;
   final int currentIndex;
@@ -39,8 +41,8 @@ class BottomNavigator extends StatelessWidget {
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.viewPaddingOf(context).bottom;
     final a11y = context.watch<AccessibilityProvider>();
-    final reduceMotion = MediaQuery.disableAnimationsOf(context) ||
-        a11y.reducedMotion;
+    final reduceMotion =
+        MediaQuery.disableAnimationsOf(context) || a11y.reducedMotion;
     final solidGlass = a11y.highContrast || a11y.focusMode;
 
     final radius = BorderRadius.circular(capsuleRadius);
@@ -48,44 +50,69 @@ class BottomNavigator extends StatelessWidget {
         ? TurnaTheme.bottomNavBg(context)
         : TurnaTheme.floatingBarFill(context);
 
-    final items = Row(
-      children: [
-        _NavItem(
-          outlined: Icons.school_outlined,
-          filled: Icons.school_rounded,
-          label: AppStrings.commonNavLearn,
-          isSelected: currentIndex == 0,
-          reduceMotion: reduceMotion,
-          onTap: () => onPress(0),
-        ),
-        _NavItem(
-          outlined: Icons.extension_outlined,
-          filled: Icons.extension_rounded,
-          label: AppStrings.commonNavPlay,
-          isSelected: currentIndex == 1,
-          reduceMotion: reduceMotion,
-          onTap: () => onPress(1),
-        ),
-        _NavItem(
-          outlined: Icons.person_outline_rounded,
-          filled: Icons.person_rounded,
-          label: AppStrings.commonNavProfile,
-          isSelected: currentIndex == 2,
-          reduceMotion: reduceMotion,
-          onTap: () => onPress(2),
-        ),
-        _NavItem(
-          outlined: Icons.settings_outlined,
-          filled: Icons.settings_rounded,
-          label: AppStrings.commonNavSettings,
-          isSelected: currentIndex == 3,
-          reduceMotion: reduceMotion,
-          onTap: () => onPress(3),
-        ),
-      ],
+    final items = LayoutBuilder(
+      builder: (context, constraints) {
+        const itemCount = 4;
+        final itemWidth = constraints.maxWidth / itemCount;
+        final lensInset = itemWidth < 72 ? 5.0 : 8.0;
+
+        return Stack(
+          children: [
+            AnimatedPositioned(
+              duration: reduceMotion
+                  ? Duration.zero
+                  : const Duration(milliseconds: 240),
+              curve: Curves.easeOutCubic,
+              left: currentIndex * itemWidth + lensInset,
+              top: 6,
+              bottom: 6,
+              width: itemWidth - lensInset * 2,
+              child: _SelectionLens(solid: solidGlass),
+            ),
+            Positioned.fill(
+              child: Row(
+                children: [
+                  _NavItem(
+                    outlined: Icons.school_outlined,
+                    filled: Icons.school_rounded,
+                    label: AppStrings.commonNavLearn,
+                    isSelected: currentIndex == 0,
+                    reduceMotion: reduceMotion,
+                    onTap: () => onPress(0),
+                  ),
+                  _NavItem(
+                    outlined: Icons.extension_outlined,
+                    filled: Icons.extension_rounded,
+                    label: AppStrings.commonNavPlay,
+                    isSelected: currentIndex == 1,
+                    reduceMotion: reduceMotion,
+                    onTap: () => onPress(1),
+                  ),
+                  _NavItem(
+                    outlined: Icons.person_outline_rounded,
+                    filled: Icons.person_rounded,
+                    label: AppStrings.commonNavProfile,
+                    isSelected: currentIndex == 2,
+                    reduceMotion: reduceMotion,
+                    onTap: () => onPress(2),
+                  ),
+                  _NavItem(
+                    outlined: Icons.settings_outlined,
+                    filled: Icons.settings_rounded,
+                    label: AppStrings.commonNavSettings,
+                    isSelected: currentIndex == 3,
+                    reduceMotion: reduceMotion,
+                    onTap: () => onPress(3),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
     );
 
-    Widget capsule = DecoratedBox(
+    final surface = DecoratedBox(
       decoration: BoxDecoration(
         color: fill,
         borderRadius: radius,
@@ -111,11 +138,15 @@ class BottomNavigator extends StatelessWidget {
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
                             colors: [
-                              TurnaTheme.glassHighlight(context),
-                              TurnaTheme.glassHighlight(context)
-                                  .withValues(alpha: 0),
+                              Colors.white.withValues(
+                                alpha: Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? 0.08
+                                    : 0.20,
+                              ),
+                              Colors.white.withValues(alpha: 0),
                             ],
-                            stops: const [0.0, 0.40],
+                            stops: const [0.0, 0.52],
                           ),
                         ),
                       ),
@@ -126,7 +157,8 @@ class BottomNavigator extends StatelessWidget {
               ),
       ),
     );
-    capsule = ClipRRect(borderRadius: radius, child: capsule);
+
+    final capsule = ClipRRect(borderRadius: radius, child: surface);
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -141,6 +173,48 @@ class BottomNavigator extends StatelessWidget {
           boxShadow: TurnaTheme.floatingBarShadow(context),
         ),
         child: RepaintBoundary(child: capsule),
+      ),
+    );
+  }
+}
+
+class _SelectionLens extends StatelessWidget {
+  final bool solid;
+
+  const _SelectionLens({required this.solid});
+
+  @override
+  Widget build(BuildContext context) {
+    const selectedColor = TurnaTheme.brandTeal;
+    final radius = BorderRadius.circular(22);
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: solid ? selectedColor.withValues(alpha: 0.18) : null,
+        borderRadius: radius,
+        border: Border.all(
+          color: solid
+              ? selectedColor.withValues(alpha: 0.28)
+              : Colors.white.withValues(
+                  alpha: Theme.of(context).brightness == Brightness.dark
+                      ? 0.14
+                      : 0.34,
+                ),
+        ),
+        gradient: solid
+            ? null
+            : LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white.withValues(
+                    alpha: Theme.of(context).brightness == Brightness.dark
+                        ? 0.08
+                        : 0.22,
+                  ),
+                  selectedColor.withValues(alpha: 0.10),
+                ],
+              ),
       ),
     );
   }
@@ -166,7 +240,7 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final duration =
-        reduceMotion ? Duration.zero : const Duration(milliseconds: 220);
+        reduceMotion ? Duration.zero : const Duration(milliseconds: 180);
     const selectedColor = TurnaTheme.brandTeal;
     final idleColor = TurnaTheme.textHintColor(context);
 
@@ -183,22 +257,25 @@ class _NavItem extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                AnimatedContainer(
-                  duration: duration,
-                  curve: Curves.easeOutCubic,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? selectedColor.withValues(alpha: 0.16)
-                        : Colors.transparent,
-                    borderRadius:
-                        BorderRadius.circular(TurnaTheme.radiusRound),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 5,
                   ),
-                  child: Icon(
-                    isSelected ? filled : outlined,
-                    size: 24,
-                    color: isSelected ? selectedColor : idleColor,
+                  child: AnimatedSwitcher(
+                    duration: duration,
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    transitionBuilder: (child, animation) => FadeTransition(
+                      opacity: animation,
+                      child: child,
+                    ),
+                    child: Icon(
+                      isSelected ? filled : outlined,
+                      key: ValueKey(isSelected),
+                      size: 24,
+                      color: isSelected ? selectedColor : idleColor,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -208,8 +285,7 @@ class _NavItem extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 11,
-                    fontWeight:
-                        isSelected ? FontWeight.w600 : FontWeight.w500,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                     color: isSelected ? selectedColor : idleColor,
                   ),
                 ),

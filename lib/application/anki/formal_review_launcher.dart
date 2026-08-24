@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:turna/domain/anki/study_models.dart';
+import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 
 /// Production formal-review entries. Each may only change [StudyScope].
@@ -136,7 +137,13 @@ class FormalReviewNavigator {
     if (decision.isFailClosed) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(FormalReviewLauncher.failClosedMessage)),
+        SnackBar(
+          content: Text(
+            AppStrings.officialAnkiError(
+              FormalReviewLauncher.failClosedMessage,
+            ),
+          ),
+        ),
       );
       return;
     }

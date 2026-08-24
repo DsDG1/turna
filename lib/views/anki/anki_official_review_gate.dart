@@ -12,6 +12,7 @@ import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
+import 'package:turna/views/anki_official/official_anki_reviewer_error_view.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/data/anki_import_dao.dart';
@@ -195,7 +196,11 @@ class AnkiOfficialReviewGate {
   void _snackFailClosed(BuildContext context) {
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('official_anki.review_fail_closed')),
+      SnackBar(
+        content: Text(
+          OfficialAnkiReviewerErrorView.localize('official_anki.review_fail_closed'),
+        ),
+      ),
     );
   }
 }

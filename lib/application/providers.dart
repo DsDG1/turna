@@ -18,7 +18,6 @@ import 'package:turna/application/ai/dictionary_ai_provider.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/ai/engine/ai_recent_tasks_provider.dart';
 import 'package:turna/application/ai/textbook/textbook_import_provider.dart';
-import 'package:turna/application/character_provider.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/fun_provider.dart';
 import 'package:turna/application/game_provider.dart';
@@ -27,7 +26,6 @@ import 'package:turna/application/gems_provider.dart';
 import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/lesson_viewmodel.dart';
-import 'package:turna/application/match_provider.dart';
 import 'package:turna/application/memory_curve_provider.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/progress_provider.dart';
@@ -115,9 +113,6 @@ final providers = [
   ChangeNotifierProvider<AccessibilityProvider>(
     create: (_) => getIt<AccessibilityProvider>(),
   ),
-  ChangeNotifierProvider<CharacterProvider>(
-    create: (_) => getIt<CharacterProvider>(),
-  ),
   ChangeNotifierProvider<LanguageProvider>(
     create: (_) => getIt<LanguageProvider>(),
   ),
@@ -140,9 +135,6 @@ final providers = [
   // only state source the achievement UI reads.
   ChangeNotifierProvider<AchievementService>(
     create: (_) => getIt<AchievementService>(),
-  ),
-  ChangeNotifierProvider<MatchProvider>(
-    create: (_) => getIt<MatchProvider>(),
   ),
   ChangeNotifierProvider<SrsProvider>(
     create: (_) => getIt<SrsProvider>(),

@@ -1,6 +1,3 @@
-// Dart imports:
-import 'dart:async';
-
 // Flutter imports:
 import 'package:flutter/material.dart';
 
@@ -11,8 +8,6 @@ import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 
 // Project imports:
 import 'package:turna/application/cosmetic_provider.dart';
-import 'package:turna/application/settings/commands/reset_account_command.dart';
-import 'package:turna/application/settings/settings_operation_result.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/auth/local_user.dart';
 import 'package:turna/routing/routing.gr.dart';
@@ -33,17 +28,11 @@ const _lessonGoalSteps = [1, 2, 3, 5, 8, 10, 15, 20];
 
 /// Root widget for the Account settings category.
 ///
-/// Shows cosmetics, learning goals, and data management. Identity editing
+/// Shows cosmetics and learning goals. Identity editing
 /// (avatar/name/bio) lives on the profile page hero; counter stats live in
 /// the Learn app bar and the review-progress page.
 class SettingsAccountSection extends StatelessWidget {
-  const SettingsAccountSection({
-    super.key,
-    this.onNavigateToData,
-  });
-
-  /// Jump to the Data category (parent [SettingsPage] owns category state).
-  final VoidCallback? onNavigateToData;
+  const SettingsAccountSection({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -53,8 +42,6 @@ class SettingsAccountSection extends StatelessWidget {
         const _CosmeticsEntry(),
         const SizedBox(height: 20),
         const _LearningGoalsSection(),
-        const SizedBox(height: 20),
-        _DataManagementSection(onNavigateToData: onNavigateToData),
         const SizedBox(height: 24),
       ],
     );
@@ -295,84 +282,4 @@ class _GoalSliderTileState extends State<_GoalSliderTile> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Data Management Section
 // ─────────────────────────────────────────────────────────────────────────────
-
-class _DataManagementSection extends StatelessWidget {
-  const _DataManagementSection({this.onNavigateToData});
-
-  final VoidCallback? onNavigateToData;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SettingsSectionTitle(
-          icon: Icons.storage_rounded,
-          title: AppStrings.accountDataManagement,
-        ),
-        const SizedBox(height: 8),
-        SettingsCard(
-          children: [
-            SettingsActionTile(
-              icon: Icons.folder_rounded,
-              title: AppStrings.accountDataManagement,
-              subtitle: AppStrings.accountDataManagementSubtitle,
-              onTap: (_) => onNavigateToData?.call(),
-            ),
-            settingsTileDivider(context),
-            SettingsActionTile(
-              icon: Icons.delete_forever_rounded,
-              title: AppStrings.accountResetTitle,
-              subtitle: AppStrings.accountResetSubtitle,
-              onTap: (context) => _confirmReset(context),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Future<void> _confirmReset(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (_) => SettingsConfirmDialog(
-        title: AppStrings.accountResetDialogTitle,
-        message: AppStrings.accountResetDialogMessage,
-        confirmText: AppStrings.accountResetConfirm,
-      ),
-    );
-    if (confirmed != true || !context.mounted) return;
-
-    // Modal, un-dismissable progress barrier: blocks back / repeated taps /
-    // conflicting operations while the destructive sweep runs.
-    unawaited(showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => PopScope(
-        canPop: false,
-        child: const Center(
-          child: CircularProgressIndicator(),
-        ),
-      ),
-    ));
-
-    final command = getIt<ResetAccountCommand>();
-    final result = await command.execute();
-    if (!context.mounted) {
-      return;
-    }
-    Navigator.of(context, rootNavigator: true).pop(); // progress barrier
-    switch (result) {
-      case SettingsOperationSuccess():
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppStrings.accountResetDone)),
-        );
-      case SettingsOperationFailure(:final userMessage):
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(userMessage)),
-        );
-    }
-  }
-}

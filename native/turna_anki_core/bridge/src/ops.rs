@@ -5,18 +5,18 @@ use std::time::Instant;
 
 use anki::card::CardQueueNumber;
 use anki::card_rendering::extract_av_tags;
+use anki::decks::DeckKind;
 use anki::error::AnkiError;
 use anki::import_export::package::ImportAnkiPackageOptions;
 use anki::prelude::*;
 use anki::scheduler::answering::CardAnswer;
 use anki::scheduler::answering::Rating;
-use anki_proto::scheduler::bury_or_suspend_cards_request::Mode as BuryOrSuspendMode;
-use anki_proto::scheduler::unbury_deck_request::Mode as UnburyDeckMode;
 use anki::search::SortMode;
-use anki::decks::DeckKind;
 use anki::services::CollectionService;
 use anki::services::SchedulerService;
 use anki::timestamp::TimestampMillis;
+use anki_proto::scheduler::bury_or_suspend_cards_request::Mode as BuryOrSuspendMode;
+use anki_proto::scheduler::unbury_deck_request::Mode as UnburyDeckMode;
 use serde::Deserialize;
 use serde_json::json;
 use serde_json::Value;
@@ -24,20 +24,22 @@ use serde_json::Value;
 use crate::engine::slot;
 use crate::engine::AnswerToken;
 use crate::engine::BusyGuard;
-use crate::engine::TokenConsumption;
 use crate::engine::Engine;
 use crate::engine::EngineSlot;
 use crate::engine::EngineState;
+use crate::engine::TokenConsumption;
+use crate::engine::MAX_RENDER_HTML_BYTES;
 use crate::engine::MAX_REQUEST_BYTES;
+use crate::engine::MAX_RESPONSE_BYTES;
 use crate::engine::OP_ANSWER_CARD;
+use crate::engine::OP_BURY_OR_SUSPEND_CARDS;
 use crate::engine::OP_CANCEL_OPERATION;
 use crate::engine::OP_COMPARE_TYPED_ANSWER;
-use crate::engine::OP_DESCRIBE_NEXT_STATES;
-use crate::engine::OP_EXTRACT_CLOZE_FOR_TYPING;
-use crate::engine::OP_BURY_OR_SUSPEND_CARDS;
 use crate::engine::OP_CONGRATS_INFO;
 use crate::engine::OP_COUNTS_FOR_DECK_TODAY;
 use crate::engine::OP_DELETE_NOTES;
+use crate::engine::OP_DESCRIBE_NEXT_STATES;
+use crate::engine::OP_EXTRACT_CLOZE_FOR_TYPING;
 use crate::engine::OP_GET_REVIEW_QUEUE;
 use crate::engine::OP_GET_UNDO_STATUS;
 use crate::engine::OP_IMPORT_PACKAGE;
@@ -48,16 +50,12 @@ use crate::engine::OP_RENDER_CARD;
 use crate::engine::OP_SEARCH_CARDS;
 use crate::engine::OP_SET_CURRENT_DECK;
 use crate::engine::OP_UNDO;
-use crate::engine::STATUS_DECK_NOT_FOUND;
-use crate::engine::STATUS_SCHEDULER_BUSY;
-use crate::engine::STATUS_REDO_UNAVAILABLE;
-use crate::engine::MAX_RENDER_HTML_BYTES;
-use crate::engine::MAX_RESPONSE_BYTES;
 use crate::engine::STATUS_ANSWER_COMMIT_UNKNOWN;
 use crate::engine::STATUS_ANSWER_FAILED;
 use crate::engine::STATUS_BACKEND_PANIC;
 use crate::engine::STATUS_CARD_NOT_FOUND;
 use crate::engine::STATUS_COLLECTION_CORRUPT;
+use crate::engine::STATUS_DECK_NOT_FOUND;
 use crate::engine::STATUS_IMPORT_CANCELLED;
 use crate::engine::STATUS_INTERNAL_ERROR;
 use crate::engine::STATUS_INVALID_ARGUMENT;
@@ -66,7 +64,9 @@ use crate::engine::STATUS_IO_ERROR;
 use crate::engine::STATUS_PACKAGE_INVALID;
 use crate::engine::STATUS_PACKAGE_NOT_FOUND;
 use crate::engine::STATUS_QUEUE_EMPTY;
+use crate::engine::STATUS_REDO_UNAVAILABLE;
 use crate::engine::STATUS_RENDER_FAILED;
+use crate::engine::STATUS_SCHEDULER_BUSY;
 use crate::engine::STATUS_SCHEDULING_CONTEXT_STALE;
 use crate::engine::STATUS_UNDO_UNAVAILABLE;
 use crate::engine::STATUS_UNIMPLEMENTED;
@@ -982,7 +982,9 @@ fn counts_for_deck_today(handle: u64, request: &[u8]) -> Result<Value, i32> {
     let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
     let counts = SchedulerService::counts_for_deck_today(
         col,
-        anki_proto::decks::DeckId { did: parsed.deck_id },
+        anki_proto::decks::DeckId {
+            did: parsed.deck_id,
+        },
     )
     .map_err(|_| STATUS_DECK_NOT_FOUND)?;
     Ok(json!({
@@ -1531,7 +1533,9 @@ mod tests {
         call(handle, OP_UNDO, json!({})).unwrap();
         call(handle, OP_REDO, json!({})).unwrap();
         let counts = call(handle, OP_COUNTS_FOR_DECK_TODAY, json!({"deckId": 1})).unwrap();
-        assert!(counts["newStudied"].as_i64().is_some() || counts["reviewStudied"].as_i64().is_some());
+        assert!(
+            counts["newStudied"].as_i64().is_some() || counts["reviewStudied"].as_i64().is_some()
+        );
         let congrats = call(handle, OP_CONGRATS_INFO, json!({})).unwrap();
         assert!(congrats.get("isFilteredDeck").is_some());
         let queue2 = call(handle, OP_GET_REVIEW_QUEUE, json!({"fetchLimit": 1})).unwrap();
@@ -1559,14 +1563,25 @@ mod tests {
         let _ = fs::remove_dir_all(root);
     }
 
-    fn card_public_summary(col: &Collection, card_id: i64) -> (i64, i64, i64, i64, i64, i64, i64, i64) {
+    fn card_public_summary(
+        col: &Collection,
+        card_id: i64,
+    ) -> (i64, i64, i64, i64, i64, i64, i64, i64) {
         let (queue, due, ivl, reps, lapses): (i64, i64, i64, i64, i64) = col
             .storage
             .db()
             .query_row(
                 "select queue, due, ivl, reps, lapses from cards where id = ?",
                 [card_id],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                    ))
+                },
             )
             .unwrap();
         let revlog_count: i64 = col
@@ -1596,7 +1611,16 @@ mod tests {
                 |row| row.get(0),
             )
             .unwrap();
-        (queue, due, ivl, reps, lapses, revlog_count, last_ease, last_time)
+        (
+            queue,
+            due,
+            ivl,
+            reps,
+            lapses,
+            revlog_count,
+            last_ease,
+            last_time,
+        )
     }
 
     fn summary_via_handle(handle: u64, card_id: i64) -> (i64, i64, i64, i64, i64, i64, i64, i64) {
@@ -1617,7 +1641,10 @@ mod tests {
         call(handle, OP_SET_CURRENT_DECK, json!({"deckId": 1})).unwrap();
         let queue = call(handle, OP_GET_REVIEW_QUEUE, json!({"fetchLimit": 1})).unwrap();
         let card_id = queue["cards"][0]["cardId"].as_i64().unwrap();
-        let token = queue["cards"][0]["answerToken"].as_str().unwrap().to_string();
+        let token = queue["cards"][0]["answerToken"]
+            .as_str()
+            .unwrap()
+            .to_string();
         let session_id = queue["sessionId"].as_str().unwrap().to_string();
         let epoch = queue["queueEpoch"].as_u64().unwrap();
         let before = last_revlog_count(handle, card_id);
@@ -1686,7 +1713,10 @@ mod tests {
 
         let queue2 = call(handle, OP_GET_REVIEW_QUEUE, json!({"fetchLimit": 1})).unwrap();
         let card2 = queue2["cards"][0]["cardId"].as_i64().unwrap();
-        let token2 = queue2["cards"][0]["answerToken"].as_str().unwrap().to_string();
+        let token2 = queue2["cards"][0]["answerToken"]
+            .as_str()
+            .unwrap()
+            .to_string();
         let before2 = last_revlog_count(handle, card2);
         {
             let slot = slot(handle).unwrap();
@@ -1762,7 +1792,10 @@ mod tests {
         call(handle, OP_SET_CURRENT_DECK, json!({"deckId": 1})).unwrap();
         let queue = call(handle, OP_GET_REVIEW_QUEUE, json!({"fetchLimit": 1})).unwrap();
         let card_id = queue["cards"][0]["cardId"].as_i64().unwrap();
-        let token = queue["cards"][0]["answerToken"].as_str().unwrap().to_string();
+        let token = queue["cards"][0]["answerToken"]
+            .as_str()
+            .unwrap()
+            .to_string();
         call(handle, OP_SET_CURRENT_DECK, json!({"deckId": 1})).unwrap();
         assert_eq!(
             call(
@@ -1868,10 +1901,14 @@ mod tests {
             .unwrap();
             let bridge = summary_via_handle(handle, card_id);
 
-            let mut direct = anki::collection::CollectionBuilder::new(root_b.join("collection.anki2"))
-                .set_media_paths(root_b.join("collection.media"), root_b.join("collection.media.db2"))
-                .build()
-                .unwrap();
+            let mut direct =
+                anki::collection::CollectionBuilder::new(root_b.join("collection.anki2"))
+                    .set_media_paths(
+                        root_b.join("collection.media"),
+                        root_b.join("collection.media.db2"),
+                    )
+                    .build()
+                    .unwrap();
             direct.set_current_deck(DeckId(1)).unwrap();
             let queued = direct.get_queued_cards(1, false).unwrap();
             let queued_card = queued.cards.into_iter().next().expect("direct queue");
@@ -1951,7 +1988,10 @@ mod tests {
         let bridge = summary_via_handle(handle, card_id);
 
         let mut direct = anki::collection::CollectionBuilder::new(root_b.join("collection.anki2"))
-            .set_media_paths(root_b.join("collection.media"), root_b.join("collection.media.db2"))
+            .set_media_paths(
+                root_b.join("collection.media"),
+                root_b.join("collection.media.db2"),
+            )
             .build()
             .unwrap();
         direct.set_current_deck(DeckId(1)).unwrap();
@@ -2219,7 +2259,10 @@ mod tests {
         assert_eq!(compared["hasExpected"], true);
         let html = compared["comparisonHtml"].as_str().unwrap();
         assert!(html.contains("typeans"), "{html}");
-        assert!(html.contains("typeGood") || html.contains("typed-back"), "{html}");
+        assert!(
+            html.contains("typeGood") || html.contains("typed-back"),
+            "{html}"
+        );
 
         let missing = call(
             handle,

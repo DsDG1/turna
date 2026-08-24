@@ -318,6 +318,52 @@ void main() {
     expect(await noteDao.searchNotes('imp1', 'a_b'), hasLength(1));
   });
 
+  test('searchNotes paginates the filtered set without loss or duplicates',
+      () async {
+    // 10 cards ordered by noteId; the first 8 are suspended, so only cards
+    // 9 and 10 survive the filter — and they sit at the END of the SQL
+    // ordering. The old `(offset+limit)*4` window over unfiltered rows
+    // fetched only the first 8 (all suspended) and returned an empty page.
+    for (var i = 1; i <= 10; i++) {
+      await noteDao.upsertNote(AnkiNoteRecord(
+        importId: 'imp1',
+        noteId: i,
+        mid: 1,
+        fields: ['front $i', 'back'],
+        sfld: 'front $i',
+      ));
+      await noteDao.upsertCardMeta(AnkiCardMetaRecord(
+        importId: 'imp1',
+        cardId: i,
+        noteId: i,
+        wordId: 'anki-imp1-c$i',
+      ));
+      if (i <= 8) {
+        await noteDao.setCardState('imp1', i, suspended: true);
+      }
+    }
+
+    final page1 =
+        await noteDao.searchNotes('imp1', 'front', suspended: false, limit: 1);
+    final page2 = await noteDao.searchNotes('imp1', 'front',
+        suspended: false, limit: 1, offset: 1);
+    final past = await noteDao.searchNotes('imp1', 'front',
+        suspended: false, limit: 1, offset: 2);
+
+    expect(page1.map((r) => r.card.cardId), [9]);
+    expect(page2.map((r) => r.card.cardId), [10]);
+    expect(past, isEmpty);
+
+    // Without filters, offset+limit must page the full set exactly once.
+    final all = <int>[];
+    for (var offset = 0; offset < 12; offset += 4) {
+      all.addAll((await noteDao.searchNotes('imp1', 'front',
+              limit: 4, offset: offset))
+          .map((r) => r.card.cardId));
+    }
+    expect(all, [for (var i = 1; i <= 10; i++) i]);
+  });
+
   test('per-deck daily limits round-trip independently of generated rows',
       () async {
     await importDao.setDailyLimits('imp1', newLimit: 12, reviewLimit: 34);
@@ -349,6 +395,40 @@ void main() {
     expect(await noteDao.notetypesFor('imp1'), isEmpty);
     expect(await noteDao.note('imp1', 100), isNull);
     expect(await noteDao.cardMeta('imp1', 200), isNull);
+  });
+
+  test('deleteByImport also clears deck index, issues and projections',
+      () async {
+    await noteDao.upsertNote(AnkiNoteRecord(importId: 'imp1', noteId: 1, mid: 1));
+    await noteDao.upsertCardMeta(const AnkiCardMetaRecord(
+      importId: 'imp1',
+      cardId: 2,
+      noteId: 1,
+      wordId: 'anki-imp1-c2',
+    ));
+    await noteDao.replaceDeckIndex('imp1', const [
+      AnkiDeckIndexRecord(did: 7, name: 'Deck', cardCount: 1),
+    ]);
+    await noteDao.replaceImportIssues('imp1', const [
+      AnkiImportIssueRecord(severity: 'warn', code: 'x', message: 'm'),
+    ]);
+    await noteDao.replacePracticeProjections('imp1', const [
+      AnkiPracticeProjectionRecord(cardId: 2, kind: 'k', status: 'ok'),
+    ]);
+
+    await noteDao.deleteByImport('imp1');
+
+    Future<int> countOf(String table) async {
+      final rows = await db.customSelect(
+        'SELECT COUNT(*) AS n FROM $table WHERE import_id = ?',
+        variables: [Variable.withString('imp1')],
+      ).get();
+      return rows.first.read<int>('n');
+    }
+
+    expect(await countOf('anki_decks'), 0);
+    expect(await countOf('anki_import_issues'), 0);
+    expect(await countOf('anki_practice_projections'), 0);
   });
 
   test('prerendered HTML cache round-trips per face and isComplete', () async {

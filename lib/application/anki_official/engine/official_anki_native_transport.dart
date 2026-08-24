@@ -114,9 +114,21 @@ class OfficialAnkiNativeTransport {
   static DynamicLibrary _openLibrary(String resolved) {
     try {
       return DynamicLibrary.open(resolved);
-    } on ArgumentError {
+    } on ArgumentError catch (openError) {
       if (Platform.isAndroid) {
-        return DynamicLibrary.process();
+        // Some Android loaders resolve bare names only through the process
+        // namespace. If the ABI symbol is not there either, the library is
+        // genuinely absent — rethrow the ORIGINAL open error so callers see
+        // library_missing, not a misleading symbol_missing.
+        try {
+          final lib = DynamicLibrary.process();
+          lib.lookupFunction<_AbiVersionNative, _AbiVersionDart>(
+            'turna_anki_abi_version',
+          );
+          return lib;
+        } on ArgumentError {
+          throw openError;
+        }
       }
       rethrow;
     }
@@ -324,6 +336,10 @@ OfficialAnkiException _mapLoadError(Object error) {
   );
 }
 
+/// Numeric status → error code. Mirrors the `STATUS_*` constants in
+/// `bridge/src/engine.rs` (10–41, append-only); locked by
+/// `official_anki_status_map_test.dart`, which parses the Rust source so the
+/// two hand-maintained tables cannot drift apart again.
 OfficialAnkiErrorCode officialAnkiErrorCodeFromStatus(int status) {
   switch (status) {
     case 10:
@@ -352,20 +368,40 @@ OfficialAnkiErrorCode officialAnkiErrorCodeFromStatus(int status) {
       return OfficialAnkiErrorCode.cardNotFound;
     case 24:
       return OfficialAnkiErrorCode.renderFailed;
-    case 34:
-      return OfficialAnkiErrorCode.typedFieldNotFound;
-    case 35:
-      return OfficialAnkiErrorCode.typedClozeEmpty;
+    case 25:
+      return OfficialAnkiErrorCode.queueEmpty;
+    case 26:
+      return OfficialAnkiErrorCode.schedulingContextStale;
+    case 27:
+      return OfficialAnkiErrorCode.answerFailed;
+    case 28:
+      return OfficialAnkiErrorCode.undoUnavailable;
     case 29:
       return OfficialAnkiErrorCode.ioError;
     case 30:
       return OfficialAnkiErrorCode.collectionCorrupt;
     case 31:
       return OfficialAnkiErrorCode.contractVersionMismatch;
+    case 32:
+      return OfficialAnkiErrorCode.internalError;
     case 33:
       return OfficialAnkiErrorCode.pageTokenStale;
+    case 34:
+      return OfficialAnkiErrorCode.typedFieldNotFound;
+    case 35:
+      return OfficialAnkiErrorCode.typedClozeEmpty;
     case 36:
       return OfficialAnkiErrorCode.projectionSnapshotStale;
+    case 37:
+      return OfficialAnkiErrorCode.redoUnavailable;
+    case 38:
+      return OfficialAnkiErrorCode.deckNotFound;
+    case 39:
+      return OfficialAnkiErrorCode.schedulerBusy;
+    case 40:
+      return OfficialAnkiErrorCode.schedulerCapabilityMissing;
+    case 41:
+      return OfficialAnkiErrorCode.answerCommitUnknown;
     default:
       return OfficialAnkiErrorCode.unknown;
   }

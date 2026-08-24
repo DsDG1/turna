@@ -1,5 +1,6 @@
 import 'package:turna/application/anki/anki_importer.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
+import 'package:turna/application/anki_official/engine/official_anki_native_availability.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_orchestrator.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
@@ -21,6 +22,7 @@ abstract class AnkiImportFacade {
     bool? cutoverEnabled,
     String? platform,
     OfficialAnkiGrayConfig? gray,
+    bool? libraryAvailable,
   }) {
     final cutover =
         cutoverEnabled ?? LegacyAnkiMigrationFlags.cutoverEnabled;
@@ -35,6 +37,13 @@ abstract class AnkiImportFacade {
     )) {
       return AnkiImportDecision.legacy;
     }
+    // Flags say official but the native library is physically absent
+    // (unpackaged .so / wrong ABI): degrade to the legacy importer instead
+    // of fail-closing — this mirrors what non-Android platforms do, and the
+    // availability probe reports the defect loudly.
+    final libraryOk =
+        libraryAvailable ?? OfficialAnkiNativeAvailability.current;
+    if (!libraryOk) return AnkiImportDecision.legacy;
     return AnkiImportDecision.official;
   }
 

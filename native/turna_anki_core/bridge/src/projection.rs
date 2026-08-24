@@ -12,11 +12,11 @@ use anki::search::SortMode;
 
 use crate::engine::slot;
 use crate::engine::Engine;
+use crate::engine::MAX_RESPONSE_BYTES;
 use crate::engine::STATUS_BACKEND_PANIC;
 use crate::engine::STATUS_INVALID_ARGUMENT;
 use crate::engine::STATUS_INVALID_STATE;
 use crate::engine::STATUS_PROJECTION_SNAPSHOT_STALE;
-use crate::engine::MAX_RESPONSE_BYTES;
 use crate::ops::map_anki_error;
 
 const DEFAULT_SAMPLE_LIMIT: usize = 3;
@@ -251,9 +251,9 @@ fn require_snapshot<'a>(engine: &'a Engine, token: &str) -> Result<&'a Projectio
         .projection_snapshot
         .as_ref()
         .ok_or(STATUS_PROJECTION_SNAPSHOT_STALE)?;
-    if snap.token != token ||
-        snap.collection_generation != engine.page_generation ||
-        snap.card_set_fingerprint.is_empty()
+    if snap.token != token
+        || snap.collection_generation != engine.page_generation
+        || snap.card_set_fingerprint.is_empty()
     {
         return Err(STATUS_PROJECTION_SNAPSHOT_STALE);
     }
@@ -262,7 +262,8 @@ fn require_snapshot<'a>(engine: &'a Engine, token: &str) -> Result<&'a Projectio
 }
 
 pub fn get_projection_rows_batch(handle: u64, request: &[u8]) -> Result<Value, i32> {
-    let parsed: RowsRequest = serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?;
+    let parsed: RowsRequest =
+        serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?;
     if parsed.card_ids.len() > MAX_BATCH {
         return Err(STATUS_INVALID_ARGUMENT);
     }
@@ -302,7 +303,12 @@ pub fn get_projection_rows_batch(handle: u64, request: &[u8]) -> Result<Value, i
             continue;
         };
         let deck_path = match col.get_deck(card.deck_id()).map_err(map_anki_error)? {
-            Some(deck) => deck.name.human_name().split("::").map(|s| s.to_string()).collect::<Vec<_>>(),
+            Some(deck) => deck
+                .name
+                .human_name()
+                .split("::")
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>(),
             None => vec!["Recovered".to_string()],
         };
         let mut fields = Vec::new();
@@ -349,11 +355,11 @@ mod tests {
     use crate::engine::dispatch;
     use crate::engine::free_engine;
     use crate::engine::open_collection;
+    use crate::engine::OpenRequest;
     use crate::engine::OP_BEGIN_PROJECTION_READ;
     use crate::engine::OP_GET_PROJECTION_ROWS_BATCH;
     use crate::engine::OP_GET_PROJECTION_SCHEMAS;
     use crate::engine::OP_IMPORT_PACKAGE;
-    use crate::engine::OpenRequest;
     use std::fs;
     use std::path::PathBuf;
     use std::time::SystemTime;
@@ -364,7 +370,8 @@ mod tests {
             .join("../contract/fixtures")
             .canonicalize()
             .unwrap_or_else(|_| {
-                PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../test/fixtures/anki_official/packages")
+                PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                    .join("../../test/fixtures/anki_official/packages")
             })
     }
 
@@ -483,9 +490,7 @@ mod tests {
         )
         .unwrap();
         let token = begin["snapshotToken"].as_str().unwrap().to_string();
-        crate::engine::bump_page_generation(
-            &mut slot(handle).unwrap().engine.lock().unwrap(),
-        );
+        crate::engine::bump_page_generation(&mut slot(handle).unwrap().engine.lock().unwrap());
         let err = call(
             handle,
             OP_GET_PROJECTION_ROWS_BATCH,

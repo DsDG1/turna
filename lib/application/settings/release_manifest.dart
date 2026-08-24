@@ -62,6 +62,27 @@ class ReleaseManifest {
   /// 硬编码后援：`assets/changelog.md` 加载失败时使用。
   static const List<ChangelogRelease> fallbackReleases = [
     ChangelogRelease(
+      version: '0.7.1',
+      title: '数据治理、AI 安全与体验打磨',
+      items: [
+        'AI 服务商预设刷新为 DeepSeek / Kimi / Qwen / MiMo，新增深度思考开关（推理字段默认关闭，用户显式开启）',
+        'AI API Key 迁移至平台安全存储（Keychain / Keystore），不再写入明文偏好',
+        'AI 讲解 / 提示 / 陪练收敛到 AiStreamingSessionBase，统一流式取消、代际与增量应用；新增 StreamDeltaCoalescer 合并响应降低 UI 重建',
+        '移除 AI 磁盘缓存镜像（io / web 实现），仅保留内存 LRU',
+        '宝石入账改为幂等账本（earnGems），成就解锁按幂等键入账避免重复发放；成就连续天数改用真实学习 streak',
+        'CardRecognitionPipeline 取代 anki_notetype_ai：签名版本化、去隐私样本特征、持久化规则与 AI 结果形状校验',
+        'StorageInventoryService 只读扫描与存储诊断页，支持分类 / 孤儿检测及可再生缓存清理',
+        '存储诊断页面重构为面向用户的"存储与性能"仪表板（使用率环图 + 分类卡片）',
+        '卸载 / 删除以 legacy_anki_migrations 判定归属，清理失败标记 pending_cleanup 并启动时自动重试',
+        '备份恢复后无需重启：Accessibility / Language / Settings Provider 新增 reload 方法刷新状态',
+        '设置导航引入 SettingsDestination 描述符集中管理页面元数据；SystemHealthMonitor 重构为状态机模型',
+        'CacheDiagnosticsRegistry 支持按所有者隔离执行缓存清理并保留各自结果',
+        '牌组组装新增 section beta 语义分组（默认关闭，仅影响新导入）',
+        '统一版本编号至 0.x 序列，移除 quick_start.md，以 ReleaseManifest 作为版本单一事实来源',
+        '移除无入口的配对游戏、字母描红，以及未使用的旧品牌图（Mala / 卡纳达语 / Duolingo 贴纸）',
+      ],
+    ),
+    ChangelogRelease(
       version: '0.7',
       title: 'Anki 官方 Core 整合与课程/复习大一统',
       items: [

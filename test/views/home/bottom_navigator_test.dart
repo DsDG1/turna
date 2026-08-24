@@ -75,7 +75,7 @@ void main() {
     expect(find.byIcon(Icons.settings_outlined), findsOneWidget);
   });
 
-  testWidgets('default path has no BackdropFilter', (tester) async {
+  testWidgets('default path avoids backdrop blur', (tester) async {
     await tester.pumpWidget(
       wrap(
         BottomNavigator(

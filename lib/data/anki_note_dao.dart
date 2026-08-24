@@ -438,9 +438,32 @@ class AnkiNoteDao {
             escapedLike(_db.ankiNotes.tags),
       );
     }
+    // State filters are pushed into SQL (they live on the joined
+    // anki_cards_meta rows) so LIMIT/OFFSET paginate the *filtered* set.
+    // The previous in-memory filter + `(offset+limit)*4` window silently
+    // dropped/duplicated rows on later pages whenever the window guess was
+    // wrong (cloze decks exceed 4 cards per note; offsets counted unfiltered
+    // rows). The values below are typed ints/bools, never user text.
+    if (flag != null) {
+      joined.where(
+        CustomExpression<bool>('anki_cards_meta.flag = ${flag.clamp(0, 4)}'),
+      );
+    }
+    if (suspended != null) {
+      joined.where(
+        CustomExpression<bool>(
+          'anki_cards_meta.suspended = ${suspended ? 1 : 0}',
+        ),
+      );
+    }
+    if (marked != null) {
+      joined.where(
+        CustomExpression<bool>('anki_cards_meta.marked = ${marked ? 1 : 0}'),
+      );
+    }
     joined
       ..orderBy([OrderingTerm.asc(_db.ankiNotes.noteId)])
-      ..limit((offset + limit) * 4);
+      ..limit(limit, offset: offset);
     final rows = await joined.get();
     if (rows.isEmpty) return const <AnkiCardBrowserRecord>[];
     // Fetch user-facing state for every candidate card in one chunked query
@@ -449,18 +472,13 @@ class AnkiNoteDao {
       for (final row in rows) _toCardMetaRecord(row.readTable(_db.ankiCardsMeta)),
     ];
     final cards = await _applyStateBatch(importId, baseCards);
-    final result = <AnkiCardBrowserRecord>[];
-    for (var i = 0; i < rows.length; i++) {
-      final card = cards[i];
-      if (flag != null && card.flag != flag) continue;
-      if (suspended != null && card.suspended != suspended) continue;
-      if (marked != null && card.marked != marked) continue;
-      result.add(AnkiCardBrowserRecord(
-        note: _toNoteRecord(rows[i].readTable(_db.ankiNotes)),
-        card: card,
-      ));
-    }
-    return result.skip(offset).take(limit).toList();
+    return [
+      for (var i = 0; i < rows.length; i++)
+        AnkiCardBrowserRecord(
+          note: _toNoteRecord(rows[i].readTable(_db.ankiNotes)),
+          card: cards[i],
+        ),
+    ];
   }
 
   /// Apply user-facing state (suspended/buried/marked/flag) to [records] in a
@@ -667,17 +685,33 @@ class AnkiNoteDao {
   // ------------------------- delete (unload) ---------------------------
 
   /// Delete all NoteStore rows for an import. Called on deck unload to
-  /// cascade-clean notetypes/notes/cards_meta (srs_states are cleaned
-  /// separately by the `anki-<importId>-` prefix).
+  /// clean notetypes/notes/cards_meta plus the per-import derived tables
+  /// (deck index, import issues, practice projections) — previously those
+  /// three leaked a full row set on every uninstall. srs_states are cleaned
+  /// separately by the `anki-<importId>-` prefix.
   Future<void> deleteByImport(String importId) async {
-    await (_db.delete(_db.ankiNotetypes)
-          ..where((t) => t.importId.equals(importId)))
-        .go();
-    await (_db.delete(_db.ankiNotes)..where((t) => t.importId.equals(importId)))
-        .go();
-    await (_db.delete(_db.ankiCardsMeta)
-          ..where((t) => t.importId.equals(importId)))
-        .go();
+    await _db.transaction(() async {
+      await (_db.delete(_db.ankiNotetypes)
+            ..where((t) => t.importId.equals(importId)))
+          .go();
+      await (_db.delete(_db.ankiNotes)..where((t) => t.importId.equals(importId)))
+          .go();
+      await (_db.delete(_db.ankiCardsMeta)
+            ..where((t) => t.importId.equals(importId)))
+          .go();
+      await _db.customStatement(
+        'DELETE FROM anki_decks WHERE import_id = ?',
+        [importId],
+      );
+      await _db.customStatement(
+        'DELETE FROM anki_import_issues WHERE import_id = ?',
+        [importId],
+      );
+      await _db.customStatement(
+        'DELETE FROM anki_practice_projections WHERE import_id = ?',
+        [importId],
+      );
+    });
   }
 
   // --------------------- prerendered cache ----------------------------

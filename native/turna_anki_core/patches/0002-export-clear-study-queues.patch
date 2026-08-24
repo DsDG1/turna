@@ -1,0 +1,15 @@
+diff --git a/rslib/src/scheduler/queue/mod.rs b/rslib/src/scheduler/queue/mod.rs
+index eadacbe47..17cc4ac5a 100644
+--- a/rslib/src/scheduler/queue/mod.rs
++++ b/rslib/src/scheduler/queue/mod.rs
+@@ -204,7 +204,9 @@ impl Collection {
+     /// This is automatically done when transact() is called for everything
+     /// except card answers, so unless you are modifying state outside of a
+     /// transaction, you probably don't need this.
+-    pub(crate) fn clear_study_queues(&mut self) {
++    /// Drop the in-memory study queues so the next fetch rebuilds them.
++    /// Turna calls this after an off-queue answer (`from_queue = false`).
++    pub fn clear_study_queues(&mut self) {
+         self.state.card_queues = None;
+     }
+ 

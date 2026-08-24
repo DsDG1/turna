@@ -140,9 +140,16 @@ class OfficialAnkiSession implements OfficialAnkiImporter {
     }
   }
 
+  /// Worker RPC with a guard against a dead/hung isolate. If the worker dies
+  /// mid-call (OOM, unhandled error) or a native op stalls outside
+  /// `catch_unwind`, `reply.first` would otherwise never complete and every
+  /// caller would hang forever — only init had a timeout before. Long ops
+  /// (imports) pass an explicit [timeout]; `cancel` stays reachable because
+  /// it goes through the control transport, not this queue.
   Future<Map<String, Object?>> _rpc(
     String type, [
     Map<String, Object?> payload = const <String, Object?>{},
+    Duration timeout = const Duration(seconds: 120),
   ]) async {
     if (_disposed || _rejecting) {
       throw const OfficialAnkiException(
@@ -153,22 +160,39 @@ class OfficialAnkiSession implements OfficialAnkiImporter {
     _serial += 1;
     final id = _serial;
     final reply = ReceivePort();
-    _commands.send(<String, Object?>{
-      'type': type,
-      'id': id,
-      'reply': reply.sendPort,
-      ...payload,
-    });
-    final raw = Map<String, Object?>.from(await reply.first as Map);
-    reply.close();
-    if (raw['ok'] != true) {
-      throw OfficialAnkiException(
-        code: officialAnkiErrorCodeFromName(raw['code'] as String?),
-        messageKey: raw['messageKey'] as String? ?? 'official_anki.worker_error',
-        debugDetails: raw['debug']?.toString(),
+    try {
+      _commands.send(<String, Object?>{
+        'type': type,
+        'id': id,
+        'reply': reply.sendPort,
+        ...payload,
+      });
+      final raw = Map<String, Object?>.from(
+        await reply.first.timeout(
+          timeout,
+          onTimeout: () => throw TimeoutException(
+            'official-anki-worker rpc $type exceeded ${timeout.inSeconds}s',
+          ),
+        ) as Map,
       );
+      if (raw['ok'] != true) {
+        throw OfficialAnkiException(
+          code: officialAnkiErrorCodeFromName(raw['code'] as String?),
+          messageKey:
+              raw['messageKey'] as String? ?? 'official_anki.worker_error',
+          debugDetails: raw['debug']?.toString(),
+        );
+      }
+      return raw;
+    } on TimeoutException {
+      throw OfficialAnkiException(
+        code: OfficialAnkiErrorCode.schedulerBusy,
+        messageKey: 'official_anki.worker_rpc_timeout',
+        debugDetails: 'rpc=$type timeoutMs=${timeout.inMilliseconds}',
+      );
+    } finally {
+      reply.close();
     }
-    return raw;
   }
 
   @override
@@ -178,12 +202,18 @@ class OfficialAnkiSession implements OfficialAnkiImporter {
     String? requestId,
     bool cancel = false,
   }) async {
-    final raw = await _rpc('importFile', {
-      'packagePath': packagePath,
-      'displayName': displayName,
-      'requestId': requestId,
-      'cancel': cancel,
-    });
+    final raw = await _rpc(
+      'importFile',
+      {
+        'packagePath': packagePath,
+        'displayName': displayName,
+        'requestId': requestId,
+        'cancel': cancel,
+      },
+      // Imports legitimately run for minutes on large decks (media copy +
+      // rslib import); the timeout only guards a dead worker.
+      const Duration(minutes: 30),
+    );
     return OfficialAnkiImportResult(
       sourceId: raw['sourceId'] as String,
       attemptId: raw['attemptId'] as String,
@@ -202,7 +232,13 @@ class OfficialAnkiSession implements OfficialAnkiImporter {
   }
 
   Future<List<OfficialAnkiImportResult>> recoverUnfinished() async {
-    final raw = await _rpc('recoverUnfinished');
+    // Recovery may re-run a partial import; give it the same ceiling as
+    // importFile rather than the 120s default.
+    final raw = await _rpc(
+      'recoverUnfinished',
+      const <String, Object?>{},
+      const Duration(minutes: 30),
+    );
     final items = raw['results'] as List? ?? const [];
     return items
         .whereType<Map>()

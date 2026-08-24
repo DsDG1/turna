@@ -17,6 +17,7 @@ import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/data/anki_note_dao.dart';
 import 'package:turna/di/injection.dart';
+import 'package:turna/domain/anki/canonical_card_key.dart';
 import 'package:turna/domain/anki/card_presentation.dart';
 import 'package:turna/domain/anki/study_models.dart';
 import 'package:turna/domain/course/interaction.dart';
@@ -47,7 +48,12 @@ class AnkiReviewSessionPage extends StatefulWidget {
 
 class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
   late final AnkiDeckManager _deckManager;
-  final Set<String> _newCardInteractionIds = {};
+
+  /// New-card identities as `"<sourceId>:<cardId>"`. Keyed by cardKey (not
+  /// interaction id / sessionItemId, which use different string conventions
+  /// and never matched) so both the record and the undo path resolve the
+  /// same card.
+  final Set<String> _newCardKeys = {};
 
   bool _loading = true;
   bool _empty = false;
@@ -82,7 +88,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
       _controller?.dispose();
       _controller = null;
       _fidelityInteractions = const {};
-      _newCardInteractionIds.clear();
+      _newCardKeys.clear();
     });
 
     try {
@@ -166,15 +172,15 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
       for (final card in batch) {
         final interaction = card.interaction;
         final wordId = card.scheduled.wordId;
-        if (card.scheduled.reps == 0) {
-          _newCardInteractionIds.add(interaction.id);
-        }
         final item = AnkiStudySessionHost.itemFromReviewCard(
           wordId: wordId,
           interaction: interaction,
           mode: StudyMode.review,
           courseId: courseId,
         );
+        if (card.scheduled.reps == 0) {
+          _newCardKeys.add(_cardKeyId(item.cardKey));
+        }
         items.add(item);
         if (interaction is AnkiHtmlCard) {
           fidelityInteractions[item.sessionItemId] = interaction;
@@ -222,16 +228,21 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
     }
   }
 
+  String _cardKeyId(CanonicalCardKey key) => '${key.sourceId}:${key.cardId}';
+
   Future<void> _recordQuota(StudyItem item) {
     return _deckManager.recordCardReviewed(
-      isNewCard: _newCardInteractionIds.contains(item.sessionItemId),
+      isNewCard: _newCardKeys.contains(_cardKeyId(item.cardKey)),
       importId: _importIdFromWordId(TurnaStudyLedger.wordIdFor(item.cardKey)),
     );
   }
 
   Future<void> _undoQuota(StudyEventReceipt receipt) {
+    // The receipt's cardKey identifies the same card the quota was recorded
+    // for, so undo decrements the same counter (new vs review) — hardcoding
+    // false inflated the new-card quota for the rest of the day.
     return _deckManager.recordCardUnreviewed(
-      wasNewCard: false,
+      wasNewCard: _newCardKeys.contains(_cardKeyId(receipt.cardKey)),
       importId: _importIdFromWordId(TurnaStudyLedger.wordIdFor(receipt.cardKey)),
     );
   }
@@ -272,7 +283,9 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
                     children: [
                       Text(
                         _error == FormalReviewLauncher.failClosedMessage
-                            ? FormalReviewLauncher.failClosedMessage
+                            ? AppStrings.officialAnkiError(
+                                FormalReviewLauncher.failClosedMessage,
+                              )
                             : AppStrings.ankiReviewLoadFailed,
                       ),
                       const SizedBox(height: 12),

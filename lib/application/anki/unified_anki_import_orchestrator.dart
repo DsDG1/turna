@@ -79,8 +79,9 @@ class UnifiedAnkiImportOrchestrator {
   /// release the in-flight key without knowing the hash.
   final Map<String, String> _hashByImport = {};
 
-  final Map<String, List<int>> _placementsByImport = {};
-  final Map<String, List<int>> _presentationsByImport = {};
+  /// Rows actually persisted per import (dedup misses are not counted).
+  final Map<String, int> _placementsByImport = {};
+  final Map<String, int> _presentationsByImport = {};
   final Set<String> turnaSrsWordIds = {};
 
   /// Whether the persisted inventory already holds a *complete* import for
@@ -112,13 +113,23 @@ class UnifiedAnkiImportOrchestrator {
     return false;
   }
 
-  Future<void> _persist(UnifiedAnkiImportRequest request) async {
+  /// Identity rows actually persisted for one import: placement/presentation
+  /// counts that reflect the database, not the request (duplicate identities
+  /// are skipped; everything else rolls the whole batch back).
+  Future<({int placements, int presentations})> _persist(
+    UnifiedAnkiImportRequest request,
+  ) async {
     final persist = persistIdentity;
     if (persist != null) {
       await persist(request);
-      return;
+      return (
+        placements: request.canonicalCardIds.length,
+        presentations: request.canonicalCardIds.length,
+      );
     }
-    if (!getIt.isRegistered<AnkiUnificationDao>()) return;
+    if (!getIt.isRegistered<AnkiUnificationDao>()) {
+      return (placements: 0, presentations: 0);
+    }
     final dao = getIt<AnkiUnificationDao>();
     final backend = request.officialCapable
         ? AnkiBackendKind.official
@@ -127,37 +138,63 @@ class UnifiedAnkiImportOrchestrator {
         ? CardIntroductionEligibility.courseIdForOfficialSource(
             request.importId)
         : CardIntroductionEligibility.courseIdForLegacyImport(request.importId);
+    var placements = 0;
+    var presentations = 0;
     var order = 0;
-    for (final cardId in request.canonicalCardIds) {
-      final key = CanonicalCardKey(
-        backend: backend,
-        profileId: CardIntroductionEligibility.defaultProfileId,
-        sourceId: request.importId,
-        cardId: cardId,
-      );
-      try {
-        await dao.insertActivePlacement(
-          placementId: '$courseId-$cardId',
-          courseId: courseId,
+    // One transaction for the whole import: a mid-batch crash or a
+    // non-conflict error must not leave a fraction of the identity rows
+    // committed while the caller is told the import finished.
+    await dao.transaction(() async {
+      for (final cardId in request.canonicalCardIds) {
+        final key = CanonicalCardKey(
+          backend: backend,
           profileId: CardIntroductionEligibility.defaultProfileId,
-          key: key,
-          sectionId: courseId,
-          unitId: courseId,
-          lessonId: courseId,
-          order: order,
-          sourceFingerprint: request.sourceHash,
+          sourceId: request.importId,
+          cardId: cardId,
         );
-        await dao.insertActivePresentation(
-          courseId: courseId,
-          key: key,
-          kind: 'flip',
-          payloadJson: '{}',
-          sourceFingerprint: request.sourceHash,
-        );
-      } catch (_) {
-        // Duplicate identity rows stay 1:1; ignore unique conflicts.
+        if (await _insertConflictSafe(
+          () => dao.insertActivePlacement(
+            placementId: '$courseId-$cardId',
+            courseId: courseId,
+            profileId: CardIntroductionEligibility.defaultProfileId,
+            key: key,
+            sectionId: courseId,
+            unitId: courseId,
+            lessonId: courseId,
+            order: order,
+            sourceFingerprint: request.sourceHash,
+          ),
+        )) {
+          placements++;
+        }
+        if (await _insertConflictSafe(
+          () => dao.insertActivePresentation(
+            courseId: courseId,
+            key: key,
+            kind: 'flip',
+            payloadJson: '{}',
+            sourceFingerprint: request.sourceHash,
+          ),
+        )) {
+          presentations++;
+        }
+        order++;
       }
-      order++;
+    });
+    return (placements: placements, presentations: presentations);
+  }
+
+  /// Runs one identity insert; a UNIQUE conflict means the 1:1 identity row
+  /// already exists (dedup miss / re-import) and is skipped, while any other
+  /// failure (disk full, locked db, schema drift) propagates and aborts the
+  /// surrounding transaction instead of being silently swallowed.
+  static Future<bool> _insertConflictSafe(Future<void> Function() insert) async {
+    try {
+      await insert();
+      return true;
+    } catch (error) {
+      if (error.toString().contains('UNIQUE constraint')) return false;
+      rethrow;
     }
   }
 
@@ -169,12 +206,12 @@ class UnifiedAnkiImportOrchestrator {
       UnifiedAnkiImportRequest request) async {
     if (request.reuseExistingIdentity &&
         await _hashExists(request.sourceHash)) {
-      final placements = _placementsByImport[request.importId] ??
-          List<int>.from(request.canonicalCardIds);
+      final placements =
+          _placementsByImport[request.importId] ?? request.canonicalCardIds.length;
       return UnifiedAnkiImportResult(
-        canonicalCardCount: placements.length,
-        placementCount: placements.length,
-        presentationCount: placements.length,
+        canonicalCardCount: placements,
+        placementCount: placements,
+        presentationCount: placements,
         wroteTurnaSrs: false,
         noOp: true,
         turnaSrsWordIds: const {},
@@ -207,18 +244,21 @@ class UnifiedAnkiImportOrchestrator {
     );
   }
 
-  Future<void> finalize(UnifiedAnkiImportRequest request) async {
+  /// Persists identity and records what actually landed in the database.
+  Future<({int placements, int presentations})> finalize(
+    UnifiedAnkiImportRequest request,
+  ) async {
     _inFlightKeys.remove(request.sourceHash);
     _hashByImport[request.importId] = request.sourceHash;
-    final placements = List<int>.from(request.canonicalCardIds);
-    _placementsByImport[request.importId] = placements;
-    _presentationsByImport[request.importId] = placements;
+    final written = await _persist(request);
+    _placementsByImport[request.importId] = written.placements;
+    _presentationsByImport[request.importId] = written.presentations;
     if (!request.officialCapable) {
       for (final cardId in request.canonicalCardIds) {
         turnaSrsWordIds.add('anki-${request.importId}-c$cardId');
       }
     }
-    await _persist(request);
+    return written;
   }
 
   /// Drop every in-process record of one import after its persisted data was
@@ -241,17 +281,30 @@ class UnifiedAnkiImportOrchestrator {
     final trace = Stopwatch()..start();
     try {
       final started = await begin(request);
-      if (!started.noOp) await finalize(request);
+      UnifiedAnkiImportResult result = started;
+      if (!started.noOp) {
+        final written = await finalize(request);
+        // Report the rows that actually landed, so `cardinalityOk` is a real
+        // invariant instead of echoing the request back.
+        result = UnifiedAnkiImportResult(
+          canonicalCardCount: request.canonicalCardIds.length,
+          placementCount: written.placements,
+          presentationCount: written.presentations,
+          wroteTurnaSrs: started.wroteTurnaSrs,
+          noOp: false,
+          turnaSrsWordIds: started.turnaSrsWordIds,
+        );
+      }
       trace.stop();
       PerformanceTrace.instance.record(
         feature: 'anki',
         operation: 'import',
         duration: trace.elapsed,
-        resultSize: started.canonicalCardCount,
+        resultSize: result.canonicalCardCount,
         cacheStatus:
-            started.noOp ? TraceCacheStatus.hit : TraceCacheStatus.miss,
+            result.noOp ? TraceCacheStatus.hit : TraceCacheStatus.miss,
       );
-      return started;
+      return result;
     } catch (_) {
       trace.stop();
       PerformanceTrace.instance.record(
@@ -292,51 +345,58 @@ class UnifiedAnkiImportOrchestrator {
     final courseId =
         CardIntroductionEligibility.courseIdForOfficialSource(sourceId);
     final ids = [for (final row in rows) row.cardId];
+    var placements = 0;
+    var presentations = 0;
     var order = 0;
-    for (final row in rows) {
-      final key = CanonicalCardKey(
-        backend: AnkiBackendKind.official,
-        profileId: CardIntroductionEligibility.defaultProfileId,
-        sourceId: sourceId,
-        cardId: row.cardId,
-      );
-      try {
-        await dao.insertActivePlacement(
-          placementId: '$courseId-${row.cardId}',
-          courseId: courseId,
+    await dao.transaction(() async {
+      for (final row in rows) {
+        final key = CanonicalCardKey(
+          backend: AnkiBackendKind.official,
           profileId: CardIntroductionEligibility.defaultProfileId,
-          key: key,
-          sectionId: row.sectionId,
-          unitId: row.unitId,
-          lessonId: row.lessonId,
-          order: order++,
-          sourceFingerprint: sourceHash,
+          sourceId: sourceId,
+          cardId: row.cardId,
         );
-        await dao.insertActivePresentation(
-          courseId: courseId,
-          key: key,
-          kind: row.kind,
-          payloadJson: '{}',
-          sourceFingerprint: sourceHash,
-        );
-      } catch (_) {
-        // Duplicate identity rows stay 1:1; ignore unique conflicts.
+        if (await _insertConflictSafe(
+          () => dao.insertActivePlacement(
+            placementId: '$courseId-${row.cardId}',
+            courseId: courseId,
+            profileId: CardIntroductionEligibility.defaultProfileId,
+            key: key,
+            sectionId: row.sectionId,
+            unitId: row.unitId,
+            lessonId: row.lessonId,
+            order: order++,
+            sourceFingerprint: sourceHash,
+          ),
+        )) {
+          placements++;
+        }
+        if (await _insertConflictSafe(
+          () => dao.insertActivePresentation(
+            courseId: courseId,
+            key: key,
+            kind: row.kind,
+            payloadJson: '{}',
+            sourceFingerprint: sourceHash,
+          ),
+        )) {
+          presentations++;
+        }
       }
-    }
-    _placementsByImport[sourceId] = ids;
-    _presentationsByImport[sourceId] = ids;
+    });
+    _placementsByImport[sourceId] = placements;
+    _presentationsByImport[sourceId] = presentations;
     return UnifiedAnkiImportResult(
       canonicalCardCount: ids.length,
-      placementCount: ids.length,
-      presentationCount: ids.length,
+      placementCount: placements,
+      presentationCount: presentations,
       wroteTurnaSrs: false,
       noOp: false,
       turnaSrsWordIds: const {},
     );
   }
 
-  int placementCount(String importId) =>
-      _placementsByImport[importId]?.length ?? 0;
+  int placementCount(String importId) => _placementsByImport[importId] ?? 0;
 
   void reset() {
     _inFlightKeys.clear();

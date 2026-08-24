@@ -1,0 +1,13 @@
+diff --git a/rslib/src/text.rs b/rslib/src/text.rs
+index 2bc873ab7..5cc979e23 100644
+--- a/rslib/src/text.rs
++++ b/rslib/src/text.rs
+@@ -556,7 +556,7 @@ const FRAGMENT_QUERY_UNION: &AsciiSet = &CONTROLS
+     .add(b'#');
+ 
+ /// IRI-encode unescaped local paths in HTML fragment.
+-pub(crate) fn encode_iri_paths(unescaped_html: &str) -> Cow<'_, str> {
++pub fn encode_iri_paths(unescaped_html: &str) -> Cow<'_, str> {
+     transform_html_paths(unescaped_html, |fname| {
+         utf8_percent_encode(fname, FRAGMENT_QUERY_UNION).into()
+     })

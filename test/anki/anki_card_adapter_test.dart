@@ -665,6 +665,45 @@ void main() {
         expect(fb.sentence, contains('_____'));
       });
 
+      test('cloze adaptation quizzes the ordinal deletion and reveals others',
+          () {
+        final note = AnkiNote(
+          id: 201,
+          mid: 3,
+          fields: ['The {{c1::cat}} chased the {{c2::dog}}'],
+        );
+        NotetypeMapping clozeMapping() => const NotetypeMapping(
+              type: NotetypeMappingType.cloze,
+              frontFieldIndex: 0,
+              backFieldIndex: 0,
+            );
+
+        // ord 0 → c1, ord 1 → c2 (Anki ordinals are 0-based). The old
+        // firstMatch/replaceAll version quizzed c1's answer on every card.
+        final ord0 = adapter.adapt(
+          note,
+          AnkiCardData(id: 10, nid: 201, did: 1, ord: 0),
+          importId: 'xyz',
+          mapping: clozeMapping(),
+        );
+        expect((ord0.interaction as FillBlank).answer, 'cat');
+
+        final ord1 = adapter.adapt(
+          note,
+          AnkiCardData(id: 11, nid: 201, did: 1, ord: 1),
+          importId: 'xyz',
+          mapping: clozeMapping(),
+        );
+        final fb1 = ord1.interaction as FillBlank;
+        expect(fb1.answer, 'dog');
+        // c1's text is revealed (not blanked) on the c2 card, matching
+        // Anki's cloze rendering and the fidelity renderer's clozeOrd path.
+        expect(fb1.sentence, contains('cat'));
+        expect(fb1.sentence, contains('_____'));
+        expect(fb1.sentence, isNot(contains('c1::')));
+        expect(fb1.sentence, isNot(contains('c2::')));
+      });
+
       test('strips HTML from fields', () {
         final note = AnkiNote(
           id: 300,

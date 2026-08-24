@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/application/anki/formal_review_launcher.dart';
+import 'package:turna/l10n/app_strings.dart';
 
 void main() {
   const launcher = FormalReviewLauncher();
@@ -143,7 +144,12 @@ void main() {
       await tester.tap(find.text('go'));
       await tester.pump();
       expect(opened, isFalse);
-      expect(find.text(FormalReviewLauncher.failClosedMessage), findsOneWidget);
+      expect(
+        find.text(
+          AppStrings.officialAnkiError(FormalReviewLauncher.failClosedMessage),
+        ),
+        findsOneWidget,
+      );
     });
 
     test('production entries call FormalReviewLauncher.open and shared session',

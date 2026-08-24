@@ -285,9 +285,19 @@ class StudySessionController extends ChangeNotifier {
         forgottenCount--;
       }
       lastReceipt = null;
-      if (_index > 0 && phase == StudyCardPhase.completed) {
-        _index -= 1;
-      } else if (phase == StudyCardPhase.readyForNext && _index > 0) {
+      // Re-show the card whose answer was rolled back. The old index math
+      // only handled the `completed` phase; after the production auto-
+      // `continueNext` (phase showingQuestion of the NEXT card) the undone
+      // card was silently skipped, and in `readyForNext` the decrement
+      // landed on the card BEFORE the undone one. Locate the item by the
+      // receipt's idempotency-key prefix (its sessionItemId) instead.
+      final itemId = _sessionItemIdOf(receipt);
+      final target = itemId == null
+          ? -1
+          : items.lastIndexWhere((item) => item.sessionItemId == itemId);
+      if (target >= 0) {
+        _index = target;
+      } else if (_index > 0) {
         _index -= 1;
       }
       _beginCurrent();
@@ -323,6 +333,13 @@ class StudySessionController extends ChangeNotifier {
   String _idempotencyKeyFor(StudyItem item) {
     return _currentIdempotencyKey ??
         '${item.sessionItemId}:${item.cardKey.cardId}:$_generation';
+  }
+
+  /// `[sessionItemId]:[cardId]:[generation]` → the sessionItemId part.
+  String? _sessionItemIdOf(StudyEventReceipt receipt) {
+    final key = receipt.idempotencyKey;
+    final colon = key.indexOf(':');
+    return colon > 0 ? key.substring(0, colon) : null;
   }
 
   void _recordCounts(RecallOutcome outcome) {

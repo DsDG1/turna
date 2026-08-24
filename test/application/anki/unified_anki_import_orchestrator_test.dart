@@ -2,6 +2,10 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/application/anki/unified_anki_import_orchestrator.dart';
+import 'package:turna/data/anki_unification_dao.dart';
+import 'package:turna/di/injection.dart';
+
+import '../../helpers/in_memory_course_db.dart';
 
 void main() {
   late UnifiedAnkiImportOrchestrator orchestrator;
@@ -41,6 +45,16 @@ void main() {
     });
 
     test('legacy path still registers Turna SRS ids 1:1', () async {
+      // Real in-memory unification DAO: the placement/presentation counts are
+      // now measured from the database, so cardinalityOk is a real 1:1 check
+      // instead of echoing the request.
+      final db = emptyInMemoryCourseDatabase();
+      getIt.registerSingleton<AnkiUnificationDao>(AnkiUnificationDao(db));
+      addTearDown(() async {
+        await getIt.reset();
+        await db.close();
+      });
+
       final result = await orchestrator.importPackage(
         const UnifiedAnkiImportRequest(
           importId: 'imp-legacy',
@@ -55,6 +69,7 @@ void main() {
         'anki-imp-legacy-c2',
       });
       expect(result.cardinalityOk, isTrue);
+      expect(orchestrator.placementCount('imp-legacy'), 2);
     });
 
     test('same source hash second import is a no-op (persisted inventory)',

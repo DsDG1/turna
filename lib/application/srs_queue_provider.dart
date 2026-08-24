@@ -44,10 +44,6 @@ abstract class SrsQueueProvider extends ChangeNotifier {
   /// Production default: continuous FSRS memory model (ADR 0028).
   late SrsScheduler engine;
 
-  /// Legacy SM-2 engine kept for callers that need the concrete type.
-  @protected
-  final Sm2Engine sm2Engine = const Sm2Engine();
-
   /// Override scheduler in unit tests (e.g. deterministic SM-2).
   @visibleForTesting
   void setSchedulerForTesting(SrsScheduler scheduler) {

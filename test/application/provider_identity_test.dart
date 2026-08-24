@@ -51,7 +51,7 @@ void main() {
     await getIt.reset();
   });
 
-  // Avoid resolving LessonViewModel / AudioController / MatchProvider here:
+  // Avoid resolving LessonViewModel / AudioController here:
   // AudioPlayer touches platform channels that are unavailable in pure unit tests.
   test('stateful getIt registrations resolve to a single instance', () {
     expect(identical(getIt<CourseProvider>(), getIt<CourseProvider>()), isTrue);

@@ -101,7 +101,7 @@ android {
 
             // R8 code shrinking + resource shrinking. ProGuard rules in
             // proguard-rules.pro keep the FFI/reflection entry points that R8
-            // cannot see statically (sherpa_onnx JNI, drift, freezed/json).
+            // cannot see statically (drift, freezed/json).
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'

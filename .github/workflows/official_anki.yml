@@ -24,6 +24,8 @@ jobs:
         with:
           submodules: recursive
       - uses: dtolnay/rust-toolchain@stable
+      - name: Fetch pinned protoc
+        run: bash native/turna_anki_core/build-android/fetch_protoc.sh
       - name: Verify pin and patch
         run: bash native/turna_anki_core/build-android/verify_pin.sh
       - name: Host fmt clippy test
@@ -69,6 +71,8 @@ jobs:
           targets: aarch64-linux-android
       - name: Install cargo-ndk
         run: cargo install cargo-ndk --version 4.1.2 --locked
+      - name: Fetch pinned protoc
+        run: bash native/turna_anki_core/build-android/fetch_protoc.sh
       - name: Build arm64 .so
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}

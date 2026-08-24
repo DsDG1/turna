@@ -5,6 +5,7 @@ import 'package:turna/application/anki/anki_review_assembler.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_home_due.dart';
+import 'package:turna/application/anki_official/engine/official_anki_native_availability.dart';
 import 'package:turna/application/anki_official/import/anki_import_facade.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 import 'package:turna/application/anki_official/migration/official_anki_gray_config.dart';
@@ -38,6 +39,7 @@ void main() {
         recordedKind: null,
         officialCatalogHasSource: false,
         platform: 'android',
+        libraryAvailable: true,
       ),
       AnkiEngineKind.official,
     );
@@ -54,6 +56,7 @@ void main() {
       AnkiImportFacade.decisionFor(
         OfficialAnkiFeatureFlags.fromEnvironment(),
         platform: 'android',
+        libraryAvailable: true,
       ),
       AnkiImportDecision.official,
     );
@@ -88,6 +91,7 @@ void main() {
         cutoverEnabled: true,
         platform: 'android',
         gray: const OfficialAnkiGrayConfig(cohort: OfficialAnkiGrayCohort.g1),
+        libraryAvailable: true,
       ),
       AnkiImportDecision.official,
     );
@@ -102,6 +106,7 @@ void main() {
         officialCatalogHasSource: false,
         cutoverEnabled: true,
         platform: 'android',
+        libraryAvailable: true,
       ),
       AnkiEngineKind.official,
     );
@@ -115,6 +120,49 @@ void main() {
       ),
       AnkiEngineKind.legacy,
     );
+  });
+
+  test('p5d_library_missing_degrades_unrecorded_routing_to_legacy', () {
+    const resolver = AnkiSourceRouteResolver();
+    expect(
+      resolver.resolve(
+        sourceKey: 'user-deck',
+        recordedKind: null,
+        officialCatalogHasSource: false,
+        cutoverEnabled: true,
+        platform: 'android',
+        libraryAvailable: false,
+      ),
+      AnkiEngineKind.legacy,
+    );
+    // Recorded official never degrades: its data lives in the official
+    // collection and has no legacy fallback (fail-closed instead).
+    expect(
+      resolver.resolve(
+        sourceKey: 'p5c-fixture-device',
+        recordedKind: AnkiEngineKind.official,
+        cutoverEnabled: true,
+        platform: 'android',
+        libraryAvailable: false,
+      ),
+      AnkiEngineKind.official,
+    );
+    expect(
+      AnkiImportFacade.decisionFor(
+        OfficialAnkiFeatureFlags.fromEnvironment(),
+        platform: 'android',
+        libraryAvailable: false,
+      ),
+      AnkiImportDecision.legacy,
+    );
+  });
+
+  test('p5d_native_availability_override_drives_probe', () {
+    OfficialAnkiNativeAvailability.debugOverride = false;
+    addTearDown(() => OfficialAnkiNativeAvailability.debugOverride = null);
+    expect(OfficialAnkiNativeAvailability.current, isFalse);
+    OfficialAnkiNativeAvailability.debugOverride = true;
+    expect(OfficialAnkiNativeAvailability.current, isTrue);
   });
 
   test('p5d_ohos_import_stays_legacy', () {
@@ -684,6 +732,7 @@ void main() {
         cutoverEnabled: true,
         platform: 'android',
         gray: const OfficialAnkiGrayConfig(cohort: OfficialAnkiGrayCohort.g4),
+        libraryAvailable: true,
       ),
       AnkiImportDecision.official,
     );
@@ -704,6 +753,7 @@ void main() {
         cutoverEnabled: true,
         platform: 'android',
         gray: const OfficialAnkiGrayConfig(cohort: OfficialAnkiGrayCohort.g3),
+        libraryAvailable: true,
       ),
       AnkiImportDecision.official,
     );
@@ -724,6 +774,7 @@ void main() {
         cutoverEnabled: true,
         platform: 'android',
         gray: const OfficialAnkiGrayConfig(cohort: OfficialAnkiGrayCohort.g2),
+        libraryAvailable: true,
       ),
       AnkiImportDecision.official,
     );

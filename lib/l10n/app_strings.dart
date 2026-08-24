@@ -41,8 +41,8 @@ class AppStrings {
   static String get lessonGotItUpper => '知道了';
 
   // ── Settings ──
-  static String get settingsCategoryAccount => '账户与个性化';
-  static String get settingsCategoryAccountSubtitle => '资料、头像装扮与宝石';
+  static String get settingsCategoryAccount => '个性化与目标';
+  static String get settingsCategoryAccountSubtitle => '头像装扮、宝石与每日目标';
   static String get settingsCategoryLearning => '学习';
   static String get settingsCategoryLearningSubtitle => '语言、语速、提醒与 Anki';
 
@@ -63,6 +63,15 @@ class AppStrings {
   static String get settingsGroupDataSystem => '数据与系统';
   static String get settingsGroupProduct => '产品';
   static String get settingsTitle => '设置';
+  static String get settingsLandingQuickTitle => '常用设置';
+  static String get settingsLandingThemeTitle => '主题';
+  static String get settingsLandingReminderOff => '未开启';
+  static String settingsLandingPersonalSummary({
+    required String displayName,
+    required int dailyXp,
+    required int studyMinutes,
+  }) =>
+      '$displayName · 每日 $dailyXp XP / $studyMinutes 分钟';
   static String get settingsLearningPrefsTitle => '学习偏好';
   static String get settingsAnkiSectionTitle => 'Anki 复习';
   static String get settingsAudioSectionTitle => '声音与触感';
@@ -70,6 +79,8 @@ class AppStrings {
   static String get settingsAppearanceSectionTitle => '外观';
   static String get settingsAiSectionTitle => 'AI 工具';
   static String get settingsDataSectionTitle => '数据管理';
+  static String get settingsLearningRecordsTitle => '学习记录';
+  static String get settingsDangerZoneTitle => '危险操作';
   static String get settingsBack => '返回';
   static String get settingsSoundEffectsTitle => '音效';
   static String get settingsSoundEffectsSubtitle => '为错误和升级播放音效';
@@ -708,19 +719,6 @@ class AppStrings {
   static String get playReviewFocusEmpty => '暂无待复习';
   static String get playDailyChallengeFocusCount => '随机 15 题';
   static String get playTitle => '练习';
-  static String get playMatchMadness => '匹配狂热';
-  static String playXpLabel(int sessionScore) => '$sessionScore XP';
-  static String playRoundLabel(int roundsCompleted) => '第 $roundsCompleted 轮';
-  static String get playInfiniteRoundsNote => '无限轮次。每次完美完成板后出现新单词。';
-  static String get playRoundComplete => '本轮完成！正在加载新单词…';
-  static String playTimeUp(int roundsCompleted, int score) =>
-      '时间到！你完成了 $roundsCompleted 轮，获得 $score XP。';
-  static String get playPlayAgain => '再玩一次';
-  static String get playBrilliantRun => '精彩发挥！';
-  static String get playChampionEnergy => '冠军之能！';
-  static String get playLightningFast => '闪电速度！';
-  static String playMatchCount(int matchedCount, int totalCount) =>
-      '$matchedCount / $totalCount';
   static String get playDailyClose => '关闭';
   static String get playDailyTitle => '每日挑战';
   static String playDailyQuestion(int current, int total) =>
@@ -1807,4 +1805,115 @@ class AppStrings {
   static String get dayFri => '五';
   static String get daySat => '六';
   static String get daySun => '日';
+
+  // ── Official Anki errors ──
+  static String get officialAnkiRetryCurrentSide => '重试当前面';
+  static String get officialAnkiErrorFallback => '官方卡片暂时无法显示，请重试。';
+
+  /// Localize an `official_anki.*` message key emitted by the native bridge
+  /// or the Dart engine layer. Unknown keys resolve to a generic user-facing
+  /// message — the raw key is a diagnostic, never UI copy (it used to leak
+  /// into release error screens as `官方卡片无法显示（official_anki.x）`).
+  static String officialAnkiError(String key) {
+    switch (key) {
+      case 'official_anki.card_not_found':
+        return '这张官方卡片不存在。';
+      case 'official_anki.unrenderable_card':
+        return '该卡片模板不可渲染或已损坏，可手动跳过或搁置。';
+      case 'official_anki.render_failed':
+        return '官方模板渲染失败。';
+      case 'official_anki.renderer_flag_fail_closed':
+        return '官方原卡渲染未启用。';
+      case 'official_anki.worker_required':
+        return '官方渲染需要独立 worker，当前不可用。';
+      case 'official_anki.worker_init_failed':
+        return '官方引擎启动失败，请重试。';
+      case 'official_anki.worker_rpc_timeout':
+        return '官方引擎响应超时，请重试。';
+      case 'official_anki.in_process_forbidden':
+        return '生产路径禁止使用进程内回退。';
+      case 'official_anki.flag_fail_closed':
+        return '官方 Anki 功能未打开。';
+      case 'official_anki.review_fail_closed':
+        return '官方复习暂时不可用，请稍后再试。';
+      case 'official_anki.scheduler_flag_fail_closed':
+        return '官方复习调度未启用。';
+      case 'official_anki.scheduler_busy':
+        return '官方引擎正忙，请稍后重试。';
+      case 'official_anki.scheduler_capability_missing':
+        return '当前 native 引擎缺少该能力，需要重新构建。';
+      case 'official_anki.capability_missing':
+        return '当前 native 引擎缺少所需能力，需要重新构建 libturna_anki.so。';
+      case 'official_anki.internal_error':
+      case 'official_anki.backend_error':
+      case 'official_anki.transport_error':
+        return '官方复习遇到内部错误。';
+      case 'official_anki.answer_commit_unknown':
+        return '官方评分结果未确认，正在等待核对。';
+      case 'official_anki.answer_failed':
+        return '官方评分失败，请重试。';
+      case 'official_anki.scheduling_context_stale':
+      case 'official_anki.page_token_stale':
+        return '官方复习上下文已过期，请重试。';
+      case 'official_anki.queue_empty':
+        return '当前没有待复习的官方卡片。';
+      case 'official_anki.invalid_review_state':
+      case 'official_anki.invalid_state':
+      case 'official_anki.review_session_disposed':
+      case 'official_anki.engine_disposed':
+        return '官方复习状态无效，请重新开始。';
+      case 'official_anki.invalid_bury_action':
+        return '官方搁置或暂停操作无效。';
+      case 'official_anki.filtered_deck_unsupported':
+        return '当前过滤牌组不支持搁置或暂停。';
+      case 'official_anki.contract_decode_failed':
+      case 'official_anki.contract_version_mismatch':
+      case 'official_anki.invalid_envelope':
+      case 'official_anki.empty_payload':
+        return '官方复习数据不完整。';
+      case 'official_anki.write_owner_denied':
+        return '该复习路径不允许写入。';
+      case 'official_anki.operation_conflict':
+        return '官方复习正在进行，不能同时导入或重开牌组。';
+      case 'official_anki.collection_already_open':
+        return '官方 Collection 已打开，请重试。';
+      case 'official_anki.collection_locked':
+        return '官方 Collection 被占用，请稍后重试。';
+      case 'official_anki.collection_open_failed':
+      case 'official_anki.collection_corrupt':
+        return '官方 Collection 打开失败或已损坏。';
+      case 'official_anki.library_missing':
+      case 'official_anki.symbol_missing':
+      case 'official_anki.library_open_failed':
+        return '官方 Anki 核心库缺失或不可用。';
+      case 'official_anki.io_error':
+        return '读写官方数据时出错。';
+      case 'official_anki.import_cancelled':
+        return '导入已取消。';
+      case 'official_anki.package_invalid':
+      case 'official_anki.package_not_found':
+        return '牌组文件无效或不存在。';
+      case 'official_anki.deck_not_found':
+        return '官方牌组不存在。';
+      case 'official_anki.undo_unavailable':
+        return '当前没有可撤销的操作。';
+      case 'official_anki.redo_unavailable':
+        return '当前没有可重做的操作。';
+      case 'official_anki.unknown_migration_state':
+        return '未知的 Legacy 迁移状态。';
+      case 'official_anki.illegal_migration_transition':
+        return 'Legacy 迁移状态不能这样切换。';
+      case 'official_anki.migration_cas_failed':
+        return 'Legacy 迁移状态已被其他操作更新。';
+      case 'official_anki.typed_field_unknown':
+      case 'official_anki.typed_field_not_found':
+        return '这张卡片没有可输入的字段。';
+      case 'official_anki.typed_cloze_empty':
+        return '这个填空没有可输入的内容。';
+      case 'official_anki.typed_compare_failed':
+        return '答案比对失败，可以重试或跳过。';
+      default:
+        return officialAnkiErrorFallback;
+    }
+  }
 }

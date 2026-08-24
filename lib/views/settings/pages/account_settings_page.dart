@@ -6,7 +6,6 @@ import 'package:auto_route/auto_route.dart';
 
 // Project imports:
 import 'package:turna/application/settings/settings_destination.dart';
-import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/settings/pages/settings_category_body.dart';
 import 'package:turna/views/settings/widgets/settings_account_section.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
@@ -22,10 +21,7 @@ class AccountSettingsPage extends StatelessWidget {
       title: SettingsDestination.account.title,
       body: SettingsCategoryBody(
         pageStorageKey: 'settings-account',
-        child: SettingsAccountSection(
-          onNavigateToData: () =>
-              context.router.push(const DataBackupSettingsRoute()),
-        ),
+        child: const SettingsAccountSection(),
       ),
     );
   }

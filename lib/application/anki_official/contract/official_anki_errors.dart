@@ -129,6 +129,8 @@ OfficialAnkiErrorCode officialAnkiErrorCodeFromName(String? name) {
       return OfficialAnkiErrorCode.ioError;
     case 'COLLECTION_CORRUPT':
       return OfficialAnkiErrorCode.collectionCorrupt;
+    case 'INTERNAL_ERROR':
+      return OfficialAnkiErrorCode.internalError;
     default:
       return OfficialAnkiErrorCode.unknown;
   }

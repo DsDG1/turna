@@ -9,14 +9,42 @@ Turna 的更新日志。本文件随发布打包到 App 资产中,由应用读�
 
 ---
 
-## 0.7 — Anki 原生渲染与吉祥物升级 (2026-08-15)
+## 0.7.1 — 数据治理、AI 安全与体验打磨 (2026-08-24)
 
-- Anki 渲染架构重构：原生展开式问答卡面（`AnkiRevealScaffold`）与高性能 Flutter HTML 渲染链
-- 复习与练习独立解耦：复习专注 NoteStore 原卡体验，练习复用课程交互题型（选择/填空/听选）
-- Anki 导入全流程增强：导入差异预览规划、字段映射编辑器与导入操作事务日志/恢复
-- 全新吉祥物视觉系统：Turna 湿地鹤扁平现代卡通形象，覆盖主页欢迎、学习、听力、思考、通关与鼓励场景
-- 系统健康监控与诊断中心（`SystemHealthMonitor`），提供全链路环境与组件健康诊断
-- AI 伴学能力深化：学习证据链记录、会话知识检索与 AI Token 预算管理
+- AI 服务商预设刷新为 DeepSeek / Kimi / Qwen / MiMo，新增深度思考开关（推理字段默认关闭，由用户显式开启）
+- AI API Key 迁移至平台安全存储（iOS Keychain / Android Keystore），不再写入明文偏好
+- AI 讲解 / 提示 / 陪练三个 Provider 收敛到 `AiStreamingSessionBase`，统一流式取消、代际与增量应用；新增 `StreamDeltaCoalescer` 合并响应降低 UI 重建
+- 移除 AI 磁盘缓存镜像，仅保留内存 LRU
+- 宝石入账改为幂等账本（`earnGems`），成就解锁按幂等键入账避免重复发放；成就连续天数改用真实学习 streak
+- `CardRecognitionPipeline` 取代 `anki_notetype_ai`：签名版本化、去隐私样本特征、持久化规则与 AI 结果形状校验
+- `StorageInventoryService` 只读扫描与存储诊断页，支持分类 / 孤儿检测及可再生缓存清理
+- 存储诊断页面重构为面向用户的"存储与性能"仪表板（使用率环图 + 分类卡片）
+- 卸载 / 删除以 `legacy_anki_migrations` 判定归属，清理失败标记 `pending_cleanup` 并启动时自动重试
+- 备份恢复后无需重启：Accessibility / Language / Settings Provider 新增 reload 方法刷新状态
+- 设置导航引入 `SettingsDestination` 描述符集中管理页面元数据；`SystemHealthMonitor` 重构为状态机模型
+- `CacheDiagnosticsRegistry` 支持按所有者隔离执行缓存清理并保留各自结果
+- 牌组组装新增 section beta 语义分组（默认关闭，仅影响新导入）
+- 统一版本编号至 0.x 序列，移除 quick_start.md，以 ReleaseManifest 作为版本单一事实来源
+- 移除无入口的配对游戏、字母描红，以及未使用的旧品牌图（Mala / 卡纳达语 / Duolingo 贴纸）
+
+---
+
+## 0.7 — Anki 官方 Core 整合与课程/复习大一统 (2026-08-15)
+
+- 官方 Anki rslib 通过 Dart FFI 整合并默认切到官方 Core（ADR 0036/0037 落地）
+- 课程与复习大一统：统一复习 ledger、卡片引入资格（`CardIntroductionStore`）与二元 recall flow
+- 大型牌组导入走 worker isolate + 流式解压 + 500 条批次写入，内存占用不随牌组大小增长
+- 官方导入事务恢复：dry-run 演练、物理备份、逐源 allowlist 与独立 commit 边界（CI 拦截 BACKEND_COMMIT 漂移）
+- 新增 deleteNotes 操作硬删除笔记与关联数据
+- 课程页大改版：课程树扁平化、滚动隐藏栏、状态角标与 section switcher 翻新
+- 数据导入导出 + WebDAV 远程备份同步（manifest / snapshot / restore / 演练）
+- 个人页精简：今日概览卡 + 成就 showAll 独立路由 + 学习统计瘦身
+- 成就系统重构：evaluator / state repository / migration service / 详情 sheet / 徽章卡
+- 路由统一：RouteType.adaptive + Android 预测性返回 + 全 AutoRoute 推送（移除手写 MaterialPageRoute）
+- AI 伴学打磨：移除成熟度象限、interaction renderer 调整、AI 深度导师 / ShowWord 翻面
+- 系统健康监控中心（`SystemHealthMonitor`）+ AI 伴侣 stack（profile / retriever / 预算 / 凭据）
+- 教学 Playground 新增：language_playground_eligibility / 装配器 / 内容源 / 入口页
+- 少量 bug 修复与 play_hub 黄金图更新
 
 ---
 

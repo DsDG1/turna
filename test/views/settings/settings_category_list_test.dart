@@ -117,15 +117,21 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('landing shows the formal destinations in 4 groups',
+  testWidgets('landing shows personal summary, quick states and destinations',
       (tester) async {
     await tester.pumpWidget(wrap(const SettingsPage()));
     await tester.pumpAndSettle();
 
-    expect(find.text(AppStrings.settingsGroupPersonal), findsOneWidget);
+    expect(find.byKey(const Key('settings-personal-summary')), findsOneWidget);
+    expect(find.text(AppStrings.settingsLandingQuickTitle), findsOneWidget);
     expect(find.text(AppStrings.settingsGroupLearning), findsOneWidget);
     expect(find.text(AppStrings.settingsGroupDataSystem), findsOneWidget);
-    expect(find.text(AppStrings.settingsGroupProduct), findsOneWidget);
+
+    // Lightweight current values; no destination page needs to be opened.
+    expect(find.text('Turkish'), findsOneWidget);
+    expect(find.text(AppStrings.settingsThemeSystem), findsOneWidget);
+    expect(find.text(AppStrings.settingsLandingReminderOff), findsOneWidget);
+    expect(find.text(AppStrings.settingsTextSizeValue(100)), findsOneWidget);
 
     // The seven formal destinations.
     expect(find.text(AppStrings.settingsCategoryAccount), findsOneWidget);
@@ -141,6 +147,22 @@ void main() {
 
     // Removed categories must not exist anywhere on the landing page.
     expect(find.textContaining('AI 工具'), findsNothing);
+  });
+
+  testWidgets('landing adapts to 200 percent text without overflow',
+      (tester) async {
+    await tester.pumpWidget(
+      wrap(
+        const MediaQuery(
+          data: MediaQueryData(textScaler: TextScaler.linear(2)),
+          child: SettingsPage(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text(AppStrings.settingsLandingQuickTitle), findsOneWidget);
   });
 
   testWidgets('landing list has a stable PageStorageKey for scroll restore',
@@ -240,5 +262,8 @@ void main() {
       findsOneWidget,
       reason: 'deep link should land directly on the data & backup page',
     );
+    expect(find.text(AppStrings.settingsLearningRecordsTitle), findsOneWidget);
+    expect(find.text(AppStrings.settingsDangerZoneTitle), findsOneWidget);
+    expect(find.text(AppStrings.accountResetTitle), findsOneWidget);
   });
 }

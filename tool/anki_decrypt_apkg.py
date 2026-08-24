@@ -8,18 +8,18 @@ notetype. This tool rewrites the package so the fields contain plaintext:
 the app can then import the deck like any other .apkg (no JS needed).
 
 The key/iv are deck-specific and must be extracted manually from the deck's
-own JS (e.g. by debugging on ankiweb). Known decks are bundled in
-`KNOWN_DECKS`; anything else can be supplied via --key/--iv.
+own JS (e.g. by debugging on ankiweb). Supply them via --key/--iv or the
+TURNA_ANKI_DECRYPT_KEY / TURNA_ANKI_DECRYPT_IV environment variables —
+deck secrets are deliberately NOT bundled in this repository (known-deck
+keys shipped here previously and were removed for IP/liability reasons).
 
 Only the legacy `collection.anki2` / `collection.anki21` storage formats are
 supported. Decks exported from recent Anki versions may use the zstd-based
 `collection.anki21b`; re-export those from Anki with "support older Anki
 versions" enabled first.
 
-Examples:
-    python tool/anki_decrypt_apkg.py in.apkg -o out.apkg --deck math
+Example:
     python tool/anki_decrypt_apkg.py in.apkg -o out.apkg --key KEY --iv IV
-    python tool/anki_decrypt_apkg.py --selftest
 """
 
 from __future__ import annotations
@@ -27,6 +27,7 @@ from __future__ import annotations
 import argparse
 import base64
 import binascii
+import os
 import re
 import sqlite3
 import sys
@@ -35,26 +36,6 @@ import zipfile
 from pathlib import Path
 
 MARKER_RE = re.compile(r"≯#(.*?)#≮")
-
-# Deck-specific secrets recovered from each deck's own bundled JS, as
-# documented in the anki-decryptBack reference repo. The IV below is the one
-# both known decks ship with.
-KNOWN_DECKS = {
-    "hongbaoshu": {  # 红宝书
-        "key": "XksZEmuDKw64afMJS5h2ckdUkxZuEyzi",
-        "iv": "12345679abcdefgj",
-    },
-    "math": {  # 数学公式
-        "key": "RmTysFEZ595bPsB5in6PRbgkSpmuWNBe",
-        "iv": "12345679abcdefgj",
-    },
-}
-
-# Known plaintext pair from anki-decryptBack/JavaScript/test.txt, used by
-# --selftest to verify the AES backend before touching a real deck.
-SELFTEST_CIPHER = "Y2R7XIluIcs5n5wOQZhruNSZt7w7jmgcKaIY/gWOJCM="
-SELFTEST_PLAIN = "这个不用背，了解即可"
-SELFTEST_DECK = "math"
 
 COLLECTION_NAMES = ("collection.anki21", "collection.anki2")
 
@@ -158,25 +139,6 @@ def repack_with_collection(
                 zout.writestr(item, zin.read(item.filename))
 
 
-def run_selftest() -> bool:
-    deck = KNOWN_DECKS[SELFTEST_DECK]
-    try:
-        plain = decrypt_segment(
-            SELFTEST_CIPHER, deck["key"].encode(), deck["iv"].encode()
-        )
-    except Exception as exc:  # noqa: BLE001 - selftest reports any failure
-        print(f"selftest FAILED: {exc}", file=sys.stderr)
-        return False
-    if plain != SELFTEST_PLAIN:
-        print(
-            f"selftest FAILED: expected {SELFTEST_PLAIN!r}, got {plain!r}",
-            file=sys.stderr,
-        )
-        return False
-    print("selftest OK")
-    return True
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Decrypt ≯#...#≮ segments in .apkg note fields."
@@ -184,42 +146,32 @@ def main() -> int:
     parser.add_argument("input", nargs="?", type=Path, help="input .apkg")
     parser.add_argument("-o", "--output", type=Path, help="output .apkg")
     parser.add_argument(
-        "--deck",
-        choices=sorted(KNOWN_DECKS),
-        help="use the bundled key/iv of a known deck",
+        "--key",
+        help="deck-specific AES key (UTF-8), or TURNA_ANKI_DECRYPT_KEY",
     )
-    parser.add_argument("--key", help="deck-specific AES key (UTF-8)")
-    parser.add_argument("--iv", help="deck-specific AES iv (UTF-8)")
     parser.add_argument(
-        "--selftest",
-        action="store_true",
-        help="verify the AES backend against a known pair and exit",
+        "--iv",
+        help="deck-specific AES iv (UTF-8), or TURNA_ANKI_DECRYPT_IV",
     )
     args = parser.parse_args()
 
-    if args.selftest:
-        return 0 if run_selftest() else 1
+    key = args.key or os.environ.get("TURNA_ANKI_DECRYPT_KEY")
+    iv = args.iv or os.environ.get("TURNA_ANKI_DECRYPT_IV")
 
     if args.input is None or args.output is None:
-        parser.error("input and -o/--output are required (or use --selftest)")
+        parser.error("input and -o/--output are required")
+    if not key or not iv:
+        parser.error(
+            "provide both --key and --iv (or TURNA_ANKI_DECRYPT_KEY / "
+            "TURNA_ANKI_DECRYPT_IV); known-deck keys are no longer bundled"
+        )
 
-    if args.deck:
-        key = KNOWN_DECKS[args.deck]["key"].encode()
-        iv = KNOWN_DECKS[args.deck]["iv"].encode()
-    elif args.key and args.iv:
-        key = args.key.encode()
-        iv = args.iv.encode()
-    else:
-        parser.error("provide --deck or both --key and --iv")
-
-    if len(key) not in (16, 24, 32):
-        parser.error(f"key must be 16/24/32 bytes, got {len(key)}")
-    if len(iv) != 16:
-        parser.error(f"iv must be 16 bytes, got {len(iv)}")
-
-    if not run_selftest():
-        print("error: AES backend broken, aborting", file=sys.stderr)
-        return 1
+    key_bytes = key.encode()
+    iv_bytes = iv.encode()
+    if len(key_bytes) not in (16, 24, 32):
+        parser.error(f"key must be 16/24/32 bytes, got {len(key_bytes)}")
+    if len(iv_bytes) != 16:
+        parser.error(f"iv must be 16 bytes, got {len(iv_bytes)}")
 
     with zipfile.ZipFile(args.input) as zf:
         names = set(zf.namelist())
@@ -245,7 +197,7 @@ def main() -> int:
         with zipfile.ZipFile(args.input) as zf:
             tmp_collection.write_bytes(zf.read(collection_name))
 
-        stats = decrypt_collection(tmp_collection, key, iv)
+        stats = decrypt_collection(tmp_collection, key_bytes, iv_bytes)
         repack_with_collection(
             args.input, args.output, collection_name, tmp_collection
         )

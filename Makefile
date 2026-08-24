@@ -22,8 +22,8 @@ test-python: ## Run Python tool tests
 build-release: ## Build release artifacts for a given VERSION (e.g., make build-release VERSION=0.4.0-future4)
 	python3 tool/build_release.py --version $(VERSION)
 
-build-release-smoke: ## Quick build smoke test (skips web and content validation)
-	python3 tool/build_release.py --version ci-smoke --skip-web --skip-content-validation
+build-release-smoke: ## Quick build smoke test (skips web, content validation, and the native .so build)
+	python3 tool/build_release.py --version ci-smoke --skip-web --skip-content-validation --skip-native
 
 ci: analyze test test-python build-release-smoke ## Run the full local CI equivalent
 

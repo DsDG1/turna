@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:turna/application/anki_official/engine/official_anki_native_availability.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 
 enum AnkiEngineKind { legacy, official }
@@ -69,6 +70,7 @@ class AnkiSourceRouteResolver {
     bool officialCatalogHasSource = false,
     bool? cutoverEnabled,
     String? platform,
+    bool? libraryAvailable,
   }) {
     if (sourceKey.isEmpty) return AnkiEngineKind.legacy;
     final cutover =
@@ -83,7 +85,13 @@ class AnkiSourceRouteResolver {
     final plat =
         platform ?? OfficialAnkiCapabilityMatrix.current().platform;
     if (plat == 'android') {
-      return AnkiEngineKind.official;
+      // Unrecorded source: the android default assumes the official core is
+      // packaged. When the library is physically absent (packaging defect,
+      // wrong ABI) degrade to legacy — recorded sources never degrade, their
+      // data lives only in the official collection.
+      final libraryOk =
+          libraryAvailable ?? OfficialAnkiNativeAvailability.current;
+      return libraryOk ? AnkiEngineKind.official : AnkiEngineKind.legacy;
     }
     return officialCatalogHasSource
         ? AnkiEngineKind.official
@@ -96,6 +104,7 @@ class AnkiSourceRouteResolver {
     bool officialCatalogHasSource = false,
     bool? cutoverEnabled,
     String? platform,
+    bool? libraryAvailable,
   }) {
     return AnkiSourceRoute(
       sourceKey: sourceKey,
@@ -105,6 +114,7 @@ class AnkiSourceRouteResolver {
         officialCatalogHasSource: officialCatalogHasSource,
         cutoverEnabled: cutoverEnabled,
         platform: platform,
+        libraryAvailable: libraryAvailable,
       ),
     );
   }

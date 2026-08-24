@@ -174,9 +174,11 @@ void main() {
       OfficialAnkiSchedulerAudit.officialSchedulerWritesFromDerivedExercise,
       0,
     );
+    // The Phase-0 spike was removed from the production tree (duplicate FFI
+    // bindings had drifted from the transport); keep it out.
     expect(
       Directory('lib/application/anki_official/spike').existsSync(),
-      isTrue,
+      isFalse,
     );
     final reviewSource = File(
       'lib/application/anki_official/engine/official_anki_review_session.dart',

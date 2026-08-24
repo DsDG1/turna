@@ -181,6 +181,8 @@ class SettingsActionTile extends StatelessWidget {
   final String subtitle;
   final void Function(BuildContext) onTap;
   final bool enabled;
+  final Color? iconColor;
+  final Color? iconBackground;
 
   const SettingsActionTile({
     super.key,
@@ -189,6 +191,8 @@ class SettingsActionTile extends StatelessWidget {
     required this.subtitle,
     required this.onTap,
     this.enabled = true,
+    this.iconColor,
+    this.iconBackground,
   });
 
   @override
@@ -197,6 +201,8 @@ class SettingsActionTile extends StatelessWidget {
       icon: icon,
       title: title,
       subtitle: subtitle,
+      iconColor: iconColor,
+      iconBackground: iconBackground,
       onTap: enabled ? () => onTap(context) : null,
       trailing: const Icon(
         Icons.chevron_right_rounded,
@@ -211,6 +217,8 @@ class SettingsNavigationTile extends StatelessWidget {
   final String title;
   final String? subtitle;
   final void Function(BuildContext) onTap;
+  final Color? iconColor;
+  final Color? iconBackground;
 
   const SettingsNavigationTile({
     super.key,
@@ -218,6 +226,8 @@ class SettingsNavigationTile extends StatelessWidget {
     required this.title,
     this.subtitle,
     required this.onTap,
+    this.iconColor,
+    this.iconBackground,
   });
 
   @override
@@ -226,6 +236,8 @@ class SettingsNavigationTile extends StatelessWidget {
       icon: icon,
       title: title,
       subtitle: subtitle,
+      iconColor: iconColor,
+      iconBackground: iconBackground,
       onTap: () => onTap(context),
       trailing: const Icon(
         Icons.chevron_right_rounded,

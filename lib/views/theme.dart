@@ -516,22 +516,21 @@ class TurnaTheme {
   static Color bottomNavBg(BuildContext context) =>
       _isDark(context) ? const Color(0xFF182832) : Colors.white;
 
-  /// Fake-glass fill for the floating home tab bar. More opaque than
-  /// [glassSurface] so labels stay readable over scrolling content
-  /// (Tinted, not Clear — no backdrop sample).
+  /// Translucent fake-glass fill for the floating home tab bar. It is opaque
+  /// enough to keep labels readable without sampling and blurring the backdrop.
   static Color floatingBarFill(BuildContext context) => _isDark(context)
-      ? const Color(0xFF182832).withValues(alpha: 0.88)
-      : Colors.white.withValues(alpha: 0.90);
+      ? const Color(0xFF182832).withValues(alpha: 0.84)
+      : Colors.white.withValues(alpha: 0.86);
 
   /// Single-layer drop under the floating tab capsule. No accent glow —
   /// cheaper than [glassShadow] and does not tint the home indicator.
   static List<BoxShadow> floatingBarShadow(BuildContext context) => [
         BoxShadow(
           color: _isDark(context)
-              ? Colors.black.withValues(alpha: 0.35)
-              : brandNavy.withValues(alpha: 0.12),
-          blurRadius: 10,
-          offset: const Offset(0, 4),
+              ? Colors.black.withValues(alpha: 0.24)
+              : brandNavy.withValues(alpha: 0.08),
+          blurRadius: 8,
+          offset: const Offset(0, 3),
         ),
       ];
 

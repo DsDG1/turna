@@ -10,6 +10,12 @@ class AnkiUnificationDao {
 
   final CourseDatabase _db;
 
+  /// Runs [action] inside a single database transaction so multi-row
+  /// identity writes are all-or-nothing (a thrown error rolls back every
+  /// insert in the batch).
+  Future<T> transaction<T>(Future<T> Function() action) =>
+      _db.transaction(action);
+
   Future<void> upsertIntroduction({
     required String courseId,
     required CanonicalCardKey key,

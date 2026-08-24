@@ -505,8 +505,81 @@ void main() {
       expect(ledger.undos, 1);
       expect(controller.rememberedCount, 0);
     });
+
+    // Regression matrix for the undo index bug: the undone card must be
+    // re-shown in EVERY timing, not just the end-of-session one. The old
+    // index math only handled `completed`; after the production auto
+    // continueNext the undone card was silently skipped, and in
+    // readyForNext the decrement landed on the card BEFORE the undone one.
+    for (final timing in _UndoTiming.values) {
+      test('undo re-shows the undone card (${timing.name})', () async {
+        final ledger = _FakeStudyLedger();
+        final items = [
+          for (var i = 1; i <= 3; i++)
+            StudyItem(
+              sessionItemId: 's$i',
+              courseId: courseId,
+              placementId: 'p-$i',
+              cardKey: key(i),
+              presentation: flipFor(key(i)),
+              mode: StudyMode.review,
+              ledgerOwner: StudyLedgerOwner.turnaFsrs,
+              capabilities: StudyCapabilities.forMode(StudyMode.review),
+            ),
+        ];
+        final controller = StudySessionController(
+          items: items,
+          ledgerResolver: StudyLedgerResolver(turna: ledger),
+        );
+        await controller.start();
+
+        Future<void> answerCurrent() async {
+          final item = controller.currentItem!;
+          controller.acceptPresentation(
+            _receipt(item, controller, PresentationSide.question),
+          );
+          await controller.revealAnswer();
+          controller.acceptPresentation(
+            _receipt(item, controller, PresentationSide.answer),
+          );
+          await controller.submitRecall(RecallOutcome.remembered);
+        }
+
+        switch (timing) {
+          case _UndoTiming.readyForNext:
+            await answerCurrent(); // s1 answered, not advanced yet
+          case _UndoTiming.showingNextQuestion:
+            await answerCurrent(); // s1 answered
+            await controller.continueNext(); // now loading s2
+          case _UndoTiming.completed:
+            await answerCurrent(); // s1
+            await controller.continueNext();
+            await answerCurrent(); // s2
+            await controller.continueNext();
+            await answerCurrent(); // s3
+            await controller.continueNext();
+            expect(controller.phase, StudyCardPhase.completed);
+        }
+        // The receipt being undone always belongs to the LAST answered
+        // card: s1 for the mid-session timings, s3 at completion.
+        final expected =
+            timing == _UndoTiming.completed ? 's3' : 's1';
+
+        expect(await controller.undoLast(), isTrue);
+        expect(ledger.undos, 1);
+        expect(controller.phase, StudyCardPhase.loadingQuestion);
+        expect(controller.currentItem!.sessionItemId, expected);
+        // One remembered commit was rolled back; earlier answers stay.
+        expect(
+          controller.rememberedCount,
+          timing == _UndoTiming.completed ? 2 : 0,
+        );
+      });
+    }
   });
 }
+
+enum _UndoTiming { readyForNext, showingNextQuestion, completed }
 
 PresentationReceipt _receipt(
   StudyItem item,

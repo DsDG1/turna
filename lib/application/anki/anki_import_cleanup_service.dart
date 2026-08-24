@@ -6,21 +6,22 @@ import 'package:turna/application/srs_provider.dart';
 import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/data/anki_note_dao.dart';
 import 'package:turna/data/anki_unification_dao.dart';
-import 'package:turna/data/course_repository.dart';
 import 'package:turna/data/review_history_dao.dart';
 import 'package:turna/domain/audio/anki_audio_resolver.dart';
+import 'package:turna/domain/repositories/i_course_repository.dart';
 
 /// Removes every persisted resource belonging to one Anki import.
 ///
-/// Keeping this operation in one place prevents force-replace/uninstall paths
-/// from leaving SRS rows, review history, NoteStore snapshots, media,
-/// decrypted HTML, unification rows, or mistake-log entries behind.
+/// This is the SINGLE uninstall saga — `AnkiDeckManager.uninstallDeck` and
+/// the import wizard's rollback both delegate here, so a step added for one
+/// caller cannot be missed by the other (that drift previously leaked deck
+/// index / issue / projection rows on every uninstall).
 class AnkiImportCleanupService {
-  final CourseRepository repository;
+  final ICourseRepository repository;
   final SrsProvider srsProvider;
   final AnkiImportDao importDao;
   final AnkiNoteDao noteDao;
-  final ReviewHistoryDao reviewHistoryDao;
+  final ReviewHistoryDao? reviewHistoryDao;
   final AnkiAudioResolver audioResolver;
   final AnkiUnificationDao? unificationDao;
   final MistakeProvider? mistakeProvider;
@@ -30,7 +31,7 @@ class AnkiImportCleanupService {
     required this.srsProvider,
     required this.importDao,
     required this.noteDao,
-    required this.reviewHistoryDao,
+    this.reviewHistoryDao,
     required this.audioResolver,
     this.unificationDao,
     this.mistakeProvider,
@@ -46,7 +47,7 @@ class AnkiImportCleanupService {
     }
     final prefix = 'anki-$importId-';
     await srsProvider.removeByPrefix(prefix);
-    await reviewHistoryDao.deleteByCardPrefix(prefix);
+    await reviewHistoryDao?.deleteByCardPrefix(prefix);
     await unificationDao?.deleteByCourseId(
       CardIntroductionEligibility.courseIdForLegacyImport(importId),
     );

@@ -31,6 +31,7 @@ import 'package:turna/application/anki_official/migration/official_anki_engine_k
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/import/anki_import_facade.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine_fake.dart';
+import 'package:turna/application/anki_official/engine/official_anki_native_availability.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
@@ -228,12 +229,16 @@ void main() {
     UnifiedAnkiImportOrchestrator.instance.reset();
     // Host tests run on linux; production official routing is android-only.
     OfficialAnkiCapabilityMatrix.overrideHostPlatformForTests = 'android';
+    // And the routing additionally requires the native library probe to pass
+    // (on this host no .so exists, which would degrade routing to legacy).
+    OfficialAnkiNativeAvailability.debugOverride = true;
     OfficialAnkiFeatureFlags.current =
         _capableFlags.copyWith(officialFirstImport: true);
   });
 
   tearDown(() async {
     OfficialAnkiCapabilityMatrix.overrideHostPlatformForTests = null;
+    OfficialAnkiNativeAvailability.debugOverride = null;
     OfficialAnkiFeatureFlags.current = savedFlags;
     OfficialAnkiCompositionRoot.session = savedSession;
     OfficialAnkiCompositionRoot.debugEngineOverride = null;

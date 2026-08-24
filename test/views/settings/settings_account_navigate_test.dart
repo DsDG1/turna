@@ -1,4 +1,4 @@
-// Widget test: Account "管理数据" navigates via constructor callback (no static).
+// Widget test: personalization owns cosmetics/goals, not duplicate data links.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -36,9 +36,7 @@ void main() {
     await getIt.reset();
   });
 
-  testWidgets('管理数据 tile invokes onNavigateToData callback', (tester) async {
-    var navigated = false;
-
+  testWidgets('个性化页只保留装扮与每日目标', (tester) async {
     await tester.pumpWidget(
       MultiProvider(
         providers: [
@@ -58,9 +56,7 @@ void main() {
         child: MaterialApp(
           home: Scaffold(
             body: SingleChildScrollView(
-              child: SettingsAccountSection(
-                onNavigateToData: () => navigated = true,
-              ),
+              child: const SettingsAccountSection(),
             ),
           ),
         ),
@@ -68,13 +64,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Action tile is below the fold on the default 800×600 test surface.
-    final target = find.text(AppStrings.accountDataManagementSubtitle);
-    await tester.ensureVisible(target);
-    await tester.pumpAndSettle();
-    await tester.tap(target);
-    await tester.pump();
-
-    expect(navigated, isTrue);
+    expect(find.text(AppStrings.cosmeticsTitle), findsOneWidget);
+    expect(find.text(AppStrings.accountGoalsTitle), findsOneWidget);
+    expect(find.text(AppStrings.accountDataManagementSubtitle), findsNothing);
+    expect(find.text(AppStrings.accountResetTitle), findsNothing);
   });
 }

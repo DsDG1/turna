@@ -872,6 +872,37 @@ Git 在每个 gitlink 上递归跑 `git status --porcelain=2`,内部子仓库的
 
 (以下仅给应用内置更新日志页使用,完整版见上方正文与 `assets/changelog.md`)
 
+### [0.7.1] - 2026-08-24
+
+### Added
+- AI 服务商预设刷新为 DeepSeek / Kimi / Qwen / MiMo,新增深度思考开关(推理字段默认关闭,用户显式开启)。
+- `CardRecognitionPipeline` 取代 `anki_notetype_ai`:签名版本化、去隐私样本特征、持久化规则与 AI 结果形状校验。
+- `StorageInventoryService` 只读扫描与存储诊断页,支持分类 / 孤儿检测及可再生缓存清理。
+- 宝石入账幂等账本(`earnGems`),成就解锁按幂等键入账避免重复发放。
+- `StreamDeltaCoalescer` 合并 AI 流式响应,降低 UI 重建开销。
+- `SettingsDestination` 描述符集中管理设置页标题 / 图标等元数据。
+- `CacheDiagnosticsRegistry` 支持按所有者隔离执行缓存清理并保留各自结果。
+- 牌组组装 section beta 语义分组(默认关闭,仅影响新导入)。
+- Accessibility / Language / Settings Provider 新增 reload 方法,备份恢复后无需重启即可刷新状态。
+
+### Changed
+- AI API Key 迁移至平台安全存储(Keychain / Keystore),不再写入明文偏好。
+- AI 讲解 / 提示 / 陪练三个 Provider 收敛到 `AiStreamingSessionBase`,统一流式取消、代际与增量应用。
+- 移除 AI 磁盘缓存镜像(io / web 实现),仅保留内存 LRU。
+- 成就连续天数改用真实学习 streak,保护券补签日不计入成就阈值。
+- `SystemHealthMonitor` 重构为状态机模型,分离 detected / acknowledged / mitigation / checkPassed / resolved。
+- 存储诊断页面重构为面向用户的"存储与性能"仪表板(使用率环图 + 分类卡片)。
+- 卸载 / 删除以 `legacy_anki_migrations` 判定归属,清理失败标记 `pending_cleanup` 并启动时自动重试。
+- 去重权威切换为持久化 inventory,删除导入时同步失效编排器进程内缓存。
+- 统一版本编号至 0.x 序列,移除 quick_start.md,以 ReleaseManifest 作为版本单一事实来源。
+- 移除无入口的配对游戏、字母描红，以及未使用的旧品牌图（Mala / 卡纳达语 / Duolingo 贴纸）。
+
+### Fixed
+- FSRS 热重载 swallow-all catch 改为 `isRegistered` 守卫。
+- 移除 ai_api_config_page 多余 `_disposed` 标志,修复生命周期处理。
+
+---
+
 ### [1.3.0] - 2026-08-15
 
 ### Added

@@ -600,6 +600,16 @@ class _OfficialAnkiInternalPageState extends State<OfficialAnkiInternalPage> {
   }
 
   Future<void> _seedP5cFixtureLegacy() async {
+    // Fixture seeding writes production course.db tables directly (pilot
+    // scaffolding); it must never run in a release/profile build even if the
+    // pilot dart-define leaks into one.
+    if (!kDebugMode) {
+      setState(() {
+        _status = 'dev_only';
+        _detail = 'fixture 种子仅在 debug 构建可用';
+      });
+      return;
+    }
     setState(() {
       _busy = true;
       _status = 'seeding_fixture';
@@ -984,6 +994,11 @@ class _OfficialAnkiInternalPageState extends State<OfficialAnkiInternalPage> {
   }
 
   Future<void> _seedD4Legacy(File fixture) async {
+    // Same dev-only rule as _seedP5cFixtureLegacy: no direct production-table
+    // writes outside debug builds.
+    if (!kDebugMode) {
+      throw StateError('fixture seeding is debug-only');
+    }
     final collection = await AnkiImporter().parse(fixture.path);
     const importId = _d4ImportId;
     final sourceHashReal = sha256.convert(await fixture.readAsBytes()).toString();

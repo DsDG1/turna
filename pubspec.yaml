@@ -1,5 +1,5 @@
 name: turna
-version: 0.7.0+1
+version: 0.7.1+2
 publish_to: 'none'
 environment:
   sdk: ">=3.2.3 <4.0.0"
@@ -111,7 +111,6 @@ flutter:
     - assets/sounds/
     - assets/images/
     - assets/images/turna/
-    - assets/images/mala/
     - assets/courses/
     - assets/courses/turkish/
     - assets/courses/turkish/sections/
